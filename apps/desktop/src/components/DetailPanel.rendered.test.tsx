@@ -197,16 +197,16 @@ it("distinguishes catalog saved-data declarations, retained installation rules a
     { ...port, persistent_paths: ["changed-provider-catalog-path"] },
     installRecord(),
   );
-  expect(managed).toContain("current catalog declarations do not establish");
-  expect(managed).toContain("installation files Portcove collects is unknown");
+  expect(managed).toContain("current catalog may describe a different version");
+  expect(managed).toContain("Portcove couldn’t confirm which files to copy");
   expect(managed).not.toContain("changed-provider-catalog-path");
   expect(managed).not.toContain("backup review");
   const retained = coverage(
     { ...preparedPort, persistent_paths: ["new-catalog-path"] },
     installRecord(),
   );
-  expect(retained).toContain("current catalog declarations do not establish");
-  expect(retained).toContain("installation files Portcove collects is unknown");
+  expect(retained).toContain("current catalog may describe a different version");
+  expect(retained).toContain("Portcove couldn’t confirm which files to copy");
   expect(retained).not.toContain("new-catalog-path");
   const external = coverage(preparedPort, null, {
     id: "external",

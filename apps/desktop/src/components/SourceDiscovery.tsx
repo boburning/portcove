@@ -123,15 +123,17 @@ export function sourceImportModePresentation(mode: string) {
 }
 
 export function SourceDiscoveryButton({
+  generation,
   profiles,
   disabled,
   onAdded,
 }: {
+  generation: number;
   profiles: SourceProfile[];
   disabled: boolean;
   onAdded?: (() => Promise<unknown>) | undefined;
 }) {
-  const [open, setOpen] = useState(false);
+  const [openGeneration, setOpenGeneration] = useState<number>();
   return (
     <>
       <Button
@@ -139,12 +141,17 @@ export function SourceDiscoveryButton({
         data-settings-control="discover-sources"
         variant="outline"
         disabled={disabled || profiles.length === 0}
-        onClick={() => setOpen(true)}
+        onClick={() => setOpenGeneration(generation)}
       >
         Find required files
       </Button>
-      {open && (
-        <SourceDiscoveryDialog profiles={profiles} onAdded={onAdded} close={() => setOpen(false)} />
+      {openGeneration === generation && (
+        <SourceDiscoveryDialog
+          generation={generation}
+          profiles={profiles}
+          onAdded={onAdded}
+          close={() => setOpenGeneration(undefined)}
+        />
       )}
     </>
   );
@@ -181,7 +188,7 @@ export function sourceImportRefreshNotice(result: SourceImportResult) {
   return `${sourceImportNotice(result)} The view couldn't refresh. Use Retry refresh to check the current state; the files were already added.`;
 }
 
-function useSourceDiscoveryWorkflow(onAdded?: () => Promise<unknown>) {
+function useSourceDiscoveryWorkflow(generation: number, onAdded?: () => Promise<unknown>) {
   const [root, setRoot] = useState("");
   const [profile, setProfile] = useState("");
   const [report, setReport] = useState<SourceDiscoveryReport>();
@@ -274,6 +281,7 @@ function useSourceDiscoveryWorkflow(onAdded?: () => Promise<unknown>) {
         plan.source.path,
         plan.mode,
         plan.plan_sha256,
+        generation,
         trackStart,
       );
       if (!result) {
@@ -499,16 +507,18 @@ export function SourceImportReview({
 }
 
 function SourceDiscoveryDialog({
+  generation,
   profiles,
   onAdded,
   close,
 }: {
+  generation: number;
   profiles: SourceProfile[];
   onAdded?: (() => Promise<unknown>) | undefined;
   close: () => void;
 }) {
   const heading = useRef<HTMLHeadingElement>(null);
-  const workflow = useSourceDiscoveryWorkflow(onAdded);
+  const workflow = useSourceDiscoveryWorkflow(generation, onAdded);
   const [profileSelectOpen, setProfileSelectOpen] = useState(false);
   const profileSelectOpenRef = useRef(false);
   const profileSelectDismissal = useRef(false);

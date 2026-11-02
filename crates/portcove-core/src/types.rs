@@ -239,6 +239,9 @@ pub struct SourceEdition {
 pub struct ManualSetupGuide {
     pub steps: Vec<ManualSetupStep>,
     pub warnings: Vec<String>,
+    /// Reference material, never an instruction to execute a setup action.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub references: Vec<ManualSetupStep>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub help_url: Option<String>,
 }
@@ -248,6 +251,15 @@ pub struct ManualSetupGuide {
 pub struct ManualSetupStep {
     pub title: String,
     pub instruction: String,
+}
+
+impl ManualSetupGuide {
+    /// Preserve every paragraph for readers of the original strict guide shape.
+    pub fn legacy(&self) -> Self {
+        let mut guide = self.clone();
+        guide.steps.append(&mut guide.references);
+        guide
+    }
 }
 
 /// Maintainer-reviewed catalog mapping. These public IDs never contain Twitch

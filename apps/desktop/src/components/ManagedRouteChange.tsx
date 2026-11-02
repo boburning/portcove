@@ -1,3 +1,4 @@
+import { AuthoredSetupWarnings } from "./AuthoredSetupWarnings";
 import { useId, useRef, useState } from "react";
 import { desktopApi } from "../api";
 import { gameIdentityLabel } from "../port-identity";
@@ -216,6 +217,7 @@ function ManagedRoutePreview({
           New installation folder:{" "}
           <code>{model.preview.installation.output_location.effective_output_directory}</code>
         </p>
+        <AuthoredSetupWarnings warnings={model.port.presentation?.manual_setup?.warnings} />
         {model.setup && (
           <p>
             <strong>{model.setup.title}.</strong> {model.setup.instruction}

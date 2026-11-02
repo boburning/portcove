@@ -1,3 +1,4 @@
+import { AuthoredSetupWarnings } from "./AuthoredSetupWarnings";
 import { ActionReviewFailure } from "./ActionReviewFailure";
 import { FolderOpen } from "lucide-react";
 import { gameIdentityLabel } from "../port-identity";
@@ -102,19 +103,7 @@ export function AuthoredPreparationGuidance({
     <>
       {guide ? (
         <>
-          {guide.warnings.length > 0 && (
-            <aside
-              aria-label="Before you begin"
-              className="border-pc-warning rounded-pc-md border bg-pc-warning-subtle p-3 text-pc-warning-foreground"
-            >
-              <h4 className="font-semibold">Before you begin</h4>
-              <ul className="mt-2 grid list-disc gap-2 pl-5">
-                {guide.warnings.map((warning) => (
-                  <li key={warning}>{warning}</li>
-                ))}
-              </ul>
-            </aside>
-          )}
+          <AuthoredSetupWarnings warnings={guide.warnings} />
           <ol className="grid min-w-0 list-decimal gap-4 pl-5 wrap-anywhere marker:font-semibold">
             {guide.steps.map((step, index) => (
               <li key={`${index}:${step.title}`} className="pl-1">
@@ -123,6 +112,21 @@ export function AuthoredPreparationGuidance({
               </li>
             ))}
           </ol>
+          {!!guide.references?.length && (
+            <details className="min-w-0 text-sm wrap-anywhere">
+              <summary data-focusable className="cursor-pointer font-medium">
+                Save locations and version notes
+              </summary>
+              <div className="mt-2 grid gap-3">
+                {guide.references.map((reference, index) => (
+                  <section key={`${index}:${reference.title}`}>
+                    <h4 className="font-semibold">{reference.title}</h4>
+                    <p>{reference.instruction}</p>
+                  </section>
+                ))}
+              </div>
+            </details>
+          )}
           {guide.help_url && (
             <ExternalLink href={guide.help_url}>Detailed preparation guide</ExternalLink>
           )}

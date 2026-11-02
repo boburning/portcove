@@ -13,6 +13,33 @@ import type { useGameComparison } from "./use-game-comparison";
 type Comparison = ReturnType<typeof useGameComparison>;
 type Assessment = NonNullable<GameComparison["assessment"]>;
 type Reason = Assessment["candidates"][number]["reasons"][number];
+type Evidence = Assessment["candidates"][number]["evidence"][number];
+const reportKinds: Record<Evidence["evidence"]["kind"], string> = {
+  "upstream-declared": "Reported by the project",
+  "artifact-inspected": "Download inspection",
+  "setup-observed": "Setup report",
+  "launch-observed": "Launch report",
+  "gameplay-observed": "Gameplay report",
+  "performance-observed": "Performance report",
+  "maintenance-observed": "Maintenance report",
+};
+const reportStates: Record<Evidence["disposition"], string> = {
+  current: "Applies to the selected options",
+  "historical-scope": "For a different game, version or setup",
+  "future-observation": "Dated after this comparison",
+  "unsupported-observation-kind": "This report type isn’t supported",
+  superseded: "Replaced by a newer report",
+  invalid: "This report couldn’t be checked",
+};
+const dimensionStates: Record<
+  Assessment["candidates"][number]["dimensions"][number]["state"],
+  string
+> = {
+  known: "Information available",
+  unknown: "Not enough information",
+  "not-applicable": "Doesn’t apply",
+  conflicting: "Reports disagree",
+};
 const reasons: Record<Reason, string> = {
   "different-game-or-edition":
     "This port uses a different game edition. You may need different original files.",
@@ -77,18 +104,18 @@ export function GameComparisonControls({ comparison }: { comparison: Comparison 
         : current.requirements.filter((requirement) => requirement !== id),
     }));
   return (
-    <section className="comparison-context" aria-label="Recommendation context" data-focus-group>
+    <section className="comparison-context" aria-label="Comparison options" data-focus-group>
       <header className="comparison-context-heading">
-        <h3 className="sr-only">Recorded comparison</h3>
+        <h3 className="sr-only">Compare these ports</h3>
         {comparison.enabled && (
           <p role="status" aria-live="polite" className="text-sm">
             {comparison.loading
               ? "Refreshing the selected comparison…"
               : comparison.failed
-                ? "Comparison evidence is unavailable. Ordinary project details and actions remain available."
+                ? "We couldn’t load this comparison. You can still open each project’s details and available actions."
                 : report?.assessment
                   ? statuses[report.assessment.status]
-                  : "No assessed recommendation for this context. Project details remain available."}
+                  : "We don’t have a recommendation for these options yet. You can still explore each project."}
           </p>
         )}
         {comparison.enabled && (
@@ -99,17 +126,17 @@ export function GameComparisonControls({ comparison }: { comparison: Comparison 
             disabled={comparison.loading}
             onClick={() => void comparison.refresh()}
           >
-            Refresh release observations
+            Refresh version information
           </Button>
         )}
       </header>
       <p className="text-xs text-pc-muted-foreground">
-        Setup and launch still use their own checks.
+        Refreshing checks version information. It doesn’t run the game or test your device.
       </p>
       {!comparison.enabled ? (
         <p role="status">
-          Comparison evidence is unavailable in this view. Project details and actions remain
-          available.
+          Comparison isn’t available in this view. You can still open each project’s details and
+          available actions.
         </p>
       ) : (
         <>
@@ -124,8 +151,8 @@ export function GameComparisonControls({ comparison }: { comparison: Comparison 
             ))}
 
             <p className="text-sm text-pc-muted-foreground">
-              Compare setup needs and recorded playing evidence. Installation and launch still use
-              their own checks.
+              Choose a game edition, platform and features to compare. Setup and Play availability
+              is shown in the project’s details.
             </p>
             <div className="flex flex-wrap gap-3">
               <ChoiceSelect
@@ -164,9 +191,9 @@ export function GameComparisonControls({ comparison }: { comparison: Comparison 
               />
               {environments.length > 0 && (
                 <ChoiceSelect
-                  label="Evidence environment"
+                  label="Platform and setup used in the report"
                   value={context.environment || "current"}
-                  description="Selecting a recorded environment inspects that context; it does not verify that your device matches."
+                  description="Choose a recorded setup to see its reports. Your device may differ."
                   options={[
                     { value: "current", label: "This device — test results unconfirmed" },
                     ...environments.map((environment) => ({
@@ -184,7 +211,7 @@ export function GameComparisonControls({ comparison }: { comparison: Comparison 
               )}
             </div>
             <fieldset className="flex flex-wrap gap-3 text-sm">
-              <legend>Required capabilities</legend>
+              <legend>Features you need</legend>
               {[
                 ["multiplayer", "Multiplayer"],
                 ["controller", "Controller support"],
@@ -236,7 +263,7 @@ export function GameComparisonEvidence({
   return (
     <section
       className="mt-3 space-y-2 border-t border-pc-border pt-3"
-      aria-label={`Evidence for ${port.name}`}
+      aria-label={`Reports and updates for ${port.name}`}
       data-focus-group
     >
       {recommended && <Chip>Suggested starting point</Chip>}
@@ -257,7 +284,7 @@ export function GameComparisonEvidence({
         }
       >
         <summary data-focusable className={`cursor-pointer text-sm font-medium ${controlFocus}`}>
-          {candidate ? "Why this port?" : "Evidence and updates"} — {port.name}
+          {candidate ? "Why this port?" : "Reports and updates"} — {port.name}
         </summary>
         <div className="mt-2 space-y-2 text-xs">
           {port.limitations.map((limitation) => (
@@ -265,7 +292,6 @@ export function GameComparisonEvidence({
           ))}
           {candidate ? (
             <>
-              <p>These reports and observations don’t predict successful play on your device.</p>
               {candidate.reasons.map((reason) => (
                 <p key={reason}>
                   {reason === "operation-held" && port.operation.kind === "held"
@@ -277,11 +303,7 @@ export function GameComparisonEvidence({
                 {candidate.dimensions.map((dimension) => (
                   <div key={dimension.dimension}>
                     <dt className="font-medium">{dimensions[dimension.dimension]}</dt>
-                    <dd>
-                      {dimension.state === "known"
-                        ? "Information available"
-                        : dimension.state.replaceAll("-", " ")}
-                    </dd>
+                    <dd>{dimensionStates[dimension.state]}</dd>
                   </div>
                 ))}
               </dl>
@@ -291,25 +313,29 @@ export function GameComparisonEvidence({
                   className="rounded-pc-sm border border-pc-border p-2 wrap-anywhere"
                 >
                   <p className="font-medium">
-                    {dimensions[record.evidence.dimension]} ·{" "}
-                    {record.evidence.kind.replaceAll("-", " ")} ·{" "}
-                    {record.disposition.replaceAll("-", " ")}
+                    {dimensions[record.evidence.dimension]} · {reportKinds[record.evidence.kind]} ·{" "}
+                    {reportStates[record.disposition]}
                   </p>
                   <p>{record.evidence.explanation}</p>
                   <p>
-                    Observed {time(record.evidence.observed_at)} for{" "}
-                    {record.evidence.scope.release_id}, {record.evidence.scope.platform},{" "}
-                    {record.evidence.scope.environment_id}.
+                    Reported {time(record.evidence.observed_at)} · Version{" "}
+                    {record.evidence.scope.release_id} ·{" "}
+                    {platformLabel(record.evidence.scope.platform)}.
                   </p>
                   <details>
                     <summary data-focusable className={controlFocus}>
                       Technical details
                     </summary>
                     <p>Download identity: {record.evidence.scope.artifact_id}</p>
+                    <p>Report setup: {record.evidence.scope.environment_id}</p>
                   </details>
                   <ExternalLink href={record.evidence.source}>Read the source</ExternalLink>
                 </div>
               ))}
+              <p>
+                Reports cover their listed version and setup. They don’t confirm successful play on
+                your device.
+              </p>
             </>
           ) : (
             <p>

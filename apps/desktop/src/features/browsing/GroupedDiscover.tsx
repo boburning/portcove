@@ -187,16 +187,16 @@ export function GroupedDiscover({
               </DialogTitle>
               <DialogDescription>
                 {comparison.ports.length === 1
-                  ? "Review this port’s requirements and recorded information."
+                  ? "Review this port’s setup requirements and reports."
                   : `Compare ${comparison.ports.length} port projects. Each keeps its own installation, files and saved data.`}
               </DialogDescription>
               <details className="my-4 text-xs text-pc-muted-foreground">
                 <summary data-focusable className="cursor-pointer py-2">
-                  Recorded evidence and comparison settings
+                  Comparison options and reports
                 </summary>
                 <p>
-                  Feature details are not available for every project. Check the recorded evidence
-                  and project instructions. Your saves and mods may not work with another port.
+                  Feature details are not available for every project. Check the reports and project
+                  instructions. Your saves and mods may not work with another port.
                 </p>
                 <GameComparisonControls comparison={evidence} />
               </details>
@@ -229,13 +229,6 @@ export function GroupedDiscover({
                           </p>
                         )}
                       </header>
-                      <div className="min-w-0">
-                        <GameComparisonEvidence
-                          comparison={evidence}
-                          portId={port.id}
-                          organization={organization}
-                        />
-                      </div>
                       <div>
                         <h4>How to set it up</h4>
                         <p>{installationMethodLabel(port)}</p>
@@ -258,6 +251,13 @@ export function GroupedDiscover({
                       <div>
                         <h4>Who handles updates</h4>
                         {renderComparisonOwnership(status)}
+                      </div>
+                      <div className="min-w-0">
+                        <GameComparisonEvidence
+                          comparison={evidence}
+                          portId={port.id}
+                          organization={organization}
+                        />
                       </div>
                       <div>
                         <h4>Current status</h4>

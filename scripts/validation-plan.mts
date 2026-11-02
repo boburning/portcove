@@ -254,6 +254,7 @@ const nativeScenarioFiles = new Set([
   "apps/desktop/scripts/cli-command-shell.native.test.mts",
   "apps/desktop/scripts/desktop-preparation-test.mts",
   "apps/desktop/scripts/desktop-source-dialog-test.mts",
+  "apps/desktop/scripts/desktop-source-intake-boundaries-test.mts",
   "apps/desktop/scripts/desktop-test.mts",
   "apps/desktop/scripts/testdata/catalog-artwork-blue.jpg",
   "apps/desktop/scripts/testdata/catalog-artwork-red.jpg",

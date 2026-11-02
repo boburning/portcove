@@ -625,6 +625,7 @@ export const desktopApi = {
     path: string,
     mode: SourceImportMode,
     expectedPlan: string,
+    generation: number,
     onEvent?: (event: OperationEvent) => void,
   ) => {
     const channel = new Channel<OperationEvent>();
@@ -634,6 +635,7 @@ export const desktopApi = {
       path,
       mode,
       expectedPlan,
+      generation,
       onEvent: channel,
     });
   },

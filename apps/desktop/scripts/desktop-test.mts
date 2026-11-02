@@ -2542,7 +2542,13 @@ try {
       if (installFixture.preliminaryJourney)
         for (const name of ["path", "before"] as const)
           inputs.push(await fileIdentity(installFixture.preliminaryJourney[name]));
-      for (const name of ["gameBefore", "gameReplacement", "biosBefore"] as const)
+      for (const name of [
+        "gameBefore",
+        "gameReplacement",
+        "biosBefore",
+        "ambiguousPath",
+        "unsupportedPath",
+      ] as const)
         inputs.push(await fileIdentity(installFixture.sourceJourney[name]));
       if (installFixture.completionJourney && ["win32", "linux"].includes(process.platform)) {
         installFixture.nativeConnectionJourney = true;

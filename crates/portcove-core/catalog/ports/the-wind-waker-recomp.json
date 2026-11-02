@@ -20,15 +20,23 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Understand the current development limit",
-          "instruction": "This project currently demonstrates the Wind Waker renderer and framework, with the frame loop driven manually; it is not yet the game. Its Windows ww_launcher.exe is that development renderer. Follow upstream’s developer instructions with your own disc/main.dol only if you are preparing or retaining this experimental renderer; preserve its working directory and documented --iso arguments. Do not select gcrecomp_recompiler.exe as the runtime. A playable game route still requires upstream runtime completion."
-        },
-        {
-          "title": "Keep your files and update through upstream",
-          "instruction": "Keep any existing prepared development copy in a separate folder you control. Portcove can retain a non-owning registration of that runtime after read-only executable review; launching remains a separate explicit action. You or upstream keep its updates, original files, generated data, saves and settings. Portcove does not supply a playable package, replace this runtime, or back it up or roll it back."
+          "title": "Keep an existing prepared development copy",
+          "instruction": "Keep any existing prepared development copy in a separate folder you control. Portcove can retain a non-owning registration of that runtime after read-only executable review; launching remains a separate explicit action."
         }
       ],
-      "warnings": [],
+      "warnings": [
+        "This project currently demonstrates the Wind Waker renderer and framework, with the frame loop driven manually; it is not yet the game. Its Windows ww_launcher.exe is that development renderer. Do not select gcrecomp_recompiler.exe as the runtime. A playable game route still requires upstream runtime completion."
+      ],
+      "references": [
+        {
+          "title": "Developer renderer preparation details",
+          "instruction": "Follow upstream’s developer instructions with your own disc/main.dol only if you are preparing or retaining this experimental renderer; preserve its working directory and documented --iso arguments."
+        },
+        {
+          "title": "Maintenance and registration scope",
+          "instruction": "You or upstream keep its updates, original files, generated data, saves and settings. Portcove does not supply a playable package, replace this runtime, or back it up or roll it back."
+        }
+      ],
       "help_url": "https://github.com/sp00nznet/ww#readme"
     }
   }

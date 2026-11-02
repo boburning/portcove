@@ -19,11 +19,11 @@ const buttonVariants = cva(
         selected:
           "relative border-transparent bg-pc-selection text-pc-selection-foreground after:pointer-events-none after:absolute after:inset-x-2 after:bottom-0 after:border-b-2 after:border-current hover:bg-pc-selection hover:text-pc-selection-foreground active:bg-[var(--color-interactive-active)] active:text-pc-action-foreground",
         outline:
-          "border-pc-border bg-pc-background text-pc-selection-foreground hover:bg-pc-surface-muted hover:text-pc-foreground aria-expanded:bg-pc-surface-muted aria-expanded:text-pc-foreground dark:border-pc-border dark:bg-pc-surface/70 dark:hover:bg-pc-surface-muted/50",
+          "border-pc-border bg-pc-background text-pc-selection-foreground hover:bg-pc-surface-muted hover:text-pc-foreground aria-expanded:bg-pc-surface-muted aria-expanded:text-pc-foreground dark:border-pc-border dark:bg-pc-surface/70 dark:hover:not-active:bg-pc-surface-muted/50",
         secondary:
           "bg-pc-secondary text-pc-secondary-foreground hover:bg-pc-surface-muted aria-expanded:bg-pc-secondary aria-expanded:text-pc-secondary-foreground",
         ghost:
-          "bg-transparent hover:bg-pc-surface-muted hover:text-pc-foreground aria-expanded:bg-pc-surface-muted aria-expanded:text-pc-foreground dark:hover:bg-pc-surface-muted/50",
+          "bg-transparent hover:bg-pc-surface-muted hover:text-pc-foreground aria-expanded:bg-pc-surface-muted aria-expanded:text-pc-foreground dark:hover:not-active:bg-pc-surface-muted/50",
         destructive:
           "border-pc-danger bg-pc-danger-subtle font-medium text-pc-danger-strong hover:border-pc-danger-surface hover:bg-pc-danger-surface hover:text-pc-action-foreground dark:bg-pc-danger/20",
         link: "bg-transparent text-pc-interactive-foreground underline-offset-4 hover:underline",

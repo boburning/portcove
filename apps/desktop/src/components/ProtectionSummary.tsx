@@ -14,12 +14,14 @@ const pathLabels: Record<Protection["managed_data"]["state"], string> = {
 const collectionLabels: Record<Installation["collection"], string> = {
   selected_for_collection:
     "These files may be included in the next backup. They’ll be checked before copying.",
-  direct_to_managed_data: "Writes directly to the managed data folder",
-  not_initialized: "Save collection hasn’t been set up yet",
+  direct_to_managed_data:
+    "This installation writes saves and settings directly to Portcove’s folder. They’re checked before a new backup is made.",
+  not_initialized:
+    "Portcove hasn’t selected files to copy from this installation yet. Files already in Portcove’s saves and settings folder may still be backed up.",
   inactive:
     "This version isn’t in use. New backups won’t collect files from its installation folder.",
   external_not_collected: "Portcove won’t collect saves from this installation’s folder",
-  unavailable: "We couldn’t confirm which files can be backed up",
+  unavailable: "Portcove couldn’t confirm which files this installation can add to a new backup.",
 };
 
 /** Presentation only. Existing Core assessments and reviewed actions own eligibility. */
@@ -68,7 +70,16 @@ export function ProtectionSummary({
         <>
           <p>{current ? "Latest backup information" : "Last loaded backup information"}</p>
           {protection.problem && (
-            <p role="status">We couldn’t load all backup information: {protection.problem}</p>
+            <div role="status">
+              <p>
+                Some installation information couldn’t be loaded. Check the details and refresh
+                backup history.
+              </p>
+              <details>
+                <summary data-focusable>Installation check details</summary>
+                <p>{protection.problem}</p>
+              </details>
+            </div>
           )}
           {!protection.installations.length && !protection.problem && (
             <p>No installation is recorded. Choose an installation to see who handles updates.</p>
@@ -80,14 +91,19 @@ export function ProtectionSummary({
             </p>
           )}
           {protection.latest_completed_backup ? (
-            <p>
-              {current && complete ? "Latest completed backup" : "Last known completed backup"}:{" "}
-              {new Date(protection.latest_completed_backup.created_at * 1000).toLocaleString()} ·{" "}
-              <code>{protection.latest_completed_backup.id}</code> ·{" "}
-              {protection.latest_completed_backup.file_count} files. This backup is shared by this
-              game’s port versions. Review its files before restoring; older versions may not be
-              able to use these saves.
-            </p>
+            <div>
+              <p>
+                {current && complete ? "Latest completed backup" : "Last known completed backup"}:{" "}
+                {new Date(protection.latest_completed_backup.created_at * 1000).toLocaleString()} ·{" "}
+                {protection.latest_completed_backup.file_count} files. Backup history is shared
+                across this port’s installed versions. Choose Restore in Backup history to review
+                the files before confirming. Another version may not be able to use these saves.
+              </p>
+              <details>
+                <summary data-focusable>Backup identifier</summary>
+                <code>{protection.latest_completed_backup.id}</code>
+              </details>
+            </div>
           ) : (
             <p>
               {!complete
@@ -118,10 +134,21 @@ export function ProtectionSummary({
                 {install.update_owner === "portcove" ? "Portcove" : "the game’s launcher or you"}.
               </p>
               <p>{collectionLabels[install.collection]}</p>
-              {install.problem && <p role="status">{install.problem}</p>}
+              {!install.retained && install.role !== "external" && (
+                <p>
+                  Backup rules for this installation are unavailable. The current catalog may
+                  describe a different version, so it can’t confirm which files this copy uses.
+                </p>
+              )}
+              {install.problem && (
+                <details>
+                  <summary data-focusable>Backup check details</summary>
+                  <p>{install.problem}</p>
+                </details>
+              )}
               {install.collection_root && (
                 <p>
-                  Files checked for the next backup: <code>{install.collection_root}</code>
+                  Where these files were found: <code>{install.collection_root}</code>
                 </p>
               )}
               {!!install.collection_candidates.length && (
@@ -150,10 +177,6 @@ export function ProtectionSummary({
           {protection.exclusions.map((text) => (
             <p key={text}>{text}</p>
           ))}
-          <p>
-            Switching to an older game version does not restore older saves. Newer saves may not
-            work with it. To restore saved data, choose a backup in backup history.
-          </p>
         </>
       )}
     </section>

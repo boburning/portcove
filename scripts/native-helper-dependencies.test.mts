@@ -409,6 +409,7 @@ void test("native receipt capture binds schema validation and reproduction input
     "apps/desktop/scripts/desktop-game-first-test.mts",
     "scripts/desktop-game-first-installed-inputs.mts",
     "apps/desktop/scripts/transport-values.mts",
+    "apps/desktop/scripts/desktop-source-intake-boundaries-test.mts",
     "apps/desktop/src/port-identity.ts",
     "apps/desktop/src/interface-size-controller.ts",
     "apps/desktop/src/transport-schemas.generated.json",

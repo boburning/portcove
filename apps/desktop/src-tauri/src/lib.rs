@@ -1145,6 +1145,7 @@ fn plan_source_import_for(
 async fn import_source(
     app: tauri::AppHandle,
     state: tauri::State<'_, DesktopState>,
+    generation: u64,
     profile_id: String,
     path: PathBuf,
     mode: SourceImportMode,
@@ -1152,7 +1153,7 @@ async fn import_source(
     on_event: tauri::ipc::Channel<OperationEvent>,
 ) -> DesktopResult<Option<SourceImportResult>> {
     if mode == SourceImportMode::Move {
-        let reviewed = blocking_service(state.inner().clone(), {
+        let reviewed = blocking_service_at_generation(state.inner().clone(), generation, {
             let profile_id = profile_id.clone();
             let path = path.clone();
             move |service| plan_source_import_for(&service, &profile_id, &path, mode)
@@ -1177,7 +1178,35 @@ async fn import_source(
             return Ok(None);
         }
     }
-    blocking_service(state.inner().clone(), move |service| {
+    import_confirmed_source_at_generation(
+        state.inner().clone(),
+        generation,
+        profile_id,
+        path,
+        mode,
+        expected_plan,
+        move |event| {
+            let _ = on_event.send(event);
+        },
+    )
+    .await
+}
+
+// Move reaches this worker only after the native confirmation above. The worker
+// resolves and checks the original generation again, including after confirmation.
+async fn import_confirmed_source_at_generation<F>(
+    state: DesktopState,
+    generation: u64,
+    profile_id: String,
+    path: PathBuf,
+    mode: SourceImportMode,
+    expected_plan: String,
+    emit: F,
+) -> DesktopResult<Option<SourceImportResult>>
+where
+    F: FnMut(OperationEvent) + Send + 'static,
+{
+    blocking_service_at_generation(state, generation, move |service| {
         import_source_for(
             &service,
             &profile_id,
@@ -1185,9 +1214,7 @@ async fn import_source(
             mode,
             &expected_plan,
             mode == SourceImportMode::Move,
-            |event| {
-                let _ = on_event.send(event);
-            },
+            emit,
         )
         .map(Some)
     })
@@ -2970,6 +2997,89 @@ mod tests {
         .await
         .unwrap();
         assert_eq!(actual_root, replacement_root);
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn source_import_keeps_reviewed_generation_through_dispatch_and_move_confirmation() {
+        for mode in [SourceImportMode::UseCurrentLocation, SourceImportMode::Move] {
+            let temporary = tempfile::tempdir().unwrap();
+            let original = initialize_desktop_at(Some(temporary.path().join("original"))).unwrap();
+            let original_library = original.library.clone();
+            let replacement =
+                initialize_desktop_at(Some(temporary.path().join("replacement"))).unwrap();
+            let replacement_library = replacement.library.clone();
+            let selected = temporary.path().join("selected.iso");
+            let bytes = b"owned source-import generation fixture";
+            std::fs::write(&selected, bytes).unwrap();
+            let profile = "opengoal-jak1-disc";
+            let state = DesktopState {
+                initialization: std::sync::Arc::new(std::sync::Mutex::new(Ok(original))),
+                preferences: HostPreferenceStore::new(temporary.path().join("preferences.json"))
+                    .map_err(DesktopError::from),
+                generation: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(7)),
+                launch_observer: std::sync::Arc::new(std::sync::Mutex::new(None)),
+            };
+            let plan = plan_source_import_for(
+                &service_at_generation(&state, 7).unwrap(),
+                profile,
+                &selected,
+                mode,
+            )
+            .unwrap();
+            if mode == SourceImportMode::UseCurrentLocation {
+                // An otherwise identical Core plan is valid in both empty libraries.
+                // Only the captured host generation can fence a delayed UI request.
+                let other = PortcoveService::new(replacement_library.clone()).unwrap();
+                let other_plan = other.plan_source_import(profile, &selected, mode).unwrap();
+                assert_eq!(plan.plan_sha256, other_plan.plan_sha256);
+            }
+            let old_activities =
+                serde_json::to_value(original_library.activities(100).unwrap()).unwrap();
+            let new_activities =
+                serde_json::to_value(replacement_library.activities(100).unwrap()).unwrap();
+            let events = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
+            let observed = events.clone();
+            let mut request = Box::pin(import_confirmed_source_at_generation(
+                state.clone(),
+                7,
+                profile.into(),
+                selected.clone(),
+                mode,
+                plan.plan_sha256,
+                move |_| {
+                    observed.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                },
+            ));
+            {
+                let mut initialization = state.initialization.lock().unwrap();
+                if mode == SourceImportMode::UseCurrentLocation {
+                    let mut context =
+                        std::task::Context::from_waker(futures_util::task::noop_waker_ref());
+                    assert!(request.as_mut().poll(&mut context).is_pending());
+                }
+                // For Move this is the switch while native confirmation was open:
+                // its post-confirmation mutation request has not been dispatched yet.
+                *initialization = Ok(replacement);
+                state
+                    .generation
+                    .store(8, std::sync::atomic::Ordering::Release);
+            }
+            let error = request.await.unwrap_err();
+            assert_eq!(error.code, portcove_core::ErrorCode::Conflict);
+            assert!(error.message.contains("open library changed"));
+            assert_eq!(events.load(std::sync::atomic::Ordering::Relaxed), 0);
+            assert!(original_library.source(profile).unwrap().is_none());
+            assert!(replacement_library.source(profile).unwrap().is_none());
+            assert_eq!(
+                serde_json::to_value(original_library.activities(100).unwrap()).unwrap(),
+                old_activities
+            );
+            assert_eq!(
+                serde_json::to_value(replacement_library.activities(100).unwrap()).unwrap(),
+                new_activities
+            );
+            assert_eq!(std::fs::read(&selected).unwrap(), bytes);
+        }
     }
 
     #[tokio::test(flavor = "current_thread")]

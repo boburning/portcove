@@ -440,6 +440,33 @@ pub(crate) fn catalog_show(port: &PortDefinition) -> String {
                 source_verification(requirement.verification)
             ));
         }
+        if let Some(guide) = &presentation.manual_setup {
+            for warning in &guide.warnings {
+                lines.push(format!("Before you begin: {}", clean(warning)));
+            }
+            lines.push("Setup steps:".into());
+            for (index, step) in guide.steps.iter().enumerate() {
+                lines.push(format!(
+                    "{}. {}: {}",
+                    index + 1,
+                    clean(&step.title),
+                    clean(&step.instruction)
+                ));
+            }
+            if !guide.references.is_empty() {
+                lines.push("Save locations and version notes:".into());
+                for reference in &guide.references {
+                    lines.push(format!(
+                        "{}: {}",
+                        clean(&reference.title),
+                        clean(&reference.instruction)
+                    ));
+                }
+            }
+            if let Some(url) = &guide.help_url {
+                lines.push(format!("Detailed preparation guide: {}", clean(url)));
+            }
+        }
         if let Some(instructions) = &presentation.manual_preparation {
             lines.push(format!("Preparation: {}", clean(instructions)));
         }

@@ -283,3 +283,86 @@ fn missing_subcommand_keeps_machine_parser_envelope_and_actionable_help_guidance
     assert_eq!(reports[0], reports[1]);
     assert!(!temporary.path().join("library").exists());
 }
+
+#[test]
+fn setup_references_reach_human_current_and_explicit_legacy_consumers() {
+    let temporary = tempfile::tempdir().unwrap();
+    let human = invoke(temporary.path(), &["catalog", "show", "render96ex"]);
+    assert!(human.status.success(), "{human:?}");
+    let text = String::from_utf8(human.stdout).unwrap();
+    assert!(text.contains("Separate program folders can share saves."));
+    assert!(text.contains("1. Set up Render96 before adding it"));
+    assert!(text.contains("Save locations and version notes"));
+    assert!(!text.contains("3. Build output"));
+    let current = invoke(
+        temporary.path(),
+        &["--json", "catalog", "show", "render96ex"],
+    );
+    assert!(current.status.success(), "{current:?}");
+    let current: Value = serde_json::from_slice(&current.stdout).unwrap();
+    assert_eq!(current["schema_version"], 86);
+    assert_eq!(
+        current["data"]["presentation"]["manual_setup"]["references"]
+            .as_array()
+            .unwrap()
+            .len(),
+        3
+    );
+    let schema = "2";
+    let output = invoke(
+        temporary.path(),
+        &["--json", "catalog", "export", "--schema-version", schema],
+    );
+    assert!(output.status.success(), "{output:?}");
+    let output: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let data = &output["data"];
+    assert_eq!(data["schema_version"].as_u64().unwrap().to_string(), schema);
+    let port = data["ports"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|port| port["id"] == "render96ex")
+        .unwrap();
+    let guide = &port["presentation"]["manual_setup"];
+    assert!(guide.get("references").is_none());
+    assert_eq!(guide["steps"].as_array().unwrap().len(), 5);
+    let loaded = portcove_core::Catalog::from_json(&data.to_string()).unwrap();
+    assert!(
+        loaded
+            .port("render96ex")
+            .unwrap()
+            .presentation
+            .as_ref()
+            .unwrap()
+            .manual_setup
+            .as_ref()
+            .unwrap()
+            .references
+            .is_empty()
+    );
+    let legacy = invoke(
+        temporary.path(),
+        &["--json", "catalog", "listings", "--format-version", "5"],
+    );
+    assert!(legacy.status.success(), "{legacy:?}");
+    let legacy: Value = serde_json::from_slice(&legacy.stdout).unwrap();
+    let doc =
+        portcove_core::CatalogListingDocument::from_json(&legacy["data"].to_string()).unwrap();
+    assert_eq!(doc.format_version, 5);
+    let guide = doc
+        .listings
+        .iter()
+        .find(|listing| listing.id == "syphon-filter-sf-pc-port")
+        .unwrap()
+        .manual_setup
+        .as_ref()
+        .unwrap();
+    assert!(guide.references.is_empty());
+    assert_eq!(guide.steps.len(), 7);
+    assert!(
+        guide
+            .steps
+            .iter()
+            .any(|step| step.instruction.contains("historical observation"))
+    );
+}

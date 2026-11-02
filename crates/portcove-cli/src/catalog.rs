@@ -67,9 +67,17 @@ pub(crate) enum CatalogCommand {
     /// List ports in the active catalog.
     List,
     /// Export the complete active catalog document.
-    Export,
+    Export {
+        /// Catalog document schema; 1 and 2 preserve references as legacy flat steps.
+        #[arg(long)]
+        schema_version: Option<u32>,
+    },
     /// Export every descriptive listing, including projects without a managed integration.
-    Listings,
+    Listings {
+        /// Listing document format; 5 preserves references as legacy flat steps.
+        #[arg(long)]
+        format_version: Option<u32>,
+    },
     /// Show one port's channels, platform, and source requirements.
     Show {
         /// Catalog port ID; run `portcove catalog list` to find it.
@@ -207,8 +215,8 @@ impl CatalogCommand {
         match self {
             Self::Compare { .. } => "catalog.compare",
             Self::List => "catalog.list",
-            Self::Export => "catalog.export",
-            Self::Listings => "catalog.listings",
+            Self::Export { .. } => "catalog.export",
+            Self::Listings { .. } => "catalog.listings",
             Self::Show { .. } => "catalog.show",
             Self::CheckCapabilities { .. } => "catalog.check-capabilities",
             Self::InspectProposal { .. } => "catalog.inspect-proposal",
@@ -271,11 +279,24 @@ pub(crate) async fn execute(
                 human::catalog_list(ports)
             })
         }
-        CatalogCommand::Export => render_success(mode, name, service.catalog().document().clone()),
-        CatalogCommand::Listings => render_read_success(
+        CatalogCommand::Export { schema_version } => render_success(
             mode,
             name,
-            service.catalog().listing_document().clone(),
+            service.catalog().export_document(
+                schema_version.unwrap_or(service.catalog().document().schema_version),
+            )?,
+        ),
+        CatalogCommand::Listings { format_version } => render_read_success(
+            mode,
+            name,
+            if let Some(version) = format_version {
+                service
+                    .catalog()
+                    .listing_document()
+                    .export_format(version)?
+            } else {
+                service.catalog().listing_document().clone()
+            },
             |document| {
                 document
                     .listings

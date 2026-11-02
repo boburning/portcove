@@ -81,6 +81,7 @@ const request = (
   purpose: SourceIntakeRequest["purpose"] = "game",
   selectedProfile: SourceProfile = profile,
 ): SourceIntakeRequest => ({
+  generation: 7,
   portId: "port",
   portName: "Example Port",
   profile: selectedProfile,
@@ -294,6 +295,40 @@ describe("source intake dialog", () => {
     expect(button("Return to game")!.disabled).toBe(false);
     expect(button("Copy into Portcove")).toBeUndefined();
     expect(button("Use current location")).toBeUndefined();
+  });
+
+  it("keeps an in-flight import bound to its original library and discards its completion after switching", async () => {
+    const apply = prepareImport();
+    const pending = deferred<SourceImportResult | null>();
+    apply.mockReturnValueOnce(pending.promise);
+    const added = vi.fn();
+    await openImportReview(added);
+    await act(async () => button("Copy into Portcove")!.click());
+    expect(apply).toHaveBeenCalledWith(profile.id, "D:/Game.z64", "copy", "c".repeat(64), 7);
+    await root.rerender(
+      <SourceIntakeDialog
+        request={{ ...request(["D:/Game.z64"]), generation: 8 }}
+        close={vi.fn()}
+        onAdded={added}
+      />,
+    );
+    await act(async () =>
+      pending.resolve({
+        import_id: "old-library-import",
+        profile_id: profile.id,
+        mode: "copy",
+        outcome: "copied",
+        registered: record("D:/Inbox/Game.z64"),
+        copied: true,
+        original_deleted: false,
+        original_retained: true,
+        retained_original_path: "D:/Game.z64",
+        recovered: false,
+      }),
+    );
+    expect(added).not.toHaveBeenCalled();
+    expect(document.body.textContent).not.toContain("File location saved");
+    expect(apply).toHaveBeenCalledOnce();
   });
 
   it("returns focus to the current same-game action when saving replaces its opener", async () => {

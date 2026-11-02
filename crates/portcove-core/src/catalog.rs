@@ -127,7 +127,7 @@ impl Catalog {
                     ));
                 }
             }
-            2 => {
+            2 | 3 => {
                 let source_catalog = document.source_catalog.as_ref().ok_or_else(|| {
                     PortcoveError::usage("catalog schema 2 is missing source_catalog")
                 })?;
@@ -171,6 +171,33 @@ impl Catalog {
 
     pub fn document(&self) -> &CatalogDocument {
         &self.document
+    }
+
+    /// Export the requested catalog shape without discarding guide reference text.
+    pub fn export_document(&self, schema_version: u32) -> Result<CatalogDocument> {
+        if !matches!(schema_version, 1..=3) {
+            return Err(PortcoveError::unsupported(
+                "unsupported catalog export schema",
+            ));
+        }
+        let mut document = self.document.as_ref().clone();
+        document.schema_version = schema_version;
+        if schema_version < 3 {
+            for port in &mut document.ports {
+                if let Some(guide) = port
+                    .presentation
+                    .as_mut()
+                    .and_then(|value| value.manual_setup.as_mut())
+                {
+                    *guide = guide.legacy();
+                }
+            }
+        }
+        if schema_version == 1 {
+            document.source_catalog = None;
+        }
+        Self::from_document(document.clone())?;
+        Ok(document)
     }
 
     pub(crate) fn retain_definition_snapshot(
@@ -260,7 +287,7 @@ impl Catalog {
     }
 
     pub fn validate(&self) -> Result<()> {
-        if !matches!(self.document.schema_version, 1 | 2) {
+        if !matches!(self.document.schema_version, 1..=3) {
             return Err(PortcoveError::unsupported(format!(
                 "catalog schema {} is not supported",
                 self.document.schema_version
@@ -596,6 +623,11 @@ impl Catalog {
                     }
                 }
                 if let Some(guide) = &presentation.manual_setup {
+                    if self.document.schema_version < 3 && !guide.references.is_empty() {
+                        return Err(PortcoveError::unsupported(
+                            "setup references require catalog schema 3",
+                        ));
+                    }
                     let invalid_text = |text: &str| {
                         text.trim().is_empty()
                             || text.trim() != text
@@ -614,8 +646,9 @@ impl Catalog {
                             }
                     });
                     if !(1..=8).contains(&guide.steps.len())
+                        || guide.steps.len() + guide.references.len() > 8
                         || guide.warnings.len() > 8
-                        || guide.steps.iter().any(|step| {
+                        || guide.steps.iter().chain(&guide.references).any(|step| {
                             invalid_text(&step.title) || invalid_text(&step.instruction)
                         })
                         || guide.warnings.iter().any(|warning| invalid_text(warning))
@@ -775,7 +808,7 @@ impl Catalog {
             // Maintenance state describes the upstream; exact source and operation
             // contracts decide whether this port can be admitted and used.
             if !port.release.curated.is_empty() {
-                if self.document.schema_version != 2
+                if !matches!(self.document.schema_version, 2 | 3)
                     || port.release.provider != ReleaseSource::Github
                 {
                     return Err(PortcoveError::unsupported(
@@ -2784,7 +2817,9 @@ mod tests {
     #[test]
     fn schema_2_compatibility_projection_preserves_every_schema_1_profile() {
         let legacy = Catalog::from_json(SCHEMA_1_CATALOG_FIXTURE).unwrap();
-        let migrated = Catalog::embedded().unwrap();
+        let migrated =
+            Catalog::from_document(Catalog::embedded().unwrap().export_document(2).unwrap())
+                .unwrap();
         let additions = reviewed_legacy_additions(&legacy, &migrated);
         assert_eq!(migrated.document().schema_version, 2);
         let source_catalog = migrated.source_catalog().expect("schema-2 authority");
@@ -7195,6 +7230,64 @@ mod tests {
         overlapping.setup_output_paths = vec![overlapping.persistent_paths[0].clone()];
         overlapping.setup_marker = Some(overlapping.persistent_paths[0].clone());
         assert!(crate::preparation::validate_output_contract(&overlapping).is_err());
+    }
+    #[test]
+    fn setup_references_require_a_new_format_and_legacy_exports_keep_every_section() {
+        let catalog = Catalog::embedded().unwrap();
+        assert_eq!(catalog.document().schema_version, 3);
+        let current = catalog
+            .port("render96ex")
+            .unwrap()
+            .presentation
+            .as_ref()
+            .unwrap()
+            .manual_setup
+            .as_ref()
+            .unwrap();
+        assert_eq!(current.steps.len(), 2);
+        assert_eq!(current.references.len(), 3);
+        let mut old = catalog.authoritative_document();
+        old.schema_version = 2;
+        assert!(
+            Catalog::from_document(old)
+                .unwrap_err()
+                .message
+                .contains("references require")
+        );
+        let mut absent = catalog.authoritative_document();
+        absent.source_catalog = None;
+        assert!(Catalog::from_document(absent).is_err());
+        let version = 2;
+        let exported = catalog.export_document(version).unwrap();
+        let parsed = Catalog::from_document(exported).unwrap();
+        let guide = parsed
+            .port("render96ex")
+            .unwrap()
+            .presentation
+            .as_ref()
+            .unwrap()
+            .manual_setup
+            .as_ref()
+            .unwrap();
+        assert_eq!(guide.steps, current.legacy().steps);
+        assert_eq!(guide.warnings, current.warnings);
+        assert!(guide.references.is_empty());
+        assert!(
+            !serde_json::to_value(guide)
+                .unwrap()
+                .as_object()
+                .unwrap()
+                .contains_key("references")
+        );
+        let mut invalid = serde_json::to_value(catalog.authoritative_document()).unwrap();
+        let guide = &mut invalid["ports"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|port| port["id"] == "render96ex")
+            .unwrap()["presentation"]["manual_setup"];
+        guide["references"][0]["unknown"] = true.into();
+        assert!(Catalog::from_json(&invalid.to_string()).is_err());
     }
 }
 

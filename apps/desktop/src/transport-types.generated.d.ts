@@ -1472,6 +1472,10 @@ export interface SetupExplanation {
  */
 export interface ManualSetupGuide {
   help_url?: string | null;
+  /**
+   * Reference material, never an instruction to execute a setup action.
+   */
+  references?: ManualSetupStep[];
   steps: ManualSetupStep[];
   warnings: string[];
 }

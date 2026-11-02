@@ -1804,6 +1804,15 @@ for (const [file, tests] of [
     "apps/desktop/scripts/desktop-source-dialog-test.mts",
     ["scripts/desktop-scenarios.test.mts", "scripts/desktop-boundary-wiring.test.mts"],
   ],
+  [
+    "apps/desktop/scripts/desktop-source-intake-boundaries-test.mts",
+    [
+      "scripts/desktop-scenarios.test.mts",
+      "scripts/desktop-execution-plan.test.mts",
+      "scripts/desktop-boundary-wiring.test.mts",
+      "scripts/fixture-module-closure.test.mts",
+    ],
+  ],
   ...[
     "apps/desktop/scripts/desktop-review-controls.mts",
     "apps/desktop/scripts/desktop-review-presentation.mts",

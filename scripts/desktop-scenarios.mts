@@ -966,6 +966,9 @@ export type DesktopSelection = ReturnType<typeof resolveDesktopSelection>;
 export function desktopHarnessDeadlineMs(
   selection: Pick<DesktopSelection, "selected_scenarios" | "setup_scenarios">,
 ) {
+  // Real saved-folder checks plus three bounded input pickers, two library
+  // handoffs and positive custody. Product/cancellation deadlines are unchanged.
+  if (selection.selected_scenarios.includes("native-saved-folder-selected-setup")) return 600_000;
   // Two ordinary downloads/setups, real launches, file repair and positive exit joins.
   if (selection.selected_scenarios.includes("native-registered-source-reuse")) return 1_200_000;
   if (selection.selected_scenarios.includes("native-game-first-installed-mm"))

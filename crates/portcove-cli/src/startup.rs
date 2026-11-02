@@ -85,8 +85,8 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
         Commands::Catalog { command } => match command {
             CatalogCommand::Compare { .. }
             | CatalogCommand::List
-            | CatalogCommand::Export
-            | CatalogCommand::Listings
+            | CatalogCommand::Export { .. }
+            | CatalogCommand::Listings { .. }
             | CatalogCommand::InspectListings { .. }
             | CatalogCommand::Show { .. }
             | CatalogCommand::Status

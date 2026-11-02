@@ -1,3 +1,4 @@
+import { AuthoredSetupWarnings } from "./AuthoredSetupWarnings";
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
 import {
@@ -786,6 +787,7 @@ function RecommendedDownload({
           You or upstream provide runtime updates. Your game files and saves stay outside Portcove's
           managed backups.
         </p>
+        <AuthoredSetupWarnings warnings={model.entry.presentation?.manual_setup?.warnings} />
         {model.entry.presentation?.manual_setup?.steps[0] && (
           <p className="text-sm">{model.entry.presentation.manual_setup.steps[0].instruction}</p>
         )}

@@ -1185,6 +1185,7 @@ function SourceHealth({
       />
       <div className="justify-self-start">
         <SourceDiscoveryButton
+          generation={generation}
           profiles={profiles}
           disabled={Boolean(busy) || requirementsState !== "available"}
           onAdded={onAdded}

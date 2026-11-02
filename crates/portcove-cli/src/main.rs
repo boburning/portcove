@@ -4231,7 +4231,7 @@ mod tests {
         assert!(matches!(
             cli.command,
             Commands::Catalog {
-                command: CatalogCommand::Export
+                command: CatalogCommand::Export { .. }
             }
         ));
     }

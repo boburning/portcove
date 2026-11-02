@@ -1839,7 +1839,7 @@ fn source_reuse_compiled_reader_retains_baseline_and_informational_edition_limit
     let result = portcove(&library, &["--json", "source", "reuse", "majoras-mask"]);
     assert!(result.status.success(), "{result:?}");
     let result = json_stdout(&result);
-    assert_eq!(result["schema_version"], 85);
+    assert_eq!(result["schema_version"], 86);
     assert_eq!(result["command"], "source.reuse");
     assert_eq!(result["data"]["reference"]["profile_id"], "majoras-mask");
     assert_eq!(

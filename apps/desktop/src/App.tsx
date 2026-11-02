@@ -423,7 +423,7 @@ function useWorkspace(props: WorkspaceProps) {
     request: sourceIntake,
     open: openSourceIntake,
     close: closeSourceIntake,
-  } = useSourceIntakeState(data.catalog);
+  } = useSourceIntakeState(data.catalog, bootstrap.generation);
   const nativeSourceDrag = useNativeSourceDrop((drop) =>
     openSourceIntake(drop.portId, drop.profileId, drop.paths),
   );

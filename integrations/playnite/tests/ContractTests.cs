@@ -277,7 +277,7 @@ internal static class ContractTests
             .Cast<string>().Concat(new[] { "artwork.handoff", "artwork.handoff-bytes" }).ToArray();
         ProtocolStream.Negotiate(artworkAdditive, ConsumerCapability.Library);
         Check(true, "existing library reader accepts optional artwork handoff without consuming it");
-        foreach (var publicSchema in new[] { 42, 57, 60, 63, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85 })
+        foreach (var publicSchema in new[] { 42, 57, 60, 63, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86 })
         {
             var supported = Json.Object(Json.Parse(Json.Print(Capabilities())));
             supported["schema_version"] = publicSchema;
@@ -285,7 +285,7 @@ internal static class ContractTests
             ProtocolStream.Negotiate(supported, ConsumerCapability.Library);
             Check(true, "public schema " + publicSchema + " negotiated");
         }
-        foreach (var publicSchema in new[] { 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85 })
+        foreach (var publicSchema in new[] { 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86 })
         {
             var relink = Json.Object(Json.Parse(Json.Print(Capabilities())));
             relink["schema_version"] = publicSchema;
@@ -317,6 +317,12 @@ internal static class ContractTests
         var stream85 = new ProtocolStream("status");
         stream85.Line(Json.Print(result85));
         Check(Json.Array(stream85.Finish(0)).Length == 0, "schema 85 retains existing status semantics through the protocol reader");
+        var result86 = Json.Object(Json.Parse(Result("status", new object[0])));
+        result86["schema_version"] = 86;
+        var stream86 = new ProtocolStream("status");
+        stream86.Line(Json.Print(result86));
+        Check(Json.Array(stream86.Finish(0)).Length == 0,
+            "schema 86 composes saved-source review with setup references without changing status semantics");
         var independent83 = Json.Object(Json.Parse(Json.Print(Capabilities())));
         independent83["schema_version"] = 83;
         independent83["operation_event_schema_version"] = 3;
@@ -332,7 +338,7 @@ internal static class ContractTests
             "API83 is not an operation-event version");
         ProtocolStream.Negotiate(independent83, ConsumerCapability.Library);
         Check(true, "API83 library reader does not require an unused event channel or comparison command");
-        foreach (var privateSchema in new[] { 58, 59, 64, 86 })
+        foreach (var privateSchema in new[] { 58, 59, 64, 87 })
         {
             var unsupported = Json.Object(Json.Parse(Json.Print(Capabilities())));
             unsupported["schema_version"] = privateSchema;
@@ -529,7 +535,7 @@ internal static class ContractTests
         bad["schema_version"] = 80;
         ProtocolStream.Negotiate(bad, ConsumerCapability.LaunchOnly);
         Check(true, "explicit user-selected execution keeps launch decisions in Core");
-        bad["schema_version"] = 86;
+        bad["schema_version"] = 87;
         Reject(() => ProtocolStream.Negotiate(bad), "unknown schema beyond the supported execution contract rejected");
         bad["schema_version"] = 42; bad["commands"] = new object[0];
         Reject(() => ProtocolStream.Negotiate(bad), "missing command capability rejected");
@@ -624,12 +630,12 @@ internal static class ContractTests
         {
             var real = new PublicCli(args[0], args[1]); await real.Connect();
             var capabilities = await real.Read("capabilities", "capabilities");
-            Check(real.ApiSchemaVersion == 85 && Json.Array(Json.Field(capabilities, "engine_templates"))
+            Check(real.ApiSchemaVersion == 86 && Json.Array(Json.Field(capabilities, "engine_templates"))
                 .Any(template => Json.Text(template, "template") == "staged-source-portable"
                     && Json.Number(template, "contract_version") == 18),
-                "compiled API85 producer advertises the prepared directory contract through the actual client");
+                "compiled API86 producer advertises the prepared directory contract through the actual client");
             Check(ProtocolStream.Negotiate(capabilities, ConsumerCapability.Library, ConsumerCapability.Lifecycle) == 3,
-                "compiled API85 capability readback independently negotiates operation-event schema3");
+                "compiled API86 capability readback independently negotiates operation-event schema3");
             var statuses = Json.Array(await real.Read("status", "status"));
             var catalog = Json.Array(await real.Read("catalog.list", "catalog", "list"));
             Check(catalog.Length > 1 && statuses.Length == catalog.Length, "real standalone CLI discovery through reference consumer");
@@ -650,12 +656,17 @@ internal static class ContractTests
                     ? SetupInstructions.Summary(presentation) == Json.Text(presentation, "manual_preparation")
                     : SetupInstructions.Summary(presentation).Contains("1. ");
             }), "compiled current-schema authored steps and retained prose fallbacks are consumed by the actual client");
-            Check(prepared.All(port => SetupInstructions.TechnicalNotes(Json.Field(port, "presentation"))
-                    == (Json.OptionalObjectField(Json.Field(port, "presentation"), "manual_setup") == null
-                        ? null : Json.Text(Json.Field(port, "presentation"), "manual_preparation")))
-                && prepared.All(port => SetupInstructions.HelpUrl(Json.Field(port, "presentation")) == null ||
-                    new Uri(SetupInstructions.HelpUrl(Json.Field(port, "presentation"))).Scheme == "https"),
-                "compiled prepared routes retain authored technical notes and validated upstream setup links");
+            Check(prepared.All(port => {
+                var presentation = Json.Field(port, "presentation");
+                var guide = Json.OptionalObjectField(presentation, "manual_setup");
+                if (guide == null) return SetupInstructions.TechnicalNotes(presentation) == null;
+                var notes = SetupInstructions.TechnicalNotes(presentation);
+                object references;
+                return notes.Contains(Json.Text(presentation, "manual_preparation")) &&
+                    (!Json.TryField(guide, "references", out references) || Json.Array(references).All(reference =>
+                        notes.Contains(Json.Text(reference, "title")) && notes.Contains(Json.Text(reference, "instruction")))) &&
+                    (SetupInstructions.HelpUrl(presentation) == null || new Uri(SetupInstructions.HelpUrl(presentation)).Scheme == "https");
+            }), "compiled prepared routes retain every authored reference and legacy note through the actual client");
             Check(real.ApiSchemaVersion == ProtocolStream.Schema && statuses.All(status =>
                 PortActions.Read(status).Count(value => value.Action == "rollback") == 1 &&
                 PortActions.Read(status).Count(value => value.Action == "update") == 1),
@@ -884,12 +895,12 @@ internal static class ContractTests
         capabilities["schema_version"] = 73;
         Check(ProtocolStream.SupportsReviewedExternal(capabilities), "shared-directory schema preserves reviewed external flow");
         capabilities["commands"] = new[] { "external", "external.review", "external.relink" };
-        foreach (var supportedRelinkSchema in new[] { 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85 })
+        foreach (var supportedRelinkSchema in new[] { 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86 })
         {
             capabilities["schema_version"] = supportedRelinkSchema;
             Check(ProtocolStream.SupportsExternalRelink(capabilities), "known relink schema preserves reviewed folder change");
         }
-        foreach (var unsupportedRelinkSchema in new[] { 71, 86 })
+        foreach (var unsupportedRelinkSchema in new[] { 71, 87 })
         {
             capabilities["schema_version"] = unsupportedRelinkSchema;
             Check(!ProtocolStream.SupportsExternalRelink(capabilities), "older and unknown relink schemas are refused");
@@ -929,7 +940,7 @@ internal static class ContractTests
         biosReadiness["blockers"] = new object[0];
         Reject(() => PortActions.ValidateStatus(biosStatus, 69), "legacy recovery schema independently rejects the new BIOS action reason");
         Reject(() => PortActions.ValidateStatus(biosStatus, 68), "schema68 rejects the new BIOS action reason even without new readiness fields");
-        foreach (var unsupported in new[] { 42, 57, 58, 59, 60, 63, 64, 65, 66, 86 })
+        foreach (var unsupported in new[] { 42, 57, 58, 59, 60, 63, 64, 65, 66, 87 })
         {
             capabilities["schema_version"] = unsupported;
             Check(!ProtocolStream.SupportsReviewedExternal(capabilities), "review capability cannot enable unsupported external contract " + unsupported);
@@ -1114,6 +1125,26 @@ internal static class ContractTests
         Check(SetupInstructions.Summary(stepsOnly).Contains("1. Prepare a copy")
             && SetupInstructions.TechnicalNotes(stepsOnly) == null && SetupInstructions.HelpUrl(stepsOnly) == null,
             "authored guidance accepts omitted optional notes and help links");
+        var retainedGuideStatus = Json.Parse("{\"active\":{},\"readiness\":{\"setup_contract\":{\"manual_preparation\":\"Retained older setup\"}}}");
+        Check(SetupInstructions.Summary(SetupInstructions.ForRuntime(retainedGuideStatus, Json.Parse("{\"presentation\":{\"manual_preparation\":\"Different current guide\"}}"))) == "Retained older setup",
+            "installed guide comes from the retained setup contract, not newer catalog rules");
+        Check(SetupInstructions.ForRuntime(Json.Parse("{\"active\":{},\"readiness\":{}}"), instructions) == null,
+            "missing retained guide is not replaced with current installation instructions");
+        Json.Object(Json.Field(Json.Field(retainedGuideStatus, "readiness"), "setup_contract"))["manual_setup"] = Json.Parse("{\"steps\":[{\"title\":\"Use the retained guide\",\"instruction\":\"Keep its files.\"}],\"warnings\":[],\"help_url\":\"https://example.com/retained-guide\"}");
+        var differentGuide = Json.Parse("{\"presentation\":{\"manual_setup\":{\"steps\":[{\"title\":\"Current guide\",\"instruction\":\"Different version.\"}],\"warnings\":[],\"help_url\":\"https://example.com/current-guide\"}}}");
+        Check(SetupInstructions.HelpUrl(SetupInstructions.ForRuntime(retainedGuideStatus, differentGuide)) == "https://example.com/retained-guide",
+            "installed explanation and help opener select the same retained guide instead of the current URL");
+        Json.Object(Json.Field(Json.Field(differentGuide, "presentation"), "manual_setup")).Remove("help_url");
+        Check(SetupInstructions.HelpUrl(SetupInstructions.ForRuntime(retainedGuideStatus, differentGuide)) == "https://example.com/retained-guide",
+            "a retained-only help URL remains available when the current catalog has none");
+        var referenced = Json.Parse("{\"manual_setup\":{\"steps\":[{\"title\":\"Add the program\",\"instruction\":\"Choose Play separately.\"}],\"warnings\":[\"Separate programs can share saves.\"],\"references\":[{\"title\":\"Inspected version\",\"instruction\":\"The older test used profile/save.bin.\"}]}}");
+        Check(SetupInstructions.Summary(referenced).Contains("1. Add the program") &&
+            SetupInstructions.Summary(referenced).Contains("Separate programs can share saves.") &&
+            !SetupInstructions.Summary(referenced).Contains("Inspected version") &&
+            SetupInstructions.TechnicalNotes(referenced).Contains("profile/save.bin"),
+            "structured references remain available without becoming numbered setup actions");
+        Json.Object(Json.Array(Json.Field(Json.Field(referenced, "manual_setup"), "references"))[0])["unknown"] = "Do not lose this";
+        Reject(() => SetupInstructions.Summary(referenced), "unknown reference semantics are refused");
         var unknownStep = Json.Parse("{\"manual_setup\":{\"steps\":[{\"title\":\"Prepare a copy\",\"instruction\":\"Keep it unchanged.\",\"unknown_warning\":\"Do not drop this\"}],\"warnings\":[]}}");
         Reject(() => SetupInstructions.Summary(unknownStep), "unknown setup step fields are not silently dropped");
         Json.Object(Json.Field(linkedInstructions, "manual_setup"))["help_url"] = 42;

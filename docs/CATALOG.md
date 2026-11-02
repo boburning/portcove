@@ -2494,3 +2494,20 @@ future versions preserve ordinary project listings; older catalog readers can
 ignore it. Accepted regression and correction authority remains with the existing
 reviewed catalog inputs, not arbitrary release notes. See the
 [recommendation contract](reference/port-recommendation-policy.md).
+
+### Setup actions and reference notes
+
+Authored `manual_setup.steps` contains only setup actions. Put immediate edition,
+permission, shared-save and backup consequences in `warnings`, which clients show
+before the relevant choice. Optional `manual_setup.references` retains save paths,
+build-specific options, dated release observations and maintenance information.
+Desktop and Playnite show these as **Save locations and version notes**, after the
+actions. Keep necessary warnings out of that optional disclosure.
+
+Structured references require catalog schema 3 or listing format 6. The authored
+assembler selects those formats only when needed. Existing formats remain readable;
+explicit CLI legacy exports flatten references without losing text. See
+[API schema history](reference/cli-schema-history.md#api-schema-85). Catalog schema 3
+uses the same source authority as schema 2; this presentation metadata does not
+change eligibility, runtime ownership or save compatibility. Do not add an unknown
+field to an older strict format or infer reference sections from heading text.

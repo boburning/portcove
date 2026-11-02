@@ -73,7 +73,7 @@ void test("actual maintained source recipe supplies declarations without runtime
       max: protocol,
     });
   }
-  assert.deepEqual(result.catalog_formats, [2]);
+  assert.deepEqual(result.catalog_formats, [3]);
   const catalogLimit = nativeSourceDeclarationByteLimit(catalog);
   assert.equal(catalogLimit, 4 * 1024 * 1024);
   const atLimit = Buffer.concat([
@@ -82,7 +82,7 @@ void test("actual maintained source recipe supplies declarations without runtime
   ]);
   assert.deepEqual(
     inspectNativeCompatibilitySources({ ...files, [catalog]: atLimit }).catalog_formats,
-    [2],
+    [3],
   );
   assert.throws(
     () =>
@@ -179,7 +179,7 @@ void test("actual maintained source recipe supplies declarations without runtime
         ),
       ),
     },
-    { ...files, [catalog]: Buffer.from('{"schema_version":3}') },
+    { ...files, [catalog]: Buffer.from('{"schema_version":4}') },
     { ...files, [lib]: Buffer.from([255]) },
     {
       ...files,

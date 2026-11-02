@@ -19,11 +19,10 @@
     },
     "release_url": "https://github.com/Madxbio97/SF-pc-port/releases/tag/v0.1.0-public-test.16",
     "manual_setup": {
-      "help_url": "https://github.com/Madxbio97/SF-pc-port/releases/tag/v0.1.0-public-test.16",
       "steps": [
         {
-          "title": "Download a Windows version of the game",
-          "instruction": "Choose a release with a Windows player download. Extract the complete package and keep syphon_filter.exe with its DLLs, locales, assets and notices. A release with no attached player download cannot be used for this step."
+          "title": "Download the Windows port",
+          "instruction": "Choose a release with a Windows player download. Extract the complete package and keep syphon_filter.exe with its DLLs, locales, assets and notices. A release with no attached player download cannot be used for this step. Check the project’s downloads before choosing a version."
         },
         {
           "title": "Keep your original disc files together",
@@ -36,23 +35,29 @@
         {
           "title": "Choose Play",
           "instruction": "Use the game’s BROWSE/DEPLOY file picker to choose your CUE file. The game checks the supported game executable itself."
-        },
-        {
-          "title": "Back up your files before updating",
-          "instruction": "Close the game and its companion programs first. Keep the working program, original disc files, saves, settings, mods and custom data before replacing or moving this copy. Different program folders can share saves. Portcove can launch this copy, but it won’t update, back up, restore, switch to an older version, convert, move, or delete its files. Removing it from Portcove leaves those files in place. After replacing the program, review and update its saved launch details."
-        },
-        {
-          "title": "Where the inspected version keeps saves and settings",
-          "instruction": "For public-test.16, launcher.ini normally lives under %LOCALAPPDATA%/SyphonFilterPC; it can fall back to the executable folder or start folder. Campaign saves use SyphonFilterPC/Saves/<sanitized serial>.sav under the effective user-data folder, with backups and temporary files. That folder can fall back through APPDATA and the system temporary directory. The game can move a legacy SyphonFilterPC.sav beside the CUE into its newer save location. Preserve the whole profile and all legacy save locations. Other versions may use different locations or incompatible saves."
-        },
-        {
-          "title": "About the inspected download",
-          "instruction": "The inspected v0.1.0-public-test.16 Windows x64 ZIP contains the player. At the recorded inspection, the later listed 0.2.0 beta and test releases had no attached player packages. This is a historical observation, not a check of today’s latest release or a recommendation to use an older test. Check the project’s downloads before choosing a version."
         }
       ],
       "warnings": [
-        "Use only a copy and components you are permitted to use. Back up the complete working installation, original files, saves, settings, mods, generated files, caches and any custom folders before maintenance. Another program can share the same saved data."
-      ]
+        "Use only a copy and components you are permitted to use. Back up the complete working installation, original files, saves, settings, mods, generated files, caches and any custom folders before maintenance. Another program can share the same saved data.",
+        "Close the game and its companion programs first. Keep the working program, original disc files, saves, settings, mods and custom data before replacing or moving this copy. Different program folders can share saves.",
+        "For the inspected public-test.16 version, the game can move a legacy SyphonFilterPC.sav beside the CUE into its newer save location. Preserve the whole profile and all legacy save locations. Other versions may use different locations or incompatible saves.",
+        "Portcove will not back up or update this external installation. Back up its saves, settings and custom folders separately."
+      ],
+      "references": [
+        {
+          "title": "Updates and file ownership",
+          "instruction": "Portcove can launch this copy, but it won’t update, back up, restore, switch to an older version, convert, move, or delete its files. Removing it from Portcove leaves those files in place. After replacing the program, review and update its saved launch details."
+        },
+        {
+          "title": "Where the inspected version keeps saves and settings",
+          "instruction": "For public-test.16, launcher.ini normally lives under %LOCALAPPDATA%/SyphonFilterPC; it can fall back to the executable folder or start folder. Campaign saves use SyphonFilterPC/Saves/<sanitized serial>.sav under the effective user-data folder, with backups and temporary files. That folder can fall back through APPDATA and the system temporary directory."
+        },
+        {
+          "title": "About the inspected download",
+          "instruction": "The inspected v0.1.0-public-test.16 Windows x64 ZIP contains the player. At the recorded inspection, the later listed 0.2.0 beta and test releases had no attached player packages. This is a historical observation, not a check of today’s latest release or a recommendation to use an older test."
+        }
+      ],
+      "help_url": "https://github.com/Madxbio97/SF-pc-port/releases/tag/v0.1.0-public-test.16"
     }
   }
 }

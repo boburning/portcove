@@ -113,7 +113,7 @@ repository's dependency age, grouping, PR-limit and protected review rules.
 
 ## Compatibility and use
 
-This revision supports **Portcove API schemas 42–57, 60–63 or 65–85 and event schemas 2–3**. Schema
+This revision supports **Portcove API schemas 42–57, 60–63 or 65–86 and event schemas 2–3**. Schema
 50 advertises the independently versioned operation-event contract through
 `operation_event_schema_version`; the client consumes and rejects an unsupported
 value before lifecycle management. Launch-only and read-only library negotiation
@@ -138,7 +138,7 @@ client does not use. Schema 53 adds optional saved-root scan and snapshot comman
 that this client also does not use. It accepts both additive schemas while
 continuing to negotiate only its required capabilities. Use an exactly identified schema-42,
 schema-43, schema-44, schema-45, schema-46, schema-47, schema-48, schema-49,
-schema-50, schema-51, schema-52, schema-53, schema-54, schema-55, schema-56, schema-57, schema-60, schema-61, schema-62, schema-63 or schema-65 through schema-85 candidate until a matching public
+schema-50, schema-51, schema-52, schema-53, schema-54, schema-55, schema-56, schema-57, schema-60, schema-61, schema-62, schema-63 or schema-65 through schema-86 candidate until a matching public
 standalone release exists; the older published technical previews must not be
 described as supporting these new commands.
 See the [author guide](../../docs/INTEGRATION-AUTHOR.md).
@@ -158,7 +158,7 @@ ordinary cancellation dialog must be acknowledged to restore the action.
 Schema 74 adds an optional retained Windows runtime-path requirement. This client
 continues to use Core's readiness and launch refusal; it does not duplicate path
 validation or silently move a game. Reviewed folder relink remains available on
-supported schemas72 through84 when its command capability is advertised. Compiled
+supported schemas72 through85 when its command capability is advertised. Compiled
 producer/client observations remain tied to the exact executed revision.
 
 Schema78 introduced a closed CVLoD source recipe without changing commands,
@@ -167,7 +167,7 @@ runtime/recovery compatibility does not offer new builds or require compiler
 acquisition. The client still displays Core's current offered plan, acquisitions,
 capacity and consent, and delegates readiness and execution to Core. It does not
 parse historical recipe names or execute catalog build instructions. This revision
-accepts API84 within the reviewed membership above and event schemas 2–3; future
+accepts API86 within the reviewed membership above and event schemas 2–3; future
 APIs and unknown execution/ownership semantics remain refused. See
 [retained compatibility](../../docs/reference/upstream-first-compatibility.md).
 
@@ -175,8 +175,8 @@ API81 adds explicit external-to-managed copy preview/apply commands without
 changing responses used by this client. The client continues consuming Core's
 ownership, readiness and reviewed lifecycle fields; it does not invoke this
 optional transition or infer managed capabilities for external copies. The
-compiled-producer negotiation test and membership/refusal cases include API84
-and continue rejecting API85 and unknown ownership semantics.
+compiled-producer negotiation test and membership/refusal cases include API86
+and continue rejecting API87 and unknown ownership semantics.
 
 Schema79 adds opt-in prepared original-directory binding. The client uses the
 same Core readiness and supervised launch path: Core revalidates the retained
@@ -474,3 +474,15 @@ outside this offered route; independently importing files while the game runs
 is outside Core admission and its checks are not a sandbox.
 
 API80 adds explicit user-selected, launch-only runtime registration. Choose its executable, working directory and arguments in Portcove Desktop or CLI `external select-preview` / `external select`; this reference client deliberately hands that setup off instead of treating selected bytes as an authenticated official package. Refresh afterward to launch the retained registration or remove only its registration. Unknown execution trust remains refused. API80 also supports the explicit reusable managed shared-preferences contract while retained legacy contracts preserve their meanings.
+
+API85 adds explicit setup reference sections. This reader keeps warnings and
+numbered actions in the main setup explanation and all save/version references
+in the expandable **Save locations and version notes** section. It also retains
+older `manual_preparation` notes. Unknown guide/reference fields are refused.
+
+API86 composes the API85 guide/reference contract with baseline-bound saved-source
+reuse. This client retains its existing Core operations and does not expose
+Desktop's optional saved-source chooser or synthesize a reuse reference. Core
+continues revalidating source contracts, readiness and installation authority.
+API/event/library versions remain independent; unsupported operations never fall
+back to unchecked setup.

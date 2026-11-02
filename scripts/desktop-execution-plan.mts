@@ -21,6 +21,7 @@ export const nativeTransportReceiptSources = Object.freeze([
   "apps/desktop/scripts/desktop-game-first-test.mts",
   "scripts/desktop-game-first-installed-inputs.mts",
   "apps/desktop/scripts/transport-values.mts",
+  "apps/desktop/scripts/desktop-source-intake-boundaries-test.mts",
   "apps/desktop/src/port-identity.ts",
   "apps/desktop/src/interface-size-controller.ts",
   "apps/desktop/src/transport-schemas.generated.json",
@@ -119,6 +120,8 @@ export function planDesktopExecution(
     organizationRestart ||
     acquisitionJourney ||
     registeredSourceReuse ||
+    (platform === "win32" &&
+      selection.selected_scenarios.includes("native-saved-folder-selected-setup")) ||
     selection.selected_scenarios.includes("native-host-publication-recovery") ||
     selection.selected_scenarios.includes("native-real-prepared-runtime") ||
     selection.selected_scenarios.includes("native-direct-preparation-recovery") ||
@@ -221,19 +224,23 @@ export function planDesktopExecution(
                                                         )
                                                       ? "steam-batch"
                                                       : "backup-focus";
-  const cleanupName = selection.selected_scenarios.includes("native-game-first-installed-mm")
-    ? "game-first-installed-mm"
-    : platform === "win32" &&
-        selection.selected_scenarios.includes("native-interrupted-preparation-recovery") &&
-        preferredCleanupName === "backup-focus"
-      ? "preparation-recovery"
-      : organizationRestart && !backupFocusSession && preferredCleanupName === "backup-focus"
-        ? "organization-restart"
-        : presentationSession && preferredCleanupName === "backup-focus"
-          ? "presentation"
-          : reviewedWorkflowSession && preferredCleanupName === "backup-focus"
-            ? "native-review"
-            : preferredCleanupName;
+  const cleanupName =
+    platform === "win32" &&
+    selection.selected_scenarios.includes("native-saved-folder-selected-setup")
+      ? "saved-folder-selected-setup"
+      : selection.selected_scenarios.includes("native-game-first-installed-mm")
+        ? "game-first-installed-mm"
+        : platform === "win32" &&
+            selection.selected_scenarios.includes("native-interrupted-preparation-recovery") &&
+            preferredCleanupName === "backup-focus"
+          ? "preparation-recovery"
+          : organizationRestart && !backupFocusSession && preferredCleanupName === "backup-focus"
+            ? "organization-restart"
+            : presentationSession && preferredCleanupName === "backup-focus"
+              ? "presentation"
+              : reviewedWorkflowSession && preferredCleanupName === "backup-focus"
+                ? "native-review"
+                : preferredCleanupName;
   const inputs: ReceiptInput[] = ["app", "driver", "native-driver"].map((name) => ({
     kind: "executable",
     name,

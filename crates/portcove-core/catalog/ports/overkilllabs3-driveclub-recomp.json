@@ -19,7 +19,6 @@
     },
     "issue_number": 2795,
     "manual_setup": {
-      "help_url": "https://github.com/OverkillLabs3/driveclub-recomp/blob/3e7f6d8543f8a426fdbbb323cf822f36b5c3a11a/README.md",
       "steps": [
         {
           "title": "Prepare your own matching PS4 data",
@@ -32,7 +31,14 @@
         {
           "title": "Add the ordinary native launcher",
           "instruction": "Select DriveClub.exe in the complete extracted package root, use that root as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play separately and use the ordinary upstream Play action. Do not use the benchmark, backend, wheel diagnostic or an internal game runner as this route. The normal launcher can start its game and close; Portcove observes the selected launcher only, so a finished activity does not establish that the game has exited."
-        },
+        }
+      ],
+      "warnings": [
+        "Use normal DriveClub.exe with the complete package and your own matching PS4 base/update folders. Preserve all career/profile/backup data; the launcher can exit before its game, so close the actual game before maintenance.",
+        "Profile selection swaps the active savedata through the upstream launcher; its automatic per-start backups retain only the newest ten. Preserve your own independent copies and original PS4 folders.",
+        "Use the game’s own Quit and close the actual game, launcher, helpers and any independently used server before replacement, rebuild or recovery. Upstream owns its update/settings/preparation behavior; retain the previous complete working package and data and review the native path after changes. Keep project GPL and all separate library, NVIDIA DLSS, mod and original-game terms."
+      ],
+      "references": [
         {
           "title": "Preserve the selected career and all prepared data",
           "instruction": "Keep the complete data folder, including data/user/savedata, data/profiles with active.txt, and data/backups/profileN, plus launcher.ini, input/camera settings, generated preparation, mods and existing recovery copies. Profile selection swaps the active savedata through the upstream launcher; its automatic per-start backups retain only the newest ten. Preserve your own independent copies and original PS4 folders. Portcove does not change profiles, authenticate original files, migrate saves or manage those backups."
@@ -42,9 +48,7 @@
           "instruction": "Use the game’s own Quit and close the actual game, launcher, helpers and any independently used server before replacement, rebuild or recovery. Upstream owns its update/settings/preparation behavior; retain the previous complete working package and data and review the native path after changes. Keep project GPL and all separate library, NVIDIA DLSS, mod and original-game terms. This guide offers the existing local player route, not online/server/firewall setup, DLC entitlement or managed update/backup/rollback. Upstream race, wheel, GPU and save reports are not Portcove native/gameplay or Supported qualification."
         }
       ],
-      "warnings": [
-        "Use normal DriveClub.exe with the complete package and your own matching PS4 base/update folders. Preserve all career/profile/backup data; the launcher can exit before its game, so close the actual game before maintenance."
-      ]
+      "help_url": "https://github.com/OverkillLabs3/driveclub-recomp/blob/3e7f6d8543f8a426fdbbb323cf822f36b5c3a11a/README.md"
     }
   },
   "upstream_lineage": {

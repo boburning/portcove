@@ -137,7 +137,7 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
     .mockResolvedValue(plan);
   const importSource = vi
     .spyOn(desktopApi, "importSource")
-    .mockImplementation(async (_profile, _path, _mode, _plan, emit) => {
+    .mockImplementation(async (_profile, _path, _mode, _plan, _generation, emit) => {
       emit?.({
         schema_version: 2,
         parent_operation_id: null,
@@ -177,7 +177,12 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
   };
   try {
     await root.rerender(
-      <SourceDiscoveryButton profiles={[profile]} disabled={false} onAdded={refresh} />,
+      <SourceDiscoveryButton
+        generation={7}
+        profiles={[profile]}
+        disabled={false}
+        onAdded={refresh}
+      />,
     );
     await click("Find required files");
     const searchField = document.body.querySelector<HTMLInputElement>("#source-search-root");
@@ -285,6 +290,7 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
       candidate.path,
       "copy",
       plan.plan_sha256,
+      7,
       expect.any(Function),
     );
     expect(refresh).toHaveBeenCalledOnce();
@@ -349,7 +355,9 @@ it("keeps cancellation tied to the emitted durable operation", async () => {
     await userEvent.click(control(label));
   };
   try {
-    await root.rerender(<SourceDiscoveryButton profiles={[profile]} disabled={false} />);
+    await root.rerender(
+      <SourceDiscoveryButton generation={7} profiles={[profile]} disabled={false} />,
+    );
     await click("Find required files");
     await click("Choose folder");
     await page.getByRole("combobox", { name: /^Required files/ }).click();

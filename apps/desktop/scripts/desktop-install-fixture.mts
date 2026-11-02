@@ -443,6 +443,36 @@ async function addSelectedSetupSources({
     },
   ];
   addSourceIdentityProfiles(baseCatalog, profiles, evidenceGap);
+  // Outside the scanned root: these inspect-only selections must not alter the
+  // existing saved-folder discovery denominator or become an admitted variant.
+  const ambiguous = Buffer.from("Portcove inert ambiguous representation fixture\n");
+  const ambiguousPath = path.join(output, `selected-ambiguous.${gameExtension}`);
+  const unsupportedPath = path.join(output, "selected-unsupported.txt");
+  await writeFile(ambiguousPath, ambiguous, { flag: "wx" });
+  await writeFile(unsupportedPath, "Portcove inert unsupported source\n", { flag: "wx" });
+  const gameIdentity = baseCatalog.source_catalog.identities.find(
+    (item) => item.id === profiles[0].id,
+  );
+  if (!gameIdentity || !Array.isArray(gameIdentity.variants))
+    throw new Error("Owned game identity missing");
+  gameIdentity.variants.push({
+    id: "ambiguous-inspection-only",
+    title: "Owned ambiguous representations",
+    region: null,
+    revision: null,
+    representations: ["sha1", "sha256"].map((algorithm) => ({
+      id: `ambiguous-${algorithm}`,
+      extensions: [gameExtension],
+      kind: "raw-file",
+      identities: [
+        {
+          scope: "original-file",
+          [algorithm]: createHash(algorithm).update(ambiguous).digest("hex"),
+        },
+      ],
+    })),
+  });
+
   portDefinition.adapter = "libultraship-portable";
   if (completionJourney) {
     const { platform, executable } = platformContract();
@@ -480,6 +510,8 @@ async function addSelectedSetupSources({
     gameBefore,
     gameReplacement,
     biosBefore,
+    ambiguousPath,
+    unsupportedPath,
     game,
     replacement,
     bios,

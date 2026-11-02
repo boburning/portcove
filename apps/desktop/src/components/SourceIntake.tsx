@@ -23,6 +23,7 @@ import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 
 export interface SourceIntakeRequest {
+  generation: number;
   portId: string;
   portName: string;
   profile: SourceProfile;
@@ -70,7 +71,7 @@ export function SourceIntakeDialog(props: SourceIntakeDialogProps) {
   const { request } = props;
   return (
     <SourceIntakeSession
-      key={`${request.portId}:${request.profile.id}:${request.purpose}:${JSON.stringify(request.paths)}`}
+      key={`${request.generation}:${request.portId}:${request.profile.id}:${request.purpose}:${JSON.stringify(request.paths)}`}
       {...props}
     />
   );
@@ -199,6 +200,7 @@ function useSourceIntakeSession({
         plan.source.path,
         plan.mode,
         plan.plan_sha256,
+        request.generation,
       );
       if (intent.current !== current) return;
       setPlan(undefined);
