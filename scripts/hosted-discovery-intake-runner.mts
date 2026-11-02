@@ -65,9 +65,11 @@ export function runHostedIntakePasses(
       break;
     }
     const report = run(pass, requests, remainingMs);
-    queuePending = isRecord(report) && report.queue_continuation === "inventory_changed";
-    if (isRecord(report) && report.queue_continuation === "inventory_changed") {
+    queuePending = isRecord(report) && report.queue_continuation !== undefined;
+    if (isRecord(report) && queuePending) {
       if (
+        typeof report.queue_continuation !== "string" ||
+        !["inventory_changed", "budget_exhausted"].includes(report.queue_continuation) ||
         report.status !== "incomplete" ||
         report.requests !== 0 ||
         !Array.isArray(report.outcomes) ||

@@ -358,7 +358,8 @@ function readHostedReceipt(
       !["prepared", "reviewed", "create-attempted", "created", "delivered", "existing"].includes(
         d.status,
       ) ||
-      (["created", "delivered"].includes(d.status) && !d.created_issue && !d.created_comment)
+      (d.status === "delivered" && !d.created_issue) ||
+      (d.status === "created" && !d.created_issue && !(d.created_comment && d.canonical_issue))
     )
       throw new Error("Retained delivery state is incomplete");
     if (d.canonical_issue !== undefined) positive(d.canonical_issue);
@@ -642,6 +643,7 @@ export class HostedIntakeBridge {
       title: c.title,
       upstream: c.upstream,
       portKey: c.port_key,
+      repositoryIdentity: { id: c.repository_id, game: c.game },
     });
     if (duplicates.some((row) => row.issue.number !== owner))
       throw new Error(`Canonical duplicate: ${duplicates.map((x) => x.issue.number).join(", ")}`);
@@ -763,10 +765,20 @@ export class HostedIntakeBridge {
           if (!isRecord(d.doctor)) return true;
           const doctor = d.doctor;
           const issue = d.created_issue ?? d.canonical_issue;
+          if (
+            d.status === "delivered" &&
+            (!isRecord(d.fields) ||
+              Object.entries(portFieldInitialization(null)).some(
+                ([field, value]) => d.fields?.[field] !== value,
+              ))
+          )
+            return true;
           return (
             doctor.status !== "passed" ||
             doctor.coverage !== "complete" ||
-            observationHash(doctor.issues) !== observationHash([issue])
+            observationHash(doctor.issues) !== observationHash([issue]) ||
+            typeof doctor.receipt_sha256 !== "string" ||
+            !/^[a-f0-9]{64}$/u.test(doctor.receipt_sha256)
           );
         })
       )
@@ -1036,6 +1048,7 @@ export class HostedIntakeBridge {
                   ),
                 ),
                 inventory,
+                repositoryIdentity: { id: p.candidate.repository_id, game: p.candidate.game },
               }),
             );
             invalidated = true;
@@ -1049,16 +1062,26 @@ export class HostedIntakeBridge {
           // #177's revision, so the negative inventory must come afterwards.
           d.status = "create-attempted";
           persist();
+          let lateOwner: number | undefined;
           try {
             inventory = this.inventory(inventory);
             invalidated = false;
             this.fresh(request);
             freshLineage();
-            this.duplicates(inventory, p);
+            lateOwner = this.duplicates(inventory, p);
           } catch (error) {
             d.status = "prepared"; // No POST has begun in this preflight.
             persist();
             throw error;
+          }
+          if (lateOwner) {
+            d.status = "prepared";
+            d.canonical_issue = lateOwner;
+            d.existing = true;
+            persist();
+            await this.observeExisting(request, p, d, lateOwner, inventory, persist);
+            invalidated = true;
+            continue;
           }
           this.mutation(() =>
             discoveryPost(
@@ -1070,6 +1093,7 @@ export class HostedIntakeBridge {
                   portKey: p.candidate.port_key,
                   body: p.body,
                   inventory,
+                  repositoryIdentity: { id: p.candidate.repository_id, game: p.candidate.game },
                   onIssueCreated: (issue) => {
                     d.created_issue = issue.number;
                     this.planningIssues.add(issue.number);
@@ -1169,6 +1193,19 @@ export async function probeHostedProjectWrite(client: RoadmapClient, issue: numb
     doctor: await runScopedDoctor(client.config, client, { issues: [issue] }),
   };
 }
+export function collectHostedRequests(
+  bridge: Pick<HostedIntakeBridge, "comments" | "continuation">,
+  initialize: () => void,
+) {
+  try {
+    initialize();
+    return { status: "collected" as const, comments: bridge.comments() };
+  } catch (error) {
+    const continuation = bridge.continuation(error);
+    if (!continuation) throw error;
+    return { status: "held" as const, continuation, error: sanitizeOperationError(error) };
+  }
+}
 async function main() {
   const root = fileURLToPath(new URL("../", import.meta.url));
   const config = validateConfig(
@@ -1219,7 +1256,13 @@ async function main() {
           delivery: Array.isArray(value.delivery)
             ? value.delivery.map((raw) => {
                 const d = object(raw);
-                return { status: d.status, issue: d.created_issue, item: d.item_id };
+                return {
+                  status: d.status,
+                  issue: d.created_issue,
+                  item: d.item_id,
+                  owner: d.canonical_issue,
+                  comment: d.created_comment,
+                };
               })
             : null,
           global: value.doctor !== undefined,
@@ -1247,17 +1290,6 @@ async function main() {
   });
   const client = new HostedRoadmapClient(config, api);
   const head = runCheckedGit(["rev-parse", "HEAD"], { cwd: root }).trim();
-  const resources = object(object(api.request("GET", "rate_limit").body).resources);
-  for (const key of ["core", "graphql"]) {
-    const rate = object(resources[key]);
-    if (typeof rate.remaining !== "number" || typeof rate.reset !== "number")
-      throw new Error("Provider quota is unavailable");
-    budget.observeProvider({
-      resource: key,
-      remaining: rate.remaining,
-      resetAt: new Date(rate.reset * 1000).toISOString(),
-    });
-  }
   const admitInventory = (cache?: RoadmapInventory) => {
     const cost = cache ? discoveryInventoryCost(cache) : { requests: 1, bytes: 1 };
     // Leave enough existing capacity to restore prepared and publish a bounded
@@ -1272,12 +1304,26 @@ async function main() {
     admitInventory,
     admitInventory,
   );
+  const initialize = () => {
+    const resources = object(object(api.request("GET", "rate_limit").body).resources);
+    for (const key of ["core", "graphql"]) {
+      const rate = object(resources[key]);
+      if (typeof rate.remaining !== "number" || typeof rate.reset !== "number")
+        throw new Error("Provider quota is unavailable");
+      budget.observeProvider({
+        resource: key,
+        remaining: rate.remaining,
+        resetAt: new Date(rate.reset * 1000).toISOString(),
+      });
+    }
+  };
   try {
     const inputs = object(event).inputs;
     if (
       process.env.HOSTED_INTAKE_MODE === "probe" ||
       (isRecord(inputs) && inputs.mode === "probe")
     ) {
+      initialize();
       const issue = Number(
         process.env.HOSTED_INTAKE_PROBE || (isRecord(inputs) ? inputs.probe_issue : undefined),
       );
@@ -1298,21 +1344,20 @@ async function main() {
       }
       return;
     }
-    let comments: Comment[];
-    try {
-      comments = bridge.comments();
-    } catch (error) {
-      if (!(error instanceof GitHubApiError) || error.code !== "inventory_changed") throw error;
+    const collected = collectHostedRequests(bridge, initialize);
+    if (collected.status === "held") {
       save("summary", {
         status: "incomplete",
         head,
         requests: 0,
         outcomes: [],
-        queue_continuation: "inventory_changed",
+        queue_continuation: collected.continuation,
+        error: collected.error,
       });
       process.exitCode = 1;
       return;
     }
+    const comments = collected.comments;
     const selected: unknown = process.env.HOSTED_INTAKE_REQUESTS
       ? JSON.parse(process.env.HOSTED_INTAKE_REQUESTS)
       : null;

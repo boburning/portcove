@@ -1,4 +1,4 @@
-import { sourceProvenancePortIdentity } from "./roadmap-issue.mts";
+import { sourceProvenancePortIdentity, portRepositoryIds } from "./roadmap-issue.mts";
 import type { RoadmapIssueItem } from "./roadmap-issue.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
 import { assessUpstreamLineage } from "./upstream-lineage.mts";
@@ -73,17 +73,7 @@ export function reconcileDiscoveryIntakeIdentity(
     // Explicit reviewed family aliases are ownership evidence only. They do not
     // replace the primary upstream or admit executable trust/relocation history.
     const aliases = reviewedDiscoveryFamilyAliases(body);
-    const primaryBody = body
-      .split(/\r?\n/u)
-      .filter((line) => !line.startsWith("Reviewed source-family alias: "))
-      .join("\n");
-    const bodyIds = [
-      ...new Set(
-        [...primaryBody.matchAll(/GitHub repository ID:\s*(\d+)/giu)].map((match) =>
-          Number(match[1]),
-        ),
-      ),
-    ];
+    const bodyIds = portRepositoryIds(body);
     const game =
       authored?.listing.original_game_title ??
       body.match(/^Underlying game: \*\*([^*\r\n]{1,256})\*\*/mu)?.[1];

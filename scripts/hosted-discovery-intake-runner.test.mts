@@ -131,6 +131,26 @@ void test("read-only queue movement gets bounded fresh reads without losing hard
   assert.equal(result.status, "incomplete");
   assert.equal(runHostedIntakePasses(() => changed).status, "incomplete");
 });
+void test("a read-only queue budget hold resumes while unsupported queue failures stop", () => {
+  let calls = 0;
+  const result = runHostedIntakePasses(() =>
+    ++calls === 1
+      ? { status: "incomplete", requests: 0, outcomes: [], queue_continuation: "budget_exhausted" }
+      : report(outcome(17)),
+  );
+  assert.equal(result.status, "passed");
+  assert.equal(calls, 2);
+  assert.throws(
+    () =>
+      runHostedIntakePasses(() => ({
+        status: "incomplete",
+        requests: 0,
+        outcomes: [],
+        queue_continuation: "http_error",
+      })),
+    /Malformed queue/u,
+  );
+});
 void test("real worker exit/report/probe paths fail closed after a crash or signal", () => {
   const root = mkdtempSync(path.join(tmpdir(), "hosted-worker-"));
   mkdirSync(path.join(root, "scripts"));

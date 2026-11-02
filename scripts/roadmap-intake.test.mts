@@ -305,6 +305,108 @@ void test("capture-port deduplication normalizes punctuation titles and combines
     /requires a durable --port-key/,
   );
 });
+void test("primary repository/game identity refines title hints without bypassing durable keys or unknown identities", () => {
+  const upstream = "https://github.com/owner/first";
+  const existing = {
+    number: 1,
+    title: "[Port] Shared title",
+    body: renderPortIssueBody({
+      title: "Shared title",
+      upstream,
+      portKey: "first",
+      currentEvidence: "GitHub repository ID: 123\nUnderlying game: **Game one**",
+    }),
+  };
+  const candidate = {
+    title: "Shared title",
+    upstream: "https://github.com/owner/second",
+    portKey: "second",
+    repositoryIdentity: { id: 456, game: "Game one" },
+  };
+  assert.deepEqual(findPortIssueDuplicates([existing], candidate), []);
+  assert.equal(
+    findPortIssueDuplicates([existing], {
+      ...candidate,
+      repositoryIdentity: { id: 123, game: "Game one" },
+    }).length,
+    1,
+  );
+  assert.equal(findPortIssueDuplicates([existing], { ...candidate, upstream }).length, 1);
+  assert.equal(findPortIssueDuplicates([existing], { ...candidate, portKey: "first" }).length, 1);
+  assert.equal(
+    findPortIssueDuplicates(
+      [
+        {
+          ...existing,
+          body: existing.body.replace("GitHub repository ID: 123", "Unknown repository"),
+        },
+      ],
+      candidate,
+    ).length,
+    1,
+  );
+  assert.equal(
+    findPortIssueDuplicates(
+      [{ ...existing, body: existing.body + "\nGitHub repository ID: 0" }],
+      candidate,
+    ).length,
+    1,
+  );
+  assert.deepEqual(
+    findPortIssueDuplicates([existing], {
+      ...candidate,
+      upstream,
+      repositoryIdentity: { id: 123, game: "Game two" },
+    }),
+    [],
+  );
+});
+void test("capture consumes the primary identity through its real duplicate guard before POST", () => {
+  const client = new RoadmapClient(config);
+  const old = {
+    id: "I1",
+    node_id: "I1",
+    number: 1,
+    title: "[Port] Shared title",
+    state: "OPEN",
+    url: "https://github.com/boburning/portcove/issues/1",
+    html_url: "https://github.com/boburning/portcove/issues/1",
+    updatedAt: "2026-11-02T00:00:00Z",
+    body: renderPortIssueBody({
+      title: "Shared title",
+      upstream: "https://github.com/owner/first",
+      portKey: "first",
+      currentEvidence: "GitHub repository ID: 123\nUnderlying game: **Game one**",
+    }),
+  };
+  client.repositoryIssues = () => fixtureIssueInventory(client, [old]);
+  client.ensureIssueItem = () => ({ id: "PVTI_new" });
+  client.setItemFields = () => {};
+  let posts = 0;
+  client.api.request = (method, endpoint, value) => {
+    assert.equal(method, "POST");
+    assert.equal(endpoint, "repos/boburning/portcove/issues");
+    posts++;
+    return {
+      body: {
+        ...(value as { title: string; body: string }),
+        id: 2,
+        node_id: "I2",
+        number: 2,
+        html_url: "https://github.com/boburning/portcove/issues/2",
+      },
+      headers: new Map(),
+      rateLimit: { resource: null, limit: null, remaining: null, used: null, resetAt: null },
+    };
+  };
+  client.createPortIssue({
+    title: "Shared title",
+    upstream: "https://github.com/owner/second",
+    portKey: "second",
+    repositoryIdentity: { id: 456, game: "Game one" },
+  });
+  assert.equal(posts, 1);
+});
 
 void test("New Port form parsing requires a canonical key and direct https upstream", () => {
   const body = `### Direct upstream URL

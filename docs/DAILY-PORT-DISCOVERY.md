@@ -53,6 +53,9 @@ canonical owners before calling a candidate new. One exact, known-game owner is
 retained, including closed/deferred owners; ambiguous scope, conflicting IDs and
 orphaned catalog identities remain held. Distinct IDs within a proposal alone do
 not prove new implementations. Separate games sharing one repository remain separate.
+Primary-verified repository/game identity refines the generic title hint through
+creation and recovery. Equal display titles alone do not merge distinct known
+implementations; conflicting durable keys and unknown identities still hold.
 The executor appends a factual observation to a verified existing owner instead
 of creating another issue or aborting unrelated new candidates. It binds and
 reads back that observation, deduplicates identical candidate/primary evidence

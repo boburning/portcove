@@ -182,6 +182,17 @@ export function sourceProvenancePortIdentity(issue: RoadmapIssueItem) {
 export function sourceProvenancePortIssues(issues: readonly RoadmapIssueItem[] | null | undefined) {
   return discoveredPortIssues(issues);
 }
+export function portRepositoryIds(body: string) {
+  const primary = body
+    .split(/\r?\n/u)
+    .filter((line) => !line.startsWith("Reviewed source-family alias: "))
+    .join("\n");
+  return [
+    ...new Set(
+      [...primary.matchAll(/GitHub repository ID:\s*(\d+)/giu)].map((match) => Number(match[1])),
+    ),
+  ];
+}
 
 export function findPortIssueDuplicates(
   issues: readonly RoadmapIssueItem[] | null | undefined,
@@ -190,25 +201,46 @@ export function findPortIssueDuplicates(
     upstream,
     catalogId,
     portKey,
+    repositoryIdentity,
   }: {
     title: string;
     upstream: string;
     catalogId?: string | null | undefined;
     portKey?: string | null | undefined;
+    repositoryIdentity?: { id: number; game: string } | undefined;
   },
 ) {
   const candidateTitle = normalizedPortTitle(title);
   const candidateUpstream = normalizedUpstream(upstream);
   const candidateKey = portKey ? normalizePortKey(portKey) : null;
   const candidateIdentity = catalogId ?? candidateKey ?? candidateTitle;
+  if (
+    repositoryIdentity &&
+    (!Number.isSafeInteger(repositoryIdentity.id) ||
+      repositoryIdentity.id <= 0 ||
+      !repositoryIdentity.game.trim())
+  )
+    throw new Error("Invalid primary repository/game identity");
   const matches = [];
   for (const issue of discoveredPortIssues(issues)) {
     const reasons = [];
     const { ids, keys, upstreams, title: titleIdentity } = portIdentity(issue);
+    const body = itemBody(issue);
+    const repositoryIds = portRepositoryIds(body);
+    const knownGame = body.match(/^Underlying game: \*\*([^*\r\n]{1,256})\*\*/mu)?.[1];
+    const separateIdentity =
+      repositoryIdentity &&
+      repositoryIds.length === 1 &&
+      Number.isSafeInteger(repositoryIds[0]) &&
+      repositoryIds[0]! > 0 &&
+      ((repositoryIds[0] !== repositoryIdentity.id && !upstreams.includes(candidateUpstream)) ||
+        (repositoryIds[0] === repositoryIdentity.id &&
+          knownGame &&
+          normalizedPortTitle(knownGame) !== normalizedPortTitle(repositoryIdentity.game)));
     const issueIdentity = ids[0] ?? keys[0] ?? titleIdentity;
     if (catalogId && ids.includes(catalogId)) reasons.push(`catalog ID ${catalogId}`);
     if (candidateKey && keys.includes(candidateKey)) reasons.push(`port key ${candidateKey}`);
-    if (candidateTitle && titleIdentity === candidateTitle)
+    if (candidateTitle && titleIdentity === candidateTitle && !separateIdentity)
       reasons.push(`normalized title ${candidateTitle}`);
     if (
       candidateUpstream &&

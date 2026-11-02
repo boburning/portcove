@@ -11,6 +11,7 @@ import {
   hostedPlanHash,
   probeHostedProjectWrite,
   assertHostedCatalogIdentity,
+  collectHostedRequests,
 } from "./hosted-discovery-intake.mts";
 import { RoadmapClient, portFieldInitialization, validateConfig } from "./roadmap.mts";
 import { GitHubApiClient, GitHubApiError } from "./github-api.mts";
@@ -44,6 +45,20 @@ const proposal = {
 };
 const encode = (data: unknown) =>
   `${hostedRequestMarker}\n\`\`\`json\n${JSON.stringify(data)}\n\`\`\``;
+void test("read-only bootstrap and queue quota/budget holds produce qualified continuation", () => {
+  for (const phase of ["bootstrap", "queue"])
+    for (const code of ["quota_stale", "budget_exhausted"]) {
+      const f = fixture();
+      const failure = () => {
+        throw new GitHubApiError(code, "Read-only capacity hold");
+      };
+      f.bridge.comments = phase === "queue" ? failure : () => [];
+      const result = collectHostedRequests(f.bridge, phase === "bootstrap" ? failure : () => {});
+      assert.equal(result.status, "held");
+      assert.equal(f.creations, 0);
+      assert.equal(f.writes, 0);
+    }
+});
 void test("real Project field writes use the complete API schema without CLI commands", () => {
   let pages = 0;
   const mutations: unknown[] = [];
@@ -494,6 +509,60 @@ function existingOwnerFixture(candidates = [candidate]) {
   });
   return f;
 }
+void test("a canonical owner appearing in the final pre-POST inventory is observed instead of duplicated", async () => {
+  const f = fixture();
+  const inventory = f.bridge.inventory.bind(f.bridge);
+  f.bridge.inventory = (cache, full) => {
+    const receipt = f.all().find((c) => c.body.startsWith("<!-- portcove-hosted-intake-receipt:"));
+    if (receipt && !f.issues.length) {
+      const raw = JSON.parse(receipt.body.match(/```json\n([\s\S]+)\n```/u)![1]!) as {
+        delivery: { status: string }[];
+      };
+      if (raw.delivery[0]?.status === "create-attempted") {
+        const body = hostedBody(
+          {
+            ...candidate,
+            upstream: "https://github.com/previous-owner/native-game",
+            port_key: "previous-owner-key",
+          },
+          99,
+        );
+        f.issues.push({
+          id: "I150",
+          node_id: "I150",
+          number: 150,
+          title: "[Port] Earlier implementation name",
+          body,
+          state: "OPEN",
+          url: "https://github.com/boburning/portcove/issues/150",
+          html_url: "https://github.com/boburning/portcove/issues/150",
+          updatedAt: "2026-10-28T00:00:00Z",
+        });
+      }
+    }
+    return inventory(cache, full);
+  };
+  const result = await f.bridge.process(f.request, f.all());
+  assert.equal(result.delivery[0]!.canonical_issue, 150);
+  assert.equal(result.delivery[0]!.status, "existing");
+  assert.equal(f.creations, 0);
+});
+void test("same-game implementations with distinct immutable repositories do not conflict on their display title", async () => {
+  const f = existingOwnerFixture();
+  f.issues[0]!.title = `[Port] ${candidate.title}`;
+  f.issues[0]!.body = hostedBody(
+    {
+      ...candidate,
+      repository_id: candidate.repository_id + 1,
+      upstream: "https://github.com/independent/native-game",
+      port_key: "independent-implementation",
+    },
+    99,
+  );
+  const result = await f.bridge.process(f.request, f.all());
+  assert.equal(result.status, "complete");
+  assert.equal(f.creations, 1);
+});
 void test("existing observations deduplicate across proposals and preserve non-neutral owner fields", async () => {
   const f = existingOwnerFixture();
   Object.assign(f.fields, { Status: "Deferred", Priority: "High" });
