@@ -17,7 +17,35 @@
       "game_slug": "forza-horizon",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2726
+    "issue_number": 2726,
+    "manual_setup": {
+      "help_url": "https://github.com/FH1-ReImagined/ForzaHorizon1-ReImagined/blob/c44f31461566a95cf050d32ccde6db389c305b78/README.md",
+      "steps": [
+        {
+          "title": "Prepare your own Xbox 360 original upstream",
+          "instruction": "Use the official v0.2.4 Windows setup and complete its supported original-file selection, game-code build and graphics/settings preparation. Inputs are your own Forza Horizon Xbox 360 disc image, Games on Demand package or complete extracted folder, title ID 4D5309C9. The selected base manifest identifies XEX module hash D48ABF1704CE5C4A; optional Title Update 4 uses version 0.0.4.12/module hash 336A44DC03EC8782. These module identifiers are not whole-disc cryptographic hashes. Retain owned update/DLC inputs separately."
+        },
+        {
+          "title": "Select the installed waiting launcher",
+          "instruction": "After setup succeeds, select the actual installed forza-launcher.exe, use its complete installed directory as working directory and leave arguments empty. Keep its bundled files intact. Review the selected program, working folder and arguments and choose Play when ready, then use its ordinary Play. The selected GUI creates a game Session, polls its child until exit and waits for that child when closing. Keep the launcher open while the game runs, then close both normally. Do not select ForzaHorizon1-ReImagined-Setup-0.2.4.exe, an update helper, bare forza.exe, server or command-line build/extract mode."
+        },
+        {
+          "title": "Keep the exact launch context",
+          "instruction": "The launcher passes the actual game-data root and selected user/cache/profile paths, writes the game configuration and supplies graphics/session environment. It also handles save preparation and post-session processing. Directly starting forza.exe with default paths would instead risk selecting Documents/forza and omit that context. Keep the already selected local or Xenia-derived profile, original/base or TU4 build, DLC and graphics configuration; do not switch them merely to attach the player. Optional online, public sharing, haptics, VR, account or token operations remain upstream/user choices and are not performed here."
+        },
+        {
+          "title": "Preserve both settings and game-data roots",
+          "instruction": "Keep %APPDATA%/ForzaReImagined with launcher.json, settings/logs and private profile information, plus the actual game-data root. New Windows data normally uses %LOCALAPPDATA%/ForzaReImagined; an existing Documents/forza install can remain active, and configured data roots or a failed legacy carry can retain another actual root. Preserve originals, saves, profile/Xenia copies, DLC, photos, backups, cache and both historical/active roots. Upstream carry operations copy without deleting the source and do not justify merging or deleting existing profiles. No data relocation, save editing, migration, restore or deletion is performed here."
+        },
+        {
+          "title": "Keep upstream ownership and qualification limits",
+          "instruction": "The upstream launcher owns compiler/source staging, preparation, self-update and failed-build recovery. Retain project GPLv3-or-later, ReIGlue/ReXGlue, compiler, bundled libraries and component notices; they do not license the original game, DLC, mods or shared content. Finish updates outside a game session, preserve recovery and review/relink changed bytes. The observed setup EXE header is the installer, not proof of the compiled game’s architecture or behavior. No native/installed, online/multiplayer, full campaign, real-save restore, Supported or managed lifecycle acceptance is asserted."
+        }
+      ],
+      "warnings": [
+        "Select the installed forza-launcher.exe after upstream preparation. Its waiting session preserves the actual data/profile context; keep both launcher settings and all active/historical game roots."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

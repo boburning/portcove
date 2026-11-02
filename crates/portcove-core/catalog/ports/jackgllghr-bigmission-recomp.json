@@ -9,7 +9,35 @@
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/jackgllghr/bigmission-recomp",
-    "issue_number": 2805
+    "issue_number": 2805,
+    "manual_setup": {
+      "help_url": "https://github.com/jackgllghr/bigmission-recomp/blob/7630758036ecaf841f4bb6732bfe6cd080a27902/README.md",
+      "steps": [
+        {
+          "title": "Prepare the exact Japanese PSP original",
+          "instruction": "Use your own Saru! Get You! SaruSaru Daisakusen Japan UCJS10060 version 1.00 ISO. The selected profile identifies PSP_GAME/SYSDIR/BOOT.BIN by size 3226216 bytes and SHA256 ee738a85dcd74a512430d1933226cc744c60b5dfb6e61bcc81eca1d5a208ec4b; this is not a whole-ISO digest. The profile does not supply EBOOT decryption. Finish original verification and local module generation through the supported upstream launcher before attachment."
+        },
+        {
+          "title": "Keep the complete Windows shell and local title module",
+          "instruction": "Use the official v0.2.1 Windows x64 package with sarusaru.exe, its runtime DLLs, code generator, toolchain resources and notices together. psp_recomp.exe is the generator, not the game. The title-specific native shell loads sarusaru_game.dll from its prepared matching ABI location; this is not permission to use another PSP profile’s module. Source/profile maturity notes and Android/Linux/macOS packages are separate evidence, not Windows/native acceptance."
+        },
+        {
+          "title": "Attach the integrated normal player",
+          "instruction": "Select sarusaru.exe, use its complete extracted player directory as working directory and leave arguments empty after upstream preparation. Retain an existing supported --settings FILE argument if that installation already uses one. Review the selected program, working folder and arguments and choose Play when ready. The selected shell keeps its launcher and in-game interface alive in the same session and calls the title’s play route in process. Use the original Japanese game-content mode for this route; optional English text/texture packs have separate content permissions and preparation, and are not required here. Close the actual player normally."
+        },
+        {
+          "title": "Preserve settings, memory stick and compiled data",
+          "instruction": "On Windows, settings normally live at %APPDATA%/SaruSaruRecomp/settings.ini, with existing SARUSARU_SETTINGS or explicit --settings taking the documented override path. Keep the whole actual per-user SaruSaruRecomp root, including game/<module-ABI>/ locally compiled output, memstick/PSP/SAVEDATA, states, caches, pack choices and backups. An existing SARUSARU_MEMSTICK selects another memory-stick root; retain it and all legacy copies. Real PSP/PPSSPP save compatibility and experimental quick states remain distinct claims, not a demonstrated transfer/restore here. Do not create a new profile or merge/delete existing saves."
+        },
+        {
+          "title": "Keep optional content and maintenance separate",
+          "instruction": "Retain project/PSPRecomp MIT, FFmpeg, compiler, SDL and other library/notices; original game text, translations, HD assets and fonts are separate rights boundaries. Do not infer permissions or qualification from another PSP title. Upstream owns import, local generation, content selection, updates and recovery; finish those outside a session, retain the prepared module/data and review/relink changed bytes. No private-input or credential operation, full playthrough, physical controller, installed/native, Supported or managed lifecycle acceptance is asserted."
+        }
+      ],
+      "warnings": [
+        "Select prepared sarusaru.exe with its matching local module and existing settings/memory-stick roots. Keep Japanese original content separate from optional translation/HD packs and quick-state compatibility claims."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

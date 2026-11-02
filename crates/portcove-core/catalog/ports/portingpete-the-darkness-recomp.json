@@ -9,7 +9,35 @@
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/portingpete/The-Darkness-Recomp",
-    "issue_number": 2849
+    "issue_number": 2849,
+    "manual_setup": {
+      "help_url": "https://github.com/portingpete/The-Darkness-Recomp/blob/8e4016c8b5a442b312d3a009a9047d0f541adbf8/README.md",
+      "steps": [
+        {
+          "title": "Prepare the supported original Xbox 360 dump",
+          "instruction": "Use your own The Darkness Xbox 360 original disc revision, retaining all matching extracted files and default.xex under the prepared release’s Darkness/ directory. The selected original revision manifest pins XEX SHA256 aace35a8f9bcdc7f28aeab9ff8cf3bdf200353f5c83705f6284487347acb3c5f and decrypted image SHA256 180b7fc8f57462f6bac3404ecab061a8d79914c7a3e9a12c238bd3449e72d049. These are distinct executable identities, not a whole-disc hash. Finish the supported upstream checks/settings first. Separate Russian-localization revisions are not permission or compatibility inferred for this original-disc route."
+        },
+        {
+          "title": "Keep the actual Windows player package",
+          "instruction": "Use the official v0.1.8 windows-x64 ZIP with build_native/Release/DarkRecomp.exe, runtime/audio libraries, assets/localization, shaders, notices and the prepared Darkness/ folder intact. The tiny diagnostic-launchers ZIP is not the runtime. Developer XMA/source builds and their MSYS2/LLVM prerequisites are a separate path; do not require a rebuild merely to attach the prepared released player. Keep all library and generated-menu resources together rather than copying one executable."
+        },
+        {
+          "title": "Attach the supported direct native entry",
+          "instruction": "Select build_native/Release/DarkRecomp.exe, use the full extracted release root as working directory and leave arguments empty. Review the selected program, working folder and arguments and choose Play when ready. This follows the upstream Windows external-shortcut contract: sound and normal gameplay default on, and the selected native source locates Darkness/default.xex near the executable. Do not register DarkRecompPreview.exe, DarkRecompSettings.exe, LaunchWithUpdates.cmd, a diagnostic launcher, renderer smoke/probe mode or the --sound option left from an older shortcut. Close the actual native game normally."
+        },
+        {
+          "title": "Preserve the existing user-data layout",
+          "instruction": "Without an explicit isolation choice, the selected source keeps DarkRecomp.settings.ini, saves/ (including achievements.dat), build_native/run/cache, native-menu and developer-weapons caches under the parent of the actual game directory. Preserve the entire active release/user-data tree, originals, shader caches, historical saves and recovery. If this installation already uses --user-data-dir, retain that exact existing directory in the reviewed arguments; it changes save/config/cache roots and must not be added merely to create an empty profile. Do not merge, migrate, restore or delete populated data here."
+        },
+        {
+          "title": "Keep maintenance, content and maturity limits",
+          "instruction": "Retain project GPLv3 and all audio/runtime/font/input-prompt/library notices. Original game data and any independently supplied translated dump have separate rights; project licensing does not license them. Upstream player/tools own replacement and source-based commit updates: complete those outside the game session, retain recovery and review/relink changed bytes. Current README gameplay claims and development-source warnings are retained evidence, not a full campaign or save-restore observation on this host. No native/installed, physical controller, Supported or managed install/update/rollback/backup/deletion acceptance is asserted."
+        }
+      ],
+      "warnings": [
+        "Select the actual DarkRecomp.exe with the complete release root as CWD. Preserve the original-disc revision and actual user-data root; diagnostic launchers and independent localizations are separate."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

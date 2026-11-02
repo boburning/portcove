@@ -17,7 +17,35 @@
       "game_slug": "the-king-of-fighters-98",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2732
+    "issue_number": 2732,
+    "manual_setup": {
+      "help_url": "https://github.com/danilopaulinodasilva/kof98recomp/blob/17113d96149937e963bf1f357d924118c87ee67f/README.md",
+      "steps": [
+        {
+          "title": "Prepare the exact AES original and BIOS",
+          "instruction": "Use your own KOF ’98 home/AES kof98h (NGH-2420), not the MVS kof98 set. The selected mapping uses 242-pn1.bin and 242-p2.bin, 242-s1.bin, 242-mg1.bin, 242-c1.bin through 242-c8.bin and 242-v1.bin through 242-v4.bin. It requires the AES neo-po.bin BIOS plus sfix.sfix, sm1.sm1 and 000-lo.lo from your own compatible BIOS set; the toolkit’s generic MVS example is not this game’s BIOS selection. Upstream docs/game-notes.md owns the per-file CRCs."
+        },
+        {
+          "title": "Complete the supported upstream build",
+          "instruction": "Follow the selected project’s Windows setup or documented step-by-step source preparation with SDL2 and ROM-derived recompilation enabled. The offered installer is a preparation tool, not the game. Upstream explicitly says its Windows quick setup has not yet been tried with this title; that is an unobserved route, not a demonstrated pass or known failure. A development interpreter-only or headless build is not the prepared windowed player described here. Keep the full project, generated output, runtime libraries, notices and owned inputs."
+        },
+        {
+          "title": "Attach the native player directly",
+          "instruction": "After successful upstream preparation, select build/Release/kof98.exe, use the prepared project root as working directory and set --rom-path \"the actual existing project roms directory\". Review the exact paths and intent and choose Play when ready. This follows the generated shortcut’s target, CWD and ROM argument; the generated KOF98.cmd uses start and detaches, so do not register it. Leave --headless, --verify and profiling/test options out of ordinary Play. Close the game normally before ending the session."
+        },
+        {
+          "title": "Preserve settings and actual state",
+          "instruction": "The selected SDL consumer stores settings.ini in SDL_GetPrefPath(\"neogeorecomp\", \"kof98\"), normally %APPDATA%/neogeorecomp/kof98 on Windows. Keep that actual resolved root, project ROMs, generated caches, logs, any existing game state and historical copies. Menu/settings persistence is established in source; durable score, SRAM, memory-card or save-state compatibility has not been established by this guide. Do not invent a save conversion, replace populated data with a new folder, or delete originals. No migration or real-save restore is performed."
+        },
+        {
+          "title": "Retain the title-specific limits",
+          "instruction": "Keep project/toolkit MIT and all SDL2, Musashi, Z80 and audio-library notices; these do not license original cartridge/BIOS assets. The title compiles its mapped 68000 code while retaining a runtime-copied boot routine and separate sound/hardware implementation; it is not proof that every CPU path is static. Upstream scripted block comparisons and gameplay reports are not observations on this host. Quit before upstream replacement, keep recovery and review/relink changed bytes. No native/installed, physical multiplayer/controller, Supported or managed lifecycle acceptance is asserted."
+        }
+      ],
+      "warnings": [
+        "Use AES kof98h with the AES BIOS, not an MVS set. Windows preparation is explicitly untried upstream; only attach an actually completed windowed native build, preserving its existing data."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

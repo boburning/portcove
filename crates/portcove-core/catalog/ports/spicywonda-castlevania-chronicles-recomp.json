@@ -17,7 +17,35 @@
       "game_slug": "castlevania-chronicles",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2854
+    "issue_number": 2854,
+    "manual_setup": {
+      "help_url": "https://github.com/Spicywonda/castlevania-chronicles-recomp/blob/0b578b91c14eeb25c06185d660954b86ff092fff/README.md",
+      "steps": [
+        {
+          "title": "Prepare the USA PlayStation original upstream",
+          "instruction": "Use a complete player/components you are independently permitted to use and your own Castlevania Chronicles USA SLUS-01384 disc as CUE with all referenced BIN tracks, or CHD. The selected validator checks CUE/CHD structure and the native game’s --validate-disc route looks for SLUS_013.84; this is not a published whole-disc cryptographic digest. Finish disc selection, first-start game-code preparation and settings in the supported upstream launcher first."
+        },
+        {
+          "title": "Keep the actual launcher and private runtime unit",
+          "instruction": "Use the official 0.3.10 Windows x64 package as one complete unit. The selected producer stages Play.exe at the top and the game, bundled .NET/native runtime libraries and font below runtime/. It is not necessary to install a separate developer .NET SDK merely to use that prepared player. Do not register the archive, a developer build tool, the obsolete launcher layout or a runtime DLL. Linux/macOS packages are separate routes with their own unobserved host acceptance."
+        },
+        {
+          "title": "Attach the supported waiting launcher",
+          "instruction": "Select Play.exe, use the full extracted package root as working directory and leave arguments empty after upstream setup. Review the selected program, working folder and arguments and choose Play when ready, then use the launcher’s ordinary Play. The selected desktop launcher runs runtime/CastlevaniaChronicles.exe through GameSession.RunAsync, waits for validation/game children and supplies the chosen disc plus CHRONICLES_DATA_DIR. Keep the launcher open while the game runs and close both normally when finished. Update helpers/relaunches are a separate upstream maintenance path, not an automatically qualified successor."
+        },
+        {
+          "title": "Preserve cards, settings and legacy copies",
+          "instruction": "Windows data defaults to %LOCALAPPDATA%/CastlevaniaChroniclesRecomp, or the actual existing CHRONICLES_DATA_DIR. Keep that whole root, launcher.json/disc selection, carda.sav, cardb.sav, settings/bindings, logs, backups, originals and historical portable cards. Upstream adopts valid legacy 128 KiB cards only into missing destination slots and retains the originals. Explicit card import validates first and backs up an existing destination before replacement; it is not a merge or a Portcove backup/restore guarantee. Do not move only Play.exe or replace populated cards with fresh package files. No card, migration, restore or deletion operation is performed here."
+        },
+        {
+          "title": "Retain title and maintenance limits",
+          "instruction": "Keep applicable title, RecompOne MIT, bundled runtime/library and Noto font notices; they do not license original game assets or every independent modification. Optional cheats/extras, movie/audio fixes and upstream automated cases do not establish full gameplay/listening, physical controllers or save reload here. The upstream launcher owns checks, staging, self-update and failed-start recovery; finish maintenance before attachment, quit normally, preserve data/recovery and review/relink changed bytes. No Supported, native/installed or managed install/update/rollback/backup/deletion acceptance is asserted."
+        }
+      ],
+      "warnings": [
+        "Select top-level Play.exe and retain runtime/. Its supported waiting launch preserves the data-directory context; keep active and legacy card copies, and finish upstream updates separately."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

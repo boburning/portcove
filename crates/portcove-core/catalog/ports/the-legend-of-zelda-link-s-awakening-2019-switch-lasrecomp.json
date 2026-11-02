@@ -17,6 +17,34 @@
       "image_sha256": "e9c009c493b3e1d4a9354ecb5f6ba9a6c00fe60664d370aad5cfdb18e1e956bb",
       "game_slug": "the-legend-of-zelda-links-awakening--1",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/peiikai/LASRecomp/blob/fb45ad6d1ac2e2fc1b7a1aba08bb639e5137fbc6/README.md",
+      "steps": [
+        {
+          "title": "Finish the supported game-file setup",
+          "instruction": "Use your own already extracted Switch Link’s Awakening v1.0.0, v1.0.1 or v1.1.0 files, with exefs and romfs or their supported contents. Complete the official player’s Game Files preparation and local game-code build before attachment. This route supplies no originals, keys, decryption, firmware, Nintendo fonts or game-data download. Other Zelda games and versions are separate qualifications."
+        },
+        {
+          "title": "Keep the complete ordinary Windows package",
+          "instruction": "Use the complete official beta_5.4 Windows LAS Recomp folder, including lasrecomp.exe, DLLs, tools, resources and notices. Keep it writable outside Program Files. The documented Windows route requires x86-64 Windows 10/11, AVX2 and FMA, and Vulkan 1.3 with a suitable current driver. Source/developer builds and test-tag assets have different preparation requirements. Preserve project MIT and separate library, font, compiler and graphics-component notices; original game rights remain separate."
+        },
+        {
+          "title": "Attach the integrated native player",
+          "instruction": "Select lasrecomp.exe, use the complete existing LAS Recomp directory as working directory and leave arguments empty. Review the selected program, working folder and arguments and choose Play when ready, then use its ordinary start-screen Play and existing vanilla/seed selection. The native start screen and game loop share a process; the selected Windows restart implementation waits for its successor and propagates its exit. Do not select a code generator, setup script, randomizer tool or test harness as the player."
+        },
+        {
+          "title": "Preserve the resolved data folder and seed identity",
+          "instruction": "Windows normally keeps data next to lasrecomp.exe. Retain any existing data_root.txt pointer, LARECOMP_DATA_ROOT override or source-checkout extracted/ working-root behavior; use the actual populated folder rather than creating a replacement profile. Preserve save/, rando/, larecomp.ini, fonts/, gamecontrollerdb.txt, cache/, extracted/, logs and all backups. Keep each randomizer seed and its matching saves distinct from vanilla and other seeds. Preserve existing LARECOMP_SETTINGS overrides and both sides of interrupted .lasrecomp_move_* / .lasrecomp_incomplete recovery; finish upstream recovery separately."
+        },
+        {
+          "title": "Leave changes and beta acceptance upstream",
+          "instruction": "Upstream owns game-file import, local compilation, randomizer generation, data-folder moves, updates and recovery. Finish these outside an active game and review/relink changed player bytes. Beta crashes, experimental shuffle logic and graphics limitations remain; no full campaign, solvable-seed, native-controller or real-save recovery qualification is established here. Attachment provides no managed install, update, backup, rollback, migration or external-file deletion."
+        }
+      ],
+      "warnings": [
+        "Attach the prepared beta_5.4 lasrecomp.exe with its complete folder. Preserve data_root.txt, the actual resolved data root, vanilla/seed-specific saves and unfinished upstream move-recovery markers."
+      ]
     }
   },
   "upstream_lineage": {

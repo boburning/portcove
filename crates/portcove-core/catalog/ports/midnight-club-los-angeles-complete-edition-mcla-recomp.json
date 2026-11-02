@@ -9,7 +9,35 @@
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/holdmysocks/mcla-recomp",
-    "issue_number": 2693
+    "issue_number": 2693,
+    "manual_setup": {
+      "help_url": "https://github.com/holdmysocks/mcla-recomp/blob/f3104f553ddd90b251012cc1536d4158765acd93/README.md",
+      "steps": [
+        {
+          "title": "Prepare the matching Complete Edition upstream",
+          "instruction": "Use a complete player/components you are independently permitted to use and your own Xbox 360 Midnight Club: Los Angeles Complete Edition USA/Europe ISO, title 545407F8. The selected source records default.xex version 0.0.0.8 linked 2009-07-17; this is not a whole-disc digest or permission to substitute another region/revision. Finish the upstream local extraction/build first."
+        },
+        {
+          "title": "Keep the completed upstream build",
+          "instruction": "The official v1.0.14 ZIP is described by its producer as a source/build kit, not a precompiled game. Upstream scripts/make_pc.ps1 prepares your own original into game/, uses ReXGlue v0.10.0 commit f5337cdc947ff6d4c4196737e2c807a48f2a1fc2 plus title patches, and builds out/build/win-amd64-release/mcla.exe with matching rexgpu-xenos.dll and libraries. Required Windows tools and any installation/elevation prompts remain upstream-owned. Keep the full resulting project/build; the script, source archive and SDK tool are not game-registration targets."
+        },
+        {
+          "title": "Attach the normal completed executable",
+          "instruction": "Select the actual out/build/win-amd64-release/mcla.exe, use that same completed build directory as working directory and leave arguments empty. Review the selected program, working folder and arguments and choose Play when ready. This matches the upstream shortcut; the native app finds game/ beside it or in parent project folders and enters its linked runtime. Finish missing-data/build/settings prompts upstream before retrying. Do not select make_pc.ps1, a compiler, an extractor, an unrelated console payload or a diagnostic invocation."
+        },
+        {
+          "title": "Preserve actual originals, data and pending saves",
+          "instruction": "The pinned SDK resolves Windows user data to the actual Known Documents folder/mcla unless an existing --user_data_root overrides it; cache defaults below that selected root. This can be a relocated Documents folder, not a guessed profile path. Keep the whole active user root, profiles/content/saves/cache, actual --cache_root/update/metadata roots, mcla.toml beside the executable, game/, out/logs and independent originals/recovery. Do not move only mcla.exe or replace the only profile. The title waits for an in-progress career save during normal close; no real save/reload or backup guarantee is established here."
+        },
+        {
+          "title": "Keep platform and replacement boundaries",
+          "instruction": "Keep project GPLv3, ReXGlue BSD/Xenia, FFmpeg and other component notices; original assets and private generated output are not licensed for redistribution by those notices. Windows D3D12 is the documented primary route; Vulkan title-screen, Linux one-user and jailbroken-PS5 observations remain separate upstream evidence, not this host qualification. Updates rebuild upstream and can change executable bytes; quit normally, retain recovery and review/relink after replacement. No Supported, native/installed, campaign/controller/save-restore or managed installation/update/rollback/backup/deletion acceptance is claimed."
+        }
+      ],
+      "warnings": [
+        "Select an already completed mcla.exe build, not the source kit or build script. Preserve the full project and actual Documents/mcla or explicitly selected data root; all native/gameplay/save observations remain unperformed."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

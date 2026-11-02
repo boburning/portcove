@@ -17,7 +17,35 @@
       "game_slug": "drakengard-3",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2842
+    "issue_number": 2842,
+    "manual_setup": {
+      "help_url": "https://github.com/soyjxck/dod3-recomp/blob/e229e8b66434916b5b025f0f06ee3fd06c10d3f4/README.md",
+      "steps": [
+        {
+          "title": "Prepare the supported US base and update",
+          "instruction": "Use your own Drakengard 3 US BLUS31197 decrypted disc folder/image, or the supported US PSN base package NPUB31251 (UP0082-NPUB31251_00-DOD3MAINGAME0000). Supply the required US disc-release 1.01 update UP0082-BLUS31197_00-DOD3PATCH0000000-A0101-V0101-PE.pkg; the selected player applies it to either supported base. Encrypted raw disc images, other regions and the separate PSN update are not interchangeable. Optional DLC requires its own supported purchased packages. Finish the integrated upstream setup before attachment."
+        },
+        {
+          "title": "Keep the complete Windows alpha unit",
+          "instruction": "Use the complete official v0.5.0-alpha Win64 player, retaining dod3.exe, its DLLs, shader/cache and override resources, licenses and the installed game/ tree together. The selected player guide needs no PS3 emulator or firmware input for ordinary release setup. Building the port from source is a separate route that documents a user-supplied decrypted firmware component; that condition is not transferred into an installer, firmware download or build performed by Portcove. Retain project/runtime MIT, font, compiler/library and other component notices separately from original game/update/DLC rights."
+        },
+        {
+          "title": "Attach the integrated native player",
+          "instruction": "Select dod3.exe, use its complete extracted player directory as working directory and leave arguments empty after upstream preparation. Review the selected program, working folder and arguments and choose Play when ready, then use its ordinary integrated Play if shown. The selected Windows main anchors its release working directory to the executable and continues through setup/launcher into the native game runtime. Do not register a disc dumper, package extractor, compiler, --install/--check mode or another Drakengard edition as Play. Close the actual game normally."
+        },
+        {
+          "title": "Preserve installed content and gamedata",
+          "instruction": "Keep the full active directory, especially game/ (installed original/update/DLC), gamedata/ (saves, trophies and other game-owned data), dod3.ini, input/settings, logs and recovery. Preserve explicit existing PS3/DOD3 data/root overrides and historical copies. Shader cache and durable progress are distinct; a new package’s default INI must not overwrite populated settings unintentionally. No original extraction, save conversion, trophy edit, root change, migration, restore or deletion is performed by attachment."
+        },
+        {
+          "title": "Leave updates and compatibility qualification upstream",
+          "instruction": "Upstream owns setup, package recognition, optional content, self-update and failed-start recovery. Finish replacement outside a game session, retain populated data/recovery and review/relink changed bytes. The alpha’s renderer, PPU/SPU and campaign claims do not establish full gameplay, physical-controller or real-save restore qualification here. Linux/macOS and developer/source builds have separate requirements. This non-owning route supplies no Portcove managed installation, update, backup, rollback, migration or external-file deletion."
+        }
+      ],
+      "warnings": [
+        "Select prepared dod3.exe after the supported US base plus required 1.01 update. Preserve game/, gamedata/ and dod3.ini; optional DLC and source-build firmware have separate boundaries."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

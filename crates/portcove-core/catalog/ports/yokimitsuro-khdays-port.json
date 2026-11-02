@@ -17,7 +17,35 @@
       "game_slug": "kingdom-hearts-358-2-days",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2794
+    "issue_number": 2794,
+    "manual_setup": {
+      "help_url": "https://github.com/Yokimitsuro/khdays-port/blob/065a94b2a4c55b5217ffd023d8736af21e2d6851/README.md",
+      "steps": [
+        {
+          "title": "Prepare the exact European DS original",
+          "instruction": "Use the official v0.1.4 Windows setup with your own European Kingdom Hearts 358/2 Days DS ROM, game code YKGP/revision 0. The selected supported-ROM table gives SHA256 1ecf5e7a41a2ae48e7c5fd3f678e5a79e854d843f1a1fa3a952a41b14e51ec4f and header-free SHA256 d9e103c6ccd39d5b91e44d865983badc5e2af1674db404b3768557712038a373. Complete its own verification/extraction and settings first. Optional HD menus/videos/fonts require your own separately supported HD collection inputs; they are not necessary to attach the base player."
+        },
+        {
+          "title": "Keep the complete prepared install",
+          "instruction": "The supported installer carries its Python/tools and prepares data locally; a developer SDK/build is a separate route. Retain the installed game, DLLs, data/, tools/, port/tools/, installer/, setup/state.json, mods/ and notices. Upstream’s default Program Files install uses an explicit writable-folder grant; this guide changes no permissions or system software. Preserve the actual already chosen per-user or administrator-created installation and do not select an unprepared read-only folder."
+        },
+        {
+          "title": "Attach the native game, not its tools",
+          "instruction": "Select the installed khdays-native.exe, set working directory to its complete prepared install root and leave arguments empty for ordinary Play. Review the selected program, working folder and arguments and choose Play when ready. This matches the installer’s actual game shortcut. KH Studio and khdays-server.exe are separate editor/server programs, not the player. The native port finds data/extracted from its prepared root and runs the game there; no ROM-loader or shell wrapper is added. Close the actual game normally before upstream maintenance."
+        },
+        {
+          "title": "Preserve saves, settings and generated user data",
+          "instruction": "Keep the whole writable install, especially saves/khdays.sav, saves/settings.ini, other slots/states/logs, original ROM, mods, locally generated HD data, setup receipts and recovery copies. The normal backup is a 64 KiB raw DS save; the selected Windows writer uses a sibling temporary file and replacement, but that source behavior is not a real-save restore observation here. Preserve original DS/save copies separately and do not infer every state or mod format is compatible. No save transfer, profile edit, import, permission change or deletion is performed."
+        },
+        {
+          "title": "Keep optional content and maintenance ownership upstream",
+          "instruction": "Retain project, decompilation, SDL and other component notices; original DS and HD assets/fonts remain the user’s separately obtained content, not licensed by the tool’s source license. Example mods remain inactive until explicitly adopted upstream. Setup/repair and its self-update installer own replacement; finish those outside a running session, retain populated data/recovery and review/relink changed bytes. No private collection discovery, Steam registration, account/credential operation, online/multiplayer, full-campaign, native/installed, Supported or managed lifecycle acceptance is asserted."
+        }
+      ],
+      "warnings": [
+        "Select installed khdays-native.exe with its full writable install as CWD. Preserve raw DS backups, settings and optional locally generated HD content; editor, server and installer are separate routes."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

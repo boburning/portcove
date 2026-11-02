@@ -17,7 +17,35 @@
       "game_slug": "skate-2",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2608
+    "issue_number": 2608,
+    "manual_setup": {
+      "help_url": "https://github.com/cookingwithsimon/Skate2Recompiled/blob/bcbc1e55cc2a14e97f077ca7540b1f9ca97fbb15/README.md",
+      "steps": [
+        {
+          "title": "Prepare the exact supported original upstream",
+          "instruction": "Use a complete player/components you are independently permitted to use and your own Skate 2 USA English/French Xbox 360 disc, title 4541087F, default.xex SHA1 a9b539c1acbc80aeaade3ffbe708e1fbd3a2dad7. This is an extracted executable digest, not the ISO hash. Other revisions/title updates need separate address configurations. Finish the upstream package’s Setup.bat import and first save-name/settings prompts before attachment. The extractor checks presence of default.xex, not this digest."
+        },
+        {
+          "title": "Keep the actual native player package",
+          "instruction": "The inspected official v0.2.0 ZIP contains AMD64 Skate2-PC-v0.2.0/skate2.exe, rexruntimerd.dll, matching runtime DLLs, skate2.toml, portable.txt and separate import scripts. Keep the complete writable player and prepared game/ tree; the developer Visual Studio/Clang build is a different route. Package requirements are Windows 10/11 x64, AVX2 and D3D12. This is Skate 2, not skate (2007) or Skate 3, despite shared SDK ancestry."
+        },
+        {
+          "title": "Bind the existing native game and data intent",
+          "instruction": "Select skate2.exe and the full Skate2-PC-v0.2.0 folder as working directory. Set --game_data_root=\"absolute actual prepared game directory\" --user_data_root=\"absolute actual existing active user-data directory\" --cache_root=\"absolute actual existing cache directory\", substituting the established paths from the prepared installation/logs. Review the selected program, working folder and arguments and choose Play when ready. The pinned SDK consumes these explicit paths and the native app continues in process. Do not substitute an empty user-data folder, select setup/scripts or copy another title’s paths or arguments."
+        },
+        {
+          "title": "Preserve both declared and actual storage layouts",
+          "instruction": "Keep the entire active user tree, profiles/saves/content, actual cache, skate2.toml, logs, game/originals and historical copies. The package README says portable.txt selects userdata/ and removing it selects Documents/skate2; the selected title app and pinned SDK do not show that marker override and otherwise resolve user data from explicit config/arguments or Known Documents/skate2. Therefore this guide binds the already established roots explicitly and does not promise the marker controls this release. Preserve any existing userdata and relocated Documents copies without merging or moving them. No private data is read, marker changed, profile migrated, backup restored or file deleted."
+        },
+        {
+          "title": "Keep upstream ownership and qualification limits",
+          "instruction": "Keep applicable title, ReXGlue/Xenia, runtime and component notices; original game and title permissions remain independent. SDK base 7eb0faf7787f5e01333c228b8e3f03c32f7295ea plus the title patch is source evidence, not reproduction or proof of every packaged default. Upstream freeskate/mission/performance reports do not establish a whole career, physical controller or save reload here. Quit normally before upstream replacement, retain recovery and review/relink changed bytes. Managed install/update/rollback/backup/deletion, Supported and native/installed acceptance remain unavailable."
+        }
+      ],
+      "warnings": [
+        "Bind the actual existing user/cache roots explicitly. The package’s portable.txt claim is not established by the pinned source; preserve both userdata and Documents copies without migration or merging."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

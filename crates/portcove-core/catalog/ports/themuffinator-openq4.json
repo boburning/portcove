@@ -17,7 +17,35 @@
       "game_slug": "quake-4",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2810
+    "issue_number": 2810,
+    "manual_setup": {
+      "help_url": "https://github.com/themuffinator/openQ4/blob/fcdd56967135fbbdfb1688e2d25533f8f123b1c6/README.md",
+      "steps": [
+        {
+          "title": "Use your own PC Quake 4 installation",
+          "instruction": "Use the official v0.13.2 Windows x64 package and a legitimate supported PC Quake 4 installation, such as Steam or GOG. This is the PC engine route, not the Xbox 360 recompilation or a standalone replacement for original assets. Keep all selected package/components you are independently permitted to use and the original installation."
+        },
+        {
+          "title": "Keep the complete client and game modules",
+          "instruction": "Retain openQ4-client_x64.exe, OpenAL/renderer libraries, baseoq4/ with its SP/MP game modules and runtime packages, docs and notices together. The separate openQ4-ded_x64.exe is a server, not normal Play. Retail game assets remain under the original installation’s q4base/; do not copy them into baseoq4/. The selected player route uses OpenGL by default; experimental Vulkan, Windows ARM64, Linux/Deck and macOS claims remain separate, unobserved qualifications."
+        },
+        {
+          "title": "Attach the native client with its retail root",
+          "instruction": "Select openQ4-client_x64.exe, use its complete extracted package root as working directory, and set +set fs_basepath \"the actual PC Quake 4 root containing q4base\". Review the exact path and intent and choose Play when ready. Point at the root, not q4base/ or baseoq4/. Retain any already chosen supported fs_savepath or mod configuration rather than selecting a new profile. Quit the client normally before ending the session; developer, replay and dedicated-server modes do not replace ordinary Play."
+        },
+        {
+          "title": "Preserve the actual openQ4 save root and compatibility",
+          "instruction": "The selected Windows source normally resolves Known LocalAppData/openQ4, with environment/Saved Games fallbacks; +set fs_savepath can select an existing explicit root. Keep the actual resolved root, configs, saves/screenshots, logs, mods, cache and recovery, plus legacy/stock Quake 4 saves separately. The current policy writes v3 and gates an exact wire ABI, verified build floor and integrity; it rejects v2, newer payloads and unsupported ABI tuples. Format eligibility is not runtime certification, and stock/old/cross-platform saves are not automatically compatible. No save conversion, restore, merge or deletion is performed."
+        },
+        {
+          "title": "Keep distinct licenses and upstream replacement",
+          "instruction": "Engine code is GPLv3 with retained Doom 3/Doom 3 BFG notices and accompanying Additional Terms. The openQ4-game libraries are Quake 4 SDK-derived and retain the SDK EULA; original Quake 4 assets have separate ownership. Retain all accompanying terms; the provenance inventory is an engineering record, not a blanket permission or compatibility conclusion. Upstream/player owns runtime replacement and recovery: finish updates outside a session, preserve data and review/relink changed bytes. No campaign, physical controller, multiplayer, installed/native, Supported or managed install/update/rollback/backup/deletion acceptance is asserted."
+        }
+      ],
+      "warnings": [
+        "Select the native x64 client and point fs_basepath at the PC Quake 4 root. Keep q4base and baseoq4 separate; preserve the actual save root and do not infer stock, legacy or cross-platform save compatibility."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
