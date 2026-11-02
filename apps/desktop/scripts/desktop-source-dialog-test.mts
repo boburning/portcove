@@ -2117,6 +2117,9 @@ export async function selectedSetupScenario({
     let artifactFailure: { error: unknown } | undefined;
     const missingRoot = `${owned.directory}-unavailable`;
     try {
+      // Refuse an unavailable host before picker or library-handoff work. The
+      // main journey captures its generation again after the helper restores it.
+      await selectedSetupGeneration(invoke);
       if (process.platform === "win32")
         report.observations.intake_boundaries = await sourceIntakeNativeBoundaries({
           browser,

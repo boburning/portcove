@@ -373,6 +373,8 @@ it.each([
             artifacts,
             library: path.join(output, "library"),
             cli: process.execPath,
+            confirmNative: async () =>
+              assert.fail("No native confirmation after bootstrap rejection"),
             invoke: (name) => {
               assert.equal(name, "get_bootstrap_status");
               return Promise.reject(failure);
