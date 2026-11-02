@@ -65,10 +65,30 @@ function gameFileRoot(value: unknown): GameFileRoot {
   return required(transportValue("game_file_roots", [value])[0]);
 }
 type SetupInvoke = SelectedSetupContext["invoke"];
-export async function selectedSetupGeneration(invoke: SetupInvoke) {
+async function selectedSetupBootstrap(invoke: SetupInvoke) {
   const response = object(await invoke("get_bootstrap_status"));
   assert.equal(response.ok, true, JSON.stringify(response.error));
-  return transportValue("desktop_bootstrap_status", response.value).generation;
+  return transportValue("desktop_bootstrap_status", response.value);
+}
+export async function selectedSetupGeneration(invoke: SetupInvoke) {
+  return (await selectedSetupBootstrap(invoke)).generation;
+}
+
+export async function selectedSetupLibraryContext(
+  invoke: SetupInvoke,
+  command: FixtureCommand,
+  ownedLibrary: string,
+) {
+  const bootstrap = await selectedSetupBootstrap(invoke);
+  const library = required(bootstrap.library_root);
+  assertOwnedSelectedSetupPath(library, ownedLibrary);
+  const scopedCommand: FixtureCommand = (args, selectedLibrary = library, options) =>
+    command(args, selectedLibrary, options);
+  return {
+    bootstrap,
+    read: selectedSetupRead(invoke, bootstrap.generation),
+    command: scopedCommand,
+  };
 }
 
 export function selectedSetupRead(invoke: SetupInvoke, generation: number) {
@@ -121,6 +141,7 @@ interface MetadataPresentation {
   window?: { x: number; y: number; width: number; height: number };
 }
 interface SetupObservations {
+  library_binding?: { generation: number; library_root: string | null };
   scan?: GameFileScanSnapshot;
   review_text?: string;
   source_review_text?: string;
@@ -2047,7 +2068,7 @@ export async function selectedSetupScenario({
     assert.ok(fixture?.sourceJourney, "Only the exact opt-in selection supplies these identities");
     const owned = required(fixture.sourceJourney);
     assertOwnedSelectedSetupPath(required(owned.root).path, owned.directory);
-    const command = selectedSetupCommand({ cli, library, output, fixture });
+    let command = selectedSetupCommand({ cli, library, output, fixture });
     const expectedGameSha256 = createHash("sha256")
       .update(await readFile(owned.gameBefore))
       .digest("hex");
@@ -2131,7 +2152,13 @@ export async function selectedSetupScenario({
           fixture,
           confirmNative,
         });
-      nativeRead = selectedSetupRead(invoke, await selectedSetupGeneration(invoke));
+      const current = await selectedSetupLibraryContext(invoke, command, library);
+      nativeRead = current.read;
+      command = current.command;
+      report.observations.library_binding = {
+        generation: current.bootstrap.generation,
+        library_root: current.bootstrap.library_root,
+      };
       assert.deepEqual(transportValues("source", command(["source", "list"])), []);
       await click(
         By.xpath(

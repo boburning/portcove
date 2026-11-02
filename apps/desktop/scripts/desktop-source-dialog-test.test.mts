@@ -7,6 +7,7 @@ import {
 } from "./desktop-source-intake-boundaries-test.mts";
 import {
   selectedSetupGeneration,
+  selectedSetupLibraryContext,
   selectedSetupRead,
   selectedSetupScenario,
   selectedSetupScanCompleted,
@@ -466,4 +467,67 @@ it("refuses any application frame or malformed termination for a stale import", 
     assert.throws(() =>
       assertStaleSourceImportReply({ ok: false, error: { code: "conflict" }, channel_frames }),
     );
+});
+
+it("binds complete CLI/native comparisons to one current bootstrap root and generation", async () => {
+  const owned = path.resolve("work/owned-selected-setup-library") + path.sep + ".";
+  const canonical =
+    process.platform === "win32" ? path.toNamespacedPath(path.resolve(owned)) : path.resolve(owned);
+  const calls: { args: readonly string[]; root: string; timeout?: number }[] = [];
+  const context = await selectedSetupLibraryContext(
+    async (name, args) => {
+      if (name === "get_bootstrap_status")
+        return {
+          ok: true,
+          value: {
+            ready: true,
+            generation: 9,
+            library_root: canonical,
+            selection: null,
+            error: null,
+          },
+        };
+      if (name === "get_statuses") return { ok: true, value: [] };
+      assert.equal(name, "get_game_file_scan_snapshot");
+      assert.equal(args?.generation, 9);
+      return { ok: false, error: "captured generation witness" };
+    },
+    (args, root = owned, options) => {
+      calls.push({ args, root, ...(options ? { timeout: options.timeoutMs } : {}) });
+      return [];
+    },
+    owned,
+  );
+  context.command(["status", "owned"], undefined, { timeoutMs: 1234 });
+  assert.equal(
+    calls[0]?.root,
+    canonical,
+    "Use the exact Desktop root, including its Windows namespace spelling",
+  );
+  assert.equal(calls[0]?.timeout, 1234);
+  const other = path.resolve("work/owned-other-library");
+  context.command(["source", "list"], other);
+  assert.equal(calls[1]?.root, other, "Retain explicit owned-library overrides");
+  assert.deepEqual(await context.read("get_statuses"), []);
+  await assert.rejects(context.read("get_game_file_scan_snapshot"), /captured generation witness/);
+});
+
+it("refuses a different or unavailable bootstrap root before fixture CLI work", async () => {
+  for (const library_root of [null, path.resolve("work/unrelated-library")]) {
+    let calls = 0;
+    await assert.rejects(
+      selectedSetupLibraryContext(
+        async () => ({
+          ok: true,
+          value: { ready: true, generation: 9, library_root, selection: null, error: null },
+        }),
+        () => {
+          calls++;
+          return [];
+        },
+        path.resolve("work/owned-selected-setup-library"),
+      ),
+    );
+    assert.equal(calls, 0);
+  }
 });
