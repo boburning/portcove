@@ -56,6 +56,50 @@ afterEach(async () => {
 });
 
 describe("detail workspace navigation", () => {
+  it("switches implementations without losing the original group return and browsing scroll", async () => {
+    const main = workspace.current!;
+    main.style.cssText = "height:100px;overflow:auto";
+    const spacer = document.createElement("div");
+    spacer.style.height = "2000px";
+    const group = document.createElement("section");
+    group.dataset.detailReturnGroup = "game:original";
+    const trigger = document.createElement("button");
+    trigger.dataset.detailOrigin = "catalog:card:port-a";
+    trigger.dataset.detailGameId = "port-a";
+    group.append(trigger);
+    main.append(group, spacer);
+    document.body.append(main);
+    main.scrollTop = 114;
+    expect(main.scrollTop).toBe(114);
+    await act(async () => navigation.open("port-a", trigger.dataset.detailOrigin));
+    const staleClose = navigation.close;
+    main.scrollTop = 700;
+    expect(main.scrollTop).toBe(700);
+    await act(async () => navigation.replace("port-b"));
+    expect(selectedId).toBe("port-b");
+    await act(async () => staleClose());
+    expect(selectedId).toBe("port-b");
+    // The preferred implementation changed while details were open, replacing
+    // the original card control. The stable game group is still the return point.
+    trigger.remove();
+    const replacement = document.createElement("button");
+    replacement.dataset.detailGameId = "port-b";
+    group.append(replacement);
+    await act(async () => navigation.close());
+    expect(document.activeElement).toBe(replacement);
+    expect(main.scrollTo).toHaveBeenLastCalledWith({ top: 114 });
+    expect(selectedId).toBeUndefined();
+  });
+
+  it("checks disappearance of the currently viewed alternative rather than its original return target", async () => {
+    await act(async () => navigation.open("port-a", "library:card:port-a"));
+    await act(async () => navigation.replace("port-b"));
+    await act(async () => setAvailablePortIds(new Set(["port-b"])));
+    expect(selectedId).toBe("port-b");
+    await act(async () => setAvailablePortIds(new Set(["port-a"])));
+    expect(selectedId).toBeUndefined();
+  });
+
   it("ignores a retained completion callback after another detail opening replaces it", async () => {
     await act(async () => navigation.open("port-a", "library:card:port-a"));
     const deferredRemovalClose = navigation.close;

@@ -4169,6 +4169,13 @@ export interface OutputDesktopLibraryOrganization {
     [k: string]: string[];
   };
   hidden_port_ids: string[];
+  /**
+   * Advisory implementation choice for an explicit original-game identity.
+   * This never selects a release, installation, source edition or action grant.
+   */
+  preferred_port_by_game?: {
+    [k: string]: string;
+  };
   revision: number;
   saved_game_ids: string[];
   setup_confirmations: SetupConfirmation[];
