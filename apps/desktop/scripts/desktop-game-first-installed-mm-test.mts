@@ -561,7 +561,7 @@ export async function gameFirstInstalledMMScenario(context: MMInstalledContext) 
         await clearCatalogFilters(browser);
         await openCatalogFilters(browser);
         await click(By.css('button[aria-label^="Original system:"]'));
-        await click(By.css('[id$=":originalSystems:nintendo-gamecube"]'));
+        await click(By.css('label[for$=":originalSystems:nintendo-gamecube"] [role="checkbox"]'));
         await click(By.css('button[aria-label="Close Original system choices"]'));
         const advanced = await browser.findElement(
           By.xpath(
@@ -574,7 +574,7 @@ export async function gameFirstInstalledMMScenario(context: MMInstalledContext) 
         )
           await clickVisible(browser, advanced);
         await click(By.css('button[aria-label^="Setup methods:"]'));
-        await click(By.css(`[id$=":installationMethods:${method}"]`));
+        await click(By.css(`label[for$=":installationMethods:${method}"] [role="checkbox"]`));
         await click(By.css('button[aria-label="Close Setup methods choices"]'));
         await click(button("Done"));
       };
