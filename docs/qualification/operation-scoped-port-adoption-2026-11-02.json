@@ -2,7 +2,6 @@
   "format_version": 1,
   "kind": "dated operation-scoped port assessment and adoption evidence; canonical issues own completion",
   "owners": [2510, 2926, 1422],
-  "source_base": "bc6f16f08c44a2eeedb92cfa68ffb2f18fb34912",
   "membership_frozen": true,
   "counts": {
     "assessed": 18,
@@ -443,5 +442,20 @@
   "holds": {
     "space_cadet": "Independent expected identity and complete writable-data fit still unfinished for managed assessment; do not close #2553 from generic registration tests.",
     "other_owners": "Explicit permission/source/private/native/production holds remain on existing owners. #1120 actual-title Play/save acceptance and #1396 complete-disc/generated-output/private-setup trust remain mandatory; #328/#329 full source/generation/output/persistence/update fit unfinished. Required title holds refreshed unchanged."
+  },
+  "initial_source_base": "bc6f16f08c44a2eeedb92cfa68ffb2f18fb34912",
+  "review_target": "15cb407186e6009078cda9085b5f795ecacb75b1",
+  "focused_feedback": {
+    "host": "Linux x64",
+    "titles": 11,
+    "selected": 14,
+    "executed": 14,
+    "passed": 14,
+    "missing": [],
+    "errors": [],
+    "source_sha256": "c8d7efe1806ba5e521c11e56ac4d82fd35540fc5beb4a22f9fa4765c12be22a9",
+    "nextest_configuration_sha256": "3c9768505c1a04ee5239a52a56bbd13519f2776b2aec5e87d1988032df6c8dae",
+    "seconds_range": [28.271519547, 48.163363115],
+    "scope": "Pre-rebase owned probes; Rust/config bytes unchanged by rebase. Embedded route projection unchanged except later generated guide-only warning. No Windows/game/upstream setup, final-head CI or canonical completion claim."
   }
 }
