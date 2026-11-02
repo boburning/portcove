@@ -5,11 +5,12 @@ import {
   observeGameFirstCaptureReadiness,
   readGameFirstObservation,
 } from "./desktop-game-first-test.mts";
-import { failureReport, portStatus } from "../src/test-fixtures.ts";
+import { failureReport, portStatus, installedLaunchStatus } from "../src/test-fixtures.ts";
 import { transportValue } from "./transport-values.mts";
 import { isRecord } from "../../../scripts/runtime-values.mts";
 import type { ScenarioInvoke } from "./desktop-scenario-context.mts";
 import type {
+  PortStatus,
   OutputDesktopBootstrapStatus,
   OutputDesktopLibraryOrganization,
   OutputDesktopWorkspaceSnapshot,
@@ -516,4 +517,37 @@ test("installation source reuse permits only forward verification-time refresh",
     () => requireReusedSource([source], refreshed),
     "A later integration must not move observation time backwards",
   );
+});
+
+test("normal installed launch captions retain Core permission and unknown compatibility", async () => {
+  const { requireDirectLaunchLabel } = await import("./desktop-game-first-installed-mm-test.mts");
+  const readiness = {
+    launchable: true,
+    pending_setup: false,
+    blockers: [],
+    source: "not_checked",
+  } as const;
+  const installed = transportValue("status", installedLaunchStatus({ ...readiness, blockers: [] }));
+  const launchAction = { action: "launch", availability: "allowed", reason: "available" } as const;
+  const status: PortStatus = { ...installed, port_actions: [launchAction] };
+  assert.ok(status.active);
+  const active = status.active;
+  for (const label of ["Play", "Try launch"])
+    assert.equal(requireDirectLaunchLabel(label, status), label);
+  for (const label of ["", "Use Zelda64", "Review launch", "Start setup", "Continue playing"])
+    assert.throws(() => requireDirectLaunchLabel(label, status));
+  for (const refused of [
+    { ...status, active: null },
+    { ...status, active: { ...active, port_id: "wrong-port" } },
+    { ...status, readiness: { ...readiness, blockers: [], launchable: false } },
+    { ...status, readiness: { ...readiness, blockers: [], pending_setup: true } },
+    { ...status, readiness: { ...readiness, blockers: ["missing_source"] } },
+    { ...status, port_actions: [] },
+    {
+      ...status,
+      port_actions: [{ action: "launch", availability: "held", reason: "assessment_incomplete" }],
+    },
+    { ...status, port_actions: [launchAction, launchAction] },
+  ] satisfies PortStatus[])
+    assert.throws(() => requireDirectLaunchLabel("Try launch", refused));
 });

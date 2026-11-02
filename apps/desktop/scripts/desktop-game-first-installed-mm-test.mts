@@ -5,7 +5,7 @@ import { DatabaseSync } from "node:sqlite";
 import { By, Key, until } from "selenium-webdriver";
 import type { Locator } from "selenium-webdriver";
 import type { FileIdentity } from "../../../scripts/development-evidence.mts";
-import type { SourceRecord } from "../src/transport-types.generated.d.ts";
+import type { PortStatus, SourceRecord } from "../src/transport-types.generated.d.ts";
 import type { GameFirstInstalledContext } from "./desktop-game-first-installed-test.mts";
 import { launchInstalledManagedGame } from "./desktop-game-first-installed-test.mts";
 import { fileIdentity } from "../../../scripts/development-evidence.mts";
@@ -65,6 +65,21 @@ export function requireReusedSource(current: readonly SourceRecord[], expected: 
     "Each installation must preserve registered source identity",
   );
   return actual;
+}
+
+/** Both captions are normal Library card actions; compatibility remains Core-owned. */
+export function requireDirectLaunchLabel(label: string, status: PortStatus) {
+  assert.ok(status.active);
+  assert.equal(status.active.port_id, status.port_id);
+  const readiness = required(status.readiness);
+  assert.equal(readiness.launchable, true);
+  assert.equal(readiness.pending_setup, false);
+  assert.equal(readiness.blockers.length, 0);
+  const actions = status.port_actions?.filter((action) => action.action === "launch") ?? [];
+  assert.equal(actions.length, 1);
+  assert.equal(required(actions[0]).availability, "allowed");
+  assert.match(label, /^(?:Play|Try launch)$/u);
+  return label;
 }
 
 function retainedError(error: unknown): Error {
@@ -189,6 +204,14 @@ export async function gameFirstInstalledMMScenario(context: MMInstalledContext) 
       await browser.wait(until.elementIsEnabled(element), timeout);
       await clickVisible(browser, element);
     };
+    const directLaunchLabel = async (id: (typeof pair)[number], selector: string) => {
+      const actions = await browser.findElements(By.css(selector));
+      assert.equal(actions.length, 1);
+      const action = required(actions[0]);
+      await browser.wait(until.elementIsVisible(action), 15_000);
+      await browser.wait(until.elementIsEnabled(action), 15_000);
+      return requireDirectLaunchLabel(await action.getText(), await row(id));
+    };
     const captureInstalledState = async (
       state: string,
       title: string,
@@ -250,7 +273,10 @@ export async function gameFirstInstalledMMScenario(context: MMInstalledContext) 
               until.elementLocated(By.css(target.selector)),
               15_000,
             );
-            if (target.name === "action") assert.equal(await element.getText(), expectedAction);
+            if (target.name === "action") {
+              assert.equal(await element.getText(), expectedAction);
+              assert.equal(await element.isEnabled(), true);
+            }
             const image = await captureGameFirstTarget({
               browser,
               output,
@@ -467,18 +493,9 @@ export async function gameFirstInstalledMMScenario(context: MMInstalledContext) 
         if (id === pair[0]) {
           const card = `[data-detail-origin="library:card:${id}"]`;
           await browser.wait(until.elementLocated(By.css(card)), 15_000);
-          assert.equal(
-            await (
-              await browser.findElement(By.css(`article:has(${card}) button.library-card-play`))
-            ).getText(),
-            "Play",
-          );
-          await captureInstalledState(
-            "implicit",
-            `${card} .collection-title`,
-            `article:has(${card}) button.library-card-play`,
-            "Play",
-          );
+          const directAction = `article:has(${card}) button.library-card-play`;
+          const label = await directLaunchLabel(id, directAction);
+          await captureInstalledState("implicit", `${card} .collection-title`, directAction, label);
           report.single_installed_direct_play = active;
         }
       }
@@ -497,11 +514,13 @@ export async function gameFirstInstalledMMScenario(context: MMInstalledContext) 
         `Use ${gameProjectLabel(chosenDefinition) || chosenDefinition.name}`,
       );
       await choose(portId);
+      const chosenAction = `article:has([data-detail-origin="library:card:${portId}"]) button.library-card-play`;
+      const chosenLabel = await directLaunchLabel(portId, chosenAction);
       await captureInstalledState(
         "chosen",
         `[data-detail-origin="library:card:${portId}"] .collection-title`,
-        `article:has([data-detail-origin="library:card:${portId}"]) button.library-card-play`,
-        "Play",
+        chosenAction,
+        chosenLabel,
       );
       const alternatives = async () => {
         const details = await browser.findElement(By.css(`${groupSelector} details`));

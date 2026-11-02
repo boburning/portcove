@@ -2033,6 +2033,11 @@ record across both installs. Fresh verification may advance `updated_at`; that
 observation time must remain a finite integer and never regress between installs.
 A timestamp change alone does not prove compatibility; the ordinary per-port plan,
 admission and verified installation checks remain required.
+An installed Library card may correctly offer `Try launch` while compatibility is
+unconfirmed. The native MM check permits that caption or `Play` only with one
+installed target, Core's allowed launch action, no blockers/pending setup, and an
+enabled unique button; captures still require the exact observed caption at every
+size. Trial launch is not reclassified as confirmed compatibility.
 Actual runtime pixels require a
 separately bound game-window observation. Desktop screenshots, process liveness
 and accessibility reports do not establish rendering, gameplay, real saves,
