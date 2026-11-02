@@ -1968,6 +1968,51 @@ can signal only a separately captured, verified game process tree. This journey
 does not establish human gameplay, an installed package, Linux qualification or
 catalog support admission. Keep any earlier failed receipts and their limits.
 
+`--scenario native-game-first-installed-picori` is an explicit standalone Windows
+journey through `just desktop-test` using normal products and catalog authority. Supply the normal CLI with
+`--preparation-cli` and six captured argument files: `--game-first-inputs`
+(version-1 metadata), `--game-first-source`, `--game-first-runtime`,
+`--game-first-shapes`, `--game-first-logic` and `--game-first-archive`.
+It requires no fixture tool or qualification catalog. Bounded regular-file
+verification prepares fresh owned copies, then ordinary source review and native
+copy confirmation create a managed installation. Upstream release identity stays
+separate from Core's adopted version. Library identity, favorite, Play routing,
+strict child/supervisor identity, ordinary close and restart retention are checked.
+`--game-first-operator-observation` selects the shared finite 300-second exit
+observer after strict game identity capture. The owner separately records actual
+game-window pixels and its supported close action during that interval; observing
+exit does not invent close intent or rendering. Without that flag, the existing
+identity-bound native close request remains the close mechanism.
+The same journey restarts only its owned application with a loopback refusal
+proxy. A new failed Picori update-check activity, its visible failure row and
+matching post-action proxy traffic are required before provider-unavailable
+preservation receives credit. That branch verifies another installed Play and
+retains its own launch/closure artifacts; local refusal without that evidence
+stays held. Cleanup restores the application environment and closes the proxy.
+This does not deny definition transports or establish total-network offline.
+Its finite 1200-second outer harness budget includes input custody and real copy
+review; product deadlines remain unchanged. Actual runtime pixels require a
+separately bound game-window observation. Desktop screenshots, process liveness
+and accessibility reports do not establish rendering, gameplay, real saves,
+screen-reader use, total network offline or installed multi-implementation behavior.
+Missing observations remain explicit in the result; this case does not close #4154.
+
+`--scenario native-game-first-installed-mm` is a separate standalone Windows
+journey using normal Desktop, catalog and `--preparation-cli`. Supply
+`--game-first-mm-inputs` (version-1 metadata for `majoras-mask/ntsc-u-1-0`),
+`--game-first-mm-source` (the original big-endian ROM) and
+`--game-first-operator-observation`. Captured fingerprints establish input
+custody; Core still decides source admission and installation eligibility.
+The case scans and reviews the source through normal UI, installs both 2Ship
+and Zelda64 through their ordinary installation reviews, checks grouped choices,
+filters and separate title/action layouts, then launches the selected Zelda64
+installation once and verifies restart retention. Its 40-minute outer budget
+covers two bounded installations, source scanning, operator observation and
+cleanup; product deadlines remain unchanged. This case requires its own
+uncontended native window and applicable interaction authorization. Source tests
+and generated receipts do not establish native execution, runtime pixels,
+gameplay, real saves or completion of #4154.
+
 `--scenario native-direct-preparation-recovery` is an opt-in Windows journey
 through a real failed owned setup child. Its original source/runtime inputs and
 active installation remain unchanged; the actual Core failure supplies the

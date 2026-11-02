@@ -18,6 +18,10 @@ interface DesktopScenario {
 
 const nativeResources = ["native-desktop", "keyboard-pointer"];
 
+// Two finite install waits, source scan, owned game observation and cleanup.
+// This explicit MM case does not change product or other scenario deadlines.
+export const gameFirstMMHarnessDeadlineMs = 40 * 60_000;
+
 function scenario(
   id: string,
   description: string,
@@ -467,6 +471,36 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     },
   ),
   scenario(
+    "native-game-first-choice-and-restart",
+    "Normal-app game grouping and deliberate implementation choice persist across an owned restart; installation and gameplay remain separate.",
+    {
+      platforms: ["win32"],
+      prerequisites: ["desktop", "owned-fixture"],
+      source: "desktop-game-first-test.mts",
+      qualification_only: true,
+    },
+  ),
+  scenario(
+    "native-game-first-installed-picori",
+    "Normal-app source connection, reviewed managed Picori copy, Library launch and restart with explicitly supplied private inputs.",
+    {
+      platforms: ["win32"],
+      prerequisites: ["desktop"],
+      source: "desktop-game-first-installed-test.mts",
+      qualification_only: true,
+    },
+  ),
+  scenario(
+    "native-game-first-installed-mm",
+    "Normal-app MM source reuse, two genuine installations, grouped choices and one managed launch with both alternatives retained.",
+    {
+      platforms: ["win32"],
+      prerequisites: ["desktop"],
+      source: "desktop-game-first-installed-mm-test.mts",
+      qualification_only: true,
+    },
+  ),
+  scenario(
     "native-release-channel-selection-and-restart",
     "Release-channel selection survives renderer restart.",
     {
@@ -786,6 +820,25 @@ export function resolveDesktopSelection({
     throw new Error("native-linux-webview-origin-boundary requires Linux");
   if (uniqueRequested.includes("native-library-organization-restart") && platform !== "win32")
     throw new Error("native-library-organization-restart requires Windows");
+  if (uniqueRequested.includes("native-game-first-installed-mm")) {
+    if (uniqueRequested.length !== 1)
+      throw new Error("native-game-first-installed-mm requires one exact standalone scenario");
+    if (platform !== "win32") throw new Error("native-game-first-installed-mm requires Windows");
+  }
+  if (uniqueRequested.includes("native-game-first-installed-picori")) {
+    if (uniqueRequested.length !== 1)
+      throw new Error("native-game-first-installed-picori requires one exact standalone scenario");
+    if (platform !== "win32")
+      throw new Error("native-game-first-installed-picori requires Windows");
+  }
+  if (uniqueRequested.includes("native-game-first-choice-and-restart")) {
+    if (uniqueRequested.length !== 1)
+      throw new Error(
+        "native-game-first-choice-and-restart requires one exact standalone scenario",
+      );
+    if (platform !== "win32")
+      throw new Error("native-game-first-choice-and-restart requires Windows");
+  }
   if (uniqueRequested.includes("native-startup-network-diagnostic") && platform !== "win32")
     throw new Error("native-startup-network-diagnostic requires Windows");
   if (uniqueRequested.includes("native-saved-folder-selected-setup")) {
@@ -890,6 +943,15 @@ export type DesktopSelection = ReturnType<typeof resolveDesktopSelection>;
 export function desktopHarnessDeadlineMs(
   selection: Pick<DesktopSelection, "selected_scenarios" | "setup_scenarios">,
 ) {
+  if (selection.selected_scenarios.includes("native-game-first-installed-mm"))
+    return gameFirstMMHarnessDeadlineMs;
+  // Private-input custody, real copy review, managed game close and owned restart.
+  // This outer harness budget does not change any product deadline or retry policy.
+  if (selection.selected_scenarios.includes("native-game-first-installed-picori")) return 1_200_000;
+  // The retained 2026-11-01 A1 attempt exhausted 180s verifying immutable
+  // inputs before App launch. Allow finite room for custody, captures and restart;
+  // keep every inner wait, identity check and cleanup unchanged.
+  if (selection.selected_scenarios.includes("native-game-first-choice-and-restart")) return 600_000;
   // Three immutable upgrades, two owned live launches, reviews and positive exit joins.
   if (selection.selected_scenarios.includes("native-update-acquisition-lifecycle")) return 720_000;
   // Five checkpoints, positive host/driver joins and fresh starts; harness only.

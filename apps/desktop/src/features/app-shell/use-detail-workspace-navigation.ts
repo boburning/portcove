@@ -6,6 +6,8 @@ import type { DetailOpening } from "../game-details/detail-sections";
 
 type DetailReturn = {
   portId: string;
+  returnPortId: string;
+  groupKey: string | undefined;
   originKey: string | undefined;
   scrollTop: number;
   token: number;
@@ -24,8 +26,16 @@ export function useDetailWorkspaceNavigation(
   const open = useCallback(
     (portId: string, originKey?: string, destination?: DetailDestination) => {
       const token = ++sequence.current;
+      const trigger =
+        (originKey
+          ? document.querySelector<HTMLElement>(`[data-detail-origin="${CSS.escape(originKey)}"]`)
+          : null) ??
+        document.querySelector<HTMLElement>(`[data-detail-game-id="${CSS.escape(portId)}"]`);
       current.current = {
         portId,
+        returnPortId: portId,
+        groupKey: trigger?.closest<HTMLElement>("[data-detail-return-group]")?.dataset
+          .detailReturnGroup,
         originKey,
         scrollTop: workspaceScrollTop(workspace.current),
         token,
@@ -35,6 +45,23 @@ export function useDetailWorkspaceNavigation(
       setSelectedId(portId);
     },
     [setSelectedId, workspace],
+  );
+
+  /** Switch the viewed implementation without replacing the browsing return point. */
+  const replace = useCallback(
+    (portId: string, destination?: DetailDestination) => {
+      const origin = current.current;
+      if (!origin) {
+        open(portId, undefined, destination);
+        return;
+      }
+      const token = ++sequence.current;
+      current.current = { ...origin, portId, token };
+      scrollWorkspaceTo(workspace.current, 0);
+      setOpening({ token, destination, originKey: origin.originKey });
+      setSelectedId(portId);
+    },
+    [open, setSelectedId, workspace],
   );
 
   const closeToken = useCallback(
@@ -55,8 +82,13 @@ export function useDetailWorkspaceNavigation(
         const sameGame =
           target ??
           document.querySelector<HTMLElement>(
-            `[data-detail-game-id="${CSS.escape(origin.portId)}"]`,
-          );
+            `[data-detail-game-id="${CSS.escape(origin.returnPortId)}"]`,
+          ) ??
+          (origin.groupKey
+            ? document.querySelector<HTMLElement>(
+                `[data-detail-return-group="${CSS.escape(origin.groupKey)}"] [data-detail-game-id]`,
+              )
+            : null);
         // The originating control may live inside a disclosure remounted closed.
         // Restore its visibility before restoring scroll and keyboard focus.
         for (
@@ -90,5 +122,5 @@ export function useDetailWorkspaceNavigation(
     return origin;
   }, []);
 
-  return { close, invalidate, open, opening };
+  return { close, invalidate, open, replace, opening };
 }

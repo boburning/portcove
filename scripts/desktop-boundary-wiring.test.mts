@@ -53,6 +53,96 @@ function edit(code: string, changes: { start: number; end: number; text: string 
     );
 }
 
+void test("preparation dispatch consumes the imported game-first owner with ordinary lifecycle callbacks", async () => {
+  const source = stripTypeScriptTypes(
+    await readFile(
+      new URL("../apps/desktop/scripts/desktop-preparation-test.mts", import.meta.url),
+      "utf8",
+    ),
+    { mode: "strip" },
+  );
+  function route(code: string) {
+    const syntax = [...nodes(parseAst(code))];
+    const imported = syntax.find(
+      (node) =>
+        node.type === "ImportDeclaration" &&
+        literal(node.source) === "./desktop-game-first-test.mts",
+    );
+    assert.ok(imported && Array.isArray(imported.specifiers));
+    const binding: unknown = imported.specifiers.find(
+      (node) => isRecord(node) && identifier(node.imported) === "gameFirstScenarios",
+    );
+    assert.ok(isRecord(binding));
+    const local = identifier(binding.local);
+    assert.ok(local);
+    const owner = syntax.find(
+      (node) =>
+        node.type === "FunctionDeclaration" && identifier(node.id) === "preparationScenarios",
+    );
+    assert.ok(owner && isRecord(owner.body));
+    const calls = [...nodes(owner.body)]
+      .map(awaited)
+      .filter((node) => node && identifier(node.callee) === local);
+    assert.equal(
+      calls.length,
+      1,
+      "Preparation must await the imported game-first owner exactly once",
+    );
+    const call = calls[0];
+    assert.ok(call);
+    const context = args(call)[0];
+    assert.ok(
+      isRecord(context) && context.type === "ObjectExpression" && Array.isArray(context.properties),
+    );
+    const fields = context.properties.map((property) => {
+      assert.ok(isRecord(property) && property.type === "Property");
+      const key = identifier(property.key);
+      assert.ok(key);
+      assert.equal(key, identifier(property.value));
+      return key;
+    });
+    assert.deepEqual(
+      fields.sort((a, b) => a.localeCompare(b)),
+      ["artifacts", "browser", "invoke", "output", "restartApplication", "scenario"],
+    );
+    return { binding, call };
+  }
+  const observed = route(source);
+  route(
+    edit(source, [
+      { ...range(observed.binding), text: "gameFirstScenarios as $aliasedGameFirst" },
+      { ...range(observed.call.callee), text: "$aliasedGameFirst" },
+    ]),
+  );
+  assert.throws(
+    () => route(edit(source, [{ ...range(observed.call.callee), text: "$unusedGameFirst" }])),
+    /Preparation must await/u,
+  );
+});
+
+void test("game-first capture consumes its alert-tolerant serialized readiness owner", async () => {
+  const source = stripTypeScriptTypes(
+    await readFile(
+      new URL("../apps/desktop/scripts/desktop-game-first-test.mts", import.meta.url),
+      "utf8",
+    ),
+    { mode: "strip" },
+  );
+  const syntax = [...nodes(parseAst(source))];
+  const owner = syntax.find(
+    (node) => node.type === "FunctionDeclaration" && identifier(node.id) === "gameFirstScenarios",
+  );
+  assert.ok(owner && isRecord(owner.body));
+  const observationCalls = [...nodes(owner.body)].filter(
+    (node) =>
+      node.type === "CallExpression" &&
+      identifier(node.callee) === "executeBrowserScript" &&
+      identifier(args(node)[1]) === "observeGameFirstCaptureReadiness",
+  );
+  assert.equal(observationCalls.length, 1);
+  assert.equal(identifier(args(observationCalls[0])[2]), "size");
+});
+
 void test("native boundary entrypoint retains its imported parsed invocation route", async () => {
   const source = stripTypeScriptTypes(
     await readFile(

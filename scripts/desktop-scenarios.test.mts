@@ -2665,6 +2665,30 @@ void test("organization persistence selects the normal owned-fixture path withou
   assert.ok(!selection.prerequisites.includes("steam-fixture"));
 });
 
+void test("game-first choice is one explicit normal Windows journey without installation authority", () => {
+  const id = "native-game-first-choice-and-restart";
+  for (const ids of Object.values(DESKTOP_PROFILES)) assert.ok(!ids.includes(id));
+  const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+  assert.deepEqual(selection.selected_scenarios, [id]);
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.deepEqual(selection.prerequisites, ["desktop", "owned-fixture"]);
+  assert.deepEqual(selection.host_resources, ["native-desktop", "keyboard-pointer"]);
+  assert.equal(desktopHarnessDeadlineMs(selection), 600_000);
+  assert.equal(
+    required(DESKTOP_SCENARIOS.find((entry) => entry.id === id)).source,
+    "desktop-game-first-test.mts",
+  );
+  assert.throws(
+    () => resolveDesktopSelection({ scenarios: [id, "empty-library"], platform: "win32" }),
+    /standalone/u,
+  );
+  for (const platform of ["linux", "darwin"] as const)
+    assert.throws(
+      () => resolveDesktopSelection({ scenarios: [id], platform }),
+      /requires Windows/u,
+    );
+});
+
 void test("staged native composition installs its isolated fixture before review", () => {
   const selection = resolveDesktopSelection({ scenarios: ["native-staged-update-composition"] });
   assert.deepEqual(selection.selected_scenarios, ["native-staged-update-composition"]);
@@ -3164,3 +3188,43 @@ import "../apps/desktop/scripts/desktop-bootstrap-recovery.native.test.mts";
 import "../apps/desktop/scripts/desktop-install.native.test.mts";
 import "../apps/desktop/scripts/desktop-staged-layout.native.test.mts";
 import "../apps/desktop/scripts/desktop-reload.native.test.mts";
+
+void test("installed Picori is explicit, standalone and excludes inert fixture authority", () => {
+  const id = "native-game-first-installed-picori";
+  for (const ids of Object.values(DESKTOP_PROFILES)) assert.ok(!ids.includes(id));
+  const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+  assert.deepEqual(selection.prerequisites, ["desktop"]);
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.equal(desktopHarnessDeadlineMs(selection), 1_200_000);
+  assert.throws(
+    () => resolveDesktopSelection({ scenarios: [id, "empty-library"], platform: "win32" }),
+    /standalone/u,
+  );
+  for (const platform of ["linux", "darwin"] as const)
+    assert.throws(
+      () => resolveDesktopSelection({ scenarios: [id], platform }),
+      /requires Windows/u,
+    );
+});
+
+void test("installed MM is Windows-only standalone with two-install custody budget", () => {
+  const id = "native-game-first-installed-mm";
+  for (const ids of Object.values(DESKTOP_PROFILES)) assert.ok(!ids.includes(id));
+  const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+  assert.deepEqual(selection.prerequisites, ["desktop"]);
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.equal(desktopHarnessDeadlineMs(selection), 2_400_000);
+  assert.throws(
+    () =>
+      resolveDesktopSelection({
+        scenarios: [id, "native-game-first-installed-picori"],
+        platform: "win32",
+      }),
+    /standalone/u,
+  );
+  for (const platform of ["linux", "darwin"] as const)
+    assert.throws(
+      () => resolveDesktopSelection({ scenarios: [id], platform }),
+      /requires Windows/u,
+    );
+});

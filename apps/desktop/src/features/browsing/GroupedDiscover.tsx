@@ -30,6 +30,8 @@ import type { NativeSourceDragState } from "../../native-source-drop";
 import { browsePortPresentation } from "../port-actions/browse-presentation";
 import { BrowsePortObservations } from "../port-actions/BrowsePortObservations";
 import { groupCatalog, originalSystems, type GameGroup } from "./original-game";
+import { ImplementationChoice, ownsChoiceFocus } from "./ImplementationChoice";
+import { resolveGameChoice } from "./game-choice";
 
 export function IdentityChips({
   port,
@@ -107,14 +109,19 @@ export function GroupedDiscover({
     observationKey: comparisonObservationKey,
   });
   const origin = useRef<HTMLButtonElement | null>(null);
+  const dialogRoot = useRef<HTMLDivElement>(null);
+  const comparisonIntent = useRef({ active: false });
+  const currentIntent = comparisonIntent.current;
   const heading = useRef<HTMLHeadingElement>(null);
   const leaving = useRef(false);
   const compare = (group: GameGroup, trigger: HTMLButtonElement) => {
     origin.current = trigger;
+    comparisonIntent.current = { active: true };
     leaving.current = false;
     setComparison(group);
   };
   const open = (port: CatalogEntry, originKey: string) => {
+    comparisonIntent.current.active = false;
     leaving.current = true;
     setComparison(undefined);
     onSelect(port.id, originKey);
@@ -160,10 +167,14 @@ export function GroupedDiscover({
       <Dialog
         open={Boolean(comparison)}
         onOpenChange={(open) => {
-          if (!open) setComparison(undefined);
+          if (!open) {
+            comparisonIntent.current.active = false;
+            setComparison(undefined);
+          }
         }}
       >
         <DialogContent
+          ref={dialogRoot}
           reviewSize="large"
           className="port-comparison-dialog"
           initialFocus={heading}
@@ -261,6 +272,20 @@ export function GroupedDiscover({
                       </div>
 
                       <div className="mt-3 flex flex-wrap gap-3">
+                        {comparison.ports.length > 1 && (
+                          <ImplementationChoice
+                            port={port}
+                            organization={organization}
+                            onSelected={(trigger) => {
+                              if (
+                                comparisonIntent.current === currentIntent &&
+                                currentIntent.active &&
+                                ownsChoiceFocus(trigger, dialogRoot.current)
+                              )
+                                open(port, `catalog:card:${comparison.matchingPorts[0]!.id}`);
+                            }}
+                          />
+                        )}
                         {favorite(port)}
                         <Button
                           data-focusable
@@ -325,9 +350,15 @@ function DiscoverGameCard({
   open: (port: CatalogEntry, originKey: string) => void;
   compare: (group: GameGroup, trigger: HTMLButtonElement) => void;
 }) {
-  const first = group.matchingPorts[0]!;
+  const chosen = resolveGameChoice(
+    group,
+    statuses,
+    organization?.snapshot ? (organization.snapshot.preferred_port_by_game ?? {}) : undefined,
+  ).port;
+  const first = chosen ?? group.matchingPorts[0]!;
+  const actionGroup = chosen ? { ...group, matchingPorts: [chosen] } : group;
   const status = statuses.get(first.id);
-  const exact = group.matchingPorts.length === 1;
+  const exact = Boolean(chosen) || group.matchingPorts.length === 1;
   const observation = browsePortPresentation(first, status, "catalog");
   const descriptionId = `${descriptionPrefix}:${encodeURIComponent(first.id)}`;
   const describedBy = exact && (observation.input || observation.setup) ? descriptionId : undefined;
@@ -354,13 +385,16 @@ function DiscoverGameCard({
       data-source-drop-port-id={dropEligible ? first.id : undefined}
       data-source-drop-profile-id={dropEligible ? first.source_profile : undefined}
       data-discover-port-ids={JSON.stringify(group.ports.map((port) => port.id))}
+      data-detail-return-group={group.id}
       data-discover-matching-port-ids={JSON.stringify(group.matchingPorts.map((port) => port.id))}
+      data-discover-primary-port-id={exact ? first.id : undefined}
     >
       <Button
         variant="ghost"
         className="discover-game-identity grid w-full min-w-0 justify-start justify-items-stretch gap-x-3 gap-y-0 p-0 text-start"
         data-focusable
         data-detail-origin={detailOrigin}
+        data-detail-game-id={first.id}
         aria-label={
           exact
             ? `${gameTitle(first)} ${projectLabel}. ${group.ports.length > 1 ? `Matching port: ${firstProject}. ` : ""}${observation.state.label}. ${memberLabel(first, status)}`
@@ -368,9 +402,7 @@ function DiscoverGameCard({
         }
         aria-describedby={describedBy}
         onClick={(event) =>
-          group.matchingPorts.length === 1
-            ? open(first, detailOrigin)
-            : compare(group, event.currentTarget)
+          exact ? open(first, detailOrigin) : compare(group, event.currentTarget)
         }
       >
         <ArtworkFrame
@@ -391,7 +423,7 @@ function DiscoverGameCard({
         {exact && <IdentityChips port={first} />}
       </div>
       <DiscoverGameObservation
-        group={group}
+        group={actionGroup}
         first={first}
         status={status}
         observation={observation}
@@ -401,7 +433,7 @@ function DiscoverGameCard({
       />
       <DiscoverGameActions
         onTask={onTask}
-        group={group}
+        group={actionGroup}
         statuses={statuses}
         first={first}
         detailOrigin={detailOrigin}

@@ -364,6 +364,22 @@ or **Why this port?** to inspect source editions, platform requirements, evidenc
 and limitations. A recommended starting point appears only when scoped evidence
 supports it; sparse and single-project cases do not imply “best.” Changing the
 comparison never changes an installed project, original files, saves or channels.
+
+Search by the original game's title or a project's name. For games with several
+implementations, **Use** saves your deliberate project choice in the current
+library. Discover and Library keep the other implementations available; each
+retains its own original-file requirements, releases and installation. Viewing an
+alternative does not change your choice. A single implementation or an entry
+without a reviewed game identity opens directly.
+
+Library offers the chosen implementation's existing actions, or the sole installed
+implementation when the choice is unambiguous. If several installed alternatives
+need a choice, select one deliberately. Filters match an actual implementation;
+a saved choice outside those filters stays saved. A removed choice asks you to
+choose again. Missing optional comparison information does not prevent an
+installed game's supported offline Play path. Choosing a project never transfers
+saves or replaces another installation.
+
 Explicitly follow independent projects for locally deduplicated release notices
 when refreshed; use the **Followed** filter to find them. There is no mandatory
 account, telemetry or background notification service. CLI users can run
