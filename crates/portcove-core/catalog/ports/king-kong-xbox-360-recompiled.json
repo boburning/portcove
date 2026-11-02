@@ -38,11 +38,11 @@
         },
         {
           "title": "Leave maintenance and separate conditions upstream",
-          "instruction": "Upstream owns imports, shader packs, component updates, portable-folder moves, renderer restarts, online/co-op services and failed-start recovery. Close all actual games/helpers before these changes, even when Portcove’s activity has ended; then review/re-select the current player as needed. Launcher handoff alone does not block this non-owning route, but independently applicable component/permission and whole-owner acceptance conditions remain unresolved where named. Full campaign, controller, multiplayer, captured-shader permission and real-save recovery are not established. No managed installation/update/backup/rollback/migration or external-file deletion is offered."
+          "instruction": "Upstream owns imports, shader packs, component updates, portable-folder moves, renderer restarts, online/co-op services and failed-start recovery. Close all actual games/helpers before these changes, even when Portcove’s activity has ended; then review/re-select the current player as needed. Full campaign, controller, multiplayer, captured-shader permission and real-save recovery are not established. No managed installation/update/backup/rollback/migration or external-file deletion is offered."
         }
       ],
       "warnings": [
-        "Use king_kong.exe with empty arguments for its ordinary launcher, or retain --kk_launcher=false for the existing prepared direct-game choice. Preserve userdata, legacy Documents/king_kong and recovery witnesses. Portcove follows the selected process only; close actual games/helpers before maintenance. Separate permission/acceptance conditions remain."
+        "Use king_kong.exe with empty arguments for its ordinary launcher, or retain --kk_launcher=false for the existing prepared direct-game choice. Preserve userdata, legacy Documents/king_kong and recovery witnesses. Portcove follows the selected process only; close actual games/helpers before maintenance."
       ]
     }
   }

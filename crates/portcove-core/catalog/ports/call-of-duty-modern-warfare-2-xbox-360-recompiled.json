@@ -38,11 +38,11 @@
         },
         {
           "title": "Keep maintenance and remaining acceptance upstream",
-          "instruction": "Use the upstream frontend for preparation, title updates, shader compilation, profile/network configuration, custom maps and runtime replacement. Close actual SP/MP games and helpers before making changes, even after Portcove’s selected-program activity ends. Re-select/review changed player bytes as needed. Literal selected-release XEX fingerprint correspondence and any other named owner requirements remain unfinished; this guide does not waive them. No credentials, network/server participation, full-game/controller/real-save acceptance, managed install/update/backup/rollback/migration or external-file deletion is supplied."
+          "instruction": "Use the upstream frontend for preparation, title updates, shader compilation, profile/network configuration, custom maps and runtime replacement. Close actual SP/MP games and helpers before making changes, even after Portcove’s selected-program activity ends. Re-select/review changed player bytes as needed. No credentials, network/server participation, full-game/controller/real-save acceptance, managed install/update/backup/rollback/migration or external-file deletion is supplied."
         }
       ],
       "warnings": [
-        "The native mw2-launcher.exe frontend preserves ordinary upstream setup and mode choices; existing direct mw2-sp.exe/mw2-mp.exe registrations remain available. Portcove tracks only the selected program. Preserve game/, saves/ and .env, close actual games/helpers before changes, and retain the named fingerprint/acceptance hold."
+        "The native mw2-launcher.exe frontend preserves ordinary upstream setup and mode choices; existing direct mw2-sp.exe/mw2-mp.exe registrations remain available. Portcove tracks only the selected program. Preserve game/, saves/ and .env, close actual games/helpers before changes."
       ]
     }
   }
