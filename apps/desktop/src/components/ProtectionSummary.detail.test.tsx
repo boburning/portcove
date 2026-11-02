@@ -104,8 +104,8 @@ describe("external-runtime managed backup access", () => {
     ];
     expect(coverage.length).toBeGreaterThan(1);
     for (const [, section] of coverage) expect(section).not.toContain("<code>save</code>");
-    expect(html).toContain("coverage could not be verified");
-    expect(html).toContain("Runtime collection coverage is unknown");
+    expect(html).toContain("current catalog may");
+    expect(html).toContain("Portcove couldn’t confirm this installation’s backup rules");
     expect(button(html, "Restore")).not.toMatch(/\sdisabled(?:=|\s|>)/u);
   });
 

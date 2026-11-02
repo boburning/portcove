@@ -19,7 +19,6 @@
     },
     "issue_number": 2903,
     "manual_setup": {
-      "help_url": "https://github.com/Ryubara/coney/blob/eb07fc0f9d69e62c7aeee6307be5c2ef162f4ee6/docs/guides/running.md",
       "steps": [
         {
           "title": "Prepare your own PS2 copy with upstream Coney",
@@ -32,7 +31,14 @@
         {
           "title": "Keep installation and direct-disc routes distinct",
           "instruction": "A finished upstream --data installation is an alternative to --disc; do not combine them or use --install as the Play command. Finish any upstream import or repair before adding the reference. Retain its game/ps2 data, overrides and index/install.json together, and keep an original disc image elsewhere unchanged. Review the selected executable, working directory and arguments, then choose Play separately when ready. Do not select the studio, research tools, a compiler or a headless diagnostic as this game."
-        },
+        }
+      ],
+      "warnings": [
+        "Use a completed Coney installation or your already working source build with your own PS2 data. Preserve the real Windows profiles or custom --profiles folder; this incomplete project and its other missions remain unqualified.",
+        "Test-mode memory-only profiles are not evidence that your normal profiles are backed up. Portcove does not migrate, repair, back up or remove these files; removing the reference removes only the reference.",
+        "Use upstream source/build or installation instructions for changes, after closing the actual game and any helpers. Keep the previous complete working copy and data before replacement and review the selected native path again afterwards. Preserve the project GPL-3.0-or-later and separate component/original-game terms."
+      ],
+      "references": [
         {
           "title": "Preserve the actual profiles and external files",
           "instruction": "Normal Windows story profiles are profile-1.sav through profile-6.sav in profiles under %APPDATA%/Coney/Coney; an existing --profiles argument chooses another folder. Preserve the entire actual data/profile folder and that custom argument, plus the complete installation, original disc and any modifications. Test-mode memory-only profiles are not evidence that your normal profiles are backed up. Portcove does not migrate, repair, back up or remove these files; removing the reference removes only the reference."
@@ -42,9 +48,7 @@
           "instruction": "Use upstream source/build or installation instructions for changes, after closing the actual game and any helpers. Keep the previous complete working copy and data before replacement and review the selected native path again afterwards. Preserve the project GPL-3.0-or-later and separate component/original-game terms. Source documentation reports startup movies, frontend and limited levels; many missions are unfinished or awaiting upstream gameplay approval. No complete campaign, native Windows, controller or save/reload result is supplied here. Only the selected program is observed; no managed install, update, rollback or Supported qualification is added."
         }
       ],
-      "warnings": [
-        "Use a completed Coney installation or your already working source build with your own PS2 data. Preserve the real Windows profiles or custom --profiles folder; this incomplete project and its other missions remain unqualified."
-      ]
+      "help_url": "https://github.com/Ryubara/coney/blob/eb07fc0f9d69e62c7aeee6307be5c2ef162f4ee6/docs/guides/running.md"
     }
   },
   "upstream_lineage": {

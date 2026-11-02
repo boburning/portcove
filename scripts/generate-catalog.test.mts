@@ -111,7 +111,7 @@ void test("full preparation requires an explicit validator and preserves prior o
   assert.deepEqual(readFileSync(input), before);
 });
 
-void test("current schema-2 authoring deterministically owns the embedded catalog", () => {
+void test("current versioned authoring deterministically owns the embedded catalog", () => {
   const result = run("--check");
   assert.equal(result.status, 0, result.stderr);
 
@@ -120,7 +120,7 @@ void test("current schema-2 authoring deterministically owns the embedded catalo
   );
   const embedded = fixtureJson(readFileSync(join(catalogRoot, "catalog.json"), "utf8"));
   assert.deepEqual(embedded, current);
-  assert.equal(current.schema_version, 2);
+  assert.equal(current.schema_version, 3);
   assert.equal("source_profiles" in current, false);
 
   const portIds = new Set(current.ports.map((port) => port.id));

@@ -12,6 +12,11 @@ namespace Portcove.ReferenceClient
             // previously registered, player-owned external installation.
             if (Json.OptionalObjectField(status, "external_runtime") != null &&
                 Json.Text(Json.Field(catalog, "release"), "provider") != "user-prepared") return null;
+            if (Json.OptionalObjectField(status, "active") != null || Json.OptionalObjectField(status, "external_runtime") != null)
+            {
+                var readiness = Json.OptionalObjectField(status, "readiness");
+                return readiness == null ? null : Json.OptionalObjectField(readiness, "setup_contract");
+            }
             return Json.OptionalObjectField(catalog, "presentation");
         }
 
@@ -20,7 +25,7 @@ namespace Portcove.ReferenceClient
             if (presentation == null) return null;
             var guide = Json.OptionalObjectField(presentation, "manual_setup");
             if (guide == null) return OptionalTextField(presentation, "manual_preparation");
-            if (Json.Object(guide).Keys.Any(key => !new[] { "steps", "warnings", "help_url" }.Contains(key)))
+            if (Json.Object(guide).Keys.Any(key => !new[] { "steps", "warnings", "help_url", "references" }.Contains(key)))
                 throw new InvalidOperationException("Unknown manual setup guidance field.");
             var steps = Json.Array(Json.Field(guide, "steps"));
             var warnings = Json.Array(Json.Field(guide, "warnings"));
@@ -28,6 +33,9 @@ namespace Portcove.ReferenceClient
                 throw new InvalidOperationException("Incomplete manual setup guidance.");
             if (steps.Any(step => Json.Object(step).Keys.Any(key => key != "title" && key != "instruction")))
                 throw new InvalidOperationException("Unknown manual setup step field.");
+            var references = References(guide);
+            if (steps.Length + references.Length > 8)
+                throw new InvalidOperationException("Too many manual setup sections.");
             var result = string.Join("\n", warnings.Select(value => "Before you begin: " + Text(value)));
             result += "\n" + string.Join("\n", steps.Select((step, index) =>
                 (index + 1) + ". " + Text(Json.Field(step, "title")) + ": " + Text(Json.Field(step, "instruction"))));
@@ -53,7 +61,28 @@ namespace Portcove.ReferenceClient
         internal static string TechnicalNotes(object presentation)
         {
             if (presentation == null || Json.OptionalObjectField(presentation, "manual_setup") == null) return null;
-            return OptionalTextField(presentation, "manual_preparation");
+            Summary(presentation);
+            var guide = Json.Field(presentation, "manual_setup");
+            var referenceText = string.Join("\n\n", References(guide).Select(reference =>
+                Text(Json.Field(reference, "title")) + ": " + Text(Json.Field(reference, "instruction"))));
+            var legacy = OptionalTextField(presentation, "manual_preparation");
+            var notes = new[] { referenceText, legacy }.Where(text => !string.IsNullOrWhiteSpace(text)).ToArray();
+            return notes.Length == 0 ? null : string.Join("\n\n", notes);
+        }
+
+        private static object[] References(object guide)
+        {
+            object value;
+            if (!Json.TryField(guide, "references", out value)) return new object[0];
+            var references = Json.Array(value);
+            foreach (var reference in references)
+            {
+                if (Json.Object(reference).Keys.Any(key => key != "title" && key != "instruction"))
+                    throw new InvalidOperationException("Unknown manual setup reference field.");
+                Text(Json.Field(reference, "title"));
+                Text(Json.Field(reference, "instruction"));
+            }
+            return references;
         }
 
         private static string OptionalTextField(object value, string key)

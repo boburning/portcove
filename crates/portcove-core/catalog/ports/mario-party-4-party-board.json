@@ -19,15 +19,10 @@
     },
     "release_url": "https://github.com/mariopartyrd/partyboard/releases",
     "manual_setup": {
-      "help_url": "https://github.com/mariopartyrd/partyboard",
       "steps": [
         {
           "title": "Keep the exact early-alpha copy and original",
           "instruction": "The selected partyboard_0.2.0 release supports your own GameCube Mario Party 4 USA GMPE01 revision 0 ISO/RVZ. Complete its normal setup outside Portcove; a newer source README mentioning revision 1 does not broaden this alpha’s accepted input. The upstream release prefers its Win32/x86 build because the separate x64 build may crash in additional places. Use an already-working independently permitted copy on a compatible Windows host; no curated x64-package or other-platform acceptance is claimed."
-        },
-        {
-          "title": "Keep the required controller and known limits visible",
-          "instruction": "This alpha requires a controller. Upstream says the Shy Guy board and Manta Rings, Slime Time, Makin’ Waves and Bowser Bop minigames crash; double rolls can softlock. It also reports coin/dice/graphics/shadow defects. These instructions do not repair those issues. Portcove has not confirmed full-game compatibility, physical-controller support or completed saves."
         },
         {
           "title": "Add the native game player",
@@ -35,17 +30,28 @@
         },
         {
           "title": "Review launch details, then choose Play",
-          "instruction": "Review and consent to this exact executable, creating working directory and supported literal arguments, then choose Play separately. Core owns only the selected native intent and registration. Upstream and you retain preparation, runtime replacement, recovery and external files. Removing registration preserves every external file. Close the actual player and companions before upstream maintenance, retain the old runtime and all data, then review/relink changed selected bytes."
-        },
-        {
-          "title": "Preserve the external profile and creating data",
-          "instruction": "Upstream locates this alpha’s saves in %APPDATA%/Party Board. Preserve the entire external profile, its settings/cache and any actual custom locations, plus the complete creating package, original image, extracted data, logs, mods, backups and temporary files. Dolphin save compatibility is only an upstream claim; no migration or import is performed. Unknown extra data grants no deletion rights. Upstream and you retain runtime replacement; keep the creating copy and review changed selected bytes after maintenance."
+          "instruction": "Review and consent to this exact executable, creating working directory and supported literal arguments, then choose Play separately."
         }
       ],
       "warnings": [
         "For this alpha, upstream recommends the Win32/x86 build. The separate x64 build may crash in additional places.",
-        "Use only a copy, components and original you are permitted to use. No external preparation, update, backup, rollback, migration or deletion is offered. Source/root license absence alone supplies neither a private-use ban nor a grant inherited from Aurora or another game."
-      ]
+        "Use only a copy, components and original you are permitted to use. No external preparation, update, backup, rollback, migration or deletion is offered. Source/root license absence alone supplies neither a private-use ban nor a grant inherited from Aurora or another game.",
+        "This alpha requires a controller. Upstream says the Shy Guy board and Manta Rings, Slime Time, Makin’ Waves and Bowser Bop minigames crash; double rolls can softlock. It also reports coin/dice/graphics/shadow defects. These instructions do not repair those issues. Portcove has not confirmed full-game compatibility, physical-controller support or completed saves.",
+        "Close the actual player and companions before upstream maintenance, retain the old runtime and all data, then review/relink changed selected bytes.",
+        "Preserve the entire external profile, its settings/cache and any actual custom locations, plus the complete creating package, original image, extracted data, logs, mods, backups and temporary files.",
+        "Dolphin save compatibility is only an upstream claim; no migration or import is performed. Unknown extra data grants no deletion rights."
+      ],
+      "references": [
+        {
+          "title": "Registration and maintenance ownership",
+          "instruction": "Core owns only the selected native intent and registration. Upstream and you retain preparation, runtime replacement, recovery and external files. Removing registration preserves every external file. Upstream and you retain runtime replacement; keep the creating copy and review changed selected bytes after maintenance."
+        },
+        {
+          "title": "Save location and creating data",
+          "instruction": "Upstream locates this alpha’s saves in %APPDATA%/Party Board."
+        }
+      ],
+      "help_url": "https://github.com/mariopartyrd/partyboard"
     }
   }
 }

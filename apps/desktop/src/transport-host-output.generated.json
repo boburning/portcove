@@ -6236,6 +6236,13 @@
               "null"
             ]
           },
+          "references": {
+            "description": "Reference material, never an instruction to execute a setup action.",
+            "items": {
+              "$ref": "#/$defs/ManualSetupStep"
+            },
+            "type": "array"
+          },
           "steps": {
             "items": {
               "$ref": "#/$defs/ManualSetupStep"
@@ -12493,6 +12500,13 @@
               "string",
               "null"
             ]
+          },
+          "references": {
+            "description": "Reference material, never an instruction to execute a setup action.",
+            "items": {
+              "$ref": "#/$defs/ManualSetupStep"
+            },
+            "type": "array"
           },
           "steps": {
             "items": {

@@ -13,16 +13,20 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Check the current prototype status",
-          "instruction": "This upstream reports only two boxes of visual noise and publishes no player archive. It is not a useful fresh game installation. The README names an own USA Rev A Wave Race 64 .z64 dump, but BUILDING.md still contains inherited Majora’s Mask commands; do not substitute that game or treat those commands as a verified Wave Race preparation guide."
-        },
-        {
           "title": "Preserve an already registered development copy",
-          "instruction": "Keep any already registered development copy, its complete folder, original inputs, generated files, saves and settings under its existing contract. You or upstream own its updates. This guide offers no new qualified registration or fresh player route and does not adopt, replace, back up, roll back or delete external files."
+          "instruction": "Keep any already registered development copy, its complete folder, original inputs, generated files, saves and settings under its existing contract."
         }
       ],
       "warnings": [
-        "The existing useful-output hold and Deferred state remain. Reconsider new operations when upstream demonstrates useful runnable output and supplies a title-specific preparation or player package; missing personal gameplay is not the reason for this hold."
+        "The existing useful-output hold and Deferred state remain. Reconsider new operations when upstream demonstrates useful runnable output and supplies a title-specific preparation or player package; missing personal gameplay is not the reason for this hold.",
+        "This upstream reports only two boxes of visual noise and publishes no player archive. It is not a useful fresh game installation. The README names an own USA Rev A Wave Race 64 .z64 dump, but BUILDING.md still contains inherited Majora’s Mask commands; do not substitute that game or treat those commands as a verified Wave Race preparation guide.",
+        "This guide offers no new qualified registration or fresh player route and does not adopt, replace, back up, roll back or delete external files."
+      ],
+      "references": [
+        {
+          "title": "External maintenance scope",
+          "instruction": "You or upstream own its updates."
+        }
       ],
       "help_url": "https://github.com/chronic8000/WaveRace64Recompiled/blob/63817bc71d31210a064f99010a010eb5e335b239/README.md"
     },

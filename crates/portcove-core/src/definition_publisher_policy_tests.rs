@@ -971,6 +971,14 @@ async fn curated_capability_preserves_other_platform_publisher_digest_installati
     );
     port.release.curated.insert(other, record);
     baseline.ports[0] = port;
+    let mut modern = baseline.clone();
+    modern.schema_version = 3;
+    let modern = Catalog::from_json(&serde_json::to_string(&modern).unwrap()).unwrap();
+    assert!(!modern.ports()[0].release.curated.is_empty());
+    let mut legacy = baseline.clone();
+    legacy.schema_version = 1;
+    legacy.source_catalog = None;
+    assert!(Catalog::from_json(&serde_json::to_string(&legacy).unwrap()).is_err());
     let authored = Catalog::from_json(&serde_json::to_string(&baseline).unwrap()).unwrap();
     let (_fixture, _key, _root, _directory, library, catalog, mut scope) =
         managed_fixture_for_policy(authored, true).await;

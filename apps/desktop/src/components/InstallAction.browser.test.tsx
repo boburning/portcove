@@ -265,7 +265,9 @@ it("discloses external saves and managed local settings for the staged MC2 route
   expect(dialog.element().textContent).toContain("official Windows x64 ZIP");
   expect(document.body.textContent).toContain("options.cfg");
   expect(document.body.textContent).toContain(".mechcommander2/savegame");
-  expect(document.body.textContent).toContain("declared local data may still be covered");
+  expect(document.body.textContent).toContain(
+    "Listed files in the installation folder may still be included",
+  );
   expect(document.body.textContent).not.toContain("Managed by Portcove for backup and restore");
   expect(install).not.toHaveBeenCalled();
 });
@@ -788,3 +790,30 @@ it.each(["future_action", "constructor", "__proto__"])(
     expect(review).toHaveBeenCalledTimes(1);
   },
 );
+
+it("shows authored save warnings before installation confirmation without opening Requirements", async () => {
+  const install = vi.fn();
+  await root.rerender(
+    <InstallAction
+      ready
+      sourceReady
+      biosReady
+      plan={plan}
+      setupNote="Choose the original game in its launcher after Play."
+      setupWarnings={[
+        "Separate program folders can share saves. Back up the shared profile before updating.",
+      ]}
+      review={vi.fn()}
+      dismiss={vi.fn()}
+      install={install}
+    />,
+  );
+  const warning = document.querySelector('aside[aria-label="Before you begin"]');
+  expect(warning?.textContent).toContain("Separate program folders can share saves");
+  expect(warning?.closest("details")).toBeNull();
+  const confirm = button("Install");
+  expect(
+    Boolean(warning!.compareDocumentPosition(confirm) & Node.DOCUMENT_POSITION_FOLLOWING),
+  ).toBe(true);
+  expect(install).not.toHaveBeenCalled();
+});

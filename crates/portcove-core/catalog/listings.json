@@ -1,5 +1,5 @@
 {
-  "format_version": 4,
+  "format_version": 6,
   "listings": [
     {
       "id": "shipwright",
@@ -2672,7 +2672,6 @@
         "source_editions": []
       },
       "manual_setup": {
-        "help_url": "https://github.com/Render96/Render96ex/tree/48da5c491c8abfb2f5192b59278c1c269411e533",
         "steps": [
           {
             "title": "Set up Render96 before adding it",
@@ -2680,21 +2679,32 @@
           },
           {
             "title": "Choose the game program",
-            "instruction": "Choose the program from your working build, rather than its compiler, build script or a launcher that starts a separate process. The inspected standard Windows US build normally produces build/us_pc/sm64.us.exe; region and renderer options can change its name. Keep its resources and companion files together. Use the same start folder and launch options as your working installation. Review and save the launch details, then choose Play separately."
-          },
-          {
-            "title": "Keep your existing save and settings folders",
-            "instruction": "Separate program folders can share saves. The inspected SDL2 build uses the sm64ex preferences folder by default. When the newer save is absent, it can copy an older sm64pc save and settings into that folder. Keep the actual sm64ex and sm64pc folders, sm64_save_file.bin, sm64config.txt and any custom data. Keep your existing --savepath, --configfile and --gamedir launch options only where your build supports them; ! in a supported save path means the executable folder. Do not move or change your save folder just to add the game to Portcove."
-          },
-          {
-            "title": "Handle updates and backups yourself",
-            "instruction": "You or the Render96 project’s tools handle updates, optional packs, resources and recovery. Back up the complete working installation, originals, resources, dynos/packs, mods, saves, settings and any unknown files before changing it. Portcove watches the selected game process and can remove its saved launch details. It won’t update, back up, restore, switch to older versions, move or delete this external copy. Older copies installed by Portcove keep their existing setup and update behavior."
+            "instruction": "Choose the program from your working build, rather than its compiler, build script or a launcher that starts a separate process. Keep its resources and companion files together. Use the same start folder and launch options as your working installation. Review and save the launch details, then choose Play separately."
           }
         ],
         "warnings": [
           "Use only originals, prepared copies and optional packs that you are permitted to use. Adding a program does not verify that the whole package came from its publisher or grant content rights.",
-          "These instructions describe the inspected build. Check the actual locations and behavior of your working copy; other build options and platforms may differ."
-        ]
+          "These instructions describe the inspected build. Check the actual locations and behavior of your working copy; other build options and platforms may differ.",
+          "Separate program folders can share saves. Do not move or change your save folder just to add the game to Portcove.",
+          "Back up the complete working installation, originals, resources, dynos/packs, mods, saves, settings and any unknown files before changing it.",
+          "Portcove will not back up or update this external installation. Back up its saves, settings and custom folders separately.",
+          "The inspected SDL2 build can copy older saves and settings into its shared profile folder when newer files are missing. Keep both profile folders before trying another copy."
+        ],
+        "references": [
+          {
+            "title": "Build output and executable names",
+            "instruction": "The inspected standard Windows US build normally produces build/us_pc/sm64.us.exe; region and renderer options can change its name."
+          },
+          {
+            "title": "Save folders and supported launch options",
+            "instruction": "The inspected SDL2 build uses the sm64ex preferences folder by default. When the newer save is absent, it can copy an older sm64pc save and settings into that folder. Keep the actual sm64ex and sm64pc folders, sm64_save_file.bin, sm64config.txt and any custom data. Keep your existing --savepath, --configfile and --gamedir launch options only where your build supports them; ! in a supported save path means the executable folder."
+          },
+          {
+            "title": "Updates, backups and file ownership",
+            "instruction": "You or the Render96 project’s tools handle updates, optional packs, resources and recovery. Portcove watches the selected game process and can remove its saved launch details. It won’t update, back up, restore, switch to older versions, move or delete this external copy. Older copies installed by Portcove keep their existing setup and update behavior."
+          }
+        ],
+        "help_url": "https://github.com/Render96/Render96ex/tree/48da5c491c8abfb2f5192b59278c1c269411e533"
       },
       "platforms": [
         "windows-x86-64"
@@ -3311,18 +3321,20 @@
         "steps": [
           {
             "title": "Add your US game data before Play",
-            "instruction": "Open the new runtime folder and copy your own US Ace Combat 6 Xbox 360 disc image beside ac6recomp.exe as AC6.iso, or put your extracted game files in assets with assets/default.xex. Keep your original copy separately. Europe and Japan are not supported. Choose Play after adding the files; this portable package has no installer. The game checks the disc title identity, but Portcove does not verify a retail-edition checksum for this upstream setup route. Optional own DLC belongs in dlc; title-update data is a separate upstream input, not a runtime update."
-          },
-          {
-            "title": "Keep your saves and settings",
-            "instruction": "Saves and the default texture-mod profile use your Windows Documents/ac6recomp folder. Keep a separate backup of that folder before changing versions. Runtime settings and keyboard bindings sit beside the player in ac6recomp.toml and ac6_input.toml; use forward slashes in TOML paths. Runtime caches and logs also appear beside the player. If Windows cannot resolve Documents, the upstream relative ac6recomp fallback stays beside the player. Custom data, disc, DLC, log, mod and diagnostic locations remain yours to preserve separately. Close the game before changing runtime files; older versions may not read newer saves."
-          },
-          {
-            "title": "Know this release’s limits",
-            "instruction": "Upstream requires Windows 10/11 x64, AVX2 and a Direct3D 12-capable GPU. This experimental release has known performance and rendering limits; Portcove gameplay and minimum-system observations remain unqualified."
+            "instruction": "Open the new runtime folder and copy your own US Ace Combat 6 Xbox 360 disc image beside ac6recomp.exe as AC6.iso, or put your extracted game files in assets with assets/default.xex. Keep your original copy separately. Choose Play after adding the files; this portable package has no installer. The game checks the disc title identity, but Portcove does not verify a retail-edition checksum for this upstream setup route. Optional own DLC belongs in dlc; title-update data is a separate upstream input, not a runtime update."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "Europe and Japan are not supported.",
+          "Keep a separate backup of the Windows Documents/ac6recomp folder before changing versions. Close the game before changing runtime files; older versions may not read newer saves.",
+          "Upstream requires Windows 10/11 x64, AVX2 and a Direct3D 12-capable GPU. This experimental release has known performance and rendering limits; Portcove gameplay and minimum-system observations remain unqualified."
+        ],
+        "references": [
+          {
+            "title": "Save locations, settings and custom data",
+            "instruction": "Saves and the default texture-mod profile use your Windows Documents/ac6recomp folder. Runtime settings and keyboard bindings sit beside the player in ac6recomp.toml and ac6_input.toml; use forward slashes in TOML paths. Runtime caches and logs also appear beside the player. If Windows cannot resolve Documents, the upstream relative ac6recomp fallback stays beside the player. Custom data, disc, DLC, log, mod and diagnostic locations remain yours to preserve separately."
+          }
+        ],
         "help_url": "https://github.com/sal063/AC6_recomp/blob/v1.0.0-beta.2/README.md"
       },
       "platforms": [
@@ -9245,17 +9257,18 @@
           {
             "title": "Select your own Banjo-Tooie ROM on first Play",
             "instruction": "Choose Play, then select your own NTSC-U 1.0 big-endian .z64 Banjo-Tooie ROM when asked. The upstream player requires SHA-256 9ec37fba6890362eba86fb855697a9cff1519275531b172083a1a6a045483583 and stores its own profile copy. The Windows ZIP has no installer. If Windows reports a missing runtime DLL, use the Microsoft Visual C++ x64 Redistributable linked in the packaged README; no helper runs automatically."
-          },
-          {
-            "title": "Keep your saves and settings",
-            "instruction": "Saves, settings, copied ROM, logs, cache and RT64 texture packs use %LOCALAPPDATA%/BanjoTooieScurvyDogPort. Keep a separate backup; do not share the whole profile because it contains your ROM. On first start only, if this destination does not exist, the game can copy selected Alpha 4/4.1 data from BanjoTooieEncore while leaving the old profile unchanged. Close the old game first; the copies do not synchronize. An existing destination, even empty, wins. A failed copy can leave an unused .migrating-… folder; preserve it and consult the upstream recovery instructions before retrying. Alpha 3 save import asks once if there is no current save; Alpha 3 settings and practice states are not carried over. Texture packs are experimental; code mods and ROM patches are unsupported."
-          },
-          {
-            "title": "Know this release’s limits",
-            "instruction": "This is an upstream alpha: distant geometry, aspect sizing, shadows, animation and lost-focus controller behavior have documented limitations; the upstream has not verified the whole game. Portcove gameplay and populated save restoration remain unqualified."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "Keep a separate backup of %LOCALAPPDATA%/BanjoTooieScurvyDogPort; do not share the whole profile because it contains your ROM. On first start only, if this destination does not exist, the game can copy selected Alpha 4/4.1 data from BanjoTooieEncore while leaving the old profile unchanged. Close the old game first; the copies do not synchronize. An existing destination, even empty, wins. A failed copy can leave an unused .migrating-… folder; preserve it and consult the upstream recovery instructions before retrying. Alpha 3 save import asks once if there is no current save; Alpha 3 settings and practice states are not carried over. Texture packs are experimental; code mods and ROM patches are unsupported.",
+          "This is an upstream alpha: distant geometry, aspect sizing, shadows, animation and lost-focus controller behavior have documented limitations; the upstream has not verified the whole game. Portcove gameplay and populated save restoration remain unqualified."
+        ],
+        "references": [
+          {
+            "title": "Profile location and preserved contents",
+            "instruction": "Saves, settings, copied ROM, logs, cache and RT64 texture packs use %LOCALAPPDATA%/BanjoTooieScurvyDogPort."
+          }
+        ],
         "help_url": "https://github.com/some-scurvy-dog/banjo-tooie-scurvy-dog-port/blob/v0.1.0-alpha.4.3/release/README.txt"
       },
       "platforms": [
@@ -13201,15 +13214,20 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Understand this scene prototype",
-            "instruction": "The published v0.1.0-beta package is the previously reviewed scene-only Conker.exe and SDL2.dll copy. It does not run the game’s recompiled logic or levels, and its package does not contain the source extraction tools. It remains on the existing useful-output hold; this guide offers no new qualified player or registration route."
-          },
-          {
             "title": "Preserve an already registered copy",
-            "instruction": "Keep any already registered, permitted development copy, its complete folder and your own original ROM under its existing contract. Upstream identifies the Windows EEPROM location as %APPDATA%\\ConkerRecompiled\\Saves\\conker.eep. Preserve all actual settings, generated files and data before changing the copy. You or upstream own updates; Portcove does not replace, back up, roll back or delete external files."
+            "instruction": "Keep any already registered, permitted development copy, its complete folder and your own original ROM under its existing contract."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "The published v0.1.0-beta package is the previously reviewed scene-only Conker.exe and SDL2.dll copy. It does not run the game’s recompiled logic or levels, and its package does not contain the source extraction tools. It remains on the existing useful-output hold; this guide offers no new qualified player or registration route.",
+          "Preserve all actual settings, generated files and data before changing the copy."
+        ],
+        "references": [
+          {
+            "title": "Save location and external maintenance",
+            "instruction": "Upstream identifies the Windows EEPROM location as %APPDATA%\\ConkerRecompiled\\Saves\\conker.eep. You or upstream own updates; Portcove does not replace, back up, roll back or delete external files."
+          }
+        ],
         "help_url": "https://github.com/Conker64Recomp/conker64-recompiled/blob/0a9dbbf409accdcc0bebd676455de4f5a192f7e5/README.md"
       },
       "download_block_reason": "The existing v0.1.0-beta release is a scene prototype without runnable game logic or levels; it is the same artifact covered by this port’s owner-approved useful-output hold. Reconsider fresh setup when upstream supplies a useful game runtime or a separately evidenced useful operation. Already registered permitted development copies retain their contracts."
@@ -26893,7 +26911,6 @@
         "match_kind": "underlying-game"
       },
       "manual_setup": {
-        "help_url": "https://github.com/SamSteProjects/legend-of-legaia-recomp/blob/261a40d12a800a73426367f643d2267e8393db3f/README.md",
         "steps": [
           {
             "title": "Complete the exact original and BIOS setup upstream",
@@ -26904,22 +26921,28 @@
             "instruction": "The upstream v0.1.7 diagnostic-playtest README explicitly supports direct LegaiaRecomp.exe with its complete creating player directory as working directory and no extra arguments; keep SDL2.dll and bundled game.toml, settings.toml, bios/, disc/, game/ and matching resources together. Do not attach the batch file, package script, compiler or a setup-host output. Complete preparation upstream first. Retain supported literal arguments already required by your working copy; no renderer or input mode is newly qualified."
           },
           {
-            "title": "Keep launch and maintenance ownership explicit",
-            "instruction": "Review and consent to the exact native executable, established CWD and literal arguments; request Play separately. The reviewed source provides the normal in-process launcher/runtime route; package build flags and package-to-source correspondence remain unverified. Independently started setup, helper, mod-preparation or successor sessions remain upstream activity outside this attachment. Close every actual player and companion before maintenance, retain the old runtime/data and review or relink changed selected bytes. Removing registration preserves all external files."
-          },
-          {
-            "title": "Preserve the actual creating profile and custom roots",
-            "instruction": "The title config selects runtime memcard_dir=saves. The named runtime source anchors normal runtime files to the executable directory and supports --memcard-dir plus settings-selected explicit card paths; preserve the actual effective directories and card1.mcd/card2.mcd, rather than assuming all state is under saves/. Retain all saves/states, settings.toml, game.toml and custom overlays, original disc/BIOS/extracted executable, cache or overlay shards, mods, logs, crash/hitch/manual reports, backups and temporary files with the creating runtime. Preserve external custom card/disc/BIOS/mod paths. No cross-version card/state compatibility or migration is established."
-          },
-          {
-            "title": "Keep the experimental limits and working configuration",
-            "instruction": "This early diagnostic playtest has documented hitching and a static-overlay fallback. Keep the working configuration and runtime together; stable-player and runtime behavior remain unconfirmed. Portcove has not confirmed upstream gameplay reports. You and upstream manage preparation, replacement and recovery; Portcove does not update, back up, roll back, migrate or delete this external copy, or upload diagnostic reports."
+            "title": "Review launch details, then choose Play",
+            "instruction": "Review and consent to the exact native executable, established CWD and literal arguments; request Play separately."
           }
         ],
         "warnings": [
           "Only attach actual originals, runtime and components you are independently permitted to use. Runtime PolyForm Noncommercial terms and SDL/dependency notices apply separately; no source label or upstream package assertion grants Sony/game rights.",
-          "This guidance follows upstream source, documentation, configuration and published release checksums. Portcove has not downloaded or inspected the package, confirmed that its executable matches the source, or tested launch, saves, gameplay or installed behavior. The package’s build settings and contents remain unconfirmed."
-        ]
+          "This guidance follows upstream source, documentation, configuration and published release checksums. Portcove has not downloaded or inspected the package, confirmed that its executable matches the source, or tested launch, saves, gameplay or installed behavior. The package’s build settings and contents remain unconfirmed.",
+          "Close every actual player and companion before maintenance, retain the old runtime/data and review or relink changed selected bytes.",
+          "No cross-version card/state compatibility or migration is established.",
+          "This early diagnostic playtest has documented hitching and a static-overlay fallback. Keep the working configuration and runtime together; stable-player and runtime behavior remain unconfirmed."
+        ],
+        "references": [
+          {
+            "title": "Launch, preparation and maintenance scope",
+            "instruction": "The reviewed source provides the normal in-process launcher/runtime route; package build flags and package-to-source correspondence remain unverified. Independently started setup, helper, mod-preparation or successor sessions remain upstream activity outside this attachment. Removing registration preserves all external files. Portcove has not confirmed upstream gameplay reports. You and upstream manage preparation, replacement and recovery; Portcove does not update, back up, roll back, migrate or delete this external copy, or upload diagnostic reports."
+          },
+          {
+            "title": "Save cards, configuration and custom roots",
+            "instruction": "The title config selects runtime memcard_dir=saves. The named runtime source anchors normal runtime files to the executable directory and supports --memcard-dir plus settings-selected explicit card paths; preserve the actual effective directories and card1.mcd/card2.mcd, rather than assuming all state is under saves/. Retain all saves/states, settings.toml, game.toml and custom overlays, original disc/BIOS/extracted executable, cache or overlay shards, mods, logs, crash/hitch/manual reports, backups and temporary files with the creating runtime. Preserve external custom card/disc/BIOS/mod paths."
+          }
+        ],
+        "help_url": "https://github.com/SamSteProjects/legend-of-legaia-recomp/blob/261a40d12a800a73426367f643d2267e8393db3f/README.md"
       }
     },
     {
@@ -28035,15 +28058,10 @@
       },
       "release_url": "https://github.com/mariopartyrd/partyboard/releases",
       "manual_setup": {
-        "help_url": "https://github.com/mariopartyrd/partyboard",
         "steps": [
           {
             "title": "Keep the exact early-alpha copy and original",
             "instruction": "The selected partyboard_0.2.0 release supports your own GameCube Mario Party 4 USA GMPE01 revision 0 ISO/RVZ. Complete its normal setup outside Portcove; a newer source README mentioning revision 1 does not broaden this alpha’s accepted input. The upstream release prefers its Win32/x86 build because the separate x64 build may crash in additional places. Use an already-working independently permitted copy on a compatible Windows host; no curated x64-package or other-platform acceptance is claimed."
-          },
-          {
-            "title": "Keep the required controller and known limits visible",
-            "instruction": "This alpha requires a controller. Upstream says the Shy Guy board and Manta Rings, Slime Time, Makin’ Waves and Bowser Bop minigames crash; double rolls can softlock. It also reports coin/dice/graphics/shadow defects. These instructions do not repair those issues. Portcove has not confirmed full-game compatibility, physical-controller support or completed saves."
           },
           {
             "title": "Add the native game player",
@@ -28051,17 +28069,28 @@
           },
           {
             "title": "Review launch details, then choose Play",
-            "instruction": "Review and consent to this exact executable, creating working directory and supported literal arguments, then choose Play separately. Core owns only the selected native intent and registration. Upstream and you retain preparation, runtime replacement, recovery and external files. Removing registration preserves every external file. Close the actual player and companions before upstream maintenance, retain the old runtime and all data, then review/relink changed selected bytes."
-          },
-          {
-            "title": "Preserve the external profile and creating data",
-            "instruction": "Upstream locates this alpha’s saves in %APPDATA%/Party Board. Preserve the entire external profile, its settings/cache and any actual custom locations, plus the complete creating package, original image, extracted data, logs, mods, backups and temporary files. Dolphin save compatibility is only an upstream claim; no migration or import is performed. Unknown extra data grants no deletion rights. Upstream and you retain runtime replacement; keep the creating copy and review changed selected bytes after maintenance."
+            "instruction": "Review and consent to this exact executable, creating working directory and supported literal arguments, then choose Play separately."
           }
         ],
         "warnings": [
           "For this alpha, upstream recommends the Win32/x86 build. The separate x64 build may crash in additional places.",
-          "Use only a copy, components and original you are permitted to use. No external preparation, update, backup, rollback, migration or deletion is offered. Source/root license absence alone supplies neither a private-use ban nor a grant inherited from Aurora or another game."
-        ]
+          "Use only a copy, components and original you are permitted to use. No external preparation, update, backup, rollback, migration or deletion is offered. Source/root license absence alone supplies neither a private-use ban nor a grant inherited from Aurora or another game.",
+          "This alpha requires a controller. Upstream says the Shy Guy board and Manta Rings, Slime Time, Makin’ Waves and Bowser Bop minigames crash; double rolls can softlock. It also reports coin/dice/graphics/shadow defects. These instructions do not repair those issues. Portcove has not confirmed full-game compatibility, physical-controller support or completed saves.",
+          "Close the actual player and companions before upstream maintenance, retain the old runtime and all data, then review/relink changed selected bytes.",
+          "Preserve the entire external profile, its settings/cache and any actual custom locations, plus the complete creating package, original image, extracted data, logs, mods, backups and temporary files.",
+          "Dolphin save compatibility is only an upstream claim; no migration or import is performed. Unknown extra data grants no deletion rights."
+        ],
+        "references": [
+          {
+            "title": "Registration and maintenance ownership",
+            "instruction": "Core owns only the selected native intent and registration. Upstream and you retain preparation, runtime replacement, recovery and external files. Removing registration preserves every external file. Upstream and you retain runtime replacement; keep the creating copy and review changed selected bytes after maintenance."
+          },
+          {
+            "title": "Save location and creating data",
+            "instruction": "Upstream locates this alpha’s saves in %APPDATA%/Party Board."
+          }
+        ],
+        "help_url": "https://github.com/mariopartyrd/partyboard"
       }
     },
     {
@@ -30022,18 +30051,24 @@
         "steps": [
           {
             "title": "Choose your original files on Play",
-            "instruction": "On first Play, select your own Stunts 1.1 folder or ZIP in the game’s welcome screen. Other 4D Sports Driving revisions are outside this input claim. Setup requires Internet access to fetch its translation map; it normally caches that map by app version and imports the original into its profile. Retain your original files for reimport if storage fails. No original game files are supplied."
+            "instruction": "On first Play, select your own Stunts 1.1 folder or ZIP in the game’s welcome screen."
           },
           {
-            "title": "Keep a separate profile backup",
-            "instruction": "Saves, tracks, replays, high scores, preferences, imported originals and cached maps live outside the runtime: %APPDATA%/Stunts HD on Windows, or $XDG_CONFIG_HOME/Stunts HD (normally ~/.config/Stunts HD) on Linux. Back up that whole profile with the app closed. Portcove manages the downloaded runtime only; its backup does not include this profile or chosen screenshot/export destinations. F6 exports are not a complete restorable profile backup."
-          },
-          {
-            "title": "Check the alternatives and recovery limits",
-            "instruction": "For an existing Windows copy select Stunts HD.exe; on Linux select stunts-hd with its containing folder. The upstream browser player at https://stunts-recomp.pages.dev/ has separate browser-site storage. macOS uses the upstream application through the OS; ARM and AppImage routes remain upstream-owned. A missing version cache downloads a mutable upstream map, so first setup after a version change or runtime rollback may need Internet and may fail if that map no longer matches. Preserve existing cached maps; offline/historical-map and save compatibility are not guaranteed."
+            "title": "Select an existing native player",
+            "instruction": "For an existing Windows copy select Stunts HD.exe; on Linux select stunts-hd with its containing folder."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "Other 4D Sports Driving revisions are outside this input claim. Setup requires Internet access to fetch its translation map; it normally caches that map by app version and imports the original into its profile. Retain your original files for reimport if storage fails. No original game files are supplied.",
+          "Back up the whole Stunts HD profile with the app closed. Portcove manages the downloaded runtime only; its backup does not include the Stunts HD profile or chosen screenshot/export destinations. F6 exports are not a complete restorable profile backup.",
+          "A missing version cache downloads a mutable upstream map, so first setup after a version change or runtime rollback may need Internet and may fail if that map no longer matches. Preserve existing cached maps; offline/historical-map and save compatibility are not guaranteed."
+        ],
+        "references": [
+          {
+            "title": "Profile locations and alternatives",
+            "instruction": "Saves, tracks, replays, high scores, preferences, imported originals and cached maps live outside the runtime: %APPDATA%/Stunts HD on Windows, or $XDG_CONFIG_HOME/Stunts HD (normally ~/.config/Stunts HD) on Linux. The upstream browser player at https://stunts-recomp.pages.dev/ has separate browser-site storage. macOS uses the upstream application through the OS; ARM and AppImage routes remain upstream-owned."
+          }
+        ],
         "help_url": "https://github.com/mr-finster/stunts-hd/blob/59b9e1a22c1ecf880a16b199a4a454489b20e59d/README.md"
       },
       "release_url": "https://github.com/mr-finster/stunts-hd/releases",
@@ -30537,21 +30572,26 @@
           {
             "title": "Choose your original game and BIOS in the player",
             "instruction": "The complete Windows x64 stable ZIP contains the player, libraries, assets and compiler companions. Keep them together. Choose Play after installation, then supply your own matching USA original GBA game and retail GBA BIOS in the upstream launcher. The launcher checks those inputs and remembers valid choices. No separate installer is required; Portcove does not execute discovered compilers or helpers during setup."
-          },
-          {
-            "title": "Back up your actual save folder",
-            "instruction": "Normal cartridge saves (.sav) and optional state slots (.stateN) follow your selected original game file, usually outside the installation. Preserve that actual folder separately, including .tmp, .bak and .prev-size.bak recovery siblings. The launcher display does not relocate saves; custom --save/--save-path or --state-dir choices can select other locations. A Portcove-managed copy preserves declared local config.ini, keybinds.ini, rom.cfg, bios.cfg, user game.toml, saves/ and mods/. Its backup excludes external originals, BIOS and save folders."
-          },
-          {
-            "title": "Keep your choices and mod versions when updating",
-            "instruction": "If Library identifies this copy as Portcove-managed, use its compatible stable update. Portcove stages the replacement and preserves current declared local data, including edits before first Play. Complete mods/packages/<id>/<version> packages coexist with new upstream defaults; your mod state is retained without choosing a new default for you. A changed package using the same ID/version requires reviewing the reported copies separately before retrying. Mods remain player/upstream-owned code: preservation does not authenticate them or establish compatibility. Generated executable caches and diagnostics stay with each runtime and are regenerated. Runtime rollback carries current data; it does not rewind saves or guarantee older readers can use them. For a copy you added yourself, you or upstream provide updates: prepare a separate folder and change the registration when ready."
-          },
-          {
-            "title": "Understand the enhanced-view limitation",
-            "instruction": "The upstream README records a v0.0.2 extended-view state-load limitation and distinguishes faithful 240x160 output and normal SRAM saves. That historical note is not a current full-game observation. Prefer ordinary saves; newer runtimes and selected mods may not read older state snapshots."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "Preserve the actual folder containing normal cartridge saves (.sav) and optional state slots (.stateN) separately, including .tmp, .bak and .prev-size.bak recovery siblings. A Portcove-managed copy’s backup excludes external originals, BIOS and save folders.",
+          "Mods remain player/upstream-owned code: preservation does not authenticate them or establish compatibility. Runtime rollback carries current data; it does not rewind saves or guarantee older readers can use them. Prefer ordinary saves; newer runtimes and selected mods may not read older state snapshots."
+        ],
+        "references": [
+          {
+            "title": "Save locations and managed backup scope",
+            "instruction": "Normal cartridge saves (.sav) and optional state slots (.stateN) follow your selected original game file, usually outside the installation. The launcher display does not relocate saves; custom --save/--save-path or --state-dir choices can select other locations. A Portcove-managed copy preserves declared local config.ini, keybinds.ini, rom.cfg, bios.cfg, user game.toml, saves/ and mods/."
+          },
+          {
+            "title": "Updates, mods and runtime rollback",
+            "instruction": "If Library identifies this copy as Portcove-managed, use its compatible stable update. Portcove stages the replacement and preserves current declared local data, including edits before first Play. Complete mods/packages/<id>/<version> packages coexist with new upstream defaults; your mod state is retained without choosing a new default for you. A changed package using the same ID/version requires reviewing the reported copies separately before retrying. Generated executable caches and diagnostics stay with each runtime and are regenerated. For a copy you added yourself, you or upstream provide updates: prepare a separate folder and change the registration when ready."
+          },
+          {
+            "title": "Historical enhanced-view limitation",
+            "instruction": "The upstream README records a v0.0.2 extended-view state-load limitation and distinguishes faithful 240x160 output and normal SRAM saves. That historical note is not a current full-game observation."
+          }
+        ],
         "help_url": "https://github.com/mstan/MegaManZeroRecomp/blob/0c7e9537cb22abb6b3991029f24909adbc47723c/README.md"
       },
       "original_game_title": "Mega Man Zero",
@@ -32690,7 +32730,6 @@
         "match_kind": "underlying-game"
       },
       "manual_setup": {
-        "help_url": "https://github.com/omegakatana92/Kirby-Pinball-Land-Recomp/blob/502d3bd646819fe5b7d15cd668d30c1ef7ca7cf3/README.md",
         "steps": [
           {
             "title": "Use your own matching Game Boy ROM",
@@ -32703,7 +32742,14 @@
           {
             "title": "Add the ordinary native player",
             "instruction": "Select Kirby_s_Pinball_Land__USA__Europe_.exe inside that complete package folder, use the same folder as working directory and leave arguments empty for the normal ROM picker. Review the selected program, folder and arguments, then choose Play separately and select your own existing ROM in the upstream dialog. Keep any already working --rom, --save-dir or other supported literal arguments when your existing setup uses them; do not add diagnostic, headless, differential or test modes to normal Play. A compiler-identification a.exe below CMakeFiles is not the game."
-          },
+          }
+        ],
+        "warnings": [
+          "Use the complete selected Windows player with your own matching Game Boy ROM. Preserve any existing --save-dir, game saves/states and the shared gbrecompiled/runtime preferences; no cross-build state compatibility or native gameplay is established.",
+          "That profile can be shared with another gbrecompiled title. Keep its controls/settings and any imgui.ini; do not reset the shared profile merely to add this reference.",
+          "Close the actual player before upstream replacement or manual recovery. Keep its creating runtime, original ROM, complete save/state folder and shared settings together in your own recovery copies; state compatibility or a save-rewind guarantee is not supplied. Preserve original-game, project and separate runtime/library terms; a repository license or package hash is not a blanket content grant."
+        ],
+        "references": [
           {
             "title": "Preserve game data and shared runtime preferences",
             "instruction": "Preserve the complete existing player folder and any title/save-ID .sav, .rtc and .stateN files that are present. Normal persistent paths are based on the executable folder; an already established --save-dir redirects them to its existing directory, so preserve that path and argument rather than choosing a new empty folder. Runtime preferences use %APPDATA%/gbrecompiled/runtime/runtime_prefs.ini through SDL, with a working-directory fallback when the SDL preference path is unavailable. That profile can be shared with another gbrecompiled title. Keep its controls/settings and any imgui.ini; do not reset the shared profile merely to add this reference."
@@ -32713,9 +32759,7 @@
             "instruction": "Close the actual player before upstream replacement or manual recovery. Keep its creating runtime, original ROM, complete save/state folder and shared settings together in your own recovery copies; state compatibility or a save-rewind guarantee is not supplied. Preserve original-game, project and separate runtime/library terms; a repository license or package hash is not a blanket content grant. Only the selected program is observed. Removing the reference preserves external files; managed acquisition, update, backup, rollback and Supported qualification are not added. Static inspection supplies no native gameplay, controller, audio or save/reload observation."
           }
         ],
-        "warnings": [
-          "Use the complete selected Windows player with your own matching Game Boy ROM. Preserve any existing --save-dir, game saves/states and the shared gbrecompiled/runtime preferences; no cross-build state compatibility or native gameplay is established."
-        ]
+        "help_url": "https://github.com/omegakatana92/Kirby-Pinball-Land-Recomp/blob/502d3bd646819fe5b7d15cd668d30c1ef7ca7cf3/README.md"
       }
     },
     {
@@ -32736,7 +32780,6 @@
         "match_kind": "underlying-game"
       },
       "manual_setup": {
-        "help_url": "https://github.com/omegakatana92/Super-Mario-Land-3-Wario-Land-Recomp-/blob/47eb0a67fe54e6a7966d5e949c51292b82e1e573/README.md",
         "steps": [
           {
             "title": "Use your own matching Game Boy ROM",
@@ -32749,7 +32792,14 @@
           {
             "title": "Add the ordinary native player",
             "instruction": "Select Super_Mario_Land_3___Wario_Land__USA_.exe inside that complete package folder, use the same folder as working directory and leave arguments empty for the normal ROM picker. Review the selected program, folder and arguments, then choose Play separately and select your own existing ROM in the upstream dialog. Keep any already working --rom, --save-dir or other supported literal arguments when your existing setup uses them; do not add diagnostic, headless, differential or test modes to normal Play. A compiler-identification a.exe below CMakeFiles is not the game."
-          },
+          }
+        ],
+        "warnings": [
+          "Use the complete selected Windows player with your own matching Game Boy ROM. Preserve any existing --save-dir, game saves/states and the shared gbrecompiled/runtime preferences; no cross-build state compatibility or native gameplay is established.",
+          "That profile can be shared with another gbrecompiled title. Keep its controls/settings and any imgui.ini; do not reset the shared profile merely to add this reference.",
+          "Close the actual player before upstream replacement or manual recovery. Keep its creating runtime, original ROM, complete save/state folder and shared settings together in your own recovery copies; state compatibility or a save-rewind guarantee is not supplied. Preserve original-game, project and separate runtime/library terms; a repository license or package hash is not a blanket content grant."
+        ],
+        "references": [
           {
             "title": "Preserve game data and shared runtime preferences",
             "instruction": "Preserve the complete existing player folder and any title/save-ID .sav, .rtc and .stateN files that are present. Normal persistent paths are based on the executable folder; an already established --save-dir redirects them to its existing directory, so preserve that path and argument rather than choosing a new empty folder. Runtime preferences use %APPDATA%/gbrecompiled/runtime/runtime_prefs.ini through SDL, with a working-directory fallback when the SDL preference path is unavailable. That profile can be shared with another gbrecompiled title. Keep its controls/settings and any imgui.ini; do not reset the shared profile merely to add this reference."
@@ -32759,9 +32809,7 @@
             "instruction": "Close the actual player before upstream replacement or manual recovery. Keep its creating runtime, original ROM, complete save/state folder and shared settings together in your own recovery copies; state compatibility or a save-rewind guarantee is not supplied. Preserve original-game, project and separate runtime/library terms; a repository license or package hash is not a blanket content grant. Only the selected program is observed. Removing the reference preserves external files; managed acquisition, update, backup, rollback and Supported qualification are not added. Static inspection supplies no native gameplay, controller, audio or save/reload observation."
           }
         ],
-        "warnings": [
-          "Use the complete selected Windows player with your own matching Game Boy ROM. Preserve any existing --save-dir, game saves/states and the shared gbrecompiled/runtime preferences; no cross-build state compatibility or native gameplay is established."
-        ]
+        "help_url": "https://github.com/omegakatana92/Super-Mario-Land-3-Wario-Land-Recomp-/blob/47eb0a67fe54e6a7966d5e949c51292b82e1e573/README.md"
       }
     },
     {
@@ -33577,7 +33625,6 @@
       },
       "issue_number": 2795,
       "manual_setup": {
-        "help_url": "https://github.com/OverkillLabs3/driveclub-recomp/blob/3e7f6d8543f8a426fdbbb323cf822f36b5c3a11a/README.md",
         "steps": [
           {
             "title": "Prepare your own matching PS4 data",
@@ -33590,7 +33637,14 @@
           {
             "title": "Add the ordinary native launcher",
             "instruction": "Select DriveClub.exe in the complete extracted package root, use that root as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play separately and use the ordinary upstream Play action. Do not use the benchmark, backend, wheel diagnostic or an internal game runner as this route. The normal launcher can start its game and close; Portcove observes the selected launcher only, so a finished activity does not establish that the game has exited."
-          },
+          }
+        ],
+        "warnings": [
+          "Use normal DriveClub.exe with the complete package and your own matching PS4 base/update folders. Preserve all career/profile/backup data; the launcher can exit before its game, so close the actual game before maintenance.",
+          "Profile selection swaps the active savedata through the upstream launcher; its automatic per-start backups retain only the newest ten. Preserve your own independent copies and original PS4 folders.",
+          "Use the game’s own Quit and close the actual game, launcher, helpers and any independently used server before replacement, rebuild or recovery. Upstream owns its update/settings/preparation behavior; retain the previous complete working package and data and review the native path after changes. Keep project GPL and all separate library, NVIDIA DLSS, mod and original-game terms."
+        ],
+        "references": [
           {
             "title": "Preserve the selected career and all prepared data",
             "instruction": "Keep the complete data folder, including data/user/savedata, data/profiles with active.txt, and data/backups/profileN, plus launcher.ini, input/camera settings, generated preparation, mods and existing recovery copies. Profile selection swaps the active savedata through the upstream launcher; its automatic per-start backups retain only the newest ten. Preserve your own independent copies and original PS4 folders. Portcove does not change profiles, authenticate original files, migrate saves or manage those backups."
@@ -33600,9 +33654,7 @@
             "instruction": "Use the game’s own Quit and close the actual game, launcher, helpers and any independently used server before replacement, rebuild or recovery. Upstream owns its update/settings/preparation behavior; retain the previous complete working package and data and review the native path after changes. Keep project GPL and all separate library, NVIDIA DLSS, mod and original-game terms. This guide offers the existing local player route, not online/server/firewall setup, DLC entitlement or managed update/backup/rollback. Upstream race, wheel, GPU and save reports are not Portcove native/gameplay or Supported qualification."
           }
         ],
-        "warnings": [
-          "Use normal DriveClub.exe with the complete package and your own matching PS4 base/update folders. Preserve all career/profile/backup data; the launcher can exit before its game, so close the actual game before maintenance."
-        ]
+        "help_url": "https://github.com/OverkillLabs3/driveclub-recomp/blob/3e7f6d8543f8a426fdbbb323cf822f36b5c3a11a/README.md"
       }
     },
     {
@@ -33624,7 +33676,6 @@
       },
       "issue_number": 2859,
       "manual_setup": {
-        "help_url": "https://github.com/OverkillLabs3/gears-judgement-recomp/blob/e56c475a75b1b703aee0e3422ffc18a27a05f66a/README.md",
         "steps": [
           {
             "title": "Use your own supported Xbox 360 retail copy",
@@ -33637,7 +33688,14 @@
           {
             "title": "Add the supported single-file native entry",
             "instruction": "Select GearsOfWarJudgment.exe in the portable package root, use that root as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play separately and use its ordinary original-folder prompt if needed. The launcher establishes GOWJ_HOME for its child; do not register a generated cache executable or invent that environment yourself. Keep Graphics Settings.exe available for upstream settings. Portcove observes the selected entry only, which can exit while its actual game continues."
-          },
+          }
+        ],
+        "warnings": [
+          "Choose the ordinary portable GearsOfWarJudgment.exe, not its extracted cache child. Preserve the portable saves/configuration and separate per-user runtime data; the launcher may finish before the game does.",
+          "Upstream can copy older runtime user/cache data forward when the new folders are absent; preserve any old Documents/gowj data until you have independently checked your own working setup. This guide performs no migration or save conversion.",
+          "Quit the actual game and close settings/helpers before upstream replacement, cache work or recovery; the selected launcher’s finished activity does not establish full-game exit. Preserve the previous complete portable root, saves/configuration, originals and per-user data, then review the native selection after an upstream change. Preserve project BSD-3-Clause and separate ReXGlue/Xenia, runtime/library and original-game terms."
+        ],
+        "references": [
           {
             "title": "Preserve both portable and per-user data",
             "instruction": "Keep the portable root’s saves, config/gowj.toml, gowj_game_path.txt, logs and other existing files, plus %LOCALAPPDATA%/GearsOfWarJudgmentPC/user and cache. Settings and actual game saves use the portable root established by GOWJ_HOME; runtime user data and shader/pipeline caches have separate per-user roots. Upstream can copy older runtime user/cache data forward when the new folders are absent; preserve any old Documents/gowj data until you have independently checked your own working setup. This guide performs no migration or save conversion."
@@ -33647,9 +33705,7 @@
             "instruction": "Quit the actual game and close settings/helpers before upstream replacement, cache work or recovery; the selected launcher’s finished activity does not establish full-game exit. Preserve the previous complete portable root, saves/configuration, originals and per-user data, then review the native selection after an upstream change. Preserve project BSD-3-Clause and separate ReXGlue/Xenia, runtime/library and original-game terms. Removing the reference preserves external files; no managed build/update/backup/rollback, full campaign, physical controller, GPU breadth, native Windows or save/reload observation is supplied here."
           }
         ],
-        "warnings": [
-          "Choose the ordinary portable GearsOfWarJudgment.exe, not its extracted cache child. Preserve the portable saves/configuration and separate per-user runtime data; the launcher may finish before the game does."
-        ]
+        "help_url": "https://github.com/OverkillLabs3/gears-judgement-recomp/blob/e56c475a75b1b703aee0e3422ffc18a27a05f66a/README.md"
       }
     },
     {
@@ -36636,7 +36692,6 @@
         "match_kind": "underlying-game"
       },
       "manual_setup": {
-        "help_url": "https://t3hd0gg.com/project-r/",
         "steps": [
           {
             "title": "Keep your existing upstream installation",
@@ -36649,7 +36704,15 @@
           {
             "title": "Register the native player for Rush 2049",
             "instruction": "Select the installed bin/project-r.exe, use its containing bin folder as working directory and add one argument: --2049. The inspected installer creates this title shortcut with that argument. If setup is incomplete, upstream returns to its main menu. Review these coordinates, then choose Play separately. Keep the same installation available to the other ProjectR title; registration does not create a second runtime owner."
-          },
+          }
+        ],
+        "warnings": [
+          "Select installed bin/project-r.exe, not the setup executable. Preserve the shared ProjectR profile and each title’s distinct original inputs; upstream owns setup and updates.",
+          "Both title registrations share this runtime/profile; removing either reference must not delete it. Keep original CHD/raw/audio files and matching DIF imports unchanged. No data migration, save compatibility, backup or deletion ownership is established.",
+          "Close the actual game before upstream replacement or recovery, keep your previous working installation/profile and review the selected entry after changes.",
+          "Upstream reserves its own rights and includes separate component notices; original-game rights remain separate."
+        ],
+        "references": [
           {
             "title": "Preserve shared configuration and player data",
             "instruction": "Retain the entire existing ProjectR profile directory, documented under %LOCALAPPDATA%/ProjectR, including project-r.toml, data, logs and any configured external asset/player-data locations. Both title registrations share this runtime/profile; removing either reference must not delete it. Keep original CHD/raw/audio files and matching DIF imports unchanged. No data migration, save compatibility, backup or deletion ownership is established."
@@ -36659,9 +36722,7 @@
             "instruction": "Close the actual game before upstream replacement or recovery, keep your previous working installation/profile and review the selected entry after changes. Portcove observes the selected program only. Upstream reserves its own rights and includes separate component notices; original-game rights remain separate. Windows execution, import/cancellation, gameplay and save/reload were not performed. Known upstream limits remain; this is conditional registration guidance, not managed or Supported qualification."
           }
         ],
-        "warnings": [
-          "Select installed bin/project-r.exe, not the setup executable. Preserve the shared ProjectR profile and each title’s distinct original inputs; upstream owns setup and updates."
-        ]
+        "help_url": "https://t3hd0gg.com/project-r/"
       }
     },
     {
@@ -36674,7 +36735,6 @@
       "availability": "unknown",
       "setup_url": "https://t3hd0gg.com/project-r/",
       "manual_setup": {
-        "help_url": "https://t3hd0gg.com/project-r/",
         "steps": [
           {
             "title": "Keep your existing upstream installation",
@@ -36687,7 +36747,15 @@
           {
             "title": "Register the native player for Rush: The Rock",
             "instruction": "Select the installed bin/project-r.exe, use its containing bin folder as working directory and add one argument: --rtr. The inspected installer creates this title shortcut with that argument. If setup is incomplete, upstream returns to its main menu. Review these coordinates, then choose Play separately. Keep the same installation available to the other ProjectR title; registration does not create a second runtime owner."
-          },
+          }
+        ],
+        "warnings": [
+          "Select installed bin/project-r.exe, not the setup executable. Preserve the shared ProjectR profile and each title’s distinct original inputs; upstream owns setup and updates.",
+          "Both title registrations share this runtime/profile; removing either reference must not delete it. Keep original CHD/raw/audio files and matching DIF imports unchanged. No data migration, save compatibility, backup or deletion ownership is established.",
+          "Close the actual game before upstream replacement or recovery, keep your previous working installation/profile and review the selected entry after changes.",
+          "Upstream reserves its own rights and includes separate component notices; original-game rights remain separate."
+        ],
+        "references": [
           {
             "title": "Preserve shared configuration and player data",
             "instruction": "Retain the entire existing ProjectR profile directory, documented under %LOCALAPPDATA%/ProjectR, including project-r.toml, data, logs and any configured external asset/player-data locations. Both title registrations share this runtime/profile; removing either reference must not delete it. Keep original CHD/raw/audio files and matching DIF imports unchanged. No data migration, save compatibility, backup or deletion ownership is established."
@@ -36697,9 +36765,7 @@
             "instruction": "Close the actual game before upstream replacement or recovery, keep your previous working installation/profile and review the selected entry after changes. Portcove observes the selected program only. Upstream reserves its own rights and includes separate component notices; original-game rights remain separate. Windows execution, import/cancellation, gameplay and save/reload were not performed. Known upstream limits remain; this is conditional registration guidance, not managed or Supported qualification."
           }
         ],
-        "warnings": [
-          "Select installed bin/project-r.exe, not the setup executable. Preserve the shared ProjectR profile and each title’s distinct original inputs; upstream owns setup and updates."
-        ]
+        "help_url": "https://t3hd0gg.com/project-r/"
       }
     },
     {
@@ -40603,15 +40669,19 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Understand the current development limit",
-            "instruction": "Upstream’s current milestone reaches the native title screen; gameplay/runtime completion remains in progress and no player package is published. Its public build guide also requires rom/sinpunishment_patched.z64 and a working-image patch pipeline that is not published. Your clean Japanese ROM and a clean clone alone do not establish a reproducible game build. Keep using an existing prepared development copy if you have one, preserving its files and limitations; do not select N64Recomp/RSPRecomp compiler tools as the player."
-          },
-          {
-            "title": "Keep your files and update through upstream",
-            "instruction": "Keep any existing prepared development copy in a separate folder you control. Portcove can retain a non-owning registration of that runtime after read-only executable review; launching remains a separate explicit action. You or upstream keep its updates, original files, generated data, saves and settings. Portcove does not supply a playable package, replace this runtime, or back it up or roll it back."
+            "title": "Keep an existing prepared development copy",
+            "instruction": "Keep using an existing prepared development copy if you have one, preserving its files and limitations; do not select N64Recomp/RSPRecomp compiler tools as the player. Keep any existing prepared development copy in a separate folder you control. Portcove can retain a non-owning registration of that runtime after read-only executable review; launching remains a separate explicit action."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "Upstream’s current milestone reaches the native title screen; gameplay/runtime completion remains in progress and no player package is published. Its public build guide also requires rom/sinpunishment_patched.z64 and a working-image patch pipeline that is not published. Your clean Japanese ROM and a clean clone alone do not establish a reproducible game build."
+        ],
+        "references": [
+          {
+            "title": "Maintenance and registration scope",
+            "instruction": "You or upstream keep its updates, original files, generated data, saves and settings. Portcove does not supply a playable package, replace this runtime, or back it up or roll it back."
+          }
+        ],
         "help_url": "https://github.com/maximilianoide/sin-punishment-recompiled#readme"
       }
     },
@@ -41438,7 +41508,6 @@
         "match_kind": "underlying-game"
       },
       "manual_setup": {
-        "help_url": "https://teamforeveronline.wixsite.com/home/sonic-1-forever",
         "steps": [
           {
             "title": "Use your own Sonic 1 Classic mobile data",
@@ -41451,7 +41520,14 @@
           {
             "title": "Add the ordinary native player",
             "instruction": "Select SonicForever.exe in the complete game folder, set that same folder as working directory and leave arguments empty for normal play. Preserve a different already working directory or supported literal arguments only when they belong to your actual working setup. Review the program, folder and arguments, then choose Play separately when ready. Do not select the Android APK, Switch executable, SonLVL editor, DLL, old setup script or an engine from another Sonic implementation."
-          },
+          }
+        ],
+        "warnings": [
+          "Use your own Sonic 1 Classic mobile data with a complete, independently permitted Forever copy. Keep Forever’s SData.bin/settings.ini and Mods separate from vanilla or Genesis-engine saves; the 1.5.1 new-folder transition and 32-bit Windows package have their own limits.",
+          "Forever and the vanilla decompilation use different SaveRAM slots; do not automatically copy another game’s or base-engine saves into this installation. Upstream describes a separate optional import action; Portcove performs no save conversion, import or rewind.",
+          "Preserve the original working folder and independent recovery copies before following that transition; it is not a general promise about every future update or another RSDK game. Close the actual program before upstream replacement or recovery, then review the native selection again. Preserve the project’s noncommercial/credit conditions and separate engine, mod, artist and original-game rights."
+        ],
+        "references": [
           {
             "title": "Preserve Forever’s saves and mod configuration",
             "instruction": "Keep this installation’s SData.bin, settings.ini, Forever.ini, Mods/modconfig.ini, complete Mods tree and other existing user files, alongside a retained copy of the complete working runtime and your original mobile data. Additional mods keep their own data and permissions. Forever and the vanilla decompilation use different SaveRAM slots; do not automatically copy another game’s or base-engine saves into this installation. Upstream describes a separate optional import action; Portcove performs no save conversion, import or rewind."
@@ -41461,9 +41537,7 @@
             "instruction": "When moving an older Forever installation to 1.5.1, upstream directs players to prepare a separate new folder first and then copy their own Forever SData.bin and settings.ini. Preserve the original working folder and independent recovery copies before following that transition; it is not a general promise about every future update or another RSDK game. Close the actual program before upstream replacement or recovery, then review the native selection again. Preserve the project’s noncommercial/credit conditions and separate engine, mod, artist and original-game rights. No publisher checksum was established for the inspected package; its computed hash alone is not authentication. This route adds no managed install, update, backup, rollback, Supported, native/gameplay or save/reload qualification. Removing the reference preserves external files."
           }
         ],
-        "warnings": [
-          "Use your own Sonic 1 Classic mobile data with a complete, independently permitted Forever copy. Keep Forever’s SData.bin/settings.ini and Mods separate from vanilla or Genesis-engine saves; the 1.5.1 new-folder transition and 32-bit Windows package have their own limits."
-        ]
+        "help_url": "https://teamforeveronline.wixsite.com/home/sonic-1-forever"
       }
     },
     {
@@ -44764,11 +44838,10 @@
       },
       "release_url": "https://github.com/Madxbio97/SF-pc-port/releases/tag/v0.1.0-public-test.16",
       "manual_setup": {
-        "help_url": "https://github.com/Madxbio97/SF-pc-port/releases/tag/v0.1.0-public-test.16",
         "steps": [
           {
-            "title": "Download a Windows version of the game",
-            "instruction": "Choose a release with a Windows player download. Extract the complete package and keep syphon_filter.exe with its DLLs, locales, assets and notices. A release with no attached player download cannot be used for this step."
+            "title": "Download the Windows port",
+            "instruction": "Choose a release with a Windows player download. Extract the complete package and keep syphon_filter.exe with its DLLs, locales, assets and notices. A release with no attached player download cannot be used for this step. Check the project’s downloads before choosing a version."
           },
           {
             "title": "Keep your original disc files together",
@@ -44781,23 +44854,29 @@
           {
             "title": "Choose Play",
             "instruction": "Use the game’s BROWSE/DEPLOY file picker to choose your CUE file. The game checks the supported game executable itself."
-          },
-          {
-            "title": "Back up your files before updating",
-            "instruction": "Close the game and its companion programs first. Keep the working program, original disc files, saves, settings, mods and custom data before replacing or moving this copy. Different program folders can share saves. Portcove can launch this copy, but it won’t update, back up, restore, switch to an older version, convert, move, or delete its files. Removing it from Portcove leaves those files in place. After replacing the program, review and update its saved launch details."
-          },
-          {
-            "title": "Where the inspected version keeps saves and settings",
-            "instruction": "For public-test.16, launcher.ini normally lives under %LOCALAPPDATA%/SyphonFilterPC; it can fall back to the executable folder or start folder. Campaign saves use SyphonFilterPC/Saves/<sanitized serial>.sav under the effective user-data folder, with backups and temporary files. That folder can fall back through APPDATA and the system temporary directory. The game can move a legacy SyphonFilterPC.sav beside the CUE into its newer save location. Preserve the whole profile and all legacy save locations. Other versions may use different locations or incompatible saves."
-          },
-          {
-            "title": "About the inspected download",
-            "instruction": "The inspected v0.1.0-public-test.16 Windows x64 ZIP contains the player. At the recorded inspection, the later listed 0.2.0 beta and test releases had no attached player packages. This is a historical observation, not a check of today’s latest release or a recommendation to use an older test. Check the project’s downloads before choosing a version."
           }
         ],
         "warnings": [
-          "Use only a copy and components you are permitted to use. Back up the complete working installation, original files, saves, settings, mods, generated files, caches and any custom folders before maintenance. Another program can share the same saved data."
-        ]
+          "Use only a copy and components you are permitted to use. Back up the complete working installation, original files, saves, settings, mods, generated files, caches and any custom folders before maintenance. Another program can share the same saved data.",
+          "Close the game and its companion programs first. Keep the working program, original disc files, saves, settings, mods and custom data before replacing or moving this copy. Different program folders can share saves.",
+          "For the inspected public-test.16 version, the game can move a legacy SyphonFilterPC.sav beside the CUE into its newer save location. Preserve the whole profile and all legacy save locations. Other versions may use different locations or incompatible saves.",
+          "Portcove will not back up or update this external installation. Back up its saves, settings and custom folders separately."
+        ],
+        "references": [
+          {
+            "title": "Updates and file ownership",
+            "instruction": "Portcove can launch this copy, but it won’t update, back up, restore, switch to an older version, convert, move, or delete its files. Removing it from Portcove leaves those files in place. After replacing the program, review and update its saved launch details."
+          },
+          {
+            "title": "Where the inspected version keeps saves and settings",
+            "instruction": "For public-test.16, launcher.ini normally lives under %LOCALAPPDATA%/SyphonFilterPC; it can fall back to the executable folder or start folder. Campaign saves use SyphonFilterPC/Saves/<sanitized serial>.sav under the effective user-data folder, with backups and temporary files. That folder can fall back through APPDATA and the system temporary directory."
+          },
+          {
+            "title": "About the inspected download",
+            "instruction": "The inspected v0.1.0-public-test.16 Windows x64 ZIP contains the player. At the recorded inspection, the later listed 0.2.0 beta and test releases had no attached player packages. This is a historical observation, not a check of today’s latest release or a recommendation to use an older test."
+          }
+        ],
+        "help_url": "https://github.com/Madxbio97/SF-pc-port/releases/tag/v0.1.0-public-test.16"
       }
     },
     {
@@ -45291,15 +45370,10 @@
       },
       "release_url": "https://github.com/Heromachine/Tenchu-SA-Recomp/releases/tag/v0.1.0",
       "manual_setup": {
-        "help_url": "https://github.com/Heromachine/Tenchu-SA-Recomp/releases/tag/v0.1.0",
         "steps": [
           {
-            "title": "Keep an independently permitted Linux copy",
-            "instruction": "The published v0.1.0 Linux x64 ZIP contains the native TenchuSARecomp apphost. No Windows player package was observed. Fresh acquisition remains held on the actual title/runtime-fork grant condition: the separate RecompOne-fork and title modifications do not inherit the parent engine’s MIT grant automatically. The missing developer fork URL alone does not prohibit a separately permitted self-contained copy."
-          },
-          {
             "title": "Finish the supported owned-disc preparation upstream",
-            "instruction": "Use your own USA Tenchu: Stealth Assassins SLUS-00706 CUE with every referenced track; the disc stays required during play. Complete the upstream first-Play generation and local cache preparation before registration; an optional BIOS must be your own permitted copy, otherwise upstream offers HLE. The upstream player loads its generated assembly in the same process. Core imports no original, runs no game compiler and does not own the generated cache."
+            "instruction": "Use your own USA Tenchu: Stealth Assassins SLUS-00706 CUE with every referenced track; the disc stays required during play. Complete the upstream first-Play generation and local cache preparation before registration; an optional BIOS must be your own permitted copy, otherwise upstream offers HLE."
           },
           {
             "title": "Select the completed Linux player",
@@ -45307,20 +45381,26 @@
           },
           {
             "title": "Review launch details, then choose Play",
-            "instruction": "Select the completed game executable, its working folder and supported launch arguments. Review those details and agree to use them, then choose Play separately. You manage setup, game replacement and recovery using the project’s tools. Portcove does not offer updates, backups, rollback, conversion, data migration or deletion for this external copy. Removing its registration leaves external files in place. Before changing versions, close the game and its companion programs and keep the working copy and its data. Review and select the changed executable before playing again."
-          },
-          {
-            "title": "Preserve the effective upstream profile and working runtime",
-            "instruction": "Upstream sets the application data identity to Tenchu. Its documented normal Linux profile is ~/.local/share/Tenchu; an upstream-selected custom save folder can change the effective location. Preserve the entire actual profile and both separately configurable build and save roots. The normal build root is UserData.Dir/game; the selected build root holds Recompiled source, Tenchu.dll and .stamp. settings.json remembers the choices; cards are named from the disc basename with .srm and .srm2 extensions. Retain those files, settings, optional user-supplied font, backups and temporary files, plus the original disc, runtime and every custom root. The display font is not distributed and can fall back to an installed face. Keep the upstream-established writable locations when using an AppImage and preserve any deliberately shared save location; Core does not relocate or rewrite those paths."
-          },
-          {
-            "title": "Keep the current runtime limitations visible",
-            "instruction": "This is an early upstream runtime, not a completed-game qualification. Upstream reports incomplete boot/intro control timing, autosave disabled, sound unknown and later missions untested. The canonical runtime-maturity acceptance remains open. This guide supplies neither a gameplay/save observation nor Windows support and does not change the approved scheduling."
+            "instruction": "Select the completed game executable, its working folder and supported launch arguments. Review those details and agree to use them, then choose Play separately."
           }
         ],
         "warnings": [
-          "Use only a copy and components you are permitted to use. Before changing versions, keep the complete working game, original files and every profile, mod, generated-code cache and custom data location. Another executable may use the same saved data."
-        ]
+          "Use only a copy and components you are permitted to use. Before changing versions, keep the complete working game, original files and every profile, mod, generated-code cache and custom data location. Another executable may use the same saved data.",
+          "The published v0.1.0 Linux x64 ZIP contains the native TenchuSARecomp apphost. No Windows player package was observed. Fresh acquisition remains held on the actual title/runtime-fork grant condition: the separate RecompOne-fork and title modifications do not inherit the parent engine’s MIT grant automatically. The missing developer fork URL alone does not prohibit a separately permitted self-contained copy.",
+          "Before changing versions, close the game and its companion programs and keep the working copy and its data.",
+          "This is an early upstream runtime, not a completed-game qualification. Upstream reports incomplete boot/intro control timing, autosave disabled, sound unknown and later missions untested. The canonical runtime-maturity acceptance remains open. This guide supplies neither a gameplay/save observation nor Windows support and does not change the approved scheduling."
+        ],
+        "references": [
+          {
+            "title": "Generation and file ownership",
+            "instruction": "The upstream player loads its generated assembly in the same process. Core imports no original, runs no game compiler and does not own the generated cache. You manage setup, game replacement and recovery using the project’s tools. Portcove does not offer updates, backups, rollback, conversion, data migration or deletion for this external copy. Removing its registration leaves external files in place. Review and select the changed executable before playing again."
+          },
+          {
+            "title": "Profile, generated build and save locations",
+            "instruction": "Upstream sets the application data identity to Tenchu. Its documented normal Linux profile is ~/.local/share/Tenchu; an upstream-selected custom save folder can change the effective location. Preserve the entire actual profile and both separately configurable build and save roots. The normal build root is UserData.Dir/game; the selected build root holds Recompiled source, Tenchu.dll and .stamp. settings.json remembers the choices; cards are named from the disc basename with .srm and .srm2 extensions. Retain those files, settings, optional user-supplied font, backups and temporary files, plus the original disc, runtime and every custom root. The display font is not distributed and can fall back to an installed face. Keep the upstream-established writable locations when using an AppImage and preserve any deliberately shared save location; Core does not relocate or rewrite those paths."
+          }
+        ],
+        "help_url": "https://github.com/Heromachine/Tenchu-SA-Recomp/releases/tag/v0.1.0"
       },
       "download_block_reason": "The selected Tenchu title source and published Linux ZIP provide no applicable grant for separately authored title and RecompOne-fork modifications; the project references that separate fork without a public pinned source/grant. The original engine’s MIT licence does not settle this scope. Fresh acquisition stays held until attributable applicable permission/source correspondence or a reviewed permitted replacement resolves it. A separately permitted self-contained copy remains a distinct case; no permission is granted by this guide."
     },
@@ -46426,7 +46506,6 @@
       },
       "issue_number": 2903,
       "manual_setup": {
-        "help_url": "https://github.com/Ryubara/coney/blob/eb07fc0f9d69e62c7aeee6307be5c2ef162f4ee6/docs/guides/running.md",
         "steps": [
           {
             "title": "Prepare your own PS2 copy with upstream Coney",
@@ -46439,7 +46518,14 @@
           {
             "title": "Keep installation and direct-disc routes distinct",
             "instruction": "A finished upstream --data installation is an alternative to --disc; do not combine them or use --install as the Play command. Finish any upstream import or repair before adding the reference. Retain its game/ps2 data, overrides and index/install.json together, and keep an original disc image elsewhere unchanged. Review the selected executable, working directory and arguments, then choose Play separately when ready. Do not select the studio, research tools, a compiler or a headless diagnostic as this game."
-          },
+          }
+        ],
+        "warnings": [
+          "Use a completed Coney installation or your already working source build with your own PS2 data. Preserve the real Windows profiles or custom --profiles folder; this incomplete project and its other missions remain unqualified.",
+          "Test-mode memory-only profiles are not evidence that your normal profiles are backed up. Portcove does not migrate, repair, back up or remove these files; removing the reference removes only the reference.",
+          "Use upstream source/build or installation instructions for changes, after closing the actual game and any helpers. Keep the previous complete working copy and data before replacement and review the selected native path again afterwards. Preserve the project GPL-3.0-or-later and separate component/original-game terms."
+        ],
+        "references": [
           {
             "title": "Preserve the actual profiles and external files",
             "instruction": "Normal Windows story profiles are profile-1.sav through profile-6.sav in profiles under %APPDATA%/Coney/Coney; an existing --profiles argument chooses another folder. Preserve the entire actual data/profile folder and that custom argument, plus the complete installation, original disc and any modifications. Test-mode memory-only profiles are not evidence that your normal profiles are backed up. Portcove does not migrate, repair, back up or remove these files; removing the reference removes only the reference."
@@ -46449,9 +46535,7 @@
             "instruction": "Use upstream source/build or installation instructions for changes, after closing the actual game and any helpers. Keep the previous complete working copy and data before replacement and review the selected native path again afterwards. Preserve the project GPL-3.0-or-later and separate component/original-game terms. Source documentation reports startup movies, frontend and limited levels; many missions are unfinished or awaiting upstream gameplay approval. No complete campaign, native Windows, controller or save/reload result is supplied here. Only the selected program is observed; no managed install, update, rollback or Supported qualification is added."
           }
         ],
-        "warnings": [
-          "Use a completed Coney installation or your already working source build with your own PS2 data. Preserve the real Windows profiles or custom --profiles folder; this incomplete project and its other missions remain unqualified."
-        ]
+        "help_url": "https://github.com/Ryubara/coney/blob/eb07fc0f9d69e62c7aeee6307be5c2ef162f4ee6/docs/guides/running.md"
       }
     },
     {
@@ -46512,15 +46596,23 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Understand the current development limit",
-            "instruction": "This project currently demonstrates the Wind Waker renderer and framework, with the frame loop driven manually; it is not yet the game. Its Windows ww_launcher.exe is that development renderer. Follow upstream’s developer instructions with your own disc/main.dol only if you are preparing or retaining this experimental renderer; preserve its working directory and documented --iso arguments. Do not select gcrecomp_recompiler.exe as the runtime. A playable game route still requires upstream runtime completion."
-          },
-          {
-            "title": "Keep your files and update through upstream",
-            "instruction": "Keep any existing prepared development copy in a separate folder you control. Portcove can retain a non-owning registration of that runtime after read-only executable review; launching remains a separate explicit action. You or upstream keep its updates, original files, generated data, saves and settings. Portcove does not supply a playable package, replace this runtime, or back it up or roll it back."
+            "title": "Keep an existing prepared development copy",
+            "instruction": "Keep any existing prepared development copy in a separate folder you control. Portcove can retain a non-owning registration of that runtime after read-only executable review; launching remains a separate explicit action."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "This project currently demonstrates the Wind Waker renderer and framework, with the frame loop driven manually; it is not yet the game. Its Windows ww_launcher.exe is that development renderer. Do not select gcrecomp_recompiler.exe as the runtime. A playable game route still requires upstream runtime completion."
+        ],
+        "references": [
+          {
+            "title": "Developer renderer preparation details",
+            "instruction": "Follow upstream’s developer instructions with your own disc/main.dol only if you are preparing or retaining this experimental renderer; preserve its working directory and documented --iso arguments."
+          },
+          {
+            "title": "Maintenance and registration scope",
+            "instruction": "You or upstream keep its updates, original files, generated data, saves and settings. Portcove does not supply a playable package, replace this runtime, or back it up or roll it back."
+          }
+        ],
         "help_url": "https://github.com/sp00nznet/ww#readme"
       }
     },
@@ -50767,16 +50859,20 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Check the current prototype status",
-            "instruction": "This upstream reports only two boxes of visual noise and publishes no player archive. It is not a useful fresh game installation. The README names an own USA Rev A Wave Race 64 .z64 dump, but BUILDING.md still contains inherited Majora’s Mask commands; do not substitute that game or treat those commands as a verified Wave Race preparation guide."
-          },
-          {
             "title": "Preserve an already registered development copy",
-            "instruction": "Keep any already registered development copy, its complete folder, original inputs, generated files, saves and settings under its existing contract. You or upstream own its updates. This guide offers no new qualified registration or fresh player route and does not adopt, replace, back up, roll back or delete external files."
+            "instruction": "Keep any already registered development copy, its complete folder, original inputs, generated files, saves and settings under its existing contract."
           }
         ],
         "warnings": [
-          "The existing useful-output hold and Deferred state remain. Reconsider new operations when upstream demonstrates useful runnable output and supplies a title-specific preparation or player package; missing personal gameplay is not the reason for this hold."
+          "The existing useful-output hold and Deferred state remain. Reconsider new operations when upstream demonstrates useful runnable output and supplies a title-specific preparation or player package; missing personal gameplay is not the reason for this hold.",
+          "This upstream reports only two boxes of visual noise and publishes no player archive. It is not a useful fresh game installation. The README names an own USA Rev A Wave Race 64 .z64 dump, but BUILDING.md still contains inherited Majora’s Mask commands; do not substitute that game or treat those commands as a verified Wave Race preparation guide.",
+          "This guide offers no new qualified registration or fresh player route and does not adopt, replace, back up, roll back or delete external files."
+        ],
+        "references": [
+          {
+            "title": "External maintenance scope",
+            "instruction": "You or upstream own its updates."
+          }
         ],
         "help_url": "https://github.com/chronic8000/WaveRace64Recompiled/blob/63817bc71d31210a064f99010a010eb5e335b239/README.md"
       },

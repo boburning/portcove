@@ -1,0 +1,10 @@
+{
+  "exclusions": [
+    "New backups can include files in Portcove’s saves and settings folder and files selected for copying from the current installation. Saves in other folders aren’t included automatically. Back up those folders separately.",
+    "Switching to an older game version does not restore older saves. Exporting library information or updating Portcove does not restore saved data either.",
+    "Original game files are included only when this installation’s backup rules list them.",
+    "Finding files or listing them in backup rules does not mean a backup completed. Review the backup’s files before restoring. Another game version may not be able to use these saves."
+  ],
+  "legacy_problem": "Portcove doesn’t have backup rules saved for this installation, so it can’t confirm which files to collect. The current catalog may describe a different version.",
+  "external_exclusion": "Portcove does not copy saves from this installation’s folder. Files already in Portcove’s saves and settings folder can be backed up when the backup checks allow it. Back up external profiles and custom save folders separately."
+}

@@ -19,15 +19,10 @@
     },
     "release_url": "https://github.com/Heromachine/Tenchu-SA-Recomp/releases/tag/v0.1.0",
     "manual_setup": {
-      "help_url": "https://github.com/Heromachine/Tenchu-SA-Recomp/releases/tag/v0.1.0",
       "steps": [
         {
-          "title": "Keep an independently permitted Linux copy",
-          "instruction": "The published v0.1.0 Linux x64 ZIP contains the native TenchuSARecomp apphost. No Windows player package was observed. Fresh acquisition remains held on the actual title/runtime-fork grant condition: the separate RecompOne-fork and title modifications do not inherit the parent engine’s MIT grant automatically. The missing developer fork URL alone does not prohibit a separately permitted self-contained copy."
-        },
-        {
           "title": "Finish the supported owned-disc preparation upstream",
-          "instruction": "Use your own USA Tenchu: Stealth Assassins SLUS-00706 CUE with every referenced track; the disc stays required during play. Complete the upstream first-Play generation and local cache preparation before registration; an optional BIOS must be your own permitted copy, otherwise upstream offers HLE. The upstream player loads its generated assembly in the same process. Core imports no original, runs no game compiler and does not own the generated cache."
+          "instruction": "Use your own USA Tenchu: Stealth Assassins SLUS-00706 CUE with every referenced track; the disc stays required during play. Complete the upstream first-Play generation and local cache preparation before registration; an optional BIOS must be your own permitted copy, otherwise upstream offers HLE."
         },
         {
           "title": "Select the completed Linux player",
@@ -35,20 +30,26 @@
         },
         {
           "title": "Review launch details, then choose Play",
-          "instruction": "Select the completed game executable, its working folder and supported launch arguments. Review those details and agree to use them, then choose Play separately. You manage setup, game replacement and recovery using the project’s tools. Portcove does not offer updates, backups, rollback, conversion, data migration or deletion for this external copy. Removing its registration leaves external files in place. Before changing versions, close the game and its companion programs and keep the working copy and its data. Review and select the changed executable before playing again."
-        },
-        {
-          "title": "Preserve the effective upstream profile and working runtime",
-          "instruction": "Upstream sets the application data identity to Tenchu. Its documented normal Linux profile is ~/.local/share/Tenchu; an upstream-selected custom save folder can change the effective location. Preserve the entire actual profile and both separately configurable build and save roots. The normal build root is UserData.Dir/game; the selected build root holds Recompiled source, Tenchu.dll and .stamp. settings.json remembers the choices; cards are named from the disc basename with .srm and .srm2 extensions. Retain those files, settings, optional user-supplied font, backups and temporary files, plus the original disc, runtime and every custom root. The display font is not distributed and can fall back to an installed face. Keep the upstream-established writable locations when using an AppImage and preserve any deliberately shared save location; Core does not relocate or rewrite those paths."
-        },
-        {
-          "title": "Keep the current runtime limitations visible",
-          "instruction": "This is an early upstream runtime, not a completed-game qualification. Upstream reports incomplete boot/intro control timing, autosave disabled, sound unknown and later missions untested. The canonical runtime-maturity acceptance remains open. This guide supplies neither a gameplay/save observation nor Windows support and does not change the approved scheduling."
+          "instruction": "Select the completed game executable, its working folder and supported launch arguments. Review those details and agree to use them, then choose Play separately."
         }
       ],
       "warnings": [
-        "Use only a copy and components you are permitted to use. Before changing versions, keep the complete working game, original files and every profile, mod, generated-code cache and custom data location. Another executable may use the same saved data."
-      ]
+        "Use only a copy and components you are permitted to use. Before changing versions, keep the complete working game, original files and every profile, mod, generated-code cache and custom data location. Another executable may use the same saved data.",
+        "The published v0.1.0 Linux x64 ZIP contains the native TenchuSARecomp apphost. No Windows player package was observed. Fresh acquisition remains held on the actual title/runtime-fork grant condition: the separate RecompOne-fork and title modifications do not inherit the parent engine’s MIT grant automatically. The missing developer fork URL alone does not prohibit a separately permitted self-contained copy.",
+        "Before changing versions, close the game and its companion programs and keep the working copy and its data.",
+        "This is an early upstream runtime, not a completed-game qualification. Upstream reports incomplete boot/intro control timing, autosave disabled, sound unknown and later missions untested. The canonical runtime-maturity acceptance remains open. This guide supplies neither a gameplay/save observation nor Windows support and does not change the approved scheduling."
+      ],
+      "references": [
+        {
+          "title": "Generation and file ownership",
+          "instruction": "The upstream player loads its generated assembly in the same process. Core imports no original, runs no game compiler and does not own the generated cache. You manage setup, game replacement and recovery using the project’s tools. Portcove does not offer updates, backups, rollback, conversion, data migration or deletion for this external copy. Removing its registration leaves external files in place. Review and select the changed executable before playing again."
+        },
+        {
+          "title": "Profile, generated build and save locations",
+          "instruction": "Upstream sets the application data identity to Tenchu. Its documented normal Linux profile is ~/.local/share/Tenchu; an upstream-selected custom save folder can change the effective location. Preserve the entire actual profile and both separately configurable build and save roots. The normal build root is UserData.Dir/game; the selected build root holds Recompiled source, Tenchu.dll and .stamp. settings.json remembers the choices; cards are named from the disc basename with .srm and .srm2 extensions. Retain those files, settings, optional user-supplied font, backups and temporary files, plus the original disc, runtime and every custom root. The display font is not distributed and can fall back to an installed face. Keep the upstream-established writable locations when using an AppImage and preserve any deliberately shared save location; Core does not relocate or rewrite those paths."
+        }
+      ],
+      "help_url": "https://github.com/Heromachine/Tenchu-SA-Recomp/releases/tag/v0.1.0"
     },
     "download_block_reason": "The selected Tenchu title source and published Linux ZIP provide no applicable grant for separately authored title and RecompOne-fork modifications; the project references that separate fork without a public pinned source/grant. The original engine’s MIT licence does not settle this scope. Fresh acquisition stays held until attributable applicable permission/source correspondence or a reviewed permitted replacement resolves it. A separately permitted self-contained copy remains a distinct case; no permission is granted by this guide."
   }

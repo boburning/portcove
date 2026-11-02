@@ -651,6 +651,12 @@ it("shows authored steps and essential warnings while preserving detailed notes 
           { title: "Review the folder", instruction: "Choose the prepared folder below." },
         ],
         warnings: ["Preserve the existing pilot; do not overwrite it."],
+        references: [
+          {
+            title: "Inspected build save paths",
+            instruction: "The inspected version writes profile/save.bin.",
+          },
+        ],
         help_url: "https://example.com/guide",
       },
     },
@@ -669,6 +675,17 @@ it("shows authored steps and essential warnings while preserving detailed notes 
   );
   expect(notes?.open).toBe(false);
   const help = section.querySelector<HTMLAnchorElement>("a")!;
+  const steps = document.querySelector("ol");
+  expect(steps?.textContent).not.toContain("Inspected build save paths");
+  await expect
+    .element(page.getByText("The inspected version writes profile/save.bin."))
+    .not.toBeVisible();
+  const reference = page.getByText("Save locations and version notes", { exact: true });
+  reference.element().focus();
+  await page.getByText("Save locations and version notes", { exact: true }).click();
+  await expect
+    .element(page.getByText("The inspected version writes profile/save.bin."))
+    .toBeVisible();
   expect(help.textContent).toBe("Detailed preparation guide");
   await act(async () => help.click());
   expect(open).toHaveBeenCalledExactlyOnceWith("https://example.com/guide");

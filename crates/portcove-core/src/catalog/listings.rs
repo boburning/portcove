@@ -56,6 +56,26 @@ fn has_extended_media(listing: &PortListing) -> bool {
 }
 
 impl CatalogListingDocument {
+    /// Format 5 retains every reference paragraph in the original flat guide.
+    pub fn export_format(&self, format_version: u32) -> Result<Self> {
+        if !matches!(format_version, 5 | 6) {
+            return Err(PortcoveError::unsupported(
+                "listing export supports formats 5 and 6",
+            ));
+        }
+        let mut document = self.clone();
+        document.format_version = format_version;
+        if format_version == 5 {
+            for listing in &mut document.listings {
+                if let Some(guide) = &mut listing.manual_setup {
+                    *guide = guide.legacy();
+                }
+            }
+        }
+        document.validate()?;
+        Ok(document)
+    }
+
     /// Only already accepted facts may be promoted; raw authored documents keep
     /// their declared version and pass the ordinary version checks unchanged.
     pub(super) fn promote_projected_format(&mut self) {
@@ -80,6 +100,16 @@ impl CatalogListingDocument {
         }
         if self.format_version < 5 && self.listings.iter().any(has_extended_media) {
             self.format_version = 5;
+        }
+        if self.format_version < 6
+            && self.listings.iter().any(|listing| {
+                listing
+                    .manual_setup
+                    .as_ref()
+                    .is_some_and(|guide| !guide.references.is_empty())
+            })
+        {
+            self.format_version = 6;
         }
     }
 
@@ -112,7 +142,7 @@ impl CatalogListingDocument {
     }
 
     fn validate_identity_set(&self) -> Result<()> {
-        if !matches!(self.format_version, 1..=5) {
+        if !matches!(self.format_version, 1..=6) {
             return Err(PortcoveError::unsupported(format!(
                 "listing format {} is not supported",
                 self.format_version
@@ -146,6 +176,18 @@ impl CatalogListingDocument {
         if self.format_version < 5 && self.listings.iter().any(has_extended_media) {
             return Err(PortcoveError::unsupported(
                 "game identity media and edition applicability require listing format 5",
+            ));
+        }
+        if self.format_version < 6
+            && self.listings.iter().any(|listing| {
+                listing
+                    .manual_setup
+                    .as_ref()
+                    .is_some_and(|guide| !guide.references.is_empty())
+            })
+        {
+            return Err(PortcoveError::unsupported(
+                "setup references require listing format 6",
             ));
         }
         if self.listings.len() > 10_000 {
@@ -459,8 +501,9 @@ impl PortListing {
         }
         if let Some(guide) = &self.manual_setup
             && (!(1..=8).contains(&guide.steps.len())
+                || guide.steps.len() + guide.references.len() > 8
                 || guide.warnings.len() > 8
-                || guide.steps.iter().any(|step| {
+                || guide.steps.iter().chain(&guide.references).any(|step| {
                     !valid_text(&step.title, 512) || !valid_text(&step.instruction, 4096)
                 })
                 || guide
@@ -913,7 +956,7 @@ mod tests {
         let mut operational_listing = listing();
         operational_listing["launch_arguments"] = json!(["--run-script"]);
         for document in [
-            json!({"format_version":6,"listings":[]}),
+            json!({"format_version":7,"listings":[]}),
             json!({"format_version":1,"listings":[listing(),listing()]}),
             json!({"format_version":1,"listings":[unsafe_listing]}),
             json!({"format_version":1,"listings":[operational_listing]}),
@@ -1085,7 +1128,7 @@ mod tests {
                 .id,
             "beetle-adventure-racing"
         );
-        assert_eq!(projected.listing_document().format_version, 4);
+        assert_eq!(projected.listing_document().format_version, 6);
     }
 
     #[test]
@@ -1228,5 +1271,46 @@ mod observation_metadata_tests {
         assert!(parse(&value, 4).is_ok());
         value["upstream_observation"]["status"] = "complete".into();
         assert!(parse(&value, 4).is_err());
+    }
+    #[test]
+    fn references_are_versioned_bounded_and_lossless_in_legacy_listings() {
+        let mut document = CatalogListingDocument::from_json(EMBEDDED_LISTINGS).unwrap();
+        assert_eq!(document.format_version, 6);
+        let legacy = document.export_format(5).unwrap();
+        for listing in &document.listings {
+            if let Some(guide) = &listing.manual_setup {
+                let old = legacy
+                    .listings
+                    .iter()
+                    .find(|old| old.id == listing.id)
+                    .unwrap()
+                    .manual_setup
+                    .as_ref()
+                    .unwrap();
+                assert_eq!(old.steps, guide.legacy().steps);
+                assert_eq!(old.warnings, guide.warnings);
+                assert!(old.references.is_empty());
+            }
+        }
+        document.format_version = 5;
+        assert!(
+            document
+                .validate()
+                .unwrap_err()
+                .message
+                .contains("references require")
+        );
+        document.format_version = 6;
+        let guide = document
+            .listings
+            .iter_mut()
+            .find(|listing| listing.id == "syphon-filter-sf-pc-port")
+            .unwrap()
+            .manual_setup
+            .as_mut()
+            .unwrap();
+        guide.references.push(guide.references[0].clone());
+        guide.references.push(guide.references[0].clone());
+        assert!(document.validate().is_err());
     }
 }
