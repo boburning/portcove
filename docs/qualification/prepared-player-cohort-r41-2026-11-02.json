@@ -4,9 +4,9 @@
   "scope": "30 source/setup and prepared-player records using existing explicit executable/CWD/argument registration. Frozen batch membership; no new Core capability or support/platform promotion.",
   "counts": {
     "substantive_port_changes": 30,
-    "finite_closure_proposals": 27,
+    "finite_closure_proposals": 24,
     "direct_required_beta_resolved": 0,
-    "partial_authored_outcomes": 3,
+    "partial_authored_outcomes": 6,
     "bounded_candidate_pool": 70,
     "new_canonical_hold_receipts": 15
   },
@@ -3249,8 +3249,8 @@
       "limitations": [
         "Keep the full native player and existing portable marker/data. The packaged non-portable AppData note conflicts with the pinned Documents fallback; preserve the actual active and historical roots instead of switching them."
       ],
-      "finite_closure_proposal": true,
-      "closure_boundary": "Finite source/setup and existing-player adoption outcome only, subject to independent whole-owner review and delivery. No Supported/managed/native acceptance."
+      "finite_closure_proposal": false,
+      "closure_boundary": "Explicit accepted region/revision and default.xex fingerprint requirement remains unresolved; useful guide only."
     },
     {
       "issue": 2842,
@@ -10960,8 +10960,8 @@
       "limitations": [
         "Select the prepared ogrebattle64.exe and retain its actual writable root, stored ROM and battery progress. Source/redistribution permissions and managed lifecycle qualification are separate from attachment."
       ],
-      "finite_closure_proposal": true,
-      "closure_boundary": "Finite source/setup and existing-player adoption outcome only, subject to independent whole-owner review and delivery. No Supported/managed/native acceptance."
+      "finite_closure_proposal": false,
+      "closure_boundary": "Canonical accepted-source SHA-256 and project-rights clarification remain unresolved; normalized XXH3 and conditional attachment do not satisfy those whole-owner requirements."
     },
     {
       "issue": 1571,
@@ -11546,8 +11546,8 @@
       "limitations": [
         "Select completed data/bin/wwhd.exe with the actual prepared game and save paths. Keep the whole data tree and existing portable/user-root choice; the top-level Windows setup interface detaches."
       ],
-      "finite_closure_proposal": true,
-      "closure_boundary": "Finite source/setup and existing-player adoption outcome only, subject to independent whole-owner review and delivery. No Supported/managed/native acceptance."
+      "finite_closure_proposal": false,
+      "closure_boundary": "Canonical useful-native-artifact or controlled-owned-build requirement remains unmet for generated data/bin/wwhd.exe; inspected setup tools are not that player."
     }
   ],
   "framework_source_evidence": [
