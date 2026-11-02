@@ -77,7 +77,7 @@ it("does no implicit inspection and displays a bounded exact route observation o
   expect(desktopApi.refreshGameFileQuery).not.toHaveBeenCalled();
   await check();
   expect(container.textContent).toContain("Files missing");
-  expect(container.textContent).toContain("No game-file registration");
+  expect(container.textContent).toContain("No saved game-file location is connected");
   expect(desktopApi.refreshGameFileQuery).toHaveBeenCalledExactlyOnceWith(
     {
       routes: [request],

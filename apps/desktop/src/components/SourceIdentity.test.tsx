@@ -23,7 +23,7 @@ describe("source identity presentation", () => {
         "Result unavailable",
         "Admission result unavailable",
         "Requirement result unavailable",
-        "Game version checked unavailable",
+        "The game version for these checks is unknown",
       ])
         expect(html).toContain(label);
       expect(html).not.toContain("Game-file check result: Exact match");

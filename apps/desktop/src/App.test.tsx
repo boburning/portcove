@@ -183,7 +183,7 @@ describe("core-owned failure presentation", () => {
     const html = renderToStaticMarkup(<StatusLayer error={error} clearError={vi.fn()} />);
     expect(html).toContain('role="alert"');
     expect(html).toContain("Your change was saved. Check the result before trying again.");
-    expect(html).toContain("The change was saved");
+    expect(html).not.toContain("No files were changed");
     expect(html).toContain('aria-label="Dismiss error"');
     expect(html).not.toContain("<strong>Operation cancelled</strong>");
     expect(html).not.toContain("<p>The operation was cancelled.</p>");
