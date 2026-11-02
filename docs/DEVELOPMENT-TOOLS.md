@@ -1976,6 +1976,9 @@ Game-first visual captures scroll to one complete identified target, then let th
 shared settled-capture owner wait for fresh, stable geometry before taking its
 single candidate image. Every observation still requires complete visibility;
 the before/after screenshot equality check rejects changes during capture.
+Capture readiness observes the comparison's existing disabled refresh control
+while its optional read is pending. A completed or failed read permits capture;
+ordinary player choice remains available throughout.
 
 `--scenario native-game-first-installed-picori` is an explicit standalone Windows
 journey through `just desktop-test` using normal products and catalog authority. Supply the normal CLI with

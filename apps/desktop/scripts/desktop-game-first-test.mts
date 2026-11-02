@@ -106,10 +106,14 @@ export async function readGameFirstObservation(invoke: ScenarioInvoke, readbacks
 
 /** Serialized read-only observation; optional metadata failure does not block choice. */
 export function observeGameFirstCaptureReadiness(size: number) {
+  const comparisonPending =
+    document.querySelectorAll(".comparison-context-heading button:disabled").length > 0;
   return {
     ready:
       document.fonts.status === "loaded" &&
-      document.body.textContent?.includes(`Interface size ${size}%.`) === true,
+      document.body.textContent?.includes(`Interface size ${size}%.`) === true &&
+      !comparisonPending,
+    comparison_pending: comparisonPending,
     alerts: Array.from(document.querySelectorAll('[role="alert"]')).map(
       (element) => element.textContent?.trim() ?? "",
     ),

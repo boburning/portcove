@@ -40,9 +40,11 @@ void test("game-first serialized capture retains optional alerts while requiring
         `
       const {runInNewContext}=await import('node:vm');
       const {observeGameFirstCaptureReadiness:observe}=await import(entry);
+      let comparisonPending=false;
       const document={fonts:{status:'loaded'},body:{textContent:'Interface size 200%.'},
         documentElement:{scrollWidth:480,clientWidth:480},
         querySelectorAll:selector=>{
+          if(selector==='.comparison-context-heading button:disabled')return comparisonPending?[{}]:[];
           assert.equal(selector,'[role="alert"]');
           return [{textContent:' Optional comparison evidence unavailable '}];
         }};
@@ -53,6 +55,8 @@ void test("game-first serialized capture retains optional alerts while requiring
       assert.equal(settled.ready,true);
       assert.deepEqual(settled.alerts,['Optional comparison evidence unavailable']);
       assert.deepEqual(settled.viewport,{width:480,height:320,dpr:2});
+      comparisonPending=true;assert.equal(read().ready,false);
+      comparisonPending=false;assert.equal(read().ready,true);
       document.fonts.status='loading';assert.equal(read().ready,false);
       document.fonts.status='loaded';document.body.textContent='Applying interface size 200%.';
       assert.equal(read().ready,false);

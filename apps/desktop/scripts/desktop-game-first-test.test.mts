@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "vite-plus/test";
-import { captureGameFirstTarget, readGameFirstObservation } from "./desktop-game-first-test.mts";
+import {
+  captureGameFirstTarget,
+  observeGameFirstCaptureReadiness,
+  readGameFirstObservation,
+} from "./desktop-game-first-test.mts";
 import { failureReport, portStatus } from "../src/test-fixtures.ts";
 import { transportValue } from "./transport-values.mts";
 import { isRecord } from "../../../scripts/runtime-values.mts";
@@ -294,4 +298,48 @@ test("game-first capture settles later complete geometry and still refuses movem
   } finally {
     await rm(output, { recursive: true, force: true });
   }
+});
+
+test("capture waits for pending optional comparison but permits its failed result", async () => {
+  const { runInNewContext } = await import("node:vm");
+  let pending = false;
+  const alerts = [{ textContent: "Optional comparison is unavailable." }];
+  const document = {
+    fonts: { status: "loaded" },
+    body: { textContent: "Interface size 100%." },
+    documentElement: { scrollWidth: 1280, clientWidth: 1280 },
+    querySelectorAll: (selector: string) => {
+      if (selector === '[role="alert"]') return alerts;
+      assert.equal(selector, ".comparison-context-heading button:disabled");
+      return pending ? [{}] : [];
+    },
+  };
+  const observe = () => {
+    const result: unknown = runInNewContext(
+      `(${observeGameFirstCaptureReadiness.toString()})(100)`,
+      {
+        document,
+        innerWidth: 1280,
+        innerHeight: 900,
+        devicePixelRatio: 1,
+      },
+    );
+    assert.ok(isRecord(result));
+    return result;
+  };
+  assert.equal(observe().ready, true);
+  pending = true;
+  assert.equal(
+    observe().ready,
+    false,
+    "Pending optional rows must settle before the one candidate image",
+  );
+  pending = false;
+  const failed = observe();
+  assert.equal(
+    failed.ready,
+    true,
+    "An unavailable comparison must not block capture or ordinary choice",
+  );
+  assert.deepEqual(Array.from(failed.alerts as unknown[]), ["Optional comparison is unavailable."]);
 });
