@@ -3,10 +3,14 @@ import test from "node:test";
 import { createHash } from "node:crypto";
 import { gzipSync } from "node:zlib";
 import { mkdir, mkdtemp, writeFile, readFile, rm, symlink } from "node:fs/promises";
+import { writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
-import { newCatalogObserverCheckpoint } from "./catalog-upstream-observer.mts";
+import {
+  newCatalogObserverCheckpoint,
+  validateCatalogObserverCheckpoint,
+} from "./catalog-upstream-observer.mts";
 import {
   collectObserverSnapshot,
   validateObserverSnapshot,
@@ -16,6 +20,7 @@ import {
   snapshotName,
   observerSnapshotLimit,
   encodeObserverSnapshot,
+  observerBaselinePermit,
 } from "./observer-checkpoint-artifact.mts";
 import { observerCheckpointByteLimit } from "./observe-configured-upstream.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -394,6 +399,477 @@ void test("first cutover is explicit but missing history from an earlier deploye
     );
     assert.equal(f.count(), 0);
   }
+});
+
+async function baselineTransport(t: Parameters<typeof directory>[0], realCatalog = false) {
+  const root = await directory(t),
+    permit = observerBaselinePermit;
+  const clock = Date.parse("2026-11-02T19:01:00Z");
+  const files = new Map<string, Buffer>([
+    [
+      "release/upstream-observer.json",
+      await readFile(new URL("../release/upstream-observer.json", import.meta.url)),
+    ],
+    [
+      "crates/portcove-core/catalog/catalog.json",
+      realCatalog
+        ? await readFile(new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url))
+        : Buffer.from(JSON.stringify({ ports: [] })),
+    ],
+    [
+      "crates/portcove-core/catalog/listings.json",
+      realCatalog
+        ? await readFile(new URL("../crates/portcove-core/catalog/listings.json", import.meta.url))
+        : Buffer.from(JSON.stringify({ listings: [] })),
+    ],
+  ]);
+  const metadata = new Map<string, Record<string, unknown>>();
+  for (const [filename, bytes] of files) {
+    await mkdir(path.dirname(path.join(root, filename)), { recursive: true });
+    await writeFile(path.join(root, filename), bytes);
+    metadata.set(filename, {
+      type: "file",
+      path: filename,
+      size: bytes.length,
+      sha: createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex"),
+    });
+  }
+  const anchor = {
+    ...transport().run,
+    id: permit.after_run,
+    head_sha: String(permit.after_source),
+    created_at: permit.after_created_at,
+    run_attempt: 1,
+  };
+  const active = {
+    ...anchor,
+    id: permit.after_run + 100,
+    head_sha: "b".repeat(40),
+    created_at: new Date(clock - 1000).toISOString(),
+    status: "in_progress",
+    conclusion: null as string | null,
+  };
+  const state = { runs: [active, anchor] as Record<string, unknown>[], total: 2 };
+  const routes: string[] = [];
+  const api = {
+    request: (_method: string, endpoint: string) => {
+      routes.push(endpoint);
+      let body: unknown;
+      if (endpoint === "repos/boburning/portcove")
+        body = { id: 1354613114, full_name: "boburning/portcove", default_branch: "main" };
+      else if (endpoint.includes("/actions/workflows/"))
+        body = { total_count: state.total, workflow_runs: state.runs };
+      else if (endpoint.includes("/compare/"))
+        body = {
+          status: "ahead",
+          merge_base_commit: { sha: endpoint.split("/compare/")[1]!.split("...")[0] },
+        };
+      else if (endpoint.endsWith(`/actions/runs/${active.id}`)) body = active;
+      else if (endpoint.includes("/artifacts?")) body = { total_count: 0, artifacts: [] };
+      else if (endpoint.includes("/contents/")) {
+        const filename = endpoint.split("/contents/")[1]!.split("?ref=")[0]!;
+        body = endpoint.endsWith(`?ref=${active.head_sha}`)
+          ? metadata.get(filename)
+          : {
+              encoding: "base64",
+              content: Buffer.from(
+                filename === "release/upstream-observer.json"
+                  ? files.get(filename)!
+                  : "observer-checkpoint-artifact.mts export",
+              ).toString("base64"),
+            };
+      } else throw new Error(`Unexpected baseline route ${endpoint}`);
+      return {
+        status: 200,
+        headers: new Map<string, string>(),
+        body,
+        bodyBytes: Buffer.byteLength(JSON.stringify(body)),
+      };
+    },
+  };
+  const options = {
+    root,
+    config: permit.config_sha256,
+    current: { run: active.id, attempt: 1, source: active.head_sha },
+    deadline: clock + 60000,
+    now: () => clock,
+    api,
+    download: () => {
+      throw new Error("No artifact download admitted");
+    },
+  };
+  return {
+    root,
+    files,
+    metadata,
+    anchor,
+    active,
+    state,
+    routes,
+    options,
+    checkpoint: path.join(root, "work/upstream-observer/catalog/checkpoint.json"),
+    receipt: path.join(root, "work", `${permit.id}.consumed.json`),
+  };
+}
+
+void test("approved natural cutover creates an empty unknown baseline against both real catalog inputs", async (t) => {
+  const f = await baselineTransport(t, true);
+  const result = await recoverObserverCheckpoint(f.options);
+  assert.equal(result.origin, "fresh-baseline");
+  const checkpoint = validateCatalogObserverCheckpoint(
+    JSON.parse(await readFile(f.checkpoint, "utf8")),
+    f.options.now(),
+  );
+  assert.equal(checkpoint.sequence, 0);
+  assert.deepEqual(checkpoint.sources, {});
+  assert.equal(checkpoint.provider_retry_at, null);
+  assert.deepEqual(checkpoint.baseline, {
+    id: observerBaselinePermit.id,
+    continuity: "lost",
+    initial_freshness: "unknown",
+    initialized_at: new Date(f.options.now()).toISOString(),
+    producer: f.options.current,
+    inputs: {
+      config_sha256: observerBaselinePermit.config_sha256,
+      catalog_sha256: digest(f.files.get("crates/portcove-core/catalog/catalog.json")!),
+      listings_sha256: digest(f.files.get("crates/portcove-core/catalog/listings.json")!),
+    },
+  });
+  assert.deepEqual(JSON.parse(await readFile(f.receipt, "utf8")), checkpoint.baseline);
+  assert.equal((await recoverObserverCheckpoint(f.options)).origin, "cache");
+  // Later snapshot producers retain historical provenance, without pretending
+  // the initializer's producer or input hashes are current observation clocks.
+  const later = validateObserverSnapshot(
+    {
+      ...snapshot(),
+      config_sha256: f.options.config,
+      producer: { run: f.active.id + 1, attempt: 1, source: "c".repeat(40) },
+      files: { "catalog/checkpoint.json": { ...checkpoint, sequence: 9 } },
+    },
+    f.options.config,
+    Date.now(),
+  );
+  const encoded = encodeObserverSnapshot(later);
+  const decoded = readObserverSnapshotArchive(
+    createAuditZip([["checkpoint.json", encoded.bytes]]),
+    f.options.config,
+    Date.now(),
+    Date.now() + 60000,
+  );
+  assert.deepEqual(
+    (decoded.files["catalog/checkpoint.json"] as typeof checkpoint).baseline,
+    checkpoint.baseline,
+  );
+  assert.ok(f.routes.some((route) => route.includes("catalog/listings.json?ref=")));
+});
+
+void test("fresh-baseline opportunity cannot replay in the same run, a rerun or a later scheduled run", async (t) => {
+  const f = await baselineTransport(t);
+  await recoverObserverCheckpoint(f.options);
+  const consumed = await readFile(f.receipt, "utf8");
+  // Simulated loss removes only this test's newly created tree. Production
+  // initialization never deletes checkpoint data or consumption receipts.
+  await rm(path.join(f.root, "work/upstream-observer"), { recursive: true });
+  await assert.rejects(recoverObserverCheckpoint(f.options), { code: "EEXIST" });
+  assert.equal(await readFile(f.receipt, "utf8"), consumed);
+  await assert.rejects(
+    recoverObserverCheckpoint({ ...f.options, current: { ...f.options.current, attempt: 2 } }),
+    /history missing/,
+  );
+  const previous = { ...f.active, status: "completed", conclusion: "failure" };
+  f.active.id += 1;
+  f.active.head_sha = "c".repeat(40);
+  f.active.created_at = new Date(f.options.now()).toISOString();
+  f.state.runs = [f.active, previous, f.anchor];
+  f.state.total = 3;
+  await assert.rejects(
+    recoverObserverCheckpoint({
+      ...f.options,
+      current: { ...f.options.current, run: f.active.id, source: f.active.head_sha },
+    }),
+    /history missing/,
+  );
+  await assert.rejects(readFile(f.checkpoint), { code: "ENOENT" });
+});
+
+void test("surviving state wins over the fresh-baseline permit and failed publication retains consumption", async (t) => {
+  const cached = await baselineTransport(t);
+  const prior = JSON.stringify({ ...newCatalogObserverCheckpoint(), sequence: 343 });
+  await mkdir(path.dirname(cached.checkpoint), { recursive: true });
+  await writeFile(cached.checkpoint, prior);
+  assert.deepEqual(await recoverObserverCheckpoint(cached.options), {
+    origin: "cache",
+    sequence: 343,
+  });
+  assert.equal(await readFile(cached.checkpoint, "utf8"), prior);
+  await assert.rejects(readFile(cached.receipt), { code: "ENOENT" });
+  const failed = await baselineTransport(t);
+  await mkdir(path.dirname(failed.receipt), { recursive: true });
+  const lock = path.join(failed.root, "work/upstream-observer.restore.lock");
+  await writeFile(lock, "other owner");
+  await assert.rejects(recoverObserverCheckpoint(failed.options), { code: "EEXIST" });
+  const consumed = await readFile(failed.receipt, "utf8");
+  const receipt: unknown = JSON.parse(consumed);
+  assert.ok(isRecord(receipt));
+  assert.equal(receipt.id, observerBaselinePermit.id);
+  assert.equal(await readFile(lock, "utf8"), "other owner");
+  await assert.rejects(readFile(failed.checkpoint), { code: "ENOENT" });
+  await assert.rejects(recoverObserverCheckpoint(failed.options), { code: "EEXIST" });
+  assert.equal(await readFile(failed.receipt, "utf8"), consumed);
+});
+
+void test("one-time baseline refuses incomplete, replayed, foreign or changed inputs before consumption", async (t) => {
+  const changes: [
+    string,
+    (f: Awaited<ReturnType<typeof baselineTransport>>) => void | Promise<void>,
+  ][] = [
+    [
+      "manual dispatch",
+      (f) => {
+        f.active.event = "workflow_dispatch";
+      },
+    ],
+    [
+      "foreign main source",
+      (f) => {
+        f.active.head_repository = { id: 3 };
+      },
+    ],
+    [
+      "old anchor rerun",
+      (f) => {
+        f.anchor.run_attempt = 2;
+      },
+    ],
+    [
+      "changed anchor source",
+      (f) => {
+        f.anchor.head_sha = "e".repeat(40);
+      },
+    ],
+    [
+      "current absent",
+      (f) => {
+        f.state.runs = [f.anchor];
+        f.state.total = 1;
+      },
+    ],
+    [
+      "omitted run",
+      (f) => {
+        f.state.total = 3;
+      },
+    ],
+    [
+      "prior queued opportunity",
+      (f) => {
+        f.state.runs.splice(1, 0, {
+          ...f.active,
+          id: f.active.id - 1,
+          created_at: new Date(f.options.now() - 2000).toISOString(),
+          status: "queued",
+        });
+        f.state.total = 3;
+      },
+    ],
+    [
+      "wrong configuration",
+      (f) => {
+        f.options.config = "0".repeat(64) as typeof f.options.config;
+      },
+    ],
+    [
+      "catalog blob mismatch",
+      (f) => {
+        f.metadata.get("crates/portcove-core/catalog/catalog.json")!.sha = "0".repeat(40);
+      },
+    ],
+    [
+      "listing blob mismatch",
+      (f) => {
+        f.metadata.get("crates/portcove-core/catalog/listings.json")!.sha = "0".repeat(40);
+      },
+    ],
+    [
+      "wrong metadata path",
+      (f) => {
+        f.metadata.get("release/upstream-observer.json")!.path = "foreign";
+      },
+    ],
+    [
+      "wrong metadata size",
+      (f) => {
+        f.metadata.get("release/upstream-observer.json")!.size = 0;
+      },
+    ],
+    [
+      "non-file input",
+      (f) => {
+        f.metadata.get("crates/portcove-core/catalog/listings.json")!.type = "symlink";
+      },
+    ],
+    [
+      "forbidden metadata",
+      (f) => {
+        const request = f.options.api.request;
+        f.options.api.request = (method, route) => ({
+          ...request(method, route),
+          ...(route.endsWith(`/actions/runs/${f.active.id}`) ? { status: 403 } : {}),
+        });
+      },
+    ],
+    [
+      "invalid advertised snapshot",
+      (f) => {
+        const request = f.options.api.request;
+        f.options.api.request = (method, route) => {
+          const result = request(method, route);
+          return route.includes("/artifacts?")
+            ? {
+                ...result,
+                body: {
+                  total_count: 1,
+                  artifacts: [
+                    {
+                      ...transport().artifact,
+                      name: snapshotName(f.options.config, {
+                        run: f.anchor.id,
+                        attempt: 1,
+                        source: f.anchor.head_sha,
+                      }),
+                      expired: true,
+                    },
+                  ],
+                },
+              }
+            : result;
+        };
+      },
+    ],
+    [
+      "metadata envelope",
+      (f) => {
+        const request = f.options.api.request;
+        f.options.api.request = (method, route) => ({
+          ...request(method, route),
+          ...(route.endsWith(`/actions/runs/${f.active.id}`)
+            ? { bodyBytes: observerSnapshotLimit }
+            : {}),
+        });
+      },
+    ],
+    [
+      "provider reserve",
+      (f) => {
+        const request = f.options.api.request;
+        f.options.api.request = (method, route) => ({
+          ...request(method, route),
+          headers: new Map([
+            ["x-ratelimit-limit", "100"],
+            ["x-ratelimit-remaining", "5"],
+          ]),
+        });
+      },
+    ],
+    [
+      "source ancestry",
+      (f) => {
+        const request = f.options.api.request;
+        f.options.api.request = (method, route) => {
+          const result = request(method, route);
+          return route.includes(`/compare/${observerBaselinePermit.main_anchor}...`)
+            ? {
+                ...result,
+                body: { status: "diverged", merge_base_commit: { sha: "f".repeat(40) } },
+              }
+            : result;
+        };
+      },
+    ],
+    [
+      "current rerun during admission",
+      (f) => {
+        const request = f.options.api.request;
+        let reads = 0;
+        f.options.api.request = (method, route) => {
+          if (route.endsWith(`/actions/runs/${f.active.id}`) && ++reads === 2)
+            f.active.run_attempt = 2;
+          return request(method, route);
+        };
+      },
+    ],
+    [
+      "history changed during admission",
+      (f) => {
+        const request = f.options.api.request;
+        let reads = 0;
+        f.options.api.request = (method, route) => {
+          if (route.includes("/actions/workflows/") && ++reads === 2) f.state.total++;
+          return request(method, route);
+        };
+      },
+    ],
+    [
+      "local input changed during admission",
+      (f) => {
+        const request = f.options.api.request;
+        let reads = 0;
+        f.options.api.request = (method, route) => {
+          if (route.endsWith(`/actions/runs/${f.active.id}`) && ++reads === 2)
+            writeFileSync(
+              path.join(f.root, "crates/portcove-core/catalog/listings.json"),
+              '{"listings":[],"changed":true}',
+            );
+          return request(method, route);
+        };
+      },
+    ],
+    [
+      "expired known predecessor",
+      (f) => {
+        f.options.now = () => Date.parse(observerBaselinePermit.after_created_at) + 25 * 3600000;
+        f.options.deadline = f.options.now() + 60000;
+      },
+    ],
+    [
+      "partial existing tree",
+      async (f) => {
+        await mkdir(path.dirname(f.checkpoint), { recursive: true });
+        await writeFile(path.join(path.dirname(f.checkpoint), "retained"), "preserve");
+      },
+    ],
+    [
+      "invalid cached controller",
+      async (f) => {
+        await mkdir(path.dirname(f.checkpoint), { recursive: true });
+        await writeFile(f.checkpoint, "{}");
+      },
+    ],
+    [
+      "preexisting consumption",
+      async (f) => {
+        await mkdir(path.dirname(f.receipt), { recursive: true });
+        await writeFile(f.receipt, "preserve");
+      },
+    ],
+  ];
+  for (const [name, change] of changes)
+    await t.test(name, async (child) => {
+      const f = await baselineTransport(child);
+      await change(f);
+      await assert.rejects(recoverObserverCheckpoint(f.options));
+      if (name !== "preexisting consumption")
+        await assert.rejects(readFile(f.receipt), { code: "ENOENT" });
+      else assert.equal(await readFile(f.receipt, "utf8"), "preserve");
+      if (name === "invalid cached controller")
+        assert.equal(await readFile(f.checkpoint, "utf8"), "{}");
+      else await assert.rejects(readFile(f.checkpoint), { code: "ENOENT" });
+      if (name === "partial existing tree")
+        assert.equal(
+          await readFile(path.join(path.dirname(f.checkpoint), "retained"), "utf8"),
+          "preserve",
+        );
+    });
 });
 
 void test("foreign producers, altered artifact metadata and bounded-read failures never publish", async (t) => {

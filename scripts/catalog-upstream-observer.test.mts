@@ -17,6 +17,8 @@ import {
 import {
   advanceCatalogObservations,
   catalogObservationSources,
+  newCatalogObserverCheckpoint,
+  validateCatalogObserverCheckpoint,
 } from "./catalog-upstream-observer.mts";
 import type {
   CatalogObservationOptions,
@@ -152,6 +154,42 @@ function harness(requests = 256) {
     },
   };
 }
+
+void test("fresh-baseline provenance survives real bounded provider progress without supplying freshness", async () => {
+  const h = harness(2);
+  const prior = newCatalogObserverCheckpoint();
+  prior.baseline = {
+    id: "approved-baseline-fixture",
+    continuity: "lost",
+    initial_freshness: "unknown",
+    initialized_at: new Date(h.options.now!() - 1000).toISOString(),
+    producer: { run: 101, attempt: 1, source: "a".repeat(40) },
+    inputs: {
+      config_sha256: "a".repeat(64),
+      catalog_sha256: "b".repeat(64),
+      listings_sha256: "c".repeat(64),
+    },
+  };
+  const result = await advanceCatalogObservations(h.input, prior, h.options);
+  assert.deepEqual(result.checkpoint.baseline, prior.baseline);
+  assert.ok(result.checkpoint.sequence > 0);
+  assert.ok(h.states.size > 0);
+  for (const progress of Object.values(result.checkpoint.sources)) {
+    assert.notEqual(progress.completed_at, prior.baseline.initialized_at);
+    assert.notEqual(progress.freshness_observed_at, prior.baseline.initialized_at);
+  }
+  for (const change of [
+    { ...prior.baseline, continuity: "restored" },
+    { ...prior.baseline, completed_at: prior.baseline.initialized_at },
+    { ...prior.baseline, initialized_at: new Date(h.options.now!() + 1000).toISOString() },
+    { ...prior.baseline, inputs: { ...prior.baseline.inputs, catalog_sha256: "invalid" } },
+    { ...prior.baseline, producer: { ...prior.baseline.producer, attempt: 0 } },
+  ])
+    assert.throws(
+      () => validateCatalogObserverCheckpoint({ ...prior, baseline: change }, h.options.now!()),
+      /baseline provenance/,
+    );
+});
 
 void test("a separate batch recovers accepted provider pages and fair turns after complete cache loss", async (t) => {
   const work = fileURLToPath(new URL("../work/", import.meta.url));
