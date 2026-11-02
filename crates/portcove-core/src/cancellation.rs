@@ -318,18 +318,25 @@ impl PortcoveService {
                     Err(error) => return Err(error),
                 }
             }
-            let (status, message) = if state.requested {
-                (
+            if state.requested {
+                self.library().finish_activity_once(
+                    &id,
                     ActivityStatus::Cancelled,
                     "Cancelled preparation recovered after interruption",
-                )
+                )?;
             } else {
-                (
+                let message = "Worker was interrupted before recording its result; inspect library state before retrying";
+                let failure = PortcoveError::state(message)
+                    .with_known_cause(crate::failure::KnownFailureCause::OperationInterrupted)
+                    .with_mutation_state(crate::MutationState::Unknown)
+                    .report();
+                self.library().finish_activity_once_with_report(
+                    &id,
                     ActivityStatus::Failed,
-                    "Worker was interrupted before recording its result; inspect library state before retrying",
-                )
-            };
-            self.library().finish_activity_once(&id, status, message)?;
+                    message,
+                    Some(&failure),
+                )?;
+            }
         }
         Ok(())
     }
