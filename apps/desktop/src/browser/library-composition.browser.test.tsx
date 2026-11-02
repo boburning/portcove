@@ -202,6 +202,8 @@ it.each([
   ["dark", 1440, 100],
   ["light", 740, 100],
   ["dark", 390, 100],
+  ["dark", 240, 100],
+  ["light", 320, 200],
   ["light", 960, 200],
 ] as const)(
   "keeps %s rows grouped and contained at %ipx with %i%% text",
