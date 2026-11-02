@@ -252,7 +252,7 @@ export async function registeredSourceReuseScenario(context: Context) {
       assert.deepEqual(sources(), []);
       await selectPrimaryNavigation(browser, "Library");
       await click(button("Add games"));
-      await click(By.css('button[aria-label="Choose a game or port"]'));
+      await click(By.css('button[aria-label="Choose a game"]'));
       const search = await browser.wait(until.elementLocated(By.id("port-search")), 15000);
       await search.sendKeys(fixture.ports[0]!.name);
       const projectDescription = `Port project: ${fixture.ports[0]!.name} · ${portIds[0]}`;
