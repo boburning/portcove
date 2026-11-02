@@ -57,6 +57,21 @@
     margin-block: var(--space-4);
   }
 
+  .catalog-filter-panel[data-view="library"] {
+    margin-block-start: var(--space-3);
+    padding: var(--space-4);
+    border-radius: 10px;
+  }
+  .catalog-filter-panel[data-view="library"] > h2 {
+    margin: 0;
+    font-size: var(--text-sm);
+    font-weight: 580;
+  }
+  .catalog-filter-panel[data-view="library"] > .catalog-filter-groups {
+    gap: var(--space-3);
+    margin-block: var(--space-3);
+  }
+
   @container library-query (max-width: 48em) {
     .catalog-filter-groups {
       grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -53,6 +53,7 @@ const commonGroups: readonly Group[] = [
   "membership",
   "gameFiles",
 ];
+const libraryPrimaryGroups: readonly Group[] = ["platforms", "originalSystems", "channels"];
 interface FilterGroup {
   key: Group;
   label: string;
@@ -174,8 +175,9 @@ export function CatalogFilters({
         0,
       );
   const additional = additionalCount > 0;
+  const primaryGroups = view === "library" ? libraryPrimaryGroups : commonGroups;
   const hasAdvancedSelection =
-    selected.some(({ group }) => !commonGroups.includes(group)) || additional;
+    selected.some(({ group }) => !primaryGroups.includes(group)) || additional;
   const [advancedOpen, setAdvancedOpen] = useState(hasAdvancedSelection);
   const activeCount = selected.length + additionalCount;
   const remove = (group: Group, value: string) =>
@@ -221,6 +223,7 @@ export function CatalogFilters({
           ref={panel}
           id={panelId}
           className="catalog-filter-panel basis-full"
+          data-view={view}
           aria-label="Filter options"
         >
           <h2 ref={heading} tabIndex={-1}>
@@ -246,7 +249,9 @@ export function CatalogFilters({
             </p>
           )}
           <div className="catalog-filter-groups items-start">
-            {commonGroups.map((key) => groups.find((group) => group.key === key)!).map(renderGroup)}
+            {primaryGroups
+              .map((key) => groups.find((group) => group.key === key)!)
+              .map(renderGroup)}
           </div>
           <details
             open={advancedOpen}
@@ -260,7 +265,7 @@ export function CatalogFilters({
             <div className="catalog-filter-groups items-start pt-3">
               {advanced}
               {gameFileQuery && <GameFileFilterControls state={gameFileQuery} />}
-              {groups.filter((group) => !commonGroups.includes(group.key)).map(renderGroup)}
+              {groups.filter((group) => !primaryGroups.includes(group.key)).map(renderGroup)}
             </div>
           </details>
           <div className="flex flex-wrap justify-end gap-2">

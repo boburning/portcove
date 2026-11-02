@@ -49,6 +49,14 @@ are editable design decisions. Preserve identity, accessible contrast and domain
 meaning while changing them. No separately maintained JSON/TypeScript token
 registry or immutable numeric palette test is required.
 
+The shared semantic foundation follows the accepted prototype's neutral and
+selection palette in both themes: dark surfaces use graphite with cool blue
+selection, while light surfaces use warm off-white with softer neutral dividers.
+General dividers are separate from control boundaries. Dark control boundaries
+retain their contrast-qualified value rather than copying the prototype's weaker
+strong divider. Brand/status primitives and the distinct gold focus indicator
+retain their meanings. Portaled controls consume these same root aliases.
+
 ## Semantic roles and interaction
 
 | Role                        | Treatment and meaning                                                          |

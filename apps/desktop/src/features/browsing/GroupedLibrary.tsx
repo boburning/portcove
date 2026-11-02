@@ -168,22 +168,24 @@ function LibraryChoicePrompt({
           {group.ports.length} independent implementations
         </p>
       </div>
-      <p className="collection-state text-xs text-pc-muted-foreground">
-        {choice.reason === "stale"
-          ? "Your chosen implementation is no longer in this game group. Choose deliberately; installed alternatives are preserved."
-          : choice.reason === "filtered"
-            ? "Your usual implementation is outside these filters. Matching implementations are listed below; your choice is unchanged."
-            : "Choose an implementation. Each keeps its own installation, original-file requirements and saved data."}
-      </p>
-      <div className="collection-actions flex flex-wrap gap-2">
-        {group.matchingPorts.map((port) => (
-          <ImplementationChoice
-            key={port.id}
-            port={port}
-            organization={organization}
-            onSelected={restore}
-          />
-        ))}
+      <div className="library-entry-footer">
+        <p className="collection-state text-xs text-pc-muted-foreground">
+          {choice.reason === "stale"
+            ? "Your chosen implementation is no longer in this game group. Choose deliberately; installed alternatives are preserved."
+            : choice.reason === "filtered"
+              ? "Your usual implementation is outside these filters. Matching implementations are listed below; your choice is unchanged."
+              : "Choose an implementation. Each keeps its own installation, original-file requirements and saved data."}
+        </p>
+        <div className="collection-actions flex flex-wrap gap-2">
+          {group.matchingPorts.map((port) => (
+            <ImplementationChoice
+              key={port.id}
+              port={port}
+              organization={organization}
+              onSelected={restore}
+            />
+          ))}
+        </div>
       </div>
     </article>
   );

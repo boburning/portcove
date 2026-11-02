@@ -576,7 +576,20 @@ and Hidden stay in the collection menu. Clear filters retains search; Reset view
 states that it also clears search, quick views and collection selection. At compact
 widths search occupies its own toolbar row.
 
-Common filters use compact labeled checkbox popovers. Selection stays multi-select,
+Library rows occupy at most1120px, with40×60 contained artwork,12px block/10px
+inline inset and a grouped status/action footer beside the identity. Below48em
+of collection width the footer follows the identity; below30em its indent is
+removed; below20em personal controls follow on their own row. More and Favorite remain independently reachable, and long identities
+wrap without truncating access to the full name.
+
+The Library header retains its total. The retrieval tools own one visible result
+summary and constrained-view reset; the separate visually hidden Search results
+status owns count announcements. Empty and unavailable results retain distinct
+recovery, and an empty result owns its reset action.
+
+Library starts with Target OS, Original system and Update channels. Other real
+groups remain in Advanced filters, which opens for restored advanced selections.
+Discover retains its existing common groups. Common filters use compact labeled checkbox popovers. Selection stays multi-select,
 with OR within a category and AND across categories; route-dependent predicates
 must still match the same observed route. Advanced filters and per-field help retain
 technical semantics. Escape closes the active popover before the containing panel.
