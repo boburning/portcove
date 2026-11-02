@@ -1148,6 +1148,14 @@ filter = 'package(portcove-core) & (test(/^service::game_update_acquisition::tes
 slow-timeout = { period = "5s", terminate-after = 36, grace-period = "0s" }
 success-output = "immediate"
 
+# CI41532098495/a1 Windows3 reached the final curated repin at27.133s
+# before its30.039s harness cutoff. Match this exact fixture's existing Intel60s
+# allowance; preserve its full lifecycle, product deadlines, workers and zero retries.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_admitted_scope_resolves_missing_digest_and_revalidates_mutable_identity$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+
 # Qualification40401498189/a1 reached the final curated repin at28.208s
 # before the Intel30.024s harness cutoff. Keep the complete two-install and
 # mutable-identity lifecycle, phase output, assertions, workers and zero retries.

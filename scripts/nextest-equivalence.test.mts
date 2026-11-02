@@ -336,6 +336,11 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
   );
   const intelCuratedRepinFilter =
     "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_admitted_scope_resolves_missing_digest_and_revalidates_mutable_identity$/)";
+  assert.deepEqual(overrideFor(intelCuratedRepinFilter, "x86_64-pc-windows-msvc"), {
+    platform: "x86_64-pc-windows-msvc",
+    filter: intelCuratedRepinFilter,
+    "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
+  });
   assert.deepEqual(overrideFor(intelCuratedRepinFilter, "x86_64-apple-darwin"), {
     platform: "x86_64-apple-darwin",
     filter: intelCuratedRepinFilter,
