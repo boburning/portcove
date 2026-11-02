@@ -664,10 +664,8 @@ it("keeps a singleton port review readable below its close control at narrow wid
     );
   }
   expect(dialog.element().scrollWidth).toBeLessThanOrEqual(dialog.element().clientWidth + 1);
-  await dialog.getByText("Recorded evidence and comparison settings", { exact: true }).click();
-  await expect
-    .element(dialog.getByRole("region", { name: "Recommendation context" }))
-    .toBeVisible();
+  await dialog.getByText("Comparison options and reports", { exact: true }).click();
+  await expect.element(dialog.getByRole("region", { name: "Comparison options" })).toBeVisible();
   await dialog.getByRole("button", { name: "Close", exact: true }).click();
   await expect
     .element(page.getByRole("button", { name: "Why this port?", exact: true }).first())
