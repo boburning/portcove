@@ -650,7 +650,9 @@ mod tests {
     // The listing-based contract retains its acquisition restriction without
     // promoting the descriptive identity into a strict managed definition.
     fn assert_listing_only_player_route(id: &str, embedded_download_hold: Option<bool>) {
+        let started = std::time::Instant::now();
         let (temporary, mut service, executable, working) = fixture(id);
+        eprintln!("listing route {id}: fixture ready {:?}", started.elapsed());
         if let Some(download_hold) = embedded_download_hold {
             service.catalog = Catalog::embedded().unwrap();
             let listing = service.catalog.listing(id).unwrap();
@@ -660,6 +662,10 @@ mod tests {
             listing_only(&mut service);
         }
         assert!(service.catalog.port(id).is_err());
+        eprintln!(
+            "listing route {id}: embedded contract ready {:?}",
+            started.elapsed()
+        );
         assert_selected_listing_lifecycle(temporary, service, executable, working, id);
     }
 
@@ -670,6 +676,7 @@ mod tests {
         working: PathBuf,
         id: &str,
     ) {
+        let started = std::time::Instant::now();
         let expected_listing = service.catalog.listing(id).unwrap().clone();
         let expected_definition = service
             .catalog
@@ -683,6 +690,7 @@ mod tests {
                 && action.allowed)
         );
         let record = register(&service, id, &executable, &working);
+        eprintln!("listing route {id}: registered {:?}", started.elapsed());
         assert_eq!(
             service
                 .catalog
@@ -742,6 +750,7 @@ mod tests {
                 &authorization.token,
             )
             .unwrap();
+        eprintln!("listing route {id}: relinked {:?}", started.elapsed());
         assert_eq!(relinked.id, record.id);
         assert_eq!(relinked.registered_at, record.registered_at);
         assert_eq!(
@@ -781,6 +790,10 @@ mod tests {
             serde_json::to_value(retained.listing(id).unwrap()).unwrap(),
             serde_json::to_value(&expected_listing).unwrap()
         );
+        eprintln!(
+            "listing route {id}: reopened retained contract {:?}",
+            started.elapsed()
+        );
         let workspace = service.workspace_snapshot(10).unwrap();
         assert!(
             workspace
@@ -803,11 +816,19 @@ mod tests {
                 .unwrap()
                 .successful
         );
+        eprintln!(
+            "listing route {id}: owned probe returned {:?}",
+            started.elapsed()
+        );
         let removal = service.preview_external_removal(id).unwrap();
         let consent = service
             .authorize_external_removal(id, &removal.preview_sha256)
             .unwrap();
         service.remove_external_runtime(id, &consent.token).unwrap();
+        eprintln!(
+            "listing route {id}: registration removed {:?}",
+            started.elapsed()
+        );
         assert!(replacement_executable.is_file());
         assert_eq!(
             fs::read(working.join("player-save.dat")).unwrap(),
@@ -826,6 +847,21 @@ mod tests {
     #[test]
     fn listing_only_registration_relink_restart_and_launch_preserve_user_ownership() {
         assert_listing_only_player_route("listing-only", None);
+    }
+
+    // Per-title acceptance of an existing listing-only route. These controls
+    // execute the owned probe, not the upstream game or original-data setup.
+    #[test]
+    fn prepared_guide_adoption_2553() {
+        assert_listing_only_player_route(
+            "3d-pinball-for-windows-space-cadet-spacecadetpinball",
+            Some(false),
+        );
+    }
+
+    #[test]
+    fn prepared_guide_adoption_1813() {
+        assert_listing_only_player_route("doukutsu-rs-doukutsu-rs", Some(false));
     }
 
     #[test]
