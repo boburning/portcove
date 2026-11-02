@@ -40,18 +40,18 @@ for (const width of [320, 576]) {
       const commands = page
         .getByRole("button", { name: /^Search games and pages .*open command palette$/ })
         .element();
-      const compactHeader = document.querySelector<HTMLElement>(".sidebar-compact-header")!;
-      const headerBox = compactHeader.getBoundingClientRect();
-      const commandBox = commands.getBoundingClientRect();
       const sidebarBox = document.querySelector<HTMLElement>(".sidebar")!.getBoundingClientRect();
+      const commandBox = commands.getBoundingClientRect();
       expect(document.querySelectorAll(".command-trigger")).toHaveLength(1);
-      expect(commandBox.top).toBeGreaterThanOrEqual(headerBox.top - 1);
-      expect(commandBox.bottom).toBeLessThanOrEqual(headerBox.bottom + 1);
-      expect(commandBox.right).toBeLessThanOrEqual(sidebarBox.right);
-      expect(heading.getBoundingClientRect().top - sidebarBox.bottom).toBeLessThanOrEqual(40);
-      expect(commands.getBoundingClientRect().top).toBeLessThan(
-        heading.getBoundingClientRect().bottom,
-      );
+      expect(sidebarBox.width).toBe(60);
+      expect(commandBox.left).toBeGreaterThanOrEqual(sidebarBox.right);
+      expect(commandBox.bottom).toBeLessThanOrEqual(heading.getBoundingClientRect().top);
+      const rail = page.getByRole("navigation", { name: "Primary navigation", exact: true });
+      for (const destination of ["Library", "Discover", "Activity", "Settings"]) {
+        await expect
+          .element(rail.getByRole("button", { name: new RegExp(`^${destination}`) }))
+          .toBeVisible();
+      }
       expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(width + 1);
       const navigation = page.getByRole("button", { name: "Open navigation", exact: true });
       await navigation.click();
@@ -144,14 +144,26 @@ it.each([320, 576])(
     const firstGame = () => document.querySelector<HTMLButtonElement>(".collection-identity")!;
     firstGame().focus();
     await userEvent.keyboard("{Escape}");
-    await expect.element(navigation).toHaveFocus();
+    await expect
+      .element(
+        page
+          .getByRole("navigation", { name: "Primary navigation" })
+          .getByRole("button", { name: /^Library/ }),
+      )
+      .toHaveFocus();
     const release = async () => {
       pressed = [];
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     };
     pressed = [5];
     await expect.element(page.getByRole("heading", { name: "Discover", level: 1 })).toBeVisible();
-    await expect.element(navigation).toHaveFocus();
+    await expect
+      .element(
+        page
+          .getByRole("navigation", { name: "Primary navigation" })
+          .getByRole("button", { name: "Discover", exact: true }),
+      )
+      .toHaveFocus();
     await release();
     pressed = [4];
     await expect
@@ -160,7 +172,13 @@ it.each([320, 576])(
     await release();
     firstGame().focus();
     pressed = [1];
-    await expect.element(navigation).toHaveFocus();
+    await expect
+      .element(
+        page
+          .getByRole("navigation", { name: "Primary navigation" })
+          .getByRole("button", { name: /^Library/ }),
+      )
+      .toHaveFocus();
     await release();
     await navigation.click();
     const dialog = page.getByRole("dialog", { name: "Navigation", exact: true });
