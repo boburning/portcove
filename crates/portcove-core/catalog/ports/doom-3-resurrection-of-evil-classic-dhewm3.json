@@ -3,7 +3,7 @@
   "listing": {
     "id": "doom-3-resurrection-of-evil-classic-dhewm3",
     "name": "Doom 3: Resurrection of Evil (classic) (dhewm3)",
-    "summary": "Set up Doom 3: Resurrection of Evil (classic) through its upstream dhewm3 player using your own original files. Setup, profiles and updates stay upstream-owned.",
+    "summary": "Use the official dhewm3 Windows player for classic Resurrection of Evil with your own base-game and expansion files. Keep its external profile backed up.",
     "original_game_title": "Doom 3: Resurrection of Evil (classic)",
     "project_url": "https://github.com/dhewm/dhewm3",
     "issue_number": 2568,
@@ -17,20 +17,16 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Use this original game and edition",
-          "instruction": "Use classic Doom 3 patched to 1.3.1 base/pak000.pk4 through pak008.pk4 plus your Resurrection of Evil d3xp/pak000.pk4 and pak001.pk4. Expansion files alone and BFG Edition do not provide this route. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files."
+          "title": "Prepare your original game",
+          "instruction": "Before Play, copy only base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into the matching base folder beside dhewm3.exe. Also copy your own Resurrection of Evil d3xp/pak000.pk4 and d3xp/pak001.pk4 into d3xp beside the player. Both the complete base game and expansion are required; the maintained launch arguments select d3xp. Keep the original installation separately. BFG Edition is a different product; do not copy its files or old engine executables/DLLs over this runtime. Prepare these files yourself and check the edition against the upstream instructions; Portcove does not verify their original-game identity. The official Windows player is 32-bit and runs on 64-bit Windows through Windows compatibility support. Keep the package's own DLLs and resources together. Its optional mods and widescreen-GUI downloads are separate; customized runtime or mod layouts can keep an external registration."
         },
         {
-          "title": "Prepare upstream and select the real player",
-          "instruction": "Use the main official dhewm3 1.x Windows win32 ZIP, retaining its DLLs and resources. This Windows player is 32-bit; Portcove can register it on 64-bit Windows. The separate dhewm3-mods archive supplies optional mod libraries. Register dhewm3.exe inside its wrapper with that same folder as working directory, not the dedicated server or a helper. Put original data in the matching base/d3xp folders or pass three separate argument lines, +set, fs_basepath, then the absolute folder containing them. To select Resurrection of Evil, add three more argument lines: +set, fs_game, d3xp."
+          "title": "Keep an existing prepared copy",
+          "instruction": "Keep a working custom copy registered with dhewm3.exe, its actual runtime folder as working directory, and its own launch details. To read originals from another installation, use three separate argument lines: +set, fs_basepath, then the absolute folder containing base and any d3xp data. Select Resurrection of Evil with three more separate lines: +set, fs_game, d3xp. You and upstream retain replacement and data ownership for that external copy; removing its registration preserves its files. This alternative does not make Portcove manage or migrate its originals, saves or runtime."
         },
         {
-          "title": "Keep the actual original and player data",
-          "instruction": "Windows normally uses the actual Documents/My Games/dhewm3 profile for configuration, saves, screenshots and logs, with separate base and d3xp game directories. Explicit fs_savepath and other original/mod paths can redirect storage. Preserve all actual locations and the working runtime with the game closed before replacing upstream files. The original game, expansion, demo and BFG Edition remain different data scopes; mods needing game DLLs require their own compatible dhewm3 build."
-        },
-        {
-          "title": "Add the game and manage your files",
-          "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Other platforms need their own supported application and setup instructions."
+          "title": "Keep your saves and existing copy",
+          "instruction": "Normal Windows saves, settings, screenshots, demos and logs are in your actual Documents/My Games/dhewm3 profile, with separate base and d3xp scopes. Back up that external profile and your original game separately before changing engines or versions. Existing customized copies keep their own launch details and runtime owner."
         }
       ],
       "warnings": [],
@@ -53,30 +49,39 @@
     "support_tier": "beta",
     "channels": ["stable"],
     "platforms": ["windows-x86-64"],
-    "adapter": "staged-source-portable",
+    "adapter": "native-portable",
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
     "release": {
-      "provider": "user-prepared",
+      "provider": "github",
       "repository": "dhewm/dhewm3",
-      "user_prepared": {
-        "windows-x86-64": {
-          "trust": "user-selected",
-          "version": "user-managed",
-          "archive_name": "",
-          "archive_size": 0,
-          "archive_sha256": "",
-          "immutable_tree_sha256": "",
-          "executable": "",
-          "mutable_paths": []
-        }
+      "asset_hints": {
+        "windows-x86-64": ["dhewm3-1.", "_win32.zip"]
       }
     },
     "presentation": {
-      "installation_method": "user-prepared-runtime",
+      "installation_method": "portable-package",
       "source_requirements": [],
       "saves_and_settings": "external-user-owned",
-      "manual_preparation": "Use classic Doom 3 patched to 1.3.1 base/pak000.pk4 through pak008.pk4 plus your Resurrection of Evil d3xp/pak000.pk4 and pak001.pk4. Expansion files alone and BFG Edition do not provide this route. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files. Use the main official dhewm3 1.x Windows win32 ZIP, retaining its DLLs and resources. This Windows player is 32-bit; Portcove can register it on 64-bit Windows. The separate dhewm3-mods archive supplies optional mod libraries. Register dhewm3.exe inside its wrapper with that same folder as working directory, not the dedicated server or a helper. Put original data in the matching base/d3xp folders or pass three separate argument lines, +set, fs_basepath, then the absolute folder containing them. To select Resurrection of Evil, add three more argument lines: +set, fs_game, d3xp. Windows normally uses the actual Documents/My Games/dhewm3 profile for configuration, saves, screenshots and logs, with separate base and d3xp game directories. Explicit fs_savepath and other original/mod paths can redirect storage. Preserve all actual locations and the working runtime with the game closed before replacing upstream files. The original game, expansion, demo and BFG Edition remain different data scopes; mods needing game DLLs require their own compatible dhewm3 build. Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow."
-    }
+      "manual_preparation": "Before Play, copy only base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into the matching base folder beside dhewm3.exe. Also copy your own Resurrection of Evil d3xp/pak000.pk4 and d3xp/pak001.pk4 into d3xp beside the player. Both the complete base game and expansion are required; the maintained launch arguments select d3xp. Keep the original installation separately. BFG Edition is a different product; do not copy its files or old engine executables/DLLs over this runtime. Prepare these files yourself and check the edition against the upstream instructions; Portcove does not verify their original-game identity. The official Windows player is 32-bit and runs on 64-bit Windows through Windows compatibility support. Keep the package's own DLLs and resources together. Its optional mods and widescreen-GUI downloads are separate; customized runtime or mod layouts can keep an external registration. Portcove replaces its separate official managed runtime and preserves only the named local PK4 inputs during compatible replacement and backup, including inputs added before first Play. Its backup does not cover the external Documents/My Games/dhewm3 profile. Runtime rollback carries current declared inputs; it does not rewind saves or promise older-runtime, recorded-demo or mod compatibility. Use a short library path containing plain ASCII characters for this Windows build. Its external profile locations have their own upstream path limits. Older installations retain their original path contract. Use the existing non-owning route for custom fs_basepath/fs_savepath/fs_configpath, custom mods, the separate dedicated server or another upstream workflow. Existing external registrations retain every file and their user/upstream runtime owner; a catalog change never adopts them. Gameplay and populated-save compatibility remain unqualified."
+    },
+    "executable_hints": {
+      "windows-x86-64": ["dhewm3.exe"]
+    },
+    "persistent_paths": [
+      "base/pak000.pk4",
+      "base/pak001.pk4",
+      "base/pak002.pk4",
+      "base/pak003.pk4",
+      "base/pak004.pk4",
+      "base/pak005.pk4",
+      "base/pak006.pk4",
+      "base/pak007.pk4",
+      "base/pak008.pk4",
+      "d3xp/pak000.pk4",
+      "d3xp/pak001.pk4"
+    ],
+    "windows_runtime_path_policy": "printable-ascii-max-path",
+    "launch_arguments": ["+set", "fs_game", "d3xp"]
   }
 }
