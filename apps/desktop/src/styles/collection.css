@@ -30,25 +30,20 @@
     flex: 1 1 17rem;
     max-width: none;
   }
-  @container library-query (max-width: 40rem) {
+  @container library-query (max-width: 42rem) {
     .browse-toolbar > .search {
       flex-basis: 100%;
     }
   }
+
   .header-tools > .search {
     width: min(330px, 34vw);
   }
   .collection-covers {
-    --collection-art-limit: 260px;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 12rem), 1fr));
+    --collection-art-limit: 220px;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 11.25rem), 1fr));
     align-items: stretch;
     gap: 1.875rem var(--space-5);
-  }
-  @media (max-height: 50rem) and (min-width: 47.5rem) {
-    .collection-covers {
-      --collection-art-limit: min(260px, 11.25rem);
-      grid-template-columns: repeat(auto-fill, minmax(min(100%, 10rem), 1fr));
-    }
   }
   @media (max-width: 47.5rem) {
     .collection-covers {
@@ -81,6 +76,7 @@
     width: min(100%, var(--collection-art-limit));
   }
   .collection-cover .collection-art {
+    border-radius: 0.625rem;
     box-shadow: var(--shadow-raised);
     transition:
       border-color var(--duration-normal),
@@ -397,11 +393,9 @@
     }
   }
   @container collection (max-width: 28em) {
-    .collection-cover,
     .discover-game {
       --collection-overlay-limit: 160px;
     }
-    .collection-cover .collection-art,
     .discover-game .collection-art {
       max-width: 160px;
     }
@@ -424,6 +418,66 @@
 }
 
 @layer utilities {
+  @container library-query (max-width: 16rem) {
+    .browse-navigation,
+    .library-query-tools {
+      margin-block-end: var(--space-2);
+    }
+    .browse-navigation > [aria-label="Library quick views"] {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0;
+    }
+    .browse-navigation > [aria-label="Library quick views"] > button {
+      min-inline-size: 0;
+      padding-inline: 4px;
+      gap: 4px;
+      justify-content: flex-start;
+    }
+    .library-query-tools .collection-layout-label {
+      display: none;
+    }
+    .library-query-tools [aria-label="Collection view"] {
+      margin-inline-start: 0;
+      flex-wrap: nowrap;
+    }
+  }
+  .collection-cover .collection-title {
+    min-block-size: 2.9em;
+    margin-block-start: 0.875rem;
+    font-weight: 580;
+  }
+  @media (width <= 480px) {
+    .collection-cover .collection-title {
+      font-size: 0.8125rem;
+    }
+  }
+  @media (360px <= width <= 480px) {
+    .collection-covers {
+      --collection-art-limit: 100%;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      column-gap: 0.75rem;
+    }
+  }
+  @media (width < 360px) {
+    .collection-covers {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .collection-cover .collection-favorite:not([aria-pressed="true"]) {
+      opacity: 0;
+    }
+    .collection-cover:is(:hover, :focus-within) .collection-favorite,
+    .collection-cover .collection-favorite:focus-visible {
+      opacity: 1;
+    }
+  }
+  @media (any-pointer: coarse) {
+    .collection-cover .collection-favorite:not([aria-pressed="true"]) {
+      opacity: 1;
+    }
+  }
   .collection-identity:hover .collection-art,
   .discover-game-identity:hover .collection-art {
     border-color: var(--color-interactive-border);

@@ -685,17 +685,37 @@ it("keeps a singleton port review readable below its close control at narrow wid
 });
 
 it.each([
-  [1440, 900, 5],
-  [1024, 800, 4],
-  [740, 900, 3],
-])("preserves the prototype cover density at %ipx by %ipx", async (width, height, columns) => {
-  await page.viewport(width, height);
-  await mount();
-  const grid = document.querySelector<HTMLElement>(".collection-covers")!;
-  expect(getComputedStyle(grid).gridTemplateColumns.split(" ")).toHaveLength(columns);
-  const main = document.querySelector<HTMLElement>("main[data-focus-region=workspace]")!;
-  expect(main.scrollWidth).toBeLessThanOrEqual(main.clientWidth + 1);
-});
+  [1440, 900, 6, 180.7],
+  [1440, 768, 6, 180.7],
+  [1024, 800, 3, 220],
+  [740, 900, 3, 205.3],
+  [390, 844, 2, 143],
+  [320, 844, 1, 220],
+])(
+  "preserves the prototype cover density at %ipx by %ipx",
+  async (width, height, columns, artworkWidth) => {
+    await page.viewport(width, height);
+    await mount();
+    const grid = document.querySelector<HTMLElement>(".collection-covers")!;
+    expect(getComputedStyle(grid).gridTemplateColumns.split(" ")).toHaveLength(columns);
+    const cover = grid.querySelector<HTMLElement>(".collection-cover")!;
+    const art = cover.querySelector<HTMLElement>(".collection-art")!;
+    const overlay = cover.querySelector<HTMLElement>(".collection-personal-actions")!;
+    expect(art.getBoundingClientRect().width).toBeCloseTo(cover.getBoundingClientRect().width, 0);
+    expect(overlay.getBoundingClientRect().width).toBeCloseTo(art.getBoundingClientRect().width, 0);
+    expect(art.getBoundingClientRect().height / art.getBoundingClientRect().width).toBeCloseTo(
+      1.5,
+      2,
+    );
+    expect(art.getBoundingClientRect().width).toBeCloseTo(artworkWidth, 0);
+    const title = cover.querySelector<HTMLElement>(".collection-title")!;
+    expect(getComputedStyle(title).marginBlockStart).toBe("14px");
+    expect(getComputedStyle(title).fontWeight).toBe("580");
+    expect(getComputedStyle(art).borderRadius).toBe("10px");
+    const main = document.querySelector<HTMLElement>("main[data-focus-region=workspace]")!;
+    expect(main.scrollWidth).toBeLessThanOrEqual(main.clientWidth + 1);
+  },
+);
 
 it("shares Discover membership quick views with filters while preserving search", async () => {
   await page.viewport(1024, 800);
@@ -937,3 +957,30 @@ it("keeps a grouped Discover Save unselected while pending and after a rejected 
     .toBeVisible();
   await captureParityState("discover-group-save-rejected");
 }, 45_000);
+
+it("reveals an unfavorited Library cover action for pointer and keyboard use", async () => {
+  await page.viewport(1440, 900);
+  await mount();
+  const favorite = document.querySelector<HTMLButtonElement>(
+    '.collection-cover .collection-favorite[aria-pressed="false"]',
+  )!;
+  const cover = favorite.closest<HTMLElement>(".collection-cover")!;
+  const more = cover.querySelector<HTMLElement>(".collection-more")!;
+  await userEvent.hover(document.querySelector("main h1")!);
+  const hidesOnPointer =
+    matchMedia("(hover: hover) and (pointer: fine)").matches &&
+    !matchMedia("(any-pointer: coarse)").matches;
+  expect(getComputedStyle(favorite).opacity).toBe(hidesOnPointer ? "0" : "1");
+  expect(getComputedStyle(more).opacity).toBe("1");
+  await userEvent.hover(cover);
+  expect(getComputedStyle(favorite).opacity).toBe("1");
+  await userEvent.hover(document.querySelector("main h1")!);
+  more.focus();
+  await userEvent.keyboard("{Tab}");
+  await expect.element(favorite).toHaveFocus();
+  expect(getComputedStyle(favorite).opacity).toBe("1");
+  await userEvent.keyboard("{Enter}");
+  await expect.element(favorite).toHaveAttribute("aria-pressed", "true");
+  favorite.blur();
+  expect(getComputedStyle(favorite).opacity).toBe("1");
+});
