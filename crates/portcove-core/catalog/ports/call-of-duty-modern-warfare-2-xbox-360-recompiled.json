@@ -3,7 +3,7 @@
   "listing": {
     "id": "call-of-duty-modern-warfare-2-xbox-360-recompiled",
     "name": "Call of Duty: Modern Warfare 2 (Xbox 360) Recompiled",
-    "summary": "Explore Call of Duty: Modern Warfare 2 (Xbox 360) Recompiled and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Attach an independently prepared MW2 Xbox 360 Windows campaign or multiplayer player with its saved upstream settings. Keep complete game/, saves/ and .env roots; mode handoffs, setup, title updates and replacement remain upstream-owned.",
     "project_url": "https://github.com/PaulCombal/mw2-recompiled",
     "issue_number": 1397,
     "platforms": [],
@@ -16,6 +16,34 @@
       "image_sha256": "db8e976cffd405caa323e7cc4ff4f7814e6af240bd41592be80deb920e07681e",
       "game_slug": "call-of-duty-modern-warfare-2",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/PaulCombal/mw2-recompiled/blob/f42aa5596dd7f11c50df1d3d48b90085a8581384/README.md",
+      "steps": [
+        {
+          "title": "Complete the supported Xbox 360 preparation",
+          "instruction": "Use your own Modern Warfare 2 (2009) Xbox 360 USA/Europe disc version 1.0.557, not the PC release, remaster or another Call of Duty. Complete upstream installation and its required title update 6 before attachment. The native player hashes game/default.xex or game/default_mp.xex against the exact SHA-256 compiled into that build; title/version text alone does not replace this check. The selected release’s literal build-time hashes are not independently reproduced here. Do not bypass a mismatch or register an incomplete install that redirects to setup."
+        },
+        {
+          "title": "Retain the complete matching Windows release",
+          "instruction": "Keep the full official v0.8.3 Windows package, both native players, mw2-launcher.exe, game/, renderer resources, shader caches, libraries and notices. The documented host requires 64-bit Windows, SSE4.2 and Vulkan 1.2. Use an independently permitted prepared player; project GPL-3.0-only applies to its own runtime/tools/patches, not Activision originals or original-derived generated C++. Separate title-update, Steam/network, custom-map and shader/component rights remain separate."
+        },
+        {
+          "title": "Attach one native player at a time",
+          "instruction": "Select mw2-sp.exe for the prepared campaign/Special Ops player, or mw2-mp.exe for the prepared multiplayer player. Use the complete existing package directory as working directory and leave arguments empty. Review the exact intent and request Play separately. No-argument native startup loads the sibling .env settings, anchors game/data paths beside the executable and enters that selected game. Keep this attachment to that executable’s session: close normally before selecting the other mode. In-game SP/MP switches start another executable and are outside this bounded direct-player tracking route; the launcher is not substituted for a waiting native player."
+        },
+        {
+          "title": "Preserve the complete save and settings unit",
+          "instruction": "Retain saves/, game/, .env, profile/settings files, logs, shader caches and all original/backup copies together. Saves are beside the executables, not inside read-only game/: the runtime represents content packages as directories, including saves/savegame.svg/savegame.svg, and this is not an Xbox STFS container or a promised console-save conversion. Preserve separate profiles and upstream shared SP/MP progress. Keep existing environment overrides; copying only an EXE or replacing .env with defaults can change behavior or separate progress."
+        },
+        {
+          "title": "Keep updates, mode handoffs and acceptance upstream",
+          "instruction": "Use the upstream launcher independently for imports, title updates, shader preparation, profile changes, network/Steam configuration, custom maps and runtime replacement, then review/relink changed bytes. This guide does not grant Steam credentials, server participation, profile editing or automatic pack acquisition. SP/MP handoff tracking, exact selected-release source fingerprint correspondence, full gameplay/controller and real-save restore acceptance remain unfinished. No managed install, update, backup, rollback, migration or external-file deletion is provided."
+        }
+      ],
+      "warnings": [
+        "Attach only the prepared mw2-sp.exe or mw2-mp.exe with empty arguments and its full package directory. Preserve game/, saves/ and .env. Close before switching executables; in-game mode handoffs and remaining title-specific acceptance are not completed by this guide."
+      ]
     }
   }
 }
