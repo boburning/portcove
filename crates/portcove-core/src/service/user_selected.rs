@@ -1002,6 +1002,52 @@ mod tests {
     }
 
     #[test]
+    fn prepared_guide_adoption_1791() {
+        assert_bound_listing_player_route("derrickgold-ar-recomp", "ActRaiserRecomp.exe", &[]);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_2447() {
+        assert_bound_listing_player_route("burnout-2-timftw21", "b2.exe", &[]);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_2751() {
+        assert_bound_listing_player_route(
+            "inliner495-bblit-remaster",
+            "bugs.exe",
+            &["/opengl", "/win", "/b0", "/x800", "/y600"],
+        );
+    }
+
+    #[test]
+    fn prepared_guide_adoption_345() {
+        assert_bound_listing_player_route(
+            "syphon-filter-2-syphon-filter-2-recompiled",
+            "Syphon_Filter_2_Recompiled.exe",
+            &[],
+        );
+    }
+
+    #[test]
+    fn prepared_guide_adoption_384_v5() {
+        assert_bound_listing_player_route(
+            "sonic-mania-sonic-mania-decompilation-rsdkv5",
+            "RSDKv5.exe",
+            &[],
+        );
+    }
+
+    #[test]
+    fn prepared_guide_adoption_384_v5u() {
+        assert_bound_listing_player_route(
+            "sonic-mania-sonic-mania-decompilation-rsdkv5",
+            "RSDKv5U.exe",
+            &[],
+        );
+    }
+
+    #[test]
     fn cannonball_route_120() {
         assert_listing_only_player_route("cannonball-outrun", Some(true));
     }
