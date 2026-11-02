@@ -246,14 +246,14 @@
       "managed_channel": "rolling",
       "persistent_paths": ["base"],
       "published_immutable_overlap": [],
-      "original_preparation": "Manual supported upstream copy of owned PC resources; no Core FileSet/original authentication receipt or actual original setup observation",
+      "original_preparation": "Already prepared matching original-data copy from a working OpenJO installation only; new first setup remains held until upstream establishes the exact original-data/patch/layout contract. No Core original authentication or actual original setup observation.",
       "legacy_registration": "Creating Stable/user-selected contract retained; separate fresh managed copy does not adopt or migrate external files, profiles, arguments or runtime ownership",
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "native_gameplay": "not_evaluated",
       "populated_save_compatibility": "not_evaluated",
-      "full_finite_outcome_after_delivery": "eligible_only_after_complete_final_review_and_required_checks",
-      "remaining": "Final complete-diff independent review and exact-head required checks must establish the offered operation boundary; no fixture/native/protected inference"
+      "full_finite_outcome_after_delivery": "remains_open",
+      "remaining": "OpenJO first-setup original-data/patch/layout condition remains unresolved on #2611; bounded already-prepared-data managed runtime is partial."
     },
     {
       "id": "star-wars-jedi-knight-jedi-academy-single-player-and-multiplayer-openjk-openjo",

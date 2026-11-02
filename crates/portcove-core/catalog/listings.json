@@ -42683,7 +42683,7 @@
     {
       "id": "star-wars-jedi-knight-ii-jedi-outcast-single-player-openjk-openjo",
       "name": "Star Wars Jedi Knight II: Jedi Outcast (single player) (OpenJK / OpenJO)",
-      "summary": "Use the official OpenJK project Windows player for Jedi Outcast with your own matching PC data. Keep original files and the external profile backed up.",
+      "summary": "Use the official OpenJO Windows player with an already prepared, matching working original-data copy. New original-game first setup remains held.",
       "original_game_title": "Star Wars Jedi Knight II: Jedi Outcast (single player)",
       "project_url": "https://github.com/JACoders/OpenJK",
       "availability": "packages",
@@ -42698,8 +42698,8 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Prepare the matching PC game",
-            "instruction": "Before Play, copy your own complete patched PC GameData/base original resources into base beside the player. Keep the original game installation unchanged and separate. This package keeps its game library in OpenJK; retain that folder and the complete official package. Jedi Outcast needs its own matching files; Jedi Academy is a different game. Portcove does not verify original-game identity. Do not copy old executables or DLLs over the official runtime. Customized game/mod layouts can retain an external registration."
+            "title": "Use already prepared OpenJO data",
+            "instruction": "This managed route accepts only a matching original-data copy already prepared for a working OpenJO installation. Copy that known-working original base folder beside the official player and keep the complete original installation and creating runtime unchanged and separate. New Outcast first setup remains held until upstream establishes the exact original-data, patch and layout contract. Keep the package's OpenJK game-library folder and all its own DLLs intact; do not copy old executables or DLLs into this runtime. Jedi Academy is a different game. Portcove does not verify original-game identity or perform that first setup. Customized layouts can retain their existing external registration."
           },
           {
             "title": "Keep the correct player and profile",
