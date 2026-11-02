@@ -3,7 +3,7 @@
   "listing": {
     "id": "skate-2007-skate1recompiled",
     "name": "skate (2007) (Skate1Recompiled)",
-    "summary": "Attach the prepared native Windows test build of skate (2007), with your own matching Xbox 360 original. Keep the existing portable choice and actual active save roots; the packaged non-portable path note differs from the pinned source.",
+    "summary": "A skate (2007) Windows player/source route using your own Xbox 360 disc image. Drag it onto Setup.bat to import and build locally. Source examples use Skate. (USA).iso; preserve all extracted files, including default.xex. Exact Windows package architecture and accepted regional executable revision/hashes are unconfirmed. macOS ARM64 source instructions are explicitly untested, and Intel Mac is unsupported. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "skate (2007)",
     "project_url": "https://github.com/cookingwithsimon/Skate1Recompiled",
     "platforms": [],
@@ -23,7 +23,7 @@
         },
         {
           "title": "Attach the prepared normal game",
-          "instruction": "Select skate1.exe, use the complete Skate1-PC-v0.2.0 directory as working directory and leave arguments empty after upstream import/settings. Review the exact intent and request Play separately. The native app enters its linked game in process; missing or relative game_data_root resolves beside the executable. Do not select Setup.bat, PowerShell, an extractor or a developer compiler as the normal game. Preserve any existing deliberate external game-data settings."
+          "instruction": "Select skate1.exe, use the complete Skate1-PC-v0.2.0 directory as working directory and leave arguments empty after upstream import/settings. Review the selected program, working folder and arguments and choose Play when ready. The native app enters its linked game in process; missing or relative game_data_root resolves beside the executable. Do not select Setup.bat, PowerShell, an extractor or a developer compiler as the normal game. Preserve any existing deliberate external game-data settings."
         },
         {
           "title": "Preserve portable and historical data roots",

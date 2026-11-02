@@ -4,7 +4,7 @@
     "id": "downhill-domination-recomp-ekansh28-ekansh28-downhill-domination",
     "name": "Downhill Domination — Downhill Domination Recomp (ekansh28) (ekansh28)",
     "original_game_title": "Downhill Domination",
-    "summary": "Research project. Reaches textured PRESS X TO START; late X crashes and no playable race. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "Experimental Downhill Domination source project. Upstream reports reaching PRESS X TO START, but pressing X crashes and no race is playable. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/ekansh28/Recomp-Domination",
     "platforms": [],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "USA SCUS-97177 own extracted disc/ELF."
+          "instruction": "Use your own USA SCUS-97177 disc and extracted ELF."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Local Ghidra function map, config generation and native Linux runner build from owned extracted USA game; no package inferred."
+          "instruction": "Follow the upstream Linux source-build instructions to create the Ghidra function map, generate configuration and build the native player from your extracted USA game. No ready-to-use package is confirmed."
         }
       ],
       "warnings": [
-        "Reaches textured PRESS X TO START; late X crashes and no playable race.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "Upstream reports reaching the textured PRESS X TO START screen, followed by a crash when pressing X. No playable race is available.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/ekansh28/Recomp-Domination"
     },

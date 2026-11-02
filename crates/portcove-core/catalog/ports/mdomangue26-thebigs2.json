@@ -22,7 +22,7 @@
           "instruction": "The inspected v1.1 Windows ZIP contains TheBigs2-windows-x64/thebigs2.exe as an AMD64 native player with matching runtime libraries. It already contains the native game program; the first-launch UI extracts the original game data rather than compiling a new native player. Keep the complete package and notices. A development source build requiring Clang 20/ReXGlue is a separate route, not a prerequisite inferred for this existing player."
         },
         {
-          "title": "Attach the prepared player",
+          "title": "Add the prepared player",
           "instruction": "Select thebigs2.exe, use the complete extracted TheBigs2-windows-x64 directory as working directory and leave arguments empty. Review the exact intent and request Play separately. The selected source configures paths, handles setup and resumes the linked game in process. If setup or disc extraction is still required, finish it outside the attached attempt. Quit the game normally; forced termination does not guarantee save flushing."
         },
         {

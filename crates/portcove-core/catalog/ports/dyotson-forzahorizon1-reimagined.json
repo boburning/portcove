@@ -3,7 +3,7 @@
   "listing": {
     "id": "dyotson-forzahorizon1-reimagined",
     "name": "Forza Horizon (Forza Horizon 1: ReImagined)",
-    "summary": "Attach Forza Horizon 1: ReImagined through its prepared Windows launcher. Preserve its selected original, game/user roots and profile backups; the launcher supplies data, graphics and session context that a bare game executable would omit.",
+    "summary": "An independent Forza Horizon 1: ReImagined implementation with project-reported racing, free roam and co-op. The Windows installer or Linux Flatpak/tar.gz launcher downloads tools and builds locally from your own 2012 Xbox 360 disc, GOD or extracted game. TU4 is optional for Rally and 1000 Club. The launcher manages setup and updates. macOS is a source experiment without a launcher download: opening drives render, but full races, save/reload and physical controllers remain unconfirmed. Exact PC package architecture, original revision/hashes and further BIOS/firmware requirements are unconfirmed. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Forza Horizon",
     "project_url": "https://github.com/Dyotson/ForzaHorizon1-ReImagined",
     "platforms": [],
@@ -27,7 +27,7 @@
         },
         {
           "title": "Select the installed waiting launcher",
-          "instruction": "After setup succeeds, select the actual installed forza-launcher.exe, use its complete installed directory as working directory and leave arguments empty. Keep its bundled files intact. Review the exact intent and request Play separately, then use its ordinary Play. The selected GUI creates a game Session, polls its child until exit and waits for that child when closing. Keep the launcher open while the game runs, then close both normally. Do not select ForzaHorizon1-ReImagined-Setup-0.2.4.exe, an update helper, bare forza.exe, server or command-line build/extract mode."
+          "instruction": "After setup succeeds, select the actual installed forza-launcher.exe, use its complete installed directory as working directory and leave arguments empty. Keep its bundled files intact. Review the selected program, working folder and arguments and choose Play when ready, then use its ordinary Play. The selected GUI creates a game Session, polls its child until exit and waits for that child when closing. Keep the launcher open while the game runs, then close both normally. Do not select ForzaHorizon1-ReImagined-Setup-0.2.4.exe, an update helper, bare forza.exe, server or command-line build/extract mode."
         },
         {
           "title": "Keep the exact launch context",

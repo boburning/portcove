@@ -68,8 +68,8 @@ export function BackupReviewDialog({
             <strong className="mb-2 block wrap-anywhere text-pc-foreground">{gameName}</strong>
           )}
           {restore
-            ? "Replace this game's saved data with the selected snapshot."
-            : "Permanently remove only the selected saved-data snapshot."}
+            ? "Replace this game’s current saved data with this backup."
+            : "Permanently delete only the selected backup."}
         </DialogDescription>
         {pending === "review" && <p role="status">Checking the backup and current saved data…</p>}
         {review && <BackupReviewDetails review={review} />}
@@ -137,7 +137,7 @@ function BackupReviewDetails({ review }: { review: BackupReview }) {
       </p>
       <dl>
         <div>
-          <dt>Selected snapshot</dt>
+          <dt>Selected backup</dt>
           <dd className="m-[var(--space-1)_0_var(--space-3)] [overflow-wrap:anywhere]">
             {backup.path}
           </dd>
@@ -183,9 +183,8 @@ function BackupReviewDetails({ review }: { review: BackupReview }) {
             is created.
           </p>
           <p>
-            If interrupted, Portcove retains a deletion journal and reconciles the selected snapshot
-            when the library reopens. An interrupted deletion may finish; it is not a reversible
-            cancellation.
+            An interrupted deletion may finish when you reopen this library. Cancellation does not
+            restore a deleted backup.
           </p>
         </>
       )}

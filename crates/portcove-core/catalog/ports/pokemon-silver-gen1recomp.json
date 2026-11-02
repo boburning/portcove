@@ -3,7 +3,7 @@
   "listing": {
     "id": "pokemon-silver-gen1recomp",
     "name": "Pokémon Silver (Gen1Recomp / G1R Deluxe)",
-    "summary": "Research listing. Upstream route: Use upstream ROM import and player-prepared native runtime; game-specific integration remains research. Red #98 scope is separate. Limits: under construction research; no inherited Red qualification or managed update/save ownership. Upstream platforms: The shared engine documents Windows x64, Linux x64, and macOS Intel/Apple Silicon host routes. Compatibility of current packages with this additional game remains research and is not inherited from the Red #98 qualification. Original data: Own canonical US English Silver ROM; exact accepted revisions and SHA-1 are listed in current upstream README. Portcove setup/gameplay not verified.",
+    "summary": "An in-development Pokémon Silver route in Gen1Recomp/G1R Deluxe. Import your own canonical US English Silver ROM using the project’s instructions; its README lists accepted revisions and SHA-1 values. The shared engine documents Windows x64, Linux x64 and Intel/Apple Silicon macOS, but current package compatibility with Silver remains unconfirmed. Pokémon Red’s separate qualification does not establish support for this game or managed updates/saves. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Pokémon Silver",
     "project_url": "https://github.com/bryanthaboi/gen1recomp",
     "platforms": [],

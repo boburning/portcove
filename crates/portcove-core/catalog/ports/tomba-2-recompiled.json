@@ -3,7 +3,7 @@
   "listing": {
     "id": "tomba-2-recompiled",
     "name": "Tomba! 2 Recompiled",
-    "summary": "Attach the prepared Tomba! 2 USA Windows preview with your own disc. Keep its complete native/overlay runtime, memory cards and separately prepared seamless-loading resources; Italian PAL and optional imported character assets have separate scope.",
+    "summary": "Explore Tomba! 2 Recompiled and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/mstan/Tomba2Recomp",
     "issue_number": 169,
     "platforms": [],
@@ -30,7 +30,7 @@
         },
         {
           "title": "Attach the integrated native USA player",
-          "instruction": "Select Tomba2Recomp.exe, use its complete extracted player directory as working directory and leave arguments empty after upstream original/settings preparation. Review the exact intent and request Play separately, then use the integrated Launch if shown. The selected native runtime hosts the launcher and game in process and anchors relative paths to its executable directory. Do not select a compiler, source-build helper, Italian runtime, an optional-mod importer or a prototype UI as ordinary Play. Close the game normally before upstream replacement."
+          "instruction": "Select Tomba2Recomp.exe, use its complete extracted player directory as working directory and leave arguments empty after upstream original/settings preparation. Review the selected program, working folder and arguments and choose Play when ready, then use the integrated Launch if shown. The selected native runtime hosts the launcher and game in process and anchors relative paths to its executable directory. Do not select a compiler, source-build helper, Italian runtime, an optional-mod importer or a prototype UI as ordinary Play. Close the game normally before upstream replacement."
         },
         {
           "title": "Preserve cards, configuration and seamless data",

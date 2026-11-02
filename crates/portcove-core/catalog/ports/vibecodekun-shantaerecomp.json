@@ -25,15 +25,15 @@
           "instruction": "Use an independently permitted complete shantae-recomp Windows copy and preserve the matching runtime DLLs, assets, shaders, notices and any selected patches. Normal players use shantae.exe and the supported first-run ROM chooser; upstream owns preparation and replacement. The title’s PolyForm Noncommercial grant does not replace separately named engine, UI, shader, font or original-game terms."
         },
         {
-          "title": "Keep the exact owned original",
+          "title": "Keep your matching original",
           "instruction": "Use your own exact Shantae USA Game Boy Color ROM, SHA-256 1b92e22d5510c51bab97d23074e4aad7464d93eb15f7596ef7da0a5efa27a19d, CRC32 E994B59B. Other releases including World, Switch and Limited Run Games are different ROMs. The chooser enables Play only for the accepted original or explicitly supported compiled patch variants; patch compatibility must be established for that actual build. No ROM is supplied or licensed by this registration."
         },
         {
-          "title": "Attach the supported prepared player",
+          "title": "Add the supported prepared player",
           "instruction": "Select shantae.exe with its complete package directory as working directory and no arguments. The pinned native runtime runs the pre-boot launcher and game in-process for the normal session. Keep the supported public launcher entry and complete package; no private runner or per-title wrapper is introduced."
         },
         {
-          "title": "Keep optional successor sessions separate",
+          "title": "Start any additional game sessions separately",
           "instruction": "Ordinary Quit ends the current process. Only explicitly choosing Return to Launcher schedules an atexit restart after saves close: on Windows that restart creates a new process without waiting. Treat that successor as upstream activity outside the attached session. Close every actual player and reopened launcher before maintenance or another attachment; registration status does not establish successor adoption or termination. This preserves the optional feature and does not disable it with arguments."
         },
         {

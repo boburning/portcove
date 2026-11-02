@@ -1,6 +1,6 @@
 {
   "format_version": 1,
-  "baseline": "c5214c867b4234593f5935115fc64bb122bf679a",
+  "baseline": "d286ab64d60ab87f0da91257d7d425534ace0f57",
   "scope": "30 source/setup and prepared-player records using existing explicit executable/CWD/argument registration. Frozen batch membership; no new Core capability or support/platform promotion.",
   "counts": {
     "substantive_port_changes": 30,
@@ -27,8 +27,8 @@
       "id": "danilopaulinodasilva-kof98recomp",
       "cohort": "affected-312",
       "authored_path": "crates/portcove-core/catalog/ports/danilopaulinodasilva-kof98recomp.json",
-      "authored_preimage_sha256": "53321bf04bfa988a5c227a5507d2cf3430364b7807f89bfa7c898115b8aa5736",
-      "authored_postimage_sha256": "bac1caaa62234961daf29a4ec924570923841fad7a3dd04eef4a36fd290b4bfe",
+      "authored_preimage_sha256": "41730fd6fd8e96f685a822132ed7e5c727b13121592d15144db032a86e84d33c",
+      "authored_postimage_sha256": "d63cb1e1cd4148a607d15d9678a1ee1daaeb484cc6ca64fe9752e170535c36de",
       "canonical_specification_sha256": "3d346635f2052ffb08b62359bdc4184a6fbd89bf213bef03257c124cd78776fd",
       "canonical_next_actions": [
         "Not all KOF94-2003 games: only KOF98 implemented. Alpha team matches; boss verification pending; Windows setup expressly untried. Fork parent Metal Slug is framework ancestry, not same game."
@@ -147,7 +147,7 @@
       },
       "route": {
         "title": "Attach the native player directly",
-        "instruction": "After successful upstream preparation, select build/Release/kof98.exe, use the prepared project root as working directory and set --rom-path \"the actual existing project roms directory\". Review the exact paths and intent and request Play separately. This follows the generated shortcut’s target, CWD and ROM argument; the generated KOF98.cmd uses start and detaches, so do not register it. Leave --headless, --verify and profiling/test options out of ordinary Play. Close the game normally before ending the session."
+        "instruction": "After successful upstream preparation, select build/Release/kof98.exe, use the prepared project root as working directory and set --rom-path \"the actual existing project roms directory\". Review the exact paths and intent and choose Play when ready. This follows the generated shortcut’s target, CWD and ROM argument; the generated KOF98.cmd uses start and detaches, so do not register it. Leave --headless, --verify and profiling/test options out of ordinary Play. Close the game normally before ending the session."
       },
       "source_setup": {
         "title": "Prepare the exact AES original and BIOS",
@@ -168,8 +168,8 @@
       "id": "dyotson-forzahorizon1-reimagined",
       "cohort": "affected-312",
       "authored_path": "crates/portcove-core/catalog/ports/dyotson-forzahorizon1-reimagined.json",
-      "authored_preimage_sha256": "3444892f1d00cb81f08cb684deffb9e862e2be48ef7fb8dc87722a93fa730204",
-      "authored_postimage_sha256": "e113d460ff20225e1a134de19551def3f9fc7077119e639e33009f9a75efdba7",
+      "authored_preimage_sha256": "b2c09c13f552642cf0c051f2bbd2a402efb521bea7c1407c1b99ae06138a35d6",
+      "authored_postimage_sha256": "79460303a3a86087f65d1c3f36c35a16885efff2a8b51003e8253537591bb96d",
       "canonical_specification_sha256": "145981776206de101190a3869bcaef986b35e27d86213d7d868f5b983a9bf2f8",
       "canonical_next_actions": [
         "Upstream launcher owns setup and self-update. macOS source experiment has no launcher/download and races/save reload/controllers unvalidated; preserve independent implementation identity."
@@ -369,8 +369,8 @@
       "id": "forza-horizon-xbox-360-pinyon-shift",
       "cohort": "affected-312",
       "authored_path": "crates/portcove-core/catalog/ports/forza-horizon-xbox-360-pinyon-shift.json",
-      "authored_preimage_sha256": "491b533d020313ba8b33a4996766c9ed7c45bf346cd7bc5328611639b2f2d161",
-      "authored_postimage_sha256": "7cdce37de24442f0767d5c1fa256f8281d752d6edc6017eb963e76c20546a4fb",
+      "authored_preimage_sha256": "d20a36f0960dea5a8e5d869f54ba33410801ea87f99ac4a3b78f7e2c34a19307",
+      "authored_postimage_sha256": "2b4211f6826428b7803e7cb228732f507516e5e4131caffd6c43b3bf427b03ce",
       "canonical_specification_sha256": "9e2d47d58a195561ccd59d21d13d6c7af5a10a3acace3fda9bdce69949c8df65",
       "canonical_next_actions": [
         "Review official player setup and data/persistence boundaries for the specific offered route; metadata alone does not qualify execution."
@@ -564,8 +564,8 @@
       "id": "jackgllghr-bigmission-recomp",
       "cohort": "affected-312",
       "authored_path": "crates/portcove-core/catalog/ports/jackgllghr-bigmission-recomp.json",
-      "authored_preimage_sha256": "3635da8a0a9d0773cb1dab4907a960a6a92670ca51288c4c8a82b61341f3ba9b",
-      "authored_postimage_sha256": "67ba114f9787f140ac66c4b165efb7e448f3d9ad47a31dfa6719a4a999e2cc3c",
+      "authored_preimage_sha256": "82648b708e3baea037bca307c837a4bb7b352b4439dfb76938e6e758a5958af2",
+      "authored_postimage_sha256": "a6d204b6ddf2337f9fbfb5e8decd813f5020fed0883b130e529e30e74d7b89bd",
       "canonical_specification_sha256": "5350571adff04d0c107bc8253eaeb3ef0c76404a35f3115cee5941c887d20b33",
       "canonical_next_actions": [
         "Windows/macOSARM64/LinuxARM64+x64/Android assets; PSPRecomp provides no decryption. Optional interpreter outside translated coverage; inspect game-specific profile, not framework claims alone."
@@ -842,7 +842,7 @@
       },
       "route": {
         "title": "Attach the integrated normal player",
-        "instruction": "Select sarusaru.exe, use its complete extracted player directory as working directory and leave arguments empty after upstream preparation. Retain an existing supported --settings FILE argument if that installation already uses one. Review the exact intent and request Play separately. The selected shell keeps its launcher and in-game interface alive in the same session and calls the title’s play route in process. Use the original Japanese game-content mode for this route; optional English text/texture packs have separate content permissions and preparation, and are not required here. Close the actual player normally."
+        "instruction": "Select sarusaru.exe, use its complete extracted player directory as working directory and leave arguments empty after upstream preparation. Retain an existing supported --settings FILE argument if that installation already uses one. Review the selected program, working folder and arguments and choose Play when ready. The selected shell keeps its launcher and in-game interface alive in the same session and calls the title’s play route in process. Use the original Japanese game-content mode for this route; optional English text/texture packs have separate content permissions and preparation, and are not required here. Close the actual player normally."
       },
       "source_setup": {
         "title": "Prepare the exact Japanese PSP original",
@@ -863,8 +863,8 @@
       "id": "k0nl-b2recomp",
       "cohort": "affected-312",
       "authored_path": "crates/portcove-core/catalog/ports/k0nl-b2recomp.json",
-      "authored_preimage_sha256": "c7b881d2c97d73a5b6f909bf23a9f389912215ad5f27dbedf03b103973f92bc8",
-      "authored_postimage_sha256": "b7f0cfa2747d6650cd92f12d821f26a741344de1f72e4704c8959930616aec92",
+      "authored_preimage_sha256": "9a8c84d95d32394ccb02e80ca8bb31754ec1ceb6b0738b96645d1213238cb196",
+      "authored_postimage_sha256": "24099bcd3276a1d38d3140a81c0dd251b1829a559f8b9d8a5825131290525c69",
       "canonical_specification_sha256": "2c41e04af43a3213d0db36e57b1a7baf5e8e33f48321b7e28ea9f05ab7f88472",
       "canonical_next_actions": [
         "Windows builder ZIP, not ready-made runtime; compiles AArch64 code locally with reimplemented NVN Vulkan layer. Preserve full-game maturity limitations from primary documentation."
@@ -1433,7 +1433,7 @@
       },
       "route": {
         "title": "Attach the launcher that supplies the play context",
-        "instruction": "Select B2recomp.exe, use its full prepared B2recomp directory as working directory and leave arguments empty. Review the exact intent and request Play separately, then press upstream Play. The selected launcher retains the child handle and polls for its exit, supplying the local ELF, RomFS, graphics/audio/font context and selected userdata. Keep the launcher open while the game runs, close the actual game first, then the launcher. A bare game_native.exe invocation would omit that context; terminal/debug/profiling modes are separate."
+        "instruction": "Select B2recomp.exe, use its full prepared B2recomp directory as working directory and leave arguments empty. Review the selected program, working folder and arguments and choose Play when ready, then press upstream Play. The selected launcher retains the child handle and polls for its exit, supplying the local ELF, RomFS, graphics/audio/font context and selected userdata. Keep the launcher open while the game runs, close the actual game first, then the launcher. A bare game_native.exe invocation would omit that context; terminal/debug/profiling modes are separate."
       },
       "source_setup": {
         "title": "Prepare your own exact updated Switch data",
@@ -1454,8 +1454,8 @@
       "id": "midnight-club-los-angeles-complete-edition-mcla-recomp",
       "cohort": "affected-312",
       "authored_path": "crates/portcove-core/catalog/ports/midnight-club-los-angeles-complete-edition-mcla-recomp.json",
-      "authored_preimage_sha256": "d72d5a04036a00abd615d8760050f2d963139dbdc12a63dbdaca0752d64a8362",
-      "authored_postimage_sha256": "38f0ee2b34759a22f4d89634ae0b02e292f1012f4a95fa183a1bc64b0913998c",
+      "authored_preimage_sha256": "74bb9f9c7b12bd620b50e69f024c0d930022c8f9a28ab8c26a751f4beedb6f45",
+      "authored_postimage_sha256": "4d9c8cb785d315f1cfad9668dc4554168a32502cabc0f9a043df9f2aead3684c",
       "canonical_specification_sha256": "1fadd598ab7523e9430d1be32f4c149a72a9ebf67ce35c125d4e46b04bac80dd",
       "canonical_next_actions": [
         "Review official player setup and data/persistence boundaries for the specific offered route; metadata alone does not qualify execution."
@@ -1608,7 +1608,7 @@
       },
       "route": {
         "title": "Attach the normal completed executable",
-        "instruction": "Select the actual out/build/win-amd64-release/mcla.exe, use that same completed build directory as working directory and leave arguments empty. Review the exact intent and request Play separately. This matches the upstream shortcut; the native app finds game/ beside it or in parent project folders and enters its linked runtime. Finish missing-data/build/settings prompts upstream before retrying. Do not select make_pc.ps1, a compiler, an extractor, an unrelated console payload or a diagnostic invocation."
+        "instruction": "Select the actual out/build/win-amd64-release/mcla.exe, use that same completed build directory as working directory and leave arguments empty. Review the selected program, working folder and arguments and choose Play when ready. This matches the upstream shortcut; the native app finds game/ beside it or in parent project folders and enters its linked runtime. Finish missing-data/build/settings prompts upstream before retrying. Do not select make_pc.ps1, a compiler, an extractor, an unrelated console payload or a diagnostic invocation."
       },
       "source_setup": {
         "title": "Prepare the matching Complete Edition upstream",
@@ -1629,8 +1629,8 @@
       "id": "portingpete-the-darkness-recomp",
       "cohort": "affected-312",
       "authored_path": "crates/portcove-core/catalog/ports/portingpete-the-darkness-recomp.json",
-      "authored_preimage_sha256": "40fff5c0cf15da1d067ba219da4bb337973dfb0931f3ac60b6b33bd06cfdbd08",
-      "authored_postimage_sha256": "3df99e558a2b8f82941eeb4a6ebd55e9db8b7d18c07126e657493c6a4c40c05b",
+      "authored_preimage_sha256": "be36dc870f343505ae241d8838c219d20b70228d17753540d9dafbbcd4e9ec3e",
+      "authored_postimage_sha256": "1275b730f24310d861b65a0837043bfd93c7bf3d52b27c2553fefb3b6638643a",
       "canonical_specification_sha256": "8a2a0646107c37dbfa5e9b5ac6a3895939db8de64ffae4e0040a6d08ee93162c",
       "canonical_next_actions": [
         "Windowsx64 D3D11; diagnostic-launcher ZIP differs actual runtime. Source XMA build MSYS2/LLVM prerequisites and generated-code route remain separate."
@@ -1952,7 +1952,7 @@
       },
       "route": {
         "title": "Attach the supported direct native entry",
-        "instruction": "Select build_native/Release/DarkRecomp.exe, use the full extracted release root as working directory and leave arguments empty. Review the exact intent and request Play separately. This follows the upstream Windows external-shortcut contract: sound and normal gameplay default on, and the selected native source locates Darkness/default.xex near the executable. Do not register DarkRecompPreview.exe, DarkRecompSettings.exe, LaunchWithUpdates.cmd, a diagnostic launcher, renderer smoke/probe mode or the --sound option left from an older shortcut. Close the actual native game normally."
+        "instruction": "Select build_native/Release/DarkRecomp.exe, use the full extracted release root as working directory and leave arguments empty. Review the selected program, working folder and arguments and choose Play when ready. This follows the upstream Windows external-shortcut contract: sound and normal gameplay default on, and the selected native source locates Darkness/default.xex near the executable. Do not register DarkRecompPreview.exe, DarkRecompSettings.exe, LaunchWithUpdates.cmd, a diagnostic launcher, renderer smoke/probe mode or the --sound option left from an older shortcut. Close the actual native game normally."
       },
       "source_setup": {
         "title": "Prepare the supported original Xbox 360 dump",
@@ -1973,8 +1973,8 @@
       "id": "potiondweller-azure-dreams-hd-recompilation",
       "cohort": "affected-312",
       "authored_path": "crates/portcove-core/catalog/ports/potiondweller-azure-dreams-hd-recompilation.json",
-      "authored_preimage_sha256": "94d77e0db4fc5c5a222db4a6e9613858e8bd8cdf5f15db05f2dededfe9d28f52",
-      "authored_postimage_sha256": "0157ed2766052b84b230c8d44ea6e79a2f72e9ef39485aabe05f6e13f46e14b9",
+      "authored_preimage_sha256": "bf7db62f11efc13a4cac8ce7846256e8e70c6c52f925f4e15b4f88bc02f5b525",
+      "authored_postimage_sha256": "20e2b74a8c152974ac10bb400b74d870d4791ad48454a9d5e133f3846cce9a33",
       "canonical_specification_sha256": "eb5ea3c891f56c09962982d7e082b3cd6bcd8a1b67a08bfb5c1489ddaa889720",
       "canonical_next_actions": [
         "Base game recompiled; overlays interpreted unless separately compiled via compile_overlays.py --static. Windows route; retain hybrid scope and unqualified full-game state."
@@ -2122,7 +2122,7 @@
       },
       "route": {
         "title": "Attach the integrated native player",
-        "instruction": "Select AzureDreams_Recompiled.exe, use its complete player directory as working directory and leave arguments empty to retain ordinary integrated launcher selection. Review the exact intent and request Play separately, then use upstream PLAY after disc/settings preparation. The native program hosts that frontend/runtime in process. Do not register the supplied preset .bat files, which detach through start, a compiler or a prototype UI. An already chosen --preset hd or --preset original may be retained explicitly in the reviewed intent; do not silently switch an existing profile."
+        "instruction": "Select AzureDreams_Recompiled.exe, use its complete player directory as working directory and leave arguments empty to retain ordinary integrated launcher selection. Review the selected program, working folder and arguments and choose Play when ready, then use upstream PLAY after disc/settings preparation. The native program hosts that frontend/runtime in process. Do not register the supplied preset .bat files, which detach through start, a compiler or a prototype UI. An already chosen --preset hd or --preset original may be retained explicitly in the reviewed intent; do not silently switch an existing profile."
       },
       "source_setup": {
         "title": "Use your own exact USA disc",
@@ -2143,8 +2143,8 @@
       "id": "presidentraptor-ace-combat-04-pc-port",
       "cohort": "affected-312",
       "authored_path": "crates/portcove-core/catalog/ports/presidentraptor-ace-combat-04-pc-port.json",
-      "authored_preimage_sha256": "cae1b940ec6af227fb3959e2778ad6c22c71c6dd5d380f281897c7b74c697871",
-      "authored_postimage_sha256": "790c7792ecaa296a0880859466602a80f83117f835353302f0149206662e4868",
+      "authored_preimage_sha256": "e0685d2f598e8bbbf0fcd72e6cf7997937f0fceee29fa319cf877e04660c8543",
+      "authored_postimage_sha256": "1fa514ab31c5491d8eb957762b02e1173adbfcac620d54e6ea4d2fa90eb84204",
       "canonical_specification_sha256": "d115608dabb15963410ccd7988343ceb2ee3e167da24a43c221814e4d82c702e",
       "canonical_next_actions": [
         "WIP beta explicitly not complete remaster or fully validated campaign; Windows installer. Keep original main CPU recompile and hardware/runtime responsibilities distinct."
@@ -2245,7 +2245,7 @@
       },
       "route": {
         "title": "Attach the waiting game launcher",
-        "instruction": "Select Ace Combat 04.exe in the prepared game folder, use that folder as working directory and pass the exact existing supported ISO or extracted disc directory as the first argument. Review the exact intent and request Play separately. This avoids the launcher’s fallback of picking the first alphabetically sorted ISO when several are present. The selected launcher supplies runtime data, shader/save context and normal unbounded-play options to runtime/ac4.exe and waits for it to exit, draining its logs. Keep both processes in the ordinary session and close the game normally; do not select DIAGNOSTICS.bat or the setup program as Play."
+        "instruction": "Select Ace Combat 04.exe in the prepared game folder, use that folder as working directory and pass the exact existing supported ISO or extracted disc directory as the first argument. Review the selected program, working folder and arguments and choose Play when ready. This avoids the launcher’s fallback of picking the first alphabetically sorted ISO when several are present. The selected launcher supplies runtime data, shader/save context and normal unbounded-play options to runtime/ac4.exe and waits for it to exit, draining its logs. Keep both processes in the ordinary session and close the game normally; do not select DIAGNOSTICS.bat or the setup program as Play."
       },
       "source_setup": {
         "title": "Finish the official Windows preparation",
@@ -2266,8 +2266,8 @@
       "id": "quake-4-xbox-360-edition-xbox-360-quake-4-decomp-recomp",
       "cohort": "affected-312",
       "authored_path": "crates/portcove-core/catalog/ports/quake-4-xbox-360-edition-xbox-360-quake-4-decomp-recomp.json",
-      "authored_preimage_sha256": "8a65d71af95405761a2a2d170484cc28a8c47b7621b7d777474f9a67c1b11ba6",
-      "authored_postimage_sha256": "35aa2ed339abf072624bb2d569d5812f4b994c992649f3b1b582e2e48ba70f5e",
+      "authored_preimage_sha256": "188186961396f49ba0aca68969444c0582b1befcaeb9df0df9f8afade7a067ba",
+      "authored_postimage_sha256": "6f0bef9f21b220a0513b225c7be5139b50a35682d5acdd80bc9474f1bf15a607",
       "canonical_specification_sha256": "460517e1eec84bd9d016064e1be17d9dc0335ec35d7e48ebd7ff0d162fa7a1f4",
       "canonical_next_actions": [
         "Review official player setup and data/persistence boundaries for the specific offered route; metadata alone does not qualify execution."
@@ -2368,7 +2368,7 @@
       },
       "route": {
         "title": "Attach the in-process game",
-        "instruction": "Select the completed q4hle.exe, use its complete player/build-output directory as working directory and leave arguments empty after upstream original/settings preparation. Review the exact intent and request Play separately. The native entry inherits the q4 application’s ordinary path selection and runtime loop; it remembers the existing game location in q4.toml and can request a valid own ISO or extracted default.xex when missing. Finish those prompts upstream before retrying. Keep Q4_HLE_NATIVE/shadow/debug choices at the installation’s intended ordinary settings and close the actual game normally."
+        "instruction": "Select the completed q4hle.exe, use its complete player/build-output directory as working directory and leave arguments empty after upstream original/settings preparation. Review the selected program, working folder and arguments and choose Play when ready. The native entry inherits the q4 application’s ordinary path selection and runtime loop; it remembers the existing game location in q4.toml and can request a valid own ISO or extracted default.xex when missing. Finish those prompts upstream before retrying. Keep Q4_HLE_NATIVE/shadow/debug choices at the installation’s intended ordinary settings and close the actual game normally."
       },
       "source_setup": {
         "title": "Prepare your own Xbox 360 Quake 4 files",
@@ -2389,8 +2389,8 @@
       "id": "riotashley81-jpg-vagrantstory-recomp",
       "cohort": "affected-312",
       "authored_path": "crates/portcove-core/catalog/ports/riotashley81-jpg-vagrantstory-recomp.json",
-      "authored_preimage_sha256": "7ed9ab7c11f806fbd811c27958ca9e3bd1cf382c9fd8cf3d14bdf6804f64fa5d",
-      "authored_postimage_sha256": "ef07330d3b5b3f987805ae3b0701de284cd74ed6489631e6b248f6c032a31cf8",
+      "authored_preimage_sha256": "cfa51ead71d30c3ee09d798b2d4a36342376058ad756a66e6230799d54f2c9fe",
+      "authored_postimage_sha256": "4633ce0bf9e994864f9cb1decee589c2a1e459d7bc93e5f68d41fca4bd3b5b76",
       "canonical_specification_sha256": "895e254e50644695752d94716df106a5cd3e808bcdebd28197a959af51b09550",
       "canonical_next_actions": [
         "ROM-free Windows build reads original code; first-launch gcc compiles battle/menu/title engine; interpreter/TinyCC handles remainder. Preserve hybrid implementation and startup compile scope."
@@ -2810,7 +2810,7 @@
       },
       "route": {
         "title": "Attach the integrated native player",
-        "instruction": "Select VagrantStory_Recompiled.exe, use its full player directory as working directory and leave arguments empty to retain the ordinary integrated launcher and settings. Review the exact intent and request Play separately. Its selected native runtime hosts the frontend/game in process. Do not select codegen setup, overlay_toolchain tools, profiling/headless modes or another Vagrant Story implementation. Finish upstream preparation/maintenance and close the actual game normally."
+        "instruction": "Select VagrantStory_Recompiled.exe, use its full player directory as working directory and leave arguments empty to retain the ordinary integrated launcher and settings. Review the selected program, working folder and arguments and choose Play when ready. Its selected native runtime hosts the frontend/game in process. Do not select codegen setup, overlay_toolchain tools, profiling/headless modes or another Vagrant Story implementation. Finish upstream preparation/maintenance and close the actual game normally."
       },
       "source_setup": {
         "title": "Use the exact USA PlayStation original",
@@ -2831,8 +2831,8 @@
       "id": "skate-2-skate2recompiled",
       "cohort": "affected-312",
       "authored_path": "crates/portcove-core/catalog/ports/skate-2-skate2recompiled.json",
-      "authored_preimage_sha256": "f434e683a92ee17dad55ef4889e198a30235908beed85c82a10ebd249ecaf89f",
-      "authored_postimage_sha256": "79f10f078bf6f841f6e92db05f820bc597d856e316dc02debe7d6cb41ef52d18",
+      "authored_preimage_sha256": "8708430fe04d5b51837915dc70465663a1ad97cd2e9f21a6ed9699382ddef832",
+      "authored_postimage_sha256": "3c24039edde464c4226e2a81ae4ca83b95cfd2a80c39d206c84e27b0b079e231",
       "canonical_specification_sha256": "c56f6479eb23734bcf41bef6059f4d84a71a1c7a0fabd6a0dd5e14f74b1f956c",
       "canonical_next_actions": [
         "Review official player setup and data/persistence boundaries for the specific offered route; metadata alone does not qualify execution."
@@ -3023,7 +3023,7 @@
       },
       "route": {
         "title": "Bind the existing native game and data intent",
-        "instruction": "Select skate2.exe and the full Skate2-PC-v0.2.0 folder as working directory. Set --game_data_root=\"absolute actual prepared game directory\" --user_data_root=\"absolute actual existing active user-data directory\" --cache_root=\"absolute actual existing cache directory\", substituting the established paths from the prepared installation/logs. Review the exact intent and request Play separately. The pinned SDK consumes these explicit paths and the native app continues in process. Do not substitute an empty user-data folder, select setup/scripts or copy another title’s paths or arguments."
+        "instruction": "Select skate2.exe and the full Skate2-PC-v0.2.0 folder as working directory. Set --game_data_root=\"absolute actual prepared game directory\" --user_data_root=\"absolute actual existing active user-data directory\" --cache_root=\"absolute actual existing cache directory\", substituting the established paths from the prepared installation/logs. Review the selected program, working folder and arguments and choose Play when ready. The pinned SDK consumes these explicit paths and the native app continues in process. Do not substitute an empty user-data folder, select setup/scripts or copy another title’s paths or arguments."
       },
       "source_setup": {
         "title": "Prepare the exact supported original upstream",
@@ -3044,8 +3044,8 @@
       "id": "skate-2007-skate1recompiled",
       "cohort": "affected-312",
       "authored_path": "crates/portcove-core/catalog/ports/skate-2007-skate1recompiled.json",
-      "authored_preimage_sha256": "2fccf436225826370ea1790a5d1dcb3316977e91e4cd5ecd22498fcbfa561f05",
-      "authored_postimage_sha256": "585711665c614e3a3c4fb955e5ef28e53e90f6cbd62a6a8e2ccdb6547d79844f",
+      "authored_preimage_sha256": "4337b5c221f5065c5f0324120cfcc36f51274ca6e02c598f2631fc9190458a73",
+      "authored_postimage_sha256": "ff6b0e066f7a1348187e4674d148127d84049c131e7f20bbd7e0c5bea9460dbe",
       "canonical_specification_sha256": "f5c50f8b6c8b4adae90c40097dd63c27eff1226262c995e8670069f7363bf4b6",
       "canonical_next_actions": [
         "Which region/revision and default.xex digest is accepted by selected skate setup, beyond the README USA extraction example?"
@@ -3236,7 +3236,7 @@
       },
       "route": {
         "title": "Attach the prepared normal game",
-        "instruction": "Select skate1.exe, use the complete Skate1-PC-v0.2.0 directory as working directory and leave arguments empty after upstream import/settings. Review the exact intent and request Play separately. The native app enters its linked game in process; missing or relative game_data_root resolves beside the executable. Do not select Setup.bat, PowerShell, an extractor or a developer compiler as the normal game. Preserve any existing deliberate external game-data settings."
+        "instruction": "Select skate1.exe, use the complete Skate1-PC-v0.2.0 directory as working directory and leave arguments empty after upstream import/settings. Review the selected program, working folder and arguments and choose Play when ready. The native app enters its linked game in process; missing or relative game_data_root resolves beside the executable. Do not select Setup.bat, PowerShell, an extractor or a developer compiler as the normal game. Preserve any existing deliberate external game-data settings."
       },
       "source_setup": {
         "title": "Prepare your original through upstream setup",
@@ -3257,8 +3257,8 @@
       "id": "soyjxck-dod3-recomp",
       "cohort": "affected-312",
       "authored_path": "crates/portcove-core/catalog/ports/soyjxck-dod3-recomp.json",
-      "authored_preimage_sha256": "55169ef5c34f5fc90ae20184260362d821be02f656d160b1cb1dbac83a818910",
-      "authored_postimage_sha256": "d6f9a9275d4ef0041e72082b3fb55d0e353616b4c277097b627590ffa50c84d5",
+      "authored_preimage_sha256": "65e1453302317ebcd71636308f22c1dec0278b371acf92481b9c9fbd5670a236",
+      "authored_postimage_sha256": "5741eeedc534ba0f0e6a94f4b21ddad2dbb122994a9fc02f32fd340a7909a20d",
       "canonical_specification_sha256": "ef206fd4a85842365d1d0f136dd9ac08749c4e18d86a0052d5080a8262da59ef",
       "canonical_next_actions": [
         "Alpha Windows/macOSARM64; PPU/SPU statically translated, PS3 services replaced. Native heading not full playthrough proof; preserve toolchain/local generation requirements."
@@ -3469,7 +3469,7 @@
       },
       "route": {
         "title": "Attach the integrated native player",
-        "instruction": "Select dod3.exe, use its complete extracted player directory as working directory and leave arguments empty after upstream preparation. Review the exact intent and request Play separately, then use its ordinary integrated Play if shown. The selected Windows main anchors its release working directory to the executable and continues through setup/launcher into the native game runtime. Do not register a disc dumper, package extractor, compiler, --install/--check mode or another Drakengard edition as Play. Close the actual game normally."
+        "instruction": "Select dod3.exe, use its complete extracted player directory as working directory and leave arguments empty after upstream preparation. Review the selected program, working folder and arguments and choose Play when ready, then use its ordinary integrated Play if shown. The selected Windows main anchors its release working directory to the executable and continues through setup/launcher into the native game runtime. Do not register a disc dumper, package extractor, compiler, --install/--check mode or another Drakengard edition as Play. Close the actual game normally."
       },
       "source_setup": {
         "title": "Prepare the supported US base and update",
@@ -3490,8 +3490,8 @@
       "id": "spicywonda-castlevania-chronicles-recomp",
       "cohort": "affected-312",
       "authored_path": "crates/portcove-core/catalog/ports/spicywonda-castlevania-chronicles-recomp.json",
-      "authored_preimage_sha256": "e9ec9708bd2ead58a1aed608e1f808b3429e33df962afd62d93d46ee9c39951b",
-      "authored_postimage_sha256": "7692e5e18b52104dc4f994202ebbe6e9e4259f6440b9509167427505dbbe61b5",
+      "authored_preimage_sha256": "60ad1c8d4a3a71353694cf64b2fb0d0cb2ff59c49aa97f4f58823322f2f85ff8",
+      "authored_postimage_sha256": "bef56c4db31304062e68287cde2b94871e82014c75e207527c4cceee09581f0a",
       "canonical_specification_sha256": "879dd8fa6ac4eed1436a9300252db12227d6952310f9e364f3894e7f07c862db",
       "canonical_next_actions": [
         "Windows/macOSARM64/Linux packages; launcher self-update owns runtime setup. Preserve revision and first-launch compile requirements; not other Castlevania editions."
@@ -6706,7 +6706,7 @@
       },
       "route": {
         "title": "Attach the supported waiting launcher",
-        "instruction": "Select Play.exe, use the full extracted package root as working directory and leave arguments empty after upstream setup. Review the exact intent and request Play separately, then use the launcher’s ordinary Play. The selected desktop launcher runs runtime/CastlevaniaChronicles.exe through GameSession.RunAsync, waits for validation/game children and supplies the chosen disc plus CHRONICLES_DATA_DIR. Keep the launcher open while the game runs and close both normally when finished. Update helpers/relaunches are a separate upstream maintenance path, not an automatically qualified successor."
+        "instruction": "Select Play.exe, use the full extracted package root as working directory and leave arguments empty after upstream setup. Review the selected program, working folder and arguments and choose Play when ready, then use the launcher’s ordinary Play. The selected desktop launcher runs runtime/CastlevaniaChronicles.exe through GameSession.RunAsync, waits for validation/game children and supplies the chosen disc plus CHRONICLES_DATA_DIR. Keep the launcher open while the game runs and close both normally when finished. Update helpers/relaunches are a separate upstream maintenance path, not an automatically qualified successor."
       },
       "source_setup": {
         "title": "Prepare the USA PlayStation original upstream",
@@ -6727,8 +6727,8 @@
       "id": "ssx-3-playstation-2-ssx-3-native-rust-port",
       "cohort": "affected-312",
       "authored_path": "crates/portcove-core/catalog/ports/ssx-3-playstation-2-ssx-3-native-rust-port.json",
-      "authored_preimage_sha256": "b8b8fc0d3ae49132d9433c12c4eb7ae1af1d519b71f50e6ea1d5ee93525b07a2",
-      "authored_postimage_sha256": "b79833c9e6d93edacdc0cf5a5029b71e38ac4a445d26324e56dfd6c2e6986d09",
+      "authored_preimage_sha256": "31d11274a403e9a324cf07579f699dbc7267e377be93671a18f564cde3ac0101",
+      "authored_postimage_sha256": "35486e7eaadc2be3a105a2b63200e8a3aebf3c52672ceb7d3140177fc3d704d1",
       "canonical_specification_sha256": "c176a1172ec3c6e2b97cdb1d816ecd1d9b2d753523427f8eb5f3632e0b33e2bd",
       "canonical_next_actions": [
         "Review official player setup and data/persistence boundaries for the specific offered route; metadata alone does not qualify execution."
@@ -6816,7 +6816,7 @@
       },
       "route": {
         "title": "Attach the windowed native player",
-        "instruction": "Select the completed target/game/ssx3.exe, set working directory to its existing project root and leave arguments empty. Review that exact intent and request Play separately. This entry boots the game and runs its window/event loop in the same process. Do not select ssx3-headless.exe, Cargo, a setup/compiler script, an event-skipping diagnostic or another platform build as the player."
+        "instruction": "Select the completed target/game/ssx3.exe, set working directory to its existing project root and leave arguments empty. Review the selected program, working folder and arguments and choose Play when ready. This entry boots the game and runs its window/event loop in the same process. Do not select ssx3-headless.exe, Cargo, a setup/compiler script, an event-skipping diagnostic or another platform build as the player."
       },
       "source_setup": {
         "title": "Prepare the supported PS2 source locally",
@@ -6838,7 +6838,7 @@
       "cohort": "original-524",
       "authored_path": "crates/portcove-core/catalog/ports/tekrantgaming-earthworm-jim-hd-recompiled.json",
       "authored_preimage_sha256": "88b4b4c077af06d614f1552b66a72283d158a78236d64fd77c70c21f641001fe",
-      "authored_postimage_sha256": "4aaed6d3c9603f9ca05e5331414c52fa4d6e06febc9cd5a6e7cebd1b223ef275",
+      "authored_postimage_sha256": "e7f19a2e77a61aa4829f9ab3d3f160b3b13a95450b9d340836872f19cb1b8498",
       "canonical_specification_sha256": "8c185523d3bcf64be6b2f2f6f92319748ef2101e398f6ad468cff3e49f5b30b6",
       "canonical_next_actions": [],
       "source_repository": "TekRantGaming/earthworm-jim-hd-recompiled",
@@ -7013,7 +7013,7 @@
       },
       "route": {
         "title": "Attach the normal in-process player",
-        "instruction": "Select earthworm_jim_hd.exe, use the complete player directory as working directory and leave arguments empty after upstream preparation. Review the exact intent and request Play separately, then use the ordinary integrated Play if shown. The selected EarthwormJimHdApp resumes its own native runtime in the same application rather than using a detached launcher as normal Play. Finish any graphics changes that explicitly require restart, first-use preparation or updater relaunch upstream before attachment; those successor paths are not newly qualified by this guide. Quit the actual game normally."
+        "instruction": "Select earthworm_jim_hd.exe, use the complete player directory as working directory and leave arguments empty after upstream preparation. Review the selected program, working folder and arguments and choose Play when ready, then use the ordinary integrated Play if shown. The selected EarthwormJimHdApp resumes its own native runtime in the same application rather than using a detached launcher as normal Play. Finish any graphics changes that explicitly require restart, first-use preparation or updater relaunch upstream before attachment; those successor paths are not newly qualified by this guide. Quit the actual game normally."
       },
       "source_setup": {
         "title": "Prepare the exact owned XBLA original",
@@ -7035,7 +7035,7 @@
       "cohort": "original-524",
       "authored_path": "crates/portcove-core/catalog/ports/tekrantgaming-outpost-kaloki-x-recompiled.json",
       "authored_preimage_sha256": "94afd977b3c660cde2b860dd034cb36b3c660c0dd44892c42fd43dca6d9bc91c",
-      "authored_postimage_sha256": "21b80d8b2c43ac42e42e7976a8743ba5064a9f8009b6b9f1756411e1b4087980",
+      "authored_postimage_sha256": "aba2fc21e85a2cf7aaed990a1175a78ccf98a93f32ffd4901ca624213d897dc8",
       "canonical_specification_sha256": "98bc04aa8b148d410a96e42a263c088d4d5396d42550314c3b25ce36791dbd14",
       "canonical_next_actions": [],
       "source_repository": "TekRantGaming/outpost-kaloki-x-recompiled",
@@ -7216,7 +7216,7 @@
       },
       "route": {
         "title": "Attach the normal in-process player",
-        "instruction": "Select outpost_kaloki_x.exe, use the complete player directory as working directory and leave arguments empty after upstream preparation. Review the exact intent and request Play separately, then use the ordinary integrated Play if shown. The selected OutpostKalokiXApp resumes its own native runtime in the same application rather than using a detached launcher as normal Play. Finish any graphics changes that explicitly require restart, first-use preparation or updater relaunch upstream before attachment; those successor paths are not newly qualified by this guide. Quit the actual game normally."
+        "instruction": "Select outpost_kaloki_x.exe, use the complete player directory as working directory and leave arguments empty after upstream preparation. Review the selected program, working folder and arguments and choose Play when ready, then use the ordinary integrated Play if shown. The selected OutpostKalokiXApp resumes its own native runtime in the same application rather than using a detached launcher as normal Play. Finish any graphics changes that explicitly require restart, first-use preparation or updater relaunch upstream before attachment; those successor paths are not newly qualified by this guide. Quit the actual game normally."
       },
       "source_setup": {
         "title": "Prepare the exact owned XBLA original",
@@ -7238,7 +7238,7 @@
       "cohort": "original-524",
       "authored_path": "crates/portcove-core/catalog/ports/tekrantgaming-simpsons-wrestling-recompiled.json",
       "authored_preimage_sha256": "423756860a2a5a80bd6c30e13b194a3f38670fe9cc6546073de5711747cb9b66",
-      "authored_postimage_sha256": "f86870a5f4774b7e51fa88f78421371c69d500221eb108d8341ac05bd7795924",
+      "authored_postimage_sha256": "f6a1fcc89b94b147f99843d610cb47c04544d75d47b9439a7cb3d0ea4555ca6b",
       "canonical_specification_sha256": "7c2a3ced239c73d224256131e8c631b5dda70b07aa46a64952d79116d4346776",
       "canonical_next_actions": [],
       "source_repository": "TekRantGaming/simpsons-wrestling-recompiled",
@@ -7379,7 +7379,7 @@
       },
       "route": {
         "title": "Attach the actual native game with its disc",
-        "instruction": "Select game/SimpsonsWrestling_Recompiled.exe, set working directory to that complete game/ directory and use --no-launcher --disc \"the exact already selected USA CUE path\". Review the exact paths and intent and request Play separately. This reproduces the selected top-level launcher’s native target, CWD and literal argument contract while retaining direct supervision of the actual game. Keep the settings/control files it already wrote; finish future launcher configuration or updates upstream before the next reviewed attachment. Do not register the detaching launcher, updater, setup/compiler or a diagnostic mode as Play."
+        "instruction": "Select game/SimpsonsWrestling_Recompiled.exe, set working directory to that complete game/ directory and use --no-launcher --disc \"the exact already selected USA CUE path\". Review the exact paths and intent and choose Play when ready. This reproduces the selected top-level launcher’s native target, CWD and literal argument contract while retaining direct supervision of the actual game. Keep the settings/control files it already wrote; finish future launcher configuration or updates upstream before the next reviewed attachment. Do not register the detaching launcher, updater, setup/compiler or a diagnostic mode as Play."
       },
       "source_setup": {
         "title": "Prepare the exact USA PlayStation original",
@@ -7400,8 +7400,8 @@
       "id": "the-legend-of-zelda-link-s-awakening-2019-switch-lasrecomp",
       "cohort": "affected-312",
       "authored_path": "crates/portcove-core/catalog/ports/the-legend-of-zelda-link-s-awakening-2019-switch-lasrecomp.json",
-      "authored_preimage_sha256": "78b170048b211af2d106ba842b65b1c89757e3b40cf0187943c64873e30266b2",
-      "authored_postimage_sha256": "53c808c48205d95fa5e6a56249b50c3613d4edf4e21e6b55de921c874599186a",
+      "authored_preimage_sha256": "d8b4d8dcb13d37d827e95de8f436612bbf603f2dc126a0021c2eda26bdb9fa58",
+      "authored_postimage_sha256": "002eb3b9a6c3513376a25db1a9b3aefdcd8c7d040ede35ec5677adad8f67b7eb",
       "canonical_specification_sha256": "be00b6eb10ca620b1a1433606a80dd94bdec10bd9d83220ae34178269237686f",
       "canonical_next_actions": [
         "Review official player setup and data/persistence boundaries for the specific offered route; metadata alone does not qualify execution."
@@ -7861,7 +7861,7 @@
       },
       "route": {
         "title": "Attach the integrated native player",
-        "instruction": "Select lasrecomp.exe, use the complete existing LAS Recomp directory as working directory and leave arguments empty. Review the exact intent and request Play separately, then use its ordinary start-screen Play and existing vanilla/seed selection. The native start screen and game loop share a process; the selected Windows restart implementation waits for its successor and propagates its exit. Do not select a code generator, setup script, randomizer tool or test harness as the player."
+        "instruction": "Select lasrecomp.exe, use the complete existing LAS Recomp directory as working directory and leave arguments empty. Review the selected program, working folder and arguments and choose Play when ready, then use its ordinary start-screen Play and existing vanilla/seed selection. The native start screen and game loop share a process; the selected Windows restart implementation waits for its successor and propagates its exit. Do not select a code generator, setup script, randomizer tool or test harness as the player."
       },
       "source_setup": {
         "title": "Finish the supported game-file setup",
@@ -7882,8 +7882,8 @@
       "id": "themuffinator-openq4",
       "cohort": "affected-312",
       "authored_path": "crates/portcove-core/catalog/ports/themuffinator-openq4.json",
-      "authored_preimage_sha256": "c9afa2ccfd853f47527ab7b73ef2aa16df14f172b5d44054eac46232c2d9596e",
-      "authored_postimage_sha256": "5225f2834d426e1c527a9ef93161577078da9b52b0bc80b7e9bcd93bee8bd43f",
+      "authored_preimage_sha256": "0ea689a43bb3d68a4628da6ead66c9812d2823167762980d3261f3f3a7722542",
+      "authored_postimage_sha256": "795346a9a29843e5081eb6c11fb73546cd6017642f26572a9334f3adf01059a7",
       "canonical_specification_sha256": "4909012f26882a3f64ec956d10d4dd7626b0bca4c2cd26ff0c142f784d8559c5",
       "canonical_next_actions": [
         "Beta Windows/Linux x64/ARM64 and experimental macOS; WindowsARM64 built but no hardware confirmation. Packages do not establish GPL engine vs game SDK licensing authority; keep notices."
@@ -8110,7 +8110,7 @@
       },
       "route": {
         "title": "Attach the native client with its retail root",
-        "instruction": "Select openQ4-client_x64.exe, use its complete extracted package root as working directory, and set +set fs_basepath \"the actual PC Quake 4 root containing q4base\". Review the exact path and intent and request Play separately. Point at the root, not q4base/ or baseoq4/. Retain any already chosen supported fs_savepath or mod configuration rather than selecting a new profile. Quit the client normally before ending the session; developer, replay and dedicated-server modes do not replace ordinary Play."
+        "instruction": "Select openQ4-client_x64.exe, use its complete extracted package root as working directory, and set +set fs_basepath \"the actual PC Quake 4 root containing q4base\". Review the exact path and intent and choose Play when ready. Point at the root, not q4base/ or baseoq4/. Retain any already chosen supported fs_savepath or mod configuration rather than selecting a new profile. Quit the client normally before ending the session; developer, replay and dedicated-server modes do not replace ordinary Play."
       },
       "source_setup": {
         "title": "Use your own PC Quake 4 installation",
@@ -8132,7 +8132,7 @@
       "cohort": "original-524",
       "authored_path": "crates/portcove-core/catalog/ports/tomba-2-recompiled.json",
       "authored_preimage_sha256": "abab16ca964e8afb09f426f007444d0d284a08bf03413db3ff3751f2950ac49d",
-      "authored_postimage_sha256": "6b0cfa335a0da3826fd666778ba608625b6c178366246ba191f09a66726a7db5",
+      "authored_postimage_sha256": "21fcade4285fd654cbbfd1c6a9652d427ec83e3ee9b410246ed3cb8302d9df28",
       "canonical_specification_sha256": "5470e59b0f33d521b8dfa704b974cc89149c82abdc8d1fa48b02d8a789a726b1",
       "canonical_next_actions": [
         "Inspect selected source/executable/output and implement smallest safe missing mapping/glue; reassess B/C, not exception. Relevant component/related owners: #254 for facts/definition; #1169 if non-owning; per-port mapping/glue."
@@ -9419,7 +9419,7 @@
       },
       "route": {
         "title": "Attach the integrated native USA player",
-        "instruction": "Select Tomba2Recomp.exe, use its complete extracted player directory as working directory and leave arguments empty after upstream original/settings preparation. Review the exact intent and request Play separately, then use the integrated Launch if shown. The selected native runtime hosts the launcher and game in process and anchors relative paths to its executable directory. Do not select a compiler, source-build helper, Italian runtime, an optional-mod importer or a prototype UI as ordinary Play. Close the game normally before upstream replacement."
+        "instruction": "Select Tomba2Recomp.exe, use its complete extracted player directory as working directory and leave arguments empty after upstream original/settings preparation. Review the selected program, working folder and arguments and choose Play when ready, then use the integrated Launch if shown. The selected native runtime hosts the launcher and game in process and anchors relative paths to its executable directory. Do not select a compiler, source-build helper, Italian runtime, an optional-mod importer or a prototype UI as ordinary Play. Close the game normally before upstream replacement."
       },
       "source_setup": {
         "title": "Prepare the USA PlayStation original",
@@ -9441,7 +9441,7 @@
       "cohort": "original-524",
       "authored_path": "crates/portcove-core/catalog/ports/valkyrie-profile-valkyrierecomp.json",
       "authored_preimage_sha256": "318d0080e331631471d0d5318820fab1a369ea2e06d04169b18d4487badb0d07",
-      "authored_postimage_sha256": "c0868d8c17480f1f8c132aa95bfb48c10721e7240168a77cb92ca7f5f5474540",
+      "authored_postimage_sha256": "f6fed3c01de9bd5ae0e669ed85b6e6b80b0604d8d0a5b7f66fb16643b6a6164f",
       "canonical_specification_sha256": "7d20f015faf9ccd6929fdc060a8bd26fbac2ae88395479a4d4f8554fb0a1f722",
       "canonical_next_actions": [
         "Inspect selected source/executable/output and implement smallest safe missing mapping/glue; reassess B/C, not exception. Relevant component/related owners: #254 for facts/definition; #1169 if non-owning; per-port mapping/glue."
@@ -9654,7 +9654,7 @@
       },
       "route": {
         "title": "Attach the native product directly",
-        "instruction": "Select the actual completed build-release/ValkyrieRecomp.exe, or the product at the installation’s already chosen build-root override. Use its complete product directory as working directory and leave arguments empty after upstream configuration. Review the exact intent and request Play separately. The selected shared setup consumer disables forwarding in a full game binary with game dispatch; direct product selection retains the actual native session. Do not select the initial forwarding setup host, recompiler or diagnostic mode. Finish rebuilds outside a running session and quit the actual game normally."
+        "instruction": "Select the actual completed build-release/ValkyrieRecomp.exe, or the product at the installation’s already chosen build-root override. Use its complete product directory as working directory and leave arguments empty after upstream configuration. Review the selected program, working folder and arguments and choose Play when ready. The selected shared setup consumer disables forwarding in a full game binary with game dispatch; direct product selection retains the actual native session. Do not select the initial forwarding setup host, recompiler or diagnostic mode. Finish rebuilds outside a running session and quit the actual game normally."
       },
       "source_setup": {
         "title": "Prepare the supported USA two-disc original",
@@ -9675,8 +9675,8 @@
       "id": "wootbeer-bzrecomp",
       "cohort": "affected-312",
       "authored_path": "crates/portcove-core/catalog/ports/wootbeer-bzrecomp.json",
-      "authored_preimage_sha256": "f9ecd8118ce4afdc2b4ef97731f31d403d4ae7d2746b7efe6be7689758e03ee3",
-      "authored_postimage_sha256": "7cf2cdd2923babff0be3a12b9efaa8a031b7317b5aabca4f2ff34fcf4fcc420d",
+      "authored_preimage_sha256": "b6a4f337072d5d9b683d8ea99b5024e3326458b25727304d51b8630871218183",
+      "authored_postimage_sha256": "954440058312c9d775eca7f2ea6175a51ad67841dae36abb0be386a800090ab3",
       "canonical_specification_sha256": "f369055389ea98596be06ac1090dd3f8ca18ca074be879b1bad2aaea92e8a8f7",
       "canonical_next_actions": [
         "Windows/Linux beta packages; distinguish arcade Battlezone and existing source ports by N64 edition."
@@ -9886,7 +9886,7 @@
       },
       "route": {
         "title": "Attach the normal integrated player",
-        "instruction": "Select BattlezoneRecompiled.exe, use its complete extracted player directory as working directory and leave arguments empty after upstream setup. Review the exact intent and request Play separately. Its native main sets bzrecomp as the UI program ID and enters the integrated frontend/runtime. Finish missing-ROM/settings prompts upstream before retrying. Do not use a recompiler, an AppImage, test/probe options or another port’s runtime as normal Play."
+        "instruction": "Select BattlezoneRecompiled.exe, use its complete extracted player directory as working directory and leave arguments empty after upstream setup. Review the selected program, working folder and arguments and choose Play when ready. Its native main sets bzrecomp as the UI program ID and enters the integrated frontend/runtime. Finish missing-ROM/settings prompts upstream before retrying. Do not use a recompiler, an AppImage, test/probe options or another port’s runtime as normal Play."
       },
       "source_setup": {
         "title": "Prepare the exact N64 original",
@@ -9907,8 +9907,8 @@
       "id": "yokimitsuro-khdays-port",
       "cohort": "affected-312",
       "authored_path": "crates/portcove-core/catalog/ports/yokimitsuro-khdays-port.json",
-      "authored_preimage_sha256": "f5312917a88eff7787b929d58dceff30a51f3f2c01f483275bf33053c9973df2",
-      "authored_postimage_sha256": "3d795426f93c4dcf22ccb9bf45bc139741d2701e3a1b6936f00f7c80d40b19d9",
+      "authored_preimage_sha256": "526071e0bdcbeeed07146d805d01a22e4e280a32502537aced222a5cf793cc4d",
+      "authored_postimage_sha256": "fef4b623fbf2cf473ed1c4fe05b29da3ae61ca2b5fefb4c26c778a6d0ea0e3d6",
       "canonical_specification_sha256": "866daa63e12bb19acb8e23ec459698975bba9ba992e9cab50dd84ee156e2e257",
       "canonical_next_actions": [
         "Desktop decompilation C native with no ARM interpreter; Windows setup builds locally. Wireless multiplayer implementation not tried between two PCs; port/game ownership distinct from KH Studio tooling."
@@ -10033,7 +10033,7 @@
       },
       "route": {
         "title": "Attach the native game, not its tools",
-        "instruction": "Select the installed khdays-native.exe, set working directory to its complete prepared install root and leave arguments empty for ordinary Play. Review the exact intent and request Play separately. This matches the installer’s actual game shortcut. KH Studio and khdays-server.exe are separate editor/server programs, not the player. The native port finds data/extracted from its prepared root and runs the game there; no ROM-loader or shell wrapper is added. Close the actual game normally before upstream maintenance."
+        "instruction": "Select the installed khdays-native.exe, set working directory to its complete prepared install root and leave arguments empty for ordinary Play. Review the selected program, working folder and arguments and choose Play when ready. This matches the installer’s actual game shortcut. KH Studio and khdays-server.exe are separate editor/server programs, not the player. The native port finds data/extracted from its prepared root and runs the game there; no ROM-loader or shell wrapper is added. Close the actual game normally before upstream maintenance."
       },
       "source_setup": {
         "title": "Prepare the exact European DS original",
@@ -10055,7 +10055,7 @@
       "cohort": "original-524",
       "authored_path": "crates/portcove-core/catalog/ports/call-of-duty-modern-warfare-2-xbox-360-recompiled.json",
       "authored_preimage_sha256": "507b0c5b27d0cf758673c0cc45b85d48a81f031676344a7faab4df671a9760a2",
-      "authored_postimage_sha256": "a8abcd8eb25a43016896558706736c45510adcea836f25a128872ebbd2a86a62",
+      "authored_postimage_sha256": "a09901dfe0184980a169e4955854820bdbdffa26ae98ad10bca17c22f6ae1734",
       "canonical_specification_sha256": "15ef45646670d13972c5508ded8ef217827f7cbca5e445174bbc7fc75c461bd1",
       "canonical_next_actions": [
         "Inspect selected source/executable/output and implement smallest safe missing mapping/glue; reassess B/C, not exception. Relevant component/related owners: #1169; title #1397."
@@ -10244,7 +10244,7 @@
       },
       "route": {
         "title": "Attach one native player at a time",
-        "instruction": "Select mw2-sp.exe for the prepared campaign/Special Ops player, or mw2-mp.exe for the prepared multiplayer player. Use the complete existing package directory as working directory and leave arguments empty. Review the exact intent and request Play separately. No-argument native startup loads the sibling .env settings, anchors game/data paths beside the executable and enters that selected game. Keep this attachment to that executable’s session: close normally before selecting the other mode. In-game SP/MP switches start another executable and are outside this bounded direct-player tracking route; the launcher is not substituted for a waiting native player."
+        "instruction": "Select mw2-sp.exe for the prepared campaign/Special Ops player, or mw2-mp.exe for the prepared multiplayer player. Use the complete existing package directory as working directory and leave arguments empty. Review the selected program, working folder and arguments and choose Play when ready. No-argument native startup loads the sibling .env settings, anchors game/data paths beside the executable and enters that selected game. Keep this attachment to that executable’s session: close normally before selecting the other mode. In-game SP/MP switches start another executable and are outside this bounded direct-player tracking route; the launcher is not substituted for a waiting native player."
       },
       "source_setup": {
         "title": "Complete the supported Xbox 360 preparation",
@@ -10266,7 +10266,7 @@
       "cohort": "original-524",
       "authored_path": "crates/portcove-core/catalog/ports/king-kong-xbox-360-recompiled.json",
       "authored_preimage_sha256": "2fd4c1d851adcb0a46b2d11c8f5491e8be0b638c2462940a8ecbdd67c9e310ca",
-      "authored_postimage_sha256": "9dfff074091c6f7cbe8aba1b7dacd4a9d3b8f860da6e43fe6e2b3d40e995b17c",
+      "authored_postimage_sha256": "98ef9c81bee3c1bccb0cfb1834743376127be2b7f32daafa6085c61f6412fed5",
       "canonical_specification_sha256": "87a2d41701b5ba51a6a15a20bd1ac804617ee09eeae89539cd0e8107a248d2e5",
       "canonical_next_actions": [],
       "source_repository": "TekRantGaming/king-kong-recompiled",
@@ -10716,7 +10716,7 @@
       },
       "route": {
         "title": "Attach the normal direct-game entry",
-        "instruction": "Select king_kong.exe, use its complete KingKong directory as working directory and set arguments to --kk_launcher=false. Review that exact intent and request Play separately. This is the normal show-launcher option, not the internal skip-once, benchmark or diagnostic flags. With prepared game files and resolved startup notices it enters the game in the same native process using its current settings. Do not change renderer/restart settings, start co-op handovers or return through a launcher relaunch while attached; close the game normally and perform those operations independently outside the session."
+        "instruction": "Select king_kong.exe, use its complete KingKong directory as working directory and set arguments to --kk_launcher=false. Review the selected program, working folder and arguments and choose Play when ready. This is the normal show-launcher option, not the internal skip-once, benchmark or diagnostic flags. With prepared game files and resolved startup notices it enters the game in the same native process using its current settings. Do not change renderer/restart settings, start co-op handovers or return through a launcher relaunch while attached; close the game normally and perform those operations independently outside the session."
       },
       "source_setup": {
         "title": "Finish the original-disc and player preparation",
@@ -10738,7 +10738,7 @@
       "cohort": "original-524",
       "authored_path": "crates/portcove-core/catalog/ports/ogre-battle-64-person-of-lordly-caliber.json",
       "authored_preimage_sha256": "58c5bc0d6c8b48a0e425363b4adb7c232464c187fe19473c81273d856c534136",
-      "authored_postimage_sha256": "8d03e401e9d893a418b3e21d5012ae81f480df69b09dddf53780579a0a799700",
+      "authored_postimage_sha256": "0674b81465a82d9d18b7e41ff8617b8b38af56064398b64a50eb8c7d7559cbe8",
       "canonical_specification_sha256": "e456e608f5fd33c616cb686e8e68e50558e98c07caa3f38a4feaba38d1c72356",
       "canonical_next_actions": [
         "Inspect selected source/executable/output and implement smallest safe missing mapping/glue; reassess B/C, not exception. Relevant component/related owners: #254 for facts/definition; #1169 if non-owning; per-port mapping/glue."
@@ -10947,7 +10947,7 @@
       },
       "route": {
         "title": "Attach the ordinary integrated player",
-        "instruction": "Select ogrebattle64.exe, use its complete extracted player directory as working directory and leave arguments empty after setup. Review the exact intent and request Play separately. The selected native main registers the ROM/save identity, runs the integrated launcher when needed and stays in the runtime’s event/game loop. Do not select a recompiler, null-renderer test, debug script or another Ogre Battle edition. Close the game normally."
+        "instruction": "Select ogrebattle64.exe, use its complete extracted player directory as working directory and leave arguments empty after setup. Review the selected program, working folder and arguments and choose Play when ready. The selected native main registers the ROM/save identity, runs the integrated launcher when needed and stays in the runtime’s event/game loop. Do not select a recompiler, null-renderer test, debug script or another Ogre Battle edition. Close the game normally."
       },
       "source_setup": {
         "title": "Prepare the exact USA Rev A original",
@@ -10969,7 +10969,7 @@
       "cohort": "original-524",
       "authored_path": "crates/portcove-core/catalog/ports/rush-2-recompiled.json",
       "authored_preimage_sha256": "16fa34822716c01d452c13520e9938c3451ceecc2b295edda51044ae3be87d61",
-      "authored_postimage_sha256": "f8a5ee8cb7e288ea29b350c9d76ad363df34ddec572000771b281b869a768d75",
+      "authored_postimage_sha256": "1917b2ee83709397673957e9662c40b7ffa2aa21034683e1330c31f0ea22bdae",
       "canonical_specification_sha256": "c9adc6ee1ecda8fad00fea293cef3e686af263df5a4cd007ecfd625054d71624",
       "canonical_next_actions": [],
       "source_repository": "bryantmh/rush2recompiled",
@@ -11191,7 +11191,7 @@
       },
       "route": {
         "title": "Attach the integrated native game",
-        "instruction": "Select Rush2Recompiled.exe, use its complete extracted player directory as working directory and leave arguments empty after upstream setup. Review the exact intent and request Play separately. The selected executable hosts the frontend and native runtime together. Do not register a simulator, developer capture tool, importer-only utility or another racing port. Quit the actual game normally before maintenance."
+        "instruction": "Select Rush2Recompiled.exe, use its complete extracted player directory as working directory and leave arguments empty after upstream setup. Review the selected program, working folder and arguments and choose Play when ready. The selected executable hosts the frontend and native runtime together. Do not register a simulator, developer capture tool, importer-only utility or another racing port. Quit the actual game normally before maintenance."
       },
       "source_setup": {
         "title": "Prepare the exact Rush 2 original",
@@ -11213,7 +11213,7 @@
       "cohort": "original-524",
       "authored_path": "crates/portcove-core/catalog/ports/zeldawwhdrecomp-zeldawwhdrecomp.json",
       "authored_preimage_sha256": "632d06fa5deb1869478ca047311585c458ae0b805965262be9707edb145e807a",
-      "authored_postimage_sha256": "fd31ccee3952899a0677d51b6df1e0cac1200167ad62b159d64e7d1cad242550",
+      "authored_postimage_sha256": "885682173a83c97d0d2b4dfddaf87719b06f295c1b3cd6866d9789a802248b64",
       "canonical_specification_sha256": "9ad8394b67d0fa514cf5120aee146c0e9e66be50c89cb0535fa1cd828028ad30",
       "canonical_next_actions": [],
       "source_repository": "ZeldaWWHDRecomp/ZeldaWWHDRecomp",
@@ -11533,7 +11533,7 @@
       },
       "route": {
         "title": "Attach the actual native product",
-        "instruction": "Select the completed data/bin/wwhd.exe, set working directory to that actual data/ directory and use --game \"the existing prepared game directory\" --save \"the existing active save directory\". This matches the selected producer’s native-game shortcut and bypasses the detaching Windows setup launcher. Review the exact paths and intent and request Play separately. Preserve an existing --user-dir or --data-dir override if already used; do not add one to create an empty profile. Keep the game and matching DLLs together and close its actual native window normally."
+        "instruction": "Select the completed data/bin/wwhd.exe, set working directory to that actual data/ directory and use --game \"the existing prepared game directory\" --save \"the existing active save directory\". This matches the selected producer’s native-game shortcut and bypasses the detaching Windows setup launcher. Review the exact paths and intent and choose Play when ready. Preserve an existing --user-dir or --data-dir override if already used; do not add one to create an empty profile. Keep the game and matching DLLs together and close its actual native window normally."
       },
       "source_setup": {
         "title": "Prepare the supported Wii U base game upstream",

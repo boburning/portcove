@@ -159,7 +159,7 @@ function operationPresentation(value: string): OperationPresentation {
     backup: { label: "Backup in progress" },
     restore: { label: "Restoring saved data" },
     rollback: { label: "Restoring previous version" },
-    activate: { label: "Activating staged version" },
+    activate: { label: "Switching to the prepared version" },
     adopt: { label: "Copying existing installation" },
     remove: { label: "Removing managed files" },
     move_library: { label: "Moving library" },
@@ -259,14 +259,14 @@ export const installationMethodLabels: Record<
   NonNullable<PortDefinition["presentation"]>["installation_method"],
   string
 > = {
-  "portable-package": "Portable upstream package",
+  "portable-package": "Download and install",
   "portable-recompilation": "Portable native recompilation",
   "staged-game-files": "Prepared game files beside the port",
   "referenced-disc": "Original disc referenced at launch",
   "generated-game-data": "Generated game data",
   "upstream-setup": "Managed upstream setup",
   "managed-recompilation": "Managed native recompilation",
-  "user-prepared-runtime": "User-prepared external runtime",
+  "user-prepared-runtime": "Use an installation you set up yourself",
 };
 
 export function installationMethodLabel(port: CatalogEntry) {

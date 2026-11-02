@@ -3,7 +3,7 @@
   "listing": {
     "id": "jackgllghr-bigmission-recomp",
     "name": "Saru Get You: Saru Saru Daisakusen (Ape Escape Mind Over Monkey)",
-    "summary": "Attach SaruSaru Recomp’s prepared Windows player with your own exact Japanese PSP original. Keep its locally compiled title module, per-user memory stick and settings; optional translations and experimental states are separate.",
+    "summary": "An experimental PSP Saru Get You: Saru Saru Daisakusen port. Its game profile reports early macOS startup/audio, Linux ARM64 startup and a Windows cross-build. Later root documentation and releases claim broader support and contradict the profile’s no-release/Android-unavailable statements; neither proves Android installation or gameplay. The SaruSaru launcher builds locally from your own Japanese UCJS10060 v1.00 compatible ISO; exact ISO hashes are unconfirmed. Source preparation needs CMake, Ninja, Python and a compiler, and PSPRecomp does not supply decryption. An optional interpreter handles code outside translated coverage. macOS ARM64, Linux x86-64/ARM64, Windows x86-64 and Android ARM64 launcher/build routes are documented, with their evidence differences unresolved. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Saru Get You: Saru Saru Daisakusen",
     "project_url": "https://github.com/jackgllghr/bigmission-recomp",
     "platforms": [],
@@ -23,7 +23,7 @@
         },
         {
           "title": "Attach the integrated normal player",
-          "instruction": "Select sarusaru.exe, use its complete extracted player directory as working directory and leave arguments empty after upstream preparation. Retain an existing supported --settings FILE argument if that installation already uses one. Review the exact intent and request Play separately. The selected shell keeps its launcher and in-game interface alive in the same session and calls the title’s play route in process. Use the original Japanese game-content mode for this route; optional English text/texture packs have separate content permissions and preparation, and are not required here. Close the actual player normally."
+          "instruction": "Select sarusaru.exe, use its complete extracted player directory as working directory and leave arguments empty after upstream preparation. Retain an existing supported --settings FILE argument if that installation already uses one. Review the selected program, working folder and arguments and choose Play when ready. The selected shell keeps its launcher and in-game interface alive in the same session and calls the title’s play route in process. Use the original Japanese game-content mode for this route; optional English text/texture packs have separate content permissions and preparation, and are not required here. Close the actual player normally."
         },
         {
           "title": "Preserve settings, memory stick and compiled data",

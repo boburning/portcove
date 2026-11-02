@@ -22,7 +22,7 @@
           "instruction": "The inspected official 0.9.8 Windows ZIP contains AMD64 TheDarkness.exe, separate TheDarknessSettings.exe and matching runtime libraries/notices. Keep the complete extracted folder. The settings launcher starts the native program as a separate process; do not attach that settings window as the game. This is the Estacado implementation, with its own source/runtime/data contract, not the separately cataloged PortingPete implementation."
         },
         {
-          "title": "Attach the prepared direct player",
+          "title": "Add the prepared game player",
           "instruction": "Select TheDarkness.exe, set the complete extracted runtime directory as working directory and leave arguments empty. Review the exact intent and request Play separately. The settings launcher’s default command is this same program without extra arguments. The native parser defaults to normal Run and resolves the existing configured game location or prepared game/default.xex; it does not require a fabricated private-cache path or launcher environment. Finish missing/unsupported game setup upstream before retrying. The game runs in the selected native process."
         },
         {
@@ -34,7 +34,7 @@
           "instruction": "Retain the project, ReXGlue, XenonRecomp and all component notices in THIRD_PARTY_NOTICES. Their grants do not license the original game, localized commercial assets, HD textures, language packs or mods; use only a complete copy you are independently permitted to use. Package/version reports contain names/sizes/hashes rather than permission to upload game material. No report upload, account, credential, online or optional-content operation is performed here."
         },
         {
-          "title": "Maintain outside the attachment",
+          "title": "Close the game before maintenance",
           "instruction": "Quit the actual game normally before upstream replacement, importing old saves, changing game data or updating mods/settings. The external settings/updater workflow owns runtime replacement and successor launches; preserve recovery copies and review/relink changed executable bytes. Forced termination is not a save-flush guarantee. Upstream limited-hardware and playability reports are not native/installed, campaign, save/reload or Supported acceptance. Removing registration preserves external files; managed install/update/rollback/backup/removal remain unavailable."
         }
       ],

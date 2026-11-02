@@ -22,7 +22,7 @@
           "instruction": "The inspected v0.6.0 Windows ZIP includes AMD64 wet.exe, runtime DLLs and extract-xiso.exe; the managed WPF WetLauncher.exe has a different PE machine classification and is not the native game. Source-build instructions do not turn this complete native package into a mandatory end-user compile. Keep the whole matching package and notices, with separately prepared game data."
         },
         {
-          "title": "Attach the normal native executable",
+          "title": "Add the normal game program",
           "instruction": "Select wet.exe, use the complete package directory as working directory and set --game_data_root=\"absolute actual prepared game directory\". Review the exact intent and request Play separately. This matches the launcher’s native game-data argument; the native app enters the linked game and otherwise searches executable-folder/game then working-directory/game. Do not select the importer or detached WPF launcher. Launcher display/controller arguments do not automatically transfer to direct launch; finish and retain native settings, using upstream F3 settings where appropriate."
         },
         {
@@ -30,7 +30,7 @@
           "instruction": "Keep the full original/imported game directory, native configuration and logs, launcher preferences, saves/profiles/cache and every existing SDK-selected or explicitly configured external data root. This investigation does not establish the SDK’s exact default Windows persistence directory: identify and retain the existing active roots from your prepared installation and logs before replacement; do not assume all saves are beside wet.exe or create an empty substitute. Retain existing explicit data-root arguments when applicable. No move, conversion, restore or deletion is performed."
         },
         {
-          "title": "Preserve qualification and maintenance boundaries",
+          "title": "Check testing and maintenance limits",
           "instruction": "Keep project MIT and SDK/Xenia/component notices; original game permissions remain separate. The selected source still registers missing guest-function return stubs, so fixes and native packaging do not establish whole-campaign completeness. Upstream launcher updates can replace/restart programs; finish them outside Portcove, quit the actual game and review/relink changed bytes. Exact original fingerprint, default data placement and native/save acceptance remain unfinished on the owner. No Supported or managed lifecycle outcome is asserted."
         }
       ],

@@ -3,7 +3,7 @@
   "listing": {
     "id": "soyjxck-dod3-recomp",
     "name": "Drakengard 3 (Drakengard 3 Recompiled)",
-    "summary": "Attach the prepared Drakengard 3 US Windows player after upstream base-game and 1.01-update setup. Preserve the complete runtime, installed game, gamedata saves and settings; source-build firmware requirements are separate from this player route.",
+    "summary": "An alpha Drakengard 3 PS3 port with statically translated PPU/SPU code and replacement system services. Windows and macOS ARM64 routes use Direct3D 12/Metal/Vulkan; other player OS routes are unconfirmed. Full-game progress and hardware coverage are unconfirmed, and a native label does not establish a playthrough. Supply your own BLUS31197 game and follow the project’s local generation/toolchain requirements. Exact accepted revision/hashes and BIOS/firmware needs remain unconfirmed. You and the project manage setup and replacement; Portcove has not qualified a release package or confirmed gameplay.",
     "original_game_title": "Drakengard 3",
     "project_url": "https://github.com/soyjxck/dod3-recomp",
     "platforms": [],
@@ -31,7 +31,7 @@
         },
         {
           "title": "Attach the integrated native player",
-          "instruction": "Select dod3.exe, use its complete extracted player directory as working directory and leave arguments empty after upstream preparation. Review the exact intent and request Play separately, then use its ordinary integrated Play if shown. The selected Windows main anchors its release working directory to the executable and continues through setup/launcher into the native game runtime. Do not register a disc dumper, package extractor, compiler, --install/--check mode or another Drakengard edition as Play. Close the actual game normally."
+          "instruction": "Select dod3.exe, use its complete extracted player directory as working directory and leave arguments empty after upstream preparation. Review the selected program, working folder and arguments and choose Play when ready, then use its ordinary integrated Play if shown. The selected Windows main anchors its release working directory to the executable and continues through setup/launcher into the native game runtime. Do not register a disc dumper, package extractor, compiler, --install/--check mode or another Drakengard edition as Play. Close the actual game normally."
         },
         {
           "title": "Preserve installed content and gamedata",

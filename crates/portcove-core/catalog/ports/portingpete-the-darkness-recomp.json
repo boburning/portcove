@@ -3,7 +3,7 @@
   "listing": {
     "id": "portingpete-the-darkness-recomp",
     "name": "The Darkness (The Darkness Recomp)",
-    "summary": "Attach The Darkness Xbox 360 Windows player directly through DarkRecomp.exe. Keep the complete D3D11 release, exact owned game dump, settings and saves; diagnostic launchers and optional localizations have separate scope.",
+    "summary": "A Windows 10/11 x64 Direct3D 11 port of The Darkness with project-reported gameplay, audio, saves and controls. Use the player ZIP rather than the optional diagnostic-launcher ZIP. Release play needs no source toolchain; development/update builds separately use VS2022 Clang, CMake, Python, MSYS2 and LLVM, including XMA preparation. Supply your own complete extracted Xbox 360 game, including default.xex, Content, System and all companions; an ISO alone is insufficient. The player checks the supported executable and documented Russian localization internally, but this guide does not specify their exact hashes. XexTool preparation is unnecessary and no separate console BIOS input is specified. You and the project manage setup and replacement; Portcove has not qualified the package or confirmed gameplay.",
     "original_game_title": "The Darkness",
     "project_url": "https://github.com/portingpete/The-Darkness-Recomp",
     "platforms": [],
@@ -23,7 +23,7 @@
         },
         {
           "title": "Attach the supported direct native entry",
-          "instruction": "Select build_native/Release/DarkRecomp.exe, use the full extracted release root as working directory and leave arguments empty. Review the exact intent and request Play separately. This follows the upstream Windows external-shortcut contract: sound and normal gameplay default on, and the selected native source locates Darkness/default.xex near the executable. Do not register DarkRecompPreview.exe, DarkRecompSettings.exe, LaunchWithUpdates.cmd, a diagnostic launcher, renderer smoke/probe mode or the --sound option left from an older shortcut. Close the actual native game normally."
+          "instruction": "Select build_native/Release/DarkRecomp.exe, use the full extracted release root as working directory and leave arguments empty. Review the selected program, working folder and arguments and choose Play when ready. This follows the upstream Windows external-shortcut contract: sound and normal gameplay default on, and the selected native source locates Darkness/default.xex near the executable. Do not register DarkRecompPreview.exe, DarkRecompSettings.exe, LaunchWithUpdates.cmd, a diagnostic launcher, renderer smoke/probe mode or the --sound option left from an older shortcut. Close the actual native game normally."
         },
         {
           "title": "Preserve the existing user-data layout",

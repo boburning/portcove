@@ -3,7 +3,7 @@
   "listing": {
     "id": "valkyrie-profile-valkyrierecomp",
     "name": "Valkyrie Profile / ValkyrieRecomp",
-    "summary": "Attach the completed Valkyrie Profile USA Windows product after upstream setup. Select the locally built game rather than its forwarding setup host, preserve both disc choices and cards, and keep mid-session disc-swap limitations explicit.",
+    "summary": "Explore Valkyrie Profile / ValkyrieRecomp and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/Ed1z19/ValkyrieRecomp",
     "issue_number": 326,
     "platforms": [],
@@ -30,7 +30,7 @@
         },
         {
           "title": "Attach the native product directly",
-          "instruction": "Select the actual completed build-release/ValkyrieRecomp.exe, or the product at the installation’s already chosen build-root override. Use its complete product directory as working directory and leave arguments empty after upstream configuration. Review the exact intent and request Play separately. The selected shared setup consumer disables forwarding in a full game binary with game dispatch; direct product selection retains the actual native session. Do not select the initial forwarding setup host, recompiler or diagnostic mode. Finish rebuilds outside a running session and quit the actual game normally."
+          "instruction": "Select the actual completed build-release/ValkyrieRecomp.exe, or the product at the installation’s already chosen build-root override. Use its complete product directory as working directory and leave arguments empty after upstream configuration. Review the selected program, working folder and arguments and choose Play when ready. The selected shared setup consumer disables forwarding in a full game binary with game dispatch; direct product selection retains the actual native session. Do not select the initial forwarding setup host, recompiler or diagnostic mode. Finish rebuilds outside a running session and quit the actual game normally."
         },
         {
           "title": "Preserve both discs, roster and memory cards",

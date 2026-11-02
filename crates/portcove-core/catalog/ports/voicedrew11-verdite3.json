@@ -18,7 +18,7 @@
           "instruction": "Use an already permitted completed official Verdite3 v0.2.0 Windows x64 portable copy for US King's Field II, under the project, vendored RecompOne/verdite-core MIT terms and applicable component notices. These grants do not cover the original FromSoftware game/media or certify arbitrary binaries. Keep the entire extracted installation, including bin, content and licenses. Upstream/player owns preparation, repair and replacement; do not select the setup.exe installer as the game."
         },
         {
-          "title": "Keep the exact owned disc with its creating copy",
+          "title": "Keep your matching disc with the game version that used it",
           "instruction": "Use your own North American King's Field II disc, SLUS-00255: a CUE with every referenced BIN, or an upstream-supported CHD. Retain the original path and related files for streamed game data; the generated assembly is not a replacement for the disc. The selected source supports CHD cdzl/cdlz/cdfl/zlib/lzma codecs, not cdzs. Upstream checks boot serial and selected-file presence, not independently authenticated full-disc identity. Other regions, masterings, different King’s Field games and emulator states are not qualified by this guide."
         },
         {
@@ -26,11 +26,11 @@
           "instruction": "Finish the normal upstream disc picker and first-run preparation outside Portcove. On a cache miss the launcher regenerates and compiles KingsField3.dll in its own profile, then invokes the game synchronously in the same apphost; registration does not perform that preparation. Keep the generator, content, original, settings and build cache together with their creating version. A prepared copy still retains its upstream generator; this does not make it a plain immutable native-runtime package."
         },
         {
-          "title": "Select the self-contained entry and explicit initial directory",
+          "title": "Select the complete player and its working folder",
           "instruction": "Select bin/Verdite3.exe with zero launch arguments and the complete installation root as initial working directory. Keep all adjacent self-contained .NET/native dependencies; this selected entry does not require a separate system .NET10 installation. Do not select a cached DLL, dotnet host, build helper or installer. The apphost resolves its profile and deliberately changes working directory there; changing the initial directory alone does not redirect all player data. Preserve established custom-profile path interpretation."
         },
         {
-          "title": "Review intent and choose Play separately",
+          "title": "Review launch details, then choose Play",
           "instruction": "Review and consent to the exact executable, initial working directory and empty argument list. Registration does not build or launch the game; choose Play explicitly. Core observes this long-lived selected apphost, not an exclusive process family or network sandbox. Upstream update checking only notifies and opens its release page; it does not replace or relaunch the game. Upstream/player owns actual replacement. Close all real instances before replacing the copy and review a replacement executable through a fresh relink."
         },
         {

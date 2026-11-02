@@ -455,16 +455,19 @@ function PortBrowserView({
       {renderFavoritesFailure()}
       {model.unresolvedReadiness && (
         <p role="alert" className="mb-3 text-sm text-pc-muted-foreground">
-          Restored readiness “{model.libraryReadiness}” is not supported. Choose All to reset
-          readiness; declared filters remain active.
+          We couldn’t restore the status filter “{model.libraryReadiness}”. Choose All to reset it.
+          Your other filters will stay on.
         </p>
       )}
       {model.favoritesUnavailable && (
-        <p role="status">Favorites are unavailable; retained constraints need confirmed choices.</p>
+        <p role="status">
+          We couldn’t load your favorites, so we can’t show this filtered view yet.
+        </p>
       )}
       {model.unresolvedFilter && (
         <p role="alert" className="mb-3 text-sm text-pc-muted-foreground">
-          These filters are not supported. Reset filters to choose a supported query.
+          These saved filters aren’t supported by this version of Portcove. Reset them to search
+          again.
         </p>
       )}
       {
@@ -573,7 +576,7 @@ export function SteamBatchLibraryAction({
     <>
       <details className="collection-tools text-xs text-pc-muted-foreground" data-focus-group>
         <summary data-focusable className="cursor-pointer py-2">
-          Collection commands
+          Library tools
         </summary>
         <p>
           Choose from {ports.length} installed entries in this library, including any hidden by

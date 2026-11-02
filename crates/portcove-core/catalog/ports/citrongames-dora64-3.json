@@ -34,11 +34,11 @@
           "instruction": "The Windows source registers the executable directory as its configuration root and names the game dora3.n64.jp with EEPROM16k storage. Preserve the complete saves/ tree, including any dora3.n64.jp.bin and temporary/backup variants, port_pc_settings.json, port_input_settings.json, legacy port-settings.json, other runtime config/mod metadata, assets, originals and existing logs/diagnostics. Upstream imports legacy settings only when new destinations are missing and leaves the legacy file. Keep all actual custom/external roots too; this Windows entry offers no new custom-root launch argument through this guide."
         },
         {
-          "title": "Keep lifetime and maintenance ownership explicit",
+          "title": "Close the game before changing files",
           "instruction": "The native entry calls the pinned runtime in-process and waits for its game/event/saving threads before returning. The documented reset restarts the game in the same window; it is not a new Core orchestration path. Upstream/user owns preparation, replacement and recovery. Close the actual player normally, keep a separate working runtime/data backup, perform upstream maintenance, then review/relink changed selected bytes. Removing registration preserves external files; Portcove offers no external update, backup, rollback, migration, deletion or cross-version save guarantee."
         },
         {
-          "title": "Retain platform, content and evidence limits",
+          "title": "Check platform and content requirements",
           "instruction": "This guide concerns Windows10/11 x64 and the selected direct entry only. Linux glibc2.43 and the Android README APK versus published ZIP discrepancy remain separate. GPL3-or-later project and runtime/component terms do not grant ROM or original/extracted assets; localized wordmarks/artwork retain their own provenance and permissions. Use only actual material you are permitted to use. Upstream gameplay/autosave/translation claims are not Portcove observations."
         }
       ],

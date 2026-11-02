@@ -4,7 +4,7 @@
     "id": "pc-demolitionman-vs-sr-dev-demolition-man-3do",
     "name": "Demolition Man (3DO) — pc-demolitionman (vs-sr-dev)",
     "original_game_title": "Demolition Man (3DO)",
-    "summary": "Research project. 28minuteall-level-typeattract and firstlightgunlevel/HUD; actualfullcampaignnotproved. Upstream statements only; not Portcove runtime/gameplay verification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "Experimental project. a 28-minute attract-mode run covering all level types and the first lightgun level/HUD; completion of the full campaign has not been confirmed. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/vs-sr-dev/pc-demolitionman",
     "platforms": [],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "3DO DemolitionMan own originaldisc/Portfolio21.10 files. Original files remain user-owned; runtime/media not downloaded or executed in this audit."
+          "instruction": "Use your own 3DO Demolition Man disc and Portfolio21.10 files. Keep your original game files separately. The recorded source review did not download or run the game."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Own-disc extraction/ARMstaticgeneration then CMake pfboot --window, declaredmouseGameguntiming. Manual discovery/source preparation only; managed acquisition and Portcove qualification not asserted."
+          "instruction": "Extract your own disc, generate the static ARM code and build with CMake. Start pfboot --window and follow the documented mouse or Gamegun timing instructions. Portcove does not manage this download and has not confirmed setup or gameplay."
         }
       ],
       "warnings": [
-        "28minuteall-level-typeattract and firstlightgunlevel/HUD; actualfullcampaignnotproved. Upstream statements only; not Portcove runtime/gameplay verification.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "The project reports a 28-minute attract-mode run covering all level types, plus the first lightgun level and HUD. Full campaign completion has not been confirmed. Portcove has not confirmed setup or gameplay.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/vs-sr-dev/pc-demolitionman"
     },

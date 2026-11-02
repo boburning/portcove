@@ -3,7 +3,7 @@
   "listing": {
     "id": "ssx-3-playstation-2-ssx-3-native-rust-port",
     "name": "SSX 3 (PlayStation 2) (SSX 3 native Rust port)",
-    "summary": "Attach an existing Windows SSX 3 Rust player prepared from your own USA PS2 disc through the upstream source route. Keep its original project/data paths, memory card and settings; private bundled games and managed replacement are separate.",
+    "summary": "A source-only SSX 3 PlayStation 2 port: Python setup translates your own USA SLUS-20772 ISO, checking its executable hash, then Cargo builds the player. There are no GitHub releases. The project reports races, events and campaign play on Apple Silicon macOS. Ubuntu 24.04 Linux x86-64 setup/build/tests pass, but gameplay is untested. Windows native tools are documented with exact CPU target unconfirmed. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "SSX 3 (PlayStation 2)",
     "project_url": "https://github.com/andersfischernielsen/ssx3-decomp",
     "platforms": [],
@@ -23,7 +23,7 @@
         },
         {
           "title": "Attach the windowed native player",
-          "instruction": "Select the completed target/game/ssx3.exe, set working directory to its existing project root and leave arguments empty. Review that exact intent and request Play separately. This entry boots the game and runs its window/event loop in the same process. Do not select ssx3-headless.exe, Cargo, a setup/compiler script, an event-skipping diagnostic or another platform build as the player."
+          "instruction": "Select the completed target/game/ssx3.exe, set working directory to its existing project root and leave arguments empty. Review the selected program, working folder and arguments and choose Play when ready. This entry boots the game and runs its window/event loop in the same process. Do not select ssx3-headless.exe, Cargo, a setup/compiler script, an event-skipping diagnostic or another platform build as the player."
         },
         {
           "title": "Preserve the active card and settings roots",

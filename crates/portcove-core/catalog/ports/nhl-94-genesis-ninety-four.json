@@ -30,7 +30,7 @@
           "instruction": "The inspected official 0.3.6 ZIP contains ninety-four-windows-x86_64/nhl94.exe as an AMD64 native player with matching library and notices. Keep that complete directory. This is the native rewrite using the linked pulseman hardware/audio/frontend facilities; it is not an original Genesis executable or a generic emulator admission. A source build and another platform’s application are separate artifacts."
         },
         {
-          "title": "Attach the prepared native player",
+          "title": "Add the prepared native player",
           "instruction": "Select nhl94.exe, use the complete extracted ninety-four-windows-x86_64 folder as working directory and leave arguments empty. Review the exact intent and request Play separately. Upstream documents the remembered ROM picker for normal windowed starts; the native entry runs the game in the selected process. Complete a missing-ROM prompt outside the attached attempt. Do not add headless, finite-frame, trace, ROM-extraction or network-server arguments as normal Play."
         },
         {

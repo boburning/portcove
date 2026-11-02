@@ -3,7 +3,7 @@
   "listing": {
     "id": "yokimitsuro-khdays-port",
     "name": "Kingdom Hearts 358/2 Days (khdays-port)",
-    "summary": "Attach the prepared Kingdom Hearts 358/2 Days Windows player using your own European DS original. Keep its complete writable install, raw backup save and optional HD inputs separate from KH Studio and the multiplayer server.",
+    "summary": "A Kingdom Hearts 358/2 Days port with a Windows installer requiring your own European Nintendo DS ROM. Setup prepares and compiles decompilation C locally; it does not claim an ARM interpreter. Source generation/build instructions are separate, and broader host support follows the BUILD guide. The included updater fetches and checks a new installer and restarts; the installer manages runtime replacement. Project features and wireless multiplayer are unconfirmed here, and wireless play between two PCs has not been tried. This game implementation is separate from KH Studio tools. Exact accepted ROM revision/hash and firmware needs remain unspecified. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Kingdom Hearts 358/2 Days",
     "project_url": "https://github.com/Yokimitsuro/khdays-port",
     "platforms": [],
@@ -31,7 +31,7 @@
         },
         {
           "title": "Attach the native game, not its tools",
-          "instruction": "Select the installed khdays-native.exe, set working directory to its complete prepared install root and leave arguments empty for ordinary Play. Review the exact intent and request Play separately. This matches the installer’s actual game shortcut. KH Studio and khdays-server.exe are separate editor/server programs, not the player. The native port finds data/extracted from its prepared root and runs the game there; no ROM-loader or shell wrapper is added. Close the actual game normally before upstream maintenance."
+          "instruction": "Select the installed khdays-native.exe, set working directory to its complete prepared install root and leave arguments empty for ordinary Play. Review the selected program, working folder and arguments and choose Play when ready. This matches the installer’s actual game shortcut. KH Studio and khdays-server.exe are separate editor/server programs, not the player. The native port finds data/extracted from its prepared root and runs the game there; no ROM-loader or shell wrapper is added. Close the actual game normally before upstream maintenance."
         },
         {
           "title": "Preserve saves, settings and generated user data",

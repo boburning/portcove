@@ -3,7 +3,7 @@
   "listing": {
     "id": "quake-4-xbox-360-edition-xbox-360-quake-4-decomp-recomp",
     "name": "Quake 4 (Xbox 360 edition) (Xbox 360 Quake 4 decomp/recomp)",
-    "summary": "Attach the prepared Xbox 360 Quake 4 Windows native-renderer player, preserving its exact game location and q4 data root. This is separate from PC openQ4 and the legacy runtime; upstream owns local generation and replacement.",
+    "summary": "An Xbox 360 Quake 4 development route that builds locally from your own ISO/default.xex. The Windows setup EXE is not a prebuilt playable game. The project has tested only early levels; later levels are rough and audio testing is limited. The native Direct3D 11 renderer and legacy executable are separate outputs. Exact Windows host CPU architecture is unconfirmed. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Quake 4 (Xbox 360 edition)",
     "project_url": "https://github.com/cyberheater/Xbox-360-Quake4-decomp",
     "platforms": [],
@@ -31,7 +31,7 @@
         },
         {
           "title": "Attach the in-process game",
-          "instruction": "Select the completed q4hle.exe, use its complete player/build-output directory as working directory and leave arguments empty after upstream original/settings preparation. Review the exact intent and request Play separately. The native entry inherits the q4 application’s ordinary path selection and runtime loop; it remembers the existing game location in q4.toml and can request a valid own ISO or extracted default.xex when missing. Finish those prompts upstream before retrying. Keep Q4_HLE_NATIVE/shadow/debug choices at the installation’s intended ordinary settings and close the actual game normally."
+          "instruction": "Select the completed q4hle.exe, use its complete player/build-output directory as working directory and leave arguments empty after upstream original/settings preparation. Review the selected program, working folder and arguments and choose Play when ready. The native entry inherits the q4 application’s ordinary path selection and runtime loop; it remembers the existing game location in q4.toml and can request a valid own ISO or extracted default.xex when missing. Finish those prompts upstream before retrying. Keep Q4_HLE_NATIVE/shadow/debug choices at the installation’s intended ordinary settings and close the actual game normally."
         },
         {
           "title": "Preserve q4 settings, original location and user data",

@@ -3,7 +3,7 @@
   "listing": {
     "id": "themuffinator-openq4",
     "name": "Quake 4 (openQ4)",
-    "summary": "Attach the official openQ4 Windows x64 client to your own PC Quake 4 installation. Keep retail q4base data separate from openQ4 runtime files and preserve its exact save-format and component-license boundaries.",
+    "summary": "A beta openQ4 player using your own legitimate installed PC Quake 4 and matching data. Windows/Linux x64 and ARM64 packages are documented, with Linux ARM64 in preview and macOS experimental. Windows ARM64 has been built but not confirmed on physical hardware. Engine GPL and game SDK terms apply separately; keep all notices and do not treat package availability as permission for every component. Exact accepted original revision/hashes and BIOS/firmware needs are unconfirmed. You and the project manage setup and replacement; Portcove has not qualified a release package or confirmed gameplay.",
     "original_game_title": "Quake 4",
     "project_url": "https://github.com/themuffinator/openQ4",
     "platforms": [],
@@ -31,7 +31,7 @@
         },
         {
           "title": "Attach the native client with its retail root",
-          "instruction": "Select openQ4-client_x64.exe, use its complete extracted package root as working directory, and set +set fs_basepath \"the actual PC Quake 4 root containing q4base\". Review the exact path and intent and request Play separately. Point at the root, not q4base/ or baseoq4/. Retain any already chosen supported fs_savepath or mod configuration rather than selecting a new profile. Quit the client normally before ending the session; developer, replay and dedicated-server modes do not replace ordinary Play."
+          "instruction": "Select openQ4-client_x64.exe, use its complete extracted package root as working directory, and set +set fs_basepath \"the actual PC Quake 4 root containing q4base\". Review the exact path and intent and choose Play when ready. Point at the root, not q4base/ or baseoq4/. Retain any already chosen supported fs_savepath or mod configuration rather than selecting a new profile. Quit the client normally before ending the session; developer, replay and dedicated-server modes do not replace ordinary Play."
         },
         {
           "title": "Preserve the actual openQ4 save root and compatibility",

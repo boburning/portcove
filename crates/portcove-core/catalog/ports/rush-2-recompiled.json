@@ -3,7 +3,7 @@
   "listing": {
     "id": "rush-2-recompiled",
     "name": "Rush 2 Recompiled",
-    "summary": "Attach the prepared Rush 2: Extreme Racing USA Windows player with your own exact N64 ROM. Keep its existing portable or LocalAppData choice and title-specific Controller Pak; optional Rush-game imports do not qualify other canonical implementations.",
+    "summary": "Explore Rush 2 Recompiled and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/bryantmh/rush2recompiled",
     "issue_number": 1571,
     "platforms": [],
@@ -30,7 +30,7 @@
         },
         {
           "title": "Attach the integrated native game",
-          "instruction": "Select Rush2Recompiled.exe, use its complete extracted player directory as working directory and leave arguments empty after upstream setup. Review the exact intent and request Play separately. The selected executable hosts the frontend and native runtime together. Do not register a simulator, developer capture tool, importer-only utility or another racing port. Quit the actual game normally before maintenance."
+          "instruction": "Select Rush2Recompiled.exe, use its complete extracted player directory as working directory and leave arguments empty after upstream setup. Review the selected program, working folder and arguments and choose Play when ready. The selected executable hosts the frontend and native runtime together. Do not register a simulator, developer capture tool, importer-only utility or another racing port. Quit the actual game normally before maintenance."
         },
         {
           "title": "Preserve the existing data choice and Controller Pak",

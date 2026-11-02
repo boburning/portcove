@@ -17,8 +17,8 @@ export function GameFileFilterObservation({
   const projection = context?.byPort.get(portId);
   if (!projection || projection.port_id !== portId) return null;
   return (
-    <section aria-label="Catalog game-file observation" className="space-y-2">
-      <h2>Catalog game-file observation</h2>
+    <section aria-label="Game-file filter results" className="space-y-2">
+      <h2>Game-file filter results</h2>
       <p>{states[projection.state]}</p>
       <p>{reasons[projection.reason]}</p>
       <p className="text-sm text-pc-muted-foreground">
@@ -35,7 +35,7 @@ export function GameFileFilterObservation({
         </p>
       )}
       <p className="text-sm text-pc-muted-foreground">
-        This observation is used by catalog filters. Setup and launch perform their own checks.
+        These results are used by catalog filters. Setup and launch perform their own checks.
       </p>
     </section>
   );

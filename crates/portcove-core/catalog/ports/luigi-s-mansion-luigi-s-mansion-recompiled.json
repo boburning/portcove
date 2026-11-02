@@ -23,7 +23,7 @@
         },
         {
           "title": "Attach the already prepared normal player",
-          "instruction": "Select LuigisMansionRecomp.exe, use the complete extracted LuigisMansionRecompiled-1.1.5-windows-x64 directory as working directory and leave arguments empty. Review the exact intent and request Play separately. When configured discs/modules/overlays are current, the integrated setup is skipped and the module is loaded into this same native player. Missing/stale inputs can trigger local rebuilding; complete it upstream before retrying. Do not select a module DLL or compiler as the executable, and do not enable setup-auto, recovery-reset, finite-frame or test overrides."
+          "instruction": "Select LuigisMansionRecomp.exe, use the complete extracted LuigisMansionRecompiled-1.1.5-windows-x64 directory as working directory and leave arguments empty. Review and consent to the selected launch details, then choose Play separately. When configured discs/modules/overlays are current, the integrated setup is skipped and the module is loaded into this same native player. Missing/stale inputs can trigger local rebuilding; complete it upstream before retrying. Do not select a module DLL or compiler as the executable, and do not enable setup-auto, recovery-reset, finite-frame or test overrides."
         },
         {
           "title": "Preserve regional cards and destructive move recovery",

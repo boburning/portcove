@@ -29,7 +29,7 @@
         },
         {
           "title": "Linux uses its own upstream launcher",
-          "instruction": "Choose the Linux x86-64 AppImage, or extract the Linux Portable archive and deliberately run Launch-Rocket-R.sh when ordinary AppImage launch is unavailable. The tar.gz contains an AppImage and wrapper, not a bare native player. Steam Deck uses the separate x86-64 SteamDeck archive and START-ROCKET-R.sh; ARM64 packages are different choices. Follow the upstream Linux profile and update instructions and preserve the current copy. Portcove’s managed Windows route does not manage this wrapper."
+          "instruction": "Choose the Linux x86-64 AppImage, or extract the Linux Portable archive and deliberately run Launch-Rocket-R.sh when ordinary AppImage launch is unavailable. The tar.gz contains an AppImage and wrapper, not a bare native player. Steam Deck uses the separate x86-64 Steam Deck archive and START-ROCKET-R.sh; ARM64 packages are different choices. Follow the upstream Linux profile and update instructions and preserve the current copy. Portcove’s managed Windows route does not manage this wrapper."
         },
         {
           "title": "Android keeps its own private copy",

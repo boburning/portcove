@@ -3,7 +3,7 @@
   "listing": {
     "id": "skate-2-skate2recompiled",
     "name": "Skate 2 (Skate2Recompiled)",
-    "summary": "Attach the prepared native Skate 2 Windows test build with your own USA English/French original. Bind its actual existing game/user/cache roots explicitly; do not rely on the packaged portable-marker claim where the pinned source differs.",
+    "summary": "A Skate 2 Windows 10/11 x86-64 AVX2 setup/player route, separate from Skate 3 and other implementations. Drag your own USA English/French Xbox 360 ISO onto Setup.bat to extract and recompile locally. It targets title 4541087F, default.xex SHA-1 a9b539c1acbc80aeaade3ffbe708e1fbd3a2dad7. Other regions and title updates need different address configuration. No other completed platform package is established. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Skate 2",
     "project_url": "https://github.com/cookingwithsimon/Skate2Recompiled",
     "platforms": [],
@@ -31,7 +31,7 @@
         },
         {
           "title": "Bind the existing native game and data intent",
-          "instruction": "Select skate2.exe and the full Skate2-PC-v0.2.0 folder as working directory. Set --game_data_root=\"absolute actual prepared game directory\" --user_data_root=\"absolute actual existing active user-data directory\" --cache_root=\"absolute actual existing cache directory\", substituting the established paths from the prepared installation/logs. Review the exact intent and request Play separately. The pinned SDK consumes these explicit paths and the native app continues in process. Do not substitute an empty user-data folder, select setup/scripts or copy another title’s paths or arguments."
+          "instruction": "Select skate2.exe and the full Skate2-PC-v0.2.0 folder as working directory. Set --game_data_root=\"absolute actual prepared game directory\" --user_data_root=\"absolute actual existing active user-data directory\" --cache_root=\"absolute actual existing cache directory\", substituting the established paths from the prepared installation/logs. Review the selected program, working folder and arguments and choose Play when ready. The pinned SDK consumes these explicit paths and the native app continues in process. Do not substitute an empty user-data folder, select setup/scripts or copy another title’s paths or arguments."
         },
         {
           "title": "Preserve both declared and actual storage layouts",

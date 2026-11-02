@@ -3,7 +3,7 @@
   "listing": {
     "id": "riotashley81-jpg-vagrantstory-recomp",
     "name": "Vagrant Story (Vagrant Story Recompiled)",
-    "summary": "Attach the prepared Vagrant Story USA Windows player with your own disc. Preserve its executable-relative cards and local overlay compilation cache; this title uses a hybrid execution route with noncommercial framework terms.",
+    "summary": "A hybrid Vagrant Story port: its ROM-free Windows player reads your own USA SLUS-01040 PlayStation disc, then compiles battle, menu and title code in the background with bundled GCC. An interpreter/TinyCC handles remaining code, so full-game native coverage is unconfirmed. The separate MSVC source build is a development route. The project manages generated code and caches. Other player platforms, exact accepted revision/hashes and BIOS/firmware requirements are unconfirmed. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Vagrant Story",
     "project_url": "https://github.com/riotashley81-jpg/vagrantstory_recomp",
     "platforms": [],
@@ -31,7 +31,7 @@
         },
         {
           "title": "Attach the integrated native player",
-          "instruction": "Select VagrantStory_Recompiled.exe, use its full player directory as working directory and leave arguments empty to retain the ordinary integrated launcher and settings. Review the exact intent and request Play separately. Its selected native runtime hosts the frontend/game in process. Do not select codegen setup, overlay_toolchain tools, profiling/headless modes or another Vagrant Story implementation. Finish upstream preparation/maintenance and close the actual game normally."
+          "instruction": "Select VagrantStory_Recompiled.exe, use its full player directory as working directory and leave arguments empty to retain the ordinary integrated launcher and settings. Review the selected program, working folder and arguments and choose Play when ready. Its selected native runtime hosts the frontend/game in process. Do not select codegen setup, overlay_toolchain tools, profiling/headless modes or another Vagrant Story implementation. Finish upstream preparation/maintenance and close the actual game normally."
         },
         {
           "title": "Preserve executable-relative cards and generated cache",

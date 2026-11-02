@@ -4,7 +4,7 @@
     "id": "tsumu-light-recompiled-mstan-tsumu-light",
     "name": "Tsumu Light — Tsumu Light Recompiled (mstan)",
     "original_game_title": "Tsumu Light",
-    "summary": "BootsandplaysinEnglish claim; exactduration/levelsunknown Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "The project claims the game boots and plays in English. The tested duration and levels are unknown. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/mstan/TsumuLightRecomp",
     "platforms": [],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Japan SLPS02253 own disc; localgeneratedC; optionalEnglishtranslation runtime"
+          "instruction": "Use your own Japanese SLPS02253 disc to generate C locally. The English-translation runtime is optional."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "v0.0.1 localsetup; OpenBIOS/HLEbootskip"
+          "instruction": "Follow the v0.0.1 local setup instructions with OpenBIOS and the documented HLE boot skip."
         }
       ],
       "warnings": [
-        "BootsandplaysinEnglish claim; exactduration/levelsunknown",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "The project claims the game boots and plays in English. The tested duration and levels are unknown.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/mstan/TsumuLightRecomp"
     },

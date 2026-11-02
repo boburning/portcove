@@ -149,15 +149,15 @@ export function BackupHistory({
             : "The backup inventory could not be fully checked. "}
           {backups.length
             ? state === "recovery_required"
-              ? "Verified backups remain listed, but restoring and deleting require recovery to finish."
+              ? "Available backups remain listed, but restoring and deleting require recovery to finish."
               : (!readState || readState.status === "current") &&
                   restoreConsistent &&
                   restoreAssessment?.availability === "held" &&
                   restoreAssessment.reason === "recovery_required"
-                ? "Verified backups remain listed, but restoring requires recovery to finish."
+                ? "Available backups remain listed, but restoring requires recovery to finish."
                 : restoreAllowed
-                  ? "Verified backups remain listed and usable."
-                  : "Verified backups remain listed. Review the current restore availability below."
+                  ? "Available backups remain listed. Review a backup before restoring it."
+                  : "Available backups remain listed. Review the current restore availability below."
             : problems.length > 0
               ? "No backup is currently available to restore. Review the problems below."
               : "No backup is currently available to restore."}
@@ -403,5 +403,5 @@ function backupSummary(
   }
   if (!count)
     return problemCount > 0 || state !== "healthy" ? "Backups need attention" : "No backups yet";
-  return `${count} verified backup${count === 1 ? "" : "s"}`;
+  return `${count} backup${count === 1 ? "" : "s"}`;
 }

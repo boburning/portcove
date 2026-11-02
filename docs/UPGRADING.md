@@ -8,16 +8,26 @@ you might need to return to Alpha 1.
 
 ## Before upgrading
 
-1. Close Portcove and any game started from it.
-2. Copy the complete library directory to a safe location. Keep that copy
-   unchanged until the new version has passed the checks that matter to you.
-3. Choose the package for your system and processor from the [release
+1. Finish or recover unfinished tasks and close all games.
+2. If your installed version offers **Settings → Recovery copies and library
+   location**, use its guide to review exclusions and export library information.
+   Older published versions may not offer this guide or export.
+3. Close Portcove and every other client using the library. Copy the library
+   directory to a safe location, following the exclusions below. Keep its database,
+   installed versions, managed saved data and backups together. Keep that copy
+   unchanged until you have checked the new version. An optional information
+   export supplements this copy; it cannot replace it.
+4. Choose the package for your system and processor from the [release
    page](https://github.com/boburning/portcove/releases), and follow that
    release's checksum and platform instructions.
 
-The library copy protects the full state, including saved data that may have
-changed since an earlier backup. Backing up one game's managed saved data is a
-separate operation and cannot replace this whole-library copy.
+Copy original game files, BIOS files, external installations and external saves
+separately when they are outside the library. Do not include protected
+`retroachievements.credentials` files or their numeric temporary files; follow
+the recovery guide’s sign-out and preservation instructions. A library information
+export alone contains no games, saves or backups. Keep the original library and
+check a restore into a new or empty destination before relying on the copy.
+Backing up one game's managed saved data is a separate operation.
 
 ## Upgrade Portcove
 
@@ -87,8 +97,9 @@ for the rootless path, desktop entry, and uninstall steps.
 
 To return one game's managed saves, settings, and other persistent files to a
 selected backup, use Portcove's saved-data restore for that game. Portcove
-verifies the snapshot and creates a safety backup of the current managed data
-before replacing it. Review the selected backup and current data first; a
+checks the backup and backs up current managed files, when present, before
+replacing them. The review says whether a safety backup will be created. Review
+the selected backup and current data first; a
 restore changes saved data, not the installed game version or the whole library.
 Only declared managed locations are covered. A backup does not prove that saved
 data from one game version will be compatible with another.

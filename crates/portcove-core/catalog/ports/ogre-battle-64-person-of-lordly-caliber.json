@@ -3,7 +3,7 @@
   "listing": {
     "id": "ogre-battle-64-person-of-lordly-caliber",
     "name": "Ogre Battle 64: Person of Lordly Caliber (ogre-battle-64-recomp)",
-    "summary": "Attach the prepared Ogre Battle 64 USA Rev A Windows player with your own exact N64 ROM. Preserve its actual writable configuration root and battery save; this existing-player route does not grant source or redistribution rights.",
+    "summary": "Explore Ogre Battle 64: Person of Lordly Caliber (ogre-battle-64-recomp) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/lfarroco/ogre-battle-64-recomp",
     "issue_number": 1356,
     "platforms": [],
@@ -30,7 +30,7 @@
         },
         {
           "title": "Attach the ordinary integrated player",
-          "instruction": "Select ogrebattle64.exe, use its complete extracted player directory as working directory and leave arguments empty after setup. Review the exact intent and request Play separately. The selected native main registers the ROM/save identity, runs the integrated launcher when needed and stays in the runtime’s event/game loop. Do not select a recompiler, null-renderer test, debug script or another Ogre Battle edition. Close the game normally."
+          "instruction": "Select ogrebattle64.exe, use its complete extracted player directory as working directory and leave arguments empty after setup. Review the selected program, working folder and arguments and choose Play when ready. The selected native main registers the ROM/save identity, runs the integrated launcher when needed and stays in the runtime’s event/game loop. Do not select a recompiler, null-renderer test, debug script or another Ogre Battle edition. Close the game normally."
         },
         {
           "title": "Preserve the actual writable root and battery save",

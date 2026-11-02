@@ -30,7 +30,7 @@
           "instruction": "The inspected official v1.0 Windows ZIP contains AMD64 pop2.exe, PoP2Launcher.exe and README. Although source/build instructions recompile the original into C, this selected release already supplies the native player. Keep the full package and notices. The original DOS PRINCE.EXE is input, not the Windows registration target; the launcher and development/debug outputs are not substitutes for the ordinary player."
         },
         {
-          "title": "Attach the configured native game",
+          "title": "Add your configured native game",
           "instruction": "Select pop2.exe, use the complete player directory as working directory and leave arguments empty. Review the exact intent and request Play separately. The native entry reads pop2.ini beside the executable and uses configured GameDir; an original beside the player is a separate fallback. Never use the source’s developer-specific D: drive fallback as a suggested user path. Complete missing-data/settings prompts upstream before retrying; the native game continues in process."
         },
         {
@@ -38,7 +38,7 @@
           "instruction": "Keep the complete actual original game directory, all existing SAV files, CONFIG.DAT and driver files, plus player pop2.ini, logs and any actual external paths/recovery copies. Original-relative I/O is rooted in the configured game directory, so preserving only the Windows package is insufficient. The documented sound route substitutes configuration and SoundBlaster/AdLib driver behavior in memory; Sound=keep retains the original configuration choice. This is not universal DOS-driver compatibility or a save migration. Extra room checkpoints are not a promised durable save or backup."
         },
         {
-          "title": "Keep maturity, permissions and replacement explicit",
+          "title": "Check known limits and permissions before updating",
           "instruction": "Retain applicable project/component notices and independently establish permission for the complete player and original; no blanket original-game grant is inferred from a public repository. Source notes incomplete dynamic entry coverage, and native packaging does not establish whole-game accuracy, the original timer, audio or save restoration on this host. Quit normally before upstream replacement, preserve both data locations and review/relink changed bytes. Exact original revision and native/save acceptance remain unfinished. No Supported or managed installation/update/rollback/backup/deletion outcome is offered."
         }
       ],

@@ -3,7 +3,7 @@
   "listing": {
     "id": "call-of-duty-modern-warfare-2-xbox-360-recompiled",
     "name": "Call of Duty: Modern Warfare 2 (Xbox 360) Recompiled",
-    "summary": "Attach an independently prepared MW2 Xbox 360 Windows campaign or multiplayer player with its saved upstream settings. Keep complete game/, saves/ and .env roots; mode handoffs, setup, title updates and replacement remain upstream-owned.",
+    "summary": "Explore Call of Duty: Modern Warfare 2 (Xbox 360) Recompiled and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/PaulCombal/mw2-recompiled",
     "issue_number": 1397,
     "platforms": [],
@@ -30,7 +30,7 @@
         },
         {
           "title": "Attach one native player at a time",
-          "instruction": "Select mw2-sp.exe for the prepared campaign/Special Ops player, or mw2-mp.exe for the prepared multiplayer player. Use the complete existing package directory as working directory and leave arguments empty. Review the exact intent and request Play separately. No-argument native startup loads the sibling .env settings, anchors game/data paths beside the executable and enters that selected game. Keep this attachment to that executable’s session: close normally before selecting the other mode. In-game SP/MP switches start another executable and are outside this bounded direct-player tracking route; the launcher is not substituted for a waiting native player."
+          "instruction": "Select mw2-sp.exe for the prepared campaign/Special Ops player, or mw2-mp.exe for the prepared multiplayer player. Use the complete existing package directory as working directory and leave arguments empty. Review the selected program, working folder and arguments and choose Play when ready. No-argument native startup loads the sibling .env settings, anchors game/data paths beside the executable and enters that selected game. Keep this attachment to that executable’s session: close normally before selecting the other mode. In-game SP/MP switches start another executable and are outside this bounded direct-player tracking route; the launcher is not substituted for a waiting native player."
         },
         {
           "title": "Preserve the complete save and settings unit",

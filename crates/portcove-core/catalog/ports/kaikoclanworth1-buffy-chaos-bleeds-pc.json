@@ -31,7 +31,7 @@
         },
         {
           "title": "Attach the actual regional game program",
-          "instruction": "In the prepared installation, select buffy_chaos_bleeds.exe for PAL v2 or buffy_chaos_bleeds_usa.exe for North American v1. Set the complete installed game folder as working directory and leave arguments empty; review the intent and request Play separately. Source resolves default.xbe relative to the executable unless an existing BUFFY_GAME_DIR overrides it. If the other supported region is detected, upstream starts its matching companion and waits for it; do not remove the companion or enable a mismatch override. Missing/unsupported setup belongs in the upstream launcher before attachment."
+          "instruction": "In the prepared installation, select buffy_chaos_bleeds.exe for PAL v2 or buffy_chaos_bleeds_usa.exe for North American v1. Set the complete installed game folder as working directory and leave arguments empty; review and consent to those launch details, then choose Play separately. Source resolves default.xbe relative to the executable unless an existing BUFFY_GAME_DIR overrides it. If the other supported region is detected, upstream starts its matching companion and waits for it; do not remove the companion or enable a mismatch override. Missing/unsupported setup belongs in the upstream launcher before attachment."
         },
         {
           "title": "Preserve real saves and old recovery",

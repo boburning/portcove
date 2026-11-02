@@ -42,10 +42,10 @@ describe("Portcove app shell", () => {
       /data-slot="button" data-variant="outline"[^>]*>Use platform default<\/button>/,
     );
     expect(html).not.toContain("Install");
-    expect(html).toContain("Create support bundle");
+    expect(html).toContain("Create a support report");
     expect(html).toContain("Game-file contents and saved credentials are excluded");
     expect(html).toContain("Review the bundle before sharing it");
-    const exportButton = html.match(/<button([^>]*)>Create support bundle<\/button>/)?.[1];
+    const exportButton = html.match(/<button([^>]*)>Create a support report<\/button>/)?.[1];
     expect(exportButton).toBeDefined();
     expect(exportButton).not.toMatch(/\sdisabled(?:=|\s|$)/);
   });
@@ -145,7 +145,7 @@ describe("core-owned failure presentation", () => {
     error.presentation.mutation_state = "committed";
     error.presentation.summary = "The change was saved, but the view could not refresh.";
     const html = renderToStaticMarkup(<StatusLayer error={error} clearError={vi.fn()} />);
-    expect(html).toContain("Change saved; review the current state");
+    expect(html).toContain("Your change was saved. Check the result before trying again.");
     expect(html).toContain(error.presentation.summary);
     expect(html).toContain("The change was saved");
     expect(html).not.toContain("Portcove couldn’t finish that action");
@@ -158,7 +158,7 @@ describe("core-owned failure presentation", () => {
     const html = renderToStaticMarkup(<StatusLayer error={error} clearError={vi.fn()} />);
     expect(html).toContain("Portcove couldn’t finish that action");
     expect(html).toContain("confirm whether anything changed");
-    expect(html).not.toContain("Change saved; review the current state");
+    expect(html).not.toContain("Your change was saved. Check the result before trying again.");
   });
 
   it("announces a proven no-change cancellation once as a neutral notice", () => {
@@ -182,8 +182,8 @@ describe("core-owned failure presentation", () => {
     error.presentation.summary = "The operation was cancelled.";
     const html = renderToStaticMarkup(<StatusLayer error={error} clearError={vi.fn()} />);
     expect(html).toContain('role="alert"');
-    expect(html).toContain("Change saved; review the current state");
-    expect(html).toContain("The change was saved");
+    expect(html).toContain("Your change was saved. Check the result before trying again.");
+    expect(html).not.toContain("No files were changed");
     expect(html).toContain('aria-label="Dismiss error"');
     expect(html).not.toContain("<strong>Operation cancelled</strong>");
     expect(html).not.toContain("<p>The operation was cancelled.</p>");

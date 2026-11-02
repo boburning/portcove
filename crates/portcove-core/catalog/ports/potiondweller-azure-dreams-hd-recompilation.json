@@ -3,7 +3,7 @@
   "listing": {
     "id": "potiondweller-azure-dreams-hd-recompilation",
     "name": "Azure Dreams (Azure Dreams HD Recompilation)",
-    "summary": "Attach the prepared Azure Dreams USA Windows player with your own PS1 disc. Keep its executable-relative settings, shared memory cards and preset-specific configuration; optional overlay compilation and original artwork remain separate.",
+    "summary": "An Azure Dreams port with a recompiled base game and interpreted overlays unless you separately compile them with compile_overlays.py --static. A release ZIP alone does not establish fully static coverage or a full playthrough. The Windows 10 player/source route downloads its framework toolchain, generates base C from your own USA SLUS-00614 PlayStation disc and rebuilds locally. OpenBIOS is bundled. Other player platforms, exact accepted revision/hashes and further BIOS/firmware requirements are unconfirmed. You and the project manage generated files and updates; Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Azure Dreams",
     "project_url": "https://github.com/PotionDweller/Azure-Dreams-HD-Recompilation",
     "platforms": [],
@@ -23,7 +23,7 @@
         },
         {
           "title": "Attach the integrated native player",
-          "instruction": "Select AzureDreams_Recompiled.exe, use its complete player directory as working directory and leave arguments empty to retain ordinary integrated launcher selection. Review the exact intent and request Play separately, then use upstream PLAY after disc/settings preparation. The native program hosts that frontend/runtime in process. Do not register the supplied preset .bat files, which detach through start, a compiler or a prototype UI. An already chosen --preset hd or --preset original may be retained explicitly in the reviewed intent; do not silently switch an existing profile."
+          "instruction": "Select AzureDreams_Recompiled.exe, use its complete player directory as working directory and leave arguments empty to retain ordinary integrated launcher selection. Review the selected program, working folder and arguments and choose Play when ready, then use upstream PLAY after disc/settings preparation. The native program hosts that frontend/runtime in process. Do not register the supplied preset .bat files, which detach through start, a compiler or a prototype UI. An already chosen --preset hd or --preset original may be retained explicitly in the reviewed intent; do not silently switch an existing profile."
         },
         {
           "title": "Preserve executable-relative cards and settings",

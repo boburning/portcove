@@ -14,29 +14,29 @@
       "help_url": "https://github.com/abilliontokens/sims1-recomp/blob/aa665356bc893a702cdfeea58e2ee20ed466a16a/README.md",
       "steps": [
         {
-          "title": "Complete the exact owned-disc setup upstream",
+          "title": "Prepare your own matching disc with the project’s tools",
           "instruction": "Use an independently permitted complete The Sims original-Xbox Windows player, separate from any desktop, handheld or other console edition. Supply your own USA disc ISO/xiso or complete extracted game tree with default.xbe and all matching assets/movies. This title’s documented default.xbe is 2,183,168 bytes, SHA-1 40ab6f97e8ee3bf4102a5a7820dcb8047fc30097, title ID 0x4541002F; another revision is not interchangeable. The runtime compares the loaded XBE with its own compiled expected hash; a matching executable does not authenticate every disc byte. Complete extraction or supported compilation upstream; no original, BIOS, compiler or helper is obtained or run by Portcove."
         },
         {
-          "title": "Attach the supported completed native player",
+          "title": "Select the completed game player",
           "instruction": "Select Sims1.exe, with its complete creating player directory as working directory and no arguments for normal launch. Keep its matching runtime DLLs, resources, notices and assets/ together. The Windows route uses Direct3D 12 and XAudio2; keep the supported host graphics/runtime dependencies installed upstream. The source locates assets/ beside the executable or in ancestor folders; preserve the actual selected tree rather than redirecting originals during attachment. Do not select build scripts, generators or another title’s executable."
         },
         {
-          "title": "Keep the exact session and successor boundary visible",
-          "instruction": "The inspected Windows native entry boots its matched image in-process and keeps the host message loop until shutdown. The SDK also supports an Xbox title reboot by handing over to a newly created executable process; that successor is outside the attached session. Actual title-specific use and timing of this path are not established by source inspection. Registration status does not prove successor adoption or termination: close every actual game and companion before maintenance or another attachment. No private runner, watcher, invented argument or feature-disabling workaround is introduced."
+          "title": "Close every game process before maintenance",
+          "instruction": "The Windows player runs the game in its own process, but an Xbox title reboot can start a separate executable. Portcove does not track that successor as part of this registration; this guide does not establish when this title uses it. Close the actual game and all companions before changing files or adding another copy. Registration status alone does not show that every process has stopped."
         },
         {
-          "title": "Review Play and preserve external ownership",
-          "instruction": "Review and consent to this exact selected executable, established CWD and literal arguments, then request Play separately. Upstream and you retain preparation, runtime replacement, recovery and every external file. Removing registration preserves external files. Before upstream replacement, close all actual sessions, keep the old complete runtime and all data, then review/relink changed selected bytes. No external update, backup, rollback, migration or deletion is offered."
+          "title": "Review launch details, then choose Play",
+          "instruction": "Review and consent to the selected executable, working folder and launch arguments, then choose Play separately. You and the project manage setup, version changes, recovery and all external files. Removing the registration leaves those files in place. Before changing versions, close every game process and keep the complete working player and all its data. Review and select the executable again if its files change. Portcove does not offer updates, backups, rollback, migration or deletion for this external copy."
         },
         {
-          "title": "Keep the entire effective profile with its creating runtime",
+          "title": "Keep the complete profile with its game version",
           "instruction": "The inspected SDK places settings.toml, logs/ and hdd/ beside the executable; numbered upstream instances can use separately numbered hdd roots. Its virtual hard-disk partitions E, C, X, Y and Z live under that effective root; preserve the whole tree, including saves, caches and data another executable can share. Keep assets/originals, config, mods, shader caches, diagnostics, captures, backups and all custom/external roots with the creating runtime. No cross-title or cross-version save compatibility is inferred. Preserve the exact project/SDK/dependency notices; code grants do not license EA/Maxis originals or arbitrary components."
         }
       ],
       "warnings": [
-        "Use only a completed copy, components and original data you are independently permitted to use. Source and publisher release-digest metadata do not certify uninspected package contents or package-to-source/SDK correspondence. No game/helper/native/real-save/installed-client/Supported/protected acceptance is established.",
-        "Upstream claims and title-specific faults retain their scope; full-game completion, controllers, frame-rate, renderer and successor behavior are not qualified by this guide.",
+        "Use only a completed copy, components and original data you are permitted to use. Source inspection and published download hashes do not confirm every package file or that a package matches its source and SDK. Portcove has not confirmed native play, real saves or behavior in the installed app; this guide does not establish Supported status or protected acceptance.",
+        "Project reports do not establish complete playthroughs, controller support, frame rate, rendering or successor-process behavior in Portcove.",
         "Upstream documents fullscreen movie cropping and unanalysed Hor+ behavior; its real-Windows/playthrough reports remain upstream evidence only."
       ]
     }

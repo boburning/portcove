@@ -112,7 +112,7 @@ it("explains permanent deletion and can dismiss without authorizing it", async (
   expect(document.body.textContent).toContain(
     "permanently deletes the retained Ghostship 3.0.0 runtime saves/settings copy",
   );
-  expect(document.body.textContent).toContain("not a reversible cancellation");
+  expect(document.body.textContent).toContain("Cancellation does not restore a deleted backup.");
   await captureParityState("backup-delete-reviewed-fixture");
   await click("Cancel");
   expect(close).toHaveBeenCalledOnce();

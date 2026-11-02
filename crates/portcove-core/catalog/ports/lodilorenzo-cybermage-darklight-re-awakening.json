@@ -13,7 +13,7 @@
       "steps": [
         {
           "title": "Use a permitted existing Windows player",
-          "instruction": "If you already have a permitted Windows copy, select cybermage.exe with its containing folder as the working directory. Choose Play explicitly. The player runs the original x86 code through an interpreter with native services; this does not prevent useful existing-copy registration."
+          "instruction": "If you already have a permitted Windows copy, select cybermage.exe with its containing folder as the working directory. Choose Play explicitly. The player runs original x86 game code through an interpreter with native services."
         },
         {
           "title": "Supply the original once in the game",

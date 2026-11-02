@@ -52,7 +52,7 @@ export function LibraryRecovery({
             <dd>Back up supported managed saves from each game’s Saves & backups page.</dd>
           </div>
           <div>
-            <dt>Metadata export</dt>
+            <dt>Library information export</dt>
             <dd>
               Records versions, saved file locations and settings. It contains no game content,
               saves, backups or credentials.
@@ -61,8 +61,8 @@ export function LibraryRecovery({
           <div>
             <dt>Manual recovery copy</dt>
             <dd>
-              Keep a matching metadata export and library content copy. Original game files, BIOS
-              files and external installations need separate handling.
+              Keep a matching library information export and library content copy. Original game
+              files, BIOS files and external installations need separate handling.
             </dd>
           </div>
         </dl>
@@ -104,10 +104,10 @@ export function LibraryRecovery({
               </li>
             ))}
           </ul>
-          {installed.length === 0 && <p>No managed installations are in the current snapshot.</p>}
+          {installed.length === 0 && <p>No games installed by Portcove are listed here.</p>}
         </section>
         <section className="mt-6 grid justify-items-start gap-3">
-          <h3>2. Export metadata</h3>
+          <h3>2. Export library information</h3>
           <p>
             Keep the export with the content copy from this same library state. Metadata records
             installed versions, saved file locations and settings. It contains no game content,
@@ -135,18 +135,18 @@ export function LibraryRecovery({
                 });
             }}
           >
-            {preparing ? "Exporting metadata…" : "Export metadata"}
+            {preparing ? "Exporting library information…" : "Export library information"}
           </Button>
           {exported && (
             <p role="status">
-              Metadata exported to{" "}
+              Library information exported to{" "}
               <code dir="ltr" className="[unicode-bidi:isolate]">
                 {exported.path}
               </code>
               . Content has not been copied or verified.
             </p>
           )}
-          {error && <p role="alert">Metadata export did not finish: {error}</p>}
+          {error && <p role="alert">Library information export did not finish: {error}</p>}
         </section>
         <section className="mt-6 grid justify-items-start gap-3">
           <h3>3. Close Portcove and copy the content</h3>
@@ -200,10 +200,10 @@ export function LibraryRecovery({
             </li>
           </ul>
           <p>
-            Keep the metadata export beside those folders. Original game files and BIOS files
-            outside the library, external installations and their saves are excluded. Preserve those
-            separately. Do not resume work between exporting and copying; if the library changes,
-            prepare a fresh matching export and copy.
+            Keep the library information export beside those folders. Original game files and BIOS
+            files outside the library, external installations and their saves are excluded. Preserve
+            those separately. Do not resume work between exporting and copying; if the library
+            changes, prepare a fresh matching export and copy.
           </p>
           <p>
             A manual copy is unverified. Keep the source intact and test a restore into a different
@@ -217,10 +217,10 @@ export function LibraryRecovery({
           <h3>Restore a recovery copy</h3>
           <p>
             Choose a new or empty destination library first. Review the metadata and copied content
-            together. Restore checks the bound plan and copied files before publishing the
-            destination. Disconnected originals remain saved locations and need current checks or
-            relinking. Interrupted restore offers its existing resume or retaining abort; keep the
-            input copy.
+            together. Portcove checks the copied files before adding them to the destination
+            library. Disconnected originals remain saved locations and need current checks or
+            relinking. If restoring is interrupted, use the recovery options before trying again.
+            Keep your recovery copy.
           </p>
         </div>
         <LibraryImportButton

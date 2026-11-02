@@ -3,7 +3,7 @@
   "listing": {
     "id": "super-mario-odyssey-macnativegames",
     "name": "Super Mario Odyssey (MacNativeGames)",
-    "summary": "Experimental Game-specific native ARM64 rewriting/compatibility host on Apple Silicon; community port with its own runtime. Upstream maturity: Early community port; Cap Kingdom/Bonneton only, not full-game completion. Acquisition: Source build using games/odyssey/README.md; generated app/game contents remain private. Exact title-specific prerequisites require that pinned guide. Platforms: Apple Silicon Mac; opening Cap Kingdom/Bonneton at60fps on M3 claimed upstream. Other platforms unestablished. Original data: Own Super Mario Odyssey1.3.0. Exact region, executable fingerprints and title-specific extraction/key/font requirements remain to be checked in its separate guide. Portcove setup/gameplay untested; no operational integration offered.",
+    "summary": "An early community Super Mario Odyssey port running title-specific rewritten ARM64 code on Apple Silicon. The project reports only Cap Kingdom/Bonneton at 60 FPS on an M3, rather than a full game. Follow games/odyssey/README.md for the source build and exact prerequisites; generated app/game content stays private. Use your own version 1.3.0. Exact region, executable hashes, extraction, key and font requirements still need that title-specific guide; other platforms are unconfirmed. Portcove offers no setup or launch integration and has not tested gameplay.",
     "original_game_title": "Super Mario Odyssey",
     "project_url": "https://github.com/ly05010419/MacNativeGames",
     "platforms": [],

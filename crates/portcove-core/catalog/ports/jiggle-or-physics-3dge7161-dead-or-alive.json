@@ -4,11 +4,11 @@
     "id": "jiggle-or-physics-3dge7161-dead-or-alive",
     "name": "Dead or Alive — Jiggle-or-Physics (3dge7161)",
     "original_game_title": "Dead or Alive",
-    "summary": "Information only; source hold. Experimental v0.1.0 native title player with rendering/input/memory-card and presentation options; no full completion or Portcove validation. Public build includes game-derived C and separately owned clip/icon requiring rights review. Acquisition is blocked: Public acquisition held: upstream explicitly identifies checked-in translated Dead or Alive game code, the startup movie and cover-art icon whose redistribution rights are not established. Resume only after attributable permission for those components or a reviewed clean own-disc generation route omitting unlicensed components; the PSXRecomp license alone does not grant those rights. Portcove has not verified setup or gameplay.",
+    "summary": "Information only. This experimental v0.1.0 Dead or Alive player offers rendering, input, memory cards and presentation options, with full completion unconfirmed. Downloads are unavailable because checked-in translated game code, a startup movie and cover-art icon lack established redistribution permission. They require attributable permission or a reviewed clean own-disc route omitting unlicensed components; the PSXRecomp license alone does not cover them. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/3dge7161/Jiggle-or-Physics",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
-    "download_block_reason": "Public acquisition held: upstream explicitly identifies checked-in translated Dead or Alive game code, the startup movie and cover-art icon whose redistribution rights are not established. Resume only after attributable permission for those components or a reviewed clean own-disc generation route omitting unlicensed components; the PSXRecomp license alone does not grant those rights.",
+    "download_block_reason": "New downloads are unavailable because the project identifies checked-in translated Dead or Alive code, a startup movie and a cover-art icon without established redistribution permission. Downloads can resume with attributable permission for those components or a reviewed clean own-disc generation route that omits unlicensed components. The PSXRecomp license alone does not cover them.",
     "issue_number": 3507,
     "artwork": {
       "game_id": 317067,

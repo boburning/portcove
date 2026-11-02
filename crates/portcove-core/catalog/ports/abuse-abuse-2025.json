@@ -20,8 +20,8 @@
           "instruction": "The reviewed SDL code normally uses SDL_GetPrefPath(\"abuse\", \"data\") for saves/settings: %APPDATA%/abuse/data on Windows, or $XDG_DATA_HOME/abuse/data (normally ~/.local/share/abuse/data) on Linux. ABUSE_SAVE_PATH overrides it; if preference-path creation fails upstream falls back to the current working directory. Preserve that actual location, custom levels/mods and the working data folder with the game closed. The local_save flag alone is not proof that saves are beside the executable."
         },
         {
-          "title": "Retain upstream replacement and data ownership",
-          "instruction": "Registration leaves the external files untouched. You and upstream own updates and backups; Portcove supplies no managed backup or rollback. Upstream mentions a public-domain data subset, but its exact clean subset and compatibility with this release still need acceptance. Do not automatically replace mixed bundled assets or claim that a root code license covers music and soundfonts."
+          "title": "Keep a working copy before updating",
+          "instruction": "Removing the registration leaves the external files in place. You and the project manage updates and backups; Portcove does not back up or roll back this copy. Although the project mentions a public-domain data subset, this guide does not identify a complete compatible subset. Keep your working assets together; do not assume the code license also permits use of music, soundfonts or every bundled asset."
         }
       ],
       "warnings": [],

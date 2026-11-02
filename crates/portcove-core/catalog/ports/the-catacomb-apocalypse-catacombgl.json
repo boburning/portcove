@@ -27,7 +27,7 @@
         },
         {
           "title": "Keep upstream update ownership",
-          "instruction": "You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform."
+          "instruction": "You manage this external game, its original files and its profile using the project’s tools. Add it to Portcove, choose Play separately and remove its registration when you no longer want it listed. Portcove does not take over its files or offer updates, backups, rollback or deletion for this copy. Keep a working copy and back up its data before updating. Other platforms need their own supported package and application instructions. These Windows instructions do not establish that the game runs on any platform."
         }
       ],
       "warnings": [

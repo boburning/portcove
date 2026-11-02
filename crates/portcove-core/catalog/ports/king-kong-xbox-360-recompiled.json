@@ -3,7 +3,7 @@
   "listing": {
     "id": "king-kong-xbox-360-recompiled",
     "name": "Peter Jackson's King Kong Recompiled",
-    "summary": "Attach the prepared King Kong Xbox 360 Windows player using its supported direct-game option. Preserve the complete portable userdata and any unfinished Documents migration; setup, renderer changes, online/co-op and replacement remain upstream-owned.",
+    "summary": "Explore Peter Jackson's King Kong Recompiled and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/TekRantGaming/king-kong-recompiled",
     "issue_number": 1577,
     "platforms": [],
@@ -30,7 +30,7 @@
         },
         {
           "title": "Attach the normal direct-game entry",
-          "instruction": "Select king_kong.exe, use its complete KingKong directory as working directory and set arguments to --kk_launcher=false. Review that exact intent and request Play separately. This is the normal show-launcher option, not the internal skip-once, benchmark or diagnostic flags. With prepared game files and resolved startup notices it enters the game in the same native process using its current settings. Do not change renderer/restart settings, start co-op handovers or return through a launcher relaunch while attached; close the game normally and perform those operations independently outside the session."
+          "instruction": "Select king_kong.exe, use its complete KingKong directory as working directory and set arguments to --kk_launcher=false. Review the selected program, working folder and arguments and choose Play when ready. This is the normal show-launcher option, not the internal skip-once, benchmark or diagnostic flags. With prepared game files and resolved startup notices it enters the game in the same native process using its current settings. Do not change renderer/restart settings, start co-op handovers or return through a launcher relaunch while attached; close the game normally and perform those operations independently outside the session."
         },
         {
           "title": "Preserve the actual portable or legacy user root",

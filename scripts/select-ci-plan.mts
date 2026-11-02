@@ -10,7 +10,7 @@ import type { PostmergeReuseBinding } from "./postmerge-ci.mts";
 import { discoverPostmergeReuse } from "./postmerge-ci.mts";
 import { annotateNextest } from "./nextest-equivalence.mts";
 import { execFileSync } from "node:child_process";
-import { appendFile } from "node:fs/promises";
+import { appendFile, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { inspectReleaseProfile } from "./release-package-policy.mts";
@@ -240,13 +240,17 @@ export async function writeGithubOutputs(
     release_profile: plan.release_profile ?? "full",
     qualification_required: String(plan.qualification_required),
     plan_digest: plan.digest,
-    plan_json: JSON.stringify(plan),
     plan_gzip_base64: encodeValidationPlanEnvironment(plan),
     base: plan.identities.base ?? "",
     merge_base: plan.identities.merge_base ?? "",
     head: plan.identities.head ?? "",
     checkout: plan.identities.checkout,
   };
+  const outputBytes = Object.entries(fields).reduce(
+    (total, [key, value]) => total + Buffer.byteLength(key + value, "utf16le"),
+    0,
+  );
+  if (outputBytes > 1024 * 1024) throw new Error("CI plan outputs exceed GitHub UTF-16 byte limit");
   if (Object.values(fields).some((value) => String(value).includes("\n"))) {
     throw new Error("CI plan outputs must remain single-line values");
   }
@@ -277,6 +281,12 @@ async function main() {
     event: process.env.GITHUB_EVENT_NAME,
     discoverPlan: discoverCiPlan,
   });
+  const evidenceDirectory = path.join(projectRoot, "work/ci-plan");
+  await mkdir(evidenceDirectory, { recursive: true });
+  await writeFile(
+    path.join(evidenceDirectory, "validation-plan.json"),
+    JSON.stringify(plan) + "\n",
+  );
   await writeGithubOutputs(process.env.GITHUB_OUTPUT, plan, reuse);
   console.log(
     reuse

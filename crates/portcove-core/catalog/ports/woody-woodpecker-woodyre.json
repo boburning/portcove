@@ -25,16 +25,16 @@
           "instruction": "Use an already permitted complete v1.0.11 WoodyRE.exe copy. The GPL-3.0 reimplemented engine reads original CD data; its terms do not license that data. Do not select build.bat, a compiler/download helper or a private standalone bundle as a redistributable release. The optional bundle tool embeds original files for private use; Core does not acquire or publish them."
         },
         {
-          "title": "Complete original-data preparation outside Core",
-          "instruction": "Use your own supported Woody Woodpecker: Escape from Buzz Buzzard Park PC CD: English 1.00/Spanish or the documented February2002 Brazilian Portuguese, Polish or Russian versions. Complete upstream CD/folder selection, private copying and verification before registration. Preserve the original Data, Common, Logo, Game and Music.bf and any existing saves/configs. The --verify upstream check is not a Portcove original/package or compatibility qualification; other editions are not inherited."
+          "title": "Finish original-file setup before adding the game",
+          "instruction": "Use your own supported Woody Woodpecker: Escape from Buzz Buzzard Park PC CD: English 1.00/Spanish or the documented February 2002 Brazilian Portuguese, Polish or Russian versions. Complete upstream CD/folder selection, private copying and verification before registration. Preserve the original Data, Common, Logo, Game and Music.bf and any existing saves/configs. The --verify upstream check is not a Portcove original/package or compatibility qualification; other editions are not inherited."
         },
         {
-          "title": "Keep the actual creating data and working roots",
+          "title": "Keep your existing data and working folders",
           "instruction": "Normally the prepared executable finds data beside itself and uses that writable root; read-only/temporary executable locations can use LOCALAPPDATA/WoodyRE instead. data_find may change the working directory to the actual writable home, while originals can remain elsewhere. Explicit data-directory arguments or WOODY_DATA bypass that automatic choice, so keep the exact established working directory and absolute original-data path; Core does not inject environment variables. Finish preparation externally rather than letting registration silently import a new original."
         },
         {
           "title": "Select the normal game and review intent",
-          "instruction": "Select WoodyRE.exe with the working setup\u2019s actual directory and only its established literal arguments; a supported explicit data directory is one absolute token. Normal WinMain calls main and its game loop through cleanup in the same process. Do not select --verify, scripted screenshot/automation/test switches or bundle/build tools for ordinary Play. Review exact executable/CWD/arguments and consent; choose Play separately. Core observes that process, not an exclusive session or sandbox."
+          "instruction": "Select WoodyRE.exe with the working setup’s actual directory and only its established literal arguments; a supported explicit data directory is one absolute token. Normal WinMain calls main and its game loop through cleanup in the same process. Do not select --verify, scripted screenshot/automation/test switches or bundle/build tools for ordinary Play. Review exact executable/CWD/arguments and consent; choose Play separately. Core observes that process, not an exclusive session or sandbox."
         },
         {
           "title": "Preserve every save, config and private copy",

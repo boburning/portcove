@@ -3,7 +3,7 @@
   "listing": {
     "id": "k0nl-b2recomp",
     "name": "Bayonetta 2 (B2recomp)",
-    "summary": "Attach Bayonetta 2 through its prepared B2recomp Windows launcher. The official download is a builder, not a game: retain your own updated, already decrypted ExeFS/RomFS and the locally compiled player, settings and saves.",
+    "summary": "An experimental Bayonetta 2 static recompilation. Its Builder ZIP contains tools, source and a compiler rather than a prebuilt game; it generates C and a game DLL locally, with rebuilding through the project’s Builder for updates. Windows x64 requires Vulkan 1.3; Linux Builder testing is separate. Use your own Bayonetta 2 v1.2/update v131072 already-decrypted ExeFS/RomFS. Encrypted packages and keys are refused. Portcove offers no setup or launch integration and has not tested gameplay.",
     "original_game_title": "Bayonetta 2",
     "project_url": "https://github.com/K0NL/B2recomp",
     "platforms": [],
@@ -31,7 +31,7 @@
         },
         {
           "title": "Attach the launcher that supplies the play context",
-          "instruction": "Select B2recomp.exe, use its full prepared B2recomp directory as working directory and leave arguments empty. Review the exact intent and request Play separately, then press upstream Play. The selected launcher retains the child handle and polls for its exit, supplying the local ELF, RomFS, graphics/audio/font context and selected userdata. Keep the launcher open while the game runs, close the actual game first, then the launcher. A bare game_native.exe invocation would omit that context; terminal/debug/profiling modes are separate."
+          "instruction": "Select B2recomp.exe, use its full prepared B2recomp directory as working directory and leave arguments empty. Review the selected program, working folder and arguments and choose Play when ready, then press upstream Play. The selected launcher retains the child handle and polls for its exit, supplying the local ELF, RomFS, graphics/audio/font context and selected userdata. Keep the launcher open while the game runs, close the actual game first, then the launcher. A bare game_native.exe invocation would omit that context; terminal/debug/profiling modes are separate."
         },
         {
           "title": "Preserve live saves and all existing configuration",

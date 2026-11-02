@@ -304,7 +304,7 @@ impl PortcoveService {
         let payload = prepared.operation_root.join("payload");
         emit(operation.message(
             "info",
-            "Copying the reviewed installation into private preparation",
+            "Copying the reviewed installation into a setup working folder",
         ));
         crate::transfer_copy::copy_reviewed_tree(
             &original.path,
@@ -420,7 +420,10 @@ impl PortcoveService {
             if inputs.conversion_tool.is_some() {
                 record_preparation_process_quiescence(self, operation.operation_id(), false)?;
             }
-            emit(operation.message("info", "Materializing the reviewed runtime originals"));
+            emit(operation.message(
+                "info",
+                "Preparing the reviewed original game files for this installation",
+            ));
             let result = super::source::materialize(
                 &catalog,
                 &port,
@@ -541,7 +544,7 @@ impl PortcoveService {
                 "conversion tool changed before preparation",
             ));
         }
-        emit(operation.message("info", "Materializing the reviewed source"));
+        emit(operation.message("info", "Preparing the reviewed game files"));
         if plan.inputs.conversion_tool.is_some() {
             record_preparation_process_quiescence(self, operation.operation_id(), false)?;
         }

@@ -280,7 +280,7 @@ it.each(["unknown", "committed"] as const)(
       ...report,
       health: "missing",
       state_code: "source_missing",
-      summary: "The registered source could not be found.",
+      summary: "Portcove can’t find these game files at their saved location.",
       next_action: "Reconnect the original storage or relink to an unchanged copy.",
     };
     vi.spyOn(desktopApi, "inspectSource").mockResolvedValue(missingReport);

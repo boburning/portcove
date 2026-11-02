@@ -3,7 +3,7 @@
   "listing": {
     "id": "tekrantgaming-simpsons-wrestling-recompiled",
     "name": "The Simpsons Wrestling / Simpsons Wrestling Recompiled (TekRantGaming)",
-    "summary": "Attach The Simpsons Wrestling USA prepared Windows runtime directly after upstream launcher setup. Keep the game subfolder, existing launcher-written controls/settings and executable-relative memory cards; the top-level launcher detaches.",
+    "summary": "Explore The Simpsons Wrestling / Simpsons Wrestling Recompiled (TekRantGaming) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/TekRantGaming/simpsons-wrestling-recompiled",
     "issue_number": 1883,
     "platforms": [],
@@ -30,7 +30,7 @@
         },
         {
           "title": "Attach the actual native game with its disc",
-          "instruction": "Select game/SimpsonsWrestling_Recompiled.exe, set working directory to that complete game/ directory and use --no-launcher --disc \"the exact already selected USA CUE path\". Review the exact paths and intent and request Play separately. This reproduces the selected top-level launcher’s native target, CWD and literal argument contract while retaining direct supervision of the actual game. Keep the settings/control files it already wrote; finish future launcher configuration or updates upstream before the next reviewed attachment. Do not register the detaching launcher, updater, setup/compiler or a diagnostic mode as Play."
+          "instruction": "Select game/SimpsonsWrestling_Recompiled.exe, set working directory to that complete game/ directory and use --no-launcher --disc \"the exact already selected USA CUE path\". Review the exact paths and intent and choose Play when ready. This reproduces the selected top-level launcher’s native target, CWD and literal argument contract while retaining direct supervision of the actual game. Keep the settings/control files it already wrote; finish future launcher configuration or updates upstream before the next reviewed attachment. Do not register the detaching launcher, updater, setup/compiler or a diagnostic mode as Play."
         },
         {
           "title": "Preserve cards and launcher-written settings",

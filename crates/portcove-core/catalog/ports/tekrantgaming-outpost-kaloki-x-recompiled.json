@@ -3,7 +3,7 @@
   "listing": {
     "id": "tekrantgaming-outpost-kaloki-x-recompiled",
     "name": "Outpost Kaloki X / Outpost Kaloki X PC Port (TekRantGaming)",
-    "summary": "Attach the prepared Outpost Kaloki X Windows player with your own exact Xbox Live Arcade package. Keep its integrated settings, extracted game and actual save root; upstream preparation and replacement stay separate from non-owning Play.",
+    "summary": "Explore Outpost Kaloki X / Outpost Kaloki X PC Port (TekRantGaming) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/TekRantGaming/outpost-kaloki-x-recompiled",
     "issue_number": 1862,
     "platforms": [],
@@ -30,7 +30,7 @@
         },
         {
           "title": "Attach the normal in-process player",
-          "instruction": "Select outpost_kaloki_x.exe, use the complete player directory as working directory and leave arguments empty after upstream preparation. Review the exact intent and request Play separately, then use the ordinary integrated Play if shown. The selected OutpostKalokiXApp resumes its own native runtime in the same application rather than using a detached launcher as normal Play. Finish any graphics changes that explicitly require restart, first-use preparation or updater relaunch upstream before attachment; those successor paths are not newly qualified by this guide. Quit the actual game normally."
+          "instruction": "Select outpost_kaloki_x.exe, use the complete player directory as working directory and leave arguments empty after upstream preparation. Review the selected program, working folder and arguments and choose Play when ready, then use the ordinary integrated Play if shown. The selected OutpostKalokiXApp resumes its own native runtime in the same application rather than using a detached launcher as normal Play. Finish any graphics changes that explicitly require restart, first-use preparation or updater relaunch upstream before attachment; those successor paths are not newly qualified by this guide. Quit the actual game normally."
         },
         {
           "title": "Preserve the actual save and configuration roots",

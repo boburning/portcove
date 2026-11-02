@@ -3,7 +3,7 @@
   "listing": {
     "id": "wootbeer-bzrecomp",
     "name": "Battlezone: Rise of the Black Dogs (BZRecomp)",
-    "summary": "Attach the prepared Battlezone: Rise of the Black Dogs N64 Windows beta with your own exact USA Rev0 ROM. Preserve its controller-pak files and chosen portable or LocalAppData root; this is not the arcade Battlezone engine.",
+    "summary": "A Battlezone: Rise of the Black Dogs N64 modernization beta, separate from arcade Battlezone and its existing source ports. Windows/Linux N64Recomp/RT64 packages are documented; complete-game, multiplayer, exact OS minimums and CPU coverage are unconfirmed. Use your own supported USA N64 ROM. Exact accepted revision/hashes and BIOS/firmware requirements are unconfirmed. You and the project manage setup and updates; Portcove has not qualified a release package or confirmed gameplay.",
     "original_game_title": "Battlezone: Rise of the Black Dogs",
     "project_url": "https://github.com/wootbeer/bzrecomp",
     "platforms": [],
@@ -31,7 +31,7 @@
         },
         {
           "title": "Attach the normal integrated player",
-          "instruction": "Select BattlezoneRecompiled.exe, use its complete extracted player directory as working directory and leave arguments empty after upstream setup. Review the exact intent and request Play separately. Its native main sets bzrecomp as the UI program ID and enters the integrated frontend/runtime. Finish missing-ROM/settings prompts upstream before retrying. Do not use a recompiler, an AppImage, test/probe options or another port’s runtime as normal Play."
+          "instruction": "Select BattlezoneRecompiled.exe, use its complete extracted player directory as working directory and leave arguments empty after upstream setup. Review the selected program, working folder and arguments and choose Play when ready. Its native main sets bzrecomp as the UI program ID and enters the integrated frontend/runtime. Finish missing-ROM/settings prompts upstream before retrying. Do not use a recompiler, an AppImage, test/probe options or another port’s runtime as normal Play."
         },
         {
           "title": "Preserve controller paks and the selected data root",

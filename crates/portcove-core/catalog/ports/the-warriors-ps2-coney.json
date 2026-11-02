@@ -3,7 +3,7 @@
   "listing": {
     "id": "the-warriors-ps2-coney",
     "name": "The Warriors (PS2) (Coney)",
-    "summary": "Research listing. Upstream route: Source-only CMake development build Limits: Incomplete source-only reconstruction: startup/frontend and limited levels, not complete gameplay. Upstream platforms: Source-only Windows x86-64 VisualStudio toolchain and Linux/macOS CMake routes; selected Linux/macOS CPU matrix unknown in frozen evidence. Incomplete game reconstruction. Original data: Own disc ISO/mounted folder containing WARRIORS.DIR and WARRIORS.WAD Portcove setup/gameplay not verified.",
+    "summary": "An incomplete source-only Warriors PS2 reconstruction reaching startup, the frontend and limited levels, rather than complete gameplay. Windows x86-64 uses Visual Studio; Linux/macOS use CMake, with exact host CPUs unconfirmed. Supply your own ISO or mounted disc folder containing WARRIORS.DIR and WARRIORS.WAD. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "The Warriors (PS2)",
     "project_url": "https://github.com/Ryubara/coney",
     "platforms": [],

@@ -3,7 +3,7 @@
   "listing": {
     "id": "the-legend-of-zelda-link-s-awakening-2019-switch-lasrecomp",
     "name": "The Legend of Zelda: Link's Awakening (2019 Switch) (LASRecomp)",
-    "summary": "Attach the prepared LAS Recomp Windows player for your own Switch Link’s Awakening files. Keep the active data-root pointer, vanilla and randomizer saves, settings and private generated game library; this beta remains upstream-owned.",
+    "summary": "An experimental Link’s Awakening 2019 Switch recompilation. Release packages include a generator and compiler that prepare game code locally on first setup. Documented hosts are Windows x64 AVX2/Vulkan 1.3, Apple Silicon macOS 15+ and Linux x64; Linux ARM64 is experimental. Use your own prepared v1.0.0, v1.0.1 or v1.1.0 files. Your own Switch fonts are optional because replacements are used by default. Portcove offers no setup or launch integration and has not tested gameplay.",
     "original_game_title": "The Legend of Zelda: Link's Awakening (2019 Switch)",
     "project_url": "https://github.com/peiikai/LASRecomp",
     "platforms": [],
@@ -31,7 +31,7 @@
         },
         {
           "title": "Attach the integrated native player",
-          "instruction": "Select lasrecomp.exe, use the complete existing LAS Recomp directory as working directory and leave arguments empty. Review the exact intent and request Play separately, then use its ordinary start-screen Play and existing vanilla/seed selection. The native start screen and game loop share a process; the selected Windows restart implementation waits for its successor and propagates its exit. Do not select a code generator, setup script, randomizer tool or test harness as the player."
+          "instruction": "Select lasrecomp.exe, use the complete existing LAS Recomp directory as working directory and leave arguments empty. Review the selected program, working folder and arguments and choose Play when ready, then use its ordinary start-screen Play and existing vanilla/seed selection. The native start screen and game loop share a process; the selected Windows restart implementation waits for its successor and propagates its exit. Do not select a code generator, setup script, randomizer tool or test harness as the player."
         },
         {
           "title": "Preserve the resolved data folder and seed identity",

@@ -31,7 +31,7 @@
         },
         {
           "title": "Attach the matching native variant",
-          "instruction": "Select bin/wwe2k14.exe, set the complete extracted WWE package root as working directory and leave arguments empty. Review the exact intent and request Play separately. Its source finds the parent launcher root and restores the saved extracted GameFolder/settings. Recheck the Vanilla choice before use: a saved Title Update selection can launch the other executable and terminate this process. Change editions/settings and reselect the matching entry outside the attachment; this guide does not promise tracking across that successor."
+          "instruction": "Select bin/wwe2k14.exe, set the complete extracted WWE package root as working directory and leave arguments empty. Review and consent to the selected launch details, then choose Play separately. Its source finds the parent launcher root and restores the saved extracted GameFolder/settings. Recheck the Vanilla choice before use: a saved Title Update selection can launch the other executable and terminate this process. Change editions/settings and reselect the matching entry outside the attachment; this guide does not promise tracking across that successor."
         },
         {
           "title": "Preserve the whole external library",
@@ -43,7 +43,7 @@
         },
         {
           "title": "Maintain the external player",
-          "instruction": "Quit the actual game normally before upstream replacement or data operations; forced termination is not a save-flush guarantee. Review/relink changed executable bytes. Source, package and upstream playability reports do not establish native gameplay, complete-game, save/reload, installed-app or Supported acceptance. Removing registration preserves external files; managed install/update/rollback/backup/removal remain unavailable. The selected upstream reports early-release bugs and unavailable original online services; language and feature reports are not full-campaign evidence."
+          "instruction": "Quit the game normally before changing files; forced termination may not finish saving. After an upstream update, relink and review the changed executable. Removing the registration leaves all external files in place; Portcove does not install, update, roll back, back up or delete this copy. Upstream reports early-release bugs and unavailable original online services. Portcove has not confirmed gameplay, a complete campaign, save/reload or installed behavior; language and feature lists do not establish those results."
         }
       ],
       "warnings": [

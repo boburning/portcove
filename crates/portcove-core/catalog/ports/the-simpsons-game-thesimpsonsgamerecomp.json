@@ -25,11 +25,11 @@
           "instruction": "Use an independently permitted complete The Simpsons Game Recompiled Windows copy with matching launcher, simpsons.exe, runtime libraries and native_shaders. Complete the official upstream install from your own Xbox 360 ISO before attachment, retaining gamedata/default.xex and the complete data including movies. USA title ID 45410809 is the main target; Europe is separately described as less tested, with no inherited qualification. Select the correct AVX2 build, or the upstream NoAVX2 build for a compatible older SSE4.2 CPU. Portcove does not extract originals or install host runtimes."
         },
         {
-          "title": "Attach the completed supported native entry",
+          "title": "Add the completed supported game program",
           "instruction": "Select simpsons-launcher.exe with its complete flat package directory as working directory and --play as its literal argument. This documented entry uses the same preparation checks, settings, save protection and environment as the upstream Play button, then waits for game_proc. It starts the matching game with explicit game-data and user-data roots; do not substitute an extractor, private helper or the Linux script. Keep the established Windows C++ and graphics driver dependencies."
         },
         {
-          "title": "Keep the actual session and successor boundary",
+          "title": "Check which game sessions are still running",
           "instruction": "The supported --play launcher waits for its normal game process. Upstream owns its independent update mechanism: it may replace launcher/engine files and ask you to restart, or leave a separately named new launcher if replacement fails. Close actual players and companions before deliberate replacement; preserve old working files, then review and relink changed selected bytes. This registration does not invoke, authenticate or manage that updater."
         },
         {

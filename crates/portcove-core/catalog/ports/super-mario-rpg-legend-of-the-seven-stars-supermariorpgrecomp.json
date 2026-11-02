@@ -3,7 +3,7 @@
   "listing": {
     "id": "super-mario-rpg-legend-of-the-seven-stars-supermariorpgrecomp",
     "name": "Super Mario RPG: Legend of the Seven Stars (SuperMarioRPGRecomp)",
-    "summary": "Research listing. Upstream route: Research/watch identity; do not advertise as established fully native port based on Recomp name. Limits: Interpreter-dominant preview with only two qualified AOT variants; SA1 emulated, no complete human playthrough. Upstream platforms: Windows preview package; prior release also Linux AppImage with x86-64 packaging script. Selected Windows CPU unknown in frozen artifact research; no macOS build. Original data: Own matching 4 MiB headerless SNES ROM; exact SHA256 documented; copier header stripped. Portcove setup/gameplay not verified.",
+    "summary": "An experimental Super Mario RPG preview dominated by interpreter execution, with only two checked ahead-of-time variants and emulated SA-1 hardware. The Recomp name does not establish a completely native game or complete human playthrough. The project offers a Windows preview; a prior release also had a Linux AppImage using an x86-64 packaging script. Exact Windows package architecture is unconfirmed and no macOS build is established. Use your own matching 4 MiB headerless SNES ROM and the documented exact SHA-256; preparation strips a copier header. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Super Mario RPG: Legend of the Seven Stars",
     "project_url": "https://github.com/mstan/SuperMarioRPGRecomp",
     "platforms": [],

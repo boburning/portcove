@@ -3,7 +3,7 @@
   "listing": {
     "id": "spicywonda-castlevania-chronicles-recomp",
     "name": "Castlevania Chronicles (Castlevania Chronicles Recomp)",
-    "summary": "Attach the prepared Castlevania Chronicles Windows player through its supported waiting Play launcher, with your own USA PS1 disc. Keep the complete bundled runtime and LocalAppData cards/settings; the framework and optional extras do not qualify other Castlevania editions.",
+    "summary": "A Castlevania Chronicles player with a self-updating 0.3.10 launcher. Its ZIP/tar.gz packages bundle .NET; player setup needs no separate .NET SDK. Select your own USA SLUS01384 PlayStation CUE/BIN or CHD and Play; first start prepares game code locally. Keep each CUE and every referenced BIN together. Windows x64, Linux x64 and Apple Silicon macOS packages are documented, with other host routes unconfirmed. The launcher checks versions, downloads in the background, defers updates and can roll back a failed start; those tests do not establish complete gameplay. A boss/orb sound issue remains open. Exact mastering/hashes and separate BIOS requirements are unconfirmed. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Castlevania Chronicles",
     "project_url": "https://github.com/Spicywonda/castlevania-chronicles-recomp",
     "platforms": [],
@@ -31,7 +31,7 @@
         },
         {
           "title": "Attach the supported waiting launcher",
-          "instruction": "Select Play.exe, use the full extracted package root as working directory and leave arguments empty after upstream setup. Review the exact intent and request Play separately, then use the launcher’s ordinary Play. The selected desktop launcher runs runtime/CastlevaniaChronicles.exe through GameSession.RunAsync, waits for validation/game children and supplies the chosen disc plus CHRONICLES_DATA_DIR. Keep the launcher open while the game runs and close both normally when finished. Update helpers/relaunches are a separate upstream maintenance path, not an automatically qualified successor."
+          "instruction": "Select Play.exe, use the full extracted package root as working directory and leave arguments empty after upstream setup. Review the selected program, working folder and arguments and choose Play when ready, then use the launcher’s ordinary Play. The selected desktop launcher runs runtime/CastlevaniaChronicles.exe through GameSession.RunAsync, waits for validation/game children and supplies the chosen disc plus CHRONICLES_DATA_DIR. Keep the launcher open while the game runs and close both normally when finished. Update helpers/relaunches are a separate upstream maintenance path, not an automatically qualified successor."
         },
         {
           "title": "Preserve cards, settings and legacy copies",

@@ -19,21 +19,25 @@ export const states: Record<GameFileQuerySnapshot["routes"][number]["state"], st
   unavailable_context: "Unavailable context",
 };
 export const reasons: Record<GameFileQuerySnapshot["routes"][number]["reason"], string> = {
-  complete_compatible_observation: "Core observed a complete compatible set for this route.",
-  no_connected_registration: "No game-file registration is connected for this route.",
+  complete_compatible_observation:
+    "A complete set of compatible game files was found for this setup or launch option.",
+  no_connected_registration:
+    "No saved game-file location is connected for this setup or launch option.",
   explicit_empty_requirements:
     "This action needs no files added to Portcove. The game may still ask for original files.",
-  observation_unavailable: "An accepted observation is unavailable.",
-  observation_stale: "The observation needs a fresh check.",
+  observation_unavailable: "No current file-check result is available.",
+  observation_stale: "The file-check result is out of date. Check again.",
   source_needs_checking: "The connected files need checking.",
   storage_absence_unconfirmed:
-    "Storage could not confirm absence; files are not confirmed missing.",
-  identity_not_admitted: "The file identity has not been admitted for this route.",
-  contract_not_reviewed: "The game-file contract has not been reviewed for this route.",
+    "Portcove could not confirm whether the files are present. They are not confirmed missing.",
+  identity_not_admitted: "These game files have not been accepted for this setup or launch option.",
+  contract_not_reviewed:
+    "File requirements have not been reviewed for this setup or launch option.",
   variant_not_supported: "The observed file variant does not match this route.",
-  release_not_bound: "The observation is not bound to the selected release.",
+  release_not_bound:
+    "We haven’t confirmed whether this file-check result applies to the selected version.",
   route_not_offered: "The selected route is not offered.",
-  profile_context_changed: "The selected game-file context has changed.",
+  profile_context_changed: "The selected game files or setup option changed. Check again.",
 };
 
 /** Validate presentation context only. Core remains the execution authority. */

@@ -4,7 +4,7 @@
     "id": "furqanagwan-nhl-recomp-furqanagwan-nhl-legacy-edition",
     "name": "NHL Legacy Edition — furqanagwan NHL Recomp (furqanagwan)",
     "original_game_title": "NHL Legacy Edition",
-    "summary": "Upstream In-game matchMontrealatToronto60FPS4K onRTX5080laptop inGDK; fullmatch/saveLoad/TU/AMDIntel/standardnonGDKbuildnotvalidated; RTVpathblack3D,ROVneeded. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "Upstream reports part of a Montreal-at-Toronto match at 60 FPS and 4K on an RTX 5080 laptop in a GDK build. A full match, save/load, title updates, AMD/Intel graphics and the standard non-GDK build remain unconfirmed. Use the ROV renderer; the RTV path produces black 3D output. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/furqanagwan/nhl",
     "platforms": [],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "USA/Europe EnFrDeSvFiRuCs Xbox360 title454109EC media3CF2A23F default.xex0.0.0.4 built2015-07-17 SHA256 d818eb15775c1fee34b057b0fc494b211535d07123230ee45bd7d40991c55624; noTU; ownISO/extractedfiles."
+          "instruction": "Use your own USA/Europe Xbox 360 files with English, French, German, Swedish, Finnish, Russian or Czech content: title ID 454109EC, media ID 3CF2A23F, default.xex version 0.0.0.4 built 2015-07-17, SHA-256 d818eb15775c1fee34b057b0fc494b211535d07123230ee45bd7d40991c55624. Use an ISO or complete extracted files with no title update."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Source config + furqanagwan/rexglue-sdk; no public release observed. Windows11x64D3D12 NVIDIA-tested."
+          "instruction": "Follow the source configuration and build instructions with furqanagwan/rexglue-sdk. No public release is confirmed. The described setup uses Windows 11 x64 and Direct3D 12; upstream testing covers NVIDIA hardware."
         }
       ],
       "warnings": [
-        "Upstream In-game matchMontrealatToronto60FPS4K onRTX5080laptop inGDK; fullmatch/saveLoad/TU/AMDIntel/standardnonGDKbuildnotvalidated; RTVpathblack3D,ROVneeded.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "Upstream reports part of a Montreal-at-Toronto match at 60 FPS and 4K on an RTX 5080 laptop in a GDK build. A full match, save/load, title updates, AMD/Intel graphics and the standard non-GDK build remain unconfirmed. Use the ROV renderer; the RTV path produces black 3D output.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/furqanagwan/nhl"
     },

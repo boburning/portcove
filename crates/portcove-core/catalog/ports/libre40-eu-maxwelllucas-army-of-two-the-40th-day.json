@@ -4,7 +4,7 @@
     "id": "libre40-eu-maxwelllucas-army-of-two-the-40th-day",
     "name": "Army of Two: The 40th Day — Libre40 (eu-maxwelllucas)",
     "original_game_title": "Army of Two: The 40th Day",
-    "summary": "Single-player described playable; movies black-screen, waiting allows startup. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "Upstream describes single-player gameplay. Movies show a black screen; waiting for them to finish allows startup to continue. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/eu-maxwelllucas/Libre40",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Provide your own Army of Two: The 40th Day Xbox 360 disc ISO or extracted full disc files. Exact accepted region, revision and source hash are Unknown unless recorded in source_identity_facts."
+          "instruction": "Provide your own Army of Two: The 40th Day Xbox 360 disc ISO or extracted full disc files. This guide does not specify the exact supported region, revision or file hash. Check the project’s original-file requirements before setup."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Extract own 40thDay ISO, build SDK, generate code and compile Windows runtime."
+          "instruction": "Extract your own Army of Two: The 40th Day ISO, then follow upstream instructions to build the SDK, generate code and compile the Windows player."
         }
       ],
       "warnings": [
-        "Single-player described playable; movies black-screen, waiting allows startup.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "Upstream describes single-player gameplay. Movies show a black screen; waiting for them to finish allows startup to continue.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/eu-maxwelllucas/Libre40"
     },

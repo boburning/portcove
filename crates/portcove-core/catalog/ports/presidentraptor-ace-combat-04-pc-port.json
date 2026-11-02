@@ -3,7 +3,7 @@
   "listing": {
     "id": "presidentraptor-ace-combat-04-pc-port",
     "name": "Ace Combat 04: Shattered Skies (Ace Combat 04: Shattered Skies - PC Port)",
-    "summary": "Attach the prepared Ace Combat 04 USA Windows beta through its waiting game launcher. Keep the local disc image, runtime, shaders and runtime-specific memory cards together; this WIP is not a complete-remaster or campaign qualification.",
+    "summary": "A work-in-progress Ace Combat 04 beta, rather than a complete remaster or confirmed campaign. The Windows installer and separate source route translate the PS2 main CPU and build locally from your own USA SLUS-20152 executable and disc data; hardware/runtime services remain separate responsibilities. Exact host CPU architecture follows the selected setup guide, while accepted revision/hashes and BIOS/firmware needs are unconfirmed here. You and the project manage installation and replacement. Portcove has not qualified the installer or confirmed setup or gameplay.",
     "original_game_title": "Ace Combat 04: Shattered Skies",
     "project_url": "https://github.com/PresidentRaptor/Ace-Combat-04-PC-Port",
     "platforms": [],
@@ -31,7 +31,7 @@
         },
         {
           "title": "Attach the waiting game launcher",
-          "instruction": "Select Ace Combat 04.exe in the prepared game folder, use that folder as working directory and pass the exact existing supported ISO or extracted disc directory as the first argument. Review the exact intent and request Play separately. This avoids the launcher’s fallback of picking the first alphabetically sorted ISO when several are present. The selected launcher supplies runtime data, shader/save context and normal unbounded-play options to runtime/ac4.exe and waits for it to exit, draining its logs. Keep both processes in the ordinary session and close the game normally; do not select DIAGNOSTICS.bat or the setup program as Play."
+          "instruction": "Select Ace Combat 04.exe in the prepared game folder, use that folder as working directory and pass the exact existing supported ISO or extracted disc directory as the first argument. Review the selected program, working folder and arguments and choose Play when ready. This avoids the launcher’s fallback of picking the first alphabetically sorted ISO when several are present. The selected launcher supplies runtime data, shader/save context and normal unbounded-play options to runtime/ac4.exe and waits for it to exit, draining its logs. Keep both processes in the ordinary session and close the game normally; do not select DIAGNOSTICS.bat or the setup program as Play."
         },
         {
           "title": "Preserve this runtime’s card format and paths",

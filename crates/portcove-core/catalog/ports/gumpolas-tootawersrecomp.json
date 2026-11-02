@@ -23,7 +23,7 @@
         },
         {
           "title": "Attach direct native play",
-          "instruction": "Select twotowers_recomp.exe, set the complete extracted package folder as working directory and leave arguments empty. Review the exact intent and request Play separately. Its native entry reads the existing paths/settings and runs the game in process. The source uses [Paths] game_dir in twotowers_recomp.ini or the package-local game_files default; an already established game-dir environment override wins. Preserve it rather than silently pointing at another copy. Finish missing setup outside the attached attempt."
+          "instruction": "Select twotowers_recomp.exe, set the complete extracted package folder as working directory and leave arguments empty. Review and consent to the selected launch details, then choose Play separately. Its native entry reads the existing paths/settings and runs the game in process. The source uses [Paths] game_dir in twotowers_recomp.ini or the package-local game_files default; an already established game-dir environment override wins. Preserve it rather than silently pointing at another copy. Finish missing setup outside the attached attempt."
         },
         {
           "title": "Preserve player data and old settings",

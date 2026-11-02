@@ -3,7 +3,7 @@
   "listing": {
     "id": "forza-horizon-xbox-360-pinyon-shift",
     "name": "Forza Horizon (Xbox 360) (Pinyon Shift)",
-    "summary": "Attach Pinyon Shift through its prepared Windows launcher with your own USA Forza Horizon Xbox 360 disc. Keep its source payload, chosen install/state roots and separate base, title-update and XE saves together.",
+    "summary": "A playable Forza Horizon preview according to the project, with rendering defects and slowdowns. Its launcher packages for Windows x86-64, Linux x86-64/Steam Deck and Apple Silicon macOS ARM64 build the game locally from your own disc or verified extracted files. Android is a separate alpha with an unconfirmed ABI. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Forza Horizon (Xbox 360)",
     "project_url": "https://github.com/arcanite24/pinyon-shift",
     "platforms": [],
@@ -27,7 +27,7 @@
         },
         {
           "title": "Attach the normal waiting launcher",
-          "instruction": "Select PinyonShiftLauncher.exe, use its full extracted package directory as working directory and leave arguments empty for an existing ordinary installation. Review the exact intent and request Play separately, then use upstream Play. The selected WPF caller supplies the actual repository and state root to launch-preview.ps1 and waits for it; that normal script waits for the game without the optional render-test timeout. Keep the launcher open until the game exits normally, then close it. Do not register the setup script, bare locally compiled game, diagnostic mode or a launcher from a different platform."
+          "instruction": "Select PinyonShiftLauncher.exe, use its full extracted package directory as working directory and leave arguments empty for an existing ordinary installation. Review the selected program, working folder and arguments and choose Play when ready, then use upstream Play. The selected WPF caller supplies the actual repository and state root to launch-preview.ps1 and waits for it; that normal script waits for the game without the optional render-test timeout. Keep the launcher open until the game exits normally, then close it. Do not register the setup script, bare locally compiled game, diagnostic mode or a launcher from a different platform."
         },
         {
           "title": "Keep the active install and state choices",

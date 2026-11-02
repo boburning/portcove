@@ -29,12 +29,12 @@ it("focuses the matching source action, requirement, or safe heading", () => {
     <button data-settings-control="add-game-file-root">Add folder</button>
     <button data-settings-control="discover-sources">Find required files</button>
     <div class="source-requirement" data-source-profile="needed" tabindex="-1"><button>Add game files</button></div>
-    <div class="source-health-row" data-source-profile="other" tabindex="-1"><button data-settings-control="relink-source">Relink other</button></div>
-    <div class="source-health-row" data-source-profile="owned" tabindex="-1"><button data-settings-control="relink-source">Relink owned</button><button>Remove owned</button></div>`;
+    <div class="source-health-row" data-source-profile="other" tabindex="-1"><button data-settings-control="relink-source">Update folder location other</button></div>
+    <div class="source-health-row" data-source-profile="owned" tabindex="-1"><button data-settings-control="relink-source">Update folder location owned</button><button>Remove owned</button></div>`;
   document.body.append(section);
 
   focusSettingsTarget("source-profile", "owned");
-  expect(document.activeElement?.textContent).toBe("Relink owned");
+  expect(document.activeElement?.textContent).toBe("Update folder location owned");
   focusSettingsTarget("source-profile", "needed");
   expect(document.activeElement?.textContent).toBe("Add game files");
   focusSettingsTarget("source-profile", "missing");
@@ -90,10 +90,10 @@ it("focuses Add folder after saved folders load only while focus remains on Game
 
 it("routes History diagnostics to the support-bundle control with a safe disabled fallback", () => {
   HTMLElement.prototype.scrollIntoView = vi.fn();
-  document.body.innerHTML = `<section data-settings-group="advanced"><h2 id="settings-advanced-heading" tabindex="-1">Advanced</h2><button data-settings-control="diagnostics">Create support bundle</button></section>`;
+  document.body.innerHTML = `<section data-settings-group="advanced"><h2 id="settings-advanced-heading" tabindex="-1">Advanced</h2><button data-settings-control="diagnostics">Create a support report</button></section>`;
   expect(settingsCategoryForTarget("diagnostics")).toBe("advanced");
   focusSettingsTarget("diagnostics");
-  expect(document.activeElement?.textContent).toBe("Create support bundle");
+  expect(document.activeElement?.textContent).toBe("Create a support report");
   document.querySelector("button")!.disabled = true;
   focusSettingsTarget("diagnostics");
   expect(document.activeElement?.id).toBe("settings-advanced-heading");

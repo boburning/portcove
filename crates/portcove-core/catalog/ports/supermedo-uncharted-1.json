@@ -30,11 +30,11 @@
           "instruction": "Keep %APPDATA%/uncharted-launcher/settings.json, the package user tree, bbport.ini, input.ini, out, art, game/update folders and logs. The saved user_dir or an established BB_USER_DIR/BB_DATA_DIR/BB_CONFIG/BB_INPUT_CONFIG or per-game source selection can use other locations; preserve every effective root. The launcher supports per-game source folders, while the collection’s saved start choice is shared. Keep the complete collection save/cache/trophy data rather than assuming per-record isolation, and retain independent originals/recovery copies. No migration, import, backup or deletion is performed here."
         },
         {
-          "title": "Keep launcher closure, restarts and maintenance explicit",
+          "title": "Close the game before restarting or updating",
           "instruction": "During ordinary play the frontend waits for run.py, which waits for native game children and handles collection LoadExec switches. Closing the GUI simply destroys its window and may leave the game running; quit all actual game players before closing it. In-game Apply and restart and the updater can start successor processes; finish such paths and runtime replacement outside an attached session, close actual helpers/successors, preserve copies and review/relink changed executable bytes. Source waiting paths do not prove observed forced-stop cleanup or save flush."
         },
         {
-          "title": "Retain per-title qualification and component limits",
+          "title": "Check this game’s reported limits and component licences",
           "instruction": "Preserve GPL2-or-later and all packaged NVIDIA/Intel/Cinzel-font/component notices; these do not grant original-game rights or rights in separately chosen art/mods. Drake’s Fortune retains its own upstream GPU/CPU/stability limits; a result for another collection game or the BilalReloaded fork does not qualify it. Upstream feature/play reports remain upstream claims. No Portcove gameplay, save/reload, installed-app or Supported acceptance is asserted. Removing registration preserves every external file; managed install/update/rollback/backup/removal are unavailable."
         }
       ],

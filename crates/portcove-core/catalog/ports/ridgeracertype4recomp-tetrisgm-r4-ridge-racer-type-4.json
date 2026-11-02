@@ -4,11 +4,11 @@
     "id": "ridgeracertype4recomp-tetrisgm-r4-ridge-racer-type-4",
     "name": "R4: Ridge Racer Type 4 — RidgeRacerType4Recomp (tetrisgm)",
     "original_game_title": "R4: Ridge Racer Type 4",
-    "summary": "Information only; source hold. Bringuppreview boots/races/VSLink2-4player claims Acquisition is blocked: Generated game-derived C is committed; keep executable/package redistribution and trust review separate. Full playthrough and VSLink claims are not Portcove-qualified. Resume: List information/manual own-disc R4 preview under existing owner; assess generated-code/package rights before automated distribution. Portcove has not verified setup or gameplay.",
+    "summary": "Information only. The project reports an early R4 preview reaching startup and races, with VSLink claims for two to four players. Committed game-derived C and applicable package rights remain unresolved, so new downloads are unavailable. The own-disc preview does not establish a full playthrough, VSLink compatibility or permission for automated distribution. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/tetrisgm/RidgeRacerType4Recomp",
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64", "macos-x86-64"],
     "availability": "unknown",
-    "download_block_reason": "Generated game-derived C is committed; keep executable/package redistribution and trust review separate. Full playthrough and VSLink claims are not Portcove-qualified. Resume: List information/manual own-disc R4 preview under existing owner; assess generated-code/package rights before automated distribution.",
+    "download_block_reason": "New downloads are unavailable while the committed game-derived C and applicable package redistribution rights remain unresolved. A full playthrough and VSLink are unconfirmed by Portcove. Information about the own-disc preview is retained under its existing identity; package rights and trust require review before automated distribution.",
     "issue_number": 3400,
     "artwork": {
       "game_id": 18699,

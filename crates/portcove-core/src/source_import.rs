@@ -476,10 +476,10 @@ impl PortcoveService {
                     .iter()
                     .any(|operation| operation.id == activity.id)
                 {
-                    emit(
-                        coordinator
-                            .message("error", "Source import paused in a recoverable state."),
-                    );
+                    emit(coordinator.message(
+                        "error",
+                        "Adding game files paused. Recovery information has been kept.",
+                    ));
                     Err(error.detail("import_id", &activity.id).detail(
                         "recovery_action",
                         "restart Portcove to resume source import",

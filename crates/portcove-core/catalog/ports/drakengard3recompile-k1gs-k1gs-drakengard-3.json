@@ -4,7 +4,7 @@
     "id": "drakengard3recompile-k1gs-k1gs-drakengard-3",
     "name": "Drakengard 3 — Drakengard3Recompile (k1gs) (k1gs)",
     "original_game_title": "Drakengard 3",
-    "summary": "Research project. Intro/audio/title/mainmenu; gameplaywithworkingcontrols unconfirmed Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "Experimental Drakengard 3 source project. Upstream reports the intro, audio, title and main menu; gameplay with working controls has not been confirmed. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/k1gs/Drakengard3Recompile",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "PSNNPUB31251 version1.01 owneddecryptedgamefiles"
+          "instruction": "Use your own decrypted PlayStation Network NPUB31251 game files, version 1.01."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Sourcegeneration/build"
+          "instruction": "Follow upstream instructions to generate the game code and build from source."
         }
       ],
       "warnings": [
-        "Intro/audio/title/mainmenu; gameplaywithworkingcontrols unconfirmed",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "Upstream reports the intro, audio, title and main menu. Gameplay with working controls has not been confirmed.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/k1gs/Drakengard3Recompile"
     },

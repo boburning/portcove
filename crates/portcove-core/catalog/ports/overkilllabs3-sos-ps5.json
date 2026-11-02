@@ -22,11 +22,11 @@
           "instruction": "The inspected official Windows ZIP contains the AMD64 SonsOfSparta-PS5.exe launcher, tools/relinker.exe and matching libraries. The launcher is not by itself the complete game: upstream derives a separate Windows game executable from your own original x86-64 program. Keep that prepared output and all matching libraries beside the launcher. This is title-specific native relinking with reimplemented console services and Vulkan shaders, not a static translation of a different CPU or a generic PS5 emulator integration."
         },
         {
-          "title": "Attach the waiting launcher",
+          "title": "Add the launcher that waits for the game",
           "instruction": "Select SonsOfSparta-PS5.exe, set its complete prepared package folder as working directory and leave arguments empty. Review the exact selected intent and request Play separately; use the upstream settings window/Play if shown. The selected launcher starts the prepared game child and waits for its normal exit. It can reprepare when originals, tools or preparation stamps change: finish such work outside the attached attempt first. Do not select a generated internal executable or relinker to bypass the supported entry. Normal waiting does not establish forced-stop quiescence or save flushing."
         },
         {
-          "title": "Preserve actual player data and preparation",
+          "title": "Keep your prepared game and player data",
           "instruction": "Keep the complete _sd save folder beside the launcher, all game files, preparation/generated-runtime files, shader caches, logs, existing configuration and external paths. For Sons of Sparta also keep launcher.ini, _sd/GOWSOSSAVE999/GoW_SoS999.dat, prep/prepared.stamp and resolution.txt.old from upstream’s legacy settings conversion when present. This guide makes no settings, save conversion, migration, cleanup or backup changes; preserve old and new copies independently."
         },
         {
@@ -34,7 +34,7 @@
           "instruction": "Retain the project GPLv2 notice, AnyPS5 and all library/component notices. These do not grant rights to the original God of War: Sons of Sparta executable, shaders or assets; use only a complete copy you are independently permitted to use. No other PS5 game or original PC edition is admitted by this title-specific route."
         },
         {
-          "title": "Maintain outside the attachment",
+          "title": "Close the game before maintenance",
           "instruction": "Quit the actual game normally and wait for the launcher to return before upstream replacement or data operations. Preserve independent recovery copies and review/relink changed executable bytes. Requirements and limits include Vulkan 1.3; selected upstream reports NVIDIA testing only, incomplete whole-game coverage and possible shader, loading and crash problems. These remain upstream claims; no native gameplay, complete-game, save/reload, installed-app or Supported acceptance is asserted. Removing registration preserves external files; managed install/update/rollback/backup/removal remain unavailable."
         }
       ],

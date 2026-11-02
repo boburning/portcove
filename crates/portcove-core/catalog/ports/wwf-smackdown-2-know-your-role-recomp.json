@@ -25,16 +25,16 @@
           "instruction": "Extract the upstream Windows package to a writable non-synced folder, keep every file, and complete KnowYourRole.exe setup using your own NTSC-U SLUS-01234 CUE/BIN. No BIOS is needed. Keep the disc where it is: the game still reads it. The upstream x64 Visual C++ runtime dependency is separate; Portcove does not install it or run disc preparation."
         },
         {
-          "title": "Keep the exact original and preparation boundary",
+          "title": "Use the matching original and setup procedure",
           "instruction": "Upstream verifies internal original files: SLUS_012.34 SHA-256 e23acb3165ed001b6d23558ef81624cea70b97d98e68a2a93546e6466a3c2a7f and EXE.PAC SHA-256 83cbdc663f1230b6c6b191e5572db1a9ef22520f65d2c7641c52d6632bae73a6. These member checks and the whole-track size warning are not a Portcove cryptographic certificate for every original input or generated output. Keep private Recompiled.* libraries private."
         },
         {
-          "title": "Attach the completed supported native entry",
+          "title": "Add the completed supported game program",
           "instruction": "After upstream setup reports Ready, select the package-root KnowYourRole.exe with that root as working directory and --play as the literal argument. This supported entry checks readiness, sets the runtime working directory and data/log environment, waits for the actual game process and returns its exit code. Do not substitute a generator, diagnostics helper or a private runner merely because it is executable."
         },
         {
-          "title": "Review Play and retain one replacement owner",
-          "instruction": "Review and consent to the exact selected executable, established working directory and literal arguments, then choose Play separately. Upstream and you own preparation, runtime replacement and recovery. Removing registration preserves every external file. Close the actual player and companions before deliberate replacement, keep the old working copy and all effective data, then review and relink changed selected bytes. Portcove supplies no external update, backup, rollback, conversion, migration or deletion."
+          "title": "Review launch details and manage updates",
+          "instruction": "Review the selected game executable, working folder and launch arguments, then agree to use them. Choose Play separately when you are ready. You manage setup, game replacement and recovery. Removing the registration leaves external files in place. Before changing versions, close the game and its companion programs and keep the working copy and every data location it uses. Review and select the changed executable before playing again. Portcove does not offer updates, backups, rollback, conversion, data migration or deletion for these external files."
         },
         {
           "title": "Preserve the whole creating copy and effective data",
@@ -42,7 +42,7 @@
         }
       ],
       "warnings": [
-        "Use only a copy and components you are permitted to use. Keep the complete creating runtime, originals, saves, settings, mods, caches, backups and every custom root. Another executable can share those locations. This nonowning guide does not establish managed support, gameplay, real-save compatibility, installed-client or protected acceptance."
+        "Use only a copy and components you are permitted to use. Keep the complete working game, originals, saves, settings, mods, caches, backups and every custom data location before changing versions. Another executable may use those same locations. These instructions do not establish Portcove-managed installation, gameplay or save compatibility."
       ]
     }
   }

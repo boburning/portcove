@@ -216,7 +216,7 @@ export function DetailLayout({
               <Chip
                 key={`channel:${channel}`}
                 style={identityStyle(channel, true)}
-                title={selectedChannel ? "Selected release channel" : "Offered release channel"}
+                title={selectedChannel ? "Selected update channel" : "Offered update channel"}
               >
                 <IdentityIcon name={channel} channel />
                 {releaseChannelPresentation(channel).label}

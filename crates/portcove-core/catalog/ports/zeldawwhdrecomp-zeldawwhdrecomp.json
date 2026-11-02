@@ -3,7 +3,7 @@
   "listing": {
     "id": "zeldawwhdrecomp-zeldawwhdrecomp",
     "name": "The Legend of Zelda: The Wind Waker HD / ZeldaWWHDRecomp (ZeldaWWHDRecomp)",
-    "summary": "Attach the completed Wind Waker HD Windows x64 product after upstream preparation. Select data/bin/wwhd.exe with the actual game/save paths, preserving the portable user root; the top-level setup program detaches.",
+    "summary": "Explore The Legend of Zelda: The Wind Waker HD / ZeldaWWHDRecomp (ZeldaWWHDRecomp) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDRecomp",
     "issue_number": 1913,
     "platforms": [],
@@ -30,7 +30,7 @@
         },
         {
           "title": "Attach the actual native product",
-          "instruction": "Select the completed data/bin/wwhd.exe, set working directory to that actual data/ directory and use --game \"the existing prepared game directory\" --save \"the existing active save directory\". This matches the selected producer’s native-game shortcut and bypasses the detaching Windows setup launcher. Review the exact paths and intent and request Play separately. Preserve an existing --user-dir or --data-dir override if already used; do not add one to create an empty profile. Keep the game and matching DLLs together and close its actual native window normally."
+          "instruction": "Select the completed data/bin/wwhd.exe, set working directory to that actual data/ directory and use --game \"the existing prepared game directory\" --save \"the existing active save directory\". This matches the selected producer’s native-game shortcut and bypasses the detaching Windows setup launcher. Review the exact paths and intent and choose Play when ready. Preserve an existing --user-dir or --data-dir override if already used; do not add one to create an empty profile. Keep the game and matching DLLs together and close its actual native window normally."
         },
         {
           "title": "Preserve portable saves, settings and custom roots",

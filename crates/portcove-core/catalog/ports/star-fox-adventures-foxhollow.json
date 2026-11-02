@@ -3,7 +3,7 @@
   "listing": {
     "id": "star-fox-adventures-foxhollow",
     "name": "Star Fox Adventures (Foxhollow)",
-    "summary": "Upstream route: Official launcher; code repository tags have no uploaded assets Limits: Upstream says fully playable on Windows/macOS/Linux; official launcher delivery is separate from asset-empty code tags. Upstream platforms: Official launcher for Windows/Linux/macOS; source tags have no runtime assets. Exact launcher/package CPU architectures unknown in frozen evidence; mobile targets are not planned releases. Original data: User-owned Star Fox Adventures disc; README says any copy Portcove setup/gameplay not verified.",
+    "summary": "A Star Fox Adventures port that the project describes as fully playable on Windows, Linux and macOS. Obtain it through the official launcher; code-repository tags contain no runtime files. Exact launcher/package CPU architectures are unconfirmed, and mobile targets are not planned releases. The README accepts any copy of your own original disc. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Star Fox Adventures",
     "project_url": "https://github.com/JackPriceBurns/foxhollow",
     "platforms": [],

@@ -37,9 +37,9 @@ function render(protection = snapshot(), status: "current" | "pending" | "failed
 describe("player-data protection summary", () => {
   it("does not turn a managed declaration or existing folder into a completed backup", () => {
     const html = render();
-    expect(html).toContain("No completed backup was found in this read.");
-    expect(html).toContain("Its existence alone does not establish save protection.");
-    expect(html).toContain("Update ownership is unknown");
+    expect(html).toContain("No completed backup recorded.");
+    expect(html).toContain("This folder’s presence doesn’t mean its contents have been backed up.");
+    expect(html).toContain("Choose an installation to see who handles updates");
     expect(html).toContain("rules, not proof of backed-up saves");
     expect(html).toContain("Custom save locations are not automatically adopted.");
   });
@@ -48,10 +48,10 @@ describe("player-data protection summary", () => {
     "labels retained facts as last loaded after a %s read",
     (state) => {
       const html = render(snapshot(), state);
-      expect(html).toContain("Last loaded Core snapshot");
-      expect(html).toContain("No completed backup was recorded in the last loaded read.");
-      expect(html).not.toContain("Current Core snapshot");
-      expect(html).not.toContain("No completed backup was found in this read.");
+      expect(html).toContain("Last loaded backup information");
+      expect(html).toContain("No completed backup was listed when backup history was last loaded.");
+      expect(html).not.toContain("Latest backup information");
+      expect(html).not.toContain("No completed backup recorded.");
     },
   );
 
@@ -69,17 +69,17 @@ describe("player-data protection summary", () => {
     const html = render(protection);
     expect(html).toContain("Latest completed backup");
     expect(html).toContain("completed-backup-1");
-    expect(html).toContain("current restore availability");
-    expect(html).toContain("does not prove game-save compatibility");
-    expect(html).toContain("Older software");
-    expect(html).toContain("may not understand newer saves or configuration");
+    expect(html).toContain("Review its files before restoring");
+    expect(html).toContain("older versions may not be able to use these saves");
+    expect(html).toContain("Newer saves");
+    expect(html).toContain("may not work with it");
   });
 
   it("does not show another implementation’s coverage or backup identity", () => {
     const protection = snapshot();
     protection.port_id = "other-port";
     const html = render(protection);
-    expect(html).toContain("Protection information is unavailable");
+    expect(html).toContain("Backup information is unavailable");
     expect(html).not.toContain("C:/library/user/sample");
     expect(html).not.toContain(declaration.definition_sha256);
   });
@@ -92,7 +92,7 @@ describe("player-data protection summary", () => {
         readState={{ status: "current", hasInventory: true }}
       />,
     );
-    expect(html).toContain("Protection information is unavailable");
+    expect(html).toContain("Backup information is unavailable");
     expect(html).not.toContain("No completed backup");
   });
 
@@ -102,7 +102,7 @@ describe("player-data protection summary", () => {
     const html = render(protection);
     expect(html).toContain(protection.problem);
     expect(html).not.toContain("No installation is recorded");
-    expect(html).toContain("Managed backup data root");
+    expect(html).toContain("Saved-data folder");
   });
 
   it("refuses stale installation facts even when the port identity is unchanged", () => {
@@ -124,7 +124,7 @@ describe("player-data protection summary", () => {
       },
     ];
     const html = render(protection);
-    expect(html).toContain("Protection information is unavailable");
+    expect(html).toContain("Backup information is unavailable");
     expect(html).not.toContain("previous-generation");
   });
   it("does not call a fulfilled unreadable inventory empty", () => {
@@ -147,8 +147,10 @@ describe("player-data protection summary", () => {
         ]}
       />,
     );
-    expect(html).toContain("newest completed backup cannot be established");
-    expect(html).toContain("No completed backup could be established from this incomplete read.");
-    expect(html).not.toContain("No completed backup was found in this read.");
+    expect(html).toContain("We couldn’t confirm your latest completed backup");
+    expect(html).toContain(
+      "We couldn’t confirm a completed backup because the history is incomplete.",
+    );
+    expect(html).not.toContain("No completed backup recorded.");
   });
 });

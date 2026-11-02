@@ -96,7 +96,7 @@ async function openChannelPanel() {
   );
   expect(trigger).toBeDefined();
   if (trigger!.getAttribute("aria-expanded") !== "true") await act(async () => trigger!.click());
-  await openFilterField("Release channels");
+  await openFilterField("Update channels");
 }
 
 async function click(name: string) {
@@ -321,7 +321,9 @@ describe("Catalog channel controls", () => {
     await restore(filter);
     expect(visibleIds()).toEqual([]);
     await openChannelPanel();
-    expect(host.querySelector('[role="alert"]')?.textContent).toContain("not supported");
+    expect(host.querySelector('[role="alert"]')?.textContent).toContain(
+      "These saved filters aren’t supported by this version of Portcove.",
+    );
     expect(channelButton("beta").matches(":disabled,[aria-disabled=true]")).toBe(true);
     await click("beta");
     expect(shell.filter).toEqual(filter);

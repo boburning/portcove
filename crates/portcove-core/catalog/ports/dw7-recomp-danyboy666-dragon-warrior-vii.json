@@ -4,7 +4,7 @@
     "id": "dw7-recomp-danyboy666-dragon-warrior-vii",
     "name": "Dragon Warrior VII — DW7-recomp (danyboy666)",
     "original_game_title": "Dragon Warrior VII",
-    "summary": "Research project. Upstream intro/title/mainmenu/name-entry; opening field/story, battles and remaining overlays active bringup. Disc2/fullgame not qualified by Disc1 menu. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "Experimental Dragon Warrior VII source project. Upstream reports the intro, title, menus and name entry; field gameplay, battles and disc 2 remain unfinished or unconfirmed. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/danyboy666/DW7-recomp",
     "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Own PS1 USA SLUS01206 disc1 of2; second-disc ID unknown."
+          "instruction": "Use your own USA PlayStation Dragon Warrior VII disc 1 of 2, SLUS01206. The second disc ID is not confirmed; check upstream’s current requirements before proceeding beyond disc 1."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Local owned-input source route: recursively initialize the pinned PSXRecomp, generate gameC from the owned USA DragonWarriorVII Disc1 CUE, then build psx-runtime with CMake/Ninja. Upstream warns regeneration drops a required emitter correction: apply the documented three generated-code edits or the stated emitter fix before rebuilding. This is an unfinished research route, not a verified player package."
+          "instruction": "Initialize the pinned PSXRecomp and its submodules, generate the game C code from your own USA Dragon Warrior VII disc 1 CUE, then build psx-runtime with CMake and Ninja. Upstream warns that regeneration loses a required correction: apply its documented three generated-code edits or emitter fix before rebuilding. This source project is unfinished; no ready-to-play package has been confirmed."
         }
       ],
       "warnings": [
-        "Upstream intro/title/mainmenu/name-entry; opening field/story, battles and remaining overlays active bringup. Disc2/fullgame not qualified by Disc1 menu.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "Upstream reports the intro, title, main menu and name entry. The opening field, story, battles and remaining overlays are still being developed. A working disc 1 menu does not establish disc 2 or full-game support.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/danyboy666/DW7-recomp"
     },
