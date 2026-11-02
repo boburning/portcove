@@ -162,16 +162,6 @@
     background: transparent;
     box-shadow: none;
   }
-  @media (width <= 75rem) {
-    .workspace-main {
-      --workspace-inline: var(--space-6);
-    }
-  }
-  @media (width <= 65rem) {
-    .workspace-main {
-      --workspace-inline: var(--space-5);
-    }
-  }
   @container update-entry (max-width: 48em) {
     .update-entry > .update-row {
       grid-template-columns: 42px minmax(0, 1fr);

@@ -27,7 +27,8 @@ chips, counts and reset stay with the existing browsing projection. First use
 omits retrieval controls. Add games sits beside the Library heading; scoped
 Collection commands accompany collection navigation; Covers/Compact rows share the retrieval toolbar. At
 compact widths the visible Rows label retains its full Compact rows accessible
-name. Readiness keeps its accessible label when its decorative prefix is omitted
+name. Below 16rem of query width the layout switch uses named icons, and Library
+quick views form two columns without reducing their touch height. Readiness keeps its accessible label when its decorative prefix is omitted
 above 20rem through 32rem of query width. Collection commands retains its explicit
 selection scope, including filtered-out entries in supported Steam commands.
 
@@ -267,9 +268,14 @@ Interface size is one profile-local whole-interface control in Appearance with
 100/125/150/175/200/250/300/400 percent presets and Ctrl/Command plus/minus/zero.
 It preserves the active library, drafts and browsing context. Below 42rem
 effective width, a 60px icon navigation rail sits beside a document-flow workspace.
-The same primary destination controls retain accessible names and selection cues;
+Primary destination tooltips open toward the workspace to avoid covering adjacent
+rail controls while remaining hoverable. The same destination controls retain
+accessible names and selection cues;
 the rail's Open navigation control retains the full-label modal sheet and focus
-restoration. Compact collection controls remain in the workspace. Commands stays
+restoration. Compact collection controls remain in the workspace. At narrow query widths the
+Continue strip omits its decorative foreground thumbnail so identity and actions
+can use the full text width; its background, image credits and real controls remain.
+Commands stays
 in the workspace top bar with one trigger. The 672–760px compact desktop shell
 uses the same 60px rail. Keep task controls
 in the workspace flow. [Theme ownership](THEME.md#whole-interface-enlargement-and-reflow) owns

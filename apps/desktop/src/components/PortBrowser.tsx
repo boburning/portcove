@@ -1672,12 +1672,14 @@ function CollectionLayoutToggle({
           variant={layout === nextLayout ? "selected" : "ghost"}
           size="sm"
           aria-pressed={layout === nextLayout}
-          aria-label={nextLayout === "rows" ? "Compact rows" : undefined}
+          aria-label={nextLayout === "rows" ? "Compact rows" : "Covers"}
           data-focusable
           onClick={() => onChange(nextLayout)}
         >
           <Icon glyph={nextLayout === "covers" ? LayoutGrid : List} size="sm" />
-          {nextLayout === "covers" ? "Covers" : "Rows"}
+          <span className="collection-layout-label">
+            {nextLayout === "covers" ? "Covers" : "Rows"}
+          </span>
         </Button>
       ))}
     </div>

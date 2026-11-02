@@ -157,7 +157,11 @@ export function Sidebar({
     shortcut: string;
   }>;
   const renderNavigationItem = (item: (typeof items)[number], sheet: boolean) => (
-    <Tooltip label={`${item.label} · ${commandShortcut(item.shortcut)}`} disabled={sheet}>
+    <Tooltip
+      label={`${item.label} · ${commandShortcut(item.shortcut)}`}
+      disabled={sheet}
+      side="inline-end"
+    >
       <Button
         data-focusable
         aria-current={view === item.view ? "page" : undefined}

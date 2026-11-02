@@ -195,6 +195,9 @@
     }
   }
   @container library-query (max-width: 25rem) {
+    .game-hero-continue .game-hero-foreground {
+      display: none;
+    }
     .game-hero-continue .game-hero-body {
       flex-direction: row;
       gap: var(--space-3);
