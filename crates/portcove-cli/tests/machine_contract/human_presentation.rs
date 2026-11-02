@@ -300,7 +300,7 @@ fn setup_references_reach_human_current_and_explicit_legacy_consumers() {
     );
     assert!(current.status.success(), "{current:?}");
     let current: Value = serde_json::from_slice(&current.stdout).unwrap();
-    assert_eq!(current["schema_version"], 85);
+    assert_eq!(current["schema_version"], 86);
     assert_eq!(
         current["data"]["presentation"]["manual_setup"]["references"]
             .as_array()

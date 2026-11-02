@@ -1,6 +1,98 @@
 use super::*;
 
 #[test]
+fn libultraship_relative_file_policy_is_windows_scoped_and_checks_all_members() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let mut port = catalog.port("2ship2harkinian").unwrap().clone();
+    let platforms = port.platforms.clone();
+    let source_profile = port.source_profile.clone();
+    port.windows_runtime_path_policy = Some(WindowsRuntimePathPolicy::RelativeFileMaxPath);
+    validate(&port).unwrap();
+    assert_eq!(minimum_capability(&port), 2);
+    assert_eq!(capability_template(&port), "libultraship-portable");
+    let root = Path::new("C:\\Games 日本語");
+    check_package_paths(&port, Platform::WindowsX86_64, root, ["assets/scene.xml"]).unwrap();
+    let nested = format!("assets/{}.xml", "x".repeat(260));
+    let error = check_package_paths(&port, Platform::WindowsX86_64, root, [&*nested]).unwrap_err();
+    assert_eq!(
+        error
+            .details
+            .get("runtime_path_requirement")
+            .map(String::as_str),
+        Some("relative-file-max-path")
+    );
+    assert!(error.message.contains("shorter"));
+    for platform in [
+        Platform::LinuxX86_64,
+        Platform::MacosX86_64,
+        Platform::MacosAarch64,
+    ] {
+        check_package_paths(&port, platform, root, [&*nested]).unwrap();
+    }
+    assert_eq!(port.platforms, platforms);
+    assert_eq!(port.source_profile, source_profile);
+    let mut invalid = port.clone();
+    invalid.platforms = vec![Platform::LinuxX86_64];
+    assert!(validate(&invalid).is_err());
+    invalid = port.clone();
+    invalid
+        .setup_executable_hints
+        .insert(Platform::WindowsX86_64, vec!["setup.exe".into()]);
+    assert!(validate(&invalid).is_err());
+    port.windows_runtime_path_policy = None;
+    check_package_paths(&port, Platform::WindowsX86_64, root, [&*nested]).unwrap();
+}
+
+#[cfg(windows)]
+#[test]
+fn libultraship_retained_policy_holds_moves_without_mutating_existing_data() {
+    let catalog = crate::Catalog::from_json(&serde_json::json!({
+        "schema_version":1,"ports":[{
+            "id":"libultraship-path-fixture","name":"Inert path fixture","summary":"Synthetic retained path policy",
+            "project_url":"https://example.invalid/path-fixture","support_tier":"beta","channels":["stable"],
+            "platforms":["windows-x86-64","linux-x86-64"],"adapter":"libultraship-portable",
+            "release":{"repository":"fixture/path-fixture"},
+            "executable_hints":{"windows-x86-64":["inert.exe"],"linux-x86-64":["inert"]},
+            "windows_runtime_path_policy":"relative-file-max-path"
+        }]
+    }).to_string()).unwrap();
+    let temporary = tempfile::tempdir().unwrap();
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    let port_id = "libultraship-path-fixture";
+    let retained = crate::test_fixture::admitted_indexed_catalog(&catalog, port_id);
+    let install = crate::test_fixture::register_qualification_install(&library, &retained, port_id);
+    let executable = install.path.join(&install.selected_executable);
+    let before = std::fs::read(&executable).unwrap();
+    let mut current = catalog.authoritative_document();
+    current.ports[0].windows_runtime_path_policy = None;
+    let mut service = crate::PortcoveService::new(library).unwrap();
+    service.replace_catalog_for_test(
+        crate::Catalog::from_json(&serde_json::to_string(&current).unwrap()).unwrap(),
+    );
+    let destination = temporary.path().join("x".repeat(220));
+    let error = service.plan_library_move(&destination).unwrap_err();
+    assert_eq!(
+        error
+            .details
+            .get("runtime_path_requirement")
+            .map(String::as_str),
+        Some("relative-file-max-path")
+    );
+    let error = service
+        .plan_output_relocation(port_id, &destination)
+        .unwrap_err();
+    assert_eq!(
+        error
+            .details
+            .get("runtime_path_requirement")
+            .map(String::as_str),
+        Some("relative-file-max-path")
+    );
+    assert!(!destination.exists());
+    assert_eq!(std::fs::read(executable).unwrap(), before);
+}
+
+#[test]
 fn opentyrian_windows_paths_refuse_before_preparation_and_leave_linux_unchanged() {
     use crate::Adapter;
     let catalog = crate::Catalog::embedded().unwrap();

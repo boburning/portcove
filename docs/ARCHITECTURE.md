@@ -1327,6 +1327,19 @@ requires a new review. The CLI and core machine contract remain unchanged.
 
 ## Source-reference removal and shared review state
 
+`source_reuse.rs` projects a checked saved registration into per-integration
+setup choices using the existing inspection report, original-file identity and
+catalog source contracts. The reference fingerprint binds the library identity/root, registration,
+profile and applicable contracts/port definitions. It is ephemeral review input,
+not a registry or permission. Listed variant identity, informational admission,
+complete preparation and actual release qualification remain distinct. The new
+guard accepts only the selected port's original-game profile, holds the existing
+source lock through checked installation, and never re-registers an override.
+BIOS keeps its separate selection path. Desktop preserves the generation and
+stable port ID, expires changed-source review, and presents moved-file repair
+through the existing digest-bound relink plan. Read-only inspection never changes
+the source or saved baseline; relink requires identical validated content.
+
 Settings exposes the existing core source-removal preview inline with the original path,
 installed dependents and all catalog dependents. The review explains that only the
 library reference is removed, other files/state remain, and later use requires
@@ -2211,6 +2224,14 @@ Each registered source keeps its original path, content identity, storage identi
 Source registration is a core-owned mutation. All source writers take a library/profile lock and the locks for every catalog port sharing that game source or BIOS, including registration through install overrides. These fail-fast locks prevent reference changes throughout a dependent launch or lifecycle operation without introducing a wait-order deadlock. Read-only relink planning validates the new location against the current profile and stored content identity; applying the content-bound plan repeats validation under those locks. The old source can be offline, but a changed registration or candidate invalidates the plan. Only SQLite's reference and validation baseline are replaced; source bytes remain untouched. CLI and desktop use this same service boundary.
 
 #### Inspection, source contracts and evidence
+
+Fresh original-file setup checks a recognized edition against the selected
+integration's nonempty supported-variant list before registering an override or
+inbox candidate, or using a saved registration. A known exclusion fails without
+replacing the saved baseline. Saved-source checks reuse the assessment computed
+by baseline verification. Unknown informational inputs and contracts without a
+listed variant set retain their existing admission; this setup check does not
+change generic source registration or installed-runtime launch policy.
 
 `source_assessment` defines the shared source fact contract: existing
 `SourceHealth` (including selected bytes without a baseline), classification,

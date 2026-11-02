@@ -808,6 +808,14 @@
       ]
     },
     {
+      "file": "scripts/desktop-source-reuse.test.mts",
+      "memberships": [
+        ["windows-storage-4", 510],
+        ["frontend-full-4", 510],
+        ["development-tools", 2310]
+      ]
+    },
+    {
       "file": "scripts/desktop-real-runtime.test.mts",
       "memberships": [
         ["windows-storage-4", 500],
@@ -1241,6 +1249,7 @@
             "actual library picker input paths refuse foreign controls and changed process/window identities",
             "actual observation field projection uses its explicit window and title without input",
             "failed confirmation retains a redacted helper receipt before its original assertion",
+            "file picker receipt requires owned readback and fresh dismissal after one Open",
             "library picker discovery excludes unrelated providers and refuses changed identities",
             "malformed, oversized and private diagnostic fields cannot leak through receipts",
             "owned observation picker preflight binds exact fixture directories to their title",

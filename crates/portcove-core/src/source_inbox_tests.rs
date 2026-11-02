@@ -516,6 +516,7 @@ fn informational_and_tool_required_candidates_are_never_registered_silently() {
         .resolve_and_register_inbox_source(
             "opengoal-jak1-disc",
             None,
+            None,
             &OperationCoordinator::new("informational-inbox", None),
         )
         .unwrap_err();
@@ -543,6 +544,7 @@ fn install_time_resolution_rechecks_and_registers_only_one_exact_match() {
     let registered = service
         .resolve_and_register_inbox_source(
             "psx-scph-1001-bios",
+            None,
             None,
             &OperationCoordinator::new("install-inbox", None),
         )

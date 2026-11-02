@@ -304,6 +304,8 @@ const failureStages = [
   "screenshot-preparation-start",
   "screenshot-written",
   "observation-complete",
+  "file-input-readback",
+  "file-picker-close",
   "unknown",
 ];
 const failureTypes = [
@@ -585,7 +587,7 @@ export function nativeConfirmation({
         ...(directoryPath ? ["-DirectoryPath", directoryPath] : []),
         ...(screenshot ? ["-ScreenshotPath", screenshot] : []),
       ],
-      { encoding: "utf8", windowsHide: true, timeout: 15_000 },
+      { encoding: "utf8", windowsHide: true, timeout: filePath ? 30_000 : 15_000 },
     );
     if (result.status !== 0) await retainConfirmationFailure({ output, artifacts }, name, result);
     const observation = await retainPickerObservation(result, output, name, artifacts);

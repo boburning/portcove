@@ -54,7 +54,7 @@ describe("source identity presentation", () => {
     ["check_failed", "File checks failed"],
     ["recognized_exact", "Exact match"],
     ["accepted_identity_unknown", "Edition unknown · review check details"],
-    ["ambiguous_identity", "More checks needed · edition unclear"],
+    ["ambiguous_identity", "More checks needed · match unclear"],
     ["selected_needs_checking", "More checks needed"],
     ["not_evaluated", "Not evaluated"],
     ["known_mismatch", "Files don't match reviewed requirements"],
@@ -251,7 +251,24 @@ it("keeps partial multi-disc digests neutral while retaining Core's overall resu
   expect(html).toContain("Expected CRC32");
   expect(html).toContain("12345678");
   expect(html).toContain("Observed member evidence");
-  expect(html).toContain("More checks needed · edition unclear");
+  expect(html).toContain("More checks needed · match unclear");
   expect(html).not.toContain("Exact member match");
   expect(html).not.toContain("Member doesn&#x27;t match");
+});
+
+it("does not count two formats of one edition as two editions", () => {
+  const value = report("ambiguous_identity");
+  const inspection = fixtureValue(value.inspection, "inspection");
+  inspection.assessment.classification = {
+    state: "ambiguous",
+    candidates: [
+      { game_id: "same-game", variant_id: "same-edition", representation_id: "raw" },
+      { game_id: "same-game", variant_id: "same-edition", representation_id: "normalized" },
+    ],
+  };
+  const html = renderToStaticMarkup(<SourceIdentityPanel report={value} />);
+  expect(html).toContain("2 possible matches");
+  expect(html).toContain("Matches");
+  expect(html).not.toContain("2 possible editions");
+  expect(html).not.toContain("edition unclear");
 });

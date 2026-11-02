@@ -1,10 +1,15 @@
-import { act, createElement } from "react";
+import { act, createElement, useEffect, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { desktopApi } from "../../api";
-import { portDefinition } from "../../test-fixtures";
+import { portDefinition, portStatus } from "../../test-fixtures";
+import type { SourceRecord, SourceReuseReview } from "../../types";
 import { targetInvocationContext } from "../operations/invocation-state";
 import type { Perform } from "../operations/use-operation-state";
+import {
+  usePendingSetupReview,
+  useSetupReviewSelection,
+} from "../game-file-discovery/setup-review-selection";
 import { useAdoptionPlanning, useInstallPlanning } from "./use-installation-planning";
 
 function deferred<T>() {
@@ -38,12 +43,16 @@ function Fixture({
   path = "A",
   open = true,
   generation = 1,
+  registeredSource,
+  sourcePath = "",
 }: {
   port?: string | null;
   channel?: "stable" | "beta";
   path?: string;
   open?: boolean;
   generation?: number;
+  registeredSource?: SourceRecord;
+  sourcePath?: string;
 }) {
   install = useInstallPlanning(
     port ?? undefined,
@@ -57,6 +66,8 @@ function Fixture({
           "library",
         )
       : undefined,
+    registeredSource,
+    sourcePath,
   );
   adoption = useAdoptionPlanning(path, port ?? undefined, open, generation, perform, done, [
     { ...portDefinition(), id: "first", name: "Game first" },
@@ -82,6 +93,212 @@ afterEach(async () => {
 });
 
 describe("current review intent", () => {
+  it("reuses the selected registration only after a matching per-integration Core review", async () => {
+    const source: SourceRecord = {
+      profile_id: "game",
+      path: "D:/original.z64",
+      sha256: "a".repeat(64),
+      size: 64,
+      storage_sha256: "a".repeat(64),
+      storage_size: 64,
+      updated_at: 1,
+    };
+    const checked: SourceReuseReview = {
+      registration: source,
+      reference: { profile_id: "game", reference_sha256: "b".repeat(64) },
+      inspection: {
+        schema_version: 1,
+        profile_id: "game",
+        health: "current",
+        state_code: "recognized_exact",
+        summary: "Checked saved identity",
+        next_action: "Review setup",
+        applications: [],
+        evidence: [],
+        legacy: { registration_identity_not_recorded: false, variant_unspecified_records: [] },
+      },
+      applications: [
+        {
+          port_id: "first",
+          port_name: "First",
+          role: "game",
+          contract_id: "first-source",
+          compatibility: "listed_identity",
+          can_review_setup: true,
+          summary: "Listed identity, further setup checks remain.",
+          additional_checks: [],
+        },
+      ],
+    };
+    const check = vi.spyOn(desktopApi, "reviewSourceReuse").mockResolvedValue(checked);
+    const plan = vi.spyOn(desktopApi, "plan").mockResolvedValue({} as Plan);
+    await render({ registeredSource: source, sourcePath: source.path });
+    await act(async () => install.review());
+    expect(check).toHaveBeenCalledWith("game", 1);
+    expect(plan).toHaveBeenCalledExactlyOnceWith("first", "stable");
+    expect(install.sourceReference).toEqual(checked.reference);
+    check.mockResolvedValueOnce({
+      ...checked,
+      applications: [
+        {
+          ...checked.applications[0]!,
+          compatibility: "incompatible",
+          can_review_setup: false,
+          summary: "This edition is not listed; choose USA 1.0.",
+        },
+      ],
+    });
+    await act(async () => install.review());
+    expect(plan).toHaveBeenCalledTimes(1);
+    expect(install.plan).toBeUndefined();
+    expect(String(errors.mock.calls.at(-1)?.[0])).toContain("choose USA 1.0");
+    check.mockRejectedValueOnce(new Error("This host does not support review_source_reuse."));
+    await act(async () => install.review());
+    expect(plan).toHaveBeenCalledTimes(1);
+    expect(install.sourceReference).toBeUndefined();
+  });
+
+  it.each(["", "D:/previous-choice.z64"])(
+    "completes a queued saved-file choice across source draft %j and automatic prefill",
+    async (initialPath) => {
+      const source: SourceRecord = {
+        profile_id: "game",
+        path: "D:/saved.z64",
+        sha256: "a".repeat(64),
+        size: 64,
+        storage_sha256: "a".repeat(64),
+        storage_size: 64,
+        updated_at: 1,
+      };
+      const reference = { profile_id: "game", reference_sha256: "b".repeat(64) };
+      const check = vi.spyOn(desktopApi, "reviewSourceReuse").mockResolvedValue({
+        registration: source,
+        reference,
+        applications: [{ port_id: "first", can_review_setup: true }],
+      } as SourceReuseReview);
+      const pending = deferred<Plan>();
+      const plan = vi.spyOn(desktopApi, "plan").mockReturnValue(pending.promise);
+      let choose!: () => void;
+      let draft = "";
+      function Continuation({
+        sourcePath,
+        setSourcePath,
+      }: {
+        sourcePath: string;
+        setSourcePath: (path: string) => void;
+      }) {
+        const selection = useSetupReviewSelection();
+        draft = sourcePath;
+        // App fills the selected registration in an earlier passive effect when
+        // the chosen detail opens. Exercise that same committed-render boundary.
+        useEffect(() => {
+          if (selection.pendingReview) setSourcePath(source.path);
+        }, [selection.pendingReview, setSourcePath]);
+        install = useInstallPlanning(
+          "first",
+          "stable",
+          perform,
+          targetInvocationContext(
+            "Review installation",
+            { kind: "port", id: "first", label: "First" },
+            1,
+            "library",
+          ),
+          source,
+          sourcePath,
+        );
+        usePendingSetupReview(
+          selection,
+          "first",
+          "first",
+          {
+            ...portStatus(),
+            port_id: "first",
+            port_actions: [
+              {
+                action: "install",
+                availability: "allowed",
+                reason: "available",
+                summary: "Available",
+              },
+            ],
+          },
+          undefined,
+          install.reviewSource,
+          sourcePath,
+          setSourcePath,
+        );
+        choose = () => selection.requestReview("first", "stable", reference);
+        return null;
+      }
+      // The draft owner is separate from the model prefill, as in App.
+      function DraftOwner() {
+        const [sourcePath, setSourcePath] = useState(initialPath);
+        return createElement(Continuation, { sourcePath, setSourcePath });
+      }
+      await act(async () => root.render(createElement(DraftOwner)));
+      await act(async () => choose());
+      expect(["", source.path]).toContain(draft);
+      expect(check).toHaveBeenCalledExactlyOnceWith("game", 1);
+      expect(plan).toHaveBeenCalledExactlyOnceWith("first", "stable");
+      const result = {} as Plan;
+      await act(async () => {
+        pending.resolve(result);
+      });
+      expect(install.plan).toBe(result);
+      expect(install.sourceReference).toEqual(reference);
+      expect(errors).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["healthy", "missing", "incompatible"])(
+    "preserves an explicit replacement independently of the %s saved registration",
+    async (state) => {
+      const source: SourceRecord = {
+        profile_id: "game",
+        path: "D:/previous.z64",
+        sha256: "a".repeat(64),
+        size: 64,
+        storage_sha256: "a".repeat(64),
+        storage_size: 64,
+        updated_at: 1,
+      };
+      const check = vi.spyOn(desktopApi, "reviewSourceReuse").mockImplementation(async () => {
+        if (state === "missing") throw new Error("The saved file is missing.");
+        return {
+          reference: { profile_id: "game", reference_sha256: "b".repeat(64) },
+          registration: source,
+          applications: [{ port_id: "first", can_review_setup: state === "healthy" }],
+        } as SourceReuseReview;
+      });
+      const plan = vi.spyOn(desktopApi, "plan").mockResolvedValue({} as Plan);
+      await render({ registeredSource: source, sourcePath: "D:/replacement.z64" });
+      await act(async () => install.review());
+      expect(check).not.toHaveBeenCalled();
+      expect(plan).toHaveBeenCalledExactlyOnceWith("first", "stable");
+      expect(install.plan).toBeDefined();
+      expect(install.sourceReference).toBeUndefined();
+      expect(errors).not.toHaveBeenCalled();
+    },
+  );
+
+  it("discards an install review completed after the explicit source selection changes", async () => {
+    const pending = deferred<Plan>();
+    vi.spyOn(desktopApi, "plan").mockReturnValue(pending.promise);
+    await render({ sourcePath: "D:/first.z64" });
+    let review!: Promise<void>;
+    await act(async () => {
+      review = install.review();
+    });
+    await render({ sourcePath: "D:/second.z64" });
+    await act(async () => {
+      pending.resolve({} as Plan);
+      await review;
+    });
+    expect(install.plan).toBeUndefined();
+    expect(install.sourceReference).toBeUndefined();
+  });
+
   it("binds an ambiguous detected choice to a fresh plan and its native authorization", async () => {
     const ambiguous = {
       detected_port_ids: ["first", "second"],

@@ -90,12 +90,12 @@ export function SearchChoice({
                   <ComboboxPrimitive.Item
                     key={option.id}
                     value={option}
-                    className="relative flex cursor-default items-start gap-2 rounded-pc-sm px-3 py-2 text-sm outline-none data-highlighted:outline-2 data-highlighted:outline-offset-[-2px] data-highlighted:outline-[var(--color-focus)] data-selected:bg-pc-selection data-selected:text-pc-selection-foreground"
+                    className="group/choice relative flex cursor-default items-start gap-2 rounded-pc-sm px-3 py-2 text-sm outline-none data-highlighted:outline-2 data-highlighted:outline-offset-[-2px] data-highlighted:outline-[var(--color-focus)] data-selected:bg-pc-selection data-selected:text-pc-selection-foreground"
                   >
                     <span className="min-w-0 flex-1 break-words">
                       <span className="block font-semibold">{option.label}</span>
                       {option.description && (
-                        <span className="block text-sm text-pc-muted-foreground">
+                        <span className="block text-sm text-pc-muted-foreground group-data-[selected]/choice:text-pc-selection-foreground">
                           {option.description}
                         </span>
                       )}

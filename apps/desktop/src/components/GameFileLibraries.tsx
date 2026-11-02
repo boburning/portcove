@@ -726,7 +726,18 @@ export function GameFileLibraries({
   const viewCompletion = useCompletedScanView(scanState, view, setError);
   const [notice, setNotice] = useState<string>();
   const [removingId, setRemovingId] = useState<string>();
-  const [plan, setPlan] = useState<SourceImportPlan>();
+  const [reviewedPlan, setReviewedPlan] = useState<{
+    generation: number;
+    plan: SourceImportPlan;
+  }>();
+  const plan = reviewedPlan?.generation === generation ? reviewedPlan.plan : undefined;
+  const setPlan = useCallback(
+    (next: SourceImportPlan | undefined) => {
+      if (owner.current !== generation) return;
+      setReviewedPlan(next ? { generation, plan: next } : undefined);
+    },
+    [generation],
+  );
   const [registeredSource, setRegisteredSource] = useContinuationSource(
     registeredSources,
     setupSource,
@@ -904,6 +915,7 @@ export function GameFileLibraries({
           plan.source.path,
           plan.mode,
           plan.plan_sha256,
+          generation,
         );
         if (!accepts()) return;
         if (!result) {

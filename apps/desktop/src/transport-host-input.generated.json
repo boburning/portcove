@@ -372,9 +372,26 @@
           "rolling"
         ],
         "type": "string"
+      },
+      "SourceRegistrationReference": {
+        "additionalProperties": false,
+        "properties": {
+          "profile_id": {
+            "type": "string"
+          },
+          "reference_sha256": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile_id",
+          "reference_sha256"
+        ],
+        "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
     "properties": {
       "bios": {
         "type": [
@@ -399,6 +416,16 @@
         "type": [
           "string",
           "null"
+        ]
+      },
+      "sourceReference": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/SourceRegistrationReference"
+          },
+          {
+            "type": "null"
+          }
         ]
       },
       "stage": {

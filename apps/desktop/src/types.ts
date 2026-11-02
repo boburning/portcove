@@ -3,6 +3,9 @@ import type * as Events from "./transport-event-types.generated";
 import type { PortStatus } from "./transport-types.generated";
 import type * as Generated from "./transport-types.generated";
 
+export type SourceReuseReview = Generated.TransportOutputs["source_reuse_review"];
+export type SourceRegistrationReference = SourceReuseReview["reference"];
+
 export type { ReleaseChannel } from "./transport-types.generated";
 export type { OriginalGameIdentity } from "./transport-types.generated";
 export type { CatalogMediaAsset } from "./transport-types.generated";

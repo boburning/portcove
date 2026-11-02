@@ -705,6 +705,19 @@ async fn inspect_source(
 }
 
 #[tauri::command]
+async fn review_source_reuse(
+    state: tauri::State<'_, DesktopState>,
+    profile_id: String,
+    generation: u64,
+) -> DesktopResult<portcove_core::SourceReuseReview> {
+    let state = state.inner().clone();
+    blocking_service_at_generation(state, generation, move |service| {
+        service.review_source_reuse(&profile_id).map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
 async fn inspect_source_intake(
     state: tauri::State<'_, DesktopState>,
     profile_id: String,
@@ -741,9 +754,14 @@ async fn plan_source_relink(
     state: tauri::State<'_, DesktopState>,
     profile_id: String,
     path: PathBuf,
+    generation: Option<u64>,
 ) -> DesktopResult<SourceRelinkPlan> {
     let state = state.inner().clone();
-    blocking_service(state, move |service| {
+    blocking_worker(move || {
+        let service = match generation {
+            Some(generation) => service_at_generation(&state, generation)?,
+            None => service(&state)?,
+        };
         service
             .plan_source_relink(&profile_id, &path)
             .map_err(Into::into)
@@ -757,9 +775,14 @@ async fn relink_source(
     profile_id: String,
     path: PathBuf,
     preview_sha256: String,
+    generation: Option<u64>,
 ) -> DesktopResult<SourceRecord> {
     let state = state.inner().clone();
-    blocking_service(state, move |service| {
+    blocking_worker(move || {
+        let service = match generation {
+            Some(generation) => service_at_generation(&state, generation)?,
+            None => service(&state)?,
+        };
         service
             .relink_source(&profile_id, &path, &preview_sha256)
             .map_err(Into::into)
@@ -1122,6 +1145,7 @@ fn plan_source_import_for(
 async fn import_source(
     app: tauri::AppHandle,
     state: tauri::State<'_, DesktopState>,
+    generation: u64,
     profile_id: String,
     path: PathBuf,
     mode: SourceImportMode,
@@ -1129,7 +1153,7 @@ async fn import_source(
     on_event: tauri::ipc::Channel<OperationEvent>,
 ) -> DesktopResult<Option<SourceImportResult>> {
     if mode == SourceImportMode::Move {
-        let reviewed = blocking_service(state.inner().clone(), {
+        let reviewed = blocking_service_at_generation(state.inner().clone(), generation, {
             let profile_id = profile_id.clone();
             let path = path.clone();
             move |service| plan_source_import_for(&service, &profile_id, &path, mode)
@@ -1154,7 +1178,35 @@ async fn import_source(
             return Ok(None);
         }
     }
-    blocking_service(state.inner().clone(), move |service| {
+    import_confirmed_source_at_generation(
+        state.inner().clone(),
+        generation,
+        profile_id,
+        path,
+        mode,
+        expected_plan,
+        move |event| {
+            let _ = on_event.send(event);
+        },
+    )
+    .await
+}
+
+// Move reaches this worker only after the native confirmation above. The worker
+// resolves and checks the original generation again, including after confirmation.
+async fn import_confirmed_source_at_generation<F>(
+    state: DesktopState,
+    generation: u64,
+    profile_id: String,
+    path: PathBuf,
+    mode: SourceImportMode,
+    expected_plan: String,
+    emit: F,
+) -> DesktopResult<Option<SourceImportResult>>
+where
+    F: FnMut(OperationEvent) + Send + 'static,
+{
+    blocking_service_at_generation(state, generation, move |service| {
         import_source_for(
             &service,
             &profile_id,
@@ -1162,9 +1214,7 @@ async fn import_source(
             mode,
             &expected_plan,
             mode == SourceImportMode::Move,
-            |event| {
-                let _ = on_event.send(event);
-            },
+            emit,
         )
         .map(Some)
     })
@@ -1249,6 +1299,9 @@ async fn install_port(
         on_event.map(|id| id.channel_on(webview));
     let state = state.inner().clone();
     blocking_async_service_at_generation(state, generation, move |service| async move {
+        let _source_reuse = input.source_reference.as_ref().map(|reference| {
+            service.lock_source_reuse(&input.port_id, reference, input.source.as_deref())
+        }).transpose()?;
         if service.catalog().port(&input.port_id)?.managed_shared_preferences.is_some() {
             if input.stage {
                 return Err(PortcoveError::unsupported("Install ReGaiden normally to review its Windows shared preferences. First-install staging is unavailable for this consent-bearing route.").into());
@@ -1271,7 +1324,7 @@ async fn install_port(
             .install(
                 &input.port_id,
                 input.channel,
-                input.source.as_deref(),
+                if _source_reuse.is_some() { None } else { input.source.as_deref() },
                 input.bios.as_deref(),
                 !input.stage,
                 |event: OperationEvent| {
@@ -2680,6 +2733,7 @@ pub fn run() -> std::process::ExitCode {
             backup_review::restore_backup,
             backup_review::delete_backup,
             inspect_source,
+            review_source_reuse,
             inspect_source_intake,
             plan_source_relink,
             relink_source,
@@ -2943,6 +2997,89 @@ mod tests {
         .await
         .unwrap();
         assert_eq!(actual_root, replacement_root);
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn source_import_keeps_reviewed_generation_through_dispatch_and_move_confirmation() {
+        for mode in [SourceImportMode::UseCurrentLocation, SourceImportMode::Move] {
+            let temporary = tempfile::tempdir().unwrap();
+            let original = initialize_desktop_at(Some(temporary.path().join("original"))).unwrap();
+            let original_library = original.library.clone();
+            let replacement =
+                initialize_desktop_at(Some(temporary.path().join("replacement"))).unwrap();
+            let replacement_library = replacement.library.clone();
+            let selected = temporary.path().join("selected.iso");
+            let bytes = b"owned source-import generation fixture";
+            std::fs::write(&selected, bytes).unwrap();
+            let profile = "opengoal-jak1-disc";
+            let state = DesktopState {
+                initialization: std::sync::Arc::new(std::sync::Mutex::new(Ok(original))),
+                preferences: HostPreferenceStore::new(temporary.path().join("preferences.json"))
+                    .map_err(DesktopError::from),
+                generation: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(7)),
+                launch_observer: std::sync::Arc::new(std::sync::Mutex::new(None)),
+            };
+            let plan = plan_source_import_for(
+                &service_at_generation(&state, 7).unwrap(),
+                profile,
+                &selected,
+                mode,
+            )
+            .unwrap();
+            if mode == SourceImportMode::UseCurrentLocation {
+                // An otherwise identical Core plan is valid in both empty libraries.
+                // Only the captured host generation can fence a delayed UI request.
+                let other = PortcoveService::new(replacement_library.clone()).unwrap();
+                let other_plan = other.plan_source_import(profile, &selected, mode).unwrap();
+                assert_eq!(plan.plan_sha256, other_plan.plan_sha256);
+            }
+            let old_activities =
+                serde_json::to_value(original_library.activities(100).unwrap()).unwrap();
+            let new_activities =
+                serde_json::to_value(replacement_library.activities(100).unwrap()).unwrap();
+            let events = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
+            let observed = events.clone();
+            let mut request = Box::pin(import_confirmed_source_at_generation(
+                state.clone(),
+                7,
+                profile.into(),
+                selected.clone(),
+                mode,
+                plan.plan_sha256,
+                move |_| {
+                    observed.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                },
+            ));
+            {
+                let mut initialization = state.initialization.lock().unwrap();
+                if mode == SourceImportMode::UseCurrentLocation {
+                    let mut context =
+                        std::task::Context::from_waker(futures_util::task::noop_waker_ref());
+                    assert!(request.as_mut().poll(&mut context).is_pending());
+                }
+                // For Move this is the switch while native confirmation was open:
+                // its post-confirmation mutation request has not been dispatched yet.
+                *initialization = Ok(replacement);
+                state
+                    .generation
+                    .store(8, std::sync::atomic::Ordering::Release);
+            }
+            let error = request.await.unwrap_err();
+            assert_eq!(error.code, portcove_core::ErrorCode::Conflict);
+            assert!(error.message.contains("open library changed"));
+            assert_eq!(events.load(std::sync::atomic::Ordering::Relaxed), 0);
+            assert!(original_library.source(profile).unwrap().is_none());
+            assert!(replacement_library.source(profile).unwrap().is_none());
+            assert_eq!(
+                serde_json::to_value(original_library.activities(100).unwrap()).unwrap(),
+                old_activities
+            );
+            assert_eq!(
+                serde_json::to_value(replacement_library.activities(100).unwrap()).unwrap(),
+                new_activities
+            );
+            assert_eq!(std::fs::read(&selected).unwrap(), bytes);
+        }
     }
 
     #[tokio::test(flavor = "current_thread")]

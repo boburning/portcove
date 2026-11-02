@@ -1488,6 +1488,23 @@ void test("native review presentation entrypoints select behavior and receipt co
     }
 });
 
+void test("native input-boundary helper owns executed fixture and receipt validation", () => {
+  for (const status of ["A", "M", "D"]) {
+    const { selection, plan } = planFor([
+      { status, path: "apps/desktop/scripts/desktop-source-intake-boundaries-test.mts" },
+    ]);
+    for (const file of [
+      "scripts/desktop-execution-plan.test.mts",
+      "scripts/desktop-scenarios.test.mts",
+      "scripts/desktop-boundary-wiring.test.mts",
+      "scripts/fixture-module-closure.test.mts",
+    ])
+      assert.ok(selection.nodeTests.has(file));
+    assert.ok(ids(plan).includes("node-tests"));
+    assert.ok(!plan.map(formatCommand).join("\n").includes("desktop-test"));
+  }
+});
+
 void test("selected local resource scope follows actual commands and mixed or unknown work is conservative", () => {
   assert.equal(storageScopeForPlan([{ id: "diff-check" }, { id: "node-tests" }]), "tooling");
   assert.equal(storageScopeForPlan([{ id: "node-syntax:tool.mjs" }]), "tooling");

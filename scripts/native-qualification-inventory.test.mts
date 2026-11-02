@@ -468,12 +468,25 @@ async function inspectInventoryCaller(source: string) {
   const acquisition = input("acquisitionJourney");
   assert.ok(
     isRecord(acquisition) &&
-      acquisition.type === "MemberExpression" &&
-      inventorySyntaxName(acquisition.property) === "acquisitionJourney" &&
-      isRecord(acquisition.object) &&
-      inventorySyntaxName(acquisition.object.property) === "fixtures" &&
-      inventorySyntaxName(acquisition.object.object) === planName,
-    "Caller must retain the selected acquisition branch",
+      acquisition.type === "LogicalExpression" &&
+      acquisition.operator === "||",
+    "Caller must retain the selected acquisition and registered-source branches",
+  );
+  const selectedFixture = (value: unknown) => {
+    assert.ok(
+      isRecord(value) &&
+        value.type === "MemberExpression" &&
+        isRecord(value.object) &&
+        inventorySyntaxName(value.object.property) === "fixtures" &&
+        inventorySyntaxName(value.object.object) === planName,
+      "Caller must use the actual execution plan's selected fixture",
+    );
+    return inventorySyntaxName(value.property);
+  };
+  assert.deepEqual(
+    [selectedFixture(acquisition.left), selectedFixture(acquisition.right)],
+    ["acquisitionJourney", "registeredSourceReuse"],
+    "Only the two reviewed managed-game journeys may use acquisition inventory binding",
   );
 
   // The same live snapshot producer must call this wrapper and record failures
@@ -725,6 +738,13 @@ void test(
       ["wrong-imported-owner", actual.ownerSource, '"./foreign-session.mts"'],
       ["dropped-saved-recovery", actual.saved, "savedLibraryRecoverySession: false"],
       ["dropped-acquisition", actual.acquisition, "false"],
+      ["dropped-acquisition-branch", actual.acquisition.left, "false"],
+      ["dropped-source-reuse-branch", actual.acquisition.right, "false"],
+      [
+        "unreviewed-managed-journey",
+        isRecord(actual.acquisition.right) ? actual.acquisition.right.property : undefined,
+        "completionJourney",
+      ],
       ["replaced-provider", actual.lazy, "() => []"],
       ["eager-provider", actual.lazy, "acquisitionLaunchSessions(0)"],
       ["changed-deadline", isRecord(actual.deadline) ? actual.deadline.right : undefined, "0"],

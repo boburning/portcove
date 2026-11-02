@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
-import { it } from "vite-plus/test";
+import { it, vi } from "vite-plus/test";
+import { Channel } from "@tauri-apps/api/core";
+import {
+  staleSourceImportScript,
+  assertStaleSourceImportReply,
+} from "./desktop-source-intake-boundaries-test.mts";
 import {
   selectedSetupGeneration,
+  selectedSetupLibraryContext,
   selectedSetupRead,
   selectedSetupScenario,
   selectedSetupScanCompleted,
@@ -373,6 +379,8 @@ it.each([
             artifacts,
             library: path.join(output, "library"),
             cli: process.execPath,
+            confirmNative: async () =>
+              assert.fail("No native confirmation after bootstrap rejection"),
             invoke: (name) => {
               assert.equal(name, "get_bootstrap_status");
               return Promise.reject(failure);
@@ -397,3 +405,129 @@ it.each([
     }
   },
 );
+
+it("distinguishes a real Tauri Channel closing frame from source progress", async () => {
+  const callbacks = new Map<number, (frame: unknown) => void>();
+  let next = 1;
+  const native = {
+    transformCallback(f: (frame: unknown) => void) {
+      const id = next++;
+      callbacks.set(id, f);
+      return id;
+    },
+    unregisterCallback(id: number) {
+      callbacks.delete(id);
+    },
+    invoke: () => Promise.reject({ code: "conflict" }),
+  };
+  vi.stubGlobal("window", { __TAURI_INTERNALS__: native });
+  try {
+    const data: unknown[] = [];
+    new Channel((message: unknown) => data.push(message));
+    let completed = false;
+    const result = new Promise<string>((resolve) => {
+      runInNewContext(`(${staleSourceImportScript.toString()})(request, done)`, {
+        window: { __TAURI_INTERNALS__: native },
+        request: { generation: 7 },
+        done(value: string) {
+          completed = true;
+          resolve(value);
+        },
+      });
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    assert.equal(completed, false, "Do not finish before channel closure");
+    for (const callback of [...callbacks.values()]) callback({ index: 0, end: true });
+    const reply = object(JSON.parse(await result));
+    assert.equal(data.length, 0, "The actual pinned Tauri Channel emits no application message");
+    assertStaleSourceImportReply(reply);
+    assert.deepEqual(reply.channel_frames, [{ index: 0, end: true }]);
+    assert.equal(callbacks.size, 0);
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});
+
+it("refuses any application frame or malformed termination for a stale import", () => {
+  for (const channel_frames of [
+    [],
+    [
+      { index: 0, message: { kind: "progress" } },
+      { index: 1, end: true },
+    ],
+    [{ index: 1, end: true }],
+    [{ index: 0, end: false }],
+    [
+      { index: 0, end: true },
+      { index: 0, end: true },
+    ],
+    [{ index: 0, end: true, message: { kind: "progress" } }],
+  ])
+    assert.throws(() =>
+      assertStaleSourceImportReply({ ok: false, error: { code: "conflict" }, channel_frames }),
+    );
+});
+
+it("binds complete CLI/native comparisons to one current bootstrap root and generation", async () => {
+  const owned = path.resolve("work/owned-selected-setup-library") + path.sep + ".";
+  const canonical =
+    process.platform === "win32" ? path.toNamespacedPath(path.resolve(owned)) : path.resolve(owned);
+  const calls: { args: readonly string[]; root: string; timeout?: number }[] = [];
+  const context = await selectedSetupLibraryContext(
+    async (name, args) => {
+      if (name === "get_bootstrap_status")
+        return {
+          ok: true,
+          value: {
+            ready: true,
+            generation: 9,
+            library_root: canonical,
+            selection: null,
+            error: null,
+          },
+        };
+      if (name === "get_statuses") return { ok: true, value: [] };
+      assert.equal(name, "get_game_file_scan_snapshot");
+      assert.equal(args?.generation, 9);
+      return { ok: false, error: "captured generation witness" };
+    },
+    (args, root = owned, options) => {
+      calls.push({ args, root, ...(options ? { timeout: options.timeoutMs } : {}) });
+      return [];
+    },
+    owned,
+  );
+  context.command(["status", "owned"], undefined, { timeoutMs: 1234 });
+  assert.equal(
+    calls[0]?.root,
+    canonical,
+    "Use the exact Desktop root, including its Windows namespace spelling",
+  );
+  assert.equal(calls[0]?.timeout, 1234);
+  const other = path.resolve("work/owned-other-library");
+  context.command(["source", "list"], other);
+  assert.equal(calls[1]?.root, other, "Retain explicit owned-library overrides");
+  assert.deepEqual(await context.read("get_statuses"), []);
+  await assert.rejects(context.read("get_game_file_scan_snapshot"), /captured generation witness/);
+});
+
+it("refuses a different or unavailable bootstrap root before fixture CLI work", async () => {
+  for (const library_root of [null, path.resolve("work/unrelated-library")]) {
+    let calls = 0;
+    await assert.rejects(
+      selectedSetupLibraryContext(
+        async () => ({
+          ok: true,
+          value: { ready: true, generation: 9, library_root, selection: null, error: null },
+        }),
+        () => {
+          calls++;
+          return [];
+        },
+        path.resolve("work/owned-selected-setup-library"),
+      ),
+    );
+    assert.equal(calls, 0);
+  }
+});

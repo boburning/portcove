@@ -6,6 +6,7 @@ import { errorMessage, isRecord } from "../../../scripts/runtime-values.mts";
 import type { WebDriver, Locator } from "selenium-webdriver";
 import type { FixtureCommand, OwnedFixtureContext } from "./desktop-scenario-state.mts";
 import type { createInstallFixture } from "./desktop-install-fixture.mts";
+import type { nativeConfirmation } from "./desktop-native-confirmation.mts";
 import type {
   PortDefinition,
   GameFileRoot,
@@ -32,6 +33,7 @@ type SetupFixture = Omit<InstallFixture, "sourceJourney"> & {
   hashResumeInitial?: GameFileScanSnapshot;
 };
 interface SelectedSetupContext extends Omit<SourceDialogContext, "command">, OwnedFixtureContext {
+  confirmNative: ReturnType<typeof nativeConfirmation>;
   fixture: SetupFixture;
   invoke: (name: string, args?: Record<string, unknown>) => Promise<unknown>;
 }
@@ -63,10 +65,30 @@ function gameFileRoot(value: unknown): GameFileRoot {
   return required(transportValue("game_file_roots", [value])[0]);
 }
 type SetupInvoke = SelectedSetupContext["invoke"];
-export async function selectedSetupGeneration(invoke: SetupInvoke) {
+async function selectedSetupBootstrap(invoke: SetupInvoke) {
   const response = object(await invoke("get_bootstrap_status"));
   assert.equal(response.ok, true, JSON.stringify(response.error));
-  return transportValue("desktop_bootstrap_status", response.value).generation;
+  return transportValue("desktop_bootstrap_status", response.value);
+}
+export async function selectedSetupGeneration(invoke: SetupInvoke) {
+  return (await selectedSetupBootstrap(invoke)).generation;
+}
+
+export async function selectedSetupLibraryContext(
+  invoke: SetupInvoke,
+  command: FixtureCommand,
+  ownedLibrary: string,
+) {
+  const bootstrap = await selectedSetupBootstrap(invoke);
+  const library = required(bootstrap.library_root);
+  assertOwnedSelectedSetupPath(library, ownedLibrary);
+  const scopedCommand: FixtureCommand = (args, selectedLibrary = library, options) =>
+    command(args, selectedLibrary, options);
+  return {
+    bootstrap,
+    read: selectedSetupRead(invoke, bootstrap.generation),
+    command: scopedCommand,
+  };
 }
 
 export function selectedSetupRead(invoke: SetupInvoke, generation: number) {
@@ -119,6 +141,7 @@ interface MetadataPresentation {
   window?: { x: number; y: number; width: number; height: number };
 }
 interface SetupObservations {
+  library_binding?: { generation: number; library_root: string | null };
   scan?: GameFileScanSnapshot;
   review_text?: string;
   source_review_text?: string;
@@ -145,6 +168,7 @@ interface SetupObservations {
   no_acquisition?: boolean;
   initial_scan?: GameFileScanSnapshot;
   source_metadata_presentation?: MetadataPresentation;
+  intake_boundaries?: unknown;
   changed_input?: {
     reviewed_a: OutputSourceImportPlan;
     admitted_b: OutputSourceImportPlan;
@@ -248,6 +272,7 @@ type OwnedWindow = Window & {
   __portcove244FocusTrace?: FocusTrace;
 };
 import { executeBrowserScript } from "./browser-script.mts";
+import { sourceIntakeNativeBoundaries } from "./desktop-source-intake-boundaries-test.mts";
 import { revealDetailSection, assertReviewFieldPresentation } from "./desktop-review-controls.mts";
 import { ownedFixtureCommand } from "./desktop-scenario-state.mts";
 // Actual-Tauri proof for the paired one-off intake and explicit-folder source journeys.
@@ -2001,6 +2026,7 @@ export async function selectedSetupScenario({
   artifacts,
   cli,
   fixture,
+  confirmNative,
 }: SelectedSetupContext) {
   if (fixture?.preliminarySetupJourney)
     return preliminarySelectedSetupScenario({
@@ -2012,6 +2038,7 @@ export async function selectedSetupScenario({
       artifacts,
       cli,
       fixture,
+      confirmNative,
     });
   if (fixture?.hashResumeJourney)
     return hashResumeScenario({
@@ -2023,6 +2050,7 @@ export async function selectedSetupScenario({
       artifacts,
       cli,
       fixture,
+      confirmNative,
     });
   if (fixture?.preliminaryJourney)
     return preliminarySourceReviewScenario({
@@ -2034,12 +2062,13 @@ export async function selectedSetupScenario({
       artifacts,
       cli,
       fixture,
+      confirmNative,
     });
   await scenario("native-saved-folder-selected-setup", async () => {
     assert.ok(fixture?.sourceJourney, "Only the exact opt-in selection supplies these identities");
     const owned = required(fixture.sourceJourney);
     assertOwnedSelectedSetupPath(required(owned.root).path, owned.directory);
-    const command = selectedSetupCommand({ cli, library, output, fixture });
+    let command = selectedSetupCommand({ cli, library, output, fixture });
     const expectedGameSha256 = createHash("sha256")
       .update(await readFile(owned.gameBefore))
       .digest("hex");
@@ -2109,7 +2138,27 @@ export async function selectedSetupScenario({
     let artifactFailure: { error: unknown } | undefined;
     const missingRoot = `${owned.directory}-unavailable`;
     try {
-      nativeRead = selectedSetupRead(invoke, await selectedSetupGeneration(invoke));
+      // Refuse an unavailable host before picker or library-handoff work. The
+      // main journey captures its generation again after the helper restores it.
+      await selectedSetupGeneration(invoke);
+      if (process.platform === "win32")
+        report.observations.intake_boundaries = await sourceIntakeNativeBoundaries({
+          browser,
+          invoke,
+          library,
+          output,
+          artifacts,
+          command,
+          fixture,
+          confirmNative,
+        });
+      const current = await selectedSetupLibraryContext(invoke, command, library);
+      nativeRead = current.read;
+      command = current.command;
+      report.observations.library_binding = {
+        generation: current.bootstrap.generation,
+        library_root: current.bootstrap.library_root,
+      };
       assert.deepEqual(transportValues("source", command(["source", "list"])), []);
       await click(
         By.xpath(

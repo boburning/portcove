@@ -366,6 +366,7 @@ for (const [file, tests] of [
       "scripts/desktop-boundary-wiring.test.mts",
       "scripts/desktop-execution-plan.test.mts",
       "scripts/desktop-real-runtime.test.mts",
+      "scripts/desktop-source-reuse.test.mts",
       "scripts/native-compatibility.test.mts",
       "apps/desktop/scripts/desktop-remainder-scenarios.native.test.mts",
       "apps/desktop/scripts/desktop-artwork-correction.native.test.mts",
@@ -1696,17 +1697,27 @@ for (const [file, tests] of [
     "apps/desktop/scripts/desktop-owned-native-session.mts",
     [
       "scripts/desktop-real-runtime.test.mts",
+      "scripts/desktop-source-reuse.test.mts",
       "scripts/desktop-boundary-wiring.test.mts",
       "apps/desktop/scripts/desktop-native-observations.native.test.mts",
     ],
   ],
   [
+    "apps/desktop/scripts/desktop-source-reuse-test.mts",
+    ["scripts/desktop-source-reuse.test.mts", "scripts/desktop-boundary-wiring.test.mts"],
+  ],
+  [
     "apps/desktop/scripts/desktop-real-runtime-test.mts",
-    ["scripts/desktop-real-runtime.test.mts", "scripts/desktop-boundary-wiring.test.mts"],
+    [
+      "scripts/desktop-real-runtime.test.mts",
+      "scripts/desktop-source-reuse.test.mts",
+      "scripts/desktop-boundary-wiring.test.mts",
+    ],
   ],
   [
     "apps/desktop/scripts/desktop-runtime-exit-observation.mts",
     [
+      "scripts/desktop-source-reuse.test.mts",
       "scripts/desktop-runtime-exit-observation.test.mts",
       "scripts/desktop-boundary-wiring.test.mts",
     ],
@@ -1741,6 +1752,7 @@ for (const [file, tests] of [
     [
       "apps/desktop/scripts/desktop-harness.native.test.mts",
       "scripts/desktop-real-runtime.test.mts",
+      "scripts/desktop-source-reuse.test.mts",
       "scripts/desktop-boundary-wiring.test.mts",
       "scripts/desktop-execution-plan.test.mts",
       "scripts/desktop-input-observation.test.mts",
@@ -1791,6 +1803,15 @@ for (const [file, tests] of [
   [
     "apps/desktop/scripts/desktop-source-dialog-test.mts",
     ["scripts/desktop-scenarios.test.mts", "scripts/desktop-boundary-wiring.test.mts"],
+  ],
+  [
+    "apps/desktop/scripts/desktop-source-intake-boundaries-test.mts",
+    [
+      "scripts/desktop-scenarios.test.mts",
+      "scripts/desktop-execution-plan.test.mts",
+      "scripts/desktop-boundary-wiring.test.mts",
+      "scripts/fixture-module-closure.test.mts",
+    ],
   ],
   ...[
     "apps/desktop/scripts/desktop-review-controls.mts",

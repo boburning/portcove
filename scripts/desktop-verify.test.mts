@@ -233,7 +233,10 @@ void test("standalone selected setup routes build catalog-aware CLIs", async () 
     assert.deepEqual(selected.cli_features, ["portcove-core/qualification-fixtures"]);
     assert.deepEqual(selected.qualification_features, ["qualification-fixtures"]);
     assert.deepEqual(selected.setup_scenarios, []);
-    assert.equal(selected.harness_deadline_ms, 180_000);
+    assert.equal(
+      selected.harness_deadline_ms,
+      scenario === "native-saved-folder-selected-setup" ? 600_000 : 180_000,
+    );
     assert.ok(selected.paths.cli);
   }
   const ordinary = buildDesktopVerifyPlan({

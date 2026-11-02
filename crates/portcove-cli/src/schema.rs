@@ -452,6 +452,12 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 serde_json::json!(schema_for_contract::<SourceInspectionReport>(contract)),
             ),
             (
+                "source_reuse_review",
+                serde_json::json!(schema_for_contract::<portcove_core::SourceReuseReview>(
+                    contract
+                )),
+            ),
+            (
                 "source_catalog",
                 serde_json::json!(schema_for_contract::<portcove_core::SourceCatalog>(
                     contract
