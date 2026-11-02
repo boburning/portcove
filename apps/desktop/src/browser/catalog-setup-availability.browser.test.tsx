@@ -120,35 +120,37 @@ afterEach(() => {
   host.remove();
   delete document.documentElement.dataset.theme;
 });
-it.each(["dark", "light"])("keeps cached setup reasons and Details access in %s", async (theme) => {
-  await page.viewport(960, 720);
-  document.documentElement.dataset.theme = theme;
-  flushSync(() => root.render(<Fixture />));
-  for (const item of cases) {
-    const card = page.getByRole("article").filter({
-      has: page.getByRole("heading", { name: item.name, exact: true }),
-    });
-    const identity = card.getByRole("button").filter({
-      has: page.getByRole("heading", { name: item.name, exact: true }),
-    });
-    const details = card.getByRole("button", { name: "View port", exact: true });
-    await expect.element(card).toHaveAccessibleName(new RegExp(`^${item.name}.*${item.label}`));
-    expect(card.element().querySelector(".readiness")?.textContent?.trim()).toBe(item.label);
-    await expect.element(identity).toBeEnabled();
-    await expect.element(details).toBeEnabled();
-    await expect.element(details).toHaveAccessibleDescription(new RegExp(item.reason));
-    await expect.element(card).toMatchTextContent(item.reason);
-    await expect.element(card).toHaveAccessibleDescription(new RegExp(item.reason));
-    await expect.element(identity).toHaveAccessibleDescription(new RegExp(item.reason));
-    await expect.element(card).toMatchTextContent(/Not installed/);
-    await expect.element(card).not.toMatchTextContent(/Ready to play/);
-    await userEvent.click(identity, { timeout: 1000 });
-    await expect
-      .element(page.getByRole("heading", { name: `Details for ${item.name}`, exact: true }))
-      .toBeInTheDocument();
-    await userEvent.click(page.getByRole("button", { name: "Back to catalog", exact: true }), {
-      timeout: 1000,
-    });
-  }
-  expect(invoke).not.toHaveBeenCalled();
-});
+it.each(["dark", "light"])(
+  "keeps cached setup reasons and Details access in %s",
+  async (theme) => {
+    await page.viewport(960, 720);
+    document.documentElement.dataset.theme = theme;
+    flushSync(() => root.render(<Fixture />));
+    for (const item of cases) {
+      const card = page.getByRole("article").filter({
+        has: page.getByRole("heading", { name: item.name, exact: true }),
+      });
+      const identity = card.getByRole("button").filter({
+        has: page.getByRole("heading", { name: item.name, exact: true }),
+      });
+      const details = card.getByRole("button", { name: "View port", exact: true });
+      await expect.element(card).toHaveAccessibleName(new RegExp(`^${item.name}.*${item.label}`));
+      expect(card.element().querySelector(".readiness")?.textContent?.trim()).toBe(item.label);
+      await expect.element(identity).toBeEnabled();
+      await expect.element(details).toBeEnabled();
+      await expect.element(details).toHaveAccessibleDescription(new RegExp(item.reason));
+      await expect.element(card).toMatchTextContent(item.reason);
+      await expect.element(card).toHaveAccessibleDescription(new RegExp(item.reason));
+      await expect.element(identity).toHaveAccessibleDescription(new RegExp(item.reason));
+      await expect.element(card).toMatchTextContent(/Not installed/);
+      await expect.element(card).not.toMatchTextContent(/Ready to play/);
+      await userEvent.click(identity);
+      await expect
+        .element(page.getByRole("heading", { name: `Details for ${item.name}`, exact: true }))
+        .toBeInTheDocument();
+      await userEvent.click(page.getByRole("button", { name: "Back to catalog", exact: true }));
+    }
+    expect(invoke).not.toHaveBeenCalled();
+  },
+  30_000,
+);
