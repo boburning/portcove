@@ -3,7 +3,7 @@
   "listing": {
     "id": "mlb-power-pros-2008-mlbpowerpros2008recomp",
     "name": "MLB Power Pros 2008 (MLBPowerPros2008Recomp)",
-    "summary": "Upstream route: Upstream setup compiles from Wii USA disc; Win/Linux assets Limits: Setup verified only on developer PC upstream; Linux/SteamDeck experimental. Upstream platforms: Windows x86-64 and Linux x86-64 setup assets; Linux/SteamDeck experimental and setup previously verified only on developer PC upstream. Original data: Own clean MLB Power Pros 2008 Wii USA disc dump RL8E54. Upstream Setup verifies the game ID, extracts data and translates/compiles on the player PC. Neither game image, executable, keys nor firmware is supplied; exact supported dump representation/revision beyond the clean RL8E54 target follows the selected Setup. Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted, prepared MLB Power Pros 2008 Windows player after upstream Setup builds it from your clean USA Wii original. Preserve the installed Game and Data folders, portable UserData and separate roster-mod saves; the inspected ZIP is a preparation kit.",
     "original_game_title": "MLB Power Pros 2008",
     "project_url": "https://github.com/HopeAero/MLBPowerPros2008Recomp",
     "platforms": [],
@@ -17,7 +17,35 @@
       "game_slug": "mlb-power-pros-2008",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2694
+    "issue_number": 2694,
+    "manual_setup": {
+      "help_url": "https://github.com/HopeAero/MLBPowerPros2008Recomp/blob/da976a9e085b3b960a636fbaa2e7bcc123309485/README.md",
+      "steps": [
+        {
+          "title": "Prepare the exact clean Wii source upstream",
+          "instruction": "Use a complete player/components you are independently permitted to use, with your own MLB Power Pros 2008 Wii USA RL8E54 original. Setup accepts ISO, NKit, RVZ, WBFS, WIA, GCZ or CISO through its documented reader, then checks extracted main.dol SHA256 789c208f1611c4b150d272eb32cbd461d24aebbc5d7c11a420102d868ff1c5f7 and ovl_main.rel SHA256 dcc37a1a4824702feff5bcaa6aae7cefdedfc3b5d832fbf3de92b982a59b4edc. These identify the clean code inputs across disc representations, not every container’s hash. Finish upstream Setup installation, translation/compilation and settings outside Portcove, keeping independent originals. No original, converter, toolchain, helper, compiler or game is obtained or executed here."
+        },
+        {
+          "title": "Distinguish the Setup kit from the completed player",
+          "instruction": "The inspected official 0.1.5 Windows ZIP has 18,280 indexed entries and AMD64 MLBPowerPros2008-Setup.exe/nodtool.exe. Inspection selected those preparation entries and notices; the hundreds of bundled compiler/tool aliases were not all streamed or ABI-qualified. This kit generates the game locally. The selected producer installs Game/MLBPowerPros2008.exe with matching libraries/resources and a separate Data/ tree; its shortcut selects that EXE and Game/ as CWD. Attach only the already completed native installation, not the Setup, nodtool, another tool or a source-checkout path."
+        },
+        {
+          "title": "Attach the already configured normal game",
+          "instruction": "After completing upstream setup and restart-required graphics choices, turn Show launcher at startup off upstream if you want direct play. Select the generated Game/MLBPowerPros2008.exe, use that complete Game directory as working directory and leave arguments empty. Review the intent and request Play separately. The integrated pre-boot launcher normally continues into the linked runtime in process, but settings requiring a fresh renderer can spawn a replacement; finish them outside the attached attempt. Do not assume successor tracking across a settings restart."
+        },
+        {
+          "title": "Preserve portable and mod-specific persistence",
+          "instruction": "Keep Game/portable.txt, Game/UserData/Config.toml, all Wii save/NAND content, the selected Data/ tree, configured dvd_root, mods/, texture/roster/stadium content and external originals. Roster-changing mod combinations have separate UserData/ModSaves/ sets; changing the active roster does not merge those saves or make a clean save interchangeable. Keep independent copies before repair/reinstall or mod/roster imports: upstream preparation can re-extract its managed Data tree. Preserve any older installations and explicitly configured paths. This guide performs no import, migration, backup, restore or deletion."
+        },
+        {
+          "title": "Keep optional tools and maintenance external",
+          "instruction": "Retain project GPLv3, the exact Wiicompiled/PowerUp+ source, patches, component notices and bundled toolchain terms. The original MoonInning UI is attributed to this project’s author; game data, third-party roster content and optional art retain separate rights. Setup and upstream tools own local builds, repair/replacement and optional editors; no agent tool installation, credentials or service operation is performed. Quit normally, preserve recovery and review/relink changed generated bytes. No native/installed, whole-game, roster-corpus, real-save, hardware or Supported acceptance is asserted. Registration removal preserves external files; managed lifecycle operations remain unavailable."
+        }
+      ],
+      "warnings": [
+        "This is a preparation-kit route: attach only the completed Game/MLBPowerPros2008.exe. Keep Data, portable UserData and separate roster-mod save sets; finish settings restarts upstream."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

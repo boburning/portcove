@@ -3,7 +3,7 @@
   "listing": {
     "id": "puyo-puyo-box-puyopuyoboxrecomp",
     "name": "Puyo Puyo Box (PuyoPuyoBoxRecomp)",
-    "summary": "Research listing. Upstream route: Windows setup package with upstream Generate & Build; playability unverified Limits: Scaffold README gives no gameplay status; setup release does not establish playable readiness. Upstream platforms: Windows Generate & Build setup package; exact host CPU architecture unknown in frozen research. Japan PS1 target does not determine desktop CPU. Original data: Own Puyo Puyo Box Japan PS1 disc SLPS-03114 as CUE/BIN. Current game.toml pins data track 1 to 141,853,824 bytes, SHA-1 ca01a98ccc5ca796df082782a6dd1adee856c064; boot executable SLPS_031.14. Generate & Build defaults to OpenBIOS, with optional player-supplied local SCPH BIOS. No gameplay-readiness claim follows from the scaffold. Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted, prepared Puyo Puyo Box PlayStation Windows runtime after upstream Generate & Build completes. Keep the exact Japan CUE/BIN, completed build-release product, cards and complete setup tree; scaffold text does not establish gameplay maturity.",
     "original_game_title": "Puyo Puyo Box",
     "project_url": "https://github.com/kirby1237/PuyoPuyoBoxRecomp",
     "platforms": [],
@@ -17,7 +17,35 @@
       "game_slug": "puyo-puyo-box",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2893
+    "issue_number": 2893,
+    "manual_setup": {
+      "help_url": "https://github.com/kirby1237/PuyoPuyoBoxRecomp/blob/ea96779399aafe4c76ab240550737efe421177e1/README.md",
+      "steps": [
+        {
+          "title": "Prepare the exact Japan PlayStation disc",
+          "instruction": "Use a complete player/components you are independently permitted to use, with your own Puyo Puyo Box Japan SLPS-03114 CUE and all referenced BIN tracks. The selected profile pins data Track 01 to 141,853,824 bytes and SHA1 ca01a98ccc5ca796df082782a6dd1adee856c064, boot executable SLPS_031.14. This is a track fingerprint, not a signature for any renamed image or another release. Replace the upstream author’s example absolute path with your own actual source in its setup UI; this guide accesses no such example path. Keep independent originals."
+        },
+        {
+          "title": "Complete the standalone setup flow upstream",
+          "instruction": "The inspected official v.0.1.1 Windows ZIP contains AMD64 PuyoPuyoBox_Recomp.exe as the preparation host with SDK/project resources and OpenBIOS. It is not proof of a finished gameplay executable. Complete the built-in Generate & Build flow first. The selected codegen_setup.c names build-release/ and completed PuyoPuyoBox_Recompiled as its product, with generation marker SLPS_031.14_dispatch.c; setup/rebuild can quit and relaunch through a helper. Bundled OpenBIOS is the supported no-Sony-BIOS route; an independently permitted personal SCPH BIOS is separate. No disc, BIOS, helper, toolchain, compiler or game is obtained or executed here."
+        },
+        {
+          "title": "Attach only the completed native product",
+          "instruction": "After upstream reports the build complete, select the actual build-release/PuyoPuyoBox_Recompiled.exe in the completed upstream product, use that complete build-release directory with its staged resources as working directory and set the runtime’s documented --no-launcher argument. Review the exact intent and request Play separately. The actual generated runtime main handles the integrated launcher and game in process. Do not attach the first-run setup host or RetComM hub and assume it represents the finished player. If the named native product is absent or generation/rebuild is still needed, finish upstream preparation before attachment; do not substitute a guessed executable."
+        },
+        {
+          "title": "Keep setup, product and actual card paths",
+          "instruction": "Retain the complete upstream setup/project tree and build-release product, generated source/build metadata, staged game.toml/game_options.toml, settings.toml, bios/, disc files, mods/ and actual saves/memory-card paths. Source/runtime defaults use saves/, but existing per-slot/external card settings remain authoritative. Keep every previous product root and original CUE/BIN; rebuilds can replace the native program and restage support data. Cards, save states, netplay track/TOC identity and four-player settings have separate compatibility scope. This guide performs no import, conversion, backup, restore, migration or deletion."
+        },
+        {
+          "title": "Retain exact component scope and honest maturity",
+          "instruction": "The authoritative gitlinks are psxrecomp 17f49ad3b20dc30917a881a02baaa25374c13d18 (PolyForm Noncommercial 1.0.0) and recomp-ui 655d77d5858aa677f88e7b19cd70460773a17476 (MIT), with OpenBIOS and other component notices retained. They do not license the original Compile/Sega game, proprietary BIOS or optional artwork/mods. RetComM is a separate optional manager, not Portcove-owned runtime replacement. Quit normally before upstream rebuild/update or card changes, preserve recovery and review/relink changed bytes. The title README remains scaffolded: no working gameplay, full campaign, native/installed, four-player, real-save, netplay or Supported observation is asserted. Registration removal preserves external files; managed lifecycle operations remain unavailable."
+        }
+      ],
+      "warnings": [
+        "Complete Generate & Build before selecting the actual build-release native product. The inspected download is the setup host; gameplay maturity and all native observations remain Unknown."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
