@@ -29,20 +29,20 @@
           "instruction": "Keep the full official v0.8.3 Windows package, both native players, mw2-launcher.exe, game/, renderer resources, shader caches, libraries and notices. The documented host requires 64-bit Windows, SSE4.2 and Vulkan 1.2. Use an independently permitted prepared player; project GPL-3.0-only applies to its own runtime/tools/patches, not Activision originals or original-derived generated C++. Separate title-update, Steam/network, custom-map and shader/component rights remain separate."
         },
         {
-          "title": "Attach one native player at a time",
-          "instruction": "Select mw2-sp.exe for the prepared campaign/Special Ops player, or mw2-mp.exe for the prepared multiplayer player. Use the complete existing package directory as working directory and leave arguments empty. Review the selected program, working folder and arguments and choose Play when ready. No-argument native startup loads the sibling .env settings, anchors game/data paths beside the executable and enters that selected game. Keep this attachment to that executable’s session: close normally before selecting the other mode. In-game SP/MP switches start another executable and are outside this bounded direct-player tracking route; the launcher is not substituted for a waiting native player."
+          "title": "Choose the upstream frontend or retain a direct player",
+          "instruction": "For normal setup/profile/mode controls, select mw2-launcher.exe in the complete existing package directory, use that directory as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play when ready and use the upstream frontend. It supplies its own settings, preparation and selected SP/MP context. The existing direct choices remain valid: mw2-sp.exe for campaign/Special Ops or mw2-mp.exe for multiplayer, same directory and empty arguments, after upstream preparation. Portcove observes whichever program you selected, not detached successors; its activity may finish while a game or switched mode continues. Use actual game/upstream controls to quit."
         },
         {
           "title": "Preserve the complete save and settings unit",
           "instruction": "Retain saves/, game/, .env, profile/settings files, logs, shader caches and all original/backup copies together. Saves are beside the executables, not inside read-only game/: the runtime represents content packages as directories, including saves/savegame.svg/savegame.svg, and this is not an Xbox STFS container or a promised console-save conversion. Preserve separate profiles and upstream shared SP/MP progress. Keep existing environment overrides; copying only an EXE or replacing .env with defaults can change behavior or separate progress."
         },
         {
-          "title": "Keep updates, mode handoffs and acceptance upstream",
-          "instruction": "Use the upstream launcher independently for imports, title updates, shader preparation, profile changes, network/Steam configuration, custom maps and runtime replacement, then review/relink changed bytes. This guide does not grant Steam credentials, server participation, profile editing or automatic pack acquisition. SP/MP handoff tracking, exact selected-release source fingerprint correspondence, full gameplay/controller and real-save restore acceptance remain unfinished. No managed install, update, backup, rollback, migration or external-file deletion is provided."
+          "title": "Keep maintenance and remaining acceptance upstream",
+          "instruction": "Use the upstream frontend for preparation, title updates, shader compilation, profile/network configuration, custom maps and runtime replacement. Close actual SP/MP games and helpers before making changes, even after Portcove’s selected-program activity ends. Re-select/review changed player bytes as needed. Literal selected-release XEX fingerprint correspondence and any other named owner requirements remain unfinished; this guide does not waive them. No credentials, network/server participation, full-game/controller/real-save acceptance, managed install/update/backup/rollback/migration or external-file deletion is supplied."
         }
       ],
       "warnings": [
-        "Attach only the prepared mw2-sp.exe or mw2-mp.exe with empty arguments and its full package directory. Preserve game/, saves/ and .env. Close before switching executables; in-game mode handoffs and remaining title-specific acceptance are not completed by this guide."
+        "The native mw2-launcher.exe frontend preserves ordinary upstream setup and mode choices; existing direct mw2-sp.exe/mw2-mp.exe registrations remain available. Portcove tracks only the selected program. Preserve game/, saves/ and .env, close actual games/helpers before changes, and retain the named fingerprint/acceptance hold."
       ]
     }
   }
