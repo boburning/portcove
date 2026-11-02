@@ -219,7 +219,7 @@ it("distinguishes catalog saved-data declarations, retained installation rules a
     immutable_tree_sha256: "b".repeat(64),
     registered_at: 1,
   });
-  expect(external).toContain("External profiles and custom save locations remain excluded");
+  expect(external).toContain("outside Portcove’s managed backups");
   expect(external).not.toContain("<code>save</code>");
 });
 

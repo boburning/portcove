@@ -187,3 +187,33 @@ it.each([
   expect(document.body.textContent).not.toContain("external saves are not copied");
   expect(apply).not.toHaveBeenCalled();
 });
+
+it("keeps authored save consequences visible before creating a managed copy", async () => {
+  const warned = {
+    ...port,
+    presentation: {
+      ...port.presentation!,
+      manual_setup: {
+        steps: [{ title: "Choose the player", instruction: "Keep the complete package." }],
+        warnings: ["Back up shared saves before switching installations."],
+        references: [
+          { title: "Inspected version", instruction: "The old version used profile/save.bin." },
+        ],
+      },
+    },
+  };
+  await root.rerender(<ManagedRouteChangeControl port={warned} generation={7} busy={false} />);
+  await page.getByRole("button", { name: "Review a Portcove-managed copy…" }).click();
+  const warning = page.getByText("Back up shared saves before switching installations.", {
+    exact: true,
+  });
+  await expect.element(warning).toBeVisible();
+  expect(warning.element().closest("details")).toBeNull();
+  const confirm = page.getByRole("button", { name: "Create managed copy", exact: true });
+  expect(
+    Boolean(
+      warning.element().compareDocumentPosition(confirm.element()) &
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    ),
+  ).toBe(true);
+});

@@ -124,3 +124,21 @@ current catalog. Required warnings stay visible before the relevant choice.
 
 This is a targeted structural pass, not approval of all catalog prose or a new
 qualification of upstream downloads, gameplay or save compatibility.
+
+## Current-target interaction: six additional guides
+
+Target `46ef4844639ca0ca6b2f5f2e941495d0567a799b` (PR #4209) added six
+complete guides after pickup. All six were read in context: Kirby Pinball Land,
+Wario Land, DriveClub, Gears of War Judgment, Sonic 1 Forever and Coney. Each
+keeps setup actions 1–3 unchanged. The complete profile/save and maintenance/
+version paragraphs formerly numbered 4–5 become two explicit references.
+Decision-relevant shared-profile, migration, backup, close-game, reset and
+permission sentences are also visible warnings. Both Coney routes stay intact.
+
+This target delta contains six reviewed guides, thirty original steps, eighteen
+unchanged actions and twelve relocated reference sections; no guide in that
+delta remains unreviewed. Each final guide fits three actions, two references
+and three warnings, and the legacy projection restores every original instruction
+in its original order. This adds six bounded structural changes to the thirteen
+pickup proposals: nineteen guides changed in total. It does not widen the older
+inventory into an exhaustive editorial sign-off.

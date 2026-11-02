@@ -1205,3 +1205,35 @@ it("retains a manually selected setup target and literal arguments across remoun
   expect(pickHostToolExecutable).toHaveBeenCalledOnce();
   expect(document.body.textContent).toContain(executable);
 });
+
+it("keeps authored save warnings visible before reviewing a download", async () => {
+  const warned = catalogEntries(
+    undefined,
+    {
+      format_version: 6,
+      listings: [
+        {
+          ...listing,
+          manual_setup: {
+            steps: [{ title: "Choose the player", instruction: "Extract the complete package." }],
+            warnings: ["Back up the shared save folder separately."],
+            references: [
+              { title: "Inspected version", instruction: "Version one used profile/save.bin." },
+            ],
+          },
+        },
+      ],
+    },
+    [],
+    [],
+  )[0]!;
+  await root.rerender(
+    <CatalogDownloadControl entry={warned} generation={9} busy={false} perform={perform} />,
+  );
+  await click("Check upstream downloads");
+  const warning = page.getByText("Back up the shared save folder separately.", { exact: true });
+  await expect.element(warning).toBeVisible();
+  expect(warning.element().closest("details")).toBeNull();
+  expect(warning.element().closest("ol")).toBeNull();
+  expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
+});

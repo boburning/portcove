@@ -17,7 +17,39 @@
       "game_slug": "gears-of-war-judgment",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2859
+    "issue_number": 2859,
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Use your own supported Xbox 360 retail copy",
+          "instruction": "Use your own Gears of War: Judgment retail Xbox 360 disc folder containing default.xex and GearGame, title ID 4D530A26. Another Gears title, console edition or arbitrary executable is not this input. The selected release is an early single-player implementation; most upstream testing covers the beginning, with multiplayer and online unavailable. Recompiled CPU code uses ReXGlue graphics/system services, not a completely native Xbox hardware implementation. Portcove supplies or imports no original files."
+        },
+        {
+          "title": "Keep the complete portable Windows release",
+          "instruction": "Use the complete inspected GearsOfWarJudgment-PC-v0.2.1.zip in an existing writable folder, retaining GearsOfWarJudgment.exe, Graphics Settings.exe and notices together. The baseline is Windows 10/11 x64 with Direct3D 12 graphics and 8 GB RAM. The single-file player unpacks its own runtime into %LOCALAPPDATA%/GearsOfWarJudgmentPC/bin/<id>; that is not a separately selected installation. Finish the upstream original-folder picker and keep the remembered original at its current path."
+        },
+        {
+          "title": "Add the supported single-file native entry",
+          "instruction": "Select GearsOfWarJudgment.exe in the portable package root, use that root as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play separately and use its ordinary original-folder prompt if needed. The launcher establishes GOWJ_HOME for its child; do not register a generated cache executable or invent that environment yourself. Keep Graphics Settings.exe available for upstream settings. Portcove observes the selected entry only, which can exit while its actual game continues."
+        }
+      ],
+      "warnings": [
+        "Choose the ordinary portable GearsOfWarJudgment.exe, not its extracted cache child. Preserve the portable saves/configuration and separate per-user runtime data; the launcher may finish before the game does.",
+        "Upstream can copy older runtime user/cache data forward when the new folders are absent; preserve any old Documents/gowj data until you have independently checked your own working setup. This guide performs no migration or save conversion.",
+        "Quit the actual game and close settings/helpers before upstream replacement, cache work or recovery; the selected launcher’s finished activity does not establish full-game exit. Preserve the previous complete portable root, saves/configuration, originals and per-user data, then review the native selection after an upstream change. Preserve project BSD-3-Clause and separate ReXGlue/Xenia, runtime/library and original-game terms."
+      ],
+      "references": [
+        {
+          "title": "Preserve both portable and per-user data",
+          "instruction": "Keep the portable root’s saves, config/gowj.toml, gowj_game_path.txt, logs and other existing files, plus %LOCALAPPDATA%/GearsOfWarJudgmentPC/user and cache. Settings and actual game saves use the portable root established by GOWJ_HOME; runtime user data and shader/pipeline caches have separate per-user roots. Upstream can copy older runtime user/cache data forward when the new folders are absent; preserve any old Documents/gowj data until you have independently checked your own working setup. This guide performs no migration or save conversion."
+        },
+        {
+          "title": "Keep maintenance and acceptance separate",
+          "instruction": "Quit the actual game and close settings/helpers before upstream replacement, cache work or recovery; the selected launcher’s finished activity does not establish full-game exit. Preserve the previous complete portable root, saves/configuration, originals and per-user data, then review the native selection after an upstream change. Preserve project BSD-3-Clause and separate ReXGlue/Xenia, runtime/library and original-game terms. Removing the reference preserves external files; no managed build/update/backup/rollback, full campaign, physical controller, GPU breadth, native Windows or save/reload observation is supplied here."
+        }
+      ],
+      "help_url": "https://github.com/OverkillLabs3/gears-judgement-recomp/blob/e56c475a75b1b703aee0e3422ffc18a27a05f66a/README.md"
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

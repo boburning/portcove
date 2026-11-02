@@ -73,6 +73,10 @@ let root: RenderResult;
 let container: HTMLDivElement;
 
 beforeEach(async () => {
+  vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+    callback(0);
+    return 1;
+  });
   container = document.createElement("div");
   document.body.append(container);
   root = await renderComponent(null, { container: document.body.appendChild(container) });
