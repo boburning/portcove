@@ -125,9 +125,11 @@ the applied size for the session. A native failure retains the last confirmed
 preference and exposes retry/reset without asserting an unobserved actual size.
 
 `styles/adaptive.css`, assembled by the existing stylesheet entry, owns the
-shared below-48rem reading flow. Navigation wraps in the document, the workspace
-does not require a side pane, Settings navigation stops sticking, and shared
-dialog footers remain in their scrolling flow. The native 960 by 640 minimum
+shared responsive reading flow. The compact shell retains a 60px icon navigation
+rail; below 42rem the workspace scrolls in document flow beside it. The rail's
+navigation sheet retains full destination labels and focus restoration, and
+compact collection controls stay in the workspace. Settings navigation stops
+sticking, and shared dialog footers remain in their scrolling flow. The native 960 by 640 minimum
 stays intact. Actual 320 CSS-pixel and 240 by 160 authored-content checks are
 distinct from observing native 400-percent zoom and other platforms. These
 layouts do not announce phone-platform support.
