@@ -3,7 +3,7 @@
   "listing": {
     "id": "rallisport-challenge-2-rallisport-challenge-2-recomp",
     "name": "RalliSport Challenge 2 (RalliSport Challenge 2 Recomp)",
-    "summary": "Upstream route: Linux v0.7.0 package; separate Windows v0.6.0-windows package Limits: Linux main route; Windows package is separately versioned and Wine-tested. Upstream runtime reports not Portcove testing. Upstream platforms: Linux x86-64 v0.7.0 and Windows x86-64 v0.6.0-windows package channels. Linux binary needs glibc2.43+ and documented graphics libraries; Windows testing was under Wine. Original data: Own RalliSport Challenge 2 NTSC original Xbox data, title 4D530039. Player packages expect all extracted files in game/ beside the program. Source builds use RalliSport2/ plus default.xbe copied to xboxrecomp/game_files/. Exact regional revision/XBE fingerprint beyond NTSC/title is unestablished in reviewed README. Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted, prepared RalliSport Challenge 2 Windows player from the Windows-specific 0.6.0 release. Preserve its Roaming settings and separate shared xboxrecomp save root; the newer Linux release does not replace the Windows artifact.",
     "original_game_title": "RalliSport Challenge 2",
     "project_url": "https://github.com/Mortify7612/RallisportChallenge2-decomp",
     "platforms": [],
@@ -17,7 +17,35 @@
       "game_slug": "rallisport-challenge-2",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2704
+    "issue_number": 2704,
+    "manual_setup": {
+      "help_url": "https://github.com/Mortify7612/RallisportChallenge2-decomp/blob/5bdbaaf9f9691ee604fc4754cdaa91384b62f84e/README.md",
+      "steps": [
+        {
+          "title": "Prepare the specific Xbox original upstream",
+          "instruction": "Use a complete player/components you are independently permitted to use, with your own NTSC Xbox RalliSport Challenge 2, title 4D530039. The Windows-selected source describes retail built 2004-04-02, entry 00070315 and XDK 5849; these are descriptors, not a complete-file fingerprint. The exact accepted XBE digest is not established by the reviewed source/package and remains Unknown. Put the complete original default.xbe and all game data in the documented game/ folder; no other regional/revision compatibility is inferred."
+        },
+        {
+          "title": "Keep the platform-specific complete package",
+          "instruction": "The inspected official v0.6.0-windows ZIP contains AMD64 rsc2-windows-x64/rsc2.exe and the matching package files. The newer v0.7.0 release has Linux assets and is not the Windows package. Keep the complete Windows unit and game/ data, and retain all applicable xboxrecomp MIT, Noto Sans OFL, stb and other component terms. The source explicitly retains a translated XDK XInputGetState body and compiled game logic; toolkit licensing does not grant rights over Microsoft or original game material. Use an independently permitted complete copy. No original, compiler, helper or game is obtained or executed here."
+        },
+        {
+          "title": "Attach the already configured Windows game",
+          "instruction": "Complete upstream settings first, then select rsc2.exe, use the complete rsc2-windows-x64 directory as working directory and leave arguments empty. Turn Show at startup off upstream if direct play is desired. Its integrated launcher applies saved settings before the linked native entry; it is not a separate setup executable. Keep the real game/ tree in that CWD. Do not add finite-frame, replay, tracing, Steam-shortcut or compiler actions to normal Play. Review the exact intent and request Play separately."
+        },
+        {
+          "title": "Preserve both Windows persistence roots",
+          "instruction": "Keep %APPDATA%/rsc2/settings.ini and the actual xboxrecomp save root, normally %LOCALAPPDATA%/xboxrecomp, with UserData/, TitleData/, Cache/ and any existing partition images or other player data. If LocalAppData cannot be resolved, source falls back to SaveData/ under CWD. This is not a title-specific directory by name: preserve other games already using that root and do not merge or delete it. Keep original data, existing environment overrides, previous CWD data and any external paths. This guide performs no migration, restore, backup or deletion."
+        },
+        {
+          "title": "Keep acceptance and replacement explicit",
+          "instruction": "Quit the real game normally before upstream replacement or data changes, retain recovery copies and review/relink changed executable bytes. Upstream Windows reports are from Wine; Linux races/controller/performance reports do not establish physical Windows, installed-app, campaign, real-save or Supported acceptance. Original XBE fingerprint work remains unfinished. Removing registration preserves external files; managed install/update/rollback/backup/removal remain unavailable."
+        }
+      ],
+      "warnings": [
+        "Select the Windows-specific package, preserve the shared xboxrecomp save root, and retain the unresolved exact-XBE fingerprint. Wine reports are not physical Windows qualification."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

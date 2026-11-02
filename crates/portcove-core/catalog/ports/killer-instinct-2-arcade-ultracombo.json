@@ -3,13 +3,41 @@
   "listing": {
     "id": "killer-instinct-2-arcade-ultracombo",
     "name": "Killer Instinct 2 (arcade) (UltraCombo)",
-    "summary": "Upstream route: Distinct implementation from kilnan/ki-recomp #2246. Requires two game+implementation canonical records despite single Quiver row; preserve disk/saves distinctions. Limits: Prerelease1.1.0 supports two distinct arcade games; startup prepares game/sound code. Independent of ki-recomp. Upstream platforms: Windows x86-64 ZIP (MinGW-w64 build documented), Linux archive/AppImage. Selected Linux artifact CPU unknown in frozen release research. Original data: Own Killer Instinct2 arcade kinst2 boot/sound ROM set and matching CHD or raw disk image. UltraCombo prepares selected game/sound code on first launch; original Killer Instinct kinst files do not substitute. Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted, prepared UltraCombo Windows player for Killer Instinct 2 arcade, with your own matching ROMs and CHD. Upstream owns first-use native-module preparation; preserve per-game/version settings sectors and states.",
     "original_game_title": "Killer Instinct 2 (arcade)",
     "project_url": "https://github.com/thefixinhixon/UltraCombo",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/thefixinhixon/UltraCombo",
-    "issue_number": 2585
+    "issue_number": 2585,
+    "manual_setup": {
+      "help_url": "https://github.com/thefixinhixon/UltraCombo/blob/aca9a93825b93ecfc9fc55df3dfcb1bc08be7608/README.md",
+      "steps": [
+        {
+          "title": "Prepare this exact arcade set upstream",
+          "instruction": "Use a complete UltraCombo copy and components you are independently permitted to use, with your own kinst2 arcade set. Supply ki2-l14.u98 (524,288 bytes, SHA1 aa7a2a9d72a47dd0ea2ee7b2776b79288060b179), the eight sound ROMs ki2_l1.u10 through ki2_l1.u13 and ki2_l1.u33 through ki2_l1.u36, and kinst2.chd. The CHD content SHA1 reported by chdman info is e7c9291b4648eae0012ea0cc230731ed4987d1d5; it is not the SHA1 of the compressed container. Keep the full originals independently. The accepted boot revision is L1.4; the first game and its ROMs are not substitutes."
+        },
+        {
+          "title": "Finish the upstream native-module preparation",
+          "instruction": "The inspected official 1.1.0 Windows ZIP contains AMD64 UltraCombo-Windows/UltraCombo.exe, SDL2, tools, shaders and component notices. Place the original set in its documented run/ layout or keep the existing explicitly configured paths. On first use of each game/revision, upstream interprets the original to translate and compile a native module into cache/. It tries bundled Zig, an available C compiler, then TinyCC, and can fall back to an interpreter. Finish that preparation outside Portcove; this guide runs no compiler, converter, ROM, helper or game and does not claim every run uses translated code."
+        },
+        {
+          "title": "Attach only this prepared game",
+          "instruction": "Select UltraCombo.exe, use the complete extracted UltraCombo-Windows directory as working directory and set arguments to --game ki2. This documented selector binds this record even if both games are installed. Review the exact intent and request Play separately. The selected normal game continues in the same player. Change game restarts the program and removes the selector; finish game changes outside the attached attempt instead of assuming successor tracking. Do not use --write-raw, --recomp, headless, tracing or network-host commands as normal Play."
+        },
+        {
+          "title": "Preserve this game and revision separately",
+          "instruction": "Keep ki2.ini, saves/<boot-ROM-name>.settings with disk settings/audits/high scores, states/slot1.ki2s through slot9.ki2s, logs, screenshots, cache/ and the originals. The player normally writes beside the executable when writable, otherwise under %APPDATA%/UltraCombo; preserve the actual active root, external paths and any former writable-directory data. CHD/raw originals are now read-only, but an older played-on raw disk can carry settings that upstream copies into the separate settings file. States are accepted only for the same build/game/version and are distinct from cabinet settings sectors. This guide performs no conversion, migration, backup or deletion."
+        },
+        {
+          "title": "Keep permissions and maintenance explicit",
+          "instruction": "Retain the own-code MIT, SDL2 zlib, Zig MIT, TinyCC LGPL-2.1, libchdr and shader/component notices. Those terms do not license the original arcade ROMs, translated game code or disk data; do not redistribute generated native modules. Quit normally before upstream replacement or data operations, keep recovery copies and review/relink changed executable bytes. Netplay needs matching game/version/ROM/disk and remains unobserved. No native/installed, gameplay, real-save, whole-game or Supported acceptance is asserted. Removing registration preserves external files; managed lifecycle operations remain unavailable."
+        }
+      ],
+      "warnings": [
+        "Keep the kinst2 originals, active data root and per-version settings/states. First-use compilation, game switching and netplay remain upstream-owned operations."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
