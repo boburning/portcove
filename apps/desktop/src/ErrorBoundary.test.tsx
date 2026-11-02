@@ -36,9 +36,7 @@ describe("top-level render recovery", () => {
 
     expect(html).toContain('role="alert"');
     expect(html).toContain("Portcove couldn’t display this screen");
-    expect(html).toContain(
-      "The Portcove window encountered an error. Reload it to reconnect and check the status of any active task.",
-    );
+    expect(html).toContain("Reload Portcove, then check the status of any active task.");
     expect(html).toContain("injected render failure");
     expect(html).toContain('data-slot="button" data-variant="primary"');
     expect(html).toContain("Reload Portcove");
