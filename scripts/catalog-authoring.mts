@@ -349,7 +349,20 @@ export function assembleCatalogRecords(shared: unknown, inputs: readonly unknown
     const port = projectAuthoredPort(record);
     return port ? [port] : [];
   });
-  const catalog = checkedCurrentCatalog({ ...structuredClone(shared), ports });
+  const hasReferences = ports.some((port) => {
+    const presentation = port.presentation;
+    return (
+      isRecord(presentation) &&
+      isRecord(presentation.manual_setup) &&
+      Array.isArray(presentation.manual_setup.references) &&
+      presentation.manual_setup.references.length > 0
+    );
+  });
+  const catalog = checkedCurrentCatalog({
+    ...structuredClone(shared),
+    ...(hasReferences ? { schema_version: 3 } : {}),
+    ports,
+  });
   const listings = records.map((record) => ({
     ...structuredClone(record.listing),
     platforms: structuredClone(record.integration?.platforms ?? record.listing.platforms ?? []),
@@ -384,24 +397,32 @@ export function assembleCatalogRecords(shared: unknown, inputs: readonly unknown
       ) ||
         listing.media.filter((asset) => isRecord(asset) && asset.role === "header").length > 1),
   );
-  const format_version = extendedMedia
-    ? 5
-    : listings.some(
-          (listing) =>
-            listing.upstream_observation !== undefined ||
-            listing.availability_override_reason !== undefined ||
-            "release_maintenance" in listing,
-        )
-      ? 4
+  const guideReferences = listings.some(
+    (listing) =>
+      isRecord(listing.manual_setup) &&
+      Array.isArray(listing.manual_setup.references) &&
+      listing.manual_setup.references.length > 0,
+  );
+  const format_version = guideReferences
+    ? 6
+    : extendedMedia
+      ? 5
       : listings.some(
             (listing) =>
-              listing.original_game !== undefined ||
-              (Array.isArray(listing.media) && listing.media.length > 0),
+              listing.upstream_observation !== undefined ||
+              listing.availability_override_reason !== undefined ||
+              "release_maintenance" in listing,
           )
-        ? 3
-        : listings.some((listing) => listing.download_block_reason !== undefined)
-          ? 2
-          : 1;
+        ? 4
+        : listings.some(
+              (listing) =>
+                listing.original_game !== undefined ||
+                (Array.isArray(listing.media) && listing.media.length > 0),
+            )
+          ? 3
+          : listings.some((listing) => listing.download_block_reason !== undefined)
+            ? 2
+            : 1;
   return { records, catalog, directory: { format_version, listings } };
 }
 
@@ -461,7 +482,7 @@ export function readCatalogSource(catalogRoot: string) {
   );
 }
 export interface CurrentCatalog extends Record<string, unknown> {
-  schema_version: 2;
+  schema_version: 2 | 3;
   ports: CatalogPort[];
   source_catalog: {
     identities: NamedRecord[];
@@ -551,14 +572,22 @@ export function reviewCompatibilityFixture(
 }
 
 export function validateCurrentCatalog(catalog: unknown): asserts catalog is CurrentCatalog {
-  if (!isRecord(catalog) || catalog.schema_version !== 2)
-    throw new Error("current catalog source is not schema 2");
+  if (!isRecord(catalog) || ![2, 3].includes(Number(catalog.schema_version)))
+    throw new Error("current catalog source is not schema 2 or 3");
   if ("source_profiles" in catalog)
     throw new Error("current catalog source must not contain a schema-1 source_profiles authority");
   const source = catalog.source_catalog;
   if (!isRecord(source)) throw new Error("source_catalog must be an object");
   const ports = namedRecords(catalog.ports, "ports");
   for (const port of ports) {
+    if (
+      catalog.schema_version === 2 &&
+      isRecord(port.presentation) &&
+      isRecord(port.presentation.manual_setup) &&
+      Array.isArray(port.presentation.manual_setup.references) &&
+      port.presentation.manual_setup.references.length > 0
+    )
+      throw new Error("setup references require catalog schema 3");
     if (
       port.presentation !== undefined &&
       port.presentation !== null &&

@@ -21,7 +21,7 @@ namespace Portcove.ReferenceClient
         private readonly TextBox bios = new TextBox();
         private readonly TextBox technical = new TextBox { IsReadOnly = true, TextWrapping = TextWrapping.Wrap, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MaxHeight = 220 };
         private readonly TextBox preparationNotes = new TextBox { IsReadOnly = true, TextWrapping = TextWrapping.Wrap, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MaxHeight = 220 };
-        private readonly Expander preparationNotesSection = new Expander { Header = "Compatibility and technical notes", Visibility = Visibility.Collapsed };
+        private readonly Expander preparationNotesSection = new Expander { Header = "Save locations and version notes", Visibility = Visibility.Collapsed };
         private readonly List<Button> actions = new List<Button>();
         private readonly List<Button> pathButtons = new List<Button>();
         private readonly Button cancel = new Button { Content = "Request cancellation", IsEnabled = false, Margin = new Thickness(4), Padding = new Thickness(10, 6, 10, 6) };
@@ -126,7 +126,7 @@ namespace Portcove.ReferenceClient
 
         private Task OpenPreparationGuide()
         {
-            var help = SetupInstructions.HelpUrl(Json.OptionalObjectField(currentCatalog, "presentation"));
+            var help = SetupInstructions.HelpUrl(SetupInstructions.ForRuntime(CurrentStatus, currentCatalog));
             if (help == null) throw new InvalidOperationException("No preparation guide is available for this game.");
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(help) { UseShellExecute = true });
             return Task.CompletedTask;
@@ -340,9 +340,9 @@ namespace Portcove.ReferenceClient
             var presentation = SetupInstructions.ForRuntime(status, catalog);
             var preparationText = SetupInstructions.Summary(presentation);
             preparationNotes.Text = SetupInstructions.TechnicalNotes(presentation) ?? "";
-            preparationNotesSection.Visibility = externalRoute && !string.IsNullOrWhiteSpace(preparationNotes.Text)
+            preparationNotesSection.Visibility = !string.IsNullOrWhiteSpace(preparationNotes.Text)
                 ? Visibility.Visible : Visibility.Collapsed;
-            preparationHelp.Visibility = externalRoute && SetupInstructions.HelpUrl(presentation) != null
+            preparationHelp.Visibility = SetupInstructions.HelpUrl(presentation) != null
                 ? Visibility.Visible : Visibility.Collapsed;
             state.Text = (active != null ? "Installed: " + Json.Text(active, "version") + "." :
                 external != null ? "External runtime registered: " + Json.Text(external, "version") + ". Portcove does not own its files." :
@@ -351,7 +351,7 @@ namespace Portcove.ReferenceClient
                 "\nSource profile: " + (Json.Field(catalog, "source_profile") ?? "none") +
                 "\nBIOS profile: " + (Json.Field(catalog, "bios_source_profile") ?? "none") +
                 "\nCatalog support: " + Json.Text(catalog, "support_tier") + ". Gameplay evidence is separate from launch readiness." +
-                (externalRoute && !string.IsNullOrWhiteSpace(preparationText) ? "\nPrepare the runtime: " + preparationText : "") +
+                (!string.IsNullOrWhiteSpace(preparationText) ? "\nSetup instructions: " + preparationText : "") +
                 "\nRetained private preparations: " + repairs.Length + "." +
                 (definitionOperations == null ? "" : "\n" + definitionOperations) +
                 (portActions == null ? "" : "\n" + portActions);

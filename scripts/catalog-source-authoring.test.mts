@@ -280,7 +280,7 @@ void test("original game identity projects exact authored groups and multiple so
   };
   const record = checkedAuthoredPort(base);
   const projected = assembleCatalogRecords(shared, [...source.records, record]);
-  assert.equal(projected.directory.format_version, 4);
+  assert.equal(projected.directory.format_version, 6);
   assert.equal(assembleCatalogRecords(shared, [record]).directory.format_version, 3);
   assert.deepEqual(projected.catalog, source.catalog);
   assert.deepEqual(
@@ -405,4 +405,39 @@ void test("optional recommendation observations round-trip as inert presentation
     assert.deepEqual(assembled.catalog.ports[0].release, original.release);
     assert.deepEqual(assembled.catalog.ports[0].adapter, original.adapter);
   }
+});
+
+void test("reference guides select strict new formats and retain actions and warnings", () => {
+  const source = readCatalogSource(catalogRoot);
+  assert.equal(source.catalog.schema_version, 3);
+  assert.equal(source.directory.format_version, 6);
+  const syphon = source.directory.listings.find(
+    (listing) => listing.id === "syphon-filter-sf-pc-port",
+  );
+  const guide = fixtureRecord(syphon?.manual_setup);
+  assert.deepEqual(
+    fixtureRecords(guide.steps).map((step) => step.title),
+    [
+      "Download the Windows port",
+      "Keep your original disc files together",
+      "Add the program to Portcove",
+      "Choose Play",
+    ],
+  );
+  assert.ok(
+    fixtureRecords(guide.references).some((section) =>
+      String(section.instruction).includes("historical observation"),
+    ),
+  );
+  assert.ok(
+    (guide.warnings as string[]).some((text) => text.includes("will not back up or update")),
+  );
+  const render96 = source.catalog.ports.find((port) => port.id === "render96ex");
+  const renderGuide = fixtureRecord(fixtureRecord(render96?.presentation).manual_setup);
+  assert.equal(fixtureRecords(renderGuide.steps).length, 2);
+  assert.ok(
+    (renderGuide.warnings as string[]).some((text) =>
+      text.includes("Separate program folders can share saves"),
+    ),
+  );
 });

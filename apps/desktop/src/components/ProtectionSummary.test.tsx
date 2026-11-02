@@ -69,10 +69,8 @@ describe("player-data protection summary", () => {
     const html = render(protection);
     expect(html).toContain("Latest completed backup");
     expect(html).toContain("completed-backup-1");
-    expect(html).toContain("Review its files before restoring");
-    expect(html).toContain("older versions may not be able to use these saves");
-    expect(html).toContain("Newer saves");
-    expect(html).toContain("may not work with it");
+    expect(html).toContain("review the files");
+    expect(html).toContain("Another version may not be able to use these saves");
   });
 
   it("does not show another implementation’s coverage or backup identity", () => {

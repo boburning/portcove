@@ -161,7 +161,7 @@ impl PortcoveService {
                 collection: ProtectionCollectionState::ExternalNotCollected,
                 collection_root: None,
                 collection_candidates: Vec::new(),
-                exclusions: vec!["Portcove does not collect from this registered external runtime directory. Data already written to the managed backup data root can be backed up; external profiles and custom save locations remain outside it.".into()],
+                exclusions: vec!["Portcove does not copy saves from this installation’s folder. Files already in Portcove’s saves and settings folder can be backed up when the backup checks allow it. Back up external profiles and custom save folders separately.".into()],
                 problem: None,
             });
         }
@@ -175,9 +175,10 @@ impl PortcoveService {
                 .max_by(|a, b| a.created_at.cmp(&b.created_at).then_with(|| a.id.cmp(&b.id)))
                 .cloned(),
             exclusions: vec![
-                "Folders outside the managed data root and the selected active installation’s checked collection paths are not included. Custom or external save locations are not automatically adopted.".into(),
-                "Executable rollback, library metadata and application updates are separate from player-data restore. Original game files are included only where the checked data contract explicitly includes them.".into(),
-                "Path presence and declarations do not prove a successful backup or that a game can load the data. Review a snapshot before restoring it.".into(),
+                "New backups can include files in Portcove’s saves and settings folder and files selected for copying from the current installation. Saves in other folders aren’t included automatically. Back up those folders separately.".into(),
+                "Switching to an older game version does not restore older saves. Exporting library information or updating Portcove does not restore saved data either.".into(),
+                "Original game files are included only when this installation’s backup rules list them.".into(),
+                "Finding files or listing them in backup rules does not mean a backup completed. Review the backup’s files before restoring. Another game version may not be able to use these saves.".into(),
             ],
         })
     }
@@ -204,7 +205,7 @@ impl PortcoveService {
         let read: Result<()> = (|| {
             let installer = Installer::new(self.library.clone())?;
             let Some(catalog) = installer.retained_catalog(install)? else {
-                result.problem = Some("This legacy installation has no retained declaration. Current catalog paths do not establish its coverage.".into());
+                result.problem = Some("Portcove doesn’t have backup rules saved for this installation, so it can’t confirm which files to collect. The current catalog may describe a different version.".into());
                 return Ok(());
             };
             let retained = catalog.port(&install.port_id)?;
@@ -215,7 +216,7 @@ impl PortcoveService {
             if contract.port.presentation.as_ref().is_some_and(|p| {
                 p.saves_and_settings == SavesAndSettingsBehavior::ExternalUserOwned
             }) {
-                result.exclusions.push("The retained declaration identifies external/user-owned saves or settings. Only checked local collection paths and existing managed data can be included; external profiles remain excluded.".into());
+                result.exclusions.push("This installation’s saves and settings are handled outside Portcove. Only the listed local files and files already in Portcove’s saves and settings folder can be included. Back up external profiles separately.".into());
             }
             if role != ProtectionInstallRole::Active {
                 result.collection = ProtectionCollectionState::Inactive;
@@ -247,7 +248,7 @@ impl PortcoveService {
                 )
             }) {
                 return Err(crate::PortcoveError::conflict(
-                    "A collection candidate is unsafe or unreadable. Preserve its data and review the location before attempting backup.",
+                    "A file that might be included in a backup couldn’t be read or failed a safety check. Leave it unchanged and check its location before trying a backup.",
                 ));
             }
             result.collection_root = Some(root);
@@ -278,6 +279,38 @@ mod tests {
         let library = Library::open(temporary.path().join("library")).unwrap();
         let service = PortcoveService::new(library.clone()).unwrap();
         (temporary, library, service)
+    }
+
+    #[test]
+    fn player_copy_receipt_matches_the_service_not_a_frontend_eligibility_rule() {
+        let receipt: serde_json::Value =
+            serde_json::from_str(include_str!("../../tests/fixtures/protection-copy.json"))
+                .unwrap();
+        let (_temporary, library, service) = service();
+        let inventory = service.list_backups("zelda64-recomp").unwrap();
+        assert_eq!(
+            serde_json::to_value(&inventory.protection.unwrap().exclusions).unwrap(),
+            receipt["exclusions"]
+        );
+        let root = crate::service::tests::register_zelda_install(&library, "legacy", true);
+        // Simulate an old installation without a retained manifest contract.
+        let status = service.status("zelda64-recomp").unwrap();
+        let mut install = status.active.unwrap();
+        let manifest_path = root.join(".portcove-manifest.json");
+        let mut manifest: serde_json::Value =
+            serde_json::from_slice(&fs::read(&manifest_path).unwrap()).unwrap();
+        manifest["schema_version"] = 5.into();
+        manifest["retained_contract"] = serde_json::Value::Null;
+        let bytes = serde_json::to_vec(&manifest).unwrap();
+        fs::write(manifest_path, &bytes).unwrap();
+        install.manifest_sha256 = crate::signed_catalog::digest(&bytes);
+        let legacy = service.installation_protection(&install, ProtectionInstallRole::Active);
+        assert_eq!(legacy.collection, ProtectionCollectionState::Unavailable);
+        assert_eq!(
+            legacy.problem.as_deref(),
+            receipt["legacy_problem"].as_str()
+        );
+        assert!(root.exists());
     }
 
     #[test]
@@ -390,6 +423,13 @@ mod tests {
             ProtectionCollectionState::ExternalNotCollected
         );
         assert!(external.collection_candidates.is_empty());
+        let receipt: serde_json::Value =
+            serde_json::from_str(include_str!("../../tests/fixtures/protection-copy.json"))
+                .unwrap();
+        assert_eq!(
+            external.exclusions[0],
+            receipt["external_exclusion"].as_str().unwrap()
+        );
         assert!(external.effective.is_none());
         assert!(protection.latest_completed_backup.is_none());
         assert_eq!(
@@ -424,7 +464,7 @@ mod tests {
         );
         assert!(
             protection.installations[0].exclusions[0]
-                .contains("managed backup data root can be backed up")
+                .contains("can be backed up when the backup checks allow it")
         );
     }
 

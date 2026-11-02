@@ -70,7 +70,16 @@ fn encode_external_catalog(catalog: &Catalog, port_id: &str) -> Result<String> {
     if catalog.is_user_selected_listing(port_id) {
         return Ok(serde_json::to_string(&RetainedUserSelectedListing {
             format: USER_SELECTED_LISTING_FORMAT.into(),
-            format_version: 1,
+            format_version: if catalog
+                .listing(port_id)?
+                .manual_setup
+                .as_ref()
+                .is_some_and(|guide| !guide.references.is_empty())
+            {
+                2
+            } else {
+                1
+            },
             listing: catalog.listing(port_id)?.clone(),
         })?);
     }
@@ -94,7 +103,15 @@ fn decode_external_catalog(content: &str, port_id: &str) -> Result<Catalog> {
     if value.get("format").and_then(serde_json::Value::as_str) == Some(USER_SELECTED_LISTING_FORMAT)
     {
         let retained: RetainedUserSelectedListing = serde_json::from_value(value)?;
-        if retained.format_version != 1 || retained.listing.id != port_id {
+        let has_references = retained
+            .listing
+            .manual_setup
+            .as_ref()
+            .is_some_and(|guide| !guide.references.is_empty());
+        if !matches!(retained.format_version, 1 | 2)
+            || (retained.format_version == 1 && has_references)
+            || retained.listing.id != port_id
+        {
             return Err(PortcoveError::verification(
                 "retained listing version or port identity is not supported",
             ));
@@ -3163,7 +3180,7 @@ mod tests {
         assert!(decode_external_catalog(&content, "another-project").is_err());
         let value: serde_json::Value = serde_json::from_str(&content).unwrap();
         for (field, changed) in [
-            ("format_version", serde_json::json!(2)),
+            ("format_version", serde_json::json!(3)),
             ("ports", serde_json::json!([])),
             ("trusted", serde_json::json!(true)),
         ] {
@@ -3171,6 +3188,30 @@ mod tests {
             invalid[field] = changed;
             assert!(decode_external_catalog(&invalid.to_string(), "inert-project").is_err());
         }
+    }
+
+    #[test]
+    fn referenced_listing_retains_notes_with_an_explicit_reader_fence() {
+        let listing = Catalog::embedded()
+            .unwrap()
+            .listing("syphon-filter-sf-pc-port")
+            .unwrap()
+            .clone();
+        let expected = listing.manual_setup.clone();
+        let catalog = Catalog::for_user_selected_listing(listing).unwrap();
+        let content = encode_external_catalog(&catalog, "syphon-filter-sf-pc-port").unwrap();
+        let mut value: serde_json::Value = serde_json::from_str(&content).unwrap();
+        assert_eq!(value["format_version"], 2);
+        let restored = decode_external_catalog(&content, "syphon-filter-sf-pc-port").unwrap();
+        assert_eq!(
+            restored
+                .listing("syphon-filter-sf-pc-port")
+                .unwrap()
+                .manual_setup,
+            expected
+        );
+        value["format_version"] = 1.into();
+        assert!(decode_external_catalog(&value.to_string(), "syphon-filter-sf-pc-port").is_err());
     }
 
     #[test]

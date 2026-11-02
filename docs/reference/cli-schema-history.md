@@ -647,3 +647,33 @@ Core enforces it during managed readiness and before launch preparation; clients
 must retain Core's readiness/refusal result rather than infer that an installed
 runtime can run from every path. Staged-source template version11 is required for
 independent definitions using this policy. Operation-event schemas remain unchanged.
+
+### API schema 85
+
+Authored setup guides may include `references`, an optional array with the same
+`title` and `instruction` fields as setup steps. Numbered `steps` remain actions;
+`warnings` remain visible before the decision; references contain save locations,
+version observations and maintenance notes. Current Desktop and the maintained
+Playnite client display all three groups. Operation-event schemas are unchanged.
+
+Strict containing formats advance to catalog schema 3 and listing format 6.
+Schema 3 keeps schema 2's shared source authority and validation; it does not
+change source admission or installation rules. Schema 1 and 2 catalogs
+and listing formats 1–5 remain readable. New references are refused under older
+containing formats rather than silently discarded.
+
+`catalog export --schema-version 2` and `catalog listings --format-version 5`
+produce explicit legacy data: each reference is appended as an ordinary step,
+with no new nested field and with every warning and paragraph retained. Combined
+actions and references retain the old eight-section bound. Bare commands export
+the current format. A JSON command envelope still advertises API85; selecting an
+older data format does not claim the running API is older. Schema-1 export is
+accepted only when every source contract remains representable under its existing
+validation; the current catalog requires schema 2 source authority. Frozen older clients
+must use a reviewed compatible producer/projection; this change is not protected
+unchanged-client acceptance or definition publication authority.
+
+A newly registered listing with references uses retained user-selected-listing
+envelope format 2; format 1 remains unchanged for guides without references.
+Old readers refuse format 2. This is a descriptive guide reader fence, not a
+new installation owner or changed launch authority.

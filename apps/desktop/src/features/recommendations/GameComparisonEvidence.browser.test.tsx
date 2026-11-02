@@ -203,7 +203,7 @@ it("does not describe a project declaration as a test result", async () => {
   );
   await expect.element(page.getByText("Information available", { exact: true })).toBeVisible();
   const text = page.getByRole("dialog").element().textContent;
-  expect(text).toContain("upstream declared");
+  expect(text).toContain("Reported by the project");
   expect(text).not.toContain("Test results available");
   expect(text).not.toContain("earlier tests");
   expect(desktopApi.changeOrganization).not.toHaveBeenCalled();
@@ -266,3 +266,67 @@ it("resets an expanded explanation when the library scope changes", async () => 
   await userEvent.click(why);
   await expect.element(explanation).toBeVisible();
 });
+
+it("names refresh accurately and keeps different report scope distinct from unknown features", async () => {
+  const report = comparisonFixture();
+  const candidate = report.assessment!.candidates[0]!;
+  candidate.evidence[0]!.disposition = "historical-scope";
+  candidate.dimensions[0]!.state = "unknown";
+  report.assessment!.status = "insufficient-evidence";
+  candidate.recommendation_eligible = false;
+  vi.mocked(desktopApi.compareGamePorts).mockResolvedValue(report);
+  await render(<Fixture />);
+  await userEvent.click(page.getByRole("button", { name: "Compare projects", exact: true }));
+  const refresh = page.getByRole("button", { name: "Refresh version information", exact: true });
+  const before = vi.mocked(desktopApi.compareGamePorts).mock.calls.length;
+  refresh.element().focus();
+  await userEvent.keyboard("{Enter}");
+  await expect
+    .poll(() => vi.mocked(desktopApi.compareGamePorts).mock.calls.length)
+    .toBeGreaterThan(before);
+  await expect
+    .element(
+      page.getByText(
+        "Refreshing checks version information. It doesn’t run the game or test your device.",
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+  await userEvent.click(page.getByText("Why this port? — Fixture project", { exact: true }));
+  await expect
+    .element(page.getByText("For a different game, version or setup", { exact: false }))
+    .toBeVisible();
+  expect(page.getByRole("dialog").element().textContent).toContain("Not enough information");
+  expect(page.getByText("Suggested starting point", { exact: true }).query()).toBeNull();
+  expect(desktopApi.changeOrganization).not.toHaveBeenCalled();
+});
+
+it.each(["failed", "unassessed"] as const)(
+  "keeps %s comparisons honest while the project remains available",
+  async (state) => {
+    if (state === "failed")
+      vi.mocked(desktopApi.compareGamePorts).mockRejectedValue(new Error("Unavailable fixture"));
+    else {
+      const report = comparisonFixture();
+      report.assessment = null;
+      vi.mocked(desktopApi.compareGamePorts).mockResolvedValue(report);
+    }
+    await render(<Fixture />);
+    await userEvent.click(page.getByRole("button", { name: "Compare projects", exact: true }));
+    await expect
+      .element(
+        page.getByText(
+          state === "failed"
+            ? "We couldn’t load this comparison. You can still open each project’s details and available actions."
+            : "We don’t have a recommendation for these options yet. You can still explore each project.",
+          { exact: true },
+        ),
+      )
+      .toBeVisible();
+    expect(page.getByText("Suggested starting point", { exact: true }).query()).toBeNull();
+    await expect
+      .element(page.getByRole("button", { name: "Refresh version information", exact: true }))
+      .toBeVisible();
+    expect(desktopApi.changeOrganization).not.toHaveBeenCalled();
+  },
+);

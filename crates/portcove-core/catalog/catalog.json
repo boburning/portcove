@@ -1,5 +1,5 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "source_catalog": {
     "evidence": [
       {
@@ -22980,7 +22980,6 @@
           "source_editions": []
         },
         "manual_setup": {
-          "help_url": "https://github.com/Render96/Render96ex/tree/48da5c491c8abfb2f5192b59278c1c269411e533",
           "steps": [
             {
               "title": "Set up Render96 before adding it",
@@ -22988,21 +22987,32 @@
             },
             {
               "title": "Choose the game program",
-              "instruction": "Choose the program from your working build, rather than its compiler, build script or a launcher that starts a separate process. The inspected standard Windows US build normally produces build/us_pc/sm64.us.exe; region and renderer options can change its name. Keep its resources and companion files together. Use the same start folder and launch options as your working installation. Review and save the launch details, then choose Play separately."
-            },
-            {
-              "title": "Keep your existing save and settings folders",
-              "instruction": "Separate program folders can share saves. The inspected SDL2 build uses the sm64ex preferences folder by default. When the newer save is absent, it can copy an older sm64pc save and settings into that folder. Keep the actual sm64ex and sm64pc folders, sm64_save_file.bin, sm64config.txt and any custom data. Keep your existing --savepath, --configfile and --gamedir launch options only where your build supports them; ! in a supported save path means the executable folder. Do not move or change your save folder just to add the game to Portcove."
-            },
-            {
-              "title": "Handle updates and backups yourself",
-              "instruction": "You or the Render96 project’s tools handle updates, optional packs, resources and recovery. Back up the complete working installation, originals, resources, dynos/packs, mods, saves, settings and any unknown files before changing it. Portcove watches the selected game process and can remove its saved launch details. It won’t update, back up, restore, switch to older versions, move or delete this external copy. Older copies installed by Portcove keep their existing setup and update behavior."
+              "instruction": "Choose the program from your working build, rather than its compiler, build script or a launcher that starts a separate process. Keep its resources and companion files together. Use the same start folder and launch options as your working installation. Review and save the launch details, then choose Play separately."
             }
           ],
           "warnings": [
             "Use only originals, prepared copies and optional packs that you are permitted to use. Adding a program does not verify that the whole package came from its publisher or grant content rights.",
-            "These instructions describe the inspected build. Check the actual locations and behavior of your working copy; other build options and platforms may differ."
-          ]
+            "These instructions describe the inspected build. Check the actual locations and behavior of your working copy; other build options and platforms may differ.",
+            "Separate program folders can share saves. Do not move or change your save folder just to add the game to Portcove.",
+            "Back up the complete working installation, originals, resources, dynos/packs, mods, saves, settings and any unknown files before changing it.",
+            "Portcove will not back up or update this external installation. Back up its saves, settings and custom folders separately.",
+            "The inspected SDL2 build can copy older saves and settings into its shared profile folder when newer files are missing. Keep both profile folders before trying another copy."
+          ],
+          "references": [
+            {
+              "title": "Build output and executable names",
+              "instruction": "The inspected standard Windows US build normally produces build/us_pc/sm64.us.exe; region and renderer options can change its name."
+            },
+            {
+              "title": "Save folders and supported launch options",
+              "instruction": "The inspected SDL2 build uses the sm64ex preferences folder by default. When the newer save is absent, it can copy an older sm64pc save and settings into that folder. Keep the actual sm64ex and sm64pc folders, sm64_save_file.bin, sm64config.txt and any custom data. Keep your existing --savepath, --configfile and --gamedir launch options only where your build supports them; ! in a supported save path means the executable folder."
+            },
+            {
+              "title": "Updates, backups and file ownership",
+              "instruction": "You or the Render96 project’s tools handle updates, optional packs, resources and recovery. Portcove watches the selected game process and can remove its saved launch details. It won’t update, back up, restore, switch to older versions, move or delete this external copy. Older copies installed by Portcove keep their existing setup and update behavior."
+            }
+          ],
+          "help_url": "https://github.com/Render96/Render96ex/tree/48da5c491c8abfb2f5192b59278c1c269411e533"
         },
         "artwork": {
           "game_id": 1074,
@@ -23297,18 +23307,20 @@
           "steps": [
             {
               "title": "Add your US game data before Play",
-              "instruction": "Open the new runtime folder and copy your own US Ace Combat 6 Xbox 360 disc image beside ac6recomp.exe as AC6.iso, or put your extracted game files in assets with assets/default.xex. Keep your original copy separately. Europe and Japan are not supported. Choose Play after adding the files; this portable package has no installer. The game checks the disc title identity, but Portcove does not verify a retail-edition checksum for this upstream setup route. Optional own DLC belongs in dlc; title-update data is a separate upstream input, not a runtime update."
-            },
-            {
-              "title": "Keep your saves and settings",
-              "instruction": "Saves and the default texture-mod profile use your Windows Documents/ac6recomp folder. Keep a separate backup of that folder before changing versions. Runtime settings and keyboard bindings sit beside the player in ac6recomp.toml and ac6_input.toml; use forward slashes in TOML paths. Runtime caches and logs also appear beside the player. If Windows cannot resolve Documents, the upstream relative ac6recomp fallback stays beside the player. Custom data, disc, DLC, log, mod and diagnostic locations remain yours to preserve separately. Close the game before changing runtime files; older versions may not read newer saves."
-            },
-            {
-              "title": "Know this release’s limits",
-              "instruction": "Upstream requires Windows 10/11 x64, AVX2 and a Direct3D 12-capable GPU. This experimental release has known performance and rendering limits; Portcove gameplay and minimum-system observations remain unqualified."
+              "instruction": "Open the new runtime folder and copy your own US Ace Combat 6 Xbox 360 disc image beside ac6recomp.exe as AC6.iso, or put your extracted game files in assets with assets/default.xex. Keep your original copy separately. Choose Play after adding the files; this portable package has no installer. The game checks the disc title identity, but Portcove does not verify a retail-edition checksum for this upstream setup route. Optional own DLC belongs in dlc; title-update data is a separate upstream input, not a runtime update."
             }
           ],
-          "warnings": [],
+          "warnings": [
+            "Europe and Japan are not supported.",
+            "Keep a separate backup of the Windows Documents/ac6recomp folder before changing versions. Close the game before changing runtime files; older versions may not read newer saves.",
+            "Upstream requires Windows 10/11 x64, AVX2 and a Direct3D 12-capable GPU. This experimental release has known performance and rendering limits; Portcove gameplay and minimum-system observations remain unqualified."
+          ],
+          "references": [
+            {
+              "title": "Save locations, settings and custom data",
+              "instruction": "Saves and the default texture-mod profile use your Windows Documents/ac6recomp folder. Runtime settings and keyboard bindings sit beside the player in ac6recomp.toml and ac6_input.toml; use forward slashes in TOML paths. Runtime caches and logs also appear beside the player. If Windows cannot resolve Documents, the upstream relative ac6recomp fallback stays beside the player. Custom data, disc, DLC, log, mod and diagnostic locations remain yours to preserve separately."
+            }
+          ],
           "help_url": "https://github.com/sal063/AC6_recomp/blob/v1.0.0-beta.2/README.md"
         },
         "artwork": {
@@ -23768,17 +23780,18 @@
             {
               "title": "Select your own Banjo-Tooie ROM on first Play",
               "instruction": "Choose Play, then select your own NTSC-U 1.0 big-endian .z64 Banjo-Tooie ROM when asked. The upstream player requires SHA-256 9ec37fba6890362eba86fb855697a9cff1519275531b172083a1a6a045483583 and stores its own profile copy. The Windows ZIP has no installer. If Windows reports a missing runtime DLL, use the Microsoft Visual C++ x64 Redistributable linked in the packaged README; no helper runs automatically."
-            },
-            {
-              "title": "Keep your saves and settings",
-              "instruction": "Saves, settings, copied ROM, logs, cache and RT64 texture packs use %LOCALAPPDATA%/BanjoTooieScurvyDogPort. Keep a separate backup; do not share the whole profile because it contains your ROM. On first start only, if this destination does not exist, the game can copy selected Alpha 4/4.1 data from BanjoTooieEncore while leaving the old profile unchanged. Close the old game first; the copies do not synchronize. An existing destination, even empty, wins. A failed copy can leave an unused .migrating-… folder; preserve it and consult the upstream recovery instructions before retrying. Alpha 3 save import asks once if there is no current save; Alpha 3 settings and practice states are not carried over. Texture packs are experimental; code mods and ROM patches are unsupported."
-            },
-            {
-              "title": "Know this release’s limits",
-              "instruction": "This is an upstream alpha: distant geometry, aspect sizing, shadows, animation and lost-focus controller behavior have documented limitations; the upstream has not verified the whole game. Portcove gameplay and populated save restoration remain unqualified."
             }
           ],
-          "warnings": [],
+          "warnings": [
+            "Keep a separate backup of %LOCALAPPDATA%/BanjoTooieScurvyDogPort; do not share the whole profile because it contains your ROM. On first start only, if this destination does not exist, the game can copy selected Alpha 4/4.1 data from BanjoTooieEncore while leaving the old profile unchanged. Close the old game first; the copies do not synchronize. An existing destination, even empty, wins. A failed copy can leave an unused .migrating-… folder; preserve it and consult the upstream recovery instructions before retrying. Alpha 3 save import asks once if there is no current save; Alpha 3 settings and practice states are not carried over. Texture packs are experimental; code mods and ROM patches are unsupported.",
+            "This is an upstream alpha: distant geometry, aspect sizing, shadows, animation and lost-focus controller behavior have documented limitations; the upstream has not verified the whole game. Portcove gameplay and populated save restoration remain unqualified."
+          ],
+          "references": [
+            {
+              "title": "Profile location and preserved contents",
+              "instruction": "Saves, settings, copied ROM, logs, cache and RT64 texture packs use %LOCALAPPDATA%/BanjoTooieScurvyDogPort."
+            }
+          ],
           "help_url": "https://github.com/some-scurvy-dog/banjo-tooie-scurvy-dog-port/blob/v0.1.0-alpha.4.3/release/README.txt"
         },
         "artwork": {
@@ -30458,18 +30471,24 @@
           "steps": [
             {
               "title": "Choose your original files on Play",
-              "instruction": "On first Play, select your own Stunts 1.1 folder or ZIP in the game’s welcome screen. Other 4D Sports Driving revisions are outside this input claim. Setup requires Internet access to fetch its translation map; it normally caches that map by app version and imports the original into its profile. Retain your original files for reimport if storage fails. No original game files are supplied."
+              "instruction": "On first Play, select your own Stunts 1.1 folder or ZIP in the game’s welcome screen."
             },
             {
-              "title": "Keep a separate profile backup",
-              "instruction": "Saves, tracks, replays, high scores, preferences, imported originals and cached maps live outside the runtime: %APPDATA%/Stunts HD on Windows, or $XDG_CONFIG_HOME/Stunts HD (normally ~/.config/Stunts HD) on Linux. Back up that whole profile with the app closed. Portcove manages the downloaded runtime only; its backup does not include this profile or chosen screenshot/export destinations. F6 exports are not a complete restorable profile backup."
-            },
-            {
-              "title": "Check the alternatives and recovery limits",
-              "instruction": "For an existing Windows copy select Stunts HD.exe; on Linux select stunts-hd with its containing folder. The upstream browser player at https://stunts-recomp.pages.dev/ has separate browser-site storage. macOS uses the upstream application through the OS; ARM and AppImage routes remain upstream-owned. A missing version cache downloads a mutable upstream map, so first setup after a version change or runtime rollback may need Internet and may fail if that map no longer matches. Preserve existing cached maps; offline/historical-map and save compatibility are not guaranteed."
+              "title": "Select an existing native player",
+              "instruction": "For an existing Windows copy select Stunts HD.exe; on Linux select stunts-hd with its containing folder."
             }
           ],
-          "warnings": [],
+          "warnings": [
+            "Other 4D Sports Driving revisions are outside this input claim. Setup requires Internet access to fetch its translation map; it normally caches that map by app version and imports the original into its profile. Retain your original files for reimport if storage fails. No original game files are supplied.",
+            "Back up the whole Stunts HD profile with the app closed. Portcove manages the downloaded runtime only; its backup does not include the Stunts HD profile or chosen screenshot/export destinations. F6 exports are not a complete restorable profile backup.",
+            "A missing version cache downloads a mutable upstream map, so first setup after a version change or runtime rollback may need Internet and may fail if that map no longer matches. Preserve existing cached maps; offline/historical-map and save compatibility are not guaranteed."
+          ],
+          "references": [
+            {
+              "title": "Profile locations and alternatives",
+              "instruction": "Saves, tracks, replays, high scores, preferences, imported originals and cached maps live outside the runtime: %APPDATA%/Stunts HD on Windows, or $XDG_CONFIG_HOME/Stunts HD (normally ~/.config/Stunts HD) on Linux. The upstream browser player at https://stunts-recomp.pages.dev/ has separate browser-site storage. macOS uses the upstream application through the OS; ARM and AppImage routes remain upstream-owned."
+            }
+          ],
           "help_url": "https://github.com/mr-finster/stunts-hd/blob/59b9e1a22c1ecf880a16b199a4a454489b20e59d/README.md"
         },
         "artwork": {
@@ -30696,21 +30715,26 @@
             {
               "title": "Choose your original game and BIOS in the player",
               "instruction": "The complete Windows x64 stable ZIP contains the player, libraries, assets and compiler companions. Keep them together. Choose Play after installation, then supply your own matching USA original GBA game and retail GBA BIOS in the upstream launcher. The launcher checks those inputs and remembers valid choices. No separate installer is required; Portcove does not execute discovered compilers or helpers during setup."
-            },
-            {
-              "title": "Back up your actual save folder",
-              "instruction": "Normal cartridge saves (.sav) and optional state slots (.stateN) follow your selected original game file, usually outside the installation. Preserve that actual folder separately, including .tmp, .bak and .prev-size.bak recovery siblings. The launcher display does not relocate saves; custom --save/--save-path or --state-dir choices can select other locations. A Portcove-managed copy preserves declared local config.ini, keybinds.ini, rom.cfg, bios.cfg, user game.toml, saves/ and mods/. Its backup excludes external originals, BIOS and save folders."
-            },
-            {
-              "title": "Keep your choices and mod versions when updating",
-              "instruction": "If Library identifies this copy as Portcove-managed, use its compatible stable update. Portcove stages the replacement and preserves current declared local data, including edits before first Play. Complete mods/packages/<id>/<version> packages coexist with new upstream defaults; your mod state is retained without choosing a new default for you. A changed package using the same ID/version requires reviewing the reported copies separately before retrying. Mods remain player/upstream-owned code: preservation does not authenticate them or establish compatibility. Generated executable caches and diagnostics stay with each runtime and are regenerated. Runtime rollback carries current data; it does not rewind saves or guarantee older readers can use them. For a copy you added yourself, you or upstream provide updates: prepare a separate folder and change the registration when ready."
-            },
-            {
-              "title": "Understand the enhanced-view limitation",
-              "instruction": "The upstream README records a v0.0.2 extended-view state-load limitation and distinguishes faithful 240x160 output and normal SRAM saves. That historical note is not a current full-game observation. Prefer ordinary saves; newer runtimes and selected mods may not read older state snapshots."
             }
           ],
-          "warnings": [],
+          "warnings": [
+            "Preserve the actual folder containing normal cartridge saves (.sav) and optional state slots (.stateN) separately, including .tmp, .bak and .prev-size.bak recovery siblings. A Portcove-managed copy’s backup excludes external originals, BIOS and save folders.",
+            "Mods remain player/upstream-owned code: preservation does not authenticate them or establish compatibility. Runtime rollback carries current data; it does not rewind saves or guarantee older readers can use them. Prefer ordinary saves; newer runtimes and selected mods may not read older state snapshots."
+          ],
+          "references": [
+            {
+              "title": "Save locations and managed backup scope",
+              "instruction": "Normal cartridge saves (.sav) and optional state slots (.stateN) follow your selected original game file, usually outside the installation. The launcher display does not relocate saves; custom --save/--save-path or --state-dir choices can select other locations. A Portcove-managed copy preserves declared local config.ini, keybinds.ini, rom.cfg, bios.cfg, user game.toml, saves/ and mods/."
+            },
+            {
+              "title": "Updates, mods and runtime rollback",
+              "instruction": "If Library identifies this copy as Portcove-managed, use its compatible stable update. Portcove stages the replacement and preserves current declared local data, including edits before first Play. Complete mods/packages/<id>/<version> packages coexist with new upstream defaults; your mod state is retained without choosing a new default for you. A changed package using the same ID/version requires reviewing the reported copies separately before retrying. Generated executable caches and diagnostics stay with each runtime and are regenerated. For a copy you added yourself, you or upstream provide updates: prepare a separate folder and change the registration when ready."
+            },
+            {
+              "title": "Historical enhanced-view limitation",
+              "instruction": "The upstream README records a v0.0.2 extended-view state-load limitation and distinguishes faithful 240x160 output and normal SRAM saves. That historical note is not a current full-game observation."
+            }
+          ],
           "help_url": "https://github.com/mstan/MegaManZeroRecomp/blob/0c7e9537cb22abb6b3991029f24909adbc47723c/README.md"
         },
         "artwork": {

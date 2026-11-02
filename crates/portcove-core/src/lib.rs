@@ -336,7 +336,9 @@ pub use types::*;
 // Existing response meanings and operation-event schema3 remain unchanged.
 // Public82 adds source-only preparation format3 with no setup executable.
 // Public84 adds reviewed game key art/logos and edition applicability; listing format5 fences strict older readers.
-pub const API_SCHEMA_VERSION: u32 = 84;
+// Public85 separates setup actions from save/version references. Catalog schema3
+// and listing format6 fence strict readers; explicit legacy exports keep all text.
+pub const API_SCHEMA_VERSION: u32 = 85;
 /// Oldest library schema this build can read and migrate.
 pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 /// Library schema this build writes after opening a library.

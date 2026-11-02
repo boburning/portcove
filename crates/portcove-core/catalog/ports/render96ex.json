@@ -27,7 +27,6 @@
       "source_editions": []
     },
     "manual_setup": {
-      "help_url": "https://github.com/Render96/Render96ex/tree/48da5c491c8abfb2f5192b59278c1c269411e533",
       "steps": [
         {
           "title": "Set up Render96 before adding it",
@@ -35,21 +34,32 @@
         },
         {
           "title": "Choose the game program",
-          "instruction": "Choose the program from your working build, rather than its compiler, build script or a launcher that starts a separate process. The inspected standard Windows US build normally produces build/us_pc/sm64.us.exe; region and renderer options can change its name. Keep its resources and companion files together. Use the same start folder and launch options as your working installation. Review and save the launch details, then choose Play separately."
-        },
-        {
-          "title": "Keep your existing save and settings folders",
-          "instruction": "Separate program folders can share saves. The inspected SDL2 build uses the sm64ex preferences folder by default. When the newer save is absent, it can copy an older sm64pc save and settings into that folder. Keep the actual sm64ex and sm64pc folders, sm64_save_file.bin, sm64config.txt and any custom data. Keep your existing --savepath, --configfile and --gamedir launch options only where your build supports them; ! in a supported save path means the executable folder. Do not move or change your save folder just to add the game to Portcove."
-        },
-        {
-          "title": "Handle updates and backups yourself",
-          "instruction": "You or the Render96 project’s tools handle updates, optional packs, resources and recovery. Back up the complete working installation, originals, resources, dynos/packs, mods, saves, settings and any unknown files before changing it. Portcove watches the selected game process and can remove its saved launch details. It won’t update, back up, restore, switch to older versions, move or delete this external copy. Older copies installed by Portcove keep their existing setup and update behavior."
+          "instruction": "Choose the program from your working build, rather than its compiler, build script or a launcher that starts a separate process. Keep its resources and companion files together. Use the same start folder and launch options as your working installation. Review and save the launch details, then choose Play separately."
         }
       ],
       "warnings": [
         "Use only originals, prepared copies and optional packs that you are permitted to use. Adding a program does not verify that the whole package came from its publisher or grant content rights.",
-        "These instructions describe the inspected build. Check the actual locations and behavior of your working copy; other build options and platforms may differ."
-      ]
+        "These instructions describe the inspected build. Check the actual locations and behavior of your working copy; other build options and platforms may differ.",
+        "Separate program folders can share saves. Do not move or change your save folder just to add the game to Portcove.",
+        "Back up the complete working installation, originals, resources, dynos/packs, mods, saves, settings and any unknown files before changing it.",
+        "Portcove will not back up or update this external installation. Back up its saves, settings and custom folders separately.",
+        "The inspected SDL2 build can copy older saves and settings into its shared profile folder when newer files are missing. Keep both profile folders before trying another copy."
+      ],
+      "references": [
+        {
+          "title": "Build output and executable names",
+          "instruction": "The inspected standard Windows US build normally produces build/us_pc/sm64.us.exe; region and renderer options can change its name."
+        },
+        {
+          "title": "Save folders and supported launch options",
+          "instruction": "The inspected SDL2 build uses the sm64ex preferences folder by default. When the newer save is absent, it can copy an older sm64pc save and settings into that folder. Keep the actual sm64ex and sm64pc folders, sm64_save_file.bin, sm64config.txt and any custom data. Keep your existing --savepath, --configfile and --gamedir launch options only where your build supports them; ! in a supported save path means the executable folder."
+        },
+        {
+          "title": "Updates, backups and file ownership",
+          "instruction": "You or the Render96 project’s tools handle updates, optional packs, resources and recovery. Portcove watches the selected game process and can remove its saved launch details. It won’t update, back up, restore, switch to older versions, move or delete this external copy. Older copies installed by Portcove keep their existing setup and update behavior."
+        }
+      ],
+      "help_url": "https://github.com/Render96/Render96ex/tree/48da5c491c8abfb2f5192b59278c1c269411e533"
     }
   },
   "integration": {

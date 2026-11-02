@@ -18,7 +18,6 @@
       "match_kind": "underlying-game"
     },
     "manual_setup": {
-      "help_url": "https://github.com/SamSteProjects/legend-of-legaia-recomp/blob/261a40d12a800a73426367f643d2267e8393db3f/README.md",
       "steps": [
         {
           "title": "Complete the exact original and BIOS setup upstream",
@@ -29,22 +28,28 @@
           "instruction": "The upstream v0.1.7 diagnostic-playtest README explicitly supports direct LegaiaRecomp.exe with its complete creating player directory as working directory and no extra arguments; keep SDL2.dll and bundled game.toml, settings.toml, bios/, disc/, game/ and matching resources together. Do not attach the batch file, package script, compiler or a setup-host output. Complete preparation upstream first. Retain supported literal arguments already required by your working copy; no renderer or input mode is newly qualified."
         },
         {
-          "title": "Keep launch and maintenance ownership explicit",
-          "instruction": "Review and consent to the exact native executable, established CWD and literal arguments; request Play separately. The reviewed source provides the normal in-process launcher/runtime route; package build flags and package-to-source correspondence remain unverified. Independently started setup, helper, mod-preparation or successor sessions remain upstream activity outside this attachment. Close every actual player and companion before maintenance, retain the old runtime/data and review or relink changed selected bytes. Removing registration preserves all external files."
-        },
-        {
-          "title": "Preserve the actual creating profile and custom roots",
-          "instruction": "The title config selects runtime memcard_dir=saves. The named runtime source anchors normal runtime files to the executable directory and supports --memcard-dir plus settings-selected explicit card paths; preserve the actual effective directories and card1.mcd/card2.mcd, rather than assuming all state is under saves/. Retain all saves/states, settings.toml, game.toml and custom overlays, original disc/BIOS/extracted executable, cache or overlay shards, mods, logs, crash/hitch/manual reports, backups and temporary files with the creating runtime. Preserve external custom card/disc/BIOS/mod paths. No cross-version card/state compatibility or migration is established."
-        },
-        {
-          "title": "Keep the experimental limits and working configuration",
-          "instruction": "This early diagnostic playtest has documented hitching and a static-overlay fallback. Keep the working configuration and runtime together; stable-player and runtime behavior remain unconfirmed. Portcove has not confirmed upstream gameplay reports. You and upstream manage preparation, replacement and recovery; Portcove does not update, back up, roll back, migrate or delete this external copy, or upload diagnostic reports."
+          "title": "Review launch details, then choose Play",
+          "instruction": "Review and consent to the exact native executable, established CWD and literal arguments; request Play separately."
         }
       ],
       "warnings": [
         "Only attach actual originals, runtime and components you are independently permitted to use. Runtime PolyForm Noncommercial terms and SDL/dependency notices apply separately; no source label or upstream package assertion grants Sony/game rights.",
-        "This guidance follows upstream source, documentation, configuration and published release checksums. Portcove has not downloaded or inspected the package, confirmed that its executable matches the source, or tested launch, saves, gameplay or installed behavior. The package’s build settings and contents remain unconfirmed."
-      ]
+        "This guidance follows upstream source, documentation, configuration and published release checksums. Portcove has not downloaded or inspected the package, confirmed that its executable matches the source, or tested launch, saves, gameplay or installed behavior. The package’s build settings and contents remain unconfirmed.",
+        "Close every actual player and companion before maintenance, retain the old runtime/data and review or relink changed selected bytes.",
+        "No cross-version card/state compatibility or migration is established.",
+        "This early diagnostic playtest has documented hitching and a static-overlay fallback. Keep the working configuration and runtime together; stable-player and runtime behavior remain unconfirmed."
+      ],
+      "references": [
+        {
+          "title": "Launch, preparation and maintenance scope",
+          "instruction": "The reviewed source provides the normal in-process launcher/runtime route; package build flags and package-to-source correspondence remain unverified. Independently started setup, helper, mod-preparation or successor sessions remain upstream activity outside this attachment. Removing registration preserves all external files. Portcove has not confirmed upstream gameplay reports. You and upstream manage preparation, replacement and recovery; Portcove does not update, back up, roll back, migrate or delete this external copy, or upload diagnostic reports."
+        },
+        {
+          "title": "Save cards, configuration and custom roots",
+          "instruction": "The title config selects runtime memcard_dir=saves. The named runtime source anchors normal runtime files to the executable directory and supports --memcard-dir plus settings-selected explicit card paths; preserve the actual effective directories and card1.mcd/card2.mcd, rather than assuming all state is under saves/. Retain all saves/states, settings.toml, game.toml and custom overlays, original disc/BIOS/extracted executable, cache or overlay shards, mods, logs, crash/hitch/manual reports, backups and temporary files with the creating runtime. Preserve external custom card/disc/BIOS/mod paths."
+        }
+      ],
+      "help_url": "https://github.com/SamSteProjects/legend-of-legaia-recomp/blob/261a40d12a800a73426367f643d2267e8393db3f/README.md"
     }
   }
 }

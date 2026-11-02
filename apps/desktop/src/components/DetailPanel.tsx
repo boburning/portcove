@@ -1,3 +1,4 @@
+import { AuthoredSetupWarnings } from "./AuthoredSetupWarnings";
 import { Chip } from "./ui/chip";
 import { IdentityIcon } from "../features/identity/IdentityIcon";
 import { identityStyle } from "../features/identity/identity-style";
@@ -1411,9 +1412,7 @@ function SavesAndSettingsSummary({
         aria-label="Saved-data coverage"
         className="grid min-w-0 gap-3 text-sm wrap-anywhere"
       >
-        <h3 className="mb-1 text-sm font-semibold">
-          Managed backup data and external declarations
-        </h3>
+        <h3 className="mb-1 text-sm font-semibold">Backups for an installation you maintain</h3>
         <p>
           Portcove does not collect files from this external installation folder. Data already
           written to Portcove’s managed backup folder can be backed up when the current backup
@@ -1442,8 +1441,8 @@ function SavesAndSettingsSummary({
           </details>
         ) : (
           <p>
-            This installation’s saved-data coverage could not be verified. Runtime collection
-            coverage is unknown here; current catalog paths cannot establish it.
+            Portcove couldn’t confirm this installation’s backup rules. The current catalog may
+            describe a different version. Back up external save and settings folders separately.
           </p>
         )}
       </section>
@@ -1458,16 +1457,16 @@ function SavesAndSettingsSummary({
           : behavior === "portcove-managed"
             ? "Managed by Portcove for backup and restore"
             : behavior === "external-user-owned"
-              ? "External saves and settings are outside Portcove backups; declared local data may still be covered"
+              ? "Back up external saves and settings separately. Listed files in the installation folder may still be included."
               : "Unavailable in this catalog"}
       </span>
       <section aria-label="Saved-data coverage">
         <h3 className="mb-1 text-sm font-semibold">What a backup covers</h3>
         {retained && !retainedSetup ? (
           <p>
-            Portcove can back up data already in its managed saves and settings folder. Which
-            installation files Portcove collects is unknown here; current catalog declarations do
-            not establish rules for this installed version.
+            Files already in Portcove’s saves and settings folder can still be backed up when the
+            backup checks allow it. Portcove couldn’t confirm which files to copy from this
+            installation; the current catalog may describe a different version.
           </p>
         ) : (
           <>
@@ -2183,6 +2182,7 @@ function StagedActivation({
 function useInstallAction({
   gameName,
   setupNote,
+  setupWarnings,
   externalData,
   cancellations,
   ready,
@@ -2202,6 +2202,7 @@ function useInstallAction({
 }: {
   gameName?: string | undefined;
   setupNote?: string | undefined;
+  setupWarnings?: readonly string[] | undefined;
   externalData?: boolean | undefined;
   cancellations?: ActivityRecord[] | undefined;
   ready: boolean;
@@ -2250,6 +2251,7 @@ function useInstallAction({
   return {
     gameName,
     setupNote,
+    setupWarnings,
     externalData,
     cancellations,
     ready,
@@ -2327,6 +2329,7 @@ function InstallActionView({
           {...{
             gameName: model.gameName,
             setupNote: model.setupNote,
+            setupWarnings: model.setupWarnings,
             externalData: model.externalData,
             cancellations: model.cancellations,
             plan: model.plan,
@@ -3208,6 +3211,7 @@ function InstallReviewDialog({
   ReturnType<typeof useInstallAction> & { plan: InstallPlan; action: string | undefined },
   | "gameName"
   | "setupNote"
+  | "setupWarnings"
   | "externalData"
   | "cancellations"
   | "plan"
@@ -3257,6 +3261,7 @@ function InstallReviewDialog({
           Portcove manages these runtime files and their updates. Automatic updates follow your
           selected update policy. See the game instructions for setup and save locations.
         </DialogDescription>
+        <AuthoredSetupWarnings warnings={model.setupWarnings} />
         {(model.setupNote || model.externalData) && (
           <section className="mb-4 grid min-w-0 gap-2 wrap-anywhere" aria-label="Game setup">
             <h3 className="font-semibold">Game setup</h3>
@@ -3363,6 +3368,7 @@ function UninstalledPrimaryActions(
           ? (model.sources.port.presentation?.manual_preparation ?? undefined)
           : undefined)
       }
+      setupWarnings={model.sources.port.presentation?.manual_setup?.warnings}
       externalData={model.sources.port.presentation?.saves_and_settings === "external-user-owned"}
       cancellations={model.installCancellations}
       ready={model.launchReady}
