@@ -350,12 +350,14 @@ tooling; and `apps/desktop/public` checks the raw theme bootstrap. Keep new file
 inside the appropriate includes and verify them through `pnpm check` (the
 existing Vite+ static workflow).
 
-CI keeps the complete validation plan and digest as workflow outputs. Child
+CI keeps the exact validation plan in an attempt-specific artifact and publishes
+its digest and compressed form as workflow outputs. The redundant uncompressed
+job output is omitted to stay within GitHub’s 1 MiB UTF-16 output quota. Child
 processes receive the same plan through `PORTCOVE_PLAN_GZIP_BASE64`, bounded to
 96 KiB before environment propagation and 1 MiB after inflation. The transport
 leaves 32 KiB below Linux’s per-string execution limit, including the variable
-name. This accommodates catalog-wide changes and avoids
-oversized environment strings on repository-wide changes.
+name. This accommodates catalog-wide changes without oversized environment
+strings.
 Consumers still validate the plan, digest and source bindings; compression is
 only transport. Local legacy `PORTCOVE_PLAN_JSON` input remains supported, while
 ambiguous transports, corrupt data and excessive inflation are rejected.
