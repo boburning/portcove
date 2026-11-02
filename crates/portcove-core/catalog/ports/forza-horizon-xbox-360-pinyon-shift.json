@@ -3,7 +3,7 @@
   "listing": {
     "id": "forza-horizon-xbox-360-pinyon-shift",
     "name": "Forza Horizon (Xbox 360) (Pinyon Shift)",
-    "summary": "Upstream route: Prebuilt launcher on Windows/Linux/macOS; game built locally from owned input Limits: Playable preview with rendering bugs/slowdowns; game built locally from owned input. Android remains alpha. Upstream platforms: Launcher packages for Windows x86-64, Linux x86-64/SteamDeck and macOS Apple-Silicon ARM64; game compiles locally. Android is separate alpha, ABI unknown. Original data: Owned Forza Horizon disc or verified extracted game files Portcove setup/gameplay not verified.",
+    "summary": "Attach Pinyon Shift through its prepared Windows launcher with your own USA Forza Horizon Xbox 360 disc. Keep its source payload, chosen install/state roots and separate base, title-update and XE saves together.",
     "original_game_title": "Forza Horizon (Xbox 360)",
     "project_url": "https://github.com/arcanite24/pinyon-shift",
     "platforms": [],
@@ -17,7 +17,35 @@
       "game_slug": "forza-horizon",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2576
+    "issue_number": 2576,
+    "manual_setup": {
+      "help_url": "https://github.com/arcanite24/pinyon-shift/blob/9494adadef6a73b340d204f29cfa75d711b78c6a/README.md",
+      "steps": [
+        {
+          "title": "Finish upstream preparation first",
+          "instruction": "Use the official v0.7.1 Windows launcher package, keeping PinyonShiftLauncher.exe and pinyon-shift-source.zip together. Supply your own USA retail Forza Horizon Xbox 360 disc, serial MS-2505/title ID 4D5309C9, whose selected source policy requires size 8738846720 bytes and SHA256 83dfc7d0b58b804232385de6f794d9acb92b89a37cf13da14b824b286c824490 (locally verified upstream, not Redump-hash matched), and finish the supported launcher’s original checks, local game-code build, graphics preparation and settings before attachment. This is not the PC release or Forza Horizon 2. Windows 10/11 x64 and Vulkan 1.3 are the selected route; upstream NVIDIA observations do not qualify AMD/Intel, Linux, Android or this host. No original, source payload, setup helper, compiler or game is executed here."
+        },
+        {
+          "title": "Attach the normal waiting launcher",
+          "instruction": "Select PinyonShiftLauncher.exe, use its full extracted package directory as working directory and leave arguments empty for an existing ordinary installation. Review the exact intent and request Play separately, then use upstream Play. The selected WPF caller supplies the actual repository and state root to launch-preview.ps1 and waits for it; that normal script waits for the game without the optional render-test timeout. Keep the launcher open until the game exits normally, then close it. Do not register the setup script, bare locally compiled game, diagnostic mode or a launcher from a different platform."
+        },
+        {
+          "title": "Keep the active install and state choices",
+          "instruction": "The packaged launcher normally installs its versioned source beneath %LOCALAPPDATA%/PinyonShift, or its already chosen install folder/PINYON_SHIFT_INSTALL_ROOT. State defaults to that versioned source’s .local/preview, with an existing PINYON_SHIFT_STATE_ROOT override; retain any existing game-root override too. Keep the complete chosen trees, build/tools, originals, imported owned DLC, settings, saves, photos, logs, backups and shader caches. Do not assume that a fresh version’s empty folder replaces the active profile."
+        },
+        {
+          "title": "Preserve portable and title-update separation",
+          "instruction": "An existing portable.txt beside the launcher, or an already chosen --portable launch, uses launcher/data and ignores install/state/game environment overrides. Preserve that choice; for an existing switch-based portable setup, retain --portable in the reviewed arguments instead of silently changing roots. This guide creates/removes no marker or override. Keep base-disc, optional v4 title-update and XE-mod profiles/backups distinct; upstream XE uses the base disc and its own save. Do not downgrade, merge or move profiles, import content, restart Windows or alter developer tools here."
+        },
+        {
+          "title": "Keep upstream maintenance and component limits",
+          "instruction": "Upstream owns source staging, toolchain preparation, title updates, DLC verification and launcher maintenance. Retain title, SDK, shader, compiler and third-party notices; their licenses do not license the original disc, DLC or unrelated mods. Finish maintenance outside a running session, keep recovery and review/relink changed bytes. A checked outer archive and source wait chain do not prove nested-source extraction safety, installed/native behavior, campaign completion, controller or real-save restore acceptance. No Supported or managed install/update/rollback/backup/deletion outcome is asserted."
+        }
+      ],
+      "warnings": [
+        "Select the prepared waiting launcher with its source ZIP. Preserve the existing ordinary/portable choice and base, v4 and XE data; finish all upstream setup and maintenance separately."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
