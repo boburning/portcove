@@ -3,7 +3,7 @@
   "listing": {
     "id": "prince-of-persia-dos-sdlpop",
     "name": "Prince of Persia (DOS) (SDLPoP)",
-    "summary": "Conditional Windows prepared-player route: attach only an already permitted working native SDLPoP copy. Official external package contents, accepted original/mod DAT set and asset permissions remain unresolved for fresh managed admission; no unsupported external original EXE/ROM requirement is added. Core offers nonowning registration/Play while upstream owns setup, actual state roots and replacement.",
+    "summary": "Conditional Windows prepared-player route: attach only an already permitted working native SDLPoP copy. Official external package contents, accepted original/mod DAT set and asset permissions remain unresolved for fresh managed admission; no unsupported external original EXE/ROM requirement is added. Portcove can register this existing copy and start the selected player while upstream owns setup, actual state roots and replacement.",
     "original_game_title": "Prince of Persia (DOS)",
     "project_url": "https://github.com/NagyD/SDLPoP",
     "platforms": [],
@@ -30,14 +30,14 @@
           "instruction": "On Windows normal PRINCE.SAV/QUICKSAVE.SAV/PRINCE.HOF writes can use the actual working directory. Existing SDLPOP_SAVE_PATH redirects save/HOF output, including a levelset subdirectory; without it a custom levelset can use its actual mod_data_path. Preserve all those roots, full runtime/DAT/MIDISND/mod data, SDLPoP.ini, configured replays_folder and recordings, legacy and unknown files. Keep the old creating runtime/data/config tuple before updates; no save/replay/mod compatibility or isolated profile is certified."
         },
         {
-          "title": "Keep replacement and removal ownership clear",
-          "instruction": "Close all real instances before external file changes. Upstream/player owns preparation, runtime replacement, profile writes and any migration/recovery. Preserve the old creating copy and every actual data root, finish deliberate replacement upstream and review/relink the changed player before the next Play. Core observes only its separately consented selected process, not an exclusive instance family or sandbox, and does not adopt unrelated helpers/successors. Registration-only removal preserves all external files. No Core-managed acquisition/setup/update/backup/rollback/migration/deletion is offered by this route."
+          "title": "Update the game and remove its registration",
+          "instruction": "Close every running copy before changing external files. You manage setup, game replacement, profile changes, data migration and recovery. Keep the working game version and every data folder, update it with the project’s tools, then review and select the changed executable before choosing Play. Portcove monitors only the process you selected and agreed to launch. It does not prevent other copies from running, restrict file access or take over unrelated helpers or replacement processes. Removing the registration leaves external files in place. This route does not offer Portcove downloads, setup, updates, backups, rollback, data migration or deletion."
         }
       ],
       "warnings": [
-        "This guide adds no Supported promotion, original/component permission, acquired-source-to-binary or private-output certificate. Use only a copy and content you are already permitted to use.",
-        "Source/API and inert native probes are distinct from actual game/save/mod/network, installed Desktop, physical/human, other-platform or protected acceptance. No such new observation is claimed.",
-        "Keep complete actual external runtime and player-data roots recoverable before upstream changes; another player folder does not guarantee independent shared state."
+        "Use only a copy and content you are already permitted to use. These instructions do not establish permission for the original game or other components, or confirm the resulting game files.",
+        "These instructions do not confirm gameplay, saving, mods, network play, physical controls or behavior on other platforms.",
+        "Before updating the game, keep a recoverable copy of its working files and every location containing saved data. Another game folder may use the same profile."
       ]
     }
   },

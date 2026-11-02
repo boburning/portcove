@@ -30,7 +30,7 @@
           "instruction": "Select FreedomUnbound.exe with its complete creating package directory as working directory and no arguments for normal play. Keep Start-Freedom-Unbound.ps1, FreedomUniteNative.exe, overlay/runtime DLLs, fonts and resources together. The native launcher starts the supplied script through Windows PowerShell and waits; that script starts the native game, waits for its exit and records session logs. The script uses Add-Type for foreground activation. Do not attach the PowerShell executable, CMD fallback, save editor or private runtime directly, or invent a wrapper to bypass the supported environment."
         },
         {
-          "title": "Retain the launcher\u2019s actual argument and environment boundary",
+          "title": "Retain the launcher’s actual argument and environment boundary",
           "instruction": "For an established custom data or log root, retain its supported literal -DataDirectory or -LogDirectory option and value. The script clears MHFU_/PSPRECOMP_ variables only in its own child environment and sets the supported home-screen/no-interpreter choices; an ambient MHFU_DATA_DIR is not a substitute for the supported launcher argument. Portcove adds no environment, compiler or shell orchestration. The full upstream chain is part of the independently permitted complete copy and remains user/upstream owned."
         },
         {
@@ -47,9 +47,9 @@
         }
       ],
       "warnings": [
-        "Native Windows alpha; the selected latest tag is v0.1.6-alpha while its README still describes0.1.5. Keep source/tag/provider identities separate from the displayed version and uninspected package contents.",
-        "AVX/Vulkan/VC-runtime and upstream interpolation/loading/LAN limits remain. No package, PE/ABI, game/helper/script, real-save, installed-client, Supported or protected acceptance was executed here. The supported script/runtime chain is source-reviewed only.",
-        "Actual independently permitted originals, components and copy remain required. Optional mods are separately downloaded and not part of this registration; no family grant, cross-version state or PSP save compatibility is independently qualified."
+        "This Windows alpha is tagged v0.1.6-alpha, while its README still describes 0.1.5. Check the selected tag and package before setup; Portcove has not inspected its contents.",
+        "Check the upstream AVX, Vulkan and Visual C++ runtime requirements, and its interpolation, loading and LAN limitations. This guidance is based on source review; Portcove has not run the package, launcher, script or game, or tested saves and installed behavior.",
+        "Use only originals, components and a complete copy you are independently permitted to use. Optional mods are separate downloads. Cross-version state and PSP save compatibility have not been confirmed."
       ]
     }
   },

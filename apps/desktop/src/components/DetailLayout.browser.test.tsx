@@ -224,7 +224,7 @@ it("reveals real management controls through the header and preserves their moun
   await expect.element(choice).toHaveValue("saved input");
 });
 
-it("keeps unknown original systems explicit and shows every offered release channel", async () => {
+it("keeps unknown original systems explicit and shows every offered update channel", async () => {
   const port = { ...portDefinition(), channels: ["stable", "beta", "rolling"] as const };
   await render(
     <DetailLayout

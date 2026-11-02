@@ -22,7 +22,7 @@
       "steps": [
         {
           "title": "Keep a permitted fully prepared Windows copy",
-          "instruction": "Use an already permitted working v0.8.0-beta.1.2 Windows x64 TriAevum installation and its privately Forge-prepared title/runtime/profile, complete adjacent dependencies and creating Vulkan/GPU context. Project GPL3-or-later and third-party notices do not license Nintendo originals or private ROM-derived outputs. This beta is distinct from the formerly qualified v0.6.0-alpha.2c. Do not use the explicitly broken/withdrawn alpha.3/alpha.3b builds or infer Linux/Flatpak/SteamDeck qualification."
+          "instruction": "Use an already permitted working v0.8.0-beta.1.2 Windows x64 TriAevum installation and its privately Forge-prepared title/runtime/profile, complete adjacent dependencies and creating Vulkan/GPU context. Project GPL3-or-later and third-party notices do not license Nintendo originals or private ROM-derived outputs. This beta is distinct from the formerly qualified v0.6.0-alpha.2c. Do not use the explicitly broken/withdrawn alpha.3/alpha.3b builds or infer Linux/Flatpak/Steam Deck qualification."
         },
         {
           "title": "Complete Forge preparation outside Core",

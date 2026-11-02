@@ -38,7 +38,7 @@
         }
       ],
       "warnings": [
-        "The selected release and source recipe were inspected as public metadata/source only; package contents, native launch, gameplay, real saves and update execution were not tested. Experimental Linux AppImages are a separate route."
+        "This guidance follows upstream source and release descriptions. Portcove has not inspected the package or tested launch, gameplay, saving or updates. Experimental Linux AppImages are a separate route."
       ],
       "help_url": "https://github.com/saulob/geometry-wars-retro-evolved-2-recompiled#readme"
     },

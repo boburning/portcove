@@ -575,7 +575,7 @@ it("keeps selected filter labels and their popover bounded at 320px with enlarge
     await closeFilters();
     const preview = page.getByRole("button", { name: "Remove Preview filter", exact: true });
     const linux = page.getByRole("button", { name: "Remove Linux filter", exact: true });
-    await expect.element(preview).toHaveTextContent("Release channels: Preview");
+    await expect.element(preview).toHaveTextContent("Update channels: Preview");
     await expect.element(linux).toHaveTextContent("Target OS: Linux");
     for (const chip of [preview, linux]) {
       const element = chip.element();

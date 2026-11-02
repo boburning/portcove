@@ -27,14 +27,14 @@
         },
         {
           "title": "Keep the required controller and known limits visible",
-          "instruction": "This alpha requires a controller. Upstream says the Shy Guy board and Manta Rings, Slime Time, Makin’ Waves and Bowser Bop minigames crash; double rolls can softlock. It also reports coin/dice/graphics/shadow defects. This guide repairs none of them and claims no full-game, physical-controller or completed-save qualification."
+          "instruction": "This alpha requires a controller. Upstream says the Shy Guy board and Manta Rings, Slime Time, Makin’ Waves and Bowser Bop minigames crash; double rolls can softlock. It also reports coin/dice/graphics/shadow defects. These instructions do not repair those issues. Portcove has not confirmed full-game compatibility, physical-controller support or completed saves."
         },
         {
           "title": "Attach the actual native player",
           "instruction": "Select partyboard.exe and its complete creating package directory as working directory, with no extra arguments for the normal in-process startup. The source can browse an original each time; the documented GMPE01_00.iso or GMPE01_00.rvz beside the executable avoids that repeated pick. Keep the actual original, extracted GMPE01_00 tree and matching runtime/resources. Do not substitute a different revision, architecture or decompilation build."
         },
         {
-          "title": "Review the attachment and choose Play separately",
+          "title": "Review launch details, then choose Play",
           "instruction": "Review and consent to this exact executable, creating working directory and supported literal arguments, then choose Play separately. Core owns only the selected native intent and registration. Upstream and you retain preparation, runtime replacement, recovery and external files. Removing registration preserves every external file. Close the actual player and companions before upstream maintenance, retain the old runtime and all data, then review/relink changed selected bytes."
         },
         {
@@ -43,7 +43,7 @@
         }
       ],
       "warnings": [
-        "The independently selected native route is separate from curated package CPU classification. Win32 is not relabeled as Win64, and no generic provider exception is added.",
+        "For this alpha, upstream recommends the Win32/x86 build. The separate x64 build may crash in additional places.",
         "Use only a copy, components and original you are permitted to use. No external preparation, update, backup, rollback, migration or deletion is offered. Source/root license absence alone supplies neither a private-use ban nor a grant inherited from Aurora or another game."
       ]
     }

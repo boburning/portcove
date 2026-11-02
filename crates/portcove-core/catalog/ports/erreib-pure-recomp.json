@@ -27,11 +27,11 @@
         },
         {
           "title": "Attach the documented Windows player",
-          "instruction": "Select Wipeout Pure.exe with the complete creating Wipeout Pure package directory as working directory and no arguments for normal play after setup. The exact v0.2.0 package README documents that entry; the bundle recipe copies the native PureNative build to that name. Keep all supplied DLLs, fonts/resources and notices together. The source entry delegates to the normal PortableKit game path in the same program; source patches and an uninspected package are not a binary/source certificate. Do not attach a build script, Mac bundle, replay tool or setup command."
+          "instruction": "Select Wipeout Pure.exe with the complete creating Wipeout Pure package directory as working directory and no arguments for normal play after setup. The exact v0.2.0 package README documents that entry; the bundle recipe copies the native PureNative build to that name. Keep all supplied DLLs, fonts/resources and notices together. The source runs the game in the selected program. Portcove has not inspected the published package or confirmed that it matches the source. Do not attach a build script, Mac bundle, replay tool or setup command."
         },
         {
           "title": "Keep setup and restart paths separate",
-          "instruction": "--install is an upstream setup operation, including a command form that exits after preparing an image; complete it outside this attachment. The System menu also owns save import/export, backup, DLC installation and setup-again/restart choices. Close every actual player and any successor before maintenance or another attachment; registration status does not prove successor adoption or termination. No new Core environment/shell/compiler infrastructure or private-runner bypass is introduced."
+          "instruction": "--install is an upstream setup operation, including a command form that exits after preparing an image; complete it outside this attachment. The System menu also owns save import/export, backup, DLC installation and setup-again/restart choices. Close every actual player and any successor before maintenance or another attachment; Portcove tracks the selected player and may not follow or close restarted instances. Portcove does not run setup shells or compilers for this game."
         },
         {
           "title": "Review Play and preserve the whole data folder",
@@ -43,8 +43,8 @@
         }
       ],
       "warnings": [
-        "Selected release v0.2.0 source is distinct from later current HEAD; pinned-base and patch-source facts do not authenticate the uninspected published binary. No package/PE/native/game/real-save/installed-client/Supported/protected qualification was performed.",
-        "Windows Vulkan first-track shader stutter, aspect/movie/HUD limitations and unavailable ad hoc/browser functions remain upstream limitations. Actual independently permitted copy, original and component use is required; no title/family grant or performance claim is inherited."
+        "Release v0.2.0 uses different source from later development versions. Portcove has not inspected its package or confirmed that the executable matches those sources, and has not tested startup, gameplay, saves or installed behavior.",
+        "Upstream reports first-track shader stutter on Windows Vulkan, aspect-ratio, movie and HUD limitations, and unavailable ad hoc and browser functions. Use only a copy, original and components you are independently permitted to use. Portcove has not confirmed performance."
       ]
     }
   },

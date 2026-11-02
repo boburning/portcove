@@ -128,7 +128,9 @@ it("keeps another port's retained cleanup identity through cancelled review and 
     const locations = account.element().querySelector("details")!;
     expect(locations.open).toBe(false);
     expect(account.element().textContent).toContain("What you can do now");
-    await page.getByText("Installation, source, saves, backups and logs", { exact: true }).click();
+    await page
+      .getByText("Installation, game files, saves, backups and logs", { exact: true })
+      .click();
     expect(locations.open).toBe(true);
     for (const fact of facts) expect(account.element().textContent).toContain(fact);
     expect(remove).not.toHaveBeenCalled();

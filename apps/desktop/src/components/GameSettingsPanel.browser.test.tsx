@@ -88,7 +88,7 @@ function button(label: string): HTMLButtonElement {
 }
 
 async function click(label: string) {
-  await act(async () => button(label).click());
+  await act(async () => userEvent.click(button(label)));
 }
 
 it("requires review and explicit save, then passes Core's exact binding to apply", async () => {
@@ -98,12 +98,12 @@ it("requires review and explicit save, then passes Core's exact binding to apply
   const apply = vi.fn(async () => settings());
   const { changed } = await mount({ review, apply });
   expect(apply).not.toHaveBeenCalled();
-  await click("Review default");
+  await click("Reset to default…");
   expect(review).toHaveBeenCalledExactlyOnceWith("preferences", "master-volume", {
     action: "reset",
   });
   expect(apply).not.toHaveBeenCalled();
-  expect(document.querySelector("[role=dialog]")?.textContent).toContain("Verified default");
+  expect(document.querySelector("[role=dialog]")?.textContent).toContain("Default");
   await expect.poll(() => document.activeElement?.textContent).toBe("Review game setting");
   await click("Save setting");
   expect(apply).toHaveBeenCalledExactlyOnceWith(reviewed({ action: "reset" }));
@@ -122,7 +122,7 @@ it.each(["library", "installation", "availability"])(
     );
     const apply = vi.fn(async () => settings());
     const { render } = await mount({ review, apply });
-    await click("Review default");
+    await click("Reset to default…");
     const updated = {
       ...settings(),
       install_id: kind === "installation" ? "other-install" : "retained-install",
@@ -143,7 +143,7 @@ it("rejects a review from another installation without enabling save", async () 
   }));
   const apply = vi.fn(async () => settings());
   await mount({ review, apply });
-  await click("Review default");
+  await click("Reset to default…");
   expect(document.querySelector("[role=alert]")?.textContent).toContain("installation changed");
   expect(button("Save setting").disabled).toBe(true);
   expect(apply).not.toHaveBeenCalled();
@@ -155,7 +155,7 @@ it("retains failed-write consequences and requires a fresh review before another
     throw new Error("Configuration changed; preserve both copies.");
   });
   const { changed } = await mount({ review, apply });
-  await click("Review default");
+  await click("Reset to default…");
   await click("Save setting");
   expect(document.querySelector("[role=alert]")?.textContent).toContain("preserve both copies");
   expect(button("Save setting").disabled).toBe(true);
@@ -175,7 +175,7 @@ it("does not publish an old apply response into a newly selected library", async
       }),
   );
   const { changed, render } = await mount({ review, apply });
-  await click("Review default");
+  await click("Reset to default…");
   await click("Save setting");
   expect(apply).toHaveBeenCalledTimes(1);
   await render(settings(), 2);
@@ -212,7 +212,7 @@ it("restores stable focus after save replaces the configuration and editor", asy
     apply: vi.fn(async () => updated),
   };
   const { host } = await mount(actions, settings(), true);
-  await click("Review default");
+  await click("Reset to default…");
   await act(async () => button("Save setting").focus());
   await act(async () => userEvent.keyboard("{Enter}"));
   await expect.poll(() => document.activeElement?.textContent).toBe("Game settings");
@@ -226,7 +226,7 @@ it("keyboard cancellation returns focus without applying", async () => {
     apply: vi.fn(async () => settings()),
   };
   await mount(actions);
-  await click("Review default");
+  await click("Reset to default…");
   await act(async () => userEvent.keyboard("{Escape}"));
   await expect.poll(() => document.activeElement?.textContent).toBe("Game settings");
   expect(actions.apply).not.toHaveBeenCalled();
@@ -318,6 +318,30 @@ it.each(["boolean", "enum"])("preserves the scalar type of %s intent", async (ki
     action: "set",
     value: kind === "boolean" ? true : "auto",
   });
+  const dialog = document.querySelector("[role=dialog]")?.querySelector("dl");
+  expect(dialog?.textContent).toContain(kind === "boolean" ? "On" : "Automatic");
+  expect(dialog?.textContent).not.toContain(kind === "boolean" ? "true" : '"auto"');
+  expect(apply).not.toHaveBeenCalled();
+});
+
+it("keeps an absent saved value distinct from Off while reviewing a default", async () => {
+  const view = settings();
+  const setting = view.files[0]?.settings[0];
+  if (!setting) throw new Error("Missing setting fixture");
+  setting.value = null;
+  setting.value_type = { kind: "boolean", default: false };
+  const review = vi.fn(async () => ({
+    ...reviewed({ action: "reset" }),
+    previous_value: null,
+    proposed_value: false,
+  }));
+  const apply = vi.fn(async () => view);
+  await mount({ review, apply }, view);
+  await click("Reset to default…");
+  const dialog = document.querySelector("[role=dialog]")?.querySelector("dl");
+  expect(dialog?.textContent).toContain("Not saved");
+  expect(dialog?.textContent).toContain("Off");
+  expect(apply).not.toHaveBeenCalled();
 });
 
 it("refuses empty numeric input before review and isolates an unavailable file", async () => {
@@ -343,7 +367,7 @@ it("refuses empty numeric input before review and isolates an unavailable file",
     input.dispatchEvent(new Event("input", { bubbles: true }));
   });
   await click("Review change");
-  expect(host.querySelector("[role=alert]")?.textContent).toContain("finite value");
+  expect(host.querySelector("[role=alert]")?.textContent).toContain("whole number");
   expect(review).not.toHaveBeenCalled();
   expect(apply).not.toHaveBeenCalled();
 });

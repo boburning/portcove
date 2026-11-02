@@ -56,6 +56,41 @@ async fn comparison_json_and_jsonl_equal_core_and_preserve_pending_recovery_and_
         assert_eq!(envelope["data"], expected);
         assert!(output.stderr.is_empty());
     }
+    let human = portcove_tool(
+        &preferences_path,
+        &root,
+        &[
+            "catalog",
+            "compare",
+            "render96ex",
+            "--evaluated-at",
+            "100",
+            "--require",
+            "multiplayer",
+            "--environment",
+            "comparison-fixture",
+        ],
+    );
+    assert!(human.status.success(), "{human:?}");
+    let text = String::from_utf8(human.stdout).unwrap();
+    assert!(
+        text.contains("Evaluated (UTC): 1970-01-01T00:01:40Z"),
+        "{text}"
+    );
+    assert!(text.contains("Original files:"), "{text}");
+    assert!(
+        text.contains("Use --json for exact download identities"),
+        "{text}"
+    );
+    for internal in [
+        "Some(",
+        "None",
+        "internal score",
+        "AssessedSingleCandidate",
+        "Existing Core",
+    ] {
+        assert!(!text.contains(internal), "{internal}: {text}");
+    }
     assert_eq!(
         serde_json::to_value(service.statuses().unwrap()).unwrap(),
         statuses

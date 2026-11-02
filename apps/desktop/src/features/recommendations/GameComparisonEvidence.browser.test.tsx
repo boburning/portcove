@@ -133,7 +133,11 @@ it("shows the shared facts, accepts keyboard requirements and keeps following ex
   const dialog = page.getByRole("dialog", { name: "Compare independent projects" });
   await expect.element(dialog).toBeVisible();
   await expect
-    .element(page.getByText("One candidate assessed. This is not a best-port claim."))
+    .element(
+      page.getByText(
+        "Only one port has been assessed, so there isn’t enough information to compare it with the others.",
+      ),
+    )
     .toBeVisible();
   expect(desktopApi.changeOrganization).not.toHaveBeenCalled();
   const why = page.getByText("Why this port? — Fixture project", { exact: true });
@@ -152,18 +156,20 @@ it("shows the shared facts, accepts keyboard requirements and keeps following ex
     "recommendation-evidence-expanded-browser-fixture",
     context,
   );
-  await userEvent.click(page.getByText("Comparison settings", { exact: true }));
+  await userEvent.click(page.getByText("Comparison settings", { exact: true }).element());
   const required = page.getByRole("checkbox", { name: "Multiplayer", exact: true });
   required.element().focus();
   await userEvent.keyboard(" ");
   await expect.element(required).toBeChecked();
   await expect
-    .element(page.getByText("A required capability has not been established for this exact build."))
+    .element(page.getByText("We couldn’t confirm a feature you need for this game version."))
     .toBeVisible();
   expect(
     vi.mocked(desktopApi.compareGamePorts).mock.calls.at(-1)?.[0].required_capabilities,
   ).toEqual(["multiplayer"]);
-  await userEvent.click(page.getByRole("button", { name: "Follow Fixture project", exact: true }));
+  await userEvent.click(
+    page.getByRole("button", { name: "Follow Fixture project", exact: true }).element(),
+  );
   await expect
     .element(page.getByRole("button", { name: "Following Fixture project", exact: true }))
     .toHaveAttribute("aria-pressed", "true");
@@ -204,7 +210,7 @@ it("uses the production controller handler to activate controls and dismiss only
 it("selects a displayed source edition and target platform without changing library preferences", async () => {
   await render(<Fixture />);
   await userEvent.click(page.getByRole("button", { name: "Compare projects", exact: true }));
-  await userEvent.click(page.getByText("Comparison settings", { exact: true }));
+  await userEvent.click(page.getByText("Comparison settings", { exact: true }).element());
   const edition = page.getByRole("combobox", { name: /Game edition/ });
   await expect.element(edition).toBeVisible();
   await userEvent.click(edition);

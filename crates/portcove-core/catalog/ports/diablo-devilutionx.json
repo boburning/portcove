@@ -33,8 +33,8 @@
           "instruction": "The Windows data/profile location is normally %APPDATA%/diasurgical/devilution, with upstream portable/path overrides depending on the selected setup. Preserve the actual configuration, character saves and MPQ locations as well as the working copy, with all players closed before changing versions. Diablo and Hellfire modes have different original-data and save semantics. No automatic character conversion or cross-version save guarantee is supplied by registration."
         },
         {
-          "title": "Keep external ownership and deliberate Play",
-          "instruction": "Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow."
+          "title": "Add the game and manage your files",
+          "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Other platforms need their own supported application and setup instructions."
         }
       ],
       "warnings": [],
@@ -95,7 +95,7 @@
         {
           "role": "game",
           "profile_id": "diablo-devilutionx-retail-originals",
-          "label": "Diablo reviewed retail MPQ set",
+          "label": "Required retail Diablo MPQ files",
           "verification": "catalog-identity"
         }
       ],

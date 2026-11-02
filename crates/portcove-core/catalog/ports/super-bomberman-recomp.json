@@ -41,12 +41,12 @@
         {
           "role": "game",
           "profile_id": "super-bomberman-snes-usa",
-          "label": "Super Bomberman (USA) stock headerless SNES source",
+          "label": "Super Bomberman (USA) stock headerless SNES game files",
           "verification": "catalog-identity"
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Select your own stock headerless Super Bomberman (USA) source. Portcove downloads the checked official Windows package and manages its local saves separately from existing copies. Use a short installation path with basic Latin characters; the original can stay where it is. Headered inputs, gameplay completion and in-game save/load remain outside this selected route."
+      "manual_preparation": "Select your own stock headerless Super Bomberman (USA) ROM. Portcove downloads the checked official Windows package and manages its local saves separately from existing copies. Use a short installation path with basic Latin characters; the original can stay where it is. Headered inputs, gameplay completion and in-game save/load remain outside this selected route."
     },
     "launch_arguments": ["game.sfc"],
     "launch_environment": {},

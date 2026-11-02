@@ -4,7 +4,7 @@
     "id": "squarehole360-gears3-gloriouseggroll-gears-of-war-3",
     "name": "Gears of War 3 — squarehole360 Gears3 (GloriousEggroll)",
     "original_game_title": "Gears of War 3",
-    "summary": "Upstream Linuxplayable/benchmarksspecificscenes; Windowsbinary route documented but not Portcovetested. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "Upstream Linuxplayable/benchmarks of specific scenes; Windowsbinary route documented but not Portcovetested. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/GloriousEggroll/squarehole360",
     "platforms": [],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Own GearsOfWar3disc; game-specific XEX profiles/importer verify data. Native renderer copies XDKfunctions from users assets, not redistributed."
+          "instruction": "Use your own GearsOfWar3disc; game-specific XEX profiles/importer verify data. Native renderer copies XDKfunctions from users assets, not redistributed."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Source Linuxcodegen+build; Windowscrosscompiled usingxwin; Vulkan1.3nativeWaylandHDR/VRR with X11fallback. No releasesobserved."
+          "instruction": "Source Linux code generation and build; Windows cross-compiled usingxwin; Vulkan1.3native Wayland HDR/VRR with X11 fallback. No releases observed."
         }
       ],
       "warnings": [
-        "Upstream Linuxplayable/benchmarksspecificscenes; Windowsbinary route documented but not Portcovetested.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "Upstream Linuxplayable/benchmarks of specific scenes; Windowsbinary route documented but not Portcovetested.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/GloriousEggroll/squarehole360"
     },

@@ -37,8 +37,8 @@
           "instruction": "Select FreeRidersRecompiled.exe and its complete prepared Windows package directory, with no extra arguments for the supported normal launcher. Its Windows launcher retains the child handle and waits while the game runs. Do not substitute sfr_cpu_diagnostic.exe or shader-tools executables: the launcher establishes the profile, save directory, input and renderer environment. Keep existing supported literal arguments only if the working setup needs them."
         },
         {
-          "title": "Review the attachment and choose Play separately",
-          "instruction": "Review and consent to this exact native executable, established working directory and literal arguments, then choose Play separately. Registration does not prepare, update or take replacement ownership of external files. Removing registration preserves every external file. Retain the old working copy and all data, close actual player and companions for maintenance and review/relink changed selected bytes."
+          "title": "Review launch details, then choose Play",
+          "instruction": "Review the selected game executable, working folder and launch arguments, then agree to use them. Choose Play separately when you are ready. Adding this copy does not prepare, update or replace its external files. Removing its registration leaves all external files in place. Before changing versions, close the game and its companion programs and keep the working copy and all data. Review and select the changed executable before playing again."
         },
         {
           "title": "Keep upstream maintenance outside the attached session",
@@ -50,7 +50,7 @@
         }
       ],
       "warnings": [
-        "Use only a copy and components you are permitted to use. Preserve the complete creating runtime, original inputs, every effective profile, save, cache, mod, backup, temporary file and custom root before maintenance. Another selected executable can share data. Portcove offers no external update, backup, rollback, migration or deletion.",
+        "Use only a copy and components you are permitted to use. Before changing versions, keep a copy of the complete working game, original files and every profile, save, cache, mod, backup, temporary file and custom data location. Another executable may use the same data. Portcove does not offer updates, backups, rollback, data migration or deletion for these external files.",
         "GPL-3.0-or-later project code excludes SEGA game code/data. Package THIRD_PARTY names ONNX MIT and MediaPipe model Apache2 components and associated licenses. No Kinect patch code/files are included according to upstream. Conditional independently permitted copy; no inherited whole-game grant.",
         "Windows x64 AVX withD3D12 orVulkan1.2. Keyboard/controller is useful without Kinect; camera/Kinect/VRM/network modes and actual native gameplay/real saves were not qualified here."
       ]

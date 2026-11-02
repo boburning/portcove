@@ -146,12 +146,12 @@ it("retains external launch drafts across detail tabs and reviews the same targe
   );
   await click("Choose game executable…");
   await page
-    .getByRole("textbox", { name: "Working directory", exact: true })
+    .getByRole("textbox", { name: "Start in folder", exact: true })
     .fill("C:/Player/Retained directory");
   await page.getByRole("tab", { name: "Versions & updates", exact: true }).click();
   await page.getByRole("tab", { name: "Game files", exact: true }).click();
   await expect
-    .element(page.getByRole("textbox", { name: "Working directory", exact: true }))
+    .element(page.getByRole("textbox", { name: "Start in folder", exact: true }))
     .toHaveValue("C:/Player/Retained directory");
   await click("Review launch details");
   expect(preview).toHaveBeenCalledExactlyOnceWith(
@@ -209,7 +209,7 @@ it("registers a listing-only identity only when Core offers the action", async (
   );
   await expect.element(page.getByRole("button", { name: "Choose game executable…" })).toBeEnabled();
   await expect
-    .element(page.getByRole("textbox", { name: "Working directory" }))
+    .element(page.getByRole("textbox", { name: "Start in folder" }))
     .toHaveValue("C:\\Player\\Downloaded game");
   expect(entry.release).toBeUndefined();
   await root.rerender(

@@ -1,11 +1,14 @@
-import { afterEach, expect, it, vi } from "vite-plus/test";
-import { page } from "vite-plus/test/browser";
+import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
+import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
 import { SetupStatement, UpdateNoticePreferences, type DetailOrganization } from "./DetailChoices";
 import { installRecord, updateCenterFixtures } from "./rendered-test-fixtures";
 import { portStatus } from "../test-fixtures";
 import type { LibraryOrganization, PortStatus } from "../types";
 
+beforeEach(async () => {
+  await page.viewport(960, 800);
+});
 afterEach(cleanup);
 
 function choices(snapshot: Partial<LibraryOrganization> = {}): DetailOrganization {
@@ -35,13 +38,13 @@ it("records a user statement only for the selected installation and never suppli
     <SetupStatement portId="sample" status={status} organization={organization} />,
   );
   const statement = page.getByRole("checkbox");
-  await statement.click();
+  await userEvent.click(statement.element());
   expect(organization.commit).toHaveBeenCalledExactlyOnceWith({
     kind: "set_setup_confirmation",
     confirmation: { port_id: "sample", context: { kind: "managed", installation_id: "1" } },
     confirmed: true,
   });
-  await expect.element(page.getByText(/does not check game files/)).toBeVisible();
+  await expect.element(page.getByText(/doesn’t check your files/)).toBeVisible();
   await root.rerender(
     <SetupStatement portId="different-port" status={status} organization={organization} />,
   );
@@ -78,13 +81,19 @@ it("skips an exact checked artifact while leaving the saved notice policy indepe
   await expect
     .element(page.getByText(/only affect notices for this port in this library/))
     .toBeVisible();
-  await page.getByRole("button", { name: "Skip this version: 2.0", exact: true }).click();
+  await userEvent.click(
+    page
+      .getByRole("button", { name: "Hide the update notice for this version: 2.0", exact: true })
+      .element(),
+  );
   expect(organization.commit).toHaveBeenLastCalledWith({
     kind: "set_update_notice",
     port_id: "sample",
     choice: { paused: false, skipped_release: { version: "2.0", artifact_sha256: "a".repeat(64) } },
   });
-  await page.getByRole("button", { name: "Pause update notices", exact: true }).click();
+  await userEvent.click(
+    page.getByRole("button", { name: "Pause update notices", exact: true }).element(),
+  );
   expect(organization.commit).toHaveBeenLastCalledWith({
     kind: "set_update_notice",
     port_id: "sample",
@@ -98,7 +107,7 @@ it("does not offer skipping an unverified artifact or saving unreadable choices"
     <UpdateNoticePreferences portId="sample" status={portStatus()} organization={organization} />,
   );
   await expect
-    .element(page.getByRole("button", { name: /Skip this version/ }))
+    .element(page.getByRole("button", { name: /Hide the update notice for this version/ }))
     .not.toBeInTheDocument();
   await expect
     .element(page.getByRole("button", { name: "Pause update notices", exact: true }))

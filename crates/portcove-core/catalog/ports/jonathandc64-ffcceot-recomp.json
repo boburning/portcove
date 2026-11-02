@@ -27,11 +27,11 @@
         },
         {
           "title": "Keep the complete alpha player and toolchain",
-          "instruction": "The inspected official 0.3.1-alpha Windows x64 ZIP contains AMD64 ffcc.exe, matching UI/runtime resources and bundled clang/lld tools. Keep the complete FFCCEOT-Recomp-0.3.1-alpha-windows-x64 folder, not only ffcc.exe. It builds from the player’s ROM rather than distributing that generated module as a ready-made original. The linked melonDS facilities include hardware modeling and interpreter fallback; a native-module route is not a blanket generic-emulator or all-instructions-translated qualification."
+          "instruction": "The inspected official 0.3.1-alpha Windows x64 ZIP contains AMD64 ffcc.exe, matching UI/runtime resources and bundled clang/lld tools. Keep the complete FFCCEOT-Recomp-0.3.1-alpha-windows-x64 folder, not only ffcc.exe. It builds from the player’s ROM rather than distributing that generated module as a ready-made original. The linked melonDS facilities include hardware modeling and interpreter fallback; building a native module does not mean every instruction is translated or that other games are supported."
         },
         {
           "title": "Attach the prepared normal program",
-          "instruction": "Select ffcc.exe, use its complete extracted package directory as working directory and leave arguments empty. The normal integrated start screen and game thread belong to this same native application; press its Play control when ready, or retain an existing Skip start screen preference. Review the exact intent and request Portcove Play separately. Complete missing/stale module preparation upstream before retrying. Do not attach clang/lld, add finite-frame/replay/test overrides or select an original NDS program as the host."
+          "instruction": "Select ffcc.exe, use its complete extracted package directory as working directory and leave arguments empty. The normal integrated start screen and game thread belong to this same native application; press its Play control when ready, or retain an existing Skip start screen preference. Review and consent to the selected launch details, then choose Portcove Play separately. Complete missing/stale module preparation upstream before retrying. Do not attach clang/lld, add finite-frame/replay/test overrides or select an original NDS program as the host."
         },
         {
           "title": "Preserve the real data root and regional saves",

@@ -90,7 +90,7 @@ fn validate_review(plan: &GhostshipRecoveryPlan, expected: &str) -> DesktopResul
 
 fn recovery_consent(plan: &GhostshipRecoveryPlan) -> String {
     format!(
-        "Recover Ghostship using qualified backup {}?\n\nLibrary: {}\nSelected snapshot: {}\nRetained legacy installation: {} ({})\nCurrent installation: {} ({})\nRequired free space: {} bytes\n\nThis activates a fresh derivative of the retained legacy installation and replaces canonical saved data with the selected snapshot. Both existing installations, other staged installations and the selected backup remain. Independent safety copies preserve current canonical data and newer-runtime saves/settings.\n\nThe runtime safety copy is retained alongside its canonical safety backup. Ordinary restore uses only canonical data; deleting that safety backup also deletes its runtime copy. This does not launch the game or prove gameplay/save compatibility.",
+        "Recover Ghostship using backup {}?\n\nLibrary: {}\nSelected backup: {}\nOlder installation kept for recovery: {} ({})\nCurrent installation: {} ({})\nRequired free space: {} bytes\n\nThis switches to a new copy of the older installation and replaces Portcove-managed saved data with the selected backup. Both existing installations, other prepared installations and the selected backup remain. Separate safety copies preserve current managed data and the newer version’s saves and settings.\n\nThe extra copy of the newer version’s saves and settings stays with its managed-data safety backup. Ordinary restore uses only the managed data; deleting that safety backup also deletes the extra save and settings copy. This does not launch the game or prove gameplay/save compatibility.",
         plan.backup.id,
         plan.library_root.display(),
         plan.backup.path.display(),
@@ -150,12 +150,12 @@ mod tests {
             "library/legacy",
             "library/current",
             "1234 bytes",
-            "fresh derivative",
+            "new copy of the older installation",
             "Both existing installations",
-            "Independent safety copies",
-            "newer-runtime saves/settings",
-            "Ordinary restore uses only canonical data",
-            "deleting that safety backup also deletes its runtime copy",
+            "Separate safety copies",
+            "newer version’s saves and settings",
+            "Ordinary restore uses only the managed data",
+            "deleting that safety backup also deletes the extra save and settings copy",
             "does not launch",
         ] {
             assert!(message.contains(required), "missing disclosure: {required}");

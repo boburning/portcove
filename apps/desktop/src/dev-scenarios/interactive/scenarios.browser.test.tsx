@@ -159,7 +159,7 @@ it("keeps the optional folder editor and artwork behind disclosures without losi
   expect(document.querySelector(".scenario-fixture-actions [role=alert]")?.textContent).toBe("");
 });
 
-it("shows different installed and selected release channels separately", async () => {
+it("shows different installed and selected update channels separately", async () => {
   const snapshot = workspace("library");
   snapshot.statuses[0]!.channel = "beta";
   vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(snapshot);
@@ -244,7 +244,7 @@ it("returns to the exact older recovery activity after opening its game", async 
           operation_id: "recovery-history-12",
           path: "fixture/retained",
           message: "Retained fixture operation",
-          proposed_action: "Review current state",
+          proposed_action: "Refresh library",
         },
       ],
     },
@@ -555,7 +555,7 @@ it("stacks downloaded setup and installation context without horizontal overflow
     document.documentElement.clientWidth + 1,
   );
   await expect
-    .element(page.getByRole("textbox", { name: "Working directory", exact: true }))
+    .element(page.getByRole("textbox", { name: "Start in folder", exact: true }))
     .toBeVisible();
   await expect
     .element(page.getByRole("button", { name: "Review launch details", exact: true }))

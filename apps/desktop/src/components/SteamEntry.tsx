@@ -213,9 +213,7 @@ export function SteamEntryDialog({
                 disabled={Boolean(pending)}
                 onClick={() => void loadReview(review.operation)}
               >
-                {review.steam_client_state === "running"
-                  ? "Check again"
-                  : "Review current state again"}
+                {review.steam_client_state === "running" ? "Check again" : "Check shortcuts again"}
               </Button>
               {review.writes_required && (
                 <Button
@@ -397,9 +395,7 @@ export function SteamBatchEntryDialog({
                 disabled={Boolean(pending)}
                 onClick={() => void loadReview()}
               >
-                {review.steam_client_state === "running"
-                  ? "Check again"
-                  : "Review current state again"}
+                {review.steam_client_state === "running" ? "Check again" : "Check shortcuts again"}
               </Button>
               {review.writes_required && (
                 <Button
@@ -408,9 +404,7 @@ export function SteamBatchEntryDialog({
                   disabled={Boolean(pending) || review.steam_client_state !== "closed"}
                   onClick={() => void apply()}
                 >
-                  {pending === "apply"
-                    ? "Applying reviewed batch…"
-                    : "Add or repair selected shortcuts"}
+                  {pending === "apply" ? "Updating shortcuts…" : "Add or repair selected shortcuts"}
                 </Button>
               )}
             </>

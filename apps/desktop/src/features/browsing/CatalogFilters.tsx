@@ -37,7 +37,7 @@ import { CompactFilterField } from "../../components/ui/field";
 const fixedGroups = [
   { key: "platforms", label: "Target OS" },
   { key: "portOptions", label: "Port options" },
-  { key: "channels", label: "Release channels" },
+  { key: "channels", label: "Update channels" },
   { key: "installationMethods", label: "Setup methods" },
   { key: "membership", label: "Library membership" },
   { key: "updates", label: "Observed updates" },

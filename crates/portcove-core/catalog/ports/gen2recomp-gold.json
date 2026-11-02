@@ -64,7 +64,7 @@
         {
           "role": "game",
           "profile_id": "pokemon-gold",
-          "label": "Pokémon Gold (US) source",
+          "label": "Pokémon Gold (US) game files",
           "verification": "catalog-identity"
         }
       ],

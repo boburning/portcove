@@ -96,7 +96,7 @@ it.each(["dark", "light"])(
       .element(page.getByRole("button", { name: "Favorite Two independent port", exact: true }))
       .not.toBeInTheDocument();
     await userEvent.click(page.getByRole("button", { name: "Filters (0)", exact: true }));
-    await openFilterField("Release channels");
+    await openFilterField("Update channels");
     await userEvent.click(page.getByRole("checkbox", { name: "Stable (1)", exact: true }));
     await userEvent.keyboard("{Escape}");
     await userEvent.click(page.getByRole("button", { name: "Done", exact: true }));

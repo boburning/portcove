@@ -4,7 +4,7 @@
     "id": "ufe3-recomp-idiazraz-ultraman-fighting-evolution-3",
     "name": "Ultraman Fighting Evolution 3 — ufe3-recomp (idiazraz)",
     "original_game_title": "Ultraman Fighting Evolution 3",
-    "summary": "Research project. Not playable; boot reaches memory-card service boundary; setup and recompile scripts require local source. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "Experimental project. Not playable; boot reaches memory-card service boundary; setup and recompile scripts require local source. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/idiazraz/ufe3-recomp",
     "platforms": ["linux-x86-64"],
     "availability": "unknown",
@@ -13,7 +13,7 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Japan SLPS-25441 own disc/ELF; exact revision/hash to capture."
+          "instruction": "Use your own Japanese SLPS-25441 disc and ELF. This guide does not include the exact supported revision or hash; check the project’s original-file requirements before setup."
         },
         {
           "title": "Follow upstream setup",
@@ -22,7 +22,7 @@
       ],
       "warnings": [
         "Not playable; boot reaches memory-card service boundary; setup and recompile scripts require local source.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/idiazraz/ufe3-recomp"
     },

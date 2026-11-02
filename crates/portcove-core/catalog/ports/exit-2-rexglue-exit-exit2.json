@@ -26,7 +26,7 @@
       "steps": [
         {
           "title": "Choose this title’s player package",
-          "instruction": "The shared ReXGlue-EXIT release contains two different players and SDK downloads. Choose the actual EXIT2-Recomp.zip for EXIT 2; do not substitute the other title or an SDK. Package recommendations help selection and are not an automatic admission guarantee. Keep exit2.exe, its matching rexruntime.dll and notices together in a separate writable prepared folder."
+          "instruction": "The shared ReXGlue-EXIT release contains two different players and SDK downloads. Choose the actual EXIT2-Recomp.zip for EXIT 2; do not substitute the other title or an SDK. Check that the selected package matches this title; a recommendation does not check the downloaded files. Keep exit2.exe, its matching rexruntime.dll and notices together in a separate writable prepared folder."
         },
         {
           "title": "Complete this title’s owned-input preparation upstream",
@@ -37,8 +37,8 @@
           "instruction": "Select exit2.exe, its completed prepared folder as working directory and no arguments. The inspected source defaults game and update data to that working directory; retain a working explicit custom data argument only if your setup already needs it. Do not attach a preparation tool or reuse EXIT’s original or profile."
         },
         {
-          "title": "Review the native attachment and choose Play separately",
-          "instruction": "Select the completed native player, its established working directory and supported literal arguments. Review and consent to this exact execution intent, then choose Play separately. Upstream and the player own preparation, runtime replacement and recovery. Removing the registration preserves every external file. Close the actual player and companions before deliberate replacement, keep the old working copy and all data, then review and relink changed selected bytes."
+          "title": "Review launch details, then choose Play",
+          "instruction": "Select the completed game executable, its working folder and supported launch arguments. Review those details and agree to use them, then choose Play separately. You manage setup, game replacement and recovery using the project’s tools. Removing its registration leaves external files in place. Before changing versions, close the game and its companion programs and keep the working copy and all data. Review and select the changed executable before playing again."
         },
         {
           "title": "Retain this title’s complete copy and effective data",
@@ -46,7 +46,7 @@
         }
       ],
       "warnings": [
-        "Use only a copy and components you are permitted to use. Preserve the complete creating runtime, original inputs, every effective profile, save, cache, mod, backup, temporary file and custom root before maintenance. Another selected executable can share data. Portcove offers no external update, backup, rollback, migration or deletion."
+        "Use only a copy and components you are permitted to use. Before changing versions, keep a copy of the complete working game, original files and every profile, save, cache, mod, backup, temporary file and custom data location. Another executable may use the same data. Portcove does not offer updates, backups, rollback, data migration or deletion for these external files."
       ]
     }
   }

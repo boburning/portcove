@@ -4,7 +4,7 @@
     "id": "cristalis-claudio5702-crystal-defenders-xbox-live-arcade",
     "name": "Crystal Defenders (Xbox Live Arcade) — Cristalis (Claudio5702)",
     "original_game_title": "Crystal Defenders (Xbox Live Arcade)",
-    "summary": "Beta1.10playedbyfewpeople; noonlineleaderboards, noinstantstates, runtimehandlesmusicloops; noPortcoveplaythrough. NativeLinuxexperimental, WindowsviaProtondistinct. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "A few people have played beta 1.10 according to the project. Online leaderboards and instant save states are unavailable; the player handles music loops. Native Linux remains experimental and is separate from running Windows through Proton. Portcove has not confirmed a playthrough. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/Claudio5702/Cristalis",
     "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Own CrystalDefenders XBLA title58410989 package18F4739D37853F8596CE621540680922AFE9F23A size58126336 SHA1 118C64C901976CD8E2B570D77B0A5E01C15C7A46; default.xex size1658880 SHA1 31A90704D4233F6E730714515CD5F20BF08D7F0D; package or extracted default.xex/Mediafolder."
+          "instruction": "Use your own Crystal Defenders XBLA title 58410989 package 18F4739D37853F8596CE621540680922AFE9F23A: 58126336 bytes, SHA-1 118C64C901976CD8E2B570D77B0A5E01C15C7A46. Its default.xex is 1658880 bytes, SHA-1 31A90704D4233F6E730714515CD5F20BF08D7F0D. Supply the package or its extracted default.xex and complete Media folder."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Release native executable/DarkLauncher with firststart packageextract/import; generated C++ compiled byupstream atbuildtime, ownassets remainneeded. Windows and experimentalnativeLinux packages; upstream launcher owns updates."
+          "instruction": "Use the release’s native player and DarkLauncher to extract or import your own package on first start. The project compiles translated C++ when building its release; you still need your own game assets. Windows and experimental native Linux packages are separate. Use the project’s launcher for updates."
         }
       ],
       "warnings": [
-        "Beta1.10playedbyfewpeople; noonlineleaderboards, noinstantstates, runtimehandlesmusicloops; noPortcoveplaythrough. NativeLinuxexperimental, WindowsviaProtondistinct.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "A few people have played beta 1.10 according to the project. Online leaderboards and instant save states are unavailable; the player handles music loops. Native Linux remains experimental and is separate from running Windows through Proton. Portcove has not confirmed a playthrough.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/Claudio5702/Cristalis"
     },

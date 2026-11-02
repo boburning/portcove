@@ -26,7 +26,7 @@
         },
         {
           "title": "Complete original-data preparation outside Core",
-          "instruction": "Use your own supported Woody Woodpecker: Escape from Buzz Buzzard Park PC CD: English 1.00/Spanish or the documented February2002 Brazilian Portuguese, Polish or Russian versions. Complete upstream CD/folder selection, private copying and verification before registration. Preserve the original Data, Common, Logo, Game and Music.bf and any existing saves/configs. The --verify upstream check is not a Portcove original/package or compatibility qualification; other editions are not inherited."
+          "instruction": "Use your own supported Woody Woodpecker: Escape from Buzz Buzzard Park PC CD: English 1.00/Spanish or the documented February 2002 Brazilian Portuguese, Polish or Russian versions. Complete upstream CD/folder selection, private copying and verification before registration. Preserve the original Data, Common, Logo, Game and Music.bf and any existing saves/configs. The --verify upstream check is not a Portcove original/package or compatibility qualification; other editions are not inherited."
         },
         {
           "title": "Keep the actual creating data and working roots",
@@ -34,7 +34,7 @@
         },
         {
           "title": "Select the normal game and review intent",
-          "instruction": "Select WoodyRE.exe with the working setup\u2019s actual directory and only its established literal arguments; a supported explicit data directory is one absolute token. Normal WinMain calls main and its game loop through cleanup in the same process. Do not select --verify, scripted screenshot/automation/test switches or bundle/build tools for ordinary Play. Review exact executable/CWD/arguments and consent; choose Play separately. Core observes that process, not an exclusive session or sandbox."
+          "instruction": "Select WoodyRE.exe with the working setup’s actual directory and only its established literal arguments; a supported explicit data directory is one absolute token. Normal WinMain calls main and its game loop through cleanup in the same process. Do not select --verify, scripted screenshot/automation/test switches or bundle/build tools for ordinary Play. Review exact executable/CWD/arguments and consent; choose Play separately. Core observes that process, not an exclusive session or sandbox."
         },
         {
           "title": "Preserve every save, config and private copy",

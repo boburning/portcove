@@ -37,8 +37,8 @@
           "instruction": "Select the completed native downpour.exe in its full prepared directory with the established downpour.toml and matching runtime DLLs, including amd_fidelityfx_dx12drel.dll. Keep its established supported literal arguments and effective assets path. Do not select PlayDownpour.exe as a substitute lifetime root, or attach an installer/helper. Normal packaged configuration sets game_data_root=./assets; retain actual working settings."
         },
         {
-          "title": "Review the attachment and choose Play separately",
-          "instruction": "Review and consent to this exact native executable, established working directory and literal arguments, then choose Play separately. Registration does not prepare, update or take replacement ownership of external files. Removing registration preserves every external file. Retain the old working copy and all data, close actual player and companions for maintenance and review/relink changed selected bytes."
+          "title": "Review launch details, then choose Play",
+          "instruction": "Review the selected game executable, working folder and launch arguments, then agree to use them. Choose Play separately when you are ready. Adding this copy does not prepare, update or replace its external files. Removing its registration leaves all external files in place. Before changing versions, close the game and its companion programs and keep the working copy and all data. Review and select the changed executable before playing again."
         },
         {
           "title": "Keep upstream maintenance outside the attached session",
@@ -50,7 +50,7 @@
         }
       ],
       "warnings": [
-        "Use only a copy and components you are permitted to use. Preserve the complete creating runtime, original inputs, every effective profile, save, cache, mod, backup, temporary file and custom root before maintenance. Another selected executable can share data. Portcove offers no external update, backup, rollback, migration or deletion.",
+        "Use only a copy and components you are permitted to use. Before changing versions, keep a copy of the complete working game, original files and every profile, save, cache, mod, backup, temporary file and custom data location. Another executable may use the same data. Portcove does not offer updates, backups, rollback, data migration or deletion for these external files.",
         "BSD-3-Clause host source explicitly excludes generated original-derived code. README also says do not distribute game executable/data or any binary linking game data. This guide is conditional on an independently permitted prepared copy; that source grant does not authorize fresh acquisition/distribution of excluded generated content. Permission scope for that exact operation remains with upstream/rightsholder.",
         "v1.1.8 publisher hotfix removes the missing Agility dependency of1.1.7; matching bytes and source were inspected, not run. Native device/gameplay/save acceptance remains unexecuted."
       ]

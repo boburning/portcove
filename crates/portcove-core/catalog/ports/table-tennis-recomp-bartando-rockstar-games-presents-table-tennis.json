@@ -4,7 +4,7 @@
     "id": "table-tennis-recomp-bartando-rockstar-games-presents-table-tennis",
     "name": "Rockstar Games Presents Table Tennis — Table Tennis Recomp (bartando)",
     "original_game_title": "Rockstar Games Presents Table Tennis",
-    "summary": "Upstream reaches match on AppleSilicon and PS5, LAN crossplay tested. Timing acceleration, shader stutter and rally correctness remain; Windows less tested. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "Upstream reaches match on Apple Silicon and PS5, LAN crossplay tested. Timing acceleration, shader stutter and rally correctness remain; Windows less tested. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/bartando/ttrecomp",
     "platforms": [],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Own Xbox360 ISO incl default.xex, no title update. Title545407DF. Exact supported hash/revision not captured."
+          "instruction": "Use your own Xbox360 ISO incl default.xex, no title update. Title545407DF. Exact supported hash/revision not captured."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Release WindowsZIP/macOSDMG/nativePS5 package observed. Setup extracts user ISO. macOS AppleSilicon Vulkan/MoltenVK; Windowsx64 Vulkan AVX2."
+          "instruction": "Release Windows ZIP/macOS DMG/native PS5 package observed. Setup extracts user ISO. macOS Apple Silicon Vulkan/MoltenVK; Windows x64 Vulkan AVX2."
         }
       ],
       "warnings": [
-        "Upstream reaches match on AppleSilicon and PS5, LAN crossplay tested. Timing acceleration, shader stutter and rally correctness remain; Windows less tested.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "Upstream reaches match on Apple Silicon and PS5, LAN crossplay tested. Timing acceleration, shader stutter and rally correctness remain; Windows less tested.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/bartando/ttrecomp"
     },

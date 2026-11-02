@@ -3,7 +3,7 @@
   "listing": {
     "id": "super-mario-galaxy-nebula",
     "name": "Super Mario Galaxy (Nebula)",
-    "summary": "Upstream route: Installer/update ownership route, not blindly extracted portable ZIP; good high-interest target. Limits: Upstream says start-to-finish playable; bugs remain. Installer/update ownership retained upstream. Upstream platforms: Windows10 1803+/11 x86-64 installer; AVX2 CPU and D3D12 GPU required. Upstream installer/updater owns preparation. Original data: Own USA RMGE01 revision0 ISO/RVZ/extracted folder. Windows10 1803+/11 x64, AVX2, D3D12 GPU. Portcove setup/gameplay not verified.",
+    "summary": "A Super Mario Galaxy Windows port with project-reported start-to-finish play and remaining bugs. Use the project’s installer rather than treating the package as a portable ZIP; its installer/updater manages preparation and replacement. Windows 10 1803+/11 x86-64 needs an AVX2 CPU and Direct3D 12 GPU. Supply your own USA RMGE01 revision 0 ISO, RVZ or extracted folder. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Super Mario Galaxy",
     "project_url": "https://github.com/keepvaibin/nebula",
     "platforms": [],

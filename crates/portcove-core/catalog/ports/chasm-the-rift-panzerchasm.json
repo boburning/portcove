@@ -3,7 +3,7 @@
   "listing": {
     "id": "chasm-the-rift-panzerchasm",
     "name": "Chasm: The Rift (PanzerChasm)",
-    "summary": "Research listing. Upstream route: Native recreation using original CSM.BIN; old Windows package and current source build steps. Limits: Latest release package dates to 2017; package freshness and upstream runtime behavior need checking. Upstream platforms: Historical2017 Windows package and current desktop source build; exact selected CPU architecture unknown in frozen research. Original data: Supply original Chasm: The Rift CSM.BIN data from the owned DOS game installation; the README also documents extracting/installing the GOG Original CD image to obtain it. Place CSM.BIN beside PanzerChasm and its shaders/ directory, or select the data with --csm. Optional add-on data is separately selected with --addon. Exact source revision remains Unknown. Portcove setup/gameplay not verified.",
+    "summary": "Use an already prepared PanzerChasm Windows player with your own Chasm: The Rift CSM.BIN and any supported add-on data. Keep the working folder, saves and configuration together; you and the project manage updates. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Chasm: The Rift",
     "project_url": "https://github.com/Panzerschrek/Chasm-Reverse",
     "platforms": [],
@@ -34,7 +34,7 @@
           "instruction": "Keep the whole creating runtime and writable original/addon tree, PanzerChasm.cfg, saves/save_XX.pcs, logs, custom files and every actual alternate profile. Settings and save paths are relative to the working directory in the reviewed source. Retain compatible old engine and saves separately; backward compatibility is unverified. The selected older Windows release has no independently published accepted package digest for managed installation."
         },
         {
-          "title": "Review the prepared executable and intent",
+          "title": "Review launch details, then choose Play",
           "instruction": "Finish upstream preparation and a normal start/quit with your permitted copy before attachment. Select the actual native player, its established working directory and supported literal arguments. Review the intent and consent, then choose Play separately. Registration is not game, original-data or save qualification."
         },
         {

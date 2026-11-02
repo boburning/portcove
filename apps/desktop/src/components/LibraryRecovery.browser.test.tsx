@@ -1,6 +1,6 @@
 import { captureParityState } from "../../test/parity-capture";
-import { afterEach, expect, it, vi } from "vite-plus/test";
-import { page } from "vite-plus/test/browser";
+import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
+import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
 import { LibraryRecovery } from "./LibraryRecovery";
 import { portDefinition, portStatus } from "../test-fixtures";
@@ -8,6 +8,9 @@ import { install } from "../dev-scenarios/interactive/scenarios";
 import type { LibraryMetadataFile } from "../types";
 import "../styles/index.css";
 
+beforeEach(async () => {
+  await page.viewport(960, 800);
+});
 afterEach(cleanup);
 
 function guide(exportMetadata: () => Promise<LibraryMetadataFile | undefined>) {
@@ -54,7 +57,7 @@ function expectSeparatedRecoverySteps() {
 it("keeps manual preparation distinct from checked restore and authority-changing Move", async () => {
   const fixture = guide(vi.fn(async () => undefined));
   await render(fixture.element);
-  await page.getByText("Prepare a recovery copy", { exact: true }).click();
+  await userEvent.click(page.getByText("Prepare a recovery copy", { exact: true }).element());
   await page.getByRole("button", { name: "Review tasks & history" }).click();
   expect(fixture.onOpenActivity).toHaveBeenCalledOnce();
   await page.getByRole("button", { name: /^Review saves for/ }).click();
@@ -82,7 +85,7 @@ it("keeps manual preparation distinct from checked restore and authority-changin
   await captureParityState("library-recovery-guide");
 });
 
-it("excludes duplicate export and reports only the metadata receipt, never a verified backup", async () => {
+it("excludes duplicate export and reports only the metadata receipt, never a backup", async () => {
   let finish!: (value: LibraryMetadataFile | undefined) => void;
   const exportMetadata = vi.fn(
     () =>
@@ -91,8 +94,8 @@ it("excludes duplicate export and reports only the metadata receipt, never a ver
       }),
   );
   await render(guide(exportMetadata).element);
-  await page.getByText("Prepare a recovery copy", { exact: true }).click();
-  const action = page.getByRole("button", { name: "Export metadata", exact: true });
+  await userEvent.click(page.getByText("Prepare a recovery copy", { exact: true }).element());
+  const action = page.getByRole("button", { name: "Export library information", exact: true });
   const button = action.element();
   if (!(button instanceof HTMLButtonElement)) throw new Error("Expected an export button");
   button.click();
@@ -112,14 +115,14 @@ it("recovers from export failure and treats picker cancellation as no new receip
     .mockRejectedValueOnce(new Error("Disk unavailable"))
     .mockResolvedValueOnce(undefined);
   await render(guide(exportMetadata).element);
-  await page.getByText("Prepare a recovery copy", { exact: true }).click();
-  await page.getByRole("button", { name: "Export metadata", exact: true }).click();
+  await userEvent.click(page.getByText("Prepare a recovery copy", { exact: true }).element());
+  await page.getByRole("button", { name: "Export library information", exact: true }).click();
   await expect.element(page.getByRole("alert")).toMatchTextContent("Disk unavailable");
   expectSeparatedRecoverySteps();
   await captureParityState("library-metadata-export-failure");
-  await page.getByRole("button", { name: "Export metadata", exact: true }).click();
+  await page.getByRole("button", { name: "Export library information", exact: true }).click();
   await expect
-    .element(page.getByRole("button", { name: "Export metadata", exact: true }))
+    .element(page.getByRole("button", { name: "Export library information", exact: true }))
     .toBeEnabled();
   expect(exportMetadata).toHaveBeenCalledTimes(2);
   expect(document.querySelector('[role="status"]')).toBeNull();
@@ -134,7 +137,7 @@ it.each(["dark", "light"])(
     await render(
       <main style={{ padding: 16 }}>{guide(vi.fn(async () => undefined)).element}</main>,
     );
-    await page.getByText("Prepare a recovery copy", { exact: true }).click();
+    await userEvent.click(page.getByText("Prepare a recovery copy", { exact: true }).element());
     const overrides = document.createElement("style");
     overrides.textContent =
       "*{line-height:1.5!important;letter-spacing:.12em!important;word-spacing:.16em!important}p{margin-bottom:2em!important}";
@@ -143,7 +146,7 @@ it.each(["dark", "light"])(
       expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(241);
       expectSeparatedRecoverySteps();
       await expect
-        .element(page.getByRole("button", { name: "Export metadata", exact: true }))
+        .element(page.getByRole("button", { name: "Export library information", exact: true }))
         .toBeEnabled();
     } finally {
       overrides.remove();

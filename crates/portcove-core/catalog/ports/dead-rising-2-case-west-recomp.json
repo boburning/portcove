@@ -37,8 +37,8 @@
           "instruction": "Select the completed cw_runtime.exe, its CaseWestRecomp directory as working directory and no arguments for the normal native launcher. The direct player has an offline default profile and requires no account. XenonLiveLauncher and online sign-in are optional separate upstream features, not a prerequisite for this offline attachment. Keep existing explicit path choices; do not point CW_ROOT at a data-only subfolder because it selects the whole resource root."
         },
         {
-          "title": "Review the native attachment and choose Play separately",
-          "instruction": "Select the completed native player, its established working directory and supported literal arguments. Review and consent to this exact execution intent, then choose Play separately. Upstream and the player own preparation, runtime replacement and recovery. Removing the registration preserves every external file. Close the actual player and companions before deliberate replacement, keep the old working copy and all data, then review and relink changed selected bytes."
+          "title": "Review launch details, then choose Play",
+          "instruction": "Select the completed game executable, its working folder and supported launch arguments. Review those details and agree to use them, then choose Play separately. You manage setup, game replacement and recovery using the project’s tools. Removing its registration leaves external files in place. Before changing versions, close the game and its companion programs and keep the working copy and all data. Review and select the changed executable before playing again."
         },
         {
           "title": "Keep the complete working root and external profiles",
@@ -46,7 +46,7 @@
         }
       ],
       "warnings": [
-        "Use only a copy and components you are permitted to use. Preserve the complete creating runtime, original inputs, every effective profile, save, cache, mod, backup, temporary file and custom root before maintenance. Another selected executable can share data. Portcove offers no external update, backup, rollback, migration or deletion."
+        "Use only a copy and components you are permitted to use. Before changing versions, keep a copy of the complete working game, original files and every profile, save, cache, mod, backup, temporary file and custom data location. Another executable may use the same data. Portcove does not offer updates, backups, rollback, data migration or deletion for these external files."
       ]
     },
     "download_block_reason": "The selected Case West Windows package explicitly identifies compiled-in libxlive and refers its licence to the separate XenonLive repository. An applicable grant for that linked component is not established by the retained evidence; the title’s own PolyForm grant preserves separate component licences. Fresh acquisition stays held until attributable applicable permission or a reviewed released replacement resolves this exact scope. Offline mode does not remove a compiled-in component. This condition grants no permission to use an existing copy."

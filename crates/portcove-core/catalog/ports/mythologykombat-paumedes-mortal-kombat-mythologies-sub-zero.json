@@ -4,11 +4,11 @@
     "id": "mythologykombat-paumedes-mortal-kombat-mythologies-sub-zero",
     "name": "Mortal Kombat Mythologies: Sub-Zero — MythologyKombat (PAumedes)",
     "original_game_title": "Mortal Kombat Mythologies: Sub-Zero",
-    "summary": "Information only; source hold. Native runtime/play route; somePCmovie slowdowns Acquisition is blocked: Release includes translated game executable; verify package provenance/rights and checksum/own-disc route before managed acquisition. PC movie slowdowns remain. Resume: List manual information/source profile for MythologyKombat; retain package redistribution/trust and runtime qualification boundaries. Portcove has not verified setup or gameplay.",
+    "summary": "Information only. The project describes a native Mortal Kombat Mythologies: Sub-Zero player with some PC movie slowdowns. New downloads remain unavailable while the translated game executable, package provenance, applicable rights and checksum/own-disc route are unresolved. The manual information does not establish redistribution permission or gameplay compatibility. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/PAumedes/MythologyKombat",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
-    "download_block_reason": "Release includes translated game executable; verify package provenance/rights and checksum/own-disc route before managed acquisition. PC movie slowdowns remain. Resume: List manual information/source profile for MythologyKombat; retain package redistribution/trust and runtime qualification boundaries.",
+    "download_block_reason": "New downloads are unavailable while the release’s translated game executable, package provenance, applicable rights and checksum/own-disc setup route remain unresolved. PC movie slowdowns remain. Information about the manual route is retained; this does not establish permission to redistribute the package or confirm gameplay.",
     "issue_number": 3402,
     "artwork": {
       "game_id": 1610,

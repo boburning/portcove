@@ -265,7 +265,7 @@ it.each([
   const assessment = html.match(/<p\b[^>]*data-rollback-assessment[^>]*>(.*?)<\/p>/s)?.[1] ?? null;
   expect(assessment).toBe(message);
   const versions = detailSection(html, "versions");
-  expect(versions).toContain("Older software may not understand");
+  expect(versions).toContain("Newer saves may not understand");
   expect(versions).toContain("newer saves or configuration");
   expect(versions).toContain("Saved-data restore is a separate reviewed action");
 });
@@ -368,7 +368,7 @@ describe("desktop components", () => {
       actions,
     };
     const available = renderToStaticMarkup(<DetailPanel {...props} />);
-    expect(available).toContain("Prepare your runtime");
+    expect(available).toContain("Prepare your installation");
     expect(available).toContain("without installing or owning them");
     expect(available).toContain("You prepare the runtime");
     expect(available).not.toContain("Available to install");
@@ -1437,7 +1437,7 @@ describe("desktop components", () => {
     ).toHaveLength(1);
     expect(missingBoth).toContain("Future update preferences");
     expect(missingBoth).toContain("Folder for a future install");
-    expect(missingBoth).toContain("Release channel");
+    expect(missingBoth).toContain("Update channel");
     expect(missingBoth).toContain("Folder for future installs");
     expect(uninstalled).toContain(
       "Portcove uses this game file in place and never uploads or changes it.",
@@ -1480,7 +1480,7 @@ describe("desktop components", () => {
     expect(buttonLabels).not.toContain("Verify");
     expect(buttonLabels).not.toContain("Rollback");
     expect(installed).not.toContain("Create a versioned backup of saves and settings");
-    expect(installed).toContain("1 verified backup");
+    expect(installed).toContain("1 backup");
     expect(installed).toContain("Restore");
     expect(installed).toContain("Delete");
     expect(installed).toContain("Uninstall Sample");
@@ -1490,7 +1490,7 @@ describe("desktop components", () => {
     expect(installed).toMatch(/<details class="future-setup-disclosure advanced-settings[^"]*">/u);
     expect(installed).toContain("Saves and settings folder");
     expect(installed).toContain("C:/Portcove/user/sample");
-    expect(installed).toContain("No legacy platform coverage recorded");
+    expect(installed).toContain("No earlier platform tests recorded");
     expect(installed).toContain("Launch from another app");
     expect(installed).toContain("Finding the command-line app");
     expect(installed).not.toContain("portcove exec sample --");
@@ -1540,10 +1540,10 @@ describe("desktop components", () => {
       "Linux availability does not show whether this game works on SteamOS or in Gaming Mode.",
     );
     expect(linux.replace(/ class="[^"]*"/gu, "")).toContain(
-      "<small>Legacy port-wide automated tests</small>Windows · Linux",
+      "<small>Earlier automated tests</small>Windows · Linux",
     );
     expect(linux.replace(/ class="[^"]*"/gu, "")).toContain(
-      "<small>Legacy port-wide hands-on tests</small>Windows · Linux",
+      "<small>Earlier hands-on tests</small>Windows · Linux",
     );
     const buttons = (html: string) => [...html.matchAll(/<button\b[^>]*>[^]*?<\/button>/gu)];
     expect(buttons(linux).map(([button]) => button)).toEqual(
@@ -1984,8 +1984,8 @@ describe("desktop components", () => {
     for (const content of [
       port.summary,
       "Project status and release information",
-      "Compatibility qualifications",
-      "Recorded checks",
+      "Platforms and installation method",
+      "Test results",
     ])
       expect(overview).toContain(content);
     for (const content of ['aria-label="Game actions"', "Requirements"])

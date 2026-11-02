@@ -38,11 +38,11 @@
         },
         {
           "title": "Leave repair, imports and deletion with upstream",
-          "instruction": "Upstream setup can import an existing save or installation, rebuild generated outputs, replace directories through .old siblings and delete staging/old material, and optionally remove its downloaded compiler. Those are upstream-owned operations, not this guide\u2019s managed actions. Before setup/repair/update or first profile import, keep separate complete source/profile/runtime backups outside disposable work/toolchain/staging/.old paths. Changing a selected game or save root does not authorize moving/deleting the old one. Portcove performs no save import/migration or rollback and removing registration preserves every external file."
+          "instruction": "Upstream setup can import an existing save or installation, rebuild generated outputs, replace directories through .old siblings and delete staging/old material, and optionally remove its downloaded compiler. Those are upstream-owned operations, not this guide’s managed actions. Before setup/repair/update or first profile import, keep separate complete source/profile/runtime backups outside disposable work/toolchain/staging/.old paths. Changing a selected game or save root does not authorize moving/deleting the old one. Portcove performs no save import/migration or rollback and removing registration preserves every external file."
         },
         {
           "title": "Retain requirements, terms and evidence limits",
-          "instruction": "This guide covers the native Windows x86-64 route with upstream Windows10/11 and Vulkan requirements; Android/ARM/macOS/Linux claims are separate. Keep applicable MPL2.0 and exact runtime/component notices. They grant no Nintendo original-game/key/artwork rights. Upstream partial-playability, performance, renderer, controls, save-state and mod claims remain their claims, not Portcove observation or compatibility promises. No Core-managed acquisition/preparation/update/backup/delete or Supported/protected acceptance is offered."
+          "instruction": "This guide covers the native Windows x86-64 route with upstream Windows 10/11 and Vulkan requirements; Android/ARM/macOS/Linux claims are separate. Keep applicable MPL2.0 and exact runtime/component notices. They grant no Nintendo original-game/key/artwork rights. Upstream partial-playability, performance, renderer, controls, save-state and mod claims remain their claims, not Portcove observation or compatibility promises. No Core-managed acquisition/preparation/update/backup/delete or Supported/protected acceptance is offered."
         }
       ],
       "warnings": [

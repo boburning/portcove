@@ -96,7 +96,7 @@ async function openChannelPanel() {
   );
   expect(trigger).toBeDefined();
   if (trigger!.getAttribute("aria-expanded") !== "true") await act(async () => trigger!.click());
-  await openFilterField("Release channels");
+  await openFilterField("Update channels");
 }
 
 async function click(name: string) {

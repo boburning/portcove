@@ -64,7 +64,7 @@
         {
           "role": "game",
           "profile_id": "pokemon-silver",
-          "label": "Pokémon Silver (US) source",
+          "label": "Pokémon Silver (US) game files",
           "verification": "catalog-identity"
         }
       ],

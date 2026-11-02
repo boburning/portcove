@@ -33,8 +33,8 @@
           "instruction": "Select the already-installed native xmd.exe, not xmd_installer.exe or xmd_launcher.exe. Use the actual installed directory as working directory and preserve the supported literal arguments established by the launcher: --gpu_plugin xenos, --game_data_root <actual installed game directory> and --user_data_root <actual user_data directory>, plus existing log/debug choices if needed. Enter each path as one literal argument. The inspected launcher spawns xmd.exe and exits, so it is not a substitute lifetime root."
         },
         {
-          "title": "Review the attachment and choose Play separately",
-          "instruction": "Review and consent to this exact native executable, established working directory and literal arguments, then choose Play separately. Registration does not prepare, update or take replacement ownership of external files. Removing registration preserves every external file. Retain the old working copy and all data, close actual player and companions for maintenance and review/relink changed selected bytes."
+          "title": "Review launch details, then choose Play",
+          "instruction": "Review the selected game executable, working folder and launch arguments, then agree to use them. Choose Play separately when you are ready. Adding this copy does not prepare, update or replace its external files. Removing its registration leaves all external files in place. Before changing versions, close the game and its companion programs and keep the working copy and all data. Review and select the changed executable before playing again."
         },
         {
           "title": "Keep upstream maintenance outside the attached session",
@@ -46,9 +46,9 @@
         }
       ],
       "warnings": [
-        "Use only a copy and components you are permitted to use. Preserve the complete creating runtime, original inputs, every effective profile, save, cache, mod, backup, temporary file and custom root before maintenance. Another selected executable can share data. Portcove offers no external update, backup, rollback, migration or deletion.",
+        "Use only a copy and components you are permitted to use. Before changing versions, keep a copy of the complete working game, original files and every profile, save, cache, mod, backup, temporary file and custom data location. Another executable may use the same data. Portcove does not offer updates, backups, rollback, data migration or deletion for these external files.",
         "Public attributable upstream release; README assigns BSD-3-Clause to ReXGlue SDK, not a blanket grant for all scaffolding/original-derived output. Original game assets are excluded. Root license absence alone establishes no new prohibition; use an independently permitted installed copy.",
-        "Source/official metadata boundary only forinstalledoutput: published installer and resulting installed xmd.exe bytes/dependencies not downloaded/inspected/executed here. Windows x64D3D12 is upstream/source contract, not native acceptance."
+        "Source/official metadata boundary only for the installed output: published installer and resulting installed xmd.exe bytes/dependencies not downloaded/inspected/executed here. Windows x64 D3D12 is upstream/source contract, not native acceptance."
       ]
     }
   }

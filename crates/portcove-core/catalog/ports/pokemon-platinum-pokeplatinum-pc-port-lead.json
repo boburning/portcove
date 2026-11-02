@@ -33,7 +33,7 @@
           "instruction": "Select main.exe and its complete creating package directory as working directory, with no extra arguments for the documented normal start. Retain its matching libraries, header.bin, firmware.bin and resources and the established original/extracted-data arrangement. Keep the working renderer and input settings; no additional backend or control-mode qualification is inferred. Do not select the MSys2 installers, source build scripts or a console-target output."
         },
         {
-          "title": "Review the attachment and choose Play separately",
+          "title": "Review launch details, then choose Play",
           "instruction": "Review and consent to this exact executable, creating working directory and supported literal arguments, then choose Play separately. Core owns only the selected native intent and registration. Upstream and you retain preparation, runtime replacement, recovery and external files. Removing registration preserves every external file. Close the actual player and companions before upstream maintenance, retain the old runtime and all data, then review/relink changed selected bytes."
         },
         {

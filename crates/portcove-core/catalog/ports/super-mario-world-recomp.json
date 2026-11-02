@@ -41,12 +41,12 @@
         {
           "role": "game",
           "profile_id": "super-mario-world-snes-usa",
-          "label": "Super Mario World (USA) stock headerless SNES source",
+          "label": "Super Mario World (USA) stock headerless SNES game files",
           "verification": "catalog-identity"
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Select your own Super Mario World (USA) stock headerless SNES source. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Optional Falcon setup uses the game's bundled helper and an external user cache; that cache is outside Portcove backups."
+      "manual_preparation": "Select your own Super Mario World (USA) stock headerless SNES ROM. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Optional Falcon setup uses the game's bundled helper and an external user cache; that cache is outside Portcove backups."
     },
     "launch_arguments": ["smw.sfc"],
     "launch_environment": {

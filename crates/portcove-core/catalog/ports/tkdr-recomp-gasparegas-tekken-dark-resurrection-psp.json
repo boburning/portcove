@@ -4,7 +4,7 @@
     "id": "tkdr-recomp-gasparegas-tekken-dark-resurrection-psp",
     "name": "Tekken: Dark Resurrection (PSP) — tkdr-recomp (gasparegas)",
     "original_game_title": "Tekken: Dark Resurrection (PSP)",
-    "summary": "Fights60FPS/up-to4xclaimed; originalPSP title distinct from PS3DarkResurrectionOnline. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "fights at 60 FPS/up-to 4×, according to upstream; original PSP title distinct from PS3 Dark Resurrection Online. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/gasparegas/tkdr-recomp",
     "platforms": [],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "USA ULUS10139 v1.00 ISO/CSO plusowndecryptedEBOOT"
+          "instruction": "USA ULUS10139 v1.00 ISO/CSO plus your own decrypted EBOOT"
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "LocalCMake/Ninja/SDL2nativebuild; browsercantranslateondevice; sourceISOanddecryptedEBOOTremainrequired."
+          "instruction": "local CMake/Ninja/SDL2 native build; the browser can translate on the device; the original ISO and decrypted EBOOT remain required."
         }
       ],
       "warnings": [
-        "Fights60FPS/up-to4xclaimed; originalPSP title distinct from PS3DarkResurrectionOnline.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "fights at 60 FPS/up-to 4×, according to upstream; original PSP title distinct from PS3 Dark Resurrection Online.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/gasparegas/tkdr-recomp"
     },

@@ -4,7 +4,7 @@
     "id": "wipeout-pc-abdelmoumendeghbouche-wipeout-omega-collection",
     "name": "WipEout Omega Collection — wipeout_pc (AbdelmoumenDeghbouche)",
     "original_game_title": "WipEout Omega Collection",
-    "summary": "Research project. Upstream early-development status claims boot/menus/saves and HD/2048 races/results, with 110–150FPS reported in2048 on RTX4070Laptop, not a full collection playthrough. New README reports extra render-resolution patches and experimental PS4 Pro mode GOW3_NEO=1 loading a race with correct picture sincev0.2.3; not tested further. All HD/HD Fury/2048 event types are not yet tested, HDR RCAS fix awaits testing and new audio effects may have defects; PSVR is not planned. Linux builds from source without a package; do not infer Linux gameplay/CPU qualification. No Portcove runtime or completion qualification was performed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "Experimental project. Upstream early-development status claims boot/menus/saves and HD/2048 races/results, with 110–150FPS reported in 2048 on RTX 4070 Laptop, not a full collection playthrough. New README reports extra render-resolution patches and experimental PS4 Pro mode GOW3_NEO=1 loading a race with correct picture since v0.2.3; not tested further. All HD/HD Fury/2048 event types are not yet tested, HDR RCAS fix awaits testing and new audio effects may have defects; PSVR is not planned. Linux builds from source without a package; do not infer Linux gameplay/CPU qualification. No Portcove runtime or completion qualification was performed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/AbdelmoumenDeghbouche/wipeout_pc",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -13,7 +13,7 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Own PS4 WipEout Omega Collection dump: README declares CUSA07671 US base01.00+update01.07 as development target and CUSA05670 EU with version unspecified. Merge owned base/update files or supply GOW3_PATCH_DIR; GoldHEN folder dumps are also documented. Runtime reads owned eboot.bin and game files and links own libc/Fios2/NpToolkit2. One executable serves 2048/HD/Fury; no separate implementation per component. Exact accepted executable/asset fingerprints remain Unknown."
+          "instruction": "Use your own PS4 WipEout Omega Collection dump: README declares CUSA07671 US base01.00+update01.07 as development target and CUSA05670 EU with version unspecified. Merge owned base/update files or supply GOW3_PATCH_DIR; GoldHEN folder dumps are also documented. Runtime reads owned eboot.bin and game files and links own libc/Fios2/NpToolkit2. One executable serves 2048/HD/Fury; no separate implementation per component. Exact accepted executable/asset fingerprints remain Unknown."
         },
         {
           "title": "Follow upstream setup",
@@ -21,8 +21,8 @@
         }
       ],
       "warnings": [
-        "Upstream early-development status claims boot/menus/saves and HD/2048 races/results, with 110–150FPS reported in2048 on RTX4070Laptop, not a full collection playthrough. New README reports extra render-resolution patches and experimental PS4 Pro mode GOW3_NEO=1 loading a race with correct picture sincev0.2.3; not tested further. All HD/HD Fury/2048 event types are not yet tested, HDR RCAS fix awaits testing and new audio effects may have defects; PSVR is not planned. Linux builds from source without a package; do not infer Linux gameplay/CPU qualification. No Portcove runtime or completion qualification was performed.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "Upstream early-development status claims boot/menus/saves and HD/2048 races/results, with 110–150FPS reported in 2048 on RTX 4070 Laptop, not a full collection playthrough. New README reports extra render-resolution patches and experimental PS4 Pro mode GOW3_NEO=1 loading a race with correct picture since v0.2.3; not tested further. All HD/HD Fury/2048 event types are not yet tested, HDR RCAS fix awaits testing and new audio effects may have defects; PSVR is not planned. Linux builds from source without a package; do not infer Linux gameplay/CPU qualification. No Portcove runtime or completion qualification was performed.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/AbdelmoumenDeghbouche/wipeout_pc"
     },

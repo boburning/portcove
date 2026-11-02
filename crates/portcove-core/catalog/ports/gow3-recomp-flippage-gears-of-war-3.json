@@ -4,7 +4,7 @@
     "id": "gow3-recomp-flippage-gears-of-war-3",
     "name": "Gears of War 3 — gow3-recomp (Flippage)",
     "original_game_title": "Gears of War 3",
-    "summary": "Upstream claims boots/menus, early campaign chapters, persistent checkpoints and local two-instance SystemLink co-op; full campaign, internet co-op, Horde/Beast/Versus and AMD FSR remain untested. New release and expanded keybindings are upstream claims, not Portcove qualification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "Upstream reports startup, menus, early campaign chapters, saved checkpoints and local two-instance System Link co-op. A full campaign, internet co-op, Horde, Beast, Versus and AMD FSR remain untested. Portcove has not confirmed the release or expanded keybindings. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Flippage/gears-of-war-3-recomp",
     "platforms": [],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Own base-disc Gears of War3 game directory containing default.xex and GearGame. TitleID4D5308AB, disc0.0.0.11, media58122AD6. Keep original data available at runtime; title updates unsupported."
+          "instruction": "Use your own base-disc Gears of War 3 folder containing default.xex and GearGame: title ID 4D5308AB, disc version 0.0.0.11, media ID 58122AD6. Keep these files available while playing. Title updates are unsupported."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Upstream v0.1.0 publishes gow3-recomp-0.1.0-win64.zip (47571151 bytes; GitHub-reported SHA256f5faf42b9ac5d5b1f4c0236b7f454de1dd43f30da5309ddb6e4d84d5bcc9ee55). Extract, follow included QUICKSTART and point gow3_game_path.txt at own game directory. Release omits DLSS; optional local Windows source build for DLSS. Artifact bytes/runtime not verified by Portcove."
+          "instruction": "Extract gow3-recomp-0.1.0-win64.zip, follow its QUICKSTART and point gow3_game_path.txt at your own game folder. GitHub lists 47571151 bytes and SHA-256 f5faf42b9ac5d5b1f4c0236b7f454de1dd43f30da5309ddb6e4d84d5bcc9ee55; Portcove has not checked the package bytes or run it. The release omits DLSS; that optional feature requires a local Windows source build."
         }
       ],
       "warnings": [
-        "Upstream claims boots/menus, early campaign chapters, persistent checkpoints and local two-instance SystemLink co-op; full campaign, internet co-op, Horde/Beast/Versus and AMD FSR remain untested. New release and expanded keybindings are upstream claims, not Portcove qualification.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "Upstream reports startup, menus, early campaign chapters, saved checkpoints and local two-instance System Link co-op. A full campaign, internet co-op, Horde, Beast, Versus and AMD FSR remain untested. Portcove has not confirmed the release or expanded keybindings.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/Flippage/gears-of-war-3-recomp"
     },

@@ -3,7 +3,7 @@
   "listing": {
     "id": "need-for-speed-ii-special-edition-nfs-recompiled",
     "name": "Need for Speed II: Special Edition (NFS Recompiled)",
-    "summary": "Research listing. Upstream route: Static recompilation with release zip and original-data instructions. Limits: Maintainer explicitly calls it a toy project; Linux runnable route exists with game-specific defects to qualify. Upstream platforms: Linux native C++ release/source route; original executable is Win32 x86 input, not proof of host CPU. Selected Linux package/build CPU unknown; other host platforms only potential. Original data: Supply an original Need for Speed II Special Edition installation plus its CD Fedata/GameData content. Source generation requires nfs2sen.exe and eacsnd.dll in nfs2se/. Exact supported language/patch and binary hashes are not stated in the retained README. Portcove setup/gameplay not verified.",
+    "summary": "Use the prepared NFS Recompiled Windows nfs2se.exe with your own Need for Speed II Special Edition installation and CD Fedata/GameData files. The v1.0.1 package contains separate players for NFS II SE and NFS III; choose this game’s player. Keep both original data locations backed up because the game can write to them. Upstream calls this a toy project; exact language, patch and save compatibility remain unconfirmed.",
     "original_game_title": "Need for Speed II: Special Edition",
     "project_url": "https://github.com/motor-dev/nfs-recompiled",
     "platforms": [],
@@ -35,16 +35,16 @@
         },
         {
           "title": "Review the completed player and intent",
-          "instruction": "Finish upstream preparation and a normal start/quit with the intended permitted copy before attachment. Keep the actual native executable, creating working directory and established supported literal arguments. Review the selected intent and consent, then choose Play separately. Attachment is not original-data, gameplay or save-compatibility certification."
+          "instruction": "Finish setup with the project’s tools, then start and quit the permitted copy you intend to add. Keep its game executable, working folder and supported launch arguments. Review those details in Portcove and agree to launch them, then choose Play separately. Adding a copy does not confirm its original game files, gameplay or save compatibility."
         },
         {
           "title": "Retain upstream replacement and external ownership",
-          "instruction": "Close actual game instances before changes. Preserve the old creating runtime and every effective original/profile/data root, make deliberate compatible updates upstream, then review/relink a changed executable. Upstream/player owns preparation, replacement, writes, migration and recovery. Portcove supervises its selected process; it is not a sandbox or exclusive instance lock. Registration removal preserves external files; this route offers no Core-managed acquisition, setup, update, backup, rollback, migration or external-file deletion."
+          "instruction": "Close every running copy of the game before changing files. Keep the working game version and every original-file, profile and data location it uses. Update it with the project’s tools, then review and select the changed executable in Portcove. You manage setup, replacement, file changes, data migration and recovery. Portcove monitors the process you selected; it does not restrict file access or prevent other copies from running. Removing the registration leaves external files in place. This route does not offer Portcove downloads, setup, updates, backups, rollback, data migration or external-file deletion."
         }
       ],
       "warnings": [
         "Use only a copy and components you are already permitted to use. Engine licensing does not grant original-game, music, mod, middleware or redistribution rights.",
-        "Preserve the whole creating runtime and every actual effective data/profile root before changes. Shared profiles are not isolated by another executable."
+        "Before changing versions, keep a copy of the working game and every data and profile folder it uses. Another executable may use those same folders."
       ]
     }
   },

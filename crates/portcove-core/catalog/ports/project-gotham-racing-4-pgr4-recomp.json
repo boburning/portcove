@@ -33,8 +33,8 @@
           "instruction": "Select pgr4_recompiled.exe in the complete win-amd64-release-xenos player directory. Match the shipped run.bat as literal executable arguments: --game_data_root followed by your actual prepared data directory, --execute_unclipped_draw_vs_on_cpu, --gpu_plugin=xenos and --fullscreen=false. Enter arguments individually, keeping a path with spaces one argument. Preserve established supported settings. Select the native executable, not run.bat. Explicitly set win-amd64-release-xenos as working directory and supply an absolute path to your own prepared data for --game_data_root; retain your actual established configuration."
         },
         {
-          "title": "Review the attachment and choose Play separately",
-          "instruction": "Review and consent to this exact native executable, established working directory and literal arguments, then choose Play separately. Registration does not prepare, update or take replacement ownership of external files. Removing registration preserves every external file. Retain the old working copy and all data, close actual player and companions for maintenance and review/relink changed selected bytes."
+          "title": "Review launch details, then choose Play",
+          "instruction": "Review the selected game executable, working folder and launch arguments, then agree to use them. Choose Play separately when you are ready. Adding this copy does not prepare, update or replace its external files. Removing its registration leaves all external files in place. Before changing versions, close the game and its companion programs and keep the working copy and all data. Review and select the changed executable before playing again."
         },
         {
           "title": "Keep upstream maintenance outside the attached session",
@@ -46,7 +46,7 @@
         }
       ],
       "warnings": [
-        "Use only a copy and components you are permitted to use. Preserve the complete creating runtime, original inputs, every effective profile, save, cache, mod, backup, temporary file and custom root before maintenance. Another selected executable can share data. Portcove offers no external update, backup, rollback, migration or deletion.",
+        "Use only a copy and components you are permitted to use. Before changing versions, keep a copy of the complete working game, original files and every profile, save, cache, mod, backup, temporary file and custom data location. Another executable may use the same data. Portcove does not offer updates, backups, rollback, data migration or deletion for these external files.",
         "MIT project code; original game remains independently supplied. Shared SDK/project labels do not certify rights to another title or generated original-derived content.",
         "Upstream documents Geometry Wars minigame crash and Lotus Esprit Essex Turbo freeze. These are disclosed upstream limitations, not repaired or tested here."
       ]

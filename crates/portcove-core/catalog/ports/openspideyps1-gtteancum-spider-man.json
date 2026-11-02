@@ -4,7 +4,7 @@
     "id": "openspideyps1-gtteancum-spider-man",
     "name": "Spider-Man — OpenSpideyPS1 (GTTeancum)",
     "original_game_title": "Spider-Man",
-    "summary": "Both games reach gameplay; fullplaythrough/longsessions explicitly not done Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "Both games reach gameplay; full playthrough/longsessions explicitly not done See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/GTTeancum/SpideyPS1recomp",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "USA owned BIN/CUE/ISO for each game; exact serial/revision guard needs clarification"
+          "instruction": "Use your own USA BIN/CUE or ISO for the selected game. This guide does not specify the exact supported serial number or revision; check that game’s project requirements before setup."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Game-specific v1.0 runtimeZIPs; own-disc extraction at setup; shared C# runtime"
+          "instruction": "Game-specific v1.0 runtime ZIPs; own-disc extraction at setup; shared C# runtime"
         }
       ],
       "warnings": [
-        "Both games reach gameplay; fullplaythrough/longsessions explicitly not done",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "Both games reach gameplay; full playthrough/longsessions explicitly not done",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/GTTeancum/SpideyPS1recomp"
     },

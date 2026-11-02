@@ -35,7 +35,7 @@ describe("top-level render recovery", () => {
     const html = renderToStaticMarkup(boundary.render());
 
     expect(html).toContain('role="alert"');
-    expect(html).toContain("Display error");
+    expect(html).toContain("Portcove couldn’t display this screen");
     expect(html).toContain(
       "The Portcove window encountered an error. Reload it to reconnect and check the status of any active task.",
     );

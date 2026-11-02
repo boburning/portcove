@@ -4,7 +4,7 @@
     "id": "split2-recomp-phobos665-timesplitters-2",
     "name": "TimeSplitters 2 — split2-recomp (phobos665)",
     "original_game_title": "TimeSplitters 2",
-    "summary": "Frontend/story/SystemLinkdeathmatch played; Challenge/MapMaker little tested; SystemLink onlyWindows. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "Frontend/story/System Link deathmatch played; Challenge/MapMaker little tested; SystemLink only Windows. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/phobos665/split2-recomp",
     "platforms": [],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Own PAL or USA Xbox disc extracted default.xbe; other revisions/Japan not accepted."
+          "instruction": "Use your own PAL or USA Xbox disc extracted default.xbe; other revisions/Japan not accepted."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Local x86-to-C generated build against DirectXbox-Recomp. VS2022/2019Windows; macAppleSilicon/Linux source."
+          "instruction": "Local x86-to-C generated build against DirectXbox-Recomp. VS2022/2019Windows; macApple Silicon/Linux source."
         }
       ],
       "warnings": [
-        "Frontend/story/SystemLinkdeathmatch played; Challenge/MapMaker little tested; SystemLink onlyWindows.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "Frontend/story/System Link deathmatch played; Challenge/MapMaker little tested; SystemLink only Windows.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/phobos665/split2-recomp"
     },

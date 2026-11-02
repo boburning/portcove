@@ -58,7 +58,7 @@
         {
           "role": "game",
           "profile_id": "pokemon-snap",
-          "label": "Pokemon Snap (USA) source",
+          "label": "Pokémon Snap (USA) game files",
           "verification": "catalog-identity"
         }
       ],

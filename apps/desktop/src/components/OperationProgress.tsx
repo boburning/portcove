@@ -35,7 +35,7 @@ export function OperationProgress({
         >
           {label}
         </strong>
-        <span className="mt-0.5 block">{detail}</span>
+        {range && <span className="mt-0.5 block">{detail}</span>}
       </div>
       <div
         className={`progress-track h-[5px] overflow-hidden rounded-pc-md border border-pc-border bg-[var(--color-bg-inset)]${range ? "" : " indeterminate"}`}

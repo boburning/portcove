@@ -22,7 +22,7 @@
       "steps": [
         {
           "title": "Keep a permitted completed direct native player",
-          "instruction": "Use an already permitted working official v1.0 Windows x64 svr07.exe and the complete actual installation, with existing Windows10/11/D3D12 support. Root BSD3 covers project code, not original game/assets/trademarks or exhaustive dependency/package clearance. The publisher explicitly documents native release use with a legally owned original; this is not whole-package/source-to-binary or gameplay certification."
+          "instruction": "Use an already permitted working official v1.0 Windows x64 svr07.exe and the complete actual installation, with existing Windows 10/11/D3D12 support. Root BSD3 covers project code, not original game/assets/trademarks or exhaustive dependency/package clearance. The publisher explicitly documents native release use with a legally owned original; this is not whole-package/source-to-binary or gameplay certification."
         },
         {
           "title": "Preserve the exact own extracted original",

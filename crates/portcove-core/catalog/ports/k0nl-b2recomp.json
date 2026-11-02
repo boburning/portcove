@@ -3,7 +3,7 @@
   "listing": {
     "id": "k0nl-b2recomp",
     "name": "Bayonetta 2 (B2recomp)",
-    "summary": "Experimental Static recompilation; see pinned upstream contract. Upstream maturity: Upstream experimental implementation; no Portcove execution claimed. Acquisition: BuilderZIPincludescompiler/tools/source,notprebuiltgame;localC/gameDLLcompile andupstreambuilderrebuildonupdate.Windowsx64/Vulkan1.3, Linuxbuildertesting. Platforms: BuilderZIPincludescompiler/tools/source,notprebuiltgame;localC/gameDLLcompile andupstreambuilderrebuildonupdate.Windowsx64/Vulkan1.3, Linuxbuildertesting. Original data: OwnBayonetta2v1.2/updatev131072alreadydecryptedExeFS/RomFS;encryptedpackages/keysrefused. Portcove setup/gameplay untested; no operational integration offered.",
+    "summary": "An experimental Bayonetta 2 static recompilation. Its Builder ZIP contains tools, source and a compiler rather than a prebuilt game; it generates C and a game DLL locally, with rebuilding through the project’s Builder for updates. Windows x64 requires Vulkan 1.3; Linux Builder testing is separate. Use your own Bayonetta 2 v1.2/update v131072 already-decrypted ExeFS/RomFS. Encrypted packages and keys are refused. Portcove offers no setup or launch integration and has not tested gameplay.",
     "original_game_title": "Bayonetta 2",
     "project_url": "https://github.com/K0NL/B2recomp",
     "platforms": [],

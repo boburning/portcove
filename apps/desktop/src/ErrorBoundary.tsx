@@ -40,7 +40,7 @@ function RenderRecovery({ error }: { error: Error }) {
   return (
     <main className="bootstrap-recovery" aria-labelledby="display-error-title">
       <section className="bootstrap-recovery-content">
-        <h1 id="display-error-title">Display error</h1>
+        <h1 id="display-error-title">Portcove couldn’t display this screen</h1>
         <p role="alert">
           The Portcove window encountered an error. Reload it to reconnect and check the status of
           any active task.
@@ -49,10 +49,10 @@ function RenderRecovery({ error }: { error: Error }) {
           Reload Portcove
         </Button>
         <details className="bootstrap-recovery-details">
-          <summary>Display error details</summary>
+          <summary>Portcove couldn’t display this screen details</summary>
           <textarea
             readOnly
-            aria-label="Display error diagnostics"
+            aria-label="Portcove couldn’t display this screen diagnostics"
             value={error.message || "Unknown display error"}
           />
         </details>

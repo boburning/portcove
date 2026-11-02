@@ -4,7 +4,7 @@
     "id": "virtualon-pc-drakenabarion-cyber-troopers-virtual-on-force",
     "name": "Cyber Troopers Virtual-On Force — virtualon_pc (drakenabarion)",
     "original_game_title": "Cyber Troopers Virtual-On Force",
-    "summary": "Research project. Upstream explicitly reports force boot/menus/matches/audio; online unavailable. No fullgame or Portcove qualification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "Experimental project. Upstream explicitly reports force boot/menus/matches/audio; online unavailable. No full game or Portcove qualification. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/drakenabarion/virtualon_pc",
     "platforms": ["linux-x86-64", "windows-x86-64"],
     "availability": "unknown",
@@ -13,16 +13,16 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "Own PS4 CUSA16156 VirtualOnMasterpiece collection folder; select Force component force. Requires decrypted eboot.bin/pjv3.elf/modules/assets; update/fingerprints unbound."
+          "instruction": "Use your own PS4 CUSA16156 VirtualOnMasterpiece collection folder; select Force component force. Requires decrypted eboot.bin/pjv3.elf/modules/assets; update/fingerprints unbound."
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Manual shared VirtualOn AppImage/WindowsZIP or sourcebuild; own collection folder and force component selected in launcher (BB_EXE=force)."
+          "instruction": "Manual shared VirtualOn AppImage/Windows ZIP or sourcebuild; own collection folder and force component selected in launcher (BB_EXE=force)."
         }
       ],
       "warnings": [
-        "Upstream explicitly reports force boot/menus/matches/audio; online unavailable. No fullgame or Portcove qualification.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "Upstream explicitly reports force boot/menus/matches/audio; online unavailable. No full game or Portcove qualification.",
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/drakenabarion/virtualon_pc"
     },

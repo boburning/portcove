@@ -3,7 +3,7 @@
   "listing": {
     "id": "quake-ii-yamagi-quake-ii",
     "name": "Quake II (Yamagi Quake II)",
-    "summary": "Windows prepared-player route: use a permitted official Yamagi8.70a copy (8.70 engine with SDL repack) and your own classic QuakeII data prepared with the required3.20 full CTF patch. Select yquake2.exe, preserve real data/profile/DLL roots, and keep expansion/remaster contracts separate. Core offers nonowning registration/Play; original and save qualification remain separate.",
+    "summary": "Windows prepared-player route: use a permitted official Yamagi8.70a copy (8.70 engine with SDL repack) and your own classic QuakeII data prepared with the required3.20 full CTF patch. Select yquake2.exe, preserve real data/profile/DLL roots, and keep expansion/remaster contracts separate. Portcove can register this existing copy and start the selected player; original and save qualification remain separate.",
     "original_game_title": "Quake II",
     "project_url": "https://github.com/yquake2/yquake2",
     "platforms": [],
@@ -30,14 +30,14 @@
           "instruction": "Use the actual prepared runtime directory as working directory and retain established supported literal arguments, including actual -datadir, -cfgdir and -portable choices. The default Windows user root is actual Documents/YamagiQ2; -cfgdir changes its selected subdirectory and -portable omits that home-profile search. Do not force portable mode or rewrite a host root during registration. Preserve complete runtime/DLLs, baseq2 and other selected game directories, actual config/saves/screenshots/demos/music/mods/custom/legacy roots and unknowns. Finish upstream normal start/quit, review intent/consent and choose Play separately. No actual backward-save or addon compatibility is certified."
         },
         {
-          "title": "Keep replacement and removal ownership clear",
-          "instruction": "Close all real instances before external file changes. Upstream/player owns preparation, runtime replacement, profile writes and any migration/recovery. Preserve the old creating copy and every actual data root, finish deliberate replacement upstream and review/relink the changed player before the next Play. Core observes only its separately consented selected process, not an exclusive instance family or sandbox, and does not adopt unrelated helpers/successors. Registration-only removal preserves all external files. No Core-managed acquisition/setup/update/backup/rollback/migration/deletion is offered by this route."
+          "title": "Update the game and remove its registration",
+          "instruction": "Close every running copy before changing external files. You manage setup, game replacement, profile changes, data migration and recovery. Keep the working game version and every data folder, update it with the project’s tools, then review and select the changed executable before choosing Play. Portcove monitors only the process you selected and agreed to launch. It does not prevent other copies from running, restrict file access or take over unrelated helpers or replacement processes. Removing the registration leaves external files in place. This route does not offer Portcove downloads, setup, updates, backups, rollback, data migration or deletion."
         }
       ],
       "warnings": [
-        "This guide adds no Supported promotion, original/component permission, acquired-source-to-binary or private-output certificate. Use only a copy and content you are already permitted to use.",
-        "Source/API and inert native probes are distinct from actual game/save/mod/network, installed Desktop, physical/human, other-platform or protected acceptance. No such new observation is claimed.",
-        "Keep complete actual external runtime and player-data roots recoverable before upstream changes; another player folder does not guarantee independent shared state."
+        "Use only a copy and content you are already permitted to use. These instructions do not establish permission for the original game or other components, or confirm the resulting game files.",
+        "These instructions do not confirm gameplay, saving, mods, network play, physical controls or behavior on other platforms.",
+        "Before updating the game, keep a recoverable copy of its working files and every location containing saved data. Another game folder may use the same profile."
       ]
     }
   },

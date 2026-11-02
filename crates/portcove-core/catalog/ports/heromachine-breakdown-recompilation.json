@@ -22,11 +22,11 @@
       "steps": [
         {
           "title": "Prepare the complete owned-disc installation upstream",
-          "instruction": "Use a complete copy and components you are independently permitted to use. The selected0.2.2 route needs your own original Xbox Breakdown USA ISO, Windows10/11 x64, Direct3D11 and roughly6GB for its local build. Keep Breakdown.exe and the entire matching tools/ tree together. Run the supported first-run preparation outside Portcove until the game DLL is ready. The inspected launcher checks Xbox-disc filesystem magic; extraction checks default.xbe exists. Exact accepted full-disc/XBE digest/revision authentication remains Unknown; those checks are not entitlement or a cryptographic USA-identity check. No original, compiler, helper or build is obtained or run by this registration. The official 0.2.2 Windows ZIP unpacks to Breakdown-Recompilation-0.2.2/ with Breakdown.exe and tools/. Keep that folder intact for upstream preparation; the game DLL is created from your own ISO during the local build."
+          "instruction": "Use a complete copy and components you are independently permitted to use. The selected 0.2.2 route needs your own original Xbox Breakdown USA ISO, Windows 10/11 x64, Direct3D 11 and roughly 6 GB for its local build. Keep Breakdown.exe and the entire matching tools/ tree together. Run the supported first-run preparation outside Portcove until the game DLL is ready. The inspected launcher checks Xbox-disc filesystem magic; extraction checks default.xbe exists. Exact accepted full-disc/XBE digest/revision authentication remains Unknown; those checks are not entitlement or a cryptographic USA-identity check. No original, compiler, helper or build is obtained or run by this registration. The official 0.2.2 Windows ZIP unpacks to Breakdown-Recompilation-0.2.2/ with Breakdown.exe and tools/. Keep that folder intact for upstream preparation; the game DLL is created from your own ISO during the local build."
         },
         {
           "title": "Select the completed normal native launcher",
-          "instruction": "Select Breakdown.exe in its complete creating Windows package directory, use that directory as working directory and leave arguments empty. Keep the matching prepared installation and companions. The selected launcher loads work/build/breakdown_game.dll and runs the game in its own process/window; it is not an instruction to select a generated DLL, internal standalone executable, build helper or Linux launcher. Review and consent to the exact selected intent, then request Play separately."
+          "instruction": "Select Breakdown.exe in its complete creating Windows package directory, use that directory as working directory and leave arguments empty. Keep the matching prepared installation and companions. The selected launcher loads work/build/breakdown_game.dll and runs the game in its own process/window; it is not an instruction to select a generated DLL, internal standalone executable, build helper or Linux launcher. Review and consent to the selected launch details, then choose Play separately."
         },
         {
           "title": "Preserve the actual installation and all data roots",
@@ -42,11 +42,11 @@
         },
         {
           "title": "Retain release and ownership limits",
-          "instruction": "Upstream0.2.2 is explicitly early/incomplete: some background music loops, Retry/loading can take a long time and some textures appear late. These remain attributable upstream limitations, not Portcove passes or repaired failures. Keep component notices; project/toolkit/component terms grant no Namco original-game rights. The release assembler takes an external toolkit working checkout, so exact packaged toolkit/source correspondence is not established here. Removing registration preserves every external file. No managed install/update/rollback/backup/removal or Supported/protected acceptance is offered."
+          "instruction": "Upstream 0.2.2 is explicitly early/incomplete: some background music loops, Retry/loading can take a long time and some textures appear late. These remain attributable upstream limitations, not Portcove passes or repaired failures. Keep component notices; project/toolkit/component terms grant no Namco original-game rights. The release assembler takes an external toolkit working checkout, so exact packaged toolkit/source correspondence is not established here. Removing registration preserves every external file. No managed install/update/rollback/backup/removal or Supported/protected acceptance is offered."
         }
       ],
       "warnings": [
-        "Upstream0.2.2 is early/incomplete; music loops, slow Retry/loading and late textures remain known upstream limitations."
+        "Version 0.2.2 is early and incomplete. Upstream reports looping background music, slow Retry/loading and late textures."
       ]
     }
   }

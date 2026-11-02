@@ -4,11 +4,11 @@
     "id": "project-iron-6-genrythefox0-tekken-6",
     "name": "Tekken 6 — Project Iron 6 (GenryTheFox0)",
     "original_game_title": "Tekken 6",
-    "summary": "Information only; source hold. Upstream actual60FPS1080p creator tests; beta, multiplayer/photoV2 future. Payload explicitly contains modified/game-derived files despite no ISO. Acquisition is blocked: Inspect the declared modified/game-derived PC payload and source/distribution rights before any automated acquisition or redistribution; a no-ISO claim does not clear that hold. Resume: Expose a manual information-only Project Iron6 research listing under the existing owner; inspect release-manifest/source provenance before offering payload acquisition. Portcove has not verified setup or gameplay.",
+    "summary": "Information only. The creator reports Project Iron 6 at 60 FPS and 1080p; it is a beta, with multiplayer and Photo V2 planned. Its files expressly include modified/game-derived content despite containing no ISO. New downloads and redistribution are unavailable until applicable file/source rights and release-manifest provenance are reviewed. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/GenryTheFox0/Project-Iron-6",
     "platforms": [],
     "availability": "unknown",
-    "download_block_reason": "Inspect the declared modified/game-derived PC payload and source/distribution rights before any automated acquisition or redistribution; a no-ISO claim does not clear that hold. Resume: Expose a manual information-only Project Iron6 research listing under the existing owner; inspect release-manifest/source provenance before offering payload acquisition.",
+    "download_block_reason": "New downloads and redistribution remain unavailable until the declared modified/game-derived PC files and applicable source/distribution rights are reviewed. A no-ISO statement does not resolve that condition. Information about Project Iron 6 is retained under its existing identity; release-manifest and source provenance must be established before offering the files.",
     "issue_number": 3130,
     "artwork": {
       "game_id": 1236,

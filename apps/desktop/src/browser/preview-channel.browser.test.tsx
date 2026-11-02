@@ -79,7 +79,7 @@ it.each(["light", "dark"])(
       .filter({ has: page.getByRole("heading", { name: "Stable-only port", exact: true }) });
     await expect.element(stableOnly).toBeVisible();
     await userEvent.click(page.getByRole("button", { name: "Filters (0)", exact: true }));
-    await openFilterField("Release channels");
+    await openFilterField("Update channels");
     await userEvent.click(preview);
     await expect.element(preview).toHaveAttribute("aria-checked", "true");
     expect(query).toEqual({ version: 1, channels: ["beta"] });

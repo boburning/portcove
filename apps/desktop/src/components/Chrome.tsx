@@ -689,15 +689,15 @@ function ErrorNotice({
       )}
       <strong>
         {readbackOnly
-          ? "Action finished; current state could not be refreshed"
+          ? "The action finished, but Portcove couldn’t refresh this screen."
           : committed
-            ? "Change saved; review the current state"
+            ? "Your change was saved. Check the result before trying again."
             : neutral
               ? "Operation cancelled"
               : cancelled
                 ? presentation?.mutation_state === "recovery_required"
                   ? "Cancelled operation needs recovery review"
-                  : "Cancellation outcome needs review"
+                  : "We couldn’t confirm that cancellation finished. Check the task in Activity before continuing."
                 : "Portcove couldn’t finish that action"}
       </strong>
       {!((neutral || committed || cancelled) && summary === "The operation was cancelled.") && (
@@ -707,7 +707,7 @@ function ErrorNotice({
         <FailureDetails
           presentation={presentation}
           code={code}
-          showMutationSummary={!readbackOnly}
+          showMutationSummary={!readbackOnly && !committed}
         />
       )}
       {invocation?.failure !== undefined && invocation.refreshFailure !== undefined && (
@@ -749,7 +749,7 @@ function ErrorNotice({
             size="sm"
             onClick={() => void reviewCurrentState()}
           >
-            Review current state
+            Refresh library
           </Button>
         )}
         {reviewPreparation && (
@@ -1052,7 +1052,7 @@ function SourceRequirements({
       >
         <strong>
           {installedCount > 0
-            ? "No missing game-file requirements are recorded. Check each game for current file and launch status."
+            ? "No missing original game files are currently listed. Open a game to check its files and Play status."
             : "No ports in your library yet. File requirements will appear here after you add a port."}
         </strong>
       </div>
@@ -1173,7 +1173,7 @@ function SourceHealth({
           disabled={!!busy || sources.length === 0}
           onClick={verify}
         >
-          Check saved files
+          Check original game files and BIOS
         </Button>
       </div>
       <SourceRequirements
@@ -1545,7 +1545,7 @@ function AboutCard({ onOpenDiagnostics }: { onOpenDiagnostics: () => void }) {
       <SettingsRow className="settings-field-row mb-4 gap-5 rounded-[7px] border border-pc-border bg-pc-surface p-6">
         <div className="settings-field-copy">
           <h3>Support</h3>
-          <p>Review diagnostics or create a support bundle.</p>
+          <p>Save logs and system details to help troubleshoot a problem.</p>
         </div>
         <Button
           data-focusable
@@ -1581,7 +1581,7 @@ function DiagnosticsCard({
     <SettingsRow className="diagnostics-card" data-focus-group>
       <h2 className="flex items-center gap-2">
         <Icon glyph={ShieldCheck} />
-        Create support bundle
+        Create a support report
       </h2>
       <p role="status">
         {refreshing

@@ -4,7 +4,7 @@
     "id": "street-alpha-3-dreamcast-recomp-irnutsmurt-street-fighter-alpha-3-dreamcast",
     "name": "Street Fighter Alpha 3 (Dreamcast) — Street-Alpha-3-Dreamcast-Recomp (irnutsmurt)",
     "original_game_title": "Street Fighter Alpha 3 (Dreamcast)",
-    "summary": "Native fighting runtime/online and controls described; exact all-character/mode/full-playthrough acceptance not established. Original files and setup are described below. Portcove has not verified setup or gameplay.",
+    "summary": "Native fighting runtime/online and controls described; exact all-character/mode/full-playthrough acceptance not established. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/irnutsmurt/Street-Alpha-3-Dreamcast-Recomp",
     "platforms": [],
     "availability": "unknown",
@@ -13,7 +13,7 @@
       "steps": [
         {
           "title": "Check the required game files",
-          "instruction": "USA NTSC-U Dreamcast release; GDI tracks01/02/03, Redump CUE/BIN or CHD; exact 1ST_READ.BIN SHA1 checked by setup but not transcribed"
+          "instruction": "Use your own USA NTSC-U Dreamcast release as GDI with tracks 01/02/03, Redump CUE/BIN or CHD. Setup checks the SHA-1 of 1ST_READ.BIN; this guide does not include the expected value."
         },
         {
           "title": "Follow upstream setup",
@@ -22,7 +22,7 @@
       ],
       "warnings": [
         "Native fighting runtime/online and controls described; exact all-character/mode/full-playthrough acceptance not established.",
-        "Experimental discovery listing. Setup, gameplay, saves and updates have not been qualified by Portcove."
+        "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/irnutsmurt/Street-Alpha-3-Dreamcast-Recomp"
     },

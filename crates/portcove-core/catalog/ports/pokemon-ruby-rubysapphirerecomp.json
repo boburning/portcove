@@ -33,12 +33,12 @@
         },
         {
           "title": "Register the prepared player and use explicit Play",
-          "instruction": "You and upstream own this external runtime, originals, compiler outputs and player data. Upstream performs native code generation and cache replacement; Portcove does not adopt that mutable runtime. Registration binds the explicitly selected executable, working directory and literal arguments; Play is explicit. Registration-only removal preserves external files. Managed Update, Backup, Rollback, migration and external deletion are unavailable. First setup is finished upstream; no successful original-game setup, gameplay, multiplayer, save/load or physical-input observation is claimed by these instructions."
+          "instruction": "You manage this external game, original files, compiler outputs and saved data. The project’s tools generate native game code and replace caches; Portcove does not take over those files. It saves the executable, working folder and launch arguments you select; choose Play explicitly when you are ready. Removing the registration leaves external files in place. Portcove does not offer updates, backups, rollback, data migration or external-file deletion for this copy. Finish first-time setup with the project’s tools. These instructions do not confirm successful original-game setup, gameplay, multiplayer, saving and loading or physical controls."
         }
       ],
       "warnings": [
-        "This route uses the existing user-selected register-and-Play contract. The native operation regression uses an owned probe, not this game or its copyrighted inputs.",
-        "New managed creation needs its own complete source/BIOS, generated-code, retained-data and maintenance qualification. Do not adopt populated data or inherit compatibility/support from another Pokémon implementation."
+        "Select your prepared game in Portcove, review its launch details, then choose Play. The automated process check did not run this game or use its original files.",
+        "Portcove-managed installation is not offered for this route. Support would require separate checks of this game’s original files, BIOS, generated code, saved data and update behavior. Do not import existing data or assume it is compatible with another Pokémon implementation."
       ],
       "help_url": "https://github.com/mstan/RubySapphireRecomp/releases/tag/v0.0.7"
     },

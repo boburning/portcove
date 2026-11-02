@@ -3,7 +3,7 @@
   "listing": {
     "id": "the-legend-of-zelda-breath-of-the-wild-nxport",
     "name": "The Legend of Zelda: Breath of the Wild (nxport)",
-    "summary": "Experimental Apple-Silicon Switch toolchain/builder with generic NVN layer and title-specific features Upstream maturity: Upstream still makingplayable; exactversion Unknown. Acquisition: No release yet: clone/build nxport-builder, choose per-game profile+Mac/iOS target; produces local.app/.ipa. Upstream/player performs preparation and rebuilding. Platforms: AppleSilicon only; documented macOS/iOS output. No Windows/Linux runtime established. Original data: Own extractedExeFS/RomFS/Logo for The Legend of Zelda: Breath of the Wild. Exactacceptedversion/region/titleID Unknown. Portcove setup/gameplay untested; no operational integration offered.",
+    "summary": "An experimental nxport Switch builder for The Legend of Zelda: Breath of the Wild, using an Apple Silicon NVN compatibility layer with game-specific support. The project is still working toward playable progress. The exact version is unconfirmed. There is no release package: clone and build nxport-builder, choose this game’s profile and the Mac or iOS target, then build a local app or IPA. You and the project manage preparation and rebuilding. Use your own extracted ExeFS/RomFS/Logo. Exact accepted version, region and title ID are unconfirmed. Windows and Linux players are unconfirmed. Portcove offers no setup or launch integration and has not tested gameplay.",
     "original_game_title": "The Legend of Zelda: Breath of the Wild",
     "project_url": "https://github.com/nxporting/nxport",
     "platforms": [],

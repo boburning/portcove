@@ -161,7 +161,7 @@ describe("per-game install folder", () => {
     const review = document.querySelector('[role="dialog"]');
     expect(review?.textContent).toContain(label);
     const checks = review?.querySelector(
-      '[aria-label="Output destination review"] > [aria-live="polite"]',
+      '[aria-label="Install folder review"] > [aria-live="polite"]',
     );
     expect(checks?.textContent).toContain(blocked ? "Needs attention" : "Checks passed");
     expect(checks?.textContent).not.toContain("Available");
@@ -185,7 +185,7 @@ describe("per-game install folder", () => {
     await click("Review future folder");
     const review = document.querySelector('[role="dialog"]')!;
     const checks = review.querySelector(
-      '[aria-label="Output destination review"] > [aria-live="polite"]',
+      '[aria-label="Install folder review"] > [aria-live="polite"]',
     );
     expect(checks?.textContent).toContain("Needs attention");
     expect(checks?.textContent).not.toContain("Checks passed");
@@ -207,7 +207,7 @@ describe("per-game install folder", () => {
       }),
     );
     await render(<OutputLocationControl portId="sample" generation={7} />);
-    const current = container.querySelector('[aria-label="Current output destination"]');
+    const current = container.querySelector('[aria-label="Current install folder"]');
     expect(current?.querySelector('[aria-live="polite"]')?.textContent).toContain(
       "Needs attention",
     );
@@ -222,7 +222,7 @@ describe("per-game install folder", () => {
 
     await render(<OutputLocationControl portId="sample" generation={7} />);
 
-    const current = container.querySelector('[aria-label="Current output destination"]');
+    const current = container.querySelector('[aria-label="Current install folder"]');
     expect(current?.textContent).toContain("Current destination");
     expect(current?.textContent).toContain("Checks passed");
     expect(current?.textContent).toContain("8.0 GiB available of 16.0 GiB");
@@ -245,7 +245,7 @@ describe("per-game install folder", () => {
 
     await render(<OutputLocationControl portId="sample" generation={7} />);
 
-    const current = container.querySelector('[aria-label="Current output destination"]');
+    const current = container.querySelector('[aria-label="Current install folder"]');
     expect(current?.textContent).toContain("Unavailable");
     expect(current?.textContent).toContain("Capacity unavailable");
     expect(current?.textContent).toContain("selected drive is unavailable");
@@ -347,7 +347,7 @@ describe("per-game install folder", () => {
     await render(<OutputLocationControl portId="sample" generation={7} />);
     await changePath("F:/Games/Sample");
     await click("Review future folder");
-    expect(document.body.textContent).toContain("Availability result unavailable");
+    expect(document.body.textContent).toContain("Folder availability could not be confirmed");
     expect(button("Use this folder for future installs").disabled).toBe(true);
   });
 
@@ -389,7 +389,7 @@ describe("per-game install folder", () => {
     await changePath("F:/Games/Sample");
     await click("Review future folder");
     await click("Review moving existing versions");
-    expect(document.body.textContent).toContain("Ownership result unavailable");
+    expect(document.body.textContent).toContain("Folder ownership could not be confirmed");
     expect(button("Move existing versions").disabled).toBe(true);
     await click("Move existing versions");
     expect(move).not.toHaveBeenCalled();
@@ -409,8 +409,8 @@ describe("per-game install folder", () => {
       await render(<OutputLocationControl portId="sample" generation={7} />);
       await changePath("F:/Games/Sample");
       await click("Review future folder");
-      expect(document.body.textContent).toContain("Ownership result unavailable");
-      expect(document.body.textContent).toContain("Location origin unavailable");
+      expect(document.body.textContent).toContain("Folder ownership could not be confirmed");
+      expect(document.body.textContent).toContain("Folder preference source unavailable");
       expect(button("Use this folder for future installs").disabled).toBe(true);
       await click("Use this folder for future installs");
       expect(apply).not.toHaveBeenCalled();

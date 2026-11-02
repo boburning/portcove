@@ -34,12 +34,12 @@
           "instruction": "Portcove retains originals deliberately copied under originals, this entry’s default configuration, saves under saves, known default save locations, numbered screenshots and declared recording files. Put custom recordings under demos or use a demo-prefixed .lmp filename. Upstream may read and write its music-pack profile on Play. Music packs and custom paths outside this installation remain external and outside Portcove backups. Extra files written inside the installation outside its declared folders are outside this offered scope and can block maintenance. Keep the creating runtime, original files and actual data before changing a source variant or using an older runtime."
         },
         {
-          "title": "Keep one runtime owner",
-          "instruction": "Portcove manages this fresh official runtime and its declared private data. It does not adopt a populated upstream profile or convert an existing registered player. Existing registrations remain externally owned. Keep external profiles and original files separately backed up; generic fixtures and a setup menu do not establish original-game or gameplay compatibility."
+          "title": "Keep updates in one place",
+          "instruction": "Portcove manages this new official game installation and the data listed for it. It does not import an existing project profile or convert a separately registered game. Existing registered copies keep their external files and update tools. Back up those external profiles and original files separately. Automated fixture checks and reaching a setup menu do not establish original-file or gameplay compatibility."
         }
       ],
       "warnings": [
-        "Play opens upstream setup and launch controls. Supply matching lawful originals separately.",
+        "Play opens the project’s setup and launch controls. Supply your own matching original game files that you are permitted to use.",
         "Core backups exclude external music packs, custom paths and registered external-player data."
       ],
       "help_url": "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md"

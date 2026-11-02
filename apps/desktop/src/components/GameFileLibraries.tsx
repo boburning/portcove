@@ -434,7 +434,7 @@ function CompletedScan({
               busy={busy}
               stale={!readConfirmed || snapshot.freshness !== "inputs_match"}
               review={() => review(candidate)}
-              reviewLabel="Review preliminary selection"
+              reviewLabel="Check these files"
             />
           </>
         )}
@@ -496,7 +496,7 @@ function SavedRootRows({
               disabled={busy || scanning}
               onClick={() => relink(root)}
             >
-              Relink
+              Update folder location
             </Button>
             {removingId === root.id ? (
               <>
@@ -506,10 +506,11 @@ function SavedRootRows({
                   disabled={busy || scanning}
                   onClick={() => remove(root)}
                 >
-                  Remove saved folder
+                  Stop scanning this folder
                 </Button>
+                <p>Only the saved folder location is removed. The files stay on your drive.</p>
                 <Button data-focusable variant="outline" onClick={() => setRemovingId(undefined)}>
-                  Keep folder
+                  Keep scanning this folder
                 </Button>
               </>
             ) : (
@@ -557,8 +558,8 @@ function LiveScanResults({
     <section className="source-discovery-results" aria-label="Matches found during scan">
       <h3>Matches found so far</h3>
       <p>
-        These exact file matches are provisional while the scan continues. You can review one now;
-        Portcove checks its current files again before adding it as a source.
+        The scan is still running. You can check a match now; Portcove checks its current files
+        again before adding it as a source.
       </p>
       {candidates.map((candidate) => (
         <CandidateRow

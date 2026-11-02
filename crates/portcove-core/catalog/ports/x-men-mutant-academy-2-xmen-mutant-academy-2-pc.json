@@ -34,7 +34,7 @@
           "instruction": "Select the existing XMenMA2.exe, its containing directory as working directory, and one literal absolute path to your supported CUE or CHD as its first argument. Keep the complete creating copy and matching components. The inspected Program.Main runs the game in the selected process and shuts its runtime down before returning; it also anchors writes to the executable directory. Do not attach a build script, generator, package tool or another PS1 player."
         },
         {
-          "title": "Review Play and retain one replacement owner",
+          "title": "Review launch details and manage updates",
           "instruction": "Review and consent to the exact executable, working directory and literal disc argument, then choose Play separately. You and upstream own preparation, deliberate runtime replacement and recovery. Close the player and companions before replacement, retain the old working copy and all effective data, then review and relink changed selected bytes. Portcove offers no external update, backup, rollback, conversion, migration or deletion. Removing registration preserves all external files."
         },
         {

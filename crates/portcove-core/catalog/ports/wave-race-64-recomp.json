@@ -18,8 +18,8 @@
           "instruction": "Create an empty file named portable.txt beside WaveRace64Recomp.exe. It is not included in the download."
         },
         {
-          "title": "Connect your game files",
-          "instruction": "Choose and check your own supported Wave Race 64 original in Portcove, then choose the extracted port folder below for review."
+          "title": "Select your original game file",
+          "instruction": "Choose and check your own supported Wave Race 64 original in Portcove, then choose the extracted port folder for review."
         }
       ],
       "warnings": [

@@ -213,7 +213,7 @@ function ManagedRoutePreview({
           {formatBytes(model.preview.installation.download_bytes)}
         </p>
         <p>
-          New runtime location:{" "}
+          New installation folder:{" "}
           <code>{model.preview.installation.output_location.effective_output_directory}</code>
         </p>
         {model.setup && (
@@ -223,9 +223,10 @@ function ManagedRoutePreview({
         )}
         {model.preservesExternalData ? (
           <p>
-            Portcove updates the new runtime and preserves its declared data. Your external saves
-            are not copied. A game that uses an upstream profile may still read the same profile
-            when you choose Play; keep a separate backup of that data.
+            Portcove updates the new installation and preserves the saves and settings covered by
+            its recorded rules. Your external saves are not copied. A game that uses an upstream
+            profile may still read the same profile when you choose Play; keep a separate backup of
+            that data.
           </p>
         ) : (
           <p role="alert">

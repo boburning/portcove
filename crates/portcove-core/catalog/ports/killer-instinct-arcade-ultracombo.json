@@ -23,7 +23,7 @@
         },
         {
           "title": "Attach only this prepared game",
-          "instruction": "Select UltraCombo.exe, use the complete extracted UltraCombo-Windows directory as working directory and set arguments to --game ki1. This documented selector binds this record even if both games are installed. Review the exact intent and request Play separately. The selected normal game continues in the same player. Change game restarts the program and removes the selector; finish game changes outside the attached attempt instead of assuming successor tracking. Do not use --write-raw, --recomp, headless, tracing or network-host commands as normal Play."
+          "instruction": "Select UltraCombo.exe, use the complete extracted UltraCombo-Windows directory as working directory and set arguments to --game ki1. This documented selector binds this record even if both games are installed. Review and consent to the selected launch details, then choose Play separately. The selected normal game continues in the same player. Change game restarts the program and removes the selector; finish game changes outside the attached attempt instead of assuming successor tracking. Do not use --write-raw, --recomp, headless, tracing or network-host commands as normal Play."
         },
         {
           "title": "Preserve this game and revision separately",

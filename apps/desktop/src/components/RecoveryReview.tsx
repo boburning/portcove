@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } f
 type Repair = DoctorReport["repair"];
 type Item = Repair["items"][number];
 const labels: Record<Item["kind"], string> = {
-  malformed_journal: "Retained operation requires review",
+  malformed_journal: "Unfinished operation needs review",
   retained_preparation: "Unfinished setup files",
   partial_operation: "Unfinished operation",
   cleanup_pending: "Unfinished files need review",
@@ -330,7 +330,7 @@ function PreparationCleanupDialog({
         </DialogTitle>
         <DialogDescription id="preparation-cleanup-description" className="mb-4 leading-relaxed">
           {inspecting
-            ? "Review what remains from this setup and the locations recorded with it. Opening this account does not change files. Cleanup is a separate decision."
+            ? "Review what remains from this setup and the locations recorded with it. Opening this review does not change files. Cleanup is a separate decision."
             : emptyReview
               ? "No setup working files remain. Clear the unfinished setup record and its recorded path if present."
               : "Delete the private working files left by this unfinished setup. Review the affected folder and preserved locations first."}
@@ -412,7 +412,7 @@ function PreparationCleanupDetails({
       readOnly ? "Original installation" : "Original installation preserved",
       preview.original_install_path,
     ],
-    [readOnly ? "Registered source" : "Registered source preserved", preview.source_path],
+    [readOnly ? "Saved game files" : "Saved game files preserved", preview.source_path],
     [readOnly ? "Saved data" : "Saved data preserved", preview.persistent_data_path],
     [readOnly ? "Backups" : "Backups preserved", preview.backup_path],
     [readOnly ? "Logs" : "Logs preserved", preview.logs_path],
@@ -446,7 +446,7 @@ function PreparationCleanupDetails({
           <h3 className="mt-3 text-base font-semibold">What remains</h3>
           <p>
             {entries.length
-              ? "Setup left working files behind. This account does not confirm that those files are complete or ready to play."
+              ? "Setup left working files behind. This review does not confirm that those files are complete or ready to play."
               : "No private working files were found. An unfinished setup record remains."}
           </p>
           <h3 className="mt-3 text-base font-semibold">What you can do now</h3>
@@ -475,7 +475,7 @@ function PreparationCleanupDetails({
       {readOnly && (
         <details>
           <summary className="cursor-pointer py-2 font-semibold" data-focusable>
-            Installation, source, saves, backups and logs
+            Installation, game files, saves, backups and logs
           </summary>
           <p className="text-xs wrap-anywhere">Recorded task: {preview.operation_id}</p>
           <dl>{recordedLocations}</dl>

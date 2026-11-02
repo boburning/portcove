@@ -4,7 +4,7 @@
   "listing": {
     "id": "dkc2-recomp",
     "name": "DKC2Recomp",
-    "summary": "Play Donkey Kong Country 2 with a reviewed player-prepared Windows runtime.",
+    "summary": "Play Donkey Kong Country 2 with a Windows runtime you prepare from the specified upstream package.",
     "project_url": "https://github.com/mstan/DKC2Recomp",
     "original_game_title": "Donkey Kong Country 2: Diddy's Kong Quest",
     "manual_setup": {
@@ -18,7 +18,7 @@
           "instruction": "Use short paths with basic Latin characters for both the runtime folder and your original game file."
         },
         {
-          "title": "Connect your original",
+          "title": "Select your original game file",
           "instruction": "Choose and check your own stock headerless USA .sfc original in Portcove, then choose the prepared runtime folder below for review."
         }
       ],

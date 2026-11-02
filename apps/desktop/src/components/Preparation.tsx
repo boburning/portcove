@@ -91,7 +91,7 @@ export function PreparationControl({
         setMessage(
           result
             ? "Game data is prepared."
-            : "Preparation did not complete. Review the current inputs before starting a new preparation.",
+            : "Setup didn’t finish. Check the selected game files before starting again.",
         );
     } catch (value) {
       if (request.current === current) {
@@ -312,8 +312,8 @@ function PreparationFacts({ plan }: { plan: PreparationPlan }) {
           If setup opens another window
         </summary>
         <p className="mt-2 mb-0">
-          Finish setup and close it without launching the game. Portcove then verifies and activates
-          the prepared result.
+          Finish setup in that window, then close it without starting the game. Portcove will check
+          the files. If the checks pass, it will switch to the new version.
         </p>
       </details>
     </div>

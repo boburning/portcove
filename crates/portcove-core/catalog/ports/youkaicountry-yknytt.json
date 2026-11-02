@@ -23,7 +23,7 @@
       "steps": [
         {
           "title": "Keep the complete prepared Windows game",
-          "instruction": "Use a complete YKnytt copy and components you are independently permitted to use. The inspected0.7.3 Windows ZIP contains YKnytt_v0.7.3_win/YKnytt.exe as an AMD64 Godot player, YKnytt.pck and the matching data_YKnytt Mono tree. Keep the entire directory together; neither a lone exe nor a source project is the complete player. The package includes several worlds and does not require a player-supplied retail disc or console BIOS by the selected instructions. No Godot editor, compiler, program, level or original game is obtained or executed here."
+          "instruction": "Use a complete YKnytt copy and components you are independently permitted to use. The inspected 0.7.3 Windows ZIP contains YKnytt_v0.7.3_win/YKnytt.exe as an AMD64 Godot player, YKnytt.pck and the matching data_YKnytt Mono tree. Keep the entire directory together; neither a lone exe nor a source project is the complete player. The package includes several worlds and does not require a player-supplied retail disc or console BIOS by the selected instructions. No Godot editor, compiler, program, level or original game is obtained or executed here."
         },
         {
           "title": "Retain original-game and level terms",

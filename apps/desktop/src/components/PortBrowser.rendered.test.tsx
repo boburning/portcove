@@ -55,10 +55,10 @@ describe("desktop components", () => {
             loading={false}
           />,
         );
-      expect(render(base)).not.toContain("Archive downloaded");
+      expect(render(base)).not.toContain("Update downloaded, not installed");
       expect(render(base)).not.toContain("Update saved for later");
       const downloaded = render({ ...base, acquisition });
-      expect(downloaded).toContain("Archive downloaded");
+      expect(downloaded).toContain("Update downloaded, not installed");
       expect(downloaded).not.toContain("Update saved for later");
       expect(downloaded).toContain("Ready to play");
       const prepared = render({
@@ -68,7 +68,7 @@ describe("desktop components", () => {
       expect(prepared).toContain(
         view === "library" ? "Update saved for later" : "Update saved for later",
       );
-      expect(prepared).not.toContain("Archive downloaded");
+      expect(prepared).not.toContain("Update downloaded, not installed");
     },
   );
 
@@ -396,7 +396,7 @@ describe("desktop components", () => {
     expect(play).toBeDefined();
     expect(play).toContain('data-variant="outline"');
     expect(play).not.toContain('data-variant="primary"');
-    expect(html).not.toContain("Release channel: Stable");
+    expect(html).not.toContain("Update channel: Stable");
     expect(html).toMatch(/<article class="port-card [^"]*\bport-card-library\b/u);
     expect(html).toContain(">Play</button>");
     expect(html).not.toMatch(/<button[^>]*class="port-card/u);

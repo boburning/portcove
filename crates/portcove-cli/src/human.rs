@@ -22,7 +22,7 @@ pub(crate) fn game_file_query(
                 portcove_core::GameFileQueryState::FilesAvailable => "Compatible files available",
                 portcove_core::GameFileQueryState::FilesMissing => "Files missing",
                 portcove_core::GameFileQueryState::NeedsChecking => "Needs checking",
-                portcove_core::GameFileQueryState::NoFilesRequired => "No files required",
+                portcove_core::GameFileQueryState::NoFilesRequired => "No files to add in Portcove",
                 portcove_core::GameFileQueryState::UnavailableContext => "Context unavailable",
             };
             let selected = match route.route {
@@ -532,7 +532,7 @@ fn backup_history(port_id: &str, inventory: &BackupInventory) -> String {
         })
         .collect();
     let healthy = if inventory.backups.is_empty() {
-        format!("No verified backups for {}.", clean(port_id))
+        format!("No backups are currently available for {}.", clean(port_id))
     } else {
         format!(
             "Backups for {} ({})\n{}",
@@ -1553,7 +1553,7 @@ pub(crate) fn doctor(report: &DoctorReport, catalog: &portcove_core::Catalog) ->
         })
         .collect();
     let repairs = if report.repair.items.is_empty() {
-        "Repair review: no repairs needed.".into()
+        "Repair review: no repair items were recorded.".into()
     } else {
         let rows = report
             .repair
@@ -2238,8 +2238,8 @@ pub(crate) fn operation_event_name(operation: &str) -> &'static str {
 pub(crate) fn update_policy_name(policy: portcove_core::UpdatePolicy) -> &'static str {
     match policy {
         portcove_core::UpdatePolicy::Notify => "Notify about updates",
-        portcove_core::UpdatePolicy::Stage => "Download and check without activation",
-        portcove_core::UpdatePolicy::Automatic => "Apply updates automatically",
+        portcove_core::UpdatePolicy::Stage => "Keep update for later",
+        portcove_core::UpdatePolicy::Automatic => "Install when I run updates",
     }
 }
 
@@ -2384,7 +2384,7 @@ fn install_action(action: InstallPlanAction) -> &'static str {
     match action {
         InstallPlanAction::AlreadyActive => "already active",
         InstallPlanAction::UseStaged => "use saved version",
-        InstallPlanAction::ReuseRetained => "use previous version",
+        InstallPlanAction::ReuseRetained => "use checked local version",
         InstallPlanAction::BlockedUnverified => {
             "Blocked by a local installation that does not match the expected files"
         }

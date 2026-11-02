@@ -230,7 +230,7 @@ it("keeps advanced choices open and focus visible after clearing their last sele
   await act(async () => setContext(retainedContext(new Map())));
   await click("Filters (1)");
   await openField("Setup methods");
-  const choice = page.getByRole("checkbox", { name: "Portable upstream package (3)", exact: true });
+  const choice = page.getByRole("checkbox", { name: "Download and install (3)", exact: true });
   await choice.click();
   expect(
     page.getByText("Advanced filters", { exact: true }).element().closest("details")?.open,
@@ -305,9 +305,7 @@ it("preserves established extra predicates visibly on edit and clears only query
     port.presentation = { installation_method: method } as NonNullable<typeof port.presentation>;
   await render({ version: 1, installationMethods: [method] });
   await click("Filters (1)");
-  expect((await control("Portable upstream package (3)")).getAttribute("aria-checked")).toBe(
-    "true",
-  );
+  expect((await control("Download and install (3)")).getAttribute("aria-checked")).toBe("true");
   await click("Windows (2)");
   expect((current as CatalogQuery).installationMethods).toEqual([method]);
   await act(async () => {
