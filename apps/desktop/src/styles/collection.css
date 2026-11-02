@@ -30,7 +30,7 @@
     flex: 1 1 17rem;
     max-width: none;
   }
-  @container library-query (max-width: 40rem) {
+  @container library-query (max-width: 42rem) {
     .browse-toolbar > .search {
       flex-basis: 100%;
     }
@@ -419,6 +419,10 @@
 
 @layer utilities {
   @container library-query (max-width: 16rem) {
+    .browse-navigation,
+    .library-query-tools {
+      margin-block-end: var(--space-2);
+    }
     .browse-navigation > [aria-label="Library quick views"] {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));

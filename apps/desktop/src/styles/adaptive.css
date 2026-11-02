@@ -316,6 +316,13 @@
     .settings-section-index {
       position: static;
     }
+    .source-requirements-heading {
+      flex-wrap: wrap;
+    }
+    .source-requirement {
+      flex-direction: column;
+      align-items: stretch;
+    }
     .appearance-options {
       grid-auto-flow: row;
       grid-template-columns: repeat(auto-fit, minmax(min(100%, 5rem), 1fr));
