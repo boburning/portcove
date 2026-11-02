@@ -32604,7 +32604,8 @@
         "image_sha256": "1d6b39c4d2e8d883fbfee50e21f378ed96e7577a754e3d7e822df7fbd6ebf3f8",
         "game_slug": "battle-arena-toshinden--3",
         "match_kind": "underlying-game"
-      }
+      },
+      "download_block_reason": "Fresh acquisition of the inspected Battle Arena Toshinden 1.2 ZIP is held: it contains a 512 KiB rom_data object with the BA.TOSHINDEN Game Boy header despite the own-ROM/no-ROM distribution description. A project description or matching package checksum does not establish permission for that embedded game content. Resume with an attributable applicable content/use basis for the exact package, or a reviewed asset-clean publication and supported owned-input route. Existing copies retain their own independent permission and ownership requirements."
     },
     {
       "id": "omegakatana92-kirby-pinball-land-recomp",
