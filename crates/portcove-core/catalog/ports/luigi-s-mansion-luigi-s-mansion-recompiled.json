@@ -3,13 +3,41 @@
   "listing": {
     "id": "luigi-s-mansion-luigi-s-mansion-recompiled",
     "name": "Luigi's Mansion (Luigi's Mansion Recompiled)",
-    "summary": "Upstream route: Native local preparation; preserve in-app updater and setup ownership boundaries. Repository renamed from luigis-mansion-pc-port; old robfozz64 account appears in upstream notes, not in Portcove baseline. Limits: Released1.1.4 native local-preparation route; optional two-player mode unfinished. Upstream platforms: Windows/Linux archives with bundled local compiler/setup; selected package CPU architectures unknown in frozen research. Original data: Own USA GLME01 and/or Europe GLMP01 ISO/RVZ/extracted data; bundled compiler builds game during initial setup. Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted, prepared Luigi’s Mansion Recompiled Windows player with its supported USA or PAL rev0 disc and locally built module. Preserve regional cards, both-disc overlays and actual system/portable data; upstream folder moves can remove the former root.",
     "original_game_title": "Luigi's Mansion",
     "project_url": "https://github.com/rob646464/luigis-mansion-recompiled",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/rob646464/luigis-mansion-recompiled",
-    "issue_number": 2587
+    "issue_number": 2587,
+    "manual_setup": {
+      "help_url": "https://github.com/rob646464/luigis-mansion-recompiled/blob/d448095305b81d9bcace330c2259e666805140ef/README.md",
+      "steps": [
+        {
+          "title": "Prepare the exact supported original upstream",
+          "instruction": "Use a complete player/components you are independently permitted to use, with your own GameCube USA GLME01 or Europe GLMP01 revision 0 disc. Supported main.dol SHA1 values are 77d49225e7d28b9777916cdbe5809345c570ecbc (USA) and a1e2bd82813787cfe0b11afb5d138f08fdbd94f1 (PAL rev0). Upstream validates that DOL digest, not merely the image name; ISO/GCM, RVZ and other nod-readable containers are separate representations of that original. Supply both originals only if you want upstream’s cross-region Hidden Mansion overlays. Finish disc selection, local recompilation/link, shader preparation and chosen-version settings outside Portcove. No disc, compiler, converter, helper or game is obtained or executed here."
+        },
+        {
+          "title": "Keep the player and bundled compiler together",
+          "instruction": "The inspected official 1.1.5 Windows x64 ZIP contains AMD64 LuigisMansionRecomp.exe, matching Aurora/Dawn/SDL3/nod and other libraries plus llvm/bin/clang.exe and lld-link.exe. The runtime builds game/<id>/module.dll locally from the original’s main.dol; the release does not supply that original. Keep the whole package and actual generated data. The port’s decompilation and adapted code use their CC0 scope, Aurora MIT and LLVM Apache-with-exception; these do not relicense the original game."
+        },
+        {
+          "title": "Attach the already prepared normal player",
+          "instruction": "Select LuigisMansionRecomp.exe, use the complete extracted LuigisMansionRecompiled-1.1.5-windows-x64 directory as working directory and leave arguments empty. Review the exact intent and request Play separately. When configured discs/modules/overlays are current, the integrated setup is skipped and the module is loaded into this same native player. Missing/stale inputs can trigger local rebuilding; complete it upstream before retrying. Do not select a module DLL or compiler as the executable, and do not enable setup-auto, recovery-reset, finite-frame or test overrides."
+        },
+        {
+          "title": "Preserve regional cards and destructive move recovery",
+          "instruction": "Normally keep the actual %APPDATA%/Luigi's Mansion Recompiled root, including install.ini, settings.ini, game/GLME01 or GLMP01 modules/keys, hidden_mansion/ overlays, USA/Card A and other regional card folders, caches, logs and recovery state. Older Luigi's Mansion PC folders can be renamed on first 1.1+ start; failed rename can copy while retaining the old folder. Existing portable.txt or portable/ instead selects the package-local portable tree. An upstream requested data move copies/checks and switches, then can delete the previous system root; interrupted portable.lm-tmp/portable.lm-old leftovers can be deleted on next startup. Keep independent copies of both old/new roots and any pending move evidence before starting or changing layout. This guide creates no marker and performs no move, recovery, backup or deletion."
+        },
+        {
+          "title": "Maintain the external player and its rights explicitly",
+          "instruction": "Keep all own-code, decompilation, adapted Dusklight, Aurora and bundled component notices. Original Nintendo assets, other-region content and optional mods require independent permission. Existing external card/cache/source overrides remain authoritative; keep both disc originals and actual relative/absolute install.ini selections. Quit normally before upstream updates or card/data operations, retain independent recovery and review/relink changed executable bytes. The unfinished original two-player content and upstream campaign claims are not native/installed, co-op, gameplay, save/reload or Supported acceptance here. Removing registration preserves external files; managed lifecycle operations remain unavailable."
+        }
+      ],
+      "warnings": [
+        "Preserve the actual regional cards and both sides of any system/portable data move before startup. First-use builds, automatic stale-module rebuilding and recovery remain upstream-owned."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

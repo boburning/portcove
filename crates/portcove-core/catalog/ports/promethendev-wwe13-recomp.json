@@ -3,7 +3,7 @@
   "listing": {
     "id": "promethendev-wwe13-recomp",
     "name": "WWE '13 (WWE '13 Recomp)",
-    "summary": "Upstream route: UpstreamWWE13ZIP includes Windowsgame+launcher and Linux-x86_64game+launcher. Launcher importsISO/folder andTU/DLC, first start prepares graphics. It owns optionalverified updates/rollback; source ReXGlue code generation is development route, not player prerequisite. Limits: Upstream only: Upstream v1.5runtime, graphics preparation and updater. Intro's latest-v1.1text stale; actual player layout/release overrides cache. Full campaign untested here. README latest-v1.1 stale versus actual v1.5 assets; compatible-release evidence overrides cached README. Windows/Linux claim must be mapped to actual ZIP contents before asset selector. Upstream platforms: README explicitly includes Windows x64 game/launcher and Linux-x86_64 game/launcher in one ZIP. Development build is separate. Original data: Xbox360 WWE13 own base ISO/folder, title update/DLC supplied separately. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted, prepared WWE ’13 Windows native player with its matching 2.0.1.0 title update and explicit existing game/user-data paths. The combined ZIP also contains Linux files; each host and updater remains separately owned.",
     "original_game_title": "WWE '13",
     "project_url": "https://github.com/PromethenDev/wwe13-recomp",
     "platforms": [],
@@ -17,7 +17,35 @@
       "game_slug": "wwe-13",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2855
+    "issue_number": 2855,
+    "manual_setup": {
+      "help_url": "https://github.com/PromethenDev/wwe13-recomp/blob/d6574985f7e73ab2a4c09f68684aba49ba454d07/README.md",
+      "steps": [
+        {
+          "title": "Prepare the matching game and mandatory update",
+          "instruction": "Use a complete player/components you are independently permitted to use, with your own Xbox 360 WWE ’13, title 545108B4, complete base data and mandatory title update 2.0.1.0 including default.xexp and data files. Source checks XEX2 structure/title, target update version and matching source/base version; these are not a cryptographic whole-original fingerprint or a promise every regional revision works. Finish upstream game import, update selection and launcher settings first. Optional DLC/creations are separate. No original, update, importer, helper, compiler or game is obtained or executed here."
+        },
+        {
+          "title": "Keep the actual 1.5 package",
+          "instruction": "The inspected official WWE13-Recomp-v1.5.zip contains AMD64 WWE13-Recomp-x64/wwe13.exe and WWE13 Launcher.exe, matching runtime libraries/notices and a separate Linux-x86_64 directory. Its Windows programs were inspected; Linux binaries and gameplay were not qualified by that check. Use the complete Windows root, with supported Windows 10/11, AVX2 and Vulkan graphics. Cached README version labels do not select an older package."
+        },
+        {
+          "title": "Attach the native program with explicit existing paths",
+          "instruction": "Select wwe13.exe and the complete WWE13-Recomp-x64 directory as working directory. Follow the upstream launch-plan coordinates: use the absolute path to your already prepared game folder as the first quoted argument, and --user_data_root= followed by the quoted absolute path to this installation’s existing userdata folder. Replace both paths with actual selections; do not use placeholders literally or select a new empty root. These are the source launcher’s game/user-root arguments, not another guessed cache or environment. Review the exact intent and request Play separately. The game entry validates the title update and owns the selected native process. Launcher-only display/performance environment choices do not automatically transfer to direct launch; finish or retain necessary settings upstream, and do not claim an identical presentation profile."
+        },
+        {
+          "title": "Preserve the whole installation and actual roots",
+          "instruction": "Keep userdata/ with saves, DLC, profiles and settings, the selected WWE 13/ or external original folder, wwe13.toml controls, wwe13-enhanced.ini launcher settings, music/, logs/, backups/update-<version>/, custom creations and all configured external roots. Content imports can replace progress and require matching save-slot metadata; another WWE title’s package or shared save is not automatically compatible. Keep complete recovery copies before any upstream creation/save import or update. This guide performs no import, backup, restore, migration or deletion."
+        },
+        {
+          "title": "Retain notices and maintain outside attachment",
+          "instruction": "Keep project BSD-3-Clause, the ReXGlue/Yukes/Xenia and all renderer, FFmpeg and component notices/corresponding-source materials. They do not license the retail game, mandatory update, music, creations or DLC. The external launcher owns update verification/replacement and rollback copies, plus its optional display/performance environment. Quit the actual game normally, retain independent recovery and review/relink changed bytes. Known graphical/timing limitations remain; no native/installed, Linux, campaign, real-save, creation corpus, online or Supported acceptance is asserted. Removing registration preserves external files; managed lifecycle operations remain unavailable."
+        }
+      ],
+      "warnings": [
+        "Keep the mandatory matching title update and actual existing user-data root. Direct launch uses explicit source-supported paths; launcher performance/display environment is not automatically reproduced."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

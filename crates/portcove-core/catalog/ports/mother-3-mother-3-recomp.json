@@ -3,13 +3,45 @@
   "listing": {
     "id": "mother-3-mother-3-recomp",
     "name": "MOTHER 3 (MOTHER 3 Recomp)",
-    "summary": "Upstream route: Separate BIOS/ROM/patch contracts; follows familiar GBA family. Limits: Released1.0.7 GBA route; BIOS/ROM and optional Japanese-ROM translation patch are separate inputs. Upstream platforms: Windows x86-64 ZIP, Linux x86-64/SteamDeck archive and Android APK; Android ABI unknown in frozen evidence. Original data: Own GBA BIOS and ROM; initial setup accepts translation patch for Japanese ROM. Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted, prepared MOTHER 3 Windows player with your own exact ROM, desktop GBA BIOS and any permitted translation already configured upstream. Preserve battery saves and patch derivatives; unknown patch outputs can use the compatibility interpreter and remain unqualified.",
     "original_game_title": "MOTHER 3",
     "project_url": "https://github.com/josiahg2502-glitch/Mother3Recomp",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/josiahg2502-glitch/Mother3Recomp",
-    "issue_number": 2596
+    "issue_number": 2596,
+    "manual_setup": {
+      "help_url": "https://github.com/josiahg2502-glitch/Mother3Recomp/blob/d50215580540f08d093c8decc478838f26b7e9ae/docs/PLAYER-README.md",
+      "steps": [
+        {
+          "title": "Prepare the separate ROM, BIOS and patch inputs",
+          "instruction": "Use a complete player and components you are independently permitted to use. The selected 1.0.8 guide identifies 32 MiB Japanese MOTHER 3 SHA1 4f0f493e12c2a8c61b2d809af03f7abf87a85776, English v1.3 SHA1 306fb8874533b0fd0796208faa8bed2db4ae77fb, and English plus HQ Audio SHA1 4ffe71ce5c5e1e8d9be5fbd09968b60787169b21. Desktop also requires your own 16 KiB GBA BIOS, identified as SHA1 300c20df6731a33952ded8c436f7f186d25d3492. These identify documented inputs, not ownership or cryptographic import enforcement. The setup checks BIOS/ROM size and the runtime permits some hash mismatches; unknown patches remain unqualified. Android’s BIOS substitute is not a desktop source route."
+        },
+        {
+          "title": "Keep the complete Windows player",
+          "instruction": "The inspected official 1.0.8 Windows ZIP contains AMD64 Mother3Recomp.exe, matching libraries/assets and separate component license files. Keep its complete extracted folder. The game runs through the linked GBA framework: translated dispatch and runtime/interpreter fallback are distinct, and the source can force interpreter fallback when no dispatch table is present. A Windows PE is not proof every game instruction is statically native. A source build, Android APK and another GBA game are separate routes."
+        },
+        {
+          "title": "Attach normal upstream play",
+          "instruction": "Finish the upstream ROM/BIOS picker, any independently permitted translation and settings first; keep independent originals. Select Mother3Recomp.exe, set its complete extracted Windows directory as working directory and leave arguments empty. Review the exact intent and request Play separately, then use the upstream Play UI for the already configured game. The selected native entry runs its setup UI and linked game in process. Complete missing input, patch application, imports or maintenance outside the attached attempt. This guide obtains or executes no BIOS, ROM, patch, compiler, helper or game."
+        },
+        {
+          "title": "Preserve battery saves, derivatives and old paths",
+          "instruction": "Keep saves/mother3_en_v13.sav, its .sav.bak retained by upstream battery-save import, all state/settings data, config.ini, keybinds.ini, game.toml, rom.cfg, bios.cfg, mods/rom-patches and existing external original/patch/save paths. Legacy cfg paths can be relative to their own folder; do not silently reinterpret them under a new CWD. Upstream import accepts battery .sav/.srm, not emulator save states; this is not observed compatibility acceptance. This guide performs no patching, import, migration, restore, backup or deletion."
+        },
+        {
+          "title": "Retain individual component and content terms",
+          "instruction": "Preserve the port/runtime PolyForm Noncommercial 1.0.0 notices, the separately shipped recomp-ui MIT notice, and SDL, TinyCC, toolchain and other component notices. The selected dependency lock binds the GBA/UI revisions and verified title-specific patches; those source bindings are not source-to-binary reproducibility. Component licenses do not provide Nintendo ROM/BIOS, translation-team or third-party mod rights. Use only a complete copy and patches you are independently permitted to use. Existing RetroAchievements/account settings remain upstream-owned; no login, credential change or online acceptance is provided."
+        },
+        {
+          "title": "Maintain the external copy and its limits",
+          "instruction": "Quit the actual game normally before upstream replacement, ROM/patch changes or save imports. Preserve independent recovery copies and review/relink changed executable bytes. Forced termination is not a save-flush guarantee. Upstream HQ audio, smoothing, translation and save-import reports remain upstream claims; patch-dependent interpreter behavior, performance and compatibility are not generalized. No native/installed, campaign, save/reload or Supported acceptance is asserted. Removing registration preserves external files; managed lifecycle operations remain unavailable."
+        }
+      ],
+      "warnings": [
+        "Desktop needs its own GBA BIOS as well as the exact ROM/patch inputs. Keep battery saves and derivatives; accepting an unknown patch through interpreter fallback does not qualify it."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

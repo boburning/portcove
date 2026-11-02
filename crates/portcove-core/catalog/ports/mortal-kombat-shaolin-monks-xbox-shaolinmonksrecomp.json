@@ -3,7 +3,7 @@
   "listing": {
     "id": "mortal-kombat-shaolin-monks-xbox-shaolinmonksrecomp",
     "name": "Mortal Kombat: Shaolin Monks (Xbox) (ShaolinMonksRecomp)",
-    "summary": "Upstream route: Windows/Linux packages; own USA/EU Xbox files Limits: Distinct from OGmidway PS2 implementation #1714. Upstream platforms: Windows/Linux packages with Xbox disc import; selected package CPU architectures unknown in frozen research. Original data: Own USA or Europe original Xbox Mortal Kombat: Shaolin Monks data. Upstream selector accepts ISO/XISO, ZIP, extracted game folder, or default.xbe with its companion data. This is the Xbox implementation, not PS2; exact executable revision/hash remains unestablished by reviewed README. Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted, prepared OpenShao Windows player using the supported USA/Europe Xbox original. Preserve the separate application-data and Saved Games locations, remembered source and legacy-folder migration recovery.",
     "original_game_title": "Mortal Kombat: Shaolin Monks (Xbox)",
     "project_url": "https://github.com/OAleex/ShaolinMonksRecomp",
     "platforms": [],
@@ -17,7 +17,35 @@
       "game_slug": "mortal-kombat-shaolin-monks",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2595
+    "issue_number": 2595,
+    "manual_setup": {
+      "help_url": "https://github.com/OAleex/OpenShao/blob/0bd55e4cc27cdf1eae470b49226dfa404f8d785d/README.md",
+      "steps": [
+        {
+          "title": "Prepare the supported original upstream",
+          "instruction": "Use a complete player and components you are independently permitted to use, with your own USA/Europe Xbox Mortal Kombat: Shaolin Monks, title 4D570029. The selected profile identifies entry 000F40CA and XDK 5849. The runtime compares default.xbe SHA1 against the exact original used when that player was built; CMake generates that constant from the build input. Its actual release-input SHA1 is not published in the reviewed profile, so an exact independently established release digest remains Unknown. Do not replace this check with a title-name assumption or mismatch bypass. Finish upstream game selection/validation before attachment."
+        },
+        {
+          "title": "Keep the complete Windows package",
+          "instruction": "The inspected official 0.4.1 Windows x64 ZIP contains AMD64 OpenShao.exe and matching resources/notices. Upstream accepts ISO/XISO or complete extracted folders in place; ZIP import is a separate upstream preparation operation. Keep the selected source at its remembered location. Windows requirements include Windows 10 1903+, SSE4.2/POPCNT and supported Direct3D 12 or Vulkan graphics. No original, archive importer, compiler, helper or game is obtained or executed by this guide."
+        },
+        {
+          "title": "Attach the remembered-source player",
+          "instruction": "After setup, select OpenShao.exe, set the complete extracted package directory as working directory and use the documented --no-launcher argument. Review the intent and request Play separately. The host uses its remembered game-source.toml selection and the linked game; finish any missing/invalid-source prompt, update, mod installation or restart upstream before retrying. Mortal Kombat II and The Suffering demo are explicitly unsupported; this guide does not admit them."
+        },
+        {
+          "title": "Preserve data, saves and old folder selections",
+          "instruction": "Normally keep %LOCALAPPDATA%/OpenShao for settings.toml, game-source.toml, paths.toml, logs, cache, crashes, reports and mods, and the actual Windows Saved Games/OpenShao directory for saves. Known folders may be relocated. The Files page can move data and saves independently; an existing --data-dir, --save-dir or --portable-saves changes the layout. Preserve every actual root, locator, original and older named folder before the first 0.3+ startup: upstream can move eligible legacy data/saves and rewrite their paths. This guide performs no migration, restore, backup or deletion."
+        },
+        {
+          "title": "Keep maintenance and permissions separate",
+          "instruction": "Retain the GPL-2.0-or-later project notice, exact XboxXBERecomp MIT and all SDL, font, renderer, Lua and other component notices. They do not license original game recordings, discs or separate Portuguese/mod packages. The upstream launcher owns update/download/restart and optional content. Quit normally, preserve independent recovery copies and review/relink changed executable bytes after replacement. Source/archive checks are not native, campaign, co-op, save/reload, installed-app or Supported acceptance. Removing registration preserves external files; managed lifecycle operations remain unavailable."
+        }
+      ],
+      "warnings": [
+        "The exact release-input XBE SHA1 remains Unknown. Keep both data and Saved Games roots plus legacy recovery; unsupported bundled demos are not admitted."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

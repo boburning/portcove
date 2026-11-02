@@ -3,7 +3,7 @@
   "listing": {
     "id": "supermedo-prince-of-persia-2-windows",
     "name": "Prince of Persia 2: The Shadow and the Flame (prince-of-persia-2-windows)",
-    "summary": "Upstream route: Windowsupstream launcher/recompiler generates and compiles ownDOSPRINCE.EXE locally with nativehostruntime; generatedgame code/data excluded fromsource. Source/manualbuild route exists; exact releasedZIPplayer flow follows reviewed launcher docs, not genericready-runtimeassumption. Limits: Upstream only: Upstream retains original DOS logic/render/music with a host hardware layer. Some runtime code entries remain outside compiled coverage; completion Unknown. Windows source recompiler plus native runtime; generated game sources excluded and built locally. Some dynamic entry points not translated; inspect release setup before runtime-only claims. Upstream platforms: Windows local generation/native runtime. Other OS/CPU coverage beyond selected build docs Unknown. Original data: DOS PrinceOfPersia2 original PRINCE.EXE and data. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "summary": "Attach the prepared native Windows player for the original DOS Prince of Persia 2: The Shadow and the Flame. Configure your own original game folder upstream and preserve its saves and drivers separately from player settings.",
     "original_game_title": "Prince of Persia 2: The Shadow and the Flame",
     "project_url": "https://github.com/Supermedo/prince-of-persia-2-windows",
     "platforms": [],
@@ -17,7 +17,35 @@
       "game_slug": "prince-of-persia-2-the-shadow-and-the-flame",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2814
+    "issue_number": 2814,
+    "manual_setup": {
+      "help_url": "https://github.com/Supermedo/prince-of-persia-2-windows/blob/473fb98a2ab1b87228c1f1f3ec09622c8011e5fa/README.md",
+      "steps": [
+        {
+          "title": "Prepare your own DOS original",
+          "instruction": "Use a complete player/components you are independently permitted to use and your own installed 1993 DOS Prince of Persia 2 folder, including PRINCE.EXE, matching DAT files and drivers. This is not Prince of Persia: Warrior Within. Exact supported retail revision and original executable digest remain unknown here; file existence alone does not qualify every version. Finish upstream GameDir configuration first. No original, compiler, converter, helper or game is obtained or executed here."
+        },
+        {
+          "title": "Keep the actual native release",
+          "instruction": "The inspected official v1.0 Windows ZIP contains AMD64 pop2.exe, PoP2Launcher.exe and README. Although source/build instructions recompile the original into C, this selected release already supplies the native player. Keep the full package and notices. The original DOS PRINCE.EXE is input, not the Windows registration target; the launcher and development/debug outputs are not substitutes for the ordinary player."
+        },
+        {
+          "title": "Attach the configured native game",
+          "instruction": "Select pop2.exe, use the complete player directory as working directory and leave arguments empty. Review the exact intent and request Play separately. The native entry reads pop2.ini beside the executable and uses configured GameDir; an original beside the player is a separate fallback. Never use the source’s developer-specific D: drive fallback as a suggested user path. Complete missing-data/settings prompts upstream before retrying; the native game continues in process."
+        },
+        {
+          "title": "Preserve both original and player data",
+          "instruction": "Keep the complete actual original game directory, all existing SAV files, CONFIG.DAT and driver files, plus player pop2.ini, logs and any actual external paths/recovery copies. Original-relative I/O is rooted in the configured game directory, so preserving only the Windows package is insufficient. The documented sound route substitutes configuration and SoundBlaster/AdLib driver behavior in memory; Sound=keep retains the original configuration choice. This is not universal DOS-driver compatibility or a save migration. Extra room checkpoints are not a promised durable save or backup."
+        },
+        {
+          "title": "Keep maturity, permissions and replacement explicit",
+          "instruction": "Retain applicable project/component notices and independently establish permission for the complete player and original; no blanket original-game grant is inferred from a public repository. Source notes incomplete dynamic entry coverage, and native packaging does not establish whole-game accuracy, the original timer, audio or save restoration on this host. Quit normally before upstream replacement, preserve both data locations and review/relink changed bytes. Exact original revision and native/save acceptance remain unfinished. No Supported or managed installation/update/rollback/backup/deletion outcome is offered."
+        }
+      ],
+      "warnings": [
+        "Configure GameDir to your own actual DOS installation before attachment. Keep that whole folder and its saves/drivers as well as pop2.ini; exact retail revision and whole-game acceptance remain unverified."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

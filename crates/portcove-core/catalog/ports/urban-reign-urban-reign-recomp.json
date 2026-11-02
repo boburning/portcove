@@ -3,7 +3,7 @@
   "listing": {
     "id": "urban-reign-urban-reign-recomp",
     "name": "Urban Reign (Urban Reign Recomp)",
-    "summary": "Upstream route: Windows/Linux packages; own USA PS2 ISO Limits: Beta; game SLUS-21209. Package and setup documented. Upstream platforms: Windows x86-64 ZIP and native Linux x86-64 package, glibc2.30+ with Vulkan. macOS package not established. Original data: Own Urban Reign USA PS2 disc SLUS-21209 as ISO. Select or place the image through upstream setup, which uses its original executable and game assets. Optional HD textures are separate from the required source disc; other regions/revisions are not established by reviewed README. Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted, prepared Urban Reign Windows native game with its exact USA disc executable and explicit ISO path. Preserve executable-side settings, memory cards and states; the browser launcher, optional HD packs and multiplayer claims retain separate scope.",
     "original_game_title": "Urban Reign",
     "project_url": "https://github.com/thiagordsfx/urban-reign-recomp",
     "platforms": [],
@@ -17,7 +17,35 @@
       "game_slug": "urban-reign",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2718
+    "issue_number": 2718,
+    "manual_setup": {
+      "help_url": "https://github.com/thiagordsfx/urban-reign-recomp/blob/74f22452a7c2afd1df082e5a8c41ed6943db5a3d/README.md",
+      "steps": [
+        {
+          "title": "Prepare the exact supported original upstream",
+          "instruction": "Use a complete player/components you are independently permitted to use, with your own Urban Reign PS2 USA SLUS-21209 ISO. Source requires SYSTEM.CNF to boot SLUS_212.09 and checks that ELF’s SHA256 60399090fc69ffdb4c39afd30977ab50890b0e33ed6bd9374e4d9497f4246081. This is an executable/revision contract, not a whole-ISO cryptographic fingerprint or other-region admission. Finish the upstream disc and settings flow first, preserving independent originals. No disc, BIOS, importer, helper, compiler, mod or game is obtained or executed here."
+        },
+        {
+          "title": "Keep the complete Windows player unit",
+          "instruction": "The inspected official 1.4.1 Windows ZIP contains AMD64 Urban Reign.exe and game/urban.exe with the matching PS2Recomp/PCSX2 renderer and runtime libraries, resources and notices. Keep the entire UrbanReignPC-1.4.1 package. The outer launcher and native game have distinct roles; Linux .deb/tar and their GTK/WebKit route are separate artifacts, not qualified by this Windows inspection."
+        },
+        {
+          "title": "Attach the explicit native game command",
+          "instruction": "Select game/urban.exe and use its complete game/ directory as working directory. Set --iso followed by the quoted absolute path to your already prepared supported ISO. Use the actual original path, not a literal placeholder, and keep that file in place. Review the intent and request Play separately. Source mounts and verifies that ISO, prepares its local game_data cache and runs the linked native game in the selected process. Do not attach the outer browser launcher and assume its child lifetime, add --write-settings as Play or substitute a generated ELF/module DLL."
+        },
+        {
+          "title": "Preserve the actual executable-side player roots",
+          "instruction": "Normally keep game/config.ini, controls.ini, memcards/mc0/, states/quick.state, game_data/ including derived disc/cache data, mods/, textures/ and the selected ISO. Source defaults writable data to urban.exe’s directory; an established URBAN_USER_DIR chooses another root, URBAN_MC_DIR can select external cards and an explicit quick-state path remains authoritative. Older config/control files can be converted with retained copies; keep all old/new roots and actual paths. Memory-card saves and whole-runtime states differ; do not merge other revisions. This guide performs no import, conversion, backup, restore, migration or deletion."
+        },
+        {
+          "title": "Retain optional-content and replacement ownership",
+          "instruction": "Keep project GPLv3, PS2Recomp/PCSX2, SDL and all component notices. They do not license the original Namco game, separate HD texture packs or third-party DLL mods; use only a complete copy/content you are independently permitted to use. The included CoopTool is a separate optional gameplay surface, not an eight-player or physical-controller observation. Quit the game normally before upstream replacement or data work, retain independent recovery and review/relink changed bytes. No native/installed, multiplayer, hardware, gameplay, real-save or Supported acceptance is asserted. Registration removal preserves external files; managed lifecycle operations remain unavailable."
+        }
+      ],
+      "warnings": [
+        "Select the native game/urban.exe with the real supported ISO path and preserve its actual card/state roots. Browser-launcher tracking and optional packs/multiplayer remain separate."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

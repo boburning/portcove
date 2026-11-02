@@ -3,7 +3,7 @@
   "listing": {
     "id": "south-park-tenorman-s-revenge-south-park-tr-recompiled",
     "name": "South Park: Tenorman's Revenge (South Park TR Recompiled)",
-    "summary": "Upstream route: Windows ZIP and Linux AppImage Limits: Official packages observed; owned XBLA data required. Early v0.1.0. Upstream platforms: Windows x86-64 ZIP and native Linux x86-64 AppImage, Vulkan on Linux. Upstream updater owns runtime replacement. Original data: Own South Park: Tenorman's Revenge XBLA package, title 58410B80. Its default.xex must be version 0.0.0.1 (2012-03-08), 3,870,720 bytes, SHA-1 A0E831E4B49A08E5EE8B24BB08EE3B0231FC6E04. Upstream checks title and executable; package header/license differences make container hashes owner-specific. Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted, prepared South Park: Tenorman’s Revenge Windows player with its exact owned XBLA data and upstream startup settings already saved. Normal direct play stays in process; preserve separate game, settings and Documents save roots, and finish update/restart changes upstream.",
     "original_game_title": "South Park: Tenorman's Revenge",
     "project_url": "https://github.com/TekRantGaming/south-park-tenormans-revenge-recompiled",
     "platforms": [],
@@ -17,7 +17,39 @@
       "game_slug": "south-park-tenorman-s-revenge",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2710
+    "issue_number": 2710,
+    "manual_setup": {
+      "help_url": "https://github.com/TekRantGaming/south-park-tenormans-revenge-recompiled/blob/1de5a89f6db722f922f4ead1a3ca5925da389ebd/README.md",
+      "steps": [
+        {
+          "title": "Prepare the exact owned XBLA package",
+          "instruction": "Use a complete player and components you are independently permitted to use, with your own purchased full South Park: Tenorman’s Revenge Xbox Live Arcade package, title ID 58410B80. The documented default.xex is version 0.0.0.1 (2012-03-08), 3,870,720 bytes, CRC32 1F353EBD, SHA1 A0E831E4B49A08E5EE8B24BB08EE3B0231FC6E04. The selected launcher checks title ID at package selection and executable size/CRC after import; those are not cryptographic package authentication or entitlement. Container hashes differ with owner-specific headers. Other games, revisions and title updates remain unsupported."
+        },
+        {
+          "title": "Keep the complete prepared Windows player",
+          "instruction": "The inspected official 0.1.0 Windows ZIP contains AMD64 south_park_tr.exe with rexruntime.dll, rexgpu-xenos.dll and notices. Keep the complete extracted directory. It already contains the native game program using linked Xbox 360 system/graphics services; upstream package import prepares the original data. Finish that import, settings and any initial restart outside Portcove; preserve the independent original package. No package, extractor, helper or game is obtained or executed by this guide."
+        },
+        {
+          "title": "Attach normal play after upstream settings",
+          "instruction": "In upstream setup, finish all settings and turn off the documented Show launcher at startup option. Then select south_park_tr.exe, set the complete extracted player directory as working directory and leave arguments empty. Review the intent and request Play separately, without holding Shift. With valid prepared files and that saved setting, the app continues into the linked game in process. Missing files/Shift can reopen the launcher; finish setup or restart-requiring changes outside the attached attempt. This guide uses no internal skip flag and does not promise tracking through a replacement process."
+        },
+        {
+          "title": "Preserve the distinct data roots",
+          "instruction": "Keep game/ beside the executable, south_park_tr.toml, packaged libraries/notices, logs and metadata/achievement art derived from your own package, plus the actual player save/profile root normally Documents/south_park_tr on Windows. Use the upstream About page to identify the existing root; a relocated Documents folder or configured external data/config root must also be preserved. Do not infer another South Park game’s save compatibility. This guide performs no import, migration, restore, backup or deletion."
+        },
+        {
+          "title": "Retain original and component boundaries",
+          "instruction": "Keep the actual upstream/player, ReXGlue/Xenia, SDL3, shared TRG UI and all component/font notices. The published player’s own-data setup invitation and component grants do not license the original game, another title or optional content; use only a complete copy you are independently permitted to use. No commercial-data redistribution, trial entitlement change, account, server, online or real multiplayer acceptance is provided. The two South Park games have separate title IDs, executable checks, configuration and save roots even where UI/runtime code is shared."
+        },
+        {
+          "title": "Maintain outside an attached Play attempt",
+          "instruction": "The upstream launcher owns updates: Ask, Automatic and Off are its own choices, and an update can replace files and restart. Finish update configuration and maintenance upstream, quit the actual game normally, preserve independent recovery copies and review/relink changed executable bytes. Display/presentation changes can also request a successor. Forced termination is not a save-flush guarantee. Source, archive and upstream gameplay reports are not native/installed, campaign, save/reload or Supported acceptance. Windows Direct3D 12 and Linux Vulkan remain separate claims. Removing registration preserves external files; managed lifecycle operations remain unavailable."
+        }
+      ],
+      "warnings": [
+        "Use this title’s exact purchased package and saved startup settings. Keep game/configuration and actual Documents save roots; settings restarts and upstream updates can replace the selected process."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -3,7 +3,7 @@
   "listing": {
     "id": "skies-of-arcadia-legends-skies-of-arcadia-legends-recompiled",
     "name": "Skies of Arcadia Legends (Skies of Arcadia Legends: Recompiled)",
-    "summary": "Research listing. Upstream route: Native translated game plus Dolphin hardware code; select user-facing beta rather than assume newest perf-test artifact is recommended. Limits: Beta0.83 user route; perftest artifact is not necessarily recommended. Native translated game uses Dolphin hardware code. Upstream platforms: Windows x86-64 package, Linux x86-64 AppImage/archive, macOS Apple-Silicon ARM64 archive; Android APK separate, ABI unknown in frozen research. Recommended beta differs from perftest channel. Original data: Own original USA GEAE8P / Europe GEAP8P / Japan GEAJ8P disc; multiple disc container formats. Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted, prepared Skies of Arcadia Legends Windows beta with the matching regional GameCube disc and complete runner/modules. Preserve the active data folder, regional cards, states and imported original; the performance-test build is not selected.",
     "original_game_title": "Skies of Arcadia Legends",
     "project_url": "https://github.com/ogdanimal/SkiesOfArcadiaLegends-Recomp",
     "platforms": [],
@@ -17,7 +17,35 @@
       "game_slug": "skies-of-arcadia-legends",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2895
+    "issue_number": 2895,
+    "manual_setup": {
+      "help_url": "https://github.com/ogdanimal/SkiesOfArcadiaLegends-Recomp/blob/88f81eaa11034a36b88683e0ab54b33a00cf2a91/README.md",
+      "steps": [
+        {
+          "title": "Prepare the supported regional GameCube original",
+          "instruction": "Use a complete player/components you are independently permitted to use, with your own original Skies of Arcadia Legends USA GEAE8P, Europe GEAP8P or Japan GEAJ8P GameCube release. Upstream accepts RVZ, ISO/GCM, GCZ, WIA or CISO, checks/imports the selected disc and applies its local port patch. Only one regional disc is installed at a time; Change Disc replaces that selection. Finish upstream import/settings first and keep independent originals and recovery. No disc, patcher, helper, compiler, game or optional content is obtained or executed here."
+        },
+        {
+          "title": "Keep the recommended complete beta package",
+          "instruction": "The inspected official v0.83.0-beta Windows ZIP contains AMD64 Skies of Arcadia Legends.exe, skies-run.exe, all three gGEAE8P/gGEAP8P/gGEAJ8P recomp DLLs and matching libraries/notices. This is the user beta, not the newer perftest1 release. Keep the complete extracted SkiesOfArcadiaLegends-v0.83.0-beta-windows unit; a module DLL or another region’s runner is not a standalone replacement. The selected public source binds ModernGekko edd460adad0e82b56909af1d793642c83b6d31c8 plus this title’s maintained patches."
+        },
+        {
+          "title": "Attach the supported waiting launcher",
+          "instruction": "Select Skies of Arcadia Legends.exe, use the complete extracted player directory as working directory and leave arguments empty after import. Review the intent and request Play separately, then use its Start Game/Continue action. The source launcher starts its matching sibling runner, hides its window and waits for the game process; Windows self-restarts also wait for their replacement. Keep that complete waiting route rather than guessing a private cache or runner argument. End the game normally and close any returning launcher when the session is finished. Complete disc changes, repairs, language restarts or updates upstream before retrying."
+        },
+        {
+          "title": "Preserve the actual data selection and compatible save sets",
+          "instruction": "Normally keep %LOCALAPPDATA%/Skies of Arcadia Legends with imported/patched game data, region-specific cards, save states, settings, caches and logs. An existing portable.txt selects User/ beside the program; the upstream Data folder setting can move data elsewhere and restart, so retain the actual selected external root and all former roots before maintenance. Roms/hacks have separate save states even where card files live beside original saves. Dolphin/real-card imports and cross-region transfers are distinct upstream operations. This guide performs no import, patching, conversion, move, backup, restore or deletion."
+        },
+        {
+          "title": "Keep optional originals and maintenance external",
+          "instruction": "Retain project GPLv3, ModernGekko/Dolphin and all game-module/runtime, font, audio and component notices. They do not license the original game, Dreamcast soundtrack/uncensor discs, third-party texture packs or romhacks. Optional Dreamcast features require their own originals and upstream preparation; none is fetched here. Quit normally before replacement/data work, preserve independent recovery and review/relink changed executable bytes. Upstream gameplay/device reports and performance-test results are not native/installed, campaign, real-save, physical-device or Supported acceptance here. Registration removal preserves external files; managed lifecycle operations remain unavailable."
+        }
+      ],
+      "warnings": [
+        "Use the complete user beta and matching regional import. Keep the selected data root, original discs, regional cards and separate state sets; optional Dreamcast content remains separately supplied."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

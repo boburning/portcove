@@ -3,7 +3,7 @@
   "listing": {
     "id": "ridge-racer-v-fukami",
     "name": "Ridge Racer V (Fukami)",
-    "summary": "Upstream route: Windows, macOS Apple Silicon and SteamOS 3.7+ packages; first-run CHD/CUE import Limits: PS2 USA SLUS-20002; supported user-file route with published SHA256SUMS. Other Linux distributions are explicitly untested. Upstream platforms: Windows x86-64 ZIP, macOS Apple-Silicon ARM64 ZIP, SteamOS3.7+ Linux x86-64 archive. Other Linux distributions untested upstream. Original data: Own Ridge Racer V USA PS2 disc SLUS-20002 as CHD or CUE with companion BIN. First launch checks the USA disc hashes and extracts its files. This is the original Ridge Racer V PS2 game; other regions are unsupported. Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted, prepared Fukami Windows application with your supported Ridge Racer V disc. Its native parent prepares and waits for a same-image game child; preserve actual LocalAppData, memory cards, extracted-disc data and matching resource packages.",
     "original_game_title": "Ridge Racer V",
     "project_url": "https://github.com/danisandoval/fukami",
     "platforms": [],
@@ -17,7 +17,35 @@
       "game_slug": "ridge-racer-v",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2604
+    "issue_number": 2604,
+    "manual_setup": {
+      "help_url": "https://github.com/danisandoval/fukami/blob/2ecb2810ddb742245b17fd54500bcf07d1fe6760/README.md",
+      "steps": [
+        {
+          "title": "Prepare the supported PS2 original upstream",
+          "instruction": "Use a complete player/components you are independently permitted to use, with your own Ridge Racer V USA SLUS-20002 as CHD or a complete CUE/BIN pair. The selected extractor verifies nine original files, including SLUS_200.02 at 1,295,332 bytes / SHA256 fb5b4d3f6d74384cee9da4c8b954b40a0205da0a9ae7db9e68d670156f5e706f. This is a per-file source contract, not a hash of every disc representation. Complete upstream disc selection/extraction and settings first; keep the original independently. No original, converter, extractor, helper, compiler or game is obtained or executed here."
+        },
+        {
+          "title": "Keep the complete Fukami product layout",
+          "instruction": "The inspected official 1.1.0 Windows x86-64 ZIP contains AMD64 Fukami/Fukami.exe and its matching libraries, resources/ package and share/fukami-default.ini/workload contract. Keep that full layout. It differs from a developer runtime, an extracted ELF or the macOS/Linux products. The app recognizes this complete Windows layout before applying its normal preparation and launch path."
+        },
+        {
+          "title": "Attach the prepared waiting application",
+          "instruction": "Select Fukami.exe, use its complete extracted Fukami folder as working directory and leave arguments empty. Review the exact intent and request Play separately. Source creates a same-image child with the configured environment and original ELF, waits without a play-session timer and returns its exit status; it can restart that child after an upstream settings restart. Keep that supported parent rather than inventing environment/child flags or attaching a resource DLL. Finish missing-disc preparation outside the attached attempt. The source attempts a kill-on-close job on a best-effort basis; this is not an observed universal descendant-cleanup or save-flush guarantee."
+        },
+        {
+          "title": "Preserve actual cards and resource/data roots",
+          "instruction": "Normally keep %LOCALAPPDATA%/Fukami with fukami.ini, mc/ memory cards, disc/ extracted originals, sessions/ when logging is enabled and all other player data. The real Windows known folder can be relocated; an established FUKAMI_DATA_DIR selects another per-run root. Keep the source CHD or complete CUE/BIN and any external texture/settings/card paths, plus the matching immutable resource package. Card persistence, state files and session logs are distinct. This guide changes no environment and performs no extraction, migration, backup, restore or deletion."
+        },
+        {
+          "title": "Retain notices and maintenance ownership",
+          "instruction": "Keep project GPLv3, PCSX2-derived notices, libchdr, font/icon, renderer and other shipped component terms; they do not license the original game, optional replacement packs or third-party content. Quit the actual game and its waiting app normally before upstream replacement or data work, retain independent recovery and review/relink changed executable bytes. The reported long-session stall remains an upstream limitation; static source/archive checks do not establish native/installed, whole-game, real-save, hardware or Supported acceptance. Removing registration preserves external files; managed lifecycle operations remain unavailable."
+        }
+      ],
+      "warnings": [
+        "Keep the complete Fukami app and actual memory-card/data roots. Its source waits for the same-image game child; job cleanup, real saves and gameplay were not observed here."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

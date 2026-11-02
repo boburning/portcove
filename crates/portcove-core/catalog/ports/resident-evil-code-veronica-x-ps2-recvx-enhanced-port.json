@@ -3,7 +3,7 @@
   "listing": {
     "id": "resident-evil-code-veronica-x-ps2-recvx-enhanced-port",
     "name": "Resident Evil Code: Veronica X (PS2) (RECVX Enhanced Port)",
-    "summary": "Upstream route: Different from mere underlying decomp; 32-bit executable/library requirements and optional server should be explicit. Limits: Prerelease0.6.8 native enhanced implementation;32-bit libraries and optional co-op server remain distinct. Upstream platforms: Windows x86/32-bit executable and Linux i686 package, glibc2.34+. Optional co-op server is a separate artifact. Original data: Own NTSC-U SLUS-20184 ISO; native code based on AshfordFamily/recvx-decomp with hardware interfaces emulated. Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted, prepared RECVX Enhanced Port Windows x86 player with your own NTSC-U SLUS-20184 ISO. Preserve the actual save/card and mod roots; optional co-op services, HD packs and upstream update successors remain separate.",
     "original_game_title": "Resident Evil Code: Veronica X (PS2)",
     "project_url": "https://github.com/aikatore/recvx-enhanced-port",
     "platforms": [],
@@ -17,7 +17,39 @@
       "game_slug": "resident-evil-code-veronica-x",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2600
+    "issue_number": 2600,
+    "manual_setup": {
+      "help_url": "https://github.com/aikatore/recvx-enhanced-port/blob/e8c8f8097ccc082c635d7ed7d6ad50073bc73227/README.md",
+      "steps": [
+        {
+          "title": "Prepare the supported original upstream",
+          "instruction": "Use a complete player and components you are independently permitted to use, with your own PS2 Code: Veronica X NTSC-U SLUS-20184 ISO. Finish upstream disc selection and settings before attachment and keep the original image independently. The ISO is read in place, not copied into the player. Other regions, Dreamcast versions and separately cataloged native implementations are not admitted by the shared title. No disc, helper, compiler or game is obtained or executed by this guide."
+        },
+        {
+          "title": "Keep the complete 32-bit Windows package",
+          "instruction": "The inspected official 0.7.2 release ZIP contains recvx-enhanced-port-0.7.2-windows-x86/recvx.exe with a PE machine of x86/014c. This is the normal player, not the debug archive or separately published co-op server. Keep its whole matching folder, resources and notices. Upstream documents Windows 10 or later, including 64-bit Windows, and OpenGL 3.3; package presence does not establish dependency resolution or hardware qualification."
+        },
+        {
+          "title": "Attach the remembered-disc player",
+          "instruction": "Select recvx.exe, set its complete extracted package directory as working directory and leave arguments empty after upstream setup. Review the exact intent and request Play separately. The native host loads settings and hands off to the decompiled game entry in process. If it still asks for the ISO, finish that setup outside the attached attempt. Do not select the PS2 executable, server, debug tooling or a third-party texture importer as the game."
+        },
+        {
+          "title": "Preserve the actual save and card roots",
+          "instruction": "Keep save/recvx.ini, save/saves/ individual saves, save/card0/ when the Memory Card save system is selected, mods/ and mods/textures/, recvx.log and recvx-crash.log, plus the original ISO. If the previous working directory already has save/, upstream uses that directory for data, mods and logs; an existing --save-dir selects another save root. Preserve those actual paths instead of silently changing CWD or merging copies. Card imports and separate-file saves are distinct; this guide performs no conversion, migration, backup or deletion."
+        },
+        {
+          "title": "Separate optional services and component permissions",
+          "instruction": "Retain the own-code/decompilation MIT notices and THIRD_PARTY_NOTICES, including separately licensed components. These do not license Capcom’s original game, third-party HD textures or mods. Keep only content you are independently permitted to use. HD packs are separate and are not fetched here. Co-op rendezvous/relay server, connection/password settings, randomized content and multiplayer compatibility remain upstream operations; this attachment offers no account, server or real co-op acceptance."
+        },
+        {
+          "title": "Maintain and update outside attachment",
+          "instruction": "Quit the actual game normally before replacement, card/save restore, mod changes or upstream updates. The in-app update/restart can launch a successor: finish it outside an attached Play attempt, preserve independent recovery copies and review/relink changed executable bytes. Forced termination is not a save-flush guarantee. Source and upstream playability reports are not native/installed, full-game, save/reload or Supported acceptance. Removing registration preserves external files; managed lifecycle operations remain unavailable."
+        }
+      ],
+      "warnings": [
+        "Use the normal Windows x86 player with the exact NTSC-U ISO. Preserve the actual save/card/CWD layout; HD packs, co-op servers and update successors are separate boundaries."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

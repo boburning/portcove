@@ -3,13 +3,41 @@
   "listing": {
     "id": "tekrantgaming-point-blank-recompiled",
     "name": "Point Blank (Point Blank PC Port)",
-    "summary": "Upstream route: UpstreamPointBlankWindowsZIP includes nativegame/runtime and discpicker; supplies ownCUE/BIN and runs withOpenBIOS. Source build.bat generatesC thenclang-clruntime separately. No first-launch compiler requirement is established by player instructions. Limits: Upstream only: Upstream native PSX translation and enhancement claims. All mini-games/lightguns/peripherals not independently qualified by the presence of a package. Windows10/11x64 OpenGL3.3; do not infer arcade PointBlank support from same game title. Keep optional lightgun/device claims separate. Upstream platforms: Windows10/11 x64 OpenGL3.3 ZIP; source clang-cl build. Bundled OpenBIOS replaces Sony BIOS. Original data: PS1 PointBlank USA SLUS00481 CUE/BIN own disc. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted, prepared Point Blank PlayStation Windows player with your own USA SLUS-00481 CUE/BIN. The current package contains the native player; lightgun hardware, arcade originals and earlier builder packages retain separate scope.",
     "original_game_title": "Point Blank",
     "project_url": "https://github.com/TekRantGaming/point-blank-recompiled",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/TekRantGaming/point-blank-recompiled",
-    "issue_number": 2839
+    "issue_number": 2839,
+    "manual_setup": {
+      "help_url": "https://github.com/TekRantGaming/point-blank-recompiled/blob/cf3b5fc9eb988bd2572964a5774c3828a6dcd635/README.md",
+      "steps": [
+        {
+          "title": "Prepare the exact PlayStation original upstream",
+          "instruction": "Use a complete player/components you are independently permitted to use, with your own Point Blank PlayStation USA SLUS-00481 CUE and all referenced BIN tracks. The selected profile pins data Track 01 to 297,657,360 bytes and SHA1 367a96937bfbe19ce5089c0b364f513cbe07dd1e; boot executable is SLUS_004.81. A track digest is not a whole-CUE/container signature or permission to obtain the original. Arcade Point Blank and other regions are different sources. Finish Browse For Disc verification, optional Install To Game Folder and settings upstream."
+        },
+        {
+          "title": "Keep the native player package",
+          "instruction": "The inspected official 1.1.0 Windows x64 ZIP contains AMD64 PointBlank_Recompiled.exe, its matching libraries/resources, OpenBIOS and notices. It differs from the earlier 1.0.0 builder package. Use the complete folder; no Sony BIOS is needed for the bundled OpenBIOS route. Exact framework pins are psxrecomp a916ed52e00f364a8615b97cd597858aa7f385dc and recomp-ui 47efe197de035685dafad5331a1d56ec7c07c304. No original, BIOS, converter, compiler, helper or game is obtained or executed by this guide."
+        },
+        {
+          "title": "Attach the prepared direct player",
+          "instruction": "Select PointBlank_Recompiled.exe, use the complete extracted PointBlank-PC-Port-v1.1.0-windows-x64 folder as working directory and set the documented --no-launcher argument. Review the intent and request Play separately. The integrated launcher and native runtime share the selected process; complete any disc/BIOS/setup prompt upstream first. Do not select an original PS-X executable or an obsolete build wrapper. The runtime reads the remembered source/configuration; keep installed disc files and any external originals in place."
+        },
+        {
+          "title": "Preserve settings, cards and optional device choices",
+          "instruction": "Keep settings.toml, game.toml/game_options.toml, saves/ with both memory-card slots and their configured external paths, mods/ and its state, captures and original CUE/BIN. Source memory-card paths can override the default saves folder; preserve the actual configuration and all prior CWD roots. Card files are distinct from runtime save states. The mouse/controller GunCon emulation is an upstream software feature, not observed physical lightgun or two-player qualification. Online track/TOC identity gates and peers remain separate, untested requirements."
+        },
+        {
+          "title": "Keep rights and maintenance explicit",
+          "instruction": "Retain PSXRecomp PolyForm Noncommercial 1.0.0, exact recomp-ui MIT, OpenBIOS and SDL/ImGui/component notices; they do not license the original Namco game, proprietary BIOS or third-party artwork/mods. Keep only a complete copy you are independently permitted to use. Quit normally before upstream replacement or card/data changes, preserve recovery copies and review/relink changed executable bytes. No native/installed, real-save, hardware, gameplay or Supported acceptance is asserted. Removing registration preserves external files; managed lifecycle operations remain unavailable."
+        }
+      ],
+      "warnings": [
+        "Use the prepared 1.1.0 PlayStation player and complete USA CUE/BIN. Preserve actual memory-card paths; arcade and physical-lightgun acceptance remain separate."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

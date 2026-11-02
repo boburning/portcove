@@ -3,7 +3,7 @@
   "listing": {
     "id": "roman215-weltall",
     "name": "Xenogears (Weltall)",
-    "summary": "Upstream route: Upstream runtime package for Weltall; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Upstream says both discs playable. BIN/CUE/CHD preserve movie audio; ISO/IMG lose it. Complete coverage remains an upstream claim. UE5 recreation; Japanese retail discs not playable, ISO/IMG lose movie sound vs BIN/CUE/CHD. Both discs upstream-playable claim, no Portcove qualification. Upstream platforms: Windows 10/11 x64 D3D12 and Linux 64-bit. USA/supported English undubs; Japanese retail discs unplayable. Original data: PS1 Xenogears USA or supported English undub own two discs. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted, prepared Weltall Windows native game with your own supported Xenogears discs. Preserve the full Unreal Engine package, original disc representations and LocalAppData saves/settings; optional undubs and translations retain separate terms.",
     "original_game_title": "Xenogears",
     "project_url": "https://github.com/Roman215/Weltall",
     "platforms": [],
@@ -17,7 +17,35 @@
       "game_slug": "xenogears",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2786
+    "issue_number": 2786,
+    "manual_setup": {
+      "help_url": "https://github.com/Roman215/Weltall/blob/1cb16a61505ca87088105325549f218b7d8cb8dd/README.md",
+      "steps": [
+        {
+          "title": "Prepare the exact supported originals",
+          "instruction": "Use a complete player/components you are independently permitted to use, with your own Xenogears USA PlayStation discs. Source identifies Disc 1 SLUS_006.64 executable SHA1 560bbdbeb9264c935294ecad5a3d4ab230a006a9 and Disc 2 SLUS_006.69 a378608389f04456925c6afaccb644ab90eaff30. These are executable fingerprints, not whole-image signatures. Keep full CUE/BIN or CHD images for movie audio; upstream accepts ISO/IMG but movies are silent with those representations. Supported independently permitted undubs/text patches are separate inputs. Japanese retail discs can be inspected upstream but are not playable originals for this route."
+        },
+        {
+          "title": "Keep the full native Windows package",
+          "instruction": "The inspected official 0.8.5 Windows ZIP contains AMD64 Weltall.exe and Weltall/Binaries/Win64/Weltall-Win64-Shipping.exe with matching Engine/, content and libraries. This is the Unreal Engine 5 recreation, not an original PlayStation executable or a generic PSX-emulator admission. Keep the complete package and place your originals in its documented Games/ tree, or retain an existing explicitly selected Games directory. No disc, patch, helper, compiler or game is obtained or executed here."
+        },
+        {
+          "title": "Attach the actual native game entry",
+          "instruction": "After completing upstream disc recognition and settings, select Weltall/Binaries/Win64/Weltall-Win64-Shipping.exe, set the complete extracted package root as working directory and leave arguments empty. The public package-check producer also selects that native binaries entry; do not add its diagnostic null-renderer/sound arguments to normal Play. The game source resolves packaged Games/ from the package root, with an existing -Games= override taking precedence. Review the exact intent and request Play separately. The outer bootstrap’s lifetime is not qualified by this selection; keep all packaged files in place."
+        },
+        {
+          "title": "Preserve player data and both disc paths",
+          "instruction": "Keep the actual %LOCALAPPDATA%/Weltall tree, including Saves, settings, Saved/Crashes and logs, plus the complete package, Games/ originals, optional Assets/ replacements and any configured external paths. Options can import individual or memory-card saves and export .mcr cards under Saves/Cards; these are upstream operations, not observed conversion/restore compatibility. Disc swaps and Disc 2-only starts follow the original progression requirements. Keep independent old/new recovery before replacing or importing data; this guide performs no import, conversion, backup, restore, migration or deletion."
+        },
+        {
+          "title": "Keep rights and acceptance explicit",
+          "instruction": "Retain project MIT and all Unreal Engine/Epic and packaged component notices; the own-code license does not license the original Square game, other-game content or third-party mods. Use only a complete copy and optional content you are independently permitted to use. Quit the actual game normally before upstream replacement/data work, preserve recovery and review/relink changed executable bytes. Upstream both-disc, automated-map/battle and partial-playthrough reports are not our full-campaign, native/installed, physical-device, real-save or Supported acceptance. Android/Linux and optional story extensions remain separate. Registration removal preserves external files; managed lifecycle operations remain unavailable."
+        }
+      ],
+      "warnings": [
+        "Keep the full Unreal package, supported originals and actual Weltall data. Select the native Shipping entry; bootstrap, optional patches, movie-audio formats and save imports have separate scope."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

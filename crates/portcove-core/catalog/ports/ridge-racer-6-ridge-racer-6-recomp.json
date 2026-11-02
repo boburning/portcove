@@ -3,7 +3,7 @@
   "listing": {
     "id": "ridge-racer-6-ridge-racer-6-recomp",
     "name": "Ridge Racer 6 (Ridge Racer 6 Recomp)",
-    "summary": "Upstream route: Windows package and disc-import launcher Limits: Early Windows test release; Linux test-channel metadata is not a stable player-route pass. Upstream platforms: Windows10/11 x86-64 portable ZIP; separate experimental Linux test channel exists, selected Linux artifact CPU not established by frozen release evidence. Original data: Own USA Xbox 360 Ridge Racer 6 disc, title 4E4D07D3, as ISO. RR6 Launcher checks and extracts the disc once; the ISO is then unnecessary. Other regions are not accepted. Exact accepted default.xex revision/hash is not established by the reviewed README. Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted, prepared Ridge Racer 6 Windows native game with its exact USA executable and explicit prepared game folder. Preserve the actual Documents data root; the official asset’s internal TestBuild-09 folder label differs from its 0.1.5 release tag.",
     "original_game_title": "Ridge Racer 6",
     "project_url": "https://github.com/Sirhalo23/RidgeRacer6-Recompilation",
     "platforms": [],
@@ -17,7 +17,35 @@
       "game_slug": "ridge-racer-6",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2601
+    "issue_number": 2601,
+    "manual_setup": {
+      "help_url": "https://github.com/Sirhalo23/RidgeRacer6-Recompilation/blob/1ef2f480553d65bbb2e37a05621b22da161ae8c3/README.md",
+      "steps": [
+        {
+          "title": "Prepare the precise supported original upstream",
+          "instruction": "Use a complete player/components you are independently permitted to use, with your own Xbox 360 Ridge Racer 6 USA original, title 4E4D07D3. The selected source pins default.xex SHA256 39D3C0004EC62AEB0FE3E7E1889CF25D98FBD27987B6BC6B5FF30A56FFBA6C00. Finish the upstream launcher’s ISO/extracted-game preparation and settings before attachment, keeping the independent original and complete game/ data. A matching title ID alone does not qualify another revision, region or update. No ISO, extractor, helper, compiler or game is obtained or executed here."
+        },
+        {
+          "title": "Keep the actual complete Windows package",
+          "instruction": "The inspected official v0.1.5 RidgeRacer6-PC-v0.1.5.zip contains AMD64 RR6 Launcher.exe and bin/rr6_recomp.exe with matching runtime/GPU libraries. Its internal root is RidgeRacer6-PC-TestBuild-09; use the files actually present rather than inventing a renamed layout from the tag. Keep the full package and its bin/rr6_recomp.toml, game/ and notices. Separate Linux test releases and historical antivirus reports do not establish this Windows artifact’s runtime or safety."
+        },
+        {
+          "title": "Attach the native fallback command after preparation",
+          "instruction": "Select bin/rr6_recomp.exe, use the complete extracted package root as working directory, and supply --game_data_root with the quoted absolute path to its already prepared game folder, plus --gpu_plugin=xenos and --log_file with the quoted absolute path to this installation’s existing logs/run.log. Use your actual paths, not literal placeholders. This is the selected source’s normal native command and documented no-launcher fallback, with preparation already finished; do not attach the BAT, which starts a child and exits. Review the intent and request Play separately. Diagnostics, DLC import and missing-game repair are separate upstream operations."
+        },
+        {
+          "title": "Preserve the actual Documents root",
+          "instruction": "Keep the real Windows Documents/rr6_recomp directory, including profile/content trees, saves, achievements and caches, plus bin/rr6_recomp.toml, launcher preferences, logs, game/ and original images. Documents can be redirected. The selected launcher source says a TOML user_data_root line does not change this runtime default; an existing explicit CLI user-data override does, so preserve whichever root the player actually used. Do not assume bin/ or the program root holds saves, merge other revisions, or follow cleanup instructions on another install’s thumbnails/caches. This guide performs no import, backup, restore, migration or deletion."
+        },
+        {
+          "title": "Maintain the complete external unit",
+          "instruction": "Retain own-code BSD-3-Clause, the exact ReXGlue fork/Xenia and SDL/renderer/component notices; their terms do not license the original Bandai Namco game, DLC or imported saves. The Windows launcher owns setup and optional content; current online modes are unavailable. Quit the actual game normally before upstream replacement/data changes, keep independent recovery and review/relink changed executable bytes. No native/installed, Linux, gameplay, DLC, real-save or Supported acceptance is asserted. Removing registration preserves external files; managed lifecycle operations remain unavailable."
+        }
+      ],
+      "warnings": [
+        "Use the actual 0.1.5 package layout and already prepared game paths. Preserve redirected Documents data; the no-launcher BAT is not a wait-through-game executable."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

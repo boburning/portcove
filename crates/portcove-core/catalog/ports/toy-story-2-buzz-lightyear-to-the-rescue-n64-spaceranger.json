@@ -3,13 +3,45 @@
   "listing": {
     "id": "toy-story-2-buzz-lightyear-to-the-rescue-n64-spaceranger",
     "name": "Toy Story 2: Buzz Lightyear to the Rescue! (N64) (SpaceRanger)",
-    "summary": "Upstream route: Windows N64Recomp package; own USA ROM Limits: Early0.1.0 prerelease; upstream says start-to-finish playable with rough edges. Upstream platforms: Windows10/11 x86-64 runtime ZIP. Linux is planned rather than an established player package. Original data: Own North American/USA Toy Story 2: Buzz Lightyear to the Rescue N64 dump. Upstream loads assets directly from .z64, .n64 or .v64, selected by the launcher or placed beside SpaceRanger.exe. Exact supported revision/digest is not specified in reviewed README. Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted, prepared SpaceRanger Windows player for your own Toy Story 2 N64 USA Rev0 ROM. Keep the complete portable spaceranger-config tree; byte-order normalization, title-specific frontend patches and unqualified save/gameplay behavior remain explicit.",
     "original_game_title": "Toy Story 2: Buzz Lightyear to the Rescue! (N64)",
     "project_url": "https://github.com/Capridog/SpaceRanger",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/Capridog/SpaceRanger",
-    "issue_number": 2618
+    "issue_number": 2618,
+    "manual_setup": {
+      "help_url": "https://github.com/woodys-workshop/SpaceRanger/blob/0b7b3dd20d75441c40005ee468d375c230d431d0/README.md",
+      "steps": [
+        {
+          "title": "Prepare the exact USA Rev0 source",
+          "instruction": "Use a complete player and components you are independently permitted to use, with your own Toy Story 2: Buzz Lightyear to the Rescue N64 USA Rev0 ROM. The selected game registration checks normalized ROM bytes with XXH3-64 FD53C5EC8CE2530A; this is the actual revision-matching digest, not a SHA1, ownership test or package signature. The pinned runtime normalizes supported .z64/.v64/.n64 byte orders first. Other regions, revisions and console editions remain unsupported. Finish Load ROM upstream before attachment and retain the independent original."
+        },
+        {
+          "title": "Keep the complete Windows player",
+          "instruction": "The inspected official 0.1.0 ZIP contains SpaceRanger/SpaceRanger.exe as an AMD64 native player with matching libraries and assets. Keep the full SpaceRanger folder. Its source combines recompiled game code with title-specific runtime/frontend bridges and RT64; a source build regenerating private game code is a separate route. Do not select a ROM, build script, overlay diagnostic or another title’s player. This guide obtains or executes no original, helper, compiler or game."
+        },
+        {
+          "title": "Attach the ordinary title-screen route",
+          "instruction": "Select SpaceRanger.exe, use the complete extracted SpaceRanger directory as working directory and leave arguments empty. Review the intent and request Play separately, then use the upstream Start Game option with the already validated ROM. The normal native entry sets its directory, initializes the UI and runs the linked runtime in process. Asset checks, overlay checks, input replay and TS2_AUTOSTART are different diagnostic paths; this guide enables none. Complete missing data/setup outside the attached attempt."
+        },
+        {
+          "title": "Preserve the whole portable tree",
+          "instruction": "Keep spaceranger-config beside SpaceRanger.exe, including its validated ROM copy, settings and any existing player data, plus assets, logs and previously established external paths. The source explicitly registers that portable root and declares no cartridge save type; neither that declaration nor a directory’s presence establishes real game-save, Controller Pak or restore support. Upstream’s FAQ reset deletes the whole spaceranger-config folder to reselect a ROM: retain complete independent recovery copies before any upstream reset, and do not treat registration removal as such a reset. This guide performs no deletion, migration, backup or save conversion."
+        },
+        {
+          "title": "Keep exact dependency and font terms",
+          "instruction": "Retain the project LGPLv3 notice and each runtime/renderer/frontend/component notice. The dependency manifest identifies official RecompFrontend base b1a1477c6556aeb7ed45defbfb5924f721efebc1, covered by the existing unchanged-base license follow-up, plus this title’s separate authored patch; the base grant does not license unrelated forks or original Disney/Pixar game data. Keep the Inter, Noto Emoji, PromptFont, renamed Fredoka and Bungee OFL notices and credits. Use only components you are independently permitted to use; source bindings are not binary reproducibility or a broader permission grant."
+        },
+        {
+          "title": "Maintain the external beta and its limits",
+          "instruction": "Quit the actual game normally before upstream replacement or ROM/config operations. Preserve recovery copies and review/relink changed executable bytes; forced termination is not a save-flush guarantee. Upstream records a possible band on Buzz, incomplete interpolation and pacing tested mainly on one PC; all-level testing and Linux support remain planned. No native/installed, campaign, save/reload or Supported acceptance is asserted. Removing registration preserves external files; managed lifecycle operations remain unavailable."
+        }
+      ],
+      "warnings": [
+        "Keep spaceranger-config intact; it includes the validated ROM and settings/player data. USA Rev0 matching and static Windows observations do not qualify saves, all levels or another platform."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

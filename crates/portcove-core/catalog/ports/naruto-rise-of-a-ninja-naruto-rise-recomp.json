@@ -3,7 +3,7 @@
   "listing": {
     "id": "naruto-rise-of-a-ninja-naruto-rise-recomp",
     "name": "Naruto: Rise of a Ninja (Naruto Rise Recomp)",
-    "summary": "Upstream route: Windows package/installer; original game data Limits: Work in progress with possible bugs/crashes/visual issues; new native renderer and legacy fallback differ. Upstream platforms: Windows x86-64 installer/runtime. Other platform presets are explicitly incomplete/unverified rather than established player routes. Original data: Own Naruto: Rise of a Ninja Xbox 360 disc image or extracted full game folder containing default.xex. Upstream installer can import ISO or the launcher can select existing game/. DLC is separate player-supplied content. Reviewed README does not pin accepted region, media ID, executable revision or digest. Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted, prepared Naruto: Rise of a Ninja Windows ZIP player directly after upstream setup. Preserve the selected data descriptor, guest saves/content and migration journals; this release offers update notices rather than replacing itself.",
     "original_game_title": "Naruto: Rise of a Ninja",
     "project_url": "https://github.com/jorjbarbosa/naruto-rise-recomp",
     "platforms": [],
@@ -17,7 +17,35 @@
       "game_slug": "naruto-rise-of-a-ninja",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2695
+    "issue_number": 2695,
+    "manual_setup": {
+      "help_url": "https://github.com/jorjbarbosa/naruto-rise-recomp/blob/421bd5500059cf2d00f37276949d51db767f76b8/README.md",
+      "steps": [
+        {
+          "title": "Prepare the exact supported executable upstream",
+          "instruction": "Use your own complete Xbox 360 Naruto: Rise of a Ninja original and a complete player/components you are independently permitted to use. The selected source identifies title 555307E5 and default.xex XXH3-128 8ff9ceaf48411fcc02a1f75205a9fbf6, plus required ai2c.dll, naruto.bf, xeshader.sdb, soundxe.big and soundxe.fat. The full source manifest calls its reference disc US-2021 / USA, Europe. This is a revision-specific noncryptographic compatibility check, not authentication or an acceptance of every region/title update; a separate media-ID/cryptographic release-input digest remains Unknown. Finish the upstream ISO or complete-folder picker and settings before attachment."
+        },
+        {
+          "title": "Use the matching direct ZIP player",
+          "instruction": "The inspected official 0.4.2-beta Windows ZIP contains AMD64 narutorise.exe, crashpad_handler.exe and matching renderer/runtime libraries, defaults and notices. The GitHub release is not flagged prerelease despite beta in its tag. Keep the complete package; do not select the crash handler or the separate compatibility installer for old 0.3 installations. The normal player reads the original ISO in place or uses a complete extracted copy. No original, bridge, extractor, helper, compiler or game is obtained or executed here."
+        },
+        {
+          "title": "Attach the already configured normal player",
+          "instruction": "In upstream settings, finish source selection and turn Show menu at startup off. Select narutorise.exe, use its complete extracted package folder as working directory and leave arguments empty. Review the exact intent and request Play separately without holding Shift. The normal native app continues into its linked game; --setup and missing-source dialogs are preparation, not an attached gameplay observation. Renderer, DLC and restart-required settings remain upstream choices."
+        },
+        {
+          "title": "Keep the complete active data contract",
+          "instruction": "Normally the Windows ZIP uses data/ beside narutorise.exe; keep narutorise.toml, user/ guest saves/content/profiles/achievements, mods/, dlc/, logs/, incidents/, incident-exports/, cache and .narutorise-migration/ recovery. Keep data_location.json both beside the distribution and any actual LocalAppData/narutorise selection, plus explicit guest/cache/log roots and external originals. Folder changes take effect after restart and verified copying, retaining the source; eligible old root-level guest trees can instead move into user/. Conflicting trees block startup. Preserve all old/new roots and journals rather than resetting them or deleting a live lock."
+        },
+        {
+          "title": "Preserve active translations and external maintenance",
+          "instruction": "The immutable defaults/mods/pt-br seed does not overwrite an existing active translation; deliberate merges, other mods and original assets need their own terms. Retain project GPL-3.0-only and all SDK, RmlUi, FreeType, Roboto/OFL and renderer notices. The current app only checks/releases update notices: it does not download/install replacement. Close it before manual package replacement, preserve active data and selection descriptors, and review/relink changed bytes. The old-install bridge is separate upstream maintenance. No report upload, credentials, native/installed, gameplay, DLC, real-save or Supported acceptance is asserted. Registration removal preserves external files; managed lifecycle operations remain unavailable."
+        }
+      ],
+      "warnings": [
+        "Keep active data, explicit guest roots, selection descriptors and migration journals. The media-ID/cryptographic original digest and all native/gameplay observations remain Unknown."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

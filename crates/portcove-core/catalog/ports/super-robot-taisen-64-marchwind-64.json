@@ -3,7 +3,7 @@
   "listing": {
     "id": "super-robot-taisen-64-marchwind-64",
     "name": "Super Robot Taisen 64 (Marchwind 64)",
-    "summary": "Upstream route: Windows (experimental), Linux and macOS Apple Silicon packages; owned JP ROM Limits: Normal release0.4.10 distinct from Vulkan test tags; Windows/SteamDeck/Android experimental. Upstream platforms: Windows x86-64 experimental package, Linux package and macOS Apple-Silicon ARM64 package; Linux CPU unknown in frozen research. Android/SteamDeck experimental. Original data: Own Super Robot Taisen 64 Japanese N64 revision 0 cartridge dump. The runtime loads player-supplied game data; English/Chinese translation support is an optional port feature, not a requirement to obtain a patched commercial ROM. The reviewed README does not itself establish the complete accepted ROM digest. Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted, prepared Marchwind64 Windows player for the exact Japanese Rev0 Super Robot Taisen 64 ROM. Preserve the chosen LocalAppData or user-data layout and both sides of confirmed synchronization; the latest voice-mod tag is not the player package.",
     "original_game_title": "Super Robot Taisen 64",
     "project_url": "https://github.com/dyzz/srw64-recomp",
     "platforms": [],
@@ -17,7 +17,35 @@
       "game_slug": "super-robot-taisen-64",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2614
+    "issue_number": 2614,
+    "manual_setup": {
+      "help_url": "https://github.com/dyzz/srw64-recomp/blob/96507db6e1484c213c73dede8882541f7cd3e709/README.md",
+      "steps": [
+        {
+          "title": "Prepare the exact Japanese Rev0 original",
+          "instruction": "Use a complete player/components you are independently permitted to use, with your own Super Robot Taisen 64 Japan Rev0 N64 ROM. The selected variant pins normalized ROM SHA256 ee5f4a21d8e5f7827d21199e27800edf250df9a8e4d10befb1a6992df597b13e and XXH3-64 bb8703e9d7c77f4f, game ID srw64-jp-rev0. Upstream normalizes accepted N64 byte orders; these are not identical raw-file hashes for every representation. Finish upstream original selection and derived-data preparation first. No ROM, converter, helper, compiler, art/voice pack or game is obtained or executed here."
+        },
+        {
+          "title": "Keep the actual player release",
+          "instruction": "The inspected official 0.5.2 Windows x64 ZIP contains AMD64 Marchwind64-windows-x64/Marchwind64.exe and matching runtime resources/notices. The newer mod-battle-voices-originals-ai-1.0.0 release contains a voice mod, not this player. Keep the full player package. HD art and optional voice mods are separate downloads with their own terms; the original pixel-art route does not require them. Windows and other handheld/device support remains experimental upstream."
+        },
+        {
+          "title": "Attach the already configured normal player",
+          "instruction": "Select Marchwind64.exe, use the complete Marchwind64-windows-x64 directory as working directory and leave arguments empty after upstream setup. Review the exact intent and request Play separately. The native desktop entry uses the remembered/validated original and continues into the linked runtime/UI. Complete missing-ROM, preparation or conflicting-data prompts upstream before retrying; do not add debug-server, sample campaign, probe, save-export or mod-preparation arguments to normal Play."
+        },
+        {
+          "title": "Preserve system, local and synchronized copies",
+          "instruction": "Without an existing portable choice, Windows uses %LOCALAPPDATA%/SRW64Recomp. An already existing user-data/ beside the program opts into local precedence; missing settings and complete absent save/campaign groups can be imported from the system root, while existing local groups are not silently merged. Normal exit can synchronize present local groups back to the system root, with confirmation and sync-backups before replacing different data. Keep both roots, sync-backups, presentation.json, rules.json, input.json, saves/, campaigns/, retained/derived ROM data and actual external paths. An existing --user-dir selects one root without automatic import/sync. This guide creates no marker and performs no synchronization, conversion, backup, restore or deletion."
+        },
+        {
+          "title": "Retain component and maintenance boundaries",
+          "instruction": "Keep project GPLv3, RT64/N64 runtime, RmlUi, font, shader and other component notices. The renderer dependency declares the exact official RecompFrontend b1a1477c6556aeb7ed45defbfb5924f721efebc1 base; its later official GPL notice/grant does not license original game, independent modifications, fonts or optional art/voices by itself. Quit the actual game normally and allow upstream confirmation/sync to finish before replacement, keep recovery and review/relink changed bytes. No native/installed, campaign, physical Windows/handheld, real-save, sync/restore or Supported observation is asserted. Registration removal preserves external files; managed lifecycle operations remain unavailable."
+        }
+      ],
+      "warnings": [
+        "Select the 0.5.2 player, not a voice-mod release. Keep both system and existing user-data roots with sync-backups; explicit user-dir and normal-exit synchronization differ."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

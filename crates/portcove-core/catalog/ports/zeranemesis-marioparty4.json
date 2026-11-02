@@ -3,13 +3,41 @@
   "listing": {
     "id": "zeranemesis-marioparty4",
     "name": "Mario Party 4 (Party Board (zeranemesis port))",
-    "summary": "Upstream route: UpstreamPartyBoard runtime may be installed/launched/updated throughCubeShelf, or selected platformZIP/AppImage/APKdirectly. Per-game owner-data setup remains upstream. Windowsbatchlauncher and onlinecommands belong to this maintainedfork; no Portcove updateownership. Limits: Upstream only: Upstream native/netplay claims and bounded scripted/human labels. Latest assets cover only some platforms; multi-device qualification not inherited. Multi-platform and MetaQuest packaging; first tag v0.20 assets Linux/Android/Quest only, older/latest-compatible tag needed Windows/macOS. CubeShelf owns launcher path. Upstream platforms: Windows/CubeShelf, Linux AppImage, macOS Intel/AppleSilicon, Android phone/Quest. Switch source build not run on console. Original data: GameCube MarioParty4 own supported USA disc for multiplayer matching. Exact source revision/hash and BIOS/firmware requirements not stated above remain Unknown in this review. Portcove setup/gameplay not verified.",
+    "summary": "Attach the prepared PartyBoard Windows player for the packaged Mario Party 4 USA or Europe revisions. Select the native player rather than the detached script or optional online companion, and preserve its SDL preference root and regional memory cards.",
     "original_game_title": "Mario Party 4",
     "project_url": "https://github.com/zeranemesis/Marioparty4",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/zeranemesis/Marioparty4",
-    "issue_number": 2850
+    "issue_number": 2850,
+    "manual_setup": {
+      "help_url": "https://github.com/zeranemesis/Marioparty4/blob/2fedc7553c1aab52cef671080e04ee44da9832aa/README.md",
+      "steps": [
+        {
+          "title": "Prepare a supported original revision",
+          "instruction": "Use a complete player/components you are independently permitted to use and your own GameCube Mario Party 4 disc. The inspected v0.21.0 package manifest offers GMPE01_00, GMPE01_01 and GMPP01_02: USA revisions 0/1 and Europe revision 2. A recognized Japanese or other European revision is not thereby supplied with a compatible package module. Finish upstream disc verification/import first. ISO/RVZ/WIA/GCZ input verification hashes the decoded disc stream through Nod, not arbitrary compressed-container bytes. No disc, converter, helper or game is executed here."
+        },
+        {
+          "title": "Keep the complete selected player",
+          "instruction": "The actual official v0.21.0 Windows ZIP contains AMD64 partyboard.exe, PartyBoardOnline.exe, regional game modules and runtime resources. Its manifest binds source 2fedc7553c1aab52cef671080e04ee44da9832aa. Older README version labels and the initial release’s missing Windows/macOS packages do not describe this selected artifact. Keep the complete extracted unit; a regional module or the optional online companion is not the ordinary player."
+        },
+        {
+          "title": "Attach the normal native game",
+          "instruction": "Select partyboard.exe, use its full package directory as working directory and leave arguments empty after upstream disc setup. Review the exact intent and request Play separately. Native main enters the normal port/UI in process. Lancer PartyBoard.cmd uses start and detaches, so do not select that script. Finish setup and original selection upstream, then return to the ordinary player; do not use test-profile, headless or online-test options as normal Play."
+        },
+        {
+          "title": "Preserve the active SDL data root",
+          "instruction": "Windows resolves the normal configuration root with SDL_GetPrefPath(\"MarioPartyRD\", \"Party Board\"), normally the roaming AppData MarioPartyRD/Party Board directory. Preserve the actual returned root, preferences, memory cards, achievements, pipeline cache, imported/original disc paths and existing recovery copies. Test-profile environment overrides are test isolation, not a portable-data recommendation. Keep regional cards and online/offline preferences distinct; no save conversion, backup, restore or folder removal is performed."
+        },
+        {
+          "title": "Keep online, permission and maintenance limits explicit",
+          "instruction": "Retain project, Aurora, libco, MusyX, Dolphin AX reference and other component notices; no blanket license for Nintendo originals is inferred. Online/RetroAchievements login, credentials and external installer operations remain upstream and are not performed here. Online matching has revision-specific requirements, including USA revision 1 rather than revision 0; package availability does not prove multiplayer compatibility. Quit normally before upstream replacement, preserve data/recovery and review/relink changed bytes. No native/physical, real-save, online, Supported or managed lifecycle observation is asserted."
+        }
+      ],
+      "warnings": [
+        "Select partyboard.exe: the bundled command script detaches. Preserve the actual SDL preference root and regional cards; supported local disc revisions do not establish online compatibility."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
