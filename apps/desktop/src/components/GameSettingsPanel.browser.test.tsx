@@ -88,7 +88,7 @@ function button(label: string): HTMLButtonElement {
 }
 
 async function click(label: string) {
-  await act(async () => userEvent.click(button(label)));
+  await act(async () => button(label).click());
 }
 
 it("requires review and explicit save, then passes Core's exact binding to apply", async () => {

@@ -4,7 +4,7 @@
     "id": "pc-thequeenofduellist-vs-sr-dev-the-queen-of-duellist",
     "name": "The Queen of Duellist — pc-thequeenofduellist (vs-sr-dev)",
     "original_game_title": "The Queen of Duellist",
-    "summary": "Experimental project. one fight reached from the title screen plus boundedimage/audio comparisons; restgamepending; MAMEisoracle not deliveryruntime. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "Experimental project. The project reports one fight reached from the title screen and limited image/audio comparisons. The rest of the game remains unfinished. MAME supplies reference results rather than the delivered runtime. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/vs-sr-dev/pc-thequeenofduellist",
     "platforms": [],
     "availability": "unknown",

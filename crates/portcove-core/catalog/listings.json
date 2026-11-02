@@ -14407,7 +14407,7 @@
     {
       "id": "danilopaulinodasilva-kof98recomp",
       "name": "The King of Fighters '98 (KOF'98 Recomp)",
-      "summary": "An alpha King of Fighters ’98 port with project-reported sound and CPU team matches. Boss fights and broader controllers remain untested, and Windows setup has explicitly not been tried. Only KOF ’98 is implemented, rather than every KOF 94–2003 game; Metal Slug is framework ancestry. The Windows/Linux/macOS KOF98-Installer downloads the project and toolchain and builds from your own Neo Geo AES kof98h.zip and neogeo.zip BIOS sets, then opens the player. Manual Setup.cmd/source instructions are alternatives. The project’s launcher manages setup and updates. Exact installer architecture, accepted file revisions/hashes and further BIOS/firmware requirements are unconfirmed. Portcove has not confirmed setup or gameplay.",
+      "summary": "An alpha King of Fighters ’98 port with project-reported sound and CPU team matches. Boss fights and broader controller support remain unconfirmed, and Windows setup has explicitly not been tried. Only KOF ’98 is implemented, rather than every KOF 94–2003 game; Metal Slug is framework ancestry. The Windows/Linux/macOS KOF98-Installer downloads the project and toolchain and builds from your own Neo Geo AES kof98h.zip and neogeo.zip BIOS sets, then opens the player. Manual Setup.cmd/source instructions are alternatives. The project’s launcher manages setup and updates. Exact installer architecture, accepted file revisions/hashes and further BIOS/firmware requirements are unconfirmed. Portcove has not confirmed setup or gameplay.",
       "original_game_title": "The King of Fighters '98",
       "project_url": "https://github.com/danilopaulinodasilva/kof98recomp",
       "platforms": [],
@@ -28678,7 +28678,7 @@
       "id": "mhforever-mango77x-monster-hunter-freedom-unite",
       "name": "Monster Hunter Freedom Unite — MHForever (Mango77x)",
       "original_game_title": "Monster Hunter Freedom Unite",
-      "summary": "Only MHFUEurope supported; playableclaimed, other planned games/regions are not targets. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+      "summary": "Only the European Monster Hunter Freedom Unite is supported by this project. The project describes it as playable; other planned games and regions are not supported targets. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/Mango77x/MHForever",
       "platforms": [],
       "availability": "unknown",
@@ -28714,7 +28714,7 @@
       "id": "mhfu-pc-kiridor123-monster-hunter-freedom-unite",
       "name": "Monster Hunter Freedom Unite — MHFU-PC (Kiridor123)",
       "original_game_title": "Monster Hunter Freedom Unite",
-      "summary": "Pokke uses native ahead-of-time compilation and Vulkan/SDL3; gameplay/save reports are upstream claims only; EU MHForever uses a different sourceedition. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+      "summary": "Pokke uses native ahead-of-time compilation with Vulkan and SDL3. Gameplay and save reports are the project’s claims. MHForever uses a different European source edition. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/Kiridor123/MHFU-PC",
       "platforms": [],
       "availability": "unknown",
@@ -33344,7 +33344,7 @@
       "id": "pc-abelsmt-vs-sr-dev-abel-shin-mokushiroku-taisen",
       "name": "ABEL: Shin Mokushiroku Taisen — pc-abelsmt (vs-sr-dev)",
       "original_game_title": "ABEL: Shin Mokushiroku Taisen",
-      "summary": "Experimental project. Opening/ending/firstroom parity, CPU35%speed visualestimate; firstdungeon/save/English translation pending. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+      "summary": "Experimental project. The project reports matching opening, ending and first-room behaviour, with a visual estimate of 35% CPU speed. First dungeon, saving and English translation remain unfinished. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/vs-sr-dev/pc-abelsmt",
       "platforms": [],
       "availability": "unknown",
@@ -33408,7 +33408,7 @@
       "id": "pc-doctorhauzer-vs-sr-dev-doctor-hauzer",
       "name": "Doctor Hauzer — pc-doctorhauzer (vs-sr-dev)",
       "original_game_title": "Doctor Hauzer",
-      "summary": "Experimental project. Opening/menu/attract/firstroom/camera/save/music claimed; no wholecampaign, hardware wait timing differs. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+      "summary": "Experimental project. The project reports the opening, menu, attract mode, first room, camera, saving and music. A full campaign is not established, and hardware wait timing differs. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/vs-sr-dev/pc-doctorhauzer",
       "platforms": [],
       "availability": "unknown",
@@ -33480,7 +33480,7 @@
       "id": "pc-escapefrommonstermanor-vs-sr-dev-escape-from-monster-manor",
       "name": "Escape from Monster Manor — pc-escapefrommonstermanor (vs-sr-dev)",
       "original_game_title": "Escape from Monster Manor",
-      "summary": "Experimental project. the first Attic Simple level/referenceframes; monsters twice the FZ10 pace until cel processing cost is modeled;completion of all 12 levels has not been confirmed. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+      "summary": "Experimental project. The project reports the first Attic Simple level and reference frames. Monsters run at twice the FZ10 pace until cel-processing cost is modelled. Completion of all 12 levels has not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/vs-sr-dev/pc-escapefrommonstermanor",
       "platforms": [],
       "availability": "unknown",
@@ -33516,7 +33516,7 @@
       "id": "pc-immercenary-vs-sr-dev-immercenary",
       "name": "Immercenary — pc-immercenary (vs-sr-dev)",
       "original_game_title": "Immercenary",
-      "summary": "Experimental project. City/shots/death/debrief/secondjump claimed, not fullcompletion; earlier customengine route superseded. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+      "summary": "Experimental project. The project reports the city, shooting, death, debrief and second jump. Full completion has not been established. This replaces the earlier custom-engine procedure. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/vs-sr-dev/pc-immercenary",
       "platforms": [],
       "availability": "unknown",
@@ -33552,7 +33552,7 @@
       "id": "pc-ragnarokodysseyace-vs-sr-dev-ragnarok-odyssey-ace",
       "name": "Ragnarok Odyssey ACE — pc-ragnarokodysseyace (vs-sr-dev)",
       "original_game_title": "Ragnarok Odyssey ACE",
-      "summary": "Experimental project. Native firstquests/monster fights at 30 FPS and savedcharacter; script-only historical 431-quest sweeps not nativegameplay evidence. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+      "summary": "Experimental project. The project reports native first quests and monster fights at 30 FPS, plus a saved character. Historical script-only sweeps of 431 quests do not establish native gameplay. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/vs-sr-dev/pc-ragnarokodysseyace",
       "platforms": [],
       "availability": "unknown",
@@ -33588,7 +33588,7 @@
       "id": "pc-theneedforspeed-vs-sr-dev-the-need-for-speed-3do",
       "name": "The Need for Speed (3DO) — pc-theneedforspeed (vs-sr-dev)",
       "original_game_title": "The Need for Speed (3DO)",
-      "summary": "Experimental project. Firstactualrace and userwindowplay; allcars/tracks/completion of endurance play has not been confirmed. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+      "summary": "Experimental project. The project reports its first actual race and play in the game window. Coverage of all cars and tracks, and completion of endurance play, have not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/vs-sr-dev/pc-theneedforspeed",
       "platforms": [],
       "availability": "unknown",
@@ -33605,7 +33605,7 @@
           }
         ],
         "warnings": [
-          "Firstactualrace and userwindowplay; allcars/tracks/completion of endurance play has not been confirmed. These are the project’s reports; Portcove has not confirmed setup or gameplay.",
+          "The project reports its first actual race and play in the game window. Coverage of all cars and tracks, and completion of endurance play, have not been confirmed. Portcove has not confirmed setup or gameplay.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
         "help_url": "https://github.com/vs-sr-dev/pc-theneedforspeed"
@@ -33616,7 +33616,7 @@
       "id": "pc-thequeenofduellist-vs-sr-dev-the-queen-of-duellist",
       "name": "The Queen of Duellist — pc-thequeenofduellist (vs-sr-dev)",
       "original_game_title": "The Queen of Duellist",
-      "summary": "Experimental project. one fight reached from the title screen plus boundedimage/audio comparisons; restgamepending; MAMEisoracle not deliveryruntime. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+      "summary": "Experimental project. The project reports one fight reached from the title screen and limited image/audio comparisons. The rest of the game remains unfinished. MAME supplies reference results rather than the delivered runtime. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/vs-sr-dev/pc-thequeenofduellist",
       "platforms": [],
       "availability": "unknown",
@@ -42949,7 +42949,7 @@
             "instruction": "During ordinary play the frontend waits for run.py, which waits for native game children and handles collection LoadExec switches. Closing the GUI simply destroys its window and may leave the game running; quit all actual game players before closing it. In-game Apply and restart and the updater can start successor processes; finish such paths and runtime replacement outside an attached session, close actual helpers/successors, preserve copies and review/relink changed executable bytes. Source waiting paths do not prove observed forced-stop cleanup or save flush."
           },
           {
-            "title": "Check this game’s tested limits and component licences",
+            "title": "Check this game’s reported limits and component licences",
             "instruction": "Preserve GPL2-or-later and all packaged NVIDIA/Intel/Cinzel-font/component notices; these do not grant original-game rights or rights in separately chosen art/mods. Drake’s Fortune retains its own upstream GPU/CPU/stability limits; a result for another collection game or the BilalReloaded fork does not qualify it. Upstream feature/play reports remain upstream claims. No Portcove gameplay, save/reload, installed-app or Supported acceptance is asserted. Removing registration preserves every external file; managed install/update/rollback/backup/removal are unavailable."
           }
         ],
@@ -42992,7 +42992,7 @@
             "instruction": "During ordinary play the frontend waits for run.py, which waits for native game children and handles collection LoadExec switches. Closing the GUI simply destroys its window and may leave the game running; quit all actual game players before closing it. In-game Apply and restart and the updater can start successor processes; finish such paths and runtime replacement outside an attached session, close actual helpers/successors, preserve copies and review/relink changed executable bytes. Source waiting paths do not prove observed forced-stop cleanup or save flush."
           },
           {
-            "title": "Check this game’s tested limits and component licences",
+            "title": "Check this game’s reported limits and component licences",
             "instruction": "Preserve GPL2-or-later and all packaged NVIDIA/Intel/Cinzel-font/component notices; these do not grant original-game rights or rights in separately chosen art/mods. Among Thieves retains its own upstream GPU/CPU/stability limits; a result for another collection game or the BilalReloaded fork does not qualify it. Upstream feature/play reports remain upstream claims. No Portcove gameplay, save/reload, installed-app or Supported acceptance is asserted. Removing registration preserves every external file; managed install/update/rollback/backup/removal are unavailable."
           }
         ],
@@ -43035,7 +43035,7 @@
             "instruction": "During ordinary play the frontend waits for run.py, which waits for native game children and handles collection LoadExec switches. Closing the GUI simply destroys its window and may leave the game running; quit all actual game players before closing it. In-game Apply and restart and the updater can start successor processes; finish such paths and runtime replacement outside an attached session, close actual helpers/successors, preserve copies and review/relink changed executable bytes. Source waiting paths do not prove observed forced-stop cleanup or save flush."
           },
           {
-            "title": "Check this game’s tested limits and component licences",
+            "title": "Check this game’s reported limits and component licences",
             "instruction": "Preserve GPL2-or-later and all packaged NVIDIA/Intel/Cinzel-font/component notices; these do not grant original-game rights or rights in separately chosen art/mods. Drake’s Deception retains its own upstream GPU/CPU/stability limits; a result for another collection game or the BilalReloaded fork does not qualify it. Upstream feature/play reports remain upstream claims. No Portcove gameplay, save/reload, installed-app or Supported acceptance is asserted. Removing registration preserves every external file; managed install/update/rollback/backup/removal are unavailable."
           }
         ],
@@ -43713,7 +43713,7 @@
       "id": "tekken-tag-2-ultimate-edition-petexy-tekken-tag-tournament-2-wii-u-edition",
       "name": "Tekken Tag Tournament 2 Wii U Edition — Tekken Tag 2 Ultimate Edition (Petexy)",
       "original_game_title": "Tekken Tag Tournament 2 Wii U Edition",
-      "summary": "Experimental project. Boot through arcade mode claimed; GamePad screen/speaker, online, softwarekeyboard/errors and unused audio effects missing. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+      "summary": "Experimental project. The project reports boot through arcade mode. GamePad screen and speaker, online play, software keyboard and errors, and unused audio effects remain missing. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/Petexy/Tekken-Tag-2-Ultimate-Edition",
       "platforms": [
         "linux-x86-64"
@@ -46984,7 +46984,7 @@
       "id": "ufc4-pc-port-schans-arg-schans-arg-ea-sports-ufc-4",
       "name": "EA Sports UFC 4 — UFC4-PC-Port (schans-arg) (schans-arg)",
       "original_game_title": "EA Sports UFC 4",
-      "summary": "The project reports offline KO and career creation, fighting, saving and reloading in 0.0.11. Full career, DLC and long sessions remain untested. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+      "summary": "The project reports offline KO and career creation, fighting, saving and reloading in 0.0.11. Full career, DLC and long-session coverage remain unconfirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/schans-arg/UFC4-PC-Port",
       "platforms": [
         "windows-x86-64"
@@ -47003,7 +47003,7 @@
           }
         ],
         "warnings": [
-          "The project reports offline KO and career creation, fighting, saving and reloading in 0.0.11. Full career, DLC and long sessions remain untested.",
+          "The project reports offline KO and career creation, fighting, saving and reloading in 0.0.11. Full career, DLC and long-session coverage remain unconfirmed.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
         "help_url": "https://github.com/schans-arg/UFC4-PC-Port"

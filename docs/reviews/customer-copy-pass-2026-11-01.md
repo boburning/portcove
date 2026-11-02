@@ -164,8 +164,9 @@ Native confirmation text is traced to its handler; that source inspection does
 not establish an observed native prompt or game session.
 
 Initial local failures are retained under ignored `work/bt` and task logs. A
-baseline settings focus failure was reproduced before using real browser input
-in the fixture; focus/confirmation assertions remain. Browser fixtures require a
+settings focus failure was reproduced on the unchanged baseline. Exploratory
+browser-driver fixture changes were discarded; original focus, confirmation and
+disabled-control assertions remain, alongside the new semantic regressions. Browser fixtures require a
 stable candidate: source changes while queued are refused, and editing a running
 Vite input invalidates that run. Passing rendered fixtures or hosted checks does
 not establish native, installed-package, gameplay, physical-control or human

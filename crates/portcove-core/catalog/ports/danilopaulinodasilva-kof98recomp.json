@@ -3,7 +3,7 @@
   "listing": {
     "id": "danilopaulinodasilva-kof98recomp",
     "name": "The King of Fighters '98 (KOF'98 Recomp)",
-    "summary": "An alpha King of Fighters ’98 port with project-reported sound and CPU team matches. Boss fights and broader controllers remain untested, and Windows setup has explicitly not been tried. Only KOF ’98 is implemented, rather than every KOF 94–2003 game; Metal Slug is framework ancestry. The Windows/Linux/macOS KOF98-Installer downloads the project and toolchain and builds from your own Neo Geo AES kof98h.zip and neogeo.zip BIOS sets, then opens the player. Manual Setup.cmd/source instructions are alternatives. The project’s launcher manages setup and updates. Exact installer architecture, accepted file revisions/hashes and further BIOS/firmware requirements are unconfirmed. Portcove has not confirmed setup or gameplay.",
+    "summary": "An alpha King of Fighters ’98 port with project-reported sound and CPU team matches. Boss fights and broader controller support remain unconfirmed, and Windows setup has explicitly not been tried. Only KOF ’98 is implemented, rather than every KOF 94–2003 game; Metal Slug is framework ancestry. The Windows/Linux/macOS KOF98-Installer downloads the project and toolchain and builds from your own Neo Geo AES kof98h.zip and neogeo.zip BIOS sets, then opens the player. Manual Setup.cmd/source instructions are alternatives. The project’s launcher manages setup and updates. Exact installer architecture, accepted file revisions/hashes and further BIOS/firmware requirements are unconfirmed. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "The King of Fighters '98",
     "project_url": "https://github.com/danilopaulinodasilva/kof98recomp",
     "platforms": [],

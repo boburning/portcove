@@ -4,7 +4,7 @@
     "id": "pc-abelsmt-vs-sr-dev-abel-shin-mokushiroku-taisen",
     "name": "ABEL: Shin Mokushiroku Taisen — pc-abelsmt (vs-sr-dev)",
     "original_game_title": "ABEL: Shin Mokushiroku Taisen",
-    "summary": "Experimental project. Opening/ending/firstroom parity, CPU35%speed visualestimate; firstdungeon/save/English translation pending. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "Experimental project. The project reports matching opening, ending and first-room behaviour, with a visual estimate of 35% CPU speed. First dungeon, saving and English translation remain unfinished. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/vs-sr-dev/pc-abelsmt",
     "platforms": [],
     "availability": "unknown",

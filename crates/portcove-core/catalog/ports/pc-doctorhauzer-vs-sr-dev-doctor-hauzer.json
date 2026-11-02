@@ -4,7 +4,7 @@
     "id": "pc-doctorhauzer-vs-sr-dev-doctor-hauzer",
     "name": "Doctor Hauzer — pc-doctorhauzer (vs-sr-dev)",
     "original_game_title": "Doctor Hauzer",
-    "summary": "Experimental project. Opening/menu/attract/firstroom/camera/save/music claimed; no wholecampaign, hardware wait timing differs. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "Experimental project. The project reports the opening, menu, attract mode, first room, camera, saving and music. A full campaign is not established, and hardware wait timing differs. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/vs-sr-dev/pc-doctorhauzer",
     "platforms": [],
     "availability": "unknown",

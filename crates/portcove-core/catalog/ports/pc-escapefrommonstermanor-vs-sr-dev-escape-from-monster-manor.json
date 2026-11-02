@@ -4,7 +4,7 @@
     "id": "pc-escapefrommonstermanor-vs-sr-dev-escape-from-monster-manor",
     "name": "Escape from Monster Manor — pc-escapefrommonstermanor (vs-sr-dev)",
     "original_game_title": "Escape from Monster Manor",
-    "summary": "Experimental project. the first Attic Simple level/referenceframes; monsters twice the FZ10 pace until cel processing cost is modeled;completion of all 12 levels has not been confirmed. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "Experimental project. The project reports the first Attic Simple level and reference frames. Monsters run at twice the FZ10 pace until cel-processing cost is modelled. Completion of all 12 levels has not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/vs-sr-dev/pc-escapefrommonstermanor",
     "platforms": [],
     "availability": "unknown",

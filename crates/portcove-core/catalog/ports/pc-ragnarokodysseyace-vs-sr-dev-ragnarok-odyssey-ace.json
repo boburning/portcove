@@ -4,7 +4,7 @@
     "id": "pc-ragnarokodysseyace-vs-sr-dev-ragnarok-odyssey-ace",
     "name": "Ragnarok Odyssey ACE — pc-ragnarokodysseyace (vs-sr-dev)",
     "original_game_title": "Ragnarok Odyssey ACE",
-    "summary": "Experimental project. Native firstquests/monster fights at 30 FPS and savedcharacter; script-only historical 431-quest sweeps not nativegameplay evidence. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "Experimental project. The project reports native first quests and monster fights at 30 FPS, plus a saved character. Historical script-only sweeps of 431 quests do not establish native gameplay. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/vs-sr-dev/pc-ragnarokodysseyace",
     "platforms": [],
     "availability": "unknown",

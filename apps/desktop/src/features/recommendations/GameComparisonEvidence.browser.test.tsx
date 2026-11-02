@@ -156,7 +156,7 @@ it("shows the shared facts, accepts keyboard requirements and keeps following ex
     "recommendation-evidence-expanded-browser-fixture",
     context,
   );
-  await userEvent.click(page.getByText("Comparison settings", { exact: true }).element());
+  await userEvent.click(page.getByText("Comparison settings", { exact: true }));
   const required = page.getByRole("checkbox", { name: "Multiplayer", exact: true });
   required.element().focus();
   await userEvent.keyboard(" ");
@@ -167,9 +167,7 @@ it("shows the shared facts, accepts keyboard requirements and keeps following ex
   expect(
     vi.mocked(desktopApi.compareGamePorts).mock.calls.at(-1)?.[0].required_capabilities,
   ).toEqual(["multiplayer"]);
-  await userEvent.click(
-    page.getByRole("button", { name: "Follow Fixture project", exact: true }).element(),
-  );
+  await userEvent.click(page.getByRole("button", { name: "Follow Fixture project", exact: true }));
   await expect
     .element(page.getByRole("button", { name: "Following Fixture project", exact: true }))
     .toHaveAttribute("aria-pressed", "true");
@@ -233,7 +231,7 @@ it("uses the production controller handler to activate controls and dismiss only
 it("selects a displayed source edition and target platform without changing library preferences", async () => {
   await render(<Fixture />);
   await userEvent.click(page.getByRole("button", { name: "Compare projects", exact: true }));
-  await userEvent.click(page.getByText("Comparison settings", { exact: true }).element());
+  await userEvent.click(page.getByText("Comparison settings", { exact: true }));
   const edition = page.getByRole("combobox", { name: /Game edition/ });
   await expect.element(edition).toBeVisible();
   await userEvent.click(edition);

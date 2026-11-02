@@ -4,7 +4,7 @@
     "id": "pc-immercenary-vs-sr-dev-immercenary",
     "name": "Immercenary — pc-immercenary (vs-sr-dev)",
     "original_game_title": "Immercenary",
-    "summary": "Experimental project. City/shots/death/debrief/secondjump claimed, not fullcompletion; earlier customengine route superseded. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "Experimental project. The project reports the city, shooting, death, debrief and second jump. Full completion has not been established. This replaces the earlier custom-engine procedure. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/vs-sr-dev/pc-immercenary",
     "platforms": [],
     "availability": "unknown",

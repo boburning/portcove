@@ -2755,7 +2755,7 @@ crates/portcove-core/catalog/ports/danielgomesvieira2000-beetle-adventure-racing
 crates/portcove-core/catalog/ports/danielgomesvieira2000-beetle-adventure-racing-recomp.json,/listing/manual_setup/steps/2/instruction,1c8754a05f88ffe30737e8c2e62c50ae42a07076cc910decf5641aa4191fe736,reviewed-no-change
 crates/portcove-core/catalog/ports/danielgomesvieira2000-beetle-adventure-racing-recomp.json,/listing/manual_setup/warnings/0,864bfc358531169c74eefd635fcf78673f4b984752447c0fc8111903223a49ad,reviewed-no-change
 crates/portcove-core/catalog/ports/danilopaulinodasilva-kof98recomp.json,/listing/name,8b282d5a4b260e44df703b140d59b7f9c8ef6abab6710c287d273e89de112332,reviewed-no-change
-crates/portcove-core/catalog/ports/danilopaulinodasilva-kof98recomp.json,/listing/summary,e4caabd352bc53d8c3c9b0725aaec62cf1caca0f931c6eed31209ddbb36f00f3,reviewed-with-exact-rewrite-proposals
+crates/portcove-core/catalog/ports/danilopaulinodasilva-kof98recomp.json,/listing/summary,88c6026b8ab38d718a46528500b6db167de1fff116b70bc8b0841834f0e849ee,reviewed-with-exact-rewrite-proposals
 crates/portcove-core/catalog/ports/danilopaulinodasilva-kof98recomp.json,/listing/original_game_title,17f2c5d3d0607ad3e68408da715c99f1d0f9f0a625e6b08c572f590546d44ffc,reviewed-no-change
 crates/portcove-core/catalog/ports/dannyowelch-deception-recomp.json,/listing/name,ff41e71574458084f108446e5b6e8475bf624acd218b7faa472e5cd7cf015eb6,reviewed-no-change
 crates/portcove-core/catalog/ports/dannyowelch-deception-recomp.json,/listing/summary,8158759ed01ab9fad146624a984e4bd18360ccbbc3838ee1bb36ef83d54150a7,reviewed-no-change
@@ -6669,7 +6669,7 @@ crates/portcove-core/catalog/ports/metropolismania-pc-koaque-metropolismania.jso
 crates/portcove-core/catalog/ports/metropolismania-pc-koaque-metropolismania.json,/listing/manual_setup/warnings/1,4add162e8c4d3a8d14d712bec9b2c9715b04afb5ad677e589a312e2bad90fde3,reviewed-with-exact-rewrite-proposals
 crates/portcove-core/catalog/ports/mhforever-mango77x-monster-hunter-freedom-unite.json,/listing/name,2be20f63e36333fae6d26b4ec8d7da833a04874a6e6a9e85f97cb147409f2747,reviewed-no-change
 crates/portcove-core/catalog/ports/mhforever-mango77x-monster-hunter-freedom-unite.json,/listing/original_game_title,64f93d7ba55979162bdcd336d71e96de9c5b1a675a0b9cf9f6c30f526a6de748,reviewed-no-change
-crates/portcove-core/catalog/ports/mhforever-mango77x-monster-hunter-freedom-unite.json,/listing/summary,cb4f2a95c20d7f2262f1dd2805d0b0419747a7f0a2c20a5819af36c81815e946,reviewed-with-exact-rewrite-proposals
+crates/portcove-core/catalog/ports/mhforever-mango77x-monster-hunter-freedom-unite.json,/listing/summary,50ebbe0f87f2140b29d5a79ce9f3e98e28d2302e8b74b4a2f125656f6c68cdd6,reviewed-with-exact-rewrite-proposals
 crates/portcove-core/catalog/ports/mhforever-mango77x-monster-hunter-freedom-unite.json,/listing/manual_setup/steps/0/title,1e73260b4ef181dcfc634585190334b37060707a4867674882f3c90f52ff34aa,reviewed-no-change
 crates/portcove-core/catalog/ports/mhforever-mango77x-monster-hunter-freedom-unite.json,/listing/manual_setup/steps/0/instruction,ec9bafdebf56e1e2da62b6dbdaa1a77a519557687aef74903f671067db23ae37,reviewed-with-exact-rewrite-proposals
 crates/portcove-core/catalog/ports/mhforever-mango77x-monster-hunter-freedom-unite.json,/listing/manual_setup/steps/1/title,0b63d61073ec07156224dde6467140df52549f4c28f586b2d5426fa8ac9bedd8,reviewed-no-change
@@ -6678,7 +6678,7 @@ crates/portcove-core/catalog/ports/mhforever-mango77x-monster-hunter-freedom-uni
 crates/portcove-core/catalog/ports/mhforever-mango77x-monster-hunter-freedom-unite.json,/listing/manual_setup/warnings/1,4add162e8c4d3a8d14d712bec9b2c9715b04afb5ad677e589a312e2bad90fde3,reviewed-with-exact-rewrite-proposals
 crates/portcove-core/catalog/ports/mhfu-pc-kiridor123-monster-hunter-freedom-unite.json,/listing/name,304d271b27ef459b0bda1f272fcc972f955fd2a4a5c83432353ae2d730dccd3e,reviewed-no-change
 crates/portcove-core/catalog/ports/mhfu-pc-kiridor123-monster-hunter-freedom-unite.json,/listing/original_game_title,64f93d7ba55979162bdcd336d71e96de9c5b1a675a0b9cf9f6c30f526a6de748,reviewed-no-change
-crates/portcove-core/catalog/ports/mhfu-pc-kiridor123-monster-hunter-freedom-unite.json,/listing/summary,5a785045607fc8e34cb5b0ea46d7ceddd7cffa5042d45f953f0ce0365ef2dda5,reviewed-with-exact-rewrite-proposals
+crates/portcove-core/catalog/ports/mhfu-pc-kiridor123-monster-hunter-freedom-unite.json,/listing/summary,002646457bc8b9cf2f45ac3e5938f66c4f056f9d7da8d2973616031f990f914f,reviewed-with-exact-rewrite-proposals
 crates/portcove-core/catalog/ports/mhfu-pc-kiridor123-monster-hunter-freedom-unite.json,/listing/manual_setup/steps/0/title,1e73260b4ef181dcfc634585190334b37060707a4867674882f3c90f52ff34aa,reviewed-no-change
 crates/portcove-core/catalog/ports/mhfu-pc-kiridor123-monster-hunter-freedom-unite.json,/listing/manual_setup/steps/0/instruction,487af08ec9a34326701e7aaa7831e1516114dce5a2ae5cd08a6b07be79d3ab5c,reviewed-with-exact-rewrite-proposals
 crates/portcove-core/catalog/ports/mhfu-pc-kiridor123-monster-hunter-freedom-unite.json,/listing/manual_setup/steps/1/title,0b63d61073ec07156224dde6467140df52549f4c28f586b2d5426fa8ac9bedd8,reviewed-no-change
@@ -7924,7 +7924,7 @@ crates/portcove-core/catalog/ports/pc-4ddriving-vs-sr-dev-4d-driving-fm-towns-ma
 crates/portcove-core/catalog/ports/pc-4ddriving-vs-sr-dev-4d-driving-fm-towns-marty-rerelease.json,/listing/manual_setup/warnings/1,4add162e8c4d3a8d14d712bec9b2c9715b04afb5ad677e589a312e2bad90fde3,reviewed-with-exact-rewrite-proposals
 crates/portcove-core/catalog/ports/pc-abelsmt-vs-sr-dev-abel-shin-mokushiroku-taisen.json,/listing/name,92312804d4cd7f9a7818bb9aeb836bcc7e9b5b3b2b7d8dc9098dbbf239c2277b,reviewed-no-change
 crates/portcove-core/catalog/ports/pc-abelsmt-vs-sr-dev-abel-shin-mokushiroku-taisen.json,/listing/original_game_title,dc554ee27d0490fdfa831644d46769fc4b5947dfddd760e9e70eea6d51e2bdbb,reviewed-no-change
-crates/portcove-core/catalog/ports/pc-abelsmt-vs-sr-dev-abel-shin-mokushiroku-taisen.json,/listing/summary,dc3edbafdd519767df3e0a343929213a18608055fafc5ddcc0c1eabdb4bf01ff,reviewed-with-exact-rewrite-proposals
+crates/portcove-core/catalog/ports/pc-abelsmt-vs-sr-dev-abel-shin-mokushiroku-taisen.json,/listing/summary,e20302475c2f574bc4e3cb7ac806a058c0d374fe07b9eb4b48b18ea662405eb0,reviewed-with-exact-rewrite-proposals
 crates/portcove-core/catalog/ports/pc-abelsmt-vs-sr-dev-abel-shin-mokushiroku-taisen.json,/listing/manual_setup/steps/0/title,1e73260b4ef181dcfc634585190334b37060707a4867674882f3c90f52ff34aa,reviewed-no-change
 crates/portcove-core/catalog/ports/pc-abelsmt-vs-sr-dev-abel-shin-mokushiroku-taisen.json,/listing/manual_setup/steps/0/instruction,84386c4d4ee8c0b08636abe6d31bd1883566c8f890713dea16b680fe30f664d7,reviewed-with-exact-rewrite-proposals
 crates/portcove-core/catalog/ports/pc-abelsmt-vs-sr-dev-abel-shin-mokushiroku-taisen.json,/listing/manual_setup/steps/1/title,0b63d61073ec07156224dde6467140df52549f4c28f586b2d5426fa8ac9bedd8,reviewed-no-change
@@ -7942,7 +7942,7 @@ crates/portcove-core/catalog/ports/pc-demolitionman-vs-sr-dev-demolition-man-3do
 crates/portcove-core/catalog/ports/pc-demolitionman-vs-sr-dev-demolition-man-3do.json,/listing/manual_setup/warnings/1,4add162e8c4d3a8d14d712bec9b2c9715b04afb5ad677e589a312e2bad90fde3,reviewed-with-exact-rewrite-proposals
 crates/portcove-core/catalog/ports/pc-doctorhauzer-vs-sr-dev-doctor-hauzer.json,/listing/name,34780d1a2c3a71808f4e075d39191b8cc583a652b9430442a1ad53b29089db72,reviewed-no-change
 crates/portcove-core/catalog/ports/pc-doctorhauzer-vs-sr-dev-doctor-hauzer.json,/listing/original_game_title,92ae1111f4684e474d4d43728cdcfb7de7704b801a952dacb156799a348aea4a,reviewed-no-change
-crates/portcove-core/catalog/ports/pc-doctorhauzer-vs-sr-dev-doctor-hauzer.json,/listing/summary,1ca540da7837f3de0bc87cea5c51d367b84b7d5592968981750e78024de9a3d4,reviewed-with-exact-rewrite-proposals
+crates/portcove-core/catalog/ports/pc-doctorhauzer-vs-sr-dev-doctor-hauzer.json,/listing/summary,f10c692b64510ca5b170bfc2d445b7583895a2669278542bf2acbc34ffb84170,reviewed-with-exact-rewrite-proposals
 crates/portcove-core/catalog/ports/pc-doctorhauzer-vs-sr-dev-doctor-hauzer.json,/listing/manual_setup/steps/0/title,1e73260b4ef181dcfc634585190334b37060707a4867674882f3c90f52ff34aa,reviewed-no-change
 crates/portcove-core/catalog/ports/pc-doctorhauzer-vs-sr-dev-doctor-hauzer.json,/listing/manual_setup/steps/0/instruction,5a81cb97b3ac2ea48163af1619da9710aa1a5e6b51760438e48e6e996c043436,reviewed-with-exact-rewrite-proposals
 crates/portcove-core/catalog/ports/pc-doctorhauzer-vs-sr-dev-doctor-hauzer.json,/listing/manual_setup/steps/1/title,0b63d61073ec07156224dde6467140df52549f4c28f586b2d5426fa8ac9bedd8,reviewed-no-change
@@ -7960,7 +7960,7 @@ crates/portcove-core/catalog/ports/pc-dynastywarriors2-vs-sr-dev-dynasty-warrior
 crates/portcove-core/catalog/ports/pc-dynastywarriors2-vs-sr-dev-dynasty-warriors-2.json,/listing/manual_setup/warnings/1,4add162e8c4d3a8d14d712bec9b2c9715b04afb5ad677e589a312e2bad90fde3,reviewed-with-exact-rewrite-proposals
 crates/portcove-core/catalog/ports/pc-escapefrommonstermanor-vs-sr-dev-escape-from-monster-manor.json,/listing/name,767c8a84b26367b1dc5f68b143bbbccb9c680087240b8eff8f8719c07adb8816,reviewed-no-change
 crates/portcove-core/catalog/ports/pc-escapefrommonstermanor-vs-sr-dev-escape-from-monster-manor.json,/listing/original_game_title,bb70760fd239a84acb31f48f5a26bd503b7fdf4d85d036865a6a6602bcdb5165,reviewed-no-change
-crates/portcove-core/catalog/ports/pc-escapefrommonstermanor-vs-sr-dev-escape-from-monster-manor.json,/listing/summary,5337345b6ef1cfece7ed84a627df7113441036e2fe03b4110d33e5fe238070b9,reviewed-with-exact-rewrite-proposals
+crates/portcove-core/catalog/ports/pc-escapefrommonstermanor-vs-sr-dev-escape-from-monster-manor.json,/listing/summary,38cb8cb6ec24dd2ab18077c4755e5eeffa6b6f23b750b9ad5a92053f60ad3181,reviewed-with-exact-rewrite-proposals
 crates/portcove-core/catalog/ports/pc-escapefrommonstermanor-vs-sr-dev-escape-from-monster-manor.json,/listing/manual_setup/steps/0/title,1e73260b4ef181dcfc634585190334b37060707a4867674882f3c90f52ff34aa,reviewed-no-change
 crates/portcove-core/catalog/ports/pc-escapefrommonstermanor-vs-sr-dev-escape-from-monster-manor.json,/listing/manual_setup/steps/0/instruction,6a586212bb493034905518ad9d67a3ca4d619264cefbc9cbdedf3b2986e73d7d,reviewed-with-exact-rewrite-proposals
 crates/portcove-core/catalog/ports/pc-escapefrommonstermanor-vs-sr-dev-escape-from-monster-manor.json,/listing/manual_setup/steps/1/title,0b63d61073ec07156224dde6467140df52549f4c28f586b2d5426fa8ac9bedd8,reviewed-no-change
@@ -7969,7 +7969,7 @@ crates/portcove-core/catalog/ports/pc-escapefrommonstermanor-vs-sr-dev-escape-fr
 crates/portcove-core/catalog/ports/pc-escapefrommonstermanor-vs-sr-dev-escape-from-monster-manor.json,/listing/manual_setup/warnings/1,4add162e8c4d3a8d14d712bec9b2c9715b04afb5ad677e589a312e2bad90fde3,reviewed-with-exact-rewrite-proposals
 crates/portcove-core/catalog/ports/pc-immercenary-vs-sr-dev-immercenary.json,/listing/name,cf35fba4603d0d9c8db0975ff993f5167c1d04d27a643c9522bda1d3826d2bf1,reviewed-no-change
 crates/portcove-core/catalog/ports/pc-immercenary-vs-sr-dev-immercenary.json,/listing/original_game_title,0b99419807e1cd8b95bd789ce8810675a92cb9f422ddc122cf13f0bb8c91a2fb,reviewed-no-change
-crates/portcove-core/catalog/ports/pc-immercenary-vs-sr-dev-immercenary.json,/listing/summary,ac90d5f0e488b1a86dbbab6a61f7d70e11346438f2694100fd63fc9390ee53bc,reviewed-with-exact-rewrite-proposals
+crates/portcove-core/catalog/ports/pc-immercenary-vs-sr-dev-immercenary.json,/listing/summary,0348e40a799458e36f8fac702744900731b96f562bc380b1fd627723ac4c14ae,reviewed-with-exact-rewrite-proposals
 crates/portcove-core/catalog/ports/pc-immercenary-vs-sr-dev-immercenary.json,/listing/manual_setup/steps/0/title,1e73260b4ef181dcfc634585190334b37060707a4867674882f3c90f52ff34aa,reviewed-no-change
 crates/portcove-core/catalog/ports/pc-immercenary-vs-sr-dev-immercenary.json,/listing/manual_setup/steps/0/instruction,724809ae0ec39dec6d36769f1462dff568808643f5e560ed5ee2439177cc5da6,reviewed-with-exact-rewrite-proposals
 crates/portcove-core/catalog/ports/pc-immercenary-vs-sr-dev-immercenary.json,/listing/manual_setup/steps/1/title,0b63d61073ec07156224dde6467140df52549f4c28f586b2d5426fa8ac9bedd8,reviewed-no-change
@@ -7978,7 +7978,7 @@ crates/portcove-core/catalog/ports/pc-immercenary-vs-sr-dev-immercenary.json,/li
 crates/portcove-core/catalog/ports/pc-immercenary-vs-sr-dev-immercenary.json,/listing/manual_setup/warnings/1,4add162e8c4d3a8d14d712bec9b2c9715b04afb5ad677e589a312e2bad90fde3,reviewed-with-exact-rewrite-proposals
 crates/portcove-core/catalog/ports/pc-ragnarokodysseyace-vs-sr-dev-ragnarok-odyssey-ace.json,/listing/name,0e506e37c31a1e87e74403f20c9d87e305216792dd5c5eba11f0c2b2902aa257,reviewed-no-change
 crates/portcove-core/catalog/ports/pc-ragnarokodysseyace-vs-sr-dev-ragnarok-odyssey-ace.json,/listing/original_game_title,122005853e2a76fd87d33b72cc5a8c05bb341c79bbd037b5e73c1cd59f540172,reviewed-no-change
-crates/portcove-core/catalog/ports/pc-ragnarokodysseyace-vs-sr-dev-ragnarok-odyssey-ace.json,/listing/summary,5f94692e72c2f2014062309b287493004b8ce07307a0658c89b8db142bf280e4,reviewed-with-exact-rewrite-proposals
+crates/portcove-core/catalog/ports/pc-ragnarokodysseyace-vs-sr-dev-ragnarok-odyssey-ace.json,/listing/summary,60e964a7bb48d1781ebdf47dc242f48871db8ad1089d3032939cf1d08388d1ee,reviewed-with-exact-rewrite-proposals
 crates/portcove-core/catalog/ports/pc-ragnarokodysseyace-vs-sr-dev-ragnarok-odyssey-ace.json,/listing/manual_setup/steps/0/title,1e73260b4ef181dcfc634585190334b37060707a4867674882f3c90f52ff34aa,reviewed-no-change
 crates/portcove-core/catalog/ports/pc-ragnarokodysseyace-vs-sr-dev-ragnarok-odyssey-ace.json,/listing/manual_setup/steps/0/instruction,215947ae072a395d9f7080553fa08de94ac011e7655419838ec134a0e8f7d448,reviewed-with-exact-rewrite-proposals
 crates/portcove-core/catalog/ports/pc-ragnarokodysseyace-vs-sr-dev-ragnarok-odyssey-ace.json,/listing/manual_setup/steps/1/title,0b63d61073ec07156224dde6467140df52549f4c28f586b2d5426fa8ac9bedd8,reviewed-no-change
@@ -7987,16 +7987,16 @@ crates/portcove-core/catalog/ports/pc-ragnarokodysseyace-vs-sr-dev-ragnarok-odys
 crates/portcove-core/catalog/ports/pc-ragnarokodysseyace-vs-sr-dev-ragnarok-odyssey-ace.json,/listing/manual_setup/warnings/1,4add162e8c4d3a8d14d712bec9b2c9715b04afb5ad677e589a312e2bad90fde3,reviewed-with-exact-rewrite-proposals
 crates/portcove-core/catalog/ports/pc-theneedforspeed-vs-sr-dev-the-need-for-speed-3do.json,/listing/name,13b9ec8bf7f2dbaaa88ebd06d3366467599890fe184650900ddf033ce9612def,reviewed-no-change
 crates/portcove-core/catalog/ports/pc-theneedforspeed-vs-sr-dev-the-need-for-speed-3do.json,/listing/original_game_title,e89e3fa922b99eeee73fc151d8682f3329e8ab14f4d4ccd1f31ca9e31f8a4ba7,reviewed-no-change
-crates/portcove-core/catalog/ports/pc-theneedforspeed-vs-sr-dev-the-need-for-speed-3do.json,/listing/summary,aa6e0b2bd0eb67905fe814370ca3d5be2a40b11caadf2549add7b0646c4d688a,reviewed-with-exact-rewrite-proposals
+crates/portcove-core/catalog/ports/pc-theneedforspeed-vs-sr-dev-the-need-for-speed-3do.json,/listing/summary,83689cd7bb31fea3e6146b4582b4e7ad221fe414f2e0e5b5a60fc1efe31aa5ef,reviewed-with-exact-rewrite-proposals
 crates/portcove-core/catalog/ports/pc-theneedforspeed-vs-sr-dev-the-need-for-speed-3do.json,/listing/manual_setup/steps/0/title,1e73260b4ef181dcfc634585190334b37060707a4867674882f3c90f52ff34aa,reviewed-no-change
 crates/portcove-core/catalog/ports/pc-theneedforspeed-vs-sr-dev-the-need-for-speed-3do.json,/listing/manual_setup/steps/0/instruction,b0de033486666c05ac0f18a2cd197d01cef1d7054219b8384abba6978f39c6d8,reviewed-with-exact-rewrite-proposals
 crates/portcove-core/catalog/ports/pc-theneedforspeed-vs-sr-dev-the-need-for-speed-3do.json,/listing/manual_setup/steps/1/title,0b63d61073ec07156224dde6467140df52549f4c28f586b2d5426fa8ac9bedd8,reviewed-no-change
 crates/portcove-core/catalog/ports/pc-theneedforspeed-vs-sr-dev-the-need-for-speed-3do.json,/listing/manual_setup/steps/1/instruction,d67cdca1d5bd586bcda7873ac5b8097d7ded977c28f5e23a0c7a7dede896c4ca,reviewed-with-exact-rewrite-proposals
-crates/portcove-core/catalog/ports/pc-theneedforspeed-vs-sr-dev-the-need-for-speed-3do.json,/listing/manual_setup/warnings/0,9cfdcec75167eb1ceb3e28b33c6de4c9d77b49cf0f541197976b5edc0c2d0eb9,reviewed-with-exact-rewrite-proposals
+crates/portcove-core/catalog/ports/pc-theneedforspeed-vs-sr-dev-the-need-for-speed-3do.json,/listing/manual_setup/warnings/0,287df0fbf0dc3789cd937349c8b4e9f87e0e9f92ad77fa09df1382ff5cc72168,reviewed-with-exact-rewrite-proposals
 crates/portcove-core/catalog/ports/pc-theneedforspeed-vs-sr-dev-the-need-for-speed-3do.json,/listing/manual_setup/warnings/1,4add162e8c4d3a8d14d712bec9b2c9715b04afb5ad677e589a312e2bad90fde3,reviewed-with-exact-rewrite-proposals
 crates/portcove-core/catalog/ports/pc-thequeenofduellist-vs-sr-dev-the-queen-of-duellist.json,/listing/name,a9e3cd86b6fce4341efdb68b81a98db96fc914ebf45037b420efe645e386374d,reviewed-no-change
 crates/portcove-core/catalog/ports/pc-thequeenofduellist-vs-sr-dev-the-queen-of-duellist.json,/listing/original_game_title,8a2d1ee2d42b921a27a45aac8970025af2c7261aeebb3a41b52433f2dc120956,reviewed-no-change
-crates/portcove-core/catalog/ports/pc-thequeenofduellist-vs-sr-dev-the-queen-of-duellist.json,/listing/summary,4818fcec546bffa022f28e3344f96898fb2af0741dddd6a952acd2345f1e991e,reviewed-with-exact-rewrite-proposals
+crates/portcove-core/catalog/ports/pc-thequeenofduellist-vs-sr-dev-the-queen-of-duellist.json,/listing/summary,8e042af80910f7354dfa8a626429068f99cdbf7cf5c98963381792826d9608c4,reviewed-with-exact-rewrite-proposals
 crates/portcove-core/catalog/ports/pc-thequeenofduellist-vs-sr-dev-the-queen-of-duellist.json,/listing/manual_setup/steps/0/title,1e73260b4ef181dcfc634585190334b37060707a4867674882f3c90f52ff34aa,reviewed-no-change
 crates/portcove-core/catalog/ports/pc-thequeenofduellist-vs-sr-dev-the-queen-of-duellist.json,/listing/manual_setup/steps/0/instruction,51227cb5bb346a65bdbacae9c9ed6924dbfd6991464faa521f955d95ee00a229,reviewed-with-exact-rewrite-proposals
 crates/portcove-core/catalog/ports/pc-thequeenofduellist-vs-sr-dev-the-queen-of-duellist.json,/listing/manual_setup/steps/1/title,0b63d61073ec07156224dde6467140df52549f4c28f586b2d5426fa8ac9bedd8,reviewed-no-change
@@ -10583,7 +10583,7 @@ crates/portcove-core/catalog/ports/supermedo-uncharted-1.json,/listing/manual_se
 crates/portcove-core/catalog/ports/supermedo-uncharted-1.json,/listing/manual_setup/steps/3/instruction,df0c6834ffc87b9dd38f04184ca57cdba273c7ce46b339ef8c3da52a230260f2,reviewed-no-change
 crates/portcove-core/catalog/ports/supermedo-uncharted-1.json,/listing/manual_setup/steps/4/title,4b3ea24f1d5626d336f6f897acdd2974a0fef415baf5f9cd1eb285a3c21f9c60,reviewed-no-change
 crates/portcove-core/catalog/ports/supermedo-uncharted-1.json,/listing/manual_setup/steps/4/instruction,44862379039a8878d7f1194fe38fdae870f142fa442f2a5947de65cd68335a96,reviewed-no-change
-crates/portcove-core/catalog/ports/supermedo-uncharted-1.json,/listing/manual_setup/steps/5/title,9f70d3d7f1dc3b1f1c2a3c268d43e1120bb1775e07b092f9f5ebee20eee92f97,reviewed-no-change
+crates/portcove-core/catalog/ports/supermedo-uncharted-1.json,/listing/manual_setup/steps/5/title,9ac446eff7fa2dfe93b41ebacc6aa3d0e9f6d0074c00e6eda259b51d7d50ffd6,reviewed-no-change
 crates/portcove-core/catalog/ports/supermedo-uncharted-1.json,/listing/manual_setup/steps/5/instruction,0424d6479e3dff664c8af3ca707e2bf8ea253d0648dbd1f8cf5e0f3a930f5904,reviewed-no-change
 crates/portcove-core/catalog/ports/supermedo-uncharted-1.json,/listing/manual_setup/warnings/0,77d3645495fb9600f09bb3e665370cdf7a48d517b0299e761c1d948785c5f3cf,reviewed-no-change
 crates/portcove-core/catalog/ports/supermedo-uncharted-2.json,/listing/name,dbb44867a5cbe666170c3ca9b4f4e81a88a277b2c4bcb038221fb1946ed98b30,reviewed-no-change
@@ -10599,7 +10599,7 @@ crates/portcove-core/catalog/ports/supermedo-uncharted-2.json,/listing/manual_se
 crates/portcove-core/catalog/ports/supermedo-uncharted-2.json,/listing/manual_setup/steps/3/instruction,df0c6834ffc87b9dd38f04184ca57cdba273c7ce46b339ef8c3da52a230260f2,reviewed-no-change
 crates/portcove-core/catalog/ports/supermedo-uncharted-2.json,/listing/manual_setup/steps/4/title,4b3ea24f1d5626d336f6f897acdd2974a0fef415baf5f9cd1eb285a3c21f9c60,reviewed-no-change
 crates/portcove-core/catalog/ports/supermedo-uncharted-2.json,/listing/manual_setup/steps/4/instruction,44862379039a8878d7f1194fe38fdae870f142fa442f2a5947de65cd68335a96,reviewed-no-change
-crates/portcove-core/catalog/ports/supermedo-uncharted-2.json,/listing/manual_setup/steps/5/title,9f70d3d7f1dc3b1f1c2a3c268d43e1120bb1775e07b092f9f5ebee20eee92f97,reviewed-no-change
+crates/portcove-core/catalog/ports/supermedo-uncharted-2.json,/listing/manual_setup/steps/5/title,9ac446eff7fa2dfe93b41ebacc6aa3d0e9f6d0074c00e6eda259b51d7d50ffd6,reviewed-no-change
 crates/portcove-core/catalog/ports/supermedo-uncharted-2.json,/listing/manual_setup/steps/5/instruction,29b79a812f3411e6d08f4c5db69a84b3d87626ac4a34659c8efc685b87113a09,reviewed-no-change
 crates/portcove-core/catalog/ports/supermedo-uncharted-2.json,/listing/manual_setup/warnings/0,630cab0c62b2ca02dd11ed9a85448d631823cd4d3c9a092f8dc7cd740ac56210,reviewed-no-change
 crates/portcove-core/catalog/ports/supermedo-uncharted-3.json,/listing/name,f89228232d291284a3a8933fc4fe9a97d02a867fce55af2e3d8a9a116208ddbb,reviewed-no-change
@@ -10615,7 +10615,7 @@ crates/portcove-core/catalog/ports/supermedo-uncharted-3.json,/listing/manual_se
 crates/portcove-core/catalog/ports/supermedo-uncharted-3.json,/listing/manual_setup/steps/3/instruction,df0c6834ffc87b9dd38f04184ca57cdba273c7ce46b339ef8c3da52a230260f2,reviewed-no-change
 crates/portcove-core/catalog/ports/supermedo-uncharted-3.json,/listing/manual_setup/steps/4/title,4b3ea24f1d5626d336f6f897acdd2974a0fef415baf5f9cd1eb285a3c21f9c60,reviewed-no-change
 crates/portcove-core/catalog/ports/supermedo-uncharted-3.json,/listing/manual_setup/steps/4/instruction,44862379039a8878d7f1194fe38fdae870f142fa442f2a5947de65cd68335a96,reviewed-no-change
-crates/portcove-core/catalog/ports/supermedo-uncharted-3.json,/listing/manual_setup/steps/5/title,9f70d3d7f1dc3b1f1c2a3c268d43e1120bb1775e07b092f9f5ebee20eee92f97,reviewed-no-change
+crates/portcove-core/catalog/ports/supermedo-uncharted-3.json,/listing/manual_setup/steps/5/title,9ac446eff7fa2dfe93b41ebacc6aa3d0e9f6d0074c00e6eda259b51d7d50ffd6,reviewed-no-change
 crates/portcove-core/catalog/ports/supermedo-uncharted-3.json,/listing/manual_setup/steps/5/instruction,ab794f621b81a0f6af03c4a0406c6b8cb29caef51c1b11cbf88bb5120ddb5b36,reviewed-no-change
 crates/portcove-core/catalog/ports/supermedo-uncharted-3.json,/listing/manual_setup/warnings/0,ac88e3cb9be0fe96ca7ca3faccd16a1ae2acc466b69902c57700736e83eb48cf,reviewed-no-change
 crates/portcove-core/catalog/ports/svr07-recomp-wwe-smackdown-vs-raw-2007.json,/listing/name,503c4586aefebdc909e457021c7559bf67453df2f5961cb833eaf7ac8e62b82d,reviewed-no-change
@@ -10797,7 +10797,7 @@ crates/portcove-core/catalog/ports/tekken-6-native-online-ekspym-tekken-6.json,/
 crates/portcove-core/catalog/ports/tekken-6-native-online-ekspym-tekken-6.json,/listing/manual_setup/warnings/1,4add162e8c4d3a8d14d712bec9b2c9715b04afb5ad677e589a312e2bad90fde3,reviewed-with-exact-rewrite-proposals
 crates/portcove-core/catalog/ports/tekken-tag-2-ultimate-edition-petexy-tekken-tag-tournament-2-wii-u-edition.json,/listing/name,d74498c60314366d43f1e4491dc4e7cbbacd3d3fe2d6426671820a97ee2c61ee,reviewed-no-change
 crates/portcove-core/catalog/ports/tekken-tag-2-ultimate-edition-petexy-tekken-tag-tournament-2-wii-u-edition.json,/listing/original_game_title,a81a541df2b7a2722e5b1d01d0d537102206abc8dbb07c2912d44eb57c4c6b50,reviewed-no-change
-crates/portcove-core/catalog/ports/tekken-tag-2-ultimate-edition-petexy-tekken-tag-tournament-2-wii-u-edition.json,/listing/summary,f14e88912360d47316b5c6177d16da6a552c176ecbd74e4bdf4f382913e97b5f,reviewed-with-exact-rewrite-proposals
+crates/portcove-core/catalog/ports/tekken-tag-2-ultimate-edition-petexy-tekken-tag-tournament-2-wii-u-edition.json,/listing/summary,64e219dd73e74b698a922d10adbfaa6d1212d893bc40071136ffbd699145f727,reviewed-with-exact-rewrite-proposals
 crates/portcove-core/catalog/ports/tekken-tag-2-ultimate-edition-petexy-tekken-tag-tournament-2-wii-u-edition.json,/listing/manual_setup/steps/0/title,1e73260b4ef181dcfc634585190334b37060707a4867674882f3c90f52ff34aa,reviewed-no-change
 crates/portcove-core/catalog/ports/tekken-tag-2-ultimate-edition-petexy-tekken-tag-tournament-2-wii-u-edition.json,/listing/manual_setup/steps/0/instruction,bdc6d4403c5bfe9912e5631e761827295f1c8122347313efd1f97de77650e9f0,reviewed-with-exact-rewrite-proposals
 crates/portcove-core/catalog/ports/tekken-tag-2-ultimate-edition-petexy-tekken-tag-tournament-2-wii-u-edition.json,/listing/manual_setup/steps/1/title,0b63d61073ec07156224dde6467140df52549f4c28f586b2d5426fa8ac9bedd8,reviewed-no-change
@@ -11667,12 +11667,12 @@ crates/portcove-core/catalog/ports/ufc4-native-windows-ayarem21-ayarem21-ea-spor
 crates/portcove-core/catalog/ports/ufc4-native-windows-ayarem21-ayarem21-ea-sports-ufc-4.json,/listing/manual_setup/warnings/1,4add162e8c4d3a8d14d712bec9b2c9715b04afb5ad677e589a312e2bad90fde3,reviewed-with-exact-rewrite-proposals
 crates/portcove-core/catalog/ports/ufc4-pc-port-schans-arg-schans-arg-ea-sports-ufc-4.json,/listing/name,3b654ec24bade527c959e1a64cad60d79f645cf2df6341747851b74cf9be00d4,reviewed-no-change
 crates/portcove-core/catalog/ports/ufc4-pc-port-schans-arg-schans-arg-ea-sports-ufc-4.json,/listing/original_game_title,0de501742a83c213137b4d66d43b008561918702ced3536174c8aeba7f0b33fc,reviewed-no-change
-crates/portcove-core/catalog/ports/ufc4-pc-port-schans-arg-schans-arg-ea-sports-ufc-4.json,/listing/summary,91d9a3ebb7423a0899f201d854c92b1b47a1f47d66416a8a8480e6deb0b31c9a,reviewed-with-exact-rewrite-proposals
+crates/portcove-core/catalog/ports/ufc4-pc-port-schans-arg-schans-arg-ea-sports-ufc-4.json,/listing/summary,fe96f5c5d61c8ddb268f808b28ec0c7046a4c0bbc74308b4be824b0333112429,reviewed-with-exact-rewrite-proposals
 crates/portcove-core/catalog/ports/ufc4-pc-port-schans-arg-schans-arg-ea-sports-ufc-4.json,/listing/manual_setup/steps/0/title,1e73260b4ef181dcfc634585190334b37060707a4867674882f3c90f52ff34aa,reviewed-no-change
 crates/portcove-core/catalog/ports/ufc4-pc-port-schans-arg-schans-arg-ea-sports-ufc-4.json,/listing/manual_setup/steps/0/instruction,95be8d5a27a2f0ccf7ace61d74eeef96576068379df648bc37a7337067dfc332,reviewed-no-change
 crates/portcove-core/catalog/ports/ufc4-pc-port-schans-arg-schans-arg-ea-sports-ufc-4.json,/listing/manual_setup/steps/1/title,0b63d61073ec07156224dde6467140df52549f4c28f586b2d5426fa8ac9bedd8,reviewed-no-change
 crates/portcove-core/catalog/ports/ufc4-pc-port-schans-arg-schans-arg-ea-sports-ufc-4.json,/listing/manual_setup/steps/1/instruction,3db78ec65bb4b7e97305471de1b118c34c7ff0cda55d60da1727f3aee77b9664,reviewed-with-exact-rewrite-proposals
-crates/portcove-core/catalog/ports/ufc4-pc-port-schans-arg-schans-arg-ea-sports-ufc-4.json,/listing/manual_setup/warnings/0,b387de85764782f427a4763920b549fda4a124ae17ff4ae1766205faabefc7f5,reviewed-no-change
+crates/portcove-core/catalog/ports/ufc4-pc-port-schans-arg-schans-arg-ea-sports-ufc-4.json,/listing/manual_setup/warnings/0,3aadb091757dbaf29804c232b0823bbeaf83494560689d11f35f88e9a2719d69,reviewed-no-change
 crates/portcove-core/catalog/ports/ufc4-pc-port-schans-arg-schans-arg-ea-sports-ufc-4.json,/listing/manual_setup/warnings/1,4add162e8c4d3a8d14d712bec9b2c9715b04afb5ad677e589a312e2bad90fde3,reviewed-with-exact-rewrite-proposals
 crates/portcove-core/catalog/ports/ufe3-recomp-idiazraz-ultraman-fighting-evolution-3.json,/listing/name,8c484e084483616d9aed91596c2fdf2cb8d8a6b759d7ee89f0c0ff34129d35d8,reviewed-no-change
 crates/portcove-core/catalog/ports/ufe3-recomp-idiazraz-ultraman-fighting-evolution-3.json,/listing/original_game_title,cd2ede367ff79affa211842eb73fdd0e35ce6f64c5e01e0f99013d4b3c41e4b4,reviewed-no-change

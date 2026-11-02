@@ -4,7 +4,7 @@
     "id": "mhfu-pc-kiridor123-monster-hunter-freedom-unite",
     "name": "Monster Hunter Freedom Unite — MHFU-PC (Kiridor123)",
     "original_game_title": "Monster Hunter Freedom Unite",
-    "summary": "Pokke uses native ahead-of-time compilation and Vulkan/SDL3; gameplay/save reports are upstream claims only; EU MHForever uses a different sourceedition. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
+    "summary": "Pokke uses native ahead-of-time compilation with Vulkan and SDL3. Gameplay and save reports are the project’s claims. MHForever uses a different European source edition. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Kiridor123/MHFU-PC",
     "platforms": [],
     "availability": "unknown",

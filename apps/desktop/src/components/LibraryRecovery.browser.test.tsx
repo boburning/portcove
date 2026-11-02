@@ -1,6 +1,6 @@
 import { captureParityState } from "../../test/parity-capture";
-import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
-import { page, userEvent } from "vite-plus/test/browser";
+import { afterEach, expect, it, vi } from "vite-plus/test";
+import { page } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
 import { LibraryRecovery } from "./LibraryRecovery";
 import { portDefinition, portStatus } from "../test-fixtures";
@@ -8,9 +8,6 @@ import { install } from "../dev-scenarios/interactive/scenarios";
 import type { LibraryMetadataFile } from "../types";
 import "../styles/index.css";
 
-beforeEach(async () => {
-  await page.viewport(960, 800);
-});
 afterEach(cleanup);
 
 function guide(exportMetadata: () => Promise<LibraryMetadataFile | undefined>) {
@@ -57,7 +54,7 @@ function expectSeparatedRecoverySteps() {
 it("keeps manual preparation distinct from checked restore and authority-changing Move", async () => {
   const fixture = guide(vi.fn(async () => undefined));
   await render(fixture.element);
-  await userEvent.click(page.getByText("Prepare a recovery copy", { exact: true }).element());
+  await page.getByText("Prepare a recovery copy", { exact: true }).click();
   await page.getByRole("button", { name: "Review tasks & history" }).click();
   expect(fixture.onOpenActivity).toHaveBeenCalledOnce();
   await page.getByRole("button", { name: /^Review saves for/ }).click();
@@ -94,7 +91,7 @@ it("excludes duplicate export and reports only the metadata receipt, never a bac
       }),
   );
   await render(guide(exportMetadata).element);
-  await userEvent.click(page.getByText("Prepare a recovery copy", { exact: true }).element());
+  await page.getByText("Prepare a recovery copy", { exact: true }).click();
   const action = page.getByRole("button", { name: "Export library information", exact: true });
   const button = action.element();
   if (!(button instanceof HTMLButtonElement)) throw new Error("Expected an export button");
@@ -115,7 +112,7 @@ it("recovers from export failure and treats picker cancellation as no new receip
     .mockRejectedValueOnce(new Error("Disk unavailable"))
     .mockResolvedValueOnce(undefined);
   await render(guide(exportMetadata).element);
-  await userEvent.click(page.getByText("Prepare a recovery copy", { exact: true }).element());
+  await page.getByText("Prepare a recovery copy", { exact: true }).click();
   await page.getByRole("button", { name: "Export library information", exact: true }).click();
   await expect.element(page.getByRole("alert")).toMatchTextContent("Disk unavailable");
   expectSeparatedRecoverySteps();
@@ -137,7 +134,7 @@ it.each(["dark", "light"])(
     await render(
       <main style={{ padding: 16 }}>{guide(vi.fn(async () => undefined)).element}</main>,
     );
-    await userEvent.click(page.getByText("Prepare a recovery copy", { exact: true }).element());
+    await page.getByText("Prepare a recovery copy", { exact: true }).click();
     const overrides = document.createElement("style");
     overrides.textContent =
       "*{line-height:1.5!important;letter-spacing:.12em!important;word-spacing:.16em!important}p{margin-bottom:2em!important}";

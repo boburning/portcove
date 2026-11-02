@@ -1,14 +1,11 @@
-import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
-import { page, userEvent } from "vite-plus/test/browser";
+import { afterEach, expect, it, vi } from "vite-plus/test";
+import { page } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
 import { SetupStatement, UpdateNoticePreferences, type DetailOrganization } from "./DetailChoices";
 import { installRecord, updateCenterFixtures } from "./rendered-test-fixtures";
 import { portStatus } from "../test-fixtures";
 import type { LibraryOrganization, PortStatus } from "../types";
 
-beforeEach(async () => {
-  await page.viewport(960, 800);
-});
 afterEach(cleanup);
 
 function choices(snapshot: Partial<LibraryOrganization> = {}): DetailOrganization {
@@ -38,7 +35,7 @@ it("records a user statement only for the selected installation and never suppli
     <SetupStatement portId="sample" status={status} organization={organization} />,
   );
   const statement = page.getByRole("checkbox");
-  await userEvent.click(statement.element());
+  await statement.click();
   expect(organization.commit).toHaveBeenCalledExactlyOnceWith({
     kind: "set_setup_confirmation",
     confirmation: { port_id: "sample", context: { kind: "managed", installation_id: "1" } },
@@ -81,19 +78,15 @@ it("skips an exact checked artifact while leaving the saved notice policy indepe
   await expect
     .element(page.getByText(/only affect notices for this port in this library/))
     .toBeVisible();
-  await userEvent.click(
-    page
-      .getByRole("button", { name: "Hide the update notice for this version: 2.0", exact: true })
-      .element(),
-  );
+  await page
+    .getByRole("button", { name: "Hide the update notice for this version: 2.0", exact: true })
+    .click();
   expect(organization.commit).toHaveBeenLastCalledWith({
     kind: "set_update_notice",
     port_id: "sample",
     choice: { paused: false, skipped_release: { version: "2.0", artifact_sha256: "a".repeat(64) } },
   });
-  await userEvent.click(
-    page.getByRole("button", { name: "Pause update notices", exact: true }).element(),
-  );
+  await page.getByRole("button", { name: "Pause update notices", exact: true }).click();
   expect(organization.commit).toHaveBeenLastCalledWith({
     kind: "set_update_notice",
     port_id: "sample",

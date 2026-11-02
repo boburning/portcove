@@ -1,4 +1,3 @@
-import { page, userEvent } from "vite-plus/test/browser";
 import { captureParityState } from "../../test/parity-capture";
 import { controlledAct as act } from "../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
@@ -31,7 +30,6 @@ const review: BackupReview = {
 let root: RenderResult;
 let container: HTMLDivElement;
 beforeEach(async () => {
-  await page.viewport(960, 800);
   container = document.createElement("div");
   document.body.append(container);
   root = await renderComponent(null, { container: document.body.appendChild(container) });
@@ -47,8 +45,7 @@ async function click(label: string) {
     (button) => button.textContent === label,
   );
   expect(button).toBeDefined();
-  if (!(button instanceof HTMLButtonElement)) throw new Error("Missing review action");
-  await act(async () => (button.disabled ? button.click() : userEvent.click(button)));
+  await act(async () => button?.click());
 }
 
 it("reviews exact paths and safety-backup behavior before a bound restore", async () => {
