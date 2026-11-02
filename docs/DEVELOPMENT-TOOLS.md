@@ -2003,6 +2003,9 @@ the two 300-second operator exit observations, input custody and cleanup. These 
 harness limits; product deadlines and zero automatic retries remain unchanged.
 Keep the original 30-second collection failure and 600-second recovery timeout
 as failed evidence, separately from any result under the calibrated limits.
+The owned data inventory allows 8192 entries per directory for Picori's observed
+5712-entry generated palette directory. Its 32768-file total, 256 MiB aggregate,
+64 MiB member, depth, link and file-hash checks remain unchanged.
 Actual runtime pixels require a
 separately bound game-window observation. Desktop screenshots, process liveness
 and accessibility reports do not establish rendering, gameplay, real saves,

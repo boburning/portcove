@@ -125,7 +125,8 @@ async function userDataInventory(root: string) {
   async function visit(directory: string, depth: number) {
     assert.ok(depth <= 12 && !(await lstat(directory)).isSymbolicLink());
     const entries = await readdir(directory, { withFileTypes: true });
-    assert.ok(entries.length <= 4096 && files.length + entries.length <= 32_768);
+    // The observed Picori palette directory contains 5,712 generated entries.
+    assert.ok(entries.length <= 8_192 && files.length + entries.length <= 32_768);
     for (const entry of entries) {
       const file = path.join(directory, entry.name);
       const metadata = await lstat(file);
