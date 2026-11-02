@@ -478,3 +478,42 @@ test("retained runtime inventory selects before reading executable content and p
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("installation source reuse permits only forward verification-time refresh", async () => {
+  const { requireReusedSource } = await import("./desktop-game-first-installed-mm-test.mts");
+  const source = {
+    profile_id: "majoras-mask",
+    path: "E:/owned/majoras-mask.z64",
+    sha256: "a".repeat(64),
+    size: 33554432,
+    storage_sha256: "a".repeat(64),
+    storage_size: 33554432,
+    updated_at: 100,
+    observed_identity: null,
+    future_identity: { value: "preserved" },
+  };
+  assert.deepEqual(requireReusedSource([source], source), source);
+  const refreshed = { ...source, updated_at: 101 };
+  assert.deepEqual(requireReusedSource([refreshed], source), refreshed);
+  for (const change of [
+    { path: "E:/other/majoras-mask.z64" },
+    { profile_id: "other-profile" },
+    { sha256: "b".repeat(64) },
+    { size: 1 },
+    { storage_sha256: "b".repeat(64) },
+    { storage_size: 1 },
+    { observed_identity: { schema_version: 1, digests: [] } },
+    { future_identity: { value: "changed" } },
+    { updated_at: 99 },
+    { updated_at: Number.NaN },
+    { updated_at: Infinity },
+    { updated_at: 100.5 },
+  ])
+    assert.throws(() => requireReusedSource([{ ...source, ...change }], source));
+  assert.throws(() => requireReusedSource([], source));
+  assert.throws(() => requireReusedSource([source, source], source));
+  assert.throws(
+    () => requireReusedSource([source], refreshed),
+    "A later integration must not move observation time backwards",
+  );
+});

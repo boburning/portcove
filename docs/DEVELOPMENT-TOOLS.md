@@ -2028,6 +2028,11 @@ On disagreement, a fresh workspace read must independently confirm a relevant st
 transition before the harness repeats its full observation, at most three times and
 within the original library generation/root. Unexplained stable disagreements and
 malformed responses remain fatal; no player action is replayed.
+MM source-reuse readback preserves every registration identity field and one source
+record across both installs. Fresh verification may advance `updated_at`; that
+observation time must remain a finite integer and never regress between installs.
+A timestamp change alone does not prove compatibility; the ordinary per-port plan,
+admission and verified installation checks remain required.
 Actual runtime pixels require a
 separately bound game-window observation. Desktop screenshots, process liveness
 and accessibility reports do not establish rendering, gameplay, real saves,

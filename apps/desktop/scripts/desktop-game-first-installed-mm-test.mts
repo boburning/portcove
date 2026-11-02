@@ -5,6 +5,7 @@ import { DatabaseSync } from "node:sqlite";
 import { By, Key, until } from "selenium-webdriver";
 import type { Locator } from "selenium-webdriver";
 import type { FileIdentity } from "../../../scripts/development-evidence.mts";
+import type { SourceRecord } from "../src/transport-types.generated.d.ts";
 import type { GameFirstInstalledContext } from "./desktop-game-first-installed-test.mts";
 import { launchInstalledManagedGame } from "./desktop-game-first-installed-test.mts";
 import { fileIdentity } from "../../../scripts/development-evidence.mts";
@@ -51,6 +52,21 @@ export interface MMInstalledContext extends Omit<GameFirstInstalledContext, "inp
     verify: () => Promise<void>;
   };
 }
+/** Verification can refresh observation time without changing the registered original. */
+export function requireReusedSource(current: readonly SourceRecord[], expected: SourceRecord) {
+  assert.equal(current.length, 1, "One registered original must remain");
+  const actual = required(current[0]);
+  const { updated_at: before, ...expectedIdentity } = expected;
+  const { updated_at: after, ...actualIdentity } = actual;
+  assert.ok(Number.isSafeInteger(before) && Number.isSafeInteger(after) && after >= before);
+  assert.deepEqual(
+    actualIdentity,
+    expectedIdentity,
+    "Each installation must preserve registered source identity",
+  );
+  return actual;
+}
+
 function retainedError(error: unknown): Error {
   return error instanceof Error ? error : new Error(errorMessage(error), { cause: error });
 }
@@ -390,6 +406,7 @@ export async function gameFirstInstalledMMScenario(context: MMInstalledContext) 
       assert.equal(source.size, inputBaseline.source.bytes);
       report.registered_source = source;
       assertNoManagedLaunches(library);
+      let reusedSource = source;
       for (const id of pair) {
         await discover(id);
         await revealDetailSection(browser, "Game files");
@@ -442,11 +459,8 @@ export async function gameFirstInstalledMMScenario(context: MMInstalledContext) 
           assert.equal(active.artifact.sha256, plan.release.asset.sha256);
         assert.deepEqual(transportValue("status", core(["status", id])), await row(id));
         report[`installed_${id}`] = await row(id);
-        assert.deepEqual(
-          (await read()).workspace.sources,
-          [source],
-          "Second installation reuses the same registered source",
-        );
+        reusedSource = requireReusedSource((await read()).workspace.sources, reusedSource);
+        report[`source_after_${id}`] = reusedSource;
         assert.equal((await read()).organization.preferred_port_by_game?.[gameId], undefined);
         assertNoManagedLaunches(library);
         await libraryView();
