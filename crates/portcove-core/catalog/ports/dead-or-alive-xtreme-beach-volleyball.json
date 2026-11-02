@@ -16,6 +16,34 @@
       "image_sha256": "cea1557c4770b1b1b5f6923c2a7ea71ddaa76cbe41702231b944e45d4739390b",
       "game_slug": "dead-or-alive-xtreme-beach-volleyball",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/NoRain211/doaxvb-re/blob/1503f1574914e3d8a39aa01086ada0b058923da8/README.md",
+      "steps": [
+        {
+          "title": "Complete the upstream owned-ISO build first",
+          "instruction": "Use your own USA original Xbox Dead or Alive Xtreme Beach Volleyball ISO. The builder requires exactly one supported XBE with SHA-256 053d44e885fa33c1d15d909a533f39dfbd976e97eeaf67e4fdef8438ea7e5c54; this is the extracted executable hash, not an arbitrary ISO digest. DOAXBV-0.6.0.zip contains source/setup and helpers, not a prebuilt game. Complete its upstream extraction, authenticated recipe checks, translation and x64 Release build before adding a player. Do not bypass recipe, revision or generated-file mismatches."
+        },
+        {
+          "title": "Keep the complete private prepared folder",
+          "instruction": "The documented Windows route uses Launcher.cmd for initial setup or BuildGame.cmd, obtains pinned llvm-mingw where needed and checks its download hash. The current build route does not require Visual Studio or the Windows SDK; a bundled 32-bit extractor can separately need the upstream VC runtime prerequisite. These setup/network/prerequisite choices remain upstream and are not run or approved by Portcove. Keep private/setup-* receipts, generated output, disc-root data, SDL3.dll, tools and notices at their existing paths. Preserve GPL-3.0-or-later project and all separate component/original-game rights."
+        },
+        {
+          "title": "Add the completed upstream launcher",
+          "instruction": "After a successful build select the generated Launcher.exe in the complete prepared package root, set that root as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play when ready and use the ordinary launcher. This native Windows launcher delegates to its supplied tools/launcher.ps1 and preserves private/launcher.json choices; keep those files together. The upstream DOAXBV.exe alternative plays saved choices or opens Build when no runner exists. Do not select Launcher.cmd, BuildGame.cmd, a compiler or powershell.exe as the library player."
+        },
+        {
+          "title": "Preserve each disc root and recovery journal",
+          "instruction": "Keep the complete existing disc root, especially .recomp-storage/partition1/UDATA and .recomp-storage/save-undo-v1 with its lock/undo records, plus private/launcher.json, private/UserMusic and setup receipts. Disc roots have independent profiles; retaining only the executable does not retain the game or saves. Do not delete pending journals, merge roots or assume original-Xbox save import or cross-build migration. Upstream transaction protections are limited and do not promise power-loss safety. Portcove performs no save migration, repair, backup or restore."
+        },
+        {
+          "title": "Leave runtime replacement and acceptance upstream",
+          "instruction": "The launcher can hand off through helper processes. Portcove observes the selected program only; its finished activity does not prove the game or helpers are closed. Quit them before upstream rebuild, new-folder upgrade or recovery, retaining the previous complete installation and data. Recheck the selected launcher after changes. Upstream rendering, controller, audio and progression reports are not Portcove observations. Removing the reference preserves external files. No managed acquisition/build/update/rollback, full-session tracking or Supported qualification is supplied."
+        }
+      ],
+      "warnings": [
+        "Add only the completed Launcher.exe with its full prepared root and supplied launcher script. Keep every disc root’s .recomp-storage, pending recovery journal and private build/configuration files; the release ZIP is not a prebuilt game."
+      ]
     }
   }
 }
