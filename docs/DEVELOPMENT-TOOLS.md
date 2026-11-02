@@ -1982,6 +1982,94 @@ can signal only a separately captured, verified game process tree. This journey
 does not establish human gameplay, an installed package, Linux qualification or
 catalog support admission. Keep any earlier failed receipts and their limits.
 
+Game-first visual captures scroll to one complete identified target, then let the
+shared settled-capture owner wait for fresh, stable geometry before taking its
+single candidate image. Every observation still requires complete visibility;
+the before/after screenshot equality check rejects changes during capture.
+Capture readiness observes the comparison's existing disabled refresh control
+while its optional read is pending. A completed or failed read permits capture;
+ordinary player choice remains available throughout.
+
+`--scenario native-game-first-installed-picori` is an explicit standalone Windows
+journey through `just desktop-test` using normal products and catalog authority. Supply the normal CLI with
+`--preparation-cli` and six captured argument files: `--game-first-inputs`
+(version-1 metadata), `--game-first-source`, `--game-first-runtime`,
+`--game-first-shapes`, `--game-first-logic` and `--game-first-archive`.
+It requires no fixture tool or qualification catalog. Bounded regular-file
+verification prepares fresh owned copies, then ordinary source review and native
+copy confirmation create a managed installation. Upstream release identity stays
+separate from Core's adopted version. Library identity, favorite, Play routing,
+strict child/supervisor identity, ordinary close and restart retention are checked.
+`--game-first-operator-observation` selects the shared finite 300-second exit
+observer after strict game identity capture. The owner separately records actual
+game-window pixels and its supported close action during that interval; observing
+exit does not invent close intent or rendering. Without that flag, the existing
+identity-bound native close request remains the close mechanism.
+The same journey restarts only its owned application with a loopback refusal
+proxy. A new failed Picori update-check activity, its visible failure row and
+matching post-action proxy traffic are required before provider-unavailable
+preservation receives credit. That branch verifies another installed Play and
+retains its own launch/closure artifacts; local refusal without that evidence
+stays held. Cleanup restores the application environment and closes the proxy.
+This does not deny definition transports or establish total-network offline.
+Picori's generated asset directories can contain thousands of retained files.
+After game exit, the harness allows up to 1800 seconds for each authoritative
+collection result, polling every two seconds. Both normal and provider-unavailable
+launches must still finish successfully with exit code zero and positive process
+cleanup. Before game creation, each Picori start wait allows 3600 seconds because
+normal Core collects and restores the generated retained tree during preparation;
+the actual second launch exceeded the former 30-second harness wait while still
+preparing. MM retains its 30-second start wait. The finite 11700-second outer budget
+includes two 3600-second starts, two 1800-second collection observations, two
+300-second operator exit observations and 300 seconds for input custody/cleanup. These are
+harness limits; product deadlines and zero automatic retries remain unchanged.
+Keep the original 30-second launch-start and collection failures and 600-second recovery timeout
+as failed evidence, separately from any result under the calibrated limits.
+The owned data inventory allows 8192 entries per directory for Picori's observed
+5712-entry generated palette directory. Its 32768-file total, 256 MiB aggregate,
+64 MiB member, depth, link and file-hash checks remain unchanged.
+When comparing the runtime's retained data, select the required top-level retained
+roots before content inventory. Unrelated executable content is checked through its
+separate exact runtime identity; it does not widen the retained-data member limit.
+
+Game-first native readback compares independently issued status and workspace reads.
+A source import can commit after an internally consistent workspace snapshot returns.
+On disagreement, a fresh workspace read must independently confirm a relevant status
+transition before the harness repeats its full observation, at most three times and
+within the original library generation/root. Unexplained stable disagreements and
+malformed responses remain fatal; no player action is replayed.
+MM source-reuse readback preserves every registration identity field and one source
+record across both installs. Fresh verification may advance `updated_at`; that
+observation time must remain a finite integer and never regress between installs.
+A timestamp change alone does not prove compatibility; the ordinary per-port plan,
+admission and verified installation checks remain required.
+An installed Library card may correctly offer `Try launch` while compatibility is
+unconfirmed. The native MM check permits that caption or `Play` only with one
+installed target, Core's allowed launch action, no blockers/pending setup, and an
+enabled unique button; captures still require the exact observed caption at every
+size. Trial launch is not reclassified as confirmed compatibility.
+Actual runtime pixels require a
+separately bound game-window observation. Desktop screenshots, process liveness
+and accessibility reports do not establish rendering, gameplay, real saves,
+screen-reader use, total network offline or installed multi-implementation behavior.
+Missing observations remain explicit in the result; this case does not close #4154.
+
+`--scenario native-game-first-installed-mm` is a separate standalone Windows
+journey using normal Desktop, catalog and `--preparation-cli`. Supply
+`--game-first-mm-inputs` (version-1 metadata for `majoras-mask/ntsc-u-1-0`),
+`--game-first-mm-source` (the original big-endian ROM) and
+`--game-first-operator-observation`. Captured fingerprints establish input
+custody; Core still decides source admission and installation eligibility.
+The case scans and reviews the source through normal UI, installs both 2Ship
+and Zelda64 through their ordinary installation reviews, checks grouped choices,
+filters and separate title/action layouts, then launches the selected Zelda64
+installation once and verifies restart retention. Its 40-minute outer budget
+covers two bounded installations, source scanning, operator observation and
+cleanup; product deadlines remain unchanged. This case requires its own
+uncontended native window and applicable interaction authorization. Source tests
+and generated receipts do not establish native execution, runtime pixels,
+gameplay, real saves or completion of #4154.
+
 `--scenario native-direct-preparation-recovery` is an opt-in Windows journey
 through a real failed owned setup child. Its original source/runtime inputs and
 active installation remain unchanged; the actual Core failure supplies the

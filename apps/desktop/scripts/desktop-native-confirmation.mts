@@ -65,7 +65,7 @@ async function validatePickerInput({
     );
   }
   if (directoryPath) {
-    assert.ok(["Choose Portcove library", "Choose game-file folder"].includes(title));
+    assert.ok(["Choose Portcove library", "Choose game files folder"].includes(title));
     assert.equal(button, "Select Folder");
     assert.ok((await stat(directoryPath)).isDirectory(), "Owned picker fixture is not a directory");
   }
@@ -125,7 +125,7 @@ function ownedRuntimePicker(
       if (gameFilePicker) {
         await validatePickerInput({
           output,
-          title: "Choose game-file folder",
+          title: "Choose game files folder",
           button: "Select Folder",
           directoryPath,
         });
@@ -169,7 +169,7 @@ function ownedRuntimePicker(
         "-ApplicationPath",
         application,
         "-ObservePicker",
-        ...(gameFilePicker ? ["-ExpectedPickerTitle", "Choose game-file folder"] : []),
+        ...(gameFilePicker ? ["-ExpectedPickerTitle", "Choose game files folder"] : []),
         ...(select && directoryPath !== undefined
           ? ["-PreparedRuntimeDirectory", directoryPath]
           : []),
@@ -208,7 +208,7 @@ function ownedLinuxGameFilePicker({
     if (directoryPath)
       await validatePickerInput({
         output,
-        title: "Choose game-file folder",
+        title: "Choose game files folder",
         button: "Select Folder",
         directoryPath,
       });

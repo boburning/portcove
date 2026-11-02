@@ -29,6 +29,11 @@ export type InputDesktopApplicationUpdateProductionDecision = "use-stable" | "ke
 export type InputDesktopApplicationUpdateRecoveryArea = "schedule" | "staging" | "apply";
 export type InputDesktopOrganizationChange =
   | {
+      game_id: string;
+      kind: "set_preferred_implementation";
+      port_id?: string | null;
+    }
+  | {
       followed: boolean;
       kind: "set_followed_project";
       /**

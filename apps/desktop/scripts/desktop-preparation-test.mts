@@ -124,6 +124,7 @@ import { removalReviewScenario } from "./desktop-removal-review-test.mts";
 import { cliHandoffScenario } from "./desktop-cli-handoff-test.mts";
 import { artworkScenario } from "./desktop-artwork-test.mts";
 import { artworkCorrectionScenario } from "./desktop-artwork-correction-test.mts";
+import { gameFirstScenarios } from "./desktop-game-first-test.mts";
 import { libraryHandoffScenario } from "./desktop-library-handoff-test.mts";
 import { adoptionReviewScenario } from "./desktop-adoption-review-test.mts";
 import { sourceRemovalScenario } from "./desktop-source-removal-test.mts";
@@ -4241,6 +4242,14 @@ export async function preparationScenarios({
     artifacts,
     command,
     confirmNative,
+    restartApplication,
+  });
+  await gameFirstScenarios({
+    browser,
+    invoke,
+    scenario,
+    output,
+    artifacts,
     restartApplication,
   });
 }

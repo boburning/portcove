@@ -225,6 +225,8 @@ void test("Windows diagnostics serialize file workers without changing coverage 
   assert.deepEqual(command.slice(9), [
     "scripts/desktop-scenarios.test.mts",
     "scripts/native-compatibility.test.mts",
+    "scripts/desktop-runtime-exit-observation.test.mts",
+    "scripts/desktop-game-first-installed-inputs.test.mts",
     "scripts/desktop-execution-plan.test.mts",
     "scripts/native-qualification-inventory.test.mts",
     "scripts/desktop-staged-layout.test.mts",
