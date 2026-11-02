@@ -10,10 +10,10 @@ final-status-level = "slow"
 # R48 existing-listing acceptance diagnostics retained two exact 30s cutoffs.
 # These complete fixtures load the embedded catalog and repeat durable status,
 # relink and restart checks. Match existing selected-runtime 90s harness room
-# while recording phase progress; keep product/child deadlines, all assertions,
+# for the same complete adoption family. Keep product/child deadlines, all assertions,
 # two workers, cleanup and zero retries. This is no performance claim.
 [[profile.default.overrides]]
-filter = 'package(portcove-core) & (test(/^service::user_selected::tests::prepared_guide_adoption_1813$/) | test(/^service::user_selected::tests::prepared_guide_adoption_2553$/))'
+filter = 'package(portcove-core) & test(/^service::user_selected::tests::prepared_guide_adoption_/)'
 slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
 success-output = "immediate"
 

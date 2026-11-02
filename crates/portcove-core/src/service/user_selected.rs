@@ -608,9 +608,18 @@ mod tests {
         executable: &Path,
         working: &Path,
     ) -> ExternalRuntimeRecord {
-        let arguments = vec!["--help".into()];
+        register_with_arguments(service, id, executable, working, &["--help".into()])
+    }
+
+    fn register_with_arguments(
+        service: &PortcoveService,
+        id: &str,
+        executable: &Path,
+        working: &Path,
+        arguments: &[String],
+    ) -> ExternalRuntimeRecord {
         let preview = service
-            .preview_user_selected_runtime(id, executable, working, &arguments)
+            .preview_user_selected_runtime(id, executable, working, arguments)
             .unwrap();
         assert!(preview.archive_sha256.is_empty());
         assert!(preview.immutable_tree_sha256.is_empty());
@@ -620,7 +629,7 @@ mod tests {
                 id,
                 executable,
                 working,
-                &arguments,
+                arguments,
                 &preview.preview_sha256,
             )
             .unwrap();
@@ -629,7 +638,7 @@ mod tests {
                 id,
                 executable,
                 working,
-                &arguments,
+                arguments,
                 &authorization.token,
             )
             .unwrap()
@@ -676,6 +685,26 @@ mod tests {
         working: PathBuf,
         id: &str,
     ) {
+        assert_selected_listing_lifecycle_with_arguments(
+            temporary,
+            service,
+            executable,
+            working,
+            id,
+            vec!["--help".into()],
+            None,
+        );
+    }
+
+    fn assert_selected_listing_lifecycle_with_arguments(
+        temporary: tempfile::TempDir,
+        service: PortcoveService,
+        executable: PathBuf,
+        working: PathBuf,
+        id: &str,
+        arguments: Vec<String>,
+        recorded_arguments: Option<String>,
+    ) {
         let started = std::time::Instant::now();
         let expected_listing = service.catalog.listing(id).unwrap().clone();
         let expected_definition = service
@@ -689,7 +718,7 @@ mod tests {
                 == crate::ListingAction::AttachExisting
                 && action.allowed)
         );
-        let record = register(&service, id, &executable, &working);
+        let record = register_with_arguments(&service, id, &executable, &working, &arguments);
         eprintln!("listing route {id}: registered {:?}", started.elapsed());
         assert_eq!(
             service
@@ -709,7 +738,8 @@ mod tests {
         fs::create_dir(&replacement).unwrap();
         let replacement_executable = replacement.join(executable.file_name().unwrap());
         fs::copy(&executable, &replacement_executable).unwrap();
-        let arguments = vec!["--help".into()];
+        let replacement_before = fs::read(&replacement_executable).unwrap();
+
         let preview = service
             .preview_user_selected_runtime_relink(
                 id,
@@ -820,6 +850,12 @@ mod tests {
             "listing route {id}: owned probe returned {:?}",
             started.elapsed()
         );
+        if let Some(expected) = &recorded_arguments {
+            assert_eq!(
+                fs::read_to_string(replacement.join("route-binding")).unwrap(),
+                *expected
+            );
+        }
         let removal = service.preview_external_removal(id).unwrap();
         let consent = service
             .authorize_external_removal(id, &removal.preview_sha256)
@@ -830,6 +866,16 @@ mod tests {
             started.elapsed()
         );
         assert!(replacement_executable.is_file());
+        assert_eq!(
+            fs::read(&replacement_executable).unwrap(),
+            replacement_before
+        );
+        if let Some(expected) = &recorded_arguments {
+            assert_eq!(
+                fs::read_to_string(replacement.join("route-binding")).unwrap(),
+                *expected
+            );
+        }
         assert_eq!(
             fs::read(working.join("player-save.dat")).unwrap(),
             b"player save"
@@ -849,19 +895,110 @@ mod tests {
         assert_listing_only_player_route("listing-only", None);
     }
 
+    fn assert_bound_listing_player_route(id: &str, player_name: &str, literal_arguments: &[&str]) {
+        let (temporary, mut service, probe, working) = fixture(id);
+        let executable = working.join(player_name);
+        fs::rename(probe, &executable).unwrap();
+        service.catalog = Catalog::embedded().unwrap();
+        let listing = service.catalog.listing(id).unwrap();
+        assert!(listing.manual_setup.is_some());
+        assert!(listing.download_block_reason.is_none());
+        assert!(service.catalog.port(id).is_err());
+        // The prefix is the owned probe's recording ABI. The suffix is the
+        // individually reviewed player argument vector, never a shell command.
+        let arguments: Vec<String> = ["--record".into(), "route-binding".into()]
+            .into_iter()
+            .chain(
+                literal_arguments
+                    .iter()
+                    .map(|argument| (*argument).to_owned()),
+            )
+            .collect();
+        let preview = service
+            .preview_user_selected_runtime(id, &executable, &working, &arguments)
+            .unwrap();
+        assert!(
+            service
+                .register_user_selected_runtime(id, &executable, &working, &arguments, "")
+                .is_err()
+        );
+        assert!(
+            service
+                .authorize_user_selected_runtime(
+                    id,
+                    &executable,
+                    &working,
+                    &[],
+                    &preview.preview_sha256,
+                )
+                .is_err()
+        );
+        assert!(
+            service
+                .library
+                .external_runtime_with_port(id)
+                .unwrap()
+                .is_none()
+        );
+        assert_selected_listing_lifecycle_with_arguments(
+            temporary,
+            service,
+            executable,
+            working,
+            id,
+            arguments,
+            Some(literal_arguments.join("\n")),
+        );
+    }
+
     // Per-title acceptance of an existing listing-only route. These controls
     // execute the owned probe, not the upstream game or original-data setup.
     #[test]
     fn prepared_guide_adoption_2553() {
-        assert_listing_only_player_route(
+        assert_bound_listing_player_route(
             "3d-pinball-for-windows-space-cadet-spacecadetpinball",
-            Some(false),
+            "SpaceCadetPinball.exe",
+            &[],
         );
     }
 
     #[test]
     fn prepared_guide_adoption_1813() {
-        assert_listing_only_player_route("doukutsu-rs-doukutsu-rs", Some(false));
+        assert_bound_listing_player_route(
+            "doukutsu-rs-doukutsu-rs",
+            "doukutsu-rs_windows_1.0.0.x86_64.exe",
+            &[],
+        );
+    }
+
+    #[test]
+    fn prepared_guide_adoption_1833() {
+        assert_bound_listing_player_route("dkfans-keeperfx", "keeperfx-launcher.exe", &[]);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_1857() {
+        assert_bound_listing_player_route("gizcesi-opentricky", "OpenTricky.exe", &[]);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_1912() {
+        assert_bound_listing_player_route("xander-haj-z3r", "zelda3.exe", &[]);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_1852_red_alert() {
+        assert_bound_listing_player_route("openra-openra", "RedAlert.exe", &[]);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_1852_tiberian_dawn() {
+        assert_bound_listing_player_route("openra-openra", "TiberianDawn.exe", &[]);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_1852_dune_2000() {
+        assert_bound_listing_player_route("openra-openra", "Dune2000.exe", &[]);
     }
 
     #[test]
