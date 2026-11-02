@@ -647,7 +647,7 @@ it("keeps a singleton port review readable below its close control at narrow wid
   const dialog = page.getByRole("dialog");
   await expect.element(dialog).toBeVisible();
   await expect
-    .element(dialog.getByText("Review this port’s requirements and recorded information."))
+    .element(dialog.getByText("Review this port’s setup requirements and reports."))
     .toBeVisible();
   const close = dialog
     .getByRole("button", { name: "Close", exact: true })

@@ -287,3 +287,96 @@ and [package pins](https://github.com/boburning/portcove/blob/c3fa60f7b1f4c0d031
 Local observations above own claims about execution; passing hosted CI cannot
 retrospectively identify these failures' cause. Required exact-head hosted checks
 and delivery remain the delivering owner's responsibility.
+
+## Required-CI repair follow-up on `e027b2bc`
+
+Run `41453355044`, frontend fast job `125303974444`, failed two browser cases on
+`e027b2bc3a63ae27f1069c347f2ef4792933b616`. The singleton Library review fixture
+still expected “Review this port’s requirements and recorded information.”
+while the authored UI says “Review this port’s setup requirements and reports.”
+The repair updates that exact expectation and retains the visibility and layout
+checks.
+
+The other case, `retains the dark bundled font, bounded transitions and pressed action feedback`
+in `apps/desktop/src/browser/foundations.browser.test.tsx`, failed its pressed
+color poll: expected `[77,79,85,255]`, received `[46,50,58,128]`. Its CI trace
+shows Play's press completing, then Neutral's focus assertion and Space-down.
+Neutral remains held for about 1044 ms. This case has 47 screencast-frame events;
+it is not classified from the earlier local rendering-clock observations.
+
+The trace's captured CSS places the generic active background before an
+equally specific dark-hover rule. When hover and active both match, that later
+rule paints the 50% hover mix rather than the opaque active token. A bounded
+owned-page control using the captured CSS reproduces the exact received RGBA
+while `:active` is true and the pressed translation remains one pixel. Excluding
+active state from the dark-hover selector restores the expected opaque token and
+preserves hover-only feedback. Prior pointer position is not directly recorded;
+losing keyboard activation is not necessary to explain this reproducible cascade.
+
+The owner changed both ghost and outline dark-hover utilities to
+`dark:hover:not-active:bg-pc-surface-muted/50`. The existing foundations test now
+includes Outline and explicitly hovers each action after its keyboard-focus
+assertion and before Space-down. Pixel, one-pixel translation and final key-release
+assertions remain unchanged. No sleep or larger timeout was introduced.
+
+The production build completed successfully in 4.77 seconds. One subsequent
+paired control uses the actual new production CSS and actual old/current Button
+class composition, evaluated from the real `buttonVariants`/helper expressions
+with the installed `cva` and `cn` packages. It does not substitute a hand-written
+replacement stylesheet. The new asset contains the intended
+`:hover:not(:active)` selector.
+
+| Variant | Retained CI CSS, hover + active | New build CSS, hover + active | Hover-only, both versions | New pressed translation |
+| ------- | ------------------------------- | ----------------------------- | ------------------------- | ----------------------- |
+| Ghost   | `[46,50,58,128]`                | `[77,79,85,255]`              | `[46,50,58,128]`          | `0px 1px`               |
+| Outline | `[46,50,58,128]`                | `[77,79,85,255]`              | `[46,50,58,128]`          | `0px 1px`               |
+
+Eight old/new disabled/busy endpoint controls retain native disabled state,
+`pointer-events: none` and zero programmatic native click events. These controls
+apply the native attributes produced by Button; they do not replace React or
+native application verification. All paired checks passed and the owned browser
+closed. Transitions are disabled only within this forced-pseudo-state diagnostic
+to compare settled style endpoints. This is not an end-to-end test pass.
+
+The paired control observed stable repair-file and build-asset hashes throughout:
+
+| Repair artifact                                         | SHA-256                                                            |
+| ------------------------------------------------------- | ------------------------------------------------------------------ |
+| `apps/desktop/dist/assets/index-UFHU5E2D.css`           | `d8560f98fa5d2fe9b156eaa6c6ed378741b7ce49e7654c96f997e8249fa32c0d` |
+| `apps/desktop/src/components/ui/button.tsx`             | `63129634cd32a13f42377fb87f0770ad843d2a7dc82d41fcf648d1727bb4ec70` |
+| `apps/desktop/src/browser/foundations.browser.test.tsx` | `4d11bd5e51e2b63168b2989a96258c3556c80f8f27a98da6bb8a6fddfcb9d62d` |
+| Retained original CI CSS                                | `9cbb20efc9b7676b7c6eafa4a66998dfc0ac3ea8dbf338bc2c529444625cc936` |
+
+Original source custody also confirms the foundations test, Button,
+control-style, tokens and variants files were byte-unchanged between baseline
+`b12c162a` and CI source `e027b2bc`. The original test SHA-256 is
+`27be73b8fedef382bdb52e01d0637ef8a1e9c7edba2ff64968a83a801b5e848b`.
+Artifact `13145958123`, `browser-traces-fast-41453355044-1.zip`, is retained with
+SHA-256 `4bec8c648bdb19a5a023296df5092fe32c11e672aa066f01f211ed747d03a794`.
+Raw trace, captured CSS, class/source custody, paired endpoint JSON, modules and
+logs remain in ignored `work/copy-followup/foundations-ci-e027/`; the focused
+analysis is `work/copy-followup/foundations-ci-analysis.md`.
+
+The same required-CI pass exposed four stale Rust fixtures after the catalog
+format additions. Repairs preserve their rejection/compatibility assertions:
+
+- Unknown listing-format input advances from 6, now supported, to unsupported 7.
+- The schema-2 compatibility case explicitly exports and reads schema 2 instead
+  of treating the current embedded schema as schema 2.
+- The reviewed legacy directory projection expects current listing format 6
+  instead of 4, retaining its game-identity assertions.
+- The invalid signed-catalog fixture uses unsupported schema 4 instead of schema
+  3, now supported, retaining its invalid-signature/document rejection assertion.
+
+Scoped nextest invocation `b3d5b928-bedd-4557-ad35-b10ed8dec64e` selected and
+executed those four cases: all passed, none missing. It does not claim complete
+workspace qualification. The prepare-port receipt fixture likewise expects
+listing format 6 and retains its byte-digest and validator-identity assertions;
+its 33-case local suite passed. Evidence is retained in
+`work/copy-followup/rust-ci-repairs-local.log` and
+`work/copy-followup/prepare-port-repair.log`.
+
+These required-CI repairs do not resolve or retrospectively explain the original
+four-case investigation or the 11 unresolved local composition failures above.
+The earlier findings remain unchanged. Fresh required exact-head CI is still
+needed for the repair commit.

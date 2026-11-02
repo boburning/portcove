@@ -2817,7 +2817,9 @@ mod tests {
     #[test]
     fn schema_2_compatibility_projection_preserves_every_schema_1_profile() {
         let legacy = Catalog::from_json(SCHEMA_1_CATALOG_FIXTURE).unwrap();
-        let migrated = Catalog::embedded().unwrap();
+        let migrated =
+            Catalog::from_document(Catalog::embedded().unwrap().export_document(2).unwrap())
+                .unwrap();
         let additions = reviewed_legacy_additions(&legacy, &migrated);
         assert_eq!(migrated.document().schema_version, 2);
         let source_catalog = migrated.source_catalog().expect("schema-2 authority");

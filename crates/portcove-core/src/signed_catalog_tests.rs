@@ -355,7 +355,7 @@ fn signatures_reject_untrusted_tampered_weak_and_invalid_documents() {
             0 => payload.expires_at = now,
             1 => payload.issued_at = now + 1,
             2 => payload.sequence = 0,
-            3 => payload.catalog.schema_version = 3,
+            3 => payload.catalog.schema_version = 4,
             4 => payload.catalog.source_profiles[0].accepted_sha256.clear(),
             5 => payload.catalog.ports[0]
                 .persistent_paths
