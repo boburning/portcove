@@ -34,7 +34,7 @@
         },
         {
           "title": "Preserve the complete user-data root",
-          "instruction": "Keep the whole %APPDATA%/Muscle March folder on Windows, including launcher.ini, settings.ini, the locally prepared game files, NAND/save content, logs, backups and other user files as present. Keep the original WAD in its existing location separately. Do not delete this folder to register or troubleshoot the player: it contains both preparation and progress. Do not merge another Wii title’s NAND/save tree, reset existing settings or assume portable-root migration. Portcove performs no save import, conversion, backup, restore or key handling."
+          "instruction": "Keep the whole active user-data root: normally %APPDATA%/Muscle March on Windows, an existing MUSCLE_MARCH_HOME override, or the upstream adjacent user fallback if the normal folder is unavailable, including launcher.ini, settings.ini, the locally prepared game files, NAND/save content, logs, backups and other user files as present. Keep the original WAD in its existing location separately. Do not delete this folder to register or troubleshoot the player: it contains both preparation and progress. Do not merge another Wii title’s NAND/save tree, reset existing settings or assume portable-root migration. Portcove performs no save import, conversion, backup, restore or key handling."
         },
         {
           "title": "Leave replacement and recovery upstream",

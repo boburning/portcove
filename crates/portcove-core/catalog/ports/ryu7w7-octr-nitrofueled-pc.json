@@ -17,7 +17,35 @@
       "game_slug": "crash-team-racing-nitro-fueled",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2819
+    "issue_number": 2819,
+    "manual_setup": {
+      "help_url": "https://github.com/Ryu7w7/OCTR-NitroFueled-PC/blob/3885d1aea24d19ed9b31f96fba57a5cce92183cd/README.md",
+      "steps": [
+        {
+          "title": "Finish preparation with your own exact PS4 edition",
+          "instruction": "Use your own already decrypted Crash Team Racing: Nitro-Fueled PS4 USA CUSA13795 base game and v1.21 update folders. Complete upstream Prepare game, or select an already prepared CUSA13795-1.21 folder. The supported extracted layouts include ordinary eboot.bin/sce_module/sce_sys and the documented Image0/Sc0 representation. A raw encrypted PKG, other region such as CUSA14876, another version or an undecrypted executable is not equivalent. This guide supplies no game, account, decryption, key or dump tooling."
+        },
+        {
+          "title": "Keep the complete selected Windows portable package",
+          "instruction": "Use CTR-NitroFueled-PC-portable-v0.7.5-windows.zip with the whole CTR-NitroFueled-PC-portable folder retained: its native launcher, bin/sacredfire.exe, Python, run.py, scripts, resources, libraries and notices. Windows 10 1903+ or Windows 11 x64, Direct3D 11 for the launcher and Vulkan 1.3-capable graphics/drivers for the game are documented. This runs original x86-64 PS4 code with replacement system/GPU services; the description is not proof of an entirely native reimplementation. Preserve GPL-2.0-or-later, separate components/fonts/graphics-library and original-game rights."
+        },
+        {
+          "title": "Add the normal native Windows launcher",
+          "instruction": "Select the package’s Crash™ Team Racing Nitro-Fueled.exe, use its complete containing portable root as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play when ready and use its ordinary Play control. The launcher supplies the game directory, settings and environment to bundled Python/run.py, which starts the actual runtime. Do not select python.exe, a BAT file, a diagnostic utility or context-free bin/sacredfire.exe as an equivalent route. Preserve existing settings rather than enabling new patches, DLC or online features during registration."
+        },
+        {
+          "title": "Preserve all active game and user-data roots",
+          "instruction": "Keep the full portable root, especially user/ with saves, trophies and shader caches, bbport.ini, launcher.ini, backups/, optional dlc/, mods/patches and logs as present. Retain the separate original base/update folders and prepared merged-game folder; upstream preparation can use hard links, so do not treat the merged folder as an independent backup. Preserve existing BB_GAME_DIR, BB_USER_DIR, BB_DATA_DIR, BB_CONFIG and other path overrides. Portcove does not merge updates, import PS4 saves, move roots, supply trophy keys or convert data."
+        },
+        {
+          "title": "Leave services, updates and recovery upstream",
+          "instruction": "The native launcher supervises its own helpers, but Portcove observes only the selected program; its activity is not evidence that all games/helpers stopped. Quit actual processes before upstream replacement, rebuild, save restore or recovery, preserve complete previous application/data and review/select the current launcher after changes. Online accounts/servers, mods, experimental renderers, DLC and native/gameplay/controller/save acceptance remain upstream or separately observed outcomes. Reference removal preserves external files; managed installation/update/backup/rollback, full-session tracking and Supported qualification are unavailable."
+        }
+      ],
+      "warnings": [
+        "Select Crash™ Team Racing Nitro-Fueled.exe in the intact Windows portable folder after preparing your own decrypted CUSA13795 v1.21. Preserve user/, configuration, backups and all original/merged roots; bundled helper execution and maintenance remain upstream."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
