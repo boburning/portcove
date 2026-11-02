@@ -715,6 +715,13 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     JSON.stringify([value.platform ?? null, value.filter]);
   const intelRecoveryFilter =
     "package(portcove-core) & (test(/^catalog_update::tests::refused_artwork_only_commit_reopens_prior_mapping_and_local_choice_then_retries$/) | test(/^service::tests::publication_recovery_retains_conflicting_(quarantine|relocation|source_import|original_paths)_intent$/))";
+  const preparedPlayerAdoptionFilter =
+    "package(portcove-core) & test(/^service::user_selected::tests::prepared_guide_adoption_/)";
+  assert.deepEqual(overrideFor(preparedPlayerAdoptionFilter), {
+    filter: preparedPlayerAdoptionFilter,
+    "slow-timeout": { period: "5s", "terminate-after": 18, "grace-period": "0s" },
+    "success-output": "immediate",
+  });
   assert.deepEqual(
     outputOverrides.map(outputIdentity).sort(),
     [
@@ -738,6 +745,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
         filter,
       })),
       ...publicationFilters,
+      { filter: preparedPlayerAdoptionFilter },
       { filter: sourcePreparationFilter },
       ...immutableArchiveOverrides.map(({ filter }) => ({ filter })),
       { platform: "x86_64-unknown-linux-gnu", filter: linuxBuilderRecoveryFilter },
