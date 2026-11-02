@@ -3,7 +3,7 @@
   "listing": {
     "id": "jonathandc64-ffcceot-recomp",
     "name": "Final Fantasy Crystal Chronicles: Echoes of Time — Nintendo DS (FFCCEOT Recomp)",
-    "summary": "Upstream route: Upstream runtime package for FFCCEOT Recomp; use own game files per documented setup, with upstream/player owning installation and runtime replacement. Observed release artifacts are evidence, not operational package selection or Portcove support. Limits: Upstream only: Alpha with upstream boot/field/sound/save/online claims. Complete campaign/multiplayer unverified; USA/Europe inputs and saves separate. Alpha boots field/sound/save/online, not Wii edition; exact ROM/revision and campaign breadth must follow primary requirements, no whole-game assumption. Upstream platforms: Windows x64 ZIP and Linux x86-64 AppImage, own-ROM preparation. Nintendo DS edition, not Wii. Original data: Own FinalFantasyCrystalChroniclesEchoesOfTime NintendoDS USA orEurope ROM. Upstream checks per-region SHA1 and keeps separate saves; exact hashes/revision values not extracted here. This is the NintendoDS edition, not the Wii game. Separate firmware/BIOS input Unknown. Portcove setup/gameplay not verified.",
+    "summary": "Attach an independently permitted, prepared FFCCEOT-Recomp Windows player for the supported USA or European Nintendo DS original. Upstream compiles a native module locally; keep the retained ROM, region-specific saves and the actual system or portable data root.",
     "original_game_title": "Final Fantasy Crystal Chronicles: Echoes of Time",
     "project_url": "https://github.com/JonathanDC64/FFCCEOT-Recomp",
     "platforms": [],
@@ -17,7 +17,35 @@
       "game_slug": "final-fantasy-crystal-chronicles-echoes-of-time",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2844
+    "issue_number": 2844,
+    "manual_setup": {
+      "help_url": "https://github.com/JonathanDC64/FFCCEOT-Recomp/blob/5ca5221db2584621448465d983ba42ab9b5a40c1/README.md",
+      "steps": [
+        {
+          "title": "Prepare the exact Nintendo DS original",
+          "instruction": "Use a complete player/components you are independently permitted to use, with your own supported Nintendo DS Final Fantasy Crystal Chronicles: Echoes of Time ROM. USA CFIE SHA1 is 1df23d5a3a655bdd587c360b581202931d0f66e1; Europe CFIP is 18f7004f74c83feba40f003641ec00571e52a301. Japanese and Wii editions are not these inputs. Finish upstream ROM selection, its retained copy, local module build and Welcome/settings flow outside Portcove; an update can rebuild from that retained copy. No ROM, converter, compiler, helper or game is obtained or executed by this guide."
+        },
+        {
+          "title": "Keep the complete alpha player and toolchain",
+          "instruction": "The inspected official 0.3.1-alpha Windows x64 ZIP contains AMD64 ffcc.exe, matching UI/runtime resources and bundled clang/lld tools. Keep the complete FFCCEOT-Recomp-0.3.1-alpha-windows-x64 folder, not only ffcc.exe. It builds from the player’s ROM rather than distributing that generated module as a ready-made original. The linked melonDS facilities include hardware modeling and interpreter fallback; a native-module route is not a blanket generic-emulator or all-instructions-translated qualification."
+        },
+        {
+          "title": "Attach the prepared normal program",
+          "instruction": "Select ffcc.exe, use its complete extracted package directory as working directory and leave arguments empty. The normal integrated start screen and game thread belong to this same native application; press its Play control when ready, or retain an existing Skip start screen preference. Review the exact intent and request Portcove Play separately. Complete missing/stale module preparation upstream before retrying. Do not attach clang/lld, add finite-frame/replay/test overrides or select an original NDS program as the host."
+        },
+        {
+          "title": "Preserve the real data root and regional saves",
+          "instruction": "Normally keep %APPDATA%/FFCCEOT-Recomp/EchoesOfTime with settings.ini, the retained ROM/module/build data, cfie.sav or cfip.sav, logs/ffcc.log and any reports/optional assets. An already existing portable.txt selects data/ beside the executable instead; an existing --data-dir or --save-file changes the actual roots. Preserve all actual and old roots plus independent originals. Upstream says a USA save can load in the European game, but that is not an observed migration or a permission to merge both copies. Cartridge saves, states and optional Wii-cutscene material remain separate. This guide performs no import, conversion, backup, restore or deletion."
+        },
+        {
+          "title": "Keep optional services, terms and maintenance separate",
+          "instruction": "Retain project GPL-3.0-or-later, melonDS/component terms, SDL3 zlib, RmlUi MIT, FreeType, OFL fonts/icons, Dusklight CC0 and LLVM Apache-with-exception notices. They do not license the original DS/Wii games or other optional content. The current start screen opens the release page; it never downloads an update by itself. Community WFC revival/online servers remain separate and unobserved; no credentials/server operation is performed. Quit normally, keep recovery copies and review/relink replaced bytes. Upstream opening-area alpha reports do not establish full campaign, multiplayer, native/installed, real-save or Supported acceptance. Registration removal preserves external files; managed lifecycle operations remain unavailable."
+        }
+      ],
+      "warnings": [
+        "Keep the exact supported DS ROM and region-specific data. First-use/rebuild work stays upstream; alpha reports, Wii cutscenes and community online services retain separate scope."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
