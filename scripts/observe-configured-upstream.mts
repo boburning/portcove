@@ -22,6 +22,7 @@ import {
 
 const repositoryRoot = fileURLToPath(new URL("../", import.meta.url));
 const checkpointLimit = 32 * 1024 * 1024;
+export { checkpointLimit as observerCheckpointByteLimit };
 
 type Observation = Awaited<ReturnType<typeof observeUpstream>>["observation"];
 type RetainedObservation = Record<string, unknown> &

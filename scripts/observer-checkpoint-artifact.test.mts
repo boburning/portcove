@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createHash } from "node:crypto";
+import { gzipSync } from "node:zlib";
 import { mkdir, mkdtemp, writeFile, readFile, rm, symlink } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -14,7 +15,10 @@ import {
   recoverObserverCheckpoint,
   snapshotName,
   observerSnapshotLimit,
+  encodeObserverSnapshot,
 } from "./observer-checkpoint-artifact.mts";
+import { observerCheckpointByteLimit } from "./observe-configured-upstream.mts";
+import { isRecord } from "./runtime-values.mts";
 import { parseDocument } from "yaml";
 
 const digest = (value: string | Buffer) => createHash("sha256").update(value).digest("hex");
@@ -286,6 +290,76 @@ void test("one-member snapshots reject scope, age, graph, archive integrity and 
   const corruptOffset = 30 + "checkpoint.json".length;
   corrupt[corruptOffset] = corrupt[corruptOffset]! ^ 1;
   assert.throws(() => readObserverSnapshotArchive(corrupt, config, Date.now(), Date.now() + 60000));
+});
+
+void test("encoded snapshots retain strict transfer, expansion, digest and envelope validation", () => {
+  const good = validateObserverSnapshot(snapshot(), config, Date.now());
+  const encoded = encodeObserverSnapshot(good);
+  const read = (value: unknown) =>
+    readObserverSnapshotArchive(
+      createAuditZip([["checkpoint.json", JSON.stringify(value)]]),
+      config,
+      Date.now(),
+      Date.now() + 60000,
+    );
+  const wire: unknown = JSON.parse(encoded.bytes.toString("utf8"));
+  assert.ok(isRecord(wire));
+  assert.deepEqual(read(wire), good);
+  const gzip = Buffer.from(String(wire.payload), "base64");
+  for (const change of [
+    { format: 3 },
+    { encoding: "other" },
+    { extra: true },
+    { expanded_bytes: observerCheckpointByteLimit + 1 },
+    { expanded_bytes: 1 },
+    { expanded_bytes: encoded.decoded_bytes + 1 },
+    { sha256: "0".repeat(64) },
+    { payload: `${String(wire.payload)}\n` },
+    { payload: gzip.subarray(0, gzip.length - 4).toString("base64") },
+    { payload: Buffer.from("not gzip").toString("base64") },
+    {
+      payload: gzipSync(Buffer.from(JSON.stringify(wire))).toString("base64"),
+      expanded_bytes: Buffer.byteLength(JSON.stringify(wire)),
+      sha256: digest(JSON.stringify(wire)),
+    },
+  ])
+    assert.throws(() => read({ ...wire, ...change }));
+  assert.throws(() => encodeObserverSnapshot(good, Date.now() - 1), /deadline exhausted/);
+});
+
+void test("incompressible snapshot data cannot bypass the unchanged four-MiB artifact reserve", () => {
+  const entropy = Array.from({ length: 100000 }, (_, i) =>
+    createHash("sha256").update(`inert-fixture-${i}`).digest("base64"),
+  ).join("");
+  const logical = validateObserverSnapshot(
+    {
+      ...snapshot(),
+      files: {
+        "catalog/checkpoint.json": { ...newCatalogObserverCheckpoint(), fixture_entropy: entropy },
+      },
+    },
+    config,
+    Date.now(),
+  );
+  assert.ok(Buffer.byteLength(JSON.stringify(logical)) > observerSnapshotLimit);
+  assert.throws(() => encodeObserverSnapshot(logical), /reserved output envelope|buffer/i);
+  assert.throws(
+    () =>
+      validateObserverSnapshot(
+        {
+          ...snapshot(),
+          files: {
+            "catalog/checkpoint.json": {
+              ...newCatalogObserverCheckpoint(),
+              fixture_bytes: "x".repeat(observerCheckpointByteLimit),
+            },
+          },
+        },
+        config,
+        Date.now(),
+      ),
+    /decoded snapshot/,
+  );
 });
 
 void test("atomic restore refuses partial destinations, symlinks and contended locks without overwriting", async (t) => {
