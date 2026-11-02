@@ -3,7 +3,7 @@
   "listing": {
     "id": "rush-2-recompiled",
     "name": "Rush 2 Recompiled",
-    "summary": "Explore Rush 2 Recompiled and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Attach the prepared Rush 2: Extreme Racing USA Windows player with your own exact N64 ROM. Keep its existing portable or LocalAppData choice and title-specific Controller Pak; optional Rush-game imports do not qualify other canonical implementations.",
     "project_url": "https://github.com/bryantmh/rush2recompiled",
     "issue_number": 1571,
     "platforms": [],
@@ -16,6 +16,34 @@
       "image_sha256": "a26e738caa58ca0892e77603340872603a29290a6fab8fe40dfe32aca3a98791",
       "game_slug": "rush-2-extreme-racing-usa",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/bryantmh/rush2recompiled/blob/cd1ea58eda9f6040c5b85df717d936a89af64598/README.md",
+      "steps": [
+        {
+          "title": "Prepare the exact Rush 2 original",
+          "instruction": "Use your own Rush 2: Extreme Racing USA N64 ROM. The selected native entry requires normalized ROM hash XXH3-64 ee71d0c9ca3a66df, internal name RUSH 2, game ID rush2.n64.us. Finish original selection, controls and settings in the complete official v1.0.38 Windows player first. Optional Rush 1/Rush 2049 or arcade/DC imports require their own originals and qualification; they do not replace the separate ProjectR implementations or their outstanding conditions."
+        },
+        {
+          "title": "Keep the complete independently permitted player",
+          "instruction": "Retain Rush2Recompiled.exe, its DLLs, assets/fonts, controller database and accompanying files as one complete player you are independently permitted to use. A shared N64 runtime or frontend does not establish another title’s permissions, layout or save compatibility. The selected RecompFrontend revision d0d90ba49f46f4896aaeda362056c21b1e342561 is distinct from the separately recorded unchanged-b1 grant; no source reuse, modification or redistribution permission is inferred here."
+        },
+        {
+          "title": "Attach the integrated native game",
+          "instruction": "Select Rush2Recompiled.exe, use its complete extracted player directory as working directory and leave arguments empty after upstream setup. Review the exact intent and request Play separately. The selected executable hosts the frontend and native runtime together. Do not register a simulator, developer capture tool, importer-only utility or another racing port. Quit the actual game normally before maintenance."
+        },
+        {
+          "title": "Preserve the existing data choice and Controller Pak",
+          "instruction": "Without an existing portable.txt in the working directory, the exact frontend selects Known LocalAppData/Rush2Recompiled on Windows; an existing marker selects that directory instead. Keep this choice and any pending data_move.txt state unchanged. Preserve the entire active root, saves/, mods/, mod_config/, old ghosts and recovery, stored ROMs, control/settings JSON and backups. This title implements its own 32 KiB Controller Pak image beside the save path under saves/, normally rush2.n64.us.mpk; port 1 owns that Pak and other ports report Rumble Paks. SaveType::None in generic registration does not mean progress is disposable. Do not merge Paks, switch roots or infer state/save compatibility from another game."
+        },
+        {
+          "title": "Leave data moves and replacement upstream",
+          "instruction": "The upstream data-location workflow schedules a copy for the next launch, and its migration code handles older ghost layout. Complete any already scheduled move upstream and retain both roots/recovery before attachment; this guide performs no move or deletion. Upstream/player owns runtime replacement: close the game, retain data and review/relink changed bytes. Component rights, physical multiplayer/rumble, native gameplay and real-save restore remain separately scoped. Portcove attachment supplies no managed install/update/backup/rollback/migration/deletion."
+        }
+      ],
+      "warnings": [
+        "Select Rush2Recompiled.exe and preserve its current marker/root and 32 KiB Controller Pak. Optional imported games, source permissions and other implementations’ acceptance do not carry over."
+      ]
     }
   }
 }
