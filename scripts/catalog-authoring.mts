@@ -572,7 +572,7 @@ export function reviewCompatibilityFixture(
 }
 
 export function validateCurrentCatalog(catalog: unknown): asserts catalog is CurrentCatalog {
-  if (!isRecord(catalog) || ![2, 3].includes(Number(catalog.schema_version)))
+  if (!isRecord(catalog) || (catalog.schema_version !== 2 && catalog.schema_version !== 3))
     throw new Error("current catalog source is not schema 2 or 3");
   if ("source_profiles" in catalog)
     throw new Error("current catalog source must not contain a schema-1 source_profiles authority");
