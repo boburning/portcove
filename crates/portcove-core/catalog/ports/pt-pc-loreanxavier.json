@@ -16,6 +16,34 @@
       "image_sha256": "57171c2acf4e3198c361d252ee79caa6190ca759b0355b34d88b5a03e1c71577",
       "game_slug": "pt",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/LoreanXavier/pt-pc/blob/3b1392abe5215773d4c353f5bc1ecb85233be68a/README.md",
+      "steps": [
+        {
+          "title": "Complete upstream preparation from your own P.T. copy",
+          "instruction": "Use your own P.T. PS4 US CUSA01127 dump folder or an already decrypted fake PKG made from that dump. An encrypted store PKG is not supported, and other regional data are not established as equivalent. Complete the upstream Windows setup into your chosen destination before adding the player. It copies chunk1.psarc, texture.qar and pathid_list_ps4.bin next to the port; eboot, modules and system files are not used. This guide supplies no game, decryption, key, account or original-acquisition route."
+        },
+        {
+          "title": "Keep the complete installed or prepared Windows port",
+          "instruction": "The selected portable artifact is P.T.PC.Port-portable-windows.zip v1.0.8; its pt-port-20261022-484d2c1d folder contains pt.exe and companions, but still needs your prepared game data. Retain the full existing folder, libraries, resources, fonts, notices and game archives. Windows 10/11 x64 and the documented Vulkan/DirectX 12 graphics requirements apply. Original-game, project and each component/upscaling/font permission remain separate; no permission to redistribute private game data is inferred."
+        },
+        {
+          "title": "Add the ordinary native game",
+          "instruction": "Select the prepared installation’s pt.exe, use its complete containing application folder as working directory and leave arguments empty when upstream setup has placed the three archives there. Review the selected program, folder and arguments, then choose Play when ready. An existing external-game route instead needs the same explicit --game \"<existing extracted folder>\" argument it already used. Preserve that route rather than moving original files. Do not select pt-updater.exe, the extractor, setup or a crash-dump helper as gameplay."
+        },
+        {
+          "title": "Preserve the Windows data directory and overrides",
+          "instruction": "Keep the whole data/ beside pt.exe, including pt.ini, saves, logs, caches, mods and existing recovery/migration files as present, plus the complete application, prepared game archives and original dump. Preserve any existing --settings, --save-dir or --mods choices and their populated locations. Existing upstream user-data migration behavior is not a Portcove conversion or cross-build compatibility guarantee. Do not reset settings, replace newer state, move roots or turn on diagnostic/VR/rendering features merely to register the player."
+        },
+        {
+          "title": "Keep maintenance and acceptance upstream",
+          "instruction": "The application can check for updates and use its own updater/restart path; upstream owns replacement, prerequisites and recovery. Quit the actual game and all helpers before maintenance, retain the previous complete runtime/data and review/select pt.exe after changes. Portcove observes the selected program only and removing the reference preserves all external files. Managed installation/update/backup/rollback, full-session tracking and Supported qualification are unavailable. Upstream whole-teaser, controller and save reports are not Portcove native/gameplay or real-save observations."
+        }
+      ],
+      "warnings": [
+        "Add the prepared pt.exe with the complete Windows port, your own supported US game archives and data/ intact. An already external game folder keeps its explicit --game argument; setup/updater/extractor programs are separate from Play."
+      ]
     }
   }
 }

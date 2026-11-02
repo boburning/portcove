@@ -1015,6 +1015,13 @@ the player or selected upstream launcher. Only launch and registration removal
 are offered; external installation, save and settings files remain untouched by
 removal. The launched program can make its normal writes; this is no sandbox.
 
+Supervision and launch results describe the selected native program. An upstream
+launcher can hand off to another process and close while the game continues;
+activity completion or registration removal neither stops that successor nor
+establishes that external files are safe to replace or recover. Close the actual
+game and its helpers before upstream maintenance. Managed packages retain the
+full-lifetime requirement above.
+
 This mode has empty archive/tree/executable-hint/mutable-path declarations and
 cannot combine with source invocation, managed policy, bundled runtime, setup
 or managed-build hooks. Historical source-catalog identities remain preserved

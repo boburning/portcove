@@ -9,7 +9,35 @@
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/keepvaibin/nebula",
-    "issue_number": 2613
+    "issue_number": 2613,
+    "manual_setup": {
+      "help_url": "https://github.com/keepvaibin/nebula/blob/ea9ad871612f97085cea8a31a58313b16dbecc3c/README.md",
+      "steps": [
+        {
+          "title": "Finish Nebula setup with the supported game",
+          "instruction": "Use your own Super Mario Galaxy USA RMGE01 revision 0 ISO, RVZ or extracted folder. The selected game profile identifies main.dol by SHA-1 9a71008ae1ee9010e267fa67d1f0b0d4f0e895dd; this is not a whole-disc hash. Complete the upstream installer’s import, local translation/build and normal first-run settings before adding the player. Other regions and revisions have separate source contracts. The documented Windows route requires Windows 10 1803+/11 x64, AVX2, Direct3D 12 and suitable memory/storage; preparation and toolchain downloads remain upstream-owned."
+        },
+        {
+          "title": "Keep the complete installed player",
+          "instruction": "Use the existing completed Nebula installation, retaining its native Nebula.exe, runtime-env.json, runtime, libraries, versioned application folders, content and notices. Nebula-Setup.exe performs installation, repair, update and removal; NebulaSettings.exe or --settings opens settings. Select the normal Nebula.exe player rather than a compiler, setup-only command or bare runtime: its launcher supplies the active content and save context. Preserve project/component rights separately from your original game and optional graphics components."
+        },
+        {
+          "title": "Add the normal native launcher",
+          "instruction": "Select the existing Nebula.exe and its containing application directory as working directory, with arguments empty. Review the selected program, folder and arguments, then choose Play when ready. Finish any upstream settings screen if shown. The launcher supplies its own runtime-env.json and GALAXY_NAND_ROOT context; replacing it with a bare runtime can select a different save root. Portcove observes Nebula.exe only: it can show this launch as finished while the game continues in another process. Use the game’s own controls to quit."
+        },
+        {
+          "title": "Preserve the active save and settings folders",
+          "instruction": "Keep the complete installation and the actual data root, normally Local AppData/Nebula or an existing NEBULA_DATA_ROOT override. Retain saves/, settings.json, config.ini, sessions/, shadercache/, setup logs, backups and any portable settings/content choices. Saves include title/00010000/524d4745/data/GameData.bin and banner.bin with Wii metadata in NTFS streams. Use upstream’s save export/import tools when moving that data; an ordinary copy or ZIP can lose streams. Keep all previous/rejected/backup folders. Adding the launcher does not move, convert, restore or delete saves."
+        },
+        {
+          "title": "Manage replacement through Nebula",
+          "instruction": "Close the actual game and its helpers before upstream repair, update, save import/export or recovery, even if Portcove’s launcher activity has already finished. Upstream owns those operations and their component/signature decisions. After replacement, select/review the current native player again if its location changes. This existing-player route offers launch and removal of the library reference only; removing it preserves all external files. Full-session tracking, gameplay/controller/save recovery, Supported status and managed installation/update/backup/rollback are not established."
+        }
+      ],
+      "warnings": [
+        "Portcove follows the selected Nebula launcher, not a detached game. Close the actual game before upstream changes. Preserve its complete installation, active Nebula data root and save metadata; adding/removing the library reference does not manage those files."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

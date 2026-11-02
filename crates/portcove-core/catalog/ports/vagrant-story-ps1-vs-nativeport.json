@@ -17,7 +17,35 @@
       "game_slug": "vagrant-story",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2908
+    "issue_number": 2908,
+    "manual_setup": {
+      "help_url": "https://github.com/JEschete/VS-NativePort/blob/f104d511ca04665edfd6fc74b7216a3220fbe055/README.md",
+      "steps": [
+        {
+          "title": "Use the full experimental Windows tester package",
+          "instruction": "Keep VS-NativePort-0.0.11-win-x64.zip intact with VS.Launcher.exe, VS.Desktop.exe, VS.Extract.exe, runtime DLLs, resources, licenses and release.json. This is an unfinished Vagrant Story port for Windows 10 1903+/11 x64, with gameplay, cutscene, rendering and audio limits. Native game saves and memory-card/ending conversion are different contracts; complete original memory-card support is not established. No finished-game, native/controller, real-save or Supported acceptance is claimed."
+        },
+        {
+          "title": "Complete the upstream exact-disc and converter checks",
+          "instruction": "Supply your own USA SLUS-01040 single-track MODE2/2352 disc as BIN, supported CUE/BIN or parentless single-data-track CHD. The decompressed BIN must be exactly 750,643,152 bytes, SHA-256 25221D7F8FDB2C4490AF12D9E82F0E58BDD6ACB43387F9082B3C5E79DFE090C0, SHA-1 38C63DB6C49A06B91D87CD5A4E31B1EC68FE212C. A matching name is insufficient; CHD hashes apply to its decoded content, not container bytes. Complete upstream Start-Game.cmd dependency checks and launcher setup first, including an explicitly chosen compatible FFmpeg with the required encoders. Software installation and original/converter acquisition remain separate user/upstream actions, not Portcove operations."
+        },
+        {
+          "title": "Add the ordinary native launcher",
+          "instruction": "Select VS.Launcher.exe in the complete tester folder, use that containing folder as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play when ready. Use the upstream disc, save-folder and converter pickers and its Play control. The launcher verifies the full image for each Play, prepares assets and starts VS.Desktop.exe with their context. Do not substitute VS.Extract.exe, Start-Game.cmd, a converter, or context-free VS.Desktop.exe as the same route; no integrity refusal is bypassed."
+        },
+        {
+          "title": "Keep per-user prepared assets and separately selected saves",
+          "instruction": "Preserve the full %APPDATA%/VS-NativePort/VagrantStory directory with prepared assets, completion inventories, launcher selections, logs and retained failed/replaced staging as present. Also retain the exact game-save folder you selected, including slot00.vssave through slot99.vssave and recoverable .bak files as present; it is independent of installed program files and prepared assets. Keep the original disc available for later verification and preserve custom --save-dir choices. Do not delete retained failure directories, merge original memory cards or reset path selections to register the game. Portcove performs no source conversion, save migration, backup or restore."
+        },
+        {
+          "title": "Leave updater and recovery ownership upstream",
+          "instruction": "The launcher owns its offered update checks, consent and replacement/recovery flow; registration does not select an update or install FFmpeg. Quit the actual game/helpers before maintenance or recovery, retain prior complete program/data/save copies and review/select the current launcher after changes. Portcove observes the selected launcher only; a finished activity does not prove all child processes stopped. Removing its reference preserves external files. Managed installation/update/backup/rollback, full-session tracking and Supported qualification are not offered. CC0 project terms, retained earlier GPL grants, third-party libraries and original-game rights remain separate."
+        }
+      ],
+      "warnings": [
+        "Select VS.Launcher.exe in the complete Windows tester package after upstream dependency/disc setup. Keep the exact USA image, %APPDATA%/VS-NativePort/VagrantStory assets and independently selected save folder; experimental limits and original memory-card conversion remain explicit."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

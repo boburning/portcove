@@ -16,6 +16,34 @@
       "image_sha256": "f95688c17bffd1b283eb745298d164a98a2625fd6d4899be8846a0fe91713ae8",
       "game_slug": "new-super-mario-bros-wii",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/WitherBlitz/NSMB-Wii-Multiplayer-Recompilation/blob/aa7cf830837358d241e734e94741405c7c824ab2/README.md",
+      "steps": [
+        {
+          "title": "Prepare your own exact Wii game upstream",
+          "instruction": "Use your own New Super Mario Bros. Wii USA SMNE01 revision 1 and complete the documented Dolphin filesystem extraction outside Portcove. Other regions/revisions put code at different locations and are rejected. Keep the supported extracted game folder intact; Portcove supplies no original, disc extraction, key, NAND/firmware input or console access. Original Nintendo game code, assets and separate GPL/component terms remain distinct; the published runtime contains translated game code but not your extracted graphics/sounds."
+        },
+        {
+          "title": "Keep the full Windows release including CPU fallback",
+          "instruction": "Use the complete NSMBW-0.3.1-windows-x64.zip folder with NSMBW.exe, libraries, resources, supplied bootstrap files and compat/NSMBW-compat.exe together. Windows 10/11 x64 and upstream graphics/driver requirements apply. On older supported CPUs the normal entry chooses the compatibility runtime automatically; do not move compat out or select a different title’s fallback. That handoff does not imply identical CPU requirements or observation of every successor process."
+        },
+        {
+          "title": "Add the ordinary native Windows player",
+          "instruction": "Select NSMBW.exe, use its complete containing release folder as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play when ready. Select the already extracted supported folder in the upstream picker, or preserve its existing adjacent game/ layout. The normal player retains its own CPU/backend and game-directory handling. Do not select a setup helper, script interpreter or context-free compatibility executable as an equivalent route."
+        },
+        {
+          "title": "Preserve the active Documents or portable data root",
+          "instruction": "Keep the actual Windows Documents/MarioWiiSaveData folder, including Config.toml, NAND/saves, Cache, Logs and other data. Preserve any already active portable.txt/UserData root and its complete contents; old released marker files can instead trigger upstream legacy-data adoption. Keep earlier UserData or %LOCALAPPDATA%/WiiCompiled data until that existing upstream migration is resolved. Do not create a new portable marker, delete old state, merge another Wii title’s NAND or reset dvd_root merely to add the reference. Portcove performs no save conversion, migration, backup or restore."
+        },
+        {
+          "title": "Leave multiplayer and maintenance upstream",
+          "instruction": "LAN/online/tailnet participation, credentials, controllers, optional mods and gameplay acceptance remain upstream or separately observed choices; registration configures none of them. Portcove observes only NSMBW.exe and activity can finish while its compatibility/game helpers continue. Quit actual processes before upstream replacement or recovery, retain the old complete runtime/data and review/select the current entry after updates. Removing the reference preserves external files. Managed installation/update/backup/rollback, full-session tracking and Supported qualification are unavailable."
+        }
+      ],
+      "warnings": [
+        "Select NSMBW.exe with the complete Windows folder and compat/ retained, using your own extracted USA SMNE01 revision 1. Preserve Documents/MarioWiiSaveData or the existing portable/legacy data root; a CPU handoff can outlive Portcove’s activity."
+      ]
     }
   }
 }

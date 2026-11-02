@@ -9,7 +9,35 @@
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/whompay/SaintsReborn",
-    "issue_number": 2778
+    "issue_number": 2778,
+    "manual_setup": {
+      "help_url": "https://github.com/whompay/SaintsReborn/blob/f53b57748e2d7854ba57f4afd13c8eb9a8e4924c/README.md",
+      "steps": [
+        {
+          "title": "Finish the supported upstream game setup",
+          "instruction": "Use your own 2006 Xbox 360 Saints Row disc ISO or supported extracted folder containing default.xex and packfiles. Complete SaintsReborn-Setup.exe and its local toolchain/build first. Only the disc executable revision the port was made with is supported; setup warns about a different default.xex. An exact accepted original-file digest is not established by this guide. No private game import, compiler execution or source compatibility is performed by Portcove."
+        },
+        {
+          "title": "Keep the complete prepared distribution",
+          "instruction": "Retain the full existing installation with dist/WhompaysModLoader.exe, dist/saintsrow.exe, libraries, core files, game data, notices and existing mod configuration. Use the documented Windows x86-64 setup/runtime prerequisites. SaintsReborn is the SaintsRowPC rename, not a new independent save or installation identity. Linux setup remains a separate upstream development claim. Project, framework, original-game and optional mod permissions remain separate."
+        },
+        {
+          "title": "Add the normal upstream launcher",
+          "instruction": "Select dist/WhompaysModLoader.exe, set its containing dist directory as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play when ready and use the launcher’s normal Play control. The launcher manages mod selection and starts saintsrow.exe in dist. The direct dist/saintsrow.exe player with the same working directory and empty arguments is a separate upstream choice. Do not select setup, update helpers or a script interpreter as the player."
+        },
+        {
+          "title": "Preserve saves, profiles and mod choices",
+          "instruction": "Keep the entire populated dist/game directory, dist/mods with mods/modlist.ini, dist/core, settings, original/generated files and any existing data-path choices. The normal game defaults to game beside its executable and supports upstream game_directory context; preserve an existing nondefault route. Do not activate unknown Lua/DLL mods, reset a mod list, move saves or merge profiles merely to add the library reference. Controller, save and multiplayer behavior remain unobserved here."
+        },
+        {
+          "title": "Keep upstream ownership after launch",
+          "instruction": "The native mod launcher hands off to the game and may exit while the game continues. Portcove observes only the selected launcher, so a finished activity does not prove the game or helpers are closed. Quit them before using Setup or UpdateSaintsReborn for replacement, rebuild or recovery. Upstream maintains runtime and mod compatibility; review/select the executable again after changes. Removing the reference preserves external files. No managed installation/update/backup/rollback, full-session tracking or Supported qualification is supplied."
+        }
+      ],
+      "warnings": [
+        "Select the completed dist/WhompaysModLoader.exe with dist as working directory, or the documented direct saintsrow.exe choice. Preserve dist/game and the existing mod list; launcher handoff can outlive Portcove’s activity."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

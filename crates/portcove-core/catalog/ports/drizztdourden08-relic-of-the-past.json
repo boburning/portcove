@@ -16,6 +16,34 @@
       "image_sha256": "915a51bfc7b7945bdae988ef18d315b98ad8d70855136f4b2f24f4e30ebe007a",
       "game_slug": "the-legend-of-zelda-a-link-to-the-past",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/drizztdourden08/relic-of-the-past/blob/0c63a866bca4e47f7c1cc8255386fe5b01261df0/README.md",
+      "steps": [
+        {
+          "title": "Use the complete Windows desktop distribution",
+          "instruction": "Keep the full rotp-windows-directory.zip v0.21.2 layout. The ordinary entry is the root Relic of the Past.exe alongside Update.exe and current/. The current directory contains replaceable application files; do not select Update.exe as the game or move a single executable away from its companions. This is an Electron desktop frontend with a WebAssembly zelda3 core, not a wholly native recompiled game. Project MIT, zelda3 and other component/font/MSU terms remain separate from original-game rights."
+        },
+        {
+          "title": "Import your own supported game data upstream",
+          "instruction": "In the application use the title-bar Data → ROMs → Import ROM route with your own US NTSC A Link to the Past SNES .sfc/.smc, then create a profile and select its ROM/language. EU and Japanese originals are separate language-import sources, not the gameplay base. Upstream copies imported originals and extracts zelda3_assets.dat into its data directory. The selected base-ROM specification accepts unknown hashes, so import acceptance alone is not proof of an exact original-file fingerprint. Portcove supplies no ROM, external ROM URL, asset extraction or source validation."
+        },
+        {
+          "title": "Add the ordinary application entry",
+          "instruction": "Select the root Relic of the Past.exe, set the complete extracted distribution root as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play when ready and use the existing upstream profile. Keep the root launcher and current application together. It can hand off to another process: Portcove observes the selected program only, so a finished activity does not prove the game or Electron helpers have closed."
+        },
+        {
+          "title": "Preserve the actual data root and every profile",
+          "instruction": "The normal Windows data folder is %APPDATA%/relic-of-the-past. Existing portable mode uses data/ beside Update.exe, outside current/; preserve that existing choice and all its contents. Keep profiles/<profile>/saves with all save kinds, settings/controls, imported ROMs, extracted assets, languages, MSU packs and related user files. Do not create an empty data folder just to register the player: that changes the active data root and can hide existing profiles. Do not place user data in current/, which upstream replaces during updates, or assume switching portable mode migrates anything."
+        },
+        {
+          "title": "Leave updates, profile changes and recovery upstream",
+          "instruction": "Quit the actual game and all helpers before upstream update, replacement or recovery, even after Portcove’s activity ends. Use upstream’s own profile and data tools deliberately; profile deletion is destructive and is not part of adding or removing the library reference. Keep prior complete application/data copies and review the selected entry after changes. Portcove removes only its reference and offers no managed installation/update, ROM or save conversion, backup, rollback, full-session tracking or Supported qualification. No personal gameplay, controller or real-save acceptance is claimed."
+        }
+      ],
+      "warnings": [
+        "Select the root Relic of the Past.exe with Update.exe and current/ retained. Preserve %APPDATA%/relic-of-the-past or the already active adjacent data/ folder, including imported originals and every profile; do not create a new portable data root during registration."
+      ]
     }
   }
 }

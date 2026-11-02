@@ -10419,6 +10419,34 @@
         "image_sha256": "5dc4f67d642758fe0d879abd14a2c3fa5da821e5e3a5eeda29278e875d76c1ae",
         "game_slug": "bloodborne",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/Supermedo/bloodborne_pc/blob/22a6a3cdada0d1e5b6e8220ef41f1cf847e55453/README.md",
+        "steps": [
+          {
+            "title": "Use your own supported decrypted game folder",
+            "instruction": "Use your own Bloodborne PS4 CUSA03173 dump, with the supported clean v1.09 eboot.bin and complete game files. The normal upstream first-start checks source completeness and patch compatibility. Another region, encrypted store package, changed executable or isolated eboot.bin is not equivalent. Keep original dumps separate from prepared outputs. This guide supplies no game, key, account, DLC, decryption or console-dump procedure."
+          },
+          {
+            "title": "Keep the selected Windows distribution intact",
+            "instruction": "Use the complete Bloodborne-Windows.zip windows-v1.9.7 bbport-windows folder with Bloodborne.exe, Play Bloodborne.exe, _internal, bin, scripts, libraries, resources and notices. Windows 10 1903+/11 x64, supported AVX-era CPU/OS context, Vulkan 1.3 drivers and upstream memory/storage requirements apply; older supported-translation paths are best effort. Original PS4 x86-64 code runs through replacement system/GPU services, not a from-scratch game engine. Preserve GPL, separate component/graphics-library and original-game rights."
+          },
+          {
+            "title": "Add the normal upstream Windows launcher",
+            "instruction": "Select Bloodborne.exe, set its complete bbport-windows folder as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play when ready and use the upstream first-start/game-folder UI and PLAY control. After upstream configuration, Play Bloodborne.exe in the same folder with empty arguments is its direct-start alternative. Keep all helper context together rather than selecting a probe, Python interpreter or internal loader as an equivalent game route."
+          },
+          {
+            "title": "Preserve the actual saves and launcher preferences",
+            "instruction": "Keep user/ beside Bloodborne.exe with saves, shader caches, trophies, addcont, save-backups, host overrides and related data as present; retain bbport.ini, input.ini, mods, logs and %APPDATA%/bbport-launcher preferences. Preserve any existing launcher-selected user folder or BB_USER_DIR, BB_DATA_DIR and BB_CONFIG overrides. Keep original/optional add-on folders separately. This fork’s ability to find or import other clients’ characters is upstream behavior, not a Portcove save migration or compatibility promise; do not merge shared roots merely to register it."
+          },
+          {
+            "title": "Leave services, runtime updates and recovery upstream",
+            "instruction": "Online co-op, ghosts/messages, credentials, optional GPU modes, mods and save import remain with upstream and are not enabled by registration. Portcove observes only the selected program; its activity can finish while continuing helpers/game processes remain. Quit them before the upstream updater, replacement or recovery, preserve complete prior application/data and review/select the launcher after changes. Reference removal preserves external files. Managed install/update/backup/rollback, full-session tracking and Supported qualification are unavailable; upstream playability, controller and save claims are not Portcove observations."
+          }
+        ],
+        "warnings": [
+          "Select Bloodborne.exe in the intact Supermedo Windows package and use your own decrypted CUSA03173 v1.09. Preserve user/, runtime configuration and %APPDATA%/bbport-launcher or existing path overrides; other Bloodborne forks keep separate contracts."
+        ]
       }
     },
     {
@@ -11570,20 +11598,20 @@
             "instruction": "Keep the full official v0.8.3 Windows package, both native players, mw2-launcher.exe, game/, renderer resources, shader caches, libraries and notices. The documented host requires 64-bit Windows, SSE4.2 and Vulkan 1.2. Use an independently permitted prepared player; project GPL-3.0-only applies to its own runtime/tools/patches, not Activision originals or original-derived generated C++. Separate title-update, Steam/network, custom-map and shader/component rights remain separate."
           },
           {
-            "title": "Attach one native player at a time",
-            "instruction": "Select mw2-sp.exe for the prepared campaign/Special Ops player, or mw2-mp.exe for the prepared multiplayer player. Use the complete existing package directory as working directory and leave arguments empty. Review the selected program, working folder and arguments and choose Play when ready. No-argument native startup loads the sibling .env settings, anchors game/data paths beside the executable and enters that selected game. Keep this attachment to that executable’s session: close normally before selecting the other mode. In-game SP/MP switches start another executable and are outside this bounded direct-player tracking route; the launcher is not substituted for a waiting native player."
+            "title": "Choose the upstream frontend or retain a direct player",
+            "instruction": "For normal setup/profile/mode controls, select mw2-launcher.exe in the complete existing package directory, use that directory as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play when ready and use the upstream frontend. It supplies its own settings, preparation and selected SP/MP context. The existing direct choices remain valid: mw2-sp.exe for campaign/Special Ops or mw2-mp.exe for multiplayer, same directory and empty arguments, after upstream preparation. Portcove observes whichever program you selected, not detached successors; its activity may finish while a game or switched mode continues. Use actual game/upstream controls to quit."
           },
           {
             "title": "Preserve the complete save and settings unit",
             "instruction": "Retain saves/, game/, .env, profile/settings files, logs, shader caches and all original/backup copies together. Saves are beside the executables, not inside read-only game/: the runtime represents content packages as directories, including saves/savegame.svg/savegame.svg, and this is not an Xbox STFS container or a promised console-save conversion. Preserve separate profiles and upstream shared SP/MP progress. Keep existing environment overrides; copying only an EXE or replacing .env with defaults can change behavior or separate progress."
           },
           {
-            "title": "Keep updates, mode handoffs and acceptance upstream",
-            "instruction": "Use the upstream launcher independently for imports, title updates, shader preparation, profile changes, network/Steam configuration, custom maps and runtime replacement, then review/relink changed bytes. This guide does not grant Steam credentials, server participation, profile editing or automatic pack acquisition. SP/MP handoff tracking, exact selected-release source fingerprint correspondence, full gameplay/controller and real-save restore acceptance remain unfinished. No managed install, update, backup, rollback, migration or external-file deletion is provided."
+            "title": "Keep maintenance and remaining acceptance upstream",
+            "instruction": "Use the upstream frontend for preparation, title updates, shader compilation, profile/network configuration, custom maps and runtime replacement. Close actual SP/MP games and helpers before making changes, even after Portcove’s selected-program activity ends. Re-select/review changed player bytes as needed. No credentials, network/server participation, full-game/controller/real-save acceptance, managed install/update/backup/rollback/migration or external-file deletion is supplied."
           }
         ],
         "warnings": [
-          "Attach only the prepared mw2-sp.exe or mw2-mp.exe with empty arguments and its full package directory. Preserve game/, saves/ and .env. Close before switching executables; in-game mode handoffs and remaining title-specific acceptance are not completed by this guide."
+          "The native mw2-launcher.exe frontend preserves ordinary upstream setup and mode choices; existing direct mw2-sp.exe/mw2-mp.exe registrations remain available. Portcove tracks only the selected program. Preserve game/, saves/ and .env, close actual games/helpers before changes."
         ]
       }
     },
@@ -12456,6 +12484,34 @@
         "image_sha256": "3cddca6230a670b7b1eb79f84ea5b57202b9341ed4e0b47067a3e1a0e0cba1a9",
         "game_slug": "the-legend-of-zelda-the-wind-waker",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/chrissotraidis/bluewake/blob/edd88f15750211cca7a4596c9c5aa348f124efe3/README.md",
+        "steps": [
+          {
+            "title": "Use the exact GameCube edition and Windows route",
+            "instruction": "Use your own The Legend of Zelda: The Wind Waker GameCube USA GZLE01 revision 0 disc image in the supported ISO/GCM representation. Wind Waker HD for Wii U and other revisions are separate contracts. The Windows release is a native x86-64 host using translated game code and a Dolphin-derived runtime; this does not establish a completely native implementation. Follow the selected upstream release or its supported owned-disc source build; do not redistribute a private game-derived build."
+          },
+          {
+            "title": "Keep the complete Windows package or completed build",
+            "instruction": "Retain the complete BlueWake folder, BlueWake.exe, game module, DLLs, resources and notices. The inspected selected release is v0.10.0; some README/build-page links still name v0.9.0, so do not combine their files or treat that older text as a second artifact selection. Windows 10/11 x64, Direct3D 12 and the release CPU requirements apply; the normal game module uses x86-64-v3 features including AVX2, FMA and BMI2. A source build has its own Visual Studio/Clang, Python, Git, CMake and Ninja prerequisites; the packaged player and build tools are different routes."
+          },
+          {
+            "title": "Add the existing native frontend",
+            "instruction": "Select BlueWake.exe in the complete BlueWake folder, use that containing folder as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play when ready and use its own disc picker. Keep the selected disc at its existing location. RVZ and other compressed formats require their separate upstream conversion/preparation; Portcove does not acquire originals, run a converter or supply keys. Preserve project, runtime, original-game and optional texture-pack rights separately."
+          },
+          {
+            "title": "Preserve the active memory card and configuration",
+            "instruction": "Keep the whole %APPDATA%/BlueWake folder, including GZLE01.card, sram.bin, settings.ini, logs, caches, texture/mod data and existing backups. An existing portable.txt beside BlueWake.exe instead selects its adjacent user folder; preserve that marker and populated folder. Do not create a new portable marker to add the reference or assume data moves automatically. Wind Waker Recomp 0.4 can share the same Windows data root; preserve a separate copy before switching upstream builds. Renaming a Dolphin .gci to .card is not a save conversion, and Dolphin save states are not game saves."
+          },
+          {
+            "title": "Keep maintenance and observations separate",
+            "instruction": "Close the actual game and helpers before upstream replacement, rebuild, save import or recovery. Use upstream’s documented save tools on retained copies; Portcove does not migrate or repair cards. Review/select the executable after changes. Only the selected program is observed; removing the reference preserves external files. Managed acquisition/update/backup/rollback and Supported qualification are not supplied. Upstream playability, save-survival and controller reports are not Portcove gameplay, native or real-save observations."
+          }
+        ],
+        "warnings": [
+          "Keep BlueWake.exe with its complete Windows release/build and your own GameCube USA revision 0 disc. Preserve the actual %APPDATA%/BlueWake or existing portable user folder, including GZLE01.card; Wii U HD and Dolphin save states are separate."
+        ]
       }
     },
     {
@@ -14919,6 +14975,34 @@
         "image_sha256": "cea1557c4770b1b1b5f6923c2a7ea71ddaa76cbe41702231b944e45d4739390b",
         "game_slug": "dead-or-alive-xtreme-beach-volleyball",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/NoRain211/doaxvb-re/blob/1503f1574914e3d8a39aa01086ada0b058923da8/README.md",
+        "steps": [
+          {
+            "title": "Complete the upstream owned-ISO build first",
+            "instruction": "Use your own USA original Xbox Dead or Alive Xtreme Beach Volleyball ISO. The builder requires exactly one supported XBE with SHA-256 053d44e885fa33c1d15d909a533f39dfbd976e97eeaf67e4fdef8438ea7e5c54; this is the extracted executable hash, not an arbitrary ISO digest. DOAXBV-0.6.0.zip contains source/setup and helpers, not a prebuilt game. Complete its upstream extraction, authenticated recipe checks, translation and x64 Release build before adding a player. Do not bypass recipe, revision or generated-file mismatches."
+          },
+          {
+            "title": "Keep the complete private prepared folder",
+            "instruction": "The documented Windows route uses Launcher.cmd for initial setup or BuildGame.cmd, obtains pinned llvm-mingw where needed and checks its download hash. The current build route does not require Visual Studio or the Windows SDK; a bundled 32-bit extractor can separately need the upstream VC runtime prerequisite. These setup/network/prerequisite choices remain upstream and are not run or approved by Portcove. Keep private/setup-* receipts, generated output, disc-root data, SDL3.dll, tools and notices at their existing paths. Preserve GPL-3.0-or-later project and all separate component/original-game rights."
+          },
+          {
+            "title": "Add the completed upstream launcher",
+            "instruction": "After a successful build select the generated Launcher.exe in the complete prepared package root, set that root as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play when ready and use the ordinary launcher. This native Windows launcher delegates to its supplied tools/launcher.ps1 and preserves private/launcher.json choices; keep those files together. The upstream DOAXBV.exe alternative plays saved choices or opens Build when no runner exists. Do not select Launcher.cmd, BuildGame.cmd, a compiler or powershell.exe as the library player."
+          },
+          {
+            "title": "Preserve each disc root and recovery journal",
+            "instruction": "Keep the complete existing disc root, especially .recomp-storage/partition1/UDATA and .recomp-storage/save-undo-v1 with its lock/undo records, plus private/launcher.json, private/UserMusic and setup receipts. Disc roots have independent profiles; retaining only the executable does not retain the game or saves. Do not delete pending journals, merge roots or assume original-Xbox save import or cross-build migration. Upstream transaction protections are limited and do not promise power-loss safety. Portcove performs no save migration, repair, backup or restore."
+          },
+          {
+            "title": "Leave runtime replacement and acceptance upstream",
+            "instruction": "The launcher can hand off through helper processes. Portcove observes the selected program only; its finished activity does not prove the game or helpers are closed. Quit them before upstream rebuild, new-folder upgrade or recovery, retaining the previous complete installation and data. Recheck the selected launcher after changes. Upstream rendering, controller, audio and progression reports are not Portcove observations. Removing the reference preserves external files. No managed acquisition/build/update/rollback, full-session tracking or Supported qualification is supplied."
+          }
+        ],
+        "warnings": [
+          "Add only the completed Launcher.exe with its full prepared root and supplied launcher script. Keep every disc root’s .recomp-storage, pending recovery journal and private build/configuration files; the release ZIP is not a prebuilt game."
+        ]
       }
     },
     {
@@ -15076,6 +15160,34 @@
         "image_sha256": "5dc4f67d642758fe0d879abd14a2c3fa5da821e5e3a5eeda29278e875d76c1ae",
         "game_slug": "bloodborne",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/deadinside28/bloodborne_pc/blob/0fc2921c45f8ff3900f6bfa43a299e9a4f532af4/README.md",
+        "steps": [
+          {
+            "title": "Use the supported original and Windows package",
+            "instruction": "Use your own already decrypted Bloodborne PS4 CUSA03173 v1.09 game folder with its complete eboot.bin and data. Keep any authorized optional DLC separate. The selected Windows package is Bloodborne-bbport-0.7-windows-x64.zip; its Linux tar/AppImage assets are other host routes. This guide supplies no original, key, account, decryption or source-dump procedure. Upstream full-playthrough coverage remains unverified."
+          },
+          {
+            "title": "Retain the whole Windows bbport folder",
+            "instruction": "Keep Bloodborne.exe, bbport-run.exe, bin, libraries, scripts, resources and notices together. Windows 10/11 x86-64 with a Vulkan 1.3-capable GPU/current drivers is documented; the runtime also relies on supported host-memory sharing and original-game CPU requirements. This executes the original PS4 x86-64 game with replacement system services and GPU translation, not a wholly reimplemented game. Preserve GPL-2.0-or-later and each separate dependency, optional driver/model and original-game right."
+          },
+          {
+            "title": "Add the ordinary Windows WPF launcher",
+            "instruction": "Select Bloodborne.exe, use its complete extracted Windows package directory as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play when ready and select the supported game folder in upstream’s UI. Its Play control starts bbport-run.exe --play with the package context. The upstream Bloodborne.exe --play alternative can skip the UI after configuration; do not replace this with a bare probe, Python interpreter, GTK script or context-free runtime."
+          },
+          {
+            "title": "Preserve both runtime and launcher state",
+            "instruction": "Keep the package’s bbport.ini, user/ saves and shader caches, out/ prepared files, logs, mods and other user data as present. Also preserve %APPDATA%/bbport-launcher/settings.json, which the Windows launcher/runner reads separately. BB_DATA_DIR can relocate runtime configuration/data; preserve that existing choice and BB_USER_DIR or other user overrides. Another Bloodborne fork may use a similarly named preferences folder: do not reset, merge or assume compatible saves/settings merely to add this reference. Portcove performs no import, conversion, backup or restore."
+          },
+          {
+            "title": "Leave maintenance and acceptance upstream",
+            "instruction": "Optional online services, accounts, GPU-model imports, patches, DLC and telemetry are upstream choices and are not configured here. Only the selected program is observed; activity completion does not prove every game/helper has stopped. Quit actual processes before replacing or recovering the upstream runtime, keep the prior complete application/data and review/select the launcher after changes. Removing the reference preserves external files. Managed installation/update/backup/rollback, full-session tracking and Supported qualification are not offered; native, controller, gameplay and real-save observations remain separate."
+          }
+        ],
+        "warnings": [
+          "Select the Windows package’s Bloodborne.exe with its complete folder and your own CUSA03173 v1.09. Preserve package data plus %APPDATA%/bbport-launcher/settings.json and existing overrides; Linux/GTK and other forks are separate routes."
+        ]
       }
     },
     {
@@ -17493,6 +17605,34 @@
         "image_sha256": "915a51bfc7b7945bdae988ef18d315b98ad8d70855136f4b2f24f4e30ebe007a",
         "game_slug": "the-legend-of-zelda-a-link-to-the-past",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/drizztdourden08/relic-of-the-past/blob/0c63a866bca4e47f7c1cc8255386fe5b01261df0/README.md",
+        "steps": [
+          {
+            "title": "Use the complete Windows desktop distribution",
+            "instruction": "Keep the full rotp-windows-directory.zip v0.21.2 layout. The ordinary entry is the root Relic of the Past.exe alongside Update.exe and current/. The current directory contains replaceable application files; do not select Update.exe as the game or move a single executable away from its companions. This is an Electron desktop frontend with a WebAssembly zelda3 core, not a wholly native recompiled game. Project MIT, zelda3 and other component/font/MSU terms remain separate from original-game rights."
+          },
+          {
+            "title": "Import your own supported game data upstream",
+            "instruction": "In the application use the title-bar Data → ROMs → Import ROM route with your own US NTSC A Link to the Past SNES .sfc/.smc, then create a profile and select its ROM/language. EU and Japanese originals are separate language-import sources, not the gameplay base. Upstream copies imported originals and extracts zelda3_assets.dat into its data directory. The selected base-ROM specification accepts unknown hashes, so import acceptance alone is not proof of an exact original-file fingerprint. Portcove supplies no ROM, external ROM URL, asset extraction or source validation."
+          },
+          {
+            "title": "Add the ordinary application entry",
+            "instruction": "Select the root Relic of the Past.exe, set the complete extracted distribution root as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play when ready and use the existing upstream profile. Keep the root launcher and current application together. It can hand off to another process: Portcove observes the selected program only, so a finished activity does not prove the game or Electron helpers have closed."
+          },
+          {
+            "title": "Preserve the actual data root and every profile",
+            "instruction": "The normal Windows data folder is %APPDATA%/relic-of-the-past. Existing portable mode uses data/ beside Update.exe, outside current/; preserve that existing choice and all its contents. Keep profiles/<profile>/saves with all save kinds, settings/controls, imported ROMs, extracted assets, languages, MSU packs and related user files. Do not create an empty data folder just to register the player: that changes the active data root and can hide existing profiles. Do not place user data in current/, which upstream replaces during updates, or assume switching portable mode migrates anything."
+          },
+          {
+            "title": "Leave updates, profile changes and recovery upstream",
+            "instruction": "Quit the actual game and all helpers before upstream update, replacement or recovery, even after Portcove’s activity ends. Use upstream’s own profile and data tools deliberately; profile deletion is destructive and is not part of adding or removing the library reference. Keep prior complete application/data copies and review the selected entry after changes. Portcove removes only its reference and offers no managed installation/update, ROM or save conversion, backup, rollback, full-session tracking or Supported qualification. No personal gameplay, controller or real-save acceptance is claimed."
+          }
+        ],
+        "warnings": [
+          "Select the root Relic of the Past.exe with Update.exe and current/ retained. Preserve %APPDATA%/relic-of-the-past or the already active adjacent data/ folder, including imported originals and every profile; do not create a new portable data root during registration."
+        ]
       }
     },
     {
@@ -23906,7 +24046,35 @@
         "game_slug": "infamous",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2681
+      "issue_number": 2681,
+      "manual_setup": {
+        "help_url": "https://github.com/whompay/inFAMOUSreborn/blob/2a66df5010df8d3615b4f9d31885eeb1b28bd8f4/README.md",
+        "steps": [
+          {
+            "title": "Finish the supported European game setup",
+            "instruction": "Use your own inFamous European PS3 BCES00220 files and complete the upstream Windows setup, translation and build before adding the player. An already decrypted supported folder avoids a key-input route; encrypted images have their separate owner-supplied requirements. This guide provides no keys, decryption or game data. The selected 1.1 Windows setup is a preparation program, not an already compiled game. Windows 10/11 x64, Direct3D 12 and the upstream build/runtime prerequisites remain required."
+          },
+          {
+            "title": "Keep the complete prepared installation",
+            "instruction": "Retain the full completed port directory, its native inFamous.exe launcher, installer/launch.txt, build-install/inFamousRecomp.exe, the prepared game/ELF, libraries, settings and notices. The producer writes executable, working-directory, argument and environment values into launch.txt. The normal launcher reads those values; selecting the bare game without its published context is not an equivalent shortcut. Keep project/runtime/compiler/component terms separate from original game rights and do not share private translated outputs."
+          },
+          {
+            "title": "Add the native upstream launcher",
+            "instruction": "Select the completed inFamous.exe in its existing port directory, use that directory as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play when ready. Its native launcher supplies the producer-written launch configuration and environment. Portcove observes that launcher only; it can report the launch finished after handoff while inFamousRecomp.exe and helpers still run. Use the game’s own controls to quit and do not interpret the launcher’s exit as full-game completion."
+          },
+          {
+            "title": "Preserve the current saves and launch configuration",
+            "instruction": "Keep the whole existing port, installer/launch.txt, settings.ini, all original/generated content and gamedata/. Default saves are under gamedata/dev_hdd0/home/00000001/savedata relative to the configured port working directory; retain all profiles, trophies and related data as present. Existing SAVEDATA_ROOT and other producer/user path overrides must remain intact. Do not transplant launch.txt into a different layout, reset populated settings or merge saves merely to add the launcher. No save conversion, migration, backup or restore is performed."
+          },
+          {
+            "title": "Leave updates and recovery upstream",
+            "instruction": "Close the actual game and helpers before upstream replacement, rebuild, repair or recovery, even if Portcove’s activity has finished. Upstream owns imports, build tools, runtime replacement and launch configuration; review/select the current launcher again after changes. Early-release PPU/SPU, rendering and campaign claims do not establish gameplay/controller/real-save acceptance here. Removing the library reference preserves all external files. No managed installation/update/backup/rollback, full-session tracking or Supported qualification is supplied."
+          }
+        ],
+        "warnings": [
+          "Select the completed inFamous.exe launcher and preserve installer/launch.txt plus its full port/data directory. Its handoff can outlive Portcove’s activity; close the actual game/helpers before upstream changes. The setup EXE and a context-free bare runtime are separate routes."
+        ]
+      }
     },
     {
       "id": "infamous-second-son-pc-edition-kam0n4ik-infamous-second-son",
@@ -24077,6 +24245,34 @@
         "image_sha256": "88abbcf6173566371bfa0c09ded8749f289d54ba8a026d145b473e6854457dcc",
         "game_slug": "initial-d-arcade-stage-3",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/distilledorion-sketch/Initial-D-Arcade-Stage-3-Native-SH-4-Recompilation-WIP-/blob/682d821f8aef1a3135a46665677ddfdc8ee646f6/README.md",
+        "steps": [
+          {
+            "title": "Use the public Windows early-demo route",
+            "instruction": "Use the complete Initial.D.Arcade.Stage.3.Recompiled.v2489.zip folder, keeping Initial D Arcade Stage 3 Recompiled.exe, Initial D Arcade Stage 3 Recompiled Runtime.exe, tools, libraries, settings and notices together. This is an unfinished Windows x64 public playtest for NAOMI 2 Initial D Arcade Stage 3 GDS-0033, not the Dreamcast game or a finished release. Its native SH-4/static-AOT and Vulkan claims remain upstream observations; Portcove does not infer complete instruction coverage, hardware or gameplay acceptance from them."
+          },
+          {
+            "title": "Complete upstream owned-data preparation",
+            "instruction": "Supply your own legally obtained matching gds-0033.chd and 317-0384-com.pic in the included game files directory. The ordinary upstream launcher validates and extracts the required files locally; allow about 1.3 GB of temporary space. A NAOMI 2 BIOS is neither required nor accepted by this route. Do not substitute a different CHD/PIC, bypass integrity failures, use a BIOS as the executable or share extracted private game files. Original arcade, project/runtime and component rights remain separate; this guide grants no acquisition, firmware or decryption authority."
+          },
+          {
+            "title": "Add the ordinary native launcher",
+            "instruction": "Select Initial D Arcade Stage 3 Recompiled.exe, set its complete containing product folder as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play when ready and use the upstream launcher. It owns preparation/update prompts and supplies the runtime’s game, card, music, settings and presentation context. Keep its supplied PowerShell/tools and runtime with it; do not select powershell.exe, a PS1 script, the integrity/setup helper or a context-free Runtime.exe as the game. Preserve the upstream 60 FPS starting/default choice and any existing F1 choices rather than forcing experimental presentation."
+          },
+          {
+            "title": "Preserve the whole portable player-data layout",
+            "instruction": "Keep game files, card data, custom music and logs, idas3_user_settings.ini, update preferences and all other existing user files in the product folder. Preserve card data/InitialD_player_card.card or the existing selected CardImage path and every other card. A card image and a game-state snapshot are separate; do not reset a populated card, merge files, discard pending recovery data or assume that another arcade/Dreamcast build can use it. Portcove performs no card import/conversion, backup, restore or source extraction."
+          },
+          {
+            "title": "Keep maintenance and completion evidence upstream",
+            "instruction": "The selected native launcher can hand off through helpers. Portcove follows that program only; a finished activity does not prove the runtime/helpers have stopped or make files safe to replace. Quit them before upstream updater, repair or recovery, preserve the previous complete application/data, and review/select the launcher again after changes. Upstream’s update preservation, rollback, card and physical-controller reports are not Portcove observations. Removing the reference preserves external files. Managed installation/update/backup/rollback, full-session tracking and Supported qualification are unavailable; this title’s unfinished acceptance remains explicit."
+          }
+        ],
+        "warnings": [
+          "Select Initial D Arcade Stage 3 Recompiled.exe with the complete v2489 product folder and your own matching CHD/PIC preparation. Preserve game files, every card, custom music, settings and logs; the runtime and setup scripts require their upstream context."
+        ]
       }
     },
     {
@@ -25974,20 +26170,20 @@
             "instruction": "Use the complete v2.0.10 Windows x64 KingKong folder with king_kong.exe, graphics plugins, DLLs, resources, launcher support and component notices. Do not select the separate easter-egg game as King Kong. Project MIT, SDK, graphics/upscaler, fonts, media and captured-shader rights are separate from your original game rights; attachment neither redistributes those components nor grants permission to use third-party packs. Use only an existing player and optional content you are independently permitted to use."
           },
           {
-            "title": "Attach the normal direct-game entry",
-            "instruction": "Select king_kong.exe, use its complete KingKong directory as working directory and set arguments to --kk_launcher=false. Review the selected program, working folder and arguments and choose Play when ready. This is the normal show-launcher option, not the internal skip-once, benchmark or diagnostic flags. With prepared game files and resolved startup notices it enters the game in the same native process using its current settings. Do not change renderer/restart settings, start co-op handovers or return through a launcher relaunch while attached; close the game normally and perform those operations independently outside the session."
+            "title": "Use the upstream launcher or retain direct-game play",
+            "instruction": "Select king_kong.exe in the complete existing KingKong directory and use that directory as working directory. Leave arguments empty for its ordinary upstream launcher and full settings/start-mode choices. Review the selected program, folder and arguments, then choose Play when ready. The previously documented --kk_launcher=false option remains available for a prepared direct-game start; internal skip-once and diagnostic flags are not substitutes. Upstream can relaunch for settings, game or co-op handover. Portcove observes the selected process only, so its activity may finish while the actual game or a successor continues. Use upstream/game controls to quit continuing processes."
           },
           {
             "title": "Preserve the actual portable or legacy user root",
             "instruction": "Windows normally uses KingKong/userdata for saves, settings-owned content, mods, cache, downloads and crash/recovery evidence. Earlier Documents/king_kong may remain the active root if migration fails or the program folder is not writable. Preserve both roots, king_kong.toml, full-path installed.txt receipts and moving-from-documents.txt, cleaning-documents.txt and documents-done.txt witnesses; finish upstream recovery before attachment. Existing user_data_root/cache_root overrides take precedence and must be retained. Do not copy only an executable or replace populated saves/configuration with package defaults."
           },
           {
-            "title": "Leave maintenance and extended modes upstream",
-            "instruction": "Upstream owns imports, shader packs, component updates, portable-folder moves, settings-triggered restarts, online/co-op services and failure recovery. Complete them outside a game session, preserve player data and review/relink changed bytes. The direct existing-player route does not establish full campaign, native controller, multiplayer, captured-shader permission or real-save recovery acceptance. Portcove provides no managed installation, update, backup, rollback, migration or deletion of this external unit."
+            "title": "Leave maintenance and separate conditions upstream",
+            "instruction": "Upstream owns imports, shader packs, component updates, portable-folder moves, renderer restarts, online/co-op services and failed-start recovery. Close all actual games/helpers before these changes, even when Portcove’s activity has ended; then review/re-select the current player as needed. Full campaign, controller, multiplayer, captured-shader permission and real-save recovery are not established. No managed installation/update/backup/rollback/migration or external-file deletion is offered."
           }
         ],
         "warnings": [
-          "Prepare and resolve upstream setup/recovery first, then attach king_kong.exe with --kk_launcher=false. Keep userdata, legacy Documents/king_kong and all move/recovery witnesses. Launcher and co-op relaunches are outside this direct-game route."
+          "Use king_kong.exe with empty arguments for its ordinary launcher, or retain --kk_launcher=false for the existing prepared direct-game choice. Preserve userdata, legacy Documents/king_kong and recovery witnesses. Portcove follows the selected process only; close actual games/helpers before maintenance."
         ]
       }
     },
@@ -28813,6 +29009,34 @@
         "image_sha256": "88f320e3b09e0184754d87712cee5f28ca0020a1001de4678129db4694985a14",
         "game_slug": "metroid-prime-hunters",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/mstan/MetroidPrimeHuntersRecomp/blob/ec81d42a6d620990fa8a653edf940b578c67438e/README.md",
+        "steps": [
+          {
+            "title": "Choose the exact supported cartridge",
+            "instruction": "Use your own Metroid Prime Hunters USA/Australia revision-0 Nintendo DS image, AMHE, 67,108,864 bytes, SHA-1 90164d1ac127ee5f9815ea4ae7de798c7b5fc629 or SHA-256 7d0a98ff98e1b7c985d1f3d89b01730af1b2115061a4dfea847612d217a8b855. European Rev 1 and other builds are not interchangeable. Finish the upstream launcher’s ROM, controls, display and firmware choice before adding it. The current default supports built-in FreeBIOS with generated firmware; optional retail BIOS/firmware have their own user-supplied source requirements."
+          },
+          {
+            "title": "Keep the complete Windows alpha release",
+            "instruction": "Use the complete official v0.7.12-alpha Windows x64 release, retaining MetroidPrimeHuntersRecomp.exe, nds_runner.exe, game.toml, libraries, resources and overlay toolchain. The launcher supplies the selected execution model, renderer, input/profile options and firmware state; a bare nds_runner.exe with empty arguments does not preserve that setup. Keep the title project’s MIT terms separate from the exact NDS framework’s PolyForm Noncommercial terms and other FreeBIOS/runtime/component notices. Original Nintendo data and private generated/captured material have separate rights."
+          },
+          {
+            "title": "Add the native frontend",
+            "instruction": "Select MetroidPrimeHuntersRecomp.exe, use the complete existing release directory as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play when ready and use the upstream frontend’s Play. It launches nds_runner.exe with its own context. Portcove observes the selected frontend only and its activity may end while the game continues. Use the actual game/upstream controls to quit; no full-game lifetime or successful gameplay follows from the frontend’s exit."
+          },
+          {
+            "title": "Preserve cartridge saves and player identity",
+            "instruction": "Keep the original ROM path and its adjacent .sav, all game-directory saves/savestates/, game.toml, mods, overlay/generated caches and backups. Retain Roaming AppData/MetroidPrimeHuntersRecomp/mods.ini and its sibling firmware-generated.bin or firmware-retail.bin, as applicable, plus existing custom paths. Do not replace a console/network identity or settings profile merely to add the frontend. Native in-game saves and execution states are separate; states remain build/model-specific and no conversion or migration is promised."
+          },
+          {
+            "title": "Keep extended modes and replacement upstream",
+            "instruction": "Close the actual runner, frontend and helpers before upstream update, rebuild or recovery. The Windows native/HLE/GL and targeted comparison results are upstream claims, not new Portcove native/gameplay/controller/save observations. Online/Wiimmfi play remains experimental and requires its own compatible settings and participation; this guide does not configure accounts, servers or networking. Removing the library reference preserves external files. No managed installation/update/backup/rollback, full-session tracking or inherited DS/other-game qualification is offered."
+          }
+        ],
+        "warnings": [
+          "Use the complete v0.7.12-alpha native frontend with the exact USA/Australia Rev-0 ROM and existing firmware/profile/save paths. The runner can continue after Portcove’s frontend activity ends. Preserve build-specific states and use actual game controls to quit; no managed/native acceptance is implied."
+        ]
       }
     },
     {
@@ -29915,6 +30139,34 @@
         "image_sha256": "5dc4f67d642758fe0d879abd14a2c3fa5da821e5e3a5eeda29278e875d76c1ae",
         "game_slug": "bloodborne",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/Mrsuss60/bloodborne_pc_windows_port/blob/2cc3764f59c3256955207604c6c6098739b932b6/README.md",
+        "steps": [
+          {
+            "title": "Use your own exact game edition",
+            "instruction": "Use your own complete, already decrypted Bloodborne PS4 CUSA03173 v1.09 folder with eboot.bin. Another region/version, encrypted package or executable without its matching assets is not the accepted source. Complete upstream’s game-folder selection and preparation before relying on Play. No game files, keys, console access, decryption, credentials or original-source acquisition are supplied by Portcove."
+          },
+          {
+            "title": "Keep this fork’s full Windows release together",
+            "instruction": "Use the complete bloodborne_pc_windows_port_v0.8.0_release.zip folder with BloodborneLauncher.exe, out/bbport.exe, runtime/GPU libraries, run.bat, python-embed, scripts, resources and notices. The documented Windows x64 host needs Vulkan 1.3 and AVX with OSXSAVE/XCR0 YMM enabled; AVX2 is not universally required. It runs the original x86-64 PS4 code with compatibility services and shadPS4-derived GPU translation, not a source decompilation. Base GPL-2.0-or-later and GPL-3.0-or-later bbhost-derived component terms remain separate from original-game and other dependency rights."
+          },
+          {
+            "title": "Add the normal packaged Windows launcher",
+            "instruction": "Select BloodborneLauncher.exe, use its complete containing release root as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play when ready and use the launcher’s supported game-folder and Play controls. The packaged PySide frontend delegates through its supplied run.bat/embedded Python/runtime context. Keep those companions; selecting cmd.exe, python.exe, run.bat or a bare out/bbport.exe is not the same upstream play contract."
+          },
+          {
+            "title": "Keep this installation’s saves and settings intact",
+            "instruction": "Preserve the complete user/ directory with saves and shader caches, bbport.ini, bblauncher_settings.json, input/mod configuration, out/ prepared content, logs and other existing files. Keep any existing BB_USER_DIR and configured path overrides with their actual populated folders. Preserve original dumps separately. Do not replace these with another fork’s similarly named state or assume shadPS4/client save migration just because the title matches. Portcove performs no save import, merging, conversion, backup or restore."
+          },
+          {
+            "title": "Keep runtime replacement and optional features upstream",
+            "instruction": "Online services, mods, patches, experimental scaling/GPU choices and credentials remain upstream options; registration does not enable them. Portcove observes the selected launcher only, not every successor game/helper. Close actual processes before upstream replacement, preparation repair or recovery, preserve the prior complete application/data and review/select the launcher again after changes. Removing the library reference keeps external files. Managed installation/update/backup/rollback, full-session tracking and Supported qualification are unavailable. Upstream playable/controller/save reports are not Portcove native/gameplay or real-save acceptance."
+          }
+        ],
+        "warnings": [
+          "Select this fork’s BloodborneLauncher.exe in the intact v0.8.0 release root with your own decrypted CUSA03173 v1.09. Preserve user/, bbport.ini, bblauncher_settings.json and all helper context; AVX/OSXSAVE and Vulkan requirements remain."
+        ]
       }
     },
     {
@@ -30161,6 +30413,34 @@
         "image_sha256": "cdccd75f3e79bb8f71a9f165d5c942f7809a5fa0334e7ef7bce054c5fa20957c",
         "game_slug": "marios-tennis",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/mstan/MarioTennisVirtualBoyRecomp/blob/28995d368538559005aaaf9a78ab8e35eacecd71/README.md",
+        "steps": [
+          {
+            "title": "Keep the complete Windows player and its terms",
+            "instruction": "Use MarioTennisVirtualBoyRecomp-windows-x64.zip v0.2.3 with MarioTennisVirtualBoyRecomp.exe, SDL2.dll, assets, licenses and existing optional mods retained together. Root MIT licensing covers build glue and documentation; original Nintendo game code/data/artwork and the separately pinned framework/UI keep their own terms. No permission to redistribute a ROM, generated cartridge code or third-party artwork is inferred. Upstream full-match and comparison claims are not Portcove native/gameplay observations."
+          },
+          {
+            "title": "Use your own matching Mario’s Tennis cartridge dump",
+            "instruction": "The supported Virtual Boy ROM is 524,288 bytes, CRC32 7CE7460D and SHA-256 5dc5e6b5d5f538f56b3b9727db1c7931d9dfe1bbd0743f698897e0fd90e70101. Use your own matching dump through the upstream picker and keep it at its current location. The runtime checks the supported ROM and refuses a mismatch. Another Virtual Boy title, archive wrapper or changed original is not a substitute. Optional color mods are separate and disabled by default; registration does not enable them or modify the ROM."
+          },
+          {
+            "title": "Add the ordinary native frontend",
+            "instruction": "Select MarioTennisVirtualBoyRecomp.exe, use its complete containing release directory as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play when ready and use its native ROM picker. Preserve an existing remembered original/configuration rather than resetting it. Headless, trace and TCP-debug commands are developer routes, not the game entry offered here; release packaging disables debug tools."
+          },
+          {
+            "title": "Preserve configuration and cartridge progress",
+            "instruction": "Keep vbrecomp.cfg, keybinds.ini, mods and the entire saves folder beside the player, including the title’s existing cartridge-save file. Preserve the original ROM’s separate path and any existing --config, --save or --mods-dir choices if using a previously customized upstream route. Do not transplant another Virtual Boy title’s save or enable a mod to register the game. No source rewrite, save migration, conversion, backup or cross-build compatibility promise is supplied."
+          },
+          {
+            "title": "Keep updates and qualification upstream",
+            "instruction": "Close the actual game and helpers before upstream replacement or file recovery, retain the old complete runtime/data, and review/select the executable after changes. Portcove observes only the selected program and removing the reference leaves all external files intact. Upstream owns runtime replacement, optional mods and save compatibility. Managed acquisition/install/update/backup/rollback, full-session tracking and Supported qualification are not offered; controller, complete-game and real-save acceptance remain separately observed outcomes."
+          }
+        ],
+        "warnings": [
+          "Select MarioTennisVirtualBoyRecomp.exe in the complete Windows release, supply the exact own cartridge dump and retain vbrecomp.cfg plus the whole saves/mods layout. Optional color and developer modes are not enabled by registration."
+        ]
       }
     },
     {
@@ -30418,6 +30698,34 @@
         "image_sha256": "2870ff71b6eb0aadfa93a60911fe6eee70bf834fff19538be91b56d26d2bcb71",
         "game_slug": "zero-racers",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/mstan/ZeroRacersVirtualBoyRecomp/blob/96f6d05010f92f422cc37e3bd46b940ab3edec08/README.md",
+        "steps": [
+          {
+            "title": "Keep the complete selected Windows release",
+            "instruction": "Use the full ZeroRacersVirtualBoyRecomp-windows-x64.zip v0.1.2 folder with ZeroRacersVirtualBoyRecomp.exe, SDL2.dll, assets, licenses and existing mods. Its packaged build information describes hybrid fallback and separately names framework/UI revisions; this guide does not certify source-to-binary reproduction or equate those entries with every selected tag pin. Root MIT covers project glue/tools/docs, not Nintendo cartridge code/artwork or separate framework/UI/font terms. No original or generated cartridge-data redistribution is granted."
+          },
+          {
+            "title": "Supply your own exact supported source",
+            "instruction": "The upstream supported ROM is Zero Racers (Japan, USA) (En) (Switch Online), 1,048,576 bytes, CRC32 71553796 and SHA-256 47421cd82dfd414d042d2f7f9db51e657d414d4ddfa46887efb544029fa11ce7. Supply your own authorized matching extracted .vb through Browse For ROM; this guide provides no original, acquisition, account, key or extraction route. Another game/revision or a ZIP container is not the accepted ROM. Do not bypass the launcher’s mismatch refusal."
+          },
+          {
+            "title": "Add the ordinary native frontend",
+            "instruction": "Select ZeroRacersVirtualBoyRecomp.exe, set the complete containing release directory as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play when ready and use the normal ROM picker and Play control. Keep the original at its remembered location and preserve your existing display, controls and Pure/Enhanced choices. Registration does not install or enable the optional color/multiplayer mods, create an online room or configure a signalling service."
+          },
+          {
+            "title": "Keep progress separate from execution snapshots",
+            "instruction": "Preserve vbrecomp.cfg, keybinds.ini, the entire saves and mods folders and any existing custom configuration/save locations. Native single-player cartridge progress, build-specific execution snapshots, rewind history and multiplayer session snapshots are different contracts. Do not substitute one for another, merge another title’s data or infer compatibility across builds. Keep all existing slots/profiles and original files; Portcove performs no conversion, restore, save import or backup."
+          },
+          {
+            "title": "Leave maintenance and acceptance upstream",
+            "instruction": "Quit the actual game and helpers before upstream replacement or recovery, preserve the previous complete application/data and review/select the executable again after changes. Only the selected program is observed; activity completion is not full-session or maintenance-safety evidence. Removing the reference preserves all external files. Managed installation/update/backup/rollback and Supported qualification are unavailable. Upstream coverage, races, netplay, controller and save reports do not establish Portcove native/gameplay or real-save acceptance."
+          }
+        ],
+        "warnings": [
+          "Select the complete Windows release’s ZeroRacersVirtualBoyRecomp.exe with an authorized matching Switch Online .vb. Preserve vbrecomp.cfg, keybinds.ini, saves and mods; cartridge progress and build-specific session snapshots are separate."
+        ]
       }
     },
     {
@@ -36580,6 +36888,34 @@
         "image_sha256": "57171c2acf4e3198c361d252ee79caa6190ca759b0355b34d88b5a03e1c71577",
         "game_slug": "pt",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/LoreanXavier/pt-pc/blob/3b1392abe5215773d4c353f5bc1ecb85233be68a/README.md",
+        "steps": [
+          {
+            "title": "Complete upstream preparation from your own P.T. copy",
+            "instruction": "Use your own P.T. PS4 US CUSA01127 dump folder or an already decrypted fake PKG made from that dump. An encrypted store PKG is not supported, and other regional data are not established as equivalent. Complete the upstream Windows setup into your chosen destination before adding the player. It copies chunk1.psarc, texture.qar and pathid_list_ps4.bin next to the port; eboot, modules and system files are not used. This guide supplies no game, decryption, key, account or original-acquisition route."
+          },
+          {
+            "title": "Keep the complete installed or prepared Windows port",
+            "instruction": "The selected portable artifact is P.T.PC.Port-portable-windows.zip v1.0.8; its pt-port-20261022-484d2c1d folder contains pt.exe and companions, but still needs your prepared game data. Retain the full existing folder, libraries, resources, fonts, notices and game archives. Windows 10/11 x64 and the documented Vulkan/DirectX 12 graphics requirements apply. Original-game, project and each component/upscaling/font permission remain separate; no permission to redistribute private game data is inferred."
+          },
+          {
+            "title": "Add the ordinary native game",
+            "instruction": "Select the prepared installation’s pt.exe, use its complete containing application folder as working directory and leave arguments empty when upstream setup has placed the three archives there. Review the selected program, folder and arguments, then choose Play when ready. An existing external-game route instead needs the same explicit --game \"<existing extracted folder>\" argument it already used. Preserve that route rather than moving original files. Do not select pt-updater.exe, the extractor, setup or a crash-dump helper as gameplay."
+          },
+          {
+            "title": "Preserve the Windows data directory and overrides",
+            "instruction": "Keep the whole data/ beside pt.exe, including pt.ini, saves, logs, caches, mods and existing recovery/migration files as present, plus the complete application, prepared game archives and original dump. Preserve any existing --settings, --save-dir or --mods choices and their populated locations. Existing upstream user-data migration behavior is not a Portcove conversion or cross-build compatibility guarantee. Do not reset settings, replace newer state, move roots or turn on diagnostic/VR/rendering features merely to register the player."
+          },
+          {
+            "title": "Keep maintenance and acceptance upstream",
+            "instruction": "The application can check for updates and use its own updater/restart path; upstream owns replacement, prerequisites and recovery. Quit the actual game and all helpers before maintenance, retain the previous complete runtime/data and review/select pt.exe after changes. Portcove observes the selected program only and removing the reference preserves all external files. Managed installation/update/backup/rollback, full-session tracking and Supported qualification are unavailable. Upstream whole-teaser, controller and save reports are not Portcove native/gameplay or real-save observations."
+          }
+        ],
+        "warnings": [
+          "Add the prepared pt.exe with the complete Windows port, your own supported US game archives and data/ intact. An already external game folder keeps its explicit --game argument; setup/updater/extractor programs are separate from Play."
+        ]
       }
     },
     {
@@ -38040,7 +38376,35 @@
         "game_slug": "resident-evil-code-veronica-x",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2894
+      "issue_number": 2894,
+      "manual_setup": {
+        "help_url": "https://github.com/Patt92/recvx-native/blob/0531b9490aec3ab859a6738420e881b0ef1b1dd1/README.md",
+        "steps": [
+          {
+            "title": "Complete the upstream original-disc data preparation",
+            "instruction": "Use your own supported Resident Evil CODE: Veronica X disc image and the selected upstream extraction contract. The catalog identity is the PS2 implementation; do not substitute another edition or infer an exact accepted revision/hash from a filename alone. The selected Windows package provides Extract-ISO.cmd with Python 3.12+/FFmpeg preparation into adjacent data/ and mods/; finish this upstream setup before registration, preserving any failed/incomplete output for diagnosis. Portcove supplies no disc, decryption, console input, extractor execution or exact-original fingerprint certification."
+          },
+          {
+            "title": "Keep the experimental Windows x64 release intact",
+            "instruction": "Use the complete recvx-windows-x64.zip build-0.5.225 folder with recvx-runtime.exe, its SDL2/runtime libraries, exporters, tools, resources and notices. The separately published Windows ARM64, Linux and Android assets are different routes. Windows x64 build support and Direct3D 11 plus optional other renderers do not establish a finished game or validated hardware coverage; upstream still describes an incomplete implementation and planned validated Windows releases. Preserve project/component and original-game rights separately."
+          },
+          {
+            "title": "Add the ordinary prepared runtime",
+            "instruction": "Select recvx-runtime.exe in the complete prepared Windows release root, use that root as working directory and leave arguments empty for its adjacent data/ and mods/ layout. Review the selected program, folder and arguments, then choose Play when ready. Preserve an existing explicit --data or --mods route and its exact populated folders rather than relocating files. Exporters, recvx-audio.exe, recvx-assets.exe, extraction scripts and other tools are not interchangeable with the playable runtime."
+          },
+          {
+            "title": "Preserve released and existing development state separately",
+            "instruction": "For the released Windows route keep %APPDATA%/RECVX with its saves, snapshots, controls/video/debug settings and related user files, plus the full prepared data and mods folders and original ISO. An existing explicit user root or source-development build can use a different location; preserve that real root rather than assuming release defaults migrated it. Keep every slot and any pending/failed preparation; do not merge another edition’s state or delete data to register the player. No save conversion, migration, backup, restore or memory-card compatibility is supplied."
+          },
+          {
+            "title": "Retain the unfinished runtime boundary",
+            "instruction": "This guide offers an existing experimental launch route; it does not resolve missing gameplay features, validated Windows delivery or this title’s unfinished acceptance. Quit actual game/helpers before upstream replacement, extraction repair or recovery, retain prior complete application/data and review/select the executable after changes. Portcove observes only the selected program and reference removal leaves external files intact. Managed acquisition/preparation/update/backup/rollback, full-session tracking and Supported qualification remain unavailable. Other-platform demos and upstream gameplay/save claims are not Windows or Portcove native observations."
+          }
+        ],
+        "warnings": [
+          "Select only the prepared recvx-runtime.exe with its complete Windows x64 folder and adjacent data/mods context. Preserve %APPDATA%/RECVX or the actual existing custom/development root; unfinished gameplay and validated-Windows acceptance remain open."
+        ]
+      }
     },
     {
       "id": "restreet-fifa-street-2012-on-pc-samuelit0davila-fifa-street-2012",
@@ -38088,6 +38452,34 @@
         "image_sha256": "d22eba829163bca403412274408dee95bf1b37c2e1b422028ca414de5eb1c730",
         "game_slug": "legendary-wings--1",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/retroreplay82/Legendary-Wings-NES-to-PC/blob/f571cefe5b0469437699ea73a31cd2ce508c3c22/README.md",
+        "steps": [
+          {
+            "title": "Keep the selected Windows beta intact",
+            "instruction": "Use the complete LegendaryWings-windows-x64-beta.1.zip v0.1.0-beta.1 folder with LegendaryWings.exe, SDL2.dll, assets, config.ini and notices. The tagged repository README still says no Windows download has been published; the selected release and inspected package provide the concrete beta route, without establishing later versions or a source-to-binary reproduction claim. Upstream’s first-level remaster is early work; later art and gameplay defects remain. No native/gameplay/controller or Supported acceptance is supplied here."
+          },
+          {
+            "title": "Provide your own compatible USA cartridge dump",
+            "instruction": "Place your own Legendary Wings USA .nes in roms/ beside the player, following the packaged instructions. Another region or patched dump is not established as equivalent. This guide does not establish an independent cryptographic original-ROM fingerprint or provide a ROM, extracted assets or acquisition route. Keep NESRecomp’s PolyForm Noncommercial notice, SDL2/component notices and original Capcom/Nintendo rights separate from project modification claims; no original or remastered-art redistribution right is inferred."
+          },
+          {
+            "title": "Add the ordinary native player",
+            "instruction": "Select LegendaryWings.exe, choose its complete containing release directory as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play when ready. Keep roms, assets, SDL2.dll and config.ini in their existing relative locations. Do not select a compiler, source archive or another NES title’s player. Original/remastered graphics remain an upstream F6 choice; registration does not change presentation or enable mods."
+          },
+          {
+            "title": "Preserve the one-slot-per-ROM state",
+            "instruction": "Keep the entire saves/ folder beside the executable, the existing ROM location, config.ini and any user assets/settings. Upstream F8 saving replaces that ROM’s previous state slot; F9 loading replaces current progress. Execution states are not a promise of cartridge-battery format or compatibility between releases. Do not overwrite a saved state, merge another title’s data or reset settings to add the reference. Portcove performs no save conversion, import, migration, backup or restore."
+          },
+          {
+            "title": "Leave beta replacement and recovery upstream",
+            "instruction": "Quit the actual game/helpers before replacing the complete upstream beta or recovering files; keep the prior complete application/data and review/select the executable after changes. Portcove observes the selected program only, and reference removal preserves external files. Managed installation/update/backup/rollback, full-session tracking and Supported qualification are not offered. Upstream first-level/remaster and save-state reports remain separate from Portcove native, gameplay and real-save observations."
+          }
+        ],
+        "warnings": [
+          "Select LegendaryWings.exe in the complete beta folder with your own compatible USA ROM in roms/. Preserve config.ini and saves/; the single state slot is replaced on save, and cross-build compatibility is unconfirmed."
+        ]
       }
     },
     {
@@ -39101,7 +39493,35 @@
         "game_slug": "crash-team-racing-nitro-fueled",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2819
+      "issue_number": 2819,
+      "manual_setup": {
+        "help_url": "https://github.com/Ryu7w7/OCTR-NitroFueled-PC/blob/3885d1aea24d19ed9b31f96fba57a5cce92183cd/README.md",
+        "steps": [
+          {
+            "title": "Finish preparation with your own exact PS4 edition",
+            "instruction": "Use your own already decrypted Crash Team Racing: Nitro-Fueled PS4 USA CUSA13795 base game and v1.21 update folders. Complete upstream Prepare game, or select an already prepared CUSA13795-1.21 folder. The supported extracted layouts include ordinary eboot.bin/sce_module/sce_sys and the documented Image0/Sc0 representation. A raw encrypted PKG, other region such as CUSA14876, another version or an undecrypted executable is not equivalent. This guide supplies no game, account, decryption, key or dump tooling."
+          },
+          {
+            "title": "Keep the complete selected Windows portable package",
+            "instruction": "Use CTR-NitroFueled-PC-portable-v0.7.5-windows.zip with the whole CTR-NitroFueled-PC-portable folder retained: its native launcher, bin/sacredfire.exe, Python, run.py, scripts, resources, libraries and notices. Windows 10 1903+ or Windows 11 x64, Direct3D 11 for the launcher and Vulkan 1.3-capable graphics/drivers for the game are documented. This runs original x86-64 PS4 code with replacement system/GPU services; the description is not proof of an entirely native reimplementation. Preserve GPL-2.0-or-later, separate components/fonts/graphics-library and original-game rights."
+          },
+          {
+            "title": "Add the normal native Windows launcher",
+            "instruction": "Select the package’s Crash™ Team Racing Nitro-Fueled.exe, use its complete containing portable root as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play when ready and use its ordinary Play control. The launcher supplies the game directory, settings and environment to bundled Python/run.py, which starts the actual runtime. Do not select python.exe, a BAT file, a diagnostic utility or context-free bin/sacredfire.exe as an equivalent route. Preserve existing settings rather than enabling new patches, DLC or online features during registration."
+          },
+          {
+            "title": "Preserve all active game and user-data roots",
+            "instruction": "Keep the full portable root, especially user/ with saves, trophies and shader caches, bbport.ini, launcher.ini, backups/, optional dlc/, mods/patches and logs as present. Retain the separate original base/update folders and prepared merged-game folder; upstream preparation can use hard links, so do not treat the merged folder as an independent backup. Preserve existing BB_GAME_DIR, BB_USER_DIR, BB_DATA_DIR, BB_CONFIG and other path overrides. Portcove does not merge updates, import PS4 saves, move roots, supply trophy keys or convert data."
+          },
+          {
+            "title": "Leave services, updates and recovery upstream",
+            "instruction": "The native launcher supervises its own helpers, but Portcove observes only the selected program; its activity is not evidence that all games/helpers stopped. Quit actual processes before upstream replacement, rebuild, save restore or recovery, preserve complete previous application/data and review/select the current launcher after changes. Online accounts/servers, mods, experimental renderers, DLC and native/gameplay/controller/save acceptance remain upstream or separately observed outcomes. Reference removal preserves external files; managed installation/update/backup/rollback, full-session tracking and Supported qualification are unavailable."
+          }
+        ],
+        "warnings": [
+          "Select Crash™ Team Racing Nitro-Fueled.exe in the intact Windows portable folder after preparing your own decrypted CUSA13795 v1.21. Preserve user/, configuration, backups and all original/merged roots; bundled helper execution and maintenance remain upstream."
+        ]
+      }
     },
     {
       "id": "s-t-a-l-k-e-r-call-of-pripyat-openxray",
@@ -39685,7 +40105,35 @@
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/shihabal3amri/tekken-tag-tournament-2-pc",
-      "issue_number": 2748
+      "issue_number": 2748,
+      "manual_setup": {
+        "help_url": "https://github.com/shihabal3amri/tekken-tag-tournament-2-pc/blob/e19ce43fe49ecd4b2e7887886e95625bca86a315/README.md",
+        "steps": [
+          {
+            "title": "Complete the upstream player installation",
+            "instruction": "Use your own Tekken Tag Tournament 2 (USA, Europe) Xbox 360 disc ISO and supported Title Update 3. Finish ttt2_setup.exe, including extraction, patching and shader preparation, before adding the player. The installer checks the retail Default.xex SHA-1 a942090b7c293d0ce63346ed8a2974448135d0dd and the decrypted TU3 image SHA-1 66adbc1a7744ec840a3ae8e51f8aeb677140d789; these are different objects, not ISO hashes. Do not bypass a source mismatch or substitute another title update."
+          },
+          {
+            "title": "Keep the installed Windows player together",
+            "instruction": "Keep the complete installed folder containing Tekken Tag Tournament 2.exe, its runtime libraries, notices and game/tekken.img with the other extracted game files. Use Windows 10/11 64-bit, DirectX 11 graphics and the documented storage budget of about 13 GB. The separately published ttt2-server packages are hosting utilities, not Linux players. Original game, Steamworks/runtime and project rights remain separate."
+          },
+          {
+            "title": "Add the completed native game",
+            "instruction": "Select Tekken Tag Tournament 2.exe, choose its installed containing directory as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play when ready. The ordinary installed layout supplies game-root and renderer defaults; do not copy a development launch command or select ttt2_setup.exe, uninstall.exe or a server utility as the game. Steam sign-in and online services remain upstream requirements for online play; Portcove does not configure accounts or servers."
+          },
+          {
+            "title": "Preserve the separate user-data folder",
+            "instruction": "Keep the complete %LOCALAPPDATA%/TTT2Recomp folder, including saves, profiles, settings.ini, shader cache, logs and network/replay data as present, as well as the original disc/TU3 and installed game directory. Preserve any existing upstream environment overrides rather than resetting them to add the reference. Portcove does not import, merge, convert or back up these files. The upstream uninstaller has a separate remove-saves choice; removing the Portcove reference does not run it."
+          },
+          {
+            "title": "Leave maintenance and qualification upstream",
+            "instruction": "Quit the actual game and helpers before upstream repair, replacement or recovery. Upstream owns installation, shaders, runtime updates and source verification. Review/select the executable again after changes. Portcove observes the selected program only and supplies launch plus reference removal, with no managed update, backup, rollback or deletion of external files. Upstream fighter, rollback, ranked and save-survival claims are not Portcove gameplay, network, controller or real-save observations; Supported qualification is not supplied."
+          }
+        ],
+        "warnings": [
+          "Use the completed Tekken Tag Tournament 2.exe installation, not its setup or dedicated server. Preserve %LOCALAPPDATA%/TTT2Recomp and the complete game folder; own disc plus supported TU3 are required."
+        ]
+      }
     },
     {
       "id": "shutoko-battle-x-static-recompilation-ludusregard-shutoko-battle-x",
@@ -40874,6 +41322,34 @@
         "image_sha256": "aa79d5c0a36bf2e6a94431c11d102591abb5bcfc082ec19432cfb7b0e1f55aeb",
         "game_slug": "sonic-adventure",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/sonicfreak1337/SARecomp/blob/40b160792a68232fb94c35ef7f2dea35b462b300/README.md",
+        "steps": [
+          {
+            "title": "Finish the explicitly recommended Windows setup",
+            "instruction": "Use SonicAdventureRecompiled-0.52.0-Windows.exe for the selected Windows route. The newer v0.52.1 release has Linux/Steam Deck assets and explicitly points Windows users to v0.52.0; it is not a replacement Windows package. Complete upstream setup before adding the installed player. Supply your own Sonic Adventure Dreamcast PAL v1.003 (1999), MK-5100050, as its GDI descriptor plus all three tracks with their existing relative filenames. Sonic Adventure DX, other regions/revisions and an isolated track are different inputs."
+          },
+          {
+            "title": "Keep the verified original layout and complete installed output",
+            "instruction": "Upstream setup verifies track layout, lengths and SHA-256 values. Track 3 must be 189f89cb695ff81b40878463f326ead759437794d733329ebf3943196ad59b45; this identifies that track, not the GDI descriptor or whole disc. Do not bypass a mismatch. Keep the completed versioned installation, game.exe, sonic-config.exe, SDL3.dll, resources, licenses and katana-content-root.txt with its separately prepared content store. The published EXE is a setup program, not the installed game. Windows x64 and Direct3D 11, or Vulkan 1.3 with suitable drivers for that renderer, remain upstream requirements."
+          },
+          {
+            "title": "Add the installed native game",
+            "instruction": "Select the completed installation’s game.exe, use its containing versioned application directory as working directory and leave arguments empty. Use the upstream-created Sonic Adventure Recompiled shortcut to identify the actual installation if needed. Review the selected program, folder and arguments, then choose Play when ready. Do not select the downloaded setup EXE, sonic-setup.exe or sonic-config.exe as gameplay. Rendering/timing mode choices remain with upstream configuration; no new mode, driver or diagnostic setting is enabled by registration."
+          },
+          {
+            "title": "Preserve user data and its separate content store",
+            "instruction": "Keep the active Windows data root: normally %LOCALAPPDATA%/SARecomp/experimental, an existing KATANA_USER_DATA_ROOT override, or user-data/ beside game.exe when existing SARECOMP_PORTABLE=1 or sarecomp-portable.txt selects it. Preserve the whole root with profiles, saves, settings, backups and import/export data, plus its sibling <data-root-name>-content store and katana-content-root.txt binding. Keep any SARECOMP_CACHE_ROOT override. Do not create a portable marker, move roots, convert VMU files or reset configuration merely to add the reference; use upstream’s own save-import tools for any separate migration."
+          },
+          {
+            "title": "Retain the unresolved upstream limitations",
+            "instruction": "Windows startup failures on some systems remain an upstream known issue. Successful package hashing or this guide does not resolve it or establish gameplay, native/controller, save compatibility or Supported acceptance. Preserve original-game, Katana-derived code and separate third-party license boundaries; no redistribution permission is inferred. Quit the actual game and helpers before upstream reinstall, replacement or recovery, preserve the previous complete application/content/data and review/select the current game.exe after changes. Portcove observes the selected program only and reference removal leaves external files intact; managed installation/update/backup/rollback and full-session tracking are unavailable."
+          }
+        ],
+        "warnings": [
+          "Add only the installed game.exe after the recommended Windows v0.52.0 setup. Keep the exact PAL GDI/three-track input, versioned application, content binding and active user-data/content roots; unresolved Windows startup failures remain upstream."
+        ]
       }
     },
     {
@@ -42929,7 +43405,35 @@
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/keepvaibin/nebula",
-      "issue_number": 2613
+      "issue_number": 2613,
+      "manual_setup": {
+        "help_url": "https://github.com/keepvaibin/nebula/blob/ea9ad871612f97085cea8a31a58313b16dbecc3c/README.md",
+        "steps": [
+          {
+            "title": "Finish Nebula setup with the supported game",
+            "instruction": "Use your own Super Mario Galaxy USA RMGE01 revision 0 ISO, RVZ or extracted folder. The selected game profile identifies main.dol by SHA-1 9a71008ae1ee9010e267fa67d1f0b0d4f0e895dd; this is not a whole-disc hash. Complete the upstream installer’s import, local translation/build and normal first-run settings before adding the player. Other regions and revisions have separate source contracts. The documented Windows route requires Windows 10 1803+/11 x64, AVX2, Direct3D 12 and suitable memory/storage; preparation and toolchain downloads remain upstream-owned."
+          },
+          {
+            "title": "Keep the complete installed player",
+            "instruction": "Use the existing completed Nebula installation, retaining its native Nebula.exe, runtime-env.json, runtime, libraries, versioned application folders, content and notices. Nebula-Setup.exe performs installation, repair, update and removal; NebulaSettings.exe or --settings opens settings. Select the normal Nebula.exe player rather than a compiler, setup-only command or bare runtime: its launcher supplies the active content and save context. Preserve project/component rights separately from your original game and optional graphics components."
+          },
+          {
+            "title": "Add the normal native launcher",
+            "instruction": "Select the existing Nebula.exe and its containing application directory as working directory, with arguments empty. Review the selected program, folder and arguments, then choose Play when ready. Finish any upstream settings screen if shown. The launcher supplies its own runtime-env.json and GALAXY_NAND_ROOT context; replacing it with a bare runtime can select a different save root. Portcove observes Nebula.exe only: it can show this launch as finished while the game continues in another process. Use the game’s own controls to quit."
+          },
+          {
+            "title": "Preserve the active save and settings folders",
+            "instruction": "Keep the complete installation and the actual data root, normally Local AppData/Nebula or an existing NEBULA_DATA_ROOT override. Retain saves/, settings.json, config.ini, sessions/, shadercache/, setup logs, backups and any portable settings/content choices. Saves include title/00010000/524d4745/data/GameData.bin and banner.bin with Wii metadata in NTFS streams. Use upstream’s save export/import tools when moving that data; an ordinary copy or ZIP can lose streams. Keep all previous/rejected/backup folders. Adding the launcher does not move, convert, restore or delete saves."
+          },
+          {
+            "title": "Manage replacement through Nebula",
+            "instruction": "Close the actual game and its helpers before upstream repair, update, save import/export or recovery, even if Portcove’s launcher activity has already finished. Upstream owns those operations and their component/signature decisions. After replacement, select/review the current native player again if its location changes. This existing-player route offers launch and removal of the library reference only; removing it preserves all external files. Full-session tracking, gameplay/controller/save recovery, Supported status and managed installation/update/backup/rollback are not established."
+          }
+        ],
+        "warnings": [
+          "Portcove follows the selected Nebula launcher, not a detached game. Close the actual game before upstream changes. Preserve its complete installation, active Nebula data root and save metadata; adding/removing the library reference does not manage those files."
+        ]
+      }
     },
     {
       "id": "super-mario-maker-2-smm2recomp",
@@ -43024,7 +43528,35 @@
         "game_slug": "super-mario-rpg-legend-of-the-seven-stars",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2900
+      "issue_number": 2900,
+      "manual_setup": {
+        "help_url": "https://github.com/mstan/SuperMarioRPGRecomp/blob/f5eb899e1683cb0183fe99ae0cfdea24f1a18a0b/README.md",
+        "steps": [
+          {
+            "title": "Keep the complete experimental Windows preview",
+            "instruction": "Use the complete SuperMarioRPGSNESRecomp-windows-x64-v0.0.5.zip folder, including SuperMarioRPGSNESRecomp.exe, its libraries, assets and notices. This early implementation has only two checked ahead-of-time variants and falls back to interpreter execution elsewhere; its SA-1 core is emulated. The Recomp name is not evidence of a wholly native game or complete playthrough. No other-platform observation or native/gameplay qualification is supplied here."
+          },
+          {
+            "title": "Use your own exact SNES ROM",
+            "instruction": "Supply your own Super Mario RPG: Legend of the Seven Stars ROM. The accepted headerless content is 4,194,304 bytes with SHA-256 740646f3535bfb365ca44e70d46ab433467b142bd84010393070bd0b141af853 and SHA-1 a4f7539054c359fe3f360b0e6b72e394439fe9df. Upstream strips an optional 512-byte copier header before hashing; these are content hashes, not a headered-file digest. Place smrpg.sfc beside the player or choose the existing file in its first-run picker. Preserve PolyForm Noncommercial terms separately from framework/UI/component and original-game rights; no ROM or private translated-output redistribution is granted."
+          },
+          {
+            "title": "Add the ordinary Windows frontend",
+            "instruction": "Select SuperMarioRPGSNESRecomp.exe, set its complete containing release folder as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play when ready and use the upstream launcher. It remembers the selected original in rom.cfg; keep the ROM at that path. Do not substitute a debug, headless or coverage command as the play route. Preserve upstream launch settings and controls rather than replacing them with another SNES title’s defaults."
+          },
+          {
+            "title": "Preserve this title’s actual state files",
+            "instruction": "Keep rom.cfg, keybinds.ini, the launcher’s settings and the entire saves folder beside the executable, including saves/smrpg.srm and all smrpg*.sav state slots as present. Keep mods, original files and related user data. This title does not use the other SNES family members’ game-owned config.ini; do not create or copy one as a registration step. SRAM, execution snapshots and another title’s saves are different formats; no conversion, cross-build compatibility, import or backup is performed."
+          },
+          {
+            "title": "Keep maintenance and acceptance upstream",
+            "instruction": "Quit the actual game and helpers before replacing the complete upstream preview or restoring files, preserving the old application/data. Review/select the executable again after changes. Portcove observes the selected program only and removes only its library reference; external originals, saves and runtime files remain untouched. Managed install/update/backup/rollback and Supported qualification are unavailable. Upstream coverage, controller and early-route reports remain separate from actual Portcove native, gameplay and real-save observations."
+          }
+        ],
+        "warnings": [
+          "Use the complete Windows preview and exact own SNES content. Preserve rom.cfg, keybinds.ini and the whole saves directory; interpreter/SA-1 fallback and incomplete coverage remain explicit."
+        ]
+      }
     },
     {
       "id": "super-mario-strikers-aurorastrikers",
@@ -44615,7 +45147,35 @@
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/TGP482/SCDA-XBERecomp",
-      "issue_number": 2832
+      "issue_number": 2832,
+      "manual_setup": {
+        "help_url": "https://github.com/TGP482/SCDA-XBERecomp/blob/ee5b44027bb99cdc11692b466f01d7930912240d/README.md",
+        "steps": [
+          {
+            "title": "Prepare the original Xbox edition",
+            "instruction": "Use your own original Xbox Splinter Cell: Double Agent files, distinct from the PC, PS2 and Xbox 360 releases. Finish the official Windows player’s first-start game-file selection and local compilation before adding it. Playing accepts its supported ISO or extracted-data route; the separate source-build instructions require extracted assets with default.xbe, sc4_adv.xbe and the Default, Media and adv folders. Source revision/fingerprints beyond the documented upstream checks remain unknown; do not bypass an input rejection or treat another edition as equivalent."
+          },
+          {
+            "title": "Keep the full Windows package",
+            "instruction": "Retain the complete official V3 SCDA-XBERecomp Windows unit, including SCDA.exe, SCDA_Versus.exe, compiler tools, required libraries/resources, installed originals and notices. It is a 64-bit Windows Direct3D 12/XAudio2 route; native Linux/macOS are not established here. Complete upstream preparation independently. Preserve project/runtime/compiler terms separately from original game rights; a static package check does not authorize redistributing original data or generated game code."
+          },
+          {
+            "title": "Add the ordinary native game entry",
+            "instruction": "Select SCDA.exe, use its complete package directory as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play when ready. Use its ordinary frontend and edition/mode controls. Upstream can start a successor executable during mission/frontend handoff: Portcove observes the selected program only and may show its activity as finished while the successor game continues. That result does not mean the whole game has closed or that its files are safe to replace."
+          },
+          {
+            "title": "Preserve settings and every active profile",
+            "instruction": "Keep scda.toml beside the executable, the original-data paths it uses, hdd/ and any hdd2/, hdd3/ or other instance-specific roots, plus all saves, settings, compiled outputs, shader caches, logs and backups. The runtime anchors these hard-drive roots to its executable directory; another instance can select a separate root. Retain existing overrides and do not replace populated configuration or saves with package defaults. No console-save conversion, profile merge, migration, backup or restore is performed by adding the program."
+          },
+          {
+            "title": "Leave game and network management upstream",
+            "instruction": "Close all actual game/frontend helpers before upstream update, repair, recovery or profile changes, even after Portcove’s activity finishes. Multiplayer requires upstream’s matching-version, host networking/router/firewall and controller setup; no network credentials, port forwarding or multiplayer qualification is supplied by this guide. Use upstream controls to stop continuing games. Removing the library reference leaves every external file intact. Full-game/session, controller and real-save behavior remain unobserved; no managed install/update/backup/rollback/removal is offered."
+          }
+        ],
+        "warnings": [
+          "Use the complete original-Xbox Windows SCDA player and preserve scda.toml plus all hdd/profile roots. Portcove tracks the selected program only; a mission handoff can continue after its activity ends. Close actual games/helpers before upstream maintenance."
+        ]
+      }
     },
     {
       "id": "thatguymcd-glover-r",
@@ -45247,7 +45807,35 @@
         "game_slug": "the-legend-of-zelda-skyward-sword-hd",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2901
+      "issue_number": 2901,
+      "manual_setup": {
+        "help_url": "https://github.com/Apolinario-coder/SkyRecomp/blob/ad649b4fd319b7f7c309857b2d14353d2e5dcd79/README.md",
+        "steps": [
+          {
+            "title": "Complete supported game-file preparation",
+            "instruction": "Use your own already uncompressed Skyward Sword HD Switch v1.0.0 files without updates: exefs/main, sdk, subsdk0 and subsdk1, with the supported romfs.bin or romfs/ layout. Complete upstream Game Files setup and its local code generation/build before adding the player. The launcher does not import encrypted NSP/XCI or accept console keys. Link’s Awakening, another game version and its generated libraries are separate contracts."
+          },
+          {
+            "title": "Keep the complete experimental Windows player",
+            "instruction": "Use the complete SkyRecomp-v2.1.0-Windows.zip player folder and its existing prepared data. Retain skyrecomp.exe, libraries, skygen/compiler tools, resources and notices rather than selecting a generator as Play. The documented host is Windows 10/11 x64 with AVX2/FMA, Vulkan 1.3+, suitable drivers, memory and storage. Preserve original, runtime, font and optional visual-pack/ReShade rights separately; no permission for third-party packs or redistribution of private generated game code is implied."
+          },
+          {
+            "title": "Add the normal native player",
+            "instruction": "Select skyrecomp.exe, use its complete existing Sky Recomp folder as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play when ready and use its ordinary start-screen Play. The selected Windows runtime can restart itself while reserving guest address space. Portcove follows only the selected process and can show the activity finished while a successor continues; that does not prove the game has closed. Use upstream/game controls to quit continuing processes."
+          },
+          {
+            "title": "Preserve the actual data root and generated library",
+            "instruction": "Keep the full populated data root: normally the Windows executable directory, an existing working-directory extracted/ layout, or an existing LARECOMP_DATA_ROOT override. Retain save/, skyrecomp.ini, extracted originals, mods, caches, logs, backups and all other user data. Preserve existing SKYRECOMP_SETTINGS and LARECOMP_GAME_LIB overrides. The generated skygame.dll and its .id must match the runtime’s game-library ID/ABI; do not substitute a LAS Recomp library or bypass refusal. No original, save, mod or settings migration is performed by adding the program."
+          },
+          {
+            "title": "Keep experimental acceptance and maintenance separate",
+            "instruction": "This is an experimental source/runtime route, not a polished or full-game-stability qualification. Crashes, freezes, missing services and rendering differences can prevent progress; actual gameplay, controllers and real-save recovery remain unobserved. Close all actual game/helpers before upstream replacement, recompilation or recovery, even after Portcove’s activity ends. Upstream owns those operations. Removing the library reference preserves all external files; no managed install/update/backup/rollback or full-session tracking is offered."
+          }
+        ],
+        "warnings": [
+          "Experimental v1.0.0-only existing player: preserve the active data root, matching skygame.dll/.id, saves and settings. A startup successor can continue after Portcove’s activity ends. Close actual games/helpers before maintenance; full-game stability is not qualified."
+        ]
+      }
     },
     {
       "id": "the-legend-of-zelda-tears-of-the-kingdom-macnativegames",
@@ -45793,6 +46381,34 @@
         "image_sha256": "0b09d1c1987b4353b9a00a4ab2ab99083745d22f78036996bab7c2d99b380c01",
         "game_slug": "earthbound",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/TheRunaway5/Phase-Distorter/blob/a15209b0e3f0c791f3929cf03079d0a936cfe2aa/README.md",
+        "steps": [
+          {
+            "title": "Keep the complete Windows development release",
+            "instruction": "Use the full Phase-Distorter-0.5-windows-x86_64.zip folder with Phase Distorter.exe, matching SDL2.dll, resources and licenses. v0.5 is a development release. Its default gameplay path runs each game’s compiled program; the separate --native-session engine route remains experimental and is not enabled by this guide. Do not claim a completed wholly native engine or inherit another platform’s observations. Project, component and original-game permissions remain separate."
+          },
+          {
+            "title": "Import your own exact game separately",
+            "instruction": "Supply your own supported EarthBound US or Mother 2 Japanese SNES ROM through the application’s first-run picker. Headerless content is 3,145,728 bytes; an optional 512-byte copier header is accepted before validation. EarthBound SHA-256 is a8fe2226728002786d68c27ddddf0b90a894db52e4dfe268fdf72a68cae5f02e; Mother 2 is 1f8cfd13177d86b0eb2c8adcf9e1a4f0ec8966fa1583072b65a1b1c0e7961a5d. Patched ROMs and other revisions are unsupported. Import each separately; their language, program, asset pack and saves remain distinct. No original or extracted asset pack is supplied by Portcove."
+          },
+          {
+            "title": "Add the ordinary native desktop frontend",
+            "instruction": "Select Phase Distorter.exe, choose its complete extracted Windows release folder as working directory and leave arguments empty to use the remembered/default game and upstream import UI. Review the selected program, folder and arguments, then choose Play when ready. An existing explicit --game earthbound or --game mother2 choice can remain unchanged. Import leaves originals and the executable unchanged; later starts use the locally imported pack. Do not select a headless, coverage or experimental native-session command as the ordinary player."
+          },
+          {
+            "title": "Preserve the external imported packs and saves",
+            "instruction": "Keep %APPDATA%/ebsrc/EarthBoundCpp on Windows, including earthbound.ebpak, mother2.ebpak, earthbound.srm, mother2.srm, display.cfg, controller preferences, snapshots/earthbound, snapshots/mother2 and other user files as present. Preserve existing --save, --assets and --config overrides and their actual locations. Save normally in game and exit normally to write battery RAM. Battery saves and named execution snapshots are different formats; no conversion or cross-game/build compatibility is inferred. A new release can find an old import in this external folder; that does not mean the download contains original game data."
+          },
+          {
+            "title": "Leave maintenance and recovery upstream",
+            "instruction": "Quit the actual game/helpers before upstream replacement or recovery, retain previous complete application/data and extract a new version into its own folder as upstream recommends. Review/select the current executable after changes. Portcove observes only the selected program, removes only its reference and performs no original import, pack rewrite, save migration, backup or restore. Managed installation/update/rollback, full-session tracking and Supported qualification are unavailable; upstream gameplay, controller and real-save reports remain separate from Portcove observations."
+          }
+        ],
+        "warnings": [
+          "Select Phase Distorter.exe in the complete Windows v0.5 folder. Keep the separate EarthBound/Mother 2 packs and saves under %APPDATA%/ebsrc/EarthBoundCpp or existing overrides; experimental native-session and snapshot formats are separate."
+        ]
       }
     },
     {
@@ -47009,6 +47625,34 @@
         "image_sha256": "6c68764e630651cb82ec2f8ed135d662dafe757ba40cb247ce104e4b91c76dda",
         "game_slug": "zelda-ii-the-adventure-of-link",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/troyedwardsjr/z2rs/blob/4c5e34418017cfda71ea0ca09c952ff93ba1591c/README.md",
+        "steps": [
+          {
+            "title": "Keep the Windows release archive intact",
+            "instruction": "Use the complete z2rs-0.6.0-x86_64-pc-windows-msvc.zip folder with z2rs-launcher.exe, z2rs.exe, companions and notices. z2-signal.exe is an optional signalling server, not the player. This is a Rust reconstruction with a native desktop frontend; upstream frame-comparison and enhancement claims do not establish a Portcove playthrough or native/controller observation."
+          },
+          {
+            "title": "Provide your own exact USA ROM",
+            "instruction": "In the upstream launcher choose your own Zelda II: The Adventure of Link (USA) NES ROM. Its accepted ROM body, after stripping the 16-byte iNES header, has CRC32 BA322865 and SHA-1 11333adb723a5975e0ecca3aee8f4747aa8d2d26. These identify the body, not the complete headered file. The game reads the ROM in place and remembers its path; keep it at that location. The project’s MIT code grant and original-ROM/HD-pack rights are separate; no ROM or extracted asset redistribution is granted."
+          },
+          {
+            "title": "Add the ordinary native launcher",
+            "instruction": "Select z2rs-launcher.exe, use its complete release directory as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play when ready and use the launcher’s ROM picker and Play control. Keep z2rs.exe beside it. After a remembered ROM exists, selecting z2rs.exe with the same directory and empty arguments is an upstream direct-player alternative. Preserve any existing Advanced game-binary override or Z2RS_GAME_BIN choice; do not substitute the server helper."
+          },
+          {
+            "title": "Preserve settings and all save slots",
+            "instruction": "Keep %APPDATA%/z2rs on Windows, or the existing XDG_DATA_HOME/z2rs override, including z2-native.json, battery saves, savestate*.z2snap and other user files. Preserve the original ROM’s separate path, optional HD packs, randomizer outputs and existing custom config paths. Do not assume save-state compatibility beyond upstream’s documented format, import another project’s saves or reset populated options to add the reference. The ROM is not copied into the default data directory."
+          },
+          {
+            "title": "Leave optional services and maintenance upstream",
+            "instruction": "Online co-op, the signalling service, HD packs and Discord presence are upstream options; Portcove does not enable services, supply credentials or configure them. The launcher starts a separate game process: Portcove follows the selected program only, and its activity can finish while the game continues. Close the actual game and helpers before replacing the complete upstream release or recovering files. Review/select the executable after updates. Reference removal preserves external files; managed updates, save conversion, backup, rollback, full-session tracking and Supported qualification are unavailable."
+          }
+        ],
+        "warnings": [
+          "Select z2rs-launcher.exe in the complete Windows release folder and supply your own exact USA ROM. Preserve %APPDATA%/z2rs and the ROM’s original path; the selected launcher does not establish full-game lifetime."
+        ]
       }
     },
     {
@@ -48833,7 +49477,35 @@
         "game_slug": "vagrant-story",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2908
+      "issue_number": 2908,
+      "manual_setup": {
+        "help_url": "https://github.com/JEschete/VS-NativePort/blob/f104d511ca04665edfd6fc74b7216a3220fbe055/README.md",
+        "steps": [
+          {
+            "title": "Use the full experimental Windows tester package",
+            "instruction": "Keep VS-NativePort-0.0.11-win-x64.zip intact with VS.Launcher.exe, VS.Desktop.exe, VS.Extract.exe, runtime DLLs, resources, licenses and release.json. This is an unfinished Vagrant Story port for Windows 10 1903+/11 x64, with gameplay, cutscene, rendering and audio limits. Native game saves and memory-card/ending conversion are different contracts; complete original memory-card support is not established. No finished-game, native/controller, real-save or Supported acceptance is claimed."
+          },
+          {
+            "title": "Complete the upstream exact-disc and converter checks",
+            "instruction": "Supply your own USA SLUS-01040 single-track MODE2/2352 disc as BIN, supported CUE/BIN or parentless single-data-track CHD. The decompressed BIN must be exactly 750,643,152 bytes, SHA-256 25221D7F8FDB2C4490AF12D9E82F0E58BDD6ACB43387F9082B3C5E79DFE090C0, SHA-1 38C63DB6C49A06B91D87CD5A4E31B1EC68FE212C. A matching name is insufficient; CHD hashes apply to its decoded content, not container bytes. Complete upstream Start-Game.cmd dependency checks and launcher setup first, including an explicitly chosen compatible FFmpeg with the required encoders. Software installation and original/converter acquisition remain separate user/upstream actions, not Portcove operations."
+          },
+          {
+            "title": "Add the ordinary native launcher",
+            "instruction": "Select VS.Launcher.exe in the complete tester folder, use that containing folder as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play when ready. Use the upstream disc, save-folder and converter pickers and its Play control. The launcher verifies the full image for each Play, prepares assets and starts VS.Desktop.exe with their context. Do not substitute VS.Extract.exe, Start-Game.cmd, a converter, or context-free VS.Desktop.exe as the same route; no integrity refusal is bypassed."
+          },
+          {
+            "title": "Keep per-user prepared assets and separately selected saves",
+            "instruction": "Preserve the full %APPDATA%/VS-NativePort/VagrantStory directory with prepared assets, completion inventories, launcher selections, logs and retained failed/replaced staging as present. Also retain the exact game-save folder you selected, including slot00.vssave through slot99.vssave and recoverable .bak files as present; it is independent of installed program files and prepared assets. Keep the original disc available for later verification and preserve custom --save-dir choices. Do not delete retained failure directories, merge original memory cards or reset path selections to register the game. Portcove performs no source conversion, save migration, backup or restore."
+          },
+          {
+            "title": "Leave updater and recovery ownership upstream",
+            "instruction": "The launcher owns its offered update checks, consent and replacement/recovery flow; registration does not select an update or install FFmpeg. Quit the actual game/helpers before maintenance or recovery, retain prior complete program/data/save copies and review/select the current launcher after changes. Portcove observes the selected launcher only; a finished activity does not prove all child processes stopped. Removing its reference preserves external files. Managed installation/update/backup/rollback, full-session tracking and Supported qualification are not offered. CC0 project terms, retained earlier GPL grants, third-party libraries and original-game rights remain separate."
+          }
+        ],
+        "warnings": [
+          "Select VS.Launcher.exe in the complete Windows tester package after upstream dependency/disc setup. Keep the exact USA image, %APPDATA%/VS-NativePort/VagrantStory assets and independently selected save folder; experimental limits and original memory-card conversion remain explicit."
+        ]
+      }
     },
     {
       "id": "valkyrie-profile-valkyrierecomp",
@@ -50112,7 +50784,35 @@
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/whompay/SaintsReborn",
-      "issue_number": 2778
+      "issue_number": 2778,
+      "manual_setup": {
+        "help_url": "https://github.com/whompay/SaintsReborn/blob/f53b57748e2d7854ba57f4afd13c8eb9a8e4924c/README.md",
+        "steps": [
+          {
+            "title": "Finish the supported upstream game setup",
+            "instruction": "Use your own 2006 Xbox 360 Saints Row disc ISO or supported extracted folder containing default.xex and packfiles. Complete SaintsReborn-Setup.exe and its local toolchain/build first. Only the disc executable revision the port was made with is supported; setup warns about a different default.xex. An exact accepted original-file digest is not established by this guide. No private game import, compiler execution or source compatibility is performed by Portcove."
+          },
+          {
+            "title": "Keep the complete prepared distribution",
+            "instruction": "Retain the full existing installation with dist/WhompaysModLoader.exe, dist/saintsrow.exe, libraries, core files, game data, notices and existing mod configuration. Use the documented Windows x86-64 setup/runtime prerequisites. SaintsReborn is the SaintsRowPC rename, not a new independent save or installation identity. Linux setup remains a separate upstream development claim. Project, framework, original-game and optional mod permissions remain separate."
+          },
+          {
+            "title": "Add the normal upstream launcher",
+            "instruction": "Select dist/WhompaysModLoader.exe, set its containing dist directory as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play when ready and use the launcher’s normal Play control. The launcher manages mod selection and starts saintsrow.exe in dist. The direct dist/saintsrow.exe player with the same working directory and empty arguments is a separate upstream choice. Do not select setup, update helpers or a script interpreter as the player."
+          },
+          {
+            "title": "Preserve saves, profiles and mod choices",
+            "instruction": "Keep the entire populated dist/game directory, dist/mods with mods/modlist.ini, dist/core, settings, original/generated files and any existing data-path choices. The normal game defaults to game beside its executable and supports upstream game_directory context; preserve an existing nondefault route. Do not activate unknown Lua/DLL mods, reset a mod list, move saves or merge profiles merely to add the library reference. Controller, save and multiplayer behavior remain unobserved here."
+          },
+          {
+            "title": "Keep upstream ownership after launch",
+            "instruction": "The native mod launcher hands off to the game and may exit while the game continues. Portcove observes only the selected launcher, so a finished activity does not prove the game or helpers are closed. Quit them before using Setup or UpdateSaintsReborn for replacement, rebuild or recovery. Upstream maintains runtime and mod compatibility; review/select the executable again after changes. Removing the reference preserves external files. No managed installation/update/backup/rollback, full-session tracking or Supported qualification is supplied."
+          }
+        ],
+        "warnings": [
+          "Select the completed dist/WhompaysModLoader.exe with dist as working directory, or the documented direct saintsrow.exe choice. Preserve dist/game and the existing mod list; launcher handoff can outlive Portcove’s activity."
+        ]
+      }
     },
     {
       "id": "wii-party-recomp-arelkair-arelkair-wii-party",
@@ -50348,6 +51048,34 @@
         "image_sha256": "f95688c17bffd1b283eb745298d164a98a2625fd6d4899be8846a0fe91713ae8",
         "game_slug": "new-super-mario-bros-wii",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/WitherBlitz/NSMB-Wii-Multiplayer-Recompilation/blob/aa7cf830837358d241e734e94741405c7c824ab2/README.md",
+        "steps": [
+          {
+            "title": "Prepare your own exact Wii game upstream",
+            "instruction": "Use your own New Super Mario Bros. Wii USA SMNE01 revision 1 and complete the documented Dolphin filesystem extraction outside Portcove. Other regions/revisions put code at different locations and are rejected. Keep the supported extracted game folder intact; Portcove supplies no original, disc extraction, key, NAND/firmware input or console access. Original Nintendo game code, assets and separate GPL/component terms remain distinct; the published runtime contains translated game code but not your extracted graphics/sounds."
+          },
+          {
+            "title": "Keep the full Windows release including CPU fallback",
+            "instruction": "Use the complete NSMBW-0.3.1-windows-x64.zip folder with NSMBW.exe, libraries, resources, supplied bootstrap files and compat/NSMBW-compat.exe together. Windows 10/11 x64 and upstream graphics/driver requirements apply. On older supported CPUs the normal entry chooses the compatibility runtime automatically; do not move compat out or select a different title’s fallback. That handoff does not imply identical CPU requirements or observation of every successor process."
+          },
+          {
+            "title": "Add the ordinary native Windows player",
+            "instruction": "Select NSMBW.exe, use its complete containing release folder as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play when ready. Select the already extracted supported folder in the upstream picker, or preserve its existing adjacent game/ layout. The normal player retains its own CPU/backend and game-directory handling. Do not select a setup helper, script interpreter or context-free compatibility executable as an equivalent route."
+          },
+          {
+            "title": "Preserve the active Documents or portable data root",
+            "instruction": "Keep the actual Windows Documents/MarioWiiSaveData folder, including Config.toml, NAND/saves, Cache, Logs and other data. Preserve any already active portable.txt/UserData root and its complete contents; old released marker files can instead trigger upstream legacy-data adoption. Keep earlier UserData or %LOCALAPPDATA%/WiiCompiled data until that existing upstream migration is resolved. Do not create a new portable marker, delete old state, merge another Wii title’s NAND or reset dvd_root merely to add the reference. Portcove performs no save conversion, migration, backup or restore."
+          },
+          {
+            "title": "Leave multiplayer and maintenance upstream",
+            "instruction": "LAN/online/tailnet participation, credentials, controllers, optional mods and gameplay acceptance remain upstream or separately observed choices; registration configures none of them. Portcove observes only NSMBW.exe and activity can finish while its compatibility/game helpers continue. Quit actual processes before upstream replacement or recovery, retain the old complete runtime/data and review/select the current entry after updates. Removing the reference preserves external files. Managed installation/update/backup/rollback, full-session tracking and Supported qualification are unavailable."
+          }
+        ],
+        "warnings": [
+          "Select NSMBW.exe with the complete Windows folder and compat/ retained, using your own extracted USA SMNE01 revision 1. Preserve Documents/MarioWiiSaveData or the existing portable/legacy data root; a CPU handoff can outlive Portcove’s activity."
+        ]
       }
     },
     {
@@ -52045,6 +52773,34 @@
         "image_sha256": "de2b6d3f72f73f60dc65f4fa1e99ddb7d2d6c8b2834842a40af4f97024dac973",
         "game_slug": "dragon-ball-z-budokai-tenkaichi-3",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/z3xox/Tenkaichi3Decomp/blob/be4c75b367fb859f088cc74126c8067bc6987d29/README.md",
+        "steps": [
+          {
+            "title": "Complete the supported PS2 disc preparation",
+            "instruction": "Use your own unmodified Dragon Ball Z: Budokai Tenkaichi 3 USA SLUS-21678 ISO. Complete Tenkaichi3Decomp-setup.exe upstream preparation before adding the prepared player. It verifies/extracts the disc data next to the program and needs about 4 GB. Other editions are not the gameplay base; a separate supported European-language import is an optional upstream choice. This guide supplies no disc, key, console access, original acquisition or source extraction."
+          },
+          {
+            "title": "Keep the complete selected Windows distribution",
+            "instruction": "Use the full Tenkaichi3Decomp-windows-x64.zip v0.1.39.4 folder with Tenkaichi3Decomp.exe, its setup program, libraries, resources, fonts and notices. Windows 10/11 x64 and the supported graphics/driver path apply; upstream can fall back from Vulkan to OpenGL. This port compiles original decompiled game code; AGPL-3.0-only port changes, retained earlier MIT contributions, third-party libraries and original rights are separate. No permission to redistribute original game code/data, optional stages or songs is inferred."
+          },
+          {
+            "title": "Add the completed ordinary game",
+            "instruction": "After setup select Tenkaichi3Decomp.exe, set its complete containing Tenkaichi3Decomp folder as working directory and leave arguments empty. Review the selected program, folder and arguments, then choose Play when ready. Keep the existing prepared gamedata layout and settings rather than selecting a setup/build tool or a developer replay command as gameplay. If you continue to use the upstream setup frontend for its own preparation/Play flow, that remains a separate upstream choice; Portcove does not automate it."
+          },
+          {
+            "title": "Preserve game data, saves and customization",
+            "instruction": "Keep the complete saves/ folder, bt3_settings.txt, gamedata/ including gamedata/mods and game-text, textures/, stages/, songs/, replays and related user files as present. Preserve the original ISO and any existing path/renderer overrides separately. External stages/music/mods have their own permissions; registration does not enable them. Do not replace populated memory-card/game saves, reset preferences or assume PCSX2 saves or another Budokai game’s data can be imported. Portcove performs no conversion, merging, save migration, backup or restore."
+          },
+          {
+            "title": "Keep updates, netplay and acceptance upstream",
+            "instruction": "Upstream owns update/restart, game-data preparation and compatibility. Online matchmaking/relay use, accounts, optional frame generation and controllers are not configured by registration. Close actual game/helpers before upstream replacement or recovery, preserve the old complete application/data and review/select the current executable after changes. Portcove observes only the selected program; activity completion is not full-session or safe-maintenance evidence. Removing its reference preserves external files. Managed install/update/backup/rollback and Supported qualification are unavailable; upstream gameplay and real-save reports are separate observations."
+          }
+        ],
+        "warnings": [
+          "Add the prepared Tenkaichi3Decomp.exe in the complete Windows release after upstream USA SLUS-21678 setup. Preserve saves/, bt3_settings.txt, gamedata and customization; another Budokai title/edition and optional online/mod routes are separate."
+        ]
       }
     },
     {

@@ -17,7 +17,35 @@
       "game_slug": "resident-evil-code-veronica-x",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2894
+    "issue_number": 2894,
+    "manual_setup": {
+      "help_url": "https://github.com/Patt92/recvx-native/blob/0531b9490aec3ab859a6738420e881b0ef1b1dd1/README.md",
+      "steps": [
+        {
+          "title": "Complete the upstream original-disc data preparation",
+          "instruction": "Use your own supported Resident Evil CODE: Veronica X disc image and the selected upstream extraction contract. The catalog identity is the PS2 implementation; do not substitute another edition or infer an exact accepted revision/hash from a filename alone. The selected Windows package provides Extract-ISO.cmd with Python 3.12+/FFmpeg preparation into adjacent data/ and mods/; finish this upstream setup before registration, preserving any failed/incomplete output for diagnosis. Portcove supplies no disc, decryption, console input, extractor execution or exact-original fingerprint certification."
+        },
+        {
+          "title": "Keep the experimental Windows x64 release intact",
+          "instruction": "Use the complete recvx-windows-x64.zip build-0.5.225 folder with recvx-runtime.exe, its SDL2/runtime libraries, exporters, tools, resources and notices. The separately published Windows ARM64, Linux and Android assets are different routes. Windows x64 build support and Direct3D 11 plus optional other renderers do not establish a finished game or validated hardware coverage; upstream still describes an incomplete implementation and planned validated Windows releases. Preserve project/component and original-game rights separately."
+        },
+        {
+          "title": "Add the ordinary prepared runtime",
+          "instruction": "Select recvx-runtime.exe in the complete prepared Windows release root, use that root as working directory and leave arguments empty for its adjacent data/ and mods/ layout. Review the selected program, folder and arguments, then choose Play when ready. Preserve an existing explicit --data or --mods route and its exact populated folders rather than relocating files. Exporters, recvx-audio.exe, recvx-assets.exe, extraction scripts and other tools are not interchangeable with the playable runtime."
+        },
+        {
+          "title": "Preserve released and existing development state separately",
+          "instruction": "For the released Windows route keep %APPDATA%/RECVX with its saves, snapshots, controls/video/debug settings and related user files, plus the full prepared data and mods folders and original ISO. An existing explicit user root or source-development build can use a different location; preserve that real root rather than assuming release defaults migrated it. Keep every slot and any pending/failed preparation; do not merge another edition’s state or delete data to register the player. No save conversion, migration, backup, restore or memory-card compatibility is supplied."
+        },
+        {
+          "title": "Retain the unfinished runtime boundary",
+          "instruction": "This guide offers an existing experimental launch route; it does not resolve missing gameplay features, validated Windows delivery or this title’s unfinished acceptance. Quit actual game/helpers before upstream replacement, extraction repair or recovery, retain prior complete application/data and review/select the executable after changes. Portcove observes only the selected program and reference removal leaves external files intact. Managed acquisition/preparation/update/backup/rollback, full-session tracking and Supported qualification remain unavailable. Other-platform demos and upstream gameplay/save claims are not Windows or Portcove native observations."
+        }
+      ],
+      "warnings": [
+        "Select only the prepared recvx-runtime.exe with its complete Windows x64 folder and adjacent data/mods context. Preserve %APPDATA%/RECVX or the actual existing custom/development root; unfinished gameplay and validated-Windows acceptance remain open."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
