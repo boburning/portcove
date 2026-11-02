@@ -144,15 +144,10 @@ for (const theme of ["dark", "light"]) {
       );
       const sidebar = document.querySelector<HTMLElement>(".app-shell > .sidebar")!;
       const workspace = document.querySelector<HTMLElement>(".app-shell > main")!;
-      const vertical = width! < 768;
-      const navigationEnd = vertical
-        ? sidebar.getBoundingClientRect().bottom
-        : sidebar.getBoundingClientRect().right;
-      const workspaceStart = vertical
-        ? workspace.getBoundingClientRect().top
-        : workspace.getBoundingClientRect().left;
-      expect(navigationEnd).toBeLessThanOrEqual(workspaceStart + 1);
-      expect(getComputedStyle(workspace).overflowY).toBe(vertical ? "visible" : "auto");
+      expect(sidebar.getBoundingClientRect().right).toBeLessThanOrEqual(
+        workspace.getBoundingClientRect().left + 1,
+      );
+      expect(getComputedStyle(workspace).overflowY).toBe(width! < 672 ? "visible" : "auto");
     }
     await page.getByRole("button", { name: /^Activity/ }).click();
     await expect.element(page.getByRole("heading", { name: "Activity", level: 1 })).toBeVisible();

@@ -3,7 +3,7 @@
   "listing": {
     "id": "star-wars-jedi-knight-jedi-academy-single-player-and-multiplayer-openjk-openjo",
     "name": "Star Wars Jedi Knight: Jedi Academy (single player and multiplayer) (OpenJK / OpenJO)",
-    "summary": "Prepare Star Wars Jedi Knight: Jedi Academy (single player and multiplayer) through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
+    "summary": "Use the official OpenJK project Windows player for Jedi Academy with your own matching PC data. Keep original files and the external profile backed up.",
     "original_game_title": "Star Wars Jedi Knight: Jedi Academy (single player and multiplayer)",
     "project_url": "https://github.com/JACoders/OpenJK",
     "availability": "packages",
@@ -13,24 +13,19 @@
     "download_asset_hints": {
       "windows-x86-64": ["OpenJK-windows-x86_64.zip"]
     },
-    "recommended_download_channel": "beta",
     "manual_setup": {
       "steps": [
         {
-          "title": "Use the matching original game",
-          "instruction": "Use your own complete Jedi Academy PC GameData/base resources. Jedi Outcast and OpenJKDF2 are different games. Keep the original installation unchanged and prepare a separate complete working GameData copy; the reviewed README does not pin a retail patch/revision."
+          "title": "Prepare the matching PC game",
+          "instruction": "Before Play, copy only assets0.pk3, assets1.pk3, assets2.pk3 and assets3.pk3 from your own patched PC GameData/base into base beside the player. Keep the original game installation unchanged and separate. The runtime also ships DLLs in base: keep them intact and copy only the four original asset archives into that folder. Jedi Academy needs its own matching files; Jedi Outcast is a different game. Portcove does not verify original-game identity. Do not copy old executables or DLLs over the official runtime. Customized game/mod layouts can retain an external registration."
         },
         {
-          "title": "Prepare upstream and select the player",
-          "instruction": "Extract the complete official OpenJK-windows-x86_64.zip into the prepared GameData folder. Select openjk_sp.x86_64.exe for single player or openjk.x86_64.exe for multiplayer, with GameData as working directory. A registration selects one player/mode; openjkded.x86_64.exe is a dedicated server, not the player. Retain all package libraries/resources."
+          "title": "Keep the correct player and profile",
+          "instruction": "The managed player follows the Rolling latest build; this channel does not establish gameplay qualification. The managed copy selects openjk_sp.x86_64.exe for single player. Multiplayer remains available by registering your separately prepared openjk.x86_64.exe copy with its actual GameData working folder; openjkded.x86_64.exe is a server. This selected Windows package contains the non-portable home-directory branch: normal saves, configuration and logs use the actual Documents/My Games/OpenJK profile. Back it up separately with your originals and creating runtime before changing versions. Portable builds, unavailable Documents folders and explicit home-path overrides can change the write location; those configurations need their own preserved external registration. A runtime rollback does not rewind external saves or establish older-runtime, mod or recorded-demo compatibility."
         },
         {
-          "title": "Keep your existing game data",
-          "instruction": "Normal Windows builds use Documents/My Games/OpenJK. BUILD_PORTABLE and explicit home-path settings can change this. Preserve the actual base/mod profiles, saves, configuration, original-data copy and creating runtime; upstream compatibility statements are not Portcove observations."
-        },
-        {
-          "title": "Add the game and manage your files",
-          "instruction": "Finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions. Other platforms need their own setup instructions."
+          "title": "Keep an existing prepared copy",
+          "instruction": "Extract the complete official OpenJK-windows-x86_64.zip into the prepared GameData folder. Select openjk_sp.x86_64.exe for single player or openjk.x86_64.exe for multiplayer, with GameData as working directory. A registration selects one player/mode; openjkded.x86_64.exe is a dedicated server, not the player. Retain all package libraries/resources. Existing registrations keep their selected player/mode, arguments, files and user/upstream runtime owner. Removing their registration preserves those files; this catalog change does not adopt or migrate them."
         }
       ],
       "warnings": [],
@@ -51,32 +46,34 @@
   },
   "integration": {
     "support_tier": "beta",
-    "channels": ["stable"],
+    "channels": ["rolling"],
     "platforms": ["windows-x86-64"],
-    "adapter": "staged-source-portable",
+    "adapter": "native-portable",
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
     "release": {
-      "provider": "user-prepared",
+      "provider": "github",
       "repository": "JACoders/OpenJK",
-      "user_prepared": {
-        "windows-x86-64": {
-          "trust": "user-selected",
-          "version": "user-managed",
-          "archive_name": "",
-          "archive_size": 0,
-          "archive_sha256": "",
-          "immutable_tree_sha256": "",
-          "executable": "",
-          "mutable_paths": []
-        }
+      "rolling_tag": "latest",
+      "asset_hints": {
+        "windows-x86-64": ["OpenJK-windows-x86_64.zip"]
       }
     },
     "presentation": {
-      "installation_method": "user-prepared-runtime",
+      "installation_method": "portable-package",
       "source_requirements": [],
       "saves_and_settings": "external-user-owned",
-      "manual_preparation": "Extract the complete official OpenJK-windows-x86_64.zip into the prepared GameData folder. Select openjk_sp.x86_64.exe for single player or openjk.x86_64.exe for multiplayer, with GameData as working directory. A registration selects one player/mode; openjkded.x86_64.exe is a dedicated server, not the player. Retain all package libraries/resources. Normal Windows builds use Documents/My Games/OpenJK. BUILD_PORTABLE and explicit home-path settings can change this. Preserve the actual base/mod profiles, saves, configuration, original-data copy and creating runtime; upstream compatibility statements are not Portcove observations. Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow."
-    }
+      "manual_preparation": "Before Play, copy only assets0.pk3, assets1.pk3, assets2.pk3 and assets3.pk3 from your own patched PC GameData/base into base beside the player. Keep the original game installation unchanged and separate. The runtime also ships DLLs in base: keep them intact and copy only the four original asset archives into that folder. Jedi Academy needs its own matching files; Jedi Outcast is a different game. Portcove does not verify original-game identity. Do not copy old executables or DLLs over the official runtime. Customized game/mod layouts can retain an external registration. This managed copy selects openjk_sp.x86_64.exe for single player. Use a separately prepared external registration for multiplayer; its runtime and all files stay user/upstream owned. This selected Windows package contains the non-portable home-directory branch: normal saves, configuration and logs use the actual Documents/My Games/OpenJK profile. Back it up separately with your originals and creating runtime before changing versions. Portable builds, unavailable Documents folders and explicit home-path overrides can change the write location; those configurations need their own preserved external registration. A runtime rollback does not rewind external saves or establish older-runtime, mod or recorded-demo compatibility. Portcove replaces only its separate official managed runtime and preserves the declared local originals during compatible replacement and backup, including originals copied before first Play. Its backup excludes external profiles. The rolling latest release is identified by its accepted archive digest as well as its version; a rebuilt tag is a new artifact decision. Use a short Windows library path containing plain ASCII characters; the external profile has its own upstream path limits. Older installations retain their original path contract. Gameplay, first original setup and populated-save compatibility remain unqualified."
+    },
+    "executable_hints": {
+      "windows-x86-64": ["openjk_sp.x86_64.exe"]
+    },
+    "persistent_paths": [
+      "base/assets0.pk3",
+      "base/assets1.pk3",
+      "base/assets2.pk3",
+      "base/assets3.pk3"
+    ],
+    "windows_runtime_path_policy": "printable-ascii-max-path"
   }
 }

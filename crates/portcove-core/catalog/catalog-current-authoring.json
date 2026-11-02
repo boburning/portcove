@@ -27087,7 +27087,7 @@
     {
       "id": "doom-3-classic-dhewm3",
       "name": "Doom 3 (classic) (dhewm3)",
-      "summary": "Set up Doom 3 (classic) through its upstream dhewm3 player using your own original files. Setup, profiles and updates stay upstream-owned.",
+      "summary": "Use the official dhewm3 Windows player with your own classic Doom 3 files. Prepare originals separately and keep the external save profile backed up.",
       "project_url": "https://github.com/dhewm/dhewm3",
       "support_tier": "beta",
       "channels": [
@@ -27096,59 +27096,66 @@
       "platforms": [
         "windows-x86-64"
       ],
-      "adapter": "staged-source-portable",
+      "adapter": "native-portable",
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "user-prepared",
+        "provider": "github",
         "repository": "dhewm/dhewm3",
-        "user_prepared": {
-          "windows-x86-64": {
-            "trust": "user-selected",
-            "version": "user-managed",
-            "archive_name": "",
-            "archive_size": 0,
-            "archive_sha256": "",
-            "immutable_tree_sha256": "",
-            "executable": "",
-            "mutable_paths": []
-          }
+        "asset_hints": {
+          "windows-x86-64": [
+            "dhewm3-1.",
+            "_win32.zip"
+          ]
         }
       },
       "presentation": {
-        "installation_method": "user-prepared-runtime",
+        "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Use your original classic Doom 3 data patched to 1.3.1: base/pak000.pk4 through pak008.pk4. BFG Edition is a different product and is not supported by dhewm3. Preserve your original installation; use a separate prepared working copy or the explicit fs_basepath option. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files. Use the main official dhewm3 1.x Windows win32 ZIP, retaining its DLLs and resources. This Windows player is 32-bit; Portcove can register it on 64-bit Windows. The separate dhewm3-mods archive supplies optional mod libraries. Register dhewm3.exe inside its wrapper with that same folder as working directory, not the dedicated server or a helper. Put original data in the matching base/d3xp folders or pass three separate argument lines, +set, fs_basepath, then the absolute folder containing them. Windows normally uses the actual Documents/My Games/dhewm3 profile for configuration, saves, screenshots and logs, with separate base and d3xp game directories. Explicit fs_savepath and other original/mod paths can redirect storage. Preserve all actual locations and the working runtime with the game closed before replacing upstream files. The original game, expansion, demo and BFG Edition remain different data scopes; mods needing game DLLs require their own compatible dhewm3 build. Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow.",
+        "manual_preparation": "Before Play, copy only base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into the matching base folder beside dhewm3.exe. Keep the original installation separately. BFG Edition is a different product; do not copy its files or old engine executables/DLLs over this runtime. Prepare these files yourself and check the edition against the upstream instructions; Portcove does not verify their original-game identity. The official Windows player is 32-bit and runs on 64-bit Windows through Windows compatibility support. Keep the package's own DLLs and resources together. Its optional mods and widescreen-GUI downloads are separate; customized runtime or mod layouts can keep an external registration. Portcove replaces its separate official managed runtime and preserves only the named local PK4 inputs during compatible replacement and backup, including inputs added before first Play. Its backup does not cover the external Documents/My Games/dhewm3 profile. Runtime rollback carries current declared inputs; it does not rewind saves or promise older-runtime, recorded-demo or mod compatibility. Use a short library path containing plain ASCII characters for this Windows build. Its external profile locations have their own upstream path limits. Older installations retain their original path contract. Use the existing non-owning route for custom fs_basepath/fs_savepath/fs_configpath, custom mods, the separate dedicated server or another upstream workflow. Existing external registrations retain every file and their user/upstream runtime owner; a catalog change never adopts them. Gameplay and populated-save compatibility remain unqualified.",
         "original_game_title": "Doom 3 (classic)",
         "manual_setup": {
           "steps": [
             {
-              "title": "Use this original game and edition",
-              "instruction": "Use your original classic Doom 3 data patched to 1.3.1: base/pak000.pk4 through pak008.pk4. BFG Edition is a different product and is not supported by dhewm3. Preserve your original installation; use a separate prepared working copy or the explicit fs_basepath option. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files."
+              "title": "Prepare your original game",
+              "instruction": "Before Play, copy only base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into the matching base folder beside dhewm3.exe. Keep the original installation separately. BFG Edition is a different product; do not copy its files or old engine executables/DLLs over this runtime. Prepare these files yourself and check the edition against the upstream instructions; Portcove does not verify their original-game identity. The official Windows player is 32-bit and runs on 64-bit Windows through Windows compatibility support. Keep the package's own DLLs and resources together. Its optional mods and widescreen-GUI downloads are separate; customized runtime or mod layouts can keep an external registration."
             },
             {
-              "title": "Prepare upstream and select the real player",
-              "instruction": "Use the main official dhewm3 1.x Windows win32 ZIP, retaining its DLLs and resources. This Windows player is 32-bit; Portcove can register it on 64-bit Windows. The separate dhewm3-mods archive supplies optional mod libraries. Register dhewm3.exe inside its wrapper with that same folder as working directory, not the dedicated server or a helper. Put original data in the matching base/d3xp folders or pass three separate argument lines, +set, fs_basepath, then the absolute folder containing them."
+              "title": "Keep an existing prepared copy",
+              "instruction": "Keep a working custom copy registered with dhewm3.exe, its actual runtime folder as working directory, and its own launch details. To read originals from another installation, use three separate argument lines: +set, fs_basepath, then the absolute folder containing base and any d3xp data. You and upstream retain replacement and data ownership for that external copy; removing its registration preserves its files. This alternative does not make Portcove manage or migrate its originals, saves or runtime."
             },
             {
-              "title": "Keep the actual original and player data",
-              "instruction": "Windows normally uses the actual Documents/My Games/dhewm3 profile for configuration, saves, screenshots and logs, with separate base and d3xp game directories. Explicit fs_savepath and other original/mod paths can redirect storage. Preserve all actual locations and the working runtime with the game closed before replacing upstream files. The original game, expansion, demo and BFG Edition remain different data scopes; mods needing game DLLs require their own compatible dhewm3 build."
-            },
-            {
-              "title": "Add the game and manage your files",
-              "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Other platforms need their own supported application and setup instructions."
+              "title": "Keep your saves and existing copy",
+              "instruction": "Normal Windows saves, settings, screenshots, demos and logs are in your actual Documents/My Games/dhewm3 profile, with separate base and d3xp scopes. Back up that external profile and your original game separately before changing engines or versions. Existing customized copies keep their own launch details and runtime owner."
             }
           ],
           "warnings": [],
           "help_url": "https://dhewm3.org/#how-to-install"
         }
-      }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "dhewm3.exe"
+        ]
+      },
+      "persistent_paths": [
+        "base/pak000.pk4",
+        "base/pak001.pk4",
+        "base/pak002.pk4",
+        "base/pak003.pk4",
+        "base/pak004.pk4",
+        "base/pak005.pk4",
+        "base/pak006.pk4",
+        "base/pak007.pk4",
+        "base/pak008.pk4"
+      ],
+      "windows_runtime_path_policy": "printable-ascii-max-path"
     },
     {
       "id": "doom-3-classic-dude-doom-3-unified-development-engine",
       "name": "Doom 3 (classic) (DUDE — Doom 3 Unified Development Engine)",
-      "summary": "Prepare Doom 3 (classic) through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
+      "summary": "Use the official DUDE Windows player with your own classic Doom 3 files. First Play can copy an existing dhewm3 profile; preserve both profiles before continuing.",
       "project_url": "https://github.com/Inkub0/dude",
       "support_tier": "beta",
       "channels": [
@@ -27157,61 +27164,68 @@
       "platforms": [
         "windows-x86-64"
       ],
-      "adapter": "staged-source-portable",
+      "adapter": "native-portable",
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "user-prepared",
+        "provider": "github",
         "repository": "Inkub0/dude",
-        "user_prepared": {
-          "windows-x86-64": {
-            "trust": "user-selected",
-            "version": "user-managed",
-            "archive_name": "",
-            "archive_size": 0,
-            "archive_sha256": "",
-            "immutable_tree_sha256": "",
-            "executable": "",
-            "mutable_paths": []
-          }
+        "asset_hints": {
+          "windows-x86-64": [
+            "dude-",
+            "-win64.zip"
+          ]
         }
       },
       "presentation": {
-        "installation_method": "user-prepared-runtime",
+        "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Keep the complete dude-0.9.6-win64.zip and its DLL/resources together. Register dude.exe in its runtime folder. Point to the folder containing base with three separate argument lines: +set, fs_basepath, then the absolute data-root path. Optional baked-AO downloads are separate from the player. Check the upstream renderer and hardware requirements for your chosen mode; dhewm3 test results do not apply to this fork. Windows normally stores saves and settings under the actual Documents/My Games/dude profile, with base/d3xp scopes. Explicit fs_savepath or mod paths can redirect writes. Preserve the actual profile, originals and creating runtime. Linux uses its own upstream location; no cross-engine or mod save compatibility is inferred. Before first Play, preserve both the existing Documents/My Games/dhewm3 profile and its creating runtime as well as any dude profile. If the dude profile is missing, this upstream Windows build silently copies the existing dhewm3 tree into it. A private original/runtime copy does not isolate that profile behavior. The game copies that profile without moving the original. Portcove does not manage the copied profile, and save compatibility has not been confirmed. Decide whether to allow this before choosing Play. Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow.",
+        "manual_preparation": "Before Play, copy base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into base beside dude.exe. Keep the originals separately. BFG Edition is a different product. Portcove does not verify original-game identity. Keep the complete official Windows player package and all its own DLLs and resources together; do not overwrite them with old engine files. Optional baked-AO packages and custom mods use their own setup instructions and are outside this managed route. Check upstream renderer and hardware requirements for your selected mode; this fork does not inherit dhewm3 qualification. Windows normally stores saves and settings under the actual Documents/My Games/dude profile, with base/d3xp scopes. Explicit fs_savepath or mod paths can redirect writes. Preserve the actual profile, originals and creating runtime. Linux uses its own upstream location; no cross-engine or mod save compatibility is inferred. Before first Play, preserve both the existing Documents/My Games/dhewm3 profile and its creating runtime as well as any dude profile. If the dude profile is missing, this upstream Windows build silently copies the existing dhewm3 tree into it. A private original/runtime copy does not isolate that profile behavior. The game copies that profile without moving the original. Portcove does not manage the copied profile, and save compatibility has not been confirmed. Decide whether to allow this before choosing Play. Portcove replaces only its separate official managed runtime and preserves the declared copied PK4 inputs during compatible replacement and backup, including inputs added before first Play. Its backup does not cover external profiles. Runtime rollback carries current declared inputs; it does not rewind saves or promise compatibility with another engine, older runtime, mod or recorded demo. Keep the managed Windows library path short and limited to plain ASCII characters; external profile locations have their own upstream limits. Older installations retain their original path contract. Custom path overrides, dedicated servers, optional resources and custom mods can retain an external registration. Existing registrations retain their files and user/upstream runtime owner. Gameplay and populated-save compatibility remain unqualified.",
         "original_game_title": "Doom 3 (classic)",
         "manual_setup": {
           "steps": [
             {
-              "title": "Use the matching original game",
-              "instruction": "Use original classic Doom 3 base PK4 data. BFG Edition is a different product. Keep the complete matching original-data installation unchanged and use a private working copy or the explicit upstream data-root option."
+              "title": "Prepare your original game",
+              "instruction": "Before Play, copy base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into base beside dude.exe. Keep the originals separately. BFG Edition is a different product. Portcove does not verify original-game identity. Keep the complete official Windows player package and all its own DLLs and resources together; do not overwrite them with old engine files. Optional baked-AO packages and custom mods use their own setup instructions and are outside this managed route. Check upstream renderer and hardware requirements for your selected mode; this fork does not inherit dhewm3 qualification."
             },
             {
-              "title": "Prepare upstream and select the player",
-              "instruction": "Keep the complete dude-0.9.6-win64.zip and its DLL/resources together. Register dude.exe in its runtime folder. Point to the folder containing base with three separate argument lines: +set, fs_basepath, then the absolute data-root path. Optional baked-AO downloads are separate from the player. Check the upstream renderer and hardware requirements for your chosen mode; dhewm3 test results do not apply to this fork."
-            },
-            {
-              "title": "Preserve the actual player data",
+              "title": "Review first-launch profile copying",
               "instruction": "Windows normally stores saves and settings under the actual Documents/My Games/dude profile, with base/d3xp scopes. Explicit fs_savepath or mod paths can redirect writes. Preserve the actual profile, originals and creating runtime. Linux uses its own upstream location; no cross-engine or mod save compatibility is inferred. Before first Play, preserve both the existing Documents/My Games/dhewm3 profile and its creating runtime as well as any dude profile. If the dude profile is missing, this upstream Windows build silently copies the existing dhewm3 tree into it. A private original/runtime copy does not isolate that profile behavior. The game copies that profile without moving the original. Portcove does not manage the copied profile, and save compatibility has not been confirmed. Decide whether to allow this before choosing Play."
             },
             {
-              "title": "Add the game and manage your files",
-              "instruction": "Finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions. Other platforms need their own setup instructions."
+              "title": "Keep an existing prepared copy",
+              "instruction": "Keep the complete official Windows player package and its DLL/resources together. Register dude.exe in its runtime folder. Point to the folder containing base with three separate argument lines: +set, fs_basepath, then the absolute data-root path. Optional baked-AO downloads are separate from the player. Check the upstream renderer and hardware requirements for your chosen mode; dhewm3 test results do not apply to this fork. This is an external registration: you and upstream own its runtime replacement and all files. Removing its registration preserves those files. It does not migrate or adopt the copy into a managed installation."
             }
           ],
           "warnings": [
             "First Play can copy an existing dhewm3 profile into a missing dude profile. Preserve both and decide before continuing."
           ],
-          "help_url": "https://github.com/Inkub0/dude/blob/1948b4e2bef25b55621f0569b72fb3525ed7713a/README.md"
+          "help_url": "https://github.com/Inkub0/dude/blob/e703ab270064eef8ead6ae3abbb4b0762bddecd8/README.md"
         }
-      }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "dude.exe"
+        ]
+      },
+      "persistent_paths": [
+        "base/pak000.pk4",
+        "base/pak001.pk4",
+        "base/pak002.pk4",
+        "base/pak003.pk4",
+        "base/pak004.pk4",
+        "base/pak005.pk4",
+        "base/pak006.pk4",
+        "base/pak007.pk4",
+        "base/pak008.pk4"
+      ],
+      "windows_runtime_path_policy": "printable-ascii-max-path"
     },
     {
       "id": "doom-3-resurrection-of-evil-classic-dhewm3",
       "name": "Doom 3: Resurrection of Evil (classic) (dhewm3)",
-      "summary": "Set up Doom 3: Resurrection of Evil (classic) through its upstream dhewm3 player using your own original files. Setup, profiles and updates stay upstream-owned.",
+      "summary": "Use the official dhewm3 Windows player for classic Resurrection of Evil with your own base-game and expansion files. Keep its external profile backed up.",
       "project_url": "https://github.com/dhewm/dhewm3",
       "support_tier": "beta",
       "channels": [
@@ -27220,59 +27234,73 @@
       "platforms": [
         "windows-x86-64"
       ],
-      "adapter": "staged-source-portable",
+      "adapter": "native-portable",
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "user-prepared",
+        "provider": "github",
         "repository": "dhewm/dhewm3",
-        "user_prepared": {
-          "windows-x86-64": {
-            "trust": "user-selected",
-            "version": "user-managed",
-            "archive_name": "",
-            "archive_size": 0,
-            "archive_sha256": "",
-            "immutable_tree_sha256": "",
-            "executable": "",
-            "mutable_paths": []
-          }
+        "asset_hints": {
+          "windows-x86-64": [
+            "dhewm3-1.",
+            "_win32.zip"
+          ]
         }
       },
       "presentation": {
-        "installation_method": "user-prepared-runtime",
+        "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Use classic Doom 3 patched to 1.3.1 base/pak000.pk4 through pak008.pk4 plus your Resurrection of Evil d3xp/pak000.pk4 and pak001.pk4. Expansion files alone and BFG Edition do not provide this route. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files. Use the main official dhewm3 1.x Windows win32 ZIP, retaining its DLLs and resources. This Windows player is 32-bit; Portcove can register it on 64-bit Windows. The separate dhewm3-mods archive supplies optional mod libraries. Register dhewm3.exe inside its wrapper with that same folder as working directory, not the dedicated server or a helper. Put original data in the matching base/d3xp folders or pass three separate argument lines, +set, fs_basepath, then the absolute folder containing them. To select Resurrection of Evil, add three more argument lines: +set, fs_game, d3xp. Windows normally uses the actual Documents/My Games/dhewm3 profile for configuration, saves, screenshots and logs, with separate base and d3xp game directories. Explicit fs_savepath and other original/mod paths can redirect storage. Preserve all actual locations and the working runtime with the game closed before replacing upstream files. The original game, expansion, demo and BFG Edition remain different data scopes; mods needing game DLLs require their own compatible dhewm3 build. Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow.",
+        "manual_preparation": "Before Play, copy only base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into the matching base folder beside dhewm3.exe. Also copy your own Resurrection of Evil d3xp/pak000.pk4 and d3xp/pak001.pk4 into d3xp beside the player. Both the complete base game and expansion are required; the maintained launch arguments select d3xp. Keep the original installation separately. BFG Edition is a different product; do not copy its files or old engine executables/DLLs over this runtime. Prepare these files yourself and check the edition against the upstream instructions; Portcove does not verify their original-game identity. The official Windows player is 32-bit and runs on 64-bit Windows through Windows compatibility support. Keep the package's own DLLs and resources together. Its optional mods and widescreen-GUI downloads are separate; customized runtime or mod layouts can keep an external registration. Portcove replaces its separate official managed runtime and preserves only the named local PK4 inputs during compatible replacement and backup, including inputs added before first Play. Its backup does not cover the external Documents/My Games/dhewm3 profile. Runtime rollback carries current declared inputs; it does not rewind saves or promise older-runtime, recorded-demo or mod compatibility. Use a short library path containing plain ASCII characters for this Windows build. Its external profile locations have their own upstream path limits. Older installations retain their original path contract. Use the existing non-owning route for custom fs_basepath/fs_savepath/fs_configpath, custom mods, the separate dedicated server or another upstream workflow. Existing external registrations retain every file and their user/upstream runtime owner; a catalog change never adopts them. Gameplay and populated-save compatibility remain unqualified.",
         "original_game_title": "Doom 3: Resurrection of Evil (classic)",
         "manual_setup": {
           "steps": [
             {
-              "title": "Use this original game and edition",
-              "instruction": "Use classic Doom 3 patched to 1.3.1 base/pak000.pk4 through pak008.pk4 plus your Resurrection of Evil d3xp/pak000.pk4 and pak001.pk4. Expansion files alone and BFG Edition do not provide this route. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files."
+              "title": "Prepare your original game",
+              "instruction": "Before Play, copy only base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into the matching base folder beside dhewm3.exe. Also copy your own Resurrection of Evil d3xp/pak000.pk4 and d3xp/pak001.pk4 into d3xp beside the player. Both the complete base game and expansion are required; the maintained launch arguments select d3xp. Keep the original installation separately. BFG Edition is a different product; do not copy its files or old engine executables/DLLs over this runtime. Prepare these files yourself and check the edition against the upstream instructions; Portcove does not verify their original-game identity. The official Windows player is 32-bit and runs on 64-bit Windows through Windows compatibility support. Keep the package's own DLLs and resources together. Its optional mods and widescreen-GUI downloads are separate; customized runtime or mod layouts can keep an external registration."
             },
             {
-              "title": "Prepare upstream and select the real player",
-              "instruction": "Use the main official dhewm3 1.x Windows win32 ZIP, retaining its DLLs and resources. This Windows player is 32-bit; Portcove can register it on 64-bit Windows. The separate dhewm3-mods archive supplies optional mod libraries. Register dhewm3.exe inside its wrapper with that same folder as working directory, not the dedicated server or a helper. Put original data in the matching base/d3xp folders or pass three separate argument lines, +set, fs_basepath, then the absolute folder containing them. To select Resurrection of Evil, add three more argument lines: +set, fs_game, d3xp."
+              "title": "Keep an existing prepared copy",
+              "instruction": "Keep a working custom copy registered with dhewm3.exe, its actual runtime folder as working directory, and its own launch details. To read originals from another installation, use three separate argument lines: +set, fs_basepath, then the absolute folder containing base and any d3xp data. Select Resurrection of Evil with three more separate lines: +set, fs_game, d3xp. You and upstream retain replacement and data ownership for that external copy; removing its registration preserves its files. This alternative does not make Portcove manage or migrate its originals, saves or runtime."
             },
             {
-              "title": "Keep the actual original and player data",
-              "instruction": "Windows normally uses the actual Documents/My Games/dhewm3 profile for configuration, saves, screenshots and logs, with separate base and d3xp game directories. Explicit fs_savepath and other original/mod paths can redirect storage. Preserve all actual locations and the working runtime with the game closed before replacing upstream files. The original game, expansion, demo and BFG Edition remain different data scopes; mods needing game DLLs require their own compatible dhewm3 build."
-            },
-            {
-              "title": "Add the game and manage your files",
-              "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Other platforms need their own supported application and setup instructions."
+              "title": "Keep your saves and existing copy",
+              "instruction": "Normal Windows saves, settings, screenshots, demos and logs are in your actual Documents/My Games/dhewm3 profile, with separate base and d3xp scopes. Back up that external profile and your original game separately before changing engines or versions. Existing customized copies keep their own launch details and runtime owner."
             }
           ],
           "warnings": [],
           "help_url": "https://dhewm3.org/#how-to-install"
         }
-      }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "dhewm3.exe"
+        ]
+      },
+      "persistent_paths": [
+        "base/pak000.pk4",
+        "base/pak001.pk4",
+        "base/pak002.pk4",
+        "base/pak003.pk4",
+        "base/pak004.pk4",
+        "base/pak005.pk4",
+        "base/pak006.pk4",
+        "base/pak007.pk4",
+        "base/pak008.pk4",
+        "d3xp/pak000.pk4",
+        "d3xp/pak001.pk4"
+      ],
+      "windows_runtime_path_policy": "printable-ascii-max-path",
+      "launch_arguments": [
+        "+set",
+        "fs_game",
+        "d3xp"
+      ]
     },
     {
       "id": "doom-3-resurrection-of-evil-classic-dude-doom-3-unified-development-engine",
       "name": "Doom 3: Resurrection of Evil (classic) (DUDE — Doom 3 Unified Development Engine)",
-      "summary": "Prepare Doom 3: Resurrection of Evil (classic) through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
+      "summary": "Use the official DUDE Windows player with your own classic Doom 3 and Resurrection of Evil files. First Play can copy an existing dhewm3 profile; preserve both profiles before continuing.",
       "project_url": "https://github.com/Inkub0/dude",
       "support_tier": "beta",
       "channels": [
@@ -27281,56 +27309,70 @@
       "platforms": [
         "windows-x86-64"
       ],
-      "adapter": "staged-source-portable",
+      "adapter": "native-portable",
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "user-prepared",
+        "provider": "github",
         "repository": "Inkub0/dude",
-        "user_prepared": {
-          "windows-x86-64": {
-            "trust": "user-selected",
-            "version": "user-managed",
-            "archive_name": "",
-            "archive_size": 0,
-            "archive_sha256": "",
-            "immutable_tree_sha256": "",
-            "executable": "",
-            "mutable_paths": []
-          }
+        "asset_hints": {
+          "windows-x86-64": [
+            "dude-",
+            "-win64.zip"
+          ]
         }
       },
       "presentation": {
-        "installation_method": "user-prepared-runtime",
+        "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Keep the complete dude-0.9.6-win64.zip and its DLL/resources together. Register dude.exe in its runtime folder. Point to the folder containing base and d3xp with three separate argument lines: +set, fs_basepath, then the absolute data-root path. Add three more literal lines: +set, fs_game, d3xp. Optional baked-AO downloads are separate from the player. Check the upstream renderer and hardware requirements for your chosen mode; dhewm3 test results do not apply to this fork. Windows normally stores saves and settings under the actual Documents/My Games/dude profile, with base/d3xp scopes. Explicit fs_savepath or mod paths can redirect writes. Preserve the actual profile, originals and creating runtime. Linux uses its own upstream location; no cross-engine or mod save compatibility is inferred. Before first Play, preserve both the existing Documents/My Games/dhewm3 profile and its creating runtime as well as any dude profile. If the dude profile is missing, this upstream Windows build silently copies the existing dhewm3 tree into it. A private original/runtime copy does not isolate that profile behavior. The game copies that profile without moving the original. Portcove does not manage the copied profile, and save compatibility has not been confirmed. Decide whether to allow this before choosing Play. Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow.",
+        "manual_preparation": "Before Play, copy base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into base beside dude.exe. Also copy your own classic Resurrection of Evil d3xp/pak000.pk4 and d3xp/pak001.pk4 into d3xp; the base game is required and the maintained arguments select the expansion. Keep the originals separately. BFG Edition is a different product. Portcove does not verify original-game identity. Keep the complete official Windows player package and all its own DLLs and resources together; do not overwrite them with old engine files. Optional baked-AO packages and custom mods use their own setup instructions and are outside this managed route. Check upstream renderer and hardware requirements for your selected mode; this fork does not inherit dhewm3 qualification. Windows normally stores saves and settings under the actual Documents/My Games/dude profile, with base/d3xp scopes. Explicit fs_savepath or mod paths can redirect writes. Preserve the actual profile, originals and creating runtime. Linux uses its own upstream location; no cross-engine or mod save compatibility is inferred. Before first Play, preserve both the existing Documents/My Games/dhewm3 profile and its creating runtime as well as any dude profile. If the dude profile is missing, this upstream Windows build silently copies the existing dhewm3 tree into it. A private original/runtime copy does not isolate that profile behavior. The game copies that profile without moving the original. Portcove does not manage the copied profile, and save compatibility has not been confirmed. Decide whether to allow this before choosing Play. Portcove replaces only its separate official managed runtime and preserves the declared copied PK4 inputs during compatible replacement and backup, including inputs added before first Play. Its backup does not cover external profiles. Runtime rollback carries current declared inputs; it does not rewind saves or promise compatibility with another engine, older runtime, mod or recorded demo. Keep the managed Windows library path short and limited to plain ASCII characters; external profile locations have their own upstream limits. Older installations retain their original path contract. Custom path overrides, dedicated servers, optional resources and custom mods can retain an external registration. Existing registrations retain their files and user/upstream runtime owner. Gameplay and populated-save compatibility remain unqualified.",
         "original_game_title": "Doom 3: Resurrection of Evil (classic)",
         "manual_setup": {
           "steps": [
             {
-              "title": "Use the matching original game",
-              "instruction": "Use original classic Doom 3 base PK4 data plus the original Resurrection of Evil d3xp PK4 data. BFG Edition is a different product. Keep the complete matching original-data installation unchanged and use a private working copy or the explicit upstream data-root option."
+              "title": "Prepare your original game",
+              "instruction": "Before Play, copy base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into base beside dude.exe. Also copy your own classic Resurrection of Evil d3xp/pak000.pk4 and d3xp/pak001.pk4 into d3xp; the base game is required and the maintained arguments select the expansion. Keep the originals separately. BFG Edition is a different product. Portcove does not verify original-game identity. Keep the complete official Windows player package and all its own DLLs and resources together; do not overwrite them with old engine files. Optional baked-AO packages and custom mods use their own setup instructions and are outside this managed route. Check upstream renderer and hardware requirements for your selected mode; this fork does not inherit dhewm3 qualification."
             },
             {
-              "title": "Prepare upstream and select the player",
-              "instruction": "Keep the complete dude-0.9.6-win64.zip and its DLL/resources together. Register dude.exe in its runtime folder. Point to the folder containing base and d3xp with three separate argument lines: +set, fs_basepath, then the absolute data-root path. Add three more literal lines: +set, fs_game, d3xp. Optional baked-AO downloads are separate from the player. Check the upstream renderer and hardware requirements for your chosen mode; dhewm3 test results do not apply to this fork."
-            },
-            {
-              "title": "Preserve the actual player data",
+              "title": "Review first-launch profile copying",
               "instruction": "Windows normally stores saves and settings under the actual Documents/My Games/dude profile, with base/d3xp scopes. Explicit fs_savepath or mod paths can redirect writes. Preserve the actual profile, originals and creating runtime. Linux uses its own upstream location; no cross-engine or mod save compatibility is inferred. Before first Play, preserve both the existing Documents/My Games/dhewm3 profile and its creating runtime as well as any dude profile. If the dude profile is missing, this upstream Windows build silently copies the existing dhewm3 tree into it. A private original/runtime copy does not isolate that profile behavior. The game copies that profile without moving the original. Portcove does not manage the copied profile, and save compatibility has not been confirmed. Decide whether to allow this before choosing Play."
             },
             {
-              "title": "Add the game and manage your files",
-              "instruction": "Finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions. Other platforms need their own setup instructions."
+              "title": "Keep an existing prepared copy",
+              "instruction": "Keep the complete official Windows player package and its DLL/resources together. Register dude.exe in its runtime folder. Point to the folder containing base and d3xp with three separate argument lines: +set, fs_basepath, then the absolute data-root path. Add three more literal lines: +set, fs_game, d3xp. Optional baked-AO downloads are separate from the player. Check the upstream renderer and hardware requirements for your chosen mode; dhewm3 test results do not apply to this fork. This is an external registration: you and upstream own its runtime replacement and all files. Removing its registration preserves those files. It does not migrate or adopt the copy into a managed installation."
             }
           ],
           "warnings": [
             "First Play can copy an existing dhewm3 profile into a missing dude profile. Preserve both and decide before continuing."
           ],
-          "help_url": "https://github.com/Inkub0/dude/blob/1948b4e2bef25b55621f0569b72fb3525ed7713a/README.md"
+          "help_url": "https://github.com/Inkub0/dude/blob/e703ab270064eef8ead6ae3abbb4b0762bddecd8/README.md"
         }
-      }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "dude.exe"
+        ]
+      },
+      "persistent_paths": [
+        "base/pak000.pk4",
+        "base/pak001.pk4",
+        "base/pak002.pk4",
+        "base/pak003.pk4",
+        "base/pak004.pk4",
+        "base/pak005.pk4",
+        "base/pak006.pk4",
+        "base/pak007.pk4",
+        "base/pak008.pk4",
+        "d3xp/pak000.pk4",
+        "d3xp/pak001.pk4"
+      ],
+      "windows_runtime_path_policy": "printable-ascii-max-path",
+      "launch_arguments": [
+        "+set",
+        "fs_game",
+        "d3xp"
+      ]
     },
     {
       "id": "doom-ii-crispy-doom-family",
@@ -30255,7 +30297,7 @@
     {
       "id": "medal-of-honor-allied-assault-breakthrough-openmohaa",
       "name": "Medal of Honor: Allied Assault Breakthrough (OpenMoHAA)",
-      "summary": "Prepare Medal of Honor: Allied Assault Breakthrough through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
+      "summary": "Use the official OpenMoHAA Windows player for Breakthrough with your own matching PC data. Keep original files and the external save profile backed up.",
       "project_url": "https://github.com/openmoh/openmohaa",
       "support_tier": "beta",
       "channels": [
@@ -30264,59 +30306,59 @@
       "platforms": [
         "windows-x86-64"
       ],
-      "adapter": "staged-source-portable",
+      "adapter": "native-portable",
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "user-prepared",
+        "provider": "github",
         "repository": "openmoh/openmohaa",
-        "user_prepared": {
-          "windows-x86-64": {
-            "trust": "user-selected",
-            "version": "user-managed",
-            "archive_name": "",
-            "archive_size": 0,
-            "archive_sha256": "",
-            "immutable_tree_sha256": "",
-            "executable": "",
-            "mutable_paths": []
-          }
+        "asset_hints": {
+          "windows-x86-64": [
+            "openmohaa-",
+            "-windows-x64.zip"
+          ]
         }
       },
       "presentation": {
-        "installation_method": "user-prepared-runtime",
+        "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Use a private working copy of the original game folder. Extract the complete official openmohaa-v0.82.1-windows-x64.zip into it, preserving DLLs and companions. Follow upstream Visual C++ x64 runtime prerequisites when needed. Register launch_openmohaa_breakthrough.exe with the game root as working directory. This title-specific launcher selects Breakthrough and waits for openmohaa.exe to exit. Do not select omohaaded.exe, PDB archives or another expansion launcher. Preserve the complete working game copy and actual fs_homepath, normally beneath the Windows roaming application-data directory. An explicit fs_homepath can redirect all user storage, including into the game directory; preserve that actual location rather than assuming one profile folder for all configurations. Original saves/mods and engine-version compatibility remain upstream responsibilities. Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow.",
+        "manual_preparation": "Before Play, prepare your own complete Breakthrough PC data and its Allied Assault base game. Upstream recommends GOG Warchest; CD copies need the matching language patches (Allied Assault 1.11 and Breakthrough 2.40b). Keep the originals unchanged in a separate installation. Copy only the original PK3 files and sound/video resources into main, maintt beside the official player. Preserve the matching folder names and all required original resources; do not copy old executables, DLLs or unrelated expansion files over this runtime. Portcove does not verify original-game identity. Console editions and demos are different products. Keep the complete official Windows x64 package and its own DLLs together, including openmohaa.exe and launch_openmohaa_breakthrough.exe. Follow upstream Visual C++ x64 runtime prerequisites when needed. Normal Windows saves, settings, screenshots, downloads and logs use the engine's actual roaming application-data openmohaa profile, with game-specific subfolders. Back up that profile and the originals separately before changing runtimes. If upstream cannot find a home directory, it can fall back to the runtime data folders. Custom fs_homepath overrides change the actual location. Keep the actual profile and creating runtime; save, mod and engine-version compatibility remain unqualified. Portcove replaces only its separate official managed runtime. It preserves the declared original-data folders during compatible replacement and backup, including originals added before first Play. That backup excludes external profiles. Runtime rollback carries the current declared data; it does not rewind saves or promise old-runtime or mod compatibility. Use a short Windows library path containing plain ASCII characters; external profile locations retain their upstream path limits. Older installations keep their original path contract. Custom paths, mods, other expansions and dedicated servers can retain an external registration. Existing registrations retain their files and user/upstream owner. Gameplay and populated-save compatibility remain unqualified.",
         "original_game_title": "Medal of Honor: Allied Assault Breakthrough",
         "manual_setup": {
           "steps": [
             {
-              "title": "Use the matching original game",
-              "instruction": "Use your complete original Medal of Honor: Allied Assault base data plus the Breakthrough expansion data. Upstream recommends Warchest. For CD versions follow the upstream patch sequence (Allied Assault 1.11, Spearhead 2.11 then 2.15, Breakthrough 2.40b) as applicable. Keep the matching maintt resources, including Pak*.pk3, sound and video. Expansion files do not replace base data; console editions are different products."
+              "title": "Prepare the matching PC game",
+              "instruction": "Before Play, prepare your own complete Breakthrough PC data and its Allied Assault base game. Upstream recommends GOG Warchest; CD copies need the matching language patches (Allied Assault 1.11 and Breakthrough 2.40b). Keep the originals unchanged in a separate installation. Copy only the original PK3 files and sound/video resources into main, maintt beside the official player. Preserve the matching folder names and all required original resources; do not copy old executables, DLLs or unrelated expansion files over this runtime. Portcove does not verify original-game identity. Console editions and demos are different products. Keep the complete official Windows x64 package and its own DLLs together, including openmohaa.exe and launch_openmohaa_breakthrough.exe. Follow upstream Visual C++ x64 runtime prerequisites when needed."
             },
             {
-              "title": "Prepare upstream and select the player",
-              "instruction": "Use a private working copy of the original game folder. Extract the complete official openmohaa-v0.82.1-windows-x64.zip into it, preserving DLLs and companions. Follow upstream Visual C++ x64 runtime prerequisites when needed. Register launch_openmohaa_breakthrough.exe with the game root as working directory. This title-specific launcher selects Breakthrough and waits for openmohaa.exe to exit. Do not select omohaaded.exe, PDB archives or another expansion launcher."
+              "title": "Preserve your actual game data",
+              "instruction": "Normal Windows saves, settings, screenshots, downloads and logs use the engine's actual roaming application-data openmohaa profile, with game-specific subfolders. Back up that profile and the originals separately before changing runtimes. If upstream cannot find a home directory, it can fall back to the runtime data folders. Custom fs_homepath overrides change the actual location. Keep the actual profile and creating runtime; save, mod and engine-version compatibility remain unqualified."
             },
             {
-              "title": "Keep your existing game data",
-              "instruction": "Preserve the complete working game copy and actual fs_homepath, normally beneath the Windows roaming application-data directory. An explicit fs_homepath can redirect all user storage, including into the game directory; preserve that actual location rather than assuming one profile folder for all configurations. Original saves/mods and engine-version compatibility remain upstream responsibilities."
-            },
-            {
-              "title": "Add the game and manage your files",
-              "instruction": "Finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions. Other platforms need their own setup instructions."
+              "title": "Keep an existing prepared copy",
+              "instruction": "Use a private working copy of the original game folder. Extract the complete official openmohaa-v0.82.1-windows-x64.zip into it, preserving DLLs and companions. Follow upstream Visual C++ x64 runtime prerequisites when needed. Register launch_openmohaa_breakthrough.exe with the game root as working directory. This title-specific launcher selects Breakthrough and waits for openmohaa.exe to exit. Do not select omohaaded.exe, PDB archives or another expansion launcher. This remains a non-owning external registration. You and upstream own runtime replacement and every file; removing its registration preserves them. A catalog update does not migrate or adopt that copy."
             }
           ],
           "warnings": [],
-          "help_url": "https://github.com/openmoh/openmohaa/blob/a72bc153db1e6ced6e30431b5217e1a53576712c/docs/markdown/01-intro/02-installation-windows.md"
+          "help_url": "https://github.com/openmoh/openmohaa/blob/a72bc153db1e6ced6e30431b5217e1a53576712c/docs/markdown/01-intro/01-installation.md"
         }
-      }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "launch_openmohaa_breakthrough.exe"
+        ]
+      },
+      "persistent_paths": [
+        "main",
+        "maintt"
+      ],
+      "windows_runtime_path_policy": "printable-ascii-max-path"
     },
     {
       "id": "medal-of-honor-allied-assault-openmohaa",
       "name": "Medal of Honor: Allied Assault (OpenMoHAA)",
-      "summary": "Prepare Medal of Honor: Allied Assault through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
+      "summary": "Use the official OpenMoHAA Windows player for Allied Assault with your own matching PC data. Keep original files and the external save profile backed up.",
       "project_url": "https://github.com/openmoh/openmohaa",
       "support_tier": "beta",
       "channels": [
@@ -30325,52 +30367,42 @@
       "platforms": [
         "windows-x86-64"
       ],
-      "adapter": "staged-source-portable",
+      "adapter": "native-portable",
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "user-prepared",
+        "provider": "github",
         "repository": "openmoh/openmohaa",
-        "user_prepared": {
-          "windows-x86-64": {
-            "trust": "user-selected",
-            "version": "user-managed",
-            "archive_name": "",
-            "archive_size": 0,
-            "archive_sha256": "",
-            "immutable_tree_sha256": "",
-            "executable": "",
-            "mutable_paths": []
-          }
+        "asset_hints": {
+          "windows-x86-64": [
+            "openmohaa-",
+            "-windows-x64.zip"
+          ]
         }
       },
       "presentation": {
-        "installation_method": "user-prepared-runtime",
+        "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Use a private working copy of the original game folder. Extract the complete official openmohaa-v0.82.1-windows-x64.zip into it, preserving DLLs and companions. Follow upstream Visual C++ x64 runtime prerequisites when needed. Register launch_openmohaa_base.exe with the game root as working directory. This title-specific launcher selects Allied Assault and waits for openmohaa.exe to exit. Do not select omohaaded.exe, PDB archives or another expansion launcher. Preserve the complete working game copy and actual fs_homepath, normally beneath the Windows roaming application-data directory. An explicit fs_homepath can redirect all user storage, including into the game directory; preserve that actual location rather than assuming one profile folder for all configurations. Original saves/mods and engine-version compatibility remain upstream responsibilities. Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow.",
+        "manual_preparation": "Before Play, prepare your own complete Allied Assault PC data. Upstream recommends GOG Warchest; CD copies need the matching language patches (Allied Assault 1.11). Keep the originals unchanged in a separate installation. Copy only the original PK3 files and sound/video resources into main beside the official player. Preserve the matching folder names and all required original resources; do not copy old executables, DLLs or unrelated expansion files over this runtime. Portcove does not verify original-game identity. Console editions and demos are different products. Keep the complete official Windows x64 package and its own DLLs together, including openmohaa.exe and launch_openmohaa_base.exe. Follow upstream Visual C++ x64 runtime prerequisites when needed. Normal Windows saves, settings, screenshots, downloads and logs use the engine's actual roaming application-data openmohaa profile, with game-specific subfolders. Back up that profile and the originals separately before changing runtimes. If upstream cannot find a home directory, it can fall back to the runtime data folders. Custom fs_homepath overrides change the actual location. Keep the actual profile and creating runtime; save, mod and engine-version compatibility remain unqualified. Portcove replaces only its separate official managed runtime. It preserves the declared original-data folders during compatible replacement and backup, including originals added before first Play. That backup excludes external profiles. Runtime rollback carries the current declared data; it does not rewind saves or promise old-runtime or mod compatibility. Use a short Windows library path containing plain ASCII characters; external profile locations retain their upstream path limits. Older installations keep their original path contract. Custom paths, mods, other expansions and dedicated servers can retain an external registration. Existing registrations retain their files and user/upstream owner. Gameplay and populated-save compatibility remain unqualified.",
         "original_game_title": "Medal of Honor: Allied Assault",
         "manual_setup": {
           "steps": [
             {
-              "title": "Use the matching original game",
-              "instruction": "Use your complete original Medal of Honor: Allied Assault base data. Upstream recommends Warchest. For CD versions follow the upstream patch sequence (Allied Assault 1.11, Spearhead 2.11 then 2.15, Breakthrough 2.40b) as applicable. Keep the matching main resources, including Pak*.pk3, sound and video. Expansion files do not replace base data; console editions are different products."
+              "title": "Prepare the matching PC game",
+              "instruction": "Before Play, prepare your own complete Allied Assault PC data. Upstream recommends GOG Warchest; CD copies need the matching language patches (Allied Assault 1.11). Keep the originals unchanged in a separate installation. Copy only the original PK3 files and sound/video resources into main beside the official player. Preserve the matching folder names and all required original resources; do not copy old executables, DLLs or unrelated expansion files over this runtime. Portcove does not verify original-game identity. Console editions and demos are different products. Keep the complete official Windows x64 package and its own DLLs together, including openmohaa.exe and launch_openmohaa_base.exe. Follow upstream Visual C++ x64 runtime prerequisites when needed."
             },
             {
-              "title": "Prepare upstream and select the player",
-              "instruction": "Use a private working copy of the original game folder. Extract the complete official openmohaa-v0.82.1-windows-x64.zip into it, preserving DLLs and companions. Follow upstream Visual C++ x64 runtime prerequisites when needed. Register launch_openmohaa_base.exe with the game root as working directory. This title-specific launcher selects Allied Assault and waits for openmohaa.exe to exit. Do not select omohaaded.exe, PDB archives or another expansion launcher."
+              "title": "Preserve your actual game data",
+              "instruction": "Normal Windows saves, settings, screenshots, downloads and logs use the engine's actual roaming application-data openmohaa profile, with game-specific subfolders. Back up that profile and the originals separately before changing runtimes. If upstream cannot find a home directory, it can fall back to the runtime data folders. Custom fs_homepath overrides change the actual location. Keep the actual profile and creating runtime; save, mod and engine-version compatibility remain unqualified."
             },
             {
-              "title": "Keep your existing game data",
-              "instruction": "Preserve the complete working game copy and actual fs_homepath, normally beneath the Windows roaming application-data directory. An explicit fs_homepath can redirect all user storage, including into the game directory; preserve that actual location rather than assuming one profile folder for all configurations. Original saves/mods and engine-version compatibility remain upstream responsibilities."
-            },
-            {
-              "title": "Add the game and manage your files",
-              "instruction": "Finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions. Other platforms need their own setup instructions."
+              "title": "Keep an existing prepared copy",
+              "instruction": "Use a private working copy of the original game folder. Extract the complete official openmohaa-v0.82.1-windows-x64.zip into it, preserving DLLs and companions. Follow upstream Visual C++ x64 runtime prerequisites when needed. Register launch_openmohaa_base.exe with the game root as working directory. This title-specific launcher selects Allied Assault and waits for openmohaa.exe to exit. Do not select omohaaded.exe, PDB archives or another expansion launcher. This remains a non-owning external registration. You and upstream own runtime replacement and every file; removing its registration preserves them. A catalog update does not migrate or adopt that copy."
             }
           ],
           "warnings": [],
-          "help_url": "https://github.com/openmoh/openmohaa/blob/a72bc153db1e6ced6e30431b5217e1a53576712c/docs/markdown/01-intro/02-installation-windows.md"
+          "help_url": "https://github.com/openmoh/openmohaa/blob/a72bc153db1e6ced6e30431b5217e1a53576712c/docs/markdown/01-intro/01-installation.md"
         },
         "artwork": {
           "game_id": 326,
@@ -30380,12 +30412,21 @@
           "game_slug": "medal-of-honor-allied-assault",
           "match_kind": "underlying-game"
         }
-      }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "launch_openmohaa_base.exe"
+        ]
+      },
+      "persistent_paths": [
+        "main"
+      ],
+      "windows_runtime_path_policy": "printable-ascii-max-path"
     },
     {
       "id": "medal-of-honor-allied-assault-spearhead-openmohaa",
       "name": "Medal of Honor: Allied Assault Spearhead (OpenMoHAA)",
-      "summary": "Prepare Medal of Honor: Allied Assault Spearhead through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
+      "summary": "Use the official OpenMoHAA Windows player for Spearhead with your own matching PC data. Keep original files and the external save profile backed up.",
       "project_url": "https://github.com/openmoh/openmohaa",
       "support_tier": "beta",
       "channels": [
@@ -30394,54 +30435,54 @@
       "platforms": [
         "windows-x86-64"
       ],
-      "adapter": "staged-source-portable",
+      "adapter": "native-portable",
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "user-prepared",
+        "provider": "github",
         "repository": "openmoh/openmohaa",
-        "user_prepared": {
-          "windows-x86-64": {
-            "trust": "user-selected",
-            "version": "user-managed",
-            "archive_name": "",
-            "archive_size": 0,
-            "archive_sha256": "",
-            "immutable_tree_sha256": "",
-            "executable": "",
-            "mutable_paths": []
-          }
+        "asset_hints": {
+          "windows-x86-64": [
+            "openmohaa-",
+            "-windows-x64.zip"
+          ]
         }
       },
       "presentation": {
-        "installation_method": "user-prepared-runtime",
+        "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Use a private working copy of the original game folder. Extract the complete official openmohaa-v0.82.1-windows-x64.zip into it, preserving DLLs and companions. Follow upstream Visual C++ x64 runtime prerequisites when needed. Register launch_openmohaa_spearhead.exe with the game root as working directory. This title-specific launcher selects Spearhead and waits for openmohaa.exe to exit. Do not select omohaaded.exe, PDB archives or another expansion launcher. Preserve the complete working game copy and actual fs_homepath, normally beneath the Windows roaming application-data directory. An explicit fs_homepath can redirect all user storage, including into the game directory; preserve that actual location rather than assuming one profile folder for all configurations. Original saves/mods and engine-version compatibility remain upstream responsibilities. Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow.",
+        "manual_preparation": "Before Play, prepare your own complete Spearhead PC data and its Allied Assault base game. Upstream recommends GOG Warchest; CD copies need the matching language patches (Allied Assault 1.11 and Spearhead 2.11 followed by 2.15). Keep the originals unchanged in a separate installation. Copy only the original PK3 files and sound/video resources into main, mainta beside the official player. Preserve the matching folder names and all required original resources; do not copy old executables, DLLs or unrelated expansion files over this runtime. Portcove does not verify original-game identity. Console editions and demos are different products. Keep the complete official Windows x64 package and its own DLLs together, including openmohaa.exe and launch_openmohaa_spearhead.exe. Follow upstream Visual C++ x64 runtime prerequisites when needed. Normal Windows saves, settings, screenshots, downloads and logs use the engine's actual roaming application-data openmohaa profile, with game-specific subfolders. Back up that profile and the originals separately before changing runtimes. If upstream cannot find a home directory, it can fall back to the runtime data folders. Custom fs_homepath overrides change the actual location. Keep the actual profile and creating runtime; save, mod and engine-version compatibility remain unqualified. Portcove replaces only its separate official managed runtime. It preserves the declared original-data folders during compatible replacement and backup, including originals added before first Play. That backup excludes external profiles. Runtime rollback carries the current declared data; it does not rewind saves or promise old-runtime or mod compatibility. Use a short Windows library path containing plain ASCII characters; external profile locations retain their upstream path limits. Older installations keep their original path contract. Custom paths, mods, other expansions and dedicated servers can retain an external registration. Existing registrations retain their files and user/upstream owner. Gameplay and populated-save compatibility remain unqualified.",
         "original_game_title": "Medal of Honor: Allied Assault Spearhead",
         "manual_setup": {
           "steps": [
             {
-              "title": "Use the matching original game",
-              "instruction": "Use your complete original Medal of Honor: Allied Assault base data plus the Spearhead expansion data. Upstream recommends Warchest. For CD versions follow the upstream patch sequence (Allied Assault 1.11, Spearhead 2.11 then 2.15, Breakthrough 2.40b) as applicable. Keep the matching mainta resources, including Pak*.pk3, sound and video. Expansion files do not replace base data; console editions are different products."
+              "title": "Prepare the matching PC game",
+              "instruction": "Before Play, prepare your own complete Spearhead PC data and its Allied Assault base game. Upstream recommends GOG Warchest; CD copies need the matching language patches (Allied Assault 1.11 and Spearhead 2.11 followed by 2.15). Keep the originals unchanged in a separate installation. Copy only the original PK3 files and sound/video resources into main, mainta beside the official player. Preserve the matching folder names and all required original resources; do not copy old executables, DLLs or unrelated expansion files over this runtime. Portcove does not verify original-game identity. Console editions and demos are different products. Keep the complete official Windows x64 package and its own DLLs together, including openmohaa.exe and launch_openmohaa_spearhead.exe. Follow upstream Visual C++ x64 runtime prerequisites when needed."
             },
             {
-              "title": "Prepare upstream and select the player",
-              "instruction": "Use a private working copy of the original game folder. Extract the complete official openmohaa-v0.82.1-windows-x64.zip into it, preserving DLLs and companions. Follow upstream Visual C++ x64 runtime prerequisites when needed. Register launch_openmohaa_spearhead.exe with the game root as working directory. This title-specific launcher selects Spearhead and waits for openmohaa.exe to exit. Do not select omohaaded.exe, PDB archives or another expansion launcher."
+              "title": "Preserve your actual game data",
+              "instruction": "Normal Windows saves, settings, screenshots, downloads and logs use the engine's actual roaming application-data openmohaa profile, with game-specific subfolders. Back up that profile and the originals separately before changing runtimes. If upstream cannot find a home directory, it can fall back to the runtime data folders. Custom fs_homepath overrides change the actual location. Keep the actual profile and creating runtime; save, mod and engine-version compatibility remain unqualified."
             },
             {
-              "title": "Keep your existing game data",
-              "instruction": "Preserve the complete working game copy and actual fs_homepath, normally beneath the Windows roaming application-data directory. An explicit fs_homepath can redirect all user storage, including into the game directory; preserve that actual location rather than assuming one profile folder for all configurations. Original saves/mods and engine-version compatibility remain upstream responsibilities."
-            },
-            {
-              "title": "Add the game and manage your files",
-              "instruction": "Finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions. Other platforms need their own setup instructions."
+              "title": "Keep an existing prepared copy",
+              "instruction": "Use a private working copy of the original game folder. Extract the complete official openmohaa-v0.82.1-windows-x64.zip into it, preserving DLLs and companions. Follow upstream Visual C++ x64 runtime prerequisites when needed. Register launch_openmohaa_spearhead.exe with the game root as working directory. This title-specific launcher selects Spearhead and waits for openmohaa.exe to exit. Do not select omohaaded.exe, PDB archives or another expansion launcher. This remains a non-owning external registration. You and upstream own runtime replacement and every file; removing its registration preserves them. A catalog update does not migrate or adopt that copy."
             }
           ],
           "warnings": [],
-          "help_url": "https://github.com/openmoh/openmohaa/blob/a72bc153db1e6ced6e30431b5217e1a53576712c/docs/markdown/01-intro/02-installation-windows.md"
+          "help_url": "https://github.com/openmoh/openmohaa/blob/a72bc153db1e6ced6e30431b5217e1a53576712c/docs/markdown/01-intro/01-installation.md"
         }
-      }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "launch_openmohaa_spearhead.exe"
+        ]
+      },
+      "persistent_paths": [
+        "main",
+        "mainta"
+      ],
+      "windows_runtime_path_policy": "printable-ascii-max-path"
     },
     {
       "id": "moshferatu-zombies-ate-my-neighbors-pc-port",
@@ -34004,57 +34045,47 @@
     {
       "id": "star-wars-jedi-knight-ii-jedi-outcast-single-player-openjk-openjo",
       "name": "Star Wars Jedi Knight II: Jedi Outcast (single player) (OpenJK / OpenJO)",
-      "summary": "Prepare Star Wars Jedi Knight II: Jedi Outcast (single player) through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
+      "summary": "Use the official OpenJO Windows player with an already prepared, matching working original-data copy. New original-game first setup remains held.",
       "project_url": "https://github.com/JACoders/OpenJK",
       "support_tier": "beta",
       "channels": [
-        "stable"
+        "rolling"
       ],
       "platforms": [
         "windows-x86-64"
       ],
-      "adapter": "staged-source-portable",
+      "adapter": "native-portable",
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "user-prepared",
+        "provider": "github",
         "repository": "JACoders/OpenJK",
-        "user_prepared": {
-          "windows-x86-64": {
-            "trust": "user-selected",
-            "version": "user-managed",
-            "archive_name": "",
-            "archive_size": 0,
-            "archive_sha256": "",
-            "immutable_tree_sha256": "",
-            "executable": "",
-            "mutable_paths": []
-          }
+        "rolling_tag": "latest",
+        "asset_hints": {
+          "windows-x86-64": [
+            "OpenJO-windows-x86_64.zip"
+          ]
         }
       },
       "presentation": {
-        "installation_method": "user-prepared-runtime",
+        "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Use this route only for an already prepared, working upstream OpenJO installation with your own matching Outcast data. The inspected official OpenJO-windows-x86_64.zip contains openjo_sp.x86_64.exe; keep its companions. Register the existing player and its already working directory/arguments. Do not apply the Academy setup recipe to Outcast or treat this package inspection as original-data acceptance. Normal Windows OpenJO builds use Documents/My Games/OpenJO; portable builds and explicit settings can differ. Preserve the actual profile, original files and creating runtime. No existing save compatibility, first setup or gameplay was observed. Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow.",
+        "manual_preparation": "This managed route accepts only a matching original-data copy already prepared for a working OpenJO installation. Copy that known-working original base folder beside the official player and keep the complete original installation and creating runtime unchanged and separate. New Outcast first setup remains held until upstream establishes the exact original-data, patch and layout contract. Keep the package's OpenJK game-library folder and all its own DLLs intact; do not copy old executables or DLLs into this runtime. Jedi Academy is a different game. Portcove does not verify original-game identity or perform that first setup. Customized layouts can retain their existing external registration. This managed copy selects openjo_sp.x86_64.exe for single player. This selected Windows package contains the non-portable home-directory branch: normal saves, configuration and logs use the actual Documents/My Games/OpenJO profile. Back it up separately with your originals and creating runtime before changing versions. Portable builds, unavailable Documents folders and explicit home-path overrides can change the write location; those configurations need their own preserved external registration. A runtime rollback does not rewind external saves or establish older-runtime, mod or recorded-demo compatibility. Portcove replaces only its separate official managed runtime and preserves the declared local originals during compatible replacement and backup, including originals copied before first Play. Its backup excludes external profiles. The rolling latest release is identified by its accepted archive digest as well as its version; a rebuilt tag is a new artifact decision. Use a short Windows library path containing plain ASCII characters; the external profile has its own upstream path limits. Older installations retain their original path contract. Gameplay, first original setup and populated-save compatibility remain unqualified.",
         "original_game_title": "Star Wars Jedi Knight II: Jedi Outcast (single player)",
         "manual_setup": {
           "steps": [
             {
-              "title": "Use the matching original game",
-              "instruction": "This identity is Jedi Outcast single player through OpenJO. It is not Jedi Academy, OpenJKDF2 or an Outcast multiplayer route. The reviewed upstream README documents Academy preparation but does not establish Outcast-specific original files, retail patch or exact first-setup layout."
+              "title": "Use already prepared OpenJO data",
+              "instruction": "This managed route accepts only a matching original-data copy already prepared for a working OpenJO installation. Copy that known-working original base folder beside the official player and keep the complete original installation and creating runtime unchanged and separate. New Outcast first setup remains held until upstream establishes the exact original-data, patch and layout contract. Keep the package's OpenJK game-library folder and all its own DLLs intact; do not copy old executables or DLLs into this runtime. Jedi Academy is a different game. Portcove does not verify original-game identity or perform that first setup. Customized layouts can retain their existing external registration."
             },
             {
-              "title": "Prepare upstream and select the player",
-              "instruction": "Use this route only for an already prepared, working upstream OpenJO installation with your own matching Outcast data. The inspected official OpenJO-windows-x86_64.zip contains openjo_sp.x86_64.exe; keep its companions. Register the existing player and its already working directory/arguments. Do not apply the Academy setup recipe to Outcast or treat this package inspection as original-data acceptance."
+              "title": "Keep the correct player and profile",
+              "instruction": "The managed player follows the Rolling latest build; this channel does not establish gameplay qualification. The managed copy selects openjo_sp.x86_64.exe for single player. OpenJO multiplayer is outside this upstream player; upstream describes Outcast single player as working but still needing attention. This selected Windows package contains the non-portable home-directory branch: normal saves, configuration and logs use the actual Documents/My Games/OpenJO profile. Back it up separately with your originals and creating runtime before changing versions. Portable builds, unavailable Documents folders and explicit home-path overrides can change the write location; those configurations need their own preserved external registration. A runtime rollback does not rewind external saves or establish older-runtime, mod or recorded-demo compatibility."
             },
             {
-              "title": "Keep your existing game data",
-              "instruction": "Normal Windows OpenJO builds use Documents/My Games/OpenJO; portable builds and explicit settings can differ. Preserve the actual profile, original files and creating runtime. No existing save compatibility, first setup or gameplay was observed."
-            },
-            {
-              "title": "Add the game and manage your files",
-              "instruction": "Finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions. Other platforms need their own setup instructions."
+              "title": "Keep an existing prepared copy",
+              "instruction": "Use this route only for an already prepared, working upstream OpenJO installation with your own matching Outcast data. The inspected official OpenJO-windows-x86_64.zip contains openjo_sp.x86_64.exe; keep its companions. Register the existing player and its already working directory/arguments. Do not apply the Academy setup recipe to Outcast or treat this package inspection as original-data acceptance. Existing registrations keep their selected player/mode, arguments, files and user/upstream runtime owner. Removing their registration preserves those files; this catalog change does not adopt or migrate them."
             }
           ],
           "warnings": [
@@ -34062,68 +34093,79 @@
           ],
           "help_url": "https://github.com/JACoders/OpenJK/blob/260c59c2907187af555a676fe0cc798893bf7757/README.md"
         }
-      }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "openjo_sp.x86_64.exe"
+        ]
+      },
+      "persistent_paths": [
+        "base"
+      ],
+      "windows_runtime_path_policy": "printable-ascii-max-path"
     },
     {
       "id": "star-wars-jedi-knight-jedi-academy-single-player-and-multiplayer-openjk-openjo",
       "name": "Star Wars Jedi Knight: Jedi Academy (single player and multiplayer) (OpenJK / OpenJO)",
-      "summary": "Prepare Star Wars Jedi Knight: Jedi Academy (single player and multiplayer) through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
+      "summary": "Use the official OpenJK project Windows player for Jedi Academy with your own matching PC data. Keep original files and the external profile backed up.",
       "project_url": "https://github.com/JACoders/OpenJK",
       "support_tier": "beta",
       "channels": [
-        "stable"
+        "rolling"
       ],
       "platforms": [
         "windows-x86-64"
       ],
-      "adapter": "staged-source-portable",
+      "adapter": "native-portable",
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "user-prepared",
+        "provider": "github",
         "repository": "JACoders/OpenJK",
-        "user_prepared": {
-          "windows-x86-64": {
-            "trust": "user-selected",
-            "version": "user-managed",
-            "archive_name": "",
-            "archive_size": 0,
-            "archive_sha256": "",
-            "immutable_tree_sha256": "",
-            "executable": "",
-            "mutable_paths": []
-          }
+        "rolling_tag": "latest",
+        "asset_hints": {
+          "windows-x86-64": [
+            "OpenJK-windows-x86_64.zip"
+          ]
         }
       },
       "presentation": {
-        "installation_method": "user-prepared-runtime",
+        "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Extract the complete official OpenJK-windows-x86_64.zip into the prepared GameData folder. Select openjk_sp.x86_64.exe for single player or openjk.x86_64.exe for multiplayer, with GameData as working directory. A registration selects one player/mode; openjkded.x86_64.exe is a dedicated server, not the player. Retain all package libraries/resources. Normal Windows builds use Documents/My Games/OpenJK. BUILD_PORTABLE and explicit home-path settings can change this. Preserve the actual base/mod profiles, saves, configuration, original-data copy and creating runtime; upstream compatibility statements are not Portcove observations. Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow.",
+        "manual_preparation": "Before Play, copy only assets0.pk3, assets1.pk3, assets2.pk3 and assets3.pk3 from your own patched PC GameData/base into base beside the player. Keep the original game installation unchanged and separate. The runtime also ships DLLs in base: keep them intact and copy only the four original asset archives into that folder. Jedi Academy needs its own matching files; Jedi Outcast is a different game. Portcove does not verify original-game identity. Do not copy old executables or DLLs over the official runtime. Customized game/mod layouts can retain an external registration. This managed copy selects openjk_sp.x86_64.exe for single player. Use a separately prepared external registration for multiplayer; its runtime and all files stay user/upstream owned. This selected Windows package contains the non-portable home-directory branch: normal saves, configuration and logs use the actual Documents/My Games/OpenJK profile. Back it up separately with your originals and creating runtime before changing versions. Portable builds, unavailable Documents folders and explicit home-path overrides can change the write location; those configurations need their own preserved external registration. A runtime rollback does not rewind external saves or establish older-runtime, mod or recorded-demo compatibility. Portcove replaces only its separate official managed runtime and preserves the declared local originals during compatible replacement and backup, including originals copied before first Play. Its backup excludes external profiles. The rolling latest release is identified by its accepted archive digest as well as its version; a rebuilt tag is a new artifact decision. Use a short Windows library path containing plain ASCII characters; the external profile has its own upstream path limits. Older installations retain their original path contract. Gameplay, first original setup and populated-save compatibility remain unqualified.",
         "original_game_title": "Star Wars Jedi Knight: Jedi Academy (single player and multiplayer)",
         "manual_setup": {
           "steps": [
             {
-              "title": "Use the matching original game",
-              "instruction": "Use your own complete Jedi Academy PC GameData/base resources. Jedi Outcast and OpenJKDF2 are different games. Keep the original installation unchanged and prepare a separate complete working GameData copy; the reviewed README does not pin a retail patch/revision."
+              "title": "Prepare the matching PC game",
+              "instruction": "Before Play, copy only assets0.pk3, assets1.pk3, assets2.pk3 and assets3.pk3 from your own patched PC GameData/base into base beside the player. Keep the original game installation unchanged and separate. The runtime also ships DLLs in base: keep them intact and copy only the four original asset archives into that folder. Jedi Academy needs its own matching files; Jedi Outcast is a different game. Portcove does not verify original-game identity. Do not copy old executables or DLLs over the official runtime. Customized game/mod layouts can retain an external registration."
             },
             {
-              "title": "Prepare upstream and select the player",
-              "instruction": "Extract the complete official OpenJK-windows-x86_64.zip into the prepared GameData folder. Select openjk_sp.x86_64.exe for single player or openjk.x86_64.exe for multiplayer, with GameData as working directory. A registration selects one player/mode; openjkded.x86_64.exe is a dedicated server, not the player. Retain all package libraries/resources."
+              "title": "Keep the correct player and profile",
+              "instruction": "The managed player follows the Rolling latest build; this channel does not establish gameplay qualification. The managed copy selects openjk_sp.x86_64.exe for single player. Multiplayer remains available by registering your separately prepared openjk.x86_64.exe copy with its actual GameData working folder; openjkded.x86_64.exe is a server. This selected Windows package contains the non-portable home-directory branch: normal saves, configuration and logs use the actual Documents/My Games/OpenJK profile. Back it up separately with your originals and creating runtime before changing versions. Portable builds, unavailable Documents folders and explicit home-path overrides can change the write location; those configurations need their own preserved external registration. A runtime rollback does not rewind external saves or establish older-runtime, mod or recorded-demo compatibility."
             },
             {
-              "title": "Keep your existing game data",
-              "instruction": "Normal Windows builds use Documents/My Games/OpenJK. BUILD_PORTABLE and explicit home-path settings can change this. Preserve the actual base/mod profiles, saves, configuration, original-data copy and creating runtime; upstream compatibility statements are not Portcove observations."
-            },
-            {
-              "title": "Add the game and manage your files",
-              "instruction": "Finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions. Other platforms need their own setup instructions."
+              "title": "Keep an existing prepared copy",
+              "instruction": "Extract the complete official OpenJK-windows-x86_64.zip into the prepared GameData folder. Select openjk_sp.x86_64.exe for single player or openjk.x86_64.exe for multiplayer, with GameData as working directory. A registration selects one player/mode; openjkded.x86_64.exe is a dedicated server, not the player. Retain all package libraries/resources. Existing registrations keep their selected player/mode, arguments, files and user/upstream runtime owner. Removing their registration preserves those files; this catalog change does not adopt or migrate them."
             }
           ],
           "warnings": [],
           "help_url": "https://github.com/JACoders/OpenJK/blob/260c59c2907187af555a676fe0cc798893bf7757/README.md"
         }
-      }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "openjk_sp.x86_64.exe"
+        ]
+      },
+      "persistent_paths": [
+        "base/assets0.pk3",
+        "base/assets1.pk3",
+        "base/assets2.pk3",
+        "base/assets3.pk3"
+      ],
+      "windows_runtime_path_policy": "printable-ascii-max-path"
     },
     {
       "id": "star-wars-x-wing-alliance-openxwa",

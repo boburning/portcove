@@ -27,23 +27,27 @@ chips, counts and reset stay with the existing browsing projection. First use
 omits retrieval controls. Add games sits beside the Library heading; scoped
 Collection commands accompany collection navigation; Covers/Compact rows share the retrieval toolbar. At
 compact widths the visible Rows label retains its full Compact rows accessible
-name. Readiness keeps its accessible label when its decorative prefix is omitted
+name. Below 16rem of query width the layout switch uses named icons, and Library
+quick views form two columns without reducing their touch height. Readiness keeps its accessible label when its decorative prefix is omitted
 above 20rem through 32rem of query width. Collection commands retains its explicit
 selection scope, including filtered-out entries in supported Steam commands.
 
-Covers use content-driven columns with a preferred minimum of 12rem, giving
-five columns at the matched 1440px desktop viewport with the normal interface
-size and full sidebar. Available width and interface size change the count.
-Whole-image 2:3 artwork caps at 260 CSS pixels; below 28em of collection width
-it caps at 160px. Compact widths and short desktop windows use a 10rem preferred column minimum; artwork remains capped at 260px even when supporting text grows. Supporting text
-scales and wraps without growing artwork beyond its CSS bound; native interface
-zoom still enlarges the physical rendering. Cover cards reserve two readable lines for both title and project, aligning chips and actions across mixed-length identities. Both expand on keyboard focus. Full identity wraps below
+Library covers use content-driven columns with a preferred minimum of 11.25rem,
+giving six columns at the matched 1440px desktop viewport with the normal interface
+size and full sidebar. Short desktop height does not change density. Whole-image
+2:3 artwork caps at 220 CSS pixels, and identity and overlay controls share that
+width. Below 760px the preferred minimum is 10rem; 360–480px windows use two
+flexible columns with a 12px gap and no artwork cap, while narrower windows use
+one column. Available width and interface size still determine readable text and
+control wrapping. Library covers use 10px artwork corners, a 14px title gap and
+580 title weight; compact rows and Discover keep their own geometry.
+Cover cards reserve two readable lines for both title and project, aligning chips and actions across mixed-length identities. Both expand on keyboard focus. Full identity wraps below
 40em. Footer actions stay beside the dominant status without overlapping it. Repeated Play controls pair a triangle with a quiet bordered, labeled button, including hover and keyboard focus; the selected game's detail and Continue actions retain signature red emphasis. Setup and review actions include a right arrow. A subtle divider separates the status/action footer from identity chips.
 The quick views read as underlined navigation above the search/filter toolbar.
 Artwork remains contained; neither a crop nor a provider mapping is inferred.
 
 Library entries have separate identity, Play/review and More actions controls.
-Library cards expose a heart favorite toggle at the artwork’s upper right, beside More actions. More retains existing organization, update/activity and saved-data destinations. The direct toggle uses the same preference owner, failure handling and focus return when a filtered entry disappears. Discover places its grouped-game bookmark Save action over the cover and retains the independent Favorite control for singleton projects. Overlay controls are sibling buttons outside the identity control, always visible for touch, at least 32px square, and bounded by the actual artwork. Compact rows place them inline. Discover’s full-width arrow action opens the exact project or comparison; it does not bypass setup review. Checked Ready to play uses semantic success green in both
+Library cards expose a heart favorite toggle at the artwork’s upper right, beside More actions. On hover-capable fine pointers without a coarse pointer, an unfavorited heart reveals on cover hover or keyboard focus within the card; active favorites and More actions stay visible. Touch and hybrid coarse-pointer devices retain visible heart controls. More retains existing organization, update/activity and saved-data destinations. The direct toggle uses the same preference owner, failure handling and focus return when a filtered entry disappears. Discover places its grouped-game bookmark Save action over the cover and retains the independent Favorite control for singleton projects. Overlay controls are sibling buttons outside the identity control, always visible for touch, at least 32px square, and bounded by the actual artwork. Compact rows place them inline. Discover’s full-width arrow action opens the exact project or comparison; it does not bypass setup review. Checked Ready to play uses semantic success green in both
 themes; selection remains blue and focus retains its distinct indicator. A
 playable current installation keeps Play when a downloaded candidate is present.
 The candidate has a concise update review link. Healthy update entries omit the redundant green readiness summary while retaining Play. Mandatory setup/repair/unknown states and concurrent blockers remain visible. Acquisition work or attention precedes prepared/available update copy; secondary update/channel facts use an explicit disclosure. Active invocations lead to their existing task destination.
@@ -263,9 +267,17 @@ build targets, operating-system minima or publication qualification.
 Interface size is one profile-local whole-interface control in Appearance with
 100/125/150/175/200/250/300/400 percent presets and Ctrl/Command plus/minus/zero.
 It preserves the active library, drafts and browsing context. Below 42rem
-effective width, a compact current-destination header and navigation sheet precede
-the workspace in one vertical reading flow. The existing Commands trigger shares
-that header without a second toolbar row or duplicate trigger. Keep task controls
+effective width, a 60px icon navigation rail sits beside a document-flow workspace.
+Primary destination tooltips open toward the workspace to avoid covering adjacent
+rail controls while remaining hoverable. The same destination controls retain
+accessible names and selection cues;
+the rail's Open navigation control retains the full-label modal sheet and focus
+restoration. Compact collection controls remain in the workspace. At narrow query widths the
+Continue strip omits its decorative foreground thumbnail so identity and actions
+can use the full text width; its background, image credits and real controls remain.
+Commands stays
+in the workspace top bar with one trigger. The 672–760px compact desktop shell
+uses the same 60px rail. Keep task controls
 in the workspace flow. [Theme ownership](THEME.md#whole-interface-enlargement-and-reflow) owns
 the controller, persistence and native/browser evidence boundaries.
 
@@ -564,7 +576,20 @@ and Hidden stay in the collection menu. Clear filters retains search; Reset view
 states that it also clears search, quick views and collection selection. At compact
 widths search occupies its own toolbar row.
 
-Common filters use compact labeled checkbox popovers. Selection stays multi-select,
+Library rows occupy at most1120px, with40×60 contained artwork,12px block/10px
+inline inset and a grouped status/action footer beside the identity. Below48em
+of collection width the footer follows the identity; below30em its indent is
+removed; below20em personal controls follow on their own row. More and Favorite remain independently reachable, and long identities
+wrap without truncating access to the full name.
+
+The Library header retains its total. The retrieval tools own one visible result
+summary and constrained-view reset; the separate visually hidden Search results
+status owns count announcements. Empty and unavailable results retain distinct
+recovery, and an empty result owns its reset action.
+
+Library starts with Target OS, Original system and Update channels. Other real
+groups remain in Advanced filters, which opens for restored advanced selections.
+Discover retains its existing common groups. Common filters use compact labeled checkbox popovers. Selection stays multi-select,
 with OR within a category and AND across categories; route-dependent predicates
 must still match the same observed route. Advanced filters and per-field help retain
 technical semantics. Escape closes the active popover before the containing panel.

@@ -30,25 +30,20 @@
     flex: 1 1 17rem;
     max-width: none;
   }
-  @container library-query (max-width: 40rem) {
+  @container library-query (max-width: 42rem) {
     .browse-toolbar > .search {
       flex-basis: 100%;
     }
   }
+
   .header-tools > .search {
     width: min(330px, 34vw);
   }
   .collection-covers {
-    --collection-art-limit: 260px;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 12rem), 1fr));
+    --collection-art-limit: 220px;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 11.25rem), 1fr));
     align-items: stretch;
     gap: 1.875rem var(--space-5);
-  }
-  @media (max-height: 50rem) and (min-width: 47.5rem) {
-    .collection-covers {
-      --collection-art-limit: min(260px, 11.25rem);
-      grid-template-columns: repeat(auto-fill, minmax(min(100%, 10rem), 1fr));
-    }
   }
   @media (max-width: 47.5rem) {
     .collection-covers {
@@ -81,6 +76,7 @@
     width: min(100%, var(--collection-art-limit));
   }
   .collection-cover .collection-art {
+    border-radius: 0.625rem;
     box-shadow: var(--shadow-raised);
     transition:
       border-color var(--duration-normal),
@@ -267,17 +263,20 @@
   }
   .collection-rows {
     inline-size: 100%;
+    max-inline-size: 1120px;
   }
   .collection-row {
-    --collection-thumb: clamp(32px, 2rem, 40px);
+    --collection-thumb: 40px;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(140px, 9rem) auto auto;
-    gap: var(--space-1) var(--space-4);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 250px) auto;
+    gap: var(--space-1) 20px;
     align-items: center;
-    padding-block: 10px;
+    padding: 12px 10px;
     border-block-end: 1px solid var(--color-border);
   }
   .collection-row .collection-identity {
+    grid-column: 1;
+    grid-row: 1;
     grid-template-columns: var(--collection-thumb) minmax(0, 1fr);
     column-gap: 12px;
     align-content: center;
@@ -285,6 +284,8 @@
   .collection-row .collection-art {
     grid-row: span 2;
     width: var(--collection-thumb);
+    height: 60px;
+    border-radius: 10px;
   }
   .collection-row .collection-title {
     display: block;
@@ -308,21 +309,36 @@
   }
   .collection-row .collection-actions {
     min-height: 36px;
-    grid-column: 3;
-    grid-row: 1 / 3;
   }
   .collection-row .collection-state {
-    grid-column: 2;
-    grid-row: 1 / 3;
     padding-inline-start: 0;
   }
   .collection-row .library-entry-chips {
     grid-column: 1;
+    grid-row: 2;
     margin-block-start: 0;
     padding-inline-start: calc(var(--collection-thumb) + 12px);
   }
   .collection-row .library-entry-footer {
-    display: contents;
+    grid-column: 2;
+    grid-row: 1 / 3;
+    align-items: center;
+    min-inline-size: 0;
+    min-block-size: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+  .collection-row:hover {
+    background: var(--color-bg-subtle);
+  }
+  .collection-result-summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-3);
+    min-inline-size: 0;
+    color: var(--color-text-secondary);
   }
   .collection-identity:focus-visible .collection-title,
   .discover-game-identity:focus-visible .collection-title {
@@ -377,53 +393,102 @@
       gap: 8px;
     }
   }
-  @container collection (max-width: 36em) {
+  @container collection (max-width: 48em) {
     .collection-row {
       grid-template-columns: minmax(0, 1fr) auto;
-      gap: 8px 16px;
+      column-gap: 12px;
     }
-    .collection-row .collection-identity {
-      grid-column: 1;
-      grid-row: 1;
-    }
-    .collection-row .collection-state {
-      grid-column: 1;
+    .collection-row .library-entry-footer {
+      grid-column: 1 / -1;
       grid-row: 3;
-      padding-inline-start: calc(var(--collection-thumb) + 12px);
-    }
-    .collection-row .collection-actions {
-      grid-column: 2;
-      grid-row: 2 / 4;
-    }
-  }
-  @container collection (max-width: 28em) {
-    .collection-cover,
-    .discover-game {
-      --collection-overlay-limit: 160px;
-    }
-    .collection-cover .collection-art,
-    .discover-game .collection-art {
-      max-width: 160px;
-    }
-    .collection-row .collection-personal-actions {
-      grid-column: 1;
-      grid-row: 4;
       justify-content: flex-start;
       padding-inline-start: calc(var(--collection-thumb) + 12px);
     }
+    .collection-row .library-entry-footer .collection-state {
+      flex: 0 1 auto;
+    }
+  }
+  @container collection (max-width: 20em) {
     .collection-row {
       grid-template-columns: minmax(0, 1fr);
     }
-    .collection-row .collection-actions {
-      grid-column: 1;
-      grid-row: 5;
-      justify-content: flex-start;
-      padding-inline-start: calc(var(--collection-thumb) + 12px);
+  }
+  @container collection (max-width: 30em) {
+    .collection-row .library-entry-footer {
+      padding-inline-start: 0;
+    }
+  }
+  @container collection (max-width: 28em) {
+    .discover-game {
+      --collection-overlay-limit: 160px;
+    }
+    .discover-game .collection-art {
+      max-width: 160px;
     }
   }
 }
 
 @layer utilities {
+  @container library-query (max-width: 16rem) {
+    .browse-navigation,
+    .library-query-tools {
+      margin-block-end: var(--space-2);
+    }
+    .browse-navigation > [aria-label="Library quick views"] {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0;
+    }
+    .browse-navigation > [aria-label="Library quick views"] > button {
+      min-inline-size: 0;
+      padding-inline: 4px;
+      gap: 4px;
+      justify-content: flex-start;
+    }
+    .library-query-tools .collection-layout-label {
+      display: none;
+    }
+    .library-query-tools [aria-label="Collection view"] {
+      margin-inline-start: 0;
+      flex-wrap: nowrap;
+    }
+  }
+  .collection-cover .collection-title {
+    min-block-size: 2.9em;
+    margin-block-start: 0.875rem;
+    font-weight: 580;
+  }
+  @media (width <= 480px) {
+    .collection-cover .collection-title {
+      font-size: 0.8125rem;
+    }
+  }
+  @media (360px <= width <= 480px) {
+    .collection-covers {
+      --collection-art-limit: 100%;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      column-gap: 0.75rem;
+    }
+  }
+  @media (width < 360px) {
+    .collection-covers {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .collection-cover .collection-favorite:not([aria-pressed="true"]) {
+      opacity: 0;
+    }
+    .collection-cover:is(:hover, :focus-within) .collection-favorite,
+    .collection-cover .collection-favorite:focus-visible {
+      opacity: 1;
+    }
+  }
+  @media (any-pointer: coarse) {
+    .collection-cover .collection-favorite:not([aria-pressed="true"]) {
+      opacity: 1;
+    }
+  }
   .collection-identity:hover .collection-art,
   .discover-game-identity:hover .collection-art {
     border-color: var(--color-interactive-border);
@@ -505,7 +570,7 @@
     justify-content: flex-end;
   }
   .collection-row .collection-personal-actions {
-    grid-column: 4;
+    grid-column: 3;
     grid-row: 1 / 3;
   }
   .collection-row .collection-art-action,
@@ -577,18 +642,47 @@
     background: var(--color-bg-hover);
     border-color: var(--color-text-muted);
   }
-  @container collection (max-width: 36em) {
-    .collection-row .collection-personal-actions {
-      grid-column: 2;
-      grid-row: 1;
+  .collection-row .collection-title {
+    font-weight: 580;
+  }
+  .library-empty-result .empty-state {
+    min-block-size: 330px;
+    gap: var(--space-4);
+    padding: 40px 20px;
+    border: 1px dashed var(--color-border-strong);
+    border-radius: 14px;
+    background: var(--color-bg-elevated);
+  }
+  .library-empty-result .empty-state > span {
+    inline-size: 72px;
+    block-size: 72px;
+    border-radius: 18px;
+    background: var(--color-interactive-subtle);
+    color: var(--color-interactive-text-strong);
+  }
+  .library-empty-result h2 {
+    font-size: 1.375rem;
+  }
+  .library-empty-result p {
+    max-inline-size: 400px;
+    font-size: 0.875rem;
+  }
+  @container library-query (max-width: 47.5rem) {
+    .library-empty-result .empty-state {
+      min-block-size: 320px;
     }
   }
-  @container collection (max-width: 28em) {
+  @container collection (max-width: 48em) {
+    .collection-row .collection-personal-actions {
+      grid-column: 2;
+      grid-row: 1 / 3;
+    }
+  }
+  @container collection (max-width: 20em) {
     .collection-row .collection-personal-actions {
       grid-column: 1;
       grid-row: 4;
       justify-content: flex-start;
-      padding-inline-start: calc(var(--collection-thumb) + 12px);
     }
   }
   @container library-query (max-width: 46em) {

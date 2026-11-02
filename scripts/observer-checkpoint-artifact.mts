@@ -12,7 +12,11 @@ import { GitHubApiClient, createGitHubRunner, rateLimitFromResponse } from "./gi
 import type { GitHubRestReader } from "./github-api.mts";
 import { readGitHubArtifactArchive } from "./github-binary.mts";
 import { readCompleteRunArtifactInventory } from "./release-run-artifact-inventory.mts";
-import { validateCatalogObserverCheckpoint } from "./catalog-upstream-observer.mts";
+import {
+  validateCatalogObserverCheckpoint,
+  newCatalogObserverCheckpoint,
+  catalogObservationSources,
+} from "./catalog-upstream-observer.mts";
 import {
   validateObserverCheckpoint,
   withCheckpointLock,
@@ -28,6 +32,16 @@ const workflow = ".github/workflows/configured-upstream-observer.yml";
 const workflowId = 354075266;
 const maximumAge = 24 * 3600000;
 const member = "checkpoint.json";
+// One owner-approved fresh baseline after the retained loss. Scheduled history,
+// not an evictable checkpoint, consumes this sole opportunity even on failure.
+export const observerBaselinePermit = {
+  id: "2026-11-02-checkpoint-history-loss",
+  after_run: 41476042003,
+  after_source: "9b48f20021789ff1dee0217ed0865b06742e68db",
+  after_created_at: "2026-11-02T15:53:33Z",
+  main_anchor: "c66e450e0c63b1e77204f45f1edf2a60fdc54208",
+  config_sha256: "d86c2102f21e1b1ce66b8a5de52de954250aaf4a037fdf6fab7887f622e19889",
+} as const;
 const sha256 = (bytes: string | Buffer) => createHash("sha256").update(bytes).digest("hex");
 type Producer = { run: number; attempt: number; source: string };
 type Snapshot = {
@@ -327,9 +341,10 @@ export async function publishObserverSnapshot(
   root: string,
   snapshot: Snapshot,
   deadline = Infinity,
+  now = Date.now,
 ) {
-  requireValue(Date.now() < deadline, "snapshot publication deadline exhausted");
-  validateObserverSnapshot(snapshot, snapshot.config_sha256, Date.now());
+  requireValue(now() < deadline, "snapshot publication deadline exhausted");
+  validateObserverSnapshot(snapshot, snapshot.config_sha256, now());
   const work = await assertOwnedUnlinkedPath(
     root,
     path.join(root, "work"),
@@ -359,14 +374,14 @@ export async function publishObserverSnapshot(
     await absent();
     await mkdir(staging);
     for (const [name, value] of Object.entries(snapshot.files)) {
-      requireValue(Date.now() < deadline, "snapshot publication deadline exhausted");
+      requireValue(now() < deadline, "snapshot publication deadline exhausted");
       const filename = path.join(staging, name);
       await mkdir(path.dirname(filename), { recursive: true });
       await writeFile(filename, JSON.stringify(value), { flag: "wx" });
     }
     await assertOwnedUnlinkedPath(work, destination, "observer restore");
     await absent();
-    requireValue(Date.now() < deadline, "snapshot publication deadline exhausted");
+    requireValue(now() < deadline, "snapshot publication deadline exhausted");
     await rename(staging, destination);
   } finally {
     await rm(staging, { recursive: true, force: true });
@@ -383,7 +398,237 @@ type RecoveryOptions = {
   api: GitHubRestReader;
   download?: typeof readGitHubArtifactArchive;
   now?: () => number;
+  log?: (event: {
+    route: string;
+    response_bytes: number;
+    total_bytes: number;
+    requests: number;
+  }) => void;
 };
+
+/** Complete ordered prefix through the retention boundary, not an all-history
+ * inventory. Keep the existing hundred-record ceiling without eagerly fetching
+ * a hundred large GitHub run records for a six-hour scheduled consumer. */
+function scheduledRunWindow(read: (route: string) => unknown, currentRun: number, now: number) {
+  const runs: Record<string, unknown>[] = [],
+    seen = new Set<number>();
+  let total: number | undefined,
+    previousCreated = Infinity;
+  for (let page = 1; page <= 10; page++) {
+    const raw = read(
+      `actions/workflows/${workflowId}/runs?branch=main&event=schedule&per_page=10&page=${page}`,
+    );
+    requireValue(
+      isRecord(raw) &&
+        Array.isArray(raw.workflow_runs) &&
+        Number.isSafeInteger(raw.total_count) &&
+        Number(raw.total_count) >= 0,
+      "recent scheduled run inventory incomplete",
+    );
+    total ??= Number(raw.total_count);
+    requireValue(
+      raw.total_count === total &&
+        raw.workflow_runs.length === Math.min(10, Math.max(0, total - runs.length)),
+      "scheduled run inventory changed or omitted records",
+    );
+    for (const value of raw.workflow_runs) {
+      requireValue(
+        isRecord(value) &&
+          Number.isSafeInteger(value.id) &&
+          Number(value.id) > 0 &&
+          !seen.has(Number(value.id)) &&
+          typeof value.created_at === "string" &&
+          Number.isFinite(Date.parse(value.created_at)) &&
+          Date.parse(value.created_at) <= previousCreated,
+        "run inventory invalid or unordered",
+      );
+      seen.add(Number(value.id));
+      previousCreated = Date.parse(value.created_at);
+      runs.push(value);
+    }
+    const boundary = runs.some(
+      (value) =>
+        value.id !== currentRun &&
+        value.status === "completed" &&
+        ["success", "failure"].includes(String(value.conclusion)) &&
+        typeof value.created_at === "string" &&
+        now - Date.parse(value.created_at) > maximumAge,
+    );
+    if (runs.length === total || boundary) return { runs, complete: runs.length === total };
+  }
+  return { runs, complete: runs.length === total };
+}
+
+/** No caller flag can renew this permit. Only the first natural schedule after
+ * the pinned failed run may replace an absent tree with explicitly unknown data. */
+async function initializeApprovedBaseline(
+  read: (route: string) => unknown,
+  inventory: ReturnType<typeof scheduledRunWindow>,
+  options: RecoveryOptions,
+  now: () => number,
+) {
+  const { current, root, config, deadline } = options;
+  const permit = observerBaselinePermit;
+  const currentIndex = inventory.runs.findIndex((run) => run.id === current.run);
+  const anchorIndex = inventory.runs.findIndex((run) => run.id === permit.after_run);
+  if (
+    config !== permit.config_sha256 ||
+    current.attempt !== 1 ||
+    currentIndex < 0 ||
+    anchorIndex !== currentIndex + 1
+  )
+    return null;
+  const anchor = inventory.runs[anchorIndex]!,
+    active = inventory.runs[currentIndex]!;
+  const assertRun = (raw: unknown, expected: Producer, created: unknown) => {
+    requireValue(
+      isRecord(raw) &&
+        raw.id === expected.run &&
+        raw.run_attempt === expected.attempt &&
+        raw.head_sha === expected.source &&
+        raw.workflow_id === workflowId &&
+        raw.path === workflow &&
+        raw.event === "schedule" &&
+        raw.head_branch === "main" &&
+        isRecord(raw.repository) &&
+        raw.repository.id === repositoryId &&
+        isRecord(raw.head_repository) &&
+        raw.head_repository.id === repositoryId &&
+        raw.created_at === created &&
+        typeof created === "string" &&
+        Number.isFinite(Date.parse(created)) &&
+        Date.parse(created) <= now(),
+      "one-time baseline producer identity differs",
+    );
+  };
+  assertRun(
+    anchor,
+    { run: permit.after_run, attempt: 1, source: permit.after_source },
+    permit.after_created_at,
+  );
+  requireValue(
+    anchor.status === "completed" &&
+      anchor.conclusion === "failure" &&
+      now() - Date.parse(permit.after_created_at) <= maximumAge &&
+      typeof active.created_at === "string" &&
+      Date.parse(active.created_at) > Date.parse(permit.after_created_at) &&
+      inventory.runs.every(
+        (run) =>
+          run.id === current.run ||
+          run.id === permit.after_run ||
+          Date.parse(String(run.created_at)) > Date.parse(String(active.created_at)) ||
+          Date.parse(String(run.created_at)) < Date.parse(permit.after_created_at),
+      ),
+    "one-time baseline schedule boundary differs",
+  );
+  assertRun(active, current, active.created_at);
+  const verifyCurrent = () => {
+    const raw = read(`actions/runs/${current.run}`);
+    assertRun(raw, current, active.created_at);
+    requireValue(
+      isRecord(raw) && raw.status === "in_progress" && raw.conclusion === null,
+      "baseline run is not active",
+    );
+  };
+  verifyCurrent();
+  const ancestry = read(`compare/${permit.main_anchor}...${current.source}?per_page=1&page=2`);
+  requireValue(
+    isRecord(ancestry) &&
+      ["ahead", "identical"].includes(String(ancestry.status)) &&
+      isRecord(ancestry.merge_base_commit) &&
+      ancestry.merge_base_commit.sha === permit.main_anchor,
+    "baseline source is not retained main ancestry",
+  );
+  const inputs: Record<string, string> = {};
+  const documents: Record<string, unknown> = {};
+  for (const [key, filename, limit] of [
+    ["config", "release/upstream-observer.json", 16384],
+    ["catalog", "crates/portcove-core/catalog/catalog.json", 4 * 1024 * 1024],
+    ["listings", "crates/portcove-core/catalog/listings.json", 8 * 1024 * 1024],
+  ] as const) {
+    await assertOwnedUnlinkedPath(root, path.join(root, filename), "baseline source input");
+    const local = (await readBoundedEvidenceFile(path.join(root, filename), limit)).bytes;
+    const metadata = read(`contents/${filename}?ref=${current.source}`);
+    const blob = createHash("sha1").update(`blob ${local.length}\0`).update(local).digest("hex");
+    requireValue(
+      isRecord(metadata) &&
+        metadata.type === "file" &&
+        metadata.path === filename &&
+        metadata.size === local.length &&
+        metadata.sha === blob,
+      "baseline source input differs",
+    );
+    inputs[key] = sha256(local);
+    documents[key] = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(local));
+  }
+  requireValue(
+    inputs.config === config &&
+      isRecord(documents.catalog) &&
+      isRecord(documents.listings) &&
+      Array.isArray(documents.listings.listings),
+    "baseline catalog/configuration differs",
+  );
+  catalogObservationSources({ ...documents.catalog, listings: documents.listings.listings });
+  verifyCurrent();
+  const after = scheduledRunWindow(read, current.run, now());
+  const identities = (runs: typeof inventory.runs) =>
+    JSON.stringify(runs.map((run) => [run.id, run.run_attempt, run.head_sha, run.created_at]));
+  requireValue(
+    identities(after.runs) === identities(inventory.runs) && after.complete === inventory.complete,
+    "baseline schedule changed during admission",
+  );
+  for (const [key, filename, limit] of [
+    ["config", "release/upstream-observer.json", 16384],
+    ["catalog", "crates/portcove-core/catalog/catalog.json", 4 * 1024 * 1024],
+    ["listings", "crates/portcove-core/catalog/listings.json", 8 * 1024 * 1024],
+  ] as const) {
+    await assertOwnedUnlinkedPath(root, path.join(root, filename), "baseline source readback");
+    requireValue(
+      sha256((await readBoundedEvidenceFile(path.join(root, filename), limit)).bytes) ===
+        inputs[key],
+      "baseline local input changed during admission",
+    );
+  }
+  const baseline = {
+    id: permit.id,
+    continuity: "lost" as const,
+    initial_freshness: "unknown" as const,
+    initialized_at: new Date(now()).toISOString(),
+    producer: current,
+    inputs: {
+      config_sha256: inputs.config,
+      catalog_sha256: inputs.catalog!,
+      listings_sha256: inputs.listings!,
+    },
+  };
+  const receipt = await assertOwnedUnlinkedPath(
+    root,
+    path.join(root, "work", `${permit.id}.consumed.json`),
+    "baseline consumption receipt",
+  );
+  verifyCurrent();
+  requireValue(now() < deadline, "baseline publication deadline exhausted");
+  // Retain even on failure: same-run invocation cannot renew a consumed permit.
+  await writeFile(receipt, JSON.stringify(baseline), { flag: "wx" });
+  await publishObserverSnapshot(
+    root,
+    {
+      format: 1,
+      authority: "observer-checkpoint-cache-only",
+      repository,
+      repository_id: repositoryId,
+      workflow,
+      ref: "refs/heads/main",
+      config_sha256: config,
+      created_at: baseline.initialized_at,
+      producer: current,
+      files: { "catalog/checkpoint.json": { ...newCatalogObserverCheckpoint(), baseline } },
+    },
+    deadline,
+    now,
+  );
+  return { origin: "fresh-baseline", sequence: 0, baseline };
+}
 /** Public metadata locates inert bytes; no untrusted run chooses code to execute. */
 export async function recoverObserverCheckpoint(options: RecoveryOptions) {
   const { root, config, current, deadline, api } = options,
@@ -425,6 +670,7 @@ export async function recoverObserverCheckpoint(options: RecoveryOptions) {
       "bounded metadata unavailable",
     );
     bytes += response.bodyBytes;
+    options.log?.({ route, response_bytes: response.bodyBytes, total_bytes: bytes, requests });
     requireValue(bytes <= observerSnapshotLimit, "recovery metadata byte envelope exhausted");
     const rate = rateLimitFromResponse(response);
     if (rate.remaining !== null && rate.limit !== null && rate.remaining <= rate.limit) {
@@ -491,36 +737,10 @@ export async function recoverObserverCheckpoint(options: RecoveryOptions) {
   } catch (error) {
     if (errorCode(error) !== "ENOENT") throw error;
   }
-  const inventory = read(
-    `actions/workflows/${workflowId}/runs?branch=main&event=schedule&per_page=100`,
-  );
-  requireValue(
-    isRecord(inventory) &&
-      Array.isArray(inventory.workflow_runs) &&
-      Number.isSafeInteger(inventory.total_count) &&
-      Number(inventory.total_count) >= 0 &&
-      Math.min(Number(inventory.total_count), 100) === inventory.workflow_runs.length,
-    "recent scheduled run inventory incomplete",
-  );
-  let previousCreated = Infinity;
-  const seenRuns = new Set<number>();
-  for (const raw of inventory.workflow_runs) {
-    requireValue(
-      isRecord(raw) &&
-        Number.isSafeInteger(raw.id) &&
-        Number(raw.id) > 0 &&
-        !seenRuns.has(Number(raw.id)) &&
-        typeof raw.created_at === "string" &&
-        Number.isFinite(Date.parse(raw.created_at)) &&
-        Date.parse(raw.created_at) <= previousCreated,
-      "run inventory invalid or unordered",
-    );
-    seenRuns.add(Number(raw.id));
-    previousCreated = Date.parse(raw.created_at);
-  }
+  const inventory = scheduledRunWindow(read, current.run, now());
   let expectedHistory = false;
   let reachedAgeBoundary = false;
-  for (const raw of inventory.workflow_runs) {
+  for (const raw of inventory.runs) {
     requireValue(isRecord(raw), "run inventory invalid");
     if (raw.id === current.run || raw.status !== "completed") continue;
     requireValue(
@@ -547,7 +767,10 @@ export async function recoverObserverCheckpoint(options: RecoveryOptions) {
       source: String(raw.head_sha),
     };
     producer(source);
-    const comparison = read(`compare/${source.source}...${current.source}?per_page=1`);
+    // GitHub includes file patches only on comparison page one. Global status
+    // and merge-base identity remain present on page two, even with no commits.
+    // No commit/file inventory is claimed or needed for this ancestry predicate.
+    const comparison = read(`compare/${source.source}...${current.source}?per_page=1&page=2`);
     requireValue(
       isRecord(comparison) &&
         ["ahead", "identical"].includes(String(comparison.status)) &&
@@ -578,8 +801,9 @@ export async function recoverObserverCheckpoint(options: RecoveryOptions) {
           typeof oldConfig.content === "string",
         "cutover source inventory unavailable",
       );
+      // A configuration edit is not authority to reset a deployed publisher's
+      // missing history. Only the explicit one-shot admission below may do so.
       if (
-        sha256(Buffer.from(oldConfig.content, "base64")) === config &&
         Buffer.from(oldWorkflow.content, "base64")
           .toString("utf8")
           .includes("observer-checkpoint-artifact.mts export")
@@ -655,7 +879,7 @@ export async function recoverObserverCheckpoint(options: RecoveryOptions) {
         runAfter.conclusion === raw.conclusion,
       "producer changed during collection",
     );
-    await publishObserverSnapshot(root, snapshot, deadline);
+    await publishObserverSnapshot(root, snapshot, deadline, now);
     remaining();
     return {
       origin: "artifact",
@@ -666,7 +890,15 @@ export async function recoverObserverCheckpoint(options: RecoveryOptions) {
     };
   }
   requireValue(
-    !expectedHistory && (Number(inventory.total_count) <= 100 || reachedAgeBoundary),
+    inventory.complete || reachedAgeBoundary,
+    "scheduled history coverage incomplete; preserve evidence",
+  );
+  if (expectedHistory) {
+    const baseline = await initializeApprovedBaseline(read, inventory, options, now);
+    if (baseline) return baseline;
+  }
+  requireValue(
+    !expectedHistory,
     "checkpoint history missing after cutover; explicit recovery required",
   );
   return {
@@ -706,7 +938,17 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         })(args, input),
       );
       console.log(
-        JSON.stringify(await recoverObserverCheckpoint({ root, config, current, deadline, api })),
+        JSON.stringify(
+          await recoverObserverCheckpoint({
+            root,
+            config,
+            current,
+            deadline,
+            api,
+            log: (event) =>
+              console.log(JSON.stringify({ kind: "observer-recovery-metadata", ...event })),
+          }),
+        ),
       );
     } else if (process.argv[2] === "export" && process.argv.length === 3) {
       const deadline = Math.min(

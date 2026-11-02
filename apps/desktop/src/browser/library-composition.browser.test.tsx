@@ -175,7 +175,11 @@ it("groups retrieval, preserves independent duplicate-port launch targets and st
   await expect.poll(() => launch.mock.calls[1]).toEqual(["collection-1", "", 1]);
   await page.getByRole("textbox", { name: "Search your library" }).fill("Super Mario 64");
   await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(2);
-  expect(document.body.textContent).toContain("2 of 12 library entries");
+  const summary = document.querySelector(".collection-result-summary")!;
+  expect(summary.textContent).toContain("2 of 12 library entries");
+  expect(document.querySelectorAll('[role="status"][aria-label="Search results"]')).toHaveLength(1);
+  expect(document.querySelectorAll(".collection-result-summary")).toHaveLength(1);
+  expect(document.querySelectorAll(".collection-result-summary button")).toHaveLength(1);
   await page.getByRole("button", { name: "Manage collections", exact: true }).click();
   const commands = page.getByText("Library tools", { exact: true }).element().closest("details")!;
   commands.open = true;
@@ -193,6 +197,40 @@ it("groups retrieval, preserves independent duplicate-port launch targets and st
   await userEvent.keyboard("{Escape}");
   await expect.element(more).toHaveFocus();
 });
+
+it.each([
+  ["dark", 1440, 100],
+  ["light", 740, 100],
+  ["dark", 390, 100],
+  ["dark", 240, 100],
+  ["light", 320, 200],
+  ["light", 960, 200],
+] as const)(
+  "keeps %s rows grouped and contained at %ipx with %i%% text",
+  async (theme, width, scale) => {
+    await page.viewport(width, 1000);
+    await mount(theme);
+    document.documentElement.style.fontSize = `${scale}%`;
+    await page.getByRole("button", { name: "Compact rows", exact: true }).click();
+    const row = document.querySelector<HTMLElement>(".collection-row")!;
+    const art = row.querySelector<HTMLElement>(".collection-art")!.getBoundingClientRect();
+    expect(art.width).toBeCloseTo(40, 0);
+    expect(art.height).toBeCloseTo(60, 0);
+    const list = row.closest<HTMLElement>(".collection-rows")!;
+    expect(list.getBoundingClientRect().width).toBeLessThanOrEqual(1121);
+    const footer = row.querySelector<HTMLElement>(".library-entry-footer")!;
+    expect(getComputedStyle(footer).display).toBe("flex");
+    expect(footer.scrollWidth).toBeLessThanOrEqual(footer.clientWidth + 1);
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(width + 1);
+    await expect
+      .element(
+        page.elementLocator(
+          row.querySelector<HTMLButtonElement>(".collection-personal-actions button")!,
+        ),
+      )
+      .toBeVisible();
+  },
+);
 
 it("plays the distinct duplicate port from details and returns to its filtered row", async () => {
   await page.viewport(1366, 768);
@@ -685,17 +723,37 @@ it("keeps a singleton port review readable below its close control at narrow wid
 });
 
 it.each([
-  [1440, 900, 5],
-  [1024, 800, 4],
-  [740, 900, 3],
-])("preserves the prototype cover density at %ipx by %ipx", async (width, height, columns) => {
-  await page.viewport(width, height);
-  await mount();
-  const grid = document.querySelector<HTMLElement>(".collection-covers")!;
-  expect(getComputedStyle(grid).gridTemplateColumns.split(" ")).toHaveLength(columns);
-  const main = document.querySelector<HTMLElement>("main[data-focus-region=workspace]")!;
-  expect(main.scrollWidth).toBeLessThanOrEqual(main.clientWidth + 1);
-});
+  [1440, 900, 6, 180.7],
+  [1440, 768, 6, 180.7],
+  [1024, 800, 3, 220],
+  [740, 900, 3, 205.3],
+  [390, 844, 2, 143],
+  [320, 844, 1, 220],
+])(
+  "preserves the prototype cover density at %ipx by %ipx",
+  async (width, height, columns, artworkWidth) => {
+    await page.viewport(width, height);
+    await mount();
+    const grid = document.querySelector<HTMLElement>(".collection-covers")!;
+    expect(getComputedStyle(grid).gridTemplateColumns.split(" ")).toHaveLength(columns);
+    const cover = grid.querySelector<HTMLElement>(".collection-cover")!;
+    const art = cover.querySelector<HTMLElement>(".collection-art")!;
+    const overlay = cover.querySelector<HTMLElement>(".collection-personal-actions")!;
+    expect(art.getBoundingClientRect().width).toBeCloseTo(cover.getBoundingClientRect().width, 0);
+    expect(overlay.getBoundingClientRect().width).toBeCloseTo(art.getBoundingClientRect().width, 0);
+    expect(art.getBoundingClientRect().height / art.getBoundingClientRect().width).toBeCloseTo(
+      1.5,
+      2,
+    );
+    expect(art.getBoundingClientRect().width).toBeCloseTo(artworkWidth, 0);
+    const title = cover.querySelector<HTMLElement>(".collection-title")!;
+    expect(getComputedStyle(title).marginBlockStart).toBe("14px");
+    expect(getComputedStyle(title).fontWeight).toBe("580");
+    expect(getComputedStyle(art).borderRadius).toBe("10px");
+    const main = document.querySelector<HTMLElement>("main[data-focus-region=workspace]")!;
+    expect(main.scrollWidth).toBeLessThanOrEqual(main.clientWidth + 1);
+  },
+);
 
 it("shares Discover membership quick views with filters while preserving search", async () => {
   await page.viewport(1024, 800);
@@ -937,3 +995,30 @@ it("keeps a grouped Discover Save unselected while pending and after a rejected 
     .toBeVisible();
   await captureParityState("discover-group-save-rejected");
 }, 45_000);
+
+it("reveals an unfavorited Library cover action for pointer and keyboard use", async () => {
+  await page.viewport(1440, 900);
+  await mount();
+  const favorite = document.querySelector<HTMLButtonElement>(
+    '.collection-cover .collection-favorite[aria-pressed="false"]',
+  )!;
+  const cover = favorite.closest<HTMLElement>(".collection-cover")!;
+  const more = cover.querySelector<HTMLElement>(".collection-more")!;
+  await userEvent.hover(document.querySelector("main h1")!);
+  const hidesOnPointer =
+    matchMedia("(hover: hover) and (pointer: fine)").matches &&
+    !matchMedia("(any-pointer: coarse)").matches;
+  expect(getComputedStyle(favorite).opacity).toBe(hidesOnPointer ? "0" : "1");
+  expect(getComputedStyle(more).opacity).toBe("1");
+  await userEvent.hover(cover);
+  expect(getComputedStyle(favorite).opacity).toBe("1");
+  await userEvent.hover(document.querySelector("main h1")!);
+  more.focus();
+  await userEvent.keyboard("{Tab}");
+  await expect.element(favorite).toHaveFocus();
+  expect(getComputedStyle(favorite).opacity).toBe("1");
+  await userEvent.keyboard("{Enter}");
+  await expect.element(favorite).toHaveAttribute("aria-pressed", "true");
+  favorite.blur();
+  expect(getComputedStyle(favorite).opacity).toBe("1");
+});

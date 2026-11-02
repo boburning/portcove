@@ -3041,6 +3041,232 @@ mod tests {
         );
     }
 
+    // Real catalog contracts and complete observed member coordinates, with
+    // inert package bytes and synthetic originals. No upstream player is run.
+    async fn assert_native_engine_adoption_lifecycle(id: &str) {
+        let corpus: serde_json::Value = serde_json::from_str(include_str!(
+            "../testdata/native-engine-adoption-2026-11-02.json"
+        ))
+        .unwrap();
+        let case = corpus["cases"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|case| case["port_id"] == id)
+            .unwrap();
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog.port(id).unwrap().clone();
+        assert_eq!(port.adapter, AdapterKind::NativePortable);
+        assert!(port.source_profile.is_none());
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = Server::new();
+        let folder = case["runtime_folder"].as_str().unwrap();
+        let executable = case["selected_executable"].as_str().unwrap();
+        let members = case["immutable_members"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|member| member.as_str().unwrap())
+            .collect::<Vec<_>>();
+        for path in &port.persistent_paths {
+            let path = path.to_ascii_lowercase();
+            for member in &members {
+                let member = member.to_ascii_lowercase();
+                assert!(
+                    path != member
+                        && !member.starts_with(&format!("{path}/"))
+                        && !path.starts_with(&format!("{member}/")),
+                    "{id}: persistent {path} overlaps observed immutable {member}"
+                );
+            }
+        }
+        let files = members
+            .iter()
+            .filter(|path| **path != executable)
+            .map(|path| (*path, b"inert immutable companion".as_slice()))
+            .collect::<Vec<_>>();
+        let release = |version, revision| {
+            server.release_with_files(version, revision, folder, executable, &files)
+        };
+        let provider = Arc::new(Provider(Mutex::new(release("fixture-N", 1))));
+        let mut service =
+            PortcoveService::with_provider(library.clone(), provider.clone()).unwrap();
+        service.replace_catalog_for_test(catalog.clone());
+        let channel = port.channels[0];
+        let first = service
+            .install(id, Some(channel), None, None, true, |_| {})
+            .await
+            .unwrap();
+        let first_root = first.path.join(folder);
+        let probes = port
+            .persistent_paths
+            .iter()
+            .map(|path| {
+                if path.ends_with(".pk4") || path.ends_with(".pk3") {
+                    path.clone()
+                } else {
+                    format!("{path}/owned-original.pk3")
+                }
+            })
+            .collect::<Vec<_>>();
+        for path in &probes {
+            let destination = first_root.join(path);
+            assert!(
+                !destination.exists(),
+                "{id}: original must be absent from runtime package: {path}"
+            );
+            fs::create_dir_all(destination.parent().unwrap()).unwrap();
+            fs::write(destination, b"owned synthetic original before Play").unwrap();
+        }
+        let spec = service
+            .prepare_launch_for_install(&port, &first, None, None)
+            .unwrap();
+        assert_eq!(spec.working_directory, first_root, "{id}");
+        assert_eq!(spec.executable, first_root.join(executable), "{id}");
+        assert_eq!(spec.arguments, port.launch_arguments, "{id}");
+        for path in &probes {
+            assert_eq!(
+                fs::read(library.user_dir(id).join(path)).unwrap(),
+                b"owned synthetic original before Play",
+                "{id}: {path}"
+            );
+        }
+        let backup = service.create_backup(id).unwrap();
+        for path in &probes {
+            assert_eq!(
+                fs::read(backup.path.join("data").join(path)).unwrap(),
+                b"owned synthetic original before Play",
+                "{id}: backup {path}"
+            );
+        }
+        *provider.0.lock().unwrap() = release("fixture-N+1", 2);
+        assert!(
+            service.check_update(id).await.unwrap().update_available,
+            "{id}"
+        );
+        let second = service.update(id, None, None, true, |_| {}).await.unwrap();
+        for path in &probes {
+            assert_eq!(
+                fs::read(second.path.join(folder).join(path)).unwrap(),
+                b"owned synthetic original before Play",
+                "{id}: update {path}"
+            );
+        }
+        // Rolling rebuilds also bind archive identity, not just a tag string.
+        *provider.0.lock().unwrap() = release("fixture-N+1", 3);
+        assert!(
+            service.check_update(id).await.unwrap().update_available,
+            "{id}"
+        );
+        let staged = service.update(id, None, None, false, |_| {}).await.unwrap();
+        assert!(staged.staged, "{id}");
+        service.activate_staged(id).unwrap();
+        let previous = service.rollback(id).unwrap();
+        assert_eq!(previous.id, second.id, "{id}");
+        drop(service);
+        let mut restarted = PortcoveService::with_provider(library.clone(), provider).unwrap();
+        restarted.replace_catalog_for_test(catalog);
+        let retained = restarted.installed_port(&previous).unwrap();
+        let spec = restarted
+            .prepare_launch_for_install(&retained, &previous, None, None)
+            .unwrap();
+        assert_eq!(spec.working_directory, previous.path.join(folder), "{id}");
+        // Unknown runtime additions remain review holds, never a wildcard data scope.
+        let unknown = spec.working_directory.join("unknown-player-addition");
+        fs::write(&unknown, b"keep for review").unwrap();
+        assert!(restarted.preview_removal(id).is_err(), "{id}");
+        assert_eq!(fs::read(&unknown).unwrap(), b"keep for review");
+        fs::rename(
+            &unknown,
+            temporary.path().join("retained-unknown-player-addition"),
+        )
+        .unwrap();
+        let preview = restarted.preview_removal(id).unwrap();
+        let consent = restarted
+            .authorize_removal(id, &preview.preview_sha256)
+            .unwrap();
+        restarted.remove(id, &consent.token).unwrap();
+        for path in &probes {
+            assert_eq!(
+                fs::read(library.user_dir(id).join(path)).unwrap(),
+                b"owned synthetic original before Play",
+                "{id}: removal {path}"
+            );
+        }
+        assert!(
+            backup.path.exists(),
+            "{id}: backup survives runtime removal"
+        );
+        assert_eq!(
+            fs::read(temporary.path().join("retained-unknown-player-addition")).unwrap(),
+            b"keep for review"
+        );
+    }
+
+    #[tokio::test]
+    async fn native_engine_adoption_2567() {
+        assert_native_engine_adoption_lifecycle("doom-3-classic-dhewm3").await;
+    }
+
+    #[tokio::test]
+    async fn native_engine_adoption_2568() {
+        assert_native_engine_adoption_lifecycle("doom-3-resurrection-of-evil-classic-dhewm3").await;
+    }
+
+    #[tokio::test]
+    async fn native_engine_adoption_2565() {
+        assert_native_engine_adoption_lifecycle(
+            "doom-3-classic-dude-doom-3-unified-development-engine",
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn native_engine_adoption_2566() {
+        assert_native_engine_adoption_lifecycle(
+            "doom-3-resurrection-of-evil-classic-dude-doom-3-unified-development-engine",
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn native_engine_adoption_2592() {
+        assert_native_engine_adoption_lifecycle("medal-of-honor-allied-assault-openmohaa").await;
+    }
+
+    #[tokio::test]
+    async fn native_engine_adoption_2593() {
+        assert_native_engine_adoption_lifecycle(
+            "medal-of-honor-allied-assault-spearhead-openmohaa",
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn native_engine_adoption_2594() {
+        assert_native_engine_adoption_lifecycle(
+            "medal-of-honor-allied-assault-breakthrough-openmohaa",
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn native_engine_adoption_2611() {
+        assert_native_engine_adoption_lifecycle(
+            "star-wars-jedi-knight-ii-jedi-outcast-single-player-openjk-openjo",
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn native_engine_adoption_2612() {
+        assert_native_engine_adoption_lifecycle(
+            "star-wars-jedi-knight-jedi-academy-single-player-and-multiplayer-openjk-openjo",
+        )
+        .await;
+    }
+
     #[tokio::test]
     async fn portable_update_rebuild_staging_and_rollback_preserve_declared_data() {
         let temporary = tempfile::tempdir().unwrap();

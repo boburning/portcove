@@ -166,9 +166,18 @@ it.each(["dark", "light"])(
     ).toEqual([]);
     await page.viewport(1920, 1080);
     await settleCapture();
-    expect(state.getBoundingClientRect().left).toBeGreaterThanOrEqual(
-      identity.getBoundingClientRect().right,
+    // A bounded1120px list keeps its text-enlarged footer below the identity,
+    // even when the outer viewport grows. Preserve alignment and separation.
+    expect(row.getBoundingClientRect().width).toBeLessThanOrEqual(1121);
+    expect(state.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+      identity.getBoundingClientRect().bottom - 1,
     );
+    expect(
+      Math.abs(
+        state.getBoundingClientRect().left -
+          identity.querySelector(".collection-title")!.getBoundingClientRect().left,
+      ),
+    ).toBeLessThanOrEqual(1);
     const readiness = state.querySelector<HTMLElement>(".readiness")!;
     expect(readiness.getBoundingClientRect().height).toBeLessThanOrEqual(
       parseFloat(getComputedStyle(readiness).lineHeight) + 1,

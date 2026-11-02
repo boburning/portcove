@@ -97,7 +97,13 @@ function retainedContext(statuses: ReadonlyMap<string, PortStatus>): CatalogQuer
     devicePlatform: browsing.host_platform,
   };
 }
-function Fixture({ initial = "all" }: { initial?: Filter | CatalogQuery | undefined }) {
+function Fixture({
+  initial = "all",
+  view = "catalog",
+}: {
+  initial?: Filter | CatalogQuery | undefined;
+  view?: "catalog" | "library";
+}) {
   const [filter, setFilter] = useState(initial);
   const [context, contextSetter] = useState<CatalogQueryContext>();
   setContext = contextSetter;
@@ -112,6 +118,7 @@ function Fixture({ initial = "all" }: { initial?: Filter | CatalogQuery | undefi
   );
   return (
     <CatalogFilters
+      view={view}
       candidates={candidates}
       context={context}
       filter={filter}
@@ -145,6 +152,25 @@ afterEach(async () => {
   host.remove();
   vi.unstubAllGlobals();
   delete document.documentElement.dataset.theme;
+});
+
+it("keeps three primary Library groups and reveals restored advanced selections without losing their chips", async () => {
+  await root.rerender(<Fixture view="library" initial={{ version: 1, portOptions: ["single"] }} />);
+  await click("Filters (1)");
+  const panel = document.querySelector<HTMLElement>(".catalog-filter-panel")!;
+  const primary = panel.querySelector(":scope > .catalog-filter-groups")!;
+  expect(
+    [...primary.querySelectorAll(".compact-filter-field > span")].map((node) => node.textContent),
+  ).toEqual(["Target OS", "Original system", "Update channels"]);
+  const advanced = [...panel.querySelectorAll("details")].find(
+    (details) => details.querySelector("summary")?.textContent === "Advanced filters",
+  )!;
+  expect(advanced.open).toBe(true);
+  expect(advanced.querySelector('[aria-label="Port options: Single port"]')).not.toBeNull();
+  await click("Done");
+  await click("Remove Single port filter");
+  expect(current).toMatchObject({ portOptions: [] });
+  expect(document.activeElement).toBe(await control("Filters (0)"));
 });
 
 it.each([

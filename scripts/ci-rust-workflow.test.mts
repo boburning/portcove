@@ -31,6 +31,9 @@ import {
   rustQuality,
 } from "./ci-workflow-fixture.mts";
 
+// Independently expected contract pin; Renovate updates it with the Action group.
+const reviewedInstallAction = "taiki-e/install-action@68a389c788b2cd04016ce8c80ee23b80d2ab3d68"; // v2.88.1
+
 void test("standalone Linux environment tests retain native selection and bounded outcomes", () => {
   const step: Record<string, unknown> & { run: string } = workflowStep(
     "fast_rust_quality",
@@ -149,7 +152,7 @@ void test("runtime diagnostics retain complete Windows and Linux typed fixture e
   );
   assert.ok(isRecord(installer));
   assert.equal(installer.if, linuxFixture.if);
-  assert.equal(installer.uses, "taiki-e/install-action@68a389c788b2cd04016ce8c80ee23b80d2ab3d68");
+  assert.equal(installer.uses, reviewedInstallAction);
   assert.deepEqual(installer.with, {
     tool: "${{ steps.linux-diagnostic-test-runner.outputs.spec }}",
   });
