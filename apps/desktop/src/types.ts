@@ -7,6 +7,7 @@ export type SourceReuseReview = Generated.TransportOutputs["source_reuse_review"
 export type SourceRegistrationReference = SourceReuseReview["reference"];
 export type OfficialCatalogReview = Generated.TransportOutputs["official_catalog_review"];
 export type OfficialCatalogSetup = Generated.TransportOutputs["official_catalog_setup"];
+export type DefinitionRefresh = Generated.TransportOutputs["definition_refresh"];
 
 export type { ReleaseChannel } from "./transport-types.generated";
 export type { OriginalGameIdentity } from "./transport-types.generated";

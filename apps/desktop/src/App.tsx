@@ -87,6 +87,7 @@ import {
 } from "./features/browsing/use-game-file-filter-context";
 import { ArtworkProvider } from "./artwork";
 import { SourceIntakeDialog } from "./components/SourceIntake";
+import { OfficialDefinitionUpdates } from "./components/OfficialDefinitionUpdates";
 import { UpdateCenter } from "./components/UpdateCenter";
 import { FailureDetails } from "./components/FailureDetails";
 import { SupportBundleExport } from "./components/SupportBundleExport";
@@ -689,15 +690,30 @@ function useWorkspace(props: WorkspaceProps) {
       </Notice>
     );
   const implementationControl = model.entry && (
-    <GameAlternatives
-      port={model.entry}
-      ports={model.entries.filter(
-        (candidate) => gameGroupId(candidate) === gameGroupId(model.entry!),
-      )}
-      statuses={model.statusMap}
-      organization={organization}
-      onSelect={(portId) => switchPortDetails(portId)}
-    />
+    <>
+      <GameAlternatives
+        port={model.entry}
+        ports={model.entries.filter(
+          (candidate) => gameGroupId(candidate) === gameGroupId(model.entry!),
+        )}
+        statuses={model.statusMap}
+        organization={organization}
+        onSelect={(portId) => switchPortDetails(portId)}
+      />
+      <OfficialDefinitionUpdates
+        portId={model.entry.id}
+        portName={model.entry.name}
+        generation={bootstrap.generation}
+        busy={Boolean(operations.busy)}
+        perform={operations.perform}
+        onChanged={data.refreshAfterMutation}
+        openSettings={() => {
+          ui.setSettingsCategory("updates");
+          setPrimaryView("settings");
+          window.requestAnimationFrame(() => focusRegion("workspace"));
+        }}
+      />
+    </>
   );
   const renderWorkspaceView = () =>
     model.entry && usesSelfServiceDetail(model.entry, model.status) ? (

@@ -236,6 +236,28 @@ pub(crate) async fn refresh_official_catalog(
 }
 
 #[tauri::command]
+pub(crate) async fn refresh_official_definition(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    on_event: tauri::ipc::Channel<OperationEvent>,
+) -> DesktopResult<portcove_core::DefinitionRefresh> {
+    blocking_async_service_at_generation(
+        state.inner().clone(),
+        generation,
+        move |service| async move {
+            service
+                .refresh_official_definition(&port_id, |event| {
+                    let _ = on_event.send(event);
+                })
+                .await
+                .map_err(Into::into)
+        },
+    )
+    .await
+}
+
+#[tauri::command]
 pub(crate) async fn refresh_catalog_listings(
     state: tauri::State<'_, DesktopState>,
     metadata_base_url: String,

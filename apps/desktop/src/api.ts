@@ -337,6 +337,19 @@ export const desktopApi = {
       onEvent: channel,
     });
   },
+  refreshOfficialDefinition: (
+    portId: string,
+    generation: number,
+    onEvent: (event: OperationEvent) => void,
+  ) => {
+    const channel = new Channel<OperationEvent>();
+    channel.onmessage = onEvent;
+    return invoke<import("./types").DefinitionRefresh>("refresh_official_definition", {
+      portId,
+      generation,
+      onEvent: channel,
+    });
+  },
   catalogStatus: () => invoke<CatalogStatus>("get_catalog_status"),
   engineCapabilities: () => invoke<CapabilityDocument>("get_engine_capabilities"),
   checkDefinitionCapabilities: (request: DefinitionCapabilityRequest) =>

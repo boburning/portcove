@@ -222,6 +222,50 @@ async fn ordinary_unconfigured_and_unprovisioned_refresh_refuse_before_transport
 }
 
 #[tokio::test]
+async fn official_definition_refresh_preserves_known_identity_and_requires_enabled_authority() {
+    use policy::provisioning::official_catalog::official_definition_id;
+
+    let (_directory, library) = library();
+    let service = PortcoveService::new(library.clone()).unwrap();
+    let port_id = &service.catalog().ports()[0].id;
+    let listing_id = &service
+        .catalog()
+        .listings()
+        .iter()
+        .find(|listing| service.catalog().port(&listing.id).is_err())
+        .expect("embedded catalog retains descriptive-only listings")
+        .id;
+    for id in [port_id, listing_id] {
+        assert_eq!(official_definition_id(service.catalog(), id).unwrap(), id);
+        let error = service
+            .refresh_official_definition(id, |_| panic!("unprovisioned check emitted activity"))
+            .await
+            .unwrap_err();
+        assert_eq!(error.code, ErrorCode::Conflict);
+        assert!(
+            error
+                .message
+                .contains("Enable official catalog updates in Settings")
+        );
+    }
+    for id in [format!("official/{port_id}"), "unknown-new-port".to_owned()] {
+        let error = service
+            .refresh_official_definition(&id, |_| panic!("unknown identity emitted activity"))
+            .await
+            .unwrap_err();
+        assert_eq!(error.code, ErrorCode::NotFound);
+    }
+    assert!(library.activities(10).unwrap().is_empty());
+    assert!(
+        library
+            .definition_selection_status()
+            .unwrap()
+            .selected
+            .is_none()
+    );
+}
+
+#[tokio::test]
 async fn ordinary_refresh_uses_one_authenticated_snapshot_and_exact_retry_preserves_selection() {
     let fixture = authority_provisioning::separated_fixture();
     let key = Key::new(fixture._directory.path());
@@ -290,6 +334,11 @@ async fn ordinary_refresh_uses_one_authenticated_snapshot_and_exact_retry_preser
     assert!(service.catalog().definition_selection(&id).is_none());
     let fresh = PortcoveService::new(library.clone()).unwrap();
     assert!(fresh.catalog().definition_selection(&id).is_some());
+    assert_eq!(
+        policy::provisioning::official_catalog::official_definition_id(fresh.catalog(), &id)
+            .unwrap(),
+        first.selection.selected.as_ref().unwrap().stable_id,
+    );
 
     // Change the separately signed baseline after this service was constructed.
     // An exact definition retry must revalidate that baseline in its transaction.
