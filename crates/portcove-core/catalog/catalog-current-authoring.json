@@ -13605,7 +13605,8 @@
       "persistent_paths": [
         "mods",
         "saves",
-        "config.json"
+        "config.json",
+        "starship.cfg.json"
       ],
       "presentation": {
         "installation_method": "portable-package",
