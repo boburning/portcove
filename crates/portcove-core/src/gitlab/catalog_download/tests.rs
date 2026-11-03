@@ -231,3 +231,66 @@ async fn repeated_gitlab_link_identity_and_foreign_project_are_refused() {
     );
     server.join().unwrap();
 }
+
+#[tokio::test]
+async fn constrained_catalog_transport_follows_only_the_selected_registry_file() {
+    for (redirect, allowed) in [
+        ("/owner/game/-/package_files/17/download", true),
+        ("/owner/game/-/package_files/18/download", false),
+        ("/owner/other/-/package_files/17/download", false),
+        (
+            "/owner/game/-/package_files/17/download?token=unexpected",
+            false,
+        ),
+        (
+            "https://attacker.invalid/owner/game/-/package_files/17/download",
+            false,
+        ),
+    ] {
+        let (root, requests, server) = serve_routed_http(4, move |request| {
+            if request.starts_with("GET /api/v4/projects/42/packages/generic/player/v1/player.zip ")
+            {
+                format!(
+                    "HTTP/1.1 302 Found\r\nLocation: {redirect}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                )
+            } else {
+                assert!(
+                    allowed,
+                    "refused redirect reached a second request: {request}"
+                );
+                assert!(request.starts_with("GET /owner/game/-/package_files/17/download "));
+                "HTTP/1.1 200 OK\r\nContent-Length: 1\r\nConnection: close\r\n\r\nx".into()
+            }
+        });
+        let provider = GitlabReleaseProvider::with_api_root(format!("{root}/api/v4")).unwrap();
+        let candidate = CatalogDownloadCandidate {
+            release_id: release_id(42, "v1"),
+            asset_id: CatalogDownloadAssetId::Foreign(CatalogForeignAssetId::Gitlab {
+                project_id: 42,
+                tag: "v1".into(),
+                link_id: 7,
+                file_id: 17,
+            }),
+            release_tag: "v1".into(),
+            release_url: "https://gitlab.com/owner/game/-/releases/v1".into(),
+            name: "player.zip".into(),
+            size: 1,
+            download_url: format!(
+                "{root}/api/v4/projects/42/packages/generic/player/v1/player.zip"
+            ),
+            sha256: Some(crate::signed_catalog::digest(b"x")),
+            can_extract: true,
+        };
+        let client = provider
+            .catalog_download_client("owner/game", &candidate)
+            .unwrap();
+        let result = client.get(&candidate.download_url).send().await;
+        if allowed {
+            assert_eq!(result.unwrap().bytes().await.unwrap().as_ref(), b"x");
+        } else {
+            assert!(result.unwrap_err().is_redirect());
+        }
+        server.join().unwrap();
+        assert_eq!(requests.try_iter().count(), if allowed { 2 } else { 1 });
+    }
+}

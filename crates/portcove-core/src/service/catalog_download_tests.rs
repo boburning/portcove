@@ -1471,29 +1471,34 @@ fn restart_finishes_proven_handoff_but_never_adopts_or_deletes_a_collision() {
     );
 }
 
+fn with_gitlab_identity(mut record: PendingSetupRecord) -> PendingSetupRecord {
+    record.format_version = 2;
+    record.listing.project_url = "https://gitlab.com/owner/game".into();
+    record.listing.release_url = Some("https://gitlab.com/owner/game/-/releases".into());
+    record.artifact.release_id =
+        CatalogDownloadReleaseId::Foreign(CatalogForeignReleaseId::Gitlab {
+            project_id: 42,
+            tag: "v1".into(),
+        });
+    record.artifact.asset_id = CatalogDownloadAssetId::Foreign(CatalogForeignAssetId::Gitlab {
+        project_id: 42,
+        tag: "v1".into(),
+        link_id: 11,
+        file_id: 17,
+    });
+    record.artifact.release_url = "https://gitlab.com/owner/game/-/releases/v1".into();
+    record.artifact.download_url =
+        "https://gitlab.com/owner/game/-/package_files/17/download".into();
+    record.artifact.sha256 = Some(record.archive_sha256.clone());
+    record
+}
+
 #[test]
 fn gitlab_pending_restart_preserves_retained_provider_at_each_publication_phase() {
     for phase in ["preparing", "publication-intent", "downloaded"] {
         let (_temporary, service, request) = fixture();
         let (mut record, stage, review) = intent(&service, &request);
-        record.format_version = 2;
-        record.listing.project_url = "https://gitlab.com/owner/game".into();
-        record.listing.release_url = Some("https://gitlab.com/owner/game/-/releases".into());
-        record.artifact.release_id =
-            CatalogDownloadReleaseId::Foreign(CatalogForeignReleaseId::Gitlab {
-                project_id: 42,
-                tag: "v1".into(),
-            });
-        record.artifact.asset_id = CatalogDownloadAssetId::Foreign(CatalogForeignAssetId::Gitlab {
-            project_id: 42,
-            tag: "v1".into(),
-            link_id: 11,
-            file_id: 17,
-        });
-        record.artifact.release_url = "https://gitlab.com/owner/game/-/releases/v1".into();
-        record.artifact.download_url =
-            "https://gitlab.com/owner/game/-/package_files/17/download".into();
-        record.artifact.sha256 = Some(record.archive_sha256.clone());
+        record = with_gitlab_identity(record);
         let request = CatalogDownloadRequest {
             release_id: record.artifact.release_id.clone(),
             asset_id: record.artifact.asset_id.clone(),
@@ -1572,72 +1577,86 @@ fn gitlab_pending_restart_preserves_retained_provider_at_each_publication_phase(
 
 #[test]
 fn continuation_registration_uses_retained_listing_and_consumes_only_matching_pending_identity() {
-    let (_temporary, mut service, request) = fixture();
-    let (record, stage, _) = intent(&service, &request);
-    // Upstream's native installer can place the executable elsewhere. The
-    // explicit user intent binds that exact executable and CWD, not an inferred
-    // relationship to the downloaded package's folder.
-    let working = request.destination_parent.join("upstream-installed");
-    fs::create_dir(&working).unwrap();
-    let executable = crate::test_fixture::build_probe(&working);
-    fs::write(working.join("save.dat"), b"mine").unwrap();
-    let preview = service
-        .preview_user_selected_runtime(&record.port_id, &executable, &working, &[])
-        .unwrap();
-    let authorization = service
-        .authorize_user_selected_runtime(
-            &record.port_id,
-            &executable,
-            &working,
-            &[],
-            &preview.preview_sha256,
-        )
-        .unwrap();
-    service
-        .forget_pending_setup(&record.port_id, &record.id)
-        .unwrap();
-    let (replacement, replacement_stage, _) = intent(&service, &request);
-    assert!(
+    for foreign in [false, true] {
+        let (_temporary, mut service, request) = fixture();
+        let (mut record, stage, _) = intent(&service, &request);
+        if foreign {
+            record = with_gitlab_identity(record);
+            service
+                .update_catalog_download(&record, "publication-intent", false)
+                .unwrap();
+        }
+        // Upstream's native installer can place the executable elsewhere. The
+        // explicit user intent binds that exact executable and CWD, not an inferred
+        // relationship to the downloaded package's folder.
+        let working = request.destination_parent.join("upstream-installed");
+        fs::create_dir(&working).unwrap();
+        let executable = crate::test_fixture::build_probe(&working);
+        fs::write(working.join("save.dat"), b"mine").unwrap();
+        let preview = service
+            .preview_user_selected_runtime(&record.port_id, &executable, &working, &[])
+            .unwrap();
+        let authorization = service
+            .authorize_user_selected_runtime(
+                &record.port_id,
+                &executable,
+                &working,
+                &[],
+                &preview.preview_sha256,
+            )
+            .unwrap();
         service
+            .forget_pending_setup(&record.port_id, &record.id)
+            .unwrap();
+        let (mut replacement, replacement_stage, _) = intent(&service, &request);
+        if foreign {
+            replacement = with_gitlab_identity(replacement);
+            service
+                .update_catalog_download(&replacement, "publication-intent", false)
+                .unwrap();
+        }
+        assert!(
+            service
+                .register_user_selected_runtime(
+                    &record.port_id,
+                    &executable,
+                    &working,
+                    &[],
+                    &authorization.token
+                )
+                .is_err()
+        );
+        assert_eq!(service.pending_setups().unwrap()[0].id, replacement.id);
+        service.catalog =
+            Catalog::from_json(r#"{"schema_version":1,"source_profiles":[],"ports":[]}"#).unwrap();
+        let preview = service
+            .preview_user_selected_runtime(&record.port_id, &executable, &working, &[])
+            .unwrap();
+        let authorization = service
+            .authorize_user_selected_runtime(
+                &record.port_id,
+                &executable,
+                &working,
+                &[],
+                &preview.preview_sha256,
+            )
+            .unwrap();
+        let selected = service
             .register_user_selected_runtime(
                 &record.port_id,
                 &executable,
                 &working,
                 &[],
-                &authorization.token
+                &authorization.token,
             )
-            .is_err()
-    );
-    assert_eq!(service.pending_setups().unwrap()[0].id, replacement.id);
-    service.catalog =
-        Catalog::from_json(r#"{"schema_version":1,"source_profiles":[],"ports":[]}"#).unwrap();
-    let preview = service
-        .preview_user_selected_runtime(&record.port_id, &executable, &working, &[])
-        .unwrap();
-    let authorization = service
-        .authorize_user_selected_runtime(
-            &record.port_id,
-            &executable,
-            &working,
-            &[],
-            &preview.preview_sha256,
-        )
-        .unwrap();
-    let selected = service
-        .register_user_selected_runtime(
-            &record.port_id,
-            &executable,
-            &working,
-            &[],
-            &authorization.token,
-        )
-        .unwrap();
-    assert_eq!(selected.port_id, record.port_id);
-    assert!(service.pending_setups().unwrap().is_empty());
-    assert!(service.library.all_installs().unwrap().is_empty());
-    assert_eq!(fs::read(working.join("save.dat")).unwrap(), b"mine");
-    assert!(executable.exists());
-    assert!(stage.path().exists() && replacement_stage.path().exists());
+            .unwrap();
+        assert_eq!(selected.port_id, record.port_id);
+        assert!(service.pending_setups().unwrap().is_empty());
+        assert!(service.library.all_installs().unwrap().is_empty());
+        assert_eq!(fs::read(working.join("save.dat")).unwrap(), b"mine");
+        assert!(executable.exists());
+        assert!(stage.path().exists() && replacement_stage.path().exists());
+    }
 }
 
 #[test]
