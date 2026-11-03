@@ -1364,7 +1364,16 @@ mod tests {
             embedded.source_profile(PROFILE).unwrap().accepted_sha1,
             ["1bb785082def3fe25f6b46be06d4eaf33c5bc772"]
         );
-        let port = embedded.port(ID).unwrap().clone();
+        let mut port = embedded.port(ID).unwrap().clone();
+        // Keep the private source authority at schema 1 while adapting current
+        // presentation through the same lossless legacy export as real readers.
+        if let Some(guide) = port
+            .presentation
+            .as_mut()
+            .and_then(|presentation| presentation.manual_setup.as_mut())
+        {
+            *guide = guide.legacy();
+        }
         Catalog::from_json(&serde_json::json!({
             "schema_version":1,
             "source_profiles":[{"id":PROFILE,"label":"Your USA retail raw Crash Team Racing BIN","kind":"file","accepted_extensions":["bin"],"accepted_sha256":[hex::encode(Sha256::digest(owned))]}],
