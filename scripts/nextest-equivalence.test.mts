@@ -362,6 +362,14 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     "slow-timeout": { period: "5s", "terminate-after": 24, "grace-period": "0s" },
     "success-output": "immediate",
   });
+  const linuxDefinitionRecoveryFilter =
+    "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::ordinary_refresh::ordinary_refresh_retains_restrictive_admission_when_launch_companion_fails_then_recovers$/)";
+  assert.deepEqual(overrideFor(linuxDefinitionRecoveryFilter, "x86_64-unknown-linux-gnu"), {
+    platform: "x86_64-unknown-linux-gnu",
+    filter: linuxDefinitionRecoveryFilter,
+    "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
+    "success-output": "immediate",
+  });
   const linuxWholeProjectionFilter =
     "package(portcove-core) & test(/^definition_projection::tests::every_current_port_retains_exact_bytes_and_complete_validated_source_graph$/)";
   assert.deepEqual(overrideFor(linuxWholeProjectionFilter, "x86_64-unknown-linux-gnu"), {
@@ -759,6 +767,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       { platform: "x86_64-pc-windows-msvc", filter: windowsContradictoryAdoptionFilter },
       { platform: "x86_64-unknown-linux-gnu", filter: linuxLifecycleFilter },
       { platform: "x86_64-unknown-linux-gnu", filter: linuxWholeProjectionFilter },
+      { platform: "x86_64-unknown-linux-gnu", filter: linuxDefinitionRecoveryFilter },
       { platform: "x86_64-apple-darwin", filter: intelObservedControlFilter },
       { platform: "x86_64-apple-darwin", filter: intelRelocationControlFilter },
       { platform: "x86_64-apple-darwin", filter: intelPreparationFilter },

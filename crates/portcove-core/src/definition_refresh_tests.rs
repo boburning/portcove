@@ -187,6 +187,18 @@ async fn ordinary_unconfigured_and_unprovisioned_refresh_refuse_before_transport
     .unwrap_err();
     assert_eq!(error.code, ErrorCode::Conflict);
     assert!(transport.requests.lock().unwrap().is_empty());
+    let error = refresh_fixture(
+        &service,
+        &source(&fixture),
+        ID,
+        b"null",
+        transport.clone(),
+        |_| panic!("unconfigured fixture emitted activity"),
+    )
+    .await
+    .unwrap_err();
+    assert_eq!(error.code, ErrorCode::Unsupported);
+    assert!(transport.requests.lock().unwrap().is_empty());
     let public_source = DefinitionRepositorySource::new(
         "https://definitions.invalid/metadata/",
         "https://definitions.invalid/targets/",
@@ -194,11 +206,12 @@ async fn ordinary_unconfigured_and_unprovisioned_refresh_refuse_before_transport
     .unwrap();
     let error = service
         .refresh_definition(&public_source, ID, |_| {
-            panic!("unconfigured refresh emitted activity")
+            panic!("unprovisioned refresh emitted activity")
         })
         .await
         .unwrap_err();
-    assert_eq!(error.code, ErrorCode::Unsupported);
+    assert_eq!(error.code, ErrorCode::Conflict);
+    assert!(library.activities(10).unwrap().is_empty());
     assert!(
         library
             .definition_selection_status()
