@@ -57,6 +57,33 @@ fn configured_source(bytes: &[u8]) -> Result<Option<OfficialCatalogSource>> {
         .transpose()
 }
 
+fn official_repository_source() -> Result<DefinitionRepositorySource> {
+    let source = configured_source(COMPILED_SOURCE)?.ok_or_else(|| {
+        PortcoveError::unsupported("this release has no configured official catalog")
+    })?;
+    DefinitionRepositorySource::new(&source.metadata_base_url, &source.targets_base_url)
+}
+
+pub(crate) fn official_definition_id<'a>(
+    catalog: &'a crate::Catalog,
+    port_id: &'a str,
+) -> Result<&'a str> {
+    if let Some(selection) = catalog.definition_selection(port_id) {
+        if selection.namespace != "official" {
+            return Err(PortcoveError::unsupported(
+                "this definition does not belong to the official catalog",
+            ));
+        }
+        return Ok(&selection.stable_id);
+    }
+    // A descriptive entry supplies its exact publisher identity, never a guessed
+    // counterpart or a qualified display ID. Do not acquire arbitrary IDs.
+    if catalog.port(port_id).is_err() {
+        catalog.listing(port_id)?;
+    }
+    Ok(port_id)
+}
+
 fn setup_plan(authority_plan: &str, source: &[u8]) -> Result<String> {
     Ok(hex::encode(Sha256::digest(serde_json::to_vec(&(
         "official-catalog-setup-v1",
@@ -156,12 +183,26 @@ impl PortcoveService {
         &self,
         emit: impl FnMut(crate::OperationEvent),
     ) -> Result<crate::ListingDeliveryStatus> {
-        let source = configured_source(COMPILED_SOURCE)?.ok_or_else(|| {
-            PortcoveError::unsupported("this release has no configured official catalog")
-        })?;
-        let source =
-            DefinitionRepositorySource::new(&source.metadata_base_url, &source.targets_base_url)?;
+        let source = official_repository_source()?;
         self.refresh_listings(&source, emit).await
+    }
+
+    /// Check this known port's definition using the appointed fixed source.
+    /// The existing refresh owns authority, policy, eligibility and atomic selection;
+    /// this does not install a game, provision trust or change runtime ownership.
+    pub async fn refresh_official_definition(
+        &self,
+        port_id: &str,
+        emit: impl FnMut(crate::OperationEvent),
+    ) -> Result<crate::DefinitionRefresh> {
+        let stable_id = official_definition_id(self.catalog(), port_id)?;
+        let source = official_repository_source()?;
+        if !self.library().review_official_catalog()?.enabled {
+            return Err(PortcoveError::conflict(
+                "Enable official catalog updates in Settings before checking setup availability.",
+            ));
+        }
+        self.refresh_definition(&source, stable_id, emit).await
     }
 }
 

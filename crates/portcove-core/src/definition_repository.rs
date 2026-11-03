@@ -428,12 +428,12 @@ async fn acquire_from_repository(
                     "definition index and authenticated target metadata disagree",
                 ));
             }
-            Ok((target.to_owned(), name, metadata))
+            Ok((target.to_owned(), name, metadata.clone()))
         })
         .collect::<Result<Vec<_>>>()?;
     let contents = stream::iter(content_targets)
         .map(|(target, name, metadata)| async move {
-            let bytes = read_target(repository, &name, metadata, MAX_CONTENT_BYTES).await?;
+            let bytes = read_target(repository, &name, &metadata, MAX_CONTENT_BYTES).await?;
             Ok::<_, PortcoveError>((target, bytes))
         })
         .buffer_unordered(TARGET_CONCURRENCY)

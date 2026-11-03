@@ -2691,6 +2691,7 @@ pub fn run() -> std::process::ExitCode {
             catalog::get_official_catalog_review,
             catalog::enable_official_catalog,
             catalog::refresh_official_catalog,
+            catalog::refresh_official_definition,
             catalog::refresh_catalog_listings,
             catalog::get_engine_capabilities,
             catalog::check_definition_capabilities,

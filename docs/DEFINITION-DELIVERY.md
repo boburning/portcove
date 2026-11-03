@@ -798,6 +798,24 @@ Windows/native baseline, authenticated feed and protected progression
 acceptance remain separate obligations after this source appointment. Neither
 compiled input nor a library enablement receipt establishes those outcomes.
 
+Selected Desktop details expose **Check setup availability** for the selected port.
+The generation-bound private command accepts only its known port ID and operation
+channel. Core resolves a retained definition's exact official namespace/stable ID,
+or the exact known listing/embedded port ID; it refuses unknown IDs and does not
+strip namespace prefixes, infer identities from titles or map related editions.
+It delegates to the existing definition-refresh pipeline using the compiled source
+and explicitly enabled authority. Catalog update settings remain the normal
+enablement route; checking cannot provision trust, install a game or replace files.
+
+The detail action supplies the maintained propagating mutation-readback callback
+to the existing application-lifetime operation owner. It reloads the current
+workspace after success or failure, including a lost response or a later failure after policy/launch-assessment
+admission. It retains the original Core phase/change details and any independent
+readback failure, without automatic replay or a claim that failure had no effects.
+An outgoing library cannot publish into or reload its replacement. Existing
+definition-refresh output and cancellation contracts are reused; this private
+Desktop command does not change API87, CLI commands or the operation-event window.
+
 **Ordinary refresh.** `PortcoveService::refresh_definition` and the thin
 `catalog definition-refresh` CLI use only the fixed installed compiled root.
 Credential-free HTTPS locations cannot supply authority. Preflight rejects
