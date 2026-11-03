@@ -2589,6 +2589,30 @@
       "project_url": "https://github.com/nickclyde/EarthBoundRecomp",
       "original_game_title": "EarthBound",
       "issue_number": 173,
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use your prepared upstream copy",
+            "instruction": "Prepare your own permitted Windows native copy using upstream's instructions and your own original outside Portcove. The documented build target is EarthBoundRecomp; its Windows executable is EarthBoundRecomp.exe. Keep the complete source/build working copy and matching SDL/framework dependencies together. Portcove does not run the Python generation pipeline, compile the game or repair this prototype. No official binary download is required for registration."
+          },
+          {
+            "title": "Keep the project working folder and original argument",
+            "instruction": "Select the completed build/EarthBoundRecomp.exe from your prepared Windows copy and use the project root as working directory, matching upstream's documented invocation. Enter the actual absolute path to your own EarthBound USA .sfc as one argument line, without shell quotes. The documented headerless original is 3,145,728 bytes with SHA-256 a8fe2226728002786d68c27ddddf0b90a894db52e4dfe268fdf72a68cae5f02e. The upstream runtime checks its original input; Portcove records the argument but does not import or authenticate that file."
+          },
+          {
+            "title": "Preserve the complete creating environment",
+            "instruction": "Keep the original and its location, complete project/build tree, private generated code, saves folder, SRAM/save-state files, config.ini, config.local.ini, rom.cfg and diagnostic output with the creating runtime. Preserve separately configured or original-adjacent files too. The documented host reads configuration and creates saves relative to its working folder, and can automatically load and save slot zero when autosave is enabled. Upstream or you own rebuilds and runtime replacement; older save states, settings and generated code are not guaranteed compatible with another build."
+          },
+          {
+            "title": "Review registration and choose Play separately",
+            "instruction": "Portcove records your selected native executable, working folder and literal arguments after review; Play is separate. Only the selected process is supervised. Removing the registration preserves all external files. Managed installation, generation, updates, backup, rollback, migration and deletion are not offered for this copy. Existing Portcove-built installations retain their original installation, source, backup and recovery contracts."
+          }
+        ],
+        "warnings": [
+          "Upstream remains an early, interpreter-first prototype with title-screen/file-select bring-up evidence. Registration does not establish full static recompilation, completed gameplay or populated save compatibility."
+        ],
+        "help_url": "https://github.com/nickclyde/EarthBoundRecomp/blob/fe1155dc26ffc40df36a8003dd0e639e17af3349/README.md"
+      },
       "artwork": {
         "game_id": 2899,
         "cover_id": 320119,
@@ -2738,6 +2762,30 @@
       "project_url": "https://github.com/TechnicallyComputers/GundamWingEndlessDuelSNESRecomp",
       "original_game_title": "Shin Kidou Senki Gundam W: Endless Duel",
       "issue_number": 330,
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Finish the upstream build first",
+            "instruction": "The v0.1.12 release is a ROM-free setup pack, not the prepared game. Use upstream's Generate & Build flow separately with your own Japanese original: SHA-256 dd94308d822636c6ddf73c5e2644c84f2eb8fb4d9201150fc5f37d44d6f423f1, CRC32 c0aecdca. Upstream generates private C code and builds the game locally. Keep the original, generated code, source tree and build tools private and unchanged elsewhere. Portcove does not run that setup or authenticate your original."
+          },
+          {
+            "title": "Choose the prepared game",
+            "instruction": "Select the completed build's GundamWingEndlessDuelSNESRecomp.exe, normally under build, with the folder containing that executable as its working folder. Do not select the downloaded setup host just because it has the same name. For the documented v0.1.12 game, enter --no-launcher on the first argument line and the actual absolute path to your Japanese .sfc file on the second. Each line is one argument; do not add shell quotes. This route opens the prepared game without the Generate & Build launcher. Keep existing working registrations on their own supported arguments."
+          },
+          {
+            "title": "Preserve the complete working copy",
+            "instruction": "Keep the complete project and build tree, original, generated files, mods, settings, saves and save states with their creating runtime. The game uses config.ini in its working folder, falling back to ../config.ini; keybinds.ini is beside the executable. Preserve the parent project as well as the build folder, plus any separately configured upstream launcher/profile locations. Rebuilds, toolchain changes and updates belong upstream and must finish outside the selected Play session. Runtime replacement does not establish old-save, mod or save-state compatibility."
+          },
+          {
+            "title": "Add the game and choose Play separately",
+            "instruction": "Portcove records your selected native executable, working folder and literal arguments after review; Play is a separate action. You and upstream own the runtime, originals and player data. Removing the registration preserves those files. Portcove does not install, rebuild, update, back up, roll back, migrate or delete this external copy, and it does not adopt a replacement process launched by upstream. Older Portcove-built installations keep their retained installation, source, backup and recovery contracts."
+          }
+        ],
+        "warnings": [
+          "The setup host can compile and relaunch into another process. Finish that upstream preparation first and select the completed game for this route."
+        ],
+        "help_url": "https://github.com/TechnicallyComputers/GundamWingEndlessDuelSNESRecomp/blob/f2d774e05fbf6fc04642992f8d57a1305f077334/README.md"
+      },
       "artwork": {
         "game_id": 42464,
         "cover_id": 140284,
@@ -2918,7 +2966,7 @@
       },
       "recommended_download_channel": "stable",
       "manual_setup": {
-        "help_url": "https://github.com/k4zmu2a/SpaceCadetPinball/blob/cb9b7b886244a27773f66b0b19fdc2998392565e/README.md",
+        "help_url": "https://github.com/k4zmu2a/SpaceCadetPinball/blob/Release_2.1.0/README.md",
         "warnings": [],
         "steps": [
           {
@@ -2928,6 +2976,10 @@
           {
             "title": "Save the player, then choose Play",
             "instruction": "Select SpaceCadetPinball.exe with that folder as its working directory, save launch details, then choose Play separately. If the game reports missing resources, follow its folder search message and the upstream guide. macOS application packages and Linux distribution/Flatpak or source-build routes keep their own upstream installation instructions; a Windows ZIP does not establish their native qualification."
+          },
+          {
+            "title": "Keep the intended table and its scores together",
+            "instruction": "For Release 2.1.0, use a separate working folder for the table data you intend to play. The player searches the working folder before its executable folder and user profile; it normally tries Full Tilt CADET.DAT before Windows PINBALL.DAT, then DEMO.DAT. Its Prefer 3D Pinball data option changes that file preference. Keep the matching resource set together rather than mixing editions. The same imgui_pb.ini stores options, controls and high-score names/scores; preserve it as a complete file with its verification value, not selected score lines. Other player copies can share that profile. Changing the runtime folder does not isolate it, and original Windows registry scores are not automatically imported."
           },
           {
             "title": "Keep your profile and resources when updating",
@@ -32996,12 +33048,24 @@
           {
             "title": "Use OpenCE’s updates and keep your data",
             "instruction": "OpenCE replaces its own runtime when you use its updater. Keep the extracted maps, config.toml and your saves backed up; Windows saves normally use the halo folder under AppData/Roaming, unless paths.saves changes it."
+          },
+          {
+            "title": "Select the ordinary Windows player",
+            "instruction": "Keep the complete Windows release package together and select halo.exe with its containing folder as working directory. Leave arguments empty for the normal player. The release package is for playing; debug builds stop at failed assertions, and symbol archives are not players. Use your own supported Xbox disc image for the upstream first-Play picker; Portcove does not import or authenticate it. Finish any deliberate upstream update or repair separately before starting the registered Play session."
+          },
+          {
+            "title": "Keep all actual data locations",
+            "instruction": "Preserve the complete working copy, maps, custom_maps, mods, load_order.toml, config.toml, logs and captures. In the actual Windows save root, keep u, z and shader_cache along with your profiles and progress. The usual save root is AppData/Roaming/halo; paths.saves or HALO_SAVE_ROOT can change it. The data, custom-map and log roots also have configuration or environment overrides, so preserve their actual locations too. Keep the creating runtime with those files before changes; a separate executable folder does not isolate an existing shared profile or establish save, mod or network compatibility."
+          },
+          {
+            "title": "Keep one runtime update owner",
+            "instruction": "OpenCE asks before an ordinary update and can replace its executable and DLLs, then start another process. Complete those updates upstream outside the registered Play session, then review and relink changed execution intent before Play. Portcove supervises only the selected process and does not adopt the restarted copy. Registration removal preserves all external files. Managed installation, updates, backup, rollback, migration and deletion are not offered for this upstream-owned runtime."
           }
         ],
         "warnings": [
           "Optional Halo Custom Edition maps and their matching resources belong in custom_maps. OpenSauce maps are incompatible. Portcove does not replace or back up this upstream-owned runtime."
         ],
-        "help_url": "https://github.com/OpenCommunityEdition/OpenCE#readme"
+        "help_url": "https://github.com/OpenCommunityEdition/OpenCE/blob/899219cc0a14b03bc12f0517a1e9ee4c37158af8/README.md"
       },
       "download_asset_hints": {
         "windows-x86-64": [
@@ -38173,7 +38237,9 @@
       "release_url": "https://rvgl.org/#download",
       "manual_setup": {
         "help_url": "https://re-volt.gitlab.io/rvgl-launcher/installing.html",
-        "warnings": [],
+        "warnings": [
+          "Use only original data and additional packs you are permitted to use. The availability of a launcher preset does not grant original-game, soundtrack or third-party content rights."
+        ],
         "steps": [
           {
             "title": "Set up through RVGL Launcher",
@@ -38186,6 +38252,14 @@
           {
             "title": "Update and preserve data with upstream",
             "instruction": "Close the game before package updates. RVGL Launcher offers runtime-only updates and package review, plus its own Repair command for interrupted installs. Back up your actual game folder and profile, local content and launcher configuration separately before repair or changing copies. Portcove does not replace this externally managed runtime or provide managed Backup or Rollback. Removing the registration preserves all external files."
+          },
+          {
+            "title": "Preserve the selected profile and preset",
+            "instruction": "Keep the game data root and preferences root separately when your launch details use -basepath or -prefpath. Each flag and its path is a separate literal argument line. Without an explicit base path, the current game folder is normally used; with -prefpath and no value, Windows uses the system RVGL preferences folder, normally %APPDATA%/RVGL. Preserve rvgl.ini, complete profiles with profile.ini and progress, times, replays, screenshots and logs, plus custom content and the launcher’s configuration and presets. Use the launcher’s Open Data Folder and Open Config Folder actions to locate its actual roots. A different executable or preset does not establish isolated saves or compatible content."
+          },
+          {
+            "title": "Keep game launch and replacement under the selected owner",
+            "instruction": "The launcher normally minimizes while RVGL runs and returns when the game exits. Keep it open for that session. Portcove supervises the selected process; it does not certify a detached game after that process exits or stop an independently started copy. If you register the native game directly, retain the actual game folder and launch details; launcher-only preset parameters are not automatically transferred. Close both the game and launcher before manual runtime replacement, then review changed executable bytes in Portcove before choosing Play. Launcher Repair can reinstall content and Uninstall removes game data; keep an independent backup before those upstream actions. Portcove registration removal only removes the registration."
           },
           {
             "title": "Use the platform-specific guide for other systems",
@@ -40021,9 +40095,6 @@
       "summary": "Play The Legend of Sword and Fairy with SDLPAL and a working copy of your original game data.",
       "project_url": "https://github.com/sdlpal/sdlpal",
       "issue_number": 1878,
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/sdlpal/sdlpal/blob/master/docs/README.md",
       "artwork": {
@@ -40059,7 +40130,10 @@
         "windows-x86-64": [
           "sdlpal-win32-mingw.zip"
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "sdw-community-sheep-dog-n-wolf-rewooled",
@@ -42760,6 +42834,18 @@
           {
             "title": "Keep an existing prepared copy",
             "instruction": "Extract the complete official OpenJK-windows-x86_64.zip into the prepared GameData folder. Select openjk_sp.x86_64.exe for single player or openjk.x86_64.exe for multiplayer, with GameData as working directory. A registration selects one player/mode; openjkded.x86_64.exe is a dedicated server, not the player. Retain all package libraries/resources. Existing registrations keep their selected player/mode, arguments, files and user/upstream runtime owner. Removing their registration preserves those files; this catalog change does not adopt or migrate them."
+          },
+          {
+            "title": "Prepare the multiplayer player",
+            "instruction": "Use a separately prepared external GameData copy with the complete official Windows x64 package and your own matching assets0.pk3 through assets3.pk3 in base. Keep the package's base and OpenJK libraries intact; do not copy old game DLLs over them. Select openjk.x86_64.exe with that GameData folder as working directory, not the single-player executable or dedicated server. This player also needs a compatible Microsoft Visual C++ v14 x64 runtime; the x86 runtime alone is insufficient. For the documented software-audio route, enter +set, s_UseOpenAL and 0 on three separate argument lines. Each line is one literal argument. The bundled legacy OpenAL/EAX DLLs are 32-bit and are not x64 dependencies for this route."
+          },
+          {
+            "title": "Keep multiplayer profiles and downloads",
+            "instruction": "Preserve the complete actual OpenJK profile, including base and each mod's directory, openjk.cfg, logs, screenshots, recorded demos and server-downloaded packages or unfinished downloads. The selected non-portable Windows build normally uses Documents/My Games/OpenJK; fs_homepath overrides, portable builds or an unavailable Documents folder can change the location. Keep the external working GameData copy and its originals too. Upstream or you replace this multiplayer runtime. Server downloads and mods are not Portcove-managed runtime updates, and existing demos, mods, saves or server compatibility are not guaranteed after replacement."
+          },
+          {
+            "title": "Choose one installation route",
+            "instruction": "A library can have only one installation or registration for this title at a time. Choose managed single player or a separately prepared external player; do not register files inside a Portcove-managed installation or output folder. Preserve your originals, complete external profile and creating runtime before changing routes, then use the existing removal choice first. Registration-only removal preserves all external files. The external multiplayer route offers reviewed registration, separate Play and preserving registration removal, not managed installation, updates, backup, rollback, migration or deletion of that copy. Existing managed single-player installations and retained registrations keep their own contracts."
           }
         ],
         "warnings": [],
@@ -50762,6 +50848,18 @@
           {
             "title": "Use the installed player",
             "instruction": "Finish Portcove setup with the installed war1gus.exe and its folder. Keep your War1gus game data and user settings backed up when applying upstream updates."
+          },
+          {
+            "title": "Keep the complete prepared runtime",
+            "instruction": "Finish extraction with upstream before registration. Keep war1gus.exe, its matching Stratagus engine, DLLs, scripts, campaigns and extraction tools together; the portable setup includes these components. Select war1gus.exe with its installed folder as working directory and leave arguments empty for the normal game. Do not select the downloaded setup program, war1tool.exe, a converter, the MIDI helper or uninstaller. The documented Windows launcher waits for its engine; Portcove supervises the selected launcher rather than adopting arbitrary replacement processes."
+          },
+          {
+            "title": "Preserve converted data and player settings",
+            "instruction": "Keep your original DOS DATA.WAR or GOG inputs and the complete actual converted-data directory. A portable-install marker can keep data in the application folder; otherwise the launcher can use Documents/Stratagus/data.War1gus. An existing local data set can also be reused. Engine preferences, logs and saves can use the application/data folder or Documents/Stratagus, and a deliberate -u option changes the user directory. Preserve the complete actual locations with the creating runtime. Upstream version checks can trigger in-place extraction or migration; back up before changing versions and do not infer compatibility with older saves or different original editions. Demo, shareware and Mac data remain outside this supported preparation."
+          },
+          {
+            "title": "Keep installation and updates upstream-owned",
+            "instruction": "Portcove records your reviewed executable, working folder and literal arguments; choose Play separately. You and upstream own setup, extraction, generated data and runtime replacement. Registration removal preserves all external files. Managed installation, updates, backups, rollback, migration and file deletion are not offered for this copy. Complete any upstream repair, extraction or replacement outside the selected Play session, then review and relink changed execution intent when needed."
           }
         ],
         "warnings": [
@@ -50809,6 +50907,18 @@
           {
             "title": "Use the installed player",
             "instruction": "Finish Portcove setup with the installed wargus.exe and its folder. Keep your Wargus game data and user settings backed up when applying upstream updates."
+          },
+          {
+            "title": "Keep the complete prepared runtime",
+            "instruction": "Finish extraction with upstream before registration. Keep wargus.exe, its matching Stratagus engine, DLLs, scripts, campaigns and extraction tools together; the portable setup includes these components. Select wargus.exe with its installed folder as working directory and leave arguments empty for the normal game. Do not select the downloaded setup program, wartool.exe, a converter, the MIDI helper or uninstaller. The documented Windows launcher waits for its engine; Portcove supervises the selected launcher rather than adopting arbitrary replacement processes."
+          },
+          {
+            "title": "Preserve converted data and player settings",
+            "instruction": "Keep your original DOS or Battle.net/GOG inputs and the complete actual converted-data directory. A portable-install marker can keep data in the application folder; otherwise the launcher can use Documents/Stratagus/data.Wargus. An existing local data set can also be reused. Engine preferences, logs and saves can use the application/data folder or Documents/Stratagus, and a deliberate -u option changes the user directory. Preserve the complete actual locations with the creating runtime. Upstream version checks can trigger in-place extraction or migration; back up before changing versions and do not infer older-save, mod or expansion compatibility."
+          },
+          {
+            "title": "Keep installation and updates upstream-owned",
+            "instruction": "Portcove records your reviewed executable, working folder and literal arguments; choose Play separately. You and upstream own setup, extraction, generated data and runtime replacement. Registration removal preserves all external files. Managed installation, updates, backups, rollback, migration and file deletion are not offered for this copy. Complete any upstream repair, extraction or replacement outside the selected Play session, then review and relink changed execution intent when needed."
           }
         ],
         "warnings": [],

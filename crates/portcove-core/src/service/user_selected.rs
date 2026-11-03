@@ -963,6 +963,21 @@ mod tests {
     }
 
     #[test]
+    fn prepared_guide_adoption_1904() {
+        assert_bound_listing_player_route("wargus-wargus", "wargus.exe", &[]);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_1905() {
+        assert_bound_listing_player_route("wargus-war1gus", "war1gus.exe", &[]);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_1849() {
+        assert_bound_listing_player_route("opencommunityedition-opence", "halo.exe", &[]);
+    }
+
+    #[test]
     fn prepared_guide_adoption_1813() {
         assert_bound_listing_player_route(
             "doukutsu-rs-doukutsu-rs",
@@ -1234,6 +1249,125 @@ mod tests {
     }
 
     #[test]
+    fn prepared_guide_adoption_2553() {
+        assert_bound_listing_player_route(
+            "3d-pinball-for-windows-space-cadet-spacecadetpinball",
+            "SpaceCadetPinball.exe",
+            &[],
+        );
+    }
+
+    #[test]
+    fn prepared_guide_adoption_2705_launcher() {
+        assert_bound_listing_player_route("re-volt-rvgl", "rvgl_launcher.exe", &[]);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_1878_external_copy_preserves_managed_offer() {
+        let id = "sdlpal-sdlpal";
+        let (temporary, mut service, probe, working) = fixture(id);
+        let executable = working.join("sdlpal.exe");
+        fs::rename(probe, &executable).unwrap();
+        service.catalog = Catalog::embedded().unwrap();
+        assert_eq!(
+            service.catalog.port(id).unwrap().adapter,
+            crate::AdapterKind::NativePortable
+        );
+        assert!(
+            service
+                .current_user_selected_definition(id)
+                .unwrap()
+                .is_none()
+        );
+        // An owned probe exercises registration, consent, relink, restart,
+        // supervision and preserving removal. No upstream program is run.
+        assert_selected_listing_lifecycle_with_arguments(
+            temporary,
+            service,
+            executable,
+            working,
+            id,
+            vec!["--record".to_owned(), "route-binding".to_owned()],
+            Some(String::new()),
+        );
+    }
+
+    #[test]
+    fn prepared_guide_adoption_2612_multiplayer_preserves_managed_sp() {
+        let id = "star-wars-jedi-knight-jedi-academy-single-player-and-multiplayer-openjk-openjo";
+        let (temporary, mut service, probe, working) = fixture(id);
+        let executable = working.join("openjk.x86_64.exe");
+        fs::rename(probe, &executable).unwrap();
+        service.catalog = Catalog::embedded().unwrap();
+        let declared = service.catalog.port(id).unwrap();
+        assert_eq!(declared.adapter, crate::AdapterKind::NativePortable);
+        assert_eq!(declared.release.provider, ReleaseSource::Github);
+        assert!(
+            service
+                .current_user_selected_definition(id)
+                .unwrap()
+                .is_none()
+        );
+        // The owned probe records the documented MP vector; it never runs
+        // OpenJK, an original, a server, or a downloaded mod. The shared
+        // lifecycle control also preserves the full current SP definition.
+        let selected = ["+set", "s_UseOpenAL", "0"];
+        let arguments = ["--record", "route-binding"]
+            .into_iter()
+            .chain(selected)
+            .map(str::to_owned)
+            .collect();
+        assert_selected_listing_lifecycle_with_arguments(
+            temporary,
+            service,
+            executable,
+            working,
+            id,
+            arguments,
+            Some(selected.join("\n")),
+        );
+    }
+
+    #[test]
+    fn prepared_guide_adoption_173_project_working_directory() {
+        let id = "earthbound-recomp";
+        let (temporary, mut service, probe, working) = fixture(id);
+        let build = working.join("build");
+        fs::create_dir(&build).unwrap();
+        let executable = build.join("EarthBoundRecomp.exe");
+        fs::rename(probe, &executable).unwrap();
+        service.catalog = Catalog::embedded().unwrap();
+        assert_eq!(
+            service.catalog.port(id).unwrap().release.provider,
+            ReleaseSource::UserPrepared
+        );
+        #[cfg(windows)]
+        assert!(
+            service
+                .current_user_selected_definition(id)
+                .unwrap()
+                .is_some()
+        );
+        // This path is a literal owned-probe argument, never an original to
+        // open. The probe binds the project CWD independently of build/exe.
+        let selected = ["C:\\Owned originals\\EarthBound USA.sfc"];
+        let arguments = ["--record", "route-binding"]
+            .into_iter()
+            .chain(selected)
+            .map(str::to_owned)
+            .collect();
+        assert_selected_listing_lifecycle_with_arguments(
+            temporary,
+            service,
+            executable,
+            working,
+            id,
+            arguments,
+            Some(selected.join("\n")),
+        );
+    }
+
+    #[test]
     fn redriver2_prepared_player_route_317() {
         assert_listing_only_player_route("driver-2-redriver2", Some(false));
     }
@@ -1456,6 +1590,15 @@ mod tests {
             }
         };
     }
+
+    prepared_player_case!(
+        prepared_guide_adoption_330_completed_game,
+        "gundam-wing-endless-duel-recomp",
+        [
+            "--no-launcher",
+            "C:\\Owned originals\\Endless Duel Japan.sfc"
+        ]
+    );
 
     prepared_player_case!(
         cps_route_2769,
