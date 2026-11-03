@@ -1002,7 +1002,7 @@ impl PortcoveService {
                     let expected_size = artifact.size;
                     let worker_payload = payload.clone();
                     let (returned_stage, extracted) = tokio::task::spawn_blocking(move || {
-                        let result = crate::archive::extract_archive_with_checkpoint(
+                        let result = crate::archive::extract_download_archive_with_checkpoint(
                             &source,
                             &worker_payload,
                             &name,

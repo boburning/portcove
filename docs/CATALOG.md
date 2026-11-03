@@ -302,6 +302,11 @@ suitability check still rejects known foreign processors, platforms, supporting
 files and equally plausible variants. The existing channel and artifact-integrity
 rules remain in force. A missing digest can allow an explicitly unverified
 non-owning download, but cannot authenticate a managed installation.
+Generic downloaded setup offers optional checked ZIP, tar.gz/tgz and bounded
+7z extraction into a new user-owned folder. Supported 7z codecs and resource
+limits are owned by [the archive boundary](ARCHITECTURE.md#discovery-listings-and-user-owned-setup).
+This extraction support does not admit 7z to managed native package selection;
+that route still requires its own reader-capability and per-title fitting work.
 
 Review the actual linked or vendored components and their attributable grants,
 including packaged fonts. A parent's license, a published archive or resemblance

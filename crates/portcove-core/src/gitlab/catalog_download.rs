@@ -428,6 +428,7 @@ impl GitlabReleaseProvider {
             download_url: link.url.clone(),
             sha256: Some(file.file_sha256.to_ascii_lowercase()),
             can_extract: lower.ends_with(".zip")
+                || lower.ends_with(".7z")
                 || lower.ends_with(".tar.gz")
                 || lower.ends_with(".tgz"),
         })
