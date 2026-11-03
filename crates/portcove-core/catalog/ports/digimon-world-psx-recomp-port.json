@@ -21,7 +21,9 @@
     "manual_setup": {
       "help_url": "https://gitlab.com/ethan4love/psx-recomp-port/-/blob/978ea38eb594354724772ba611a22372e1809476/README.md",
       "warnings": [
-        "The official download is an upstream setup kit, not a ready game. Its own wizard generates and rebuilds the runtime from your disc. Keep the entire prepared project and originals; Portcove does not own its compiler, caches or runtime updates."
+        "The official download is an upstream setup kit, not a ready game. Its own wizard generates and rebuilds the runtime from your disc. Keep the entire prepared project and originals; Portcove does not own its compiler, caches or runtime updates.",
+        "Ordinary memory-card saves are the long-term progress route; upstream warns that save states and rewind depend on matching mods. Retain the old working copy until progress works after an update.",
+        "Removing registration preserves every external file; this route does not provide managed Update, Backup or Rollback."
       ],
       "steps": [
         {
@@ -31,7 +33,9 @@
         {
           "title": "Register the finished game player",
           "instruction": "After upstream Generate & rebuild succeeds, select build-release/Digimon_World_Recompiled.exe inside that project, rather than the root setup-forwarding executable or the Play batch file. Set the working directory to the project root. In Arguments, enter --game, game.toml and --launcher on three separate lines, one argument per line, matching the reviewed upstream product handoff. Review and save these launch details, then choose Play explicitly."
-        },
+        }
+      ],
+      "references": [
         {
           "title": "Keep saves and upstream updates together",
           "instruction": "You or upstream update and regenerate this external project. Close the game and preserve the complete prepared folder, including saves/, mods/, game.toml and build-release/, as well as any originals or BIOS stored elsewhere. Ordinary memory-card saves are the long-term progress route; upstream warns that save states and rewind depend on matching mods. Retain the old working copy until progress works after an update. Removing registration preserves every external file; this route does not provide managed Update, Backup or Rollback."

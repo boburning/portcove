@@ -19,7 +19,10 @@
     },
     "manual_setup": {
       "help_url": "https://github.com/DerrickGold/ar-recomp/blob/93c2786af6012325cc00c414c7bff07aa22ce672/README.md",
-      "warnings": [],
+      "warnings": [
+        "Close the game and back up its entire saves directory before using the new Builder’s Update existing installation to rebuild that game folder.",
+        "Moving between portable and per-user storage does not transfer data automatically. Keep the working copy recoverable. External registration leaves every file untouched; Portcove supplies no managed Update, Backup or Rollback."
+      ],
       "steps": [
         {
           "title": "Prepare the game with the upstream Builder",
@@ -28,7 +31,9 @@
         {
           "title": "Add the completed game",
           "instruction": "The default output is ActRaiserRecomp beside the Builder. Choose the completed game executable in that output folder in Portcove, with its folder as the working directory. Keep its DLLs, user-rom.sfc, tools, assets, settings and saves together. Save launch details, then choose Play separately. If application control blocks a builder tool, retain its error and use upstream/administrator guidance."
-        },
+        }
+      ],
+      "references": [
         {
           "title": "Back up and rebuild to update",
           "instruction": "You or upstream own the generated player and updates. Close the game and back up its entire saves directory before using the new Builder’s Update existing installation to rebuild that game folder. Upstream migrates older save.srm/save.ini or actraiser.srm to Slot 1 and keeps originals under saves/legacy-layout. Use Import previous installation for older utils layouts. Moving between portable and per-user storage does not transfer data automatically. Keep the working copy recoverable. External registration leaves every file untouched; Portcove supplies no managed Update, Backup or Rollback."

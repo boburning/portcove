@@ -35,14 +35,16 @@
         {
           "title": "Review launch details, then choose Play",
           "instruction": "Review and consent to the selected game executable, working folder and launch arguments, then choose Play separately. You and the project manage setup, version changes and recovery. Removing the registration leaves all external files in place. Portcove does not offer updates, backups, rollback, migration or deletion for this copy. Before changing versions, close the game and all companions and keep the complete working copy and every data location. Review and select the executable again if its files change."
-        },
-        {
-          "title": "Keep the working game and every data location",
-          "instruction": "Keep the entire creating project, original ISO/extracted data, generated C/image and matching native runtime. Saves and mods are relative to the chosen working directory; PS2_SAVE_DIR overrides saves. ac5_settings.ini, ac5_pipelines.cache and ac5_pipelines.keys live beside ac5.exe. These are this runtime’s memory-card format, explicitly not PCSX2 cards. Preserve every save, setting, mod, Lua/native plugin, cache, log, backup and custom root with the creating version. Apache-2.0 project code and separate ImGui/Lua/dependency notices do not license your original game or arbitrary mods."
         }
       ],
       "warnings": [
         "Use only a copy and components you are permitted to use. Preserve originals, required player files, saves, settings, mods, caches, logs, backups and custom locations; another executable may share them. Source inspection and test fixtures do not confirm gameplay, real saves or behavior in the installed app, or establish Supported status or protected acceptance."
+      ],
+      "references": [
+        {
+          "title": "Keep the working game and every data location",
+          "instruction": "Keep the entire creating project, original ISO/extracted data, generated C/image and matching native runtime. Saves and mods are relative to the chosen working directory; PS2_SAVE_DIR overrides saves. ac5_settings.ini, ac5_pipelines.cache and ac5_pipelines.keys live beside ac5.exe. These are this runtime’s memory-card format, explicitly not PCSX2 cards. Preserve every save, setting, mod, Lua/native plugin, cache, log, backup and custom root with the creating version. Apache-2.0 project code and separate ImGui/Lua/dependency notices do not license your original game or arbitrary mods."
+        }
       ]
     }
   }

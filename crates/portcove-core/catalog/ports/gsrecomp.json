@@ -19,7 +19,10 @@
     },
     "manual_setup": {
       "help_url": "https://github.com/Shmargus/GSRecomp/blob/c72ef00dad078f6a714258d3e157ee6ea3d4a4ab/README.md",
-      "warnings": [],
+      "warnings": [
+        "Close both games and retain your working folder before updating.",
+        "Runtime replacement does not rewind saves or guarantee savestate compatibility. Keep original-containing data private. External registration preserves every file and supplies no managed Backup or Rollback."
+      ],
       "steps": [
         {
           "title": "Prepare either game with the shared launcher",
@@ -28,7 +31,9 @@
         {
           "title": "Register the collection launcher",
           "instruction": "Choose the shared launcher and its folder as the working directory in Portcove. Save launch details, then choose Play separately. Keep the complete collection together, including the per-game builders and generated output. This remains one collection identity for both games. Upstream reports public-testing bugs; finishing preparation does not confirm a complete playthrough."
-        },
+        }
+      ],
+      "references": [
         {
           "title": "Keep current data and rebuild after updates",
           "instruction": "You or upstream own this external player. The launcher offers a newer release download; it does not make this a managed Portcove Update. Close both games and retain your working folder before updating. Back up ROMs, Saves (including Saves/Imported), Controls, Music mods, and the per-game settings under games, plus any custom paths. External save imports leave their originals in place and preserve conflicts under Saves/Imported. Legacy progress already inside this collection’s ROMs folder can move into Saves after verified copy or conflict preservation. A new version can rebuild game code from your ROM. Runtime replacement does not rewind saves or guarantee savestate compatibility. Keep original-containing data private. External registration preserves every file and supplies no managed Backup or Rollback."

@@ -26,14 +26,19 @@
         {
           "title": "Add the prepared player",
           "instruction": "On Windows, select the downloaded x86_64 doukutsu-rs executable and its containing game folder as the working directory. Save launch details, then choose Play separately. Keep its matching data folder in place. Linux publishes a standalone x86_64 ELF, and the Mac downloads contain separate Intel or Apple Silicon app bundles; follow the linked platform instructions for those instead of treating the Windows download as an installer."
-        },
+        }
+      ],
+      "warnings": [
+        "The 2026 Steam remaster is not established by this guide, and remastered saves are incompatible with original-version saves.",
+        "Its Advanced menu can open the user-data folder; keep a separate backup of it, including settings.json and saves, before changing versions or editions. Portcove does not back up, roll back or delete this external game/data tree."
+      ],
+      "help_url": "https://github.com/doukutsu-rs/doukutsu-rs/blob/8d85b0f69fd5a293a32f5d632f83ce6a0759cf7c/README.md",
+      "references": [
         {
           "title": "Keep the chosen edition and user data",
           "instruction": "You own updates to this external copy. Prepare another version separately and keep your current player, original data and saves until it works. The engine normally uses the operating system’s doukutsu-rs user-data folder, or a sibling user folder in portable mode. Its Advanced menu can open the user-data folder; keep a separate backup of it, including settings.json and saves, before changing versions or editions. Portcove does not back up, roll back or delete this external game/data tree."
         }
-      ],
-      "warnings": [],
-      "help_url": "https://github.com/doukutsu-rs/doukutsu-rs/blob/8d85b0f69fd5a293a32f5d632f83ce6a0759cf7c/README.md"
+      ]
     },
     "download_asset_hints": {
       "windows-x86-64": ["doukutsu-rs_windows_", ".x86_64.exe"],

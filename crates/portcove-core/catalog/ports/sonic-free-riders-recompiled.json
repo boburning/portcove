@@ -43,16 +43,18 @@
         {
           "title": "Keep upstream maintenance outside the attached session",
           "instruction": "The public launcher owns game environment, child lifetime and return/error behavior. Upstream and the user own preparation and runtime replacement. Preserve the full old copy, matching runtime/shader tools and all data; close actual player and companions before replacement and review changed selected bytes."
-        },
-        {
-          "title": "Keep your working game and every data folder it uses",
-          "instruction": "Keep settings.ini, save/, game.log, game/, pipeline-cache, mods and every custom root. The configured save directory may be external or relative to the launcher; retain the effective path and profile name because changing that name changes offline XUID/save identity. Saves include SfrAllData.sav and sidecars; achievements.txt lives with the player saves. Preserve optional local model references/imports and all shader caches, backups and temporary files with the creating runtime."
         }
       ],
       "warnings": [
         "Use only a copy and components you are permitted to use. Before changing versions, keep a copy of the complete working game, original files and every profile, save, cache, mod, backup, temporary file and custom data location. Another executable may use the same data. Portcove does not offer updates, backups, rollback, data migration or deletion for these external files.",
         "GPL-3.0-or-later project code excludes SEGA game code/data. Package THIRD_PARTY names ONNX MIT and MediaPipe model Apache2 components and associated licenses. No Kinect patch code/files are included according to upstream. Conditional independently permitted copy; no inherited whole-game grant.",
         "The player targets Windows x64 with AVX and D3D12 or Vulkan1.2. Keyboard and controller can be used without Kinect. This review did not confirm camera, Kinect, VRM or network modes, native gameplay or real saves."
+      ],
+      "references": [
+        {
+          "title": "Keep your working game and every data folder it uses",
+          "instruction": "Keep settings.ini, save/, game.log, game/, pipeline-cache, mods and every custom root. The configured save directory may be external or relative to the launcher; retain the effective path and profile name because changing that name changes offline XUID/save identity. Saves include SfrAllData.sav and sidecars; achievements.txt lives with the player saves. Preserve optional local model references/imports and all shader caches, backups and temporary files with the creating runtime."
+        }
       ]
     },
     "download_block_reason": "Fresh acquisition of the Free Riders compiled game translations remains held: the selected title/package notices exclude those generated original-derived components from the project grant. Resume with applicable permission for that exact component or a reviewed compatible package resolving it. Independently permitted existing-copy registration does not clear this acquisition hold."

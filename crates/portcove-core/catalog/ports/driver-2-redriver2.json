@@ -40,14 +40,19 @@
         {
           "title": "Add the prepared player, then choose Play",
           "instruction": "Register REDRIVER2.exe or the Linux REDRIVER2 executable with its complete prepared folder as the working directory. Keep the upstream Launcher for its setup and configuration functions. Read-only discovery only suggests a launch target; saving launch details and choosing Play remain separate choices."
-        },
+        }
+      ],
+      "warnings": [
+        "Back up a working prepared folder before allowing setup to replace its contents.",
+        "Profiles live under USERPROFILE/.driver2 on Windows or HOME/.driver2 on Linux, including config.dat and progress.dat; they are not isolated by choosing another player folder. Preserve that actual profile too. Portcove registration provides no managed Update, Backup or Rollback, and removing it leaves every external file untouched."
+      ],
+      "help_url": "https://github.com/OpenDriver2/REDRIVER2/wiki/Installation-instructions",
+      "references": [
         {
           "title": "Preserve your prepared copy and actual profile",
           "instruction": "You or upstream provide runtime updates. Keep the whole prepared folder, config.ini, cutscene_recorder.ini, original images, generated media, mods and any custom data-folder paths before trying a new version separately. Profiles live under USERPROFILE/.driver2 on Windows or HOME/.driver2 on Linux, including config.dat and progress.dat; they are not isolated by choosing another player folder. Preserve that actual profile too. Portcove registration provides no managed Update, Backup or Rollback, and removing it leaves every external file untouched."
         }
-      ],
-      "warnings": [],
-      "help_url": "https://github.com/OpenDriver2/REDRIVER2/wiki/Installation-instructions"
+      ]
     }
   }
 }

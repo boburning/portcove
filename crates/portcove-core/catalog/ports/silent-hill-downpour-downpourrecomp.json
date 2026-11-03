@@ -39,7 +39,15 @@
         {
           "title": "Review launch details, then choose Play",
           "instruction": "Review the selected game executable, working folder and launch arguments, then agree to use them. Choose Play separately when you are ready. Adding this copy does not prepare, update or replace its external files. Removing its registration leaves all external files in place. Before changing versions, close the game and its companion programs and keep the working copy and all data. Review and select the changed executable before playing again."
-        },
+        }
+      ],
+      "warnings": [
+        "Use only a copy and components you are permitted to use. Before changing versions, keep a copy of the complete working game, original files and every profile, save, cache, mod, backup, temporary file and custom data location. Another executable may use the same data. Portcove does not offer updates, backups, rollback, data migration or deletion for these external files.",
+        "BSD-3-Clause host source explicitly excludes generated original-derived code. README also says do not distribute game executable/data or any binary linking game data. This guide is conditional on an independently permitted prepared copy; that source grant does not authorize fresh acquisition/distribution of excluded generated content. Permission scope for that exact operation remains with upstream/rightsholder.",
+        "The publisher’s v1.1.8 hotfix removes the missing Agility dependency in 1.1.7. Matching package bytes and source were inspected but not run. Native-device, gameplay and save behaviour have not been tested by this review.",
+        "Keep updates and replacement outside the attached session; retain the full old working copy and all data and review/relink changed selected bytes. No Portcove backup or recovery guarantee is inferred."
+      ],
+      "references": [
         {
           "title": "Keep upstream maintenance outside the attached session",
           "instruction": "PlayDownpour.exe offers user-requested upstream updates and temporary backup behavior. Keep updates and replacement outside the attached session; retain the full old working copy and all data and review/relink changed selected bytes. No Portcove backup or recovery guarantee is inferred."
@@ -48,11 +56,6 @@
           "title": "Keep your working game and every data folder it uses",
           "instruction": "The inspected title puts default user data in user/ and default cache in cache/ beside the executable; explicit user/cache overrides remain effective. Keep downpour.toml, original assets/default.xex, title update, profiles, saves, achievements, shader caches, logs, mods, backups, temporary files and every external custom root with the creating runtime."
         }
-      ],
-      "warnings": [
-        "Use only a copy and components you are permitted to use. Before changing versions, keep a copy of the complete working game, original files and every profile, save, cache, mod, backup, temporary file and custom data location. Another executable may use the same data. Portcove does not offer updates, backups, rollback, data migration or deletion for these external files.",
-        "BSD-3-Clause host source explicitly excludes generated original-derived code. README also says do not distribute game executable/data or any binary linking game data. This guide is conditional on an independently permitted prepared copy; that source grant does not authorize fresh acquisition/distribution of excluded generated content. Permission scope for that exact operation remains with upstream/rightsholder.",
-        "The publisher’s v1.1.8 hotfix removes the missing Agility dependency in 1.1.7. Matching package bytes and source were inspected but not run. Native-device, gameplay and save behaviour have not been tested by this review."
       ]
     },
     "download_block_reason": "Fresh acquisition of a derived Downpour player remains held: the selected upstream README expressly excludes generated game code from its BSD grant and prohibits distribution of the game executable or a binary linked against game data. Resume with applicable permission for that exact derived component or a reviewed compatible package resolving it. Independently permitted existing-copy registration does not clear this acquisition hold."
