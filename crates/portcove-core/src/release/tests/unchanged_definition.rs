@@ -1955,6 +1955,7 @@ async fn assert_native_engine_adoption_selection(id: &str) {
         "1.5.5" => "1.5.6",
         "v0.9.7" => "v0.9.8",
         "v0.82.1" => "v0.82.2",
+        "v3.0.2025.0616" => "v3.0.2025.0617",
         "latest" => "latest",
         _ => panic!("unreviewed source case"),
     };
@@ -2070,6 +2071,11 @@ async fn assert_native_engine_adoption_selection(id: &str) {
         definition,
         "{id}: provider observations grant no qualification"
     );
+}
+
+#[tokio::test]
+async fn native_engine_selection_1878() {
+    assert_native_engine_adoption_selection("sdlpal-sdlpal").await;
 }
 
 #[tokio::test]

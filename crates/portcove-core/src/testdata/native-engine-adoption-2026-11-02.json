@@ -1032,6 +1032,88 @@
       ],
       "archive_sha256": "a88727208476ac4b3f2f3f4d182cd63b9a77c33d33171a66feda8084a331e385",
       "scope": "Observed public metadata and authenticated archive names/layout only; fixture member bytes, successor metadata and lifecycle probes are inert/synthetic, not original or upstream game execution"
+    },
+    {
+      "port_id": "sdlpal-sdlpal",
+      "issue": 1878,
+      "repository": "sdlpal/sdlpal",
+      "channel": "stable",
+      "release": {
+        "id": 225417306,
+        "tag_name": "v3.0.2025.0616",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2025-06-15T20:16:16Z",
+        "assets": [
+          {
+            "id": 264188592,
+            "name": "SDLPal-366bc36-x86_64.AppImage",
+            "size": 10900672,
+            "digest": "sha256:089796f9eddc032da280505fd2a2aca5f9f4d823a84499eb7693064d123dc5fe",
+            "browser_download_url": "https://github.com/sdlpal/sdlpal/releases/download/v3.0.2025.0616/SDLPal-366bc36-x86_64.AppImage"
+          },
+          {
+            "id": 264188634,
+            "name": "sdlpal-emscripten.zip",
+            "size": 2958395,
+            "digest": "sha256:aeae550aabe13c8d6fe1386ec7b802ef1ecb3952ffaeb854690149a8e0c80814",
+            "browser_download_url": "https://github.com/sdlpal/sdlpal/releases/download/v3.0.2025.0616/sdlpal-emscripten.zip"
+          },
+          {
+            "id": 264188422,
+            "name": "sdlpal-macos.dmg",
+            "size": 7842359,
+            "digest": "sha256:fcb74fb5290a52a6291b3fc855cd44ae147a54dd1d679a0db90c55faddeaa268",
+            "browser_download_url": "https://github.com/sdlpal/sdlpal/releases/download/v3.0.2025.0616/sdlpal-macos.dmg"
+          },
+          {
+            "id": 264188435,
+            "name": "sdlpal-unsigned.ipa",
+            "size": 5288977,
+            "digest": "sha256:de3d3b2f777d4e181dae4c48b32c260a1c35a346fb8839973c16dd08d30f4eb6",
+            "browser_download_url": "https://github.com/sdlpal/sdlpal/releases/download/v3.0.2025.0616/sdlpal-unsigned.ipa"
+          },
+          {
+            "id": 264188556,
+            "name": "sdlpal-win32-mingw.zip",
+            "size": 2683645,
+            "digest": "sha256:375f04ebe1f3c68080dc3827254b41bc85d9475b4f3b38c3e913fcfaddabed0d",
+            "browser_download_url": "https://github.com/sdlpal/sdlpal/releases/download/v3.0.2025.0616/sdlpal-win32-mingw.zip"
+          },
+          {
+            "id": 264188672,
+            "name": "sdlpal-win32-msvc.zip",
+            "size": 2913960,
+            "digest": "sha256:736d4a1cf0cd6c0671f3635b98b56dca7ec739ea5cb5eb459f3646810b03c7ff",
+            "browser_download_url": "https://github.com/sdlpal/sdlpal/releases/download/v3.0.2025.0616/sdlpal-win32-msvc.zip"
+          },
+          {
+            "id": 264188786,
+            "name": "sdlpal.apk",
+            "size": 10974245,
+            "digest": "sha256:e231033c3de51c07e33c98c4cd15825a912487879f9a414857651afc3f1ec8b4",
+            "browser_download_url": "https://github.com/sdlpal/sdlpal/releases/download/v3.0.2025.0616/sdlpal.apk"
+          }
+        ]
+      },
+      "selected_asset": "sdlpal-win32-mingw.zip",
+      "runtime_folder": "",
+      "selected_executable": "sdlpal.exe",
+      "immutable_members": ["sdlpal.exe"],
+      "archive_sha256": "375f04ebe1f3c68080dc3827254b41bc85d9475b4f3b38c3e913fcfaddabed0d",
+      "persistent_probes": [
+        "sdlpal.cfg",
+        "data/word.dat",
+        "data/sdlpal.log",
+        "data/sdlpal.glslp",
+        "saves/1.rpg",
+        "saves/20261103000000000.bmp"
+      ],
+      "scope": "Publisher metadata refreshed for exact selected seven-asset release; archive member/PE observation reused from unchanged authenticated asset in classic-engine-managed-and-upstream-routes-2026-10-26.json. Test payloads are inert, originals synthetic; no upstream/game execution or populated-save compatibility.",
+      "persistent_contents": {
+        "sdlpal.cfg": "GamePath=./data/\nSavePath=./saves/\nLaunchSetting=0\nEnableGLSL=0\nLogFileName=sdlpal.log\n"
+      },
+      "exercise_restore": true
     }
   ]
 }

@@ -3099,17 +3099,29 @@ mod tests {
             .await
             .unwrap();
         let first_root = first.path.join(folder);
-        let probes = port
-            .persistent_paths
-            .iter()
-            .map(|path| {
-                if path.ends_with(".pk4") || path.ends_with(".pk3") {
-                    path.clone()
-                } else {
-                    format!("{path}/owned-original.pk3")
-                }
-            })
-            .collect::<Vec<_>>();
+        let probes = if let Some(probes) = case["persistent_probes"].as_array() {
+            probes
+                .iter()
+                .map(|path| path.as_str().unwrap().to_owned())
+                .collect::<Vec<_>>()
+        } else {
+            port.persistent_paths
+                .iter()
+                .map(|path| {
+                    if path.ends_with(".pk4") || path.ends_with(".pk3") {
+                        path.clone()
+                    } else {
+                        format!("{path}/owned-original.pk3")
+                    }
+                })
+                .collect::<Vec<_>>()
+        };
+        let contents = |path: &str| {
+            case["persistent_contents"][path]
+                .as_str()
+                .map(str::as_bytes)
+                .unwrap_or(b"owned synthetic original before Play")
+        };
         for path in &probes {
             let destination = first_root.join(path);
             assert!(
@@ -3117,7 +3129,7 @@ mod tests {
                 "{id}: original must be absent from runtime package: {path}"
             );
             fs::create_dir_all(destination.parent().unwrap()).unwrap();
-            fs::write(destination, b"owned synthetic original before Play").unwrap();
+            fs::write(destination, contents(path)).unwrap();
         }
         let spec = service
             .prepare_launch_for_install(&port, &first, None, None)
@@ -3128,7 +3140,7 @@ mod tests {
         for path in &probes {
             assert_eq!(
                 fs::read(library.user_dir(id).join(path)).unwrap(),
-                b"owned synthetic original before Play",
+                contents(path),
                 "{id}: {path}"
             );
         }
@@ -3136,9 +3148,52 @@ mod tests {
         for path in &probes {
             assert_eq!(
                 fs::read(backup.path.join("data").join(path)).unwrap(),
-                b"owned synthetic original before Play",
+                contents(path),
                 "{id}: backup {path}"
             );
+        }
+        if case["exercise_restore"] == true {
+            for path in &probes {
+                fs::write(first_root.join(path), b"later owned data").unwrap();
+            }
+            let preview = service
+                .preview_backup_action(id, &backup.id, BackupAction::Restore)
+                .unwrap();
+            assert!(preview.safety_backup_will_be_created, "{id}");
+            assert!(
+                service
+                    .restore_backup(id, &backup.id, "invalid consent")
+                    .is_err()
+            );
+            for path in &probes {
+                assert_eq!(
+                    fs::read(first_root.join(path)).unwrap(),
+                    b"later owned data"
+                );
+            }
+            let consent = service
+                .authorize_backup_action(
+                    id,
+                    &backup.id,
+                    BackupAction::Restore,
+                    &preview.preview_sha256,
+                )
+                .unwrap();
+            let restored = service
+                .restore_backup(id, &backup.id, &consent.token)
+                .unwrap();
+            let safety = restored.safety_backup.unwrap();
+            for path in &probes {
+                assert_eq!(
+                    fs::read(safety.path.join("data").join(path)).unwrap(),
+                    b"later owned data"
+                );
+                assert_eq!(fs::read(first_root.join(path)).unwrap(), contents(path));
+                assert_eq!(
+                    fs::read(library.user_dir(id).join(path)).unwrap(),
+                    contents(path)
+                );
+            }
         }
         *provider.0.lock().unwrap() = release("fixture-N+1", 2);
         assert!(
@@ -3149,7 +3204,7 @@ mod tests {
         for path in &probes {
             assert_eq!(
                 fs::read(second.path.join(folder).join(path)).unwrap(),
-                b"owned synthetic original before Play",
+                contents(path),
                 "{id}: update {path}"
             );
         }
@@ -3190,7 +3245,7 @@ mod tests {
         for path in &probes {
             assert_eq!(
                 fs::read(library.user_dir(id).join(path)).unwrap(),
-                b"owned synthetic original before Play",
+                contents(path),
                 "{id}: removal {path}"
             );
         }
@@ -3202,6 +3257,11 @@ mod tests {
             fs::read(temporary.path().join("retained-unknown-player-addition")).unwrap(),
             b"keep for review"
         );
+    }
+
+    #[tokio::test]
+    async fn native_engine_adoption_1878() {
+        assert_native_engine_adoption_lifecycle("sdlpal-sdlpal").await;
     }
 
     #[tokio::test]

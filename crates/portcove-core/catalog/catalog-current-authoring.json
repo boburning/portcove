@@ -22901,6 +22901,30 @@
         "saves_and_settings": "external-user-owned",
         "manual_preparation": "This is an early upstream prototype. Prepare it using upstream’s own instructions and your own original, then select the executable. You manage its runtime and player data. Portcove does not build or repair the engine. Existing Portcove-built installations retain their original contracts.",
         "original_game_title": "EarthBound",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Use your prepared upstream copy",
+              "instruction": "Prepare your own permitted Windows native copy using upstream's instructions and your own original outside Portcove. The documented build target is EarthBoundRecomp; its Windows executable is EarthBoundRecomp.exe. Keep the complete source/build working copy and matching SDL/framework dependencies together. Portcove does not run the Python generation pipeline, compile the game or repair this prototype. No official binary download is required for registration."
+            },
+            {
+              "title": "Keep the project working folder and original argument",
+              "instruction": "Select the completed build/EarthBoundRecomp.exe from your prepared Windows copy and use the project root as working directory, matching upstream's documented invocation. Enter the actual absolute path to your own EarthBound USA .sfc as one argument line, without shell quotes. The documented headerless original is 3,145,728 bytes with SHA-256 a8fe2226728002786d68c27ddddf0b90a894db52e4dfe268fdf72a68cae5f02e. The upstream runtime checks its original input; Portcove records the argument but does not import or authenticate that file."
+            },
+            {
+              "title": "Preserve the complete creating environment",
+              "instruction": "Keep the original and its location, complete project/build tree, private generated code, saves folder, SRAM/save-state files, config.ini, config.local.ini, rom.cfg and diagnostic output with the creating runtime. Preserve separately configured or original-adjacent files too. The documented host reads configuration and creates saves relative to its working folder, and can automatically load and save slot zero when autosave is enabled. Upstream or you own rebuilds and runtime replacement; older save states, settings and generated code are not guaranteed compatible with another build."
+            },
+            {
+              "title": "Review registration and choose Play separately",
+              "instruction": "Portcove records your selected native executable, working folder and literal arguments after review; Play is separate. Only the selected process is supervised. Removing the registration preserves all external files. Managed installation, generation, updates, backup, rollback, migration and deletion are not offered for this copy. Existing Portcove-built installations retain their original installation, source, backup and recovery contracts."
+            }
+          ],
+          "warnings": [
+            "Upstream remains an early, interpreter-first prototype with title-screen/file-select bring-up evidence. Registration does not establish full static recompilation, completed gameplay or populated save compatibility."
+          ],
+          "help_url": "https://github.com/nickclyde/EarthBoundRecomp/blob/fe1155dc26ffc40df36a8003dd0e639e17af3349/README.md"
+        },
         "artwork": {
           "game_id": 2899,
           "cover_id": 320119,
@@ -23204,8 +23228,32 @@
         "installation_method": "user-prepared-runtime",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Use upstream’s ROM-free setup pack and your own Japanese original. Its supported launcher performs generation and compilation. Select that launcher or its prepared game executable; upstream or you manage replacement and player data. Portcove only registers and launches it. Existing Portcove-built installations retain their original contracts.",
+        "manual_preparation": "For the documented upstream v0.1.12 route, finish Generate & Build outside Portcove using your own Japanese original (SHA-256 dd94308d822636c6ddf73c5e2644c84f2eb8fb4d9201150fc5f37d44d6f423f1; CRC32 c0aecdca). The downloaded setup host is not the prepared game. Select the completed build's GundamWingEndlessDuelSNESRecomp.exe, normally under build, with its containing folder as working directory. Supply two literal argument lines: --no-launcher, then the actual absolute path to your Japanese .sfc file, without shell quotes. Preserve the complete project/build tree, original, private generated code, mods, saves and save states, working-directory or parent config.ini, executable-adjacent keybinds.ini and separately configured upstream profiles with their creating runtime. Finish rebuilds and updates upstream outside the selected Play session. Portcove records reviewed execution intent and supervises only the selected process; Play is separate and registration removal preserves all external files. Managed installation, rebuild, update, backup, rollback, migration and deletion are not offered for this external copy. Existing registrations retain their supported arguments; older Portcove-built installations retain their original installation, source, backup and recovery contracts. No older-save, mod or save-state compatibility is inferred.",
         "original_game_title": "Shin Kidou Senki Gundam W: Endless Duel",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Finish the upstream build first",
+              "instruction": "The v0.1.12 release is a ROM-free setup pack, not the prepared game. Use upstream's Generate & Build flow separately with your own Japanese original: SHA-256 dd94308d822636c6ddf73c5e2644c84f2eb8fb4d9201150fc5f37d44d6f423f1, CRC32 c0aecdca. Upstream generates private C code and builds the game locally. Keep the original, generated code, source tree and build tools private and unchanged elsewhere. Portcove does not run that setup or authenticate your original."
+            },
+            {
+              "title": "Choose the prepared game",
+              "instruction": "Select the completed build's GundamWingEndlessDuelSNESRecomp.exe, normally under build, with the folder containing that executable as its working folder. Do not select the downloaded setup host just because it has the same name. For the documented v0.1.12 game, enter --no-launcher on the first argument line and the actual absolute path to your Japanese .sfc file on the second. Each line is one argument; do not add shell quotes. This route opens the prepared game without the Generate & Build launcher. Keep existing working registrations on their own supported arguments."
+            },
+            {
+              "title": "Preserve the complete working copy",
+              "instruction": "Keep the complete project and build tree, original, generated files, mods, settings, saves and save states with their creating runtime. The game uses config.ini in its working folder, falling back to ../config.ini; keybinds.ini is beside the executable. Preserve the parent project as well as the build folder, plus any separately configured upstream launcher/profile locations. Rebuilds, toolchain changes and updates belong upstream and must finish outside the selected Play session. Runtime replacement does not establish old-save, mod or save-state compatibility."
+            },
+            {
+              "title": "Add the game and choose Play separately",
+              "instruction": "Portcove records your selected native executable, working folder and literal arguments after review; Play is a separate action. You and upstream own the runtime, originals and player data. Removing the registration preserves those files. Portcove does not install, rebuild, update, back up, roll back, migrate or delete this external copy, and it does not adopt a replacement process launched by upstream. Older Portcove-built installations keep their retained installation, source, backup and recovery contracts."
+            }
+          ],
+          "warnings": [
+            "The setup host can compile and relaunch into another process. Finish that upstream preparation first and select the completed game for this route."
+          ],
+          "help_url": "https://github.com/TechnicallyComputers/GundamWingEndlessDuelSNESRecomp/blob/f2d774e05fbf6fc04642992f8d57a1305f077334/README.md"
+        },
         "artwork": {
           "game_id": 42464,
           "cover_id": 140284,
@@ -33333,6 +33381,77 @@
       }
     },
     {
+      "id": "sdlpal-sdlpal",
+      "name": "Legend of Sword and Fairy / SDLPal (sdlpal)",
+      "summary": "Play The Legend of Sword and Fairy with SDLPAL and a working copy of your original game data.",
+      "project_url": "https://github.com/sdlpal/sdlpal",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "github",
+        "repository": "sdlpal/sdlpal",
+        "asset_hints": {
+          "windows-x86-64": [
+            "sdlpal-win32-mingw.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "sdlpal.exe"
+        ]
+      },
+      "persistent_paths": [
+        "sdlpal.cfg",
+        "data",
+        "saves"
+      ],
+      "windows_runtime_path_policy": "printable-ascii-max-path",
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "This installs the official 32-bit MinGW runtime for 64-bit Windows; manual original-data preparation is still required before Play. Open its runtime folder, create data and saves folders beside sdlpal.exe, and copy the resource files from your own licensed DOS or Windows 95 game into data. Keep one matching edition together, including its MKF/DAT resources and optional edition-specific audio/video directories; never replace the supplied executable with an original game executable. SDLPal detects the edition from those resources; do not mix DOS and Windows save formats. Create sdlpal.cfg beside sdlpal.exe with separate lines GamePath=./data/, SavePath=./saves/, LaunchSetting=0, and EnableGLSL=0. Both paths must be present before the first session and stay relative after changing settings. The working directory is the folder containing sdlpal.exe; no launch arguments are needed. Do not browse to an absolute data path in the Windows dialog. Saves and screenshots go in saves; configuration stays in sdlpal.cfg. Optional LogFileName=sdlpal.log writes inside data. Keep optional shader files and their generated sdlpal.glslp inside data, with relative paths. Portcove preserves these three declared locations through compatible runtime replacement, backup, restore and rollback, including files prepared before first Play. A runtime rollback carries current data; it does not rewind progress or establish backward-save compatibility. Keep original media separately and retain a recoverable backup before changing edition or engine. Use a short library path with plain ASCII characters. Installation does not verify your original files or certify readiness or gameplay. Portcove does not create the configuration or import originals automatically, and Play does not enforce a preparation marker. Custom absolute paths, external logs/shaders, mods or other layouts should keep the existing upstream-owned registration and their actual data backups. Existing external registrations retain their creating contract and files; this managed offer does not adopt or migrate them.",
+        "original_game_title": "The Legend of Sword and Fairy",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare a working copy of your game data",
+              "instruction": "Keep your originals safe and make a separate working copy of the matching DOS or Windows game-data folder. Extract the Windows MinGW ZIP’s sdlpal.exe into that working copy."
+            },
+            {
+              "title": "Keep the player and save folder together",
+              "instruction": "Finish setup with that sdlpal.exe and the same folder as its working directory. On first Play, keep SDLPAL’s game folder pointed at this copy. This keeps the initial save folder and later launches at the same location."
+            },
+            {
+              "title": "Preserve your saved games",
+              "instruction": "Back up that working folder, including its .rpg saves and sdlpal.cfg, when applying upstream updates. For a separate runtime folder, explicitly configure an absolute SavePath before your first game session; changing GamePath alone in the Windows dialog does not change that session’s save location."
+            }
+          ],
+          "warnings": [
+            "Keep saves matched to the DOS or Windows data edition. Portcove does not update or back up this externally owned copy."
+          ],
+          "help_url": "https://github.com/sdlpal/sdlpal/blob/master/docs/README.md"
+        },
+        "artwork": {
+          "game_id": 18928,
+          "cover_id": 243131,
+          "image_id": "co57ln",
+          "image_sha256": "1f39fdcee8bb8f823cfca576fb2f91508d582f5b7cf42f5239e360632105340d",
+          "game_slug": "the-legend-of-sword-and-fairy",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
       "id": "sdw-community-sheep-dog-n-wolf-rewooled",
       "name": "Sheep, Dog 'n' Wolf / Sheep, Dog 'n' Wolf: Rewooled (SDW-Community)",
       "summary": "Explore Sheep, Dog 'n' Wolf / Sheep, Dog 'n' Wolf: Rewooled (SDW-Community) and follow the upstream project for requirements, downloads and setup.",
@@ -34159,6 +34278,18 @@
             {
               "title": "Keep an existing prepared copy",
               "instruction": "Extract the complete official OpenJK-windows-x86_64.zip into the prepared GameData folder. Select openjk_sp.x86_64.exe for single player or openjk.x86_64.exe for multiplayer, with GameData as working directory. A registration selects one player/mode; openjkded.x86_64.exe is a dedicated server, not the player. Retain all package libraries/resources. Existing registrations keep their selected player/mode, arguments, files and user/upstream runtime owner. Removing their registration preserves those files; this catalog change does not adopt or migrate them."
+            },
+            {
+              "title": "Prepare the multiplayer player",
+              "instruction": "Use a separately prepared external GameData copy with the complete official Windows x64 package and your own matching assets0.pk3 through assets3.pk3 in base. Keep the package's base and OpenJK libraries intact; do not copy old game DLLs over them. Select openjk.x86_64.exe with that GameData folder as working directory, not the single-player executable or dedicated server. This player also needs a compatible Microsoft Visual C++ v14 x64 runtime; the x86 runtime alone is insufficient. For the documented software-audio route, enter +set, s_UseOpenAL and 0 on three separate argument lines. Each line is one literal argument. The bundled legacy OpenAL/EAX DLLs are 32-bit and are not x64 dependencies for this route."
+            },
+            {
+              "title": "Keep multiplayer profiles and downloads",
+              "instruction": "Preserve the complete actual OpenJK profile, including base and each mod's directory, openjk.cfg, logs, screenshots, recorded demos and server-downloaded packages or unfinished downloads. The selected non-portable Windows build normally uses Documents/My Games/OpenJK; fs_homepath overrides, portable builds or an unavailable Documents folder can change the location. Keep the external working GameData copy and its originals too. Upstream or you replace this multiplayer runtime. Server downloads and mods are not Portcove-managed runtime updates, and existing demos, mods, saves or server compatibility are not guaranteed after replacement."
+            },
+            {
+              "title": "Choose one installation route",
+              "instruction": "A library can have only one installation or registration for this title at a time. Choose managed single player or a separately prepared external player; do not register files inside a Portcove-managed installation or output folder. Preserve your originals, complete external profile and creating runtime before changing routes, then use the existing removal choice first. Registration-only removal preserves all external files. The external multiplayer route offers reviewed registration, separate Play and preserving registration removal, not managed installation, updates, backup, rollback, migration or deletion of that copy. Existing managed single-player installations and retained registrations keep their own contracts."
             }
           ],
           "warnings": [],
