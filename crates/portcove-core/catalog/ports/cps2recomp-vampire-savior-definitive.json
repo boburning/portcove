@@ -25,18 +25,22 @@
           "instruction": "Extract the complete official CPS2Recomp-windows-x64.zip Preview package. Keep cps2recomp-launcher.exe, every game program and all packaged companions together inside CPS2Recomp. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register cps2recomp-launcher.exe with the CPS2Recomp folder as working directory. Enter two literal argument lines: --play then vsav_definitive. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
         },
         {
-          "title": "Preserve the actual game and launcher data",
-          "instruction": "Use the launcher’s Your files / Show controls to find its folder and each game’s data folder. Windows normally stores game data under %APPDATA%/<Game>/. A portable.txt file beside the launcher selects CPS2Recomp/user/, with separate launcher and game subfolders. Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs. The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
-        },
-        {
           "title": "Add the game and manage updates",
           "instruction": "The project’s shared launcher checks for updates and can replace the collection after its games close. Before using its update controls, keep a copy of the working game files and profile. Add this external copy to Portcove, then choose Play separately when you are ready. Removing its registration leaves the package, originals and profiles in place. Portcove does not offer updates, backups, rollback, data migration or deletion for these files. Other platforms need their own supported package and application instructions."
         }
       ],
       "warnings": [
-        "This is upstream beta software. Upstream says the three imported characters have not been played by hand and lists missing Donovan stage/music."
+        "This is upstream beta software. Upstream says the three imported characters have not been played by hand and lists missing Donovan stage/music.",
+        "Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs.",
+        "The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
       ],
-      "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/vsav_definitive/README.md"
+      "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/vsav_definitive/README.md",
+      "references": [
+        {
+          "title": "Preserve the actual game and launcher data",
+          "instruction": "Use the launcher’s Your files / Show controls to find its folder and each game’s data folder. Windows normally stores game data under %APPDATA%/<Game>/. A portable.txt file beside the launcher selects CPS2Recomp/user/, with separate launcher and game subfolders. Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs. The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
+        }
+      ]
     }
   },
   "upstream_lineage": {

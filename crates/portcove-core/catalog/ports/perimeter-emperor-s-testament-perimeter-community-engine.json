@@ -29,18 +29,22 @@
           "instruction": "The inspected 3.0.10 GitHub release inventory has no binary assets. Follow upstream INSTALL.eng.md to build the Windows player and its required DLLs, or use an already prepared working upstream player. Keep a private working game copy. Register perimeter.exe and retain its working directory. The upstream content override is one literal argument, content= followed by the absolute folder containing Resource and Scripts. Do not infer that the linked Legate Edition retail distribution includes both classic campaigns."
         },
         {
-          "title": "Keep your existing game data",
-          "instruction": "Preserve the complete working game folder, actual upstream configuration/profile and any explicitly selected content or save locations. The reviewed documentation and source do not establish one universal Windows persistence coordinate; registration does not convert saves, adopt data or prove another campaign compatible."
-        },
-        {
           "title": "Add the game and manage your files",
           "instruction": "Finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions. Other platforms need their own setup instructions."
         }
       ],
       "warnings": [
-        "No downloadable Windows package was found in the inspected GitHub releases. Windows CPU architecture depends on the actual prepared build; a managed package route remains pending a concrete artifact and preparation/maintenance fit."
+        "No downloadable Windows package was found in the inspected GitHub releases. Windows CPU architecture depends on the actual prepared build; a managed package route remains pending a concrete artifact and preparation/maintenance fit.",
+        "Preserve the complete working game folder, actual upstream configuration/profile and any explicitly selected content or save locations.",
+        "The reviewed documentation and source do not establish one universal Windows persistence coordinate; registration does not convert saves, adopt data or prove another campaign compatible."
       ],
-      "help_url": "https://github.com/KD-lab-Open-Source/Perimeter/blob/f58b3ae7369df502a1e3dcd697b9791a4b1a14c5/INSTALL.eng.md"
+      "help_url": "https://github.com/KD-lab-Open-Source/Perimeter/blob/f58b3ae7369df502a1e3dcd697b9791a4b1a14c5/INSTALL.eng.md",
+      "references": [
+        {
+          "title": "Keep your existing game data",
+          "instruction": "Preserve the complete working game folder, actual upstream configuration/profile and any explicitly selected content or save locations. The reviewed documentation and source do not establish one universal Windows persistence coordinate; registration does not convert saves, adopt data or prove another campaign compatible."
+        }
+      ]
     }
   },
   "upstream_lineage": {

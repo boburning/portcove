@@ -33,16 +33,19 @@
         {
           "title": "Add the game and manage your files",
           "instruction": "Complete the upstream setup in your permitted working copy before registration. Select the actual RigelEngine.exe and its containing folder as the working directory; keep every packaged companion. Leave arguments empty for the normal upstream startup flow, or supply separate literal arguments only when deliberately following that version’s documented options. Registration binds your explicit executable, folder and arguments with consent; Play is a separate action. You and upstream own runtime replacement, original files, saves, settings and profiles. Close the game and preserve every actual data/profile location and the working player before upstream updates. Registration-only removal preserves all external files. Managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
-        },
+        }
+      ],
+      "warnings": [
+        "Rigel Engine imports existing saves, high scores and settings into its own user profile. Keep that profile and your mod files backed up when updating the upstream installation.",
+        "Portcove offers Windows registration in this entry; Linux and macOS operation through Portcove has not been confirmed."
+      ],
+      "help_url": "https://github.com/lethal-guitar/RigelEngine#running-rigelengine",
+      "references": [
         {
           "title": "Keep upstream platform alternatives separate",
           "instruction": "Upstream also provides Linux packages and a macOS application with their own setup, original-data and profile rules. On macOS, open the normal application rather than registering its private bundle executable. Portcove offers Windows registration in this entry; Linux and macOS operation through Portcove has not been confirmed."
         }
-      ],
-      "warnings": [
-        "Rigel Engine imports existing saves, high scores and settings into its own user profile. Keep that profile and your mod files backed up when updating the upstream installation."
-      ],
-      "help_url": "https://github.com/lethal-guitar/RigelEngine#running-rigelengine"
+      ]
     },
     "original_game_title": "Duke Nukem II"
   },

@@ -27,16 +27,18 @@
           "instruction": "Choose the package ending in -win64.zip. Finish setup with Aerofoil.exe inside its Aerofoil folder; the packaged houses are included."
         },
         {
-          "title": "Keep custom houses and saved games",
-          "instruction": "Aerofoil stores your houses, saved games, scores and preferences in the Aerofoil folder in your Windows Documents location. Keep that folder when updating. The separate tools ZIP is available for importing additional original-format content."
-        },
-        {
           "title": "Add the game and manage your files",
           "instruction": "Complete the upstream setup in your permitted working copy before registration. Select the actual Aerofoil.exe and its containing folder as the working directory; keep every packaged companion. Leave arguments empty for the normal upstream startup flow, or supply separate literal arguments only when deliberately following that version’s documented options. Registration binds your explicit executable, folder and arguments with consent; Play is a separate action. You and upstream own runtime replacement, original files, saves, settings and profiles. Close the game and preserve every actual data/profile location and the working player before upstream updates. Registration-only removal preserves all external files. Managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
         }
       ],
-      "warnings": [],
-      "help_url": "https://github.com/elasota/Aerofoil#about-aerofoil"
+      "warnings": ["Keep that folder when updating."],
+      "help_url": "https://github.com/elasota/Aerofoil#about-aerofoil",
+      "references": [
+        {
+          "title": "Keep custom houses and saved games",
+          "instruction": "Aerofoil stores your houses, saved games, scores and preferences in the Aerofoil folder in your Windows Documents location. Keep that folder when updating. The separate tools ZIP is available for importing additional original-format content."
+        }
+      ]
     },
     "original_game_title": "Glider PRO"
   },

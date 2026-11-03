@@ -32,16 +32,20 @@
           "instruction": "Use a separately prepared external GameData copy with the complete official Windows x64 package and your own matching assets0.pk3 through assets3.pk3 in base. Keep the package's base and OpenJK libraries intact; do not copy old game DLLs over them. Select openjk.x86_64.exe with that GameData folder as working directory, not the single-player executable or dedicated server. This player also needs a compatible Microsoft Visual C++ v14 x64 runtime; the x86 runtime alone is insufficient. For the documented software-audio route, enter +set, s_UseOpenAL and 0 on three separate argument lines. Each line is one literal argument. The bundled legacy OpenAL/EAX DLLs are 32-bit and are not x64 dependencies for this route."
         },
         {
-          "title": "Keep multiplayer profiles and downloads",
-          "instruction": "Preserve the complete actual OpenJK profile, including base and each mod's directory, openjk.cfg, logs, screenshots, recorded demos and server-downloaded packages or unfinished downloads. The selected non-portable Windows build normally uses Documents/My Games/OpenJK; fs_homepath overrides, portable builds or an unavailable Documents folder can change the location. Keep the external working GameData copy and its originals too. Upstream or you replace this multiplayer runtime. Server downloads and mods are not Portcove-managed runtime updates, and existing demos, mods, saves or server compatibility are not guaranteed after replacement."
-        },
-        {
           "title": "Choose one installation route",
           "instruction": "A library can have only one installation or registration for this title at a time. Choose managed single player or a separately prepared external player; do not register files inside a Portcove-managed installation or output folder. Preserve your originals, complete external profile and creating runtime before changing routes, then use the existing removal choice first. Registration-only removal preserves all external files. The external multiplayer route offers reviewed registration, separate Play and preserving registration removal, not managed installation, updates, backup, rollback, migration or deletion of that copy. Existing managed single-player installations and retained registrations keep their own contracts."
         }
       ],
-      "warnings": [],
-      "help_url": "https://github.com/JACoders/OpenJK/blob/260c59c2907187af555a676fe0cc798893bf7757/README.md"
+      "warnings": [
+        "Keep the external working GameData copy and its originals too. Upstream or you replace this multiplayer runtime. Server downloads and mods are not Portcove-managed runtime updates, and existing demos, mods, saves or server compatibility are not guaranteed after replacement."
+      ],
+      "help_url": "https://github.com/JACoders/OpenJK/blob/260c59c2907187af555a676fe0cc798893bf7757/README.md",
+      "references": [
+        {
+          "title": "Keep multiplayer profiles and downloads",
+          "instruction": "Preserve the complete actual OpenJK profile, including base and each mod's directory, openjk.cfg, logs, screenshots, recorded demos and server-downloaded packages or unfinished downloads. The selected non-portable Windows build normally uses Documents/My Games/OpenJK; fs_homepath overrides, portable builds or an unavailable Documents folder can change the location. Keep the external working GameData copy and its originals too. Upstream or you replace this multiplayer runtime. Server downloads and mods are not Portcove-managed runtime updates, and existing demos, mods, saves or server compatibility are not guaranteed after replacement."
+        }
+      ]
     }
   },
   "upstream_lineage": {
