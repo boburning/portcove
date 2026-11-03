@@ -32,7 +32,7 @@ import {
 } from "./ci-workflow-fixture.mts";
 
 // Independently expected contract pin; Renovate updates it with the Action group.
-const reviewedInstallAction = "taiki-e/install-action@68a389c788b2cd04016ce8c80ee23b80d2ab3d68"; // v2.88.1
+const reviewedInstallAction = "taiki-e/install-action@1919c4a95903d2c33e4a221102edca87309fc14b"; // v2.89.0
 
 void test("standalone Linux environment tests retain native selection and bounded outcomes", () => {
   const step: Record<string, unknown> & { run: string } = workflowStep(
