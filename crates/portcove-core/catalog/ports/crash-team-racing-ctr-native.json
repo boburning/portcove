@@ -24,12 +24,18 @@
     },
     "manual_setup": {
       "help_url": "https://github.com/CTR-tools/ctr-native/blob/9b574960fa8a4b897d373bab8a330ecb0626b474/README.md",
-      "warnings": [],
+      "warnings": [
+        "Internal F5 quickstates under debug/states hold runtime memory and are tied to their creating build; replay reports under debug/reports can include independent recorded memory-card progress. Keep the old runtime with those files for matching-build use; do not insert them into another version.",
+        "Keep its complete working folder and back up memcards and captures before extracting a new player separately.",
+        "Keep debug output with the originating runtime for matching-build use; no cross-version state compatibility is promised. External registration preserves every file and supplies no managed Backup or Rollback."
+      ],
       "steps": [
         {
           "title": "Use your own USA raw disc",
           "instruction": "For an existing official beta7.1 Windows copy, choose ctr_native.exe inside its extracted wrapper, with that executable’s folder as the working directory. Place your own NTSC-U raw MODE2/2352 disc BIN at assets/ctr-u.bin beside it; the data track must start at byte 0. A cooked 2048 ISO, another edition or a CUE file is not this route. No compiler, BIOS or extraction helper is needed for the official player archive. Windows runs its x86 player through x64 compatibility; upstream also offers a separate 32-bit Linux package with its own dependency requirements."
-        },
+        }
+      ],
+      "references": [
         {
           "title": "Prefer in-game memory-card saves",
           "instruction": "Normal saves and ghosts live under memcards. F12 captures SCREENSHOT.BMP and the VRAM debug capture uses VRAM.TGA. Internal F5 quickstates under debug/states hold runtime memory and are tied to their creating build; replay reports under debug/reports can include independent recorded memory-card progress. Keep the old runtime with those files for matching-build use; do not insert them into another version."

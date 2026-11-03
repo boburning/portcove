@@ -23,12 +23,18 @@
     },
     "manual_setup": {
       "help_url": "https://github.com/alariq/mc2/blob/c428dfe02b609f0864933e715ca22ed07427a545/README.md",
-      "warnings": [],
+      "warnings": [
+        "Close the game and back up that external user-data folder separately.",
+        "External profiles and custom paths are outside Portcove backups.",
+        "Follow upstream guidance for settings and custom content; copying old generated texture or geometry caches over a new package can replace its new files. Registration leaves every external file untouched."
+      ],
       "steps": [
         {
           "title": "Use the complete Windows player",
           "instruction": "The official Windows x64 ZIP includes mc2.exe, its libraries and game data. Keep the complete package together. For an existing copy, select mc2.exe in the extracted mc2-win64 folder and use that folder as the working directory. Save launch details, then choose Play separately. The selected release has no Linux player archive; upstream provides separate Linux source/data build instructions. Follow all included notices: project code and components have their own licenses, and Microsoft’s Art Assets grant limits their use and distribution to noncommercial purposes."
-        },
+        }
+      ],
+      "references": [
         {
           "title": "Back up the external saves",
           "instruction": "Normal saves use .mechcommander2/savegame under your Windows user-profile folder. Linux uses that path under XDG_CONFIG_HOME when set, otherwise HOME. Close the game and back up that external user-data folder separately. Keep options.cfg, options.cfg.old, orgprefs.cfg, data/multiplayer and any custom data locations with the copy you use. External profiles and custom paths are outside Portcove backups."

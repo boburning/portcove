@@ -33,18 +33,22 @@
           "instruction": "Follow the upstream Windows installation guide for the exact selected release. The inspected latest-nightly OpenXRay.Release.Master.Gold.64-bit.7z contains the x64 bin/xrEngine.exe player. Follow the Clear Sky instructions: extract bin from the engine archive and apply the matching nightly Clear Sky gamedata patch. The older December 2021 RC1 patch is different; do not mix it with nightly. Register the prepared bin/xrEngine.exe using the working directory and arguments of the upstream installation. Keep its companion DLLs; do not register a helper or replace a live original installation."
         },
         {
-          "title": "Keep your existing game data",
-          "instruction": "Preserve the actual app_data_root selected by that installation’s fsgame.ltx, all saves/configuration/logs and the complete working original/runtime copy. Locations and mod requirements can vary. Upstream warns that incompatible or malformed mods can fail; neither save migration nor mod compatibility is established by registration."
-        },
-        {
           "title": "Add the game and manage your files",
           "instruction": "Finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions. Other platforms need their own setup instructions."
         }
       ],
       "warnings": [
-        "Nightly preparation and the matching Clear Sky patch are upstream-owned. No original-game setup, gameplay or mod compatibility was observed."
+        "Nightly preparation and the matching Clear Sky patch are upstream-owned. No original-game setup, gameplay or mod compatibility was observed.",
+        "Preserve the actual app_data_root selected by that installation’s fsgame.ltx, all saves/configuration/logs and the complete working original/runtime copy.",
+        "Upstream warns that incompatible or malformed mods can fail; neither save migration nor mod compatibility is established by registration."
       ],
-      "help_url": "https://github.com/OpenXRay/xray-16/wiki/How-to-install-and-play"
+      "help_url": "https://github.com/OpenXRay/xray-16/wiki/How-to-install-and-play",
+      "references": [
+        {
+          "title": "Keep your existing game data",
+          "instruction": "Preserve the actual app_data_root selected by that installation’s fsgame.ltx, all saves/configuration/logs and the complete working original/runtime copy. Locations and mod requirements can vary. Upstream warns that incompatible or malformed mods can fail; neither save migration nor mod compatibility is established by registration."
+        }
+      ]
     }
   },
   "upstream_lineage": {

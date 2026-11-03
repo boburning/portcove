@@ -19,18 +19,23 @@
           "instruction": "Select the completed build/EarthBoundRecomp.exe from your prepared Windows copy and use the project root as working directory, matching upstream's documented invocation. Enter the actual absolute path to your own EarthBound USA .sfc as one argument line, without shell quotes. The documented headerless original is 3,145,728 bytes with SHA-256 a8fe2226728002786d68c27ddddf0b90a894db52e4dfe268fdf72a68cae5f02e. The upstream runtime checks its original input; Portcove records the argument but does not import or authenticate that file."
         },
         {
-          "title": "Preserve the complete creating environment",
-          "instruction": "Keep the original and its location, complete project/build tree, private generated code, saves folder, SRAM/save-state files, config.ini, config.local.ini, rom.cfg and diagnostic output with the creating runtime. Preserve separately configured or original-adjacent files too. The documented host reads configuration and creates saves relative to its working folder, and can automatically load and save slot zero when autosave is enabled. Upstream or you own rebuilds and runtime replacement; older save states, settings and generated code are not guaranteed compatible with another build."
-        },
-        {
           "title": "Review registration and choose Play separately",
           "instruction": "Portcove records your selected native executable, working folder and literal arguments after review; Play is separate. Only the selected process is supervised. Removing the registration preserves all external files. Managed installation, generation, updates, backup, rollback, migration and deletion are not offered for this copy. Existing Portcove-built installations retain their original installation, source, backup and recovery contracts."
         }
       ],
       "warnings": [
-        "Upstream remains an early, interpreter-first prototype with title-screen/file-select bring-up evidence. Registration does not establish full static recompilation, completed gameplay or populated save compatibility."
+        "Upstream remains an early, interpreter-first prototype with title-screen/file-select bring-up evidence. Registration does not establish full static recompilation, completed gameplay or populated save compatibility.",
+        "Keep the original and its location, complete project/build tree, private generated code, saves folder, SRAM/save-state files, config.ini, config.local.ini, rom.cfg and diagnostic output with the creating runtime. Preserve separately configured or original-adjacent files too.",
+        "The documented host reads configuration and creates saves relative to its working folder, and can automatically load and save slot zero when autosave is enabled.",
+        "Upstream or you own rebuilds and runtime replacement; older save states, settings and generated code are not guaranteed compatible with another build."
       ],
-      "help_url": "https://github.com/nickclyde/EarthBoundRecomp/blob/fe1155dc26ffc40df36a8003dd0e639e17af3349/README.md"
+      "help_url": "https://github.com/nickclyde/EarthBoundRecomp/blob/fe1155dc26ffc40df36a8003dd0e639e17af3349/README.md",
+      "references": [
+        {
+          "title": "Preserve the complete creating environment",
+          "instruction": "Keep the original and its location, complete project/build tree, private generated code, saves folder, SRAM/save-state files, config.ini, config.local.ini, rom.cfg and diagnostic output with the creating runtime. Preserve separately configured or original-adjacent files too. The documented host reads configuration and creates saves relative to its working folder, and can automatically load and save slot zero when autosave is enabled. Upstream or you own rebuilds and runtime replacement; older save states, settings and generated code are not guaranteed compatible with another build."
+        }
+      ]
     },
     "artwork": {
       "game_id": 2899,

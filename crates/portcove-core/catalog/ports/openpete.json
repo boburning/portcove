@@ -19,7 +19,10 @@
     "setup_url": "https://openpete.com/",
     "manual_setup": {
       "help_url": "https://openpete.com/",
-      "warnings": [],
+      "warnings": [
+        "Preserve your ordinary .mcr memory cards, settings, states, mods and the library folder before changing it. Keep the creating runtime with its generated code and states, and confirm your ordinary game saves in the new copy before retiring the old one.",
+        "This external copy has no Portcove-managed Update, Backup or Rollback; removing its registration preserves every file."
+      ],
       "steps": [
         {
           "title": "Choose the accepted managed copy or current upstream player",
@@ -28,7 +31,9 @@
         {
           "title": "Supply your own Spyro disc through upstream setup",
           "instruction": "Use your own original Spyro the Dragon NTSC-U disc, SCUS-94228. Follow the current player’s first-run import instructions: it copies the disc into library and compiles game code alongside it. Keep the bundled compiler and runtime companions together. Save the completed Windows player’s launch details with that folder as its working directory, then choose Play separately. Portcove discovery does not run the compiler or import a disc automatically."
-        },
+        }
+      ],
+      "references": [
         {
           "title": "Keep progress and generated files with their working version",
           "instruction": "You or upstream update the separate current copy. Preserve your ordinary .mcr memory cards, settings, states, mods and the library folder before changing it. Keep the creating runtime with its generated code and states, and confirm your ordinary game saves in the new copy before retiring the old one. This external copy has no Portcove-managed Update, Backup or Rollback; removing its registration preserves every file. The official Linux AppImage follows its own upstream instructions."
