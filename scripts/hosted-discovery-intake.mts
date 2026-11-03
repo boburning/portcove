@@ -959,7 +959,14 @@ export class HostedIntakeBridge {
           attempt: process.env.GITHUB_RUN_ATTEMPT ?? "1",
         },
       };
-      if (Buffer.byteLength(receiptBody(receipt)) + plan.length * 2048 + 4096 > 60000)
+      // Retained delivery records already occupy the serialized receipt. Reserve
+      // only their remaining growth to the same per-candidate allowance.
+      const deliveryGrowth = receipt.delivery.reduce(
+        (bytes, delivery) =>
+          bytes + Math.max(0, 2048 - Buffer.byteLength(JSON.stringify(delivery))),
+        0,
+      );
+      if (Buffer.byteLength(receiptBody(receipt)) + deliveryGrowth + 4096 > 60000)
         throw new Error(
           "Logical batch cannot retain complete delivery receipts; reduce evidence text",
         );

@@ -1307,6 +1307,55 @@ void test("owner reconciliation preserves six owners and ambiguous intent, then 
   assert.equal(f.creations, 9);
   assert.equal(f.sourceReceipt.body, f.sourceReceiptBody);
 });
+void test("nineteen-candidate reconciliation reserves growth once and still requires full doctor", async () => {
+  const f = await reconciliationFixture(19, 15);
+  const owners = f.issues.map((issue) => issue.number);
+  const inventory = f.bridge.inventory.bind(f.bridge);
+  let fullRequired = false;
+  f.bridge.inventory = (cache, full) => {
+    if (full) {
+      fullRequired = true;
+      throw new Error("Required full doctor input is unavailable");
+    }
+    return inventory(cache, full);
+  };
+  await assert.rejects(f.bridge.process(f.successor, f.all()), /Required full doctor input/u);
+  assert(fullRequired);
+  assert.equal(f.creations, 19);
+  const comment = f
+    .all()
+    .find((c) => c.body.startsWith("<!-- portcove-hosted-intake-receipt:101 -->"))!;
+  const receipt = JSON.parse(comment.body.match(/```json\n([\s\S]+)\n```$/u)![1]!) as {
+    status: string;
+    delivery: { status: string; created_issue: number }[];
+  };
+  assert.equal(receipt.status, "incomplete");
+  assert.deepEqual(
+    receipt.delivery.slice(0, 15).map((d) => d.created_issue),
+    owners,
+  );
+  assert(receipt.delivery.every((d) => d.status === "delivered"));
+  assert.equal(f.sourceReceipt.body, f.sourceReceiptBody);
+});
+void test("an oversized logical batch refuses before publishing a receipt or creating issues", async () => {
+  const f = fixture(
+    Array.from({ length: 25 }, (_, i) => ({
+      ...candidate,
+      title: `Large game ${i}`,
+      game: `Large game ${i}`,
+      upstream: `${candidate.upstream}-${i}`,
+      port_key: `${candidate.port_key}-${i}`,
+      repository_id: candidate.repository_id + i,
+    })),
+  );
+  await assert.rejects(
+    f.bridge.process(f.request, f.all()),
+    /cannot retain complete delivery receipts/u,
+  );
+  assert.equal(f.creations, 0);
+  assert.equal(f.writes, 0);
+  assert.equal(f.comments.size, 1);
+});
 void test("reconciliation refuses changed lineage, active sources and incomplete ordered body coverage", async (t) => {
   for (const change of [
     "request hash",
