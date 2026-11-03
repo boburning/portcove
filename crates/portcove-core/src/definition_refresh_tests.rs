@@ -237,8 +237,14 @@ async fn official_definition_refresh_preserves_known_identity_and_requires_enabl
         .id;
     for id in [port_id, listing_id] {
         assert_eq!(official_definition_id(service.catalog(), id).unwrap(), id);
-        let error = service
-            .refresh_official_definition(id, |_| panic!("unprovisioned check emitted activity"))
+        // Desktop's generation-bound worker requires this public future to be Send.
+        fn require_send<T: Send>(future: T) -> T {
+            future
+        }
+        let error =
+            require_send(service.refresh_official_definition(id, |_| {
+                panic!("unprovisioned check emitted activity")
+            }))
             .await
             .unwrap_err();
         assert_eq!(error.code, ErrorCode::Conflict);
