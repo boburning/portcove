@@ -712,6 +712,10 @@ mod tests {
             .port(id)
             .ok()
             .map(|port| serde_json::to_value(port).unwrap());
+        let expected_creating_definition = service
+            .current_user_selected_definition(id)
+            .unwrap()
+            .map(|port| serde_json::to_value(port).unwrap());
         let initial = service.listing_status(id).unwrap();
         assert!(
             initial.actions.iter().any(|action| action.action
@@ -815,7 +819,15 @@ mod tests {
             .external_runtime_with_port(id)
             .unwrap()
             .unwrap();
-        assert!(retained.is_user_selected_listing(id));
+        if let Some(expected) = expected_creating_definition {
+            assert!(!retained.is_user_selected_listing(id));
+            assert_eq!(
+                serde_json::to_value(retained.port(id).unwrap()).unwrap(),
+                expected
+            );
+        } else {
+            assert!(retained.is_user_selected_listing(id));
+        }
         assert_eq!(
             serde_json::to_value(retained.listing(id).unwrap()).unwrap(),
             serde_json::to_value(&expected_listing).unwrap()

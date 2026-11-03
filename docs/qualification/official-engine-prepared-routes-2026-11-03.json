@@ -4,7 +4,6 @@
   "observed_at": "2026-11-03T04:12:39.515426+00:00",
   "owners": [1422, 2510, 2926],
   "base": "938abc43c80f3b14b795c702d7e4bc2a57e43d4f",
-  "authored_checkpoint": "70c8cdeffe488da64497c75833f05f0a8cef58bc",
   "counts": {
     "substantive_port_changes": 9,
     "new_managed_offers": 1,
@@ -86,7 +85,7 @@
       "cohort": "original-524",
       "historical_1422_member": false,
       "authored_path": "crates/portcove-core/catalog/ports/sdlpal-sdlpal.json",
-      "authored_sha256": "c215a861023d788a95736de81617bf98d11309e9b12971da8f63a4527b75368b",
+      "authored_sha256": "115075f613fe2487dded9243d28e61710467d04a34e2f80af490c39420a7d027",
       "route_and_change": "New managed Native MinGW runtime with manual relative data setup",
       "upstream": "sdlpal/sdlpal",
       "source": "366bc366cbfa0b34c66b0c19171ab05d1643adfd",
@@ -101,7 +100,8 @@
       "full_finite_closure": "conditional on complete owner-specific evidence, actual control execution, final independent review, exact-head CI, guarded delivery and canonical/Project readback; no current closure claim",
       "prior_integration_preserved": false,
       "automated_tested_platforms": [],
-      "manually_validated_platforms": []
+      "manually_validated_platforms": [],
+      "original_game_title_fact": "The Legend of Sword and Fairy, already identified by the existing listing summary and underlying-game artwork identity; operational admission now carries the required explicit field."
     },
     {
       "id": "wargus-wargus",
@@ -1136,5 +1136,6 @@
       "scope": "Dated primary publisher documentation readback; not program execution, immutable runtime build attestation or authority for private/original inputs."
     }
   ],
-  "rvgl_primary_documentation_scope": "Exact retained public publisher bytes: playing/lifetime, general/base+preferences+profiles, installation/update/repair, launcher Open Data/Config Folder actions. Dated documentation readback, not compiled launcher or game execution. Raw-markup phrase assertion failure retained; after HTML text normalization the same required facts were verified without running scripts."
+  "rvgl_primary_documentation_scope": "Exact retained public publisher bytes: playing/lifetime, general/base+preferences+profiles, installation/update/repair, launcher Open Data/Config Folder actions. Dated documentation readback, not compiled launcher or game execution. Raw-markup phrase assertion failure retained; after HTML text normalization the same required facts were verified without running scripts.",
+  "initial_authored_checkpoint": "70c8cdeffe488da64497c75833f05f0a8cef58bc"
 }
