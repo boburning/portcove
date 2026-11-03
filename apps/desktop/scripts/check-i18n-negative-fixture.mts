@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { isRecord } from "../../../scripts/runtime-values.mts";
 
 const temporaryRoot = mkdtempSync(join(tmpdir(), "portcove-i18n-negative-"));
 for (const locale of ["en", "ar-XB"]) {
@@ -72,6 +74,25 @@ try {
   writeFileSync(translated, original);
   const restored = run("lint", "placeholders");
   assert.equal(restored.status, 0, outputOf(restored));
+
+  const globSecurity = spawnSync(
+    process.execPath,
+    ["scripts/fixtures/dependency-glob-security.mts", "--consumer", "localization-cli"],
+    {
+      cwd: fileURLToPath(new URL("../../../", import.meta.url)),
+      encoding: "utf8",
+      timeout: 30_000,
+      maxBuffer: 64 * 1024,
+    },
+  );
+  assert.equal(globSecurity.status, 0, outputOf(globSecurity));
+  const report: unknown = JSON.parse(globSecurity.stdout);
+  assert.ok(isRecord(report) && Array.isArray(report.observations));
+  assert.equal(report.observations.length, 1);
+  const observation: unknown = report.observations[0];
+  assert.ok(isRecord(observation));
+  assert.equal(observation.consumer, "localization-cli");
+  console.log(`Development glob security observation: ${globSecurity.stdout.trim()}`);
 
   console.log(
     "i18next-cli rejects invalid keys, missing inline and nested resource arguments and missing/unexpected translated placeholders; restored translations pass.",
