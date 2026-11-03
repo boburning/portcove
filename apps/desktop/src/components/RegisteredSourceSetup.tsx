@@ -124,15 +124,19 @@ export function RegisteredSourceSetup({
     });
   if (!sources.length) return null;
   return (
-    <section aria-label="Reuse saved game files" className="my-4 grid gap-3">
+    <section
+      aria-label="Reuse saved game files"
+      className="my-4 grid min-w-0 grid-cols-1 gap-3 wrap-anywhere"
+    >
       <h2>Use saved original files</h2>
       <p>
         Check an existing registration for each game's own requirements. Your originals stay where
         they are.
       </p>
-      <label>
+      <label className="min-w-0">
         Saved game files
         <select
+          className="w-full max-w-full min-w-0"
           data-focusable
           value={selected}
           disabled={busy}
