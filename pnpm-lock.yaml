@@ -189,7 +189,7 @@ overrides:
 patchedDependencies:
   '@sigstore/sign@5.0.0': fd8ea358e3f80a2ef13d3d332afcc77740c12a4f328d39d370cefaede2f14713
   '@tauri-apps/api@2.12.4': a3d8fac0475d7cd95ac99b94014545bbd4a9e24155c5077fa018c6ccc5f7978a
-  i18next-cli@1.81.0: 8da9a1602bbf568841eb21285181683a4b930a72af20469cf43d1ccd8698c77f
+  i18next-cli@1.82.0: 8da9a1602bbf568841eb21285181683a4b930a72af20469cf43d1ccd8698c77f
 
 importers:
 
@@ -256,11 +256,11 @@ importers:
         specifier: 0.7.1
         version: 0.7.1
       cn:
-        specifier: 0.5.1
-        version: 0.5.1
+        specifier: 0.5.2
+        version: 0.5.2
       i18next:
-        specifier: 26.6.0
-        version: 26.6.0(typescript@7.0.2)
+        specifier: 26.7.1
+        version: 26.7.1(typescript@7.0.2)
       lucide-react:
         specifier: ^1.66.0
         version: 1.66.0(@types/react@19.3.0)(react@19.3.1)
@@ -271,8 +271,8 @@ importers:
         specifier: ^19.3.1
         version: 19.3.1(react@19.3.1)
       react-i18next:
-        specifier: 17.1.10
-        version: 17.1.10(i18next@26.6.0(typescript@7.0.2))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2)
+        specifier: 17.1.11
+        version: 17.1.11(i18next@26.7.1(typescript@7.0.2))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2)
     devDependencies:
       '@tailwindcss/vite':
         specifier: 4.3.3
@@ -287,8 +287,8 @@ importers:
         specifier: ^19.3.0
         version: 19.3.0(@types/react@19.3.0)
       '@vitejs/plugin-react':
-        specifier: ^6.1.2
-        version: 6.1.2(@voidzero-dev/vite-plus-core@1.4.0(@types/node@24.19.2)(jiti@2.7.0)(typescript@7.0.2)(yaml@2.9.1))
+        specifier: ^6.2.1
+        version: 6.2.1(@voidzero-dev/vite-plus-core@1.4.0(@types/node@24.19.2)(jiti@2.7.0)(typescript@7.0.2)(yaml@2.9.1))
       '@vitest/browser-playwright':
         specifier: 'catalog:'
         version: 5.0.5(@types/node@24.19.2)(jiti@2.7.0)(playwright@1.64.1)(typescript@7.0.2)(vitest@5.0.5)(yaml@2.9.1)
@@ -299,8 +299,8 @@ importers:
         specifier: 4.14.0
         version: 4.14.0
       i18next-cli:
-        specifier: 1.81.0
-        version: 1.81.0(patch_hash=8da9a1602bbf568841eb21285181683a4b930a72af20469cf43d1ccd8698c77f)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2)
+        specifier: 1.82.0
+        version: 1.82.0(patch_hash=8da9a1602bbf568841eb21285181683a4b930a72af20469cf43d1ccd8698c77f)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2)
       json-schema-to-typescript:
         specifier: 16.0.0
         version: 16.0.0
@@ -1478,13 +1478,13 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@vitejs/plugin-react@6.1.2':
-    resolution: {integrity: sha512-fhJNGUdscQa4HkI0xFxwonWyhnVReCPDbXI7FH7jmzpnVCrFQI7PRrhWecO263610vOrs9tr2Y4xcf8uAdFxbw==}
+  '@vitejs/plugin-react@6.2.1':
+    resolution: {integrity: sha512-9KyWCij3r0+qLG3Q62vBmv0VyevmYibAtxaCIVK9o0k6CXgaajZRIe8tpfchQcdZArJ5b/7OrIz4W3b2uxVRDA==}
     engines: {node: ^20.19.0 || >=22.12.0}
     peerDependencies:
-      '@rolldown/plugin-babel': ^0.1.7 || ^0.2.0
+      '@rolldown/plugin-babel': ^0.1.7 || ^0.2.0 || ^0.3.0
       babel-plugin-react-compiler: ^1.0.0
-      oxc-transform-react: ^0.152.0
+      oxc-transform-react: '>=0.152.0 <0.157.0'
       vite: ^8.0.0
     peerDependenciesMeta:
       '@rolldown/plugin-babel':
@@ -1834,8 +1834,8 @@ packages:
     resolution: {integrity: sha512-eYm0QWBtUrBWZWG0d386OGAw16Z995PiOVo2B7bjWSbHedGl5e0ZWaq65kOGgUSNesEIDkB9ISbTg/JK9dhCZA==}
     engines: {node: '>=6'}
 
-  cn@0.5.1:
-    resolution: {integrity: sha512-SA06SpzSWXRNrt/EQWnRpck9jEVDfVJonw8ZewiNR6pOC4U0SQ81tWaQ9/PKNPh/lWvjuY4CMlxpc8tJViiX6Q==}
+  cn@0.5.2:
+    resolution: {integrity: sha512-wm10E6iuJ37rALOw3D+3cfaXXZSLNMh2uxpQn3dNICqfJM59yXqgbA9/9Iiz155j5kYNLdK6WreNdW3NQtx3OQ==}
     engines: {node: '>=22'}
     hasBin: true
 
@@ -2072,8 +2072,8 @@ packages:
     resolution: {integrity: sha512-ag87y7cJJ9/3+GxFr8Oy4O5faDsGRGnBGsJj/YjOSsSx/5eadKLYTMPlzuR6obgoCDDm0abAAZitXXQkMOPSpA==}
     engines: {node: '>= 20'}
 
-  i18next-cli@1.81.0:
-    resolution: {integrity: sha512-w5Uw5/F9S9XdfAle40sXq1FrK/Pd0XoQyJ9T6+9EdaocAwPx3xOwjJQg+TDOHgR86lWr4EI7qjP0dhSNnY2CkA==}
+  i18next-cli@1.82.0:
+    resolution: {integrity: sha512-wTwv1ELNi/zmN1InYUHOEyj5ehsVacE3Ytek4l/3KCFoRjw+7O+xOr/3ZPVVA16eQ4KrOmb2baIARB32GYZ31g==}
     engines: {node: '>=22'}
     hasBin: true
 
@@ -2081,8 +2081,8 @@ packages:
     resolution: {integrity: sha512-1SwWSlbgpMx/AyWYJvPrg2ns1CzXsaM0olmqfDSm2fIzwbChdkxeaiAXw0xhdNPuo/v8nuwxVTLfpf8NxrdlNw==}
     hasBin: true
 
-  i18next@26.6.0:
-    resolution: {integrity: sha512-jpb1n5386s9mbBLNF6tSNIVhbBUUNiNeDyjWte+uxHP/Wr+CEy7WBM8q29TkfQ46VbwKeJFYdQJK3pSUhLp4CQ==}
+  i18next@26.7.1:
+    resolution: {integrity: sha512-cX+3RRVczel/V2kCMTACckSGSpqgtWYEA6beXNYVms7dOQiHojdPYHD26lT4IKimNeoGWrLvtPgjftbRvmZJVw==}
     peerDependencies:
       typescript: ^5 || ^6 || ^7
     peerDependenciesMeta:
@@ -2605,8 +2605,8 @@ packages:
     peerDependencies:
       react: ^19.3.1
 
-  react-i18next@17.1.10:
-    resolution: {integrity: sha512-XuUuA/rxukE4hXuR//PN308DuSQkWqKNNWBUj0dDTR087l3+6WLid3NC/w55ALrXA/dtWb7lychJ4rQLR3DCDg==}
+  react-i18next@17.1.11:
+    resolution: {integrity: sha512-nQqkvaD+N4kSrM0bosDc7yW2IvaC3chHPhZb0FoRXX6Buf1JzfOLLLs2u7SfXcnAE3nKAIn0Kvu68lQGObPlyA==}
     peerDependencies:
       i18next: '>= 26.2.0'
       react: '>= 16.8.0'
@@ -3714,7 +3714,7 @@ snapshots:
   '@typescript/typescript-win32-x64@7.0.2':
     optional: true
 
-  '@vitejs/plugin-react@6.1.2(@voidzero-dev/vite-plus-core@1.4.0(@types/node@24.19.2)(jiti@2.7.0)(typescript@7.0.2)(yaml@2.9.1))':
+  '@vitejs/plugin-react@6.2.1(@voidzero-dev/vite-plus-core@1.4.0(@types/node@24.19.2)(jiti@2.7.0)(typescript@7.0.2)(yaml@2.9.1))':
     dependencies:
       '@rolldown/pluginutils': 1.0.1
       vite: '@voidzero-dev/vite-plus-core@1.4.0(@types/node@24.19.2)(jiti@2.7.0)(typescript@7.0.2)(yaml@2.9.1)'
@@ -4071,7 +4071,7 @@ snapshots:
 
   clsx@2.1.1: {}
 
-  cn@0.5.1: {}
+  cn@0.5.2: {}
 
   color-convert@2.0.1:
     dependencies:
@@ -4292,7 +4292,7 @@ snapshots:
       - kerberos
       - supports-color
 
-  i18next-cli@1.81.0(patch_hash=8da9a1602bbf568841eb21285181683a4b930a72af20469cf43d1ccd8698c77f)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2):
+  i18next-cli@1.82.0(patch_hash=8da9a1602bbf568841eb21285181683a4b930a72af20469cf43d1ccd8698c77f)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2):
     dependencies:
       '@croct/json5-parser': 0.2.2
       '@formatjs/icu-messageformat-parser': 3.5.22
@@ -4304,7 +4304,7 @@ snapshots:
       chokidar: 5.0.0
       commander: 15.0.0
       glob: 14.0.3
-      i18next: 26.6.0(typescript@7.0.2)
+      i18next: 26.7.1(typescript@7.0.2)
       i18next-resources-for-ts: 2.1.2
       jiti: 2.7.0
       jsonc-parser: 3.3.1
@@ -4312,7 +4312,7 @@ snapshots:
       messageformat: 4.1.0
       minimatch: 11.0.4
       nano-spawn: 2.1.0
-      react-i18next: 17.1.10(i18next@26.6.0(typescript@7.0.2))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2)
+      react-i18next: 17.1.11(i18next@26.7.1(typescript@7.0.2))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2)
       yaml: 2.9.1
       yocto-spinner: 1.2.2
     transitivePeerDependencies:
@@ -4332,7 +4332,7 @@ snapshots:
     transitivePeerDependencies:
       - '@swc/helpers'
 
-  i18next@26.6.0(typescript@7.0.2):
+  i18next@26.7.1(typescript@7.0.2):
     optionalDependencies:
       typescript: 7.0.2
 
@@ -4780,11 +4780,11 @@ snapshots:
       react: 19.3.1
       scheduler: 0.28.0
 
-  react-i18next@17.1.10(i18next@26.6.0(typescript@7.0.2))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2):
+  react-i18next@17.1.11(i18next@26.7.1(typescript@7.0.2))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2):
     dependencies:
       '@babel/runtime': 7.29.10
       html-parse-stringify: 4.0.1
-      i18next: 26.6.0(typescript@7.0.2)
+      i18next: 26.7.1(typescript@7.0.2)
       react: 19.3.1
       use-sync-external-store: 1.7.0(react@19.3.1)
     optionalDependencies:

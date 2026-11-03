@@ -31,6 +31,6 @@ peerDependencyRules:
     vite: "*"
     vitest: "*"
 patchedDependencies:
-  "i18next-cli@1.81.0": patches/i18next-cli@1.81.0.patch
+  "i18next-cli@1.82.0": patches/i18next-cli@1.82.0.patch
   "@sigstore/sign@5.0.0": patches/@sigstore__sign@5.0.0.patch
   "@tauri-apps/api@2.12.4": patches/@tauri-apps__api@2.12.4.patch

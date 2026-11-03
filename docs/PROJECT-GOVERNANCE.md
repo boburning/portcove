@@ -383,12 +383,32 @@ known safety failure in shipped scope. Reorder or edit Project fields instead
 of rewriting repository documentation. New ports do not automatically expand
 global V1 scope.
 
-The owner's October 10, 2026 decision makes current Public beta commitments
-Required, including work formerly called Opportunistic and then Planned. Consume
-the live Project for each outcome's status and remaining acceptance. Completed
-components remain credited; existing blockers, platform scope, resource guards,
-qualification and protected publication authority remain unchanged. Planned
-retains its general meaning for work assigned to later releases.
+The owner's November 3, 2026 decision supersedes the earlier blanket Public beta
+port commitment. The fixed Harbour Masters Windows integration minimum remains
+Required / Public beta: Ship of Harkinian (Shipwright) #58, 2Ship2Harkinian #59,
+SpaghettiKart #60, Starship #61, Ghostship #53, Lighthouse #62 and the existing
+PaperBoat integration #909. Consume completed admissions and exact accepted
+evidence without reopening them or adding universal gameplay/save/device proof.
+Future Harbour Masters projects, forks, libraries, releases and optional features
+do not expand this fixed set.
+
+Other unfinished title-specific completion under this rollout, catalog expansion and full historical/
+all-port completion are Planned / Unscheduled with no promised release. Preserve
+existing priorities, horizons, ownership, statuses, Port stages, acceptance, exact
+operation holds and historical evidence. #1422 retains 317 rows / 316 identities;
+#2510/#2926 retain the frozen 858-identity union and eventual acceptance. They
+remain open until genuinely complete; neither parentage nor references restore a
+beta deadline. No replacement Required 1.0 deadline is assigned. Existing separate later-release requirements, including #42’s finite risk-based representative qualification, remain unchanged. Completed
+outcomes and their historical release fields remain credited.
+
+Ports first finishes the fixed Harbour Masters minimum and actual exposed-operation
+defects, then independently continues useful non-gating integration and maintenance.
+Beta finishes required product/production acceptance and final integration without
+waiting for full-catalog or broad-parent closure. Canonical issue/Project changes
+are the normal handoff; no routine peer acknowledgment or coordinator is required.
+Shared product, preservation, safety and release requirements retain their existing
+finite Required owners. This is release scope, not engineering completion, beta
+readiness or publication authority.
 
 ## Keeping current specifications readable
 
@@ -690,13 +710,14 @@ delivery authority remains required. #52 and #246 have no reciprocal blocker.
 The #917 design system, #921 development-agility consolidation, #925 domain and
 lifecycle foundations and genuinely required supporting work remain Required
 initial beta. Prioritize changes that improve development speed, explicit
-ownership, deterministic testing and safe iteration. The owner-amended upstream-first
-frozen rollout (#1422), repeatable onboarding (#254), truthful operation availability
+ownership, deterministic testing and safe iteration. The owner-approved
+fixed Harbour Masters integration minimum, repeatable onboarding (#254), truthful operation availability
 (#1168/#1169), account-free artwork (#1155/#208/#206), compatible definition
 delivery (#246), reusable public CLI/reference contracts (#30/#243), manual
 plugin-free Desktop Steam route (#290) and shared Linux/controller/storage/process
 safety remain required. Completed foundations remain consumed proof, not reopened
-work. A representative pilot does not substitute for the committed rollout.
+work. A representative pilot does not complete eventual rollout acceptance; whole-rollout
+completion is non-gating and does not delay the independently finishable beta minimum.
 
 Steam Deck (#51/#213–#217/#535), macOS Intel/Apple Silicon (#45/#226), full
 user-ready Playnite (#910), automatic Steam entry management (#292), physical Xbox
