@@ -18362,7 +18362,10 @@
         "original_game_title": "Spyro the Dragon",
         "manual_setup": {
           "help_url": "https://openpete.com/",
-          "warnings": [],
+          "warnings": [
+            "Preserve your ordinary .mcr memory cards, settings, states, mods and the library folder before changing it. Keep the creating runtime with its generated code and states, and confirm your ordinary game saves in the new copy before retiring the old one.",
+            "This external copy has no Portcove-managed Update, Backup or Rollback; removing its registration preserves every file."
+          ],
           "steps": [
             {
               "title": "Choose the accepted managed copy or current upstream player",
@@ -18371,7 +18374,9 @@
             {
               "title": "Supply your own Spyro disc through upstream setup",
               "instruction": "Use your own original Spyro the Dragon NTSC-U disc, SCUS-94228. Follow the current player’s first-run import instructions: it copies the disc into library and compiles game code alongside it. Keep the bundled compiler and runtime companions together. Save the completed Windows player’s launch details with that folder as its working directory, then choose Play separately. Portcove discovery does not run the compiler or import a disc automatically."
-            },
+            }
+          ],
+          "references": [
             {
               "title": "Keep progress and generated files with their working version",
               "instruction": "You or upstream update the separate current copy. Preserve your ordinary .mcr memory cards, settings, states, mods and the library folder before changing it. Keep the creating runtime with its generated code and states, and confirm your ordinary game saves in the new copy before retiring the old one. This external copy has no Portcove-managed Update, Backup or Rollback; removing its registration preserves every file. The official Linux AppImage follows its own upstream instructions."
@@ -22913,18 +22918,23 @@
               "instruction": "Select the completed build/EarthBoundRecomp.exe from your prepared Windows copy and use the project root as working directory, matching upstream's documented invocation. Enter the actual absolute path to your own EarthBound USA .sfc as one argument line, without shell quotes. The documented headerless original is 3,145,728 bytes with SHA-256 a8fe2226728002786d68c27ddddf0b90a894db52e4dfe268fdf72a68cae5f02e. The upstream runtime checks its original input; Portcove records the argument but does not import or authenticate that file."
             },
             {
-              "title": "Preserve the complete creating environment",
-              "instruction": "Keep the original and its location, complete project/build tree, private generated code, saves folder, SRAM/save-state files, config.ini, config.local.ini, rom.cfg and diagnostic output with the creating runtime. Preserve separately configured or original-adjacent files too. The documented host reads configuration and creates saves relative to its working folder, and can automatically load and save slot zero when autosave is enabled. Upstream or you own rebuilds and runtime replacement; older save states, settings and generated code are not guaranteed compatible with another build."
-            },
-            {
               "title": "Review registration and choose Play separately",
               "instruction": "Portcove records your selected native executable, working folder and literal arguments after review; Play is separate. Only the selected process is supervised. Removing the registration preserves all external files. Managed installation, generation, updates, backup, rollback, migration and deletion are not offered for this copy. Existing Portcove-built installations retain their original installation, source, backup and recovery contracts."
             }
           ],
           "warnings": [
-            "Upstream remains an early, interpreter-first prototype with title-screen/file-select bring-up evidence. Registration does not establish full static recompilation, completed gameplay or populated save compatibility."
+            "Upstream remains an early, interpreter-first prototype with title-screen/file-select bring-up evidence. Registration does not establish full static recompilation, completed gameplay or populated save compatibility.",
+            "Keep the original and its location, complete project/build tree, private generated code, saves folder, SRAM/save-state files, config.ini, config.local.ini, rom.cfg and diagnostic output with the creating runtime. Preserve separately configured or original-adjacent files too.",
+            "The documented host reads configuration and creates saves relative to its working folder, and can automatically load and save slot zero when autosave is enabled.",
+            "Upstream or you own rebuilds and runtime replacement; older save states, settings and generated code are not guaranteed compatible with another build."
           ],
-          "help_url": "https://github.com/nickclyde/EarthBoundRecomp/blob/fe1155dc26ffc40df36a8003dd0e639e17af3349/README.md"
+          "help_url": "https://github.com/nickclyde/EarthBoundRecomp/blob/fe1155dc26ffc40df36a8003dd0e639e17af3349/README.md",
+          "references": [
+            {
+              "title": "Preserve the complete creating environment",
+              "instruction": "Keep the original and its location, complete project/build tree, private generated code, saves folder, SRAM/save-state files, config.ini, config.local.ini, rom.cfg and diagnostic output with the creating runtime. Preserve separately configured or original-adjacent files too. The documented host reads configuration and creates saves relative to its working folder, and can automatically load and save slot zero when autosave is enabled. Upstream or you own rebuilds and runtime replacement; older save states, settings and generated code are not guaranteed compatible with another build."
+            }
+          ]
         },
         "artwork": {
           "game_id": 2899,
@@ -23521,12 +23531,18 @@
         "original_game_title": "MechCommander 2",
         "manual_setup": {
           "help_url": "https://github.com/alariq/mc2/blob/c428dfe02b609f0864933e715ca22ed07427a545/README.md",
-          "warnings": [],
+          "warnings": [
+            "Close the game and back up that external user-data folder separately.",
+            "External profiles and custom paths are outside Portcove backups.",
+            "Follow upstream guidance for settings and custom content; copying old generated texture or geometry caches over a new package can replace its new files. Registration leaves every external file untouched."
+          ],
           "steps": [
             {
               "title": "Use the complete Windows player",
               "instruction": "The official Windows x64 ZIP includes mc2.exe, its libraries and game data. Keep the complete package together. For an existing copy, select mc2.exe in the extracted mc2-win64 folder and use that folder as the working directory. Save launch details, then choose Play separately. The selected release has no Linux player archive; upstream provides separate Linux source/data build instructions. Follow all included notices: project code and components have their own licenses, and Microsoft’s Art Assets grant limits their use and distribution to noncommercial purposes."
-            },
+            }
+          ],
+          "references": [
             {
               "title": "Back up the external saves",
               "instruction": "Normal saves use .mechcommander2/savegame under your Windows user-profile folder. Linux uses that path under XDG_CONFIG_HOME when set, otherwise HOME. Close the game and back up that external user-data folder separately. Keep options.cfg, options.cfg.old, orgprefs.cfg, data/multiplayer and any custom data locations with the copy you use. External profiles and custom paths are outside Portcove backups."
@@ -24881,16 +24897,20 @@
               "instruction": "The official Windows EXE is the upstream installer. Run setup deliberately, choose its data destination and complete the campaign/data layout, then register the installed OpenFodder.exe with its installation folder as working directory. Do not select the installer, bundled VC runtime setup or uninstaller as the player. The Campaigns data pack is required even when original retail data is present. Use the upstream campaign menu to select this game."
             },
             {
-              "title": "Keep the actual original and player data",
-              "instruction": "The installer can choose Documents/OpenFodder or an installation-local data layout. The complete root contains Data, Campaigns and Saves; openfodder.ini in the working directory can add other search paths. Preserve the actual chosen root, Saves, campaign/mod files and configuration with the player closed before upstream replacement. The original Amiga/DOS, demo and sequel data have separate preparation requirements."
-            },
-            {
               "title": "Add the game and manage your files",
               "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Other platforms need their own supported application and setup instructions."
             }
           ],
-          "warnings": [],
-          "help_url": "https://github.com/OpenFodder/openfodder/blob/5eb41362f72fcedf2b1dffed397a7a8edf9a6305/README.md"
+          "warnings": [
+            "Preserve the actual chosen root, Saves, campaign/mod files and configuration with the player closed before upstream replacement."
+          ],
+          "help_url": "https://github.com/OpenFodder/openfodder/blob/5eb41362f72fcedf2b1dffed397a7a8edf9a6305/README.md",
+          "references": [
+            {
+              "title": "Keep the actual original and player data",
+              "instruction": "The installer can choose Documents/OpenFodder or an installation-local data layout. The complete root contains Data, Campaigns and Saves; openfodder.ini in the working directory can add other search paths. Preserve the actual chosen root, Saves, campaign/mod files and configuration with the player closed before upstream replacement. The original Amiga/DOS, demo and sequel data have separate preparation requirements."
+            }
+          ]
         },
         "artwork": {
           "game_id": 11986,
@@ -24950,16 +24970,20 @@
               "instruction": "The official Windows EXE is the upstream installer. Run setup deliberately, choose its data destination and complete the campaign/data layout, then register the installed OpenFodder.exe with its installation folder as working directory. Do not select the installer, bundled VC runtime setup or uninstaller as the player. The Campaigns data pack is required even when original retail data is present. Use the upstream campaign menu to select this game."
             },
             {
-              "title": "Keep the actual original and player data",
-              "instruction": "The installer can choose Documents/OpenFodder or an installation-local data layout. The complete root contains Data, Campaigns and Saves; openfodder.ini in the working directory can add other search paths. Preserve the actual chosen root, Saves, campaign/mod files and configuration with the player closed before upstream replacement. The original Amiga/DOS, demo and sequel data have separate preparation requirements."
-            },
-            {
               "title": "Add the game and manage your files",
               "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Other platforms need their own supported application and setup instructions."
             }
           ],
-          "warnings": [],
-          "help_url": "https://github.com/OpenFodder/openfodder/blob/5eb41362f72fcedf2b1dffed397a7a8edf9a6305/README.md"
+          "warnings": [
+            "Preserve the actual chosen root, Saves, campaign/mod files and configuration with the player closed before upstream replacement."
+          ],
+          "help_url": "https://github.com/OpenFodder/openfodder/blob/5eb41362f72fcedf2b1dffed397a7a8edf9a6305/README.md",
+          "references": [
+            {
+              "title": "Keep the actual original and player data",
+              "instruction": "The installer can choose Documents/OpenFodder or an installation-local data layout. The complete root contains Data, Campaigns and Saves; openfodder.ini in the working directory can add other search paths. Preserve the actual chosen root, Saves, campaign/mod files and configuration with the player closed before upstream replacement. The original Amiga/DOS, demo and sequel data have separate preparation requirements."
+            }
+          ]
         }
       }
     },
@@ -25011,18 +25035,22 @@
               "instruction": "Choose Preview for the official Windows 64-bit beta ZIP, extract it and keep CatacombGL.exe and SDL2.dll together. Register CatacombGL.exe with that folder as its working directory. Leave arguments empty for the game picker, or use the single documented argument --descent after the original folder is recognized. Registration does not start it; choose Play deliberately. The Linux tar.xz needs upstream/system extraction and a prepared native player; the Windows recommendation does not promise managed tar.xz handling."
             },
             {
-              "title": "Preserve this engine’s profile",
-              "instruction": "Windows normally keeps CatacombGL.ini and game-specific data under the actual Roaming AppData/CatacombGL folder. A custom --ini or --log location stays external. Preserve the whole profile, existing game save folders and original data with all copies closed before updating. Controls are shared by all four games. Upstream v0.5.7 documents no controller support and no save compatibility with the original DOS games. ReflectionHLE is a separate implementation; do not move saves between them on the basis of a shared game title."
-            },
-            {
               "title": "Keep upstream update ownership",
               "instruction": "You manage this external game, its original files and its profile using the project’s tools. Add it to Portcove, choose Play separately and remove its registration when you no longer want it listed. Portcove does not take over its files or offer updates, backups, rollback or deletion for this copy. Keep a working copy and back up its data before updating. Other platforms need their own supported package and application instructions. These Windows instructions do not establish that the game runs on any platform."
             }
           ],
           "warnings": [
-            "The reviewed CatacombGL release is beta. Original DOS save compatibility and controller support are not offered by this version."
+            "The reviewed CatacombGL release is beta. Original DOS save compatibility and controller support are not offered by this version.",
+            "Preserve the whole profile, existing game save folders and original data with all copies closed before updating. Controls are shared by all four games.",
+            "ReflectionHLE is a separate implementation; do not move saves between them on the basis of a shared game title."
           ],
-          "help_url": "https://github.com/ArnoAnsems/CatacombGL/blob/1bd619a8449a2f88cb4b9af19c155f044982e5aa/README.md"
+          "help_url": "https://github.com/ArnoAnsems/CatacombGL/blob/1bd619a8449a2f88cb4b9af19c155f044982e5aa/README.md",
+          "references": [
+            {
+              "title": "Preserve this engine’s profile",
+              "instruction": "Windows normally keeps CatacombGL.ini and game-specific data under the actual Roaming AppData/CatacombGL folder. A custom --ini or --log location stays external. Preserve the whole profile, existing game save folders and original data with all copies closed before updating. Controls are shared by all four games. Upstream v0.5.7 documents no controller support and no save compatibility with the original DOS games. ReflectionHLE is a separate implementation; do not move saves between them on the basis of a shared game title."
+            }
+          ]
         }
       }
     },
@@ -25392,16 +25420,21 @@
               "instruction": "Use the official stable Windows 64-bit v1.1 package rather than the separate modding preview. Extract its full wrapper, including its data directory and support files. Register omnispeak.exe inside that wrapper with the same working directory. Use a separate player copy for Keen 4. Copy the contents of data/keen4 beside omnispeak.exe, along with your matching GAMEMAPS.CK4, EGAGRAPH.CK4 and AUDIO.CK4; the wrapper initially contains Keen 4 files, not a ready Keen 5/6 layout. Keep your originals elsewhere unchanged. Then use two argument lines, /EPISODE and 4, in Change launch details. /GAMEPATH plus the real original-data folder and /USERPATH plus a separate writable save/config folder can keep episode data and profiles apart. Each option and value is a separate literal argument. Registration does not execute the player; choose Play separately."
             },
             {
-              "title": "Keep saves and support files with their chosen profile",
-              "instruction": "Preserve your original-data folder, matching episode support files, complete working player and actual writable profile before changing versions. /USERPATH explicitly selects the save/config directory; otherwise the upstream build can use its default directory or an SDL user-path fallback. Keep separate episode profiles and all custom paths backed up with players closed. Upstream claims DOS-save compatibility; Portcove has not exercised your saves and does not promise automatic conversion, managed backup or rollback."
-            },
-            {
               "title": "Keep upstream update ownership",
               "instruction": "You manage this external game, its original files and its profile using the project’s tools. Add it to Portcove, choose Play separately and remove its registration when you no longer want it listed. Portcove does not take over its files or offer updates, backups, rollback or deletion for this copy. Keep a working copy and back up its data before updating. Other platforms need their own supported package and application instructions. These Windows instructions do not establish that the game runs on any platform."
             }
           ],
-          "warnings": [],
-          "help_url": "https://github.com/sulix/omnispeak/blob/d017166e47a44f102515f3fdf382ac794ab30ae0/README"
+          "warnings": [
+            "Preserve your original-data folder, matching episode support files, complete working player and actual writable profile before changing versions.",
+            "Keep separate episode profiles and all custom paths backed up with players closed. Upstream claims DOS-save compatibility; Portcove has not exercised your saves and does not promise automatic conversion, managed backup or rollback."
+          ],
+          "help_url": "https://github.com/sulix/omnispeak/blob/d017166e47a44f102515f3fdf382ac794ab30ae0/README",
+          "references": [
+            {
+              "title": "Keep saves and support files with their chosen profile",
+              "instruction": "Preserve your original-data folder, matching episode support files, complete working player and actual writable profile before changing versions. /USERPATH explicitly selects the save/config directory; otherwise the upstream build can use its default directory or an SDL user-path fallback. Keep separate episode profiles and all custom paths backed up with players closed. Upstream claims DOS-save compatibility; Portcove has not exercised your saves and does not promise automatic conversion, managed backup or rollback."
+            }
+          ]
         }
       }
     },
@@ -25453,16 +25486,21 @@
               "instruction": "Use the official stable Windows 64-bit v1.1 package rather than the separate modding preview. Extract its full wrapper, including its data directory and support files. Register omnispeak.exe inside that wrapper with the same working directory. Use a separate player copy for Keen 5. Copy the contents of data/keen5 beside omnispeak.exe, along with your matching GAMEMAPS.CK5, EGAGRAPH.CK5 and AUDIO.CK5; the wrapper initially contains Keen 4 files, not a ready Keen 5/6 layout. Keep your originals elsewhere unchanged. Then use two argument lines, /EPISODE and 5, in Change launch details. /GAMEPATH plus the real original-data folder and /USERPATH plus a separate writable save/config folder can keep episode data and profiles apart. Each option and value is a separate literal argument. Registration does not execute the player; choose Play separately."
             },
             {
-              "title": "Keep saves and support files with their chosen profile",
-              "instruction": "Preserve your original-data folder, matching episode support files, complete working player and actual writable profile before changing versions. /USERPATH explicitly selects the save/config directory; otherwise the upstream build can use its default directory or an SDL user-path fallback. Keep separate episode profiles and all custom paths backed up with players closed. Upstream claims DOS-save compatibility; Portcove has not exercised your saves and does not promise automatic conversion, managed backup or rollback."
-            },
-            {
               "title": "Keep upstream update ownership",
               "instruction": "You manage this external game, its original files and its profile using the project’s tools. Add it to Portcove, choose Play separately and remove its registration when you no longer want it listed. Portcove does not take over its files or offer updates, backups, rollback or deletion for this copy. Keep a working copy and back up its data before updating. Other platforms need their own supported package and application instructions. These Windows instructions do not establish that the game runs on any platform."
             }
           ],
-          "warnings": [],
-          "help_url": "https://github.com/sulix/omnispeak/blob/d017166e47a44f102515f3fdf382ac794ab30ae0/README"
+          "warnings": [
+            "Preserve your original-data folder, matching episode support files, complete working player and actual writable profile before changing versions.",
+            "Keep separate episode profiles and all custom paths backed up with players closed. Upstream claims DOS-save compatibility; Portcove has not exercised your saves and does not promise automatic conversion, managed backup or rollback."
+          ],
+          "help_url": "https://github.com/sulix/omnispeak/blob/d017166e47a44f102515f3fdf382ac794ab30ae0/README",
+          "references": [
+            {
+              "title": "Keep saves and support files with their chosen profile",
+              "instruction": "Preserve your original-data folder, matching episode support files, complete working player and actual writable profile before changing versions. /USERPATH explicitly selects the save/config directory; otherwise the upstream build can use its default directory or an SDL user-path fallback. Keep separate episode profiles and all custom paths backed up with players closed. Upstream claims DOS-save compatibility; Portcove has not exercised your saves and does not promise automatic conversion, managed backup or rollback."
+            }
+          ]
         }
       }
     },
@@ -25514,18 +25552,22 @@
               "instruction": "Use the official stable Windows 64-bit v1.1 package rather than the separate modding preview. Extract its full wrapper, including its data directory and support files. Register omnispeak.exe inside that wrapper with the same working directory. Use a separate player copy for Keen 6. Copy the contents of data/keen6e14 for v1.4 EGA or data/keen6e15 for v1.5 EGA beside omnispeak.exe, along with your matching GAMEMAPS.CK6, EGAGRAPH.CK6 and AUDIO.CK6; the wrapper initially contains Keen 4 files, not a ready Keen 5/6 layout. Keep your originals elsewhere unchanged. Then use two argument lines, /EPISODE and 6v14 for v1.4 EGA or 6v15 for v1.5 EGA, in Change launch details. /GAMEPATH plus the real original-data folder and /USERPATH plus a separate writable save/config folder can keep episode data and profiles apart. Each option and value is a separate literal argument. Registration does not execute the player; choose Play separately."
             },
             {
-              "title": "Keep saves and support files with their chosen profile",
-              "instruction": "Preserve your original-data folder, matching episode support files, complete working player and actual writable profile before changing versions. /USERPATH explicitly selects the save/config directory; otherwise the upstream build can use its default directory or an SDL user-path fallback. Keep separate episode profiles and all custom paths backed up with players closed. Upstream claims DOS-save compatibility; Portcove has not exercised your saves and does not promise automatic conversion, managed backup or rollback."
-            },
-            {
               "title": "Keep upstream update ownership",
               "instruction": "You manage this external game, its original files and its profile using the project’s tools. Add it to Portcove, choose Play separately and remove its registration when you no longer want it listed. Portcove does not take over its files or offer updates, backups, rollback or deletion for this copy. Keep a working copy and back up its data before updating. Other platforms need their own supported package and application instructions. These Windows instructions do not establish that the game runs on any platform."
             }
           ],
           "warnings": [
-            "No supported new retail acquisition of Keen 6 is established. This route requires your already owned supported EGA edition; other editions may fail."
+            "No supported new retail acquisition of Keen 6 is established. This route requires your already owned supported EGA edition; other editions may fail.",
+            "Preserve your original-data folder, matching episode support files, complete working player and actual writable profile before changing versions.",
+            "Keep separate episode profiles and all custom paths backed up with players closed. Upstream claims DOS-save compatibility; Portcove has not exercised your saves and does not promise automatic conversion, managed backup or rollback."
           ],
-          "help_url": "https://github.com/sulix/omnispeak/blob/d017166e47a44f102515f3fdf382ac794ab30ae0/README"
+          "help_url": "https://github.com/sulix/omnispeak/blob/d017166e47a44f102515f3fdf382ac794ab30ae0/README",
+          "references": [
+            {
+              "title": "Keep saves and support files with their chosen profile",
+              "instruction": "Preserve your original-data folder, matching episode support files, complete working player and actual writable profile before changing versions. /USERPATH explicitly selects the save/config directory; otherwise the upstream build can use its default directory or an SDL user-path fallback. Keep separate episode profiles and all custom paths backed up with players closed. Upstream claims DOS-save compatibility; Portcove has not exercised your saves and does not promise automatic conversion, managed backup or rollback."
+            }
+          ]
         },
         "artwork": {
           "game_id": 2446,
@@ -26498,12 +26540,18 @@
         "original_game_title": "Crash Team Racing",
         "manual_setup": {
           "help_url": "https://github.com/CTR-tools/ctr-native/blob/9b574960fa8a4b897d373bab8a330ecb0626b474/README.md",
-          "warnings": [],
+          "warnings": [
+            "Internal F5 quickstates under debug/states hold runtime memory and are tied to their creating build; replay reports under debug/reports can include independent recorded memory-card progress. Keep the old runtime with those files for matching-build use; do not insert them into another version.",
+            "Keep its complete working folder and back up memcards and captures before extracting a new player separately.",
+            "Keep debug output with the originating runtime for matching-build use; no cross-version state compatibility is promised. External registration preserves every file and supplies no managed Backup or Rollback."
+          ],
           "steps": [
             {
               "title": "Use your own USA raw disc",
               "instruction": "For an existing official beta7.1 Windows copy, choose ctr_native.exe inside its extracted wrapper, with that executable’s folder as the working directory. Place your own NTSC-U raw MODE2/2352 disc BIN at assets/ctr-u.bin beside it; the data track must start at byte 0. A cooked 2048 ISO, another edition or a CUE file is not this route. No compiler, BIOS or extraction helper is needed for the official player archive. Windows runs its x86 player through x64 compatibility; upstream also offers a separate 32-bit Linux package with its own dependency requirements."
-            },
+            }
+          ],
+          "references": [
             {
               "title": "Prefer in-game memory-card saves",
               "instruction": "Normal saves and ghosts live under memcards. F12 captures SCREENSHOT.BMP and the VRAM debug capture uses VRAM.TGA. Internal F5 quickstates under debug/states hold runtime memory and are tied to their creating build; replay reports under debug/reports can include independent recorded memory-card progress. Keep the old runtime with those files for matching-build use; do not insert them into another version."
@@ -26572,16 +26620,20 @@
               "instruction": "Use the upstream Windows DXX-Rebirth-Windows-x86_64 Actions artifact or a complete player prepared with upstream’s supported build instructions. The observed tagged releases do not provide a matching binary asset. Keep the package complete and select d1x-rebirth.exe, with its own player folder as the working directory. Put this game’s data beside that player, or use two argument lines, -hogdir then its full data-folder path. D1X and D2X are separate players; a source archive is not their native executable."
             },
             {
-              "title": "Keep the actual original and player data",
-              "instruction": "Keep separate player/profile copies for Descent and Descent II. Preserve the build’s actual writable directory, player profiles, saves, missions and configuration; custom D1X_REBIRTH_HOME/D2X_REBIRTH_HOME or build choices can change it. Preserve the complete working player folder as well. Upstream describes DOS-save compatibility; no Portcove save conversion or native observation is established."
-            },
-            {
               "title": "Add the game and manage your files",
               "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Other platforms need their own supported application and setup instructions."
             }
           ],
-          "warnings": [],
-          "help_url": "https://github.com/dxx-rebirth/dxx-rebirth/actions"
+          "warnings": [
+            "Keep separate player/profile copies for Descent and Descent II. Preserve the build’s actual writable directory, player profiles, saves, missions and configuration; custom D1X_REBIRTH_HOME/D2X_REBIRTH_HOME or build choices can change it. Preserve the complete working player folder as well."
+          ],
+          "help_url": "https://github.com/dxx-rebirth/dxx-rebirth/actions",
+          "references": [
+            {
+              "title": "Keep the actual original and player data",
+              "instruction": "Keep separate player/profile copies for Descent and Descent II. Preserve the build’s actual writable directory, player profiles, saves, missions and configuration; custom D1X_REBIRTH_HOME/D2X_REBIRTH_HOME or build choices can change it. Preserve the complete working player folder as well. Upstream describes DOS-save compatibility; no Portcove save conversion or native observation is established."
+            }
+          ]
         }
       }
     },
@@ -26633,16 +26685,20 @@
               "instruction": "Use the upstream Windows DXX-Rebirth-Windows-x86_64 Actions artifact or a complete player prepared with upstream’s supported build instructions. The observed tagged releases do not provide a matching binary asset. Keep the package complete and select d2x-rebirth.exe, with its own player folder as the working directory. Put this game’s data beside that player, or use two argument lines, -hogdir then its full data-folder path. D1X and D2X are separate players; a source archive is not their native executable."
             },
             {
-              "title": "Keep the actual original and player data",
-              "instruction": "Keep separate player/profile copies for Descent and Descent II. Preserve the build’s actual writable directory, player profiles, saves, missions and configuration; custom D1X_REBIRTH_HOME/D2X_REBIRTH_HOME or build choices can change it. Preserve the complete working player folder as well. Upstream describes DOS-save compatibility; no Portcove save conversion or native observation is established."
-            },
-            {
               "title": "Add the game and manage your files",
               "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Other platforms need their own supported application and setup instructions."
             }
           ],
-          "warnings": [],
-          "help_url": "https://github.com/dxx-rebirth/dxx-rebirth/actions"
+          "warnings": [
+            "Keep separate player/profile copies for Descent and Descent II. Preserve the build’s actual writable directory, player profiles, saves, missions and configuration; custom D1X_REBIRTH_HOME/D2X_REBIRTH_HOME or build choices can change it. Preserve the complete working player folder as well."
+          ],
+          "help_url": "https://github.com/dxx-rebirth/dxx-rebirth/actions",
+          "references": [
+            {
+              "title": "Keep the actual original and player data",
+              "instruction": "Keep separate player/profile copies for Descent and Descent II. Preserve the build’s actual writable directory, player profiles, saves, missions and configuration; custom D1X_REBIRTH_HOME/D2X_REBIRTH_HOME or build choices can change it. Preserve the complete working player folder as well. Upstream describes DOS-save compatibility; no Portcove save conversion or native observation is established."
+            }
+          ]
         }
       }
     },
@@ -27691,18 +27747,21 @@
               "instruction": "Extract and keep the complete Windows package together. Finish Portcove setup with DoomRPG.exe and its containing folder, then choose Play. Do not register BarToZip.exe as the player."
             },
             {
-              "title": "Keep progress when updating",
-              "instruction": "Back up DoomRPG.zip and the working folder’s Config, Player, Player2 and World files before applying upstream updates. The current BarToZip includes PMD-to-WAV conversion; the old separate PureVoice conversion is no longer required."
-            },
-            {
               "title": "Add the game and manage your files",
               "instruction": "Register the real Windows player with its matching working directory and separate literal arguments; do not select a converter, installer or updater as the game player. Complete any original-data or prerequisite setup deliberately through upstream instructions. Registration does not perform or authenticate that preparation, and Play is a separate explicit action. You and upstream own this external runtime, original files, saves, settings and profiles. Preserve the complete working copy and every actual data/profile location with the game closed before upstream replacement. Registration-only removal preserves all external files; managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
             }
           ],
           "warnings": [
-            "Doom RPG and Doom II RPG use different original-game inputs. J2ME and BREW data are not interchangeable merely because a README mentions both."
+            "Doom RPG and Doom II RPG use different original-game inputs. J2ME and BREW data are not interchangeable merely because a README mentions both.",
+            "Back up DoomRPG.zip and the working folder’s Config, Player, Player2 and World files before applying upstream updates."
           ],
-          "help_url": "https://github.com/Erick194/DoomRPG-RE#readme"
+          "help_url": "https://github.com/Erick194/DoomRPG-RE#readme",
+          "references": [
+            {
+              "title": "Keep progress when updating",
+              "instruction": "Back up DoomRPG.zip and the working folder’s Config, Player, Player2 and World files before applying upstream updates. The current BarToZip includes PMD-to-WAV conversion; the old separate PureVoice conversion is no longer required."
+            }
+          ]
         },
         "artwork": {
           "game_id": 101029,
@@ -29020,12 +29079,19 @@
         "original_game_title": "Infinite Undiscovery",
         "manual_setup": {
           "help_url": "https://github.com/doc-haz/infinite-undiscovery-recomp/blob/ce6586c0a237541caa438122ecdd99c62982b288/README.md",
-          "warnings": [],
+          "warnings": [
+            "Close the game before updates or copying data. Keep interrupted import/staging folders recoverable and consult upstream; do not merge different editions. Backups can include large original-game files and DLC, so keep them private.",
+            "Do not copy old runtime DLLs or shader caches over the replacement. Runtime rollback does not rewind saves or guarantee that older software can read them.",
+            "The selected release-tag documentation had not tested the Disc 1 to Disc 2 transition. Later upstream documentation at 614a0a0ebd72103fce8aaa52c715d847b703a53e reports repeated successful transitions, while complete Disc 2 progression and a full playthrough remain unverified and a Vesplume Tower / Orb of Patience softlock remains under investigation. These are upstream reports; Portcove has not run the game.",
+            "Keep cache/runtime.toml too: it contains runtime settings despite the cache folder name."
+          ],
           "steps": [
             {
               "title": "Import your own game on first Play",
               "instruction": "The official Windows x64 ZIP is portable and has no installer. Choose InfiniteUndiscoveryRecomp.exe and keep its DLLs and notices together. On first Play, the game’s integrated wizard validates and imports your own Disc 1 from a supported XDVDFS ISO or extracted folder; Disc 2 and A/B Voucher DLC are optional. It identifies supported USA, USA-UNDUB, Europe, Japan and Asia editions from the media. Do not mix editions. Portcove does not run an extraction helper or developer compiler. Windows 10/11 x64 and Direct3D 12 are required; use Microsoft’s Visual C++ 2015–2022 x64 Redistributable if the documented runtime DLLs are missing."
-            },
+            }
+          ],
+          "references": [
             {
               "title": "Keep each content profile together",
               "instruction": "The complete portable folder holds setup.json and separate USA, USA-UNDUB, EUROPE, JAPAN and ASIA profiles. Each configured profile owns its imported assets/DLC, saves and configuration. Keep cache/runtime.toml too: it contains runtime settings despite the cache folder name. Close the game before updates or copying data. Keep interrupted import/staging folders recoverable and consult upstream; do not merge different editions. Backups can include large original-game files and DLC, so keep them private. The separate IU Save Bridge companion is optional and is not run by Portcove."
@@ -30713,7 +30779,17 @@
             {
               "title": "Choose your original game and BIOS in the player",
               "instruction": "The complete Windows x64 stable ZIP contains the player, libraries, assets and compiler companions. Keep them together. Choose Play after installation, then supply your own matching USA original GBA game and retail GBA BIOS in the upstream launcher. The launcher checks those inputs and remembers valid choices. No separate installer is required; Portcove does not execute discovered compilers or helpers during setup."
-            },
+            }
+          ],
+          "warnings": [
+            "The upstream project’s own code uses PolyForm Noncommercial 1.0.0. Use must fit its noncommercial terms; keep the package’s component notices and their separate terms. This does not grant rights to the original game or retail BIOS, which you must supply yourself.",
+            "Normal cartridge saves (.sav) and optional state slots (.stateN) follow your selected original game file, usually outside the installation. Preserve that actual folder separately, including .tmp, .bak and .prev-size.bak recovery siblings. The launcher display does not relocate saves; custom --save/--save-path or --state-dir choices can select other locations.",
+            "Its backup excludes external originals, BIOS and save folders.",
+            "A changed package using the same ID/version requires reviewing the reported copies separately before retrying. Mods remain player/upstream-owned code: preservation does not authenticate them or establish compatibility.",
+            "Runtime rollback carries current data; it does not rewind saves or guarantee older readers can use them."
+          ],
+          "help_url": "https://github.com/mstan/DragonBallZBuusFuryRecomp/blob/9deab0151d2c963b8f87d21a8b3002504c56666b/README.md",
+          "references": [
             {
               "title": "Back up your actual save folder",
               "instruction": "Normal cartridge saves (.sav) and optional state slots (.stateN) follow your selected original game file, usually outside the installation. Preserve that actual folder separately, including .tmp, .bak and .prev-size.bak recovery siblings. The launcher display does not relocate saves; custom --save/--save-path or --state-dir choices can select other locations. A Portcove-managed copy preserves declared local config.ini, keybinds.ini, rom.cfg, bios.cfg, user game.toml, saves/ and mods/. Its backup excludes external originals, BIOS and save folders."
@@ -30722,11 +30798,7 @@
               "title": "Keep your choices and mod versions when updating",
               "instruction": "If Library identifies this copy as Portcove-managed, use its compatible stable update. Portcove stages the replacement and preserves current declared local data, including edits before first Play. Complete mods/packages/<id>/<version> packages coexist with new upstream defaults; your mod state is retained without choosing a new default for you. A changed package using the same ID/version requires reviewing the reported copies separately before retrying. Mods remain player/upstream-owned code: preservation does not authenticate them or establish compatibility. Generated executable caches and diagnostics stay with each runtime and are regenerated. Runtime rollback carries current data; it does not rewind saves or guarantee older readers can use them. For a copy you added yourself, you or upstream provide updates: prepare a separate folder and change the registration when ready."
             }
-          ],
-          "warnings": [
-            "The upstream project’s own code uses PolyForm Noncommercial 1.0.0. Use must fit its noncommercial terms; keep the package’s component notices and their separate terms. This does not grant rights to the original game or retail BIOS, which you must supply yourself."
-          ],
-          "help_url": "https://github.com/mstan/DragonBallZBuusFuryRecomp/blob/9deab0151d2c963b8f87d21a8b3002504c56666b/README.md"
+          ]
         },
         "artwork": {
           "game_id": 19835,
@@ -30794,7 +30866,17 @@
             {
               "title": "Choose your original game and BIOS in the player",
               "instruction": "The complete Windows x64 stable ZIP contains the player, libraries, assets and compiler companions. Keep them together. Choose Play after installation, then supply your own matching USA original GBA game and retail GBA BIOS in the upstream launcher. The launcher checks those inputs and remembers valid choices. No separate installer is required; Portcove does not execute discovered compilers or helpers during setup."
-            },
+            }
+          ],
+          "warnings": [
+            "The upstream project’s own code uses PolyForm Noncommercial 1.0.0. Use must fit its noncommercial terms; keep the package’s component notices and their separate terms. This does not grant rights to the original game or retail BIOS, which you must supply yourself.",
+            "Normal cartridge saves (.sav) and optional state slots (.stateN) follow your selected original game file, usually outside the installation. Preserve that actual folder separately, including .tmp, .bak and .prev-size.bak recovery siblings. The launcher display does not relocate saves; custom --save/--save-path or --state-dir choices can select other locations.",
+            "Its backup excludes external originals, BIOS and save folders.",
+            "A changed package using the same ID/version requires reviewing the reported copies separately before retrying. Mods remain player/upstream-owned code: preservation does not authenticate them or establish compatibility.",
+            "Runtime rollback carries current data; it does not rewind saves or guarantee older readers can use them."
+          ],
+          "help_url": "https://github.com/mstan/DragonBallZLegacyofGokuIIRecomp/blob/6009d1f17478bfb8fa920b269dc533aca4367526/README.md",
+          "references": [
             {
               "title": "Back up your actual save folder",
               "instruction": "Normal cartridge saves (.sav) and optional state slots (.stateN) follow your selected original game file, usually outside the installation. Preserve that actual folder separately, including .tmp, .bak and .prev-size.bak recovery siblings. The launcher display does not relocate saves; custom --save/--save-path or --state-dir choices can select other locations. A Portcove-managed copy preserves declared local config.ini, keybinds.ini, rom.cfg, bios.cfg, user game.toml, saves/ and mods/. Its backup excludes external originals, BIOS and save folders."
@@ -30803,11 +30885,7 @@
               "title": "Keep your choices and mod versions when updating",
               "instruction": "If Library identifies this copy as Portcove-managed, use its compatible stable update. Portcove stages the replacement and preserves current declared local data, including edits before first Play. Complete mods/packages/<id>/<version> packages coexist with new upstream defaults; your mod state is retained without choosing a new default for you. A changed package using the same ID/version requires reviewing the reported copies separately before retrying. Mods remain player/upstream-owned code: preservation does not authenticate them or establish compatibility. Generated executable caches and diagnostics stay with each runtime and are regenerated. Runtime rollback carries current data; it does not rewind saves or guarantee older readers can use them. For a copy you added yourself, you or upstream provide updates: prepare a separate folder and change the registration when ready."
             }
-          ],
-          "warnings": [
-            "The upstream project’s own code uses PolyForm Noncommercial 1.0.0. Use must fit its noncommercial terms; keep the package’s component notices and their separate terms. This does not grant rights to the original game or retail BIOS, which you must supply yourself."
-          ],
-          "help_url": "https://github.com/mstan/DragonBallZLegacyofGokuIIRecomp/blob/6009d1f17478bfb8fa920b269dc533aca4367526/README.md"
+          ]
         },
         "artwork": {
           "game_id": 19834,
@@ -30964,7 +31042,17 @@
             {
               "title": "Choose your original game and BIOS in the player",
               "instruction": "The complete Windows x64 beta ZIP contains the player, libraries, assets and compiler companions. Keep them together. Choose Play after installation, then supply your own matching USA original GBA game and retail GBA BIOS in the upstream launcher. The launcher checks those inputs and remembers valid choices. No separate installer is required; Portcove does not execute discovered compilers or helpers during setup."
-            },
+            }
+          ],
+          "warnings": [
+            "The upstream project’s own code uses PolyForm Noncommercial 1.0.0. Use must fit its noncommercial terms; keep the package’s component notices and their separate terms. This does not grant rights to the original game or retail BIOS, which you must supply yourself.",
+            "Normal cartridge saves (.sav) and optional state slots (.stateN) follow your selected original game file, usually outside the installation. Preserve that actual folder separately, including .tmp, .bak and .prev-size.bak recovery siblings. The launcher display does not relocate saves; custom --save/--save-path or --state-dir choices can select other locations.",
+            "Its backup excludes external originals, BIOS and save folders.",
+            "A changed package using the same ID/version requires reviewing the reported copies separately before retrying. Mods remain player/upstream-owned code: preservation does not authenticate them or establish compatibility.",
+            "Runtime rollback carries current data; it does not rewind saves or guarantee older readers can use them."
+          ],
+          "help_url": "https://github.com/mstan/SuperMarioAdvance2Recomp/blob/dd16f0101790814b3f16f3bdf93759c5d42f0d74/README.md",
+          "references": [
             {
               "title": "Back up your actual save folder",
               "instruction": "Normal cartridge saves (.sav) and optional state slots (.stateN) follow your selected original game file, usually outside the installation. Preserve that actual folder separately, including .tmp, .bak and .prev-size.bak recovery siblings. The launcher display does not relocate saves; custom --save/--save-path or --state-dir choices can select other locations. A Portcove-managed copy preserves declared local config.ini, keybinds.ini, rom.cfg, bios.cfg, user game.toml, saves/ and mods/. Its backup excludes external originals, BIOS and save folders."
@@ -30973,11 +31061,7 @@
               "title": "Keep your choices and mod versions when updating",
               "instruction": "If Library identifies this copy as Portcove-managed, use its compatible beta update. Portcove stages the replacement and preserves current declared local data, including edits before first Play. Complete mods/packages/<id>/<version> packages coexist with new upstream defaults; your mod state is retained without choosing a new default for you. A changed package using the same ID/version requires reviewing the reported copies separately before retrying. Mods remain player/upstream-owned code: preservation does not authenticate them or establish compatibility. Generated executable caches and diagnostics stay with each runtime and are regenerated. Runtime rollback carries current data; it does not rewind saves or guarantee older readers can use them. For a copy you added yourself, you or upstream provide updates: prepare a separate folder and change the registration when ready."
             }
-          ],
-          "warnings": [
-            "The upstream project’s own code uses PolyForm Noncommercial 1.0.0. Use must fit its noncommercial terms; keep the package’s component notices and their separate terms. This does not grant rights to the original game or retail BIOS, which you must supply yourself."
-          ],
-          "help_url": "https://github.com/mstan/SuperMarioAdvance2Recomp/blob/dd16f0101790814b3f16f3bdf93759c5d42f0d74/README.md"
+          ]
         },
         "artwork": {
           "game_id": 16617,
@@ -31043,7 +31127,16 @@
             {
               "title": "Choose your original game and BIOS in the player",
               "instruction": "The complete Windows x64 beta ZIP contains the player, libraries, assets and compiler companions. Keep them together. After installation, choose Play to open the upstream launcher, then supply your own matching original GBA game and retail GBA BIOS as it requests. The launcher checks those inputs and remembers valid choices. Core does not run the compiler or discover and execute helpers during setup. This is first-Play setup; no separate installer is required."
-            },
+            }
+          ],
+          "warnings": [
+            "The upstream project’s own code uses PolyForm Noncommercial 1.0.0. Use must fit its noncommercial terms; keep the package’s component notices and their separate terms. This does not grant rights to the original game or retail BIOS, which you must supply yourself.",
+            "Normal cartridge saves (.sav) and optional state files (.stateN) follow your selected original game file, usually outside the installation. Back up that folder separately, including .tmp, .bak and .prev-size.bak recovery files.",
+            "External originals, BIOS and save folders remain outside that backup. Older builds may not read newer states or saves.",
+            "Runtime rollback carries current declared data and does not rewind saves."
+          ],
+          "help_url": "https://github.com/mstan/SuperMarioAdvance4Recomp#readme",
+          "references": [
             {
               "title": "Keep the saves you actually use",
               "instruction": "Normal cartridge saves (.sav) and optional state files (.stateN) follow your selected original game file, usually outside the installation. Back up that folder separately, including .tmp, .bak and .prev-size.bak recovery files. The launcher display does not relocate saves. Custom --save/--save-path or --state-dir choices can select other locations. If Library identifies this copy as Portcove-managed, Portcove preserves declared installation-local config.ini, keybinds.ini, rom.cfg, bios.cfg, user game.toml and saves/ during compatible managed replacement and backup. External originals, BIOS and save folders remain outside that backup. Older builds may not read newer states or saves."
@@ -31052,11 +31145,7 @@
               "title": "Keep current data when updating",
               "instruction": "If Library identifies this Windows copy as Portcove-managed, use its offered compatible beta update. Portcove stages the replacement before activation and carries current declared local data, including before first Play. Each version keeps its own recomp_cache, diagnostics and compiler companions; the new runtime regenerates its native-code cache. Runtime rollback carries current declared data and does not rewind saves. For an existing copy you added yourself, you or upstream provide updates: prepare a separate folder, preserve the actual settings and save locations, and change the registered player when ready. These experimental releases do not establish full-game compatibility."
             }
-          ],
-          "warnings": [
-            "The upstream project’s own code uses PolyForm Noncommercial 1.0.0. Use must fit its noncommercial terms; keep the package’s component notices and their separate terms. This does not grant rights to the original game or retail BIOS, which you must supply yourself."
-          ],
-          "help_url": "https://github.com/mstan/SuperMarioAdvance4Recomp#readme"
+          ]
         }
       }
     },
@@ -31116,22 +31205,28 @@
               "instruction": "The complete Windows x64 beta ZIP contains the player, libraries, assets and compiler companions. Keep them together. After installation, choose Play to open the upstream launcher, then supply your own matching original GBA game and retail GBA BIOS as it requests. The launcher checks those inputs and remembers valid choices. Core does not run the compiler or discover and execute helpers during setup. This is first-Play setup; no separate installer is required."
             },
             {
+              "title": "Android uses its own app and storage",
+              "instruction": "For Android 9+ ARM64, choose this project’s separate experimental APK and select your own matching ROM and BIOS through its first-launch document picker. The app stores imported files in private app storage. Keep that app’s saves and data before uninstalling or clearing it; the debug-signed test build may need a different update path if signing changes. Rotate the phone for gyro input; Windows instead supports a compatible motion controller or left-mouse dragging. Android files and updates stay outside Portcove backup and runtime rollback."
+            }
+          ],
+          "warnings": [
+            "The upstream project’s own code uses PolyForm Noncommercial 1.0.0. Use must fit its noncommercial terms; keep the package’s component notices and their separate terms. This does not grant rights to the original game or retail BIOS, which you must supply yourself.",
+            "Normal cartridge saves (.sav) and optional state files (.stateN) follow your selected original game file, usually outside the installation. Back up that folder separately, including .tmp, .bak and .prev-size.bak recovery files.",
+            "External originals, BIOS and save folders remain outside that backup. Older builds may not read newer states or saves.",
+            "Runtime rollback carries current declared data and does not rewind saves.",
+            "This package also includes variants/warioware_twisted/game.toml. Only when the runtime is actually launched with that configuration does its cartridge save use installation-local saves/warioware_twisted_usa.sav; state files still follow the original game unless you override their directory. The launcher display does not relocate saves. Custom --save/--save-path or --state-dir choices can select other locations."
+          ],
+          "help_url": "https://github.com/mstan/WarioWareTwistedRecomp#readme",
+          "references": [
+            {
               "title": "Keep the saves you actually use",
               "instruction": "Normal cartridge saves (.sav) and optional state files (.stateN) follow your selected original game file, usually outside the installation. Back up that folder separately, including .tmp, .bak and .prev-size.bak recovery files. This package also includes variants/warioware_twisted/game.toml. Only when the runtime is actually launched with that configuration does its cartridge save use installation-local saves/warioware_twisted_usa.sav; state files still follow the original game unless you override their directory. The launcher display does not relocate saves. Custom --save/--save-path or --state-dir choices can select other locations. If Library identifies this copy as Portcove-managed, Portcove preserves declared installation-local config.ini, keybinds.ini, rom.cfg, bios.cfg, user game.toml and saves/ during compatible managed replacement and backup. External originals, BIOS and save folders remain outside that backup. Older builds may not read newer states or saves."
             },
             {
               "title": "Keep current data when updating",
               "instruction": "If Library identifies this Windows copy as Portcove-managed, use its offered compatible beta update. Portcove stages the replacement before activation and carries current declared local data, including before first Play. Each version keeps its own recomp_cache, diagnostics and compiler companions; the new runtime regenerates its native-code cache. Runtime rollback carries current declared data and does not rewind saves. For an existing copy you added yourself, you or upstream provide updates: prepare a separate folder, preserve the actual settings and save locations, and change the registered player when ready. These experimental releases do not establish full-game compatibility."
-            },
-            {
-              "title": "Android uses its own app and storage",
-              "instruction": "For Android 9+ ARM64, choose this project’s separate experimental APK and select your own matching ROM and BIOS through its first-launch document picker. The app stores imported files in private app storage. Keep that app’s saves and data before uninstalling or clearing it; the debug-signed test build may need a different update path if signing changes. Rotate the phone for gyro input; Windows instead supports a compatible motion controller or left-mouse dragging. Android files and updates stay outside Portcove backup and runtime rollback."
             }
-          ],
-          "warnings": [
-            "The upstream project’s own code uses PolyForm Noncommercial 1.0.0. Use must fit its noncommercial terms; keep the package’s component notices and their separate terms. This does not grant rights to the original game or retail BIOS, which you must supply yourself."
-          ],
-          "help_url": "https://github.com/mstan/WarioWareTwistedRecomp#readme"
+          ]
         },
         "artwork": {
           "game_id": 1704,
@@ -31932,19 +32027,23 @@
               "instruction": "Use only the official bryanthaboi/gen1recomp release or gen1re.com distribution. Extract the complete Windows ZIP and keep gen1recomp.exe with its supplied companions. Run upstream setup deliberately, then select this game’s plain original .gb or .gba file in its importer. Completing import may start the game automatically; this is an explicit upstream launch, not a passive Portcove file check. Let import finish and verify this game’s tab before registration. Register gen1recomp.exe in gen1recomp-win64 with that containing directory as working directory and one literal argument, --game=blue. Do not select another game’s cache or a console/emulator/helper."
             },
             {
-              "title": "Preserve all actual player and game data",
-              "instruction": "Normal desktop data uses LÖVE’s OS user save directory with identity pokemon-love2d (normally %APPDATA%/LOVE/pokemon-love2d on Windows). portable.txt beside gen1recomp.exe redirects saves/options/generated data to that writable player folder, but updates/ payloads remain in the OS save directory. Preserve both actual locations, all imported game caches, saves/ slots and legacy save files, options and backup/staged witnesses, mods, kept original copies, imports/exports, screenshots and custom profiles. Games have distinct saves but share options and runtime. Removing the marker switches roots without moving progress. Close the player before copying/replacing anything; keep the creating runtime and originals. No automatic save/cache conversion or populated-data adoption is promised."
-            },
-            {
               "title": "Add the game and manage updates",
               "instruction": "The standalone upstream player owns its update checks and can mount an updated Lua payload from the OS profile. Let upstream own that complete installation and profile. This entry uses non-owning registration, explicit Play and registration-only removal; Managed Update, Backup, Rollback, migration and external deletion are unavailable. It does not use or alter Red’s separate Core-managed definition or its managed-package environment. The generated cache is private original-derived data; preserve your original outside it, and preserve any separately kept-ROM copy when offered. Use the importer’s explicit consent choices; no original is downloaded or supplied by Portcove."
             }
           ],
           "warnings": [
             "This separate original/game has no inherited Red Windows, gameplay or save acceptance.",
-            "Use the official repository or gen1re.com. Upstream warns that a similarly named unofficial download site distributes adware."
+            "Use the official repository or gen1re.com. Upstream warns that a similarly named unofficial download site distributes adware.",
+            "portable.txt beside gen1recomp.exe redirects saves/options/generated data to that writable player folder, but updates/ payloads remain in the OS save directory. Preserve both actual locations, all imported game caches, saves/ slots and legacy save files, options and backup/staged witnesses, mods, kept original copies, imports/exports, screenshots and custom profiles.",
+            "Games have distinct saves but share options and runtime. Removing the marker switches roots without moving progress. Close the player before copying/replacing anything; keep the creating runtime and originals. No automatic save/cache conversion or populated-data adoption is promised."
           ],
-          "help_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md"
+          "help_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md",
+          "references": [
+            {
+              "title": "Preserve all actual player and game data",
+              "instruction": "Normal desktop data uses LÖVE’s OS user save directory with identity pokemon-love2d (normally %APPDATA%/LOVE/pokemon-love2d on Windows). portable.txt beside gen1recomp.exe redirects saves/options/generated data to that writable player folder, but updates/ payloads remain in the OS save directory. Preserve both actual locations, all imported game caches, saves/ slots and legacy save files, options and backup/staged witnesses, mods, kept original copies, imports/exports, screenshots and custom profiles. Games have distinct saves but share options and runtime. Removing the marker switches roots without moving progress. Close the player before copying/replacing anything; keep the creating runtime and originals. No automatic save/cache conversion or populated-data adoption is promised."
+            }
+          ]
         }
       }
     },
@@ -32068,19 +32167,23 @@
               "instruction": "Use only the official bryanthaboi/gen1recomp release or gen1re.com distribution. Extract the complete Windows ZIP and keep gen1recomp.exe with its supplied companions. Run upstream setup deliberately, then select this game’s plain original .gb or .gba file in its importer. Completing import may start the game automatically; this is an explicit upstream launch, not a passive Portcove file check. Let import finish and verify this game’s tab before registration. Register gen1recomp.exe in gen1recomp-win64 with that containing directory as working directory and one literal argument, --game=emerald. Do not select another game’s cache or a console/emulator/helper."
             },
             {
-              "title": "Preserve all actual player and game data",
-              "instruction": "Normal desktop data uses LÖVE’s OS user save directory with identity pokemon-love2d (normally %APPDATA%/LOVE/pokemon-love2d on Windows). portable.txt beside gen1recomp.exe redirects saves/options/generated data to that writable player folder, but updates/ payloads remain in the OS save directory. Preserve both actual locations, all imported game caches, saves/ slots and legacy save files, options and backup/staged witnesses, mods, kept original copies, imports/exports, screenshots and custom profiles. Games have distinct saves but share options and runtime. Removing the marker switches roots without moving progress. Close the player before copying/replacing anything; keep the creating runtime and originals. No automatic save/cache conversion or populated-data adoption is promised."
-            },
-            {
               "title": "Add the game and manage updates",
               "instruction": "The standalone upstream player owns its update checks and can mount an updated Lua payload from the OS profile. Let upstream own that complete installation and profile. This entry uses non-owning registration, explicit Play and registration-only removal; Managed Update, Backup, Rollback, migration and external deletion are unavailable. It does not use or alter Red’s separate Core-managed definition or its managed-package environment. The generated cache is private original-derived data; preserve your original outside it, and preserve any separately kept-ROM copy when offered. Use the importer’s explicit consent choices; no original is downloaded or supplied by Portcove."
             }
           ],
           "warnings": [
             "The project marks GBA FireRed, LeafGreen, Ruby, Sapphire and Emerald support as beta. Windows, gameplay and save results for Pokémon Red do not establish that this game works.",
-            "Use the official repository or gen1re.com. Upstream warns that a similarly named unofficial download site distributes adware."
+            "Use the official repository or gen1re.com. Upstream warns that a similarly named unofficial download site distributes adware.",
+            "portable.txt beside gen1recomp.exe redirects saves/options/generated data to that writable player folder, but updates/ payloads remain in the OS save directory. Preserve both actual locations, all imported game caches, saves/ slots and legacy save files, options and backup/staged witnesses, mods, kept original copies, imports/exports, screenshots and custom profiles.",
+            "Games have distinct saves but share options and runtime. Removing the marker switches roots without moving progress. Close the player before copying/replacing anything; keep the creating runtime and originals. No automatic save/cache conversion or populated-data adoption is promised."
           ],
-          "help_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md"
+          "help_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md",
+          "references": [
+            {
+              "title": "Preserve all actual player and game data",
+              "instruction": "Normal desktop data uses LÖVE’s OS user save directory with identity pokemon-love2d (normally %APPDATA%/LOVE/pokemon-love2d on Windows). portable.txt beside gen1recomp.exe redirects saves/options/generated data to that writable player folder, but updates/ payloads remain in the OS save directory. Preserve both actual locations, all imported game caches, saves/ slots and legacy save files, options and backup/staged witnesses, mods, kept original copies, imports/exports, screenshots and custom profiles. Games have distinct saves but share options and runtime. Removing the marker switches roots without moving progress. Close the player before copying/replacing anything; keep the creating runtime and originals. No automatic save/cache conversion or populated-data adoption is promised."
+            }
+          ]
         },
         "artwork": {
           "game_id": 1517,
@@ -32212,19 +32315,23 @@
               "instruction": "Use only the official bryanthaboi/gen1recomp release or gen1re.com distribution. Extract the complete Windows ZIP and keep gen1recomp.exe with its supplied companions. Run upstream setup deliberately, then select this game’s plain original .gb or .gba file in its importer. Completing import may start the game automatically; this is an explicit upstream launch, not a passive Portcove file check. Let import finish and verify this game’s tab before registration. Register gen1recomp.exe in gen1recomp-win64 with that containing directory as working directory and one literal argument, --game=firered. Do not select another game’s cache or a console/emulator/helper."
             },
             {
-              "title": "Preserve all actual player and game data",
-              "instruction": "Normal desktop data uses LÖVE’s OS user save directory with identity pokemon-love2d (normally %APPDATA%/LOVE/pokemon-love2d on Windows). portable.txt beside gen1recomp.exe redirects saves/options/generated data to that writable player folder, but updates/ payloads remain in the OS save directory. Preserve both actual locations, all imported game caches, saves/ slots and legacy save files, options and backup/staged witnesses, mods, kept original copies, imports/exports, screenshots and custom profiles. Games have distinct saves but share options and runtime. Removing the marker switches roots without moving progress. Close the player before copying/replacing anything; keep the creating runtime and originals. No automatic save/cache conversion or populated-data adoption is promised."
-            },
-            {
               "title": "Add the game and manage updates",
               "instruction": "The standalone upstream player owns its update checks and can mount an updated Lua payload from the OS profile. Let upstream own that complete installation and profile. This entry uses non-owning registration, explicit Play and registration-only removal; Managed Update, Backup, Rollback, migration and external deletion are unavailable. It does not use or alter Red’s separate Core-managed definition or its managed-package environment. The generated cache is private original-derived data; preserve your original outside it, and preserve any separately kept-ROM copy when offered. Use the importer’s explicit consent choices; no original is downloaded or supplied by Portcove."
             }
           ],
           "warnings": [
             "The project marks GBA FireRed, LeafGreen, Ruby, Sapphire and Emerald support as beta. Windows, gameplay and save results for Pokémon Red do not establish that this game works.",
-            "Use the official repository or gen1re.com. Upstream warns that a similarly named unofficial download site distributes adware."
+            "Use the official repository or gen1re.com. Upstream warns that a similarly named unofficial download site distributes adware.",
+            "portable.txt beside gen1recomp.exe redirects saves/options/generated data to that writable player folder, but updates/ payloads remain in the OS save directory. Preserve both actual locations, all imported game caches, saves/ slots and legacy save files, options and backup/staged witnesses, mods, kept original copies, imports/exports, screenshots and custom profiles.",
+            "Games have distinct saves but share options and runtime. Removing the marker switches roots without moving progress. Close the player before copying/replacing anything; keep the creating runtime and originals. No automatic save/cache conversion or populated-data adoption is promised."
           ],
-          "help_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md"
+          "help_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md",
+          "references": [
+            {
+              "title": "Preserve all actual player and game data",
+              "instruction": "Normal desktop data uses LÖVE’s OS user save directory with identity pokemon-love2d (normally %APPDATA%/LOVE/pokemon-love2d on Windows). portable.txt beside gen1recomp.exe redirects saves/options/generated data to that writable player folder, but updates/ payloads remain in the OS save directory. Preserve both actual locations, all imported game caches, saves/ slots and legacy save files, options and backup/staged witnesses, mods, kept original copies, imports/exports, screenshots and custom profiles. Games have distinct saves but share options and runtime. Removing the marker switches roots without moving progress. Close the player before copying/replacing anything; keep the creating runtime and originals. No automatic save/cache conversion or populated-data adoption is promised."
+            }
+          ]
         },
         "artwork": {
           "game_id": 1559,
@@ -32356,19 +32463,23 @@
               "instruction": "Use only the official bryanthaboi/gen1recomp release or gen1re.com distribution. Extract the complete Windows ZIP and keep gen1recomp.exe with its supplied companions. Run upstream setup deliberately, then select this game’s plain original .gb or .gba file in its importer. Completing import may start the game automatically; this is an explicit upstream launch, not a passive Portcove file check. Let import finish and verify this game’s tab before registration. Register gen1recomp.exe in gen1recomp-win64 with that containing directory as working directory and one literal argument, --game=leafgreen. Do not select another game’s cache or a console/emulator/helper."
             },
             {
-              "title": "Preserve all actual player and game data",
-              "instruction": "Normal desktop data uses LÖVE’s OS user save directory with identity pokemon-love2d (normally %APPDATA%/LOVE/pokemon-love2d on Windows). portable.txt beside gen1recomp.exe redirects saves/options/generated data to that writable player folder, but updates/ payloads remain in the OS save directory. Preserve both actual locations, all imported game caches, saves/ slots and legacy save files, options and backup/staged witnesses, mods, kept original copies, imports/exports, screenshots and custom profiles. Games have distinct saves but share options and runtime. Removing the marker switches roots without moving progress. Close the player before copying/replacing anything; keep the creating runtime and originals. No automatic save/cache conversion or populated-data adoption is promised."
-            },
-            {
               "title": "Add the game and manage updates",
               "instruction": "The standalone upstream player owns its update checks and can mount an updated Lua payload from the OS profile. Let upstream own that complete installation and profile. This entry uses non-owning registration, explicit Play and registration-only removal; Managed Update, Backup, Rollback, migration and external deletion are unavailable. It does not use or alter Red’s separate Core-managed definition or its managed-package environment. The generated cache is private original-derived data; preserve your original outside it, and preserve any separately kept-ROM copy when offered. Use the importer’s explicit consent choices; no original is downloaded or supplied by Portcove."
             }
           ],
           "warnings": [
             "The project marks GBA FireRed, LeafGreen, Ruby, Sapphire and Emerald support as beta. Windows, gameplay and save results for Pokémon Red do not establish that this game works.",
-            "Use the official repository or gen1re.com. Upstream warns that a similarly named unofficial download site distributes adware."
+            "Use the official repository or gen1re.com. Upstream warns that a similarly named unofficial download site distributes adware.",
+            "portable.txt beside gen1recomp.exe redirects saves/options/generated data to that writable player folder, but updates/ payloads remain in the OS save directory. Preserve both actual locations, all imported game caches, saves/ slots and legacy save files, options and backup/staged witnesses, mods, kept original copies, imports/exports, screenshots and custom profiles.",
+            "Games have distinct saves but share options and runtime. Removing the marker switches roots without moving progress. Close the player before copying/replacing anything; keep the creating runtime and originals. No automatic save/cache conversion or populated-data adoption is promised."
           ],
-          "help_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md"
+          "help_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md",
+          "references": [
+            {
+              "title": "Preserve all actual player and game data",
+              "instruction": "Normal desktop data uses LÖVE’s OS user save directory with identity pokemon-love2d (normally %APPDATA%/LOVE/pokemon-love2d on Windows). portable.txt beside gen1recomp.exe redirects saves/options/generated data to that writable player folder, but updates/ payloads remain in the OS save directory. Preserve both actual locations, all imported game caches, saves/ slots and legacy save files, options and backup/staged witnesses, mods, kept original copies, imports/exports, screenshots and custom profiles. Games have distinct saves but share options and runtime. Removing the marker switches roots without moving progress. Close the player before copying/replacing anything; keep the creating runtime and originals. No automatic save/cache conversion or populated-data adoption is promised."
+            }
+          ]
         },
         "artwork": {
           "game_id": 1516,
@@ -32428,19 +32539,23 @@
               "instruction": "Use only the official bryanthaboi/gen1recomp release or gen1re.com distribution. Extract the complete Windows ZIP and keep gen1recomp.exe with its supplied companions. Run upstream setup deliberately, then select this game’s plain original .gb or .gba file in its importer. Completing import may start the game automatically; this is an explicit upstream launch, not a passive Portcove file check. Let import finish and verify this game’s tab before registration. Register gen1recomp.exe in gen1recomp-win64 with that containing directory as working directory and one literal argument, --game=ruby. Do not select another game’s cache or a console/emulator/helper."
             },
             {
-              "title": "Preserve all actual player and game data",
-              "instruction": "Normal desktop data uses LÖVE’s OS user save directory with identity pokemon-love2d (normally %APPDATA%/LOVE/pokemon-love2d on Windows). portable.txt beside gen1recomp.exe redirects saves/options/generated data to that writable player folder, but updates/ payloads remain in the OS save directory. Preserve both actual locations, all imported game caches, saves/ slots and legacy save files, options and backup/staged witnesses, mods, kept original copies, imports/exports, screenshots and custom profiles. Games have distinct saves but share options and runtime. Removing the marker switches roots without moving progress. Close the player before copying/replacing anything; keep the creating runtime and originals. No automatic save/cache conversion or populated-data adoption is promised."
-            },
-            {
               "title": "Add the game and manage updates",
               "instruction": "The standalone upstream player owns its update checks and can mount an updated Lua payload from the OS profile. Let upstream own that complete installation and profile. This entry uses non-owning registration, explicit Play and registration-only removal; Managed Update, Backup, Rollback, migration and external deletion are unavailable. It does not use or alter Red’s separate Core-managed definition or its managed-package environment. The generated cache is private original-derived data; preserve your original outside it, and preserve any separately kept-ROM copy when offered. Use the importer’s explicit consent choices; no original is downloaded or supplied by Portcove."
             }
           ],
           "warnings": [
             "The project marks GBA FireRed, LeafGreen, Ruby, Sapphire and Emerald support as beta. Windows, gameplay and save results for Pokémon Red do not establish that this game works.",
-            "Use the official repository or gen1re.com. Upstream warns that a similarly named unofficial download site distributes adware."
+            "Use the official repository or gen1re.com. Upstream warns that a similarly named unofficial download site distributes adware.",
+            "portable.txt beside gen1recomp.exe redirects saves/options/generated data to that writable player folder, but updates/ payloads remain in the OS save directory. Preserve both actual locations, all imported game caches, saves/ slots and legacy save files, options and backup/staged witnesses, mods, kept original copies, imports/exports, screenshots and custom profiles.",
+            "Games have distinct saves but share options and runtime. Removing the marker switches roots without moving progress. Close the player before copying/replacing anything; keep the creating runtime and originals. No automatic save/cache conversion or populated-data adoption is promised."
           ],
-          "help_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md"
+          "help_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md",
+          "references": [
+            {
+              "title": "Preserve all actual player and game data",
+              "instruction": "Normal desktop data uses LÖVE’s OS user save directory with identity pokemon-love2d (normally %APPDATA%/LOVE/pokemon-love2d on Windows). portable.txt beside gen1recomp.exe redirects saves/options/generated data to that writable player folder, but updates/ payloads remain in the OS save directory. Preserve both actual locations, all imported game caches, saves/ slots and legacy save files, options and backup/staged witnesses, mods, kept original copies, imports/exports, screenshots and custom profiles. Games have distinct saves but share options and runtime. Removing the marker switches roots without moving progress. Close the player before copying/replacing anything; keep the creating runtime and originals. No automatic save/cache conversion or populated-data adoption is promised."
+            }
+          ]
         },
         "artwork": {
           "game_id": 1557,
@@ -32572,19 +32687,23 @@
               "instruction": "Use only the official bryanthaboi/gen1recomp release or gen1re.com distribution. Extract the complete Windows ZIP and keep gen1recomp.exe with its supplied companions. Run upstream setup deliberately, then select this game’s plain original .gb or .gba file in its importer. Completing import may start the game automatically; this is an explicit upstream launch, not a passive Portcove file check. Let import finish and verify this game’s tab before registration. Register gen1recomp.exe in gen1recomp-win64 with that containing directory as working directory and one literal argument, --game=sapphire. Do not select another game’s cache or a console/emulator/helper."
             },
             {
-              "title": "Preserve all actual player and game data",
-              "instruction": "Normal desktop data uses LÖVE’s OS user save directory with identity pokemon-love2d (normally %APPDATA%/LOVE/pokemon-love2d on Windows). portable.txt beside gen1recomp.exe redirects saves/options/generated data to that writable player folder, but updates/ payloads remain in the OS save directory. Preserve both actual locations, all imported game caches, saves/ slots and legacy save files, options and backup/staged witnesses, mods, kept original copies, imports/exports, screenshots and custom profiles. Games have distinct saves but share options and runtime. Removing the marker switches roots without moving progress. Close the player before copying/replacing anything; keep the creating runtime and originals. No automatic save/cache conversion or populated-data adoption is promised."
-            },
-            {
               "title": "Add the game and manage updates",
               "instruction": "The standalone upstream player owns its update checks and can mount an updated Lua payload from the OS profile. Let upstream own that complete installation and profile. This entry uses non-owning registration, explicit Play and registration-only removal; Managed Update, Backup, Rollback, migration and external deletion are unavailable. It does not use or alter Red’s separate Core-managed definition or its managed-package environment. The generated cache is private original-derived data; preserve your original outside it, and preserve any separately kept-ROM copy when offered. Use the importer’s explicit consent choices; no original is downloaded or supplied by Portcove."
             }
           ],
           "warnings": [
             "The project marks GBA FireRed, LeafGreen, Ruby, Sapphire and Emerald support as beta. Windows, gameplay and save results for Pokémon Red do not establish that this game works.",
-            "Use the official repository or gen1re.com. Upstream warns that a similarly named unofficial download site distributes adware."
+            "Use the official repository or gen1re.com. Upstream warns that a similarly named unofficial download site distributes adware.",
+            "portable.txt beside gen1recomp.exe redirects saves/options/generated data to that writable player folder, but updates/ payloads remain in the OS save directory. Preserve both actual locations, all imported game caches, saves/ slots and legacy save files, options and backup/staged witnesses, mods, kept original copies, imports/exports, screenshots and custom profiles.",
+            "Games have distinct saves but share options and runtime. Removing the marker switches roots without moving progress. Close the player before copying/replacing anything; keep the creating runtime and originals. No automatic save/cache conversion or populated-data adoption is promised."
           ],
-          "help_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md"
+          "help_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md",
+          "references": [
+            {
+              "title": "Preserve all actual player and game data",
+              "instruction": "Normal desktop data uses LÖVE’s OS user save directory with identity pokemon-love2d (normally %APPDATA%/LOVE/pokemon-love2d on Windows). portable.txt beside gen1recomp.exe redirects saves/options/generated data to that writable player folder, but updates/ payloads remain in the OS save directory. Preserve both actual locations, all imported game caches, saves/ slots and legacy save files, options and backup/staged witnesses, mods, kept original copies, imports/exports, screenshots and custom profiles. Games have distinct saves but share options and runtime. Removing the marker switches roots without moving progress. Close the player before copying/replacing anything; keep the creating runtime and originals. No automatic save/cache conversion or populated-data adoption is promised."
+            }
+          ]
         },
         "artwork": {
           "game_id": 1515,
@@ -32788,19 +32907,23 @@
               "instruction": "Use only the official bryanthaboi/gen1recomp release or gen1re.com distribution. Extract the complete Windows ZIP and keep gen1recomp.exe with its supplied companions. Run upstream setup deliberately, then select this game’s plain original .gb or .gba file in its importer. Completing import may start the game automatically; this is an explicit upstream launch, not a passive Portcove file check. Let import finish and verify this game’s tab before registration. Register gen1recomp.exe in gen1recomp-win64 with that containing directory as working directory and one literal argument, --game=yellow. Do not select another game’s cache or a console/emulator/helper."
             },
             {
-              "title": "Preserve all actual player and game data",
-              "instruction": "Normal desktop data uses LÖVE’s OS user save directory with identity pokemon-love2d (normally %APPDATA%/LOVE/pokemon-love2d on Windows). portable.txt beside gen1recomp.exe redirects saves/options/generated data to that writable player folder, but updates/ payloads remain in the OS save directory. Preserve both actual locations, all imported game caches, saves/ slots and legacy save files, options and backup/staged witnesses, mods, kept original copies, imports/exports, screenshots and custom profiles. Games have distinct saves but share options and runtime. Removing the marker switches roots without moving progress. Close the player before copying/replacing anything; keep the creating runtime and originals. No automatic save/cache conversion or populated-data adoption is promised."
-            },
-            {
               "title": "Add the game and manage updates",
               "instruction": "The standalone upstream player owns its update checks and can mount an updated Lua payload from the OS profile. Let upstream own that complete installation and profile. This entry uses non-owning registration, explicit Play and registration-only removal; Managed Update, Backup, Rollback, migration and external deletion are unavailable. It does not use or alter Red’s separate Core-managed definition or its managed-package environment. The generated cache is private original-derived data; preserve your original outside it, and preserve any separately kept-ROM copy when offered. Use the importer’s explicit consent choices; no original is downloaded or supplied by Portcove."
             }
           ],
           "warnings": [
             "This separate original/game has no inherited Red Windows, gameplay or save acceptance.",
-            "Use the official repository or gen1re.com. Upstream warns that a similarly named unofficial download site distributes adware."
+            "Use the official repository or gen1re.com. Upstream warns that a similarly named unofficial download site distributes adware.",
+            "portable.txt beside gen1recomp.exe redirects saves/options/generated data to that writable player folder, but updates/ payloads remain in the OS save directory. Preserve both actual locations, all imported game caches, saves/ slots and legacy save files, options and backup/staged witnesses, mods, kept original copies, imports/exports, screenshots and custom profiles.",
+            "Games have distinct saves but share options and runtime. Removing the marker switches roots without moving progress. Close the player before copying/replacing anything; keep the creating runtime and originals. No automatic save/cache conversion or populated-data adoption is promised."
           ],
-          "help_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md"
+          "help_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md",
+          "references": [
+            {
+              "title": "Preserve all actual player and game data",
+              "instruction": "Normal desktop data uses LÖVE’s OS user save directory with identity pokemon-love2d (normally %APPDATA%/LOVE/pokemon-love2d on Windows). portable.txt beside gen1recomp.exe redirects saves/options/generated data to that writable player folder, but updates/ payloads remain in the OS save directory. Preserve both actual locations, all imported game caches, saves/ slots and legacy save files, options and backup/staged witnesses, mods, kept original copies, imports/exports, screenshots and custom profiles. Games have distinct saves but share options and runtime. Removing the marker switches roots without moving progress. Close the player before copying/replacing anything; keep the creating runtime and originals. No automatic save/cache conversion or populated-data adoption is promised."
+            }
+          ]
         }
       }
     },
@@ -32852,18 +32975,21 @@
               "instruction": "Prepare the full eZeus-0.8.2-beta.zip from its base release, then the later eZeus-0.8.2-beta.4.exe patch. The patch EXE alone is not a complete package. Follow the base release instructions: extract the eZeus folder under your working Zeus and Poseidon folder, perform upstream text conversion of Zeus_Text.eng and Zeus_MM.eng to the corresponding XML files, and place them where upstream specifies. Apply the patch player in the eZeus Bin folder, retaining all base resources. Register Bin/eZeus-0.8.2-beta.4.exe with Bin as working directory. engconverter-0.5.exe and VC_redist.x64.exe are preparation helpers, not players; run prerequisites deliberately only when needed."
             },
             {
-              "title": "Keep your existing game data",
-              "instruction": "The player normally finds originals two directories above its EXE, or through zeus_path.txt. The eZeus root above Bin owns settings.txt, Save and companion resources such as Textures/Adventures. Preserve the entire working originals and eZeus tree, including any explicit original path, before replacing upstream files. No old-save conversion or base/expansion compatibility is inferred."
-            },
-            {
               "title": "Add the game and manage your files",
               "instruction": "Finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions. Other platforms need their own setup instructions."
             }
           ],
           "warnings": [
-            "The latest release supplies a patch player, not a standalone game. Complete upstream preparation is required; managed setup and native gameplay remain unqualified."
+            "The latest release supplies a patch player, not a standalone game. Complete upstream preparation is required; managed setup and native gameplay remain unqualified.",
+            "Preserve the entire working originals and eZeus tree, including any explicit original path, before replacing upstream files. No old-save conversion or base/expansion compatibility is inferred."
           ],
-          "help_url": "https://github.com/MaurycyLiebner/eZeus/releases/tag/0.8.2-beta"
+          "help_url": "https://github.com/MaurycyLiebner/eZeus/releases/tag/0.8.2-beta",
+          "references": [
+            {
+              "title": "Keep your existing game data",
+              "instruction": "The player normally finds originals two directories above its EXE, or through zeus_path.txt. The eZeus root above Bin owns settings.txt, Save and companion resources such as Textures/Adventures. Preserve the entire working originals and eZeus tree, including any explicit original path, before replacing upstream files. No old-save conversion or base/expansion compatibility is inferred."
+            }
+          ]
         },
         "artwork": {
           "game_id": 9542,
@@ -32923,18 +33049,21 @@
               "instruction": "Use the official ioquake3.org Get It page and player guide to obtain the complete Windows player folder, then prepare baseq3 as documented. The official guide names ioquake3.x86_64.exe. Register that player with its working ioquake3 folder. There are no GitHub releases in the inspected inventory; the official website provides the download. The package bytes and CPU header were not verified by this research because the download transport returned HTTP 403."
             },
             {
-              "title": "Keep your existing game data",
-              "instruction": "Windows normally uses %APPDATA%/Quake3 for user configuration, demos, videos, screenshots and downloaded PK3s. Explicit fs_homepath settings redirect storage. Preserve the actual profile, game/mod data and working runtime before upstream updates; no server-download trust or cross-version save compatibility is inferred."
-            },
-            {
               "title": "Add the game and manage your files",
               "instruction": "Finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions. Other platforms need their own setup instructions."
             }
           ],
           "warnings": [
-            "Official Windows distribution is documented, but its package bytes were not obtained in this audit. No artifact or native gameplay qualification is added."
+            "Official Windows distribution is documented, but its package bytes were not obtained in this audit. No artifact or native gameplay qualification is added.",
+            "Explicit fs_homepath settings redirect storage. Preserve the actual profile, game/mod data and working runtime before upstream updates; no server-download trust or cross-version save compatibility is inferred."
           ],
-          "help_url": "https://ioquake3.org/help/players-guide/"
+          "help_url": "https://ioquake3.org/help/players-guide/",
+          "references": [
+            {
+              "title": "Keep your existing game data",
+              "instruction": "Windows normally uses %APPDATA%/Quake3 for user configuration, demos, videos, screenshots and downloaded PK3s. Explicit fs_homepath settings redirect storage. Preserve the actual profile, game/mod data and working runtime before upstream updates; no server-download trust or cross-version save compatibility is inferred."
+            }
+          ]
         },
         "artwork": {
           "game_id": 355,
@@ -32994,18 +33123,21 @@
               "instruction": "Use the official ioquake3.org Get It page and player guide to obtain the complete Windows player folder, then prepare baseq3 and missionpack as documented. The official guide names ioquake3.x86_64.exe. Register that player with its working ioquake3 folder. Select the expansion with three separate argument lines: +set, fs_game, missionpack. There are no GitHub releases in the inspected inventory; the official website provides the download. The package bytes and CPU header were not verified by this research because the download transport returned HTTP 403."
             },
             {
-              "title": "Keep your existing game data",
-              "instruction": "Windows normally uses %APPDATA%/Quake3 for user configuration, demos, videos, screenshots and downloaded PK3s. Explicit fs_homepath settings redirect storage. Preserve the actual profile, game/mod data and working runtime before upstream updates; no server-download trust or cross-version save compatibility is inferred."
-            },
-            {
               "title": "Add the game and manage your files",
               "instruction": "Finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions. Other platforms need their own setup instructions."
             }
           ],
           "warnings": [
-            "Official Windows distribution is documented, but its package bytes were not obtained in this audit. No artifact or native gameplay qualification is added."
+            "Official Windows distribution is documented, but its package bytes were not obtained in this audit. No artifact or native gameplay qualification is added.",
+            "Explicit fs_homepath settings redirect storage. Preserve the actual profile, game/mod data and working runtime before upstream updates; no server-download trust or cross-version save compatibility is inferred."
           ],
-          "help_url": "https://ioquake3.org/help/players-guide/"
+          "help_url": "https://ioquake3.org/help/players-guide/",
+          "references": [
+            {
+              "title": "Keep your existing game data",
+              "instruction": "Windows normally uses %APPDATA%/Quake3 for user configuration, demos, videos, screenshots and downloaded PK3s. Explicit fs_homepath settings redirect storage. Preserve the actual profile, game/mod data and working runtime before upstream updates; no server-download trust or cross-version save compatibility is inferred."
+            }
+          ]
         },
         "artwork": {
           "game_id": 6634,
@@ -33287,18 +33419,22 @@
               "instruction": "Follow the upstream Windows installation guide for the exact selected release. The inspected latest-nightly OpenXRay.Release.Master.Gold.64-bit.7z contains the x64 bin/xrEngine.exe player. Preserve the old bin and extract the complete matching archive into the working game root. Register the prepared bin/xrEngine.exe using the working directory and arguments of the upstream installation. Keep its companion DLLs; do not register a helper or replace a live original installation."
             },
             {
-              "title": "Keep your existing game data",
-              "instruction": "Preserve the actual app_data_root selected by that installation’s fsgame.ltx, all saves/configuration/logs and the complete working original/runtime copy. Locations and mod requirements can vary. Upstream warns that incompatible or malformed mods can fail; neither save migration nor mod compatibility is established by registration."
-            },
-            {
               "title": "Add the game and manage your files",
               "instruction": "Finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions. Other platforms need their own setup instructions."
             }
           ],
           "warnings": [
-            "Nightly preparation and the matching Clear Sky patch are upstream-owned. No original-game setup, gameplay or mod compatibility was observed."
+            "Nightly preparation and the matching Clear Sky patch are upstream-owned. No original-game setup, gameplay or mod compatibility was observed.",
+            "Preserve the actual app_data_root selected by that installation’s fsgame.ltx, all saves/configuration/logs and the complete working original/runtime copy.",
+            "Upstream warns that incompatible or malformed mods can fail; neither save migration nor mod compatibility is established by registration."
           ],
-          "help_url": "https://github.com/OpenXRay/xray-16/wiki/How-to-install-and-play"
+          "help_url": "https://github.com/OpenXRay/xray-16/wiki/How-to-install-and-play",
+          "references": [
+            {
+              "title": "Keep your existing game data",
+              "instruction": "Preserve the actual app_data_root selected by that installation’s fsgame.ltx, all saves/configuration/logs and the complete working original/runtime copy. Locations and mod requirements can vary. Upstream warns that incompatible or malformed mods can fail; neither save migration nor mod compatibility is established by registration."
+            }
+          ]
         },
         "artwork": {
           "game_id": 7605,
@@ -33358,18 +33494,22 @@
               "instruction": "Follow the upstream Windows installation guide for the exact selected release. The inspected latest-nightly OpenXRay.Release.Master.Gold.64-bit.7z contains the x64 bin/xrEngine.exe player. Follow the Clear Sky instructions: extract bin from the engine archive and apply the matching nightly Clear Sky gamedata patch. The older December 2021 RC1 patch is different; do not mix it with nightly. Register the prepared bin/xrEngine.exe using the working directory and arguments of the upstream installation. Keep its companion DLLs; do not register a helper or replace a live original installation."
             },
             {
-              "title": "Keep your existing game data",
-              "instruction": "Preserve the actual app_data_root selected by that installation’s fsgame.ltx, all saves/configuration/logs and the complete working original/runtime copy. Locations and mod requirements can vary. Upstream warns that incompatible or malformed mods can fail; neither save migration nor mod compatibility is established by registration."
-            },
-            {
               "title": "Add the game and manage your files",
               "instruction": "Finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions. Other platforms need their own setup instructions."
             }
           ],
           "warnings": [
-            "Nightly preparation and the matching Clear Sky patch are upstream-owned. No original-game setup, gameplay or mod compatibility was observed."
+            "Nightly preparation and the matching Clear Sky patch are upstream-owned. No original-game setup, gameplay or mod compatibility was observed.",
+            "Preserve the actual app_data_root selected by that installation’s fsgame.ltx, all saves/configuration/logs and the complete working original/runtime copy.",
+            "Upstream warns that incompatible or malformed mods can fail; neither save migration nor mod compatibility is established by registration."
           ],
-          "help_url": "https://github.com/OpenXRay/xray-16/wiki/How-to-install-and-play"
+          "help_url": "https://github.com/OpenXRay/xray-16/wiki/How-to-install-and-play",
+          "references": [
+            {
+              "title": "Keep your existing game data",
+              "instruction": "Preserve the actual app_data_root selected by that installation’s fsgame.ltx, all saves/configuration/logs and the complete working original/runtime copy. Locations and mod requirements can vary. Upstream warns that incompatible or malformed mods can fail; neither save migration nor mod compatibility is established by registration."
+            }
+          ]
         },
         "artwork": {
           "game_id": 4840,
@@ -33559,16 +33699,20 @@
               "instruction": "Use the complete SeriousSamClassic-1.10.7-directx9-win64-bin.7z archive. The matching x64/SamTFE/Bin/SeriousSam.exe is the player. Retain all corresponding SamTFE DLLs and resources alongside your matching original data; do not select the other encounter, editor, dedicated server or conversion tools. Register the prepared player and its upstream working game directory. Keep the complete prepared tree rather than extracting only the EXE."
             },
             {
-              "title": "Keep your existing game data",
-              "instruction": "Preserve the complete working SamTFE game folder, actual user profiles, saves, configuration and any redirected/mod storage. The inspected package/source does not establish a universal migration contract or compatibility with another encounter/engine. Keep the creating runtime and data before upstream replacement."
-            },
-            {
               "title": "Add the game and manage your files",
               "instruction": "Finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions. Other platforms need their own setup instructions."
             }
           ],
-          "warnings": [],
-          "help_url": "https://github.com/tx00100xt/SeriousSamClassic/blob/871c9ebf1af0a09a976a080cbdc2ab6e7a21ab57/README.md"
+          "warnings": [
+            "The inspected package/source does not establish a universal migration contract or compatibility with another encounter/engine. Keep the creating runtime and data before upstream replacement."
+          ],
+          "help_url": "https://github.com/tx00100xt/SeriousSamClassic/blob/871c9ebf1af0a09a976a080cbdc2ab6e7a21ab57/README.md",
+          "references": [
+            {
+              "title": "Keep your existing game data",
+              "instruction": "Preserve the complete working SamTFE game folder, actual user profiles, saves, configuration and any redirected/mod storage. The inspected package/source does not establish a universal migration contract or compatibility with another encounter/engine. Keep the creating runtime and data before upstream replacement."
+            }
+          ]
         },
         "artwork": {
           "game_id": 857,
@@ -33628,16 +33772,20 @@
               "instruction": "Use the complete SeriousSamClassic-1.10.7-directx9-win64-bin.7z archive. The matching x64/SamTSE/Bin/SeriousSam.exe is the player. Retain all corresponding SamTSE DLLs and resources alongside your matching original data; do not select the other encounter, editor, dedicated server or conversion tools. Register the prepared player and its upstream working game directory. Keep the complete prepared tree rather than extracting only the EXE."
             },
             {
-              "title": "Keep your existing game data",
-              "instruction": "Preserve the complete working SamTSE game folder, actual user profiles, saves, configuration and any redirected/mod storage. The inspected package/source does not establish a universal migration contract or compatibility with another encounter/engine. Keep the creating runtime and data before upstream replacement."
-            },
-            {
               "title": "Add the game and manage your files",
               "instruction": "Finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions. Other platforms need their own setup instructions."
             }
           ],
-          "warnings": [],
-          "help_url": "https://github.com/tx00100xt/SeriousSamClassic/blob/871c9ebf1af0a09a976a080cbdc2ab6e7a21ab57/README.md"
+          "warnings": [
+            "The inspected package/source does not establish a universal migration contract or compatibility with another encounter/engine. Keep the creating runtime and data before upstream replacement."
+          ],
+          "help_url": "https://github.com/tx00100xt/SeriousSamClassic/blob/871c9ebf1af0a09a976a080cbdc2ab6e7a21ab57/README.md",
+          "references": [
+            {
+              "title": "Keep your existing game data",
+              "instruction": "Preserve the complete working SamTSE game folder, actual user profiles, saves, configuration and any redirected/mod storage. The inspected package/source does not establish a universal migration contract or compatibility with another encounter/engine. Keep the creating runtime and data before upstream replacement."
+            }
+          ]
         },
         "artwork": {
           "game_id": 858,
@@ -35287,18 +35435,22 @@
               "instruction": "Choose Preview for the official Windows 64-bit beta ZIP, extract it and keep CatacombGL.exe and SDL2.dll together. Register CatacombGL.exe with that folder as its working directory. Leave arguments empty for the game picker, or use the single documented argument --abyss after the original folder is recognized. The separate --abyss_sw13 argument selects shareware v1.13. Registration does not start it; choose Play deliberately. The Linux tar.xz needs upstream/system extraction and a prepared native player; the Windows recommendation does not promise managed tar.xz handling."
             },
             {
-              "title": "Preserve this engine’s profile",
-              "instruction": "Windows normally keeps CatacombGL.ini and game-specific data under the actual Roaming AppData/CatacombGL folder. A custom --ini or --log location stays external. Preserve the whole profile, existing game save folders and original data with all copies closed before updating. Controls are shared by all four games. Upstream v0.5.7 documents no controller support and no save compatibility with the original DOS games. ReflectionHLE is a separate implementation; do not move saves between them on the basis of a shared game title."
-            },
-            {
               "title": "Keep upstream update ownership",
               "instruction": "You manage this external game, its original files and its profile using the project’s tools. Add it to Portcove, choose Play separately and remove its registration when you no longer want it listed. Portcove does not take over its files or offer updates, backups, rollback or deletion for this copy. Keep a working copy and back up its data before updating. Other platforms need their own supported package and application instructions. These Windows instructions do not establish that the game runs on any platform."
             }
           ],
           "warnings": [
-            "The reviewed CatacombGL release is beta. Original DOS save compatibility and controller support are not offered by this version."
+            "The reviewed CatacombGL release is beta. Original DOS save compatibility and controller support are not offered by this version.",
+            "Preserve the whole profile, existing game save folders and original data with all copies closed before updating. Controls are shared by all four games.",
+            "ReflectionHLE is a separate implementation; do not move saves between them on the basis of a shared game title."
           ],
-          "help_url": "https://github.com/ArnoAnsems/CatacombGL/blob/1bd619a8449a2f88cb4b9af19c155f044982e5aa/README.md"
+          "help_url": "https://github.com/ArnoAnsems/CatacombGL/blob/1bd619a8449a2f88cb4b9af19c155f044982e5aa/README.md",
+          "references": [
+            {
+              "title": "Preserve this engine’s profile",
+              "instruction": "Windows normally keeps CatacombGL.ini and game-specific data under the actual Roaming AppData/CatacombGL folder. A custom --ini or --log location stays external. Preserve the whole profile, existing game save folders and original data with all copies closed before updating. Controls are shared by all four games. Upstream v0.5.7 documents no controller support and no save compatibility with the original DOS games. ReflectionHLE is a separate implementation; do not move saves between them on the basis of a shared game title."
+            }
+          ]
         },
         "artwork": {
           "game_id": 11044,
@@ -35548,18 +35700,22 @@
               "instruction": "Choose Preview for the official Windows 64-bit beta ZIP, extract it and keep CatacombGL.exe and SDL2.dll together. Register CatacombGL.exe with that folder as its working directory. Leave arguments empty for the game picker, or use the single documented argument --apocalypse after the original folder is recognized. Registration does not start it; choose Play deliberately. The Linux tar.xz needs upstream/system extraction and a prepared native player; the Windows recommendation does not promise managed tar.xz handling."
             },
             {
-              "title": "Preserve this engine’s profile",
-              "instruction": "Windows normally keeps CatacombGL.ini and game-specific data under the actual Roaming AppData/CatacombGL folder. A custom --ini or --log location stays external. Preserve the whole profile, existing game save folders and original data with all copies closed before updating. Controls are shared by all four games. Upstream v0.5.7 documents no controller support and no save compatibility with the original DOS games. ReflectionHLE is a separate implementation; do not move saves between them on the basis of a shared game title."
-            },
-            {
               "title": "Keep upstream update ownership",
               "instruction": "You manage this external game, its original files and its profile using the project’s tools. Add it to Portcove, choose Play separately and remove its registration when you no longer want it listed. Portcove does not take over its files or offer updates, backups, rollback or deletion for this copy. Keep a working copy and back up its data before updating. Other platforms need their own supported package and application instructions. These Windows instructions do not establish that the game runs on any platform."
             }
           ],
           "warnings": [
-            "The reviewed CatacombGL release is beta. Original DOS save compatibility and controller support are not offered by this version."
+            "The reviewed CatacombGL release is beta. Original DOS save compatibility and controller support are not offered by this version.",
+            "Preserve the whole profile, existing game save folders and original data with all copies closed before updating. Controls are shared by all four games.",
+            "ReflectionHLE is a separate implementation; do not move saves between them on the basis of a shared game title."
           ],
-          "help_url": "https://github.com/ArnoAnsems/CatacombGL/blob/1bd619a8449a2f88cb4b9af19c155f044982e5aa/README.md"
+          "help_url": "https://github.com/ArnoAnsems/CatacombGL/blob/1bd619a8449a2f88cb4b9af19c155f044982e5aa/README.md",
+          "references": [
+            {
+              "title": "Preserve this engine’s profile",
+              "instruction": "Windows normally keeps CatacombGL.ini and game-specific data under the actual Roaming AppData/CatacombGL folder. A custom --ini or --log location stays external. Preserve the whole profile, existing game save folders and original data with all copies closed before updating. Controls are shared by all four games. Upstream v0.5.7 documents no controller support and no save compatibility with the original DOS games. ReflectionHLE is a separate implementation; do not move saves between them on the basis of a shared game title."
+            }
+          ]
         }
       }
     },
@@ -35793,18 +35949,22 @@
               "instruction": "Choose Preview for the official Windows 64-bit beta ZIP, extract it and keep CatacombGL.exe and SDL2.dll together. Register CatacombGL.exe with that folder as its working directory. Leave arguments empty for the game picker, or use the single documented argument --armageddon after the original folder is recognized. Registration does not start it; choose Play deliberately. The Linux tar.xz needs upstream/system extraction and a prepared native player; the Windows recommendation does not promise managed tar.xz handling."
             },
             {
-              "title": "Preserve this engine’s profile",
-              "instruction": "Windows normally keeps CatacombGL.ini and game-specific data under the actual Roaming AppData/CatacombGL folder. A custom --ini or --log location stays external. Preserve the whole profile, existing game save folders and original data with all copies closed before updating. Controls are shared by all four games. Upstream v0.5.7 documents no controller support and no save compatibility with the original DOS games. ReflectionHLE is a separate implementation; do not move saves between them on the basis of a shared game title."
-            },
-            {
               "title": "Keep upstream update ownership",
               "instruction": "You manage this external game, its original files and its profile using the project’s tools. Add it to Portcove, choose Play separately and remove its registration when you no longer want it listed. Portcove does not take over its files or offer updates, backups, rollback or deletion for this copy. Keep a working copy and back up its data before updating. Other platforms need their own supported package and application instructions. These Windows instructions do not establish that the game runs on any platform."
             }
           ],
           "warnings": [
-            "The reviewed CatacombGL release is beta. Original DOS save compatibility and controller support are not offered by this version."
+            "The reviewed CatacombGL release is beta. Original DOS save compatibility and controller support are not offered by this version.",
+            "Preserve the whole profile, existing game save folders and original data with all copies closed before updating. Controls are shared by all four games.",
+            "ReflectionHLE is a separate implementation; do not move saves between them on the basis of a shared game title."
           ],
-          "help_url": "https://github.com/ArnoAnsems/CatacombGL/blob/1bd619a8449a2f88cb4b9af19c155f044982e5aa/README.md"
+          "help_url": "https://github.com/ArnoAnsems/CatacombGL/blob/1bd619a8449a2f88cb4b9af19c155f044982e5aa/README.md",
+          "references": [
+            {
+              "title": "Preserve this engine’s profile",
+              "instruction": "Windows normally keeps CatacombGL.ini and game-specific data under the actual Roaming AppData/CatacombGL folder. A custom --ini or --log location stays external. Preserve the whole profile, existing game save folders and original data with all copies closed before updating. Controls are shared by all four games. Upstream v0.5.7 documents no controller support and no save compatibility with the original DOS games. ReflectionHLE is a separate implementation; do not move saves between them on the basis of a shared game title."
+            }
+          ]
         }
       }
     },
@@ -36038,16 +36198,20 @@
               "instruction": "The official Windows EXE is an installer, not the game to register. Complete upstream setup, run the OpenMW wizard/launcher deliberately to locate Morrowind.ini and Data Files, and choose the desired content/mod order. Then register the installed openmw.exe with its installation folder as working directory. Keep openmw-launcher.exe for setup and mod/profile choices; discovery does not run that wizard automatically."
             },
             {
-              "title": "Keep your originals and game data",
-              "instruction": "Windows normally keeps OpenMW configuration, logs, saves and screenshots under the actual Documents/My Games/OpenMW folder. Custom configuration/user-data paths and external mod/data directories remain part of your setup. Preserve those actual locations, selected originals and load order with the player closed before upstream updates. OpenMW saves and original-engine saves are separate formats; keep their creating runtime rather than assuming conversion."
-            },
-            {
               "title": "Add the game and manage your files",
               "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Other platforms need their own supported application and setup instructions."
             }
           ],
-          "warnings": [],
-          "help_url": "https://openmw.readthedocs.io/en/latest/manuals/installation/index.html"
+          "warnings": [
+            "Preserve those actual locations, selected originals and load order with the player closed before upstream updates. OpenMW saves and original-engine saves are separate formats; keep their creating runtime rather than assuming conversion."
+          ],
+          "help_url": "https://openmw.readthedocs.io/en/latest/manuals/installation/index.html",
+          "references": [
+            {
+              "title": "Keep your originals and game data",
+              "instruction": "Windows normally keeps OpenMW configuration, logs, saves and screenshots under the actual Documents/My Games/OpenMW folder. Custom configuration/user-data paths and external mod/data directories remain part of your setup. Preserve those actual locations, selected originals and load order with the player closed before upstream updates. OpenMW saves and original-engine saves are separate formats; keep their creating runtime rather than assuming conversion."
+            }
+          ]
         },
         "artwork": {
           "game_id": 56,
@@ -36107,16 +36271,20 @@
               "instruction": "Use the official upstream download/setup route or a complete already prepared OpenXcom player, keeping its common data and standard mod resources. No GitHub release package was observed. Complete original-data and game selection through upstream before saving the player entry. Register openxcom.exe with its installation folder as working directory, retaining the upstream game selection rather than inventing a fixed argument. The upstream Windows installer may copy a detected Steam original when you deliberately run it."
             },
             {
-              "title": "Keep your originals and game data",
-              "instruction": "Windows normally uses the actual Documents/OpenXcom user/config location; an installation-local user folder and explicit -data/-user/-config choices can change the searched locations. Preserve every actual selected data/user/config folder, including UFO/TFTD resources, mods, savegames and screenshots. Keep the two original games and their campaigns distinct even if they share one player/profile. Back up with OpenXcom closed before changing runtime or mods."
-            },
-            {
               "title": "Add the game and manage your files",
               "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Other platforms need their own supported application and setup instructions."
             }
           ],
-          "warnings": [],
-          "help_url": "https://openxcom.org/"
+          "warnings": [
+            "Keep the two original games and their campaigns distinct even if they share one player/profile. Back up with OpenXcom closed before changing runtime or mods."
+          ],
+          "help_url": "https://openxcom.org/",
+          "references": [
+            {
+              "title": "Keep your originals and game data",
+              "instruction": "Windows normally uses the actual Documents/OpenXcom user/config location; an installation-local user folder and explicit -data/-user/-config choices can change the searched locations. Preserve every actual selected data/user/config folder, including UFO/TFTD resources, mods, savegames and screenshots. Keep the two original games and their campaigns distinct even if they share one player/profile. Back up with OpenXcom closed before changing runtime or mods."
+            }
+          ]
         }
       }
     },
@@ -36168,16 +36336,21 @@
               "instruction": "Use the official Exult download/installer or a complete upstream-prepared player with its runtime data. The selected stable GitHub release has no binary assets; use upstream’s actual distribution route. Configure this installed game’s path in Exult, keeping Black Gate and Serpent Isle entries distinct. Register exult.exe with its installation folder as working directory, using the upstream game picker or the documented single argument --si. Do not register Exult Studio or a usecode/compiler helper as the player."
             },
             {
-              "title": "Keep your originals and game data",
-              "instruction": "On current Windows, exult.cfg normally lives under the actual Local AppData/Exult folder. Preserve the complete Exult profile and each game/mod’s configured savegame and gamedat locations, including any path overrides and original STATIC data. Keep optional add-ons separate from base-game choices. Close all copies before upstream updates; preserve the creating runtime until its game/mod saves work in a replacement."
-            },
-            {
               "title": "Add the game and manage your files",
               "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Other platforms need their own supported application and setup instructions."
             }
           ],
-          "warnings": [],
-          "help_url": "https://exult.info/docs.html"
+          "warnings": [
+            "Preserve the complete Exult profile and each game/mod’s configured savegame and gamedat locations, including any path overrides and original STATIC data.",
+            "Close all copies before upstream updates; preserve the creating runtime until its game/mod saves work in a replacement."
+          ],
+          "help_url": "https://exult.info/docs.html",
+          "references": [
+            {
+              "title": "Keep your originals and game data",
+              "instruction": "On current Windows, exult.cfg normally lives under the actual Local AppData/Exult folder. Preserve the complete Exult profile and each game/mod’s configured savegame and gamedat locations, including any path overrides and original STATIC data. Keep optional add-ons separate from base-game choices. Close all copies before upstream updates; preserve the creating runtime until its game/mod saves work in a replacement."
+            }
+          ]
         }
       }
     },
@@ -36229,16 +36402,21 @@
               "instruction": "Use the official Exult download/installer or a complete upstream-prepared player with its runtime data. The selected stable GitHub release has no binary assets; use upstream’s actual distribution route. Configure this installed game’s path in Exult, keeping Black Gate and Serpent Isle entries distinct. Register exult.exe with its installation folder as working directory, using the upstream game picker or the documented single argument --bg. Do not register Exult Studio or a usecode/compiler helper as the player."
             },
             {
-              "title": "Keep your originals and game data",
-              "instruction": "On current Windows, exult.cfg normally lives under the actual Local AppData/Exult folder. Preserve the complete Exult profile and each game/mod’s configured savegame and gamedat locations, including any path overrides and original STATIC data. Keep optional add-ons separate from base-game choices. Close all copies before upstream updates; preserve the creating runtime until its game/mod saves work in a replacement."
-            },
-            {
               "title": "Add the game and manage your files",
               "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Other platforms need their own supported application and setup instructions."
             }
           ],
-          "warnings": [],
-          "help_url": "https://exult.info/docs.html"
+          "warnings": [
+            "Preserve the complete Exult profile and each game/mod’s configured savegame and gamedat locations, including any path overrides and original STATIC data.",
+            "Close all copies before upstream updates; preserve the creating runtime until its game/mod saves work in a replacement."
+          ],
+          "help_url": "https://exult.info/docs.html",
+          "references": [
+            {
+              "title": "Keep your originals and game data",
+              "instruction": "On current Windows, exult.cfg normally lives under the actual Local AppData/Exult folder. Preserve the complete Exult profile and each game/mod’s configured savegame and gamedat locations, including any path overrides and original STATIC data. Keep optional add-ons separate from base-game choices. Close all copies before upstream updates; preserve the creating runtime until its game/mod saves work in a replacement."
+            }
+          ]
         },
         "artwork": {
           "game_id": 6165,

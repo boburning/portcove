@@ -27,18 +27,21 @@
           "instruction": "Extract and keep the complete Windows package together. Finish Portcove setup with DoomRPG.exe and its containing folder, then choose Play. Do not register BarToZip.exe as the player."
         },
         {
-          "title": "Keep progress when updating",
-          "instruction": "Back up DoomRPG.zip and the working folder’s Config, Player, Player2 and World files before applying upstream updates. The current BarToZip includes PMD-to-WAV conversion; the old separate PureVoice conversion is no longer required."
-        },
-        {
           "title": "Add the game and manage your files",
           "instruction": "Register the real Windows player with its matching working directory and separate literal arguments; do not select a converter, installer or updater as the game player. Complete any original-data or prerequisite setup deliberately through upstream instructions. Registration does not perform or authenticate that preparation, and Play is a separate explicit action. You and upstream own this external runtime, original files, saves, settings and profiles. Preserve the complete working copy and every actual data/profile location with the game closed before upstream replacement. Registration-only removal preserves all external files; managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
         }
       ],
       "warnings": [
-        "Doom RPG and Doom II RPG use different original-game inputs. J2ME and BREW data are not interchangeable merely because a README mentions both."
+        "Doom RPG and Doom II RPG use different original-game inputs. J2ME and BREW data are not interchangeable merely because a README mentions both.",
+        "Back up DoomRPG.zip and the working folder’s Config, Player, Player2 and World files before applying upstream updates."
       ],
-      "help_url": "https://github.com/Erick194/DoomRPG-RE#readme"
+      "help_url": "https://github.com/Erick194/DoomRPG-RE#readme",
+      "references": [
+        {
+          "title": "Keep progress when updating",
+          "instruction": "Back up DoomRPG.zip and the working folder’s Config, Player, Player2 and World files before applying upstream updates. The current BarToZip includes PMD-to-WAV conversion; the old separate PureVoice conversion is no longer required."
+        }
+      ]
     },
     "release_url": "https://github.com/Erick194/DoomRPG-RE/releases",
     "download_asset_hints": {
