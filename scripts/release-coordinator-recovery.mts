@@ -178,11 +178,15 @@ export function inspectRemoteCommitObject(value: unknown, expected: string, exac
     }
     throw new Error("remote signed Git commit bytes are unsupported or differ from their identity");
   }
-  return {
-    object: inspectRemoteGitObject("commit", expected, Buffer.from(raw)),
-    tree: value.tree.sha,
-    parents,
-  };
+  // GitHub may omit one terminal message newline. Reconstruct only these two
+  // unsigned encodings; the exact Git object hash must select the original.
+  let object: ReturnType<typeof inspectRemoteGitObject>;
+  try {
+    object = inspectRemoteGitObject("commit", expected, Buffer.from(raw));
+  } catch {
+    object = inspectRemoteGitObject("commit", expected, Buffer.from(`${raw}\n`));
+  }
+  return { object, tree: value.tree.sha, parents };
 }
 
 /** Hydrate only a raw operation receipt explicitly named by the current
