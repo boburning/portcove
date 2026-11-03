@@ -1125,6 +1125,82 @@ async fn download_without_published_digest_retains_honest_provenance_and_non_own
 }
 
 #[tokio::test]
+async fn sevenz_download_extracts_inert_payload_and_never_publishes_crc_or_cancel_failures() {
+    for mode in ["valid", "crc", "cancel"] {
+        let (_temporary, service, request) = fixture();
+        let bytes = if mode == "crc" {
+            crate::archive::sevenz::bad_crc_fixture()
+        } else {
+            crate::archive::sevenz::inert_fixture()
+        };
+        // The complete outer digest is authentic even in the damaged-payload
+        // case: the inner decoder's integrity failure must still prevent publication.
+        let digest = format!("sha256:{}", crate::signed_catalog::digest(&bytes));
+        let github = GithubFixture::new(bytes, Some(digest), None);
+        github.assets.lock().unwrap()[0]["name"] = json!("player-windows-x64.7z");
+        let preview = service
+            .catalog_download_preview_with_provider(&request, &github.provider)
+            .await
+            .unwrap();
+        assert!(preview.artifact.can_extract);
+        assert_eq!(preview.artifact.name, "player-windows-x64.7z");
+        let mut cancelled = false;
+        let result = service
+            .download_catalog_package_with_provider(
+                &request,
+                &preview.preview_sha256,
+                |event| {
+                    if mode == "cancel"
+                        && !cancelled
+                        && matches!(event.event, crate::OperationEventKind::Progress { .. })
+                    {
+                        service.request_cancellation(&event.operation_id).unwrap();
+                        cancelled = true;
+                    }
+                },
+                &github.provider,
+            )
+            .await;
+        if mode == "valid" {
+            let pending = result.unwrap();
+            assert_eq!(pending.state, PendingSetupState::Downloaded);
+            assert_eq!(
+                fs::read(pending.path.join("readme.txt")).unwrap(),
+                b"Follow the upstream setup instructions."
+            );
+            assert!(pending.path.join("assets").is_dir());
+            assert!(service.library.all_installs().unwrap().is_empty());
+        } else {
+            let error = result.unwrap_err();
+            assert_eq!(
+                error.code,
+                if mode == "cancel" {
+                    crate::ErrorCode::Cancelled
+                } else {
+                    crate::ErrorCode::Verification
+                }
+            );
+            assert!(!preview.destination_path.exists());
+            assert!(
+                service
+                    .pending_setups()
+                    .unwrap()
+                    .iter()
+                    .all(|p| p.state != PendingSetupState::Downloaded)
+            );
+            assert!(
+                !fs::read_dir(&request.destination_parent).unwrap().any(|e| e
+                    .unwrap()
+                    .file_name()
+                    .to_string_lossy()
+                    .starts_with(".portcove-download-"))
+            );
+        }
+        assert_eq!(cancelled, mode == "cancel");
+    }
+}
+
+#[tokio::test]
 async fn complete_asset_endpoint_supplies_checksum_and_conflicts_fail_before_publication() {
     let (_temporary, service, request) = fixture();
     let bytes = archive();

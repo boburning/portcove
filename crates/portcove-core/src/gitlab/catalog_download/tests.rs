@@ -6,6 +6,7 @@ use std::sync::mpsc::Receiver;
 #[derive(Clone, Copy)]
 enum Mode {
     File,
+    Sevenz,
     External,
     Duplicate,
     Ambiguous,
@@ -33,7 +34,12 @@ fn fixture(mode: Mode) -> (GitlabReleaseProvider, Receiver<String>, HttpServer) 
             .unwrap();
         let root = format!("http://{host}");
         let duplicate = matches!(mode, Mode::Duplicate | Mode::Ambiguous);
-        let link = json!({"id":7,"name":"player.zip", "url": if matches!(mode, Mode::External) {
+        let filename = if matches!(mode, Mode::Sevenz) {
+            "player.7z"
+        } else {
+            "player.zip"
+        };
+        let link = json!({"id":7,"name":filename, "url": if matches!(mode, Mode::External) {
             "https://pixeldrain.com/u/not-a-registry-file".into()
         } else if duplicate { format!("{root}/api/v4/projects/42/packages/generic/player/v1/player.zip") }
         else { format!("{root}/owner/game/-/package_files/17/download") },
@@ -70,7 +76,7 @@ fn fixture(mode: Mode) -> (GitlabReleaseProvider, Receiver<String>, HttpServer) 
                 json!([{"id":5,"name":"player","version":"v1"}])
             }
         } else if path.ends_with("/package_files") {
-            let first = json!({"id":17,"file_name":"player.zip","size":1,"file_sha256": if matches!(mode, Mode::Ambiguous) {"b".repeat(64)} else {"a".repeat(64)}});
+            let first = json!({"id":17,"file_name":filename,"size":1,"file_sha256": if matches!(mode, Mode::Ambiguous) {"b".repeat(64)} else {"a".repeat(64)}});
             if duplicate {
                 json!([first, {"id":18,"file_name":"player.zip","size":1,"file_sha256":"b".repeat(64)}])
             } else {
@@ -90,6 +96,27 @@ fn fixture(mode: Mode) -> (GitlabReleaseProvider, Receiver<String>, HttpServer) 
         requests,
         server,
     )
+}
+
+#[tokio::test]
+async fn registry_sevenz_candidate_keeps_exact_integrity_and_enables_generic_extraction() {
+    let (provider, _requests, server) = fixture(Mode::Sevenz);
+    let (candidates, coverage, _, _) = provider
+        .catalog_download_options("owner/game", None, ReleaseChannel::Stable, None)
+        .await
+        .unwrap();
+    assert!(coverage.candidates_complete);
+    assert_eq!(candidates.len(), 1);
+    let candidate = &candidates[0];
+    assert_eq!(candidate.name, "player.7z");
+    assert!(candidate.can_extract);
+    assert_eq!(candidate.sha256.as_deref(), Some("a".repeat(64).as_str()));
+    let refreshed = provider
+        .catalog_download_candidate("owner/game", &candidate.release_id, &candidate.asset_id)
+        .await
+        .unwrap();
+    assert_eq!(refreshed, *candidate);
+    server.join().unwrap();
 }
 
 #[tokio::test]

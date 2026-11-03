@@ -158,6 +158,17 @@ the existing GitHub provider and archive checks. A download publishes into a new
 user-owned child folder outside the Library and managed outputs; it never runs
 an installer. Shared release/package suitability and bounded native executable
 discovery supply suggestions; explicit registration and launch revalidate them.
+Generic GitHub/GitLab downloaded setup can optionally extract ZIP, tar.gz/tgz
+and bounded 7z packages. 7z extraction uses the pinned in-process reader with
+encryption and optional codecs disabled, one decoder thread and checksum
+verification through final stream completion. Before writes it rejects
+unsupported codec chains, links, reparse points, special files and anti-items,
+then applies the existing portable-path, collision, size and destination checks.
+Callbacks consume every planned entry exactly once by identity, including
+streamless entries that the decoder visits out of header order. Raw reads,
+seeks and output writes retain cooperative cancellation; the awaited worker
+owns its private tree until it stops. This format capability does not broaden
+managed package selection or catalog admission and does not qualify a title.
 On Windows x64, bounded PE inspection includes x86 Win32 players through the OS's
 WOW64 support, while DLLs and foreign processors remain excluded. A complete
 search recommends only one target matching reviewed executable hints or the
@@ -3570,6 +3581,16 @@ This bounded compatibility repair does not qualify another release or platform.
 ZIP readers bound metadata before constructing the parser: cartridge sources allow 1 GiB, 4,096 entries and 16 MiB of metadata; file-set ZIPs allow 2 GiB with the same entry and metadata limits; artifacts allow 8 GiB, 100,000 entries and 128 MiB of metadata; runtime archives allow 64 GiB, 4,096 entries and 16 MiB of metadata. A bounded immutable metadata window gates the pinned ZIP parser, including ZIP64 extension allocation. Selected source ZIPs use private temporary snapshots for payload and identity reads. Discovery can reject incomplete member inventories before creating a full snapshot. Direct file sets bound each selected member to 512 MiB and aggregate reads to 2 GiB. Preparation checkpoints reach every verification pass; cancellation retains worker ownership until reads and decoders stop.
 
 ZIP readers decode raw entry names as UTF-8 when valid, otherwise CP437, including archives whose producer omitted the UTF-8 flag. Source inspection retains that decoded member name alongside independently verified content and outer-container identities; multiple matching members remain ambiguous. Installer extraction still rejects every non-ASCII path before writes.
+
+The 7z reader bounds raw and decoded headers to 16 MiB each before buffering,
+header nesting to two levels, declared counts and total coders to 100,000,
+coder chains and streams per coder to four, UTF-16 names to 2,050 bytes each
+and 16 MiB in total, and the estimated decoder chain to 128 MiB before
+construction. Expanded output retains the 16 GiB and 200:1 limits, with
+the existing 8 GiB per-entry/compressed limits. Supported codecs are Copy,
+LZMA/LZMA2 and the compiled BCJ/Delta filters; encrypted and optional
+codec packages are refused. These limits apply before the semantic entry
+plan and extraction writes; an entry callback alone is not a parser bound.
 
 ZIP entry names from Windows producers are normalized from DOS separators to forward slashes before the shared portable validator and collision inventory run. This is one platform-independent output namespace: mixed-separator aliases collide, and traversal, drive/UNC roots, reserved names, links, special files, and resource limits still fail before extraction writes. Catalog and TAR paths retain their forward-slash requirement.
 
