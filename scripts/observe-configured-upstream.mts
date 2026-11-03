@@ -12,6 +12,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 import {
+  decodeStoredObserverCheckpoint,
+  observerSourceCheckpointLimit,
+} from "./observer-checkpoint-storage.mts";
+import {
   ObservationFailure,
   observationHash,
   observeUpstream,
@@ -21,7 +25,7 @@ import {
 } from "./upstream-observer.mts";
 
 const repositoryRoot = fileURLToPath(new URL("../", import.meta.url));
-const checkpointLimit = 32 * 1024 * 1024;
+const checkpointLimit = observerSourceCheckpointLimit;
 export { checkpointLimit as observerCheckpointByteLimit };
 
 type Observation = Awaited<ReturnType<typeof observeUpstream>>["observation"];
@@ -210,8 +214,9 @@ export async function advanceObservation(
   options: AdvanceOptions,
 ) {
   const config = validateObserverConfig(input);
-  validateCheckpoint(checkpoint, config);
   const now = options.now ?? Date.now;
+  checkpoint = decodeStoredObserverCheckpoint(checkpoint, options.deadline ?? Infinity, now);
+  validateCheckpoint(checkpoint, config);
   const next: Checkpoint = structuredClone(
     checkpoint ?? {
       format: 1,
@@ -665,7 +670,9 @@ async function main(args: string[]) {
   if (new Set(destinations).size !== destinations.length)
     throw new Error("observer configuration, checkpoint, lock and report must have distinct paths");
   await withCheckpointLock(statePath, async () => {
-    const checkpoint = await boundedJson(statePath, checkpointLimit, true);
+    const checkpoint = decodeStoredObserverCheckpoint(
+      await boundedJson(statePath, checkpointLimit, true),
+    );
     const priorReport = await boundedJson(reportPath, checkpointLimit, true);
     if (
       priorReport &&

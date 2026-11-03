@@ -21,7 +21,13 @@ import {
   observerSnapshotLimit,
   encodeObserverSnapshot,
   observerBaselinePermit,
+  encodeCompactObserverSnapshot,
 } from "./observer-checkpoint-artifact.mts";
+import {
+  decodeStoredObserverCheckpoint,
+  encodeStoredObserverCheckpoint,
+  observerSourceCheckpointLimit,
+} from "./observer-checkpoint-storage.mts";
 import { observerCheckpointByteLimit } from "./observe-configured-upstream.mts";
 import { isRecord } from "./runtime-values.mts";
 import { parseDocument } from "yaml";
@@ -998,7 +1004,83 @@ void test("encoded snapshots retain strict transfer, expansion, digest and envel
   assert.throws(() => encodeObserverSnapshot(good, Date.now() - 1), /deadline exhausted/);
 });
 
-void test("incompressible snapshot data cannot bypass the unchanged four-MiB artifact reserve", () => {
+void test("source storage is lossless, bounded, one level only and never admits malformed encodings", () => {
+  const original = {
+    format: 1,
+    retained: "Accepted provider body and original cursor. ".repeat(12000),
+  };
+  const stored = encodeStoredObserverCheckpoint(original);
+  assert.ok(isRecord(stored));
+  assert.notEqual(stored.format, 1);
+  assert.deepEqual(decodeStoredObserverCheckpoint(stored), original);
+  const withPayload = (bytes: Buffer) => ({
+    ...stored,
+    expanded_bytes: bytes.length,
+    sha256: digest(bytes),
+    payload: gzipSync(bytes).toString("base64"),
+  });
+  for (const changed of [
+    { ...stored, expanded_bytes: observerSourceCheckpointLimit + 1 },
+    { ...stored, expanded_bytes: 1 },
+    { ...stored, sha256: "0".repeat(64) },
+    { ...stored, payload: `${String(stored.payload)}\n` },
+    { ...stored, unknown: true },
+    withPayload(Buffer.from(JSON.stringify(stored))),
+    withPayload(Buffer.from("null")),
+    withPayload(Buffer.from([0xff])),
+  ])
+    assert.throws(() => decodeStoredObserverCheckpoint(changed));
+  assert.throws(() => decodeStoredObserverCheckpoint(stored, Date.now() - 1), /deadline/);
+  assert.throws(() => encodeStoredObserverCheckpoint(original, Date.now() - 1), /deadline/);
+  assert.throws(
+    () =>
+      encodeStoredObserverCheckpoint({
+        format: 1,
+        body: "x".repeat(observerSourceCheckpointLimit),
+      }),
+    /raw source exceeds/,
+  );
+  assert.equal(decodeStoredObserverCheckpoint(null), null);
+});
+
+void test("binary snapshot headers retain strict identity, hash, expansion and deadline guards", () => {
+  const original = validateObserverSnapshot(snapshot(), config, Date.now());
+  const encoded = encodeCompactObserverSnapshot(original);
+  const headerStart = encoded.bytes.indexOf(10) + 1;
+  const headerEnd = encoded.bytes.indexOf(10, headerStart);
+  const header: unknown = JSON.parse(
+    encoded.bytes.subarray(headerStart, headerEnd).toString("utf8"),
+  );
+  assert.ok(isRecord(header));
+  const wire = (value: unknown) =>
+    Buffer.concat([
+      encoded.bytes.subarray(0, headerStart),
+      Buffer.from(JSON.stringify(value) + "\n"),
+      encoded.bytes.subarray(headerEnd + 1),
+    ]);
+  const read = (bytes: Buffer) =>
+    readObserverSnapshotArchive(
+      createAuditZip([["checkpoint.json", bytes]]),
+      config,
+      Date.now(),
+      Date.now() + 60000,
+    );
+  assert.deepEqual(read(encoded.bytes), original);
+  for (const changed of [
+    { ...header, format: 4 },
+    { ...header, encoding: "foreign" },
+    { ...header, expanded_bytes: observerCheckpointByteLimit + 1 },
+    { ...header, expanded_bytes: Number(header.expanded_bytes) - 1 },
+    { ...header, sha256: "0".repeat(64) },
+    { ...header, foreign: true },
+  ])
+    assert.throws(() => read(wire(changed)));
+  assert.throws(() => read(encoded.bytes.subarray(0, encoded.bytes.length - 3)));
+  assert.throws(() => read(wire({ ...header, padding: "x".repeat(600) })));
+  assert.throws(() => encodeCompactObserverSnapshot(original, Date.now() - 1), /deadline/);
+});
+
+void test("binary transfer avoids base64 overhead while preserving the unchanged four-MiB artifact reserve", () => {
   const entropy = Array.from({ length: 100000 }, (_, i) =>
     createHash("sha256").update(`inert-fixture-${i}`).digest("base64"),
   ).join("");
@@ -1014,6 +1096,37 @@ void test("incompressible snapshot data cannot bypass the unchanged four-MiB art
   );
   assert.ok(Buffer.byteLength(JSON.stringify(logical)) > observerSnapshotLimit);
   assert.throws(() => encodeObserverSnapshot(logical), /reserved output envelope|buffer/i);
+  const binary = encodeCompactObserverSnapshot(logical, Date.now() + 60000);
+  assert.ok(binary.bytes.length <= observerSnapshotLimit);
+  assert.ok(createAuditZip([["checkpoint.json", binary.bytes]]).length <= observerSnapshotLimit);
+  assert.deepEqual(
+    readObserverSnapshotArchive(
+      createAuditZip([["checkpoint.json", binary.bytes]]),
+      config,
+      Date.now(),
+      Date.now() + 60000,
+    ),
+    logical,
+  );
+  assert.throws(
+    () =>
+      encodeCompactObserverSnapshot(
+        validateObserverSnapshot(
+          {
+            ...logical,
+            files: {
+              "catalog/checkpoint.json": {
+                ...newCatalogObserverCheckpoint(),
+                fixture_entropy: entropy + entropy,
+              },
+            },
+          },
+          config,
+          Date.now(),
+        ),
+      ),
+    /envelope|larger|buffer/i,
+  );
   assert.throws(
     () =>
       validateObserverSnapshot(

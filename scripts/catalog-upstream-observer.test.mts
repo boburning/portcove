@@ -13,6 +13,8 @@ import {
 import {
   advanceObservation,
   catalogObservationDefinitionHashes,
+  validateObserverCheckpoint,
+  observerCheckpointByteLimit,
 } from "./observe-configured-upstream.mts";
 import {
   advanceCatalogObservations,
@@ -36,7 +38,15 @@ import {
   readObserverSnapshotArchive,
   encodeObserverSnapshot,
   observerSnapshotLimit,
+  collectCompactObserverSnapshot,
+  encodeCompactObserverSnapshot,
+  recoverObserverCheckpoint,
+  validateObserverSnapshot,
 } from "./observer-checkpoint-artifact.mts";
+import {
+  decodeStoredObserverCheckpoint,
+  encodeStoredObserverCheckpoint,
+} from "./observer-checkpoint-storage.mts";
 import { isRecord } from "./runtime-values.mts";
 import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
 
@@ -361,6 +371,140 @@ void test("production-shaped retained provider pages fit the fixed artifact rese
     );
     h.states.set(name.split("/")[0]!, JSON.parse(bytes) as unknown);
   }
+  // Match the live file-count shape, including valid retained configurations.
+  // These inert historical budgets alter only configuration identity; accepted
+  // provider pages, clocks and cursors are retained and independently validated.
+  const sourceProgress = Object.values(result.checkpoint.sources).find(
+    (progress) =>
+      progress.current_config &&
+      Buffer.byteLength(JSON.stringify(h.states.get(observationHash(progress.current_config)))) >
+        1024 * 1024,
+  )!;
+  const originalConfig = sourceProgress.current_config!;
+  const originalHash = observationHash(originalConfig);
+  const sourceBytes = JSON.stringify(h.states.get(originalHash));
+  const extra = 350 - originals.size;
+  for (let i = 0; i < extra; i++) {
+    const retained = validateObserverConfig({
+      ...originalConfig,
+      budget: { ...originalConfig.budget, duration_ms: 180000 - i - 1 },
+    });
+    const hash = observationHash(retained);
+    const value: unknown =
+      i < 10
+        ? JSON.parse(sourceBytes.replaceAll(originalHash, hash))
+        : {
+            format: 1,
+            config_sha256: hash,
+            completed_runs: 0,
+            first_complete_at: null,
+            last_complete: null,
+            exception: null,
+          };
+    validateObserverCheckpoint(value, retained);
+    sourceProgress.retired_configs.push(retained);
+    const bytes = JSON.stringify(value);
+    originals.set(`${hash}/checkpoint.json`, bytes);
+    await mkdir(path.join(sourceTree, hash), { recursive: true });
+    await writeFile(path.join(sourceTree, hash, "checkpoint.json"), bytes);
+  }
+  await writeFile(
+    path.join(sourceTree, "catalog/checkpoint.json"),
+    JSON.stringify(result.checkpoint),
+  );
+  const largeRawBytes = [...originals.values()].reduce(
+    (sum, value) => sum + Buffer.byteLength(value),
+    0,
+  );
+  assert.ok(largeRawBytes > observerCheckpointByteLimit);
+  assert.equal(originals.size + 1, 351);
+  await assert.rejects(
+    collectObserverSnapshot(root, "c".repeat(64), { run: 102, attempt: 1, source: "b".repeat(40) }),
+    /decoded snapshot exceeds/,
+  );
+  let metrics: Record<string, number> = {};
+  const compact = await collectCompactObserverSnapshot(
+    root,
+    "c".repeat(64),
+    { run: 102, attempt: 1, source: "b".repeat(40) },
+    Date.now(),
+    Date.now() + 60000,
+    (value) => {
+      metrics = { ...value };
+    },
+  );
+  assert.ok(metrics.logical_json_bytes! > observerCheckpointByteLimit);
+  assert.ok(metrics.stored_json_bytes! < observerCheckpointByteLimit);
+  const packed = encodeCompactObserverSnapshot(compact, Date.now() + 60000);
+  assert.ok(packed.bytes.length <= observerSnapshotLimit);
+  assert.ok(packed.decoded_bytes <= observerCheckpointByteLimit);
+  const foreign = structuredClone(compact);
+  const [firstName] = originals.keys();
+  const decodedSource = decodeStoredObserverCheckpoint(foreign.files[firstName!]);
+  assert.ok(isRecord(decodedSource));
+  foreign.files[firstName!] = encodeStoredObserverCheckpoint({
+    ...decodedSource,
+    config_sha256: "0".repeat(64),
+  });
+  assert.throws(
+    () => validateObserverSnapshot(foreign, "c".repeat(64), Date.now()),
+    /different observer configuration/,
+  );
+  const unpacked = readObserverSnapshotArchive(
+    createAuditZip([["checkpoint.json", packed.bytes]]),
+    "c".repeat(64),
+    Date.now(),
+    Date.now() + 60000,
+  );
+  assert.deepEqual(unpacked, compact);
+  for (const [name, bytes] of originals)
+    assert.equal(
+      await readFile(path.join(sourceTree, name), "utf8"),
+      bytes,
+      "Compaction leaves the original cache unchanged",
+    );
+  await rm(sourceTree, { recursive: true });
+  await publishObserverSnapshot(root, unpacked, Date.now() + 60000);
+  const cacheRead = await recoverObserverCheckpoint({
+    root,
+    config: "c".repeat(64),
+    current: { run: 103, attempt: 1, source: "d".repeat(40) },
+    deadline: Date.now() + 60000,
+    api: {
+      request: (_method, route) => {
+        assert.equal(
+          route,
+          "repos/boburning/portcove",
+          "Valid compact cache must not need artifact recovery",
+        );
+        const body = { id: 1354613114, full_name: "boburning/portcove", default_branch: "main" };
+        return {
+          status: 200,
+          headers: new Map(),
+          body,
+          bodyBytes: Buffer.byteLength(JSON.stringify(body)),
+        };
+      },
+    },
+  });
+  assert.deepEqual(cacheRead, { origin: "cache", sequence: result.checkpoint.sequence });
+  h.states.clear();
+  for (const [name, bytes] of originals) {
+    const stored: unknown = JSON.parse(await readFile(path.join(sourceTree, name), "utf8"));
+    assert.equal(
+      JSON.stringify(decodeStoredObserverCheckpoint(stored)),
+      bytes,
+      "Every complete accepted source document survives losslessly",
+    );
+    h.states.set(name.split("/")[0]!, stored);
+  }
+  console.log(
+    JSON.stringify({
+      fixture: "live-shaped-351-file-aggregate",
+      ...metrics,
+      artifact_bytes: packed.bytes.length,
+    }),
+  );
   let state = result.checkpoint;
   const sequenceBefore = state.sequence;
   if (!result.report.pending_source_keys.length) {
@@ -771,7 +915,13 @@ void test("retired cache cleanup preserves live snapshots, contention, foreign f
   const checkpointFile = path.join(directory, "checkpoint.json");
   const reportFile = path.join(directory, "report.json");
   const statePath = path.join(root, "work/upstream-observer/catalog/checkpoint.json");
-  await writeFile(checkpointFile, JSON.stringify(snapshot.checkpoint));
+  const stored = encodeStoredObserverCheckpoint(snapshot.checkpoint);
+  assert.notDeepEqual(
+    stored,
+    snapshot.checkpoint,
+    "Cleanup exercises an actual compressed source document",
+  );
+  await writeFile(checkpointFile, JSON.stringify(stored));
   await writeFile(reportFile, JSON.stringify(snapshot.report));
   await writeFile(path.join(directory, "foreign.txt"), "preserve unrelated bytes");
   const cleanup = () =>
