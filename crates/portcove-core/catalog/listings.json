@@ -42939,7 +42939,31 @@
         "game_slug": "star-fox-adventures",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2610
+      "issue_number": 2610,
+      "manual_setup": {
+        "help_url": "https://github.com/JackPriceBurns/foxhollow/blob/0f054e6c1f2d63af06897677ebdc9f1936b61c75/README.md",
+        "steps": [
+          {
+            "title": "Use a completed permitted native player",
+            "instruction": "Use your independently permitted prepared Foxhollow Windows copy, with foxhollow.exe and its complete matching runtime DLLs and assets. The inspected v1.0.30 source defines this direct native player; finish upstream building or launcher preparation outside Portcove. The separately advertised website launcher is not assumed to have this player’s process or storage behavior. Do not select a build tool or preparation script as the game."
+          },
+          {
+            "title": "Bind the direct player and one original-image argument",
+            "instruction": "Select foxhollow.exe and use its complete runtime folder as working directory. Add the absolute path to your own Star Fox Adventures ISO or RVZ as one literal argument, including any spaces inside that argument. Do not add shell commands or rely on a temporary launcher’s environment settings. The reviewed player accepts disc 0 with Nintendo maker 01 and GSAE USA revisions 0/1, GSAJ Japan revision 0 or GSAP Europe revisions 0/1, using the project’s GSAE01 asset mapping and selected USA code revision. Those header checks are not a cryptographic disc-authenticity check. Registration does not import or verify the original."
+          },
+          {
+            "title": "Keep the actual profile and memory-card representation",
+            "instruction": "Preserve the complete player, original-image location, mods, settings, shader caches and SDL’s actual per-user Foxhollow data folder. Keep any independently configured FOXHOLLOW_USER_DIR, FOXHOLLOW_CACHE_DIR, memory-card or other external output locations too; registration does not recreate an external launcher’s settings. Aurora supports regional MemoryCardA/MemoryCardB raw images or regional Card A/Card B folders, and a selected card path may live elsewhere. Preserve the representation used by your own copy. The optional autosave snapshot and its .tmp file are runtime recovery files that the runtime can remove on shutdown, not a durable backup or a Portcove save-conversion promise."
+          },
+          {
+            "title": "Review registration before the separate Play step",
+            "instruction": "Portcove records the selected native executable, working folder and literal arguments. Play is separate and supervises only that process; the direct entry continues into the game in-process. You and upstream own runtime preparation and replacement. Review and relink changed player bytes, and review the argument if the original moves. Removing the registration preserves external files. Managed installation, compilation, original acquisition, updates, backup, rollback, migration and deletion are not offered for this copy."
+          }
+        ],
+        "warnings": [
+          "Use only software and original data you are permitted to use, retaining third-party notices. CC0 for the project’s own contributions does not grant original-game rights. Upstream claims and source inspection do not establish Portcove gameplay, native execution, all-region compatibility, cross-version save compatibility or Supported acceptance."
+        ]
+      }
     },
     {
       "id": "star-wars-episode-iii-revenge-of-the-sith",

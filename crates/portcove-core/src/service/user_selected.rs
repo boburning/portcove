@@ -1352,6 +1352,15 @@ mod tests {
     }
 
     #[test]
+    fn prepared_guide_adoption_2610_literal_disc_path_player() {
+        assert_bound_listing_player_route(
+            "star-fox-adventures-foxhollow",
+            "foxhollow.exe",
+            &[r"C:\Owned Games\Star Fox Adventures.iso"],
+        );
+    }
+
+    #[test]
     fn prepared_guide_adoption_1878_external_copy_preserves_managed_offer() {
         let id = "sdlpal-sdlpal";
         let (temporary, mut service, probe, working) = fixture(id);
