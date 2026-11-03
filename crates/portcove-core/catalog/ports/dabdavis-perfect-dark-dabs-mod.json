@@ -3,7 +3,7 @@
   "listing": {
     "id": "dabdavis-perfect-dark-dabs-mod",
     "name": "Perfect Dark / Perfect Dark Dab's Mod (DabDavis)",
-    "summary": "Perfect Dark fork with its own updater and original-ROM setup; keep expanded saves with a compatible player.",
+    "summary": "Use the complete Dab’s Mod Windows player with your own Perfect Dark USA Rev 1 original. Preserve its actual save root and expanded formats; upstream owns updates and any restarted game.",
     "project_url": "https://github.com/DabDavis/perfect-dark-dabs-mod",
     "issue_number": 1866,
     "platforms": [],
@@ -18,18 +18,36 @@
       "match_kind": "underlying-game"
     },
     "manual_setup": {
+      "help_url": "https://github.com/DabDavis/perfect-dark-dabs-mod/blob/a8c2ab2d7b1c99f6a96a2d9addee1fdf9630e379/README.md",
       "steps": [
         {
-          "title": "Use the fork’s player and updater",
-          "instruction": "Extract the complete Windows package into its own folder. Put your own Perfect Dark USA Rev 1 / US v1.1 ROM in data as pd.ntsc-final.z64, then choose pd.x86_64.exe with the package folder as its working directory. Other regions are not supported by this fork. Keep it separate from a stock Perfect Dark installation to keep settings and saves separate. The fork supplies its own runtime updater."
+          "title": "Prepare this fork’s original and complete player",
+          "instruction": "Use a complete permitted Dab’s Mod Windows copy. The individually inspected v3.15.1 ZIP contains x64 pd.x86_64.exe, SDL2.dll, zlib1.dll and a data folder; keep them together. Supply your own Perfect Dark USA Rev 1 / NTSC-final / US v1.1 big-endian ROM as data/pd.ntsc-final.z64. Upstream identifies MD5 e03b088b6ac9e0080440efed07c1e40f; PAL and Japanese originals are not this fork’s supported input. The ZIP does not supply the ROM. Keep this fork distinct from the stock managed Perfect Dark port."
         },
         {
-          "title": "Keep updates and data with the working copy",
-          "instruction": "You or upstream manage runtime updates, original files, saves and settings. Keep the current working copy until another version is ready. Save launch details in Portcove, then choose Play separately. Registration does not adopt the files or grant managed Backup, Rollback or removal of the external folder. Back up the complete external game folder and any custom data locations, including data, pd.ini, saves and mods. Ordinary stock-format setups remain readable by the unmodified port; expanded simulant setups and moved-stat formats require a compatible version. Replacing or rolling back a runtime does not convert or rewind these saves."
+          "title": "Select normal native play",
+          "instruction": "After upstream preparation, select pd.x86_64.exe, use its complete containing folder as working directory and leave arguments empty for the documented normal route. Preserve an already established --basedir, --savedir, --portable or mod-directory choice as separate literal arguments instead of changing its data roots during attachment. Do not attach an updater, standalone replacement download or another fork’s executable."
+        },
+        {
+          "title": "Back up the effective save directory before startup",
+          "instruction": "In the selected source, --savedir overrides the save root; --portable uses the executable directory. Otherwise a writable executable directory becomes the save root and can copy older saves into it when pd.ini is absent. An unwritable installation can retain the legacy working-directory or per-user fallback. Keep every actual old and current root, pd.ini, EEPROM, player/progress files, Combat Simulator setups, mods, added content, screenshots, recordings and upstream backups. The startup log names the effective base/save directories; preserve any custom paths independently. A package-folder copy alone is not a complete backup when a different root is active."
+        },
+        {
+          "title": "Keep expanded saves with compatible versions",
+          "instruction": "Ordinary stock-format setups can remain readable by the stock port, but setups with more than eight simulants and moved-stat formats need compatible versions. Returning to an older executable does not convert or rewind those files. Preserve the whole creating runtime and data before switching channels, mods or versions; no cross-version or stock/fork save conversion is qualified."
+        },
+        {
+          "title": "Finish upstream updates outside the attached session",
+          "instruction": "Dab’s Mod can stage and replace its executable and restart it. On Windows the restart starts a successor and lets the selected process exit; Portcove does not adopt or terminate that successor. Close the actual restarted game before maintenance, review/relink changed selected bytes, then start a new Play session. Keep optional online, account, recording and added-content actions as your own separate upstream choices."
+        },
+        {
+          "title": "Keep external ownership",
+          "instruction": "Review and consent to the selected executable, working folder and literal arguments, then choose Play separately. You and upstream own preparation, runtime replacement, recovery and all external files. Close every actual player and companion before maintenance, retain independent complete working copies and data, then review/relink changed executable bytes. Removing registration preserves external files; Portcove does not offer external update, backup, rollback, migration, conversion or deletion."
         }
       ],
-      "warnings": [],
-      "help_url": "https://github.com/DabDavis/perfect-dark-dabs-mod/blob/a8c2ab2d7b1c99f6a96a2d9addee1fdf9630e379/README.md"
+      "warnings": [
+        "Use only a copy, components and originals you are permitted to use. Bounded package/PE inspection and owned-probe controls do not establish native gameplay, real-save compatibility, installed Desktop, other-platform or Supported acceptance."
+      ]
     },
     "download_asset_hints": {
       "windows-x86-64": ["pd-dabs-mod-", "x86_64-windows.zip"]

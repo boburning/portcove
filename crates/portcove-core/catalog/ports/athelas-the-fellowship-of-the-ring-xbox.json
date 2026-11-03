@@ -3,7 +3,7 @@
   "listing": {
     "id": "athelas-the-fellowship-of-the-ring-xbox",
     "name": "The Lord of the Rings: The Fellowship of the Ring (Athelas ports/fellowship)",
-    "summary": "Play the original Xbox version of The Fellowship of the Ring through Athelas.",
+    "summary": "Use your own USA Xbox The Fellowship of the Ring through the complete Athelas launcher. Preserve its separate FOTR-Xbox data and upstream setup/update ownership; registration observes the launcher only.",
     "original_game_title": "The Lord of the Rings: The Fellowship of the Ring",
     "project_url": "https://github.com/Shagg88/Athelas",
     "platforms": ["windows-x86-64"],
@@ -12,22 +12,36 @@
     "issue_number": 2800,
     "release_url": "https://github.com/Shagg88/Athelas/releases/tag/1.6.0",
     "manual_setup": {
+      "help_url": "https://github.com/Shagg88/Athelas/blob/32e2ae97af97f457e5ab90fb4f765d326006c197/dist-files/README.txt",
       "steps": [
         {
-          "title": "Use Athelas with your own original Xbox game",
-          "instruction": "Extract the complete official Athelas package into its own folder and deliberately open Athelas.exe. Select the original Xbox version of The Fellowship of the Ring and provide your own USA disc ISO or matching extracted game files as the launcher requests. No game files or separate Xbox BIOS are supplied by Portcove. This is the distinct Athelas component FOTR-Xbox/FOTRXbox.exe; the PC ROTK Fix enhancement and the other two Xbox games keep separate identities and original inputs. Source builds and game-code translation are developer routes, not additional player setup questions."
+          "title": "Prepare this title through Athelas",
+          "instruction": "Use a complete permitted Athelas Windows copy with your own USA original-Xbox The Fellowship of the Ring disc ISO or matching complete extracted files. Finish upstream import and settings deliberately; a PC or other-console edition is not interchangeable. The inspected 1.8.0 archive contains the distinct FOTR-Xbox/FOTRXbox.exe x64 component, its ARM64 companion, native launcher and matching support files. Keep the complete creating distribution and notices, not just one executable. Source builds and game-code translation remain separate upstream developer operations."
         },
         {
-          "title": "Keep upstream setup and updates together",
-          "instruction": "Use Athelas for game selection, settings and Play. You can register Athelas.exe with its extracted folder as the working directory; this deliberately opens the launcher, where you choose this game. The supplied component is FOTR-Xbox/FOTRXbox.exe, but using the launcher preserves its supported setup/settings workflow. Athelas owns runtime updates, including its Update now replacement and restart. Existing external files stay external: Portcove does not promise managed Update, Backup or Rollback."
+          "title": "Keep the launcher’s game and path selection",
+          "instruction": "Select Athelas.exe, use its complete containing folder as working directory and leave arguments empty. In Athelas select this specific Xbox game, its own prepared original and settings, then use its Play action. This route opens the launcher, which supplies title-specific game, config, save, texture, log and cache paths to the native component. Selecting the component directly without those established arguments is not an equivalent shortcut."
         },
         {
-          "title": "Preserve this component's data",
-          "instruction": "Back up the actual launcher folder and this game's FOTR-Xbox/saves directory before changing versions. This game has its own settings; FOTR-Xbox/settings.toml is separate from another Xbox game and from the PC game's ROTKFix.ini. Keep your original disc/files and any custom mods, logs, crash dumps or moved data separately. Upstream describes Windows 10/11 x64 and Direct3D 12 for the Xbox components; Proton/CrossOver observations are not native Linux/macOS qualification. This guide does not specify the exact accepted executable revision or hash. Portcove has not confirmed native execution, gameplay or restoring real saves; unresolved project-lineage and catalog-acceptance questions remain with this component’s owner."
+          "title": "Treat the launcher and its games as separate processes",
+          "instruction": "Portcove supervises only the selected Athelas process. Athelas starts and observes a separate game process; registration does not adopt that child or make a closed launcher proof that every game stopped. The same Athelas folder can serve several titles: close all launcher instances and actual games before updates, backup, restore, relinking or file changes. Multiple title registrations do not create independent copies or separate data."
+        },
+        {
+          "title": "Preserve this game’s actual data",
+          "instruction": "Preserve FOTR-Xbox/ with saves/, settings.toml, shadercache, textures, logs and unknown files, plus Athelas.ini, Screenshots, originals, all selected game directories and external/custom paths. Preserve any creating player’s earlier/custom hdd and effective save root; do not inherit another title’s legacy migration or save-compatibility claims. Athelas can make or restore its own save ZIPs and set aside caches. Those upstream actions are separate from Portcove registration and do not qualify restore, save conversion or backup here."
+        },
+        {
+          "title": "Keep versions, components and restrictions together",
+          "instruction": "The selected package includes generated-HLSL shader warm-up seeds and pipeline records for this title, plus separately licensed components; keep their creating runtime and notices together. These are not a certificate for original disc bytes, source-to-binary reproduction, controller/gameplay behavior or save compatibility. First-version, rendering and other upstream limitations remain version-specific. No original game rights or another title’s acceptance are inherited."
+        },
+        {
+          "title": "Leave setup and replacement upstream",
+          "instruction": "Review and consent to the selected executable, working folder and literal arguments, then choose Play separately. You and upstream own preparation, runtime replacement, recovery and all external files. Close every actual player and companion before maintenance, retain independent complete working copies and data, then review/relink changed executable bytes. Removing registration preserves external files; Portcove does not offer external update, backup, rollback, migration, conversion or deletion. Athelas owns its setup, self-update and component replacement. Finish these outside the attached session; do not treat launcher backup/restore or cache controls as Portcove-managed operations."
         }
       ],
-      "warnings": [],
-      "help_url": "https://github.com/Shagg88/Athelas/blob/bc12bc235a1f7320a3aa421e2935eaf55ff0dabc/dist-files/README.txt"
+      "warnings": [
+        "Use only the actual copy, components and original data you are permitted to use. Only the selected launcher is supervised. Keep complete independent runtime/data backups with all shared games closed; no native/gameplay, real-save, installed-client or Supported acceptance is established."
+      ]
     }
   },
   "upstream_lineage": {
