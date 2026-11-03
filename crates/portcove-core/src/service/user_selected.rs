@@ -970,6 +970,78 @@ mod tests {
         );
     }
 
+    #[test]
+    fn inspected_player_adoption_1866_dabs_mod() {
+        assert_bound_listing_player_route("dabdavis-perfect-dark-dabs-mod", "pd.x86_64.exe", &[]);
+    }
+
+    #[test]
+    fn inspected_player_adoption_1310_swrots() {
+        assert_bound_listing_player_route(
+            "star-wars-episode-iii-revenge-of-the-sith",
+            "swrots.exe",
+            &[],
+        );
+    }
+
+    #[test]
+    fn inspected_launcher_adoption_2798_two_towers() {
+        assert_bound_listing_player_route("athelas-the-two-towers-xbox", "Athelas.exe", &[]);
+    }
+
+    #[test]
+    fn inspected_launcher_adoption_2799_rotk_xbox() {
+        assert_bound_listing_player_route(
+            "athelas-the-return-of-the-king-xbox",
+            "Athelas.exe",
+            &[],
+        );
+    }
+
+    #[test]
+    fn inspected_launcher_adoption_2800_fellowship() {
+        assert_bound_listing_player_route(
+            "athelas-the-fellowship-of-the-ring-xbox",
+            "Athelas.exe",
+            &[],
+        );
+    }
+
+    #[test]
+    fn inspected_launcher_adoption_2801_pc_enhancement() {
+        assert_bound_listing_player_route("athelas-return-of-the-king-pc-fix", "Athelas.exe", &[]);
+    }
+
+    #[test]
+    fn inspected_player_adoption_2806_nvdemu_fork() {
+        assert_bound_listing_player_route(
+            "nvdemu-apeescaperecomp-macwindowslinux",
+            "ApeEscapeRecomp.exe",
+            &[],
+        );
+    }
+
+    #[test]
+    fn inspected_player_adoption_2806_custom_disc_config_and_card_paths() {
+        assert_bound_listing_player_route(
+            "nvdemu-apeescaperecomp-macwindowslinux",
+            "ApeEscapeRecomp.exe",
+            &[
+                "--disc",
+                r"C:\Owned Discs\Ape Escape.cue",
+                "--game",
+                r"C:\Player Data\Ape Escape\game.toml",
+                "--memcard-dir",
+                r"C:\Player Data\Ape Escape Cards",
+            ],
+        );
+    }
+
+    #[test]
+    fn inspected_player_adoption_2796_gumpolas_two_towers() {
+        assert_bound_listing_player_route("gumpolas-tootawersrecomp", "twotowers_recomp.exe", &[]);
+    }
+
     // Per-title acceptance of an existing listing-only route. These controls
     // execute the owned probe, not the upstream game or original-data setup.
     #[test]

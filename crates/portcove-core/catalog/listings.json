@@ -8842,7 +8842,7 @@
     {
       "id": "athelas-return-of-the-king-pc-fix",
       "name": "The Return of the King (PC) — Athelas ROTK Fix",
-      "summary": "Improve the 2003 Windows version of The Return of the King with Athelas and ROTK Fix.",
+      "summary": "Use Athelas ROTK Fix with your own installed US 2003 Windows PC game. Keep original protection, profiles and launcher-managed enhancements separate from the Xbox ports.",
       "original_game_title": "The Lord of the Rings: The Return of the King",
       "project_url": "https://github.com/Shagg88/Athelas",
       "issue_number": 2801,
@@ -8853,22 +8853,32 @@
       "release_url": "https://github.com/Shagg88/Athelas/releases/tag/1.6.0",
       "setup_url": "https://github.com/Shagg88/Athelas/blob/bc12bc235a1f7320a3aa421e2935eaf55ff0dabc/dist-files/README.txt",
       "manual_setup": {
+        "help_url": "https://github.com/Shagg88/Athelas/blob/32e2ae97af97f457e5ab90fb4f765d326006c197/dist-files/README.txt",
         "steps": [
           {
-            "title": "Use Athelas with your own PC game",
-            "instruction": "Install your own US 2003 Windows PC copy of The Lord of the Rings: The Return of the King. This enhancement is separate from Athelas's three original-Xbox ports; an Xbox disc does not replace this PC installation. Extract the official Athelas release into its own folder, open Athelas.exe deliberately, select the PC game and show it the game folder. The launcher installs ROTK Fix's DLLs and ROTKFix folder beside rotk.exe. Original game assets are not supplied, and the PC game's copy protection is not bypassed. Installing into a protected game folder may ask for Windows permission."
+            "title": "Keep the original PC game distinct",
+            "instruction": "Use your own already-working, independently permitted US 2003 Windows PC The Lord of the Rings: The Return of the King. This ROTK Fix enhancement is separate from all Athelas Xbox ports; their discs, runtimes and saves are not substitutes. Keep original PC copy protection and required host components intact. The inspected Athelas 1.8.0 ZIP contains the PC enhancement under ROTK-PC/pcfix with its DLLs, ROTKFix resources and notices; it does not supply your original PC installation."
           },
           {
-            "title": "Keep the launcher as the useful entry point",
-            "instruction": "Use Athelas for settings and Play; register Athelas.exe with its own folder as the working directory if you want it in Portcove. Registration opens the launcher, where you select this PC game; it does not promise a direct launch of one of the bundled games. Athelas writes ROTKFix.ini beside the PC game and updates its ROTK.ini in Documents with a backup copy. Preserve existing wrappers before changes and use About → Remove ROTK Fix for the upstream-supported removal that restores its replaced files."
+            "title": "Use the supported launcher setup and game choice",
+            "instruction": "Finish upstream setup deliberately in Athelas: select the PC game and its actual installed folder. Athelas copies its enhancement DLLs and ROTKFix directory into that chosen game folder; protected locations may need your Windows approval. Select Athelas.exe in Portcove, use its complete containing folder as working directory and leave arguments empty. Use Athelas for this PC game’s settings and Play. Saving the registration does not install the enhancement or launch the original."
           },
           {
-            "title": "Let Athelas update and keep your own backups",
-            "instruction": "The launcher offers Update now, verifies a replacement, installs it over its own folder and restarts. Keep it upstream-owned: Portcove registration preserves all external files and does not offer managed Update, Backup or Rollback. Back up the PC game's actual save/profile folder, its game-folder ROTKFix.ini/ROTKFix content and the launcher's configuration separately. The three Xbox components use different settings and saves; do not substitute those paths for the PC game. Upstream also describes Proton and CrossOver routes, which are not native Linux/macOS qualification. This release's contents, native execution, gameplay and real-save restoration have not been observed here."
+            "title": "Preserve the PC game and its real profiles",
+            "instruction": "Keep the complete original PC installation, existing save/profile locations, game settings, ROTKFix.ini, installed DLLs, ROTKFix content/mods and every configured custom path. Preserve the launcher folder, Athelas.ini, Screenshots, upstream backups and all external locations separately. Athelas install/remove, settings, mod and save-restore actions can change external files; retain independent working copies with every actual game and launcher closed. Xbox save-folder rules and compatibility are not inherited by this PC enhancement. In the selected source, the game’s ROTK.ini lives under the actual Windows Documents folder, normally LOTR The Return of the King (tm) Data; the name can instead come from the installed executable’s language resource. Preserve that whole profile, ROTK.ini.before-rotkfix, game-folder Input.ini and Input.ini.original. Upstream Save/Play can create or rewrite these files; removing the enhancement can restore a prior copy or remove settings it created. Preserve independent backups before these actions."
+          },
+          {
+            "title": "Track the selected launcher honestly",
+            "instruction": "Only the selected Athelas process is supervised by this registration. Its separately started original game is not adopted or terminated by Portcove; a closed launcher is not proof that the game stopped. One launcher folder may serve several titles, so close all actual games and launcher instances before maintenance or replacement."
+          },
+          {
+            "title": "Leave protection, updates and recovery upstream",
+            "instruction": "Review and consent to the selected executable, working folder and literal arguments, then choose Play separately. You and upstream own preparation, runtime replacement, recovery and all external files. Close every actual player and companion before maintenance, retain independent complete working copies and data, then review/relink changed executable bytes. Removing registration preserves external files; Portcove does not offer external update, backup, rollback, migration, conversion or deletion. Athelas retains enhancement installation/removal, self-update, settings and original-PC protection behavior. Registration supplies no installation permission, protection bypass, external backup/restore or save-compatibility qualification."
           }
         ],
-        "warnings": [],
-        "help_url": "https://github.com/Shagg88/Athelas/blob/bc12bc235a1f7320a3aa421e2935eaf55ff0dabc/dist-files/README.txt"
+        "warnings": [
+          "Use only components and an original PC copy you are permitted to use. Package/DLL inspection, source review and owned probes are not original-game execution, protection acceptance, real-save, installed-client or Supported evidence."
+        ]
       },
       "artwork": {
         "game_id": 2973,
@@ -8882,7 +8892,7 @@
     {
       "id": "athelas-the-fellowship-of-the-ring-xbox",
       "name": "The Lord of the Rings: The Fellowship of the Ring (Athelas ports/fellowship)",
-      "summary": "Play the original Xbox version of The Fellowship of the Ring through Athelas.",
+      "summary": "Use your own USA Xbox The Fellowship of the Ring through the complete Athelas launcher. Preserve its separate FOTR-Xbox data and upstream setup/update ownership; registration observes the launcher only.",
       "original_game_title": "The Lord of the Rings: The Fellowship of the Ring",
       "project_url": "https://github.com/Shagg88/Athelas",
       "platforms": [
@@ -8893,28 +8903,42 @@
       "issue_number": 2800,
       "release_url": "https://github.com/Shagg88/Athelas/releases/tag/1.6.0",
       "manual_setup": {
+        "help_url": "https://github.com/Shagg88/Athelas/blob/32e2ae97af97f457e5ab90fb4f765d326006c197/dist-files/README.txt",
         "steps": [
           {
-            "title": "Use Athelas with your own original Xbox game",
-            "instruction": "Extract the complete official Athelas package into its own folder and deliberately open Athelas.exe. Select the original Xbox version of The Fellowship of the Ring and provide your own USA disc ISO or matching extracted game files as the launcher requests. No game files or separate Xbox BIOS are supplied by Portcove. This is the distinct Athelas component FOTR-Xbox/FOTRXbox.exe; the PC ROTK Fix enhancement and the other two Xbox games keep separate identities and original inputs. Source builds and game-code translation are developer routes, not additional player setup questions."
+            "title": "Prepare this title through Athelas",
+            "instruction": "Use a complete permitted Athelas Windows copy with your own USA original-Xbox The Fellowship of the Ring disc ISO or matching complete extracted files. Finish upstream import and settings deliberately; a PC or other-console edition is not interchangeable. The inspected 1.8.0 archive contains the distinct FOTR-Xbox/FOTRXbox.exe x64 component, its ARM64 companion, native launcher and matching support files. Keep the complete creating distribution and notices, not just one executable. Source builds and game-code translation remain separate upstream developer operations."
           },
           {
-            "title": "Keep upstream setup and updates together",
-            "instruction": "Use Athelas for game selection, settings and Play. You can register Athelas.exe with its extracted folder as the working directory; this deliberately opens the launcher, where you choose this game. The supplied component is FOTR-Xbox/FOTRXbox.exe, but using the launcher preserves its supported setup/settings workflow. Athelas owns runtime updates, including its Update now replacement and restart. Existing external files stay external: Portcove does not promise managed Update, Backup or Rollback."
+            "title": "Keep the launcher’s game and path selection",
+            "instruction": "Select Athelas.exe, use its complete containing folder as working directory and leave arguments empty. In Athelas select this specific Xbox game, its own prepared original and settings, then use its Play action. This route opens the launcher, which supplies title-specific game, config, save, texture, log and cache paths to the native component. Selecting the component directly without those established arguments is not an equivalent shortcut."
           },
           {
-            "title": "Preserve this component's data",
-            "instruction": "Back up the actual launcher folder and this game's FOTR-Xbox/saves directory before changing versions. This game has its own settings; FOTR-Xbox/settings.toml is separate from another Xbox game and from the PC game's ROTKFix.ini. Keep your original disc/files and any custom mods, logs, crash dumps or moved data separately. Upstream describes Windows 10/11 x64 and Direct3D 12 for the Xbox components; Proton/CrossOver observations are not native Linux/macOS qualification. This guide does not specify the exact accepted executable revision or hash. Portcove has not confirmed native execution, gameplay or restoring real saves; unresolved project-lineage and catalog-acceptance questions remain with this component’s owner."
+            "title": "Treat the launcher and its games as separate processes",
+            "instruction": "Portcove supervises only the selected Athelas process. Athelas starts and observes a separate game process; registration does not adopt that child or make a closed launcher proof that every game stopped. The same Athelas folder can serve several titles: close all launcher instances and actual games before updates, backup, restore, relinking or file changes. Multiple title registrations do not create independent copies or separate data."
+          },
+          {
+            "title": "Preserve this game’s actual data",
+            "instruction": "Preserve FOTR-Xbox/ with saves/, settings.toml, shadercache, textures, logs and unknown files, plus Athelas.ini, Screenshots, originals, all selected game directories and external/custom paths. Preserve any creating player’s earlier/custom hdd and effective save root; do not inherit another title’s legacy migration or save-compatibility claims. Athelas can make or restore its own save ZIPs and set aside caches. Those upstream actions are separate from Portcove registration and do not qualify restore, save conversion or backup here."
+          },
+          {
+            "title": "Keep versions, components and restrictions together",
+            "instruction": "The selected package includes generated-HLSL shader warm-up seeds and pipeline records for this title, plus separately licensed components; keep their creating runtime and notices together. These are not a certificate for original disc bytes, source-to-binary reproduction, controller/gameplay behavior or save compatibility. First-version, rendering and other upstream limitations remain version-specific. No original game rights or another title’s acceptance are inherited."
+          },
+          {
+            "title": "Leave setup and replacement upstream",
+            "instruction": "Review and consent to the selected executable, working folder and literal arguments, then choose Play separately. You and upstream own preparation, runtime replacement, recovery and all external files. Close every actual player and companion before maintenance, retain independent complete working copies and data, then review/relink changed executable bytes. Removing registration preserves external files; Portcove does not offer external update, backup, rollback, migration, conversion or deletion. Athelas owns its setup, self-update and component replacement. Finish these outside the attached session; do not treat launcher backup/restore or cache controls as Portcove-managed operations."
           }
         ],
-        "warnings": [],
-        "help_url": "https://github.com/Shagg88/Athelas/blob/bc12bc235a1f7320a3aa421e2935eaf55ff0dabc/dist-files/README.txt"
+        "warnings": [
+          "Use only the actual copy, components and original data you are permitted to use. Only the selected launcher is supervised. Keep complete independent runtime/data backups with all shared games closed; no native/gameplay, real-save, installed-client or Supported acceptance is established."
+        ]
       }
     },
     {
       "id": "athelas-the-return-of-the-king-xbox",
       "name": "The Lord of the Rings: The Return of the King — Original Xbox (Athelas ports/rotk-xbox)",
-      "summary": "Play the original Xbox version of The Return of the King through Athelas.",
+      "summary": "Use your own USA Xbox The Return of the King through the complete Athelas launcher. Preserve its separate ROTK-Xbox data and upstream setup/update ownership; registration observes the launcher only.",
       "original_game_title": "The Lord of the Rings: The Return of the King",
       "project_url": "https://github.com/Shagg88/Athelas",
       "platforms": [
@@ -8925,28 +8949,42 @@
       "issue_number": 2799,
       "release_url": "https://github.com/Shagg88/Athelas/releases/tag/1.6.0",
       "manual_setup": {
+        "help_url": "https://github.com/Shagg88/Athelas/blob/32e2ae97af97f457e5ab90fb4f765d326006c197/dist-files/README.txt",
         "steps": [
           {
-            "title": "Use Athelas with your own original Xbox game",
-            "instruction": "Extract the complete official Athelas package into its own folder and deliberately open Athelas.exe. Select the original Xbox version of The Return of the King and provide your own USA disc ISO or matching extracted game files as the launcher requests. No game files or separate Xbox BIOS are supplied by Portcove. This is the distinct Athelas component ROTK-Xbox/ROTKXbox.exe; the PC ROTK Fix enhancement and the other two Xbox games keep separate identities and original inputs. Source builds and game-code translation are developer routes, not additional player setup questions."
+            "title": "Prepare this title through Athelas",
+            "instruction": "Use a complete permitted Athelas Windows copy with your own USA original-Xbox The Return of the King disc ISO or matching complete extracted files. Finish upstream import and settings deliberately; a PC or other-console edition is not interchangeable. The inspected 1.8.0 archive contains the distinct ROTK-Xbox/ROTKXbox.exe x64 component, its ARM64 companion, native launcher and matching support files. Keep the complete creating distribution and notices, not just one executable. Source builds and game-code translation remain separate upstream developer operations."
           },
           {
-            "title": "Keep upstream setup and updates together",
-            "instruction": "Use Athelas for game selection, settings and Play. You can register Athelas.exe with its extracted folder as the working directory; this deliberately opens the launcher, where you choose this game. The supplied component is ROTK-Xbox/ROTKXbox.exe, but using the launcher preserves its supported setup/settings workflow. Athelas owns runtime updates, including its Update now replacement and restart. Existing external files stay external: Portcove does not promise managed Update, Backup or Rollback."
+            "title": "Keep the launcher’s game and path selection",
+            "instruction": "Select Athelas.exe, use its complete containing folder as working directory and leave arguments empty. In Athelas select this specific Xbox game, its own prepared original and settings, then use its Play action. This route opens the launcher, which supplies title-specific game, config, save, texture, log and cache paths to the native component. Selecting the component directly without those established arguments is not an equivalent shortcut."
           },
           {
-            "title": "Preserve this component's data",
-            "instruction": "Back up the actual launcher folder and this game's ROTK-Xbox/saves directory before changing versions. This game has its own settings; ROTK-Xbox/settings.toml is separate from another Xbox game and from the PC game's ROTKFix.ini. Keep your original disc/files and any custom mods, logs, crash dumps or moved data separately. Upstream describes Windows 10/11 x64 and Direct3D 12 for the Xbox components; Proton/CrossOver observations are not native Linux/macOS qualification. This guide does not specify the exact accepted executable revision or hash. Portcove has not confirmed native execution, gameplay or restoring real saves; unresolved project-lineage and catalog-acceptance questions remain with this component’s owner."
+            "title": "Treat the launcher and its games as separate processes",
+            "instruction": "Portcove supervises only the selected Athelas process. Athelas starts and observes a separate game process; registration does not adopt that child or make a closed launcher proof that every game stopped. The same Athelas folder can serve several titles: close all launcher instances and actual games before updates, backup, restore, relinking or file changes. Multiple title registrations do not create independent copies or separate data."
+          },
+          {
+            "title": "Preserve this game’s actual data",
+            "instruction": "Preserve ROTK-Xbox/ with saves/, settings.toml, shadercache, textures, logs and unknown files, plus Athelas.ini, Screenshots, originals, all selected game directories and external/custom paths. The launcher can copy older ROTKFix/ROTKXbox settings/data when the current settings file is missing, and migrate a prior beside-player hdd into saves/. Preserve both old and current locations independently before first startup or changing copies. Athelas can make or restore its own save ZIPs and set aside caches. Those upstream actions are separate from Portcove registration and do not qualify restore, save conversion or backup here. Before the Xbox page’s first settings lookup, also retain the older PC game folder’s ROTKFix.ini: this component can import the previously shared PC/Xbox settings into its own settings.toml and mark ROTKSettingsImported in Athelas.ini. That startup helper/migration remains upstream-owned, with no cross-game save compatibility inferred."
+          },
+          {
+            "title": "Keep versions, components and restrictions together",
+            "instruction": "The selected package includes generated-HLSL shader warm-up seeds and pipeline records for this title, plus separately licensed components; keep their creating runtime and notices together. These are not a certificate for original disc bytes, source-to-binary reproduction, controller/gameplay behavior or save compatibility. First-version, rendering and other upstream limitations remain version-specific. No original game rights or another title’s acceptance are inherited."
+          },
+          {
+            "title": "Leave setup and replacement upstream",
+            "instruction": "Review and consent to the selected executable, working folder and literal arguments, then choose Play separately. You and upstream own preparation, runtime replacement, recovery and all external files. Close every actual player and companion before maintenance, retain independent complete working copies and data, then review/relink changed executable bytes. Removing registration preserves external files; Portcove does not offer external update, backup, rollback, migration, conversion or deletion. Athelas owns its setup, self-update and component replacement. Finish these outside the attached session; do not treat launcher backup/restore or cache controls as Portcove-managed operations."
           }
         ],
-        "warnings": [],
-        "help_url": "https://github.com/Shagg88/Athelas/blob/bc12bc235a1f7320a3aa421e2935eaf55ff0dabc/dist-files/README.txt"
+        "warnings": [
+          "Use only the actual copy, components and original data you are permitted to use. Only the selected launcher is supervised. Keep complete independent runtime/data backups with all shared games closed; no native/gameplay, real-save, installed-client or Supported acceptance is established."
+        ]
       }
     },
     {
       "id": "athelas-the-two-towers-xbox",
       "name": "The Lord of the Rings: The Two Towers — Original Xbox (Athelas ports/two-towers)",
-      "summary": "Play the original Xbox version of The Two Towers through Athelas.",
+      "summary": "Use your own USA Xbox The Two Towers through the complete Athelas launcher. Preserve its separate TT-Xbox data and upstream setup/update ownership; registration observes the launcher only.",
       "original_game_title": "The Lord of the Rings: The Two Towers",
       "project_url": "https://github.com/Shagg88/Athelas",
       "platforms": [
@@ -8957,22 +8995,36 @@
       "issue_number": 2798,
       "release_url": "https://github.com/Shagg88/Athelas/releases/tag/1.6.0",
       "manual_setup": {
+        "help_url": "https://github.com/Shagg88/Athelas/blob/32e2ae97af97f457e5ab90fb4f765d326006c197/dist-files/README.txt",
         "steps": [
           {
-            "title": "Use Athelas with your own original Xbox game",
-            "instruction": "Extract the complete official Athelas package into its own folder and deliberately open Athelas.exe. Select the original Xbox version of The Two Towers and provide your own USA disc ISO or matching extracted game files as the launcher requests. No game files or separate Xbox BIOS are supplied by Portcove. This is the distinct Athelas component TT-Xbox/TwoTowers.exe; the PC ROTK Fix enhancement and the other two Xbox games keep separate identities and original inputs. Source builds and game-code translation are developer routes, not additional player setup questions."
+            "title": "Prepare this title through Athelas",
+            "instruction": "Use a complete permitted Athelas Windows copy with your own USA original-Xbox The Two Towers disc ISO or matching complete extracted files. Finish upstream import and settings deliberately; a PC or other-console edition is not interchangeable. The inspected 1.8.0 archive contains the distinct TT-Xbox/TwoTowers.exe x64 component, its ARM64 companion, native launcher and matching support files. Keep the complete creating distribution and notices, not just one executable. Source builds and game-code translation remain separate upstream developer operations."
           },
           {
-            "title": "Keep upstream setup and updates together",
-            "instruction": "Use Athelas for game selection, settings and Play. You can register Athelas.exe with its extracted folder as the working directory; this deliberately opens the launcher, where you choose this game. The supplied component is TT-Xbox/TwoTowers.exe, but using the launcher preserves its supported setup/settings workflow. Athelas owns runtime updates, including its Update now replacement and restart. Existing external files stay external: Portcove does not promise managed Update, Backup or Rollback."
+            "title": "Keep the launcher’s game and path selection",
+            "instruction": "Select Athelas.exe, use its complete containing folder as working directory and leave arguments empty. In Athelas select this specific Xbox game, its own prepared original and settings, then use its Play action. This route opens the launcher, which supplies title-specific game, config, save, texture, log and cache paths to the native component. Selecting the component directly without those established arguments is not an equivalent shortcut."
           },
           {
-            "title": "Preserve this component's data",
-            "instruction": "Back up the actual launcher folder and this game's TT-Xbox/saves directory before changing versions. This game has its own settings; TT-Xbox/settings.toml is separate from another Xbox game and from the PC game's ROTKFix.ini. Keep your original disc/files and any custom mods, logs, crash dumps or moved data separately. Upstream describes Windows 10/11 x64 and Direct3D 12 for the Xbox components; Proton/CrossOver observations are not native Linux/macOS qualification. This guide does not specify the exact accepted executable revision or hash. Portcove has not confirmed native execution, gameplay or restoring real saves; unresolved project-lineage and catalog-acceptance questions remain with this component’s owner."
+            "title": "Treat the launcher and its games as separate processes",
+            "instruction": "Portcove supervises only the selected Athelas process. Athelas starts and observes a separate game process; registration does not adopt that child or make a closed launcher proof that every game stopped. The same Athelas folder can serve several titles: close all launcher instances and actual games before updates, backup, restore, relinking or file changes. Multiple title registrations do not create independent copies or separate data."
+          },
+          {
+            "title": "Preserve this game’s actual data",
+            "instruction": "Preserve TT-Xbox/ with saves/, settings.toml, shadercache, textures, logs and unknown files, plus Athelas.ini, Screenshots, originals, all selected game directories and external/custom paths. The launcher can copy older ROTKFix/TwoTowers settings/data when the current settings file is missing, and migrate a prior beside-player hdd into saves/. Preserve both old and current locations independently before first startup or changing copies. Athelas can make or restore its own save ZIPs and set aside caches. Those upstream actions are separate from Portcove registration and do not qualify restore, save conversion or backup here."
+          },
+          {
+            "title": "Keep versions, components and restrictions together",
+            "instruction": "This Athelas component is distinct from Gumpolas TooTawersRecomp (#2796), whose direct entry is twotowers_recomp.exe with its own settings, game_files and saves. Shared Xbox title/toolkit ancestry does not make the packages or profiles interchangeable. The selected package includes generated-HLSL shader warm-up seeds and pipeline records for this title, plus separately licensed components; keep their creating runtime and notices together. These are not a certificate for original disc bytes, source-to-binary reproduction, controller/gameplay behavior or save compatibility. First-version, rendering and other upstream limitations remain version-specific. No original game rights or another title’s acceptance are inherited."
+          },
+          {
+            "title": "Leave setup and replacement upstream",
+            "instruction": "Review and consent to the selected executable, working folder and literal arguments, then choose Play separately. You and upstream own preparation, runtime replacement, recovery and all external files. Close every actual player and companion before maintenance, retain independent complete working copies and data, then review/relink changed executable bytes. Removing registration preserves external files; Portcove does not offer external update, backup, rollback, migration, conversion or deletion. Athelas owns its setup, self-update and component replacement. Finish these outside the attached session; do not treat launcher backup/restore or cache controls as Portcove-managed operations."
           }
         ],
-        "warnings": [],
-        "help_url": "https://github.com/Shagg88/Athelas/blob/bc12bc235a1f7320a3aa421e2935eaf55ff0dabc/dist-files/README.txt"
+        "warnings": [
+          "Use only the actual copy, components and original data you are permitted to use. Only the selected launcher is supervised. Keep complete independent runtime/data backups with all shared games closed; no native/gameplay, real-save, installed-client or Supported acceptance is established."
+        ]
       }
     },
     {
@@ -14483,7 +14535,7 @@
     {
       "id": "dabdavis-perfect-dark-dabs-mod",
       "name": "Perfect Dark / Perfect Dark Dab's Mod (DabDavis)",
-      "summary": "Perfect Dark fork with its own updater and original-ROM setup; keep expanded saves with a compatible player.",
+      "summary": "Use the complete Dab’s Mod Windows player with your own Perfect Dark USA Rev 1 original. Preserve its actual save root and expanded formats; upstream owns updates and any restarted game.",
       "project_url": "https://github.com/DabDavis/perfect-dark-dabs-mod",
       "issue_number": 1866,
       "platforms": [],
@@ -14498,18 +14550,36 @@
         "match_kind": "underlying-game"
       },
       "manual_setup": {
+        "help_url": "https://github.com/DabDavis/perfect-dark-dabs-mod/blob/a8c2ab2d7b1c99f6a96a2d9addee1fdf9630e379/README.md",
         "steps": [
           {
-            "title": "Use the fork’s player and updater",
-            "instruction": "Extract the complete Windows package into its own folder. Put your own Perfect Dark USA Rev 1 / US v1.1 ROM in data as pd.ntsc-final.z64, then choose pd.x86_64.exe with the package folder as its working directory. Other regions are not supported by this fork. Keep it separate from a stock Perfect Dark installation to keep settings and saves separate. The fork supplies its own runtime updater."
+            "title": "Prepare this fork’s original and complete player",
+            "instruction": "Use a complete permitted Dab’s Mod Windows copy. The individually inspected v3.15.1 ZIP contains x64 pd.x86_64.exe, SDL2.dll, zlib1.dll and a data folder; keep them together. Supply your own Perfect Dark USA Rev 1 / NTSC-final / US v1.1 big-endian ROM as data/pd.ntsc-final.z64. Upstream identifies MD5 e03b088b6ac9e0080440efed07c1e40f; PAL and Japanese originals are not this fork’s supported input. The ZIP does not supply the ROM. Keep this fork distinct from the stock managed Perfect Dark port."
           },
           {
-            "title": "Keep updates and data with the working copy",
-            "instruction": "You or upstream manage runtime updates, original files, saves and settings. Keep the current working copy until another version is ready. Save launch details in Portcove, then choose Play separately. Registration does not adopt the files or grant managed Backup, Rollback or removal of the external folder. Back up the complete external game folder and any custom data locations, including data, pd.ini, saves and mods. Ordinary stock-format setups remain readable by the unmodified port; expanded simulant setups and moved-stat formats require a compatible version. Replacing or rolling back a runtime does not convert or rewind these saves."
+            "title": "Select normal native play",
+            "instruction": "After upstream preparation, select pd.x86_64.exe, use its complete containing folder as working directory and leave arguments empty for the documented normal route. Preserve an already established --basedir, --savedir, --portable or mod-directory choice as separate literal arguments instead of changing its data roots during attachment. Do not attach an updater, standalone replacement download or another fork’s executable."
+          },
+          {
+            "title": "Back up the effective save directory before startup",
+            "instruction": "In the selected source, --savedir overrides the save root; --portable uses the executable directory. Otherwise a writable executable directory becomes the save root and can copy older saves into it when pd.ini is absent. An unwritable installation can retain the legacy working-directory or per-user fallback. Keep every actual old and current root, pd.ini, EEPROM, player/progress files, Combat Simulator setups, mods, added content, screenshots, recordings and upstream backups. The startup log names the effective base/save directories; preserve any custom paths independently. A package-folder copy alone is not a complete backup when a different root is active. The per-user fallback is SDL’s perfectdark preference directory, normally %APPDATA%/perfectdark on Windows; retain its earlier data even after a writable portable folder becomes active."
+          },
+          {
+            "title": "Keep expanded saves with compatible versions",
+            "instruction": "Ordinary stock-format setups can remain readable by the stock port, but setups with more than eight simulants and moved-stat formats need compatible versions. Returning to an older executable does not convert or rewind those files. Preserve the whole creating runtime and data before switching channels, mods or versions; no cross-version or stock/fork save conversion is qualified."
+          },
+          {
+            "title": "Finish upstream updates outside the attached session",
+            "instruction": "Dab’s Mod can stage and replace its executable and restart it. On Windows the restart starts a successor and lets the selected process exit; Portcove does not adopt or terminate that successor. Close the actual restarted game before maintenance, review/relink changed selected bytes, then start a new Play session. Keep optional online, account, recording and added-content actions as your own separate upstream choices."
+          },
+          {
+            "title": "Keep external ownership",
+            "instruction": "Review and consent to the selected executable, working folder and literal arguments, then choose Play separately. You and upstream own preparation, runtime replacement, recovery and all external files. Close every actual player and companion before maintenance, retain independent complete working copies and data, then review/relink changed executable bytes. Removing registration preserves external files; Portcove does not offer external update, backup, rollback, migration, conversion or deletion."
           }
         ],
-        "warnings": [],
-        "help_url": "https://github.com/DabDavis/perfect-dark-dabs-mod/blob/a8c2ab2d7b1c99f6a96a2d9addee1fdf9630e379/README.md"
+        "warnings": [
+          "Use only a copy, components and originals you are permitted to use. Bounded package/PE inspection and owned-probe controls do not establish native gameplay, real-save compatibility, installed Desktop, other-platform or Supported acceptance."
+        ]
       },
       "download_asset_hints": {
         "windows-x86-64": [
@@ -22663,7 +22733,7 @@
     {
       "id": "gumpolas-tootawersrecomp",
       "name": "The Lord of the Rings: The Two Towers — Original Xbox (Two Towers Recomp)",
-      "summary": "Attach an independently permitted, prepared Two Towers Windows native player directly with your own Xbox USA game files. Preserve its saves, launcher settings and mod data; do not use the separate setup/texture builder as the attached game.",
+      "summary": "Use the independently maintained Gumpolas Two Towers Windows player with your own Xbox USA game files. Its direct entry, settings and saves remain separate from Athelas’s embedded port.",
       "original_game_title": "The Lord of the Rings: The Two Towers",
       "project_url": "https://github.com/Gumpolas/TooTawersRecomp",
       "platforms": [],
@@ -22691,7 +22761,7 @@
           },
           {
             "title": "Separate ancestry, optional packs and notices",
-            "instruction": "Keep the project license, CONTRIBUTION_NOTICES, The128ReBits notice, XboxRecomp/MCPX and all font/component notices. Source credits and independently maintained package identity do not establish another port’s qualification. Grants for port/runtime code do not license original game material, optional GameCube HD packs, music or mods. Use only components you are independently permitted to use. Texture generation, optional Ultra content and co-op/mod changes remain upstream work; no separate pack is downloaded or executed here."
+            "instruction": "The selected Gumpolas 1.9.9 route uses sp00nz/xboxrecomp and separately licensed The128ReBits contributions; the compared Athelas 1.8.0 Two Towers component credits Shagg and TGP482/XboxXBE-Recomp. They are independently maintained packages and launch/data contracts for the same Xbox title, not interchangeable binaries or profiles. Gumpolas uses direct twotowers_recomp.exe with twotowers_recomp.ini, game_files and saves; Athelas selects TT-Xbox/TwoTowers.exe through its own launcher and supplied config/save paths. Shared game/toolkit ancestry does not establish source independence, compatible saves or transferred qualification. Keep the project license, CONTRIBUTION_NOTICES, The128ReBits notice, XboxRecomp/MCPX and all font/component notices. Source credits and independently maintained package identity do not establish another port’s qualification. Grants for port/runtime code do not license original game material, optional GameCube HD packs, music or mods. Use only components you are independently permitted to use. Texture generation, optional Ultra content and co-op/mod changes remain upstream work; no separate pack is downloaded or executed here."
           },
           {
             "title": "Maintain the external player",
@@ -22699,7 +22769,7 @@
           }
         ],
         "warnings": [
-          "Attach twotowers_recomp.exe after setup. Preserve saves, old settings and originals; optional HD/co-op content and another implementation’s acceptance do not transfer."
+          "Attach twotowers_recomp.exe after upstream setup. Keep this creating player, saves, old settings and originals separate from Athelas TT-Xbox; no cross-implementation save migration or acceptance is inherited. Optional HD/co-op content remains separate."
         ]
       }
     },
@@ -32567,7 +32637,7 @@
     {
       "id": "nvdemu-apeescaperecomp-macwindowslinux",
       "name": "Ape Escape (NVDEMU)",
-      "summary": "Revisit Ape Escape with the NVDEMU launcher, settings and optional mods.",
+      "summary": "Use the maintained NVDEMU Ape Escape launcher with your own North American disc. Preserve both game and per-user launcher data; upstream owns nightly replacement and overlay preparation.",
       "original_game_title": "Ape Escape",
       "project_url": "https://github.com/NVDEMU/ApeEscapeRecomp-MacWindowsLinux",
       "issue_number": 2806,
@@ -32585,7 +32655,7 @@
         "steps": [
           {
             "title": "Use the fork's own launcher and game-file setup",
-            "instruction": "Use the official package for your platform from the shared macos-nightly release; that historical tag also contains Windows and Linux packages. On Windows, extract the complete ZIP and deliberately open ApeEscapeRecomp.exe to reach its launcher. On Linux, follow the AppImage instructions, enable execution when your desktop requires it and open the AppImage itself. Select your own North American Ape Escape disc, SCUS-94423; keep a CUE and its matching BIN together and choose the CUE. A cooked 2048-byte ISO discards needed sectors. OpenBIOS is supplied; a retail PlayStation BIOS is optional, not another required download. A dual-analog controller is recommended. Original discs and retail BIOS files are not supplied."
+            "instruction": "Use a complete permitted copy under the supplied noncommercial framework terms. The individually inspected Windows x64 ZIP from macos-nightly contains ApeEscapeRecomp.exe, OpenBIOS, generated overlay caches, the overlay toolchain and support files; retain the whole package. The release manifest declares build source becea42d6eadefd04eb0c8ee5814f805d35809c2, separately from the historical tag commit; this is a publisher assertion, not a reproduced build. Use the official package for your platform from the shared macos-nightly release; that historical tag also contains Windows and Linux packages. On Windows, extract the complete ZIP and deliberately open ApeEscapeRecomp.exe to reach its launcher. On Linux, follow the AppImage instructions, enable execution when your desktop requires it and open the AppImage itself. Select your own North American Ape Escape disc, SCUS-94423; keep a CUE and its matching BIN together and choose the CUE. A cooked 2048-byte ISO discards needed sectors. OpenBIOS is supplied; a retail PlayStation BIOS is optional, not another required download. A dual-analog controller is recommended. Original discs and retail BIOS files are not supplied."
           },
           {
             "title": "Keep the macOS application handoff intact",
@@ -32593,15 +32663,21 @@
           },
           {
             "title": "Register supported existing players without changing their owner",
-            "instruction": "For Windows, register ApeEscapeRecomp.exe with the extracted package folder as its working directory. For Linux, register the prepared AppImage itself; do not select its internal AppRun or another extracted helper. Registration is separate from Play and preserves the external files. This enhanced maintained fork is distinct from mstan's original integration; it does not replace or migrate an existing parent installation."
+            "instruction": "On Windows select ApeEscapeRecomp.exe, use the complete extracted package directory as working directory and leave arguments empty for normal launch. Finish the supported own-disc setup upstream; do not attach an overlay compiler, updater/Python helper or cached game DLL. On Linux retain the prepared AppImage entry and its supported data contract. Saving launch details and Play are separate actions. Only the selected program is supervised; this fork does not replace the parent mstan integration, migrate its data or inherit its qualification. If your established copy uses --disc, --game or --memcard-dir, retain each option and its existing path as separate literal arguments rather than resetting to the empty-argument default. Keep custom card/config/disc locations with that creating runtime; registration does not migrate them."
           },
           {
             "title": "Use upstream updates and back up the actual data folder",
             "instruction": "Use the fork's Nightly update interface on supported Windows/macOS builds; older builds may need a new upstream package first. Linux AppImage replacement remains manual. Keep generated overlay caches, configuration and mods with their upstream-supported workflow; they are not a generic managed runtime/data replacement contract. Windows game saves/configuration remain beside the player; Linux game data uses $XDG_DATA_HOME/ApeEscapeRecomp or ~/.local/share/ApeEscapeRecomp unless APE_ESCAPE_RECOMP_DATA_DIR overrides it. On Windows and Linux, launcher preferences and updater rollback metadata also use a separate per-user NVDEMU/Ape Escape Recompiled - Enhanced Edition folder under the platform app-data root, or the same explicit override. Preserve both actual roots. The separate launcher-data defaults are %APPDATA%/NVDEMU/Ape Escape Recompiled - Enhanced Edition on Windows, and $XDG_DATA_HOME/NVDEMU/Ape Escape Recompiled - Enhanced Edition or ~/.local/share/NVDEMU/Ape Escape Recompiled - Enhanced Edition on Linux; preserve the explicit override instead when set. macOS uses ~/Library/Application Support/Ape Escape Recompiled through its app wrapper. Keep your original disc and optional BIOS separately. Portcove does not promise managed Update, Backup or Rollback for this copy. Upstream build/source claims and optional features do not establish Portcove native execution, gameplay or real-save qualification."
+          },
+          {
+            "title": "Finish updates before reviewing the new player",
+            "instruction": "The in-app Windows/macOS updater is a separate upstream helper that waits for the application to close, replaces its runtime files and can start another process. Portcove does not adopt or terminate that successor. Finish upstream update/rollback outside the attached session, close actual players and helpers, retain independent complete runtimes and every game/launcher/custom data root, then review/relink changed executable bytes and choose Play again. Upstream updater preservation and rollback claims do not qualify Portcove-managed replacement or save compatibility."
           }
         ],
-        "warnings": [],
-        "help_url": "https://github.com/NVDEMU/ApeEscapeRecomp-MacWindowsLinux/blob/6dc0bcd026cbf94f0c8e575b30dccd904e8fc35c/README.md"
+        "warnings": [
+          "Keep complete copies, components and originals you are independently permitted to use; noncommercial framework and component notices apply separately from original game rights. Retain every game and launcher data root. Actual static archive/PE observations and owned probes do not establish source-binary reproduction, native gameplay, real-save, installed Desktop, other-platform or Supported acceptance."
+        ],
+        "help_url": "https://github.com/NVDEMU/ApeEscapeRecomp-MacWindowsLinux/blob/becea42d6eadefd04eb0c8ee5814f805d35809c2/README.md"
       },
       "artwork": {
         "game_id": 3762,
@@ -42968,7 +43044,7 @@
     {
       "id": "star-wars-episode-iii-revenge-of-the-sith",
       "name": "Star Wars: Episode III - Revenge of the Sith (SWROTS-PC)",
-      "summary": "Register a completed SWROTS-PC Windows player with its matching core library, your own North American Xbox data and retained saves.",
+      "summary": "Attach the complete SWROTS-PC Windows player after your own Xbox USA disc setup. Keep swrots.exe with core.dll and all actual data; upstream reboot successors remain outside the selected session.",
       "project_url": "https://github.com/jedijosh920/SWROTS-PC",
       "issue_number": 1310,
       "platforms": [],
@@ -42983,11 +43059,11 @@
         "match_kind": "underlying-game"
       },
       "manual_setup": {
-        "help_url": "https://github.com/jedijosh920/SWROTS-PC",
+        "help_url": "https://github.com/jedijosh920/SWROTS-PC/blob/fbea4d817669106c70c0a349870774f28d5fdfeb/README.md",
         "steps": [
           {
             "title": "Complete the title’s preparation upstream",
-            "instruction": "Use a complete permitted SWROTS-PC copy with matching swrots.exe and core.dll. Complete its official own-disc setup upstream from your North American original-Xbox Revenge of the Sith ISO/XISO, keeping the resulting GameData tree and original separately. The runtime accepts default.xbe only with MD5 6460ef37862de3af364a0563a0a18c4e; that executable identity is not a whole-disc certificate. Portcove does not acquire, extract, import or authenticate originals through this registration. No console BIOS or downloaded original is supplied."
+            "instruction": "The inspected v0.5.0 Windows ZIP contains the paired 32-bit swrots.exe and core.dll. Keep the complete package, supplied documentation and notices; the documented host is 64-bit Windows 10 1803 or newer. Use a complete permitted SWROTS-PC copy with matching swrots.exe and core.dll. Complete its official own-disc setup upstream from your North American original-Xbox Revenge of the Sith ISO/XISO, keeping the resulting GameData tree and original separately. The runtime accepts default.xbe only with MD5 6460ef37862de3af364a0563a0a18c4e; that executable identity is not a whole-disc certificate. Portcove does not acquire, extract, import or authenticate originals through this registration. No console BIOS or downloaded original is supplied."
           },
           {
             "title": "Add the completed supported game program",
@@ -43007,7 +43083,7 @@
           }
         ],
         "warnings": [
-          "Use only an actual copy and components you are permitted to use. Preserve all originals, runtime companions, saves, settings, mods, caches, logs, backups and custom roots. Another executable may share them. Static source/metadata and reusable fixtures are not gameplay, real-save, installed-client, Supported or protected acceptance."
+          "Use only an actual copy and components you are permitted to use. Preserve originals, runtime companions, saves, settings, mods, caches, logs, backups and custom roots. Another executable may share them. Actual bounded archive/PE observations and owned probes do not establish source-to-binary reproduction, upstream execution, gameplay, real-save, installed-client, Supported or protected acceptance."
         ]
       }
     },
