@@ -231,7 +231,7 @@ describe("Library empty browsing context", () => {
     expect(host.querySelector('[aria-label="Library readiness"]')).toBeNull();
     expect(host.textContent).toContain("No matching library entries");
     expect(host.textContent).toContain(
-      "No library entries match “unmatched title” with the current view.",
+      "Reset search, filters, quick views and collection selection to browse again.",
     );
     expect(host.textContent).not.toContain("Your installed ports are still in this library");
     await act(async () =>

@@ -21,8 +21,9 @@ explicit; the host retains apply authorization and preimage checks.
 Library and Discover default independently to Covers; Compact rows uses the same entries and authoritative
 local actions. Their profile-local preferences are separate and retain read/write failure feedback. Library defaults to Title A–Z only when no saved sort exists and also offers Catalog order, Title Z–A and Recently played using recorded launch history; Discover offers Catalog order, Title A–Z, Title Z–A and In library first. With an observed device target, Catalog order is labeled Library & device to describe the existing deterministic library/device ranking; its explanation remains visible. No subjective recommendation or quality score is implied. Library counts entries, including separate ports for one game; Discover names reviewed game groups and matching independent ports separately.
 Search, named Readiness, independent Favorites and declared filters share the
-retrieval area. On narrow layouts Favorites and Filters can share a wrapped row;
-no hidden duplicate controls or second query owner are introduced. Active filter
+retrieval area. Quick views keep their own navigation row above the search/filter
+toolbar and deliberately reflow at narrow or enlarged-text widths; no hidden
+duplicate controls or second query owner are introduced. Active filter
 chips, counts and reset stay with the existing browsing projection. First use
 omits retrieval controls. Add games sits beside the Library heading; scoped
 Collection commands accompany collection navigation; Covers/Compact rows share the retrieval toolbar. At
@@ -34,12 +35,13 @@ selection scope, including filtered-out entries in supported Steam commands.
 
 Library covers use content-driven columns with a preferred minimum of 11.25rem,
 giving six columns at the matched 1440px desktop viewport with the normal interface
-size and full sidebar. Short desktop height does not change density. Whole-image
+size and full sidebar. At desktop widths of761px and above with height800px or
+less, Library uses a10rem minimum for denser short windows. Whole-image
 2:3 artwork caps at 220 CSS pixels, and identity and overlay controls share that
 width. Below 760px the preferred minimum is 10rem; 360–480px windows use two
 flexible columns with a 12px gap and no artwork cap, while narrower windows use
 one column. Available width and interface size still determine readable text and
-control wrapping. Library covers use 10px artwork corners, a 14px title gap and
+control wrapping. Library covers use 10px artwork corners, a 24px effective art-to-title gap and
 580 title weight; compact rows and Discover keep their own geometry.
 Cover cards reserve two readable lines for both title and project, aligning chips and actions across mixed-length identities. Both expand on keyboard focus. Full identity wraps below
 40em. Footer actions stay beside the dominant status without overlapping it. Repeated Play controls pair a triangle with a quiet bordered, labeled button, including hover and keyboard focus; the selected game's detail and Continue actions retain signature red emphasis. Setup and review actions include a right arrow. A subtle divider separates the status/action footer from identity chips.
@@ -272,7 +274,7 @@ Primary destination tooltips open toward the workspace to avoid covering adjacen
 rail controls while remaining hoverable. The same destination controls retain
 accessible names and selection cues;
 the rail's Open navigation control retains the full-label modal sheet and focus
-restoration. Compact collection controls remain in the workspace. At narrow query widths the
+restoration. Compact collection controls use the rail’s existing organization editor. At narrow query widths the
 Continue strip omits its decorative foreground thumbnail so identity and actions
 can use the full text width; its background, image credits and real controls remain.
 Commands stays
