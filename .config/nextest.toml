@@ -7,6 +7,16 @@ test-threads = 2
 status-level = "pass"
 final-status-level = "slow"
 
+# November 3 Linux feedback retained a 30.013s cutoff in this unchanged
+# two-variant signed-snapshot admission/companion-failure/recovery fixture.
+# Allow finite 60s fixture completion; keep product deadlines, assertions,
+# cleanup, two workers and zero retries. No performance improvement is claimed.
+[[profile.default.overrides]]
+platform = 'x86_64-unknown-linux-gnu'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::ordinary_refresh::ordinary_refresh_retains_restrictive_admission_when_launch_companion_fails_then_recovers$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
 # R48 existing-listing acceptance diagnostics retained two exact 30s cutoffs.
 # These complete fixtures load the embedded catalog and repeat durable status,
 # relink and restart checks. Match existing selected-runtime 90s harness room
@@ -590,7 +600,7 @@ success-output = "immediate"
 
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
-filter = 'package(portcove-cli) & (test(/^definition_capability_contract::advertised_engine_templates_match_negotiation_and_exported_schemas$/) | test(/^definition_capability_contract::fixed_definition_authority_is_advertised_reviewable_and_unconfigured$/) | test(/^definition_capability_contract::listing_delivery_is_negotiable_and_cannot_provision_an_incoming_authority$/) | test(/^definition_capability_contract::ordinary_definition_refresh_advertises_contract_and_refuses_unconfigured_authority$/))'
+filter = 'package(portcove-cli) & (test(/^definition_capability_contract::advertised_engine_templates_match_negotiation_and_exported_schemas$/) | test(/^definition_capability_contract::fixed_definition_authority_is_advertised_reviewable_and_explicitly_applied$/) | test(/^definition_capability_contract::listing_delivery_is_negotiable_and_cannot_provision_an_incoming_authority$/) | test(/^definition_capability_contract::ordinary_definition_refresh_advertises_contract_and_refuses_unprovisioned_authority$/))'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
 

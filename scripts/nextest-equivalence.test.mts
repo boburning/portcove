@@ -202,9 +202,9 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
   ];
   const observedCapabilityCases = [
     "definition_capability_contract::advertised_engine_templates_match_negotiation_and_exported_schemas",
-    "definition_capability_contract::fixed_definition_authority_is_advertised_reviewable_and_unconfigured",
+    "definition_capability_contract::fixed_definition_authority_is_advertised_reviewable_and_explicitly_applied",
     "definition_capability_contract::listing_delivery_is_negotiable_and_cannot_provision_an_incoming_authority",
-    "definition_capability_contract::ordinary_definition_refresh_advertises_contract_and_refuses_unconfigured_authority",
+    "definition_capability_contract::ordinary_definition_refresh_advertises_contract_and_refuses_unprovisioned_authority",
   ];
   const observedCoreFilter = `package(portcove-core) & (${observedImportCases.map((name) => `test(/^${name}$/)`).join(" | ")})`;
   const observedCliFilter = `package(portcove-cli) & (${observedCapabilityCases.map((name) => `test(/^${name}$/)`).join(" | ")})`;
@@ -360,6 +360,14 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     platform: "x86_64-apple-darwin",
     filter: intelRelocationControlFilter,
     "slow-timeout": { period: "5s", "terminate-after": 24, "grace-period": "0s" },
+    "success-output": "immediate",
+  });
+  const linuxDefinitionRecoveryFilter =
+    "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::ordinary_refresh::ordinary_refresh_retains_restrictive_admission_when_launch_companion_fails_then_recovers$/)";
+  assert.deepEqual(overrideFor(linuxDefinitionRecoveryFilter, "x86_64-unknown-linux-gnu"), {
+    platform: "x86_64-unknown-linux-gnu",
+    filter: linuxDefinitionRecoveryFilter,
+    "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
     "success-output": "immediate",
   });
   const linuxWholeProjectionFilter =
@@ -759,6 +767,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       { platform: "x86_64-pc-windows-msvc", filter: windowsContradictoryAdoptionFilter },
       { platform: "x86_64-unknown-linux-gnu", filter: linuxLifecycleFilter },
       { platform: "x86_64-unknown-linux-gnu", filter: linuxWholeProjectionFilter },
+      { platform: "x86_64-unknown-linux-gnu", filter: linuxDefinitionRecoveryFilter },
       { platform: "x86_64-apple-darwin", filter: intelObservedControlFilter },
       { platform: "x86_64-apple-darwin", filter: intelRelocationControlFilter },
       { platform: "x86_64-apple-darwin", filter: intelPreparationFilter },

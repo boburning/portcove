@@ -1,1 +1,4 @@
-null
+{
+  "metadata_base_url": "https://boburning.github.io/portcove/catalog/metadata/",
+  "targets_base_url": "https://boburning.github.io/portcove/catalog/targets/"
+}
