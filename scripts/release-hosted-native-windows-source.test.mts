@@ -513,7 +513,7 @@ void test("Windows live dependency enumeration defers only an inspected busy dir
 });
 
 void test("Windows dependency sampling reclassifies only live directory-to-link replacements without traversing them", () => {
-  const fixture = fileURLToPath(new URL("./fixtures/windows-dependency-live.mjs", import.meta.url));
+  const fixture = fileURLToPath(new URL("./fixtures/windows-dependency-live.mts", import.meta.url));
   const result = spawnSync(process.execPath, [fixture], {
     encoding: "utf8",
     timeout: 30_000,

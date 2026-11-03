@@ -77,7 +77,7 @@ try {
 
   const globSecurity = spawnSync(
     process.execPath,
-    ["scripts/fixtures/dependency-glob-security.mjs", "--consumer", "localization-cli"],
+    ["scripts/fixtures/dependency-glob-security.mts", "--consumer", "localization-cli"],
     {
       cwd: fileURLToPath(new URL("../../../", import.meta.url)),
       encoding: "utf8",

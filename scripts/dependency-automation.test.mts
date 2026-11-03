@@ -46,7 +46,7 @@ const read = (name: string) => readFile(path.join(root, name), "utf8");
 void test("actual signing-cache glob consumer bounds pattern expansion and stops canceled traversal", () => {
   const result = spawnSync(
     process.execPath,
-    ["scripts/fixtures/dependency-glob-security.mjs", "--consumer", "signing-cache"],
+    ["scripts/fixtures/dependency-glob-security.mts", "--consumer", "signing-cache"],
     {
       cwd: root,
       encoding: "utf8",

@@ -45,24 +45,26 @@ for (const mode of [
       fs.linkSync(path.join(child, "file"), path.join(child, "hardlink"));
     }
     if (mode === "missing-root") fs.rmSync(root, { recursive: true });
-    fs.lstatSync = (...args) => {
-      statCalls++;
-      const filename = String(args[0]);
-      if (mode === "initial-lstat" && filename === child)
-        throw Object.assign(new Error("controlled initial stat"), { code: "EBUSY" });
-      const info = originalStat(...args);
-      // Exercise refreshed byte accounting without allocating a multi-GiB file.
-      if (mode === "link-bytes" && filename === child && info?.isSymbolicLink())
-        return Object.create(info, { size: { value: 2 * 1024 ** 3 + 1 } });
-      return info;
-    };
-    fs.readdirSync = (...args) => {
+    Object.defineProperty(fs, "lstatSync", {
+      value: (...args: Parameters<typeof fs.lstatSync>) => {
+        statCalls++;
+        const filename = String(args[0]);
+        if (mode === "initial-lstat" && filename === child)
+          throw Object.assign(new Error("controlled initial stat"), { code: "EBUSY" });
+        const info = originalStat(...args);
+        // Exercise refreshed byte accounting without allocating a multi-GiB file.
+        if (mode === "link-bytes" && filename === child && info?.isSymbolicLink())
+          return Object.create(info, { size: { value: 2 * 1024 ** 3 + 1 } }) as typeof info;
+        return info;
+      },
+    });
+    fs.readdirSync = ((...args: Parameters<typeof fs.readdirSync>) => {
       const filename = String(args[0]);
       if (filename === outside || filename.startsWith(outside + path.sep)) {
         outsideReads++;
         throw new Error("link target traversal forbidden");
       }
-      if (mode === "count" && filename === root) return Array(100000).fill("entry");
+      if (mode === "count" && filename === root) return Array<string>(100000).fill("entry");
       if (
         filename === target &&
         armed &&
@@ -78,7 +80,7 @@ for (const mode of [
       }
       if (filename === target && !armed) throw new Error("replacement leaf was traversed");
       return originalRead(...args);
-    };
+    }) as typeof fs.readdirSync;
     syncBuiltinESMExports();
     const active = () => {
       if (mode === "expired") throw expired;
@@ -95,7 +97,7 @@ for (const mode of [
       assert.ok(observed.bytes >= baseline.bytes);
       assert.ok(observed.bytes >= originalStat(child).size);
       fs.readdirSync = originalRead;
-      fs.lstatSync = originalStat;
+      Object.defineProperty(fs, "lstatSync", { value: originalStat });
       syncBuiltinESMExports();
       await assert.rejects(
         snapshotWindowsNativeDependencies(source, performance.now() + 5000, () => {}),
@@ -111,14 +113,15 @@ for (const mode of [
     } else {
       assert.throws(
         scan,
-        (error) => error.code === (["EACCES", "EPERM", "EIO"].includes(mode) ? mode : "EBUSY"),
+        (error: NodeJS.ErrnoException) =>
+          error.code === (["EACCES", "EPERM", "EIO"].includes(mode) ? mode : "EBUSY"),
       );
     }
     assert.equal(outsideReads, 0);
     cases.push(mode);
   } finally {
     fs.readdirSync = originalRead;
-    fs.lstatSync = originalStat;
+    Object.defineProperty(fs, "lstatSync", { value: originalStat });
     syncBuiltinESMExports();
     fs.rmSync(base, { recursive: true, force: true });
   }
