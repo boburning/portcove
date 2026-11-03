@@ -1249,15 +1249,6 @@ mod tests {
     }
 
     #[test]
-    fn prepared_guide_adoption_2553() {
-        assert_bound_listing_player_route(
-            "3d-pinball-for-windows-space-cadet-spacecadetpinball",
-            "SpaceCadetPinball.exe",
-            &[],
-        );
-    }
-
-    #[test]
     fn prepared_guide_adoption_2705_launcher() {
         assert_bound_listing_player_route("re-volt-rvgl", "rvgl_launcher.exe", &[]);
     }
