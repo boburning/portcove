@@ -6,6 +6,7 @@ import rootPackage from "../package.json" with { type: "json" };
 import qualityManifest from "../.github/quality-tools.json" with { type: "json" };
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { spawnSync } from "node:child_process";
 import { readFile, readdir, lstat } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
@@ -41,6 +42,22 @@ void test("root lock maintenance retains provider-owned pnpm platform integrity"
   assert.ok(result.artifacts > 1);
 });
 const read = (name: string) => readFile(path.join(root, name), "utf8");
+
+void test("actual development glob consumers bound pattern expansion and stop canceled traversal", () => {
+  const result = spawnSync(process.execPath, ["scripts/fixtures/dependency-glob-security.mjs"], {
+    cwd: root,
+    encoding: "utf8",
+    timeout: 30_000,
+    maxBuffer: 64 * 1024,
+  });
+  assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+  const report = record(JSON.parse(result.stdout));
+  assert.ok(Array.isArray(report.observations));
+  assert.deepEqual(
+    report.observations.map((value) => record(value).consumer),
+    ["signing-cache", "localization-cli"],
+  );
+});
 
 void test("fixed native pnpm consumers match the root pin and publisher integrity", async () => {
   assert.equal(rootPackage.packageManager, `pnpm@${nativePnpmVersion}`);
