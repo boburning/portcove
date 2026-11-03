@@ -43,7 +43,8 @@
       "warnings": [
         "Close the player and preserve the complete working kit, actual saves/card paths, settings.toml, keybinds.ini, config.ini, mods with their installed packages and state, original discs/BIOS and any custom locations before changing versions.",
         "Keep older kits separately: upstream says v0.1.x cards/settings are not carried over, without establishing a safe migration. Do not copy an old generated cache or whole mods tree over a new runtime.",
-        "Portcove does not back up, roll back, replace or delete these external files."
+        "Portcove does not back up, roll back, replace or delete these external files.",
+        "Let the first session finish preparing optimized code. If the release’s known intro freeze occurs after early closure, follow its cache-only recovery for build-release/cache with the player closed; preserve saves and the working copy."
       ],
       "help_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-2-recomp/releases/tag/v0.2.0",
       "references": [

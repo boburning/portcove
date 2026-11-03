@@ -35,7 +35,8 @@
         "Back up the prepared folder before approving its replacement.",
         "These local preparation actions do not acquire another runtime; Get latest reNut and Do everything do and require separate acquisition permission.",
         "On Linux, its current instructions require glibc 2.17 for NutStaller itself, 2.34 for the extractor and 2.38 for the player. The player and preparation helper have separate requirements.",
-        "Portcove registration offers no managed Update, Backup or Rollback and does not adopt these files. Removing the registration preserves every external file."
+        "Portcove registration offers no managed Update, Backup or Rollback and does not adopt these files. Removing the registration preserves every external file.",
+        "Close the game before backup or replacement."
       ],
       "help_url": "https://github.com/masterspike52/reNut/blob/02e33bdbf2ac97acf74a0dc61143a8ee38f85ab9/README.md",
       "references": [

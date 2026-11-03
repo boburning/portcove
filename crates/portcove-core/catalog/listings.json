@@ -9321,7 +9321,8 @@
           "Back up the prepared folder before approving its replacement.",
           "These local preparation actions do not acquire another runtime; Get latest reNut and Do everything do and require separate acquisition permission.",
           "On Linux, its current instructions require glibc 2.17 for NutStaller itself, 2.34 for the extractor and 2.38 for the player. The player and preparation helper have separate requirements.",
-          "Portcove registration offers no managed Update, Backup or Rollback and does not adopt these files. Removing the registration preserves every external file."
+          "Portcove registration offers no managed Update, Backup or Rollback and does not adopt these files. Removing the registration preserves every external file.",
+          "Close the game before backup or replacement."
         ],
         "help_url": "https://github.com/masterspike52/reNut/blob/02e33bdbf2ac97acf74a0dc61143a8ee38f85ab9/README.md",
         "references": [
@@ -45243,7 +45244,8 @@
         "warnings": [
           "Close the player and preserve the complete working kit, actual saves/card paths, settings.toml, keybinds.ini, config.ini, mods with their installed packages and state, original discs/BIOS and any custom locations before changing versions.",
           "Keep older kits separately: upstream says v0.1.x cards/settings are not carried over, without establishing a safe migration. Do not copy an old generated cache or whole mods tree over a new runtime.",
-          "Portcove does not back up, roll back, replace or delete these external files."
+          "Portcove does not back up, roll back, replace or delete these external files.",
+          "Let the first session finish preparing optimized code. If the release’s known intro freeze occurs after early closure, follow its cache-only recovery for build-release/cache with the player closed; preserve saves and the working copy."
         ],
         "help_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-2-recomp/releases/tag/v0.2.0",
         "references": [
