@@ -1586,7 +1586,7 @@ prepared registrations retain their non-owning contract. Local saves/settings
 remain managed; the resolved account-wide preferences file is never owned or
 included in backup/restore. The reference client accepts public API77 and requires
 explicit confirmation before transmitting acknowledgment. The current tested reference
-window extends through API86; unknown API87 and unknown consequential semantics are refused.
+window extends through API87; unknown API88 and unknown consequential semantics are refused.
 
 ### Retired custom source creation
 
