@@ -28,6 +28,14 @@ original games, installers, extractors, compilers or downloaded mods. Actual
 upstream/gameplay, populated-save compatibility and protected/installed Desktop
 observations remain distinct and unclaimed.
 
+RVGL's dated primary-document receipts bind the official
+[launcher lifetime](https://re-volt.gitlab.io/rvgl-launcher/playing.html),
+[base/preferences/profile contracts](https://re-volt.gitlab.io/rvgl-docs/general.html),
+[installation and replacement actions](https://re-volt.gitlab.io/rvgl-launcher/installing.html)
+and the launcher's source for its Open Data Folder / Open Config Folder actions.
+The packet records exact observed content hashes; documentation readback is
+separate from a built-launcher or game observation.
+
 ## SDLPal: replace the rejected coordinate proposal
 
 The earlier cfg-only proposal and its two independent rejection findings remain

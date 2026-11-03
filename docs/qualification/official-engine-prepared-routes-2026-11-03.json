@@ -203,7 +203,13 @@
       "full_finite_closure": "conditional on complete owner-specific evidence, actual control execution, final independent review, exact-head CI, guarded delivery and canonical/Project readback; no current closure claim",
       "prior_integration_preserved": true,
       "automated_tested_platforms": [],
-      "manually_validated_platforms": []
+      "manually_validated_platforms": [],
+      "primary_evidence_urls": [
+        "https://re-volt.gitlab.io/rvgl-launcher/playing.html",
+        "https://re-volt.gitlab.io/rvgl-docs/general.html",
+        "https://re-volt.gitlab.io/rvgl-launcher/installing.html",
+        "https://gitlab.com/re-volt/rvgl-launcher/-/raw/master/rv_launcher/rvl_gui/main_app.py"
+      ]
     }
   ],
   "source_bindings": {
@@ -1095,5 +1101,40 @@
   },
   "review": "Early bounded nonwriting reviews found conditional design fit for Gundam/Academy and SDLPal. They did not grant closure/final qualification. uHexen managed component evidence remains held. Final exact-source independent review belongs to PR.",
   "validation": "Combined generation/coherence/format and per-ID authored structure passed at checkpoint. New owned controls and maintained complete-diff hosted qualification remain pending. No upstream player/helper/original, game or native Desktop execution.",
-  "scope_preservation": "All858 frozen identities remain; no Required hold weakened or owner scope moved; no Supported promotion or native/gameplay assertion. SDLPal new offer preserves creating external registrations; eight other current integrations remain unchanged except Gundam manual-preparation presentation."
+  "scope_preservation": "All858 frozen identities remain; no Required hold weakened or owner scope moved; no Supported promotion or native/gameplay assertion. SDLPal new offer preserves creating external registrations; eight other current integrations remain unchanged except Gundam manual-preparation presentation.",
+  "rvgl_primary_documentation": [
+    {
+      "name": "playing",
+      "url": "https://re-volt.gitlab.io/rvgl-launcher/playing.html",
+      "observed_at": "2026-11-03T04:20:06.744406+00:00",
+      "bytes": 13287,
+      "sha256": "9dd70a24ed512dfe7e9ff5564b0442180e16de921b1b9f06711f46acdb640e0d",
+      "scope": "Dated primary publisher documentation readback; not program execution, immutable runtime build attestation or authority for private/original inputs."
+    },
+    {
+      "name": "general",
+      "url": "https://re-volt.gitlab.io/rvgl-docs/general.html",
+      "observed_at": "2026-11-03T04:20:07.091610+00:00",
+      "bytes": 51212,
+      "sha256": "dca0d20889ae2c736699009b77aa4d68e648d2b29372be2f8a20081c337b5603",
+      "scope": "Dated primary publisher documentation readback; not program execution, immutable runtime build attestation or authority for private/original inputs."
+    },
+    {
+      "name": "installing",
+      "url": "https://re-volt.gitlab.io/rvgl-launcher/installing.html",
+      "observed_at": "2026-11-03T04:20:07.301337+00:00",
+      "bytes": 15841,
+      "sha256": "b6abece24fbb87645912ffab13fa62c0e252bc25541862fa9b6f9f6e944e7535",
+      "scope": "Dated primary publisher documentation readback; not program execution, immutable runtime build attestation or authority for private/original inputs."
+    },
+    {
+      "name": "main-app",
+      "url": "https://gitlab.com/re-volt/rvgl-launcher/-/raw/master/rv_launcher/rvl_gui/main_app.py",
+      "observed_at": "2026-11-03T04:20:07.609332+00:00",
+      "bytes": 17902,
+      "sha256": "a4768a57169a1fd637789bbc2fdddad15aa947eaeb14382d2640ca6924fa1989",
+      "scope": "Dated primary publisher documentation readback; not program execution, immutable runtime build attestation or authority for private/original inputs."
+    }
+  ],
+  "rvgl_primary_documentation_scope": "Exact retained public publisher bytes: playing/lifetime, general/base+preferences+profiles, installation/update/repair, launcher Open Data/Config Folder actions. Dated documentation readback, not compiled launcher or game execution. Raw-markup phrase assertion failure retained; after HTML text normalization the same required facts were verified without running scripts."
 }
