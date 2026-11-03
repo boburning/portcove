@@ -19,20 +19,26 @@
           "instruction": "Finish setup with PsyDoom.exe and its folder. On Play, use the launcher to select a supported PS1 Doom or Final Doom .cue file, keeping all referenced track files with it. A PC Doom WAD does not replace that disc image."
         },
         {
-          "title": "Preserve your working copy",
-          "instruction": "Updates remain with you and upstream. Keep original disc files and mods backed up. Windows settings, saves and demos normally use AppData/Roaming/com.codelobster/PsyDoom; also preserve a local launcher.ini or custom files if your copy uses them."
-        },
-        {
           "title": "Register your prepared player",
           "instruction": "Complete the upstream setup in your permitted working copy first. Select the actual PsyDoom.exe and its containing folder as the working directory; keep all companions. Normally leave arguments empty. Enter separate literal arguments only when deliberately following documented options. Confirm the selected player, folder and arguments; registration does not start a game. Choose Play separately when ready."
+        }
+      ],
+      "warnings": [
+        "Keep original disc files and mods backed up.",
+        "Close all actual players and preserve the working copy and every actual data location before upstream changes.",
+        "Managed Install, Update, Backup, Rollback, migration, original authentication and external deletion are unavailable for this route."
+      ],
+      "help_url": "https://github.com/BodbDearg/PsyDoom#running-the-game",
+      "references": [
+        {
+          "title": "Preserve your working copy",
+          "instruction": "Updates remain with you and upstream. Keep original disc files and mods backed up. Windows settings, saves and demos normally use AppData/Roaming/com.codelobster/PsyDoom; also preserve a local launcher.ini or custom files if your copy uses them."
         },
         {
           "title": "Keep your runtime and data recoverable",
           "instruction": "You and upstream own runtime replacement, originals, saves, settings and profiles. Close all actual players and preserve the working copy and every actual data location before upstream changes. Removing the registration leaves all external files untouched. Managed Install, Update, Backup, Rollback, migration, original authentication and external deletion are unavailable for this route."
         }
-      ],
-      "warnings": [],
-      "help_url": "https://github.com/BodbDearg/PsyDoom#running-the-game"
+      ]
     },
     "release_url": "https://github.com/BodbDearg/PsyDoom/releases",
     "download_asset_hints": {

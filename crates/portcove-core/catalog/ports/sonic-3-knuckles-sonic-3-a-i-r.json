@@ -28,19 +28,23 @@
           "instruction": "Use the publisher-recommended Windows stable v26.03.28.0 package linked from sonic3air.org, rather than silently selecting a newer test release. Extract the complete sonic3air_game folder and finish its Manual.pdf setup, including the matching original. Keep data, scripts and companions together. Register the real Sonic3AIR.exe; bonus/oxygenengine/OxygenApp.exe is an engine/development helper, not this game. Use the selected player’s containing folder as working directory and keep the already working literal arguments; do not invent shell commands."
         },
         {
-          "title": "Keep the game version and data you use",
-          "instruction": "Before explicit Play, preserve the actual existing saved-data folder and its creating runtime. The upstream Windows default is %APPDATA%/Sonic3AIR, shared across separate player folders; a savedata folder beside Sonic3AIR.exe selects portable data instead. Preserve whichever is actually in use, including settings, progress and mods. A separate ZIP folder does not isolate the shared profile. Do not create a portable folder over old data, transplant profiles or infer downgrade/rollback compatibility. Optional soundtrack download and mods remain upstream/user choices."
-        },
-        {
           "title": "Register the existing player and use explicit Play",
           "instruction": "You manage this external game and all its original files and saved data. Portcove saves the executable, working folder and launch arguments you select; it does not authenticate the complete package or original game files. Choose Play explicitly when you are ready. Removing the registration leaves external files in place. Portcove does not offer updates, backups, rollback, data migration or external-file deletion for this copy. Finish setup with the project’s tools and add only a working game. These instructions do not confirm successful setup, gameplay or save-state compatibility."
         }
       ],
       "warnings": [
         "Add your prepared game to Portcove, then choose Play separately. These instructions do not establish Portcove-managed installation, the authenticity of original game files, gameplay or save-state compatibility.",
-        "Managed original selection and complete external/portable data ownership need separate qualification. The guide does not admit upstream first-start discovery as a Core source contract or authorize populated-profile migration."
+        "Managed original selection and complete external/portable data ownership need separate qualification. The guide does not admit upstream first-start discovery as a Core source contract or authorize populated-profile migration.",
+        "Before explicit Play, preserve the actual existing saved-data folder and its creating runtime.",
+        "A separate ZIP folder does not isolate the shared profile. Do not create a portable folder over old data, transplant profiles or infer downgrade/rollback compatibility."
       ],
-      "help_url": "https://github.com/Eukaryot/sonic3air/releases/tag/v26.03.28.0-stable"
+      "help_url": "https://github.com/Eukaryot/sonic3air/releases/tag/v26.03.28.0-stable",
+      "references": [
+        {
+          "title": "Keep the game version and data you use",
+          "instruction": "Before explicit Play, preserve the actual existing saved-data folder and its creating runtime. The upstream Windows default is %APPDATA%/Sonic3AIR, shared across separate player folders; a savedata folder beside Sonic3AIR.exe selects portable data instead. Preserve whichever is actually in use, including settings, progress and mods. A separate ZIP folder does not isolate the shared profile. Do not create a portable folder over old data, transplant profiles or infer downgrade/rollback compatibility. Optional soundtrack download and mods remain upstream/user choices."
+        }
+      ]
     },
     "original_game_title": "Sonic 3 & Knuckles"
   },

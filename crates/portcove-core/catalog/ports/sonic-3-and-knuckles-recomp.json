@@ -21,7 +21,11 @@
     "release_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/releases",
     "manual_setup": {
       "help_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/blob/ddafabc4790512488f0751ac162ef6b7b7740599/README.md",
-      "warnings": [],
+      "warnings": [
+        "Before changing an external copy, close the game and back up its settings, cartridge saves, campaign companions, quickstates and thumbnails, and the separately selected original/converted packs.",
+        "Quickstates require the same build and configuration; runtime rollback does not rewind saves or guarantee old-reader compatibility.",
+        "A version change can proceed when the extra data locations are empty; otherwise Portcove reports the conflicting paths and keeps the current copy. Keep that working version and its data rather than deleting it to get the newer copy."
+      ],
       "steps": [
         {
           "title": "Choose the managed base game or the upstream launcher",
@@ -30,7 +34,9 @@
         {
           "title": "Keep optional campaign preparation with upstream",
           "instruction": "The optional Sonic CD, Sonic 1/2 and Megamix campaigns and Mighty/Shadow are experimental and off by default. Follow the included upstream guides and supply the extra originals only if you choose those features. Sonic CD import needs Python 3.11+ and Pillow, and records absolute paths under sonic-cd-imports beside that copy’s settings. Use that importer in your stable external copy, not a managed version folder that will change after updates. Portcove never runs the converter during discovery. Register the external player or launcher deliberately, save launch details, then choose Play separately."
-        },
+        }
+      ],
+      "references": [
         {
           "title": "Keep current progress and the creating build for quickstates",
           "instruction": "Before changing an external copy, close the game and back up its settings, cartridge saves, campaign companions, quickstates and thumbnails, and the separately selected original/converted packs. Quickstates require the same build and configuration; runtime rollback does not rewind saves or guarantee old-reader compatibility. Upstream or you update the external copy, which has no Portcove-managed Backup or Rollback. An older managed v0.5.3 copy keeps working. A version change can proceed when the extra data locations are empty; otherwise Portcove reports the conflicting paths and keeps the current copy. Keep that working version and its data rather than deleting it to get the newer copy."

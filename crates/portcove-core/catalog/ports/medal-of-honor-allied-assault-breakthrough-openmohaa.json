@@ -21,16 +21,21 @@
           "instruction": "Before Play, prepare your own complete Breakthrough PC data and its Allied Assault base game. Upstream recommends GOG Warchest; CD copies need the matching language patches (Allied Assault 1.11 and Breakthrough 2.40b). Keep the originals unchanged in a separate installation. Copy only the original PK3 files and sound/video resources into main, maintt beside the official player. Preserve the matching folder names and all required original resources; do not copy old executables, DLLs or unrelated expansion files over this runtime. Portcove does not verify original-game identity. Console editions and demos are different products. Keep the complete official Windows x64 package and its own DLLs together, including openmohaa.exe and launch_openmohaa_breakthrough.exe. Follow upstream Visual C++ x64 runtime prerequisites when needed."
         },
         {
-          "title": "Preserve your actual game data",
-          "instruction": "Normal Windows saves, settings, screenshots, downloads and logs use the engine's actual roaming application-data openmohaa profile, with game-specific subfolders. Back up that profile and the originals separately before changing runtimes. If upstream cannot find a home directory, it can fall back to the runtime data folders. Custom fs_homepath overrides change the actual location. Keep the actual profile and creating runtime; save, mod and engine-version compatibility remain unqualified."
-        },
-        {
           "title": "Keep an existing prepared copy",
           "instruction": "Use a private working copy of the original game folder. Extract the complete official openmohaa-v0.82.1-windows-x64.zip into it, preserving DLLs and companions. Follow upstream Visual C++ x64 runtime prerequisites when needed. Register launch_openmohaa_breakthrough.exe with the game root as working directory. This title-specific launcher selects Breakthrough and waits for openmohaa.exe to exit. Do not select omohaaded.exe, PDB archives or another expansion launcher. This remains a non-owning external registration. You and upstream own runtime replacement and every file; removing its registration preserves them. A catalog update does not migrate or adopt that copy."
         }
       ],
-      "warnings": [],
-      "help_url": "https://github.com/openmoh/openmohaa/blob/a72bc153db1e6ced6e30431b5217e1a53576712c/docs/markdown/01-intro/01-installation.md"
+      "warnings": [
+        "Back up that profile and the originals separately before changing runtimes.",
+        "If upstream cannot find a home directory, it can fall back to the runtime data folders. Custom fs_homepath overrides change the actual location. Keep the actual profile and creating runtime; save, mod and engine-version compatibility remain unqualified."
+      ],
+      "help_url": "https://github.com/openmoh/openmohaa/blob/a72bc153db1e6ced6e30431b5217e1a53576712c/docs/markdown/01-intro/01-installation.md",
+      "references": [
+        {
+          "title": "Preserve your actual game data",
+          "instruction": "Normal Windows saves, settings, screenshots, downloads and logs use the engine's actual roaming application-data openmohaa profile, with game-specific subfolders. Back up that profile and the originals separately before changing runtimes. If upstream cannot find a home directory, it can fall back to the runtime data folders. Custom fs_homepath overrides change the actual location. Keep the actual profile and creating runtime; save, mod and engine-version compatibility remain unqualified."
+        }
+      ]
     }
   },
   "upstream_lineage": {

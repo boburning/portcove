@@ -19,18 +19,22 @@
           "instruction": "Select the completed build's GundamWingEndlessDuelSNESRecomp.exe, normally under build, with the folder containing that executable as its working folder. Do not select the downloaded setup host just because it has the same name. For the documented v0.1.12 game, enter --no-launcher on the first argument line and the actual absolute path to your Japanese .sfc file on the second. Each line is one argument; do not add shell quotes. This route opens the prepared game without the Generate & Build launcher. Keep existing working registrations on their own supported arguments."
         },
         {
-          "title": "Preserve the complete working copy",
-          "instruction": "Keep the complete project and build tree, original, generated files, mods, settings, saves and save states with their creating runtime. The game uses config.ini in its working folder, falling back to ../config.ini; keybinds.ini is beside the executable. Preserve the parent project as well as the build folder, plus any separately configured upstream launcher/profile locations. Rebuilds, toolchain changes and updates belong upstream and must finish outside the selected Play session. Runtime replacement does not establish old-save, mod or save-state compatibility."
-        },
-        {
           "title": "Add the game and choose Play separately",
           "instruction": "Portcove records your selected native executable, working folder and literal arguments after review; Play is a separate action. You and upstream own the runtime, originals and player data. Removing the registration preserves those files. Portcove does not install, rebuild, update, back up, roll back, migrate or delete this external copy, and it does not adopt a replacement process launched by upstream. Older Portcove-built installations keep their retained installation, source, backup and recovery contracts."
         }
       ],
       "warnings": [
-        "The setup host can compile and relaunch into another process. Finish that upstream preparation first and select the completed game for this route."
+        "The setup host can compile and relaunch into another process. Finish that upstream preparation first and select the completed game for this route.",
+        "Keep the complete project and build tree, original, generated files, mods, settings, saves and save states with their creating runtime.",
+        "Preserve the parent project as well as the build folder, plus any separately configured upstream launcher/profile locations. Rebuilds, toolchain changes and updates belong upstream and must finish outside the selected Play session. Runtime replacement does not establish old-save, mod or save-state compatibility."
       ],
-      "help_url": "https://github.com/TechnicallyComputers/GundamWingEndlessDuelSNESRecomp/blob/f2d774e05fbf6fc04642992f8d57a1305f077334/README.md"
+      "help_url": "https://github.com/TechnicallyComputers/GundamWingEndlessDuelSNESRecomp/blob/f2d774e05fbf6fc04642992f8d57a1305f077334/README.md",
+      "references": [
+        {
+          "title": "Preserve the complete working copy",
+          "instruction": "Keep the complete project and build tree, original, generated files, mods, settings, saves and save states with their creating runtime. The game uses config.ini in its working folder, falling back to ../config.ini; keybinds.ini is beside the executable. Preserve the parent project as well as the build folder, plus any separately configured upstream launcher/profile locations. Rebuilds, toolchain changes and updates belong upstream and must finish outside the selected Play session. Runtime replacement does not establish old-save, mod or save-state compatibility."
+        }
+      ]
     },
     "artwork": {
       "game_id": 42464,

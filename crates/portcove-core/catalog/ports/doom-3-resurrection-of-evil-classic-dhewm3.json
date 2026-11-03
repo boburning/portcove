@@ -23,14 +23,18 @@
         {
           "title": "Keep an existing prepared copy",
           "instruction": "Keep a working custom copy registered with dhewm3.exe, its actual runtime folder as working directory, and its own launch details. To read originals from another installation, use three separate argument lines: +set, fs_basepath, then the absolute folder containing base and any d3xp data. Select Resurrection of Evil with three more separate lines: +set, fs_game, d3xp. You and upstream retain replacement and data ownership for that external copy; removing its registration preserves its files. This alternative does not make Portcove manage or migrate its originals, saves or runtime."
-        },
+        }
+      ],
+      "warnings": [
+        "Back up that external profile and your original game separately before changing engines or versions."
+      ],
+      "help_url": "https://dhewm3.org/#how-to-install",
+      "references": [
         {
           "title": "Keep your saves and existing copy",
           "instruction": "Normal Windows saves, settings, screenshots, demos and logs are in your actual Documents/My Games/dhewm3 profile, with separate base and d3xp scopes. Back up that external profile and your original game separately before changing engines or versions. Existing customized copies keep their own launch details and runtime owner."
         }
-      ],
-      "warnings": [],
-      "help_url": "https://dhewm3.org/#how-to-install"
+      ]
     }
   },
   "upstream_lineage": {

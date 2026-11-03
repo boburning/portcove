@@ -37,16 +37,21 @@
           "instruction": "On Windows, add WolfensteinRPG.exe with the folder containing your IPA as its working directory. For the Linux AppImage or a user-prepared native WolfensteinRPG binary, use a writable working directory containing that same required archive. Read-only discovery never runs the player or a helper; Play is a separate choice."
         },
         {
-          "title": "Preserve the writable game folder when updating",
-          "instruction": "The player reads and writes local data under WolfensteinRPG.app/ relative to its working directory, separate from the similarly named app inside the IPA. Preserve that complete writable folder, original IPA and current working player before preparing an upstream update in a separate location. You or upstream own runtime updates. Portcove registration does not adopt, back up, roll back, replace or delete those files; removing the registration preserves every external file."
-        },
-        {
           "title": "Add the game and manage your files",
           "instruction": "Register the real Windows player or already working Linux AppImage/native player with its matching working directory and separate literal arguments; do not select a converter, installer or updater as the game player. Complete any original-data or prerequisite setup deliberately through upstream instructions. Registration does not perform or authenticate that preparation, and Play is a separate explicit action. You and upstream own this external runtime, original files, saves, settings and profiles. Preserve the complete working copy and every actual data/profile location with the game closed before upstream replacement. Registration-only removal preserves all external files; managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
         }
       ],
-      "warnings": [],
-      "help_url": "https://github.com/Erick194/WolfensteinRPG-RE/blob/a17066018269ff973968002ba7dd4130fcba99db/README.md"
+      "warnings": [
+        "Preserve that complete writable folder, original IPA and current working player before preparing an upstream update in a separate location.",
+        "Portcove registration does not adopt, back up, roll back, replace or delete those files; removing the registration preserves every external file."
+      ],
+      "help_url": "https://github.com/Erick194/WolfensteinRPG-RE/blob/a17066018269ff973968002ba7dd4130fcba99db/README.md",
+      "references": [
+        {
+          "title": "Preserve the writable game folder when updating",
+          "instruction": "The player reads and writes local data under WolfensteinRPG.app/ relative to its working directory, separate from the similarly named app inside the IPA. Preserve that complete writable folder, original IPA and current working player before preparing an upstream update in a separate location. You or upstream own runtime updates. Portcove registration does not adopt, back up, roll back, replace or delete those files; removing the registration preserves every external file."
+        }
+      ]
     },
     "original_game_title": "Wolfenstein RPG"
   },
