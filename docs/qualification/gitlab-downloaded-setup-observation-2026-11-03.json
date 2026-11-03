@@ -92,5 +92,41 @@
   ],
   "title_outcomes_completed": 0,
   "protected_publication": false,
-  "scope": "Dated acquisition observation only; not operational catalog input, title admission, source/setup, support or protected acceptance."
+  "scope": "Dated acquisition observation only; not operational catalog input, title admission, source/setup, support or protected acceptance.",
+  "isolated_refusal_checks": {
+    "observed_at": "2026-11-03T17:18:16.648900+00:00",
+    "producer_source": "20e78a50689663d2026c9bcf229ace31c6be5d79",
+    "producer_sha256": "2f8a7f0891fb1cfa18749406876991d2582b270febcf00718dc2fed919822a45",
+    "api_schema_version": 88,
+    "fresh_library_without_pending_records": true,
+    "pending_after": [],
+    "destination_unchanged": true,
+    "cases": [
+      {
+        "case": "wrong-project",
+        "exit": 14,
+        "code": "conflict",
+        "message": "selected GitLab project changed"
+      },
+      {
+        "case": "stale-file",
+        "exit": 14,
+        "code": "conflict",
+        "message": "selected GitLab registry file changed; refresh the downloads"
+      },
+      {
+        "case": "missing-link",
+        "exit": 4,
+        "code": "not_found",
+        "message": "GitLab resource was not found: https://gitlab.com/api/v4/projects/sonicdcer%2FDNZHRecomp/releases/0.0.3/assets/links/999999999"
+      },
+      {
+        "case": "unpublished-tag",
+        "exit": 4,
+        "code": "not_found",
+        "message": "GitLab resource was not found: https://gitlab.com/api/v4/projects/sonicdcer%2FDNZHRecomp/releases/portcove-nonexistent-test-tag"
+      }
+    ],
+    "prior_failed_evidence": "The initial four negative attempts reached an existing pending-setup guard only. They do not establish the targeted checks; those attempts remain retained separately."
+  }
 }

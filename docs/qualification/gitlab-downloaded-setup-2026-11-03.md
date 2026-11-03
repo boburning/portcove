@@ -63,7 +63,11 @@ the two real acquisitions establish only their exact data-only observations.
 The PR owns final complete-diff validation, independent review, exact-head CI,
 target composition and guarded-delivery evidence. The earlier missing-browser
 failure and inconsistent-tag/choice test fixtures are retained in the candidate
-evidence; repaired runs do not relabel those failures as passes. Compiled CLI
-refusal checks reject a wrong project, stale file, missing link and unpublished
-tag without publishing a destination. No whole title, Required-beta outcome or
+evidence; repaired runs do not relabel those failures as passes. The initial compiled CLI negative attempts reached the existing pending-setup
+guard only; those failures are retained and provide no targeted GitLab proof.
+Separate checks in a new isolated library with no pending records reach the
+intended boundaries: changed project and registry-file identities return
+`conflict`; the exact missing-link and unpublished-tag endpoints return
+`not_found`. The library has no pending records afterward and no destination
+was published. The linked observation retains each exact response. No whole title, Required-beta outcome or
 whole parent/cohort obligation completes from this shared component.
