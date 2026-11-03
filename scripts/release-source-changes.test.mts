@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
 import { collectReleaseSourceChanges, netTreeDeltaScope } from "./release-source-changes.mts";
 import { releaseSourceFixture } from "./fixtures/release-source-fixture.mts";
@@ -55,6 +56,61 @@ void test("retained public signed GitHub commit preserves non-UTC offsets and te
     if (fault === "extra-header")
       changed.verification.payload = payload.replace("\n\n", "\nencoding invented\n\n");
     assert.throws(() => inspectRemoteCommitObject(changed, expected));
+  }
+});
+
+void test("retained public unsigned coordinator seed recovers the one terminal newline omitted by REST", async () => {
+  const fixture: unknown = JSON.parse(
+    await readFile(
+      new URL("./fixtures/github-unsigned-coordinator-seed-8e3f8e1b.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  assert.ok(isRecord(fixture) && isRecord(fixture.record) && typeof fixture.raw === "string");
+  const record = fixture.record;
+  const expected = "8e3f8e1b7d2ab2f9e7b199c5bca27d75cc1d5760";
+  assert.equal(record.message, "Portcove release coordinator checkpoint");
+  assert.ok(fixture.raw.endsWith("checkpoint\n"));
+  const result = inspectRemoteCommitObject(record, expected);
+  assert.equal(result.object.oid, expected);
+  assert.equal(result.object.bytes.toString("utf8"), fixture.raw);
+  assert.equal(
+    inspectRemoteCommitObject(
+      { ...record, message: `${record.message}\n` },
+      expected,
+    ).object.bytes.toString("utf8"),
+    fixture.raw,
+  );
+  for (const fault of ["message", "actor", "tree", "extra-newline"]) {
+    const changed = structuredClone(record);
+    assert.ok(isRecord(changed.author) && isRecord(changed.tree));
+    if (fault === "message") changed.message = "changed";
+    if (fault === "actor") changed.author.name = "changed";
+    if (fault === "tree") changed.tree.sha = "f".repeat(40);
+    if (fault === "extra-newline") changed.message = `${record.message}\n\n`;
+    assert.throws(() => inspectRemoteCommitObject(changed, expected));
+  }
+  // Neither the extra header nor an unknown original offset is reconstructed.
+  for (const raw of [
+    fixture.raw.replace("\n\n", "\nencoding UTF-8\n\n"),
+    fixture.raw.replaceAll(" +0000", " -0400"),
+    `${fixture.raw}\n`,
+  ]) {
+    const bytes = Buffer.from(raw);
+    const sha = createHash("sha1").update(`commit ${bytes.length}\0`).update(bytes).digest("hex");
+    assert.throws(() => inspectRemoteCommitObject({ ...record, sha }, sha));
+  }
+});
+
+void test("unsigned commit reconstruction preserves exact no-newline and parent-order identities", () => {
+  const tree = "a".repeat(40),
+    parents = ["b".repeat(40), "c".repeat(40)];
+  for (const message of ["without a newline", "with one newline\n"]) {
+    const record = sourceFixtureCommit(tree, parents, message);
+    assert.equal(inspectRemoteCommitObject(record, record.sha).object.oid, record.sha);
+    assert.throws(() =>
+      inspectRemoteCommitObject({ ...record, parents: [...record.parents].reverse() }, record.sha),
+    );
   }
 });
 
