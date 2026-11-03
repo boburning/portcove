@@ -1098,6 +1098,7 @@ void test("binary transfer avoids base64 overhead while preserving the unchanged
   assert.throws(() => encodeObserverSnapshot(logical), /reserved output envelope|buffer/i);
   const binary = encodeCompactObserverSnapshot(logical, Date.now() + 60000);
   assert.ok(binary.bytes.length <= observerSnapshotLimit);
+  assert.ok(createAuditZip([["checkpoint.json", binary.bytes]]).length <= observerSnapshotLimit);
   assert.deepEqual(
     readObserverSnapshotArchive(
       createAuditZip([["checkpoint.json", binary.bytes]]),

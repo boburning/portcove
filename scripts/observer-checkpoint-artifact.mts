@@ -37,6 +37,9 @@ const workflowId = 354075266;
 const maximumAge = 24 * 3600000;
 const member = "checkpoint.json";
 const binarySnapshotMagic = Buffer.from("PORTCOVE-OBSERVER-SNAPSHOT-3\n", "ascii");
+// Already-compressed members can grow slightly under ZIP's deflate framing.
+// Keep that packaging inside the existing four-MiB complete archive budget.
+const binaryMemberLimit = observerSnapshotLimit - 16 * 1024;
 // One owner-approved fresh baseline after the retained loss. Scheduled history,
 // not an evictable checkpoint, consumes this sole opportunity even on failure.
 export const observerBaselinePermit = {
@@ -342,7 +345,7 @@ export function encodeCompactObserverSnapshot(snapshot: Snapshot, deadline = Inf
   requireValue(header.length <= 512, "binary snapshot header too large");
   const bytes = Buffer.concat([binarySnapshotMagic, header, compressed]);
   requireValue(
-    Date.now() < deadline && bytes.length <= observerSnapshotLimit,
+    Date.now() < deadline && bytes.length <= binaryMemberLimit,
     "encoded snapshot exceeds reserved output envelope; checkpoints retained",
   );
   return {

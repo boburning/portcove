@@ -211,7 +211,9 @@ snapshot contains the catalog scheduler and its referenced per-source checkpoint
 it excludes reports, locks, temporary files and executables. Production format 3
 uses a fixed binary magic, a closed size/hash-bound header of at most 512 bytes,
 and gzip payload. The entire member, including that header, remains limited to
-four MiB. The outer ZIP retains its four-MiB compressed and expanded limits.
+four MiB. Binary members reserve sixteen KiB within that allowance for ZIP headers
+and worst-case deflate framing of already-compressed bytes. The outer ZIP retains
+its four-MiB compressed and expanded limits.
 Formats 1 and 2 remain readable with their original bounds.
 
 The decoded **stored graph** remains bounded to thirty-two MiB. Large source
