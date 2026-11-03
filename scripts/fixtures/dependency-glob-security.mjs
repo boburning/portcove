@@ -4,13 +4,23 @@ import fs from "node:fs";
 import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const require = createRequire(import.meta.url);
-const signing = createRequire(require.resolve("@sigstore/sign"));
-const fetch = createRequire(signing.resolve("make-fetch-happen"));
-const cache = createRequire(fetch.resolve("cacache"));
-const desktop = createRequire(path.join(process.cwd(), "apps/desktop/package.json"));
-const cli = createRequire(desktop.resolve("i18next-cli"));
+assert.equal(process.argv.length, 4);
+assert.equal(process.argv[2], "--consumer");
+const consumer = process.argv[3];
+assert.ok(consumer === "signing-cache" || consumer === "localization-cli");
+let resolver;
+if (consumer === "signing-cache") {
+  const signing = createRequire(require.resolve("@sigstore/sign"));
+  const fetch = createRequire(signing.resolve("make-fetch-happen"));
+  resolver = createRequire(fetch.resolve("cacache"));
+} else {
+  const projectRoot = fileURLToPath(new URL("../../", import.meta.url));
+  const desktop = createRequire(path.join(projectRoot, "apps/desktop/package.json"));
+  resolver = createRequire(desktop.resolve("i18next-cli"));
+}
 const root = fs.mkdtempSync(path.join(os.tmpdir(), "portcove-glob-security-"));
 const observations = [];
 
@@ -20,10 +30,7 @@ try {
     fs.mkdirSync(path.dirname(filename), { recursive: true });
     fs.writeFileSync(filename, "fixture");
   }
-  for (const [consumer, resolver] of [
-    ["signing-cache", cache],
-    ["localization-cli", cli],
-  ]) {
+  {
     const globPath = resolver.resolve("glob");
     const globRequire = createRequire(globPath);
     const globVersion = globRequire("glob/package.json").version;

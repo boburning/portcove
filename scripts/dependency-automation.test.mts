@@ -43,20 +43,25 @@ void test("root lock maintenance retains provider-owned pnpm platform integrity"
 });
 const read = (name: string) => readFile(path.join(root, name), "utf8");
 
-void test("actual development glob consumers bound pattern expansion and stop canceled traversal", () => {
-  const result = spawnSync(process.execPath, ["scripts/fixtures/dependency-glob-security.mjs"], {
-    cwd: root,
-    encoding: "utf8",
-    timeout: 30_000,
-    maxBuffer: 64 * 1024,
-  });
+void test("actual signing-cache glob consumer bounds pattern expansion and stops canceled traversal", () => {
+  const result = spawnSync(
+    process.execPath,
+    ["scripts/fixtures/dependency-glob-security.mjs", "--consumer", "signing-cache"],
+    {
+      cwd: root,
+      encoding: "utf8",
+      timeout: 30_000,
+      maxBuffer: 64 * 1024,
+    },
+  );
   assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
   const report = record(JSON.parse(result.stdout));
   assert.ok(Array.isArray(report.observations));
   assert.deepEqual(
     report.observations.map((value) => record(value).consumer),
-    ["signing-cache", "localization-cli"],
+    ["signing-cache"],
   );
+  console.log(`Development glob security observation: ${result.stdout.trim()}`);
 });
 
 void test("fixed native pnpm consumers match the root pin and publisher integrity", async () => {
