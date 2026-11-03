@@ -628,10 +628,14 @@ success-output = "immediate"
 # Hosted run40134563104/a1 retained a30.138s outer cutoff while this complete
 # artwork CLI lifecycle was running fresh processes. Preserve both slots and
 # every import/handoff/stale-choice assertion, process cleanup and zero retries.
+# CI41547084884/a1 later reached reset at59.125s and another show before its
+# 60.179s cutoff. Give only this Windows lifecycle90s for its remaining fresh
+# commands; assertions, cleanup, both slots, zero retries and product deadlines
+# are unchanged. Completion under this budget is not a performance repair.
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
 filter = 'package(portcove-cli) & test(/^artwork_contract::artwork_cli_keeps_cover_and_detail_independent_through_the_local_lifecycle$/)'
-slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
 success-output = "immediate"
 
 # The focused local Windows run retained a 32.310s harness cutoff while this

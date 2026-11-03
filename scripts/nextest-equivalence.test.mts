@@ -903,6 +903,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     );
   }
   const ninetySecondWindowsLifecycles = new Set([
+    "package(portcove-cli) & test(/^artwork_contract::artwork_cli_keeps_cover_and_detail_independent_through_the_local_lifecycle$/)",
     "package(portcove-core) & test(/^service::tests::backups::restore_remains_authoritative_after_launch_rollback_and_staged_activation$/)",
     "package(portcove-core) & test(/^service::tests::authenticated_admission_survives_staging_rollback_activation_and_refresh$/)",
     "package(portcove-core) & test(/^service::runtime_tests::reflectionhle_progression::reflectionhle_progression_(2683|2684|2685|2686|2687|2688|2689|2690|2692)$/)",
