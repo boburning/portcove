@@ -685,6 +685,7 @@ void test("missing planner scope emits CLI failure artifacts without network wor
     "upstream-health-triage",
     "check-catalog-repositories",
     "observe-configured-upstream",
+    "observer-checkpoint-storage",
     "upstream-observer",
     "upstream-health-inputs",
     "upstream-lineage",
