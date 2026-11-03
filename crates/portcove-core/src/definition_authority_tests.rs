@@ -88,41 +88,80 @@ fn data_version(connection: &rusqlite::Connection) -> i64 {
 }
 
 #[test]
-fn ordinary_build_has_no_anchor_or_root_input() {
+fn appointed_build_reviews_its_anchor_without_automatically_installing_it() {
     let (_directory, library) = library();
     let observer = library.connection().unwrap();
     let before = data_version(&observer);
     let review = library.review_definition_authority().unwrap();
     assert_eq!(review.provisioning_schema, 1);
-    assert!(!review.configured);
+    assert!(review.configured);
     assert!(!review.installed);
-    assert!(review.compiled_anchor_sha256.is_none());
-    assert!(
-        library
-            .provision_definition_authority(&review.expected_plan)
-            .is_err()
+    assert_eq!(
+        review.compiled_anchor_sha256.as_deref(),
+        Some("748bf3e9ec10a585ea62beb6228379642de3b33d0f2d94272ce0bd42d6e35e7b")
     );
+    assert_eq!(data_version(&observer), before);
+
+    let unconfigured = review_fixture(&library, b"null").unwrap();
+    assert!(!unconfigured.configured && !unconfigured.installed);
+    assert!(unconfigured.compiled_anchor_sha256.is_none());
+    assert!(apply_fixture(&library, b"null", &unconfigured.expected_plan).is_err());
     assert_eq!(data_version(&observer), before);
 }
 
 const OFFICIAL_SOURCE: &[u8] = br#"{"metadata_base_url":"https://catalog.invalid/metadata/","targets_base_url":"https://catalog.invalid/targets/"}"#;
 
+#[test]
+fn official_catalog_keeps_explicit_unconfigured_inputs_inert() {
+    let (_directory, library) = library();
+    let observer = library.connection().unwrap();
+    let before = data_version(&observer);
+    let current = review_official(&library, b"null", b"null").unwrap();
+    assert!(!current.configured && !current.enabled);
+    assert!(current.expected_plan.is_none() && current.source.is_none());
+    assert!(enable_official(&library, b"null", b"null", &"0".repeat(64)).is_err());
+    assert_eq!(data_version(&observer), before);
+}
+
 #[tokio::test]
-async fn official_catalog_keeps_unconfigured_releases_inert() {
+async fn official_catalog_appointed_defaults_require_explicit_enablement() {
     let (_directory, library) = library();
     let observer = library.connection().unwrap();
     let before = data_version(&observer);
     let current = library.review_official_catalog().unwrap();
-    assert!(!current.configured && !current.enabled);
-    assert!(current.expected_plan.is_none() && current.source.is_none());
+    assert!(current.configured && !current.enabled);
+    let source = current.source.as_ref().unwrap();
+    assert_eq!(
+        source.metadata_base_url,
+        "https://boburning.github.io/portcove/catalog/metadata/"
+    );
+    assert_eq!(
+        source.targets_base_url,
+        "https://boburning.github.io/portcove/catalog/targets/"
+    );
     assert!(library.enable_official_catalog(&"0".repeat(64)).is_err());
     let service = PortcoveService::new(library.clone()).unwrap();
     let error = service
-        .refresh_official_catalog(|_| panic!("unconfigured catalog emitted activity"))
+        .refresh_official_catalog(|_| panic!("unprovisioned catalog emitted activity"))
         .await
         .unwrap_err();
-    assert_eq!(error.code, ErrorCode::Unsupported);
+    assert_eq!(error.code, ErrorCode::Conflict);
     assert_eq!(data_version(&observer), before);
+    assert!(!library.review_definition_authority().unwrap().installed);
+
+    let plan = current.expected_plan.as_deref().unwrap();
+    let enabled = library.enable_official_catalog(plan).unwrap();
+    assert!(enabled.changed && enabled.review.enabled);
+    assert!(!library.enable_official_catalog(plan).unwrap().changed);
+    assert!(library.review_definition_authority().unwrap().installed);
+    assert!(
+        library
+            .definition_selection_status()
+            .unwrap()
+            .selected
+            .is_none()
+    );
+    assert!(library.activities(10).unwrap().is_empty());
 }
 
 #[tokio::test]

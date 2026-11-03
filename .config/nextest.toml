@@ -590,7 +590,7 @@ success-output = "immediate"
 
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
-filter = 'package(portcove-cli) & (test(/^definition_capability_contract::advertised_engine_templates_match_negotiation_and_exported_schemas$/) | test(/^definition_capability_contract::fixed_definition_authority_is_advertised_reviewable_and_unconfigured$/) | test(/^definition_capability_contract::listing_delivery_is_negotiable_and_cannot_provision_an_incoming_authority$/) | test(/^definition_capability_contract::ordinary_definition_refresh_advertises_contract_and_refuses_unconfigured_authority$/))'
+filter = 'package(portcove-cli) & (test(/^definition_capability_contract::advertised_engine_templates_match_negotiation_and_exported_schemas$/) | test(/^definition_capability_contract::fixed_definition_authority_is_advertised_reviewable_and_explicitly_applied$/) | test(/^definition_capability_contract::listing_delivery_is_negotiable_and_cannot_provision_an_incoming_authority$/) | test(/^definition_capability_contract::ordinary_definition_refresh_advertises_contract_and_refuses_unprovisioned_authority$/))'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
 

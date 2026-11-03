@@ -730,13 +730,15 @@ separate offline delegation signer rather than the timestamp/snapshot signer.
 
 `Library::review_definition_authority` reviews only the immutable public root
 compiled into the release from `crates/portcove-core/catalog/official-definition-root.json`.
-The checked-in value is `null`: ordinary builds report `configured: false` and
-refuse application. Selecting a production root, demonstrating its custody and
-shipping a configured release remain separate protected owner decisions. A valid
-root document alone does not prove offline custody or grant signing/publication
-permissions.
+The owner-appointed initial catalog Root v1 is the retained 2,144-byte public
+export with SHA-256 `748bf3e9ec10a585ea62beb6228379642de3b33d0f2d94272ce0bd42d6e35e7b`.
+Its November 3 source appointment authorizes this fixed client input and an
+isolated Windows baseline. It does not authorize new keys, signing, feed
+publication or Task activation. A valid public Root alone does not prove private
+custody, a public feed or configured native acceptance. Explicit null-input builds
+remain supported and report `configured: false` without applying authority.
 
-For a separately approved configured release, `catalog definition-authority`
+For a configured build, `catalog definition-authority`
 returns a `provisioning_schema: 1` review. `--apply --expected-plan <expected_plan>`
 requires explicit confirmation (`--yes` for noninteractive use) and delegates to
 Core. No file, URL, key, environment override or qualification option supplies
@@ -744,7 +746,7 @@ the anchor. The compiled root is bounded to 1 MiB and must self-verify against
 the initial-anchor profile appointed in reviewed source. The selected Slice 4
 profile is single-owner-one-of-one-v1: one Root key/signature, distinct Ed25519
 Root/Targets/Snapshot/Timestamp material, consistent snapshots and exactly four
-top-level roles. The compiled root remains null until its separate appointment.
+top-level roles. The compiled input is the exact separately appointed public Root.
 Legacy two-of-three validation remains available for existing anchors and
 qualification; downloaded metadata cannot select a lower profile. Existing TUF
 acquisition still authenticates rotation, expiry and fresh metadata. This new
@@ -773,8 +775,9 @@ a definition, policy or installation.
 
 The compiled `crates/portcove-core/catalog/official-definition-source.json` contains
 only separately appointed credential-free HTTPS metadata and target locations.
-Its checked-in value is `null`, like the Root. A source cannot supply trust,
-policy, a key or a publisher grant; unknown fields, unsafe addresses and inputs
+The appointed locations are `https://boburning.github.io/portcove/catalog/metadata/`
+and `https://boburning.github.io/portcove/catalog/targets/`. A source cannot supply
+trust, policy, a key or a publisher grant; unknown fields, unsafe addresses and inputs
 over 4,096 bytes refuse. There is no runtime, environment or caller override to
 these normal-client defaults. Explicit operator transport commands remain available.
 
@@ -790,9 +793,10 @@ Once enabled, the normal refresh action uses those compiled locations through
 the existing authenticated listing-delivery path and cancellation/lifecycle owner.
 The built-in catalog and installed games remain available when this optional
 source is unconfigured or its refresh fails. Enabling the source does not install
-a game, authorize a definition or replace executable/player data. Actual production
-Root/source appointment and configured Windows/native delivery acceptance remain
-separate obligations; generic null-input builds establish neither.
+a game, authorize a definition or replace executable/player data. The configured
+Windows/native baseline, authenticated feed and protected progression
+acceptance remain separate obligations after this source appointment. Neither
+compiled input nor a library enablement receipt establishes those outcomes.
 
 **Ordinary refresh.** `PortcoveService::refresh_definition` and the thin
 `catalog definition-refresh` CLI use only the fixed installed compiled root.

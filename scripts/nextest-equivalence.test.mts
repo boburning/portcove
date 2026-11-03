@@ -202,9 +202,9 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
   ];
   const observedCapabilityCases = [
     "definition_capability_contract::advertised_engine_templates_match_negotiation_and_exported_schemas",
-    "definition_capability_contract::fixed_definition_authority_is_advertised_reviewable_and_unconfigured",
+    "definition_capability_contract::fixed_definition_authority_is_advertised_reviewable_and_explicitly_applied",
     "definition_capability_contract::listing_delivery_is_negotiable_and_cannot_provision_an_incoming_authority",
-    "definition_capability_contract::ordinary_definition_refresh_advertises_contract_and_refuses_unconfigured_authority",
+    "definition_capability_contract::ordinary_definition_refresh_advertises_contract_and_refuses_unprovisioned_authority",
   ];
   const observedCoreFilter = `package(portcove-core) & (${observedImportCases.map((name) => `test(/^${name}$/)`).join(" | ")})`;
   const observedCliFilter = `package(portcove-cli) & (${observedCapabilityCases.map((name) => `test(/^${name}$/)`).join(" | ")})`;
