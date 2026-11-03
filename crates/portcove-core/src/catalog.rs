@@ -2889,6 +2889,14 @@ mod tests {
         two_ship.runtime_mutable_paths = std::iter::once("logs/2 Ship 2 Harkinian.log".into())
             .chain((1..=10).map(|index| format!("logs/2 Ship 2 Harkinian.{index}.log")))
             .collect();
+        let starship = expected_ports
+            .iter_mut()
+            .find(|port| port.id == "starship")
+            .unwrap();
+        // Keep the historical reader's original paths; only the reviewed current
+        // definition adds the settings filename used by upstream v2.0.0.
+        assert_eq!(starship.persistent_paths, ["mods", "saves", "config.json"]);
+        starship.persistent_paths.push("starship.cfg.json".into());
         let ygofm = expected_ports
             .iter_mut()
             .find(|port| port.id == "yu-gi-oh-forbidden-memories-recompiled")
