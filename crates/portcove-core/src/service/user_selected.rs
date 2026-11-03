@@ -1297,11 +1297,7 @@ mod tests {
 
     #[test]
     fn prepared_guide_adoption_2838_controller_pak_player() {
-        assert_bound_listing_player_route(
-            "n64hub-rush-2049-recomp",
-            "Rush2049Recompiled.exe",
-            &[],
-        );
+        assert_bound_listing_player_route("n64hub-rush-2049-recomp", "Rush2049Recompiled.exe", &[]);
     }
 
     #[test]
