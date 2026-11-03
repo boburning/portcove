@@ -31,7 +31,9 @@ publication authority.
 The owner-approved first public beta application host is **Windows x86-64** at
 its existing supported Windows/WebView2 baseline. This changes the application
 host release commitment, not the original platforms of games Portcove manages,
-the selected port cohort, or truthful per-port support metadata.
+historical port inventory membership, or truthful per-port support metadata.
+The November 3 port-commitment decision below separately removes the full-cohort
+first-beta deadline while preserving tracked work and safeguards.
 
 | Obligation                             | First Windows beta boundary                                                                                                                                                                                                                                            |
 | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -135,11 +137,44 @@ an unqualified platform.
 
 The initial beta retains the complete preparation boundary (#31), coherent
 design system (#917), development-agility/domain consolidation (#921/#925),
-structured account-free artwork (#1155/#208/#206), owner-amended upstream-first
-frozen rollout (#1422), onboarding and truthful limited routes (#254/#1168/#1169), public CLI and
+structured account-free artwork (#1155/#208/#206), fixed Harbour Masters
+integration minimum, onboarding and truthful limited routes (#254/#1168/#1169), public CLI and
 real reference proof (#30/#243), manual Desktop Steam (#290), and independent
 catalog delivery (#245/#397/#398/#246). These are finite outcomes, not optional
 polish. Shared controller/focus/input safety remains with #29/#206/#917.
+
+The November 3, 2026 owner decision fixes the Harbour Masters launch set to
+Ship of Harkinian / Shipwright #58, 2Ship2Harkinian #59, SpaghettiKart #60,
+Starship #61, Ghostship #53, Lighthouse #62 and the existing PaperBoat integration
+#909. Retain their applicable finite Windows integration minima Required / Public
+beta, consume completed admissions and evidence at their actual scope, and keep
+optional gameplay/save/device observations separate. Do not reopen completed
+admissions or extend this set to future projects, forks, libraries or releases.
+
+Other port expansion, title-specific qualification under this rollout and whole historical/all-port
+completion are ongoing Planned / Unscheduled work with no promised release.
+#1422 keeps its 317 rows / 316 identities; #2510/#2926 keep the frozen 858-identity
+union, lineage, per-port acceptance and maintenance. They remain open until actual
+eventual completion. The nine unfinished non-Harbour Masters requirements
+#342/#519/#520/#726/#141/#150/#320/#812/#1275 no longer gate beta; no Required 1.0
+replacement deadline is introduced. Parentage and broad adoption references do
+not make all-port closure a prerequisite to representative product proof.
+
+Shared product outcomes #4154/#4155/#4156/#2228, production #534, compatible
+delivery #246, acquisition #315, Windows application updates #52, artwork #1155
+and final integration #921 retain their accepted finite obligations and completed
+credits. Operations actually exposed to users retain precise source, permission,
+integrity, runtime, consent and preservation holds. A known unsafe exposed
+operation retains its narrow remediation owner; this decision supplies no fix
+and creates no blanket every-port qualification campaign.
+
+Ports finishes the fixed Harbour Masters minimum and actual exposed-operation
+defects first, then continues useful non-gating integration and maintenance.
+Beta finishes required product/production acceptance and final integration
+without waiting for the whole catalog or rollout parents. Canonical issue/Project
+changes provide the normal handoff; no routine peer approval or coordinator.
+This changes release scope, not engineering completion, beta readiness or
+publication authority. Existing separate Required 1.0 requirements, including #42’s finite risk-based representative qualification, remain unchanged.
 
 Full user-ready Playnite (#910), Steam Add/Repair/Update-artwork/Remove (#292),
 SteamGridDB (#527), physical Xbox evidence (#44), and macOS/Deck qualification
