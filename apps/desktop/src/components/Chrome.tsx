@@ -90,6 +90,7 @@ import { BrandAvatar, BrandMascot } from "./Brand";
 import { ExternalLink } from "./ExternalLink";
 import { LibraryRecovery } from "./LibraryRecovery";
 import { CatalogOrigin, CatalogSettings } from "./CatalogUpdates";
+import { OfficialCatalogUpdates } from "./OfficialCatalogUpdates";
 import { SourceDiscoveryButton } from "./SourceDiscovery";
 import { invocationFailure, type InvocationRecord } from "../features/operations/invocation-state";
 import { GameFileLibraries } from "./GameFileLibraries";
@@ -1935,6 +1936,12 @@ export function SettingsView(props: SettingsViewProps) {
       }
     >
       {applicationUpdates}
+      <OfficialCatalogUpdates
+        key={generation}
+        generation={generation}
+        disabled={Boolean(busy)}
+        onChanged={onCatalogChanged}
+      />
       <SettingsRow>
         <h2>Game catalog</h2>
         <CatalogOrigin provenance={doctor?.catalog_provenance} />

@@ -22989,6 +22989,127 @@
     "title": "ManagedRouteChangeResult",
     "type": "object"
   },
+  "official_catalog_review": {
+    "$defs": {
+      "OfficialCatalogSource": {
+        "additionalProperties": false,
+        "properties": {
+          "metadata_base_url": {
+            "type": "string"
+          },
+          "targets_base_url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "metadata_base_url",
+          "targets_base_url"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "configured": {
+        "type": "boolean"
+      },
+      "enabled": {
+        "type": "boolean"
+      },
+      "expected_plan": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "source": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/OfficialCatalogSource"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    },
+    "required": [
+      "configured",
+      "enabled",
+      "source",
+      "expected_plan"
+    ],
+    "title": "OfficialCatalogReview",
+    "type": "object"
+  },
+  "official_catalog_setup": {
+    "$defs": {
+      "OfficialCatalogReview": {
+        "properties": {
+          "configured": {
+            "type": "boolean"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "expected_plan": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/OfficialCatalogSource"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "configured",
+          "enabled",
+          "source",
+          "expected_plan"
+        ],
+        "type": "object"
+      },
+      "OfficialCatalogSource": {
+        "additionalProperties": false,
+        "properties": {
+          "metadata_base_url": {
+            "type": "string"
+          },
+          "targets_base_url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "metadata_base_url",
+          "targets_base_url"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "changed": {
+        "type": "boolean"
+      },
+      "review": {
+        "$ref": "#/$defs/OfficialCatalogReview"
+      }
+    },
+    "required": [
+      "changed",
+      "review"
+    ],
+    "title": "OfficialCatalogSetup",
+    "type": "object"
+  },
   "operation_event": {
     "$defs": {
       "ActivityTargetKind": {

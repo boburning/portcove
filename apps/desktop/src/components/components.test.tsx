@@ -193,7 +193,7 @@ describe("desktop components", () => {
       ["appearance", "library-storage", 2],
       ["library-storage", "game-files", 3],
       ["game-files", "updates", 3],
-      ["updates", "integrations", 2],
+      ["updates", "integrations", 3],
       ["integrations", "controls", 2],
       ["controls", "advanced", 2],
       ["advanced", "about", 3],
@@ -215,7 +215,8 @@ describe("desktop components", () => {
     expect(html.indexOf("Library at startup")).toBeLessThan(html.indexOf("Files and capacity"));
     expect(html.indexOf("Game-file libraries")).toBeLessThan(html.indexOf("Game files and BIOS"));
     expect(html.indexOf("Game files and BIOS")).toBeLessThan(html.indexOf("Disc tools"));
-    expect(html.indexOf("Portcove updates")).toBeLessThan(html.indexOf("Game catalog"));
+    expect(html.indexOf("Portcove updates")).toBeLessThan(html.indexOf("Official catalog updates"));
+    expect(html.indexOf("Official catalog updates")).toBeLessThan(html.indexOf("Game catalog"));
     expect(advanced.indexOf("metadata may remain")).toBeLessThan(
       advanced.indexOf(">Create a support report</button>"),
     );

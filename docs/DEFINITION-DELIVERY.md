@@ -762,9 +762,37 @@ select definitions or install games. Deleting all history or rolling back the
 entire database cannot be detected without an independent witness; this seam
 does not claim that protection.
 
-This is a CLI operator command with additive exported review/result schemas and
-capability advertisement. API result-envelope and operation-event versions stay
-unchanged; no event is emitted and no Tauri command/binding is introduced.
+The CLI operator command retains its explicit reviewed-plan confirmation.
+Normal Desktop setup uses the same Core transaction through its separate official
+catalog review and enablement bridge. API87 binds that confirmation to the existing
+library/Root/history plan and the exact compiled transport-source bytes. The CLI
+plan is unchanged. Neither review nor enablement emits a lifecycle event or selects
+a definition, policy or installation.
+
+**Normal official-catalog setup.**
+
+The compiled `crates/portcove-core/catalog/official-definition-source.json` contains
+only separately appointed credential-free HTTPS metadata and target locations.
+Its checked-in value is `null`, like the Root. A source cannot supply trust,
+policy, a key or a publisher grant; unknown fields, unsafe addresses and inputs
+over 4,096 bytes refuse. There is no runtime, environment or caller override to
+these normal-client defaults. Explicit operator transport commands remain available.
+
+Desktop's ordinary update settings review this fixed pair and request one explicit
+enablement confirmation. Its generation-bound adapter accepts only the reviewed
+plan, never Root or source bytes. Core recomputes the source-bound plan and delegates
+to its existing provisioning transaction. Exact still-unadmitted lost-response
+retries remain idempotent; changed sources/libraries, conflicting anchors, corrupt
+history and advanced initialization preimages refuse without repair or floor reset.
+Opening a library or refreshing a directory never silently installs trust.
+
+Once enabled, the normal refresh action uses those compiled locations through
+the existing authenticated listing-delivery path and cancellation/lifecycle owner.
+The built-in catalog and installed games remain available when this optional
+source is unconfigured or its refresh fails. Enabling the source does not install
+a game, authorize a definition or replace executable/player data. Actual production
+Root/source appointment and configured Windows/native delivery acceptance remain
+separate obligations; generic null-input builds establish neither.
 
 **Ordinary refresh.** `PortcoveService::refresh_definition` and the thin
 `catalog definition-refresh` CLI use only the fixed installed compiled root.
