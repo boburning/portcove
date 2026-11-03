@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "kind": "unaccepted-curated-artifact-input-preparation",
+  "authority": "none",
+  "owner_issues": [61, 315],
+  "repository_id": 803601986,
+  "port_id": "starship",
+  "proposed_curated_record": {
+    "record_version": 1,
+    "repository": "HarbourMasters/Starship",
+    "upstream_url": "https://github.com/HarbourMasters/Starship",
+    "acquisition_host": "github.com",
+    "acquisition_url": "https://github.com/HarbourMasters/Starship/releases/download/v2.0.0/Starship-Barnard-Alfa-Windows.zip",
+    "release_id": 220828885,
+    "tag": "v2.0.0",
+    "commit_sha1": "cb19785b51698185a688e17ba1a34c7889195bdb",
+    "asset_id": 258082402,
+    "platform": "windows-x86-64",
+    "route": "github-release-asset",
+    "filename": "Starship-Barnard-Alfa-Windows.zip",
+    "size": 4218590,
+    "sha256": "42444eeccda0406cb40826ebce0b6f7a46338a9dc25c8e9d9a536807d504ae6a",
+    "acquisition_evidence": {
+      "url": "https://github.com/boburning/portcove/blob/7b0d55f7f4a463d54d6545d296c34d12d8b1e81d/docs/qualification/starship-public-input-observation-2026-11-03.json",
+      "sha256": "7d2fffeae4044dc3ca939bd8346761a9cbcda736ab5aede7b7143317ed48d878"
+    },
+    "distribution_basis": "Direct official upstream acquisition only. The pinned source license is CC0-1.0; the shipped README states game assets require a separately supplied supported US original. No mirror, bundled-original or blanket third-party redistribution authority is proposed.",
+    "distribution_evidence": {
+      "url": "https://github.com/HarbourMasters/Starship/blob/cb19785b51698185a688e17ba1a34c7889195bdb/LICENSE.md",
+      "sha256": "6d489af6292662d9e36d34ce49423784984a5f6e41d7b58f49b01264df59fa03"
+    },
+    "independent_review": null,
+    "protected_acceptance": null
+  },
+  "not_admissible": true,
+  "missing_acceptance": [
+    "Independent artifact acceptance review under the existing protected route.",
+    "Exact protected acceptance provenance for these bytes and scope."
+  ],
+  "integration_holds": [
+    "Existing selected-release source/setup mapping and sf64.o2r output/persistence qualification.",
+    "Applicable installed-client delivery through existing #246/#534 owners."
+  ],
+  "does_not_change": [
+    "Current operational release provider or expected hashes.",
+    "Source profile, accepted originals, launch arguments, support tier, platform declarations or qualification.",
+    "Installed manifests, persistence receipts, policy, signing or publication authority."
+  ],
+  "interpretation": "The observed SHA-256 becomes expected integrity only after established protected acceptance. Null review/acceptance references are deliberate; do not insert this draft into an operational catalog or replace them with fixture evidence."
+}

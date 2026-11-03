@@ -54,7 +54,10 @@ output and an interactive extractor; a positional ROM argument alone does not
 establish preparation. The current correction does not implement that missing
 mapping, acquire originals, run extraction or repeat a native observation.
 
-The unsigned curated draft must retain absent protected acceptance. Its exact
+The [unsigned curated draft](starship-curated-input-preparation-2026-11-03.json)
+binds the immutable acquisition evidence and retains null independent artifact
+review and protected acceptance references. It is deliberately non-admissible
+and is not inserted into the operational catalog. Its exact
 bytes and scope need independent review and the existing protected #315 route;
 no new verifier, signer, credential operation or publisher authority is introduced.
 Starship's source/setup, mutable-output and installed-client acceptance remain
