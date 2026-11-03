@@ -465,6 +465,19 @@ void test("production-shaped retained provider pages fit the fixed artifact rese
     );
   await rm(sourceTree, { recursive: true });
   await publishObserverSnapshot(root, unpacked, Date.now() + 60000);
+  // The compatibility collector expands stored sources. Its aggregate budget
+  // must stop before decoding later files, rather than counting compressed bytes
+  // and only refusing after an oversized graph has already been materialized.
+  const lastName = [...originals.keys()].at(-1)!;
+  const lastPath = path.join(sourceTree, lastName);
+  const lastStored = await readFile(lastPath);
+  await writeFile(lastPath, "invalid later input");
+  await assert.rejects(
+    collectObserverSnapshot(root, "c".repeat(64), { run: 103, attempt: 1, source: "d".repeat(40) }),
+    /decoded snapshot exceeds checkpoint read envelope/,
+  );
+  assert.equal(await readFile(lastPath, "utf8"), "invalid later input");
+  await writeFile(lastPath, lastStored);
   const cacheRead = await recoverObserverCheckpoint({
     root,
     config: "c".repeat(64),
