@@ -37,19 +37,27 @@
     },
     "roles": {
       "timestamp": {
-        "keyids": ["1b6ae29eb3d287a9315ad6799e6e35cdbc0029e273236ac9d0d73f2de0a89d2f"],
+        "keyids": [
+          "1b6ae29eb3d287a9315ad6799e6e35cdbc0029e273236ac9d0d73f2de0a89d2f"
+        ],
         "threshold": 1
       },
       "targets": {
-        "keyids": ["99ed178f3f2c4e7fdbad06bd491b1be27f4ac33ddac66d8c706c86cc93ccdf8b"],
+        "keyids": [
+          "99ed178f3f2c4e7fdbad06bd491b1be27f4ac33ddac66d8c706c86cc93ccdf8b"
+        ],
         "threshold": 1
       },
       "snapshot": {
-        "keyids": ["7f17bced23286ffc4347719430c2a367c60f74153ae274c1fa7ccb807c079b85"],
+        "keyids": [
+          "7f17bced23286ffc4347719430c2a367c60f74153ae274c1fa7ccb807c079b85"
+        ],
         "threshold": 1
       },
       "root": {
-        "keyids": ["6b6211956a9f86ebeeb1bed398339a9a1bcaf38f56917c00eeaab04a6131d322"],
+        "keyids": [
+          "6b6211956a9f86ebeeb1bed398339a9a1bcaf38f56917c00eeaab04a6131d322"
+        ],
         "threshold": 1
       }
     }

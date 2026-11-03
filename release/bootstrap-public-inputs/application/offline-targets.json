@@ -39,14 +39,21 @@
       "roles": [
         {
           "name": "releases",
-          "keyids": ["9b5477b64e0042ad4bf15dccf7bf4f34873197765fcdca6f879a03beb6f298c5"],
+          "keyids": [
+            "9b5477b64e0042ad4bf15dccf7bf4f34873197765fcdca6f879a03beb6f298c5"
+          ],
           "threshold": 1,
-          "paths": ["releases/*/windows-x86_64/nsis.json", "releases/*/linux-x86_64/appimage.json"],
+          "paths": [
+            "releases/*/windows-x86_64/nsis.json",
+            "releases/*/linux-x86_64/appimage.json"
+          ],
           "terminating": true
         },
         {
           "name": "preview",
-          "keyids": ["99aa93bc2d1fd45e09b98e4afe6cb19bb5bdef4b0a22e9b8b331329a5e10857c"],
+          "keyids": [
+            "99aa93bc2d1fd45e09b98e4afe6cb19bb5bdef4b0a22e9b8b331329a5e10857c"
+          ],
           "threshold": 1,
           "paths": [
             "channels/preview/windows-x86_64/nsis/*.json",
@@ -56,7 +63,9 @@
         },
         {
           "name": "stable",
-          "keyids": ["3806a0b4356f8ddfce6a53d13da7537afc29695389eb9aa2a42a6f7873004161"],
+          "keyids": [
+            "3806a0b4356f8ddfce6a53d13da7537afc29695389eb9aa2a42a6f7873004161"
+          ],
           "threshold": 1,
           "paths": [
             "channels/stable/windows-x86_64/nsis/*.json",

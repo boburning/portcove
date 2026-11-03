@@ -26,16 +26,25 @@
       },
       "roles": [
         {
-          "keyids": ["25328e801f6eb90c1dd78b646a60978c3f8bc25da0509fd0c970f8c6b82cc059"],
+          "keyids": [
+            "25328e801f6eb90c1dd78b646a60978c3f8bc25da0509fd0c970f8c6b82cc059"
+          ],
           "name": "official-definitions",
-          "paths": ["definitions/index.json", "sha256/*.json"],
+          "paths": [
+            "definitions/index.json",
+            "sha256/*.json"
+          ],
           "terminating": true,
           "threshold": 1
         },
         {
-          "keyids": ["5972f173654769c9fe2cad7258c9fb4b777e4c66d864b318bbb56616650031f5"],
+          "keyids": [
+            "5972f173654769c9fe2cad7258c9fb4b777e4c66d864b318bbb56616650031f5"
+          ],
           "name": "official-policy",
-          "paths": ["policy/official/*.json"],
+          "paths": [
+            "policy/official/*.json"
+          ],
           "terminating": true,
           "threshold": 1
         }
