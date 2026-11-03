@@ -1022,6 +1022,22 @@ mod tests {
     }
 
     #[test]
+    fn inspected_player_adoption_2806_custom_disc_config_and_card_paths() {
+        assert_bound_listing_player_route(
+            "nvdemu-apeescaperecomp-macwindowslinux",
+            "ApeEscapeRecomp.exe",
+            &[
+                "--disc",
+                r"C:\Owned Discs\Ape Escape.cue",
+                "--game",
+                r"C:\Player Data\Ape Escape\game.toml",
+                "--memcard-dir",
+                r"C:\Player Data\Ape Escape Cards",
+            ],
+        );
+    }
+
+    #[test]
     fn inspected_player_adoption_2796_gumpolas_two_towers() {
         assert_bound_listing_player_route("gumpolas-tootawersrecomp", "twotowers_recomp.exe", &[]);
     }

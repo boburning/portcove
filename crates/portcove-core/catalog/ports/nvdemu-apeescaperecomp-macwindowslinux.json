@@ -24,7 +24,7 @@
         },
         {
           "title": "Register supported existing players without changing their owner",
-          "instruction": "On Windows select ApeEscapeRecomp.exe, use the complete extracted package directory as working directory and leave arguments empty for normal launch. Finish the supported own-disc setup upstream; do not attach an overlay compiler, updater/Python helper or cached game DLL. On Linux retain the prepared AppImage entry and its supported data contract. Saving launch details and Play are separate actions. Only the selected program is supervised; this fork does not replace the parent mstan integration, migrate its data or inherit its qualification."
+          "instruction": "On Windows select ApeEscapeRecomp.exe, use the complete extracted package directory as working directory and leave arguments empty for normal launch. Finish the supported own-disc setup upstream; do not attach an overlay compiler, updater/Python helper or cached game DLL. On Linux retain the prepared AppImage entry and its supported data contract. Saving launch details and Play are separate actions. Only the selected program is supervised; this fork does not replace the parent mstan integration, migrate its data or inherit its qualification. If your established copy uses --disc, --game or --memcard-dir, retain each option and its existing path as separate literal arguments rather than resetting to the empty-argument default. Keep custom card/config/disc locations with that creating runtime; registration does not migrate them."
         },
         {
           "title": "Use upstream updates and back up the actual data folder",

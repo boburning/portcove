@@ -16,7 +16,7 @@
       "steps": [
         {
           "title": "Keep the original PC game distinct",
-          "instruction": "Use your own installed US 2003 Windows PC The Lord of the Rings: The Return of the King. This ROTK Fix enhancement is separate from all Athelas Xbox ports; their discs, runtimes and saves are not substitutes. Keep original PC copy protection and required host components intact. The inspected Athelas 1.8.0 ZIP contains the PC enhancement under ROTK-PC/pcfix with its DLLs, ROTKFix resources and notices; it does not supply your original PC installation."
+          "instruction": "Use your own already-working, independently permitted US 2003 Windows PC The Lord of the Rings: The Return of the King. This ROTK Fix enhancement is separate from all Athelas Xbox ports; their discs, runtimes and saves are not substitutes. Keep original PC copy protection and required host components intact. The inspected Athelas 1.8.0 ZIP contains the PC enhancement under ROTK-PC/pcfix with its DLLs, ROTKFix resources and notices; it does not supply your original PC installation."
         },
         {
           "title": "Use the supported launcher setup and game choice",
@@ -24,7 +24,7 @@
         },
         {
           "title": "Preserve the PC game and its real profiles",
-          "instruction": "Keep the complete original PC installation, existing save/profile locations, game settings, ROTKFix.ini, installed DLLs, ROTKFix content/mods and every configured custom path. Preserve the launcher folder, Athelas.ini, Screenshots, upstream backups and all external locations separately. Athelas install/remove, settings, mod and save-restore actions can change external files; retain independent working copies with every actual game and launcher closed. Xbox save-folder rules and compatibility are not inherited by this PC enhancement."
+          "instruction": "Keep the complete original PC installation, existing save/profile locations, game settings, ROTKFix.ini, installed DLLs, ROTKFix content/mods and every configured custom path. Preserve the launcher folder, Athelas.ini, Screenshots, upstream backups and all external locations separately. Athelas install/remove, settings, mod and save-restore actions can change external files; retain independent working copies with every actual game and launcher closed. Xbox save-folder rules and compatibility are not inherited by this PC enhancement. In the selected source, the game’s ROTK.ini lives under the actual Windows Documents folder, normally LOTR The Return of the King (tm) Data; the name can instead come from the installed executable’s language resource. Preserve that whole profile, ROTK.ini.before-rotkfix, game-folder Input.ini and Input.ini.original. Upstream Save/Play can create or rewrite these files; removing the enhancement can restore a prior copy or remove settings it created. Preserve independent backups before these actions."
         },
         {
           "title": "Track the selected launcher honestly",

@@ -30,7 +30,7 @@
         },
         {
           "title": "Back up the effective save directory before startup",
-          "instruction": "In the selected source, --savedir overrides the save root; --portable uses the executable directory. Otherwise a writable executable directory becomes the save root and can copy older saves into it when pd.ini is absent. An unwritable installation can retain the legacy working-directory or per-user fallback. Keep every actual old and current root, pd.ini, EEPROM, player/progress files, Combat Simulator setups, mods, added content, screenshots, recordings and upstream backups. The startup log names the effective base/save directories; preserve any custom paths independently. A package-folder copy alone is not a complete backup when a different root is active."
+          "instruction": "In the selected source, --savedir overrides the save root; --portable uses the executable directory. Otherwise a writable executable directory becomes the save root and can copy older saves into it when pd.ini is absent. An unwritable installation can retain the legacy working-directory or per-user fallback. Keep every actual old and current root, pd.ini, EEPROM, player/progress files, Combat Simulator setups, mods, added content, screenshots, recordings and upstream backups. The startup log names the effective base/save directories; preserve any custom paths independently. A package-folder copy alone is not a complete backup when a different root is active. The per-user fallback is SDL’s perfectdark preference directory, normally %APPDATA%/perfectdark on Windows; retain its earlier data even after a writable portable folder becomes active."
         },
         {
           "title": "Keep expanded saves with compatible versions",
