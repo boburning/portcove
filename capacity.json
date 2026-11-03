@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "capacity": {
+    "schema_version": 2,
+    "boundary": {
+      "account_id": 43177418,
+      "budget_id": "4a6859d9-fdb7-4da2-afd3-acbdc9848eec",
+      "budget_usd": 0,
+      "configuration_generation": "owner-ui-observation-sha256:30156f59158c35a8ad185c5e651632e43e9ebb4ec3d4cd79e99eb734ea2b676c",
+      "product": "Actions",
+      "public_repository": true,
+      "repository_id": 1354613114,
+      "resource_policy_sha256": "13e77e3ebc6d3377ac07436ef5c94f7a86064f8f119d6f11367e9717f852e4f2",
+      "runner_class": "standard-public",
+      "scope": "account",
+      "stop_usage": true
+    },
+    "operation": null,
+    "prior_operations": [],
+    "ratification": {
+      "active": true,
+      "boundary_sha256": "c08dfaa476a11d10cfebead1f77a8eb566b10c22c3b1fa9fb6970b0ffcb3f1fe",
+      "resource_policy_sha256": "13e77e3ebc6d3377ac07436ef5c94f7a86064f8f119d6f11367e9717f852e4f2",
+      "selection": "slice4-d2-c6470ec28ba9addb0f70d9f86953322d835bb8c0"
+    }
+  },
+  "observation": {
+    "evidence_sha256": "30156f59158c35a8ad185c5e651632e43e9ebb4ec3d4cd79e99eb734ea2b676c",
+    "kind": "provider-ui-spending-configuration",
+    "observed_at": "2026-11-03T21:15:20.178Z",
+    "operator_actor_id": 43177418
+  }
+}
