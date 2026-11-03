@@ -2419,6 +2419,7 @@
           "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
           "intended_route": ".github/workflows/ci.yml; complete Node suite windows-storage-3",
           "cases": [
+            "registration creates only a missing folder for mapped and COM file-not-found errors",
             "actual XML parser reads both fixed triggers/actions and PowerShell parses proposal commands without running COM"
           ]
         }

@@ -161,6 +161,86 @@ void test("task proposals refuse path/argument injection, unknown selectors and 
     await assert.rejects(renderSemanticWslWorkerTask({ ...semantic, ...change }));
 });
 void test(
+  "registration creates only a missing folder for mapped and COM file-not-found errors",
+  { skip: process.platform !== "win32" },
+  async () => {
+    const task = await renderSemanticWslWorkerTask(semantic);
+    const marker = "# Initial setup only: create-only; never replace or run a task.";
+    const registration = task.registration_proposal.slice(
+      task.registration_proposal.indexOf(marker),
+    );
+    // Exercise the emitted registration control flow with inert provider boundaries.
+    // No COM service, identity guard, real folder, or real Task is invoked here.
+    const rootLookup = "$root=$service.GetFolder('\\')";
+    const folderLookup = "$folder=$root.GetFolder('Portcove')";
+    assert.equal(registration.split(rootLookup).length, 2);
+    assert.equal(registration.split(folderLookup).length, 2);
+    const inert = registration
+      .replace(rootLookup, "$root=$fixtureRoot")
+      .replace(folderLookup, "$folder=& $fixtureLookup");
+    const script = `
+$ErrorActionPreference='Stop';Set-StrictMode -Version Latest
+$registration=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($env:TEST_REGISTRATION))
+$xml='<inert-task/>'
+$results=@()
+foreach($case in @('mapped-file-not-found','com-file-not-found','existing-folder','access-denied','unexpected-error')){
+ $script:created=0;$script:registered=0;$script:readbacks=0
+ $fixtureFolder=[pscustomobject]@{}
+ $fixtureFolder|Add-Member ScriptMethod RegisterTask {
+  param($name,$definition,$flags,$user,$password,$logon,$security)
+  if($name -cne 'SemanticReview' -or $definition -cne $xml -or $flags -ne 2 -or $null -ne $password -or $logon -ne 3){throw 'create-only registration contract changed'}
+  $script:registered++
+  return [pscustomobject]@{Enabled=$false}
+ }
+ $fixtureRoot=[pscustomobject]@{}
+ $fixtureRoot|Add-Member ScriptMethod CreateFolder {
+  param($name,$security)
+  if($name -cne 'Portcove'){throw 'folder name changed'}
+  $script:created++
+  return $fixtureFolder
+ }
+ $fixtureLookup={
+  switch($case){
+   'mapped-file-not-found'{throw [IO.FileNotFoundException]::new('inert missing folder')}
+   'com-file-not-found'{throw [Runtime.InteropServices.COMException]::new('inert missing folder',-2147024894)}
+   'access-denied'{throw [UnauthorizedAccessException]::new('inert access denied')}
+   'unexpected-error'{throw [InvalidOperationException]::new('inert provider failure')}
+   'existing-folder'{return $fixtureFolder}
+  }
+ }
+ function Read-FixedTask($task,[bool]$expectedEnabled){
+  if($expectedEnabled -or $task.Enabled){throw 'registration enabled a Task'}
+  $script:readbacks++
+ }
+ $hresult=$null
+ try{Invoke-Expression $registration}catch{$hresult=$_.Exception.HResult}
+ $results+=@{case=$case;created=$script:created;registered=$script:registered;readbacks=$script:readbacks;hresult=$hresult}
+}
+ConvertTo-Json -InputObject @($results) -Compress
+`;
+    const result = spawnSync(
+      "pwsh",
+      ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", script],
+      {
+        encoding: "utf8",
+        timeout: 15000,
+        windowsHide: true,
+        env: { ...process.env, TEST_REGISTRATION: Buffer.from(inert).toString("base64") },
+      },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    const outcomes = JSON.parse(result.stdout) as Array<Record<string, unknown>>;
+    assert.deepEqual(outcomes, [
+      { case: "mapped-file-not-found", created: 1, registered: 1, readbacks: 1, hresult: null },
+      { case: "com-file-not-found", created: 1, registered: 1, readbacks: 1, hresult: null },
+      { case: "existing-folder", created: 0, registered: 1, readbacks: 1, hresult: null },
+      { case: "access-denied", created: 0, registered: 0, readbacks: 0, hresult: -2147024891 },
+      { case: "unexpected-error", created: 0, registered: 0, readbacks: 0, hresult: -2146233079 },
+    ]);
+  },
+);
+
+void test(
   "actual XML parser reads both fixed triggers/actions and PowerShell parses proposal commands without running COM",
   { skip: process.platform !== "win32" },
   async () => {
