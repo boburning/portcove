@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FileSearch } from "lucide-react";
 import { desktopApi } from "../api";
+import { focusAndReveal, navigationScope } from "../focus";
 import { pickSourcePath, type SourcePickerPurpose } from "../file-picker";
 import type {
   HostToolStatus,
@@ -86,6 +87,7 @@ function useSourceIntakeSession({
   hostTools = [],
   hostToolActions,
 }: SourceIntakeDialogProps) {
+  const opener = useRef(typeof document === "undefined" ? null : document.activeElement);
   const copy = sourceIntakeCopy(request.purpose);
   const [result, setResult] = useState<SourceIntakeInspection>();
   const [plan, setPlan] = useState<SourceImportPlan>();
@@ -98,7 +100,22 @@ function useSourceIntakeSession({
   const selectedPathsRef = useRef(request.paths);
   const intent = useRef(0);
   const dismiss = () => {
-    if (!busy) close();
+    if (busy) return;
+    close();
+    // Base UI owns restoration. After its cleanup, reveal only the control it
+    // actually focused: native zoom can reposition the background while open.
+    requestAnimationFrame(() => {
+      const target = saved && returnFocus ? returnFocus() : opener.current;
+      if (
+        target instanceof HTMLElement &&
+        target !== document.body &&
+        target.isConnected &&
+        !target.closest("[hidden], [inert]") &&
+        document.activeElement === target &&
+        navigationScope() === document
+      )
+        focusAndReveal(target);
+    });
   };
 
   const loadInspection = useCallback(

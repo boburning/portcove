@@ -3,7 +3,7 @@ import { controlledAct as act } from "../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
-import { page } from "vite-plus/test/browser";
+import { page, userEvent } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
 import * as picker from "../file-picker";
 import type {
@@ -138,6 +138,44 @@ describe("source intake dialog", () => {
     [...document.body.querySelectorAll<HTMLButtonElement>("button")].find((item) =>
       item.textContent?.includes(label),
     );
+
+  it("reveals its restored caller when background scrolling changes while the review is open", async () => {
+    await page.viewport(320, 208);
+    function ScrolledCallerFixture() {
+      const [open, setOpen] = useState(false);
+      return (
+        <>
+          <div id="source-return-scroll" style={{ height: 120, overflow: "auto" }}>
+            <div style={{ height: 800 }} />
+            <button id="source-review-opener" onClick={() => setOpen(true)}>
+              Check files
+            </button>
+            <div style={{ height: 400 }} />
+          </div>
+          {open && <SourceIntakeDialog request={request([])} close={() => setOpen(false)} />}
+        </>
+      );
+    }
+    await root.rerender(<ScrolledCallerFixture />);
+    await page.getByRole("button", { name: "Check files", exact: true }).click();
+    await expect.element(page.getByRole("dialog")).toBeVisible();
+    const owner = document.getElementById("source-return-scroll")!;
+    const opener = document.getElementById("source-review-opener")!;
+    expect(owner.scrollTop).toBeGreaterThan(0);
+    // Native WebView zoom can reposition the background while the popup stays open.
+    owner.scrollTop = 0;
+    expect(opener.getBoundingClientRect().top).toBeGreaterThan(
+      owner.getBoundingClientRect().bottom,
+    );
+    await userEvent.keyboard("{Escape}");
+    await vi.waitFor(() => expect(document.activeElement).toBe(opener));
+    await expect
+      .poll(() => opener.getBoundingClientRect().bottom)
+      .toBeLessThanOrEqual(owner.getBoundingClientRect().bottom);
+    expect(opener.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+      owner.getBoundingClientRect().top,
+    );
+  });
 
   const prepareImport = () => {
     vi.spyOn(desktopApi, "inspectSourceIntake").mockResolvedValue(intake("D:/Game.z64"));
@@ -361,11 +399,15 @@ describe("source intake dialog", () => {
       const [ready, setReady] = useState(false);
       return (
         <>
-          {ready ? (
-            <button id="current-game-action">Play</button>
-          ) : (
-            <button onClick={() => setOpen(true)}>Select game files</button>
-          )}
+          <div id="source-save-scroll" style={{ height: 120, overflow: "auto" }}>
+            <div style={{ height: 800 }} />
+            {ready ? (
+              <button id="current-game-action">Play</button>
+            ) : (
+              <button onClick={() => setOpen(true)}>Select game files</button>
+            )}
+            <div style={{ height: 400 }} />
+          </div>
           {open && (
             <SourceIntakeDialog
               request={request(["D:/Game.z64"])}
@@ -382,9 +424,21 @@ describe("source intake dialog", () => {
     await act(async () => button("Copy into Portcove")!.click());
     await act(async () => button("Copy into Portcove")!.click());
     expect(button("Select game files")).toBeUndefined();
+    const owner = document.getElementById("source-save-scroll")!;
+    const current = document.getElementById("current-game-action")!;
+    owner.scrollTop = 0;
+    expect(current.getBoundingClientRect().top).toBeGreaterThan(
+      owner.getBoundingClientRect().bottom,
+    );
     await page.getByRole("button", { name: "Return to game" }).click();
     await vi.waitFor(() =>
       expect(document.activeElement).toBe(document.getElementById("current-game-action")),
+    );
+    await expect
+      .poll(() => current.getBoundingClientRect().bottom)
+      .toBeLessThanOrEqual(owner.getBoundingClientRect().bottom);
+    expect(current.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+      owner.getBoundingClientRect().top,
     );
   });
 
