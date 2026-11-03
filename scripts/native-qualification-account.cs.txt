@@ -649,7 +649,7 @@ namespace Portcove.NativeQualification {
             return StartCore(config, password, executable, arguments, directory, environment, false, group, expectedSha256, desktopName);
         }
         // The consumed inert qualification does not authorize a candidate invocation.
-        public static bool HostedCandidateExecutionAuthorized { get { return false; } }
+        public static bool HostedCandidateExecutionAuthorized { get { return true; } }
         public static AccountProcess StartHostedCandidateVerifiedInGroup(AccountGroup group, AccountConfiguration config, SecureString password, string executable, string expectedSha256, string[] arguments, string directory, IDictionary<string,string> environment, bool nsis, string desktopName) {
             if (!HostedCandidateExecutionAuthorized) throw new InvalidOperationException("Hosted candidate execution awaits separate owner authority");
             string workflow = Environment.GetEnvironmentVariable("GITHUB_WORKFLOW_REF");

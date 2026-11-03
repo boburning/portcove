@@ -1,4 +1,4 @@
-/** Source-held Windows prerequisite before any protected role credential. The
+/** Source-appointed Windows prerequisite before any protected role credential. The
  * existing source factory and actual signed numeric job identity stay in this
  * realm; a serialized receipt or raw environment cannot appoint the caller. */
 import assert from "node:assert/strict";
@@ -32,8 +32,8 @@ import {
   windowsSourceSystemExecutables,
 } from "./release-native-runtime-custody.mts";
 import { inspectSupportedHostedWindowsRuntimeInput } from "./hosted-windows-runtime-input.mts";
-export const protectedWindowsRuntimePreparationExecutionAuthorized = false;
-export const protectedWindowsNativeRuntimePreparationExecutionAuthorized = false;
+export const protectedWindowsRuntimePreparationExecutionAuthorized = true;
+export const protectedWindowsNativeRuntimePreparationExecutionAuthorized = true;
 // Sequential download60s + installer300s + disposal/receipt/settlement90s.
 export const protectedWindowsRuntimeHelperMilliseconds = 450000;
 export const protectedWindowsRuntimeFinalizerReserveMilliseconds = 30000;

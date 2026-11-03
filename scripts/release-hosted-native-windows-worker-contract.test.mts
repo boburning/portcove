@@ -114,12 +114,12 @@ void test("held B stage ABI fixes package leaves and rejects imported execution 
     { ...raw, abi: "imported-success" },
   ])
     assert.throws(() => inspectHostedWindowsWorkerRequest(bad));
-  await assert.rejects(
-    runHostedWindowsWorkerStage("never-read", "invalid"),
-    /awaits separate authority/u,
-  );
+  await assert.rejects(runHostedWindowsWorkerStage("never-read", "invalid"), {
+    code: "ERR_ASSERTION",
+  });
   assert.equal(readHostedWindowsWorkerAbi().abi, hostedWindowsWorkerAbi);
   assert.equal(readHostedWindowsWorkerAbi().authority, "none");
+  assert.equal(readHostedWindowsWorkerAbi().execution_authorized, true);
 });
 void test("owner QPC deadline consumes the original parent budget and cannot renew at a later stage", () => {
   const fixed = hostedWindowsOwnerDeadline("10000000000000000", 10_000_000, 570000, 2500);

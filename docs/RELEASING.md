@@ -1202,6 +1202,24 @@ headroom. Each operation must establish its own exact result; no successful
 operation grants availability for a subsequent effect. Source/configuration loss,
 revocation or boundary drift refuses, and unrelated admission holds remain holds.
 
+The selected `initial-beta-windows-x86_64-v1` controller graph declares a
+140-minute application ceiling and a separate 40-minute catalog alternative;
+these purposes are mutually exclusive. The workflow digest, complete allocation
+arrays and policy digest must match the exact appointed source. These ceilings
+are not measured runtime, free-provider headroom or a capacity reservation. The
+Windows owner retains its original 570,000 ms clock; a larger outer job ceiling
+never renews that clock, and late signing still refuses.
+
+Ordinary Windows source appointment covers twelve gates: the two runtime
+preparation entries, hosted bootstrap/runner/session/stage/proof, original
+PowerShell owner and recovery wrappers, the hosted-memory bridge, and the C#
+candidate launcher and candidate recovery helper. The owner verifies both launch
+and recovery availability before account effects. Diagnostic worker, owner,
+bridge, launcher and recovery guards remain separate, as do connected diagnostic
+launch and targeted access audit. A source appointment cannot supply the exact
+setup grant, configuration, producer identities, journal seed, protected job
+context or client trust binding; those are independently verified before effects.
+
 `release-capacity-operation.mts` is an inactive caller-owned library, with no CLI,
 credential discovery, dispatch, upload, signing or publication implementation.
 An already admitted caller provides one exact effect against an existing frozen

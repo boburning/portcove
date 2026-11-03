@@ -493,7 +493,10 @@ void test("installed two-purpose workflow remains mutually exclusive under uncha
   assert.equal(hash(bytes), slice4CapacityResources.input_workflow_sha256);
   assert.equal(
     await readFile(
-      new URL("../docs/qualification/application-update-production.complete.yml", import.meta.url),
+      new URL(
+        "../docs/qualification/application-update-production.windows-20261103.proposed.yml",
+        import.meta.url,
+      ),
       "utf8",
     ),
     bytes.toString(),
@@ -528,8 +531,8 @@ void test("installed two-purpose workflow remains mutually exclusive under uncha
     assert.ok(isRecord(job));
     assert.match(String(job.if), /needs.admission.outputs.publication_purpose == 'application'/);
   }
-  assert.equal(slice4CapacityResources.declared_job_minutes, 89);
-  assert.equal(slice4CapacityResources.total_job_minutes, 100);
+  assert.equal(slice4CapacityResources.declared_job_minutes, 140);
+  assert.equal(slice4CapacityResources.total_job_minutes, 140);
   assert.equal(
     slice4CapacityResources.catalog_job_minutes.reduce((a, b) => a + b, 0) +
       slice4CapacityResources.catalog_observer_job_minutes.reduce((a, b) => a + b, 0) +

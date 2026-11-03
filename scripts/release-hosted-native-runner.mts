@@ -583,7 +583,7 @@ export async function prepareConfiguredHostedWindowsSource(
   return Object.freeze({ ...prepared, source });
 }
 
-export const hostedWindowsNativeJobExecutionAuthorized = false;
+export const hostedWindowsNativeJobExecutionAuthorized = true;
 async function retainWindowsStageRoute(
   root: string,
   stage: "pre-sign" | "post-sign",
