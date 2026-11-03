@@ -127,6 +127,24 @@ bounded native launch suggestions without executing files. Registration remains
 explicit and may select an executable outside the download folder after upstream
 setup; retain its working directory and literal arguments.
 
+GitLab listings use the same candidates, preview, download and pending workflow.
+Use the exact provider-qualified references returned by candidates:
+
+```sh
+portcove setup candidates PORT_ID --gitlab-project-id PROJECT_ID --release-tag TAG
+portcove setup preview PORT_ID --gitlab-project-id PROJECT_ID --release-tag TAG --gitlab-link-id LINK_ID --gitlab-file-id FILE_ID --destination-parent C:/Games --extract
+portcove setup download PORT_ID --gitlab-project-id PROJECT_ID --release-tag TAG --gitlab-link-id LINK_ID --gitlab-file-id FILE_ID --destination-parent C:/Games --extract --expected-preview PREVIEW_SHA256 --yes
+```
+
+GitLab acquisition requires a same-project registry file with independently
+published size and SHA-256. External file hosts, upload links and missing registry
+joins remain explicit limitations, even when upstream publishes other files.
+A reuploaded registry file requires a new selection and review. GitLab tags and
+links are never numeric GitHub release or asset IDs. Pending records retain the
+original listing and explicit provider identity; unsupported record formats are
+refused before recovery or mutation. Downloading a patcher or installer does not
+complete its upstream setup or establish a playable installation.
+
 Core re-reads the selected release/asset and binds the review to the destination.
 A supplied checksum must match. Without an upstream checksum the observed
 download hash is recorded with that limitation. Supported ZIP/tar.gz extraction

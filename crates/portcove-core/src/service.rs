@@ -44,6 +44,12 @@ mod protection;
 use crate::AdapterKind;
 pub use protection::{InstallationProtection, PlayerDataProtection, ProtectionDeclaration};
 mod catalog_download;
+mod catalog_download_identity;
+mod catalog_download_provider;
+pub use catalog_download_identity::{
+    CatalogDownloadAssetId, CatalogDownloadReleaseId, CatalogForeignAssetId,
+    CatalogForeignReleaseId,
+};
 mod native_portable;
 pub(crate) mod package_selection;
 mod retained_direct_compatibility;

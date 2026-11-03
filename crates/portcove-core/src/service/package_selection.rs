@@ -69,7 +69,7 @@ pub(crate) fn package_platform_match(name: &str, platform: Platform) -> PackageP
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CatalogDownloadRelease {
-    pub id: u64,
+    pub id: CatalogDownloadReleaseId,
     pub tag: String,
     pub preview: bool,
     pub assets_complete: bool,
@@ -77,7 +77,7 @@ pub struct CatalogDownloadRelease {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CatalogPackageAssessment {
-    pub asset_id: u64,
+    pub asset_id: CatalogDownloadAssetId,
     pub suitability: String,
     pub reason: String,
 }
@@ -91,7 +91,7 @@ pub(super) fn assess_package(
         assess_package_name(&asset.name, asset.can_extract, platform, hints);
     (
         CatalogPackageAssessment {
-            asset_id: asset.asset_id,
+            asset_id: asset.asset_id.clone(),
             suitability: suitability.into(),
             reason: reason.into(),
         },
@@ -262,14 +262,17 @@ pub(super) fn recommend_packages(
     platform: Platform,
     hints: &[String],
     complete: bool,
-) -> (Vec<CatalogPackageAssessment>, Option<u64>) {
+) -> (
+    Vec<CatalogPackageAssessment>,
+    Option<CatalogDownloadAssetId>,
+) {
     let assessed = assets
         .iter()
         .map(|asset| assess_package(asset, platform, hints))
         .collect::<Vec<_>>();
     let mut ranked = assessed
         .iter()
-        .filter_map(|(assessment, score)| score.map(|score| (score, assessment.asset_id)))
+        .filter_map(|(assessment, score)| score.map(|score| (score, assessment.asset_id.clone())))
         .collect::<Vec<_>>();
     ranked.sort_by_key(|item| std::cmp::Reverse(item.0));
     let recommended = if complete
@@ -277,7 +280,7 @@ pub(super) fn recommend_packages(
             .first()
             .is_some_and(|best| ranked.get(1).is_none_or(|next| best.0 > next.0))
     {
-        ranked.first().map(|best| best.1)
+        ranked.first().map(|best| best.1.clone())
     } else {
         None
     };
@@ -295,8 +298,8 @@ mod tests {
     use super::*;
     fn asset(id: u64, name: &str) -> CatalogDownloadCandidate {
         CatalogDownloadCandidate {
-            release_id: 1,
-            asset_id: id,
+            release_id: 1.into(),
+            asset_id: id.into(),
             release_tag: "v1".into(),
             release_url: String::new(),
             name: name.into(),
@@ -318,7 +321,7 @@ mod tests {
         ];
         let (options, recommendation) =
             recommend_packages(&assets, Platform::WindowsX86_64, &[], true);
-        assert_eq!(recommendation, Some(1));
+        assert_eq!(recommendation, Some(1.into()));
         assert_eq!(
             options
                 .iter()
@@ -351,7 +354,7 @@ mod tests {
         ];
         let (assessments, recommendation) =
             recommend_packages(&assets, Platform::WindowsX86_64, &hints, true);
-        assert_eq!(recommendation, Some(1));
+        assert_eq!(recommendation, Some(1.into()));
         assert_eq!(assessments[1].suitability, "auxiliary");
         assert_eq!(
             recommend_packages(&assets[1..], Platform::WindowsX86_64, &hints, true).1,
@@ -380,7 +383,7 @@ mod tests {
             &["Win32-Release.zip".into()],
             true,
         );
-        assert_eq!(recommended, Some(1));
+        assert_eq!(recommended, Some(1.into()));
         assert_eq!(assessments[1].suitability, "emulation");
         assert_eq!(assessments[2].suitability, "incompatible");
         assert_eq!(
@@ -411,7 +414,7 @@ mod tests {
             &["-windows-x64-setup.exe".into()],
             true,
         );
-        assert_eq!(recommendation, Some(2));
+        assert_eq!(recommendation, Some(2.into()));
         assert!(
             options
                 .iter()
@@ -462,7 +465,7 @@ mod tests {
                 true
             )
             .1,
-            Some(1)
+            Some(1.into())
         );
         for name in [
             "win64-debug-symbols.zip",
@@ -554,7 +557,7 @@ mod tests {
                 true
             )
             .1,
-            Some(1)
+            Some(1.into())
         );
     }
 }

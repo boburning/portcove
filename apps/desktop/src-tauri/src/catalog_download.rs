@@ -14,7 +14,7 @@ pub(crate) async fn catalog_download_candidates(
     state: tauri::State<'_, DesktopState>,
     port_id: String,
     generation: u64,
-    selected_release_id: Option<u64>,
+    selected_release_id: Option<portcove_core::CatalogDownloadReleaseId>,
     channel: Option<portcove_core::ReleaseChannel>,
 ) -> DesktopResult<CatalogDownloadCandidates> {
     let state = state.inner().clone();

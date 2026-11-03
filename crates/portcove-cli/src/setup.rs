@@ -1,20 +1,70 @@
 //! CLI presentation for Core-owned upstream package acquisition.
 use clap::{Args, Subcommand};
-use portcove_core::{CatalogDownloadRequest, PortcoveError, PortcoveService, Result};
+use portcove_core::{
+    CatalogDownloadAssetId, CatalogDownloadReleaseId, CatalogDownloadRequest,
+    CatalogForeignAssetId, CatalogForeignReleaseId, PortcoveError, PortcoveService, Result,
+};
 use std::path::PathBuf;
 
 use crate::{OutputMode, human, progress_renderer, render_read_success, require_confirmation};
 
 #[derive(Debug, Args)]
+pub(crate) struct ReleaseSelection {
+    /// Exact GitHub release ID returned by setup candidates.
+    #[arg(long, conflicts_with_all = ["gitlab_project_id", "release_tag"], value_parser = clap::value_parser!(u64).range(1..))]
+    release_id: Option<u64>,
+    /// Exact GitLab project ID returned by setup candidates.
+    #[arg(long, requires = "release_tag", value_parser = clap::value_parser!(u64).range(1..))]
+    gitlab_project_id: Option<u64>,
+    /// Exact published GitLab release tag, paired with --gitlab-project-id.
+    #[arg(long, requires = "gitlab_project_id", allow_hyphen_values = true)]
+    release_tag: Option<String>,
+}
+
+impl ReleaseSelection {
+    fn reference(&self) -> Result<Option<CatalogDownloadReleaseId>> {
+        match (
+            self.release_id,
+            self.gitlab_project_id,
+            self.release_tag.as_deref(),
+        ) {
+            (Some(id), None, None) if id != 0 => Ok(Some(id.into())),
+            (None, Some(project_id), Some(tag))
+                if project_id != 0
+                    && !tag.is_empty()
+                    && tag.len() <= 512
+                    && !tag.chars().any(char::is_control) =>
+            {
+                Ok(Some(CatalogDownloadReleaseId::Foreign(
+                    CatalogForeignReleaseId::Gitlab {
+                        project_id,
+                        tag: tag.into(),
+                    },
+                )))
+            }
+            (None, None, None) => Ok(None),
+            _ => Err(PortcoveError::usage(
+                "select one exact GitHub release or GitLab project and tag",
+            )),
+        }
+    }
+}
+
+#[derive(Debug, Args)]
 pub(crate) struct DownloadSelection {
     /// Stable listing ID from catalog listings.
     port_id: String,
-    /// Exact upstream release ID returned by setup candidates.
-    #[arg(long)]
-    release_id: u64,
-    /// Exact upstream asset ID returned by setup candidates.
-    #[arg(long)]
-    asset_id: u64,
+    #[command(flatten)]
+    release: ReleaseSelection,
+    /// Exact GitHub asset ID returned by setup candidates.
+    #[arg(long, requires = "release_id", required_unless_present = "gitlab_link_id", conflicts_with_all = ["gitlab_project_id", "release_tag", "gitlab_link_id", "gitlab_file_id"], value_parser = clap::value_parser!(u64).range(1..))]
+    asset_id: Option<u64>,
+    /// Exact GitLab release link ID returned by setup candidates.
+    #[arg(long, requires_all = ["gitlab_project_id", "gitlab_file_id"], value_parser = clap::value_parser!(u64).range(1..))]
+    gitlab_link_id: Option<u64>,
+    /// Exact GitLab registry file ID returned by setup candidates.
+    #[arg(long, requires = "gitlab_link_id", value_parser = clap::value_parser!(u64).range(1..))]
+    gitlab_file_id: Option<u64>,
     /// Existing user-owned parent outside the Library and managed output locations.
     #[arg(long)]
     destination_parent: PathBuf,
@@ -23,14 +73,162 @@ pub(crate) struct DownloadSelection {
     extract: bool,
 }
 
-impl From<DownloadSelection> for CatalogDownloadRequest {
-    fn from(value: DownloadSelection) -> Self {
-        Self {
+impl TryFrom<DownloadSelection> for CatalogDownloadRequest {
+    type Error = PortcoveError;
+
+    fn try_from(value: DownloadSelection) -> Result<Self> {
+        let release_id = value
+            .release
+            .reference()?
+            .ok_or_else(|| PortcoveError::usage("an exact release is required"))?;
+        let asset_id = match (
+            &release_id,
+            value.asset_id,
+            value.gitlab_link_id,
+            value.gitlab_file_id,
+        ) {
+            (CatalogDownloadReleaseId::Github(_), Some(id), None, None) if id != 0 => id.into(),
+            (
+                CatalogDownloadReleaseId::Foreign(CatalogForeignReleaseId::Gitlab {
+                    project_id,
+                    tag,
+                }),
+                None,
+                Some(link_id),
+                Some(file_id),
+            ) if link_id != 0 && file_id != 0 => {
+                CatalogDownloadAssetId::Foreign(CatalogForeignAssetId::Gitlab {
+                    project_id: *project_id,
+                    tag: tag.clone(),
+                    link_id,
+                    file_id,
+                })
+            }
+            _ => {
+                return Err(PortcoveError::usage(
+                    "asset references must match one complete release provider",
+                ));
+            }
+        };
+        Ok(Self {
             port_id: value.port_id,
-            release_id: value.release_id,
-            asset_id: value.asset_id,
+            release_id,
+            asset_id,
             destination_parent: value.destination_parent,
             extract_archive: value.extract,
+        })
+    }
+}
+
+#[cfg(test)]
+mod selector_tests {
+    use super::*;
+    use clap::Parser;
+
+    #[derive(Parser)]
+    struct ParseSelection {
+        #[command(flatten)]
+        selection: DownloadSelection,
+    }
+
+    fn parse(flags: &[&str]) -> std::result::Result<ParseSelection, clap::Error> {
+        ParseSelection::try_parse_from(
+            ["selection", "listing", "--destination-parent", "."]
+                .into_iter()
+                .chain(flags.iter().copied()),
+        )
+    }
+
+    #[test]
+    fn setup_selectors_preserve_github_and_gitlab_identity() {
+        let legacy: CatalogDownloadRequest = parse(&["--release-id", "7", "--asset-id", "11"])
+            .unwrap()
+            .selection
+            .try_into()
+            .unwrap();
+        assert_eq!(legacy.release_id, 7);
+        assert_eq!(legacy.asset_id, 11);
+        let foreign: CatalogDownloadRequest = parse(&[
+            "--gitlab-project-id",
+            "42",
+            "--release-tag",
+            "v1/日本",
+            "--gitlab-link-id",
+            "11",
+            "--gitlab-file-id",
+            "17",
+        ])
+        .unwrap()
+        .selection
+        .try_into()
+        .unwrap();
+        assert_eq!(
+            serde_json::to_value(&foreign.asset_id).unwrap(),
+            serde_json::json!({
+                "provider":"gitlab", "project_id":42, "tag":"v1/日本", "link_id":11, "file_id":17
+            })
+        );
+        assert_ne!(foreign.asset_id, 11);
+    }
+
+    #[test]
+    fn setup_selectors_refuse_partial_mixed_zero_and_invalid_references() {
+        for flags in [
+            vec![],
+            vec!["--release-id", "7"],
+            vec!["--asset-id", "11"],
+            vec!["--release-id", "0", "--asset-id", "11"],
+            vec!["--release-id", "7", "--asset-id", "0"],
+            vec![
+                "--gitlab-project-id",
+                "42",
+                "--release-tag",
+                "v1",
+                "--gitlab-link-id",
+                "11",
+            ],
+            vec![
+                "--gitlab-project-id",
+                "42",
+                "--release-tag",
+                "v1",
+                "--gitlab-file-id",
+                "17",
+            ],
+            vec![
+                "--gitlab-project-id",
+                "42",
+                "--release-tag",
+                "v1",
+                "--asset-id",
+                "11",
+            ],
+            vec![
+                "--release-id",
+                "7",
+                "--asset-id",
+                "11",
+                "--gitlab-project-id",
+                "42",
+                "--release-tag",
+                "v1",
+            ],
+        ] {
+            assert!(parse(&flags).is_err(), "{flags:?}");
+        }
+        for tag in ["", "v1\n"] {
+            let selection = parse(&[
+                "--gitlab-project-id",
+                "42",
+                "--release-tag",
+                tag,
+                "--gitlab-link-id",
+                "11",
+                "--gitlab-file-id",
+                "17",
+            ])
+            .unwrap();
+            assert!(CatalogDownloadRequest::try_from(selection.selection).is_err());
         }
     }
 }
@@ -41,9 +239,8 @@ pub(crate) enum SetupCommand {
     Candidates {
         /// Stable listing ID from `portcove catalog listings` whose upstream assets should be checked.
         port_id: String,
-        /// Inspect packages from this exact published release instead of selecting by channel.
-        #[arg(long)]
-        release_id: Option<u64>,
+        #[command(flatten)]
+        release: ReleaseSelection,
         /// Explicit stable or preview (beta); otherwise use the catalog recommendation.
         #[arg(long)]
         channel: Option<portcove_core::ReleaseChannel>,
@@ -107,7 +304,7 @@ pub(crate) async fn execute(
     match command {
         SetupCommand::Candidates {
             port_id,
-            release_id,
+            release,
             channel,
         } => render_read_success(
             mode,
@@ -115,7 +312,7 @@ pub(crate) async fn execute(
             service
                 .catalog_download_options(
                     &port_id,
-                    release_id,
+                    release.reference()?,
                     channel.unwrap_or(service.catalog_download_channel(&port_id)?),
                 )
                 .await?,
@@ -144,7 +341,7 @@ pub(crate) async fn execute(
                     {
                         lines.push(format!(
                             "  {}{}: {}",
-                            if result.recommended_asset_id == Some(asset.asset_id) {
+                            if result.recommended_asset_id.as_ref() == Some(&asset.asset_id) {
                                 "Recommended · "
                             } else {
                                 ""
@@ -160,7 +357,9 @@ pub(crate) async fn execute(
         SetupCommand::Preview { selection } => render_read_success(
             mode,
             name,
-            service.preview_catalog_download(&selection.into()).await?,
+            service
+                .preview_catalog_download(&selection.try_into()?)
+                .await?,
             preview_text,
         ),
         SetupCommand::Download {
@@ -168,7 +367,7 @@ pub(crate) async fn execute(
             expected_preview,
             yes,
         } => {
-            let request = selection.into();
+            let request = selection.try_into()?;
             let review = service.preview_catalog_download(&request).await?;
             if review.preview_sha256 != expected_preview {
                 return Err(PortcoveError::conflict(

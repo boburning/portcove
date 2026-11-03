@@ -479,6 +479,20 @@ export type DigestScope =
   | "file-set-member"
   | "disc-set-member";
 export type CompoundSourceFormat = "stfs-live";
+export type CatalogDownloadAssetId = number | CatalogForeignAssetId;
+export type CatalogForeignAssetId = {
+  file_id: number;
+  link_id: number;
+  project_id: number;
+  provider: "gitlab";
+  tag: string;
+};
+export type CatalogDownloadReleaseId = number | CatalogForeignReleaseId;
+export type CatalogForeignReleaseId = {
+  project_id: number;
+  provider: "gitlab";
+  tag: string;
+};
 export type ListingObservationStatus = "complete" | "incomplete" | "unavailable" | "failed";
 export type CatalogOrigin = "embedded" | "signed_active" | "signed_previous" | "definition_selected";
 export type CatalogUpdateSource =
@@ -2199,18 +2213,18 @@ export interface OutputCatalogDownloadCandidates {
   port_id: string;
   reason: string | null;
   recommendation_reason: string;
-  recommended_asset_id: number | null;
+  recommended_asset_id: CatalogDownloadAssetId | null;
   releases: CatalogDownloadRelease[];
-  selected_release_id: number | null;
+  selected_release_id: CatalogDownloadReleaseId | null;
   upstream_url: string;
   [k: string]: unknown;
 }
 export interface CatalogDownloadCandidate {
-  asset_id: number;
+  asset_id: CatalogDownloadAssetId;
   can_extract: boolean;
   download_url: string;
   name: string;
-  release_id: number;
+  release_id: CatalogDownloadReleaseId;
   release_tag: string;
   release_url: string;
   sha256: string | null;
@@ -2224,6 +2238,10 @@ export interface CatalogDownloadCoverage {
    */
   candidates_complete: boolean;
   /**
+   * Files that could not enter this provider's qualified download route.
+   */
+  limitations?: string[];
+  /**
    * A short first page established the end of the visible release history.
    */
   release_history_complete: boolean;
@@ -2235,14 +2253,14 @@ export interface CatalogDownloadCoverage {
   [k: string]: unknown;
 }
 export interface CatalogPackageAssessment {
-  asset_id: number;
+  asset_id: CatalogDownloadAssetId;
   reason: string;
   suitability: string;
   [k: string]: unknown;
 }
 export interface CatalogDownloadRelease {
   assets_complete: boolean;
-  id: number;
+  id: CatalogDownloadReleaseId;
   preview: boolean;
   tag: string;
   [k: string]: unknown;
@@ -2255,11 +2273,11 @@ export interface OutputCatalogDownloadPreview {
   [k: string]: unknown;
 }
 export interface CatalogDownloadRequest {
-  asset_id: number;
+  asset_id: CatalogDownloadAssetId;
   destination_parent: string;
   extract_archive: boolean;
   port_id: string;
-  release_id: number;
+  release_id: CatalogDownloadReleaseId;
 }
 /**
  * Independently versioned directory projection. Format 2 can restrict fresh
@@ -3574,6 +3592,7 @@ export interface PendingSetupRecord {
   archive_sha256: string;
   artifact: CatalogDownloadCandidate;
   downloaded_at: string;
+  format_version?: number;
   id: string;
   listing: PortListing;
   path: string;
