@@ -2,6 +2,7 @@ import { act } from "react";
 import axe from "axe-core";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
+import { page } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
 import * as picker from "../file-picker";
 import { failureReport, portStatus, sourceProfile } from "../test-fixtures";
@@ -86,12 +87,28 @@ const open = vi.fn();
 const changed = vi.fn(async () => undefined);
 const perform: Perform = async (_name, task) => task();
 let selection: ReturnType<typeof useSetupReviewSelection>;
-function Fixture({ generation = 3, current = true }: { generation?: number; current?: boolean }) {
+function Fixture({
+  generation = 3,
+  current = true,
+  registration = source,
+  profileLabel,
+}: {
+  generation?: number;
+  current?: boolean;
+  registration?: SourceRecord;
+  profileLabel?: string;
+}) {
   selection = useSetupReviewSelection();
   return (
     <RegisteredSourceSetup
-      sources={[source]}
-      profiles={[{ ...sourceProfile(), id: source.profile_id }]}
+      sources={[registration]}
+      profiles={[
+        {
+          ...sourceProfile(),
+          id: source.profile_id,
+          ...(profileLabel ? { label: profileLabel } : {}),
+        },
+      ]}
       statuses={statuses}
       generation={generation}
       current={current}
@@ -101,11 +118,16 @@ function Fixture({ generation = 3, current = true }: { generation?: number; curr
     />
   );
 }
-const render = (generation = 3, current = true) =>
+const render = (generation = 3, current = true, registration = source, profileLabel?: string) =>
   root.render(
     <SetupReviewSelectionProvider>
       <h1>Add games</h1>
-      <Fixture generation={generation} current={current} />
+      <Fixture
+        generation={generation}
+        current={current}
+        registration={registration}
+        {...(profileLabel ? { profileLabel } : {})}
+      />
     </SetupReviewSelectionProvider>,
   );
 const button = (text: string) =>
@@ -262,3 +284,42 @@ it("keeps a refresh failure separate after the moved location was repaired", asy
   expect(element.textContent).not.toContain("Location repair needs");
   expect(changed).toHaveBeenCalledTimes(1);
 });
+
+for (const label of [
+  "The Legend of Zelda: Majora's Mask source",
+  "Original_game_files_".repeat(12),
+]) {
+  it(`contains the saved path and checked choices at narrow widths: ${label.slice(0, 45)}`, async () => {
+    const registration = {
+      ...source,
+      path:
+        "E:/owned-evidence/retained-source-session/" +
+        "long-folder-name/".repeat(8) +
+        "original-USA-1.0.zip",
+    };
+    const review = makeReview();
+    review.registration = registration;
+    review.inspection.registered = registration;
+    vi.spyOn(desktopApi, "reviewSourceReuse").mockResolvedValue(review);
+    try {
+      await page.viewport(320, 208);
+      await act(async () => render(3, true, registration, label));
+      await select();
+      await act(async () => button("Check saved game files").click());
+      const region = element.querySelector<HTMLElement>('[aria-label="Reuse saved game files"]')!;
+      for (const width of [320, 240]) {
+        await page.viewport(width, 208);
+        await expect.poll(() => element.scrollWidth - element.clientWidth).toBeLessThanOrEqual(1);
+        const bounds = element.getBoundingClientRect();
+        for (const control of region.querySelectorAll("select, button, h3, article")) {
+          const rectangle = control.getBoundingClientRect();
+          expect(rectangle.left).toBeGreaterThanOrEqual(bounds.left);
+          expect(rectangle.right).toBeLessThanOrEqual(bounds.right + 1);
+        }
+        expect(region.textContent).toContain("This edition is not listed. Choose USA 1.0.");
+      }
+    } finally {
+      await page.viewport(1280, 800);
+    }
+  });
+}
