@@ -318,6 +318,29 @@ const resumeRecordBytes = {
   "account-0-group.json":
     "eyJhY2NvdW50X3NpZCI6IlMtMS01LTIxLTEwMDcxMzM4MjItNDI3NzI4OTIwNy02NDYwMjg0MTYtMTAwOCIsInByZXNlbnRfYmVmb3JlIjpmYWxzZSwiZ3JvdXBfc2lkIjoiUy0xLTUtMzItNTQ1IiwicHJlc2VudF9hZnRlciI6dHJ1ZX0K",
 };
+const recordedCases = {
+  "20261022": {
+    sid: "S-1-5-21-1007133822-4277289207-646028416-1008",
+    next_sid: "S-1-5-21-1007133822-4277289207-646028416-1009",
+    records: resumeRecordBytes,
+  },
+  "20261102": {
+    sid: "S-1-5-21-1007133822-4277289207-646028416-1010",
+    next_sid: "S-1-5-21-1007133822-4277289207-646028416-1011",
+    records: {
+      "intent.json":
+        "eyJyb290X3NkZGwiOiJPOlMtMS01LTIxLTEwMDcxMzM4MjItNDI3NzI4OTIwNy02NDYwMjg0MTYtMTAwMUc6Uy0xLTUtMjEtMTAwNzEzMzgyMi00Mjc3Mjg5MjA3LTY0NjAyODQxNi0xMDAxRDpQKEE7T0lDSTtGQTs7O1NZKShBO09JQ0k7RkE7OztTLTEtNS0yMS0xMDA3MTMzODIyLTQyNzcyODkyMDctNjQ2MDI4NDE2LTEwMDEpIiwiYXV0aG9yaXR5IjoiY29uZGl0aW9uYWwtc2V0dXAtb25seSIsImJyb2tlcl9zaWQiOiJTLTEtNS0yMS0xMDA3MTMzODIyLTQyNzcyODkyMDctNjQ2MDI4NDE2LTEwMDEiLCJzb3VyY2Vfc2hhMjU2IjoiZWYyZjg4ODk2ZjMzZjQ5MDUzYzM2N2FhMTYyMTIzNDUyN2I5YmExMzA2NjgxNzc2Mjg3ZmI1ZDJiYTUzMmMxMCIsInBsYW5fc2hhMjU2IjoiNjdjMjhmNTExZGRiMjNmNjgyNmQ3MDI1ZThiYzAxMjcyNzYwOGI4YjdkM2RmOWJlYWFiM2IwZTI4MmUzNDY3YiIsInNjaGVtYV92ZXJzaW9uIjoxfQo=",
+      "account-0-intent.json":
+        "eyJhYnNlbnRfYmVmb3JlIjp0cnVlLCJwcm9maWxlX2Fic2VudF9iZWZvcmUiOnRydWUsImRlc2NyaXB0aW9uIjoiUEM1MzQ6NjdjMjhmNTExZGRiMjNmNjgyNmQ3MDI1ZThiYzAxMjciLCJuYW1lIjoiUG9ydGNvdmVOYXRpdmVRdWFsIn0K",
+      "account-0-created.json":
+        "eyJwbGFuX3NoYTI1NiI6IjY3YzI4ZjUxMWRkYjIzZjY4MjZkNzAyNWU4YmMwMTI3Mjc2MDhiOGI3ZDNkZjliZWFhYjNiMGUyODJlMzQ2N2IiLCJkZXNjcmlwdGlvbiI6IlBDNTM0OjY3YzI4ZjUxMWRkYjIzZjY4MjZkNzAyNWU4YmMwMTI3IiwicG9saWN5Ijp7InVzZXJfbWF5X2NoYW5nZV9wYXNzd29yZCI6ZmFsc2UsImFjY291bnRfZXhwaXJlcyI6bnVsbCwicGFzc3dvcmRfZXhwaXJlcyI6bnVsbH0sInNpZCI6IlMtMS01LTIxLTEwMDcxMzM4MjItNDI3NzI4OTIwNy02NDYwMjg0MTYtMTAxMCIsIm5hbWUiOiJQb3J0Y292ZU5hdGl2ZVF1YWwifQo=",
+      "account-0-group-intent.json":
+        "eyJwbGFuX3NoYTI1NiI6IjY3YzI4ZjUxMWRkYjIzZjY4MjZkNzAyNWU4YmMwMTI3Mjc2MDhiOGI3ZDNkZjliZWFhYjNiMGUyODJlMzQ2N2IiLCJncm91cF9zaWQiOiJTLTEtNS0zMi01NDUiLCJhY2NvdW50X3NpZCI6IlMtMS01LTIxLTEwMDcxMzM4MjItNDI3NzI4OTIwNy02NDYwMjg0MTYtMTAxMCJ9Cg==",
+      "account-0-group.json":
+        "eyJhY2NvdW50X3NpZCI6IlMtMS01LTIxLTEwMDcxMzM4MjItNDI3NzI4OTIwNy02NDYwMjg0MTYtMTAxMCIsInByZXNlbnRfYmVmb3JlIjpmYWxzZSwicHJlc2VudF9hZnRlciI6dHJ1ZSwiZ3JvdXBfc2lkIjoiUy0xLTUtMzItNTQ1In0K",
+    },
+  },
+} as const;
 const resumePath = fileURLToPath(new URL("./resume-local-worker-profile.ps1", import.meta.url));
 const resumeFunctions = `${ast}
 $original=[IO.File]::ReadAllText(${quote(sourcePath)});
@@ -332,6 +355,19 @@ void test(
   { skip: process.platform !== "win32" },
   () => {
     powershell(`${resumeFunctions}
+    $fixtures=${quote(JSON.stringify(recordedCases))}|ConvertFrom-Json;
+    foreach($fixture in $fixtures.PSObject.Properties){
+      $binding=Get-ResumeCase $fixture.Name;
+      if($binding.sid -cne $fixture.Value.sid -or $binding.preimage.Count -ne 5){throw 'Recorded case identity differs'};
+      foreach($record in $fixture.Value.records.PSObject.Properties){
+        $bytes=[Convert]::FromBase64String($record.Value);$hash=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes)).ToLowerInvariant();
+        if($binding.preimage[$record.Name][0] -ne $bytes.Length -or $binding.preimage[$record.Name][1] -cne $hash){throw 'Captured prefix case differs'};
+      };
+      if($binding.intent_name -cne ('profile-resume-intent-'+$fixture.Name+'.json') -or $binding.complete_name -cne ('profile-resume-complete-'+$fixture.Name+'.json')){throw 'Case completion namespace differs'};
+    };
+    if((Get-ResumeCase).sid -cne $fixtures.'20261022'.sid -or (Get-ResumeCase).source_path -cne 'C:\\ProgramData\\PortcoveSlice4Bootstrap\\profile-resume.ps1'){throw 'Historical default changed'};
+    if((Get-ResumeCase '20261102').source_path -cne 'C:\\ProgramData\\PortcoveSlice4Bootstrap\\profile-resume-20261102.ps1'){throw 'New case source namespace differs'};
+    foreach($unknown in @('','20261103','../20261102')){$refused=$false;try{$null=Get-ResumeCase $unknown}catch{$refused=$true};if(-not $refused){throw 'Unknown recorded case accepted'}};
     if($programs.suffix.Contains('New-LocalUser') -or $programs.suffix.Contains('Read-Host') -or $programs.suffix.Contains('Join-FixedUsers')){throw 'Account0 effects replayed'};
     if(-not $programs.body.Contains('New-LocalUser') -or -not $programs.tail.Contains('Assert-Account')){throw 'Original remaining path missing'};
     if(-not $programs.interop.Contains('new StringBuilder(260)') -or $programs.interop.Contains('new StringBuilder(32768)')){throw 'Profile buffer repair missing'};
@@ -346,14 +382,16 @@ void test(
   "actual continued loop, real temporary ACL tail and credentials to enable retain the existing account",
   { skip: process.platform !== "win32" },
   async () => {
-    const directory = await mkdtemp(path.join(os.tmpdir(), "pc-profile-resume-"));
-    try {
-      powershell(`${resumeFunctions}
+    for (const [recordedCase, fixture] of Object.entries(recordedCases)) {
+      const directory = await mkdtemp(path.join(os.tmpdir(), "pc-profile-resume-"));
+      try {
+        powershell(`${resumeFunctions}
+      $recordedCase=${quote(recordedCase)};$binding=Get-ResumeCase $recordedCase;
       $base=${quote(directory)};$root=Join-Path $base 'root';$bootstrap=Join-Path $base 'bootstrap';
       [IO.Directory]::CreateDirectory($root)|Out-Null;[IO.Directory]::CreateDirectory($bootstrap)|Out-Null;
       $broker=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value;
       $PlanSha256='67c28f511ddb23f6826d7025e8bc012727608b8b7d3df9beaab3b0e282e3467b';$source='ef2f88896f33f49053c367aa1621234527b9ba1306681776287fb5d2ba532c10';$resumeSource='c'*64;
-      $sid0='S-1-5-21-1007133822-4277289207-646028416-1008';$sid1='S-1-5-21-1007133822-4277289207-646028416-1009';
+      $sid0=${quote(fixture.sid)};$sid1=${quote(fixture.next_sid)};
       $aclCalls=0;$description='PC534:'+$PlanSha256.Substring(0,32);$users=@{};$prompts=@();$newUsers=@();$enables=@();
       $users.PortcoveNativeQual=[pscustomobject]@{Name='PortcoveNativeQual';SID=[pscustomobject]@{Value=$sid0};Description=$description;Enabled=$false;UserMayChangePassword=$false;PasswordExpires=$null;AccountExpires=$null};
       $maps=@{'C:\\Users\\PortcoveNativeQual'=(Join-Path $base 'profile0');'C:\\Users\\PortcovePublicProof'=(Join-Path $base 'profile1')};
@@ -376,20 +414,22 @@ void test(
       function Enable-LocalUser {param($SID)$match=@($users.Values|Where-Object {$_.SID.Value -ceq $SID});if($match.Count -ne 1){throw 'Unknown activation SID'};$script:enables+=,$SID;$match[0].Enabled=$true};
       Add-Type 'public static class PortcoveAccountSetup { public static int stores=0; public static int failStore=-1; public static string Profile(string sid,string name){var path=@"C:\\Users\\"+name;System.Console.Error.WriteLine("inert Profile("+name+")="+path);return path;} public static void AssertAbsent(int index){} public static void Store(int index,string name,string sid,System.Security.SecureString password){if(index==failStore)throw new System.InvalidOperationException("inert store refusal");stores++;} public static void Check(int index,string name){if(stores!=2)throw new System.InvalidOperationException("incomplete inert credentials");} }';
       Set-ExactDirectoryAcl $base $broker|Out-Null;Set-ExactDirectoryAcl $root $broker|Out-Null;
-      $prefixBytes=${quote(JSON.stringify(resumeRecordBytes))}|ConvertFrom-Json;foreach($p in $prefixBytes.PSObject.Properties){[IO.File]::WriteAllBytes((Join-Path $root $p.Name),[Convert]::FromBase64String($p.Value))};
-      $continuation=@{kind='exact-recorded-profile-continuation-v1';actual_continuation_sha256=$resumeSource;original_template_sha256=$source;original_intent_sha256='e85e68d55f490ae3023666cfdb66359cccb6a57d2704f8d17c690f5b89f6d52e';owned_account_sid=$sid0;profile_buffer_characters=260};
+      $prefixBytes=${quote(JSON.stringify(fixture.records))}|ConvertFrom-Json;foreach($p in $prefixBytes.PSObject.Properties){[IO.File]::WriteAllBytes((Join-Path $root $p.Name),[Convert]::FromBase64String($p.Value))};
+      $continuation=@{kind='exact-recorded-profile-continuation-v1';actual_continuation_sha256=$resumeSource;original_template_sha256=$source;original_intent_sha256=${quote(createHash("sha256").update(Buffer.from(fixture.records["intent.json"], "base64")).digest("hex"))};owned_account_sid=$sid0;profile_buffer_characters=260};
       Invoke-ResumePrograms $programs $users.PortcoveNativeQual $root $broker $PlanSha256 $continuation;
       $createdRead=Read-BoundedJson (Join-Path $root 'created.json');$created=$createdRead.value;
       if(($newUsers -join ',') -cne 'PortcovePublicProof' -or $prompts.Count -ne 1 -or $created.accounts[0].sid -cne $sid0 -or $created.accounts[1].sid -cne $sid1 -or $created.source_sha256 -cne $source -or $created.continuation.actual_continuation_sha256 -cne $resumeSource){throw 'Continuation identity/effect accounting differs'};
       foreach($account in $created.accounts){$acl=Get-Acl -LiteralPath $account.work;$foreign=@($acl.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier])|Where-Object {$_.IdentityReference.Value -in @($sid0,$sid1) -and $_.IdentityReference.Value -cne $account.sid});if($foreign.Count){throw 'Cross-account work access'}};
       foreach($leaf in @('config','credentials','capture')){foreach($ace in (Get-Acl -LiteralPath (Join-Path $root $leaf)).GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier])){if($ace.IdentityReference.Value -in @($sid0,$sid1)){throw 'Private leaf readable'}}};
-      Write-NewJson (Join-Path $bootstrap 'profile-resume-intent-20261022.json') @{schema_version=1;continuation=$continuation;preimage=(Get-ResumePreimage);automatic_retry=$false};$intentRead=Read-BoundedJson (Join-Path $bootstrap 'profile-resume-intent-20261022.json');
-      Write-NewJson (Join-Path $bootstrap 'profile-resume-complete-20261022.json') @{schema_version=1;actual_continuation_sha256=$resumeSource;intent_sha256=$intentRead.sha256;created_sha256=$createdRead.sha256;automatic_retry=$false;accounts_remain_disabled=$true};
-      $refused=$false;try{$null=Assert-ResumeCompletion $root $bootstrap ('d'*64)}catch{$refused=$true};if(-not $refused){throw 'Wrong actual source accepted'};
-      $completion=Assert-ResumeCompletion $root $bootstrap $resumeSource;if(-not $completion.accounts_remain_disabled){throw 'Premature activation'};
+      Write-NewJson (Join-Path $bootstrap $binding.intent_name) @{schema_version=1;continuation=$continuation;preimage=(Get-ResumePreimage $recordedCase);automatic_retry=$false};$intentRead=Read-BoundedJson (Join-Path $bootstrap $binding.intent_name);
+      Write-NewJson (Join-Path $bootstrap $binding.complete_name) @{schema_version=1;actual_continuation_sha256=$resumeSource;intent_sha256=$intentRead.sha256;created_sha256=$createdRead.sha256;automatic_retry=$false;accounts_remain_disabled=$true};
+      $refused=$false;try{$null=Assert-ResumeCompletion $root $bootstrap ('d'*64) $recordedCase}catch{$refused=$true};if(-not $refused){throw 'Wrong actual source accepted'};
+      $completion=Assert-ResumeCompletion $root $bootstrap $resumeSource $recordedCase;if(-not $completion.accounts_remain_disabled){throw 'Premature activation'};
+      $otherCase=if($recordedCase -ceq '20261022'){'20261102'}else{'20261022'};
+      $refused=$false;try{$null=Assert-ResumeCompletion $root $bootstrap $resumeSource $otherCase}catch{$refused=$true};if(-not $refused){throw 'Other case completion accepted'};
       $prefixFile=Join-Path $root 'account-0-created.json';$prefixOriginal=[IO.File]::ReadAllBytes($prefixFile);[IO.File]::WriteAllBytes($prefixFile,($prefixOriginal+[byte]32));
-      $refused=$false;try{$null=Assert-ResumeCompletion $root $bootstrap $resumeSource}catch{$refused=$true};if(-not $refused){throw 'Changed original record accepted'};[IO.File]::WriteAllBytes($prefixFile,$prefixOriginal);
-      $wrongPreimage=(Get-ResumePreimage);$wrongPreimage['account-0-created.json']=@(311,('f'*64));$refused=$false;try{Assert-ResumePreimage $root $wrongPreimage}catch{$refused=$true};if(-not $refused){throw 'Changed preimage map accepted'};
+      $refused=$false;try{$null=Assert-ResumeCompletion $root $bootstrap $resumeSource $recordedCase}catch{$refused=$true};if(-not $refused){throw 'Changed original record accepted'};[IO.File]::WriteAllBytes($prefixFile,$prefixOriginal);
+      $wrongPreimage=(Get-ResumePreimage $recordedCase);$wrongPreimage['account-0-created.json']=@(311,('f'*64));$refused=$false;try{Assert-ResumePreimage $root $wrongPreimage $recordedCase}catch{$refused=$true};if(-not $refused){throw 'Changed preimage map accepted'};
       $originalKeys=$tree.Find({param($n)$n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -ceq 'Assert-Keys'},$true);. ([scriptblock]::Create($originalKeys.Extent.Text));
       $credentialBranch=$tree.Find({param($n)$n -is [Management.Automation.Language.IfStatementAst] -and $n.Clauses[0].Item1.Extent.Text -ceq '$Mode -eq ''credentials'''},$true);
       $enableBranch=$tree.Find({param($n)$n -is [Management.Automation.Language.IfStatementAst] -and $n.Clauses[0].Item1.Extent.Text -ceq '$Mode -eq ''enable'''},$true);
@@ -406,8 +446,9 @@ void test(
       if(-not $failed -or [PortcoveAccountSetup]::stores -ne 1 -or -not (Test-Path -LiteralPath (Join-Path $root 'credentials-intent.json')) -or (Test-Path -LiteralPath (Join-Path $root 'credentials-complete.json')) -or $enables.Count){throw 'Partial credential effects lost or activated'};
       $failed=$false;try{. ([scriptblock]::Create($credentialBranch.Extent.Text))}catch{$failed=$true};if(-not $failed -or [PortcoveAccountSetup]::stores -ne 1){throw 'Credential ambiguity retried'};
       'complete-controlled-journey-pass';`);
-    } finally {
-      await rm(directory, { recursive: true, force: true });
+      } finally {
+        await rm(directory, { recursive: true, force: true });
+      }
     }
   },
 );
@@ -416,20 +457,25 @@ void test(
   { skip: process.platform !== "win32" },
   () => {
     powershell(`${resumeFunctions}
-    $case='valid';$sid='S-1-5-21-1007133822-4277289207-646028416-1008';
+    $fixtures=${quote(JSON.stringify(recordedCases))}|ConvertFrom-Json;
+    $case='valid';$sid=$fixtures.'20261022'.sid;
     function Get-LocalUser {param($ErrorAction)
       $row=[pscustomobject]@{Name='PortcoveNativeQual';SID=[pscustomobject]@{Value=$sid};Description='PC534:67c28f511ddb23f6826d7025e8bc0127';Enabled=($case -ceq 'enabled');UserMayChangePassword=($case -ceq 'policy');PasswordExpires=$null;AccountExpires=$null};
       if($case -ceq 'sid'){$row.SID.Value='S-1-5-21-1-2-3-9999'};if($case -ceq 'description'){$row.Description='foreign'};
       if($case -ceq 'unknown-user'){throw 'unavailable SAM'};if($case -ceq 'missing'){return};if($case -in @('second','second-case')){return @($row,[pscustomobject]@{Name=if($case -ceq 'second-case'){'portcovepublicproof'}else{'PortcovePublicProof'}})};return $row
     };
     function Get-LocalGroup {param($ErrorAction)if($case -ceq 'group'){return [pscustomobject]@{SID=[pscustomobject]@{Value='S-1-5-32-544'}}};return [pscustomobject]@{SID=[pscustomobject]@{Value='S-1-5-32-545'}}};
-    function Get-LocalGroupMember {param($SID,$ErrorAction)return [pscustomobject]@{SID=[pscustomobject]@{Value='S-1-5-21-1007133822-4277289207-646028416-1008'}}};
+    function Get-LocalGroupMember {param($SID,$ErrorAction)return [pscustomobject]@{SID=[pscustomobject]@{Value=$script:fixtureAccountSid}}};
     function Assert-RecoveryAbsent {param($Path)if($case -ceq 'directory'){throw 'existing fixed path'}};
     function Get-ChildItem {param($LiteralPath,$ErrorAction)if($case -ceq 'unknown-profile'){throw 'unavailable ProfileList'};if($case -in @('registered','suffix')){return [pscustomobject]@{PSChildName=if($case -ceq 'registered'){$sid}else{'other'};PSPath='inert'}}};
     function Get-ItemProperty {param($LiteralPath,$ErrorAction)return [pscustomobject]@{ProfileImagePath='C:\\Users\\PortcoveNativeQual.other'}};
-    $null=Assert-ResumeProvider;
-    foreach($case in @('enabled','policy','sid','description','unknown-user','missing','second','second-case','group','directory','unknown-profile','registered','suffix')){
-      $refused=$false;try{$null=Assert-ResumeProvider}catch{$refused=$true};if(-not $refused){throw ('Unsafe resume admitted: '+$case)}
+    foreach($fixture in $fixtures.PSObject.Properties){
+      $recordedCase=$fixture.Name;$sid=$fixture.Value.sid;$script:fixtureAccountSid=$sid;$case='valid';$null=Assert-ResumeProvider $recordedCase;
+      $otherCase=if($recordedCase -ceq '20261022'){'20261102'}else{'20261022'};
+      $refused=$false;try{$null=Assert-ResumeProvider $otherCase}catch{$refused=$true};if(-not $refused){throw 'Other case SID accepted'};
+      foreach($case in @('enabled','policy','sid','description','unknown-user','missing','second','second-case','group','directory','unknown-profile','registered','suffix')){
+        $refused=$false;try{$null=Assert-ResumeProvider $recordedCase}catch{$refused=$true};if(-not $refused){throw ('Unsafe resume admitted: '+$case)}
+      };
     };
     'recorded-provider-refusals-pass';`);
   },
@@ -461,7 +507,8 @@ void test(
       Set-ExactDirectoryAcl $directory $broker|Out-Null;
       function Assert-RecoveryDirectory {param($Path,$Broker)if($Path -cne $directory){throw 'Other installer directory'};$a=Get-Acl -LiteralPath $Path;if(-not $a.AreAccessRulesProtected -or $a.GetOwner([Security.Principal.SecurityIdentifier]).Value -cne $Broker){throw 'Unowned installer fixture'}};
       $installNode=$resumeTree.Find({param($n)$n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -ceq 'Open-ProfileResumeSource'},$true);
-      . ([scriptblock]::Create($installNode.Extent.Text.Replace(${quote("'C:\\ProgramData\\PortcoveSlice4Bootstrap\\profile-resume.ps1'")},${quote(quote(installed))})));
+      function Get-ResumeCase {param($RecordedCase)if($RecordedCase -cne '20261022'){throw 'Other installer case'};return @{source_path=$target}};
+      . ([scriptblock]::Create($installNode.Extent.Text));
       $payload='Write-Output ''inert-reviewed-source''';$bytes=[Text.Encoding]::UTF8.GetBytes($payload);$hash=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes)).ToLowerInvariant();
       $held=Open-ProfileResumeSource $bytes $hash $broker;
       try{
