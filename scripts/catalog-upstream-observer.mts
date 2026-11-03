@@ -10,6 +10,7 @@ import {
 } from "./provider-release-observation.mts";
 import type { ProviderCapacity, ProviderProgress } from "./provider-release-observation.mts";
 import { isRecord } from "./runtime-values.mts";
+import { decodeStoredObserverCheckpoint } from "./observer-checkpoint-storage.mts";
 import {
   observationHash,
   ObservationFailure,
@@ -987,7 +988,11 @@ export async function advanceCatalogObservations(
         Math.min(template.budget.requests, Math.floor(capacity() / (pending.length - index))),
       );
       const result = await options.withSourceLock(config, async () => {
-        const priorSource = await options.load(config);
+        const priorSource = decodeStoredObserverCheckpoint(
+          await options.load(config),
+          deadline,
+          now,
+        );
         const position = (continuation: unknown) => {
           if (!isRecord(continuation))
             return observationHash({ phase: "collect", cursor: 0, pages: [] });

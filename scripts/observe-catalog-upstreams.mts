@@ -35,6 +35,7 @@ import type { ObserverConfig } from "./upstream-observer.mts";
 import { observedHealthRepositoryIdentity } from "./upstream-health-monitor.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 import { observerSnapshotLimit } from "./observer-checkpoint-artifact.mts";
+import { decodeStoredObserverCheckpoint } from "./observer-checkpoint-storage.mts";
 
 const defaultRoot = fileURLToPath(new URL("../", import.meta.url));
 
@@ -62,7 +63,11 @@ export async function retireObserverConfigurations(
       try {
         await withCheckpointLock(checkpointFile, async () => {
           validateObserverCheckpoint(
-            await boundedJson(checkpointFile, 32 * 1024 * 1024, true),
+            decodeStoredObserverCheckpoint(
+              await boundedJson(checkpointFile, 32 * 1024 * 1024, true),
+              deadline,
+              now,
+            ),
             retired,
           );
           const files: string[] = [];
@@ -72,7 +77,11 @@ export async function retireObserverConfigurations(
               path.join(directory(retired), name),
               "retired observation cache",
             );
-            const document = await boundedJson(filename, 32 * 1024 * 1024, true);
+            const stored = await boundedJson(filename, 32 * 1024 * 1024, true);
+            const document =
+              name === "checkpoint.json"
+                ? decodeStoredObserverCheckpoint(stored, deadline, now)
+                : stored;
             if (document === null) continue;
             const metadata = await lstat(filename);
             if (
@@ -230,10 +239,14 @@ export async function runCatalogUpstreams(
       withSourceLock: (sourceConfig, operation) =>
         withCheckpointLock(path.join(directory(sourceConfig), "checkpoint.json"), operation),
       load: async (sourceConfig) => {
-        const value = await boundedJson(
-          path.join(directory(sourceConfig), "checkpoint.json"),
-          32 * 1024 * 1024,
-          true,
+        const value = decodeStoredObserverCheckpoint(
+          await boundedJson(
+            path.join(directory(sourceConfig), "checkpoint.json"),
+            32 * 1024 * 1024,
+            true,
+          ),
+          operationDeadline,
+          now,
         );
         sourcePositions.set(observationHash(sourceConfig), acceptedObservationPosition(value));
         return value;

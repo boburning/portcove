@@ -208,17 +208,35 @@ The hosted path reserves four MiB of that same sixteen-MiB output envelope for a
 complete inert recovery snapshot, in addition to the existing four-MiB summary
 reserve. Source handoffs use the remaining eight MiB across all batches. The
 snapshot contains the catalog scheduler and its referenced per-source checkpoints;
-it excludes reports, locks, temporary files and executables. Format 2 losslessly
-encodes the complete graph as a size- and SHA-256-bound gzip/base64 envelope. The
-four-MiB reserve applies to that entire encoded JSON payload, including base64 and
-metadata. The outer ZIP keeps its existing four-MiB compressed and expanded limits.
-Before decoding, the complete logical graph is limited to the existing
-thirty-two-MiB checkpoint reader bound; declared-size-limited inflation, canonical
-base64, decoded size/hash and all existing graph/scope checks are required. This
-adds an aggregate decoded bound without pruning any accepted checkpoint data.
-Legacy uncompressed format-1 artifacts keep their original four-MiB wire limit.
-Logs report controller, complete decoded and actual transferred sizes separately;
-the controller's size alone never proves the full graph fits.
+it excludes reports, locks, temporary files and executables. Production format 3
+uses a fixed binary magic, a closed size/hash-bound header of at most 512 bytes,
+and gzip payload. The entire member, including that header, remains limited to
+four MiB. The outer ZIP retains its four-MiB compressed and expanded limits.
+Formats 1 and 2 remain readable with their original bounds.
+
+The decoded **stored graph** remains bounded to thirty-two MiB. Large source
+checkpoints use lossless, tagged gzip/base64 storage wrappers inside that graph.
+Each wrapper has a closed schema, canonical encoding, declared decoded size and
+SHA-256; inflation cannot exceed the original thirty-two-MiB per-source reader
+limit. Nested wrappers and decoded non-source documents refuse. Normal complete
+checkpoint/configuration validation still follows decoding. Uncompressed legacy
+files remain valid; small or incompressible files need not be wrapped. A raw source
+larger than the original reader limit is refused even if it would compress well.
+
+The aggregate logical source JSON can exceed thirty-two MiB; it is never assembled
+as one expanded graph. Collection and validation decode one source at a time and
+retain only its stored representation. Atomic restoration writes those compact
+files, whose aggregate stored bytes remain within the graph bound. Runtime loads
+decode before continuation, progress-position and retired-cache ownership checks.
+Existing raw writers, accepted provider pages/digests, clocks, Core cursors and
+configuration bindings remain unchanged. One absolute collection deadline covers
+codecs and graph validation. This reduces storage and transfer representation
+without discarding data or increasing any existing physical input/output ceiling.
+
+Collection diagnostics distinguish actual input-file bytes, logical JSON bytes,
+stored JSON bytes, largest source and file count. Export logs separately report
+the complete stored graph and actual transferred bytes; controller size and
+compressed Actions-cache size alone cannot establish snapshot fit.
 
 If the lossless encoding cannot fit its reserve, publication fails visibly and
 the original checkpoints and cache remain retained. This is no increase to the
