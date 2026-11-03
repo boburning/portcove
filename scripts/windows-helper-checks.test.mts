@@ -1172,3 +1172,66 @@ void test("operation-report helper changes preserve the Windows consumer route",
   ])
     assert.equal(windowsHelperChecksRequired({ mode: "fast", changes: [change] }), true);
 });
+
+void test(
+  "installer byte-preserving mode requires a raw pin and retains default bundle hashing",
+  { skip: process.platform !== "win32" },
+  async (t) => {
+    const { spawnSync } = await import("node:child_process");
+    const { mkdtemp, writeFile, rm } = await import("node:fs/promises");
+    const { tmpdir } = await import("node:os");
+    const path = await import("node:path");
+    const { fileURLToPath } = await import("node:url");
+    const { createHash } = await import("node:crypto");
+    const root = await mkdtemp(path.join(tmpdir(), "portcove-installer-hash-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const input = path.join(root, "inert.exe");
+    const bytes = Buffer.from("prefix__TAURI_BUNDLE_TYPE_VAR_UNKsuffix");
+    await writeFile(input, bytes);
+    const raw = createHash("sha256").update(bytes).digest("hex");
+    const bundled = createHash("sha256")
+      .update(Buffer.from("prefix__TAURI_BUNDLE_TYPE_VAR_NSSsuffix"))
+      .digest("hex");
+    const installer = fileURLToPath(new URL("./test-windows-installer.ps1", import.meta.url));
+    const quote = (value: string) => value.replaceAll("'", "''");
+    const script = `
+$ErrorActionPreference = 'Stop'
+$tokens = $null; $errors = $null
+$ast = [Management.Automation.Language.Parser]::ParseFile('${quote(installer)}', [ref]$tokens, [ref]$errors)
+if ($errors.Count) { throw 'Installer script did not parse' }
+$functions = @($ast.FindAll({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Get-ExpectedBundledHash' }, $true))
+if ($functions.Count -ne 1) { throw 'Hash function is absent or ambiguous' }
+Invoke-Expression $functions[0].Extent.Text
+$applied = Get-ExpectedBundledHash '${quote(input)}'
+$skipped = Get-ExpectedBundledHash '${quote(input)}' 'Skipped' '${raw}'
+if ($applied.raw_sha256 -cne '${raw}' -or $applied.bundled_sha256 -cne '${bundled}' -or -not $applied.bundle_slot_patched -or $applied.binary_patching -cne 'Applied') { throw 'Default marker patch changed' }
+if ($skipped.raw_sha256 -cne '${raw}' -or $skipped.bundled_sha256 -cne '${raw}' -or $skipped.bundle_slot_patched -or $skipped.binary_patching -cne 'Skipped') { throw 'Skipped mode changed bytes' }
+foreach ($pin in @('', '${"0".repeat(64)}', '${"A".repeat(64)}')) {
+  $message = $null
+  try { Get-ExpectedBundledHash '${quote(input)}' 'Skipped' $pin | Out-Null } catch { $message = $_.Exception.Message }
+  if ($message -notlike '*exact raw SHA-256 pin*') { throw 'Missing or mismatched pin was accepted' }
+}
+$guard = @($ast.EndBlock.Statements | Where-Object { $_.Extent.Text.Contains('Skipped binary patching requires an expected executable') })
+if ($guard.Count -ne 1) { throw 'Pre-install input guard is absent or ambiguous' }
+$ExpectedBinaryPatching = 'Skipped'; $ExpectedExecutablePath = ''; $ExpectedExecutableSha256 = ''
+$message = $null
+try { Invoke-Expression $guard[0].Extent.Text } catch { $message = $_.Exception.Message }
+if ($message -notlike '*requires an expected executable*') { throw 'Missing inputs reached installation' }
+'validated'
+`;
+    const result = spawnSync(
+      "pwsh",
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-EncodedCommand",
+        Buffer.from(script, "utf16le").toString("base64"),
+      ],
+      { encoding: "utf8", windowsHide: true, timeout: 10000 },
+    );
+    assert.ifError(result.error);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout.trim(), "validated");
+    assert.deepEqual(await readFile(input), bytes);
+  },
+);
