@@ -1273,6 +1273,90 @@ mod tests {
     }
 
     #[test]
+    fn prepared_guide_adoption_2738_tetris_player() {
+        assert_bound_listing_player_route("mstan-tetrisgbrecomp", "Tetris.exe", &[]);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_2725_n64_player() {
+        assert_bound_listing_player_route(
+            "n64hub-super-mario-64-recomp",
+            "SuperMario64Recompiled.exe",
+            &[],
+        );
+    }
+
+    #[test]
+    fn prepared_guide_adoption_2776_windows_player() {
+        assert_bound_listing_player_route(
+            "n64hub-perfect-dark-recomp",
+            "PerfectDarkRecompiled.exe",
+            &[],
+        );
+    }
+
+    #[test]
+    fn prepared_guide_adoption_2838_controller_pak_player() {
+        assert_bound_listing_player_route("n64hub-rush-2049-recomp", "Rush2049Recompiled.exe", &[]);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_2851_enhanced_portable_player() {
+        assert_bound_listing_player_route("kandowontu2-urbanrecomp", "UrbanRecomp.exe", &[]);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_2624_compiled_product_player() {
+        assert_bound_listing_player_route("wild-9-wild9recomp", "Wild9_Recompiled.exe", &[]);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_2759_same_process_player() {
+        assert_bound_listing_player_route("previouslevelgames-recharged", "recharged.exe", &[]);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_1871_existing_ntsc_player() {
+        assert_bound_listing_player_route("theclub654-projectcane", "Sly1-Release.exe", &[]);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_2811_waiting_portable_launcher() {
+        assert_bound_listing_player_route(
+            "linkssy2-urbanchaosriotresponseburneredition",
+            "Play Burner Edition.exe",
+            &[],
+        );
+    }
+
+    #[test]
+    fn prepared_guide_adoption_2812_direct_tu2_player() {
+        assert_bound_listing_player_route(
+            "shaneomac1337-wwe-allstars-recomp",
+            "wweallstars.exe",
+            &[],
+        );
+    }
+
+    #[test]
+    fn prepared_guide_adoption_2772_waiting_configured_launcher() {
+        assert_bound_listing_player_route(
+            "josiahg2502-glitch-newsuperpaperbros",
+            "New Super Paper Bros.exe",
+            &[],
+        );
+    }
+
+    #[test]
+    fn prepared_guide_adoption_2610_literal_disc_path_player() {
+        assert_bound_listing_player_route(
+            "star-fox-adventures-foxhollow",
+            "foxhollow.exe",
+            &[r"C:\Owned Games\Star Fox Adventures.iso"],
+        );
+    }
+
+    #[test]
     fn prepared_guide_adoption_1878_external_copy_preserves_managed_offer() {
         let id = "sdlpal-sdlpal";
         let (temporary, mut service, probe, working) = fixture(id);

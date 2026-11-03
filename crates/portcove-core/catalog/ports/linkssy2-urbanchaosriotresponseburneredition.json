@@ -3,7 +3,7 @@
   "listing": {
     "id": "linkssy2-urbanchaosriotresponseburneredition",
     "name": "Urban Chaos: Riot Response (Urban Chaos Riot Response Burner Edition)",
-    "summary": "An experimental Urban Chaos: Riot Response port with Windows release and limited Linux compatibility testing. The Windows 0.07 ZIP supplies BurnerEditionSetup.exe to import and check your own supported original-Xbox ISO, prepare data and shaders, then launch the game. Keep GameData when following upstream replacement instructions. Windows 10/11 x64 needs Direct3D 12. The newer 0.07.5 Linux patch runs the same Windows player through Proton/Wine and is not a native Linux player. Spanish packaging and shader corrections are documented, while clean source/build status and broader gameplay remain limited. Exact accepted game revision/hashes and BIOS/firmware needs are unconfirmed. You and the project manage version changes; Portcove has not confirmed setup or gameplay.",
+    "summary": "An experimental Urban Chaos: Riot Response Windows port. The inspected Burner Edition 0.08 route uses upstream setup for your own supported original-Xbox ISO/XISO, then Play Burner Edition.exe with the complete package and portable GameData. Upstream owns preparation and runtime replacement. Co-op, HD HUD and broader campaign limits remain; Linux uses the Windows runtime through Proton. Portcove registers an independently permitted existing copy without certifying setup or gameplay.",
     "original_game_title": "Urban Chaos: Riot Response",
     "project_url": "https://github.com/linkssy2/UrbanChaosRiotResponseBurnerEdition",
     "platforms": [],
@@ -17,7 +17,31 @@
       "game_slug": "urban-chaos-riot-response",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2811
+    "issue_number": 2811,
+    "manual_setup": {
+      "help_url": "https://github.com/linkssy2/UrbanChaosRiotResponseBurnerEdition/blob/935131bc2c01b3f4a78686541890f5f1f07d51fc/launcher/burner-xbe/README-release.txt",
+      "steps": [
+        {
+          "title": "Keep a complete prepared Burner Edition copy",
+          "instruction": "Use your independently permitted prepared Windows Burner Edition 0.08 copy. Finish upstream’s supported original-Xbox ISO/XISO import through Burner Edition Setup.exe outside Portcove. Keep the complete release folder, including tools, its bundled Python, runtime files, notices and your GameData. The selected Play launcher depends on those companions; copying only its executable is incomplete. Optional Spanish voices require your own separately supported European PS2 original and upstream’s import; they are not supplied by registration."
+        },
+        {
+          "title": "Select the waiting native Play launcher",
+          "instruction": "Select Play Burner Edition.exe in the release folder, use that same folder as working directory and leave arguments empty. The inspected native launcher waits for its bundled worker, which prepares the upstream runtime and waits for the game. Do not substitute the internal trial runtime or Python executable: the supported worker supplies required asset paths and settings. Portcove supervises the selected launcher process; its registration does not authenticate every companion or take ownership of the worker’s file changes."
+        },
+        {
+          "title": "Preserve portable data and its original layout",
+          "instruction": "Keep all of GameData, especially xbe-runtime, settings.toml, hdd profiles, imported game files, translations, optional voices, mods and learned shader caches. The 0.08 Play route uses portable GameData and does not fall back to the older AppData installation. Upstream setup owns any first-import legacy copy; registration does not recreate it. For upstream replacement, keep the old copy and copy your GameData beside the new complete launchers as upstream documents. Relink changed selected executable bytes after review."
+        },
+        {
+          "title": "Keep the actual ownership and test limits",
+          "instruction": "Review registration before the separate Play step. Upstream owns language preparation and runtime replacement within GameData. Removing the registration preserves external files. Portcove does not offer managed installation, original import, updates, backup, rollback, save migration or deletion for this copy. Experimental co-op, aiming offsets, HD HUD issues and broader campaign limits remain upstream limitations; Linux packages use this Windows runtime through Proton and are not native Linux acceptance."
+        }
+      ],
+      "warnings": [
+        "Only use copies, originals, translations and optional artwork or texture packs you are permitted to use. Keep all dependency notices; a project or framework license does not grant original-game rights. Source inspection and automated registration checks are not Portcove gameplay, co-op, Proton or clean-source-build qualification."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

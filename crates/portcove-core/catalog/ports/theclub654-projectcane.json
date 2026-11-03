@@ -16,6 +16,30 @@
       "image_sha256": "6f1e2f5e93d9ebf16ae9701088953a532c1055b8e0d29d306e9c6723cc3e80c5",
       "game_slug": "sly-cooper-and-the-thievius-raccoonus",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/theclub654/ProjectCane/blob/39566d8eda907dbf71dc12f8c6fc0c85cb182413/README.md",
+      "steps": [
+        {
+          "title": "Use a completed permitted Windows copy",
+          "instruction": "Use your independently permitted prepared ProjectCane copy for Sly Cooper and the Thievius Raccoonus. The inspected upstream route uses your own NTSC PlayStation 2 ISO, its File Extractor and a separately built Sly1-Release.exe. Finish upstream extraction and building outside Portcove. Keep the actual player beside the complete extracted game files; do not select the File Extractor, Visual Studio or another setup tool as the player."
+        },
+        {
+          "title": "Select the native player and game folder",
+          "instruction": "Select Sly1-Release.exe and use the folder containing that player and its extracted game files as working directory. Leave arguments empty. The inspected Windows entry runs the game in the selected process. Exact compatible disc digest and revision beyond upstream’s NTSC requirement remain unconfirmed; registration does not extract, import or authenticate your ISO."
+        },
+        {
+          "title": "Keep the creating player and its saves",
+          "instruction": "Preserve the whole prepared folder, extracted assets, settings and any mods or diagnostic outputs. The reviewed Windows save implementation uses Saves beside Sly1-Release.exe, with slotN.sav files and adjacent .tmp files during replacement. Keep those files together; player settings are also stored in its save payload. Preserve any custom locations used by your own build. Portcove does not convert console saves or certify compatibility between ProjectCane builds."
+        },
+        {
+          "title": "Review registration before choosing Play",
+          "instruction": "Registration records the native executable, working folder and literal arguments; Play is separate. Only the selected process is supervised. You and upstream own preparation and runtime replacement; review and relink changed executable bytes. Removing the registration preserves external files. Managed installation, extraction, compilation, updates, backup, rollback, migration and deletion are not offered for this copy."
+        }
+      ],
+      "warnings": [
+        "Use only the software and original data you are permitted to use. Upstream’s full-game and Windows claims are not Portcove gameplay or native observations. A Linux-named release file does not establish a Linux route when the inspected source documentation says Windows only."
+      ]
     }
   }
 }
