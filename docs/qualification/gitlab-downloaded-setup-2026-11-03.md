@@ -29,8 +29,16 @@ launches a game. Removing a setup reminder preserves user-owned bytes.
 The public API advances from 87 to 88. The operation-event schema remains 3.
 CLI, Tauri, React, generated transport contracts and the Playnite compatibility
 window are updated together. Playnite does not become a download client or gain
-new commands merely by negotiating API 88. Final hosted qualification includes
-the compiled Windows producer and maintained C# consumer.
+new commands merely by negotiating API 88. Ordinary hosted qualification includes the compiled Windows serialization
+producer. The maintained C# consumer requires its separate Windows contract
+check; the full-qualification-only consumer job is not credited as ordinary CI. The separate maintained Windows check compiled producer source
+`9f64fa87e505dbd44d2d01920eaf23cd632eff31` and passed all 640 consumer checks
+across 12 discovered, selected and executed scenarios, with no skips or failures.
+The actual C# client negotiated API 88 and independently negotiated operation-event
+schema 3 with the compiled CLI. The linked observation binds both binary hashes
+and the complete scenario inventory. This is a first-party CLI/SDK contract
+observation, not installed Playnite or game acceptance. The earlier 11-scenario
+run and its explicit compiled-CLI skip remain distinct retained evidence.
 
 ## Individually observed consumers and limits
 
