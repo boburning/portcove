@@ -1024,10 +1024,12 @@ void test("App JWT uses the selected public key, RS256 and a bounded clock windo
 
 void test("fixed Linux parent preserves verifiable resource receipts without ambient credentials", () => {
   const inherited = '{"receipt":"inert existing reservation"}';
+  const host = '{"reference":"inert host receipt","invocation":"inert invocation"}';
   assert.deepEqual(
     semanticSupervisorEnvironment({
       HOME: "/home/reviewer",
       PORTCOVE_RESOURCE_RESERVATION: inherited,
+      PORTCOVE_HOST_RESOURCE: host,
       PORTCOVE_NATIVE_SESSION_LOCK_TOKEN: "inert-native",
       GH_TOKEN: "never-forward",
       OPENAI_API_KEY: "never-forward",
@@ -1041,6 +1043,7 @@ void test("fixed Linux parent preserves verifiable resource receipts without amb
       PATH: "/maintained/toolchain/bin:/usr/bin:/bin",
       LANG: "C.UTF-8",
       PORTCOVE_RESOURCE_RESERVATION: inherited,
+      PORTCOVE_HOST_RESOURCE: host,
       PORTCOVE_NATIVE_SESSION_LOCK_TOKEN: "inert-native",
     },
   );

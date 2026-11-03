@@ -892,6 +892,8 @@ export function semanticSupervisorEnvironment(
   };
   for (const name of [
     "PORTCOVE_RESOURCE_RESERVATION",
+    // Nested WSL work must verify the same host lease as its local receipt.
+    "PORTCOVE_HOST_RESOURCE",
     "PORTCOVE_HEAVY_RUST_LOCK_TOKEN",
     "PORTCOVE_HEAVY_RUST_PROCESS_TOKEN",
     "PORTCOVE_NATIVE_SESSION_LOCK_TOKEN",
