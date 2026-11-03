@@ -946,6 +946,8 @@ export interface TransportOutputs {
   listing_statuses: OutputListingStatuses;
   managed_route_change_preview: OutputManagedRouteChangePreview;
   managed_route_change_result: OutputManagedRouteChangeResult;
+  official_catalog_review: OfficialCatalogReview;
+  official_catalog_setup: OutputOfficialCatalogSetup;
   operation_event: OutputOperationEvent;
   output_destination_preview: OutputOutputDestinationPreview;
   output_relocation_plan: OutputOutputRelocationPlan;
@@ -3470,6 +3472,22 @@ export interface OutputManagedRouteChangeResult {
   external_files_preserved: boolean;
   installation: InstallRecord;
   previous_registration: ExternalRuntimeRecord;
+  [k: string]: unknown;
+}
+export interface OfficialCatalogReview {
+  configured: boolean;
+  enabled: boolean;
+  expected_plan: string | null;
+  source: OfficialCatalogSource | null;
+  [k: string]: unknown;
+}
+export interface OfficialCatalogSource {
+  metadata_base_url: string;
+  targets_base_url: string;
+}
+export interface OutputOfficialCatalogSetup {
+  changed: boolean;
+  review: OfficialCatalogReview;
   [k: string]: unknown;
 }
 export interface OperationTarget {

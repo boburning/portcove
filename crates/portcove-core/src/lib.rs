@@ -179,7 +179,8 @@ pub use definition_repository::{
     publisher_policy::{
         AuthenticatedDefinitionLaunchAssessment, AuthenticatedDefinitionPublisherPolicy,
         DefinitionAuthorityProvisioning, DefinitionAuthorityReview, DefinitionRefresh,
-        DefinitionRefreshDisposition, acquire_definition_launch_assessment,
+        DefinitionRefreshDisposition, OfficialCatalogReview, OfficialCatalogSetup,
+        OfficialCatalogSource, acquire_definition_launch_assessment,
         acquire_definition_publisher_policy,
     },
 };
@@ -346,7 +347,9 @@ pub use types::*;
 // Public86 composes checked saved-source reuse references and per-integration
 // setup review with the delivered Public85 guide/reference contract. Events and
 // library schema versions are independent and unchanged.
-pub const API_SCHEMA_VERSION: u32 = 86;
+// Public87 adds explicit compiled official-catalog setup for normal clients.
+// Its source-bound confirmation is separate from the unchanged CLI authority plan.
+pub const API_SCHEMA_VERSION: u32 = 87;
 /// Oldest library schema this build can read and migrate.
 pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 /// Library schema this build writes after opening a library.

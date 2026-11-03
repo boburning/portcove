@@ -311,6 +311,19 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
     refresh_catalog_listings: () => {
       throw new Error("Directory publication requires configured official authority.");
     },
+    get_official_catalog_review: () =>
+      ({
+        configured: false,
+        enabled: false,
+        source: null,
+        expected_plan: null,
+      }) satisfies Awaited<ReturnType<typeof desktopApi.officialCatalogReview>>,
+    enable_official_catalog: () => {
+      throw new Error("This scenario has no configured official catalog.");
+    },
+    refresh_official_catalog: () => {
+      throw new Error("This scenario has no configured official catalog.");
+    },
     get_catalog_status: (args) => {
       requireArgs("get_catalog_status", args, {});
       return {

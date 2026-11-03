@@ -1,4 +1,7 @@
 use super::*;
+use policy::provisioning::official_catalog::{
+    enable_fixture as enable_official, review_fixture as review_official,
+};
 use policy::provisioning::{apply_fixture, review_fixture};
 use policy::provisioning::{apply_single_owner_fixture, review_single_owner_fixture};
 use tough::schema::Signed;
@@ -99,6 +102,178 @@ fn ordinary_build_has_no_anchor_or_root_input() {
             .provision_definition_authority(&review.expected_plan)
             .is_err()
     );
+    assert_eq!(data_version(&observer), before);
+}
+
+const OFFICIAL_SOURCE: &[u8] = br#"{"metadata_base_url":"https://catalog.invalid/metadata/","targets_base_url":"https://catalog.invalid/targets/"}"#;
+
+#[tokio::test]
+async fn official_catalog_keeps_unconfigured_releases_inert() {
+    let (_directory, library) = library();
+    let observer = library.connection().unwrap();
+    let before = data_version(&observer);
+    let current = library.review_official_catalog().unwrap();
+    assert!(!current.configured && !current.enabled);
+    assert!(current.expected_plan.is_none() && current.source.is_none());
+    assert!(library.enable_official_catalog(&"0".repeat(64)).is_err());
+    let service = PortcoveService::new(library.clone()).unwrap();
+    let error = service
+        .refresh_official_catalog(|_| panic!("unconfigured catalog emitted activity"))
+        .await
+        .unwrap_err();
+    assert_eq!(error.code, ErrorCode::Unsupported);
+    assert_eq!(data_version(&observer), before);
+}
+
+#[tokio::test]
+async fn official_catalog_requires_both_appointed_inputs_without_selecting_trust() {
+    let fixture = separated_fixture();
+    let root = single_owner_root(&fixture).await;
+    let (_directory, library) = library();
+    let observer = library.connection().unwrap();
+    let before = data_version(&observer);
+    for (root, source) in [
+        (root.as_slice(), b"null".as_slice()),
+        (b"null".as_slice(), OFFICIAL_SOURCE),
+    ] {
+        let review = review_official(&library, root, source).unwrap();
+        assert!(!review.configured && !review.enabled);
+        assert!(review.expected_plan.is_none());
+        assert!(enable_official(&library, root, source, &"0".repeat(64)).is_err());
+    }
+    assert_eq!(data_version(&observer), before);
+}
+
+#[tokio::test]
+async fn official_confirmation_binds_source_library_and_existing_root_plan() {
+    let fixture = separated_fixture();
+    let root = single_owner_root(&fixture).await;
+    let (_directory, library) = library();
+    let (_other_directory, other) = super::library();
+    let observer = library.connection().unwrap();
+    let before = data_version(&observer);
+    let review = review_official(&library, &root, OFFICIAL_SOURCE).unwrap();
+    assert!(review.configured && !review.enabled);
+    let token = review.expected_plan.unwrap();
+    let raw_authority = review_single_owner_fixture(&library, &root).unwrap();
+    assert_ne!(token, raw_authority.expected_plan);
+    assert!(enable_official(&other, &root, OFFICIAL_SOURCE, &token).is_err());
+    assert!(
+        enable_official(
+            &library,
+            &root,
+            OFFICIAL_SOURCE,
+            &raw_authority.expected_plan
+        )
+        .is_err()
+    );
+    let changed_source = br#"{"metadata_base_url":"https://other.invalid/metadata/","targets_base_url":"https://catalog.invalid/targets/"}"#;
+    assert!(enable_official(&library, &root, changed_source, &token).is_err());
+    let reformatted = [OFFICIAL_SOURCE, b"\n"].concat();
+    assert!(enable_official(&library, &root, &reformatted, &token).is_err());
+    assert_eq!(data_version(&observer), before);
+    let enabled = enable_official(&library, &root, OFFICIAL_SOURCE, &token).unwrap();
+    assert!(enabled.changed && enabled.review.enabled);
+    let installed = data_version(&observer);
+    assert_ne!(installed, before);
+    for expected in [&token, enabled.review.expected_plan.as_ref().unwrap()] {
+        let retry = enable_official(&library, &root, OFFICIAL_SOURCE, expected).unwrap();
+        assert!(!retry.changed && retry.review.enabled);
+        assert_eq!(data_version(&observer), installed);
+    }
+    let foreign_root = single_owner_root(&separated_fixture()).await;
+    assert!(enable_official(&library, &foreign_root, OFFICIAL_SOURCE, &token).is_err());
+    assert_eq!(data_version(&observer), installed);
+}
+
+#[tokio::test]
+async fn official_catalog_rejects_unsafe_or_extended_sources_without_writes() {
+    let fixture = separated_fixture();
+    let root = single_owner_root(&fixture).await;
+    let (_directory, library) = library();
+    let observer = library.connection().unwrap();
+    let before = data_version(&observer);
+    for source in [
+        br#"{"metadata_base_url":"http://catalog.invalid/metadata/","targets_base_url":"https://catalog.invalid/targets/"}"#.as_slice(),
+        br#"{"metadata_base_url":"https://user:secret@catalog.invalid/metadata/","targets_base_url":"https://catalog.invalid/targets/"}"#.as_slice(),
+        br#"{"metadata_base_url":"https://catalog.invalid/metadata/","targets_base_url":"https://catalog.invalid/targets/","root":"caller-choice"}"#.as_slice(),
+        b"{}",
+        b"",
+        &vec![b' '; 4097],
+    ] {
+        assert!(review_official(&library, &root, source).is_err());
+        assert!(enable_official(&library, &root, source, &"0".repeat(64)).is_err());
+        assert_eq!(data_version(&observer), before);
+    }
+}
+
+#[tokio::test]
+async fn official_setup_preserves_corrupt_history_refusal_without_repair() {
+    let fixture = separated_fixture();
+    let root = single_owner_root(&fixture).await;
+    let (_directory, library) = library();
+    let token = review_official(&library, &root, OFFICIAL_SOURCE)
+        .unwrap()
+        .expected_plan
+        .unwrap();
+    enable_official(&library, &root, OFFICIAL_SOURCE, &token).unwrap();
+    let observer = library.connection().unwrap();
+    observer
+        .execute(
+            "UPDATE definition_publisher_authority SET trusted_root_json='{}'",
+            [],
+        )
+        .unwrap();
+    let before = data_version(&observer);
+    assert!(review_official(&library, &root, OFFICIAL_SOURCE).is_err());
+    assert!(enable_official(&library, &root, OFFICIAL_SOURCE, &token).is_err());
+    assert_eq!(data_version(&observer), before);
+}
+
+#[tokio::test]
+async fn official_setup_does_not_replay_initial_confirmation_after_admission() {
+    let fixture = separated_fixture();
+    let root = single_owner_root(&fixture).await;
+    let (_directory, library) = library();
+    let initial = review_official(&library, &root, OFFICIAL_SOURCE)
+        .unwrap()
+        .expected_plan
+        .unwrap();
+    enable_official(&library, &root, OFFICIAL_SOURCE, &initial).unwrap();
+    let key = Key::new(fixture._directory.path());
+    publish(&fixture, &key, 1, &managed_github(1)).await;
+    let accepted = acquire_policy(&fixture, &root, ID).await.unwrap();
+    let candidate = acquire(&fixture, &root).await.unwrap();
+    library
+        .apply_definition_publisher_policy(&accepted, Some(&candidate))
+        .unwrap();
+    let observer = library.connection().unwrap();
+    let before = data_version(&observer);
+    let floor: String = observer
+        .query_row(
+            "SELECT replay_floor_json FROM definition_publisher_authority",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert!(enable_official(&library, &root, OFFICIAL_SOURCE, &initial).is_err());
+    let current = review_official(&library, &root, OFFICIAL_SOURCE).unwrap();
+    let retry = enable_official(
+        &library,
+        &root,
+        OFFICIAL_SOURCE,
+        current.expected_plan.as_ref().unwrap(),
+    )
+    .unwrap();
+    assert!(!retry.changed);
+    let retained: String = observer
+        .query_row(
+            "SELECT replay_floor_json FROM definition_publisher_authority",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(retained, floor);
     assert_eq!(data_version(&observer), before);
 }
 

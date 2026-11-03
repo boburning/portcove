@@ -309,6 +309,21 @@ export const desktopApi = {
       generation,
     }),
   listingDeliveryStatus: () => invoke<ListingDeliveryStatus>("get_listing_delivery_status"),
+  officialCatalogReview: (generation: number) =>
+    invoke<import("./types").OfficialCatalogReview>("get_official_catalog_review", { generation }),
+  enableOfficialCatalog: (expectedPlan: string, generation: number) =>
+    invoke<import("./types").OfficialCatalogSetup>("enable_official_catalog", {
+      expectedPlan,
+      generation,
+    }),
+  refreshOfficialCatalog: (generation: number, onEvent: (event: OperationEvent) => void) => {
+    const channel = new Channel<OperationEvent>();
+    channel.onmessage = onEvent;
+    return invoke<ListingDeliveryStatus>("refresh_official_catalog", {
+      generation,
+      onEvent: channel,
+    });
+  },
   refreshCatalogListings: (
     metadataBaseUrl: string,
     targetsBaseUrl: string,

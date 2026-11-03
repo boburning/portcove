@@ -23,7 +23,10 @@ pub use launch_assessment::{
 
 #[path = "definition_authority.rs"]
 pub(crate) mod provisioning;
-pub use provisioning::{DefinitionAuthorityProvisioning, DefinitionAuthorityReview};
+pub use provisioning::{
+    DefinitionAuthorityProvisioning, DefinitionAuthorityReview, OfficialCatalogReview,
+    OfficialCatalogSetup, OfficialCatalogSource,
+};
 
 #[path = "listing_delivery.rs"]
 pub(crate) mod listing_delivery;
