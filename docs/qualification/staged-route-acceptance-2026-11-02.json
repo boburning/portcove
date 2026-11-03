@@ -6,9 +6,9 @@
   "membership_frozen": true,
   "routine_target": 40,
   "operational_target": [15, 25],
-  "scope": "Seventeen individually assessed offered-operation owners; sixteen proposed finite reconciliations require whole-owner independent review and final delivery; TRX remains held",
+  "scope": "Sixteen individually assessed existing offered-operation owners proposed for finite reconciliation; TRX remains held and its existing installer guide is unchanged",
   "counts": {
-    "substantive_authored_port_corrections": 7,
+    "substantive_authored_port_corrections": 6,
     "proposed_full_finite_outcomes": 16,
     "actual_completed_finite_outcomes": 0,
     "direct_required_beta_outcomes_resolved": 0,
@@ -415,10 +415,10 @@
       "id": "lostartefacts-trx",
       "cohort": "original-524",
       "authored_path": "crates/portcove-core/catalog/ports/lostartefacts-trx.json",
-      "authored_sha256": "cb15fd50b6a61c36ec603c8f2d4b8a349d34e5c77951b9016df18693894cd8df",
-      "actual_route": "Correct current combined Windows ZIP, original mappings, migration and literal argument lines",
-      "limitations": "Managed preparation/readiness and mixed original/runtime data fitting remain unfinished",
-      "authored_change": true,
+      "authored_sha256": "c86929e0263d7e403dbd1dc7abdc586d48ea026d74aaf81cf06eb9ea1294e62a",
+      "actual_route": "Existing upstream Windows installer and non-owning prepared-player guide retained; expanded guide parked",
+      "limitations": "Current replacement package/source still need full fitting; managed original preparation/readiness and mixed original/runtime-data contract remain unfinished",
+      "authored_change": false,
       "proposed_full_finite_reconciliation": false,
       "full_finite_outcome_completed": false,
       "support_promotion": false,
@@ -483,5 +483,33 @@
     "scope": "Complete source, all16 prospective finite outcomes, markers/history and target interaction; read-only non-coauthor",
     "finding": "MC2 reviewed package includes game data and needs no original import; corrected following terminal review",
     "native_or_protected_acceptance": false
+  },
+  "trx_parking": {
+    "reason": "Publisher replaced the selected ZIP and added the supported Windows installer before fresh terminal asset readback; earlier ZIP inspection is historical. Existing richer installer route retained; expanded guide parked outside ready source.",
+    "selected_release_id": 432025700,
+    "current_asset_inventory_complete": true,
+    "current_asset_count": 5,
+    "current_tag_source": "bbed65a0e4fee48f1aa70956f9f0f4a44a059013",
+    "current_windows_zip": {
+      "id": 703482896,
+      "name": "TRX-1.12-Windows.zip",
+      "bytes": 361171822,
+      "expected_publisher_sha256": "db890625de2de0baf4f97802b65754af22f30a3f4b3307ef789537f09606fc0e",
+      "evidence": "metadata only; no current archive/ABI/runtime qualification"
+    },
+    "current_windows_installer": {
+      "id": 703482875,
+      "name": "TRX-1.12-Windows_Installer.exe",
+      "bytes": 362889582,
+      "expected_publisher_sha256": "0d89d47ae92dcde29bac32726bcd073af50dbbe5f581e9fc7187bf34d2c7157b",
+      "evidence": "metadata only; not downloaded or executed"
+    },
+    "historical_zip": {
+      "id": 703405204,
+      "bytes": 361171822,
+      "expected_and_observed_sha256": "ddc6ea43640eaea69b7517e4b48da68cb5a58c36837e553373fc3d79ee11ecf6",
+      "source_pin": "ee54e5674a4ad73a95c491ec995a88a05683e24d",
+      "scope": "Historical replaced artifact; bounded selected-member/static evidence only, not current-package acceptance"
+    }
   }
 }

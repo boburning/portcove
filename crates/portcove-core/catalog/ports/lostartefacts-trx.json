@@ -3,40 +3,35 @@
   "listing": {
     "id": "lostartefacts-trx",
     "name": "Tomb Raider I-III / TRX (LostArtefacts)",
-    "summary": "Prepare Tomb Raider I–III with the upstream combined TRX Windows ZIP and your own original game files.",
+    "summary": "Set up Tomb Raider I–III with the upstream TRX Windows installer and your original game files.",
     "project_url": "https://github.com/LostArtefacts/TRX",
     "issue_number": 1898,
     "platforms": ["windows-x86-64"],
     "availability": "packages",
-    "setup_url": "https://github.com/LostArtefacts/TRX/blob/ee54e5674a4ad73a95c491ec995a88a05683e24d/docs/trx/INSTALLING.md",
+    "setup_url": "https://github.com/LostArtefacts/TRX/blob/develop/docs/trx/INSTALLING.md",
     "release_url": "https://github.com/LostArtefacts/TRX/releases",
     "manual_setup": {
       "steps": [
         {
-          "title": "Extract the complete combined Windows player",
-          "instruction": "Download the official combined TRX Windows ZIP and extract it into a new, separate folder. Keep TRX.exe beside cfg/, games/, modules/ and scripts/. The inspected 1.12 package contains a 32-bit Windows executable; the Windows x64 host label does not make it an x64 binary. If using an upstream combined installer supplied separately, let that installer arrange the chosen game packs instead."
+          "title": "Run the upstream Windows installer",
+          "instruction": "Open the download folder and run the Windows Installer EXE yourself. Choose a separate TRX folder and the game packs you want."
         },
         {
-          "title": "Copy the corresponding original files",
-          "instruction": "Use your own corresponding Tomb Raider I, II or III files from Steam, GOG or disc. Follow the linked combined guide: TR1 data/*.phd goes into games/tr1/levels/, with fmv/ and music/ under games/tr1/. TR2 data/*.tr2 goes into games/tr2/levels/, main.sfx into games/tr2/, and fmv/ and music/ into their matching subfolders. TR3 data/*.tr2 goes into games/tr3/levels/, main.sfx into games/tr3/, audio/cdaudio.wad into games/tr3/audio/, cuts/*.tr2 into games/tr3/cuts/, and fmv/ into games/tr3/fmv/. Extract a purchased disc image first when needed; do not put these originals in top-level data/, fmv/, music/, audio/ or cuts/. Expansion packs have separate mappings in the guide."
+          "title": "Select your original game files",
+          "instruction": "Use the installer’s supported Steam, GOG or disc locations for the corresponding Tomb Raider games. Let it arrange the required files; the portable ZIP needs manual game-specific placement instead."
         },
         {
-          "title": "Choose the prepared player and game",
-          "instruction": "Finish setup with TRX.exe and its containing folder after preparing your chosen game. With no arguments, TRX opens the last selected game or expansion. To select a base game explicitly, enter two separate argument lines in Portcove: --mod on the first line, then tr1, tr2 or tr3 on the second. The engine download alone does not prepare the commercial originals."
-        },
-        {
-          "title": "Preserve the prepared copy before updating",
-          "instruction": "Close TRX and back up the prepared folder, including originals, cfg/, saves/ and screenshots/, plus any locations selected through TRX_DIR, TRX_CONFIG_DIR, TRX_CACHE_DIR, TRX_GAMES_DIR, TRX_SAVES_DIR or TRX_SCREENSHOTS_DIR. You or upstream own updates and all these files; Portcove registration does not manage replacement or provide backups. For an older layout, prepare a fresh folder and follow the upstream migration guide before changing the registration. Mixing old cfg/<game-id>/ and top-level original trees with games/<game-id>/ is refused by TRX; keep the old copy intact until the replacement is ready."
+          "title": "Choose the installed player",
+          "instruction": "Finish Portcove setup with the installed TRX.exe and its folder. Keep game files, cfg, saves, screenshots and any custom profile folders backed up when applying upstream updates."
         }
       ],
       "warnings": [
-        "Each original game and expansion keeps its own data requirements. The engine package does not supply ownership of commercial game data.",
-        "TR4 work is experimental upstream and is outside this Tomb Raider I–III setup claim."
+        "The three games keep their corresponding original-data requirements. Installing the engine does not supply ownership of commercial game data."
       ],
-      "help_url": "https://github.com/LostArtefacts/TRX/blob/ee54e5674a4ad73a95c491ec995a88a05683e24d/docs/trx/INSTALLING.md"
+      "help_url": "https://github.com/LostArtefacts/TRX/blob/develop/docs/trx/INSTALLING.md"
     },
     "download_asset_hints": {
-      "windows-x86-64": ["TRX-", "-Windows.zip"]
+      "windows-x86-64": ["TRX-", "-Windows_Installer.exe"]
     }
   }
 }

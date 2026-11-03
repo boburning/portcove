@@ -1220,9 +1220,17 @@ success-output = "immediate"
 # cases from30s to this existing60s allowance. Preserve every command and
 # ownership observation, assertions, cleanup, worker slots and zero retries.
 # The underlying slowdown remains unknown; completion is not a speedup claim.
+# CI41550835981/a1 cut verified_abort_abort at30.078s after repeated Abort
+# and observation progress through27.533s. Thirteen sibling sequences already
+# have60s; all sixteen use the same bounded fixture (observed18.689–36.880s).
+# Complete only the three remaining exact Windows cases
+# copying_abort_abort(19.591s), copying_abort_resume(26.614s), and
+# verified_abort_abort(timeout) from30→60s. Keep every command/observation,
+# model/ownership assertion, cleanup, two slots, zero retries and product deadline.
+# This is fixture headroom, not a performance repair or speedup claim.
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
-filter = 'package(portcove-core) & (test(/^library_move::sequence_tests::activated_abort_resume$/) | test(/^library_move::sequence_tests::published_abort_abort$/) | test(/^library_move::sequence_tests::activated_abort_abort$/) | test(/^library_move::sequence_tests::verified_resume_resume$/) | test(/^library_move::sequence_tests::verified_resume_abort$/) | test(/^library_move::sequence_tests::activated_resume_abort$/) | test(/^library_move::sequence_tests::verified_abort_resume$/))'
+filter = 'package(portcove-core) & (test(/^library_move::sequence_tests::activated_abort_resume$/) | test(/^library_move::sequence_tests::published_abort_abort$/) | test(/^library_move::sequence_tests::activated_abort_abort$/) | test(/^library_move::sequence_tests::verified_resume_resume$/) | test(/^library_move::sequence_tests::verified_resume_abort$/) | test(/^library_move::sequence_tests::activated_resume_abort$/) | test(/^library_move::sequence_tests::verified_abort_resume$/) | test(/^library_move::sequence_tests::copying_abort_abort$/) | test(/^library_move::sequence_tests::copying_abort_resume$/) | test(/^library_move::sequence_tests::verified_abort_abort$/))'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
 
