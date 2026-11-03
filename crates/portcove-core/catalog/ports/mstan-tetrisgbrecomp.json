@@ -3,13 +3,37 @@
   "listing": {
     "id": "mstan-tetrisgbrecomp",
     "name": "Tetris (TetrisGBRecomp)",
-    "summary": "A Tetris Game Boy port that the project believes supports all modes without fallback execution. Use the corrected v0.0.3 package: v0.0.2 rejected even correct ROMs. Supply your own World v1.0 ROM with CRC32 63F9407D; v1.1 is not equivalent. Native PC release and source routes are documented, but exact OS/CPU coverage, further original-file hashes and BIOS/firmware requirements are unconfirmed here. You and the project manage setup and updates; Portcove has not qualified a release package or confirmed setup or gameplay.",
+    "summary": "A native Tetris Game Boy player using your own matching World v1.0 original. Upstream documents a corrected v0.0.3 Windows x64 package and a source-build route. You and upstream manage preparation, runtime replacement and player data; Portcove registers an independently permitted existing copy without certifying setup or gameplay.",
     "original_game_title": "Tetris",
     "project_url": "https://github.com/mstan/TetrisGBRecomp",
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/mstan/TetrisGBRecomp",
-    "issue_number": 2738
+    "issue_number": 2738,
+    "manual_setup": {
+      "help_url": "https://github.com/mstan/TetrisGBRecomp/blob/cf67e43b032dd505716715ebd9eab9d5bf0e25c8/README.md",
+      "steps": [
+        {
+          "title": "Keep a complete permitted Windows copy",
+          "instruction": "Use your independently permitted completed TetrisGBRecomp Windows copy. The reviewed upstream v0.0.3 route corrects the earlier v0.0.2 ROM-gate failure. Keep Tetris.exe, assets and its matching runtime DLLs together; SDL2 and the dynamically loaded EGL/GLES companions are not optional just because a dependency listing omits them. Finish upstream generation/build outside Portcove if using source. Portcove does not compile this game, redistribute originals or authenticate an arbitrary external package."
+        },
+        {
+          "title": "Select the player and keep the exact original",
+          "instruction": "Select Tetris.exe in its intended writable runtime folder and use that same folder as working directory. Leave arguments empty for the normal in-process launcher. At the separate Play step, use upstream's picker for your own 32,768-byte Tetris World V1.0 original: CRC32 63F9407D and documented SHA-1 3f2a6407c9900ad5817ee1cfb3609c5ee17400fc. V1.1 is a different program image. The upstream runtime checks its own CRC gate; Portcove registration does not import or authenticate that original."
+        },
+        {
+          "title": "Preserve runtime settings and actual data locations",
+          "instruction": "Keep the complete working copy and original location, including rom.cfg, runtime_prefs.ini, keybinds.ini, assets and any created save/state/RTC, mod, capture or diagnostic files. The reviewed Windows runtime anchors its ROM cache and runtime preferences beside the executable; keybinds.ini also uses the working folder. Save/state names come from the creating runtime, not a guessed generic save directory. Preserve separately selected or absolute output paths too. Moving the original may require correcting the upstream ROM selection; registration does not migrate paths or certify cross-version state compatibility."
+        },
+        {
+          "title": "Review registration before choosing Play",
+          "instruction": "Portcove records your selected native executable, working folder and literal arguments after review; Play is separate. Only the selected process is supervised. Upstream or you own runtime replacement and updates; relink changed executable bytes after reviewing them. Removing the registration preserves all external files. Managed installation, generation, backup, rollback, migration and deletion are not offered for this copy."
+        }
+      ],
+      "warnings": [
+        "The v0.0.2 rejection is a known upstream failure; use the separately corrected v0.0.3 route rather than treating any old build as equivalent. Upstream gameplay claims are not Portcove qualification. Only use software and original data you are permitted to use."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

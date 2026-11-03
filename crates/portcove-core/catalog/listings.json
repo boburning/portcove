@@ -25496,7 +25496,31 @@
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/josiahg2502-glitch/NewSuperPaperBros",
-      "issue_number": 2772
+      "issue_number": 2772,
+      "manual_setup": {
+        "help_url": "https://github.com/josiahg2502-glitch/NewSuperPaperBros/blob/1f961e7db18586655f647f1027eb86ca706088cc/README.md",
+        "steps": [
+          {
+            "title": "Keep the complete prepared Windows package",
+            "instruction": "Use your independently permitted prepared New Super Paper Bros. Windows copy. The reviewed v1.0.8 route uses your own Super Paper Mario Wii USA R8PE01 revision 0 or Europe R8PP01 disc, as ISO, CISO or WBFS, through upstream setup. Finish extraction and any preparation outside Portcove. Keep the complete release, engine modules, launcher companions and Disc/DATA. The source packager’s local HQ-music and HD-texture inputs are separate from the player’s own original-disc requirement; do not treat those extra assets as an original-data license grant."
+          },
+          {
+            "title": "Select the normal launcher and keep it open",
+            "instruction": "Select New Super Paper Bros.exe, use the complete release folder as working directory and leave arguments empty. In its Game page set When the game closes to Close the launcher too ([launcher] close_with_game=true), and leave the launcher open while its child game runs. The normal launcher starts the packaged engine and closes on the child’s exit with this setting. Portcove supervises only the selected launcher; it does not acquire independent child-process control. Do not use the --play test switch, which starts the child and returns immediately."
+          },
+          {
+            "title": "Preserve disc-specific saves and settings",
+            "instruction": "Keep the whole release folder, Disc/DATA, engine/UserData/Config.toml, engine/UserData/NAND, engine/UserData/Saves, mods, texture replacements, caches and any created logs. The first played disc owns the main NAND; other disc copies use keyed save subfolders, and USA and Europe have different Wii title IDs. Use the creating launcher’s Open saves folder to identify the actual save. Preserve old Play/UserData layouts and any upstream import backups if present; registration does not migrate, merge or certify console/Dolphin save compatibility."
+          },
+          {
+            "title": "Review registration before the separate Play step",
+            "instruction": "Portcove records your selected native executable, working folder and literal arguments. Upstream and you own original preparation, settings, optional mods and runtime replacement. Review and relink changed launcher bytes after an upstream update. Removing the registration preserves external files. Managed installation, extraction, compilation, updates, backup, rollback, save import, migration and deletion are not offered for this copy."
+          }
+        ],
+        "warnings": [
+          "Use only copies, originals, music, textures and other components you are permitted to use, retaining their applicable notices. No rights to game assets follow from a framework license. Upstream screenshots and gameplay statements do not establish Portcove native, gameplay, macOS, Linux or Android acceptance."
+        ]
+      }
     },
     {
       "id": "jsrf-pal-recomp-yacineolivier-maker-jet-set-radio-future-pal",
@@ -25810,7 +25834,31 @@
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/kandowontu2/UrbanRecomp",
-      "issue_number": 2851
+      "issue_number": 2851,
+      "manual_setup": {
+        "help_url": "https://github.com/kandowontu2/UrbanRecomp/blob/ba47b80a8887f6a3f15dd5ab173818d9aa2e8b55/README.md",
+        "steps": [
+          {
+            "title": "Use the permitted Enhanced Windows player",
+            "instruction": "Use your independently permitted UrbanRecomp Enhanced Windows copy. The reviewed enhanced-v1.0.4 Windows route is a single portable UrbanRecomp.exe, distinct from the upstream base project and mobile packages. Follow its component terms, including the documented noncommercial-use condition from the included engine. Finish upstream source preparation outside Portcove if using source. This registration offers no managed package acquisition, generation or redistribution-rights grant."
+          },
+          {
+            "title": "Keep the portable player and its own original",
+            "instruction": "Select the outer portable UrbanRecomp.exe and use its containing writable folder as working directory. Leave arguments empty for the normal launcher and choose your own clean US SNES SimCity original there at the separate Play step. Upstream documents SHA-256 e9c0bc05511e05a0d7c3e7cc42e761e1e8e532d46f59b9854b6902e1a2e9dd0a. Registration does not import or authenticate the original. The portable wrapper unpacks runtime files into a versioned LocalAppData/UrbanRecomp/bundles cache and waits for its child player; it is not the same layout as a source-build tree."
+          },
+          {
+            "title": "Preserve the data folder and complete save set",
+            "instruction": "The portable wrapper normally runs its child with the portable EXE folder as data working directory. Keep sc-settings.ini, keybinds.ini, the selected original and location, save states, mods, diagnostics and the complete save set there. The US SRAM file is urbanrecomp-us.srm with its .bak; Enhanced also keeps matching .population and .world sidecars. Keep them together with their creating runtime. Preserve actual SC_PORTABLE_DATA_DIR or SC_SRAM_PATH locations when independently configured; registration does not recreate a per-shell environment, move data or certify cross-version state compatibility. Original-derived translation/scenario data remain your upstream preparation and permission responsibility."
+          },
+          {
+            "title": "Review registration before choosing Play",
+            "instruction": "Portcove records the selected native executable, working folder and literal arguments after review; Play is separate. You and upstream own replacement, cache preparation and updates; relink changed portable EXE bytes after reviewing them. Only the selected process is supervised. Removing the registration preserves all external files. Managed installation, backup, rollback, migration, generation and deletion are not offered for this copy."
+          }
+        ],
+        "warnings": [
+          "Use the Enhanced fork and its matching data deliberately; another SimCity port or an older base build does not inherit its save layouts. Upstream performance, original-game compatibility and gameplay reports are not Portcove qualification. The project MIT notice does not replace its included engine or original-content conditions."
+        ]
+      }
     },
     {
       "id": "keen-dreams-reflectionhle",
@@ -27189,7 +27237,7 @@
     {
       "id": "linkssy2-urbanchaosriotresponseburneredition",
       "name": "Urban Chaos: Riot Response (Urban Chaos Riot Response Burner Edition)",
-      "summary": "An experimental Urban Chaos: Riot Response port with Windows release and limited Linux compatibility testing. The Windows 0.07 ZIP supplies BurnerEditionSetup.exe to import and check your own supported original-Xbox ISO, prepare data and shaders, then launch the game. Keep GameData when following upstream replacement instructions. Windows 10/11 x64 needs Direct3D 12. The newer 0.07.5 Linux patch runs the same Windows player through Proton/Wine and is not a native Linux player. Spanish packaging and shader corrections are documented, while clean source/build status and broader gameplay remain limited. Exact accepted game revision/hashes and BIOS/firmware needs are unconfirmed. You and the project manage version changes; Portcove has not confirmed setup or gameplay.",
+      "summary": "An experimental Urban Chaos: Riot Response Windows port. The inspected Burner Edition 0.08 route uses upstream setup for your own supported original-Xbox ISO/XISO, then Play Burner Edition.exe with the complete package and portable GameData. Upstream owns preparation and runtime replacement. Co-op, HD HUD and broader campaign limits remain; Linux uses the Windows runtime through Proton. Portcove registers an independently permitted existing copy without certifying setup or gameplay.",
       "original_game_title": "Urban Chaos: Riot Response",
       "project_url": "https://github.com/linkssy2/UrbanChaosRiotResponseBurnerEdition",
       "platforms": [],
@@ -27203,7 +27251,31 @@
         "game_slug": "urban-chaos-riot-response",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2811
+      "issue_number": 2811,
+      "manual_setup": {
+        "help_url": "https://github.com/linkssy2/UrbanChaosRiotResponseBurnerEdition/blob/935131bc2c01b3f4a78686541890f5f1f07d51fc/launcher/burner-xbe/README-release.txt",
+        "steps": [
+          {
+            "title": "Keep a complete prepared Burner Edition copy",
+            "instruction": "Use your independently permitted prepared Windows Burner Edition 0.08 copy. Finish upstream’s supported original-Xbox ISO/XISO import through Burner Edition Setup.exe outside Portcove. Keep the complete release folder, including tools, its bundled Python, runtime files, notices and your GameData. The selected Play launcher depends on those companions; copying only its executable is incomplete. Optional Spanish voices require your own separately supported European PS2 original and upstream’s import; they are not supplied by registration."
+          },
+          {
+            "title": "Select the waiting native Play launcher",
+            "instruction": "Select Play Burner Edition.exe in the release folder, use that same folder as working directory and leave arguments empty. The inspected native launcher waits for its bundled worker, which prepares the upstream runtime and waits for the game. Do not substitute the internal trial runtime or Python executable: the supported worker supplies required asset paths and settings. Portcove supervises the selected launcher process; its registration does not authenticate every companion or take ownership of the worker’s file changes."
+          },
+          {
+            "title": "Preserve portable data and its original layout",
+            "instruction": "Keep all of GameData, especially xbe-runtime, settings.toml, hdd profiles, imported game files, translations, optional voices, mods and learned shader caches. The 0.08 Play route uses portable GameData and does not fall back to the older AppData installation. Upstream setup owns any first-import legacy copy; registration does not recreate it. For upstream replacement, keep the old copy and copy your GameData beside the new complete launchers as upstream documents. Relink changed selected executable bytes after review."
+          },
+          {
+            "title": "Keep the actual ownership and test limits",
+            "instruction": "Review registration before the separate Play step. Upstream owns language preparation and runtime replacement within GameData. Removing the registration preserves external files. Portcove does not offer managed installation, original import, updates, backup, rollback, save migration or deletion for this copy. Experimental co-op, aiming offsets, HD HUD issues and broader campaign limits remain upstream limitations; Linux packages use this Windows runtime through Proton and are not native Linux acceptance."
+          }
+        ],
+        "warnings": [
+          "Only use copies, originals, translations and optional artwork or texture packs you are permitted to use. Keep all dependency notices; a project or framework license does not grant original-game rights. Source inspection and automated registration checks are not Portcove gameplay, co-op, Proton or clean-source-build qualification."
+        ]
+      }
     },
     {
       "id": "linkzenic-2ship2harkinian-android",
@@ -30721,13 +30793,37 @@
     {
       "id": "mstan-tetrisgbrecomp",
       "name": "Tetris (TetrisGBRecomp)",
-      "summary": "A Tetris Game Boy port that the project believes supports all modes without fallback execution. Use the corrected v0.0.3 package: v0.0.2 rejected even correct ROMs. Supply your own World v1.0 ROM with CRC32 63F9407D; v1.1 is not equivalent. Native PC release and source routes are documented, but exact OS/CPU coverage, further original-file hashes and BIOS/firmware requirements are unconfirmed here. You and the project manage setup and updates; Portcove has not qualified a release package or confirmed setup or gameplay.",
+      "summary": "A native Tetris Game Boy player using your own matching World v1.0 original. Upstream documents a corrected v0.0.3 Windows x64 package and a source-build route. You and upstream manage preparation, runtime replacement and player data; Portcove registers an independently permitted existing copy without certifying setup or gameplay.",
       "original_game_title": "Tetris",
       "project_url": "https://github.com/mstan/TetrisGBRecomp",
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/mstan/TetrisGBRecomp",
-      "issue_number": 2738
+      "issue_number": 2738,
+      "manual_setup": {
+        "help_url": "https://github.com/mstan/TetrisGBRecomp/blob/cf67e43b032dd505716715ebd9eab9d5bf0e25c8/README.md",
+        "steps": [
+          {
+            "title": "Keep a complete permitted Windows copy",
+            "instruction": "Use your independently permitted completed TetrisGBRecomp Windows copy. The reviewed upstream v0.0.3 route corrects the earlier v0.0.2 ROM-gate failure. Keep Tetris.exe, assets and its matching runtime DLLs together; SDL2 and the dynamically loaded EGL/GLES companions are not optional just because a dependency listing omits them. Finish upstream generation/build outside Portcove if using source. Portcove does not compile this game, redistribute originals or authenticate an arbitrary external package."
+          },
+          {
+            "title": "Select the player and keep the exact original",
+            "instruction": "Select Tetris.exe in its intended writable runtime folder and use that same folder as working directory. Leave arguments empty for the normal in-process launcher. At the separate Play step, use upstream's picker for your own 32,768-byte Tetris World V1.0 original: CRC32 63F9407D and documented SHA-1 3f2a6407c9900ad5817ee1cfb3609c5ee17400fc. V1.1 is a different program image. The upstream runtime checks its own CRC gate; Portcove registration does not import or authenticate that original."
+          },
+          {
+            "title": "Preserve runtime settings and actual data locations",
+            "instruction": "Keep the complete working copy and original location, including rom.cfg, runtime_prefs.ini, keybinds.ini, assets and any created save/state/RTC, mod, capture or diagnostic files. The reviewed Windows runtime anchors its ROM cache and runtime preferences beside the executable; keybinds.ini also uses the working folder. Save/state names come from the creating runtime, not a guessed generic save directory. Preserve separately selected or absolute output paths too. Moving the original may require correcting the upstream ROM selection; registration does not migrate paths or certify cross-version state compatibility."
+          },
+          {
+            "title": "Review registration before choosing Play",
+            "instruction": "Portcove records your selected native executable, working folder and literal arguments after review; Play is separate. Only the selected process is supervised. Upstream or you own runtime replacement and updates; relink changed executable bytes after reviewing them. Removing the registration preserves all external files. Managed installation, generation, backup, rollback, migration and deletion are not offered for this copy."
+          }
+        ],
+        "warnings": [
+          "The v0.0.2 rejection is a known upstream failure; use the separately corrected v0.0.3 route rather than treating any old build as equivalent. Upstream gameplay claims are not Portcove qualification. Only use software and original data you are permitted to use."
+        ]
+      }
     },
     {
       "id": "mstan-wariowaretwistedrecomp",
@@ -31091,7 +31187,32 @@
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/n64hub/perfect-dark-recomp",
-      "issue_number": 2776
+      "issue_number": 2776,
+      "manual_setup": {
+        "help_url": "https://github.com/n64hub/perfect-dark-recomp/blob/cb7a2900cf2b216aa39f44daaece2cdb5599ba32/README.md",
+        "steps": [
+          {
+            "title": "Keep the complete permitted Windows player",
+            "instruction": "Use an independently permitted completed Windows copy of this specific implementation; the reviewed upstream route is v0.1.3. Keep PerfectDarkRecompiled.exe, assets and all matching companions together. Finish any upstream source build outside Portcove. This is an existing-copy route, not managed package acquisition, source generation or a redistribution-rights grant."
+          },
+          {
+            "title": "Select the native player and matching original",
+            "instruction": "Select PerfectDarkRecompiled.exe and use the completed runtime folder containing assets as working directory. Leave arguments empty for the normal launcher, then use Load ROM and Start Game at the separate Play step. Use your own Perfect Dark USA Rev 1, cartridge NPDE version 01, big-endian .z64 of 32 MiB; MD5 e03b088b6ac9e0080440efed07c1e40f and source-documented SHA-1 af8788ac4d1a57260eae9c53ffe851fcf2a3319b. The upstream player performs its own original check; Portcove registration does not import, normalize or authenticate the original."
+          },
+          {
+            "title": "Keep the creating profile and portable mode",
+            "instruction": "The reviewed Windows profile defaults to %LOCALAPPDATA%/PerfectDarkRecompiled. An existing portable.txt in the working folder selects that folder instead. Keep the creating mode and actual locations; adding or removing the marker does not migrate existing data. Keep the whole profile, its selected original/EEPROM data, all JSON settings, controller profiles, mods and any separately chosen outputs. Preserve the complete runtime folder and any custom or external paths too. Edit settings only while the player is closed; registration does not move profiles or certify state compatibility between versions."
+          },
+          {
+            "title": "Review registration before choosing Play",
+            "instruction": "Portcove records your selected native executable, working folder and literal arguments after review; Play is separate. Only the selected process is supervised. You or upstream own updates and runtime replacement; relink changed executable bytes after reviewing them. Removing the registration preserves all external files. Managed installation, backup, rollback, migration, generation and deletion are not offered for this copy."
+          }
+        ],
+        "warnings": [
+          "Upstream reports the Defection mission and only short Windows sessions. Windows hardware audio, long sessions and physical rumble were not established in the pinned report. The reported Linux/WSL GPU-device losses and host freeze remain unresolved; this Windows route does not qualify that path.",
+          "Use only software and original data you are permitted to use. Registration and owned-probe tests do not certify the upstream binary, full-game behavior or real save formats."
+        ]
+      }
     },
     {
       "id": "n64hub-rush-2049-recomp",
@@ -31102,7 +31223,32 @@
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/n64hub/rush-2049-recomp",
-      "issue_number": 2838
+      "issue_number": 2838,
+      "manual_setup": {
+        "help_url": "https://github.com/n64hub/rush-2049-recomp/blob/a5edfda8a7656addfdb6f95d22942b8a1a85a3cb/README.md",
+        "steps": [
+          {
+            "title": "Keep the complete permitted Windows player",
+            "instruction": "Use an independently permitted completed Windows copy of this specific implementation; the reviewed upstream route is v0.1.54. Keep Rush2049Recompiled.exe, assets and all matching companions together. Finish any upstream source build outside Portcove. This is an existing-copy route, not managed package acquisition, source generation or a redistribution-rights grant."
+          },
+          {
+            "title": "Select the native player and matching original",
+            "instruction": "Select Rush2049Recompiled.exe and use the completed runtime folder containing assets as working directory. Leave arguments empty for the normal launcher, then use Load ROM and Start Game at the separate Play step. Use your own San Francisco Rush 2049 N64 USA, big-endian .z64; documented SHA-1 3f99351d7bb61656614bdb2aa1a90cfe55d1922c. Arcade and Dreamcast editions are different inputs. The upstream player performs its own original check; Portcove registration does not import, normalize or authenticate the original."
+          },
+          {
+            "title": "Keep the creating profile and portable mode",
+            "instruction": "The reviewed Windows profile defaults to %LOCALAPPDATA%/Rush2049Recompiled. An existing portable.txt in the working folder selects that folder instead. Keep the creating mode and actual locations; adding or removing the marker does not migrate existing data. Keep the whole profile, cached original, all JSON settings, controller profiles, mods, generated textures and logs. Controller Pak files are saves/controllerpak_<port>.mpk under that profile. Preserve any actual linked save targets and their adjacent temporary files too; these remain external data. The normal log is rush2049.log with rush2049.old.log beside the settings. Preserve the complete runtime folder and any custom or external paths too. Edit settings only while the player is closed; registration does not move profiles or certify state compatibility between versions."
+          },
+          {
+            "title": "Review registration before choosing Play",
+            "instruction": "Portcove records your selected native executable, working folder and literal arguments after review; Play is separate. Only the selected process is supervised. You or upstream own updates and runtime replacement; relink changed executable bytes after reviewing them. Removing the registration preserves all external files. Managed installation, backup, rollback, migration, generation and deletion are not offered for this copy."
+          }
+        ],
+        "warnings": [
+          "Upstream Windows/multi-mode observations do not establish Portcove gameplay or physical multiplayer acceptance. The Linux software-driver crash and untested Linux GPU/Steam Deck conditions remain separate; no other-platform qualification is added.",
+          "Use only software and original data you are permitted to use. Registration and owned-probe tests do not certify the upstream binary, full-game behavior or real save formats."
+        ]
+      }
     },
     {
       "id": "n64hub-super-mario-64-recomp",
@@ -31113,7 +31259,32 @@
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/n64hub/super-mario-64-recomp",
-      "issue_number": 2725
+      "issue_number": 2725,
+      "manual_setup": {
+        "help_url": "https://github.com/n64hub/super-mario-64-recomp/blob/52c6e0f06fbebb63980e12fb712d518c283f9b02/README.md",
+        "steps": [
+          {
+            "title": "Keep the complete permitted Windows player",
+            "instruction": "Use an independently permitted completed Windows copy of this specific implementation; the reviewed upstream route is v0.1.2. Keep SuperMario64Recompiled.exe, assets and all matching companions together. Finish any upstream source build outside Portcove. This is an existing-copy route, not managed package acquisition, source generation or a redistribution-rights grant."
+          },
+          {
+            "title": "Select the native player and matching original",
+            "instruction": "Select SuperMario64Recompiled.exe and use the completed runtime folder containing assets as working directory. Leave arguments empty for the normal launcher, then use Load ROM and Start Game at the separate Play step. Use your own Super Mario 64 USA, big-endian .z64; documented SHA-1 9bef1128717f958171a4afac3ed78ee2bb4e86ce. The upstream player performs its own original check; Portcove registration does not import, normalize or authenticate the original."
+          },
+          {
+            "title": "Keep the creating profile and portable mode",
+            "instruction": "The reviewed Windows profile defaults to %LOCALAPPDATA%/SuperMario64Recompiled. An existing portable.txt in the working folder selects that folder instead. Keep the creating mode and actual locations; adding or removing the marker does not migrate existing data. Keep the whole profile, its original/EEPROM data, all JSON settings, controller profiles, mods and generated hires_font data. Preserve the complete runtime folder and any custom or external paths too. Edit settings only while the player is closed; registration does not move profiles or certify state compatibility between versions."
+          },
+          {
+            "title": "Review registration before choosing Play",
+            "instruction": "Portcove records your selected native executable, working folder and literal arguments after review; Play is separate. Only the selected process is supervised. You or upstream own updates and runtime replacement; relink changed executable bytes after reviewing them. Removing the registration preserves all external files. Managed installation, backup, rollback, migration, generation and deletion are not offered for this copy."
+          }
+        ],
+        "warnings": [
+          "Upstream reports Bob-omb Battlefield through King Bob-omb and return to the castle. Full-campaign, gameplay, physical controls and save compatibility are not established by this registration.",
+          "Use only software and original data you are permitted to use. Registration and owned-probe tests do not certify the upstream binary, full-game behavior or real save formats."
+        ]
+      }
     },
     {
       "id": "nakagawa-recomp-jstar269-hot-shots-tennis-get-a-grip",
@@ -36413,7 +36584,7 @@
     {
       "id": "previouslevelgames-recharged",
       "name": "Mario Strikers Charged (Recharged)",
-      "summary": "A Mario Strikers Charged port with project-reported complete play, audio, movies, saves and controller modes. Nintendo WFC online is unavailable. Project packages include the Recharged app/player and launcher: select your own supported Wii disc and follow first-start prompts for your platform. Source compilation is a separate route. The launcher manages in-place updates. Documented platforms are Windows x64, Linux x86-64/Vulkan, SteamOS 3.7+, and Apple Silicon/Intel macOS 15+. The first release entry was the test-pr74 prerelease; it is not an established stable selection. Exact accepted game revision/hashes and BIOS/firmware needs remain unconfirmed. Portcove has not confirmed setup or gameplay.",
+      "summary": "A Mario Strikers Charged player using your own compatible Wii disc image. The reviewed stable v1.1.1 Windows route uses recharged.exe with its complete modules and assets; test-pr prereleases are separate. Upstream owns preparation and in-place updates. Portcove registers an independently permitted existing copy with explicit launch settings, without certifying setup, gameplay or save compatibility. Nintendo WFC is unavailable.",
       "original_game_title": "Mario Strikers Charged",
       "project_url": "https://github.com/previouslevelgames/recharged",
       "platforms": [],
@@ -36427,7 +36598,31 @@
         "game_slug": "mario-strikers-charged",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2759
+      "issue_number": 2759,
+      "manual_setup": {
+        "help_url": "https://github.com/previouslevelgames/recharged/blob/f3664f7789553b0d4ba497a75d7963916704c670/docs/INSTALL.md",
+        "steps": [
+          {
+            "title": "Keep a complete stable Windows copy",
+            "instruction": "Use your independently permitted prepared Recharged Windows copy. The reviewed stable v1.1.1 route is distinct from test-pr prereleases. Keep recharged.exe, both game modules, assets, graphics DLLs and notices together in a writable folder. Finish upstream’s original-image selection and initial graphics preparation outside Portcove. The source-development bootstrap is not the game player."
+          },
+          {
+            "title": "Select the player and keep its launch settings",
+            "instruction": "Select recharged.exe, use its complete program folder as working directory and leave arguments empty for the normal launcher. Use your own supported Mario Strikers Charged Wii image through upstream’s picker; the pinned install guide documents ISO, RVZ or WBFS for USA R4QE01 revision 1 or Europe R4QP01 revision 1 or 2. Renaming an image does not change its revision. Keep Advanced → Interface → Reopen after the game off ([launcher] reopen_after_game=false). Normal Play continues into the game in the selected process; that optional setting instead starts another launcher after the game ends."
+          },
+          {
+            "title": "Preserve settings, regional saves and selected paths",
+            "instruction": "Keep recharged.ini, older mscharged.ini if retained, data/nand, data/pipeline_cache.db, data/launcher, texture_packs, data/texture_dumps, logs, screenshots and the actual original-image location. Preserve any configured save or texture folder outside the program folder too. The default USA saves use the save folder itself; European saves use its R4QP subfolder. Keep other creating-runtime region folders if present. Screenshots use the launch working folder; a non-writable program folder can send logs to user application data. Upstream owns old-layout imports and save conversion; registration does not move, merge or certify these files."
+          },
+          {
+            "title": "Keep upstream updates outside Portcove Play",
+            "instruction": "Perform upstream updates separately, outside a Portcove Play session: an update replaces program bytes and restarts another process. Review and relink the changed recharged.exe before the next Portcove launch. Registration records your selected native executable, working folder and literal arguments; Play is separate and supervises only that process. Removing the registration preserves every external file. Managed installation, runtime updates, backup, rollback, save migration and deletion are not offered for this copy."
+          }
+        ],
+        "warnings": [
+          "The project’s CC0 dedication covers its own contributions, not reconstructed game code, third-party components, original assets or trademarks. Use only a copy and originals you are permitted to use. Nintendo WFC is unavailable. Upstream gameplay and controller claims are not Portcove native or gameplay observations; image authenticity and cross-version save compatibility remain unqualified."
+        ]
+      }
     },
     {
       "id": "prime-recomp-ethannicholas-ethannicholas-metroid-prime",
@@ -40452,7 +40647,31 @@
         "game_slug": "wwe-all-stars",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2812
+      "issue_number": 2812,
+      "manual_setup": {
+        "help_url": "https://github.com/shaneomac1337/WWE-AllStars-Recomp/blob/34d7b71d926440262f14f6a6e2d9763494588498/launcher/release/README.txt",
+        "steps": [
+          {
+            "title": "Complete upstream setup before registration",
+            "instruction": "Use your independently permitted WWE All Stars Windows copy. The reviewed v1.7.0 route uses WWEAllStarsLauncher.exe to prepare your own USA/Europe Xbox 360 disc image and its mandatory Title Update 2 from your console; owned DLC is optional. Finish import, upstream verification and shader preparation outside Portcove. Keep the complete package and notices. Registration neither supplies the disc/update nor runs the source-development build route."
+          },
+          {
+            "title": "Select the supported direct player",
+            "instruction": "After successful upstream setup, select game/wweallstars.exe and use its game folder as working directory. Leave arguments empty. Upstream explicitly supports direct startup: this player finds the prepared folders relative to its own location and reads the launcher’s settings. Before setup it asks you to use the upstream launcher. Portcove does not rerun setup, reconstruct Title Update 2 or authenticate your original files."
+          },
+          {
+            "title": "Preserve the portable root and custom paths",
+            "instruction": "Keep the complete parent release folder containing game, gamedata, updatedata, userdata, cache, logs, mods and licenses. Keep userdata/launcher-state.json and all saves/settings together, along with any selected external game-data, update-data or user-data folders. The direct player derives the normal portable root from its executable’s parent and writes session logs in the root logs folder. Preserve crash reports and shader caches too. Do not copy only game/wweallstars.exe or assume another ReXGlue title uses these same paths."
+          },
+          {
+            "title": "Review registration and leave replacement upstream",
+            "instruction": "Review the selected native executable, working folder and literal arguments before the separate Play step. Only that process is supervised. Use upstream for settings, repair, DLC and runtime replacement outside Portcove Play, then review and relink changed player bytes. Removing the registration preserves every external file. Managed installation, import, updates, backup, rollback, save migration and deletion are not offered for this copy."
+          }
+        ],
+        "warnings": [
+          "Keep the project, runtime and component notices. The BSD project grant is separate from the AGPL server and from original game, update and DLC rights; no online service is configured here. Upstream match, GPU, multiplayer and Steam Deck claims are not Portcove observations. Exact-input authentication, save compatibility and Supported acceptance remain unqualified."
+        ]
+      }
     },
     {
       "id": "shihabal3amri-tekken-tag-tournament-2-pc",
@@ -46694,6 +46913,30 @@
         "image_sha256": "6f1e2f5e93d9ebf16ae9701088953a532c1055b8e0d29d306e9c6723cc3e80c5",
         "game_slug": "sly-cooper-and-the-thievius-raccoonus",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/theclub654/ProjectCane/blob/39566d8eda907dbf71dc12f8c6fc0c85cb182413/README.md",
+        "steps": [
+          {
+            "title": "Use a completed permitted Windows copy",
+            "instruction": "Use your independently permitted prepared ProjectCane copy for Sly Cooper and the Thievius Raccoonus. The inspected upstream route uses your own NTSC PlayStation 2 ISO, its File Extractor and a separately built Sly1-Release.exe. Finish upstream extraction and building outside Portcove. Keep the actual player beside the complete extracted game files; do not select the File Extractor, Visual Studio or another setup tool as the player."
+          },
+          {
+            "title": "Select the native player and game folder",
+            "instruction": "Select Sly1-Release.exe and use the folder containing that player and its extracted game files as working directory. Leave arguments empty. The inspected Windows entry runs the game in the selected process. Exact compatible disc digest and revision beyond upstream’s NTSC requirement remain unconfirmed; registration does not extract, import or authenticate your ISO."
+          },
+          {
+            "title": "Keep the creating player and its saves",
+            "instruction": "Preserve the whole prepared folder, extracted assets, settings and any mods or diagnostic outputs. The reviewed Windows save implementation uses Saves beside Sly1-Release.exe, with slotN.sav files and adjacent .tmp files during replacement. Keep those files together; player settings are also stored in its save payload. Preserve any custom locations used by your own build. Portcove does not convert console saves or certify compatibility between ProjectCane builds."
+          },
+          {
+            "title": "Review registration before choosing Play",
+            "instruction": "Registration records the native executable, working folder and literal arguments; Play is separate. Only the selected process is supervised. You and upstream own preparation and runtime replacement; review and relink changed executable bytes. Removing the registration preserves external files. Managed installation, extraction, compilation, updates, backup, rollback, migration and deletion are not offered for this copy."
+          }
+        ],
+        "warnings": [
+          "Use only the software and original data you are permitted to use. Upstream’s full-game and Windows claims are not Portcove gameplay or native observations. A Linux-named release file does not establish a Linux route when the inspected source documentation says Windows only."
+        ]
       }
     },
     {
@@ -51342,7 +51585,31 @@
         "game_slug": "wild-9",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2624
+      "issue_number": 2624,
+      "manual_setup": {
+        "help_url": "https://github.com/plinkr/Wild9Recomp/blob/b0c37ccaa382beeaefd8c81dc99c7a72ec11f391/packaging/release/README-WINDOWS.txt",
+        "steps": [
+          {
+            "title": "Keep the complete Windows player",
+            "instruction": "Use your independently permitted completed Wild 9 Windows player. The reviewed v0.1.9 product route uses Wild9_Recompiled.exe with assets, bios, mods, saves, game.toml and its companion files in one writable folder. Published product packages already contain compiled game code and do not require a compiler or Generate & rebuild wizard. Source/setup-host builds are a separate upstream route; finish their preparation outside Portcove."
+          },
+          {
+            "title": "Select the player and your matching disc",
+            "instruction": "Select Wild9_Recompiled.exe, use its complete runtime folder as working directory and leave arguments empty for the normal launcher. At the separate Play step, use upstream’s disc picker for your own NTSC-U/USA SLUS-00425 original. Keep the CUE beside every referenced BIN track; upstream also documents CHD and raw BIN input, with its own revision checks. The published raw-image SHA-1 is 8603e46a1f8f69a0962fdb83f45d11b1e86ca9e3; it is not a hash for a CUE text file or every compressed representation. OpenBIOS is included; a retail Sony BIOS is not mandatory. Registration does not import or authenticate the disc."
+          },
+          {
+            "title": "Preserve the creating runtime and its data",
+            "instruction": "Keep the complete player folder and original disc location, including saves, memory cards, save states, mods, game.toml, game_options.toml, input.ini, keybinds.ini and any other created settings or diagnostics. The reviewed Windows ZIP route keeps data beside the player; user-selected memory-card folders and individual card paths may point elsewhere and must be preserved too. Linux AppImage data locations do not define the Windows layout. Upstream or you own updates; preserve your actual files and review changed executable bytes before relinking. Portcove does not certify save compatibility between builds."
+          },
+          {
+            "title": "Review registration before choosing Play",
+            "instruction": "Portcove records the selected native executable, working folder and literal arguments after review. Play is separate and supervises only the selected process. The reviewed product launcher continues into the runtime in that process. Removing the registration preserves external files. Managed installation, disc preparation, runtime replacement, backup, rollback, migration and deletion are not offered for this copy."
+          }
+        ],
+        "warnings": [
+          "Use only software, originals and included content you are permitted to use. The project’s MIT notice does not replace the PSX runtime’s PolyForm Noncommercial terms or grant rights to original game assets. This guide and automated registration controls do not establish gameplay, multiplayer, save compatibility or Supported acceptance."
+        ]
+      }
     },
     {
       "id": "wing-commander-kilrathi-saga-wing-commander-reloaded-wc1-re",

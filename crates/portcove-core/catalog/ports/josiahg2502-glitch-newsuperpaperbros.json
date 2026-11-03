@@ -9,7 +9,31 @@
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/josiahg2502-glitch/NewSuperPaperBros",
-    "issue_number": 2772
+    "issue_number": 2772,
+    "manual_setup": {
+      "help_url": "https://github.com/josiahg2502-glitch/NewSuperPaperBros/blob/1f961e7db18586655f647f1027eb86ca706088cc/README.md",
+      "steps": [
+        {
+          "title": "Keep the complete prepared Windows package",
+          "instruction": "Use your independently permitted prepared New Super Paper Bros. Windows copy. The reviewed v1.0.8 route uses your own Super Paper Mario Wii USA R8PE01 revision 0 or Europe R8PP01 disc, as ISO, CISO or WBFS, through upstream setup. Finish extraction and any preparation outside Portcove. Keep the complete release, engine modules, launcher companions and Disc/DATA. The source packager’s local HQ-music and HD-texture inputs are separate from the player’s own original-disc requirement; do not treat those extra assets as an original-data license grant."
+        },
+        {
+          "title": "Select the normal launcher and keep it open",
+          "instruction": "Select New Super Paper Bros.exe, use the complete release folder as working directory and leave arguments empty. In its Game page set When the game closes to Close the launcher too ([launcher] close_with_game=true), and leave the launcher open while its child game runs. The normal launcher starts the packaged engine and closes on the child’s exit with this setting. Portcove supervises only the selected launcher; it does not acquire independent child-process control. Do not use the --play test switch, which starts the child and returns immediately."
+        },
+        {
+          "title": "Preserve disc-specific saves and settings",
+          "instruction": "Keep the whole release folder, Disc/DATA, engine/UserData/Config.toml, engine/UserData/NAND, engine/UserData/Saves, mods, texture replacements, caches and any created logs. The first played disc owns the main NAND; other disc copies use keyed save subfolders, and USA and Europe have different Wii title IDs. Use the creating launcher’s Open saves folder to identify the actual save. Preserve old Play/UserData layouts and any upstream import backups if present; registration does not migrate, merge or certify console/Dolphin save compatibility."
+        },
+        {
+          "title": "Review registration before the separate Play step",
+          "instruction": "Portcove records your selected native executable, working folder and literal arguments. Upstream and you own original preparation, settings, optional mods and runtime replacement. Review and relink changed launcher bytes after an upstream update. Removing the registration preserves external files. Managed installation, extraction, compilation, updates, backup, rollback, save import, migration and deletion are not offered for this copy."
+        }
+      ],
+      "warnings": [
+        "Use only copies, originals, music, textures and other components you are permitted to use, retaining their applicable notices. No rights to game assets follow from a framework license. Upstream screenshots and gameplay statements do not establish Portcove native, gameplay, macOS, Linux or Android acceptance."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
