@@ -511,3 +511,30 @@ void test("Windows live dependency enumeration defers only an inspected busy dir
     /ENOENT/u,
   );
 });
+
+void test("Windows dependency sampling reclassifies only live directory-to-link replacements without traversing them", () => {
+  const fixture = fileURLToPath(new URL("./fixtures/windows-dependency-live.mjs", import.meta.url));
+  const result = spawnSync(process.execPath, [fixture], {
+    encoding: "utf8",
+    timeout: 30_000,
+    maxBuffer: 64 * 1024,
+  });
+  assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+  const report: unknown = JSON.parse(result.stdout);
+  assert.ok(isRecord(report));
+  assert.deepEqual(report.cases, [
+    "live-link",
+    "settled",
+    "root",
+    "EACCES",
+    "EPERM",
+    "EIO",
+    "file",
+    "initial-lstat",
+    "hardlink",
+    "expired",
+    "count",
+    "link-bytes",
+    "missing-root",
+  ]);
+});
