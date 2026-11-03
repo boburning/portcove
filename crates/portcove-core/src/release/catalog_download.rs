@@ -164,7 +164,7 @@ impl GithubReleaseProvider {
             let mut ids = std::collections::BTreeSet::new();
             for asset in &assets {
                 let candidate = self.catalog_candidate(repository, release, asset)?;
-                if !ids.insert(candidate.asset_id) {
+                if !ids.insert(candidate.asset_id.clone()) {
                     return Err(PortcoveError::verification("release repeats an asset ID"));
                 }
                 candidates.push(candidate);
@@ -177,7 +177,7 @@ impl GithubReleaseProvider {
                 !release.draft && (*index < RELEASE_LIMIT || release.id == selected_id)
             })
             .map(|(_, release)| crate::CatalogDownloadRelease {
-                id: release.id.unwrap(),
+                id: release.id.unwrap().into(),
                 tag: release.tag_name.clone(),
                 preview: is_beta_release(release),
                 assets_complete: release.id == selected_id,
@@ -191,6 +191,7 @@ impl GithubReleaseProvider {
                 releases_checked: usize::from(selected_id.is_some()),
                 release_history_complete: history_complete,
                 candidates_complete: true,
+                limitations: Vec::new(),
             },
             summaries,
             selected_id,
@@ -293,11 +294,13 @@ impl GithubReleaseProvider {
             release_id: release
                 .id
                 .filter(|id| *id > 0)
-                .ok_or_else(|| PortcoveError::verification("release has no stable ID"))?,
+                .ok_or_else(|| PortcoveError::verification("release has no stable ID"))?
+                .into(),
             asset_id: asset
                 .id
                 .filter(|id| *id > 0)
-                .ok_or_else(|| PortcoveError::verification("release asset has no stable ID"))?,
+                .ok_or_else(|| PortcoveError::verification("release asset has no stable ID"))?
+                .into(),
             release_tag: release.tag_name.clone(),
             release_url: release_url.into(),
             name: asset.name.clone(),

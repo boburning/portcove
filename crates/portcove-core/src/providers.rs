@@ -24,6 +24,10 @@ impl CompositeReleaseProvider {
     pub fn github(&self) -> Arc<GithubReleaseProvider> {
         self.github.clone()
     }
+
+    pub(crate) fn gitlab(&self) -> GitlabReleaseProvider {
+        self.gitlab.clone()
+    }
 }
 
 #[async_trait]

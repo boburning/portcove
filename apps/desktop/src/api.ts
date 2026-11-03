@@ -399,7 +399,7 @@ export const desktopApi = {
   catalogDownloadCandidates: (
     portId: string,
     generation: number,
-    selectedReleaseId?: number,
+    selectedReleaseId?: NonNullable<CatalogDownloadCandidates["selected_release_id"]>,
     channel = "stable",
   ) =>
     invoke<CatalogDownloadCandidates>("catalog_download_candidates", {

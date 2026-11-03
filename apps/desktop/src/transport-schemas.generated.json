@@ -6836,12 +6836,22 @@
   },
   "catalog_download_candidates": {
     "$defs": {
-      "CatalogDownloadCandidate": {
-        "properties": {
-          "asset_id": {
+      "CatalogDownloadAssetId": {
+        "anyOf": [
+          {
             "format": "uint64",
             "minimum": 0,
             "type": "integer"
+          },
+          {
+            "$ref": "#/$defs/CatalogForeignAssetId"
+          }
+        ]
+      },
+      "CatalogDownloadCandidate": {
+        "properties": {
+          "asset_id": {
+            "$ref": "#/$defs/CatalogDownloadAssetId"
           },
           "can_extract": {
             "type": "boolean"
@@ -6853,9 +6863,7 @@
             "type": "string"
           },
           "release_id": {
-            "format": "uint64",
-            "minimum": 0,
-            "type": "integer"
+            "$ref": "#/$defs/CatalogDownloadReleaseId"
           },
           "release_tag": {
             "type": "string"
@@ -6899,6 +6907,13 @@
             "description": "All assets from the returned published releases are represented.",
             "type": "boolean"
           },
+          "limitations": {
+            "description": "Files that could not enter this provider's qualified download route.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "release_history_complete": {
             "description": "A short first page established the end of the visible release history.",
             "type": "boolean"
@@ -6930,9 +6945,7 @@
             "type": "boolean"
           },
           "id": {
-            "format": "uint64",
-            "minimum": 0,
-            "type": "integer"
+            "$ref": "#/$defs/CatalogDownloadReleaseId"
           },
           "preview": {
             "type": "boolean"
@@ -6949,12 +6962,88 @@
         ],
         "type": "object"
       },
-      "CatalogPackageAssessment": {
-        "properties": {
-          "asset_id": {
+      "CatalogDownloadReleaseId": {
+        "anyOf": [
+          {
             "format": "uint64",
             "minimum": 0,
             "type": "integer"
+          },
+          {
+            "$ref": "#/$defs/CatalogForeignReleaseId"
+          }
+        ]
+      },
+      "CatalogForeignAssetId": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "file_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "link_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "project_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "provider": {
+                "const": "gitlab",
+                "type": "string"
+              },
+              "tag": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "project_id",
+              "tag",
+              "link_id",
+              "file_id"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "CatalogForeignReleaseId": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "project_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "provider": {
+                "const": "gitlab",
+                "type": "string"
+              },
+              "tag": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "project_id",
+              "tag"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "CatalogPackageAssessment": {
+        "properties": {
+          "asset_id": {
+            "$ref": "#/$defs/CatalogDownloadAssetId"
           },
           "reason": {
             "type": "string"
@@ -7018,11 +7107,13 @@
         "type": "string"
       },
       "recommended_asset_id": {
-        "format": "uint64",
-        "minimum": 0,
-        "type": [
-          "integer",
-          "null"
+        "anyOf": [
+          {
+            "$ref": "#/$defs/CatalogDownloadAssetId"
+          },
+          {
+            "type": "null"
+          }
         ]
       },
       "releases": {
@@ -7032,11 +7123,13 @@
         "type": "array"
       },
       "selected_release_id": {
-        "format": "uint64",
-        "minimum": 0,
-        "type": [
-          "integer",
-          "null"
+        "anyOf": [
+          {
+            "$ref": "#/$defs/CatalogDownloadReleaseId"
+          },
+          {
+            "type": "null"
+          }
         ]
       },
       "upstream_url": {
@@ -7062,12 +7155,22 @@
   },
   "catalog_download_preview": {
     "$defs": {
-      "CatalogDownloadCandidate": {
-        "properties": {
-          "asset_id": {
+      "CatalogDownloadAssetId": {
+        "anyOf": [
+          {
             "format": "uint64",
             "minimum": 0,
             "type": "integer"
+          },
+          {
+            "$ref": "#/$defs/CatalogForeignAssetId"
+          }
+        ]
+      },
+      "CatalogDownloadCandidate": {
+        "properties": {
+          "asset_id": {
+            "$ref": "#/$defs/CatalogDownloadAssetId"
           },
           "can_extract": {
             "type": "boolean"
@@ -7079,9 +7182,7 @@
             "type": "string"
           },
           "release_id": {
-            "format": "uint64",
-            "minimum": 0,
-            "type": "integer"
+            "$ref": "#/$defs/CatalogDownloadReleaseId"
           },
           "release_tag": {
             "type": "string"
@@ -7114,13 +7215,23 @@
         ],
         "type": "object"
       },
+      "CatalogDownloadReleaseId": {
+        "anyOf": [
+          {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          {
+            "$ref": "#/$defs/CatalogForeignReleaseId"
+          }
+        ]
+      },
       "CatalogDownloadRequest": {
         "additionalProperties": false,
         "properties": {
           "asset_id": {
-            "format": "uint64",
-            "minimum": 0,
-            "type": "integer"
+            "$ref": "#/$defs/CatalogDownloadAssetId"
           },
           "destination_parent": {
             "type": "string"
@@ -7132,9 +7243,7 @@
             "type": "string"
           },
           "release_id": {
-            "format": "uint64",
-            "minimum": 0,
-            "type": "integer"
+            "$ref": "#/$defs/CatalogDownloadReleaseId"
           }
         },
         "required": [
@@ -7145,6 +7254,72 @@
           "extract_archive"
         ],
         "type": "object"
+      },
+      "CatalogForeignAssetId": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "file_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "link_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "project_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "provider": {
+                "const": "gitlab",
+                "type": "string"
+              },
+              "tag": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "project_id",
+              "tag",
+              "link_id",
+              "file_id"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "CatalogForeignReleaseId": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "project_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "provider": {
+                "const": "gitlab",
+                "type": "string"
+              },
+              "tag": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "project_id",
+              "tag"
+            ],
+            "type": "object"
+          }
+        ]
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -7172,13 +7347,103 @@
     "type": "object"
   },
   "catalog_download_request": {
+    "$defs": {
+      "CatalogDownloadAssetId": {
+        "anyOf": [
+          {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          {
+            "$ref": "#/$defs/CatalogForeignAssetId"
+          }
+        ]
+      },
+      "CatalogDownloadReleaseId": {
+        "anyOf": [
+          {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          {
+            "$ref": "#/$defs/CatalogForeignReleaseId"
+          }
+        ]
+      },
+      "CatalogForeignAssetId": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "file_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "link_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "project_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "provider": {
+                "const": "gitlab",
+                "type": "string"
+              },
+              "tag": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "project_id",
+              "tag",
+              "link_id",
+              "file_id"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "CatalogForeignReleaseId": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "project_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "provider": {
+                "const": "gitlab",
+                "type": "string"
+              },
+              "tag": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "project_id",
+              "tag"
+            ],
+            "type": "object"
+          }
+        ]
+      }
+    },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties": false,
     "properties": {
       "asset_id": {
-        "format": "uint64",
-        "minimum": 0,
-        "type": "integer"
+        "$ref": "#/$defs/CatalogDownloadAssetId"
       },
       "destination_parent": {
         "type": "string"
@@ -7190,9 +7455,7 @@
         "type": "string"
       },
       "release_id": {
-        "format": "uint64",
-        "minimum": 0,
-        "type": "integer"
+        "$ref": "#/$defs/CatalogDownloadReleaseId"
       }
     },
     "required": [
@@ -24177,12 +24440,22 @@
   },
   "pending_setups": {
     "$defs": {
-      "CatalogDownloadCandidate": {
-        "properties": {
-          "asset_id": {
+      "CatalogDownloadAssetId": {
+        "anyOf": [
+          {
             "format": "uint64",
             "minimum": 0,
             "type": "integer"
+          },
+          {
+            "$ref": "#/$defs/CatalogForeignAssetId"
+          }
+        ]
+      },
+      "CatalogDownloadCandidate": {
+        "properties": {
+          "asset_id": {
+            "$ref": "#/$defs/CatalogDownloadAssetId"
           },
           "can_extract": {
             "type": "boolean"
@@ -24194,9 +24467,7 @@
             "type": "string"
           },
           "release_id": {
-            "format": "uint64",
-            "minimum": 0,
-            "type": "integer"
+            "$ref": "#/$defs/CatalogDownloadReleaseId"
           },
           "release_tag": {
             "type": "string"
@@ -24228,6 +24499,84 @@
           "can_extract"
         ],
         "type": "object"
+      },
+      "CatalogDownloadReleaseId": {
+        "anyOf": [
+          {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          {
+            "$ref": "#/$defs/CatalogForeignReleaseId"
+          }
+        ]
+      },
+      "CatalogForeignAssetId": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "file_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "link_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "project_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "provider": {
+                "const": "gitlab",
+                "type": "string"
+              },
+              "tag": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "project_id",
+              "tag",
+              "link_id",
+              "file_id"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "CatalogForeignReleaseId": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "project_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "provider": {
+                "const": "gitlab",
+                "type": "string"
+              },
+              "tag": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "project_id",
+              "tag"
+            ],
+            "type": "object"
+          }
+        ]
       },
       "CatalogMediaAsset": {
         "additionalProperties": false,
@@ -24777,6 +25126,12 @@
           },
           "downloaded_at": {
             "type": "string"
+          },
+          "format_version": {
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
           },
           "id": {
             "type": "string"

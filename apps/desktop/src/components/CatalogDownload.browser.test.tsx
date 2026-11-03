@@ -344,6 +344,96 @@ it("requires a new choice when an explicitly selected package disappears", async
     .toBeDisabled();
 });
 
+it("passes independently decoded GitLab references through review and explicit download", async () => {
+  const release = { provider: "gitlab" as const, project_id: 42, tag: "v1/日本" };
+  const asset = { ...release, link_id: 7, file_id: 17 };
+  const selected = { ...selection, release_id: release, asset_id: asset };
+  const file = {
+    ...artifact,
+    release_id: release,
+    asset_id: asset,
+    release_tag: release.tag,
+    sha256: "b".repeat(64),
+  };
+  const checked = { ...preview, request: selected, artifact: file };
+  const offered: CatalogDownloadCandidates = {
+    ...candidates,
+    releases: [{ id: release, tag: release.tag, preview: false, assets_complete: true }],
+    selected_release_id: release,
+    recommended_asset_id: asset,
+    candidates: [file],
+    packages: [{ asset_id: asset, suitability: "suitable", reason: "Reviewed package." }],
+  };
+  // Independent objects model separate decoded IPC replies, without shared identity.
+  vi.mocked(desktopApi.catalogDownloadCandidates).mockResolvedValue(structuredClone(offered));
+  vi.mocked(desktopApi.previewCatalogDownload).mockResolvedValue(structuredClone(checked));
+  vi.mocked(desktopApi.downloadCatalogPackage).mockResolvedValue({
+    ...saved,
+    artifact: file,
+    format_version: 2,
+  });
+  await click("Check upstream downloads");
+  await click("Review download");
+  expect(desktopApi.previewCatalogDownload).toHaveBeenCalledExactlyOnceWith(selected, 9);
+  expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
+  await click("Download");
+  expect(desktopApi.downloadCatalogPackage).toHaveBeenCalledExactlyOnceWith(
+    selected,
+    checked.preview_sha256,
+    9,
+    reportEvent,
+  );
+  expect(desktopApi.registerUserSelectedRuntime).not.toHaveBeenCalled();
+});
+
+it("requires fresh review when a GitLab link is reuploaded as a different registry file", async () => {
+  const release = { provider: "gitlab" as const, project_id: 42, tag: "v1" };
+  const asset = { ...release, link_id: 7, file_id: 17 };
+  const alternative = { ...release, link_id: 8, file_id: 19 };
+  const response = {
+    ...candidates,
+    releases: [{ id: release, tag: release.tag, preview: false, assets_complete: true }],
+    selected_release_id: release,
+    recommended_asset_id: alternative,
+    candidates: [
+      { ...artifact, release_id: release, asset_id: asset, release_tag: release.tag },
+      {
+        ...artifact,
+        name: "alternative.zip",
+        release_id: release,
+        asset_id: alternative,
+        release_tag: release.tag,
+      },
+    ],
+    packages: [asset, alternative].map((asset_id) => ({
+      asset_id,
+      suitability: "suitable" as const,
+      reason: "Reviewed package.",
+    })),
+  };
+  vi.mocked(desktopApi.catalogDownloadCandidates).mockResolvedValue(response);
+  await click("Check upstream downloads");
+  await click("Change download options");
+  await page.getByRole("combobox", { name: /^Package/ }).click();
+  await page.getByRole("option", { name: /game.zip/ }).click();
+  const reuploaded = { ...asset, file_id: 18 };
+  vi.mocked(desktopApi.catalogDownloadCandidates).mockResolvedValue({
+    ...response,
+    candidates: [
+      { ...artifact, release_id: release, asset_id: reuploaded, release_tag: release.tag },
+      response.candidates[1]!,
+    ],
+    packages: [{ ...response.packages[0]!, asset_id: reuploaded }, response.packages[1]!],
+  });
+  await click("Check downloads again");
+  expect(document.body.textContent).toContain("Your selected package is no longer available");
+  await expect
+    .element(page.getByRole("button", { name: "Review download", exact: true }))
+    .toBeDisabled();
+  expect(desktopApi.previewCatalogDownload).not.toHaveBeenCalled();
+  expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
+});
+
 it("suggests Core's native target and preserves a manual installation outside the download folder", async () => {
   const executable = `${saved.path}/bin/Harbor.exe`;
   vi.mocked(desktopApi.discoverSetupLaunchTargets).mockResolvedValue({

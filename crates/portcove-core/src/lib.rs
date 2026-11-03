@@ -272,13 +272,14 @@ pub use retained_build::{
 };
 pub use service::{
     AdoptionCopyFile, AdoptionCopyPlan, AdoptionDestinationPreview, AdoptionPreview,
-    AdoptionSkippedEntry, BackupAction, BackupActionPreview, CatalogDownloadCandidate,
-    CatalogDownloadCandidates, CatalogDownloadCoverage, CatalogDownloadPreview,
-    CatalogDownloadRelease, CatalogDownloadRequest, CatalogPackageAssessment,
-    IdentifiedLaunchRequest, InstallOverrides, InstallationProtection, ManagedRouteChangePreview,
-    ManagedRouteChangeResult, PendingSetupRecord, PendingSetupState, PlayerDataProtection,
-    PortRemovalPreview, PortcoveService, ProtectionDeclaration, SetupLaunchTarget,
-    SetupLaunchTargets,
+    AdoptionSkippedEntry, BackupAction, BackupActionPreview, CatalogDownloadAssetId,
+    CatalogDownloadCandidate, CatalogDownloadCandidates, CatalogDownloadCoverage,
+    CatalogDownloadPreview, CatalogDownloadRelease, CatalogDownloadReleaseId,
+    CatalogDownloadRequest, CatalogForeignAssetId, CatalogForeignReleaseId,
+    CatalogPackageAssessment, IdentifiedLaunchRequest, InstallOverrides, InstallationProtection,
+    ManagedRouteChangePreview, ManagedRouteChangeResult, PendingSetupRecord, PendingSetupState,
+    PlayerDataProtection, PortRemovalPreview, PortcoveService, ProtectionDeclaration,
+    SetupLaunchTarget, SetupLaunchTargets,
 };
 pub use signed_catalog::{
     CatalogOrigin, CatalogProvenance, CatalogTrustKey, SignedCatalogEnvelope, SignedCatalogPayload,
@@ -349,7 +350,7 @@ pub use types::*;
 // library schema versions are independent and unchanged.
 // Public87 adds explicit compiled official-catalog setup for normal clients.
 // Its source-bound confirmation is separate from the unchanged CLI authority plan.
-pub const API_SCHEMA_VERSION: u32 = 87;
+pub const API_SCHEMA_VERSION: u32 = 88;
 /// Oldest library schema this build can read and migrate.
 pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 /// Library schema this build writes after opening a library.

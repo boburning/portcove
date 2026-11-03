@@ -113,7 +113,7 @@ repository's dependency age, grouping, PR-limit and protected review rules.
 
 ## Compatibility and use
 
-This revision supports **Portcove API schemas 42–57, 60–63 or 65–87 and event schemas 2–3**. Schema
+This revision supports **Portcove API schemas 42–57, 60–63 or 65–88 and event schemas 2–3**. Schema
 50 advertises the independently versioned operation-event contract through
 `operation_event_schema_version`; the client consumes and rejects an unsupported
 value before lifecycle management. Launch-only and read-only library negotiation
@@ -121,7 +121,9 @@ prove their narrower command/format sets without requiring unused management or
 raw-stream contracts. Additional object fields are tolerated; incompatible schema
 versions and missing required capabilities produce an upgrade message before
 management. A product version string is not used as a compatibility guess.
-Schema 87 adds optional Desktop official-catalog setup contracts. This client invokes none of those Desktop-only commands and accepts no Root or transport input; existing CLI status, lifecycle, trust and event negotiation remain unchanged. Unknown future API88 and consequential semantics are refused.
+Schema 88 adds provider-qualified GitLab identities to self-service download selection and version-2 pending setup records. This reference client does not invoke those setup commands or decode those records; it continues to consume Core status, readiness and lifecycle decisions. Numeric GitHub download identities retain their original representation.
+
+Schema 87 adds optional Desktop official-catalog setup contracts. This client invokes none of those Desktop-only commands and accepts no Root or transport input; existing CLI status, lifecycle, trust and event negotiation remain unchanged. Unknown future API89 and consequential semantics are refused.
 Schema 69 adds the optional reviewed Ghostship legacy recovery commands and backup deletion disclosure. This client does not invoke those commands or backup deletion; its existing lifecycle decisions remain unchanged.
 Schema 84 adds optional IGDB key art, game logos and reviewed edition applicability to descriptive catalog media. This client does not render or acquire that media; these fields cannot change port identity, ownership, readiness, trust or action eligibility. Existing cover/title handling remains unchanged. Strict media listing format 5 does not change the CLI catalog/status responses consumed here, and event schemas remain 2–3. Unknown future APIs and consequential semantics are refused.
 Schema 83 adds optional advisory recommendation metadata and comparison/following surfaces. This client does not consume comparison or following commands; missing, malformed or future recommendation metadata leaves its identity, display, installation, trust and Core action decisions unchanged. Event authority remains the separately advertised version 3 (legacy version 2), and accepting this API adds no operation permission.
@@ -139,7 +141,7 @@ client does not use. Schema 53 adds optional saved-root scan and snapshot comman
 that this client also does not use. It accepts both additive schemas while
 continuing to negotiate only its required capabilities. Use an exactly identified schema-42,
 schema-43, schema-44, schema-45, schema-46, schema-47, schema-48, schema-49,
-schema-50, schema-51, schema-52, schema-53, schema-54, schema-55, schema-56, schema-57, schema-60, schema-61, schema-62, schema-63 or schema-65 through schema-87 candidate until a matching public
+schema-50, schema-51, schema-52, schema-53, schema-54, schema-55, schema-56, schema-57, schema-60, schema-61, schema-62, schema-63 or schema-65 through schema-88 candidate until a matching public
 standalone release exists; the older published technical previews must not be
 described as supporting these new commands.
 See the [author guide](../../docs/INTEGRATION-AUTHOR.md).
@@ -159,7 +161,7 @@ ordinary cancellation dialog must be acknowledged to restore the action.
 Schema 74 adds an optional retained Windows runtime-path requirement. This client
 continues to use Core's readiness and launch refusal; it does not duplicate path
 validation or silently move a game. Reviewed folder relink remains available on
-supported schemas72 through87 when its command capability is advertised. Compiled
+supported schemas72 through88 when its command capability is advertised. Compiled
 producer/client observations remain tied to the exact executed revision.
 
 Schema78 introduced a closed CVLoD source recipe without changing commands,
@@ -168,7 +170,7 @@ runtime/recovery compatibility does not offer new builds or require compiler
 acquisition. The client still displays Core's current offered plan, acquisitions,
 capacity and consent, and delegates readiness and execution to Core. It does not
 parse historical recipe names or execute catalog build instructions. This revision
-accepts API87 within the reviewed membership above and event schemas 2–3; future
+accepts API88 within the reviewed membership above and event schemas 2–3; future
 APIs and unknown execution/ownership semantics remain refused. See
 [retained compatibility](../../docs/reference/upstream-first-compatibility.md).
 
@@ -176,8 +178,8 @@ API81 adds explicit external-to-managed copy preview/apply commands without
 changing responses used by this client. The client continues consuming Core's
 ownership, readiness and reviewed lifecycle fields; it does not invoke this
 optional transition or infer managed capabilities for external copies. The
-compiled-producer negotiation test and membership/refusal cases include API87
-and continue rejecting API88 and unknown ownership semantics.
+compiled-producer negotiation test and membership/refusal cases include API88
+and continue rejecting API89 and unknown ownership semantics.
 
 Schema79 adds opt-in prepared original-directory binding. The client uses the
 same Core readiness and supervised launch path: Core revalidates the retained

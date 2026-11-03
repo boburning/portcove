@@ -33,8 +33,8 @@ fn fixture() -> (tempfile::TempDir, PortcoveService, CatalogDownloadRequest) {
     fs::create_dir(&parent).unwrap();
     let request = CatalogDownloadRequest {
         port_id: "directory-download-fixture".into(),
-        release_id: 7,
-        asset_id: 11,
+        release_id: 7.into(),
+        asset_id: 11.into(),
         destination_parent: fs::canonicalize(parent).unwrap(),
         extract_archive: true,
     };
@@ -50,6 +50,100 @@ fn archive() -> Vec<u8> {
         .write_all(b"Follow the upstream setup instructions.")
         .unwrap();
     writer.finish().unwrap().into_inner()
+}
+
+#[test]
+fn legacy_catalog_artifact_json_keeps_pre_gitlab_numeric_wire_representation() {
+    // Candidate field order and numeric IDs at baseline5821d359, independent of
+    // the new provider-qualified model and its constructors.
+    let original = r#"{"release_id":7,"asset_id":11,"release_tag":"v1","release_url":"https://github.com/owner/game/releases/tag/v1","name":"game.zip","size":1,"download_url":"https://github.com/owner/game/releases/download/v1/game.zip","sha256":null,"can_extract":true}"#;
+    let candidate: CatalogDownloadCandidate = serde_json::from_str(original).unwrap();
+    assert_eq!(serde_json::to_string(&candidate).unwrap(), original);
+}
+
+#[test]
+fn pending_catalog_record_formats_preserve_legacy_and_refuse_missing_or_foreign_versions() {
+    let (_temporary, service, request) = fixture();
+    let (mut record, _stage, _preview) = intent(&service, &request);
+    let legacy = serde_json::to_string(&record).unwrap();
+    assert!(
+        !serde_json::from_str::<Value>(&legacy)
+            .unwrap()
+            .as_object()
+            .unwrap()
+            .contains_key("format_version")
+    );
+    let decoded: PendingSetupRecord = serde_json::from_str(&legacy).unwrap();
+    assert_eq!(decoded.format_version, 1);
+    validate_record(&decoded).unwrap();
+
+    record.artifact.release_id =
+        CatalogDownloadReleaseId::Foreign(CatalogForeignReleaseId::Gitlab {
+            project_id: 42,
+            tag: "v1".into(),
+        });
+    record.artifact.asset_id = CatalogDownloadAssetId::Foreign(CatalogForeignAssetId::Gitlab {
+        project_id: 42,
+        tag: "v1".into(),
+        link_id: 11,
+        file_id: 17,
+    });
+    // Missing foreign format defaults to the old format and must not be adopted.
+    assert!(validate_record(&record).is_err());
+    record.format_version = 2;
+    // Foreign identities cannot relabel a retained GitHub listing or URL.
+    assert!(validate_record(&record).is_err());
+    record.listing.project_url = "https://gitlab.com/owner/game".into();
+    record.listing.release_url = Some("https://gitlab.com/owner/game/-/releases".into());
+    record.artifact.release_url = "https://gitlab.com/owner/game/-/releases/v1".into();
+    record.artifact.download_url =
+        "https://gitlab.com/owner/game/-/package_files/17/download".into();
+    record.artifact.sha256 = Some(record.archive_sha256.clone());
+    validate_record(&record).unwrap();
+    let valid = record.clone();
+    for url in [
+        "https://gitlab.com/owner/other/-/package_files/17/download",
+        "https://gitlab.com/owner/game/-/package_files/18/download",
+        "https://gitlab.com/owner/game/-/package_files/17/download?token=secret",
+        "https://gitlab.com@attacker.invalid/owner/game/-/package_files/17/download",
+        "https://gitlab.com/api/v4/projects/43/packages/generic/game/v1/game.zip",
+        "https://gitlab.com/api/v4/projects/42/packages/generic/game/v2/game.zip",
+        "https://gitlab.com/api/v4/projects/42/packages/generic/game/v1/other.zip",
+        "https://gitlab.com/owner/game/-/uploads/anything/game.zip",
+        "http://gitlab.com/owner/game/-/package_files/17/download",
+    ] {
+        record.artifact.download_url = url.into();
+        assert!(validate_record(&record).is_err(), "{url}");
+    }
+    record = valid.clone();
+    for url in [
+        "https://gitlab.com/api/v4/projects/42/packages/generic/game/v1/game.zip",
+        "https://gitlab.com/api/v4/projects/owner%2Fgame/packages/generic/game/1/game.zip",
+    ] {
+        record.artifact.download_url = url.into();
+        validate_record(&record).unwrap();
+    }
+    record = valid.clone();
+    record.artifact.sha256 = None;
+    assert!(validate_record(&record).is_err());
+    record = valid.clone();
+    record.archive_sha256 = "b".repeat(64);
+    assert!(validate_record(&record).is_err());
+    record = valid.clone();
+    record.artifact.size = 0;
+    assert!(validate_record(&record).is_err());
+    record = valid;
+    let foreign = serde_json::to_value(&record).unwrap();
+    assert_eq!(foreign["format_version"], 2);
+    // The historical reader requires numeric IDs. It cannot mistake this record
+    // for GitHub even if a caller strips the explicit record-format field.
+    assert!(serde_json::from_value::<u64>(foreign["artifact"]["release_id"].clone()).is_err());
+    assert!(serde_json::from_value::<u64>(foreign["artifact"]["asset_id"].clone()).is_err());
+    record.format_version = 3;
+    assert!(validate_record(&record).is_err());
+    record.format_version = 2;
+    record.artifact.release_tag = "different".into();
+    assert!(validate_record(&record).is_err());
 }
 
 #[tokio::test]
@@ -89,7 +183,7 @@ async fn catalog_default_candidates_use_recommendation_and_explicit_choices_win(
         )
         .await
         .unwrap();
-    assert_eq!(recommended.selected_release_id, Some(9));
+    assert_eq!(recommended.selected_release_id, Some(9.into()));
     assert_eq!(recommended.candidates[0].asset_id, 22);
     let explicit = service
         .catalog_download_options_with_provider(
@@ -100,7 +194,7 @@ async fn catalog_default_candidates_use_recommendation_and_explicit_choices_win(
         )
         .await
         .unwrap();
-    assert_eq!(explicit.selected_release_id, Some(7));
+    assert_eq!(explicit.selected_release_id, Some(7.into()));
     let historical = service
         .catalog_download_options_with_provider(
             &request.port_id,
@@ -110,7 +204,7 @@ async fn catalog_default_candidates_use_recommendation_and_explicit_choices_win(
         )
         .await
         .unwrap();
-    assert_eq!(historical.selected_release_id, Some(7));
+    assert_eq!(historical.selected_release_id, Some(7.into()));
     assert!(service.pending_setups().unwrap().is_empty());
 }
 
@@ -589,6 +683,18 @@ async fn embedded_retained_acquisition_holds_refuse_before_network() {
             "star-wars-shadows-of-the-empire-n64-sote-recomp",
         ],
         false,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn gitlab_font_holds_remain_before_provider_selection_or_network() {
+    assert_embedded_listing_download_holds(
+        &[
+            "mario-kart-64-mariokart64recomp",
+            "star-fox-64-starfox64recomp",
+        ],
+        true,
     )
     .await;
 }
@@ -1156,14 +1262,15 @@ fn intent(
         .tempdir_in(&request.destination_parent)
         .unwrap();
     let record = PendingSetupRecord {
+        format_version: 1,
         id: Uuid::new_v4().to_string(),
         port_id: request.port_id.clone(),
         listing: service.catalog.listing(&request.port_id).unwrap().clone(),
         path: service.download_destination(request).unwrap(),
         state: PendingSetupState::AttentionRequired,
         artifact: CatalogDownloadCandidate {
-            release_id: request.release_id,
-            asset_id: request.asset_id,
+            release_id: request.release_id.clone(),
+            asset_id: request.asset_id.clone(),
             release_tag: "v1".into(),
             release_url: "https://github.com/owner/game/releases/tag/v1".into(),
             name: "game.zip".into(),
@@ -1341,7 +1448,7 @@ fn restart_finishes_proven_handoff_but_never_adopts_or_deletes_a_collision() {
     // A different operation with an occupied destination cannot interpret those
     // existing user bytes as its own published folder, even on restart.
     let mut another = request.clone();
-    another.asset_id = 22;
+    another.asset_id = 22.into();
     let (other, stage, _) = intent(&service, &another);
     fs::create_dir(&other.path).unwrap();
     fs::write(other.path.join("keep.dat"), b"mine").unwrap();
@@ -1364,74 +1471,192 @@ fn restart_finishes_proven_handoff_but_never_adopts_or_deletes_a_collision() {
     );
 }
 
+fn with_gitlab_identity(mut record: PendingSetupRecord) -> PendingSetupRecord {
+    record.format_version = 2;
+    record.listing.project_url = "https://gitlab.com/owner/game".into();
+    record.listing.release_url = Some("https://gitlab.com/owner/game/-/releases".into());
+    record.artifact.release_id =
+        CatalogDownloadReleaseId::Foreign(CatalogForeignReleaseId::Gitlab {
+            project_id: 42,
+            tag: "v1".into(),
+        });
+    record.artifact.asset_id = CatalogDownloadAssetId::Foreign(CatalogForeignAssetId::Gitlab {
+        project_id: 42,
+        tag: "v1".into(),
+        link_id: 11,
+        file_id: 17,
+    });
+    record.artifact.release_url = "https://gitlab.com/owner/game/-/releases/v1".into();
+    record.artifact.download_url =
+        "https://gitlab.com/owner/game/-/package_files/17/download".into();
+    record.artifact.sha256 = Some(record.archive_sha256.clone());
+    record
+}
+
+#[test]
+fn gitlab_pending_restart_preserves_retained_provider_at_each_publication_phase() {
+    for phase in ["preparing", "publication-intent", "downloaded"] {
+        let (_temporary, service, request) = fixture();
+        let (mut record, stage, review) = intent(&service, &request);
+        record = with_gitlab_identity(record);
+        let request = CatalogDownloadRequest {
+            release_id: record.artifact.release_id.clone(),
+            asset_id: record.artifact.asset_id.clone(),
+            ..request
+        };
+        record.path = service.download_destination(&request).unwrap();
+        assert!(
+            record
+                .path
+                .file_name()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .contains("gitlab-")
+        );
+        if phase != "preparing" {
+            let payload = stage.path().join("payload");
+            fs::create_dir(&payload).unwrap();
+            fs::write(payload.join("keep.dat"), b"user handoff").unwrap();
+            crate::durability::write_json_atomically(
+                &payload.join(RECEIPT_NAME),
+                &PublicationReceipt {
+                    format_version: 1,
+                    pending_id: record.id.clone(),
+                    port_id: record.port_id.clone(),
+                    preview_sha256: review,
+                    archive_sha256: record.archive_sha256.clone(),
+                },
+                false,
+            )
+            .unwrap();
+            crate::durability::rename_noreplace(&payload, &record.path).unwrap();
+        }
+        if phase == "downloaded" {
+            record.state = PendingSetupState::Downloaded;
+        }
+        service
+            .update_catalog_download(&record, phase, phase == "downloaded")
+            .unwrap();
+        drop(stage);
+        // Startup has an unrelated embedded catalog. Only the retained snapshot
+        // can interpret this record; it must not refresh or relabel its source.
+        let reopened = PortcoveService::new(service.library.clone()).unwrap();
+        let pending = reopened.pending_setups().unwrap().pop().unwrap();
+        assert_eq!(pending.format_version, 2);
+        assert_eq!(pending.artifact, record.artifact);
+        assert_eq!(pending.listing, record.listing);
+        assert_eq!(pending.path, record.path);
+        assert_eq!(
+            pending.state,
+            if phase == "preparing" {
+                PendingSetupState::AttentionRequired
+            } else {
+                PendingSetupState::Downloaded
+            }
+        );
+        assert!(reopened.library.all_installs().unwrap().is_empty());
+        assert!(
+            reopened
+                .library
+                .external_runtime_with_port(&record.port_id)
+                .unwrap()
+                .is_none()
+        );
+        reopened
+            .forget_pending_setup(&record.port_id, &record.id)
+            .unwrap();
+        if phase != "preparing" {
+            assert_eq!(
+                fs::read(record.path.join("keep.dat")).unwrap(),
+                b"user handoff"
+            );
+        }
+    }
+}
+
 #[test]
 fn continuation_registration_uses_retained_listing_and_consumes_only_matching_pending_identity() {
-    let (_temporary, mut service, request) = fixture();
-    let (record, stage, _) = intent(&service, &request);
-    // Upstream's native installer can place the executable elsewhere. The
-    // explicit user intent binds that exact executable and CWD, not an inferred
-    // relationship to the downloaded package's folder.
-    let working = request.destination_parent.join("upstream-installed");
-    fs::create_dir(&working).unwrap();
-    let executable = crate::test_fixture::build_probe(&working);
-    fs::write(working.join("save.dat"), b"mine").unwrap();
-    let preview = service
-        .preview_user_selected_runtime(&record.port_id, &executable, &working, &[])
-        .unwrap();
-    let authorization = service
-        .authorize_user_selected_runtime(
-            &record.port_id,
-            &executable,
-            &working,
-            &[],
-            &preview.preview_sha256,
-        )
-        .unwrap();
-    service
-        .forget_pending_setup(&record.port_id, &record.id)
-        .unwrap();
-    let (replacement, replacement_stage, _) = intent(&service, &request);
-    assert!(
+    for foreign in [false, true] {
+        let (_temporary, mut service, request) = fixture();
+        let (mut record, stage, _) = intent(&service, &request);
+        if foreign {
+            record = with_gitlab_identity(record);
+            service
+                .update_catalog_download(&record, "publication-intent", false)
+                .unwrap();
+        }
+        // Upstream's native installer can place the executable elsewhere. The
+        // explicit user intent binds that exact executable and CWD, not an inferred
+        // relationship to the downloaded package's folder.
+        let working = request.destination_parent.join("upstream-installed");
+        fs::create_dir(&working).unwrap();
+        let executable = crate::test_fixture::build_probe(&working);
+        fs::write(working.join("save.dat"), b"mine").unwrap();
+        let preview = service
+            .preview_user_selected_runtime(&record.port_id, &executable, &working, &[])
+            .unwrap();
+        let authorization = service
+            .authorize_user_selected_runtime(
+                &record.port_id,
+                &executable,
+                &working,
+                &[],
+                &preview.preview_sha256,
+            )
+            .unwrap();
         service
+            .forget_pending_setup(&record.port_id, &record.id)
+            .unwrap();
+        let (mut replacement, replacement_stage, _) = intent(&service, &request);
+        if foreign {
+            replacement = with_gitlab_identity(replacement);
+            service
+                .update_catalog_download(&replacement, "publication-intent", false)
+                .unwrap();
+        }
+        assert!(
+            service
+                .register_user_selected_runtime(
+                    &record.port_id,
+                    &executable,
+                    &working,
+                    &[],
+                    &authorization.token
+                )
+                .is_err()
+        );
+        assert_eq!(service.pending_setups().unwrap()[0].id, replacement.id);
+        service.catalog =
+            Catalog::from_json(r#"{"schema_version":1,"source_profiles":[],"ports":[]}"#).unwrap();
+        let preview = service
+            .preview_user_selected_runtime(&record.port_id, &executable, &working, &[])
+            .unwrap();
+        let authorization = service
+            .authorize_user_selected_runtime(
+                &record.port_id,
+                &executable,
+                &working,
+                &[],
+                &preview.preview_sha256,
+            )
+            .unwrap();
+        let selected = service
             .register_user_selected_runtime(
                 &record.port_id,
                 &executable,
                 &working,
                 &[],
-                &authorization.token
+                &authorization.token,
             )
-            .is_err()
-    );
-    assert_eq!(service.pending_setups().unwrap()[0].id, replacement.id);
-    service.catalog =
-        Catalog::from_json(r#"{"schema_version":1,"source_profiles":[],"ports":[]}"#).unwrap();
-    let preview = service
-        .preview_user_selected_runtime(&record.port_id, &executable, &working, &[])
-        .unwrap();
-    let authorization = service
-        .authorize_user_selected_runtime(
-            &record.port_id,
-            &executable,
-            &working,
-            &[],
-            &preview.preview_sha256,
-        )
-        .unwrap();
-    let selected = service
-        .register_user_selected_runtime(
-            &record.port_id,
-            &executable,
-            &working,
-            &[],
-            &authorization.token,
-        )
-        .unwrap();
-    assert_eq!(selected.port_id, record.port_id);
-    assert!(service.pending_setups().unwrap().is_empty());
-    assert!(service.library.all_installs().unwrap().is_empty());
-    assert_eq!(fs::read(working.join("save.dat")).unwrap(), b"mine");
-    assert!(executable.exists());
-    assert!(stage.path().exists() && replacement_stage.path().exists());
+            .unwrap();
+        assert_eq!(selected.port_id, record.port_id);
+        assert!(service.pending_setups().unwrap().is_empty());
+        assert!(service.library.all_installs().unwrap().is_empty());
+        assert_eq!(fs::read(working.join("save.dat")).unwrap(), b"mine");
+        assert!(executable.exists());
+        assert!(stage.path().exists() && replacement_stage.path().exists());
+    }
 }
 
 #[test]
@@ -1689,7 +1914,7 @@ async fn assert_embedded_resolved_frontend_download(id: &str, tag: &str, asset_n
         .await
         .unwrap();
     assert!(options.allowed);
-    assert_eq!(options.selected_release_id, Some(7));
+    assert_eq!(options.selected_release_id, Some(7.into()));
     assert_eq!(options.candidates.len(), 1);
     assert_eq!(options.candidates[0].name, asset_name);
     assert_eq!(
@@ -1700,7 +1925,7 @@ async fn assert_embedded_resolved_frontend_download(id: &str, tag: &str, asset_n
     assert!(coverage.release_history_complete && coverage.candidates_complete);
     assert_eq!(
         options.recommended_asset_id,
-        (Platform::current().unwrap() == Platform::WindowsX86_64).then_some(11)
+        (Platform::current().unwrap() == Platform::WindowsX86_64).then_some(11.into())
     );
     assert!(service.pending_setups().unwrap().is_empty());
     let preview = service
@@ -1866,7 +2091,7 @@ async fn exit_shared_release_keeps_title_recommendations_distinct_362_363() {
         assert!(options.allowed);
         assert_eq!(options.candidates.len(), 4);
         if Platform::current().unwrap() == Platform::WindowsX86_64 {
-            assert_eq!(options.recommended_asset_id, Some(expected_id));
+            assert_eq!(options.recommended_asset_id, Some(expected_id.into()));
         }
         // Recommendations do not filter the explicit generic-download choices.
         for name in names {
