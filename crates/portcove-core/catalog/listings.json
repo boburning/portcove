@@ -3333,14 +3333,16 @@
           {
             "title": "Review launch details, then choose Play",
             "instruction": "Review and consent to the selected game executable, working folder and launch arguments, then choose Play separately. You and the project manage setup, version changes and recovery. Removing the registration leaves all external files in place. Portcove does not offer updates, backups, rollback, migration or deletion for this copy. Before changing versions, close the game and all companions and keep the complete working copy and every data location. Review and select the executable again if its files change."
-          },
-          {
-            "title": "Keep the working game and every data location",
-            "instruction": "Keep the entire creating project, original ISO/extracted data, generated C/image and matching native runtime. Saves and mods are relative to the chosen working directory; PS2_SAVE_DIR overrides saves. ac5_settings.ini, ac5_pipelines.cache and ac5_pipelines.keys live beside ac5.exe. These are this runtime’s memory-card format, explicitly not PCSX2 cards. Preserve every save, setting, mod, Lua/native plugin, cache, log, backup and custom root with the creating version. Apache-2.0 project code and separate ImGui/Lua/dependency notices do not license your original game or arbitrary mods."
           }
         ],
         "warnings": [
           "Use only a copy and components you are permitted to use. Preserve originals, required player files, saves, settings, mods, caches, logs, backups and custom locations; another executable may share them. Source inspection and test fixtures do not confirm gameplay, real saves or behavior in the installed app, or establish Supported status or protected acceptance."
+        ],
+        "references": [
+          {
+            "title": "Keep the working game and every data location",
+            "instruction": "Keep the entire creating project, original ISO/extracted data, generated C/image and matching native runtime. Saves and mods are relative to the chosen working directory; PS2_SAVE_DIR overrides saves. ac5_settings.ini, ac5_pipelines.cache and ac5_pipelines.keys live beside ac5.exe. These are this runtime’s memory-card format, explicitly not PCSX2 cards. Preserve every save, setting, mod, Lua/native plugin, cache, log, backup and custom root with the creating version. Apache-2.0 project code and separate ImGui/Lua/dependency notices do not license your original game or arbitrary mods."
+          }
         ]
       }
     },
@@ -9311,12 +9313,21 @@
             "instruction": "Keep permitted copies of reNut and NutStaller, and point NutStaller at your player folder. If extract-xiso is missing, its separate Get extract-xiso action downloads that tool. Then use 3. Pick ISO + extract with your own USA Banjo-Kazooie: Nuts & Bolts Xbox 360 ISO and 4. Add title update with your matching original update as required by the current release instructions. Back up the prepared folder before approving its replacement. These local preparation actions do not acquire another runtime; Get latest reNut and Do everything do and require separate acquisition permission. Portcove does not run the tools during discovery."
           },
           {
-            "title": "Keep the richer upstream launcher available",
-            "instruction": "NutStaller provides runtime update checks, controls, Workshop and save tools; keep it available after registering the prepared player. On Linux, its current instructions require glibc 2.17 for NutStaller itself, 2.34 for the extractor and 2.38 for the player. The player and preparation helper have separate requirements."
-          },
-          {
             "title": "Add the prepared player, then choose Play",
             "instruction": "On Windows select the prepared renut.exe; on Linux select the prepared renut.AppImage and its matching folder. Save the launch details, then choose Play separately. If preparing the player manually, its first-run path wizard asks for existing game-data, user-data and update folders and remembers those paths. No game, installer or helper is executed merely by discovering or registering the copy."
+          }
+        ],
+        "warnings": [
+          "Back up the prepared folder before approving its replacement.",
+          "These local preparation actions do not acquire another runtime; Get latest reNut and Do everything do and require separate acquisition permission.",
+          "On Linux, its current instructions require glibc 2.17 for NutStaller itself, 2.34 for the extractor and 2.38 for the player. The player and preparation helper have separate requirements.",
+          "Portcove registration offers no managed Update, Backup or Rollback and does not adopt these files. Removing the registration preserves every external file."
+        ],
+        "help_url": "https://github.com/masterspike52/reNut/blob/02e33bdbf2ac97acf74a0dc61143a8ee38f85ab9/README.md",
+        "references": [
+          {
+            "title": "Keep the richer upstream launcher available",
+            "instruction": "NutStaller provides runtime update checks, controls, Workshop and save tools; keep it available after registering the prepared player. On Linux, its current instructions require glibc 2.17 for NutStaller itself, 2.34 for the extractor and 2.38 for the player. The player and preparation helper have separate requirements."
           },
           {
             "title": "Preserve actual saves, settings and custom content",
@@ -9326,9 +9337,7 @@
             "title": "Keep update and removal ownership clear",
             "instruction": "You or upstream update this runtime. Preserve the working copy and actual data before accepting an upstream replacement; a save-tool backup does not establish that every separate mod, music, source or helper folder was included. Portcove registration offers no managed Update, Backup or Rollback and does not adopt these files. Removing the registration preserves every external file."
           }
-        ],
-        "warnings": [],
-        "help_url": "https://github.com/masterspike52/reNut/blob/02e33bdbf2ac97acf74a0dc61143a8ee38f85ab9/README.md"
+        ]
       }
     },
     {
@@ -10828,16 +10837,20 @@
             "instruction": "Choose Play explicitly, then Load ROM in the player and select your own North American Body Harvest cartridge dump. Upstream accepts .z64, .n64 and .v64 byte orders, checks the game identity and remembers a normalized bh.us.z64 copy. The released player needs no separate compiler or original-game installer."
           },
           {
-            "title": "Preserve the actual profile and working copy",
-            "instruction": "You or upstream provide updates. Keep the complete copy and actual profile: normally %LOCALAPPDATA%\\BodyHarvestRecompiled, ~/.config/BodyHarvestRecompiled, or ~/Library/Application Support/BodyHarvestRecompiled. On Windows/native Linux, portable.txt uses the working folder; on macOS the marker and data belong beside the application bundle. Preserve the ROM copy, saves, settings, bindings and mods, including any APP_FOLDER_PATH override. These external files are outside Portcove backup and rollback."
-          },
-          {
             "title": "Keep Flatpak data with the actual profile",
             "instruction": "For an existing permitted Flatpak installation, follow upstream preparation and preserve the complete ~/.var/app/io.github.bodyharvestrecomp.bodyharvestrecomp folder alongside the actual profile. Its writable app area and normal/custom/portable profile can be different. Keep the working installation until its replacement is ready."
           }
         ],
-        "warnings": [],
-        "help_url": "https://github.com/mcsoderh/BodyHarvestRecomp/blob/e90747cd09fd732340443c73ed0657eb9bee0fdf/README.md"
+        "warnings": [
+          "On Windows/native Linux, portable.txt uses the working folder; on macOS the marker and data belong beside the application bundle. Preserve the ROM copy, saves, settings, bindings and mods, including any APP_FOLDER_PATH override. These external files are outside Portcove backup and rollback."
+        ],
+        "help_url": "https://github.com/mcsoderh/BodyHarvestRecomp/blob/e90747cd09fd732340443c73ed0657eb9bee0fdf/README.md",
+        "references": [
+          {
+            "title": "Preserve the actual profile and working copy",
+            "instruction": "You or upstream provide updates. Keep the complete copy and actual profile: normally %LOCALAPPDATA%\\BodyHarvestRecompiled, ~/.config/BodyHarvestRecompiled, or ~/Library/Application Support/BodyHarvestRecompiled. On Windows/native Linux, portable.txt uses the working folder; on macOS the marker and data belong beside the application bundle. Preserve the ROM copy, saves, settings, bindings and mods, including any APP_FOLDER_PATH override. These external files are outside Portcove backup and rollback."
+          }
+        ]
       }
     },
     {
@@ -12347,14 +12360,18 @@
           {
             "title": "Load your USA original on first Play",
             "instruction": "Choose Play explicitly, then Load ROM in the launcher and supply your own supported USA Conker’s Bad Fur Day dump. Upstream validates and remembers the input; the released player does not need the source-build tools. Keep this implementation separate from Conker64’s scene prototype and the distinct Reloaded player."
-          },
+          }
+        ],
+        "warnings": [
+          "Keep saves, stored ROM, settings, achievements, save states, logs and mods together with the working copy. portable.txt selects local data relative to the player working folder on Windows/native Linux or beside the macOS bundle; a custom/test profile can differ. Portcove does not adopt, back up, roll back or delete these external files."
+        ],
+        "help_url": "https://github.com/sciaschi/CBFD-Recompiled/blob/85d8c3bc617e2d8311f5f978b832006797bc8ac7/README.md",
+        "references": [
           {
             "title": "Keep the complete profile before updating",
             "instruction": "You or upstream provide updates. Preserve the actual ConkerRecompiled profile: normally %LOCALAPPDATA%\\ConkerRecompiled, ~/.config/ConkerRecompiled or ~/Library/Application Support/ConkerRecompiled. Keep saves, stored ROM, settings, achievements, save states, logs and mods together with the working copy. portable.txt selects local data relative to the player working folder on Windows/native Linux or beside the macOS bundle; a custom/test profile can differ. Portcove does not adopt, back up, roll back or delete these external files."
           }
-        ],
-        "warnings": [],
-        "help_url": "https://github.com/sciaschi/CBFD-Recompiled/blob/85d8c3bc617e2d8311f5f978b832006797bc8ac7/README.md"
+        ]
       }
     },
     {
@@ -13275,7 +13292,15 @@
           {
             "title": "Review launch details, then choose Play",
             "instruction": "Review the selected game executable, working folder and launch arguments, then agree to use them. Choose Play separately when you are ready. Adding this copy does not prepare, update or replace its external files. Removing its registration leaves all external files in place. Before changing versions, close the game and its companion programs and keep the working copy and all data. Review and select the changed executable before playing again."
-          },
+          }
+        ],
+        "warnings": [
+          "Use only a copy and components you are permitted to use. Before changing versions, keep a copy of the complete working game, original files and every profile, save, cache, mod, backup, temporary file and custom data location. Another executable may use the same data. Portcove does not offer updates, backups, rollback, data migration or deletion for these external files.",
+          "BSD-3-Clause project shell; THIRD-PARTY-NOTICES describes separate dependencies. No original game assets are provided. Package contains ZTNature fonts; no independent font grant was identified in this bounded notice read, and project grant is not a whole-package IP certificate.",
+          "Work in progress; upstream reports possible bugs and crashes. No native gameplay/save observation here.",
+          "Accepting one starts condemned2recomp_updater.exe and ends the old player. Perform deliberate updates and any successor launch as upstream maintenance outside the attached session; no successor is adopted automatically."
+        ],
+        "references": [
           {
             "title": "Keep upstream maintenance outside the attached session",
             "instruction": "The in-process start screen offers updates. Accepting one starts condemned2recomp_updater.exe and ends the old player. Perform deliberate updates and any successor launch as upstream maintenance outside the attached session; no successor is adopted automatically."
@@ -13284,11 +13309,6 @@
             "title": "Preserve the creating copy and every effective data root",
             "instruction": "The inspected title defaults game data to Assets, user data to UserData and cache to Cache beside its configuration; explicit configured roots override defaults. Preserve the full creating folder, runtime configuration, originals, title update, profiles, saves, mods, logs, caches, backups, temporary files and all effective custom roots. An update can rewrite configuration; retain it with the creating runtime."
           }
-        ],
-        "warnings": [
-          "Use only a copy and components you are permitted to use. Before changing versions, keep a copy of the complete working game, original files and every profile, save, cache, mod, backup, temporary file and custom data location. Another executable may use the same data. Portcove does not offer updates, backups, rollback, data migration or deletion for these external files.",
-          "BSD-3-Clause project shell; THIRD-PARTY-NOTICES describes separate dependencies. No original game assets are provided. Package contains ZTNature fonts; no independent font grant was identified in this bounded notice read, and project grant is not a whole-package IP certificate.",
-          "Work in progress; upstream reports possible bugs and crashes. No native gameplay/save observation here."
         ]
       },
       "download_block_reason": "Fresh acquisition of the selected Condemned 2 package remains held for its bundled ZT Nature Black/Medium fonts: the captured project/dependency notices do not establish an applicable bundled-application redistribution grant for those exact font bytes. Resume with attributable permission for that operation or a reviewed compatible package resolving the component. Later source replacement fonts do not qualify this older package. Independently permitted existing-copy registration does not clear this acquisition hold."
@@ -14632,16 +14652,19 @@
           {
             "title": "Select your original game on first Play",
             "instruction": "Choose Play explicitly and select your own supported USA Conker’s Bad Fur Day ROM in the launcher. If the Linux file picker is unavailable, use Change launch details: enter --rom on one launch-argument line and your ROM’s absolute path on the next, without surrounding quotes, then choose Play. This uses upstream’s supported --rom option. The player remembers the input and needs no separate compiler or discovered preparation helper."
-          },
+          }
+        ],
+        "warnings": [
+          "The Linux package instructions call the build experimental and describe only upstream WSL/software-graphics testing; this is not Portcove native or Steam Deck acceptance.",
+          "Preserve the cached ROM, saves, settings, mods, save states, Photos and generated key_prompts together, including portable/custom locations actually used. Keep the current copy until its replacement is ready. Portcove records launch details without adopting, backing up, rolling back or deleting external files."
+        ],
+        "help_url": "https://github.com/DahSidiAbdallah/ConkerBFDReloaded/blob/d8ea30f220d7c1464997e6cdd013c16b204f81d8/README.md",
+        "references": [
           {
             "title": "Preserve saves, photos and generated prompts",
             "instruction": "You or upstream provide runtime updates. Keep the complete working copy and actual profile: normally %LOCALAPPDATA%\\ConkerBFDReloaded or ~/.config/ConkerBFDReloaded. Preserve the cached ROM, saves, settings, mods, save states, Photos and generated key_prompts together, including portable/custom locations actually used. Keep the current copy until its replacement is ready. Portcove records launch details without adopting, backing up, rolling back or deleting external files."
           }
-        ],
-        "warnings": [
-          "The Linux package instructions call the build experimental and describe only upstream WSL/software-graphics testing; this is not Portcove native or Steam Deck acceptance."
-        ],
-        "help_url": "https://github.com/DahSidiAbdallah/ConkerBFDReloaded/blob/d8ea30f220d7c1464997e6cdd013c16b204f81d8/README.md"
+        ]
       }
     },
     {
@@ -14681,16 +14704,19 @@
           {
             "title": "Load your original game on first Play",
             "instruction": "Choose Play, then Load ROM in the player and select your own supported USA Beetle Adventure Racing cartridge dump. The player checks its expected game identity and caches the selected game. The released player needs no downstream decompilation build or separate game-generation step."
-          },
+          }
+        ],
+        "warnings": [
+          "This alpha has upstream limitations; a published Windows package does not establish native/gameplay or Linux qualification.",
+          "portable.txt or an unavailable profile directory can move writes beside the executable. Preserve the location actually used and keep the current copy until ready. These external files are outside Portcove backup, runtime rollback and deletion."
+        ],
+        "help_url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/blob/974596dfa0493fe2c7c2446b3f5165dd11237020/README.md",
+        "references": [
           {
             "title": "Preserve the current copy and Controller Pak data",
             "instruction": "You or upstream provide updates. Back up the whole working folder and normally %LOCALAPPDATA%\\beetle-adventure-racing-recomp, including cached ROM, Controller Pak saves, settings and bindings. portable.txt or an unavailable profile directory can move writes beside the executable. Preserve the location actually used and keep the current copy until ready. These external files are outside Portcove backup, runtime rollback and deletion."
           }
-        ],
-        "warnings": [
-          "This alpha has upstream limitations; a published Windows package does not establish native/gameplay or Linux qualification."
-        ],
-        "help_url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/blob/974596dfa0493fe2c7c2446b3f5165dd11237020/README.md"
+        ]
       }
     },
     {
@@ -15254,14 +15280,16 @@
           {
             "title": "Review launch details, then choose Play",
             "instruction": "Select the completed game executable, its working folder and supported launch arguments. Review those details and agree to use them, then choose Play separately. You manage setup, game replacement and recovery using the project’s tools. Removing its registration leaves external files in place. Before changing versions, close the game and its companion programs and keep the working copy and all data. Review and select the changed executable before playing again."
-          },
-          {
-            "title": "Keep the complete working root and external profiles",
-            "instruction": "Preserve the entire creating runtime/resource root, including assets/package, assets/game, assets/save, assets/shader_spv, config, tools, defaults, recipes, logs, key maps and all custom locations. The inspected Windows source also resolves the redirected Saved Games known folder under Dead Rising 2 Case West, falling back through USERPROFILE/Saved Games and finally the executable directory. Keep offline and per-gamertag profiles, all saves, original packages, backups and temporary files. These are separate unowned roots; this guide does not claim a complete managed backup or cross-profile migration."
           }
         ],
         "warnings": [
           "Use only a copy and components you are permitted to use. Before changing versions, keep a copy of the complete working game, original files and every profile, save, cache, mod, backup, temporary file and custom data location. Another executable may use the same data. Portcove does not offer updates, backups, rollback, data migration or deletion for these external files."
+        ],
+        "references": [
+          {
+            "title": "Keep the complete working root and external profiles",
+            "instruction": "Preserve the entire creating runtime/resource root, including assets/package, assets/game, assets/save, assets/shader_spv, config, tools, defaults, recipes, logs, key maps and all custom locations. The inspected Windows source also resolves the redirected Saved Games known folder under Dead Rising 2 Case West, falling back through USERPROFILE/Saved Games and finally the executable directory. Keep offline and per-gamertag profiles, all saves, original packages, backups and temporary files. These are separate unowned roots; this guide does not claim a complete managed backup or cross-profile migration."
+          }
         ]
       },
       "download_block_reason": "The selected Case West Windows package explicitly identifies compiled-in libxlive and refers its licence to the separate XenonLive repository. An applicable grant for that linked component is not established by the retained evidence; the title’s own PolyForm grant preserves separate component licences. Fresh acquisition stays held until attributable applicable permission or a reviewed released replacement resolves this exact scope. Offline mode does not remove a compiled-in component. This condition grants no permission to use an existing copy."
@@ -15756,7 +15784,10 @@
       },
       "manual_setup": {
         "help_url": "https://github.com/DerrickGold/ar-recomp/blob/93c2786af6012325cc00c414c7bff07aa22ce672/README.md",
-        "warnings": [],
+        "warnings": [
+          "Close the game and back up its entire saves directory before using the new Builder’s Update existing installation to rebuild that game folder.",
+          "Moving between portable and per-user storage does not transfer data automatically. Keep the working copy recoverable. External registration leaves every file untouched; Portcove supplies no managed Update, Backup or Rollback."
+        ],
         "steps": [
           {
             "title": "Prepare the game with the upstream Builder",
@@ -15765,7 +15796,9 @@
           {
             "title": "Add the completed game",
             "instruction": "The default output is ActRaiserRecomp beside the Builder. Choose the completed game executable in that output folder in Portcove, with its folder as the working directory. Keep its DLLs, user-rom.sfc, tools, assets, settings and saves together. Save launch details, then choose Play separately. If application control blocks a builder tool, retain its error and use upstream/administrator guidance."
-          },
+          }
+        ],
+        "references": [
           {
             "title": "Back up and rebuild to update",
             "instruction": "You or upstream own the generated player and updates. Close the game and back up its entire saves directory before using the new Builder’s Update existing installation to rebuild that game folder. Upstream migrates older save.srm/save.ini or actraiser.srm to Slot 1 and keeps originals under saves/legacy-layout. Use Import previous installation for older utils layouts. Moving between portable and per-user storage does not transfer data automatically. Keep the working copy recoverable. External registration leaves every file untouched; Portcove supplies no managed Update, Backup or Rollback."
@@ -16093,7 +16126,9 @@
       "manual_setup": {
         "help_url": "https://gitlab.com/ethan4love/psx-recomp-port/-/blob/978ea38eb594354724772ba611a22372e1809476/README.md",
         "warnings": [
-          "The official download is an upstream setup kit, not a ready game. Its own wizard generates and rebuilds the runtime from your disc. Keep the entire prepared project and originals; Portcove does not own its compiler, caches or runtime updates."
+          "The official download is an upstream setup kit, not a ready game. Its own wizard generates and rebuilds the runtime from your disc. Keep the entire prepared project and originals; Portcove does not own its compiler, caches or runtime updates.",
+          "Ordinary memory-card saves are the long-term progress route; upstream warns that save states and rewind depend on matching mods. Retain the old working copy until progress works after an update.",
+          "Removing registration preserves every external file; this route does not provide managed Update, Backup or Rollback."
         ],
         "steps": [
           {
@@ -16103,7 +16138,9 @@
           {
             "title": "Register the finished game player",
             "instruction": "After upstream Generate & rebuild succeeds, select build-release/Digimon_World_Recompiled.exe inside that project, rather than the root setup-forwarding executable or the Play batch file. Set the working directory to the project root. In Arguments, enter --game, game.toml and --launcher on three separate lines, one argument per line, matching the reviewed upstream product handoff. Review and save these launch details, then choose Play explicitly."
-          },
+          }
+        ],
+        "references": [
           {
             "title": "Keep saves and upstream updates together",
             "instruction": "You or upstream update and regenerate this external project. Close the game and preserve the complete prepared folder, including saves/, mods/, game.toml and build-release/, as well as any originals or BIOS stored elsewhere. Ordinary memory-card saves are the long-term progress route; upstream warns that save states and rewind depend on matching mods. Retain the old working copy until progress works after an update. Removing registration preserves every external file; this route does not provide managed Update, Backup or Rollback."
@@ -17204,14 +17241,19 @@
           {
             "title": "Add the prepared player",
             "instruction": "On Windows, select the downloaded x86_64 doukutsu-rs executable and its containing game folder as the working directory. Save launch details, then choose Play separately. Keep its matching data folder in place. Linux publishes a standalone x86_64 ELF, and the Mac downloads contain separate Intel or Apple Silicon app bundles; follow the linked platform instructions for those instead of treating the Windows download as an installer."
-          },
+          }
+        ],
+        "warnings": [
+          "The 2026 Steam remaster is not established by this guide, and remastered saves are incompatible with original-version saves.",
+          "Its Advanced menu can open the user-data folder; keep a separate backup of it, including settings.json and saves, before changing versions or editions. Portcove does not back up, roll back or delete this external game/data tree."
+        ],
+        "help_url": "https://github.com/doukutsu-rs/doukutsu-rs/blob/8d85b0f69fd5a293a32f5d632f83ce6a0759cf7c/README.md",
+        "references": [
           {
             "title": "Keep the chosen edition and user data",
             "instruction": "You own updates to this external copy. Prepare another version separately and keep your current player, original data and saves until it works. The engine normally uses the operating system’s doukutsu-rs user-data folder, or a sibling user folder in portable mode. Its Advanced menu can open the user-data folder; keep a separate backup of it, including settings.json and saves, before changing versions or editions. Portcove does not back up, roll back or delete this external game/data tree."
           }
-        ],
-        "warnings": [],
-        "help_url": "https://github.com/doukutsu-rs/doukutsu-rs/blob/8d85b0f69fd5a293a32f5d632f83ce6a0759cf7c/README.md"
+        ]
       },
       "download_asset_hints": {
         "windows-x86-64": [
@@ -17768,14 +17810,19 @@
           {
             "title": "Add the prepared player, then choose Play",
             "instruction": "Register REDRIVER2.exe or the Linux REDRIVER2 executable with its complete prepared folder as the working directory. Keep the upstream Launcher for its setup and configuration functions. Read-only discovery only suggests a launch target; saving launch details and choosing Play remain separate choices."
-          },
+          }
+        ],
+        "warnings": [
+          "Back up a working prepared folder before allowing setup to replace its contents.",
+          "Profiles live under USERPROFILE/.driver2 on Windows or HOME/.driver2 on Linux, including config.dat and progress.dat; they are not isolated by choosing another player folder. Preserve that actual profile too. Portcove registration provides no managed Update, Backup or Rollback, and removing it leaves every external file untouched."
+        ],
+        "help_url": "https://github.com/OpenDriver2/REDRIVER2/wiki/Installation-instructions",
+        "references": [
           {
             "title": "Preserve your prepared copy and actual profile",
             "instruction": "You or upstream provide runtime updates. Keep the whole prepared folder, config.ini, cutscene_recorder.ini, original images, generated media, mods and any custom data-folder paths before trying a new version separately. Profiles live under USERPROFILE/.driver2 on Windows or HOME/.driver2 on Linux, including config.dat and progress.dat; they are not isolated by choosing another player folder. Preserve that actual profile too. Portcove registration provides no managed Update, Backup or Rollback, and removing it leaves every external file untouched."
           }
-        ],
-        "warnings": [],
-        "help_url": "https://github.com/OpenDriver2/REDRIVER2/wiki/Installation-instructions"
+        ]
       }
     },
     {
@@ -18492,14 +18539,16 @@
           {
             "title": "Review launch details, then choose Play",
             "instruction": "Select the completed game executable, its working folder and supported launch arguments. Review those details and agree to use them, then choose Play separately. You manage setup, game replacement and recovery using the project’s tools. Portcove does not offer updates, backups, rollback, conversion, data migration or deletion for this external copy. Removing its registration leaves external files in place. Before changing versions, close the game and its companion programs and keep the working copy and its data. Review and select the changed executable before playing again."
-          },
-          {
-            "title": "Preserve the whole creating project and effective player data",
-            "instruction": "Keep both the complete source/setup kit and build-release product, every original and BIOS, generated code, toolchain resources, mods and all custom roots. settings.toml and input.ini are anchored beside the executable; game.toml/game_options.toml and their effective project root affect source and relative data paths. The packaged memcard_dir=saves can be overridden by settings or explicit card paths. Preserve actual memory cards, save states/options, keybinds, diagnostics, overlay code caches, backups and temporary files with their creating runtime. Do not relocate or rewrite paths from a developer example, copy another title’s source hashes, or assume cross-version state/save compatibility."
           }
         ],
         "warnings": [
           "Use only a copy and components you are permitted to use. Before changing versions, keep the complete working game, original files and every profile, mod, generated-code cache and custom data location. Another executable may use the same saved data."
+        ],
+        "references": [
+          {
+            "title": "Preserve the whole creating project and effective player data",
+            "instruction": "Keep both the complete source/setup kit and build-release product, every original and BIOS, generated code, toolchain resources, mods and all custom roots. settings.toml and input.ini are anchored beside the executable; game.toml/game_options.toml and their effective project root affect source and relative data paths. The packaged memcard_dir=saves can be overridden by settings or explicit card paths. Preserve actual memory cards, save states/options, keybinds, diagnostics, overlay code caches, backups and temporary files with their creating runtime. Do not relocate or rewrite paths from a developer example, copy another title’s source hashes, or assume cross-version state/save compatibility."
+          }
         ]
       }
     },
@@ -18982,7 +19031,13 @@
           {
             "title": "Review launch details, then choose Play",
             "instruction": "Select the completed game executable, its working folder and supported launch arguments. Review those details and agree to use them, then choose Play separately. You manage setup, game replacement and recovery using the project’s tools. Removing its registration leaves external files in place. Before changing versions, close the game and its companion programs and keep the working copy and all data. Review and select the changed executable before playing again."
-          },
+          }
+        ],
+        "warnings": [
+          "Use only a copy and components you are permitted to use. Before changing versions, keep a copy of the complete working game, original files and every profile, save, cache, mod, backup, temporary file and custom data location. Another executable may use the same data. Portcove does not offer updates, backups, rollback, data migration or deletion for these external files.",
+          "Applying an update starts a helper that outlives the old process and can replace files and launch a successor. Treat deliberate update/restart as upstream maintenance outside the active attached session: close the actual player and companions, retain the old runtime and all data, then review and relink changed selected bytes."
+        ],
+        "references": [
           {
             "title": "Keep upstream updates and restarts outside the attached session",
             "instruction": "The inspected title and pinned Windows SDK offer game updates and restarts. Applying an update starts a helper that outlives the old process and can replace files and launch a successor. Treat deliberate update/restart as upstream maintenance outside the active attached session: close the actual player and companions, retain the old runtime and all data, then review and relink changed selected bytes. Turning off an update check alone does not give Portcove exclusive replacement ownership; this guide disables no upstream feature and adopts no successor automatically."
@@ -18991,9 +19046,6 @@
             "title": "Preserve every effective library, profile and configuration root",
             "instruction": "Keep the complete creating runtime and every actual game, user, cache, mod, mod-dump, update, metadata and custom root, including external game-version links. Relative path settings resolve against the configuration’s parent directory in the inspected SDK. A portable.txt beside the executable makes the default user directory user/ beside it; other configurations use platform folders. Preserve settings.toml, runtime configuration, selected-version metadata, install/migration staging, saves, mods, caches, backups and temporary files. Keep established paths and creating-runtime compatibility; the working directory alone does not identify all player data."
           }
-        ],
-        "warnings": [
-          "Use only a copy and components you are permitted to use. Before changing versions, keep a copy of the complete working game, original files and every profile, save, cache, mod, backup, temporary file and custom data location. Another executable may use the same data. Portcove does not offer updates, backups, rollback, data migration or deletion for these external files."
         ]
       }
     },
@@ -19040,14 +19092,16 @@
           {
             "title": "Review launch details, then choose Play",
             "instruction": "Select the completed game executable, its working folder and supported launch arguments. Review those details and agree to use them, then choose Play separately. You manage setup, game replacement and recovery using the project’s tools. Removing its registration leaves external files in place. Before changing versions, close the game and its companion programs and keep the working copy and all data. Review and select the changed executable before playing again."
-          },
-          {
-            "title": "Retain this title’s complete copy and effective data",
-            "instruction": "Keep the entire separate EXIT 2 folder and every effective external root. Its exit2.ini always lives in the working directory. Portable=True is the default: the inspected source puts user data in that working directory, cache in cache/ and runtime configuration in exit2.toml, overriding the normal platform user root. Portable=False and custom original/update paths can use external locations. Preserve all profiles, saves, owned DLC, settings, logs, screenshots, caches, backups and temporary files with the creating runtime; no cross-title or cross-version save compatibility is assumed."
           }
         ],
         "warnings": [
           "Use only a copy and components you are permitted to use. Before changing versions, keep a copy of the complete working game, original files and every profile, save, cache, mod, backup, temporary file and custom data location. Another executable may use the same data. Portcove does not offer updates, backups, rollback, data migration or deletion for these external files."
+        ],
+        "references": [
+          {
+            "title": "Retain this title’s complete copy and effective data",
+            "instruction": "Keep the entire separate EXIT 2 folder and every effective external root. Its exit2.ini always lives in the working directory. Portable=True is the default: the inspected source puts user data in that working directory, cache in cache/ and runtime configuration in exit2.toml, overriding the normal platform user root. Portable=False and custom original/update paths can use external locations. Preserve all profiles, saves, owned DLC, settings, logs, screenshots, caches, backups and temporary files with the creating runtime; no cross-title or cross-version save compatibility is assumed."
+          }
         ]
       }
     },
@@ -19094,14 +19148,16 @@
           {
             "title": "Review launch details, then choose Play",
             "instruction": "Select the completed game executable, its working folder and supported launch arguments. Review those details and agree to use them, then choose Play separately. You manage setup, game replacement and recovery using the project’s tools. Removing its registration leaves external files in place. Before changing versions, close the game and its companion programs and keep the working copy and all data. Review and select the changed executable before playing again."
-          },
-          {
-            "title": "Retain this title’s complete copy and effective data",
-            "instruction": "Keep the entire separate EXIT folder and every effective external root. Its exit1.ini always lives in the working directory. Portable=True is the default: the inspected source puts user data in that working directory, cache in cache/ and runtime configuration in exit1.toml, overriding the normal platform user root. Portable=False and custom original/update paths can use external locations. Preserve all profiles, saves, owned DLC, settings, logs, screenshots, caches, backups and temporary files with the creating runtime; no cross-title or cross-version save compatibility is assumed."
           }
         ],
         "warnings": [
           "Use only a copy and components you are permitted to use. Before changing versions, keep a copy of the complete working game, original files and every profile, save, cache, mod, backup, temporary file and custom data location. Another executable may use the same data. Portcove does not offer updates, backups, rollback, data migration or deletion for these external files."
+        ],
+        "references": [
+          {
+            "title": "Retain this title’s complete copy and effective data",
+            "instruction": "Keep the entire separate EXIT folder and every effective external root. Its exit1.ini always lives in the working directory. Portable=True is the default: the inspected source puts user data in that working directory, cache in cache/ and runtime configuration in exit1.toml, overriding the normal platform user root. Portable=False and custom original/update paths can use external locations. Preserve all profiles, saves, owned DLC, settings, logs, screenshots, caches, backups and temporary files with the creating runtime; no cross-title or cross-version save compatibility is assumed."
+          }
         ]
       }
     },
@@ -19221,14 +19277,16 @@
           {
             "title": "Review launch details, then choose Play",
             "instruction": "Select the completed game executable, its working folder and supported launch arguments. Review those details and agree to use them, then choose Play separately. You manage setup, game replacement and recovery using the project’s tools. Removing its registration leaves external files in place. Before changing versions, close the game and its companion programs and keep the working copy and all data. Review and select the changed executable before playing again."
-          },
-          {
-            "title": "Preserve the portable player, original and custom roots",
-            "instruction": "The inspected title source forces saves/ and cache/ beside the executable even when a platform user-data default or argument differs. Preserve the complete creating copy, fable_2.toml, fable2_config.toml, launcher-settings.toml, one-time backups, logs, data/scripts, original game tree, mods and every custom path. Upstream may repair the original-data file manifest; retain the old complete data before preparation or replacement. Save and mod compatibility across runtime versions remains upstream-owned."
           }
         ],
         "warnings": [
           "Use only a copy and components you are permitted to use. Before changing versions, keep a copy of the complete working game, original files and every profile, save, cache, mod, backup, temporary file and custom data location. Another executable may use the same data. Portcove does not offer updates, backups, rollback, data migration or deletion for these external files."
+        ],
+        "references": [
+          {
+            "title": "Preserve the portable player, original and custom roots",
+            "instruction": "The inspected title source forces saves/ and cache/ beside the executable even when a platform user-data default or argument differs. Preserve the complete creating copy, fable_2.toml, fable2_config.toml, launcher-settings.toml, one-time backups, logs, data/scripts, original game tree, mods and every custom path. Upstream may repair the original-data file manifest; retain the old complete data before preparation or replacement. Save and mod compatibility across runtime versions remains upstream-owned."
+          }
         ]
       }
     },
@@ -20072,14 +20130,16 @@
           {
             "title": "Review launch details, then choose Play",
             "instruction": "Select the completed game executable, its working folder and supported launch arguments. Review those details and agree to use them, then choose Play separately. You manage setup, game replacement and recovery using the project’s tools. Portcove does not offer updates, backups, rollback, conversion, data migration or deletion for this external copy. Removing its registration leaves external files in place. Before changing versions, close the game and its companion programs and keep the working copy and its data. Review and select the changed executable before playing again."
-          },
-          {
-            "title": "Preserve the whole creating project and effective player data",
-            "instruction": "Keep both the complete source/setup kit and build-release product, every original and BIOS, generated code, toolchain resources, mods and all custom roots. settings.toml and input.ini are anchored beside the executable; game.toml/game_options.toml and their effective project root affect source and relative data paths. The packaged memcard_dir=saves can be overridden by settings or explicit card paths. Preserve actual memory cards, save states/options, keybinds, diagnostics, overlay code caches, backups and temporary files with their creating runtime. Do not relocate or rewrite paths from a developer example, copy another title’s source hashes, or assume cross-version state/save compatibility."
           }
         ],
         "warnings": [
           "Use only a copy and components you are permitted to use. Before changing versions, keep the complete working game, original files and every profile, mod, generated-code cache and custom data location. Another executable may use the same saved data."
+        ],
+        "references": [
+          {
+            "title": "Preserve the whole creating project and effective player data",
+            "instruction": "Keep both the complete source/setup kit and build-release product, every original and BIOS, generated code, toolchain resources, mods and all custom roots. settings.toml and input.ini are anchored beside the executable; game.toml/game_options.toml and their effective project root affect source and relative data paths. The packaged memcard_dir=saves can be overridden by settings or explicit card paths. Preserve actual memory cards, save states/options, keybinds, diagnostics, overlay code caches, backups and temporary files with their creating runtime. Do not relocate or rewrite paths from a developer example, copy another title’s source hashes, or assume cross-version state/save compatibility."
+          }
         ]
       },
       "download_block_reason": "The selected Final Fantasy Tactics setup kit explicitly supplies no separate grant for game-owned files, including its own widescreen code and modified runtime scope. The framework PolyForm Noncommercial grant does not license that separate scope. Fresh acquisition stays held until attributable applicable permission or a reviewed released replacement resolves it. This condition grants no permission to use an existing copy."
@@ -22370,7 +22430,10 @@
       },
       "manual_setup": {
         "help_url": "https://github.com/Shmargus/GSRecomp/blob/c72ef00dad078f6a714258d3e157ee6ea3d4a4ab/README.md",
-        "warnings": [],
+        "warnings": [
+          "Close both games and retain your working folder before updating.",
+          "Runtime replacement does not rewind saves or guarantee savestate compatibility. Keep original-containing data private. External registration preserves every file and supplies no managed Backup or Rollback."
+        ],
         "steps": [
           {
             "title": "Prepare either game with the shared launcher",
@@ -22379,7 +22442,9 @@
           {
             "title": "Register the collection launcher",
             "instruction": "Choose the shared launcher and its folder as the working directory in Portcove. Save launch details, then choose Play separately. Keep the complete collection together, including the per-game builders and generated output. This remains one collection identity for both games. Upstream reports public-testing bugs; finishing preparation does not confirm a complete playthrough."
-          },
+          }
+        ],
+        "references": [
           {
             "title": "Keep current data and rebuild after updates",
             "instruction": "You or upstream own this external player. The launcher offers a newer release download; it does not make this a managed Portcove Update. Close both games and retain your working folder before updating. Back up ROMs, Saves (including Saves/Imported), Controls, Music mods, and the per-game settings under games, plus any custom paths. External save imports leave their originals in place and preserve conflicts under Saves/Imported. Legacy progress already inside this collection’s ROMs folder can move into Saves after verified copy or conflict preservation. A new version can rebuild game code from your ROM. Runtime replacement does not rewind saves or guarantee savestate compatibility. Keep original-containing data private. External registration preserves every file and supplies no managed Backup or Rollback."
@@ -22713,7 +22778,14 @@
           {
             "title": "Review launch details, then choose Play",
             "instruction": "Review the selected game executable, working folder and launch arguments, then agree to use them. Choose Play separately when you are ready. Adding this copy does not prepare, update or replace its external files. Removing its registration leaves all external files in place. Before changing versions, close the game and its companion programs and keep the working copy and all data. Review and select the changed executable before playing again."
-          },
+          }
+        ],
+        "warnings": [
+          "Use only a copy and components you are permitted to use. Before changing versions, keep a copy of the complete working game, original files and every profile, save, cache, mod, backup, temporary file and custom data location. Another executable may use the same data. Portcove does not offer updates, backups, rollback, data migration or deletion for these external files.",
+          "No root project LICENSE was found in the reviewed source. That absence does not establish permission or a prohibition, and another engine’s licence does not apply automatically. Use only components and original data you are independently permitted to use.",
+          "Upstream documents occasional song-transition and audio issues. Portcove has not tested XINPUT instruments or physical controllers."
+        ],
+        "references": [
           {
             "title": "Keep upstream maintenance outside the attached session",
             "instruction": "Upstream and the user retain preparation and runtime replacement. Close the actual game and companions before deliberate replacement; preserve the creating copy and all data and review changed selected bytes before Play."
@@ -22722,11 +22794,6 @@
             "title": "Preserve the creating copy and every effective data root",
             "instruction": "Keep the complete creating folder, assets tree and every actual SDK user, save, profile, configuration, mod, cache, log, backup and custom root. The inspected title does not override every SDK persistence default; the working directory alone does not establish complete save coverage. Keep existing effective paths and do not migrate another title or version’s saves."
           }
-        ],
-        "warnings": [
-          "Use only a copy and components you are permitted to use. Before changing versions, keep a copy of the complete working game, original files and every profile, save, cache, mod, backup, temporary file and custom data location. Another executable may use the same data. Portcove does not offer updates, backups, rollback, data migration or deletion for these external files.",
-          "No root project LICENSE was found in the reviewed source. That absence does not establish permission or a prohibition, and another engine’s licence does not apply automatically. Use only components and original data you are independently permitted to use.",
-          "Upstream documents occasional song-transition and audio issues. Portcove has not tested XINPUT instruments or physical controllers."
         ]
       }
     },
@@ -26670,14 +26737,16 @@
           {
             "title": "Review launch details and manage updates",
             "instruction": "Review the selected game executable, working folder and launch arguments, then agree to use them. Choose Play separately when you are ready. You manage setup, game replacement and recovery. Removing the registration leaves external files in place. Before changing versions, close the game and its companion programs and keep the working copy and every data location it uses. Review and select the changed executable before playing again. Portcove does not offer updates, backups, rollback, conversion, data migration or deletion for these external files."
-          },
-          {
-            "title": "Preserve the whole creating copy and effective data",
-            "instruction": "The game-specific default profile is %LOCALAPPDATA%/kirby-wii-recomp, containing extracted game data, saves and configuration. Preserve it and every effective custom user directory with the original disc image, controller profiles, NAND/system settings, mods, caches, backups and creating runtime. Retain the game package’s GPL-3.0-or-later and separate notices; framework licensing does not grant Nintendo content or establish cross-game save compatibility."
           }
         ],
         "warnings": [
           "Use only a copy and components you are permitted to use. Keep the complete working game, originals, saves, settings, mods, caches, backups and every custom data location before changing versions. Another executable may use those same locations. These instructions do not establish Portcove-managed installation, gameplay or save compatibility."
+        ],
+        "references": [
+          {
+            "title": "Preserve the whole creating copy and effective data",
+            "instruction": "The game-specific default profile is %LOCALAPPDATA%/kirby-wii-recomp, containing extracted game data, saves and configuration. Preserve it and every effective custom user directory with the original disc image, controller profiles, NAND/system settings, mods, caches, backups and creating runtime. Retain the game package’s GPL-3.0-or-later and separate notices; framework licensing does not grant Nintendo content or establish cross-game save compatibility."
+          }
         ]
       }
     },
@@ -28152,7 +28221,15 @@
           {
             "title": "Choose Play, then select any missing original files",
             "instruction": "Add the player in Portcove, then choose Play to open the upstream launcher. Supply your own matching USA Mario Kart: Super Circuit GBA game and retail GBA BIOS when requested. The launcher validates those inputs and remembers valid choices. Portcove discovery and registration do not run the bundled compilers or helpers."
-          },
+          }
+        ],
+        "warnings": [
+          "Normal .sav files and optional .stateN slots follow your selected original game file, unless you chose custom save/state paths. Preserve that actual folder and its .tmp, .bak and .prev-size.bak recovery siblings separately; the launcher save-path display does not relocate saves.",
+          "On Linux, different AppImage files normally share the same data home, including caches, and refresh executable/assets links there at startup. Back up that actual home and your ROM-adjacent saves before trying another AppImage; a separate AppImage file alone does not isolate your data.",
+          "Portcove registration offers no managed Update, Backup or Rollback and removing it leaves every external file untouched."
+        ],
+        "help_url": "https://github.com/mstan/MarioKartSuperCircuitRecomp/blob/d551cfc2893f01c089f918a625ec184af571ad60/README.md",
+        "references": [
           {
             "title": "Keep your actual saves and settings",
             "instruction": "Normal .sav files and optional .stateN slots follow your selected original game file, unless you chose custom save/state paths. Preserve that actual folder and its .tmp, .bak and .prev-size.bak recovery siblings separately; the launcher save-path display does not relocate saves. On Windows, also keep local config.ini, keybinds.ini, rom.cfg, bios.cfg, user game.toml, any selected local saves/ and the complete mods/ tree. On Linux, preserve those settings and mod choices from $XDG_DATA_HOME/MarioKartSuperCircuitRecomp, normally ~/.local/share/MarioKartSuperCircuitRecomp."
@@ -28161,9 +28238,7 @@
             "title": "Prepare updates beside your working copy",
             "instruction": "You or upstream update this registered runtime. On Windows, retain the working folder and prepare the new version separately; do not carry generated recomp_cache or diagnostics into a new runtime. On Linux, different AppImage files normally share the same data home, including caches, and refresh executable/assets links there at startup. Back up that actual home and your ROM-adjacent saves before trying another AppImage; a separate AppImage file alone does not isolate your data. Upstream has changed bundled mod contents without changing their package version, so preserve both catalogs and reconcile choices deliberately rather than overwriting them. Portcove registration offers no managed Update, Backup or Rollback and removing it leaves every external file untouched."
           }
-        ],
-        "warnings": [],
-        "help_url": "https://github.com/mstan/MarioKartSuperCircuitRecomp/blob/d551cfc2893f01c089f918a625ec184af571ad60/README.md"
+        ]
       }
     },
     {
@@ -29998,7 +30073,15 @@
           {
             "title": "Review launch details, then choose Play",
             "instruction": "Review and consent to this exact executable, creating working directory and supported literal arguments, then choose Play separately. Core owns only the selected native intent and registration. Upstream and you retain preparation, runtime replacement, recovery and external files. Removing registration preserves every external file. Close the actual player and companions before upstream maintenance, retain the old runtime and all data, then review/relink changed selected bytes."
-          },
+          }
+        ],
+        "warnings": [
+          "MIT covers the project’s own original code; third-party IP remains independently owned. Preserve the applicable packaged FFmpeg LGPL and font/dependency notices; this is not a whole-game rights certificate.",
+          "Upstream documents untranslated/blank save-dialog screens, curved-surface issues and unsupported code mods; reported rendering, multiplayer, controller and save compatibility are publisher claims, not Portcove observations. No game, original, helper, installer or native session was run.",
+          "The Windows installed profile normally uses %APPDATA%/Yakumo/MHP3rd. The portable package uses data/ beside the executable. Existing portable.txt, a data/ folder, --portable, --data-dir and MHP3RD_DATA_DIR/MHP3RD_PORTABLE choices affect selection; retain the actual established mode and do not add/remove markers or trigger profile-copy prompts as registration work. A non-writable portable directory fails instead of silently falling back.",
+          "Upstream Set Up Game Data Again and Restart Now after save import can end it and start a successor. Perform those actions outside the attached session; Core does not automatically adopt the successor or offer upstream save import/export, texture installation, backup or network configuration. Retain the old working runtime and all data before replacement."
+        ],
+        "references": [
           {
             "title": "Preserve the actual portable or installed profile",
             "instruction": "The Windows installed profile normally uses %APPDATA%/Yakumo/MHP3rd. The portable package uses data/ beside the executable. Existing portable.txt, a data/ folder, --portable, --data-dir and MHP3RD_DATA_DIR/MHP3RD_PORTABLE choices affect selection; retain the actual established mode and do not add/remove markers or trigger profile-copy prompts as registration work. A non-writable portable directory fails instead of silently falling back. Keep settings.ini, prepared EBOOT.ELF, copied disc.iso or its external in-place original, ms0/PSP/SAVEDATA (including ULJM05800, ULJM05800QST and ULJM05800DAT), mods, texture packs, pipeline caches/keys, logs, controller mappings, translations/fonts, save-backups, temporary files and all custom roots. A source-build game directory may retain its own ms0 and older saves; do not migrate it automatically."
@@ -30007,10 +30090,6 @@
             "title": "Keep upstream restart and replacement separate",
             "instruction": "The native process runs the game in-process. Upstream Set Up Game Data Again and Restart Now after save import can end it and start a successor. Perform those actions outside the attached session; Core does not automatically adopt the successor or offer upstream save import/export, texture installation, backup or network configuration. Retain the old working runtime and all data before replacement."
           }
-        ],
-        "warnings": [
-          "MIT covers the project’s own original code; third-party IP remains independently owned. Preserve the applicable packaged FFmpeg LGPL and font/dependency notices; this is not a whole-game rights certificate.",
-          "Upstream documents untranslated/blank save-dialog screens, curved-surface issues and unsupported code mods; reported rendering, multiplayer, controller and save compatibility are publisher claims, not Portcove observations. No game, original, helper, installer or native session was run."
         ]
       }
     },
@@ -31913,7 +31992,13 @@
           {
             "title": "Choose your own game on first Play",
             "instruction": "In the upstream launcher, select your own Xbox 360 Most Wanted ISO or extracted game folder. The current player recognizes PAL Spain and USA default.xex editions and selects the matching included player. Choose Play inside that launcher; it extracts a selected ISO and builds the shader library from your own disc. Valid remembered choices can be reused. Portcove does not run the player or extraction/compiler helpers during discovery."
-          },
+          }
+        ],
+        "warnings": [
+          "Actual live saves normally use Documents/nfsmw and can be separate from those readable copies. Back up the actual live profile and any custom game, update or backup folders too. A different player folder does not isolate the shared profile. After custom path changes, verify which profile the upstream save tools are using before importing or restoring; their folder is not guaranteed to match the running game.",
+          "You or upstream own runtime updates and backups; Portcove registration provides no managed Update, Backup or Rollback. Removing the registration leaves every external file untouched."
+        ],
+        "references": [
           {
             "title": "Preserve the actual saves and settings",
             "instruction": "Keep your original ISO or external game folder, the complete working copy, data/game_root, data/nfsmw.toml, data/nfsmw_trucos.txt, data/capturas and the readable data/saves copies (including current and previous saves). Actual live saves normally use Documents/nfsmw and can be separate from those readable copies. Back up the actual live profile and any custom game, update or backup folders too. A different player folder does not isolate the shared profile. After custom path changes, verify which profile the upstream save tools are using before importing or restoring; their folder is not guaranteed to match the running game."
@@ -31922,8 +32007,7 @@
             "title": "Follow upstream updates with a recoverable copy",
             "instruction": "Close both the launcher and the game before replacing files. Upstream provides update notices; keep your old copy recoverable and extract the new release separately. Let the new runtime regenerate its shader libraries and renderer caches from your own files. Keep upstream controls and save import/export/restore tools available, with separate backups of your actual profile. You or upstream own runtime updates and backups; Portcove registration provides no managed Update, Backup or Rollback. Removing the registration leaves every external file untouched."
           }
-        ],
-        "warnings": []
+        ]
       }
     },
     {
@@ -35967,7 +36051,15 @@
           {
             "title": "Review launch details, then choose Play",
             "instruction": "Review and consent to this exact executable, creating working directory and supported literal arguments, then choose Play separately. Core owns only the selected native intent and registration. Upstream and you retain preparation, runtime replacement, recovery and external files. Removing registration preserves every external file. Close the actual player and companions before upstream maintenance, retain the old runtime and all data, then review/relink changed selected bytes."
-          },
+          }
+        ],
+        "warnings": [
+          "Use only an independently permitted copy, original and components. The README identifies separate MIT libntr obligations for redistributors; it is not a whole-game IP certificate or source-to-binary receipt.",
+          "Experimental upstream preview may crash or show graphical defects. Package/source/SDK correspondence, full persistent-data mapping, actual native gameplay and real-save behavior remain Unknown; no installed Desktop or protected publication is qualified.",
+          "Removing registration preserves every external file. Close the actual player and companions before upstream maintenance, retain the old runtime and all data, then review/relink changed selected bytes.",
+          "No backup, deletion, migration or save/firmware compatibility is offered."
+        ],
+        "references": [
           {
             "title": "Keep firmware and user data with the creating runtime",
             "instruction": "The upstream README says firmware.bin contains only an offset and space for WiFi configuration, not a Nintendo DS firmware dump. Preserve that mutable configuration, the complete working folder and extracted game files, actual saves/settings/logs/mods/backups/temporary files and every external location used by this copy. Do not assume the package folder contains every save. The title’s libntr dependency tracks main without an immutable SDK pin; exact released SDK defaults and complete save-coordinate mapping are not established here. No backup, deletion, migration or save/firmware compatibility is offered."
@@ -35976,10 +36068,6 @@
             "title": "Keep upstream maintenance and network choices separate",
             "instruction": "Upstream and you own preparation and runtime replacement. Close the actual game and companions, keep the entire old creating runtime and data, then review/relink changed selected bytes. WiFi/multiplayer, renderer quality and first-to-last gameplay are upstream goals/claims, not Portcove acceptance or authorization for accounts, uploads or network configuration."
           }
-        ],
-        "warnings": [
-          "Use only an independently permitted copy, original and components. The README identifies separate MIT libntr obligations for redistributors; it is not a whole-game IP certificate or source-to-binary receipt.",
-          "Experimental upstream preview may crash or show graphical defects. Package/source/SDK correspondence, full persistent-data mapping, actual native gameplay and real-save behavior remain Unknown; no installed Desktop or protected publication is qualified."
         ]
       }
     },
@@ -36918,7 +37006,14 @@
           {
             "title": "Review launch details, then choose Play",
             "instruction": "Review the selected game executable, working folder and launch arguments, then agree to use them. Choose Play separately when you are ready. Adding this copy does not prepare, update or replace its external files. Removing its registration leaves all external files in place. Before changing versions, close the game and its companion programs and keep the working copy and all data. Review and select the changed executable before playing again."
-          },
+          }
+        ],
+        "warnings": [
+          "Use only a copy and components you are permitted to use. Before changing versions, keep a copy of the complete working game, original files and every profile, save, cache, mod, backup, temporary file and custom data location. Another executable may use the same data. Portcove does not offer updates, backups, rollback, data migration or deletion for these external files.",
+          "MIT project code; original game remains independently supplied. Shared SDK/project labels do not certify rights to another title or generated original-derived content.",
+          "Upstream documents Geometry Wars minigame crash and Lotus Esprit Essex Turbo freeze. These are disclosed upstream limitations, not repaired or tested here."
+        ],
+        "references": [
           {
             "title": "Keep upstream maintenance outside the attached session",
             "instruction": "Preparation and runtime replacement remain with upstream and the user. Retain the old working copy and all data; close the actual player and companions before replacement and review/relink changed selected bytes."
@@ -36927,11 +37022,6 @@
             "title": "Keep your working game and every data folder it uses",
             "instruction": "Keep the complete creating player and prepared original, plus every effective SDK user/profile/save/configuration/mod/cache/log/backup and custom root. No complete per-user save location is established by this bounded title-source read. Preserve existing paths and compatibility; the package working directory alone is insufficient to identify all player data."
           }
-        ],
-        "warnings": [
-          "Use only a copy and components you are permitted to use. Before changing versions, keep a copy of the complete working game, original files and every profile, save, cache, mod, backup, temporary file and custom data location. Another executable may use the same data. Portcove does not offer updates, backups, rollback, data migration or deletion for these external files.",
-          "MIT project code; original game remains independently supplied. Shared SDK/project labels do not certify rights to another title or generated original-derived content.",
-          "Upstream documents Geometry Wars minigame crash and Lotus Esprit Essex Turbo freeze. These are disclosed upstream limitations, not repaired or tested here."
         ]
       }
     },
@@ -40479,7 +40569,15 @@
           {
             "title": "Review launch details, then choose Play",
             "instruction": "Review the selected game executable, working folder and launch arguments, then agree to use them. Choose Play separately when you are ready. Adding this copy does not prepare, update or replace its external files. Removing its registration leaves all external files in place. Before changing versions, close the game and its companion programs and keep the working copy and all data. Review and select the changed executable before playing again."
-          },
+          }
+        ],
+        "warnings": [
+          "Use only a copy and components you are permitted to use. Before changing versions, keep a copy of the complete working game, original files and every profile, save, cache, mod, backup, temporary file and custom data location. Another executable may use the same data. Portcove does not offer updates, backups, rollback, data migration or deletion for these external files.",
+          "Public attributable release/source; complete tree has separate thirdparty/xenosrecomp/LICENSE.md and no root project LICENSE. Neither absence nor another component license grants whole-title rights. Use only an independently permitted complete player/original copy.",
+          "The package README documents a native Windows 10/11 x64 D3D12 player started by double-clicking. ONLINE PLAY remains disabled. This review did not run the player or confirm devices, networking, real saves or complete dependency installation.",
+          "In-game VIDEO restart can create a successor; perform deliberate restart/replacement outside the attached session, close actual game/companions and review changed selected bytes before new Play. Do not automatically adopt a successor."
+        ],
+        "references": [
           {
             "title": "Keep upstream maintenance outside the attached session",
             "instruction": "Upstream owns preparation and replacement. In-game VIDEO restart can create a successor; perform deliberate restart/replacement outside the attached session, close actual game/companions and review changed selected bytes before new Play. Do not automatically adopt a successor."
@@ -40488,11 +40586,6 @@
             "title": "Keep your working game and every data folder it uses",
             "instruction": "Packaged instructions say settings, saves, logs/ and cache/ stay in the creating folder; preserve sst_settings.ini, sst_keys.ini, sst_crash.txt, shader/cache resources, originals, profiles, achievements, mods, backups and every effective custom root. An explicit data argument can override adjacent assets/. Keep the creating runtime and do not assume cross-version save compatibility."
           }
-        ],
-        "warnings": [
-          "Use only a copy and components you are permitted to use. Before changing versions, keep a copy of the complete working game, original files and every profile, save, cache, mod, backup, temporary file and custom data location. Another executable may use the same data. Portcove does not offer updates, backups, rollback, data migration or deletion for these external files.",
-          "Public attributable release/source; complete tree has separate thirdparty/xenosrecomp/LICENSE.md and no root project LICENSE. Neither absence nor another component license grants whole-title rights. Use only an independently permitted complete player/original copy.",
-          "The package README documents a native Windows 10/11 x64 D3D12 player started by double-clicking. ONLINE PLAY remains disabled. This review did not run the player or confirm devices, networking, real saves or complete dependency installation."
         ]
       }
     },
@@ -40862,7 +40955,15 @@
           {
             "title": "Review launch details, then choose Play",
             "instruction": "Review the selected game executable, working folder and launch arguments, then agree to use them. Choose Play separately when you are ready. Adding this copy does not prepare, update or replace its external files. Removing its registration leaves all external files in place. Before changing versions, close the game and its companion programs and keep the working copy and all data. Review and select the changed executable before playing again."
-          },
+          }
+        ],
+        "warnings": [
+          "Use only a copy and components you are permitted to use. Before changing versions, keep a copy of the complete working game, original files and every profile, save, cache, mod, backup, temporary file and custom data location. Another executable may use the same data. Portcove does not offer updates, backups, rollback, data migration or deletion for these external files.",
+          "BSD-3-Clause host source explicitly excludes generated original-derived code. README also says do not distribute game executable/data or any binary linking game data. This guide is conditional on an independently permitted prepared copy; that source grant does not authorize fresh acquisition/distribution of excluded generated content. Permission scope for that exact operation remains with upstream/rightsholder.",
+          "The publisher’s v1.1.8 hotfix removes the missing Agility dependency in 1.1.7. Matching package bytes and source were inspected but not run. Native-device, gameplay and save behaviour have not been tested by this review.",
+          "Keep updates and replacement outside the attached session; retain the full old working copy and all data and review/relink changed selected bytes. No Portcove backup or recovery guarantee is inferred."
+        ],
+        "references": [
           {
             "title": "Keep upstream maintenance outside the attached session",
             "instruction": "PlayDownpour.exe offers user-requested upstream updates and temporary backup behavior. Keep updates and replacement outside the attached session; retain the full old working copy and all data and review/relink changed selected bytes. No Portcove backup or recovery guarantee is inferred."
@@ -40871,11 +40972,6 @@
             "title": "Keep your working game and every data folder it uses",
             "instruction": "The inspected title puts default user data in user/ and default cache in cache/ beside the executable; explicit user/cache overrides remain effective. Keep downpour.toml, original assets/default.xex, title update, profiles, saves, achievements, shader caches, logs, mods, backups, temporary files and every external custom root with the creating runtime."
           }
-        ],
-        "warnings": [
-          "Use only a copy and components you are permitted to use. Before changing versions, keep a copy of the complete working game, original files and every profile, save, cache, mod, backup, temporary file and custom data location. Another executable may use the same data. Portcove does not offer updates, backups, rollback, data migration or deletion for these external files.",
-          "BSD-3-Clause host source explicitly excludes generated original-derived code. README also says do not distribute game executable/data or any binary linking game data. This guide is conditional on an independently permitted prepared copy; that source grant does not authorize fresh acquisition/distribution of excluded generated content. Permission scope for that exact operation remains with upstream/rightsholder.",
-          "The publisher’s v1.1.8 hotfix removes the missing Agility dependency in 1.1.7. Matching package bytes and source were inspected but not run. Native-device, gameplay and save behaviour have not been tested by this review."
         ]
       },
       "download_block_reason": "Fresh acquisition of a derived Downpour player remains held: the selected upstream README expressly excludes generated game code from its BSD grant and prohibits distribution of the game executable or a binary linked against game data. Resume with applicable permission for that exact derived component or a reviewed compatible package resolving it. Independently permitted existing-copy registration does not clear this acquisition hold."
@@ -40957,14 +41053,16 @@
           {
             "title": "Review launch details, then choose Play",
             "instruction": "Select the completed game executable, its working folder and supported launch arguments. Review those details and agree to use them, then choose Play separately. You manage setup, game replacement and recovery using the project’s tools. Portcove does not offer updates, backups, rollback, conversion, data migration or deletion for this external copy. Removing its registration leaves external files in place. Before changing versions, close the game and its companion programs and keep the working copy and its data. Review and select the changed executable before playing again."
-          },
-          {
-            "title": "Preserve the complete working copy and all player data",
-            "instruction": "Preserve the whole working folder and every actual custom or external root, including config.cfg, original disc, map DLLs, gamedata, mods, logs, saves and backups/temporary files. The inspected source’s PsyCross card shim uses gamedata/save/0.MCD and 1.MCD relative to the effective working directory; quicksave enters the game’s own save screens. Keep that creating layout and all actual data, rather than assuming the release asset was built from the tag or that every later version shares its paths. Upstream replacement does not establish backward-compatible saves or restore player progress."
           }
         ],
         "warnings": [
           "Use only a copy and components you are permitted to use. Before changing versions, keep the complete working game, original files and every profile, mod, generated-code cache and custom data location. Another executable may use the same saved data."
+        ],
+        "references": [
+          {
+            "title": "Preserve the complete working copy and all player data",
+            "instruction": "Preserve the whole working folder and every actual custom or external root, including config.cfg, original disc, map DLLs, gamedata, mods, logs, saves and backups/temporary files. The inspected source’s PsyCross card shim uses gamedata/save/0.MCD and 1.MCD relative to the effective working directory; quicksave enters the game’s own save screens. Keep that creating layout and all actual data, rather than assuming the release asset was built from the tag or that every later version shares its paths. Upstream replacement does not establish backward-compatible saves or restore player progress."
+          }
         ]
       },
       "download_block_reason": "The inspected Windows package contains achievement.wav, steam.wav, trophy.wav and swish.wav whose exact source bytes are explicitly excluded from the project’s licence grant. Fresh acquisition stays held until attributable applicable sound permission or a reviewed released package removes or replaces those assets. The PC-code and named origin grants do not resolve this separate audio condition. Keep only an independently permitted existing copy; this condition grants no permission to acquire or execute it."
@@ -41685,16 +41783,18 @@
           {
             "title": "Keep upstream maintenance outside the attached session",
             "instruction": "The public launcher owns game environment, child lifetime and return/error behavior. Upstream and the user own preparation and runtime replacement. Preserve the full old copy, matching runtime/shader tools and all data; close actual player and companions before replacement and review changed selected bytes."
-          },
-          {
-            "title": "Keep your working game and every data folder it uses",
-            "instruction": "Keep settings.ini, save/, game.log, game/, pipeline-cache, mods and every custom root. The configured save directory may be external or relative to the launcher; retain the effective path and profile name because changing that name changes offline XUID/save identity. Saves include SfrAllData.sav and sidecars; achievements.txt lives with the player saves. Preserve optional local model references/imports and all shader caches, backups and temporary files with the creating runtime."
           }
         ],
         "warnings": [
           "Use only a copy and components you are permitted to use. Before changing versions, keep a copy of the complete working game, original files and every profile, save, cache, mod, backup, temporary file and custom data location. Another executable may use the same data. Portcove does not offer updates, backups, rollback, data migration or deletion for these external files.",
           "GPL-3.0-or-later project code excludes SEGA game code/data. Package THIRD_PARTY names ONNX MIT and MediaPipe model Apache2 components and associated licenses. No Kinect patch code/files are included according to upstream. Conditional independently permitted copy; no inherited whole-game grant.",
           "The player targets Windows x64 with AVX and D3D12 or Vulkan1.2. Keyboard and controller can be used without Kinect. This review did not confirm camera, Kinect, VRM or network modes, native gameplay or real saves."
+        ],
+        "references": [
+          {
+            "title": "Keep your working game and every data folder it uses",
+            "instruction": "Keep settings.ini, save/, game.log, game/, pipeline-cache, mods and every custom root. The configured save directory may be external or relative to the launcher; retain the effective path and profile name because changing that name changes offline XUID/save identity. Saves include SfrAllData.sav and sidecars; achievements.txt lives with the player saves. Preserve optional local model references/imports and all shader caches, backups and temporary files with the creating runtime."
+          }
         ]
       },
       "download_block_reason": "Fresh acquisition of the Free Riders compiled game translations remains held: the selected title/package notices exclude those generated original-derived components from the project grant. Resume with applicable permission for that exact component or a reviewed compatible package resolving it. Independently permitted existing-copy registration does not clear this acquisition hold."
@@ -42426,14 +42526,16 @@
           {
             "title": "Review launch details and manage updates",
             "instruction": "Review the selected game executable, working folder and launch arguments, then agree to use them. Choose Play separately when you are ready. You manage setup, game replacement and recovery. Removing the registration leaves external files in place. Before changing versions, close the game and its companion programs and keep the working copy and every data location it uses. Review and select the changed executable before playing again. Portcove does not offer updates, backups, rollback, conversion, data migration or deletion for these external files."
-          },
-          {
-            "title": "Preserve the whole creating copy and effective data",
-            "instruction": "Keep the entire creating player, build modules, extracted files, userdata, settings, mods and original GDI/tracks. SC5_USER_ROOT can change the root used for imported files/settings, and SC5_RUNTIME_DATA can change runtime data; preserve every effective override and any custom --image, --dll or --data location. Retain GPL and per-file third-party notices. Published translated modules and their separately supplied corresponding native-aot source do not license your original game assets."
           }
         ],
         "warnings": [
           "Use only a copy and components you are permitted to use. Keep the complete working game, originals, saves, settings, mods, caches, backups and every custom data location before changing versions. Another executable may use those same locations. These instructions do not establish Portcove-managed installation, gameplay or save compatibility."
+        ],
+        "references": [
+          {
+            "title": "Preserve the whole creating copy and effective data",
+            "instruction": "Keep the entire creating player, build modules, extracted files, userdata, settings, mods and original GDI/tracks. SC5_USER_ROOT can change the root used for imported files/settings, and SC5_RUNTIME_DATA can change runtime data; preserve every effective override and any custom --image, --dll or --data location. Retain GPL and per-file third-party notices. Published translated modules and their separately supplied corresponding native-aot source do not license your original game assets."
+          }
         ]
       }
     },
@@ -43537,14 +43639,16 @@
           {
             "title": "Review launch details and manage updates",
             "instruction": "Review the selected game executable, working folder and launch arguments, then agree to use them. Choose Play separately when you are ready. You manage setup, game replacement and recovery. Removing the registration leaves external files in place. Before changing versions, close the game and its companion programs and keep the working copy and every data location it uses. Review and select the changed executable before playing again. Portcove does not offer updates, backups, rollback, conversion, data migration or deletion for these external files."
-          },
-          {
-            "title": "Preserve the whole creating copy and effective data",
-            "instruction": "Keep the complete creating project, prepared player, original CUE/BIN, BIOS and generated-online outputs together with all effective external paths. Default settings.toml, input.ini and memory cards card1.mcd/card2.mcd are executable-relative; configuration can select other card/data paths. Preserve states, controller mappings, mods, assets, caches, backups and every custom root. The framework fork retains PolyForm Noncommercial 1.0.0 and separate third-party notices; comply with those terms and any separately applicable component rights."
           }
         ],
         "warnings": [
           "Use only a copy and components you are permitted to use. Keep the complete working game, originals, saves, settings, mods, caches, backups and every custom data location before changing versions. Another executable may use those same locations. These instructions do not establish Portcove-managed installation, gameplay or save compatibility."
+        ],
+        "references": [
+          {
+            "title": "Preserve the whole creating copy and effective data",
+            "instruction": "Keep the complete creating project, prepared player, original CUE/BIN, BIOS and generated-online outputs together with all effective external paths. Default settings.toml, input.ini and memory cards card1.mcd/card2.mcd are executable-relative; configuration can select other card/data paths. Preserve states, controller mappings, mods, assets, caches, backups and every custom root. The framework fork retains PolyForm Noncommercial 1.0.0 and separate third-party notices; comply with those terms and any separately applicable component rights."
+          }
         ]
       }
     },
@@ -43585,14 +43689,16 @@
           {
             "title": "Review launch details and manage updates",
             "instruction": "Review the selected game executable, working folder and launch arguments, then agree to use them. Choose Play separately when you are ready. You manage setup, game replacement and recovery. Removing the registration leaves external files in place. Before changing versions, close the game and its companion programs and keep the working copy and every data location it uses. Review and select the changed executable before playing again. Portcove does not offer updates, backups, rollback, conversion, data migration or deletion for these external files."
-          },
-          {
-            "title": "Preserve the whole creating copy and effective data",
-            "instruction": "Keep the complete creating project/build-release, original CUE/BIN, own BIOS and generated game code. Preserve settings.toml, input.ini, configured memory cards, states, mods, controller mappings, caches, backups and all effective custom roots. Do not assume compatibility with Street Fighter EX Plus Alpha or another PSXrecomp fork. Retain the framework PolyForm and separate third-party notices and comply with applicable component terms."
           }
         ],
         "warnings": [
           "Use only a copy and components you are permitted to use. Keep the complete working game, originals, saves, settings, mods, caches, backups and every custom data location before changing versions. Another executable may use those same locations. These instructions do not establish Portcove-managed installation, gameplay or save compatibility."
+        ],
+        "references": [
+          {
+            "title": "Preserve the whole creating copy and effective data",
+            "instruction": "Keep the complete creating project/build-release, original CUE/BIN, own BIOS and generated game code. Preserve settings.toml, input.ini, configured memory cards, states, mods, controller mappings, caches, backups and all effective custom roots. Do not assume compatibility with Street Fighter EX Plus Alpha or another PSXrecomp fork. Retain the framework PolyForm and separate third-party notices and comply with applicable component terms."
+          }
         ]
       }
     },
@@ -43744,14 +43850,16 @@
           {
             "title": "Review launch details and manage updates",
             "instruction": "Review the selected game executable, working folder and launch arguments, then agree to use them. Choose Play separately when you are ready. You manage setup, game replacement and recovery. Removing the registration leaves external files in place. Before changing versions, close the game and its companion programs and keep the working copy and every data location it uses. Review and select the changed executable before playing again. Portcove does not offer updates, backups, rollback, conversion, data migration or deletion for these external files."
-          },
-          {
-            "title": "Preserve the whole creating copy and effective data",
-            "instruction": "Keep the complete creating project/build-release, own original CUE/BIN, generated game code and any selected BIOS. Preserve settings.toml, input.ini, configured memory cards, states, mods, controller mappings, caches, backups and every effective custom root. Retain the framework PolyForm and separate third-party notices; no cross-title or cross-fork save/runtime compatibility is assumed."
           }
         ],
         "warnings": [
           "Use only a copy and components you are permitted to use. Keep the complete working game, originals, saves, settings, mods, caches, backups and every custom data location before changing versions. Another executable may use those same locations. These instructions do not establish Portcove-managed installation, gameplay or save compatibility."
+        ],
+        "references": [
+          {
+            "title": "Preserve the whole creating copy and effective data",
+            "instruction": "Keep the complete creating project/build-release, own original CUE/BIN, generated game code and any selected BIOS. Preserve settings.toml, input.ini, configured memory cards, states, mods, controller mappings, caches, backups and every effective custom root. Retain the framework PolyForm and separate third-party notices; no cross-title or cross-fork save/runtime compatibility is assumed."
+          }
         ]
       }
     },
@@ -45130,14 +45238,20 @@
           {
             "title": "Add the finished player, then choose Play",
             "instruction": "After setup succeeds, select Syphon_Filter_2_Recompiled.exe in build-release on Windows, or the native Syphon_Filter_2_Recompiled in build-release on Linux or Mac. Keep the complete prepared kit and use the player’s folder as its working directory. Choose a different actual output location if you deliberately configured one. Saving launch details never starts the game; Play is a separate action. Keep the rich launcher. In the current version, Disc 2 can be changed through the F1 menu even when a CHD verification warning remains in the launcher. The game reads progress from memory-card slot 1."
-          },
+          }
+        ],
+        "warnings": [
+          "Close the player and preserve the complete working kit, actual saves/card paths, settings.toml, keybinds.ini, config.ini, mods with their installed packages and state, original discs/BIOS and any custom locations before changing versions.",
+          "Keep older kits separately: upstream says v0.1.x cards/settings are not carried over, without establishing a safe migration. Do not copy an old generated cache or whole mods tree over a new runtime.",
+          "Portcove does not back up, roll back, replace or delete these external files."
+        ],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-2-recomp/releases/tag/v0.2.0",
+        "references": [
           {
             "title": "Keep your working copy and data before updating",
             "instruction": "You or upstream manage rebuilding and runtime updates. Close the player and preserve the complete working kit, actual saves/card paths, settings.toml, keybinds.ini, config.ini, mods with their installed packages and state, original discs/BIOS and any custom locations before changing versions. Current default cards, save states and game options live under build-release/saves; customized card or profile paths may be elsewhere. Keep older kits separately: upstream says v0.1.x cards/settings are not carried over, without establishing a safe migration. Do not copy an old generated cache or whole mods tree over a new runtime. Let the first session finish preparing optimized code. If the release’s known intro freeze occurs after early closure, follow its cache-only recovery for build-release/cache with the player closed; preserve saves and the working copy. Portcove does not back up, roll back, replace or delete these external files."
           }
-        ],
-        "warnings": [],
-        "help_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-2-recomp/releases/tag/v0.2.0"
+        ]
       }
     },
     {
@@ -46857,14 +46971,16 @@
           {
             "title": "Review Play and preserve external ownership",
             "instruction": "Review and consent to the exact selected native executable, established CWD and literal arguments, then choose Play separately. Upstream and you own preparation, runtime replacement and recovery. Removing registration preserves every external file. Portcove offers no external update, backup, rollback, migration or deletion. Close actual players and companions, keep the old complete working copy and every effective data root, then review and relink changed selected bytes."
-          },
-          {
-            "title": "Retain the complete creating copy and actual data",
-            "instruction": "Keep the complete runtime, gamedata and every effective data root. Windows player saves/cache default to %LOCALAPPDATA%/simpsons with a home/AppData/Local fallback; the launcher passes that effective path explicitly. simpsons.toml is beside the game executable. Preserve launcher.json, art, mods, backups, diagnostics, logs, shader caches, native shaders and any custom engine/lib/data configuration. Upstream Play may repair saves and create backups; those operations remain upstream-owned, not Portcove backup/rollback promises. Keep private profiles and credentials private. Project GPLv3, ReXGlue/Xenia BSD-3-Clause, XenonRecomp MIT and other notices remain separate from the original game and assets."
           }
         ],
         "warnings": [
           "Use only an actual copy and components you are permitted to use. Preserve all originals, runtime companions, saves, settings, mods, caches, logs, backups and custom roots. Another executable may share them. Static source/metadata and reusable fixtures are not gameplay, real-save, installed-client, Supported or protected acceptance."
+        ],
+        "references": [
+          {
+            "title": "Retain the complete creating copy and actual data",
+            "instruction": "Keep the complete runtime, gamedata and every effective data root. Windows player saves/cache default to %LOCALAPPDATA%/simpsons with a home/AppData/Local fallback; the launcher passes that effective path explicitly. simpsons.toml is beside the game executable. Preserve launcher.json, art, mods, backups, diagnostics, logs, shader caches, native shaders and any custom engine/lib/data configuration. Upstream Play may repair saves and create backups; those operations remain upstream-owned, not Portcove backup/rollback promises. Keep private profiles and credentials private. Project GPLv3, ReXGlue/Xenia BSD-3-Clause, XenonRecomp MIT and other notices remain separate from the original game and assets."
+          }
         ]
       }
     },
@@ -47842,16 +47958,18 @@
           {
             "title": "Keep upstream maintenance outside the attached session",
             "instruction": "Upstream preparation and the public supervisor retain child and cleanup ownership. Its normal launch waits for the game, preserves active-instance guards and performs upstream cleanup; Portcove does not create a wrapper or select an internal child. Close supervisor/game/companions before upstream replacement; retain old data and review changed selected bytes."
-          },
-          {
-            "title": "Keep your working game and every data folder it uses",
-            "instruction": "Preserve the complete creating player, original game/ tree, saves/, config/settings.toml, config/install.toml, logs/ and every effective external save, data, cache, profile, mod, backup or custom root. Retain all companion native files. Keep the supported frame cap and existing configuration; never infer save migration from the engine family."
           }
         ],
         "warnings": [
           "Use only a copy and components you are permitted to use. Before changing versions, keep a copy of the complete working game, original files and every profile, save, cache, mod, backup, temporary file and custom data location. Another executable may use the same data. Portcove does not offer updates, backups, rollback, data migration or deletion for these external files.",
           "BSD-3-Clause project code with NOTICE for dependencies; original-derived generated game units and original data are outside that grant. Only an independently permitted prepared copy is covered by this attachment guide.",
           "Windows is explicitly experimental upstream; publisher Proton observations are not native Windows qualification. Upstream warns uncapped cutscenes can run 3–5x speed; retain default cap. No execution performed."
+        ],
+        "references": [
+          {
+            "title": "Keep your working game and every data folder it uses",
+            "instruction": "Preserve the complete creating player, original game/ tree, saves/, config/settings.toml, config/install.toml, logs/ and every effective external save, data, cache, profile, mod, backup or custom root. Retain all companion native files. Keep the supported frame cap and existing configuration; never infer save migration from the engine family."
+          }
         ]
       },
       "download_block_reason": "Fresh acquisition of the compiled Project 8 recompilation remains held: the selected release contains generated game code that the upstream BSD project grant explicitly excludes. Resume with applicable permission for that exact derived component or a reviewed compatible package resolving it. Independently permitted existing-copy registration does not clear this acquisition hold."
@@ -50576,16 +50694,19 @@
           {
             "title": "Choose your original cartridge dump on first Play",
             "instruction": "Choose Play explicitly, then Select ROM and supply your own supported Banjo-Tooie USA .z64 in big-endian byte order. The documented input is a 32 MiB original cartridge dump; another region, byte order or modified image is not equivalent. The released player reads it directly, without a separate extraction or compiler step."
-          },
+          }
+        ],
+        "warnings": [
+          "Upstream calls Linux less exercised than Windows. Published packages and source claims do not establish Portcove native gameplay or real-save acceptance.",
+          "Keep settings and saves together and retain a working copy before replacing it. Portcove does not adopt or back up these files, rewind saves or guarantee older-runtime readability."
+        ],
+        "help_url": "https://github.com/Vidanox/BanjoTooieRecompiled/blob/9e5852541ba1436417e2c4468960e8c6de6deda5/README.md",
+        "references": [
           {
             "title": "Keep your actual profile when updating",
             "instruction": "You or upstream own runtime updates. Preserve the complete player folder, original game and actual profile: normally %LOCALAPPDATA%\\BanjoTooieRecompiled on Windows or ~/.config/BanjoTooieRecompiled on Linux. For Flatpak, also keep the complete ~/.var/app/io.github.Vidanox.BanjoTooieRecompiled folder; preserve any APP_FOLDER_PATH, portable or customized profile actually used. Keep settings and saves together and retain a working copy before replacing it. Portcove does not adopt or back up these files, rewind saves or guarantee older-runtime readability."
           }
-        ],
-        "warnings": [
-          "Upstream calls Linux less exercised than Windows. Published packages and source claims do not establish Portcove native gameplay or real-save acceptance."
-        ],
-        "help_url": "https://github.com/Vidanox/BanjoTooieRecompiled/blob/9e5852541ba1436417e2c4468960e8c6de6deda5/README.md"
+        ]
       },
       "download_block_reason": "The selected v1.0.1 source/package recipe includes Suplexmentary Comic NC.ttf, which upstream identifies without a license and with an all-rights-reserved notice. The official RecompFrontend base now has a GPLv3 grant; that does not license this separate font. Keep an existing copy you are permitted to use. Reconsider fresh acquisition with attributable compatible font permission or a reviewed released package removing or replacing the affected font."
     },
@@ -52958,14 +53079,16 @@
           {
             "title": "Review launch details and manage updates",
             "instruction": "Review the selected game executable, working folder and launch arguments, then agree to use them. Choose Play separately when you are ready. You manage setup, game replacement and recovery. Removing the registration leaves external files in place. Before changing versions, close the game and its companion programs and keep the working copy and every data location it uses. Review and select the changed executable before playing again. Portcove does not offer updates, backups, rollback, conversion, data migration or deletion for these external files."
-          },
-          {
-            "title": "Preserve the whole creating copy and effective data",
-            "instruction": "Keep the entire package and KnowYourRole-files/runtime, including generated Recompiled.* libraries, build stamp and matching runtime. Back up KnowYourRole-files/user, including carda.sav, cardb.sav, settings.json, interface.ini, launcher.json, user controller mappings and logs. Existing RECOMPONE_DATA_DIR and RECOMPONE_LOG_DIR overrides take precedence: preserve their actual locations as well as mods, caches, backups and original disc. Retain MIT and THIRD-PARTY-NOTICES; framework notices do not grant original-game rights."
           }
         ],
         "warnings": [
           "Use only a copy and components you are permitted to use. Keep the complete working game, originals, saves, settings, mods, caches, backups and every custom data location before changing versions. Another executable may use those same locations. These instructions do not establish Portcove-managed installation, gameplay or save compatibility."
+        ],
+        "references": [
+          {
+            "title": "Preserve the whole creating copy and effective data",
+            "instruction": "Keep the entire package and KnowYourRole-files/runtime, including generated Recompiled.* libraries, build stamp and matching runtime. Back up KnowYourRole-files/user, including carda.sav, cardb.sav, settings.json, interface.ini, launcher.json, user controller mappings and logs. Existing RECOMPONE_DATA_DIR and RECOMPONE_LOG_DIR overrides take precedence: preserve their actual locations as well as mods, caches, backups and original disc. Retain MIT and THIRD-PARTY-NOTICES; framework notices do not grant original-game rights."
+          }
         ]
       }
     },
@@ -53079,7 +53202,15 @@
           {
             "title": "Review launch details, then choose Play",
             "instruction": "Review the selected game executable, working folder and launch arguments, then agree to use them. Choose Play separately when you are ready. Adding this copy does not prepare, update or replace its external files. Removing its registration leaves all external files in place. Before changing versions, close the game and its companion programs and keep the working copy and all data. Review and select the changed executable before playing again."
-          },
+          }
+        ],
+        "warnings": [
+          "Use only a copy and components you are permitted to use. Before changing versions, keep a copy of the complete working game, original files and every profile, save, cache, mod, backup, temporary file and custom data location. Another executable may use the same data. Portcove does not offer updates, backups, rollback, data migration or deletion for these external files.",
+          "Public attributable upstream release; README assigns BSD-3-Clause to ReXGlue SDK, not a blanket grant for all scaffolding/original-derived output. Original game assets are excluded. Root license absence alone establishes no new prohibition; use an independently permitted installed copy.",
+          "This review checked source and official metadata only. It did not download, inspect or run the published installer or resulting xmd.exe and dependencies. Windows x64 D3D12 is the documented upstream target, not a confirmed native run.",
+          "Source installer uninstall explicitly deletes user_data; this guide offers no uninstall or deletion. Retain the installed copy and data before upstream maintenance and do not invoke that destructive uninstall as registration removal."
+        ],
+        "references": [
           {
             "title": "Keep upstream maintenance outside the attached session",
             "instruction": "Upstream launcher/installer retain installation and updater ownership; Portcove attaches only an independently permitted completed native output. Close actual native player and companions before upstream replacement, retain old runtime/data and review/relink changed selected bytes."
@@ -53088,11 +53219,6 @@
             "title": "Keep your working game and every data folder it uses",
             "instruction": "Keep the full creating installed directory, game/, user_data/, xmd.toml, effective logs, saves, profiles, mods, caches, backups and every custom root. Source installer uninstall explicitly deletes user_data; this guide offers no uninstall or deletion. Retain the installed copy and data before upstream maintenance and do not invoke that destructive uninstall as registration removal."
           }
-        ],
-        "warnings": [
-          "Use only a copy and components you are permitted to use. Before changing versions, keep a copy of the complete working game, original files and every profile, save, cache, mod, backup, temporary file and custom data location. Another executable may use the same data. Portcove does not offer updates, backups, rollback, data migration or deletion for these external files.",
-          "Public attributable upstream release; README assigns BSD-3-Clause to ReXGlue SDK, not a blanket grant for all scaffolding/original-derived output. Original game assets are excluded. Root license absence alone establishes no new prohibition; use an independently permitted installed copy.",
-          "This review checked source and official metadata only. It did not download, inspect or run the published installer or resulting xmd.exe and dependencies. Windows x64 D3D12 is the documented upstream target, not a confirmed native run."
         ]
       }
     },

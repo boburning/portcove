@@ -35,7 +35,14 @@
         {
           "title": "Review launch details, then choose Play",
           "instruction": "Review the selected game executable, working folder and launch arguments, then agree to use them. Choose Play separately when you are ready. Adding this copy does not prepare, update or replace its external files. Removing its registration leaves all external files in place. Before changing versions, close the game and its companion programs and keep the working copy and all data. Review and select the changed executable before playing again."
-        },
+        }
+      ],
+      "warnings": [
+        "Use only a copy and components you are permitted to use. Before changing versions, keep a copy of the complete working game, original files and every profile, save, cache, mod, backup, temporary file and custom data location. Another executable may use the same data. Portcove does not offer updates, backups, rollback, data migration or deletion for these external files.",
+        "MIT project code; original game remains independently supplied. Shared SDK/project labels do not certify rights to another title or generated original-derived content.",
+        "Upstream documents Geometry Wars minigame crash and Lotus Esprit Essex Turbo freeze. These are disclosed upstream limitations, not repaired or tested here."
+      ],
+      "references": [
         {
           "title": "Keep upstream maintenance outside the attached session",
           "instruction": "Preparation and runtime replacement remain with upstream and the user. Retain the old working copy and all data; close the actual player and companions before replacement and review/relink changed selected bytes."
@@ -44,11 +51,6 @@
           "title": "Keep your working game and every data folder it uses",
           "instruction": "Keep the complete creating player and prepared original, plus every effective SDK user/profile/save/configuration/mod/cache/log/backup and custom root. No complete per-user save location is established by this bounded title-source read. Preserve existing paths and compatibility; the package working directory alone is insufficient to identify all player data."
         }
-      ],
-      "warnings": [
-        "Use only a copy and components you are permitted to use. Before changing versions, keep a copy of the complete working game, original files and every profile, save, cache, mod, backup, temporary file and custom data location. Another executable may use the same data. Portcove does not offer updates, backups, rollback, data migration or deletion for these external files.",
-        "MIT project code; original game remains independently supplied. Shared SDK/project labels do not certify rights to another title or generated original-derived content.",
-        "Upstream documents Geometry Wars minigame crash and Lotus Esprit Essex Turbo freeze. These are disclosed upstream limitations, not repaired or tested here."
       ]
     }
   }

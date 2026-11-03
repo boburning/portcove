@@ -27,21 +27,24 @@
       "steps": [
         {
           "title": "Keep the complete permitted Reloaded copy",
-          "instruction": "Select ConkerBFDReloaded.exe on Windows or ConkerBFDReloaded on Linux from your existing permitted copy. Keep the extracted folder, assets and supplied libraries together as its working directory. This implementation credits sciaschi\u2019s CBFD-Recompiled but has its own player and profile; do not substitute the scene-only Conker64 package. Optional HD-Icons .rtz downloads are texture packs, not players."
+          "instruction": "Select ConkerBFDReloaded.exe on Windows or ConkerBFDReloaded on Linux from your existing permitted copy. Keep the extracted folder, assets and supplied libraries together as its working directory. This implementation credits sciaschi’s CBFD-Recompiled but has its own player and profile; do not substitute the scene-only Conker64 package. Optional HD-Icons .rtz downloads are texture packs, not players."
         },
         {
           "title": "Select your original game on first Play",
-          "instruction": "Choose Play explicitly and select your own supported USA Conker\u2019s Bad Fur Day ROM in the launcher. If the Linux file picker is unavailable, use Change launch details: enter --rom on one launch-argument line and your ROM\u2019s absolute path on the next, without surrounding quotes, then choose Play. This uses upstream\u2019s supported --rom option. The player remembers the input and needs no separate compiler or discovered preparation helper."
-        },
+          "instruction": "Choose Play explicitly and select your own supported USA Conker’s Bad Fur Day ROM in the launcher. If the Linux file picker is unavailable, use Change launch details: enter --rom on one launch-argument line and your ROM’s absolute path on the next, without surrounding quotes, then choose Play. This uses upstream’s supported --rom option. The player remembers the input and needs no separate compiler or discovered preparation helper."
+        }
+      ],
+      "warnings": [
+        "The Linux package instructions call the build experimental and describe only upstream WSL/software-graphics testing; this is not Portcove native or Steam Deck acceptance.",
+        "Preserve the cached ROM, saves, settings, mods, save states, Photos and generated key_prompts together, including portable/custom locations actually used. Keep the current copy until its replacement is ready. Portcove records launch details without adopting, backing up, rolling back or deleting external files."
+      ],
+      "help_url": "https://github.com/DahSidiAbdallah/ConkerBFDReloaded/blob/d8ea30f220d7c1464997e6cdd013c16b204f81d8/README.md",
+      "references": [
         {
           "title": "Preserve saves, photos and generated prompts",
           "instruction": "You or upstream provide runtime updates. Keep the complete working copy and actual profile: normally %LOCALAPPDATA%\\ConkerBFDReloaded or ~/.config/ConkerBFDReloaded. Preserve the cached ROM, saves, settings, mods, save states, Photos and generated key_prompts together, including portable/custom locations actually used. Keep the current copy until its replacement is ready. Portcove records launch details without adopting, backing up, rolling back or deleting external files."
         }
-      ],
-      "warnings": [
-        "The Linux package instructions call the build experimental and describe only upstream WSL/software-graphics testing; this is not Portcove native or Steam Deck acceptance."
-      ],
-      "help_url": "https://github.com/DahSidiAbdallah/ConkerBFDReloaded/blob/d8ea30f220d7c1464997e6cdd013c16b204f81d8/README.md"
+      ]
     }
   }
 }

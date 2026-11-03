@@ -39,14 +39,16 @@
         {
           "title": "Review launch details, then choose Play",
           "instruction": "Select the completed game executable, its working folder and supported launch arguments. Review those details and agree to use them, then choose Play separately. You manage setup, game replacement and recovery using the project’s tools. Removing its registration leaves external files in place. Before changing versions, close the game and its companion programs and keep the working copy and all data. Review and select the changed executable before playing again."
-        },
-        {
-          "title": "Keep the complete working root and external profiles",
-          "instruction": "Preserve the entire creating runtime/resource root, including assets/package, assets/game, assets/save, assets/shader_spv, config, tools, defaults, recipes, logs, key maps and all custom locations. The inspected Windows source also resolves the redirected Saved Games known folder under Dead Rising 2 Case West, falling back through USERPROFILE/Saved Games and finally the executable directory. Keep offline and per-gamertag profiles, all saves, original packages, backups and temporary files. These are separate unowned roots; this guide does not claim a complete managed backup or cross-profile migration."
         }
       ],
       "warnings": [
         "Use only a copy and components you are permitted to use. Before changing versions, keep a copy of the complete working game, original files and every profile, save, cache, mod, backup, temporary file and custom data location. Another executable may use the same data. Portcove does not offer updates, backups, rollback, data migration or deletion for these external files."
+      ],
+      "references": [
+        {
+          "title": "Keep the complete working root and external profiles",
+          "instruction": "Preserve the entire creating runtime/resource root, including assets/package, assets/game, assets/save, assets/shader_spv, config, tools, defaults, recipes, logs, key maps and all custom locations. The inspected Windows source also resolves the redirected Saved Games known folder under Dead Rising 2 Case West, falling back through USERPROFILE/Saved Games and finally the executable directory. Keep offline and per-gamertag profiles, all saves, original packages, backups and temporary files. These are separate unowned roots; this guide does not claim a complete managed backup or cross-profile migration."
+        }
       ]
     },
     "download_block_reason": "The selected Case West Windows package explicitly identifies compiled-in libxlive and refers its licence to the separate XenonLive repository. An applicable grant for that linked component is not established by the retained evidence; the title’s own PolyForm grant preserves separate component licences. Fresh acquisition stays held until attributable applicable permission or a reviewed released replacement resolves this exact scope. Offline mode does not remove a compiled-in component. This condition grants no permission to use an existing copy."

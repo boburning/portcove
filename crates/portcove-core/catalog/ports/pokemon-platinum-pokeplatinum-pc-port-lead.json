@@ -35,7 +35,15 @@
         {
           "title": "Review launch details, then choose Play",
           "instruction": "Review and consent to this exact executable, creating working directory and supported literal arguments, then choose Play separately. Core owns only the selected native intent and registration. Upstream and you retain preparation, runtime replacement, recovery and external files. Removing registration preserves every external file. Close the actual player and companions before upstream maintenance, retain the old runtime and all data, then review/relink changed selected bytes."
-        },
+        }
+      ],
+      "warnings": [
+        "Use only an independently permitted copy, original and components. The README identifies separate MIT libntr obligations for redistributors; it is not a whole-game IP certificate or source-to-binary receipt.",
+        "Experimental upstream preview may crash or show graphical defects. Package/source/SDK correspondence, full persistent-data mapping, actual native gameplay and real-save behavior remain Unknown; no installed Desktop or protected publication is qualified.",
+        "Removing registration preserves every external file. Close the actual player and companions before upstream maintenance, retain the old runtime and all data, then review/relink changed selected bytes.",
+        "No backup, deletion, migration or save/firmware compatibility is offered."
+      ],
+      "references": [
         {
           "title": "Keep firmware and user data with the creating runtime",
           "instruction": "The upstream README says firmware.bin contains only an offset and space for WiFi configuration, not a Nintendo DS firmware dump. Preserve that mutable configuration, the complete working folder and extracted game files, actual saves/settings/logs/mods/backups/temporary files and every external location used by this copy. Do not assume the package folder contains every save. The title’s libntr dependency tracks main without an immutable SDK pin; exact released SDK defaults and complete save-coordinate mapping are not established here. No backup, deletion, migration or save/firmware compatibility is offered."
@@ -44,10 +52,6 @@
           "title": "Keep upstream maintenance and network choices separate",
           "instruction": "Upstream and you own preparation and runtime replacement. Close the actual game and companions, keep the entire old creating runtime and data, then review/relink changed selected bytes. WiFi/multiplayer, renderer quality and first-to-last gameplay are upstream goals/claims, not Portcove acceptance or authorization for accounts, uploads or network configuration."
         }
-      ],
-      "warnings": [
-        "Use only an independently permitted copy, original and components. The README identifies separate MIT libntr obligations for redistributors; it is not a whole-game IP certificate or source-to-binary receipt.",
-        "Experimental upstream preview may crash or show graphical defects. Package/source/SDK correspondence, full persistent-data mapping, actual native gameplay and real-save behavior remain Unknown; no installed Desktop or protected publication is qualified."
       ]
     }
   }

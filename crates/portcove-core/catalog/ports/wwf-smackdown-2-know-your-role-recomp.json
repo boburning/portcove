@@ -35,14 +35,16 @@
         {
           "title": "Review launch details and manage updates",
           "instruction": "Review the selected game executable, working folder and launch arguments, then agree to use them. Choose Play separately when you are ready. You manage setup, game replacement and recovery. Removing the registration leaves external files in place. Before changing versions, close the game and its companion programs and keep the working copy and every data location it uses. Review and select the changed executable before playing again. Portcove does not offer updates, backups, rollback, conversion, data migration or deletion for these external files."
-        },
-        {
-          "title": "Preserve the whole creating copy and effective data",
-          "instruction": "Keep the entire package and KnowYourRole-files/runtime, including generated Recompiled.* libraries, build stamp and matching runtime. Back up KnowYourRole-files/user, including carda.sav, cardb.sav, settings.json, interface.ini, launcher.json, user controller mappings and logs. Existing RECOMPONE_DATA_DIR and RECOMPONE_LOG_DIR overrides take precedence: preserve their actual locations as well as mods, caches, backups and original disc. Retain MIT and THIRD-PARTY-NOTICES; framework notices do not grant original-game rights."
         }
       ],
       "warnings": [
         "Use only a copy and components you are permitted to use. Keep the complete working game, originals, saves, settings, mods, caches, backups and every custom data location before changing versions. Another executable may use those same locations. These instructions do not establish Portcove-managed installation, gameplay or save compatibility."
+      ],
+      "references": [
+        {
+          "title": "Preserve the whole creating copy and effective data",
+          "instruction": "Keep the entire package and KnowYourRole-files/runtime, including generated Recompiled.* libraries, build stamp and matching runtime. Back up KnowYourRole-files/user, including carda.sav, cardb.sav, settings.json, interface.ini, launcher.json, user controller mappings and logs. Existing RECOMPONE_DATA_DIR and RECOMPONE_LOG_DIR overrides take precedence: preserve their actual locations as well as mods, caches, backups and original disc. Retain MIT and THIRD-PARTY-NOTICES; framework notices do not grant original-game rights."
+        }
       ]
     }
   }

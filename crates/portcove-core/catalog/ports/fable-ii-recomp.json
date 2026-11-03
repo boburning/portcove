@@ -35,14 +35,16 @@
         {
           "title": "Review launch details, then choose Play",
           "instruction": "Select the completed game executable, its working folder and supported launch arguments. Review those details and agree to use them, then choose Play separately. You manage setup, game replacement and recovery using the project’s tools. Removing its registration leaves external files in place. Before changing versions, close the game and its companion programs and keep the working copy and all data. Review and select the changed executable before playing again."
-        },
-        {
-          "title": "Preserve the portable player, original and custom roots",
-          "instruction": "The inspected title source forces saves/ and cache/ beside the executable even when a platform user-data default or argument differs. Preserve the complete creating copy, fable_2.toml, fable2_config.toml, launcher-settings.toml, one-time backups, logs, data/scripts, original game tree, mods and every custom path. Upstream may repair the original-data file manifest; retain the old complete data before preparation or replacement. Save and mod compatibility across runtime versions remains upstream-owned."
         }
       ],
       "warnings": [
         "Use only a copy and components you are permitted to use. Before changing versions, keep a copy of the complete working game, original files and every profile, save, cache, mod, backup, temporary file and custom data location. Another executable may use the same data. Portcove does not offer updates, backups, rollback, data migration or deletion for these external files."
+      ],
+      "references": [
+        {
+          "title": "Preserve the portable player, original and custom roots",
+          "instruction": "The inspected title source forces saves/ and cache/ beside the executable even when a platform user-data default or argument differs. Preserve the complete creating copy, fable_2.toml, fable2_config.toml, launcher-settings.toml, one-time backups, logs, data/scripts, original game tree, mods and every custom path. Upstream may repair the original-data file manifest; retain the old complete data before preparation or replacement. Save and mod compatibility across runtime versions remains upstream-owned."
+        }
       ]
     }
   }

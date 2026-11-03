@@ -36,14 +36,16 @@
         {
           "title": "Review launch details, then choose Play",
           "instruction": "Select the completed game executable, its working folder and supported launch arguments. Review those details and agree to use them, then choose Play separately. You manage setup, game replacement and recovery using the project’s tools. Portcove does not offer updates, backups, rollback, conversion, data migration or deletion for this external copy. Removing its registration leaves external files in place. Before changing versions, close the game and its companion programs and keep the working copy and its data. Review and select the changed executable before playing again."
-        },
-        {
-          "title": "Preserve the whole creating project and effective player data",
-          "instruction": "Keep both the complete source/setup kit and build-release product, every original and BIOS, generated code, toolchain resources, mods and all custom roots. settings.toml and input.ini are anchored beside the executable; game.toml/game_options.toml and their effective project root affect source and relative data paths. The packaged memcard_dir=saves can be overridden by settings or explicit card paths. Preserve actual memory cards, save states/options, keybinds, diagnostics, overlay code caches, backups and temporary files with their creating runtime. Do not relocate or rewrite paths from a developer example, copy another title’s source hashes, or assume cross-version state/save compatibility."
         }
       ],
       "warnings": [
         "Use only a copy and components you are permitted to use. Before changing versions, keep the complete working game, original files and every profile, mod, generated-code cache and custom data location. Another executable may use the same saved data."
+      ],
+      "references": [
+        {
+          "title": "Preserve the whole creating project and effective player data",
+          "instruction": "Keep both the complete source/setup kit and build-release product, every original and BIOS, generated code, toolchain resources, mods and all custom roots. settings.toml and input.ini are anchored beside the executable; game.toml/game_options.toml and their effective project root affect source and relative data paths. The packaged memcard_dir=saves can be overridden by settings or explicit card paths. Preserve actual memory cards, save states/options, keybinds, diagnostics, overlay code caches, backups and temporary files with their creating runtime. Do not relocate or rewrite paths from a developer example, copy another title’s source hashes, or assume cross-version state/save compatibility."
+        }
       ]
     },
     "download_block_reason": "The selected Final Fantasy Tactics setup kit explicitly supplies no separate grant for game-owned files, including its own widescreen code and modified runtime scope. The framework PolyForm Noncommercial grant does not license that separate scope. Fresh acquisition stays held until attributable applicable permission or a reviewed released replacement resolves it. This condition grants no permission to use an existing copy."

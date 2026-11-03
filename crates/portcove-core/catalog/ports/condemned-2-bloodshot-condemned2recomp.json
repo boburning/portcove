@@ -39,7 +39,15 @@
         {
           "title": "Review launch details, then choose Play",
           "instruction": "Review the selected game executable, working folder and launch arguments, then agree to use them. Choose Play separately when you are ready. Adding this copy does not prepare, update or replace its external files. Removing its registration leaves all external files in place. Before changing versions, close the game and its companion programs and keep the working copy and all data. Review and select the changed executable before playing again."
-        },
+        }
+      ],
+      "warnings": [
+        "Use only a copy and components you are permitted to use. Before changing versions, keep a copy of the complete working game, original files and every profile, save, cache, mod, backup, temporary file and custom data location. Another executable may use the same data. Portcove does not offer updates, backups, rollback, data migration or deletion for these external files.",
+        "BSD-3-Clause project shell; THIRD-PARTY-NOTICES describes separate dependencies. No original game assets are provided. Package contains ZTNature fonts; no independent font grant was identified in this bounded notice read, and project grant is not a whole-package IP certificate.",
+        "Work in progress; upstream reports possible bugs and crashes. No native gameplay/save observation here.",
+        "Accepting one starts condemned2recomp_updater.exe and ends the old player. Perform deliberate updates and any successor launch as upstream maintenance outside the attached session; no successor is adopted automatically."
+      ],
+      "references": [
         {
           "title": "Keep upstream maintenance outside the attached session",
           "instruction": "The in-process start screen offers updates. Accepting one starts condemned2recomp_updater.exe and ends the old player. Perform deliberate updates and any successor launch as upstream maintenance outside the attached session; no successor is adopted automatically."
@@ -48,11 +56,6 @@
           "title": "Preserve the creating copy and every effective data root",
           "instruction": "The inspected title defaults game data to Assets, user data to UserData and cache to Cache beside its configuration; explicit configured roots override defaults. Preserve the full creating folder, runtime configuration, originals, title update, profiles, saves, mods, logs, caches, backups, temporary files and all effective custom roots. An update can rewrite configuration; retain it with the creating runtime."
         }
-      ],
-      "warnings": [
-        "Use only a copy and components you are permitted to use. Before changing versions, keep a copy of the complete working game, original files and every profile, save, cache, mod, backup, temporary file and custom data location. Another executable may use the same data. Portcove does not offer updates, backups, rollback, data migration or deletion for these external files.",
-        "BSD-3-Clause project shell; THIRD-PARTY-NOTICES describes separate dependencies. No original game assets are provided. Package contains ZTNature fonts; no independent font grant was identified in this bounded notice read, and project grant is not a whole-package IP certificate.",
-        "Work in progress; upstream reports possible bugs and crashes. No native gameplay/save observation here."
       ]
     },
     "download_block_reason": "Fresh acquisition of the selected Condemned 2 package remains held for its bundled ZT Nature Black/Medium fonts: the captured project/dependency notices do not establish an applicable bundled-application redistribution grant for those exact font bytes. Resume with attributable permission for that operation or a reviewed compatible package resolving the component. Later source replacement fonts do not qualify this older package. Independently permitted existing-copy registration does not clear this acquisition hold."

@@ -36,14 +36,16 @@
         {
           "title": "Review launch details, then choose Play",
           "instruction": "Select the completed game executable, its working folder and supported launch arguments. Review those details and agree to use them, then choose Play separately. You manage setup, game replacement and recovery using the project’s tools. Portcove does not offer updates, backups, rollback, conversion, data migration or deletion for this external copy. Removing its registration leaves external files in place. Before changing versions, close the game and its companion programs and keep the working copy and its data. Review and select the changed executable before playing again."
-        },
-        {
-          "title": "Preserve the complete working copy and all player data",
-          "instruction": "Preserve the whole working folder and every actual custom or external root, including config.cfg, original disc, map DLLs, gamedata, mods, logs, saves and backups/temporary files. The inspected source’s PsyCross card shim uses gamedata/save/0.MCD and 1.MCD relative to the effective working directory; quicksave enters the game’s own save screens. Keep that creating layout and all actual data, rather than assuming the release asset was built from the tag or that every later version shares its paths. Upstream replacement does not establish backward-compatible saves or restore player progress."
         }
       ],
       "warnings": [
         "Use only a copy and components you are permitted to use. Before changing versions, keep the complete working game, original files and every profile, mod, generated-code cache and custom data location. Another executable may use the same saved data."
+      ],
+      "references": [
+        {
+          "title": "Preserve the complete working copy and all player data",
+          "instruction": "Preserve the whole working folder and every actual custom or external root, including config.cfg, original disc, map DLLs, gamedata, mods, logs, saves and backups/temporary files. The inspected source’s PsyCross card shim uses gamedata/save/0.MCD and 1.MCD relative to the effective working directory; quicksave enters the game’s own save screens. Keep that creating layout and all actual data, rather than assuming the release asset was built from the tag or that every later version shares its paths. Upstream replacement does not establish backward-compatible saves or restore player progress."
+        }
       ]
     },
     "download_block_reason": "The inspected Windows package contains achievement.wav, steam.wav, trophy.wav and swish.wav whose exact source bytes are explicitly excluded from the project’s licence grant. Fresh acquisition stays held until attributable applicable sound permission or a reviewed released package removes or replaces those assets. The PC-code and named origin grants do not resolve this separate audio condition. Keep only an independently permitted existing copy; this condition grants no permission to acquire or execute it."
