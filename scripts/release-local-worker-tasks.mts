@@ -120,7 +120,7 @@ function Read-FixedTask($task,[bool]$expectedEnabled){
     availability: truth,
     registration_proposal:
       common +
-      `# Initial setup only: create-only; never replace or run a task.\n$root=$service.GetFolder('\\')\ntry{$folder=$root.GetFolder('Portcove')}catch [Runtime.InteropServices.COMException]{if($_.Exception.HResult -ne -2147024894){throw};$folder=$root.CreateFolder('Portcove',${ps(sddl)})}\n$task=$folder.RegisterTask(${ps(task.name)},$xml,2,${ps(task.broker)},$null,3,${ps(sddl)})\nRead-FixedTask $task $false\n`,
+      `# Initial setup only: create-only; never replace or run a task.\n$root=$service.GetFolder('\\')\ntry{$folder=$root.GetFolder('Portcove')}catch{if($_.Exception.HResult -ne -2147024894){throw};$folder=$root.CreateFolder('Portcove',${ps(sddl)})}\n$task=$folder.RegisterTask(${ps(task.name)},$xml,2,${ps(task.broker)},$null,3,${ps(sddl)})\nRead-FixedTask $task $false\n`,
     recovery_readback_proposal:
       common +
       `# GET-only after lost acknowledgement; missing/changed is HOLD, never absence-as-no-effect.\n$task=$service.GetFolder('\\Portcove').GetTask(${ps(task.name)})\nRead-FixedTask $task $false\n`,

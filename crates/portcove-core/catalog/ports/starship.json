@@ -32,7 +32,7 @@
       "macos-x86-64": ["starship"],
       "macos-aarch64": ["starship"]
     },
-    "persistent_paths": ["mods", "saves", "config.json"],
+    "persistent_paths": ["mods", "saves", "config.json", "starship.cfg.json"],
     "presentation": {
       "installation_method": "portable-package",
       "source_requirements": [
