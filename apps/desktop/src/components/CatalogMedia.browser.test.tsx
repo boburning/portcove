@@ -602,6 +602,10 @@ it.each([true, false])(
       const frame = document.querySelector(".game-hero-foreground")!.getBoundingClientRect();
       const image = document.querySelector(".game-hero-image")!.getBoundingClientRect();
       const credits = document.querySelector(".game-hero-credits")!.getBoundingClientRect();
+      expect(frame.width).toBeGreaterThan(0);
+      expect(frame.height).toBeGreaterThan(0);
+      expect(image.width).toBeGreaterThan(0);
+      expect(image.height).toBeGreaterThan(0);
       expect(image.left).toBeGreaterThanOrEqual(frame.left - 1);
       expect(image.right).toBeLessThanOrEqual(frame.right + 1);
       expect(image.top).toBeGreaterThanOrEqual(frame.top - 1);
@@ -614,18 +618,40 @@ it.each([true, false])(
     );
     await page.getByRole("button", { name: "Continue controlled game", exact: true }).click();
     const action = document.activeElement;
+    // Exercise visible resize legibility above the narrow artwork-omission breakpoint.
+    await act(async () => {
+      const container = document.querySelector<HTMLElement>('[data-testid="continue-width"]')!;
+      const frame = document.querySelector<HTMLElement>(".game-hero-foreground")!;
+      container.style.width = "450px";
+      frame.style.flex = "0 0 80px";
+      frame.style.inlineSize = "80px";
+      frame.style.blockSize = "72px";
+    });
+    await expect
+      .poll(() => document.querySelector(".game-hero")?.getAttribute("data-hero-identity"))
+      .toBe(compactLogo ? "logo" : "cover");
+    assertContainedMedia();
+    expect(document.activeElement).toBe(action);
     await act(async () => {
       const container = document.querySelector<HTMLElement>('[data-testid="continue-width"]');
       if (!container) throw new Error("Continue fixture missing");
       container.style.width = "240px";
     });
     await expect
-      .poll(() => document.querySelector(".game-hero")?.getAttribute("data-hero-identity"))
-      .toBe(compactLogo ? "logo" : "cover");
+      .poll(() => getComputedStyle(document.querySelector(".game-hero-foreground")!).display)
+      .toBe("none");
     await expect.element(page.getByRole("heading", { name: "Sample", exact: true })).toBeVisible();
+    await expect
+      .element(page.getByRole("button", { name: "Continue controlled game", exact: true }))
+      .toBeVisible();
+    await expect
+      .element(page.getByRole("button", { name: "Continue controlled game", exact: true }))
+      .toBeEnabled();
+    await expect.element(page.getByText("Image credits", { exact: true })).toBeVisible();
+    const hero = document.querySelector<HTMLElement>(".game-hero")!;
+    expect(hero.scrollWidth).toBeLessThanOrEqual(hero.clientWidth + 1);
     expect(document.activeElement).toBe(action);
     expect(media.mock.calls.map((call) => call[1])).toEqual([logo.id]);
-    assertContainedMedia();
     await captureParityState(
       compactLogo
         ? "continue-logo-240-container-synthetic"

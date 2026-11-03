@@ -54,7 +54,9 @@ export function cyclePrimaryNavigation(offset: number, navigate?: (offset: numbe
   if (navigationScope() !== document) return;
   const navigation = document.querySelector<HTMLElement>("nav[aria-label='Primary navigation']");
   if (!navigation) return;
-  const items = focusableControls(navigation);
+  const items = focusableControls(navigation).filter((item) =>
+    item.hasAttribute("data-navigation-destination"),
+  );
   // Compact navigation exposes a dialog trigger instead of visible destination
   // controls. Its owning app changes routes through the same callback as clicks.
   if (items.length === 0) {

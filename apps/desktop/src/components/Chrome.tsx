@@ -1,5 +1,6 @@
 import {
   SidebarCollections,
+  OrganizationControls,
   type Organization,
 } from "../features/organization/OrganizationControls";
 import { OperationProgress } from "./OperationProgress";
@@ -38,7 +39,7 @@ import {
   Monitor,
   Moon,
   Sun,
-  Menu as MenuIcon,
+  Folder,
   Settings,
   Search,
   Palette,
@@ -164,6 +165,7 @@ export function Sidebar({
     >
       <Button
         data-focusable
+        data-navigation-destination={item.view}
         aria-current={view === item.view ? "page" : undefined}
         variant={view === item.view ? "selected" : "ghost"}
         size="lg"
@@ -206,13 +208,27 @@ export function Sidebar({
         <div key={item.view}>{renderNavigationItem(item, sheet)}</div>
       ))}
       {!sheet && organization && onSelectCollection && (
-        <SidebarCollections
-          organization={organization}
-          selected={view === "library" ? collectionView : ""}
-          onSelect={onSelectCollection}
-        >
-          {collectionActions}
-        </SidebarCollections>
+        <>
+          <SidebarCollections
+            organization={organization}
+            selected={view === "library" ? collectionView : ""}
+            onSelect={onSelectCollection}
+          >
+            {collectionActions}
+          </SidebarCollections>
+          <div className="sidebar-compact-collections">
+            <OrganizationControls
+              organization={organization}
+              selected={view === "library" ? collectionView : ""}
+              onSelect={onSelectCollection}
+              discover={false}
+              trigger={<Folder aria-hidden="true" />}
+              triggerLabel="Manage collections"
+            >
+              {collectionActions}
+            </OrganizationControls>
+          </div>
+        </>
       )}
       <div className={sheet ? undefined : "sidebar-bottom mt-auto"}>
         {!sheet && libraryRoot && (
@@ -240,16 +256,15 @@ export function Sidebar({
             data-focusable
             variant="ghost"
             size="icon"
-            className="shrink-0 text-pc-muted-foreground"
+            className="sidebar-navigation-trigger shrink-0 text-pc-muted-foreground"
             aria-label="Open navigation"
             aria-haspopup="dialog"
             aria-expanded={navigationOpen}
             onClick={() => setNavigationOpen(true)}
           >
-            <Icon glyph={MenuIcon} />
+            <BrandAvatar />
           </Button>
         </Tooltip>
-        <BrandAvatar />
         <span className="min-w-0 flex-1 truncate font-semibold">
           {items.find((item) => item.view === view)?.label}
         </span>
@@ -365,7 +380,7 @@ export function PageHeader({
       <div className="min-w-0 flex-1">
         <h1 tabIndex={-1}>{copy.title}</h1>
         {view === "library" && libraryCount !== undefined && (
-          <p className="mt-2 mb-0 text-sm text-pc-muted-foreground">
+          <p className="mt-2 mb-0 text-sm text-[var(--color-text-secondary)]">
             {libraryCount} library {libraryCount === 1 ? "entry" : "entries"}
           </p>
         )}
@@ -429,7 +444,7 @@ export function WorkspaceToolbar({
     settings: "Settings",
   }[view];
   return (
-    <div className="workspace-toolbar flex min-w-0 items-center justify-between gap-3 border-b border-pc-border text-xs text-pc-muted-foreground">
+    <div className="workspace-toolbar @container/workspace-header flex min-w-0 items-center justify-between gap-3 border-b border-pc-border text-xs text-pc-muted-foreground">
       <div className="flex min-w-0 items-center gap-3" role="group" aria-label="Current location">
         <span className="max-[42rem]:hidden">Portcove</span>
         <span className="max-[42rem]:hidden" aria-hidden="true">

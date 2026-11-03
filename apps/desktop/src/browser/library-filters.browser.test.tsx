@@ -307,13 +307,13 @@ it.each(["dark", "light"])(
     await expectReadinessLabel("Readiness Ready (1)");
     await expectReadinessOption("Needs attention (1)", false);
     await chooseReadiness("Needs attention (1)");
-    await expect.element(button("Remove Linux filter")).toBeInTheDocument();
+    await expect.element(button("Remove Target OS: Linux filter")).toBeInTheDocument();
     await openAdvancedFilters("Filters (1)");
     await expect.element(await filterChoice("Windows (1)")).toBeEnabled();
     await userEvent.click(await filterChoice("Preview (1)"));
     await closeFilters();
     await chooseReadiness("Ready (1)");
-    await expect.element(button("Remove Preview filter")).toBeInTheDocument();
+    await expect.element(button("Remove Update channels: Preview filter")).toBeInTheDocument();
     const footers = [
       ...document.querySelectorAll<HTMLElement>(".collection-cover .library-entry-footer"),
     ];
@@ -363,12 +363,12 @@ it.each(["dark", "light"])(
     await expect.element(button("Filters (2)")).toHaveFocus();
     await captureParityState("library-zero-results");
     const chip = document.querySelector<HTMLButtonElement>(
-      'button[aria-label="Remove Linux filter"]',
+      'button[aria-label="Remove Target OS: Linux filter"]',
     )!;
     chip.focus();
-    await expect.element(button("Remove Linux filter")).toHaveFocus();
+    await expect.element(button("Remove Target OS: Linux filter")).toHaveFocus();
     await userEvent.keyboard("{Enter}");
-    await expect.element(button("Remove Linux filter")).not.toBeInTheDocument();
+    await expect.element(button("Remove Target OS: Linux filter")).not.toBeInTheDocument();
     await expect.element(button("Filters (1)")).toHaveFocus();
     await userEvent.click(page.getByRole("button", { name: "Reset view", exact: true }));
     await expectReadinessLabel("Readiness All (3)");
@@ -463,8 +463,10 @@ it("retains Library narrowing and readiness counts for membership without relaxi
   await userEvent.click(button("Toggle snapshot"));
   await expectReadinessOption("Ready (unavailable)");
   await expect.element(page.getByText("Ports unavailable", { exact: true })).toBeInTheDocument();
-  await expect.element(button("Remove In my library filter")).toBeInTheDocument();
-  await userEvent.click(button("Remove In my library filter"));
+  await expect
+    .element(button("Remove Library membership: In my library filter"))
+    .toBeInTheDocument();
+  await userEvent.click(button("Remove Library membership: In my library filter"));
   await userEvent.click(button("Toggle snapshot"));
   await expectReadinessOption("Ready (2)");
   expect(invoke).not.toHaveBeenCalled();
@@ -490,13 +492,19 @@ it("retains specific attention with independent Library readiness, zero counts a
   await chooseReadiness("Needs attention (1)");
   await userEvent.click(button("View details for Both game Both game"));
   await userEvent.click(button("Back to library"));
-  await expect.element(button("Remove Missing game files filter")).toBeInTheDocument();
+  await expect
+    .element(button("Remove Installation attention: Missing game files filter"))
+    .toBeInTheDocument();
   await userEvent.click(button("Toggle snapshot"));
   await expectReadinessOption("Ready (unavailable)");
   document
-    .querySelector<HTMLButtonElement>('button[aria-label="Remove Missing game files filter"]')!
+    .querySelector<HTMLButtonElement>(
+      'button[aria-label="Remove Installation attention: Missing game files filter"]',
+    )!
     .focus();
-  await expect.element(button("Remove Missing game files filter")).toHaveFocus();
+  await expect
+    .element(button("Remove Installation attention: Missing game files filter"))
+    .toHaveFocus();
   await userEvent.keyboard("{Enter}");
   await expect.element(button("Filters (0)")).toHaveFocus();
   await userEvent.click(button("Toggle snapshot"));
@@ -523,12 +531,12 @@ it("keeps playable plus matching staged updates independent from attention with 
   await expect
     .element(page.getByText("No matching library entries", { exact: true }))
     .toBeInTheDocument();
-  await userEvent.click(button("Remove Missing game files filter"));
+  await userEvent.click(button("Remove Installation attention: Missing game files filter"));
   await expectReadinessLabel("Readiness Ready (2)");
   await userEvent.click(button("Toggle snapshot"));
   await expectReadinessOption("Ready (unavailable)");
-  await userEvent.click(button("Remove Matching update staged filter"));
-  await userEvent.click(button("Remove Available at last check filter"));
+  await userEvent.click(button("Remove Observed updates: Matching update staged filter"));
+  await userEvent.click(button("Remove Observed updates: Available at last check filter"));
   await userEvent.click(button("Toggle snapshot"));
   await expectReadinessLabel("Readiness Ready (2)");
   expect(invoke).not.toHaveBeenCalled();
@@ -547,14 +555,22 @@ it("composes quick views with declared filters and clears only quick-view scope 
   await expect
     .element(quick.getByRole("button", { name: "Updates", exact: true }))
     .toHaveAttribute("aria-pressed", "true");
-  await expect.element(button("Remove Windows filter")).toBeVisible();
-  await expect.element(button("Remove Available at last check filter")).toBeVisible();
-  await expect.element(button("Remove Matching update staged filter")).toBeVisible();
+  await expect.element(button("Remove Target OS: Windows filter")).toBeVisible();
+  await expect
+    .element(button("Remove Observed updates: Available at last check filter"))
+    .toBeVisible();
+  await expect
+    .element(button("Remove Observed updates: Matching update staged filter"))
+    .toBeVisible();
   await quick.getByRole("button", { name: "All games", exact: true }).click();
   await expect.element(search).toHaveValue("game");
-  await expect.element(button("Remove Windows filter")).toBeVisible();
-  await expect.element(button("Remove Available at last check filter")).not.toBeInTheDocument();
-  await expect.element(button("Remove Matching update staged filter")).not.toBeInTheDocument();
+  await expect.element(button("Remove Target OS: Windows filter")).toBeVisible();
+  await expect
+    .element(button("Remove Observed updates: Available at last check filter"))
+    .not.toBeInTheDocument();
+  await expect
+    .element(button("Remove Observed updates: Matching update staged filter"))
+    .not.toBeInTheDocument();
   await expect.element(button("Favorites 1")).toHaveAttribute("aria-pressed", "false");
   await expect
     .element(quick.getByRole("button", { name: "Updates", exact: true }))
@@ -573,8 +589,11 @@ it("keeps selected filter labels and their popover bounded at 320px with enlarge
     await userEvent.click(await filterChoice("Linux (2)"));
     await userEvent.click(await filterChoice("Preview (2)"));
     await closeFilters();
-    const preview = page.getByRole("button", { name: "Remove Preview filter", exact: true });
-    const linux = page.getByRole("button", { name: "Remove Linux filter", exact: true });
+    const preview = page.getByRole("button", {
+      name: "Remove Update channels: Preview filter",
+      exact: true,
+    });
+    const linux = page.getByRole("button", { name: "Remove Target OS: Linux filter", exact: true });
     await expect.element(preview).toHaveTextContent("Update channels: Preview");
     await expect.element(linux).toHaveTextContent("Target OS: Linux");
     for (const chip of [preview, linux]) {

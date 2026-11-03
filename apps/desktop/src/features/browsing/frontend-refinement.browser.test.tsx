@@ -155,10 +155,13 @@ it("labels active facets and restores focus after removing chips or clearing whi
     );
   }
   await render(<Fixture />);
-  const chip = page.getByRole("button", { name: "Remove Preview filter", exact: true });
+  const chip = page.getByRole("button", {
+    name: "Remove Update channels: Preview filter",
+    exact: true,
+  });
   await expect.element(chip).toHaveTextContent("Update channels: Preview");
   await expect
-    .element(page.getByRole("button", { name: /Remove Windows/ }))
+    .element(page.getByRole("button", { name: "Remove Target OS: Windows filter", exact: true }))
     .toMatchTextContent("Target OS:");
   chip.element().focus();
   await userEvent.keyboard("{Enter}");

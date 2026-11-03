@@ -516,7 +516,9 @@ async function assertPortraitLayout(
   expect(identitySpacing.filter(({ gap, maximumGap }) => gap < 0 || gap > maximumGap)).toEqual([]);
   const fallback = document.querySelectorAll<HTMLElement>(".collection-art")[4]!;
   expect(fallback.querySelector("img")).toBeNull();
-  const palette = getComputedStyle(fallback).getPropertyValue("--art-color");
+  const palette = getComputedStyle(fallback).getPropertyValue(
+    view === "library" ? "--color-bg-raised" : "--art-color",
+  );
   const control = document.createElement("div");
   control.style.backgroundColor = palette;
   document.body.append(control);

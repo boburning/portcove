@@ -400,7 +400,7 @@ it("clears search inline, returns focus and retains the declared platform constr
   await expect.element(search).toHaveValue("");
   await expect.element(search).toHaveFocus();
   await expect
-    .element(page.getByRole("button", { name: "Remove Windows filter", exact: true }))
+    .element(page.getByRole("button", { name: "Remove Target OS: Windows filter", exact: true }))
     .toBeVisible();
   await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(12);
 });

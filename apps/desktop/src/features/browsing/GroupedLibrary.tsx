@@ -150,23 +150,27 @@ function LibraryChoicePrompt({
     <article
       className={`port-card port-card-library collection-entry collection-${layout === "rows" ? "row" : "cover"} min-w-0`}
     >
-      <div className="collection-identity">
-        <ArtworkFrame
-          element={element}
-          display={display}
-          identityArtwork
-          className="card-art collection-art"
-        />
-        <h2
-          className="collection-title font-semibold wrap-anywhere"
-          tabIndex={-1}
-          data-detail-game-id={first.id}
-        >
-          {gameTitle(first)}
-        </h2>
-        <p className="collection-project text-pc-muted-foreground">
-          {group.ports.length} independent implementations
-        </p>
+      <div className="collection-main">
+        <div className="collection-identity">
+          <ArtworkFrame
+            element={element}
+            display={display}
+            identityArtwork
+            className="card-art collection-art"
+          />
+          <div className="collection-caption">
+            <h2
+              className="collection-title font-semibold wrap-anywhere"
+              tabIndex={-1}
+              data-detail-game-id={first.id}
+            >
+              {gameTitle(first)}
+            </h2>
+            <p className="collection-project text-pc-muted-foreground">
+              {group.ports.length} independent implementations
+            </p>
+          </div>
+        </div>
       </div>
       <div className="library-entry-footer">
         <p className="collection-state text-xs text-pc-muted-foreground">

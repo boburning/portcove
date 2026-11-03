@@ -92,7 +92,7 @@ async function restore(filter: CatalogQuery | "beta" | "all") {
 
 async function openChannelPanel() {
   const trigger = [...host.querySelectorAll<HTMLButtonElement>("button")].find((button) =>
-    /^Filters \(\d+\)$/.test(button.textContent?.trim() ?? ""),
+    /^Filters \(\d+\)$/.test(button.getAttribute("aria-label") ?? button.textContent?.trim() ?? ""),
   );
   expect(trigger).toBeDefined();
   if (trigger!.getAttribute("aria-expanded") !== "true") await act(async () => trigger!.click());
@@ -442,8 +442,8 @@ it("feeds the accepted membership context consistently into results, counts and 
   await act(async () => root.render(<Fixture />));
   expect(document.body.textContent).toContain("Ports unavailable");
   expect(visibleIds()).toEqual([]);
-  expect(control("Remove In my library filter")).toBeDefined();
-  await act(async () => control("Remove In my library filter").click());
+  expect(control("Remove Library membership: In my library filter")).toBeDefined();
+  await act(async () => control("Remove Library membership: In my library filter").click());
   expect(visibleIds()).toEqual(["beta", "both"]);
   expect(shell.filter).toEqual({ version: 1, membership: [], channels: ["beta"] });
   expect(invoke).not.toHaveBeenCalled();
@@ -489,7 +489,7 @@ it("composes raw Core attention with readiness/channel counts and keeps unavaila
   await act(async () => root.render(<Fixture />));
   expect(document.body.textContent).toContain("Ports unavailable");
   expect(visibleIds()).toEqual([]);
-  await act(async () => control("Remove Finish setup filter").click());
+  await act(async () => control("Remove Installation attention: Finish setup filter").click());
   expect(visibleIds()).toEqual(["beta", "both"]);
   expect(shell.filter).toMatchObject({ attention: [], channels: ["beta"] });
   expect(invoke).not.toHaveBeenCalled();
@@ -565,7 +565,7 @@ it("feeds identity-matched staged updates into results/counts without update che
   membershipFacts = false;
   await act(async () => root.render(<Fixture />));
   expect(document.body.textContent).toContain("Ports unavailable");
-  await act(async () => control("Remove Matching update staged filter").click());
+  await act(async () => control("Remove Observed updates: Matching update staged filter").click());
   expect(visibleIds()).toEqual(["beta", "both"]);
   expect(invoke).not.toHaveBeenCalled();
   expect(fetchSpy).not.toHaveBeenCalled();
