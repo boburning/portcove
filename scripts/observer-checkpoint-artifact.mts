@@ -239,7 +239,7 @@ async function collectUnlockedObserverSnapshot(
     const stored = compact ? encodeStoredObserverCheckpoint(parsed, deadline) : parsed;
     const storedBytes = Buffer.byteLength(JSON.stringify(stored));
     metrics.logical_json_bytes += logicalBytes;
-    metrics.stored_json_bytes += compact ? storedBytes : value.length;
+    metrics.stored_json_bytes += compact ? storedBytes : Math.max(value.length, logicalBytes);
     metrics.largest_source_json_bytes = Math.max(metrics.largest_source_json_bytes, logicalBytes);
     metrics.checkpoint_files++;
     if (storedBytes < logicalBytes) metrics.compacted_sources++;
