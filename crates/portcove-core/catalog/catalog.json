@@ -30674,7 +30674,9 @@
               "instruction": "If Library identifies this copy as Portcove-managed, use its compatible stable update. Portcove stages the replacement and preserves current declared local data, including edits before first Play. Complete mods/packages/<id>/<version> packages coexist with new upstream defaults; your mod state is retained without choosing a new default for you. A changed package using the same ID/version requires reviewing the reported copies separately before retrying. Mods remain player/upstream-owned code: preservation does not authenticate them or establish compatibility. Generated executable caches and diagnostics stay with each runtime and are regenerated. Runtime rollback carries current data; it does not rewind saves or guarantee older readers can use them. For a copy you added yourself, you or upstream provide updates: prepare a separate folder and change the registration when ready."
             }
           ],
-          "warnings": [],
+          "warnings": [
+            "The upstream project’s own code uses PolyForm Noncommercial 1.0.0. Use must fit its noncommercial terms; keep the package’s component notices and their separate terms. This does not grant rights to the original game or retail BIOS, which you must supply yourself."
+          ],
           "help_url": "https://github.com/mstan/DragonBallZBuusFuryRecomp/blob/9deab0151d2c963b8f87d21a8b3002504c56666b/README.md"
         },
         "artwork": {
@@ -30753,7 +30755,9 @@
               "instruction": "If Library identifies this copy as Portcove-managed, use its compatible stable update. Portcove stages the replacement and preserves current declared local data, including edits before first Play. Complete mods/packages/<id>/<version> packages coexist with new upstream defaults; your mod state is retained without choosing a new default for you. A changed package using the same ID/version requires reviewing the reported copies separately before retrying. Mods remain player/upstream-owned code: preservation does not authenticate them or establish compatibility. Generated executable caches and diagnostics stay with each runtime and are regenerated. Runtime rollback carries current data; it does not rewind saves or guarantee older readers can use them. For a copy you added yourself, you or upstream provide updates: prepare a separate folder and change the registration when ready."
             }
           ],
-          "warnings": [],
+          "warnings": [
+            "The upstream project’s own code uses PolyForm Noncommercial 1.0.0. Use must fit its noncommercial terms; keep the package’s component notices and their separate terms. This does not grant rights to the original game or retail BIOS, which you must supply yourself."
+          ],
           "help_url": "https://github.com/mstan/DragonBallZLegacyofGokuIIRecomp/blob/6009d1f17478bfb8fa920b269dc533aca4367526/README.md"
         },
         "artwork": {
@@ -30826,7 +30830,8 @@
           ],
           "warnings": [
             "Preserve the actual folder containing normal cartridge saves (.sav) and optional state slots (.stateN) separately, including .tmp, .bak and .prev-size.bak recovery siblings. A Portcove-managed copy’s backup excludes external originals, BIOS and save folders.",
-            "Mods remain player/upstream-owned code: preservation does not authenticate them or establish compatibility. Runtime rollback carries current data; it does not rewind saves or guarantee older readers can use them. Prefer ordinary saves; newer runtimes and selected mods may not read older state snapshots."
+            "Mods remain player/upstream-owned code: preservation does not authenticate them or establish compatibility. Runtime rollback carries current data; it does not rewind saves or guarantee older readers can use them. Prefer ordinary saves; newer runtimes and selected mods may not read older state snapshots.",
+            "The upstream project’s own code uses PolyForm Noncommercial 1.0.0. Use must fit its noncommercial terms; keep the package’s component notices and their separate terms. This does not grant rights to the original game or retail BIOS, which you must supply yourself."
           ],
           "references": [
             {
@@ -30920,7 +30925,9 @@
               "instruction": "If Library identifies this copy as Portcove-managed, use its compatible beta update. Portcove stages the replacement and preserves current declared local data, including edits before first Play. Complete mods/packages/<id>/<version> packages coexist with new upstream defaults; your mod state is retained without choosing a new default for you. A changed package using the same ID/version requires reviewing the reported copies separately before retrying. Mods remain player/upstream-owned code: preservation does not authenticate them or establish compatibility. Generated executable caches and diagnostics stay with each runtime and are regenerated. Runtime rollback carries current data; it does not rewind saves or guarantee older readers can use them. For a copy you added yourself, you or upstream provide updates: prepare a separate folder and change the registration when ready."
             }
           ],
-          "warnings": [],
+          "warnings": [
+            "The upstream project’s own code uses PolyForm Noncommercial 1.0.0. Use must fit its noncommercial terms; keep the package’s component notices and their separate terms. This does not grant rights to the original game or retail BIOS, which you must supply yourself."
+          ],
           "help_url": "https://github.com/mstan/SuperMarioAdvance2Recomp/blob/dd16f0101790814b3f16f3bdf93759c5d42f0d74/README.md"
         },
         "artwork": {
@@ -30997,7 +31004,9 @@
               "instruction": "If Library identifies this Windows copy as Portcove-managed, use its offered compatible beta update. Portcove stages the replacement before activation and carries current declared local data, including before first Play. Each version keeps its own recomp_cache, diagnostics and compiler companions; the new runtime regenerates its native-code cache. Runtime rollback carries current declared data and does not rewind saves. For an existing copy you added yourself, you or upstream provide updates: prepare a separate folder, preserve the actual settings and save locations, and change the registered player when ready. These experimental releases do not establish full-game compatibility."
             }
           ],
-          "warnings": [],
+          "warnings": [
+            "The upstream project’s own code uses PolyForm Noncommercial 1.0.0. Use must fit its noncommercial terms; keep the package’s component notices and their separate terms. This does not grant rights to the original game or retail BIOS, which you must supply yourself."
+          ],
           "help_url": "https://github.com/mstan/SuperMarioAdvance4Recomp#readme"
         }
       }
@@ -31070,7 +31079,9 @@
               "instruction": "For Android 9+ ARM64, choose this project’s separate experimental APK and select your own matching ROM and BIOS through its first-launch document picker. The app stores imported files in private app storage. Keep that app’s saves and data before uninstalling or clearing it; the debug-signed test build may need a different update path if signing changes. Rotate the phone for gyro input; Windows instead supports a compatible motion controller or left-mouse dragging. Android files and updates stay outside Portcove backup and runtime rollback."
             }
           ],
-          "warnings": [],
+          "warnings": [
+            "The upstream project’s own code uses PolyForm Noncommercial 1.0.0. Use must fit its noncommercial terms; keep the package’s component notices and their separate terms. This does not grant rights to the original game or retail BIOS, which you must supply yourself."
+          ],
           "help_url": "https://github.com/mstan/WarioWareTwistedRecomp#readme"
         },
         "artwork": {

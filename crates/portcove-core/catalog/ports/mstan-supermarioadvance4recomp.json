@@ -28,7 +28,9 @@
           "instruction": "If Library identifies this Windows copy as Portcove-managed, use its offered compatible beta update. Portcove stages the replacement before activation and carries current declared local data, including before first Play. Each version keeps its own recomp_cache, diagnostics and compiler companions; the new runtime regenerates its native-code cache. Runtime rollback carries current declared data and does not rewind saves. For an existing copy you added yourself, you or upstream provide updates: prepare a separate folder, preserve the actual settings and save locations, and change the registered player when ready. These experimental releases do not establish full-game compatibility."
         }
       ],
-      "warnings": [],
+      "warnings": [
+        "The upstream project’s own code uses PolyForm Noncommercial 1.0.0. Use must fit its noncommercial terms; keep the package’s component notices and their separate terms. This does not grant rights to the original game or retail BIOS, which you must supply yourself."
+      ],
       "help_url": "https://github.com/mstan/SuperMarioAdvance4Recomp#readme"
     },
     "original_game_title": "Super Mario Advance 4: Super Mario Bros. 3"

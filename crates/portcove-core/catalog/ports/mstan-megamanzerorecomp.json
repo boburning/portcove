@@ -30,7 +30,8 @@
       ],
       "warnings": [
         "Preserve the actual folder containing normal cartridge saves (.sav) and optional state slots (.stateN) separately, including .tmp, .bak and .prev-size.bak recovery siblings. A Portcove-managed copy’s backup excludes external originals, BIOS and save folders.",
-        "Mods remain player/upstream-owned code: preservation does not authenticate them or establish compatibility. Runtime rollback carries current data; it does not rewind saves or guarantee older readers can use them. Prefer ordinary saves; newer runtimes and selected mods may not read older state snapshots."
+        "Mods remain player/upstream-owned code: preservation does not authenticate them or establish compatibility. Runtime rollback carries current data; it does not rewind saves or guarantee older readers can use them. Prefer ordinary saves; newer runtimes and selected mods may not read older state snapshots.",
+        "The upstream project’s own code uses PolyForm Noncommercial 1.0.0. Use must fit its noncommercial terms; keep the package’s component notices and their separate terms. This does not grant rights to the original game or retail BIOS, which you must supply yourself."
       ],
       "references": [
         {

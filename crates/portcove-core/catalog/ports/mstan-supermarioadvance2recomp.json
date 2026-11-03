@@ -36,7 +36,9 @@
           "instruction": "If Library identifies this copy as Portcove-managed, use its compatible beta update. Portcove stages the replacement and preserves current declared local data, including edits before first Play. Complete mods/packages/<id>/<version> packages coexist with new upstream defaults; your mod state is retained without choosing a new default for you. A changed package using the same ID/version requires reviewing the reported copies separately before retrying. Mods remain player/upstream-owned code: preservation does not authenticate them or establish compatibility. Generated executable caches and diagnostics stay with each runtime and are regenerated. Runtime rollback carries current data; it does not rewind saves or guarantee older readers can use them. For a copy you added yourself, you or upstream provide updates: prepare a separate folder and change the registration when ready."
         }
       ],
-      "warnings": [],
+      "warnings": [
+        "The upstream project’s own code uses PolyForm Noncommercial 1.0.0. Use must fit its noncommercial terms; keep the package’s component notices and their separate terms. This does not grant rights to the original game or retail BIOS, which you must supply yourself."
+      ],
       "help_url": "https://github.com/mstan/SuperMarioAdvance2Recomp/blob/dd16f0101790814b3f16f3bdf93759c5d42f0d74/README.md"
     },
     "original_game_title": "Super Mario Advance 2: Super Mario World"
