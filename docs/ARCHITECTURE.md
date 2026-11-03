@@ -164,6 +164,10 @@ encryption and optional codecs disabled, one decoder thread and checksum
 verification through final stream completion. Before writes it rejects
 unsupported codec chains, links, reparse points, special files and anti-items,
 then applies the existing portable-path, collision, size and destination checks.
+Each block's actual decode chain is constructed and dropped before extraction,
+without extracting entries or retaining multiple dictionaries. This catches
+unsupported stream shapes and decoder properties that a codec-name check alone
+cannot reject; final decoding still verifies the available payload checksums.
 Callbacks consume every planned entry exactly once by identity, including
 streamless entries that the decoder visits out of header order. Raw reads,
 seeks and output writes retain cooperative cancellation; the awaited worker

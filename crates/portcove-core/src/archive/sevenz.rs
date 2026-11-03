@@ -184,6 +184,22 @@ pub(super) fn extract(
         &plans.values().cloned().collect::<Vec<_>>(),
         compressed_size,
     )?;
+    // Method IDs do not prove supported arity or decoder properties. Build
+    // every actual chain before any write, stopping its walk at the first
+    // callback without consuming entries. Drop each dictionary before the next.
+    // This is construction preflight, not payload or CRC qualification.
+    for index in 0..archive.archive().blocks.len() {
+        checkpoint()?;
+        let result = archive
+            .block_decoder(index)
+            .and_then(|decoder| decoder.for_each_entries(&mut |_, _| Ok(false)));
+        result.map_err(|error| {
+            failure
+                .borrow_mut()
+                .take()
+                .unwrap_or_else(|| decode_error(error))
+        })?;
+    }
     // 7z callbacks visit streamed blocks before streamless entries, not header order.
     // Remove by exact admitted identity and require the complete inventory at EOF.
     let result = archive.for_each_entries(|entry, reader| {
@@ -486,6 +502,21 @@ mod tests {
         ];
         let (_temp, output, result) = extraction(&container(&[], &header));
         assert!(result.unwrap_err().message.contains("anti-items"));
+        assert_eq!(fs::read_dir(output).unwrap().count(), 0);
+    }
+
+    #[test]
+    fn later_unsupported_coder_shape_is_rejected_before_the_first_file_write() {
+        // Three packed inputs: one valid Copy folder, followed by a two-input
+        // Copy folder. The bounded container graph is valid, but that codec
+        // shape has no decoder (multi-input is supported only for BCJ2).
+        let header = [
+            1, 4, 6, 0, 3, 9, 1, 1, 1, 0, 7, 0x0b, 2, 0, 1, 1, 0, 1, 0x11, 0, 2, 1, 0, 1, 0x0c, 1,
+            1, 0, 0, 5, 2, 0x11, 9, 0, b'a', 0, 0, 0, b'b', 0, 0, 0, 0, 0,
+        ];
+        let (_temp, output, result) = extraction(&container(b"xyz", &header));
+        let error = result.unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Verification);
         assert_eq!(fs::read_dir(output).unwrap().count(), 0);
     }
 
