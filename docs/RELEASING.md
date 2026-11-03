@@ -1775,7 +1775,12 @@ ordinary silent-install route performs these checks in a new isolated directory:
 
 Expected executable hashing reproduces Tauri's single fixed bundle-type marker
 substitution from `UNK` to `NSS` in memory; it compares the entire resulting file,
-and reports both raw and bundled hashes. Same-version build replacement is
+and reports both raw and bundled hashes. For a package deliberately produced with
+`tauri bundle --no-binary-patching`, select `-ExpectedBinaryPatching Skipped`
+and supply both `-ExpectedExecutablePath` and its lowercase raw
+`-ExpectedExecutableSha256`. That explicit mode compares the entire unchanged
+file and records the selected handling; the default remains `Applied`.
+Same-version build replacement is
 recorded separately from a future version-number upgrade, signed production
 validation, and interactive shell observations. The harness emits its structured
 result and can retain a phase journal at the explicit `-EvidencePath`; failed

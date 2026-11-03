@@ -75,6 +75,9 @@ param(
     [ValidateSet("", "post-spawn-verification")]
     [Parameter(Position = 27)]
     [string]$TestFault = "",
+    [ValidateSet("Applied", "Skipped")]
+    [string]$ExpectedBinaryPatching = "Applied",
+    [string]$ExpectedExecutableSha256,
     [Parameter(Mandatory = $true, ParameterSetName = "Help")]
     [Alias("h", "-help")][switch]$Help
 )
@@ -104,6 +107,8 @@ Lifecycle options:
   -InstalledLibraryBusyHelperSource COMMIT  Recorded helper builder source; not application-source equivalence.
 
   -ExpectedExecutablePath FILE  Expected candidate desktop bytes.
+  -ExpectedBinaryPatching Applied|Skipped  Expected Tauri bundle-marker handling (default: Applied).
+  -ExpectedExecutableSha256 HEX  Required raw executable pin when binary patching was Skipped.
   -ExpectedVersion VERSION  Expected installed version.
   -InstallMode Silent|Passive  Installer interaction mode (default: Silent).
   -TestBase DIRECTORY  Isolated test parent; defaults to configured development scratch storage.
@@ -139,6 +144,14 @@ Example:
 }
 
 $ErrorActionPreference = "Stop"
+if ($ExpectedBinaryPatching -eq 'Skipped' -and (-not $ExpectedExecutablePath -or
+        $ExpectedExecutableSha256 -cnotmatch '^[a-f0-9]{64}$')) {
+    throw 'Skipped binary patching requires an expected executable and its exact raw SHA-256 pin'
+}
+if ($ExpectedExecutableSha256 -and (-not $ExpectedExecutablePath -or
+        $ExpectedExecutableSha256 -cnotmatch '^[a-f0-9]{64}$')) {
+    throw 'ExpectedExecutableSha256 requires an expected executable and lowercase SHA-256'
+}
 $null = $ProcessTimeoutSeconds, $TestFault
 $ProcessIdentityClockToleranceMilliseconds = 1000
 $nativeAccount = $null
@@ -543,9 +556,18 @@ function Invoke-ApplicationSmoke([string]$Application, [string]$Role, [string]$E
     }
 }
 
-function Get-ExpectedBundledHash([string]$Executable) {
+function Get-ExpectedBundledHash([string]$Executable, [ValidateSet('Applied', 'Skipped')][string]$BinaryPatching = 'Applied', [string]$ExpectedSha256) {
     $bytes = [System.IO.File]::ReadAllBytes($Executable)
-    $rawHash = (Get-FileHash -LiteralPath $Executable -Algorithm SHA256).Hash.ToLowerInvariant()
+    $rawHasher = [System.Security.Cryptography.SHA256]::Create()
+    try { $rawHash = [System.BitConverter]::ToString($rawHasher.ComputeHash($bytes)).Replace('-', '').ToLowerInvariant() }
+    finally { $rawHasher.Dispose() }
+    if (($BinaryPatching -eq 'Skipped' -and $ExpectedSha256 -cnotmatch '^[a-f0-9]{64}$') -or
+        ($ExpectedSha256 -and $rawHash -cne $ExpectedSha256)) {
+        throw 'Expected executable does not match its exact raw SHA-256 pin'
+    }
+    if ($BinaryPatching -eq 'Skipped') {
+        return [pscustomobject]@{ raw_sha256 = $rawHash; bundled_sha256 = $rawHash; bundle_slot_patched = $false; binary_patching = $BinaryPatching }
+    }
     # Tauri patches its one bundle-type slot to NSS while packing NSIS, then
     # restores the build output to UNK. Compare against those exact bundled bytes.
     $marker = "__TAURI_BUNDLE_TYPE_VAR_UNK"
@@ -563,7 +585,7 @@ function Get-ExpectedBundledHash([string]$Executable) {
         $bundledHash = [System.BitConverter]::ToString($hasher.ComputeHash($bytes)).Replace("-", "").ToLowerInvariant()
     }
     finally { $hasher.Dispose() }
-    [pscustomobject]@{ raw_sha256 = $rawHash; bundled_sha256 = $bundledHash; bundle_slot_patched = $index -ge 0 }
+    [pscustomobject]@{ raw_sha256 = $rawHash; bundled_sha256 = $bundledHash; bundle_slot_patched = $index -ge 0; binary_patching = $BinaryPatching }
 }
 
 function Get-RecursiveFileManifest([string]$Root) {
@@ -639,7 +661,7 @@ if ($HistoricalBootstrapManifestPath) {
     }
     $historicalBootstrap = Read-HistoricalBootstrapManifest $HistoricalBootstrapManifestPath
 }
-$expected = if ($ExpectedExecutablePath) { Get-ExpectedBundledHash (Resolve-Path -LiteralPath $ExpectedExecutablePath).Path } else { $null }
+$expected = if ($ExpectedExecutablePath) { Get-ExpectedBundledHash (Resolve-Path -LiteralPath $ExpectedExecutablePath).Path $ExpectedBinaryPatching $ExpectedExecutableSha256 } else { $null }
 if ($NormalPackageManifestPath) {
     if ($installedUpdate -or $predecessor -or $RendererUpdate -or -not $EvidencePath -or -not $expected -or -not $ExpectedVersion) {
         throw "Current-installed boundary requires an ordinary bootstrap package, expected bytes/version and external evidence"
