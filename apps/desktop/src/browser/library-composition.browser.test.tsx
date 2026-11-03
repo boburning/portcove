@@ -180,7 +180,7 @@ it("groups retrieval, preserves independent duplicate-port launch targets and st
   expect(document.querySelectorAll('[role="status"][aria-label="Search results"]')).toHaveLength(1);
   expect(document.querySelectorAll(".collection-result-summary")).toHaveLength(1);
   expect(document.querySelectorAll(".collection-result-summary button")).toHaveLength(1);
-  await page.getByRole("button", { name: "Manage collections", exact: true }).click();
+  await page.getByRole("button", { name: "Create your first collection", exact: true }).click();
   const commands = page.getByText("Library tools", { exact: true }).element().closest("details")!;
   commands.open = true;
   expect(commands.textContent).toContain("12 installed entries");
@@ -220,6 +220,15 @@ it.each([
     expect(list.getBoundingClientRect().width).toBeLessThanOrEqual(1121);
     const footer = row.querySelector<HTMLElement>(".library-entry-footer")!;
     expect(getComputedStyle(footer).display).toBe("flex");
+    const identity = row.querySelector<HTMLElement>(".collection-identity")!;
+    const chips = row.querySelector<HTMLElement>(".library-entry-chips")!;
+    expect(identity.querySelector(".library-entry-chips")).toBeNull();
+    expect(identity.querySelector("button, a, [tabindex]")).toBeNull();
+    expect(chips.parentElement).toBe(identity.parentElement);
+    const factsFitDetails =
+      !CSS.supports("grid-template-rows", "subgrid") ||
+      identity.getBoundingClientRect().bottom + 1 >= chips.getBoundingClientRect().bottom;
+    expect(factsFitDetails).toBe(true);
     expect(footer.scrollWidth).toBeLessThanOrEqual(footer.clientWidth + 1);
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(width + 1);
     await expect
@@ -228,6 +237,36 @@ it.each([
           row.querySelector<HTMLButtonElement>(".collection-personal-actions button")!,
         ),
       )
+      .toBeVisible();
+  },
+);
+
+it.each(["dark", "light"])(
+  "keeps compact %s quick views on one row with accessible hidden counts",
+  async (theme) => {
+    await page.viewport(390, 844);
+    await mount(theme);
+    const group = page.getByRole("group", { name: "Library quick views", exact: true });
+    const controls = [...group.element().querySelectorAll<HTMLButtonElement>("button")];
+    expect(controls).toHaveLength(4);
+    for (const control of controls) {
+      expect(control.getBoundingClientRect().top).toBeCloseTo(
+        controls[0]!.getBoundingClientRect().top,
+        0,
+      );
+      expect(control.getBoundingClientRect().height).toBeGreaterThanOrEqual(44);
+    }
+    await expect
+      .element(group.getByRole("button", { name: "All games", exact: true }))
+      .toHaveAccessibleDescription("12 library entries");
+    await expect
+      .element(group.getByRole("button", { name: "Needs attention", exact: true }))
+      .toHaveAccessibleDescription(/Recorded setup, repair or readiness needs/);
+    expect(getComputedStyle(group.element().querySelector(".browse-count")!).display).toBe("none");
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
+    await page.getByRole("button", { name: "Manage collections", exact: true }).click();
+    await expect
+      .element(page.getByRole("textbox", { name: "Collection name", exact: true }))
       .toBeVisible();
   },
 );
@@ -619,7 +658,7 @@ for (const theme of ["dark", "light"]) {
 it("keeps Collections inside the shared controller scope and returns Back and Escape to its opener", async () => {
   await page.viewport(1200, 900);
   await mount();
-  const opener = page.getByRole("button", { name: "Manage collections", exact: true });
+  const opener = page.getByRole("button", { name: "Create your first collection", exact: true });
   await opener.click();
   const scope = navigationScope();
   expect(scope).not.toBe(document);
@@ -677,7 +716,7 @@ it("keeps a sidebar collection selected through detail return and compact naviga
   const collectionElement = collection.element();
   await page.viewport(740, 900);
   await expect.element(collectionElement).not.toBeVisible();
-  const compact = page.getByRole("button", { name: "Collections · Weekend games", exact: true });
+  const compact = page.getByRole("button", { name: "Manage collections", exact: true });
   await expect.element(compact).toBeVisible();
   await compact.click();
   await expect
@@ -725,7 +764,10 @@ it("keeps a singleton port review readable below its close control at narrow wid
 it.each([
   [1440, 900, 6, 180.7],
   [1440, 768, 6, 180.7],
-  [1024, 800, 3, 220],
+  [1024, 800, 4, 177],
+  [1024, 801, 3, 220],
+  [1920, 800, 9, 167.1],
+  [1920, 801, 8, 190.5],
   [740, 900, 3, 205.3],
   [390, 844, 2, 143],
   [320, 844, 1, 220],
@@ -747,7 +789,11 @@ it.each([
     );
     expect(art.getBoundingClientRect().width).toBeCloseTo(artworkWidth, 0);
     const title = cover.querySelector<HTMLElement>(".collection-title")!;
-    expect(getComputedStyle(title).marginBlockStart).toBe("14px");
+    // Match the effective combined gap, including the caption's padding.
+    expect(title.getBoundingClientRect().top - art.getBoundingClientRect().bottom).toBeCloseTo(
+      24,
+      0,
+    );
     expect(getComputedStyle(title).fontWeight).toBe("580");
     expect(getComputedStyle(art).borderRadius).toBe("10px");
     const main = document.querySelector<HTMLElement>("main[data-focus-region=workspace]")!;
@@ -777,7 +823,10 @@ it("creates and removes a collection through its editor while retaining a failed
   await page.viewport(1440, 900);
   await mount();
   const change = vi.spyOn(desktopApi, "changeOrganization");
-  await page.getByRole("button", { name: "Manage collections", exact: true }).click();
+  const opener = page
+    .getByRole("button", { name: "Create your first collection", exact: true })
+    .element();
+  await userEvent.click(opener);
   const name = page.getByRole("textbox", { name: "Collection name", exact: true });
   await expect.element(name).toBeVisible();
   const create = page.getByRole("button", { name: "Create collection", exact: true });
@@ -795,6 +844,11 @@ it("creates and removes a collection through its editor while retaining a failed
   await captureParityState("collection-create-failed-draft");
   await create.click();
   await expect.element(name).toHaveValue("");
+  await expect.element(opener).toHaveAccessibleName("Manage collections");
+  await userEvent.keyboard("{Escape}");
+  await expect.element(opener).toHaveFocus();
+  await userEvent.click(opener);
+  await expect.element(name).toBeVisible();
   const created = change.mock.calls.at(-1)![1];
   if (created.kind !== "upsert_collection") throw new Error("Expected collection creation");
   expect(created.collection_id).toMatch(/^[0-9a-f-]{36}$/);
@@ -822,6 +876,9 @@ it("creates and removes a collection through its editor while retaining a failed
   await expect.element(selected).not.toBeInTheDocument();
   await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(12);
   await captureParityState("collection-removed-all-games-focus");
+  await expect.element(opener).toHaveAccessibleName("Create your first collection");
+  await userEvent.keyboard("{Escape}");
+  await expect.element(opener).toHaveFocus();
 }, 45_000);
 
 it("opens Hidden games and restores Favorites focus when its last entry is shown in Library", async () => {
@@ -996,7 +1053,7 @@ it("keeps a grouped Discover Save unselected while pending and after a rejected 
   await captureParityState("discover-group-save-rejected");
 }, 45_000);
 
-it("reveals an unfavorited Library cover action for pointer and keyboard use", async () => {
+it("keeps the Library favorite visible and reveals overflow for pointer and keyboard use", async () => {
   await page.viewport(1440, 900);
   await mount();
   const favorite = document.querySelector<HTMLButtonElement>(
@@ -1008,12 +1065,17 @@ it("reveals an unfavorited Library cover action for pointer and keyboard use", a
   const hidesOnPointer =
     matchMedia("(hover: hover) and (pointer: fine)").matches &&
     !matchMedia("(any-pointer: coarse)").matches;
-  expect(getComputedStyle(favorite).opacity).toBe(hidesOnPointer ? "0" : "1");
-  expect(getComputedStyle(more).opacity).toBe("1");
+  expect(getComputedStyle(favorite).opacity).toBe("1");
+  expect(getComputedStyle(more).opacity).toBe(hidesOnPointer ? "0" : "1");
   await userEvent.hover(cover);
   expect(getComputedStyle(favorite).opacity).toBe("1");
+  expect(getComputedStyle(more).opacity).toBe("1");
+  expect(more.getBoundingClientRect().right).toBeLessThanOrEqual(
+    favorite.getBoundingClientRect().left,
+  );
   await userEvent.hover(document.querySelector("main h1")!);
   more.focus();
+  expect(getComputedStyle(more).opacity).toBe("1");
   await userEvent.keyboard("{Tab}");
   await expect.element(favorite).toHaveFocus();
   expect(getComputedStyle(favorite).opacity).toBe("1");

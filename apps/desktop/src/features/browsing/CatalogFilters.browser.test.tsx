@@ -168,7 +168,7 @@ it("keeps three primary Library groups and reveals restored advanced selections 
   expect(advanced.open).toBe(true);
   expect(advanced.querySelector('[aria-label="Port options: Single port"]')).not.toBeNull();
   await click("Done");
-  await click("Remove Single port filter");
+  await click("Remove Port options: Single port filter");
   expect(current).toMatchObject({ portOptions: [] });
   expect(document.activeElement).toBe(await control("Filters (0)"));
 });
@@ -247,7 +247,7 @@ it("uses one inline panel and returns focus from Escape and Done without clearin
     .element(page.getByRole("button", { name: "Filters (1)", exact: true }))
     .toHaveFocus();
   expect(document.querySelector('[aria-label="Filter options"]')).toBeNull();
-  await page.getByRole("button", { name: "Remove Windows filter", exact: true }).click();
+  await page.getByRole("button", { name: "Remove Target OS: Windows filter", exact: true }).click();
   await expect.element(trigger).toHaveFocus();
   expect(currentSearch).toBe("Both");
 });
@@ -298,7 +298,7 @@ it("keeps zero selections removable and returns focused chip to the trigger", as
   await click("Filters (1)");
   expect((await control("Apple silicon (0)")).getAttribute("aria-checked")).toBe("true");
   await click("Done");
-  const chip = await control("Remove Apple silicon filter");
+  const chip = await control("Remove Target OS: Apple silicon filter");
   chip.focus();
   await act(async () => {
     chip.click();
@@ -367,7 +367,7 @@ it("keeps selections editable when candidate facts are unavailable instead of cl
     (group) => group.querySelector("legend")?.textContent === "Installation attention",
   );
   expect(attention?.textContent).toContain("Unavailable details remain unknown");
-  expect(await control("Remove Linux filter")).toBeDefined();
+  expect(await control("Remove Target OS: Linux filter")).toBeDefined();
 });
 
 const install = (port_id: string) => ({
@@ -430,7 +430,7 @@ it("composes managed/external membership with declarations and keeps zero option
   expect(
     filterPorts(ports, new Map(), "catalog", current, "", "catalog", membershipContext),
   ).toEqual([]);
-  await click("Remove Not in my library filter");
+  await click("Remove Library membership: Not in my library filter");
   expect((current as CatalogQuery).platforms).toEqual(["windows-x86-64"]);
   expect((current as CatalogQuery).membership).toEqual([]);
   await click("Linux (2)");
@@ -450,14 +450,14 @@ it("retains removable membership intent through unavailable and confirmed-empty 
   expect((await control("Not in my library (unavailable)")).getAttribute("aria-checked")).toBe(
     "true",
   );
-  expect(await control("Remove Not in my library filter")).toBeDefined();
+  expect(await control("Remove Library membership: Not in my library filter")).toBeDefined();
   await act(async () => setContext({ library: { id: "empty", statuses: new Map() } }));
   expect((await control("Not in my library (3)")).matches(":disabled,[aria-disabled=true]")).toBe(
     false,
   );
   expect(await control("In my library (0)")).toBeDefined();
   await act(async () => setContext(undefined));
-  await click("Remove Not in my library filter");
+  await click("Remove Library membership: Not in my library filter");
   expect((current as CatalogQuery).membership).toEqual([]);
   expect(
     (await control("In my library (unavailable)")).matches(":disabled,[aria-disabled=true]"),
@@ -500,7 +500,7 @@ it("composes observed installation attention and keeps zero/unavailable reasons 
   expect(
     (await control("Missing game files (unavailable)")).matches(":disabled,[aria-disabled=true]"),
   ).toBe(true);
-  await click("Remove Missing game files filter");
+  await click("Remove Installation attention: Missing game files filter");
   expect(current).toMatchObject({ attention: [], channels: ["beta"] });
   expect((await control("Preview (2)")).matches(":disabled,[aria-disabled=true]")).toBe(false);
   await act(async () => setContext({ library: { id: "empty", statuses: new Map() } }));
@@ -594,7 +594,7 @@ it("composes observed update choices and removes retained zero/unavailable selec
       ":disabled,[aria-disabled=true]",
     ),
   ).toBe(true);
-  await click("Remove Matching update staged filter");
+  await click("Remove Observed updates: Matching update staged filter");
   expect(current).toMatchObject({ updates: [], channels: ["beta"] });
   await act(async () => setContext({ library: { id: "empty", statuses: new Map() } }));
   expect(

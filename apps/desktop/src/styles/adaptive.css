@@ -14,7 +14,7 @@
     border-inline-end-color: var(--color-border-subtle);
   }
   .sidebar .nav-item[aria-current="page"] {
-    box-shadow: inset 3px 0 0 var(--color-interactive-border);
+    box-shadow: inset 3px 0 0 var(--color-interactive-text-strong);
   }
   @media (forced-colors: active) {
     .sidebar .nav-item[aria-current="page"],
@@ -88,7 +88,7 @@
     letter-spacing: 0.08em;
     text-transform: uppercase;
   }
-  .sidebar-collections-heading > button {
+  .sidebar-collections-heading > button:not(.sidebar-collections-create) {
     width: 2rem;
     min-height: 2rem;
     padding: 0;
@@ -226,7 +226,7 @@
       flex: 0 0 60px;
       height: 100dvh;
       overflow-y: auto;
-      padding: var(--space-3) 6px;
+      padding: 20px 7px 0;
     }
     .sidebar-desktop {
       display: contents;
@@ -261,30 +261,30 @@
     .sidebar-compact-header {
       display: flex;
       flex-direction: column;
-      gap: var(--space-3);
-      padding-block-end: var(--space-3);
-    }
-    .sidebar-compact-header > .brand-avatar {
-      order: -1;
+      gap: 0;
+      padding-block-end: 25px;
     }
     .sidebar-compact-header > span {
       display: none;
     }
     .app-shell > .workspace-main > .workspace-toolbar {
-      justify-content: flex-end;
+      justify-content: space-between;
       margin-block-end: var(--space-6);
     }
     .app-shell > .workspace-main > .workspace-toolbar > [aria-label="Current location"] {
-      display: none;
+      display: flex;
     }
     .app-shell > .workspace-main > .workspace-toolbar .command-trigger {
-      inline-size: var(--control-height-lg);
+      inline-size: auto;
+      min-inline-size: var(--control-height-lg);
       min-block-size: var(--control-height-lg);
       padding: 0;
+      border-color: transparent;
+      background: transparent;
     }
     .sidebar-compact-header .brand-avatar {
-      width: 30px;
-      height: 30px;
+      width: 32px;
+      height: 32px;
     }
     .navigation-sheet[data-slot="dialog-content"] {
       max-height: 100dvh;
@@ -439,6 +439,109 @@
     .continue-card,
     .library-query-tools {
       margin-block-end: var(--space-3);
+    }
+  }
+}
+
+@layer utilities {
+  .sidebar-compact-collections {
+    display: none;
+  }
+  .sidebar .nav-item > svg {
+    width: 18px;
+    height: 18px;
+  }
+  .sidebar-collections-heading:has(> .sidebar-collections-create) {
+    flex-wrap: wrap;
+  }
+  .sidebar-collections-create {
+    width: 100%;
+    justify-content: flex-start;
+    margin-block-start: 4px;
+    padding: 8px 12px;
+    border-color: transparent;
+    background: transparent;
+    color: var(--color-text-secondary);
+    font-size: 0.75rem;
+    font-weight: 400;
+    text-align: start;
+    letter-spacing: normal;
+    text-transform: none;
+  }
+  .sidebar-collections-create:hover {
+    color: var(--color-text);
+    background: var(--color-bg-hover);
+  }
+  [aria-label="Library quick views"] {
+    gap: 24px;
+  }
+  [aria-label="Library quick views"] > button {
+    min-block-size: 44px;
+    padding: 0 0 14px;
+    border: 0;
+    font-weight: 400;
+  }
+  [aria-label="Library quick views"] > button::after {
+    inset-inline: 0;
+  }
+  [data-library-header] [data-add-games-trigger] {
+    color: var(--color-text);
+    background: var(--color-bg-raised);
+    border-color: var(--color-control-border);
+    font-weight: 550;
+  }
+  @media (width < 42rem) {
+    .sidebar-compact-collections {
+      display: block;
+    }
+  }
+  @media (min-width: 672px) {
+    @container app-window (max-width: 47.5rem) {
+      .sidebar-compact-collections {
+        display: block;
+      }
+    }
+  }
+  @media (width <= 65rem) {
+    .sidebar-compact-collections > button {
+      width: 44px;
+      min-height: 44px;
+      padding: 0;
+      border-color: transparent;
+      background: transparent;
+      color: var(--color-text-secondary);
+    }
+    .sidebar-compact-collections > button > svg {
+      width: 18px;
+      height: 18px;
+    }
+    .sidebar-navigation-trigger {
+      width: 40px;
+      height: 40px;
+      padding: 0;
+    }
+    .workspace-toolbar > [aria-label="Current location"] > span:first-child,
+    .workspace-toolbar > [aria-label="Current location"] > span:nth-child(2),
+    .workspace-toolbar .command-trigger > kbd {
+      display: inline-flex;
+    }
+  }
+  @container library-query (max-width: 30rem) {
+    [aria-label="Library quick views"] {
+      gap: 12px;
+    }
+    [aria-label="Library quick views"] .browse-count {
+      display: none;
+    }
+  }
+}
+
+@layer utilities {
+  @container workspace-header (max-width: 20em) {
+    .workspace-toolbar > [aria-label="Current location"] > span:first-child,
+    .workspace-toolbar > [aria-label="Current location"] > span:nth-child(2),
+    .workspace-toolbar .command-trigger > kbd {
+      display: none;
     }
   }
 }

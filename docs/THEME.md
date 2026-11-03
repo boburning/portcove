@@ -57,6 +57,14 @@ retain their contrast-qualified value rather than copying the prototype's weaker
 strong divider. Brand/status primitives and the distinct gold focus indicator
 retain their meanings. Portaled controls consume these same root aliases.
 
+Library supporting copy uses the existing secondary-text role, and the selected
+navigation stripe uses selection foreground. Success/warning text aliases follow
+the accepted reference in both themes, including shared surfaces and portals;
+brand primitives, operation meaning, qualified control boundaries and gold focus
+are preserved. Library art uses a dedicated decorative translucent-border alias,
+separate from control boundaries. Role changes remain subject to the maintained
+text/state/focus contrast pairs and affected accessibility checks.
+
 ## Semantic roles and interaction
 
 | Role                        | Treatment and meaning                                                          |

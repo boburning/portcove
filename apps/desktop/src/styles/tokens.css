@@ -183,6 +183,8 @@
     --layout-detail: 32rem;
     --layout-content-max: 100rem;
 
+    --color-library-art-border: rgba(163, 184, 213, 0.15);
+
     /* Neutral foundation */
     --color-bg: #17191d;
     --color-bg-navigation: #131519;
@@ -235,14 +237,14 @@
 
     /* Semantic status */
     --color-success: var(--n64-green-500);
-    --color-success-text: var(--n64-green-300);
-    --color-success-text-raised: var(--n64-green-300);
+    --color-success-text: #9bcfb3;
+    --color-success-text-raised: #9bcfb3;
     --color-success-strong: var(--n64-green-100);
     --color-success-subtle: var(--n64-green-950);
     --color-success-border: var(--n64-green-300);
     --color-warning: var(--n64-yellow-500);
     --color-highlight: var(--n64-yellow-500);
-    --color-warning-text: var(--n64-yellow-300);
+    --color-warning-text: #edcf88;
     --color-warning-strong: var(--n64-yellow-100);
     --color-warning-subtle: var(--n64-yellow-950);
     --color-warning-border: var(--n64-yellow-300);
@@ -328,14 +330,14 @@
     --color-primary-border: var(--n64-red-700);
 
     --color-success: var(--n64-green-700);
-    --color-success-text: var(--n64-green-700);
-    --color-success-text-raised: var(--n64-green-800);
+    --color-success-text: #326849;
+    --color-success-text-raised: #326849;
     --color-success-strong: var(--n64-green-100);
     --color-success-subtle: var(--n64-green-100);
     --color-success-border: var(--n64-green-700);
     --color-warning: var(--n64-yellow-800);
     --color-highlight: var(--n64-yellow-500);
-    --color-warning-text: var(--n64-yellow-900);
+    --color-warning-text: #775711;
     --color-warning-strong: var(--n64-yellow-100);
     --color-warning-subtle: var(--n64-yellow-100);
     --color-warning-border: var(--n64-yellow-800);

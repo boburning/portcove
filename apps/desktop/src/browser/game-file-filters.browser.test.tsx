@@ -260,7 +260,7 @@ it.each(["dark", "light"])(
     await userEvent.keyboard("{Enter}");
     await expect.element(card).toHaveFocus();
     await expect
-      .element(button("Remove Compatible complete files available filter"))
+      .element(button("Remove Game files: Compatible complete files available filter"))
       .toBeInTheDocument();
     await userEvent.fill(page.getByRole("textbox", { name: "Search catalog" }), "no match");
     await openAdvancedFilters("Filters (1)");
@@ -291,7 +291,7 @@ it("retains unavailable choices across library invalidation, persistence and iso
     .element(page.getByRole("region", { name: "Game-file filter results" }))
     .not.toBeInTheDocument();
   await userEvent.click(button("Back to previous workspace"));
-  await expect.element(button("Remove Needs checking filter")).toBeInTheDocument();
+  await expect.element(button("Remove Game files: Needs checking filter")).toBeInTheDocument();
   await openAdvancedFilters("Filters (1)");
   await expect
     .element(await filterChoice("Needs checking (unavailable)"))
@@ -304,12 +304,14 @@ it("retains unavailable choices across library invalidation, persistence and iso
   flushSync(() => root.unmount());
   root = createRoot(host);
   flushSync(() => root.render(<Fixture />));
-  await expect.element(button("Remove Needs checking filter")).toBeInTheDocument();
+  await expect.element(button("Remove Game files: Needs checking filter")).toBeInTheDocument();
   noAdditionalChecks();
   document
-    .querySelector<HTMLButtonElement>('button[aria-label="Remove Needs checking filter"]')!
+    .querySelector<HTMLButtonElement>(
+      'button[aria-label="Remove Game files: Needs checking filter"]',
+    )!
     .focus();
-  await expect.element(button("Remove Needs checking filter")).toHaveFocus();
+  await expect.element(button("Remove Game files: Needs checking filter")).toHaveFocus();
   await userEvent.keyboard("{Enter}");
   await expect.element(button("Filters (0)")).toHaveFocus();
 });

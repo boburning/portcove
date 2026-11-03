@@ -576,20 +576,53 @@ and Hidden stay in the collection menu. Clear filters retains search; Reset view
 states that it also clears search, quick views and collection selection. At compact
 widths search occupies its own toolbar row.
 
-Library rows occupy at most1120px, with40×60 contained artwork,12px block/10px
-inline inset and a grouped status/action footer beside the identity. Below48em
-of collection width the footer follows the identity; below30em its indent is
-removed; below20em personal controls follow on their own row. More and Favorite remain independently reachable, and long identities
-wrap without truncating access to the full name.
+Library rows occupy at most1120px, with40×60 contained artwork,5px row-art
+corners and12px block/10px inline inset. Title, project and identity facts form
+one visual stack beside the thumbnail. Facts remain siblings of the details
+button, whose full focus/return bounds include the visual stack. Subgrid-capable
+engines share the stack's tracks; the explicit ordinary-grid fallback retains
+readable separate facts on older engines. The grouped state/action footer sits
+beside the identity, follows it at narrow collection widths, and loses its indent
+at the smallest widths. More and Favorite remain independently reachable;
+truly narrow or enlarged content may stack personal controls. Long identities
+wrap and remain accessible in full.
 
-The Library header retains its total. The retrieval tools own one visible result
-summary and constrained-view reset; the separate visually hidden Search results
-status owns count announcements. Empty and unavailable results retain distinct
-recovery, and an empty result owns its reset action.
+At short desktop heights (up to800px, from761px width), Library covers use a10rem
+minimum track. The220px artwork cap remains; no obsolete180px cap is reintroduced.
+Ordinary/tall and compact width rules retain their existing density. Rem-based
+minimums continue honoring whole-interface enlargement. The effective cover-to-
+title gap is24px at normal size (14px caption padding plus10px title margin),
+with the existing two-line title/project reservations. Artwork uses the raised
+surface and a quiet translucent border. Chips use11px/500 type and7px corners;
+wrapped footer rhythm uses an8px gap while action controls retain32px height.
+
+Library quick views retain their full meaning, lighter400-weight labels and44px
+minimum control height. Compact count badges are visually omitted, with counts
+retained in accessible names/descriptions. Very narrow/enlarged content reflows
+rather than clipping. Needs attention still includes repair/readiness needs.
+An unfavorited heart stays visible; More is subordinate until hover/focus on a
+fine pointer and remains visible on touch. Every action retains keyboard access.
+
+The compact rail combines the decorative mascot with the existing Open navigation
+trigger. A folder control opens the existing collection editor; full navigation
+and focus return remain intact. Known-empty collection navigation also offers
+Create your first collection through that same editor/commit owner. Loading or
+unreadable collections are never presented as a known empty library.
+
+The Library header retains its total. Retrieval owns one visible22px-minimum
+result summary and constrained-view reset; selected-filter chips and Clear filters
+precede that summary on their own row. The separate visually hidden Search results
+status owns count announcements. Clear filters and Reset view retain distinct
+scopes. Removal labels include the visible filter group and value for speech control. Empty/unavailable results retain accurate recovery; no-match headings use
+22px/1.35 with concise explicit reset scope and natural growth for longer text.
 
 Library starts with Target OS, Original system and Update channels. Other real
 groups remain in Advanced filters, which opens for restored advanced selections.
-Discover retains its existing common groups. Common filters use compact labeled checkbox popovers. Selection stays multi-select,
+The Library panel places heading/help in a compact row and keeps closed Advanced
+controls beside the footer where space allows. Explanations, unknown-context
+recovery and multi-selection semantics stay available. Library search/sort use
+13px text and6px control corners; contrast-qualified borders and the distinct
+3px focus indicator remain. Discover retains its existing common groups. Common filters use compact labeled checkbox popovers. Selection stays multi-select,
 with OR within a category and AND across categories; route-dependent predicates
 must still match the same observed route. Advanced filters and per-field help retain
 technical semantics. Escape closes the active popover before the containing panel.

@@ -165,6 +165,19 @@ it.each([320, 576])(
       )
       .toHaveFocus();
     await release();
+    pressed = [5];
+    await expect.element(page.getByRole("heading", { name: "Activity", level: 1 })).toBeVisible();
+    await release();
+    pressed = [5];
+    await expect.element(page.getByRole("heading", { name: "Settings", level: 1 })).toBeVisible();
+    expect(document.querySelector('[data-slot="popover-popup"]')).toBeNull();
+    await release();
+    pressed = [4];
+    await expect.element(page.getByRole("heading", { name: "Activity", level: 1 })).toBeVisible();
+    await release();
+    pressed = [4];
+    await expect.element(page.getByRole("heading", { name: "Discover", level: 1 })).toBeVisible();
+    await release();
     pressed = [4];
     await expect
       .element(page.getByRole("heading", { name: "Your library", level: 1 }))

@@ -776,9 +776,11 @@ function BrowserEmptyState({
         icon={Settings2}
         title={view === "library" ? "No matching library entries" : "No matching games"}
         description={
-          query
-            ? `No ${view === "library" ? "library entries" : "games"} match “${query}” with the current view. Reset search, filters, quick views and collection selection to browse again.`
-            : `No ${view === "library" ? "library entries" : "games"} match the current filters and view. Reset filters, quick views and collection selection to browse again.`
+          view === "library"
+            ? "Reset search, filters, quick views and collection selection to browse again."
+            : query
+              ? `No games match “${query}” with the current view. Reset search, filters, quick views and collection selection to browse again.`
+              : "No games match the current filters and view. Reset filters, quick views and collection selection to browse again."
         }
         action={
           <Button data-focusable variant="outline" size="lg" onClick={clearFilters}>
@@ -1034,35 +1036,49 @@ function LibraryEntry({
       data-source-drop-port-id={dropEligible ? port.id : undefined}
       data-source-drop-profile-id={dropEligible ? port.source_profile : undefined}
     >
-      <button
-        data-focusable
-        className={cn(
-          controlFocus,
-          "collection-identity cursor-pointer text-start hover:text-pc-interactive-foreground",
-        )}
-        aria-label={`View details for ${gameTitle(port)} ${gameProjectLabel(port) ?? port.name}`}
-        aria-describedby={input ? setupDescriptionId : undefined}
-        data-detail-game-id={port.id}
-        data-detail-origin={detailOrigin}
-        onClick={() => onSelect(port.id, detailOrigin)}
-      >
-        <ArtworkFrame
-          element={artworkElement}
-          display={artwork}
-          identityArtwork
-          className="card-art collection-art"
-        />
-        <span
-          role="heading"
-          aria-level={2}
-          className="collection-title font-semibold wrap-anywhere"
+      <div className="collection-main">
+        <button
+          data-focusable
+          className={cn(
+            controlFocus,
+            "collection-identity cursor-pointer text-start hover:text-pc-interactive-foreground",
+          )}
+          aria-label={`View details for ${gameTitle(port)} ${gameProjectLabel(port) ?? port.name}`}
+          aria-describedby={input ? setupDescriptionId : undefined}
+          data-detail-game-id={port.id}
+          data-detail-origin={detailOrigin}
+          onClick={() => onSelect(port.id, detailOrigin)}
         >
-          {gameTitle(port)}
-        </span>{" "}
-        <span className="collection-project block wrap-anywhere text-[var(--color-text-secondary)]">
-          {gameProjectLabel(port) ?? port.name}
-        </span>
-      </button>
+          <ArtworkFrame
+            element={artworkElement}
+            display={artwork}
+            identityArtwork
+            className="card-art collection-art"
+          />
+          <span className="collection-caption">
+            <span
+              role="heading"
+              aria-level={2}
+              className="collection-title font-semibold wrap-anywhere"
+            >
+              {gameTitle(port)}
+            </span>{" "}
+            <span className="collection-project block wrap-anywhere text-[var(--color-text-secondary)]">
+              {gameProjectLabel(port) ?? port.name}
+            </span>
+          </span>
+        </button>
+        <div className="library-entry-chips">
+          <IdentityChips
+            port={{
+              ...port,
+              platforms: [],
+              channels: status?.active ? [status.active.channel] : [],
+            }}
+          />
+        </div>
+      </div>
+
       <div className="collection-personal-actions">
         <PortCardActionMenu
           {...{ favoriteMenu, port, status, onSelect }}
@@ -1083,11 +1099,6 @@ function LibraryEntry({
             <Heart aria-hidden="true" />
           </Button>
         )}
-      </div>
-      <div className="library-entry-chips">
-        <IdentityChips
-          port={{ ...port, platforms: [], channels: status?.active ? [status.active.channel] : [] }}
-        />
       </div>
       <div className="library-entry-footer">
         <LibraryEntryState
@@ -1473,12 +1484,15 @@ function BrowserQuickViews({
   favorites: ReturnType<typeof usePortBrowser>["favorites"];
   filterButton: ReturnType<typeof usePortBrowser>["filterButton"];
 }) {
+  const countId = useId();
   if (!model.composedLibrary || model.firstUseEmpty) return null;
   const updateQuery = queryFromFilter(model.filter).updates ?? [];
   const clearUpdates = (current: Filter | CatalogQuery) => {
     const query = queryFromFilter(current);
     return query.version === 1 ? { ...query, updates: [] } : current;
   };
+  const allCount = model.readinessCount("all");
+  const attentionCount = model.readinessCount("setup");
   const all =
     model.libraryReadiness === "all" &&
     !favorites?.only &&
@@ -1496,6 +1510,7 @@ function BrowserQuickViews({
         data-focusable
         variant={all ? "selected" : "ghost"}
         aria-pressed={all}
+        aria-describedby={`${countId}-all`}
         title="Reset quick views and collection selection; keep search and other filters"
         onClick={() => {
           model.setLibraryReadiness?.("all");
@@ -1534,6 +1549,7 @@ function BrowserQuickViews({
         data-focusable
         variant={model.libraryReadiness === "setup" ? "selected" : "ghost"}
         aria-pressed={model.libraryReadiness === "setup"}
+        aria-describedby={`${countId}-attention`}
         title="Recorded setup, repair or readiness needs"
         onClick={() =>
           model.setLibraryReadiness?.(model.libraryReadiness === "setup" ? "all" : "setup")
@@ -1563,6 +1579,13 @@ function BrowserQuickViews({
       >
         Updates
       </Button>
+      <span id={`${countId}-all`} className="sr-only">
+        {typeof allCount === "number" ? `${allCount} library entries` : "Count unavailable"}
+      </span>
+      <span id={`${countId}-attention`} className="sr-only">
+        Recorded setup, repair or readiness needs.{" "}
+        {typeof attentionCount === "number" ? `${attentionCount} entries` : "Count unavailable"}
+      </span>
     </div>
   );
 }
@@ -1725,7 +1748,7 @@ function BrowserCollectionTools({
   );
   const after = (
     <>
-      {model.view === "library" && model.organization && (
+      {model.view === "library" && model.organization && !model.organizationInSidebar && (
         <div className={model.organizationInSidebar ? "compact-library-collections" : undefined}>
           <OrganizationControls
             organization={model.organization}
@@ -1746,7 +1769,7 @@ function BrowserCollectionTools({
   );
   const summary = <CollectionResultSummary model={model} />;
   return (
-    <div className="library-query-tools mb-4">
+    <div className="library-query-tools mb-4" data-view={model.view}>
       {model.view === "catalog" || model.composedLibrary ? (
         <CatalogFilters
           before={before}
