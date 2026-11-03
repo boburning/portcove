@@ -335,7 +335,7 @@ function SourceIntakeSession(props: Parameters<typeof useSourceIntakeSession>[0]
           {copy.description}
         </DialogDescription>
         <NavigationHints />
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-3">
           <Button
             data-focusable
             variant="primary"
@@ -348,7 +348,9 @@ function SourceIntakeSession(props: Parameters<typeof useSourceIntakeSession>[0]
             <Icon glyph={FileSearch} />
             {copy.choose}
           </Button>
-          <small className="text-pc-muted-foreground">{request.profile.label}</small>
+          <small className="min-w-0 [overflow-wrap:anywhere] text-pc-muted-foreground">
+            {request.profile.label}
+          </small>
         </div>
         {busy && (
           <p className="mt-3" role="status">
