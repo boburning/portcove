@@ -311,8 +311,8 @@ importers:
         specifier: 4.52.0
         version: 4.52.0
       semver:
-        specifier: 7.8.5
-        version: 7.8.5
+        specifier: 7.8.6
+        version: 7.8.6
       stylelint:
         specifier: 17.16.0
         version: 17.16.0(supports-color@10.2.2)(typescript@7.0.2)
@@ -2666,8 +2666,8 @@ packages:
     resolution: {integrity: sha512-+7AJZ85CUiSK4J8HDEKFAcZ+fIPB2krOWncOq0Stg/Ywc7phb85FkhWRdX/WXZtqOCSzvrF/Q34rWX6zFEnGOw==}
     engines: {node: ^22.23.4 || ^24.22.1 || >= 26.12.1}
 
-  semver@7.8.5:
-    resolution: {integrity: sha512-Y7/KDsb8LjooZpwaqGyulO6DQlksgCncchHGk+sZIY4SBvUocMBEFH5Ur1fI4dV+Jvl0w6cjvucaIi40puRioA==}
+  semver@7.8.6:
+    resolution: {integrity: sha512-9lpSSU4Mly3mrtruwLs1eLK6+gzbzqeBFwRNjIjE+9LuDpWdYctrQlQ3ej1Ilgi7gknpsTRnPoLP8DpCHqHIJw==}
     engines: {node: '>=10'}
     hasBin: true
 
@@ -3201,7 +3201,7 @@ snapshots:
 
   '@npmcli/fs@6.0.0':
     dependencies:
-      semver: 7.8.5
+      semver: 7.8.6
 
   '@npmcli/redact@5.0.0': {}
 
@@ -4836,7 +4836,7 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
-  semver@7.8.5: {}
+  semver@7.8.6: {}
 
   setimmediate@1.0.5: {}
 
