@@ -14,6 +14,11 @@ export default defineConfig({
       functions: ["cn", "cva"],
     },
     ignorePatterns: [
+      // Exact trust, workflow and historical fixture bytes are digest-bound.
+      "release/bootstrap-public-inputs/**",
+      ".github/workflows/application-update-production.yml",
+      "docs/qualification/application-update-production.windows-20261103.proposed.yml",
+      "scripts/fixtures/release-resource-baseline-20261103/**",
       "vendor/rfd/**", // Preserve third-party bytes; provenance and GTK probes cover the backport.
       "apps/desktop/node_modules/**",
       "apps/desktop/dist/**",

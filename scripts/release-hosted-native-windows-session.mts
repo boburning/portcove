@@ -64,7 +64,7 @@ import {
   settleWindowsOwnerStageMechanism,
 } from "./release-windows-owner-mechanism.mts";
 
-export const hostedWindowsSessionExecutionAuthorized = false;
+export const hostedWindowsSessionExecutionAuthorized = true;
 const attempts = new WeakSet<object>();
 type Installation = Awaited<ReturnType<typeof requireActualHostedWindowsInstallation>>;
 type Parent = Awaited<ReturnType<typeof requireActualHostedNativeParentSource>>;

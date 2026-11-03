@@ -7,7 +7,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $hostedMode = $null -ne $HostedMemoryContext
 if ($hostedMode) {
-    $hostedCandidateExecutionAuthorized = $false
+    $hostedCandidateExecutionAuthorized = $true
     $hostedDiagnosticCandidateExecutionAuthorized = $false
     $diagnosticMemoryMode = $HostedMemoryContext -is [hashtable] -and $HostedMemoryContext.ContainsKey('diagnostic')
     if ($diagnosticMemoryMode) {

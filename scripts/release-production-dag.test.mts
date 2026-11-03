@@ -99,12 +99,21 @@ void test("shared observer phases retain mode routing and the original ten-minut
     () => sharedProtectionOriginalJobDeadline({ ...inventory, total_count: 2 }, identity, now, 100),
     /inventory/u,
   );
-  assert.equal(slice4CapacityResources.declared_job_minutes, 89);
-  assert.equal(slice4CapacityResources.declared_job_minutes + 10, 99);
-  assert.ok(99 < slice4CapacityResources.total_job_minutes);
+  assert.equal(workflow.jobs.native_linux, undefined);
+  assert.equal(workflow.jobs.native_windows?.["timeout-minutes"], 35);
+  assert.equal(workflow.jobs.tool_bootstrap_windows?.["timeout-minutes"], 22);
+  const completeAllocation =
+    slice4CapacityResources.aggregate_job_minutes.reduce((a, b) => a + b, 0) +
+    slice4CapacityResources.input_job_minutes.reduce((a, b) => a + b, 0) +
+    slice4CapacityResources.wake_job_minutes.reduce((a, b) => a + b, 0);
+  assert.equal(completeAllocation, 140);
+  assert.equal(completeAllocation, slice4CapacityResources.declared_job_minutes);
+  assert.equal(completeAllocation, slice4CapacityResources.total_job_minutes);
 });
 
 type Step = {
+  name?: string;
+  shell?: string;
   id?: string;
   if?: string;
   run?: string;
@@ -120,7 +129,7 @@ type Job = {
   environment?: string;
   permissions?: Record<string, string>;
   "runs-on": string;
-  "timeout-minutes": number;
+  "timeout-minutes": number | string;
 };
 type Workflow = {
   on: unknown;
@@ -251,7 +260,7 @@ void test("installed workflows remain inert without configuration and preserve e
   for (const [actual, proposal] of [
     [
       ".github/workflows/application-update-production.yml",
-      "docs/qualification/application-update-production.complete.yml",
+      "docs/qualification/application-update-production.windows-20261103.proposed.yml",
     ],
     [
       ".github/workflows/application-update-wake.yml",
@@ -389,6 +398,7 @@ void test("actual held job conditions route retained custody without repeating s
     published = false,
     purpose = "application",
     transport = "fixed-job",
+    profile = "initial-beta-windows-x86_64-v1",
   ) => {
     const needs = Object.fromEntries(
       Object.keys(workflow.jobs).map((name) => [
@@ -415,7 +425,11 @@ void test("actual held job conditions route retained custody without repeating s
                   publication_custody: published ? "reused" : "",
                 }
               : name === "admission"
-                ? { publication_purpose: purpose, classification_transport: transport }
+                ? {
+                    publication_purpose: purpose,
+                    classification_transport: transport,
+                    release_profile: profile,
+                  }
                 : {},
         },
       ]),
@@ -448,11 +462,11 @@ void test("actual held job conditions route retained custody without repeating s
   }
   assert.equal(permitted("tuf_preview", "metadata", false, "tuf_releases"), false);
   assert.equal(permitted("release_publication", "release", true, "attest"), false);
-  assert.equal(permitted("release_publication", "release", false, "native_linux"), false);
-  assert.equal(permitted("release_publication", "release", true, "native_linux"), true);
+  assert.equal(permitted("release_publication", "release", false, "native_windows"), false);
+  assert.equal(permitted("release_publication", "release", true, "native_windows"), true);
   for (const transport of ["legacy-app", "", "unknown"]) {
     assert.equal(
-      permitted("native_linux", "release", false, undefined, false, "application", transport),
+      permitted("native_windows", "release", false, undefined, false, "application", transport),
       false,
     );
     assert.equal(
@@ -460,7 +474,7 @@ void test("actual held job conditions route retained custody without repeating s
         "release_publication",
         "release",
         false,
-        "native_linux",
+        "native_windows",
         false,
         "application",
         transport,
@@ -468,12 +482,27 @@ void test("actual held job conditions route retained custody without repeating s
       transport === "legacy-app",
     );
   }
-  assert.equal(permitted("native_linux", "release", false), true);
-  assert.equal(permitted("native_linux", "release", true), false);
-  assert.equal(permitted("native_linux", "held", false), false);
-  assert.equal(permitted("native_linux", "metadata", false), false);
+  assert.equal(permitted("native_windows", "release", false), true);
+  for (const profile of ["", "unknown", "initial-beta-win-linux", "full"])
+    assert.equal(
+      permitted(
+        "native_windows",
+        "release",
+        false,
+        undefined,
+        false,
+        "application",
+        "fixed-job",
+        profile,
+      ),
+      false,
+      profile,
+    );
+  assert.equal(permitted("native_windows", "release", true), false);
+  assert.equal(permitted("native_windows", "held", false), false);
+  assert.equal(permitted("native_windows", "metadata", false), false);
   assert.equal(
-    permitted("native_linux", "release", false, undefined, false, "catalog-publication"),
+    permitted("native_windows", "release", false, undefined, false, "catalog-publication"),
     false,
   );
   assert.equal(permitted("site_publication", "release", true, "release_publication"), false);
@@ -619,16 +648,28 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
   );
   const inputs = (name: string) =>
     name.includes("protection_observation") || name === "classification_writer";
+  const minutes = (name: string, job: Job, purpose = "application") => {
+    if (name === "tool_bootstrap") {
+      assert.equal(
+        job["timeout-minutes"],
+        "${{ inputs.publication_purpose == 'application' && 12 || 4 }}",
+      );
+      return purpose === "application" ? 12 : 4;
+    }
+    const value = job["timeout-minutes"];
+    assert.ok(typeof value === "number" && Number.isSafeInteger(value) && value > 0, name);
+    return value;
+  };
   assert.deepEqual(
     Object.entries(jobs)
       .filter(([name]) => !name.startsWith("catalog_") && inputs(name))
-      .map(([, job]) => job["timeout-minutes"]),
+      .map(([name, job]) => minutes(name, job)),
     slice4CapacityResources.input_job_minutes,
   );
   assert.deepEqual(
     Object.entries(jobs)
       .filter(([name]) => !name.startsWith("catalog_") && !inputs(name))
-      .map(([, job]) => job["timeout-minutes"]),
+      .map(([name, job]) => minutes(name, job)),
     slice4CapacityResources.aggregate_job_minutes,
   );
   const requiredJob = (name: string) => {
@@ -639,7 +680,7 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
   assert.equal(
     Object.entries(jobs)
       .filter(([name]) => !name.startsWith("catalog_"))
-      .reduce((total, [, job]) => total + job["timeout-minutes"], 1),
+      .reduce((total, [name, job]) => total + minutes(name, job), 1),
     slice4CapacityResources.declared_job_minutes,
   );
   const catalogReaders = [
@@ -659,16 +700,16 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
       "site_protection_observation",
     ];
   assert.deepEqual(
-    catalogReaders.map((name) => requiredJob(name)["timeout-minutes"]),
+    catalogReaders.map((name) => minutes(name, requiredJob(name), "catalog-publication")),
     slice4CapacityResources.catalog_job_minutes,
   );
   assert.deepEqual(
-    catalogObservers.map((name) => requiredJob(name)["timeout-minutes"]),
+    catalogObservers.map((name) => minutes(name, requiredJob(name), "catalog-publication")),
     slice4CapacityResources.catalog_observer_job_minutes,
   );
   assert.equal(
     [...catalogReaders, ...catalogObservers].reduce(
-      (total, name) => total + requiredJob(name)["timeout-minutes"],
+      (total, name) => total + minutes(name, requiredJob(name), "catalog-publication"),
       1,
     ),
     slice4CapacityResources.catalog_declared_job_minutes,
@@ -678,20 +719,18 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
       slice4CapacityResources.declared_job_minutes,
       slice4CapacityResources.catalog_declared_job_minutes,
     ),
-    89,
+    140,
   );
-  assert.equal(slice4CapacityResources.total_job_minutes, 100);
+  assert.equal(slice4CapacityResources.total_job_minutes, 140);
   assert.equal(requiredJob("independent_admission")["timeout-minutes"], 9);
   assert.equal(requiredJob("protection_observation")["timeout-minutes"], 10);
   assert.equal(requiredJob("attest")["timeout-minutes"], 2);
   for (const [name, job] of Object.entries(jobs)) {
     assert.equal(
       job["runs-on"],
-      name === "native_linux"
-        ? "ubuntu-24.04"
-        : name === "tool_bootstrap_windows"
-          ? "windows-2022"
-          : "ubuntu-22.04",
+      name === "native_windows" || name === "tool_bootstrap_windows"
+        ? "windows-2022"
+        : "ubuntu-22.04",
       name,
     );
     if (job.permissions?.actions === "read")
@@ -705,9 +744,55 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
         job.needs?.includes(match[1]!),
         `${name} references undeclared producer ${match[1]}`,
       );
-    assert.ok(Number.isSafeInteger(job["timeout-minutes"]) && job["timeout-minutes"] > 0);
-    if (name !== "tool_bootstrap" && name !== "tool_bootstrap_windows")
-      assert.ok(!job.steps.some((step) => /(?:npm|pnpm) (?:install|ci)/u.test(step.run ?? "")));
+    assert.ok(minutes(name, job) > 0);
+    const dependencyInstalls = job.steps.filter((step) =>
+      /(?:npm|pnpm) (?:install|ci)/u.test(step.run ?? ""),
+    );
+    if (name === "native_windows") {
+      assert.equal(dependencyInstalls.length, 1);
+      const installation = dependencyInstalls[0]!;
+      assert.equal(
+        installation.name,
+        "Install only the fixed source lockfile before any role credential",
+      );
+      assert.equal(installation.shell, "pwsh");
+      assert.equal(installation.env, undefined);
+      assert.equal(
+        installation.run,
+        "pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile --store-dir \"$env:RUNNER_TEMP/controller-windows-pnpm\"\nif ($LASTEXITCODE -ne 0) { throw 'Public build dependencies refused' }\n",
+      );
+      const installationIndex = job.steps.indexOf(installation);
+      assert.equal(installationIndex, 3);
+      assert.deepEqual(
+        job.steps.slice(0, installationIndex).map((step) => step.uses),
+        [
+          "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
+          "pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413",
+        ],
+      );
+      assert.deepEqual(
+        job.steps.slice(0, installationIndex).map((step) => step.with),
+        [
+          { ref: "${{ github.workflow_sha }}", "persist-credentials": false },
+          { "node-version-file": ".node-version", "package-manager-cache": false },
+          { package_json_file: "package.json", run_install: false },
+        ],
+      );
+      const runtimeIndex = job.steps.findIndex(
+        (step) =>
+          step.run ===
+          "node scripts/release-controller-tool-bootstrap.mts prepare-windows-native-runtime",
+      );
+      const ownerIndex = job.steps.findIndex(
+        (step) =>
+          step.uses === "./.github/actions/release-native-windows" &&
+          step.with?.stage === "pre-sign",
+      );
+      assert.ok(runtimeIndex > installationIndex && ownerIndex > runtimeIndex);
+    } else if (name !== "tool_bootstrap" && name !== "tool_bootstrap_windows") {
+      assert.equal(dependencyInstalls.length, 0);
+    }
     assert.ok(
       !job.steps.some((step) => /gh workflow run|gh api[^\n]*dispatches/u.test(step.run ?? "")),
     );
@@ -952,15 +1037,15 @@ void test("actual observer installation guard refuses drift before invoking its 
   }
 });
 
-void test("Linux proof stays on one bounded job without a payload dependency cycle or signing-key authority", async () => {
+void test("Windows proof stays on one bounded job without a payload dependency cycle or signing-key authority", async () => {
   const workflow = parse(
     await readFile(new URL(".github/workflows/application-update-production.yml", root), "utf8"),
   ) as Workflow;
-  const job = workflow.jobs.native_linux!;
-  assert.equal(job.name, "Qualify hosted Linux installed continuity");
-  assert.equal(job["runs-on"], "ubuntu-24.04");
-  assert.equal(job["timeout-minutes"], 10);
-  assert.equal(job.environment, "production-native-linux");
+  const job = workflow.jobs.native_windows!;
+  assert.equal(job.name, "Qualify hosted Windows installed continuity");
+  assert.equal(job["runs-on"], "windows-2022");
+  assert.equal(job["timeout-minutes"], 35);
+  assert.equal(job.environment, "production-native-windows");
   assert.deepEqual(job.permissions, {
     contents: "read",
     actions: "read",
@@ -974,10 +1059,11 @@ void test("Linux proof stays on one bounded job without a payload dependency cyc
     "coordinator",
     "independent_admission",
     "attest",
+    "tool_bootstrap_windows",
   ]);
   assert.deepEqual(
     job.steps
-      .filter((step) => step.uses === "./.github/actions/release-native-linux")
+      .filter((step) => step.uses === "./.github/actions/release-native-windows")
       .map((step) => step.with?.stage),
     ["pre-sign", "post-sign"],
   );
@@ -985,7 +1071,7 @@ void test("Linux proof stays on one bounded job without a payload dependency cyc
     !JSON.stringify(job).includes("secrets.") &&
       !JSON.stringify(job).includes("create-github-app-token"),
   );
-  assert.ok(workflow.jobs.release_publication!.needs!.includes("native_linux"));
+  assert.ok(workflow.jobs.release_publication!.needs!.includes("native_windows"));
   const visit = (name: string, stack = new Set<string>()) => {
     assert.ok(!stack.has(name), `dependency cycle at ${name}`);
     const next = new Set([...stack, name]);
@@ -998,8 +1084,11 @@ void test("Linux proof stays on one bounded job without a payload dependency cyc
   for (const name of Object.keys(workflow.jobs)) visit(name);
   const diagnostics = job.steps.filter((step) => step.if === "${{ always() }}");
   assert.equal(diagnostics.length, 2);
-  assert.equal(diagnostics[0]!.run, "node scripts/release-controller-diagnostics.mts native-linux");
-  assert.equal(diagnostics[1]!.with?.path, "${{ runner.temp }}/native-public-evidence-linux");
+  assert.equal(
+    diagnostics[0]!.run,
+    "node scripts/release-controller-diagnostics.mts native-windows",
+  );
+  assert.equal(diagnostics[1]!.with?.path, "${{ runner.temp }}/native-public-evidence-windows");
   assert.equal(diagnostics[1]!.with?.["retention-days"], 7);
   assert.equal(diagnostics[1]!.with?.overwrite, false);
 });

@@ -1,0 +1,85 @@
+{
+  "signed": {
+    "_type": "targets",
+    "spec_version": "1.0.0",
+    "version": 1,
+    "expires": "2027-01-30T14:53:29Z",
+    "targets": {
+      "keys/payload.json": {
+        "length": 316,
+        "hashes": {
+          "sha256": "3e7738e2e1a87484fa07dcca36c3a35c07f9a53473f65a21d59bbcc3d40ffa10"
+        }
+      }
+    },
+    "delegations": {
+      "keys": {
+        "3806a0b4356f8ddfce6a53d13da7537afc29695389eb9aa2a42a6f7873004161": {
+          "keytype": "ed25519",
+          "keyval": {
+            "public": "a2d17c22460d020f762a7d939f1407e5f26eda6dade6187dafc6bfaa7416624b"
+          },
+          "scheme": "ed25519"
+        },
+        "9b5477b64e0042ad4bf15dccf7bf4f34873197765fcdca6f879a03beb6f298c5": {
+          "keytype": "ed25519",
+          "keyval": {
+            "public": "b578421c7e742714a6a382652d634d88b1b89e6cd6dd206078f17329e1b38ddf"
+          },
+          "scheme": "ed25519"
+        },
+        "99aa93bc2d1fd45e09b98e4afe6cb19bb5bdef4b0a22e9b8b331329a5e10857c": {
+          "keytype": "ed25519",
+          "keyval": {
+            "public": "4d6cdf641a25ac56f9ee7c27b3e9fdfc8ae7a3d57dc3e74642e224700a5fd9cd"
+          },
+          "scheme": "ed25519"
+        }
+      },
+      "roles": [
+        {
+          "name": "releases",
+          "keyids": [
+            "9b5477b64e0042ad4bf15dccf7bf4f34873197765fcdca6f879a03beb6f298c5"
+          ],
+          "threshold": 1,
+          "paths": [
+            "releases/*/windows-x86_64/nsis.json",
+            "releases/*/linux-x86_64/appimage.json"
+          ],
+          "terminating": true
+        },
+        {
+          "name": "preview",
+          "keyids": [
+            "99aa93bc2d1fd45e09b98e4afe6cb19bb5bdef4b0a22e9b8b331329a5e10857c"
+          ],
+          "threshold": 1,
+          "paths": [
+            "channels/preview/windows-x86_64/nsis/*.json",
+            "channels/preview/linux-x86_64/appimage/*.json"
+          ],
+          "terminating": true
+        },
+        {
+          "name": "stable",
+          "keyids": [
+            "3806a0b4356f8ddfce6a53d13da7537afc29695389eb9aa2a42a6f7873004161"
+          ],
+          "threshold": 1,
+          "paths": [
+            "channels/stable/windows-x86_64/nsis/*.json",
+            "channels/stable/linux-x86_64/appimage/*.json"
+          ],
+          "terminating": true
+        }
+      ]
+    }
+  },
+  "signatures": [
+    {
+      "keyid": "99ed178f3f2c4e7fdbad06bd491b1be27f4ac33ddac66d8c706c86cc93ccdf8b",
+      "sig": "22401f99e3b43193c4ccf7ef6de861a38755f43d163729eb8e4580df288b7af3bbec9d0e186eb9285251da0d68ee6fc48b2126a172884fe70bfb2bf21db2a90a"
+    }
+  ]
+}

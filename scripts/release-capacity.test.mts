@@ -508,9 +508,9 @@ void test("bounded eligibility never claims availability, headroom or reservatio
   assert.equal(result.headroom, "unknown");
   assert.equal(result.reservation, "none");
   assert.equal(result.authority, "none");
-  assert.equal(result.resource_estimate.total_job_minutes, 100);
+  assert.equal(result.resource_estimate.total_job_minutes, 140);
   assert.equal(result.resource_estimate.input_receipts, 163);
-  assert.equal(result.resource_estimate.declared_job_minutes, 89);
+  assert.equal(result.resource_estimate.declared_job_minutes, 140);
   assert.equal(result.resource_estimate.retention_days, 7);
 });
 void test("changed account, stop, budget, visibility, runner or resource policy refuses even a rehashed observation", () => {
@@ -543,11 +543,11 @@ void test("changed account, stop, budget, visibility, runner or resource policy 
 void test("complete held controller policy replaces historical pins without appointing capacity authority", async () => {
   for (const [file, expected] of [
     [
-      "docs/qualification/application-update-production.complete.yml",
+      "docs/qualification/application-update-production.windows-20261103.proposed.yml",
       slice4CapacityResources.aggregate_workflow_sha256,
     ],
     [
-      "docs/qualification/application-update-production.complete.yml",
+      "docs/qualification/application-update-production.windows-20261103.proposed.yml",
       slice4CapacityResources.input_workflow_sha256,
     ],
     [
@@ -565,7 +565,7 @@ void test("complete held controller policy replaces historical pins without appo
       ...slice4CapacityResources.input_job_minutes,
       ...slice4CapacityResources.wake_job_minutes,
     ].reduce((a, b) => a + b, 0),
-    89,
+    140,
   );
   const historical = capacityFixture();
   historical.ratification.resource_policy_sha256 = "1".repeat(64);
