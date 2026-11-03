@@ -110,7 +110,30 @@ describe("source intake dialog", () => {
     host.remove();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+    await page.viewport(1280, 800);
   });
+  for (const label of ["The Legend of Zelda: Majora's Mask source", "Owned_source_".repeat(12)]) {
+    it(`keeps the picker and source label inside the narrow dialog: ${label.slice(0, 45)}`, async () => {
+      await page.viewport(320, 208);
+      await root.rerender(
+        <SourceIntakeDialog request={request([], "game", { ...profile, label })} close={vi.fn()} />,
+      );
+      const dialog = page.getByRole("dialog").element() as HTMLElement;
+      const sourceLabel = page.getByText(label, { exact: true }).element();
+      const pickerButton = page.getByRole("button", { name: "Choose game files to check" });
+      for (const width of [320, 240]) {
+        await page.viewport(width, 208);
+        await expect.element(pickerButton).toBeEnabled();
+        await expect.poll(() => dialog.scrollWidth - dialog.clientWidth).toBeLessThanOrEqual(1);
+        const bounds = dialog.getBoundingClientRect();
+        for (const element of [sourceLabel, pickerButton.element()]) {
+          const rectangle = element.getBoundingClientRect();
+          expect(rectangle.left).toBeGreaterThanOrEqual(bounds.left);
+          expect(rectangle.right).toBeLessThanOrEqual(bounds.right);
+        }
+      }
+    });
+  }
   const button = (label: string) =>
     [...document.body.querySelectorAll<HTMLButtonElement>("button")].find((item) =>
       item.textContent?.includes(label),
