@@ -180,7 +180,7 @@ export async function assertRehearsalProtection(phase = "protection") {
   const all = rehearsalApi("rulesets?per_page=100");
   assert.ok(Array.isArray(all) && all.length < 100);
   const named = all.filter(
-    (value) => isRecord(value) && value.name === "Portcove upstream rehearsal 20261104r1 immutable",
+    (value) => isRecord(value) && value.name === "Portcove upstream rehearsal 20261104r2 immutable",
   );
   assert.equal(named.length, 1);
   const rule: unknown = named[0];

@@ -4,7 +4,7 @@ import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { createGitHubRunner } from "./github-api.mts";
 import { isRecord } from "./runtime-values.mts";
-export const upstreamRehearsalExecutionRef = "refs/tags/portcove-upstream-rehearsal-20261104r1";
+export const upstreamRehearsalExecutionRef = "refs/tags/portcove-upstream-rehearsal-20261104r2";
 
 export interface ReleaseSourceAttestationExpectation {
   source_commit: string;
@@ -124,7 +124,11 @@ export async function verifyReleaseSourceAttestation(
     !Number.isSafeInteger(expected.run_attempt) ||
     expected.run_attempt < 1 ||
     !(options.scope === "upstream-rehearsal"
-      ? ["refs/heads/main", upstreamRehearsalExecutionRef].includes(expected.ref)
+      ? [
+          "refs/heads/main",
+          "refs/tags/portcove-upstream-rehearsal-20261104r1",
+          upstreamRehearsalExecutionRef,
+        ].includes(expected.ref)
       : /^refs\/tags\/[A-Za-z0-9._/-]{1,192}$/u.test(expected.ref)) ||
     expected.subjects.length < 1 ||
     expected.subjects.length > 8

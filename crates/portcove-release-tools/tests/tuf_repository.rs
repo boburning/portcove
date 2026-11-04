@@ -273,6 +273,71 @@ async fn builds_separately_signed_repository_and_accepts_exact_retry() {
     assert!(!second.changed);
     assert_eq!(first.files, second.files);
 
+    // Metadata versions are independent of signature thresholds. Generation1
+    // masks a swapped delegate_role argument because both values happen to be1.
+    for generation in [2_u64, 3] {
+        let mut versioned = config.clone();
+        versioned["output"] = json!(format!("repository-v{generation}"));
+        for role in [
+            "targets",
+            "snapshot",
+            "timestamp",
+            "releases",
+            "preview",
+            "stable",
+        ] {
+            versioned["versions"][role] = json!(generation);
+        }
+        let versioned_path = directory.path().join(format!("config-v{generation}.json"));
+        fs::write(&versioned_path, serde_json::to_vec(&versioned).unwrap()).unwrap();
+        let built = build_tuf_repository(&versioned_path).await.unwrap();
+        let top: tough::schema::Signed<tough::schema::Targets> = serde_json::from_slice(
+            &fs::read(
+                built
+                    .output
+                    .join(format!("metadata/{generation}.targets.json")),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(top.signed.version.get(), generation);
+        for role in &top.signed.delegations.as_ref().unwrap().roles {
+            assert_eq!(role.threshold.get(), 1);
+            assert_eq!(role.keyids.len(), 1);
+            let child: tough::schema::Signed<tough::schema::Targets> = serde_json::from_slice(
+                &fs::read(
+                    built
+                        .output
+                        .join(format!("metadata/{generation}.{}.json", role.name)),
+                )
+                .unwrap(),
+            )
+            .unwrap();
+            assert_eq!(child.signed.version.get(), generation);
+        }
+        let reader = RepositoryLoader::new(
+            &fs::read(&root).unwrap(),
+            Url::from_directory_path(built.output.join("metadata")).unwrap(),
+            Url::from_directory_path(built.output.join("targets")).unwrap(),
+        )
+        .load()
+        .await
+        .unwrap();
+        for target in &target_paths {
+            let bytes = reader
+                .read_target(&TargetName::new(target).unwrap())
+                .await
+                .unwrap()
+                .unwrap()
+                .try_collect::<Vec<_>>()
+                .await
+                .unwrap()
+                .concat();
+            assert_eq!(bytes, fs::read(records_root.join(target)).unwrap());
+        }
+        assert!(!build_tuf_repository(&versioned_path).await.unwrap().changed);
+    }
+
     // TUF permits a signed initial repository with no available releases. Keep
     // its registry and all authenticated roles, and exercise the real reader.
     let empty_records = directory.path().join("empty-records");
