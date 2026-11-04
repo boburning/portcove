@@ -53,6 +53,14 @@ managed ownership overlap and unoffered operations. Two browser cases render eac
 actual catalog guide, visible warnings, upstream link and executable/working-folder
 controls. Final execution results belong to the source-bound PR/CI receipt.
 
+The first two local lifecycle cases retained 30-second harness cutoffs after
+registration, relink and retained-contract restart progressed to about 19 seconds.
+They now use the existing `prepared_guide_adoption_` family and its finite
+90-second budget. All assertions, product deadlines, two local workers and zero
+retries remain unchanged; a later pass proves completion under that existing
+budget, not a product-speed repair. The first browser attempt was unexecuted
+because this new worktree lacked its pinned Chromium runtime.
+
 No original was acquired, no upstream game/helper was executed and no desktop
 STOP was resumed. Ghostship's accepted native evidence is reused at its recorded
 scope; new Starship game execution, gameplay and populated-save observations remain

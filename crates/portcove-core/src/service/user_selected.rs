@@ -933,12 +933,12 @@ mod tests {
     }
 
     #[test]
-    fn ghostship_day_one_registration_launch_and_removal_preserve_managed_route() {
+    fn prepared_guide_adoption_ghostship_day_one_preserves_managed_route() {
         assert_harbour_day_one_route("ghostship");
     }
 
     #[test]
-    fn starship_day_one_registration_launch_and_removal_preserve_managed_route() {
+    fn prepared_guide_adoption_starship_day_one_preserves_managed_route() {
         assert_harbour_day_one_route("starship");
     }
 
