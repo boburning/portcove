@@ -1118,6 +1118,60 @@ void test("continued facts refuse changed input bindings, corrupted pages and ch
   assert.equal(refused.report.exception?.rule, "repository-identity");
 });
 
+void test("a repaired restart can conditionally replace old complete assets after a release tag changes", async () => {
+  const server = fixture();
+  const assetFor = (releaseId: number, assetId = releaseId, tag = `v${releaseId}.0.0`) => {
+    const value = asset(assetId);
+    value.browser_download_url = value.browser_download_url.replace("v1.0.0", tag);
+    return value;
+  };
+  server.replies.get(`${root}/releases?per_page=100&page=1`).body = [
+    release(1),
+    release(2),
+    release(3),
+  ];
+  for (const id of [1, 2, 3])
+    server.replies.set(`${root}/releases/${id}/assets?per_page=100&page=1`, {
+      body: [assetFor(id)],
+    });
+  const baseline = await advanceObservation(config, null, { fetch: server.fetch, project });
+  server.replies.get(`${root}/releases?per_page=100&page=1`).body = [
+    release(1),
+    release(2),
+    release(3, { tag_name: "v3.1.0" }),
+  ];
+  server.replies.get(`${root}/releases/2/assets?per_page=100&page=1`).body = [assetFor(2, 1)];
+  server.replies.get(`${root}/releases/3/assets?per_page=100&page=1`).body = [
+    assetFor(3, 3, "v3.1.0"),
+  ];
+  const failed = await advanceObservation(config, baseline.checkpoint, {
+    fetch: server.fetch,
+    project,
+  });
+  assert.equal(failed.report.continuation?.phase, "restart");
+  assert.equal(failed.report.exception?.rule, "invalid-metadata");
+  server.replies.get(`${root}/releases/2/assets?per_page=100&page=1`).body = [assetFor(2)];
+  const before = server.requests.length;
+  const recovered = await advanceObservation(config, failed.checkpoint, {
+    fetch: server.fetch,
+    project,
+  });
+  assert.equal(recovered.report.transition, "changed");
+  assert.equal(recovered.report.exception, null);
+  assert.ok(
+    server.requests
+      .slice(before)
+      .some(
+        (request) =>
+          request.url.includes("/releases/3/assets?") && request.options.headers["If-None-Match"],
+      ),
+  );
+  assert.notEqual(
+    recovered.report.observation?.facts_sha256,
+    baseline.report.observation?.facts_sha256,
+  );
+});
+
 void test("global duplicate identities restart retained pages and can observe a provider repair", async () => {
   const server = fixture();
   server.replies.get(`${root}/releases?per_page=100&page=1`).body = [release(1), release(2)];

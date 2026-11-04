@@ -1046,10 +1046,18 @@ export async function observeUpstream(
     );
   const configHash = observationHash(config);
   const retained = validateObservationContinuation(options.continuation, config);
+  const completePages = validatedCache(options.cache, configHash);
+  const restartPages = retained?.phase === "restart" ? retained.pages : {};
   const prior = {
-    ...validatedCache(options.cache, configHash),
-    ...(retained?.phase === "restart" ? retained.pages : {}),
+    ...completePages,
+    ...restartPages,
   };
+  // An old complete asset can coexist with newer restart headers. Validate the
+  // cached representation under its own graph before requesting a replacement;
+  // read()/collection() still validate the response against current headers.
+  const priorContexts = new Map<string, Record<string, unknown>>();
+  for (const url of Object.keys(completePages)) priorContexts.set(url, completePages);
+  for (const url of Object.keys(restartPages)) priorContexts.set(url, restartPages);
   const fetcher = options.fetch ?? fetch;
   const now = options.now ?? Date.now;
   const sleep =
@@ -1119,7 +1127,9 @@ export async function observeUpstream(
     let previous: CachedPage | undefined;
     if (candidate) {
       try {
-        previous = { ...validatedPage(candidate, url, config, cached ? pages : prior) };
+        const context = cached ? pages : priorContexts.get(url);
+        requireFact(context, "invalid-cache", "cached response context missing");
+        previous = { ...validatedPage(candidate, url, config, context) };
       } catch {
         throw new ObservationFailure("invalid-cache", "cached response identity is invalid");
       }
@@ -1406,6 +1416,7 @@ export async function observeUpstream(
         const id = new URL(url).pathname.match(/\/releases\/(\d+)\/assets$/u)?.[1];
         if (id && !selectedAssets.has(Number(id))) {
           prior[url] = page;
+          priorContexts.set(url, pages);
           delete pages[url];
         }
       }

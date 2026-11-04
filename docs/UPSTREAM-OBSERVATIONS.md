@@ -55,7 +55,9 @@ provenance; it cannot independently verify the removed raw body. The separate
 ETags, Link headers, array order/count, accepted observation facts, cursors and
 clocks remain unchanged. Reuse compares normalized facts as well as original page
 identities and Link headers, including mixed raw/projected proofs. Asset pages
-remain bound to their matching release ID/tag. A changed fact schema needs a new
+remain bound to their matching release ID/tag. Historical conditional pages are checked under their original
+complete-cache or restart graph; replacement responses still match the current
+collected release headers. A changed fact schema needs a new
 projection revision and cannot silently gain evidence from an older projection.
 Legacy raw pages remain readable and their original body hashes and input bounds
 are checked before projection. Fresh responses are fully read, charged and
