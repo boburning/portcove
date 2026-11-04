@@ -1182,6 +1182,13 @@ stale machine `aqua.exe` cannot bypass the checkout's batch shim through native
 process lookup. Missing or mismatched cached inputs fail with the bootstrap
 repair command; commands do not install tools or change the persistent `PATH`.
 
+Aqua integrity reads bounded YAML through the existing `yaml` parser, so comments,
+quoting, key order and whitespace do not appoint tool authority. The semantic
+allowlist still requires one standard registry, exact known package versions and
+both checksum switches enabled. Duplicate keys, multiple documents, aliases,
+unknown tags and additional authority fields are refused; publisher-digest and
+checksum inventory verification remain separate and unchanged.
+
 When an Aqua-managed package version changes in `aqua.yaml`, run
 `just aqua-integrity-update` before validation. The fixed-purpose updater invokes
 the pinned Aqua `update-checksum --prune` command against isolated staged copies,

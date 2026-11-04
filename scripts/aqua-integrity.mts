@@ -1,3 +1,4 @@
+import { parseDocument } from "yaml";
 import { isRecord } from "./runtime-values.mts";
 import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
 import { spawnSync } from "node:child_process";
@@ -73,18 +74,47 @@ function exactUnique(values: readonly string[], label: string) {
 }
 
 export function parseAquaConfig(contents: string) {
-  const normalized = contents.replaceAll("\r\n", "\n");
-  const structure =
-    /^# yaml-language-server: \$schema=https:\/\/raw\.githubusercontent\.com\/aquaproj\/aqua\/main\/json-schema\/aqua-yaml\.json\nregistries:\n  - type: standard\n    ref: (\S+)\n\nchecksum:\n  enabled: true\n  require_checksum: true\n\npackages:\n((?:  - name: [^@\s]+@\S+\n?)+)$/u.exec(
-      normalized,
-    );
-  if (!structure)
-    throw new Error(
+  if (Buffer.byteLength(contents, "utf8") > 64 * 1024)
+    throw new Error("aqua.yaml exceeds the 64 KiB configuration limit");
+  const document = parseDocument(contents, { uniqueKeys: true, version: "1.2" });
+  if (
+    document.errors.length ||
+    document.warnings.length ||
+    document.directives?.yaml.version !== "1.2"
+  )
+    throw new Error("Invalid or unsupported Aqua YAML", {
+      cause: document.errors[0] ?? document.warnings[0],
+    });
+  const config: unknown = document.toJS({ maxAliasCount: 0 });
+  const policyError = () =>
+    new Error(
       "aqua.yaml must use the maintained standard registry, required checksums, and default package authority only",
     );
-  const packages = [...(structure[2] ?? "").matchAll(/^ {2}- name: ([^@\s]+)@(\S+)$/gmu)].map(
-    ([, name, version]) => ({ name: name ?? "", version: version ?? "" }),
-  );
+  const hasKeys = (value: unknown, keys: string[]): value is Record<string, unknown> =>
+    isRecord(value) &&
+    Object.keys(value).length === keys.length &&
+    keys.every((key) => Object.hasOwn(value, key));
+  if (
+    !hasKeys(config, ["registries", "checksum", "packages"]) ||
+    !Array.isArray(config.registries) ||
+    config.registries.length !== 1 ||
+    !hasKeys(config.registries[0], ["type", "ref"]) ||
+    config.registries[0].type !== "standard" ||
+    typeof config.registries[0].ref !== "string" ||
+    !/^\S+$/u.test(config.registries[0].ref) ||
+    !hasKeys(config.checksum, ["enabled", "require_checksum"]) ||
+    config.checksum.enabled !== true ||
+    config.checksum.require_checksum !== true ||
+    !Array.isArray(config.packages)
+  )
+    throw policyError();
+  const registryRef = config.registries[0].ref;
+  const packages = config.packages.map((entry: unknown) => {
+    if (!hasKeys(entry, ["name"]) || typeof entry.name !== "string") throw policyError();
+    const match = /^([^@\s]+)@(\S+)$/u.exec(entry.name);
+    if (!match) throw policyError();
+    return { name: match[1]!, version: match[2]! };
+  });
   if (!packages.length) throw new Error("aqua.yaml must define at least one package");
   exactUnique(
     packages.map(({ name }) => name),
@@ -97,8 +127,7 @@ export function parseAquaConfig(contents: string) {
       throw new Error(`${name} must use an exact version`);
     if (!assetInventories[name]) throw new Error(`no maintained platform inventory for ${name}`);
   }
-  if (!structure[1]) throw new Error("Missing standard registry ref");
-  return { registryRef: structure[1], packages };
+  return { registryRef, packages };
 }
 
 export function parseReleaseChecksumId(id: string) {
