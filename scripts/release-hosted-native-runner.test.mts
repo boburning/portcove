@@ -895,7 +895,7 @@ void test(
   "Linux executing custody refuses writable/link/replaced inputs and retains ancestry",
   { skip: process.platform !== "linux" || process.getuid?.() === 0 },
   (t) => {
-    // /tmp is intentionally refused: its writable ancestry cannot protect code.
+    // Exercise private positive custody and an explicitly exposed negative fixture.
     const root = nativeFixtureDirectory(t, ".portcove-runtime-custody-");
     chmodSync(root, 0o700);
     const directory = path.join(root, "tools");
@@ -928,6 +928,9 @@ void test(
     writeFileSync(file, "inert exact bytes", { mode: 0o600 });
     assert.throws(() => recheckNativeRuntimeCustody([file], original), /custody/);
     const temp = mkdtempSync(path.join(os.tmpdir(), "portcove-runtime-unprotected-"));
+    // The configured temp parent may be private. This owned fixture is explicitly
+    // exposed so the custody refusal remains the behavior under test.
+    chmodSync(temp, 0o777);
     t.after(() => rmSync(temp, { recursive: true, force: true }));
     const exposed = path.join(temp, "driver");
     writeFileSync(exposed, "inert", { mode: 0o600 });

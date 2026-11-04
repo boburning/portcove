@@ -59,7 +59,9 @@ console.log('controlled connected Windows runner passed; native and provider pee
 `;
   const result = spawnSync(process.execPath, ["--input-type=module", "--eval", code, root], {
     encoding: "utf8",
-    timeout: 15000,
+    // Nine controlled file rendezvous scenarios share this child; retain finite
+    // headroom under the complete selected suite without changing their clocks.
+    timeout: 30000,
     maxBuffer: 65536,
   });
   assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
