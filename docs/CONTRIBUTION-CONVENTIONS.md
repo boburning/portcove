@@ -6,6 +6,13 @@ turning writing style into a merge gate. `.github/pr-conventions.json` is the
 machine-readable contract; `just pr-check <number-or-url>` reports advisory
 findings against a live pull request.
 
+The live reader uses the shared configured GitHub SDK. It awaits repository
+metadata and commit pages in sequence and refuses incomplete or changing commit
+inventories. Pure convention checks and offline fixtures do not construct a
+network client. The advisory workflow selects trusted base source and installs
+its frozen package set before the step-scoped GitHub credential is supplied;
+variable pull-request inputs remain environment data.
+
 ## Titles and authored commits
 
 Use `type(scope): imperative summary` for pull request titles and commit
