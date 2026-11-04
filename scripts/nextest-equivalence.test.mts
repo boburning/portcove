@@ -576,6 +576,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     "success-output": "immediate",
   });
   const windowsLifecycleFilters = [
+    "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_activation_withdrawal_permits_exact_retained_target$/)",
     "package(portcove-core) & test(/^service::tests::staged_and_rollback_tamper_leave_install_pointers_unchanged$/)",
     "package(portcove-core) & test(/^service::tests::unavailable_artwork_does_not_block_reviewed_install_update_or_supervised_launch$/)",
     "package(portcove-core) & test(/^service::tests::additive_current_mutability_recovers_a_retained_install_and_survives_rollback$/)",
@@ -961,6 +962,10 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
   }
   const calibratedWindowsLifecyclePeriods = new Map<string, number>([
     [
+      "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_activation_withdrawal_permits_exact_retained_target$/)",
+      18,
+    ],
+    [
       "package(portcove-cli) & test(/^artwork_contract::artwork_cli_keeps_cover_and_detail_independent_through_the_local_lifecycle$/)",
       18,
     ],
@@ -970,7 +975,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     ],
     [
       "package(portcove-core) & test(/^service::tests::authenticated_admission_survives_staging_rollback_activation_and_refresh$/)",
-      18,
+      36,
     ],
     [
       "package(portcove-core) & test(/^service::runtime_tests::reflectionhle_progression::reflectionhle_progression_(2683|2684|2685|2686|2687|2688|2689|2690|2692)$/)",

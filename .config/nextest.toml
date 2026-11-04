@@ -508,9 +508,27 @@ success-output = "immediate"
 # causal performance repair. CI40803822488/a1 then reached60.258s after
 # activation56.196s and retained verification57.108s. Extend only this exact
 # progressing harness to90s; preserve refresh/refusal and all assertions.
+# CI41924797014/a1 Windows1 reached the90.320s cutoff after activation
+# at71.830s and all retained contracts verified at73.563s. The remaining
+# status/refresh and revoked-publisher refusals still execute. Give only this
+# exact complete lifecycle finite180s room, keeping every assertion, cleanup,
+# product/child deadline, both workers and zero retries. This is harness
+# calibration, not evidence of a causal performance improvement.
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
 filter = 'package(portcove-core) & test(/^service::tests::authenticated_admission_survives_staging_rollback_activation_and_refresh$/)'
+slow-timeout = { period = "5s", terminate-after = 36, grace-period = "0s" }
+success-output = "immediate"
+
+# CI41924797014/a1 Windows3 cut this exact curated activation fixture at
+#30.024s after activation completed at29.047s, before retained verification
+# and the fresh reopen pass. Its existing phase diagnostics retain that
+# progress. Give this complete two-admission/two-runtime fixture finite90s
+# room, preserving all policy/refusal assertions, cleanup, workers, zero
+# retries and product/child deadlines; completion is not a speedup claim.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_activation_withdrawal_permits_exact_retained_target$/)'
 slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
 success-output = "immediate"
 
