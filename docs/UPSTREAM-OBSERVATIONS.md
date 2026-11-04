@@ -82,8 +82,13 @@ and performs no network requests. The format-1 result is exported by
 Format 2 adds explicit `channel-candidate-assets` coverage for catalog-scale
 observation. It retains every release header in provider order and identifies
 which release IDs have complete asset collections. An inert header-only probe
-asks the same Core projection for channel candidates; the observer then collects
-only those asset collections and revalidates all consumed pages. Missing candidate
+asks the same Core projection for channel candidates; the observer collects
+those asset collections and asks Core again until the current candidates are
+covered. NativePortable uses runtime's platform-stream predicate: a complete
+Linux-only player release can expose the preceding Windows candidate. Uncollected
+assets cannot establish another platform's stream. Each continuation retains
+the existing request, byte and time budgets and revalidates all consumed pages.
+Missing candidate
 coverage produces `release-asset-observation-incomplete`, never metadata eligibility.
 Unknown, repeated or foreign coverage IDs and asset payloads outside declared
 coverage are refused. Format 1 retains its existing full-asset semantics; existing
@@ -102,7 +107,7 @@ Each platform/channel projection retains the latest observed release, its
 channel candidate, latest metadata-eligible asset, and hold reasons. Core's
 existing prerelease policy recognizes RC/preview tags even when the provider's
 prerelease flag is false; Preview (`beta`) retains its existing stable fallback, while
-Rolling requires the catalog's explicit rolling tag. A held newest candidate
+Rolling requires the catalog's explicit rolling tag. A held newest applicable candidate
 does not fall through to an older release and call it current. Missing or
 ambiguous platform assets and absent provider SHA-256 claims remain held.
 The observed host archive flag is retained in the digested facts as maintenance

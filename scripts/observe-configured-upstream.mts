@@ -294,26 +294,12 @@ export async function advanceObservation(
         if (retained) {
           let covered = true;
           if (config.format === 2) {
-            const facts = {
-              ...retained.facts,
-              releases: retained.facts.releases.map((release) => ({ ...release, assets: [] })),
-            };
-            const headers = {
-              ...retained,
-              facts,
-              facts_sha256: observationHash(facts),
-              coverage: {
-                kind: "channel-candidate-assets" as const,
-                complete_release_headers: true as const,
-                asset_release_ids: [],
-              },
-            };
             if (!options.selectAssetReleases)
               throw new ObservationFailure(
                 "core-binding",
                 "Current Core selection is required before provider fact reuse",
               );
-            const selected = await options.selectAssetReleases(headers);
+            const selected = await options.selectAssetReleases(retained);
             const known = new Set(retained.coverage!.asset_release_ids);
             covered = selected.every((id) => known.has(id));
           }

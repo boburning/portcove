@@ -1,10 +1,12 @@
 import { Octokit } from "@octokit/core";
+import { composePaginateRest } from "@octokit/plugin-paginate-rest";
 import {
   GitHubApiError,
   sanitizeOperationError,
   rateLimitFromResponse,
 } from "./github-operation.mts";
 import { isRecord } from "./runtime-values.mts";
+import type { GitHubRateLimit } from "./github-operation.mts";
 
 export type GitHubCredential =
   | { kind: "anonymous" }
@@ -18,6 +20,8 @@ export interface GitHubRequestPolicy {
   attempts: number;
   deadline?: number;
   secondaryFailures?: number;
+  /** An aborted admission may still own cleanup; command owners join this before terminal evidence. */
+  admissionSettled?: Promise<void>;
   reserve?: GitHubClientOptions["reserve"];
 }
 export interface GitHubAttemptObservation {
@@ -28,6 +32,7 @@ export interface GitHubAttemptObservation {
   status: number | null;
   headers: Readonly<Record<string, string>>;
   logicalRequest: GitHubRequestPolicy;
+  rate?: GitHubRateLimit;
 }
 export interface GitHubDeferralState {
   primary: Map<string, number>;
@@ -39,6 +44,7 @@ export interface GitHubClientOptions {
   deadline: number;
   signal?: AbortSignal;
   maxBytes?: number;
+  headers?: Readonly<Record<string, string>>;
   baseUrl?: string;
   fetch?: typeof globalThis.fetch;
   now?: () => number;
@@ -50,11 +56,18 @@ export interface GitHubClientOptions {
   allowRequest?: (method: string, url: URL) => boolean;
   /** Existing domain accounting reserves before dispatch and settles every
    * outcome, including local refusal and cancellation after send. */
-  reserve?: () => {
-    consumeBytes: (bytes: number) => void;
-    settle: (observation: GitHubAttemptObservation) => void;
-  };
+  reserve?: (request: {
+    method: string;
+    url: URL;
+    replay: GitHubRequestPolicy["replay"];
+    signal: AbortSignal;
+  }) => GitHubReservation | Promise<GitHubReservation>;
   observe?: (observation: GitHubAttemptObservation) => void;
+}
+
+export interface GitHubReservation {
+  consumeBytes: (bytes: number) => void;
+  settle: (observation: GitHubAttemptObservation) => void;
 }
 
 const transientStatuses = new Set([408, 500, 502, 503, 504]);
@@ -96,9 +109,10 @@ export async function createGitHubClient(options: GitHubClientOptions) {
   const credentialRemaining = Math.ceil(options.deadline - now());
   if (credentialRemaining < 1)
     throw new GitHubApiError("deadline_exceeded", "GitHub credential deadline exhausted");
+  const credentialTimeout = AbortSignal.timeout(Math.min(2_147_483_647, credentialRemaining));
   const credentialSignal = AbortSignal.any([
     ...(options.signal ? [options.signal] : []),
-    AbortSignal.timeout(Math.min(2_147_483_647, credentialRemaining)),
+    credentialTimeout,
   ]);
   let token: string | undefined;
   try {
@@ -119,10 +133,12 @@ export async function createGitHubClient(options: GitHubClientOptions) {
     credentialSignal.throwIfAborted();
   } catch {
     throw new GitHubApiError(
-      now() >= options.deadline
-        ? "deadline_exceeded"
-        : credentialSignal.aborted
-          ? "cancelled"
+      credentialSignal.aborted
+        ? credentialTimeout.aborted && credentialSignal.reason === credentialTimeout.reason
+          ? "deadline_exceeded"
+          : "cancelled"
+        : now() >= options.deadline
+          ? "deadline_exceeded"
           : "credential_unavailable",
       "GitHub credential resolution did not complete",
     );
@@ -156,7 +172,13 @@ export async function createGitHubClient(options: GitHubClientOptions) {
     userAgent: "Portcove/repository",
     log: { debug() {}, info() {}, warn() {}, error() {} },
   });
+  if (options.headers) {
+    client.request = client.request.defaults({ headers: { ...options.headers } });
+    client.graphql = client.graphql.defaults({ headers: { ...options.headers } });
+  }
   client.hook.wrap("request", async (request, parameters) => {
+    let requestTimedOut = () => false;
+    let deadline = options.deadline;
     try {
       const rawPolicy: unknown = parameters.request?.portcove;
       const policy =
@@ -167,15 +189,17 @@ export async function createGitHubClient(options: GitHubClientOptions) {
           ? (rawPolicy as unknown as GitHubRequestPolicy)
           : { replay: "once" as const, attempts: 0 };
       policy.deadline ??= Math.min(options.deadline, now() + requestTimeoutMs);
-      const deadline = Math.min(options.deadline, policy.deadline);
+      deadline = Math.min(options.deadline, policy.deadline);
       if (deadline <= now())
         throw new GitHubApiError("deadline_exceeded", "GitHub logical request deadline exhausted");
       const requestSignal: unknown = parameters.request?.signal;
+      const timeout = AbortSignal.timeout(Math.min(2_147_483_647, Math.ceil(deadline - now())));
       const signal = AbortSignal.any([
         ...(options.signal ? [options.signal] : []),
-        AbortSignal.timeout(Math.min(2_147_483_647, Math.ceil(deadline - now()))),
+        timeout,
         ...(requestSignal instanceof AbortSignal ? [requestSignal] : []),
       ]);
+      requestTimedOut = () => timeout.aborted && signal.reason === timeout.reason;
       const path = new URL(parameters.url, base).pathname;
       const resource =
         path === "/graphql" ? "graphql" : path.startsWith("/search/") ? "search" : "core";
@@ -210,6 +234,7 @@ export async function createGitHubClient(options: GitHubClientOptions) {
         const started = now();
         let localFailure: unknown;
         let transportFailure: unknown;
+        let requestFailed = false;
         let retryAt = 0;
         let retryDetails: ConstructorParameters<typeof GitHubApiError>[2] = {};
         const observation: GitHubAttemptObservation = {
@@ -221,7 +246,21 @@ export async function createGitHubClient(options: GitHubClientOptions) {
           headers: {},
           logicalRequest: policy,
         };
-        const reservation = (policy.reserve ?? options.reserve)?.();
+        let reservation: GitHubReservation | undefined;
+        const settleAttempt = () => {
+          try {
+            try {
+              reservation?.settle(observation);
+            } catch (error) {
+              if (!requestFailed || !signal.aborted) throw error;
+              const safe = sanitizeOperationError(error, { secrets: token ? [token] : [] });
+              policy.admissionSettled = Promise.reject(new GitHubApiError(safe.code, safe.message));
+              void policy.admissionSettled.catch(() => {});
+            }
+          } finally {
+            options.observe?.(observation);
+          }
+        };
         const boundedFetch: typeof globalThis.fetch = async (input, init) => {
           try {
             const url = new URL(
@@ -308,12 +347,63 @@ export async function createGitHubClient(options: GitHubClientOptions) {
           }
         };
         try {
+          const reserve = policy.reserve ?? options.reserve;
+          if (reserve) {
+            const pending = Promise.resolve().then(() =>
+              reserve({
+                method: parameters.method,
+                url: new URL(parameters.url, base),
+                replay: policy.replay,
+                signal,
+              }),
+            );
+            reservation = await new Promise<GitHubReservation>((resolve, reject) => {
+              let abandoned = false;
+              const abort = () => {
+                abandoned = true;
+                policy.admissionSettled = pending
+                  .then((unused) => {
+                    unused.settle({ ...observation, elapsedMs: now() - started });
+                  })
+                  .catch((error) => {
+                    const safe = sanitizeOperationError(error, { secrets: token ? [token] : [] });
+                    throw new GitHubApiError(safe.code, safe.message);
+                  });
+                // Keep the rejection available to the owning operation's join,
+                // including when it has not observed this attempt yet.
+                void policy.admissionSettled.catch(() => {});
+                reject(signal.reason);
+              };
+              if (signal.aborted) {
+                abort();
+                return;
+              }
+              signal.addEventListener("abort", abort, { once: true });
+              void pending.then(
+                (value) => {
+                  if (abandoned) return;
+                  signal.removeEventListener("abort", abort);
+                  resolve(value);
+                },
+                (error) => {
+                  if (abandoned) return;
+                  signal.removeEventListener("abort", abort);
+                  reject(error);
+                },
+              );
+            });
+          }
+          signal.throwIfAborted();
           // Earlier hooks (notably token auth) bind this original options object.
           // Replacing it here would let that hook discard the bounded fetch.
           parameters.request = { ...parameters.request, fetch: boundedFetch, signal };
           const result = await request(parameters);
           requireJsonValues(result.data as unknown);
           const body: unknown = result.data;
+          observation.rate = rateLimitFromResponse({
+            headers: new Map(Object.entries(observation.headers)),
+            body,
+          });
           if (
             path === "/graphql" &&
             isRecord(body) &&
@@ -334,14 +424,21 @@ export async function createGitHubClient(options: GitHubClientOptions) {
                 response: result,
               },
             );
+          if (now() >= deadline)
+            throw new GitHubApiError(
+              "deadline_exceeded",
+              "GitHub response processing exceeded the original deadline",
+            );
+          signal.throwIfAborted();
           return result;
         } catch (error) {
+          requestFailed = true;
           if (localFailure || signal.aborted) {
             const safe = sanitizeOperationError(localFailure ?? signal.reason, {
               secrets: token ? [token] : [],
             });
             throw new GitHubApiError(
-              signal.aborted ? (now() >= deadline ? "deadline_exceeded" : "cancelled") : safe.code,
+              signal.aborted ? (requestTimedOut() ? "deadline_exceeded" : "cancelled") : safe.code,
               safe.message,
             );
           }
@@ -351,6 +448,7 @@ export async function createGitHubClient(options: GitHubClientOptions) {
             headers: new Map(Object.entries(observation.headers)),
             body,
           });
+          observation.rate = rate;
           const errors: unknown[] =
             path === "/graphql" && isRecord(body) && Array.isArray(body.errors) ? body.errors : [];
           const rateErrors = errors.some(
@@ -440,8 +538,11 @@ export async function createGitHubClient(options: GitHubClientOptions) {
           }
         } finally {
           observation.elapsedMs = now() - started;
-          reservation?.settle(observation);
-          options.observe?.(observation);
+          observation.rate ??= rateLimitFromResponse({
+            headers: new Map(Object.entries(observation.headers)),
+            body: null,
+          });
+          settleAttempt();
         }
         if (retryAt) {
           await waitUntil(retryAt, retryDetails);
@@ -479,15 +580,98 @@ export async function createGitHubClient(options: GitHubClientOptions) {
       throw new GitHubApiError(
         error instanceof GitHubApiError
           ? safe.code
-          : now() >= options.deadline
+          : requestTimedOut()
             ? "deadline_exceeded"
             : aborted
               ? "cancelled"
-              : "invalid_response",
+              : now() >= deadline
+                ? "deadline_exceeded"
+                : "invalid_response",
         safe.message,
         details,
       );
     }
   });
   return client;
+}
+
+/** SDK-owned ordinary pagination with original response envelopes. Inventory
+ * eligibility, stability and completeness remain with each domain owner. */
+export async function* iterateGitHubPages(
+  client: Octokit,
+  options: {
+    url: string;
+    headers?: Record<string, string>;
+    signal?: AbortSignal;
+    deadline?: number;
+    reserve?: GitHubClientOptions["reserve"];
+  },
+) {
+  type Response = Awaited<ReturnType<Octokit["request"]>>;
+  const originals = new WeakMap<object, Response>();
+  const seen = new Set<string>();
+  let failure: Error | undefined;
+  const request = Object.assign(
+    async (parameters: { method: "GET"; url: string; headers: Record<string, string> }) => {
+      try {
+        if (seen.has(parameters.url))
+          throw new GitHubApiError("invalid_response", "GitHub pagination did not advance");
+        seen.add(parameters.url);
+        const response = await client.request({
+          ...parameters,
+          request: {
+            ...(options.signal ? { signal: options.signal } : {}),
+            portcove: {
+              replay: "safe-read",
+              attempts: 0,
+              ...(options.deadline === undefined ? {} : { deadline: options.deadline }),
+              ...(options.reserve ? { reserve: options.reserve } : {}),
+            },
+          },
+        });
+        // The SDK mutates list envelopes during normalization. Retain the
+        // original bounded JSON representation for consumed count/shape checks.
+        originals.set(response, { ...response, data: structuredClone(response.data as unknown) });
+        return response;
+      } catch (error) {
+        failure =
+          error instanceof Error
+            ? error
+            : new GitHubApiError("request_failed", "GitHub pagination request failed");
+        throw failure;
+      }
+    },
+    { endpoint: client.request.endpoint, defaults: client.request.defaults },
+  ) as Octokit["request"] &
+    ((parameters: {
+      method: "GET";
+      url: string;
+      headers?: Record<string, string>;
+    }) => Promise<Response>);
+  const pages: AsyncIterable<unknown> = composePaginateRest.iterator(client, request, {
+    method: "GET",
+    url: options.url,
+    ...(options.headers ? { headers: options.headers } : {}),
+  });
+  try {
+    for await (const page of pages) {
+      // paginate-rest synthesizes an empty 200 for409. No provider failure may
+      // become a successful empty collection at Portcove's boundary.
+      if (failure !== undefined) throw failure;
+      const original = isRecord(page) ? originals.get(page) : undefined;
+      if (!original)
+        throw new GitHubApiError(
+          "invalid_response",
+          "GitHub pagination lost its response evidence",
+        );
+      yield original;
+    }
+  } catch (error) {
+    if (failure !== undefined) throw failure;
+    if (error instanceof GitHubApiError) throw error;
+    throw new GitHubApiError(
+      "invalid_response",
+      "GitHub pagination could not normalize its response",
+    );
+  }
 }

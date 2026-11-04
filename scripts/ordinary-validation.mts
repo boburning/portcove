@@ -2151,6 +2151,12 @@ for (const file of [
   ]);
 }
 
+for (const file of ["scripts/repository-settings.mts", "scripts/repository-settings-policy.mts"])
+  explicitNodeTests.set(file, [
+    ...(explicitNodeTests.get(file) ?? []),
+    "scripts/repository-settings.test.mts",
+  ]);
+
 for (const file of [
   "package.json",
   "pnpm-lock.yaml",
@@ -2158,6 +2164,7 @@ for (const file of [
   "scripts/github-client.test.mts",
   "scripts/github-operation.mts",
   "scripts/github-cli.mts",
+  "scripts/repository-settings.mts",
   "scripts/github-rest-inventory.mts",
   "scripts/roadmap-rest-intake.mts",
   "scripts/aqua-integrity.mts",
@@ -2176,6 +2183,17 @@ explicitNodeTests.set("scripts/aqua-integrity.mts", [
   "scripts/quality-tools.test.mts",
   "scripts/recovery-tools.test.mts",
 ]);
+for (const file of ["scripts/github-cli.mts", "scripts/github-controller-attestation.mts"])
+  explicitNodeTests.set(file, [
+    ...(explicitNodeTests.get(file) ?? []),
+    "scripts/release-controller-tools.test.mts",
+    "scripts/release-coordinator-checkpoint-authentication.test.mts",
+    "scripts/release-signing-context-artifact.test.mts",
+    "scripts/release-publication-result-artifact.test.mts",
+    "scripts/release-tuf-role-artifact.test.mts",
+    "scripts/release-hosted-native-acceptance.test.mts",
+  ]);
+
 for (const name of ["ci-health", "handoff-evidence", "postmerge-ci"]) {
   const file = `scripts/${name}.mts`;
   explicitNodeTests.set(file, [...(explicitNodeTests.get(file) ?? []), `scripts/${name}.test.mts`]);

@@ -96,6 +96,8 @@ async function bundleFixedControllerEntries(
       target: "node24",
       dts: false,
       sourcemap: false,
+      // Repeated dependency closures must fit the unchanged expanded tool cap.
+      minify: true,
       report: false,
       env: {},
       envPrefix: [],

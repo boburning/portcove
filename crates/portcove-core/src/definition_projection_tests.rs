@@ -103,8 +103,8 @@ fn entry(document: &Value, contract: &[u8], port_index: usize) -> Value {
         .any(|runtime| runtime.trust == crate::ExternalRuntimeTrust::UserSelected)
     {
         20
-    } else if crate::persistence::requires_fresh_direct_data_guard(&typed) {
-        25
+    } else if let Some(version) = crate::persistence::fresh_direct_data_guard_capability(&typed) {
+        version
     } else if typed.mod_package_policy.is_some() {
         24
     } else if crate::persistence::ready_staged_archive(&typed) {

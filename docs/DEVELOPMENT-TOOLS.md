@@ -25,7 +25,11 @@ missing arguments. Unset/false defaults retain the existing fallbacks; this is
 not general multi-namespace discovery. The separate missing/provided nested-key
 fixtures exercise the actual CLI without inline defaults. Remove the patch only
 after a mature upstream release handles the configured namespace and passes those
-controls; 1.82.4's linter still guesses namespace names instead of reading the configured default.
+controls; 1.82.4's linter still guesses namespace names instead of reading the
+configured default. The narrow glob 13.0.6 and minimatch 10.2.6 security overrides
+remain in policy: the pinned Renovate 44.156.3 tooling client still declares those
+versions, even though this CLI release consumes glob 14 and minimatch 11 directly.
+Validate their application in each generated tooling-client graph separately.
 
 Root pnpm `patches/*.patch` changes, including removal, select the complete UI
 suite. Their bytes also invalidate format, UI and release evidence fingerprints; unrelated
@@ -372,12 +376,17 @@ Consumers still validate the plan, digest and source bindings; compression is
 only transport. Local legacy `PORTCOVE_PLAN_JSON` input remains supported, while
 ambiguous transports, corrupt data and excessive inflation are rejected.
 
+Stylelint 18 loads the typed configuration directly through Node's native type
+stripping. `lint:style` selects `scripts/stylelint-config.mts` explicitly and then
+checks semantic-color, important-declaration, gradient and invalid-value refusal
+controls with the same configuration. The recommended selector/value rules stay
+enabled; no JavaScript configuration bridge is needed.
+
 The compatibility inventory is exactly:
 
-| File                                     | Consumer requirement                                                                                                                      | Checking and validation                                                                           |
-| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `apps/desktop/public/theme-bootstrap.js` | Static HTML loads this public script before the application; Vite copies public files without transforming TypeScript.                    | Its public-directory project enables `checkJs`; theme bootstrap tests exercise the actual script. |
-| `apps/desktop/stylelint.config.mjs`      | Installed Cosmiconfig 9 rejects `.mts` configuration files. This one-line bridge loads the TypeScript implementation through native Node. | Root `checkJs`, the typed Stylelint configuration and actual `lint:style` execution.              |
+| File                                     | Consumer requirement                                                                                                   | Checking and validation                                                                           |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `apps/desktop/public/theme-bootstrap.js` | Static HTML loads this public script before the application; Vite copies public files without transforming TypeScript. | Its public-directory project enables `checkJs`; theme bootstrap tests exercise the actual script. |
 
 The existing CI workflow contract checks this exact tracked JavaScript inventory.
 An additional compatibility file requires a concrete consumer reason and an
@@ -1014,8 +1023,10 @@ The configured Octokit integration in `scripts/github-client.mts` collects each
 metadata body under a byte cap before SDK parsing, defaults to 16 MiB and a
 15-second request deadline, and retains an original monotonic operation deadline.
 The production `capture-port` path uses asynchronous REST inventory and intake;
-Aqua, handoff evidence, postmerge metadata and CI-health metadata use the same
-factory. API-version headers remain owned by each caller. Existing unmigrated
+Aqua, handoff evidence, postmerge metadata, repository settings and CI-health
+metadata use the same factory. Ordinary pagination uses the SDK iterator while
+preserving raw response/count evidence and refusing synthetic empty results for
+HTTP 409. API-version headers remain owned by each caller. Existing unmigrated
 callers still use the bounded legacy runner during #4319.
 
 Eligible reads have at most three total attempts; writes run once and require

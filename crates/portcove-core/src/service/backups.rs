@@ -27,6 +27,8 @@ use crate::{
     path::refuse_symlink_ancestors,
 };
 
+mod guarded_archive;
+
 /// Doctor consumes history diagnostics without probing live save trees.
 pub(super) struct BackupHistory {
     pub state: BackupInventoryState,
@@ -167,6 +169,7 @@ pub(crate) struct RestoreOperation {
     pub(crate) staged_data: PathBuf,
     pub(crate) user_root: PathBuf,
     pub(crate) previous_data: PathBuf,
+    input_manifest: Option<PathBuf>,
 }
 
 impl RestoreOperation {
@@ -181,7 +184,7 @@ impl RestoreOperation {
             || operation.source_import.is_some()
             || operation.preparation.is_some()
             || operation.preparation_process_quiesced.is_some()
-            || !operation.original_paths.is_empty()
+            || operation.original_paths.len() > 1
         {
             return Err(PortcoveError::state(
                 "backup restore journal has an incompatible identity or family payload",
@@ -197,12 +200,18 @@ impl RestoreOperation {
         store: &OperationStore,
     ) -> Result<()> {
         Self::validate_envelope(operation)?;
+        if guarded_archive::manifest_input(operation, &self.recovery_root)? != self.input_manifest {
+            return Err(PortcoveError::verification(
+                "restore manifest input changed before phase advancement",
+            ));
+        }
         if operation.id != self.id
             || operation.port_id != self.port_id
             || operation.activate != self.replaces_existing_data
             || operation.paths.staging.as_ref() != Some(&self.recovery_root)
             || operation.paths.final_path.as_ref() != Some(&self.user_root)
             || operation.paths.quarantine.as_ref() != Some(&self.previous_data)
+            || operation.original_paths.as_slice() != self.input_manifest.as_slice()
             || operation.phase != self.phase.stored()
             || !matches!(
                 (self.phase, next),
@@ -239,6 +248,7 @@ impl RestoreOperation {
             || operation.paths.staging.as_ref() != Some(&self.recovery_root)
             || operation.paths.final_path.as_ref() != Some(&self.user_root)
             || operation.paths.quarantine.as_ref() != Some(&self.previous_data)
+            || operation.original_paths.as_slice() != self.input_manifest.as_slice()
         {
             return Err(PortcoveError::state(
                 "restore cancellation does not match its prepared identity",
@@ -389,6 +399,10 @@ struct BackupManifest {
     /// Older snapshots retain their original byte-only integrity contract.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     metadata_sha256: Option<String>,
+    /// Versioned build identity, also framed into the content-integrity stream.
+    /// Earlier verifiers cannot silently ignore it and restore the raw tree.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    guarded_archive_v1: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -534,6 +548,9 @@ impl PortcoveService {
                 "{port_id} has no persistent data to back up"
             )));
         }
+        // Both callers have successfully collected the active runtime under the
+        // port lock. A catalog pin cannot supply this producer observation.
+        let producer = self.guarded_backup_producer(port_id)?;
 
         let parent = self.library.backups_dir().join(port_id);
         refuse_symlink_ancestors(&parent)?;
@@ -573,6 +590,11 @@ impl PortcoveService {
             let mut stats = BackupStats::default();
             copy_backup_tree(&source, &staging_path.join("data"), &source, &mut stats)?;
             self.faults.check(LifecycleFaultPoint::BackupDataCopied)?;
+            if self.guarded_backup_producer(port_id)? != producer {
+                return Err(PortcoveError::conflict(
+                    "backup producing installation changed while copying",
+                ));
+            }
             if stats.file_count == 0 {
                 return Err(PortcoveError::not_found(format!(
                     "{port_id} has no persistent data to back up"
@@ -601,8 +623,12 @@ impl PortcoveService {
                 created_at,
                 file_count,
                 size,
-                sha256: hex::encode(hasher.finalize()),
+                sha256: guarded_archive::content_digest(
+                    hasher,
+                    producer.as_ref().map(|p| p.archive_sha256.as_str()),
+                )?,
                 metadata_sha256: Some(hex::encode(metadata_hasher.finalize())),
+                guarded_archive_v1: producer.map(|p| p.archive_sha256),
             };
             let final_path = parent.join(&manifest.id);
             let manifest_path = staging_path.join("backup.json");
@@ -1170,6 +1196,7 @@ impl PortcoveService {
                 "backup restore paths do not match the recorded library and operation identity",
             ));
         }
+        let input_manifest = guarded_archive::manifest_input(operation, &recovery)?;
         for path in [&recovery, &user, &previous, &recovery.join("staged-data")] {
             refuse_symlink_ancestors(path)?;
             crate::runtime_data_policy::refuse_sensitive_tree(path)?;
@@ -1199,6 +1226,7 @@ impl PortcoveService {
             recovery_root: recovery,
             user_root: user,
             previous_data: previous,
+            input_manifest,
         })
     }
 
@@ -1297,7 +1325,12 @@ impl PortcoveService {
             self.faults.check(LifecycleFaultPoint::RestoreAuthorized)?;
             require_reviewed_manifest()?;
             copy_backup_tree(&source_data, &staged_data, &source_data, &mut stats)?;
-            verify_backup_stats(&restored_backup, stats, manifest.metadata_sha256.as_deref())?;
+            verify_backup_stats(
+                &restored_backup,
+                stats,
+                manifest.metadata_sha256.as_deref(),
+                manifest.guarded_archive_v1.as_deref(),
+            )?;
             require_reviewed_manifest()?;
             if self.collectible_data_review(port_id)? != reviewed_runtime
                 || self.canonical_data_review(port_id)? != reviewed_canonical
@@ -1307,6 +1340,11 @@ impl PortcoveService {
                 ));
             }
             self.preflight_psx_mod_restores(port_id, &staged_data)?;
+            self.require_direct_backup_snapshot(
+                port_id,
+                &staged_data,
+                manifest.guarded_archive_v1.as_deref(),
+            )?;
             self.collect_active_user_data_if_launched(port_id)?;
             let collected_canonical = self.canonical_data_review(port_id)?;
 
@@ -1320,9 +1358,11 @@ impl PortcoveService {
                 None
             };
             lifecycle.activate = user_root.exists();
+            self.retain_restore_manifest(&mut lifecycle, &reviewed_manifest)?;
             let mut restore = self.validate_restore_operation(&lifecycle)?;
-            let require_reviewed_data = || -> Result<()> {
+            let require_reviewed_data = |operation: &LifecycleOperation| -> Result<()> {
                 require_reviewed_manifest()?;
+                self.require_restore_snapshot_authority(operation, &staged_data)?;
                 self.preflight_psx_mod_restores(port_id, &staged_data)?;
                 if self.collectible_data_review(port_id)? != reviewed_runtime
                     || self.canonical_data_review(port_id)? != collected_canonical
@@ -1333,12 +1373,12 @@ impl PortcoveService {
                 }
                 Ok(())
             };
-            require_reviewed_data()?;
+            require_reviewed_data(&lifecycle)?;
             restore.advance(RestorePhase::ReadyToPublish, &mut lifecycle, &store)?;
             self.faults.check(LifecycleFaultPoint::RestorePrepared)?;
             let final_review = self
                 .validate_restore_operation(&lifecycle)
-                .and_then(|_| require_reviewed_data());
+                .and_then(|_| require_reviewed_data(&lifecycle));
             if let Err(refusal) = final_review {
                 if let Err(error) =
                     restore.abandon_before_publication(&mut lifecycle, &store, &refusal.message)
@@ -1363,6 +1403,7 @@ impl PortcoveService {
             restore.advance(RestorePhase::Published, &mut lifecycle, &store)?;
             self.faults.check(LifecycleFaultPoint::RestorePublished)?;
             self.validate_restore_operation(&lifecycle)?;
+            self.require_restore_snapshot_authority(&lifecycle, &user_root)?;
             self.synchronize_restored_user_data(port_id)?;
             restore.advance(RestorePhase::Committed, &mut lifecycle, &store)?;
             self.validate_restore_operation(&lifecycle)?;
@@ -1606,6 +1647,7 @@ fn read_backup_manifest(path: &Path, port_id: &str, backup_id: &str) -> Result<B
             &manifest_path,
         ));
     }
+    guarded_archive::validate_binding(manifest.guarded_archive_v1.as_deref())?;
     Ok(manifest)
 }
 
@@ -1755,6 +1797,7 @@ fn verify_backup_stats(
     backup: &BackupRecord,
     stats: BackupStats,
     expected_metadata_sha256: Option<&str>,
+    guarded_archive_v1: Option<&str>,
 ) -> Result<()> {
     let BackupStats {
         file_count,
@@ -1762,7 +1805,7 @@ fn verify_backup_stats(
         hasher,
         metadata_hasher,
     } = stats;
-    let sha256 = hex::encode(hasher.finalize());
+    let sha256 = guarded_archive::content_digest(hasher, guarded_archive_v1)?;
     if let Some(expected) = expected_metadata_sha256 {
         let actual = hex::encode(metadata_hasher.finalize());
         if actual != expected {

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createGitHubClient } from "./github-client.mts";
+import { createGitHubClient, iterateGitHubPages } from "./github-client.mts";
 import type { GitHubAttemptObservation, GitHubRequestPolicy } from "./github-client.mts";
 import { localDeveloperCredential, verifyGitHubAttestation } from "./github-cli.mts";
 import { GitHubApiError } from "./github-operation.mts";
@@ -460,4 +460,501 @@ void test("SDK refuses redirects before following or parsing their response", as
   );
   assert.equal(dispatched, 1);
   assert.equal(cancelled, true);
+});
+
+void test("locked SDK pagination preserves original envelopes and independent page allowances", async () => {
+  const sent: string[] = [];
+  const client = await createGitHubClient({
+    credential: { kind: "anonymous" },
+    deadline: performance.now() + 10000,
+    random: () => 0,
+    fetch: async (input, init) => {
+      const url = new URL(
+        input instanceof Request ? input.url : input instanceof URL ? input.href : input,
+      );
+      assert.equal(new Headers(init?.headers).get("x-github-api-version"), "2022-11-28");
+      const page = Number(url.searchParams.get("page") ?? 1);
+      sent.push(url.href);
+      if (page === 1 && sent.length < 3) return new Response("temporary", { status: 503 });
+      return Response.json(
+        { total_count: 4, jobs: [{ id: page }] },
+        {
+          headers: {
+            "x-github-request-id": `page-${page}`,
+            ...(page < 4
+              ? {
+                  link: `<https://api.github.com/repos/example/repo/actions/jobs?page=${page + 1}>; rel="next"`,
+                }
+              : {}),
+          },
+        },
+      );
+    },
+  });
+  const pages = [];
+  for await (const page of iterateGitHubPages(client, {
+    url: "https://api.github.com/repos/example/repo/actions/jobs",
+    headers: { "X-GitHub-Api-Version": "2022-11-28" },
+  }))
+    pages.push(page);
+  assert.equal(sent.length, 6);
+  assert.deepEqual(
+    pages.map((page) => page.data as unknown),
+    [1, 2, 3, 4].map((id) => ({ total_count: 4, jobs: [{ id }] })),
+  );
+  assert.equal(pages[3]?.headers["x-github-request-id"], "page-4");
+});
+
+void test("SDK pagination cannot turn409 into empty success or loop beyond an admitted page", async () => {
+  for (const mode of ["conflict", "loop"] as const) {
+    let dispatched = 0;
+    const client = await createGitHubClient({
+      credential: { kind: "anonymous" },
+      deadline: performance.now() + 5000,
+      fetch: async () => {
+        dispatched++;
+        return mode === "conflict"
+          ? Response.json({ message: "Conflict" }, { status: 409 })
+          : Response.json([], {
+              headers: { link: '<https://api.github.com/repos/example/repo/rulesets>; rel="next"' },
+            });
+      },
+    });
+    await assert.rejects(
+      async () => {
+        for await (const _page of iterateGitHubPages(client, {
+          url: "https://api.github.com/repos/example/repo/rulesets",
+        })) {
+          /* Consume to establish terminal outcome. */
+        }
+      },
+      (error: unknown) =>
+        error instanceof GitHubApiError &&
+        (mode === "conflict" ? error.status === 409 : error.code === "invalid_response"),
+    );
+    assert.equal(dispatched, 1);
+  }
+});
+
+void test("later SDK pages cannot hide failing streams or reset a collection deadline", async () => {
+  for (const mode of ["stream", "limit", "deadline"] as const) {
+    let dispatched = 0,
+      elapsed = 0;
+    const client = await createGitHubClient({
+      credential: { kind: "anonymous" },
+      deadline: 1000,
+      now: () => elapsed,
+      maxBytes: mode === "limit" ? 4 : 1024,
+      fetch: async () => {
+        dispatched++;
+        if (dispatched === 1) {
+          if (mode === "deadline") elapsed = 1000;
+          return Response.json([], {
+            headers: {
+              link: '<https://api.github.com/repos/example/repo/issues?page=2>; rel="next"',
+            },
+          });
+        }
+        if (mode === "limit") return new Response("overflow");
+        return new Response(
+          new ReadableStream({
+            start(controller) {
+              controller.error(new Error("later page stream failed"));
+            },
+          }),
+        );
+      },
+    });
+    await assert.rejects(
+      async () => {
+        for await (const _page of iterateGitHubPages(client, {
+          url: "https://api.github.com/repos/example/repo/issues",
+        })) {
+          /* Consume all pages. */
+        }
+      },
+      (error: unknown) =>
+        error instanceof GitHubApiError &&
+        (mode === "deadline"
+          ? error.code === "deadline_exceeded"
+          : mode === "limit"
+            ? error.code === "response_limit"
+            : /stream failed/u.test(error.message)),
+    );
+    assert.equal(dispatched, mode === "deadline" ? 1 : 2);
+  }
+});
+
+void test("owned credential and request timeouts remain deadlines with a frozen monotonic clock", async () => {
+  const hold = setTimeout(() => {}, 1000);
+  try {
+    await assert.rejects(
+      createGitHubClient({
+        credential: { kind: "local", resolve: () => new Promise<string>(() => {}) },
+        deadline: 1,
+        now: () => 0,
+      }),
+      (error: unknown) => error instanceof GitHubApiError && error.code === "deadline_exceeded",
+    );
+    const client = await createGitHubClient({
+      credential: { kind: "anonymous" },
+      deadline: 1,
+      now: () => 0,
+      fetch: async (_input, init) =>
+        new Promise<Response>((_resolve, reject) => {
+          const signal = init?.signal;
+          if (!signal) {
+            reject(new Error("Missing request signal"));
+            return;
+          }
+          signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+          if (signal.aborted) reject(signal.reason);
+        }),
+    });
+    await assert.rejects(
+      client.request("GET /rate_limit"),
+      (error: unknown) => error instanceof GitHubApiError && error.code === "deadline_exceeded",
+    );
+    const backingOff = await createGitHubClient({
+      credential: { kind: "anonymous" },
+      deadline: 10000,
+      requestTimeoutMs: 1,
+      now: () => 0,
+      random: () => 0,
+      fetch: async () => new Response("temporary", { status: 503 }),
+      sleep: async (_milliseconds, signal) =>
+        new Promise<void>((_resolve, reject) => {
+          signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+          if (signal.aborted) reject(signal.reason);
+        }),
+    });
+    await assert.rejects(
+      backingOff.request("GET /rate_limit", { request: { portcove: read() } }),
+      (error: unknown) => error instanceof GitHubApiError && error.code === "deadline_exceeded",
+    );
+  } finally {
+    clearTimeout(hold);
+  }
+});
+
+void test("owner cancellation retains its cause when the operation clock reaches the deadline", async () => {
+  for (const phase of ["credential", "request"] as const) {
+    const controller = new AbortController();
+    let now = 0;
+    const options = { deadline: 5000, now: () => now, signal: controller.signal };
+    const work =
+      phase === "credential"
+        ? createGitHubClient({
+            ...options,
+            credential: {
+              kind: "local",
+              resolve: async () => {
+                now = 5000;
+                controller.abort(new Error("owner cancelled"));
+                return "unused";
+              },
+            },
+          })
+        : createGitHubClient({
+            ...options,
+            credential: { kind: "anonymous" },
+            fetch: async () => {
+              now = 5000;
+              controller.abort(new Error("owner cancelled"));
+              throw controller.signal.reason;
+            },
+          }).then((client) => client.request("GET /rate_limit"));
+    await assert.rejects(
+      work,
+      (error: unknown) => error instanceof GitHubApiError && error.code === "cancelled",
+    );
+  }
+});
+
+void test("asynchronous admission settles cancellation before dispatch with no charged request", async () => {
+  let entered!: () => void, release!: () => void;
+  const admitted = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  const hold = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const controller = new AbortController();
+  const settled: GitHubAttemptObservation[] = [];
+  let sends = 0;
+  const client = await createGitHubClient({
+    credential: { kind: "anonymous" },
+    deadline: performance.now() + 5000,
+    signal: controller.signal,
+    async reserve(request) {
+      assert.equal(request.method, "GET");
+      assert.equal(request.url.pathname, "/rate_limit");
+      assert.equal(request.replay, "safe-read");
+      entered();
+      await hold;
+      return {
+        consumeBytes() {},
+        settle(observation) {
+          settled.push(observation);
+        },
+      };
+    },
+    fetch: async () => {
+      sends++;
+      return Response.json({});
+    },
+  });
+  const pending = client.request("GET /rate_limit", { request: { portcove: read() } });
+  const rejected = assert.rejects(
+    pending,
+    (error) => error instanceof GitHubApiError && error.code === "cancelled",
+  );
+  await admitted;
+  controller.abort(new Error("Owner cancelled admission"));
+  assert.equal(sends, 0);
+  release();
+  await rejected;
+  assert.equal(sends, 0);
+  assert.equal(settled.length, 1);
+  assert.equal(settled[0]?.dispatched, false);
+});
+
+void test("parsed GraphQL cost is available on each settled SDK attempt including HTTP200 failure", async () => {
+  for (const failed of [false, true]) {
+    const observations: GitHubAttemptObservation[] = [];
+    const client = await createGitHubClient({
+      credential: { kind: "anonymous" },
+      deadline: performance.now() + 5000,
+      reserve: () => ({
+        consumeBytes() {},
+        settle(value) {
+          observations.push(value);
+        },
+      }),
+      fetch: async () =>
+        Response.json({
+          data: {
+            rateLimit: {
+              cost: 17,
+              remaining: 4000,
+              used: 1000,
+              limit: 5000,
+              resetAt: "2035-01-01T00:00:00Z",
+            },
+          },
+          ...(failed ? { errors: [{ message: "Application refused" }] } : {}),
+        }),
+    });
+    const request = client.request("POST /graphql", {
+      query: "query { rateLimit { cost } }",
+      request: { portcove: { replay: "pure-query", attempts: 0 } },
+    });
+    if (failed)
+      await assert.rejects(
+        request,
+        (error) => error instanceof GitHubApiError && error.code === "graphql_error",
+      );
+    else await request;
+    assert.equal(observations.length, 1);
+    assert.equal(observations[0]?.rate?.cost, 17);
+  }
+});
+
+void test("uncooperative admission cannot extend SDK cancellation or its original request timeout", async (t) => {
+  const keepAlive = setTimeout(() => {}, 2000);
+  t.after(() => clearTimeout(keepAlive));
+  for (const mode of ["cancel", "timeout"] as const) {
+    let entered!: () => void, release!: () => void;
+    const started = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const controller = new AbortController(),
+      policy = read();
+    const settled: GitHubAttemptObservation[] = [];
+    let sends = 0;
+    const client = await createGitHubClient({
+      credential: { kind: "anonymous" },
+      deadline: performance.now() + 1000,
+      requestTimeoutMs: mode === "timeout" ? 10 : 1000,
+      signal: controller.signal,
+      async reserve({ signal }) {
+        assert.ok(signal instanceof AbortSignal);
+        entered();
+        await gate;
+        return {
+          consumeBytes() {},
+          settle(attempt) {
+            settled.push(attempt);
+          },
+        };
+      },
+      fetch: async () => {
+        sends++;
+        return Response.json({});
+      },
+    });
+    const pending = client.request("GET /rate_limit", { request: { portcove: policy } });
+    const refused = assert.rejects(
+      pending,
+      (error) =>
+        error instanceof GitHubApiError &&
+        error.code === (mode === "cancel" ? "cancelled" : "deadline_exceeded"),
+    );
+    await started;
+    if (mode === "cancel") controller.abort(new Error("Cancelled during admission"));
+    await refused;
+    assert.equal(sends, 0);
+    assert.equal(settled.length, 0);
+    assert.ok(policy.admissionSettled, "the operation can join still-owned cleanup");
+    release();
+    await policy.admissionSettled;
+    assert.equal(settled.length, 1);
+    assert.equal(settled[0]?.dispatched, false);
+  }
+});
+
+void test("late unused-reservation cleanup retains its failure without replacing cancellation or leaking the credential", async () => {
+  const token = "prefixless-synthetic-cleanup-secret";
+  let entered!: () => void, release!: () => void;
+  const started = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const controller = new AbortController(),
+    policy = read();
+  const client = await createGitHubClient({
+    credential: { kind: "explicit", token },
+    deadline: performance.now() + 5000,
+    signal: controller.signal,
+    async reserve() {
+      entered();
+      await gate;
+      return {
+        consumeBytes() {},
+        settle() {
+          throw new Error(token);
+        },
+      };
+    },
+    fetch: async () => {
+      throw new Error("No dispatch is permitted");
+    },
+  });
+  const pending = client.request("GET /rate_limit", { request: { portcove: policy } });
+  const cancelled = assert.rejects(
+    pending,
+    (error) => error instanceof GitHubApiError && error.code === "cancelled",
+  );
+  await started;
+  controller.abort();
+  await cancelled;
+  release();
+  assert.ok(policy.admissionSettled);
+  await assert.rejects(
+    policy.admissionSettled,
+    (error) => error instanceof GitHubApiError && !error.message.includes(token),
+  );
+});
+
+void test("postdispatch accounting failure cannot replace cancellation or suppress attempt observation", async () => {
+  const controller = new AbortController(),
+    policy = once();
+  const observations: GitHubAttemptObservation[] = [];
+  let settlements = 0;
+  const client = await createGitHubClient({
+    credential: { kind: "anonymous" },
+    deadline: performance.now() + 5000,
+    signal: controller.signal,
+    reserve: () => ({
+      consumeBytes() {},
+      settle(attempt) {
+        settlements++;
+        assert.equal(attempt.dispatched, true);
+        throw new Error("Accounting cleanup failed");
+      },
+    }),
+    observe: (attempt) => observations.push(attempt),
+    fetch: async () => {
+      controller.abort();
+      throw new DOMException("Cancelled after dispatch", "AbortError");
+    },
+  });
+  await assert.rejects(
+    client.request("POST /graphql", { query: "mutation { write }", request: { portcove: policy } }),
+    (error) => error instanceof GitHubApiError && error.code === "cancelled",
+  );
+  assert.equal(settlements, 1);
+  assert.equal(observations.length, 1);
+  assert.ok(policy.admissionSettled);
+  await assert.rejects(policy.admissionSettled, /Accounting cleanup failed/u);
+});
+
+void test("owner API and media headers apply to SDK REST and GraphQL while explicit request headers retain precedence", async () => {
+  const versions: (string | null)[] = [];
+  const client = await createGitHubClient({
+    credential: { kind: "anonymous" },
+    deadline: performance.now() + 5000,
+    headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
+    fetch: async (_input, init) => {
+      const headers = new Headers(init?.headers);
+      assert.equal(headers.get("accept"), "application/vnd.github+json");
+      versions.push(headers.get("x-github-api-version"));
+      return Response.json(init?.method === "POST" ? { data: { value: "complete" } } : {});
+    },
+  });
+  await client.request("GET /rate_limit");
+  await client.request("GET /rate_limit", { headers: { "X-GitHub-Api-Version": "2026-03-10" } });
+  await client.graphql("query { value }");
+  assert.deepEqual(versions, ["2022-11-28", "2026-03-10", "2022-11-28"]);
+});
+
+void test("malformed quota reset cannot skip a dispatched attempt settlement or observation", async () => {
+  for (const status of [200, 403]) {
+    let settlements = 0;
+    let requests = 0;
+    const observations: GitHubAttemptObservation[] = [];
+    const client = await createGitHubClient({
+      credential: { kind: "anonymous" },
+      deadline: performance.now() + 5000,
+      reserve: () => ({
+        consumeBytes() {},
+        settle() {
+          settlements++;
+        },
+      }),
+      observe: (observation) => observations.push(observation),
+      fetch: async () => {
+        requests++;
+        return Response.json(
+          { message: status === 403 ? "Forbidden" : "Complete" },
+          {
+            status,
+            headers: {
+              "x-ratelimit-resource": "core",
+              "x-ratelimit-reset": "9007199254740991",
+              "x-ratelimit-remaining": "0",
+            },
+          },
+        );
+      },
+    });
+    const result = client.request("GET /rate_limit", { request: { portcove: once() } });
+    if (status === 200) assert.equal((await result).status, 200);
+    else
+      await assert.rejects(
+        result,
+        (error) => error instanceof GitHubApiError && error.status === 403,
+      );
+    assert.equal(requests, 1);
+    assert.equal(settlements, 1);
+    assert.equal(observations.length, 1);
+    assert.equal(observations[0]?.dispatched, true);
+    assert.equal(observations[0]?.status, status);
+    assert.equal(observations[0]?.rate?.resetAt, null);
+  }
 });
