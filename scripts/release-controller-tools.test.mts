@@ -43,6 +43,7 @@ import {
   type ControllerToolArtifactExpected,
 } from "./release-controller-tool-admission.mts";
 import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
+import { readFixtureModuleClosure } from "./fixtures/module-closure.mts";
 import {
   assemblerIdentityFixture,
   expected as identityExpected,
@@ -305,25 +306,24 @@ void test("complete job composite has fixed worker syntax, exclusive key transpo
 void test("fixed source launcher loads without node_modules and rejects arbitrary entries or imported custody before acquisition", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "controller-tool-launch-"));
   t.after(() => rm(root, { recursive: true, force: true }));
-  const copied = new Set<string>();
-  const copy = async (relative: string): Promise<void> => {
-    if (copied.has(relative)) return;
-    copied.add(relative);
-    assert.ok(copied.size < 100);
-    const text = await readFile(path.join(sourceRoot, relative), "utf8");
-    await mkdir(path.dirname(path.join(root, relative)), { recursive: true });
-    await writeFile(path.join(root, relative), text);
-    for (const match of text.matchAll(/\bfrom\s+["']([^"']+)["']/gu)) {
-      const specifier = match[1]!;
-      if (specifier.startsWith("."))
-        await copy(path.posix.normalize(path.posix.join(path.posix.dirname(relative), specifier)));
-      else assert.ok(isBuiltin(specifier), `launcher dependency must be builtin: ${specifier}`);
-    }
-  };
-  await copy("scripts/release-controller-tool-launch.mts");
-  await copy("scripts/release-controller-job-bootstrap.mts");
-  await copy("scripts/release-controller-job-output.mts");
-  await copy("scripts/release-controller-diagnostics.mts");
+  const closure = readFixtureModuleClosure(
+    sourceRoot,
+    [
+      "scripts/release-controller-tool-launch.mts",
+      "scripts/release-controller-job-bootstrap.mts",
+      "scripts/release-controller-job-output.mts",
+      "scripts/release-controller-diagnostics.mts",
+    ],
+    { includeDynamicImports: false },
+  );
+  assert.ok(
+    closure.external.every(isBuiltin),
+    "launcher must need only builtin runtime dependencies",
+  );
+  for (const module of closure.modules) {
+    await mkdir(path.dirname(path.join(root, module.path)), { recursive: true });
+    await writeFile(path.join(root, module.path), module.bytes);
+  }
   const child = spawnSync(
     process.execPath,
     [path.join(root, "scripts/release-controller-tool-launch.mts")],
@@ -1264,25 +1264,20 @@ void test("Windows receiver binds its signed platform, producer, label, issuer a
 void test("the receiver dependency closure loads without npm packages before any role credential", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "controller-receiver-no-deps-"));
   t.after(() => rm(root, { recursive: true, force: true }));
-  const files = [
-    "release-controller-tool-admission",
-    "release-controller-tools",
-    "controller-node-runtime",
-    "release-compiler-source-closure",
-    "github-controller-attestation",
-    "assembler-job-identity",
-    "production-controller-admission",
-    "release-control-phases",
-    "github-api",
-    "release-readonly-child-environment",
-    "release-coordinator-deadline",
-    "github-binary",
-    "runtime-values",
-    "bounded-zip",
-  ];
-  for (const file of files)
-    await copyFile(path.join(sourceRoot, "scripts", `${file}.mts`), path.join(root, `${file}.mts`));
-  const code = `import {receiveControllerTools} from './release-controller-tool-admission.mts'; try { await receiveControllerTools('/unused',{},{}); process.exitCode=99; } catch { console.log('fixed input refused without dependencies'); }`;
+  const closure = readFixtureModuleClosure(
+    sourceRoot,
+    ["scripts/release-controller-tool-admission.mts"],
+    { includeDynamicImports: false },
+  );
+  assert.ok(
+    closure.external.every(isBuiltin),
+    "receiver must need only builtin runtime dependencies",
+  );
+  for (const module of closure.modules) {
+    await mkdir(path.dirname(path.join(root, module.path)), { recursive: true });
+    await writeFile(path.join(root, module.path), module.bytes);
+  }
+  const code = `import {receiveControllerTools} from './scripts/release-controller-tool-admission.mts'; try { await receiveControllerTools('/unused',{},{}); process.exitCode=99; } catch { console.log('fixed input refused without dependencies'); }`;
   const result = spawnSync(process.execPath, ["--input-type=module", "-e", code], {
     cwd: root,
     encoding: "utf8",
