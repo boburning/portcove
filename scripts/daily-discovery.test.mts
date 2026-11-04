@@ -111,7 +111,7 @@ void test(
   },
 );
 void test("bootstrap identity covers the complete statically loaded module closure", async () => {
-  // The filtered Windows reader-sharing route runs before package installation.
+  // Production discovery bootstrap imports precede package installation.
   const { readFixtureModuleClosure } = await import("./fixtures/module-closure.mts");
   const entry = new URL("./daily-discovery.mts", import.meta.url);
   // The maintained production bootstrap list remains the independent expectation.
