@@ -17,7 +17,7 @@ export const rehearsalJobMinutes = Object.freeze({
   provenance: 3,
   sign: 10,
   baseline: 5,
-  installed: 25,
+  installed: 35,
   acceptance: 3,
   draft: 5,
   feed: 5,

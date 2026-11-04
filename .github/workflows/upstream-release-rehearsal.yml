@@ -1,5 +1,5 @@
 # Disposable protected-source rehearsal only. Production remains paused.
-# Serial native caps total106minutes; observed retry admission remains within140.
+# Serial native caps total116minutes; observed retry admission remains within140.
 name: Upstream Windows release rehearsal
 run-name: Nonproduction Windows delivery ${{ github.run_id }}/${{ github.run_attempt }}
 on:
@@ -260,7 +260,7 @@ jobs:
       - sign
       - baseline
     runs-on: windows-2025
-    timeout-minutes: 25
+    timeout-minutes: 35
     permissions:
       contents: read
       actions: read

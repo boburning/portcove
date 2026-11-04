@@ -49,7 +49,9 @@ executor attempts remain distinct. Missing original outputs refuse. Do not rerun
 jobs to rebuild an existing package or overwrite an existing draft/published asset.
 At most three attempts are admitted; observed completed runtime plus the full
 remaining native job ceilings must still fit application140. The serial job ceilings
-total106minutes. The shared application/catalog concurrency group preserves their
+total116minutes. The installed job allows35minutes for its two predecessor builds,
+driver provisioning and native/empty-HTTPS checks; the earlier single cold predecessor
+build took about14minutes. The shared application/catalog concurrency group preserves their
 mutual exclusion; account$0 Stop usage, unknown headroom and no paid fallback remain.
 Archives are bounded and structurally checked before extraction; assembly is capped
 at2GiB with the existing tighter256MiB file limit. Candidate-controlled caches/hooks
