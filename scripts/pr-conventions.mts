@@ -461,7 +461,7 @@ async function sdkPullRequestReader(repository: string): Promise<PullRequestRead
   const headers = { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" };
   return {
     async readPull(number) {
-      return (
+      const data: unknown = (
         await sdk.request({
           method: "GET",
           url: `https://api.github.com/repos/${repository}/pulls/${number}`,
@@ -469,9 +469,10 @@ async function sdkPullRequestReader(repository: string): Promise<PullRequestRead
           request: { portcove: { replay: "safe-read", attempts: 0 } },
         })
       ).data;
+      return data;
     },
     async readCommitPage(query, variables) {
-      return (
+      const data: unknown = (
         await sdk.request({
           method: "POST",
           url: "https://api.github.com/graphql",
@@ -480,12 +481,14 @@ async function sdkPullRequestReader(repository: string): Promise<PullRequestRead
           request: { portcove: { replay: "pure-query", attempts: 0 } },
         })
       ).data;
+      return data;
     },
   };
 }
 
 async function commitPages(repository: string, number: number, api: PullRequestReader) {
   const [owner, name] = repository.split("/");
+  if (!owner || !name) throw new Error("Pull request repository identity is unavailable");
   const query = `
     query($owner: String!, $name: String!, $number: Int!, $endCursor: String) {
       repository(owner: $owner, name: $name) {

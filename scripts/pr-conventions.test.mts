@@ -10,7 +10,6 @@ import {
   renderFindings,
   validatePrConventionConfig,
 } from "./pr-conventions.mts";
-import { isRecord } from "./runtime-values.mts";
 import type { PrConventionFinding } from "./pr-conventions.mts";
 import type { PullRequestReader } from "./pr-conventions.mts";
 
