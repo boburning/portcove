@@ -281,7 +281,7 @@ void test("Windows storage installs pinned root dependencies after native-only c
       step.name === "Test native compiler and shell integrations without frontend dependencies",
   );
   const setup = steps.findIndex(
-    (step) => step.uses === "pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413",
+    (step) => step.uses === "pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115",
   );
   const install = steps.findIndex(
     (step) =>

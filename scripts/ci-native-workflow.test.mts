@@ -642,7 +642,7 @@ function assertOriginalControllerImportSetup(job: Record<string, unknown>) {
       isRecord(node.with),
   );
   assert.equal(node.with["node-version-file"], ".node-version");
-  assert.equal(manager.uses, "pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413");
+  assert.equal(manager.uses, "pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115");
   assert.equal(manager.with.package_json_file, "package.json");
   assert.equal(typeof installation.run, "string");
   assert.deepEqual(executableLines(String(installation.run)), [
