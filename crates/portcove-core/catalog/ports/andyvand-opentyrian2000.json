@@ -27,14 +27,18 @@
         {
           "title": "Use the included player",
           "instruction": "Finish setup with opentyrian2000.exe and its folder, then choose Play. For other packages that require additional data, follow the upstream Tyrian 2000 data instructions."
-        },
+        }
+      ],
+      "warnings": [
+        "Apply upstream updates separately and keep your existing data, configuration and progress backed up. This downloaded copy remains upstream/player-owned."
+      ],
+      "help_url": "https://github.com/andyvand/opentyrian2000#readme",
+      "references": [
         {
           "title": "Keep your current copy when updating",
           "instruction": "Apply upstream updates separately and keep your existing data, configuration and progress backed up. This downloaded copy remains upstream/player-owned."
         }
-      ],
-      "warnings": [],
-      "help_url": "https://github.com/andyvand/opentyrian2000#readme"
+      ]
     },
     "download_asset_hints": {
       "windows-x86-64": ["opentyrian2000-MinGW-X86_64.zip"]

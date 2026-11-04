@@ -28,7 +28,10 @@
     "manual_setup": {
       "help_url": "https://github.com/Mikompilation/MikuPan/blob/ec204d75441e98d8bd43ddd95cae744eb683f00c/README.md",
       "warnings": [
-        "Portcove downloads are paused while the selected package’s embedded Adobe CenturyOldStyleStd-Regular font has no established attributable acquisition/distribution grant. Its name table identifies Adobe copyright and All rights reserved; the project’s AGPL does not establish that separate font’s grant. Keep an existing permitted copy. Reconsider when upstream supplies the applicable resource permission or removes/replaces that font."
+        "Portcove downloads are paused while the selected package’s embedded Adobe CenturyOldStyleStd-Regular font has no established attributable acquisition/distribution grant. Its name table identifies Adobe copyright and All rights reserved; the project’s AGPL does not establish that separate font’s grant. Keep an existing permitted copy. Reconsider when upstream supplies the applicable resource permission or removes/replaces that font.",
+        "Close the game, keep the working folder, and extract a new permitted player separately.",
+        "Back up the SDL profile for Mikompilation/MikuPan, including mikupan.ini, memory-card saves, albums and PNG captures; on Windows this is normally under AppData/Roaming.",
+        "Preserve the original-data folder separately. External registration leaves every file untouched and provides no managed Update, Backup or Rollback. Runtime replacement does not rewind saves or establish older-version readability."
       ],
       "steps": [
         {
@@ -38,7 +41,9 @@
         {
           "title": "Choose the original-data folder on first Play",
           "instruction": "The native player asks for the folder containing the missing game files on first deliberate Play and remembers your selection. Keep that original-data folder outside any separately managed runtime so replacing a player does not replace your originals. The package is portable and has no installer. Source builds have their own CMake/dependency instructions. Linux is a separate upstream route; macOS is an experimental Apple Silicon community build with no maintained hardware coverage, not Windows qualification."
-        },
+        }
+      ],
+      "references": [
         {
           "title": "Back up the actual profile before updating",
           "instruction": "You or upstream update this external copy. Close the game, keep the working folder, and extract a new permitted player separately. Back up the SDL profile for Mikompilation/MikuPan, including mikupan.ini, memory-card saves, albums and PNG captures; on Windows this is normally under AppData/Roaming. If SDL cannot supply a profile directory, upstream uses the local MikuPan directory instead; retain that too. Preserve the original-data folder separately. External registration leaves every file untouched and provides no managed Update, Backup or Rollback. Runtime replacement does not rewind saves or establish older-version readability."

@@ -28,14 +28,18 @@
         {
           "title": "Choose game content on first Play",
           "instruction": "The early pre-alpha player can use your own Civilization III Conquests or Complete files. Select your original game folder in the player, or choose standalone mode only when you have permission for its bundled placeholder assets. The original Civilization III executable does not need to run."
-        },
+        }
+      ],
+      "warnings": [
+        "Preserve the complete working copy and your chosen save locations before replacing it, including C7.ini and custom Text, Assets or Lua content. The save dialog can write to your original Civ3 folder. Portcove saves launch details without adopting or deleting external files and offers no managed backup or runtime rollback for this copy."
+      ],
+      "help_url": "https://github.com/C7-Game/OpenCiv3/blob/5a2a868b3411db71528d7b0fd51d80cdbb37aac1/README.md",
+      "references": [
         {
           "title": "Preserve your working copy and saves",
           "instruction": "You or upstream provide runtime updates. Preserve the complete working copy and your chosen save locations before replacing it, including C7.ini and custom Text, Assets or Lua content. The save dialog can write to your original Civ3 folder. Portcove saves launch details without adopting or deleting external files and offers no managed backup or runtime rollback for this copy."
         }
-      ],
-      "warnings": [],
-      "help_url": "https://github.com/C7-Game/OpenCiv3/blob/5a2a868b3411db71528d7b0fd51d80cdbb37aac1/README.md"
+      ]
     },
     "download_block_reason": "The published Dutch preview package includes separately credited placeholder assets whose README says the Assets repository is not licensed. The engine MIT license does not cover them; individual compatible grants remain unestablished. Use an existing copy you are permitted to use. Reconsider acquisition when the offered package omits the affected assets or attributable permission covers them.",
     "recommended_download_channel": "beta"

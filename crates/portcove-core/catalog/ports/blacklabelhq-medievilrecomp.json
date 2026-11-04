@@ -26,14 +26,18 @@
         {
           "title": "Choose your original disc in the game",
           "instruction": "Choose Play when ready, then use MediEvil’s disc picker to select your own supported North American MediEvil CUE/BIN or CHD. The game validates the disc; Portcove does not supply original game files or run preparation tools during discovery."
-        },
+        }
+      ],
+      "warnings": [
+        "MediEvilRecomp has an in-game updater that replaces its own runtime. Keep that upstream-owned route and a separate copy of your working folder before updating. Keep settings.json, interface layout, memory-card files and custom mods with that copy, and preserve the original disc separately. Portcove leaves the external files untouched and does not provide managed Update, Backup or Rollback."
+      ],
+      "help_url": "https://github.com/BlackLabelHQ/MediEvilRecomp/blob/b9e46db34db40d6e5c8e19b538e4d517299a4012/README.md",
+      "references": [
         {
           "title": "Let the game provide updates",
           "instruction": "MediEvilRecomp has an in-game updater that replaces its own runtime. Keep that upstream-owned route and a separate copy of your working folder before updating. Keep settings.json, interface layout, memory-card files and custom mods with that copy, and preserve the original disc separately. Portcove leaves the external files untouched and does not provide managed Update, Backup or Rollback."
         }
-      ],
-      "warnings": [],
-      "help_url": "https://github.com/BlackLabelHQ/MediEvilRecomp/blob/b9e46db34db40d6e5c8e19b538e4d517299a4012/README.md"
+      ]
     },
     "download_asset_hints": {
       "windows-x86-64": ["MediEvilRecomp-", "-windows-x64.zip"]

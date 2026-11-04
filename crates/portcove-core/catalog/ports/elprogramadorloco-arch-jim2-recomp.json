@@ -28,18 +28,22 @@
           "instruction": "Select out/EarthwormJim2_Recompiled.exe from the successful upstream build, use its complete out/ directory as working directory and leave arguments empty. Keep the matching bios/, assets/, mods/, game.toml and companion output files. This is the documented finished player, not run.bat, update.bat, the portable toolchain or setup intermediates. Select the same complete own CUE in the upstream player if requested. Saving launch details and Play are separate actions; setup, PGO/rebuild and updater actions remain outside this entry."
         },
         {
-          "title": "Back up active state before startup and every rebuild",
-          "instruction": "Preserve the entire creating out/ directory plus all active external roots. Defaults include executable-adjacent settings.toml, disc/BIOS .cfg sidecars, saves/ with card1.mcd/card2.mcd, options and save states, mods/, reports/logs/cache/captures and any custom card paths. Established --memcard-dir, explicit card files or PSX_OVERLAY_CAPTURE_ROOT overrides are separate roots; keep exact existing choices. Startup may replace an old settings.toml.bad and rename malformed settings.toml there; save both outside the installation before starting. No save-format or cross-version mod compatibility is promised. Before startup, also preserve the loose legacy state_*.pst files, their openbios/ and scph1001/ destination subfolders and .pst_bios_isolated marker in a separate backup: upstream can move those legacy states into BIOS-scoped subfolders during its first migration. This does not establish cross-BIOS or cross-build save-state compatibility."
-        },
-        {
           "title": "Keep build cleanup and runtime replacement with upstream",
           "instruction": "Upstream/player owns run.bat, update.bat, generation, runtime replacement and recovery. The build installs into out/ and removes/replaces existing out/bios, out/assets and out/mods before copying its new versions; back up your custom mods and old complete output outside those destinations before each build/update. Close every actual game or optional rebuild/restart successor before maintenance and review/relink changed selected bytes afterward. Portcove does not follow optional setup/rebuild successors. Removing registration preserves external files; no Portcove-managed update, rollback, backup, migration or external deletion is offered."
         }
       ],
       "warnings": [
-        "Release ZIPs are source-only updater packages, not complete runnable players. Upstream reports incomplete audio and unverified end-to-end level transitions; keep the old complete build and state when updating. The pinned framework is restricted to noncommercial use."
+        "Release ZIPs are source-only updater packages, not complete runnable players. Upstream reports incomplete audio and unverified end-to-end level transitions; keep the old complete build and state when updating. The pinned framework is restricted to noncommercial use.",
+        "Preserve the entire creating out/ directory plus all active external roots.",
+        "Startup may replace an old settings.toml.bad and rename malformed settings.toml there; save both outside the installation before starting. No save-format or cross-version mod compatibility is promised. Before startup, also preserve the loose legacy state_*.pst files, their openbios/ and scph1001/ destination subfolders and .pst_bios_isolated marker in a separate backup: upstream can move those legacy states into BIOS-scoped subfolders during its first migration. This does not establish cross-BIOS or cross-build save-state compatibility."
       ],
-      "help_url": "https://github.com/elprogramadorloco-arch/jim2-recomp/blob/a7a68daab33c4ff3b6fba1250b9babf04f25e61f/README.md"
+      "help_url": "https://github.com/elprogramadorloco-arch/jim2-recomp/blob/a7a68daab33c4ff3b6fba1250b9babf04f25e61f/README.md",
+      "references": [
+        {
+          "title": "Back up active state before startup and every rebuild",
+          "instruction": "Preserve the entire creating out/ directory plus all active external roots. Defaults include executable-adjacent settings.toml, disc/BIOS .cfg sidecars, saves/ with card1.mcd/card2.mcd, options and save states, mods/, reports/logs/cache/captures and any custom card paths. Established --memcard-dir, explicit card files or PSX_OVERLAY_CAPTURE_ROOT overrides are separate roots; keep exact existing choices. Startup may replace an old settings.toml.bad and rename malformed settings.toml there; save both outside the installation before starting. No save-format or cross-version mod compatibility is promised. Before startup, also preserve the loose legacy state_*.pst files, their openbios/ and scph1001/ destination subfolders and .pst_bios_isolated marker in a separate backup: upstream can move those legacy states into BIOS-scoped subfolders during its first migration. This does not establish cross-BIOS or cross-build save-state compatibility."
+        }
+      ]
     }
   }
 }
