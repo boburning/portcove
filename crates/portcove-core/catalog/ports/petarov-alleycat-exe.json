@@ -15,7 +15,8 @@
     "manual_setup": {
       "help_url": "https://github.com/petarov/alleycat.exe#readme",
       "warnings": [
-        "The player stores fullscreen and PCjr settings in SDL’s per-user petarov/alleycat preferences folder. If that preferences location is unavailable, the reviewed source does not create a local runtime fallback."
+        "The player stores fullscreen and PCjr settings in SDL’s per-user petarov/alleycat preferences folder. If that preferences location is unavailable, the reviewed source does not create a local runtime fallback.",
+        "Before changing versions, close the game and preserve the actual preferences folder and a separate copy of the working runtime."
       ],
       "steps": [
         {
