@@ -1,4 +1,10 @@
 import {
+  acceptPackagePlayerObservation,
+  checkPackagePlayerObservationContinuity,
+  packagePlayerProjection,
+  packagePlayerProjectionKey,
+} from "./package-player-observation.mts";
+import {
   mkdirSync,
   mkdtempSync,
   lstatSync,
@@ -47,6 +53,7 @@ interface PrepareOptions {
   catalogRoot: string;
   outputDirectory: string;
   record?: unknown;
+  packageObservation?: { receipt: unknown; reference: string };
   projectUrl?: string | undefined;
   issue?: string | undefined;
   id?: string | undefined;
@@ -568,6 +575,23 @@ export async function preparePort(options: PrepareOptions) {
       },
     });
     if (previous) checkLineageChange(previous, record);
+    if (previous?.package_observation_v1) {
+      // An explicit record is a proposal, never a replacement history authority.
+      if (record.package_observation_v1) {
+        checkPackagePlayerObservationContinuity(
+          previous.package_observation_v1,
+          record.package_observation_v1,
+        );
+      } else {
+        const listing = { ...record.listing };
+        delete listing.platforms;
+        record = checkedAuthoredPort({
+          ...record,
+          listing,
+          package_observation_v1: previous.package_observation_v1,
+        });
+      }
+    }
     checkObservedRepository(record, metadata.id);
     if (
       !record.integration &&
@@ -587,6 +611,42 @@ export async function preparePort(options: PrepareOptions) {
       // observing one release must not replace its deliberate ongoing route.
       record.listing.release_url = facts.release.body.html_url;
       record = checkedAuthoredPort(record);
+    }
+    let packageObservation: unknown;
+    if (options.packageObservation) {
+      const receipt = options.packageObservation.receipt;
+      const rows = isRecord(receipt) && Array.isArray(receipt.rows) ? receipt.rows : undefined;
+      if (rows && rows.length > 128)
+        throw new Error("Accepted package receipt exceeds its finite row bound.");
+      const candidates: unknown[] = rows
+        ? rows.filter((row) => isRecord(row) && row.id === id)
+        : [receipt];
+      if (candidates.length !== 1)
+        throw new Error("Accepted package receipt needs one exact selected title row.");
+      const observation = acceptPackagePlayerObservation(
+        record,
+        candidates[0],
+        options.packageObservation.reference,
+        previous?.package_observation_v1 ?? record.package_observation_v1,
+      );
+      const key = packagePlayerProjectionKey(record, observation);
+      let projection = cachedValue(root, "package-player", key);
+      const reused = projection !== undefined;
+      if (projection === undefined) {
+        projection = packagePlayerProjection(record, observation);
+        retainValue(root, "package-player", key, projection);
+      }
+      const listing = { ...record.listing };
+      delete listing.platforms;
+      record = checkedAuthoredPort({ ...record, listing, package_observation_v1: observation });
+      packageObservation = {
+        reused,
+        scope_sha256: observation.scope_sha256,
+        cache_key: key,
+        projection,
+        scope:
+          "Accepted exact package/player evidence projected descriptively; no fresh byte inspection, support or publication authority.",
+      };
     }
     const records = authored.records.filter((entry) => entry.listing.id !== id).concat(record);
     const acceptedArtwork = artworkCatalog(authored.records);
@@ -637,6 +697,7 @@ export async function preparePort(options: PrepareOptions) {
       port_id: id,
       route: record.integration ? "existing-integration" : (options.route ?? "listing"),
       lineage: assessUpstreamLineage(record),
+      ...(packageObservation === undefined ? {} : { package_observation: packageObservation }),
       canonical_preparation: canonicalPreparationFeedback(record, facts),
       portable_preparation: portablePreparationFeedback(record, facts),
       download_preparation: downloadPreparationFeedback(record, facts),
@@ -911,6 +972,8 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     "--artwork-ids",
     "--refresh-artwork",
     "--listing-observations",
+    "--package-observation",
+    "--package-observation-reference",
   ]);
   for (let index = 2; index < process.argv.length; index += 2) {
     const name = process.argv[index]!;
@@ -952,6 +1015,8 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const route = values.get("--route") ?? "listing";
   if (route !== "listing" && route !== "download")
     throw new Error("--route must be listing or download.");
+  if (values.has("--package-observation") !== values.has("--package-observation-reference"))
+    throw new Error("Package observations require their exact retained receipt reference.");
   const input = values.get("--record");
   const identities = values.get("--identities");
   const common = {
@@ -993,6 +1058,19 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
                 record: parseCatalogSource(
                   readArtworkInput(input, 512 * 1024).bytes.toString("utf8"),
                 ),
+              }
+            : {}),
+          ...(values.get("--package-observation")
+            ? {
+                packageObservation: {
+                  receipt: parseCatalogSource(
+                    readArtworkInput(
+                      values.get("--package-observation")!,
+                      16 * 1024 * 1024,
+                    ).bytes.toString("utf8"),
+                  ),
+                  reference: values.get("--package-observation-reference")!,
+                },
               }
             : {}),
           route,

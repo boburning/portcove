@@ -134,6 +134,15 @@ export function projectRouteFacts(record: AuthoredPort): AuthoredPort {
   const steps: unknown[] = guide.steps;
   const warnings: unknown[] = guide.warnings;
   const references: unknown[] = guide.references ?? [];
+  const addedSteps = facts.managed_native ? 2 : 1;
+  const addedReferences = facts.managed_native ? 3 : 2;
+  if (
+    steps.length + references.length + addedSteps + addedReferences > 8 ||
+    warnings.length + (facts.managed_native?.warnings.length ?? 0) > 8
+  )
+    throw new Error(
+      "Expanded route guide exceeds the concrete guide's eight-entry bound; combine related bespoke instructions before generation.",
+    );
   guide.steps = [
     ...(facts.managed_native ? [facts.managed_native.preparation] : []),
     ...steps,

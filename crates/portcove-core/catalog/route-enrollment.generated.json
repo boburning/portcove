@@ -15,6 +15,20 @@
       "managed_native": true
     },
     {
+      "port_id": "mother-3-mother-3-recomp",
+      "prepared_player": {
+        "executable": "Mother3Recomp.exe",
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "saves/mother3_en_v13.sav and its .sav.bak retained by upstream battery-save import",
+          "state/settings data, config.ini, keybinds.ini, game.toml, rom.cfg and bios.cfg",
+          "mods/rom-patches and existing external original/patch/save paths"
+        ]
+      },
+      "managed_native": false
+    },
+    {
       "port_id": "mstan-tetrisgbrecomp",
       "prepared_player": {
         "executable": "Tetris.exe",
