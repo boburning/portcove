@@ -3983,8 +3983,59 @@ mod tests {
                 };
                 release
             };
-            let provider = Arc::new(Provider(Mutex::new(package("fixture-n", 1))));
-            let mut service = build_service(library.clone(), provider.clone());
+            // The real provider resolves controlled upstream API and checksum
+            // responses. Only the upstream producer's observed facts may change.
+            let published = Arc::new(Mutex::new(Vec::<serde_json::Value>::new()));
+            let checksum = Arc::new(Mutex::new(String::new()));
+            let api_published = published.clone();
+            let api_checksum = checksum.clone();
+            let repository_path = format!("/repos/{}", declared.release.repository);
+            let releases_path = format!("{repository_path}/releases?");
+            let (api_root, api_requests, api_server) =
+                crate::test_http::serve_routed_http_with_budget(
+                    128,
+                    Duration::from_secs(900),
+                    move |request| {
+                        let path = request
+                            .split_whitespace()
+                            .nth(1)
+                            .expect("fixture request path");
+                        let body = if path == repository_path {
+                            serde_json::json!({"id":1100,"archived":false}).to_string()
+                        } else if path.starts_with(&releases_path) {
+                            serde_json::to_string(&*api_published.lock().unwrap()).unwrap()
+                        } else if path == "/checksums.txt" {
+                            api_checksum.lock().unwrap().clone()
+                        } else {
+                            panic!("unexpected dynamic provider request: {path}");
+                        };
+                        format!(
+                            "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                            body.len()
+                        )
+                    },
+                );
+            let release_metadata = |release: &ResolvedRelease, identity: u64, sidecar: bool| {
+                let mut assets = vec![serde_json::json!({
+                    "id":identity * 10, "name":release.asset.name,
+                    "browser_download_url":release.asset.url, "size":release.asset.size,
+                    "digest":if sidecar { None } else { Some(format!("sha256:{}", release.asset.sha256)) }
+                })];
+                if sidecar {
+                    let body = format!("{}  {}\n", release.asset.sha256, release.asset.name);
+                    *checksum.lock().unwrap() = body.clone();
+                    assets.push(serde_json::json!({"id":identity*10+1,"name":"checksums.txt",
+                        "browser_download_url":format!("{api_root}/checksums.txt"),"size":body.len(),"digest":null}));
+                }
+                serde_json::json!({"id":identity,"tag_name":release.version,"draft":false,
+                    "prerelease":false,"published_at":null,"assets":assets})
+            };
+            let first_release = package("fixture-n", 1);
+            *published.lock().unwrap() = vec![release_metadata(&first_release, 1, false)];
+            let mut provider =
+                Arc::new(crate::GithubReleaseProvider::with_api_root(api_root.clone()).unwrap());
+            let mut service =
+                PortcoveService::with_provider(library.clone(), provider.clone()).unwrap();
             service.replace_catalog_for_test(fixed.clone());
             struct Trace(std::time::Instant);
             impl LifecycleFaultInjector for Trace {
@@ -4018,8 +4069,29 @@ mod tests {
                 fs::write(first.path.join(sram), b"conventional guest SRAM").unwrap();
             }
             service.create_backup(id).unwrap();
-            *provider.0.lock().unwrap() = package("fixture-next", 2);
+            let next_release = package("fixture-next", 2);
+            let next_metadata = release_metadata(&next_release, 2, true);
+            let mut held = next_metadata.clone();
+            let mut duplicate = held["assets"][0].clone();
+            duplicate["id"] = serde_json::json!(99);
+            held["assets"].as_array_mut().unwrap().push(duplicate);
+            *published.lock().unwrap() = vec![held];
+            // A normal client restart keeps the same compiled binary, authored
+            // definition and library, without altering the five-minute provider
+            // cache or reaching into its private state to fabricate expiry.
+            provider =
+                Arc::new(crate::GithubReleaseProvider::with_api_root(api_root.clone()).unwrap());
+            service = PortcoveService::with_provider(library.clone(), provider.clone()).unwrap();
+            service.replace_catalog_for_test(fixed.clone());
+            service.faults = Arc::new(Trace(started));
+            let held = service.check_update(id).await.unwrap_err();
+            assert_eq!(held.code, crate::ErrorCode::Conflict);
+            assert_eq!(service.status(id).unwrap().active.unwrap().id, first.id);
+            assert!(service.status(id).unwrap().staged.is_none());
+            *published.lock().unwrap() = vec![next_metadata];
             let update = service.check_update(id).await.unwrap();
+            assert_eq!(update.release.version, "fixture-next");
+            assert_eq!(update.release.asset.sha256, next_release.asset.sha256);
             assert!(update.update_available);
             let source_contract = fixed
                 .source_catalog()
@@ -4104,7 +4176,7 @@ mod tests {
             service
                 .restore_backup(id, &backup.id, &consent.token)
                 .unwrap();
-            let mut restarted = build_service(library.clone(), provider);
+            let mut restarted = PortcoveService::with_provider(library.clone(), provider).unwrap();
             restarted.replace_catalog_for_test(fixed);
             assert_eq!(restarted.status(id).unwrap().active.unwrap().id, first.id);
             assert_eq!(
@@ -4173,12 +4245,30 @@ mod tests {
                     "opaque preservation must not grant fresh runtime data-compatibility authority"
                 );
             }
+            api_server.join().unwrap();
+            let requests = api_requests.try_iter().collect::<Vec<_>>();
+            assert!(
+                requests
+                    .iter()
+                    .any(|request| request.contains("/releases?"))
+            );
+            assert!(
+                requests
+                    .iter()
+                    .any(|request| request.starts_with("GET /checksums.txt ")),
+                "the real resolver must automatically resolve the producer's checksum sidecar"
+            );
             assert!(completed.insert(id));
             eprintln!(
                 "{}",
                 serde_json::json!({"kind":"compiled-core-controlled-release", "port_id":id,
                 "client_sha256":client_sha256, "authored_definition_sha256":definition_sha256,
                 "from_archive":first.artifact.sha256,"to_archive":second.artifact.sha256,
+                "provider":"actual-github-release-resolver-with-controlled-http",
+                "next_integrity":"controlled-upstream-sha256-sidecar",
+                "refresh_boundary":"same-binary-client-restart; production cache unchanged",
+                "held_candidate":"ambiguous-assets; corrected metadata without authored edits",
+                "provider_http_requests":requests.len(),
                 "maintainer_interventions_after_freeze":0,"upstream_game_executed":false,
                 "outcome":"passed", "duration_ms":started.elapsed().as_millis()})
             );
