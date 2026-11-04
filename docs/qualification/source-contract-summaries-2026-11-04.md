@@ -10,7 +10,7 @@ All40 changed authored records pass `checkedAuthoredPort`. Every non-summary fie
 
 Fresh complete canonical contexts preserve31 OPEN and9 CLOSED owners, with unchanged specifications from the retained source read. No issue or Project mutation is requested by this metadata delivery, and already closed owners are not reopened. The R61 ambiguous Project platform-field holds, including #341, are not retried or reset. The record-only checkpoint commit was refused by the normal indexed-projection guard; preserve that refusal and generate/stage the combined40-record projection without bypassing the guard.
 
-**Delivery accounting:**40 substantive metadata changes; one finite source/setup-summary component; zero new operational integrations, complete title outcomes, direct Required-beta outcomes or whole parent/cohort closures. Direct Required owners #150/#812 receive clearer descriptions while their full holds remain. All existing acceptance remains canonical. No source, game/package permission, native, installed, gameplay, real-save, Supported or protected-publication claim is added.
+**Delivery accounting:**40 substantive metadata changes; one finite source/setup-summary component; zero new operational integrations, complete title outcomes, direct Required-beta outcomes or whole parent/cohort closures. Historical Direct-route owners #150/#812 receive clearer descriptions while their full holds remain. All existing acceptance remains canonical. No source, game/package permission, native, installed, gameplay, real-save, Supported or protected-publication claim is added.
 
 ## Compact per-port table
 
