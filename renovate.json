@@ -284,7 +284,10 @@
     },
     {
       "customType": "regex",
-      "managerFilePatterns": ["/^\\.github\\/workflows\\/release\\.yml$/"],
+      "managerFilePatterns": [
+        "/^\\.github\\/workflows\\/release\\.yml$/",
+        "/^scripts\\/release-workflow\\.test\\.mts$/"
+      ],
       "matchStrings": ["syft-version:\\s*v(?<currentValue>\\d+\\.\\d+\\.\\d+)"],
       "depNameTemplate": "anchore/syft",
       "datasourceTemplate": "github-releases",

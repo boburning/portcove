@@ -48,6 +48,7 @@ function parsedWorkflow(text: string) {
   assert.ok(isRecord(parsed) && isRecord(parsed.jobs));
   return parsed as Record<string, unknown> & { jobs: Record<string, Record<string, unknown>> };
 }
+const reviewedSyftInput = "syft-version: v1.56.0";
 const workflowData = parsedWorkflow(workflow);
 function job(name: string) {
   const selected = workflowData.jobs[name];
@@ -286,7 +287,7 @@ void test("assembler reconciles the full matrix then generates and checksums the
   const finalize = assembleSection.indexOf("finalize-release-assets.mts");
   const upload = assembleSection.indexOf("name: release-final");
   assert(reconcile >= 0 && sbom > reconcile && finalize > sbom && upload > finalize);
-  assert.match(assembleSection, /syft-version: v1\.55\.0/);
+  assert.ok(assembleSection.includes(reviewedSyftInput));
   assert.match(assembleSection, /upload-release-assets: false/);
   assert.match(
     assembleSection,
