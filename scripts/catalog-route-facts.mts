@@ -61,8 +61,9 @@ function literalArguments(value: unknown): value is string[] {
 }
 function selectionInstruction(executable: string, arguments_: readonly string[]) {
   // JSON already escapes C0; escape DEL/C1 too for Core-readable guide text.
-  const literal = JSON.stringify(arguments_).replace(/[\u007f-\u009f]/gu, (character) =>
-    `\\u${character.charCodeAt(0).toString(16).padStart(4, "0")}`,
+  const literal = JSON.stringify(arguments_).replace(
+    /[\u007f-\u009f]/gu,
+    (character) => `\\u${character.charCodeAt(0).toString(16).padStart(4, "0")}`,
   );
   return `Select ${executable} and use its containing folder as the working directory. ${arguments_.length ? `Enter these literal argument values in order, one array item per argument: ${literal}.` : "Leave arguments empty."} Keep the complete independently permitted runtime and finish the title-specific preparation before Play.`;
 }
@@ -105,7 +106,9 @@ export function checkRouteFacts(
       "Prepared-player facts need a bounded Windows basename, executable-parent folder, literal arguments and data locations.",
     );
   if (Buffer.byteLength(selectionInstruction(executable, player.arguments)) > 4096)
-    throw new Error("Prepared-player arguments exceed the concrete guide's 4096-byte instruction bound.");
+    throw new Error(
+      "Prepared-player arguments exceed the concrete guide's 4096-byte instruction bound.",
+    );
   if (value.managed_native !== undefined) {
     const managed = value.managed_native;
     if (!isRecord(managed) || !isRecord(managed.preparation))

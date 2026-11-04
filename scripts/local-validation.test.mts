@@ -3362,7 +3362,11 @@ void test("route authoring modules retain actual generator integrity in local an
         [{ status: change.status, path: change.newPath, previousPath: change.oldPath }],
         options,
       );
-      const plan = buildValidationPlan({ changes: [change], eventName: "pull_request", ...identities });
+      const plan = buildValidationPlan({
+        changes: [change],
+        eventName: "pull_request",
+        ...identities,
+      });
       const hosted = baselineContractTests(plan, options);
       for (const consumer of [`scripts/${name}.test.mts`, "scripts/generate-catalog.test.mts"]) {
         assert.ok(local.nodeTests.has(consumer), `${variant} ${file}: local ${consumer}`);
@@ -3370,7 +3374,8 @@ void test("route authoring modules retain actual generator integrity in local an
       }
       assert.equal(
         baselineIntegrityCommands(plan, options).filter(
-          (args) => JSON.stringify(args) === JSON.stringify(["scripts/generate-catalog.mts", "--check"]),
+          (args) =>
+            JSON.stringify(args) === JSON.stringify(["scripts/generate-catalog.mts", "--check"]),
         ).length,
         1,
         `${variant} ${file}: actual generated-output check`,
@@ -3383,7 +3388,9 @@ void test("route authoring modules retain actual generator integrity in local an
     eventName: "pull_request",
     ...identities,
   });
-  assert.ok(!baselineIntegrityCommands(plan).some((args) => args[0] === "scripts/generate-catalog.mts"));
+  assert.ok(
+    !baselineIntegrityCommands(plan).some((args) => args[0] === "scripts/generate-catalog.mts"),
+  );
 });
 
 void test("catalog generator families retain shared inputs and narrow authoring to its consumers", async () => {

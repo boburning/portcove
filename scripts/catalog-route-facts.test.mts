@@ -230,8 +230,14 @@ void test("rendered literal arguments preserve Core-readable guide bytes and esc
   const checked = checkedAuthoredPort(raw);
   const rendered = selector(checked);
   assert.ok(rendered.includes('"\\u007f","\\u0085"'));
-  assert.doesNotMatch(rendered, /[\u0000-\u001f\u007f-\u009f]/u);
-  assert.deepEqual(routeEnrollment([checked]).cases[0]!.prepared_player.arguments, ["\u007f", "\u0085"]);
+  for (const character of rendered) {
+    const code = character.charCodeAt(0);
+    assert.ok(code >= 32 && (code < 127 || code > 159));
+  }
+  assert.deepEqual(routeEnrollment([checked]).cases[0]!.prepared_player.arguments, [
+    "\u007f",
+    "\u0085",
+  ]);
 });
 
 void test("ordinary declarations generate distinct bounded title tests without authored Rust", () => {
