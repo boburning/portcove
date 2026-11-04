@@ -26,10 +26,6 @@
           "instruction": "Window size, monitor, VSync or adapter changes can make the next launcher Play start a successor window/process; upstream restart explicitly relaunches and quits the selected process. Finish settings/setup/restart and upstream updater work separately, close every actual game/helper/successor, then attach the resulting prepared player. Do not register trg-updater.exe or rely on automatic successor adoption/termination. Upstream/user is the sole runtime-replacement owner; Core offers no external update or rollback."
         },
         {
-          "title": "Back up the actual user-data root before first prepared startup",
-          "instruction": "The selected source uses user_data/ beside the program, or explicit --user_data_root; if the default is not writable it refuses rather than claiming another profile. Preserve settings.toml, all4D5307DC profile/campaign/header data, save-versions/base and tu6 snapshots, achievements, caches, separate originals/game/, logs and every actual --cache_root/--update_data_root/custom location. No legacy Documents migration is inferred from another title. Keep a separate complete recovery copy outside upstream transaction/workspace directories."
-        },
-        {
           "title": "Retain upstream save switching and cleanup boundaries",
           "instruction": "Normal startup selects base or the separately installed TU6 guest and can recover an interrupted save switch, snapshot/swap live profile and campaign/header slots, then remove completed .switch-* staging under save-versions. These are upstream-owned writes, not Portcove migration or cross-version compatibility promises. TU6 and Four-Play/Free-for-All DLC are optional separately owned inputs with their own exact source checks; Free-for-All requires TU6. Do not remove/update content through this guide. The updater constructor may remove %TEMP%/trg-update-* directories older than24hours; ordinary exit may remove non-crash session logs unless detailed logging is enabled. Preserve recovery/diagnostic copies separately before startup/maintenance."
         },
@@ -40,7 +36,16 @@
       ],
       "warnings": [
         "This guide’s source evidence is for v0.6.2; later source revisions differ. The published package SHA-256 is the provider’s expected value. Portcove has not inspected the ZIP or executable files or confirmed which source and SDK produced them.",
-        "No actual player/helper/installer/game, native session, real save, installed-client, Supported or protected acceptance was performed. Own hard-exit/renderer/save/updater claims retain source scope, not observed safety or playability."
+        "No actual player/helper/installer/game, native session, real save, installed-client, Supported or protected acceptance was performed. Own hard-exit/renderer/save/updater claims retain source scope, not observed safety or playability.",
+        "Keep a separate complete recovery copy outside upstream transaction/workspace directories.",
+        "Normal startup selects base or the separately installed TU6 guest and can recover an interrupted save switch, snapshot/swap live profile and campaign/header slots, then remove completed .switch-* staging under save-versions. These are upstream-owned writes, not Portcove migration or cross-version compatibility promises.",
+        "The updater constructor may remove %TEMP%/trg-update-* directories older than24hours; ordinary exit may remove non-crash session logs unless detailed logging is enabled. Preserve recovery/diagnostic copies separately before startup/maintenance."
+      ],
+      "references": [
+        {
+          "title": "Back up the actual user-data root before first prepared startup",
+          "instruction": "The selected source uses user_data/ beside the program, or explicit --user_data_root; if the default is not writable it refuses rather than claiming another profile. Preserve settings.toml, all4D5307DC profile/campaign/header data, save-versions/base and tu6 snapshots, achievements, caches, separate originals/game/, logs and every actual --cache_root/--update_data_root/custom location. No legacy Documents migration is inferred from another title. Keep a separate complete recovery copy outside upstream transaction/workspace directories."
+        }
       ]
     },
     "download_block_reason": "Fresh acquisition of this Crackdown Windows package is held: its own v0.6.2 source requires and bundles the TRG launcher at b384a28c712c9320eea8f9d50639dec49981b6c1, for which upstream explicitly defers an applicable license grant. Resume with attributable permission covering that selected component/package operation or a separately reviewed supported route excluding it. This condition does not prohibit independently permitted completed-copy registration or establish a title-wide rights ruling."

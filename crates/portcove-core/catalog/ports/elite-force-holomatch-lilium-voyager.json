@@ -29,10 +29,6 @@
           "instruction": "Select the completed native Windows liliumvoyhm client (the selected Makefile adds the actual architecture/Windows executable suffix), not liliumvoyded or another dedicated server or an original-game installer. Keep its established working directory and explicit supported +set fs_basepath / +set fs_homepath arguments where used. Finish upstream setup and dependencies first; do not point a Quake III player at Elite Force data."
         },
         {
-          "title": "Keep the complete installation and effective profile",
-          "instruction": "Default Windows user files use AppData/Lilium Voyager; baseEF, client configuration, demos, screenshots, downloaded packages/mods and custom directories follow the actual fs_homepath/fs_game settings. Preserve the complete creating installation and every effective original/home/custom root. Failed home lookup or deliberate overrides can use installation-relative paths; never assume only the named default contains player files. Existing peers, server connectivity and multiplayer behavior are unqualified."
-        },
-        {
           "title": "Review the completed player and intent",
           "instruction": "Complete upstream preparation and a normal start/quit with the intended permitted copy before attachment. Review its actual native executable, creating working directory and established supported literal arguments, consent to the selected intent, then choose Play separately. Attachment does not certify original data, gameplay or save compatibility."
         },
@@ -43,7 +39,14 @@
       ],
       "warnings": [
         "Use only components you are already permitted to use; public engine source or releases do not grant original-game, music, mod or middleware rights.",
-        "Keep the complete creating runtime and all actual effective data/profile roots before changes. Another executable can share the same player profile."
+        "Keep the complete creating runtime and all actual effective data/profile roots before changes. Another executable can share the same player profile.",
+        "Preserve the complete creating installation and every effective original/home/custom root. Failed home lookup or deliberate overrides can use installation-relative paths; never assume only the named default contains player files. Existing peers, server connectivity and multiplayer behavior are unqualified."
+      ],
+      "references": [
+        {
+          "title": "Keep the complete installation and effective profile",
+          "instruction": "Default Windows user files use AppData/Lilium Voyager; baseEF, client configuration, demos, screenshots, downloaded packages/mods and custom directories follow the actual fs_homepath/fs_game settings. Preserve the complete creating installation and every effective original/home/custom root. Failed home lookup or deliberate overrides can use installation-relative paths; never assume only the named default contains player files. Existing peers, server connectivity and multiplayer behavior are unqualified."
+        }
       ]
     }
   }

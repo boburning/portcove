@@ -42,10 +42,6 @@
           "instruction": "The launcher stays alive, hides to the tray during Play and watches its child game; when the game exits it harvests the card and returns Home. The launcher supplies required renderer environment, config, per-session files and card locks. Quit/save through the game, wait for the upstream launcher to finish card handling, then close the launcher to end the selected session. Closing it while playing asks first and can end the game through its kill-on-close job. Do not register an internal payload, bypass the owner or assume closing Portcove provides a save checkpoint."
         },
         {
-          "title": "Preserve effective saves and recovery paths",
-          "instruction": "Large data normally stays in <install>/data; a nonwritable install may read that folder while writing to %LOCALAPPDATA%/GT4Recomp. Per-user settings, controls, save/replay libraries and card backups normally use %APPDATA%/GT4Recomp, with upstream fallback/read layers retained during migration. Before Play the launcher builds the runtime card from its library, then harvests after exit; do not edit card/library files concurrently. It prunes older session folders to 20 and may rewrite corrupt update metadata to .json.bad. Preserve all current/fallback/legacy roots before maintenance; do not assume cross-version save compatibility."
-        },
-        {
           "title": "Keep update and restart transitions upstream-owned",
           "instruction": "Upstream owns setup, renderer downloads/updates, runtime replacement, data movement and recovery. A launcher update starts its installer and exits; WebView recovery can restart the launcher in safe mode. Complete these transitions outside the registered normal session and revalidate the resulting launcher. Portcove does not reproduce renderer environment, follow replacement processes, acquire originals or delete/restore external data."
         },
@@ -56,7 +52,15 @@
       ],
       "warnings": [
         "Use an independently permitted complete installation; bundled brand/cover artwork permission is a separate acquisition condition.",
-        "Track the official launcher session and let it own preparation, renderer environment, card handling and ordinary game launch. Optional installer/WebView restarts are not followed."
+        "Track the official launcher session and let it own preparation, renderer environment, card handling and ordinary game launch. Optional installer/WebView restarts are not followed.",
+        "Keep the backups outside old installation cleanup targets. Startup can move user and large data, flatten textures and remove the old per-user program/game folder, fixed shortcuts and registry entries. The running installation and its data-folder layout are excluded from that legacy cleanup; do not rely on an old executable folder as your recovery copy.",
+        "Before Play the launcher builds the runtime card from its library, then harvests after exit; do not edit card/library files concurrently. It prunes older session folders to 20 and may rewrite corrupt update metadata to .json.bad. Preserve all current/fallback/legacy roots before maintenance; do not assume cross-version save compatibility."
+      ],
+      "references": [
+        {
+          "title": "Preserve effective saves and recovery paths",
+          "instruction": "Large data normally stays in <install>/data; a nonwritable install may read that folder while writing to %LOCALAPPDATA%/GT4Recomp. Per-user settings, controls, save/replay libraries and card backups normally use %APPDATA%/GT4Recomp, with upstream fallback/read layers retained during migration. Before Play the launcher builds the runtime card from its library, then harvests after exit; do not edit card/library files concurrently. It prunes older session folders to 20 and may rewrite corrupt update metadata to .json.bad. Preserve all current/fallback/legacy roots before maintenance; do not assume cross-version save compatibility."
+        }
       ]
     },
     "download_block_reason": "Fresh acquisition of the selected branded GT4Recomp Windows package is held while the applicable permission or authorized-source basis for its bundled cover-front artwork and derived brand assets remains unresolved. NOTICE leaves the cover-art licence for owner confirmation; the MIT code grant does not resolve it. Resume on an attributable applicable basis or a reviewed supported de-branded package/preparation; independently permitted complete installations remain separate."

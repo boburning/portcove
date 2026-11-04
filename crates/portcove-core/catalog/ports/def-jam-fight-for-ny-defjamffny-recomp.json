@@ -33,18 +33,21 @@
           "instruction": "Select <install>/DefJamLauncher.exe, use that actual install root as working directory, and leave arguments empty. This documented native launcher reads installed.ini, supplies the chosen DEFJAM_DATA, DEFJAM_INSTALL_DIR and log root, and starts the recorded compiled player with its recorded source directory as child working directory. It holds play.lock and waits for that child to exit. Do not select the setup wizard, setup scripts or an internal versioned defjam_recomp.exe. Saving launch details and Play are separate actions. An interrupted setup transaction requires upstream setup recovery."
         },
         {
-          "title": "Back up every active data and recovery root before startup or maintenance",
-          "instruction": "Preserve the complete chosen data folder: settings.ini, save/ (including UserData, TitleData, cache and partition images), extracted originals, mods, texture/HD caches and artwork. Also retain setup logs under %LOCALAPPDATA%/DefJamSetup/logs, install logs, and the active version source/logs; custom RECOMP_SETTINGS or RECOMP_SAVE_DIR paths remain separate roots when present. The pinned runtime copies missing disc UDATA metadata without overwriting it; its legacy save-name compatibility lookup does not rename or rewrite saves. Preserve any older game-side UserData/TitleData and unconfigured %LOCALAPPDATA%/xboxrecomp saves separately; no automatic migration or save compatibility is promised."
-        },
-        {
           "title": "Keep replacement and cleanup with upstream setup",
           "instruction": "Close the game before upstream install/repair/update/rebuild/uninstall. Setup owns its activation journal, versioned builds and stable launcher; successful older builds may be retained, failed/cancelled attempts remove their own candidate, and upstream uninstall removes recognized application versions/launcher/receipts while retaining player data and originals. Preserve independent backups outside those application/version paths before maintenance. Review the selected release’s actual offered operations; documented future updater protocol is not proof of a published compatible pair. After replacement review/relink changed launcher bytes. Removing Portcove registration preserves external files; Portcove does not own update, rollback, backup, migration or deletion."
         }
       ],
       "warnings": [
-        "Pinned v0.12.3 source and release metadata only: no installer/payload/provenance bytes, generated output, compiler, native game, real save, installed-client or protected qualification was performed. The project MIT licence covers its code, not the original game; the pinned toolkit has separate MIT/LGPL-2.1-or-later and component notices. Preserve applicable notices and use independently permitted inputs/components. Network multiplayer and complete gameplay compatibility are not claimed."
+        "Pinned v0.12.3 source and release metadata only: no installer/payload/provenance bytes, generated output, compiler, native game, real save, installed-client or protected qualification was performed. The project MIT licence covers its code, not the original game; the pinned toolkit has separate MIT/LGPL-2.1-or-later and component notices. Preserve applicable notices and use independently permitted inputs/components. Network multiplayer and complete gameplay compatibility are not claimed.",
+        "Preserve any older game-side UserData/TitleData and unconfigured %LOCALAPPDATA%/xboxrecomp saves separately; no automatic migration or save compatibility is promised."
       ],
-      "help_url": "https://github.com/vyanhursky/DefJamFFNY-recomp/blob/65038d047249c3456fe037cd91d07f8bce81653d/docs/setup-installer.md"
+      "help_url": "https://github.com/vyanhursky/DefJamFFNY-recomp/blob/65038d047249c3456fe037cd91d07f8bce81653d/docs/setup-installer.md",
+      "references": [
+        {
+          "title": "Back up every active data and recovery root before startup or maintenance",
+          "instruction": "Preserve the complete chosen data folder: settings.ini, save/ (including UserData, TitleData, cache and partition images), extracted originals, mods, texture/HD caches and artwork. Also retain setup logs under %LOCALAPPDATA%/DefJamSetup/logs, install logs, and the active version source/logs; custom RECOMP_SETTINGS or RECOMP_SAVE_DIR paths remain separate roots when present. The pinned runtime copies missing disc UDATA metadata without overwriting it; its legacy save-name compatibility lookup does not rename or rewrite saves. Preserve any older game-side UserData/TitleData and unconfigured %LOCALAPPDATA%/xboxrecomp saves separately; no automatic migration or save compatibility is promised."
+        }
+      ]
     }
   },
   "upstream_lineage": {

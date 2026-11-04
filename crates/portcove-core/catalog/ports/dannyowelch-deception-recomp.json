@@ -33,18 +33,21 @@
           "instruction": "Choose the package-root Deception.exe with that complete package directory as working directory and no arguments for the established saved-disc layout. Its Windows stub waits for bin/DeceptionLauncher.exe; the launcher loads and calls the prepared Deception game assembly in that child process until play returns. Keep that supplied chain intact. If your established setup deliberately passes the supported disc path as its first argument, preserve that exact path as one argument. Saving launch details and requesting Play are separate actions; do not select a setup executable, generator, DLL or private build-cache path."
         },
         {
-          "title": "Preserve all effective profile and build locations",
-          "instruction": "The packaged launcher changes its own working directory to %LOCALAPPDATA%/Deception, or an already established DECEPTION_DATA override. Preserve settings.json, interface.ini, carda.sav/cardb.sav and their backups/metadata, builds/, mods/ with .cache, crashes, logs and every effective custom root. Upstream startup can copy missing player files from earlier Verdite2/KingsField2/KingsField2Recomp or installation locations and copy legacy named folders/cached assemblies; existing destination files are kept and the source is not deleted by these copy routines. Keep separate backups of old and new roots before first startup and do not infer save compatibility from those historical names. Portcove does not create an environment override or perform that migration."
-        },
-        {
           "title": "Keep runtime replacement with upstream and the player",
           "instruction": "Upstream/player owns setup, first-run rebuilds, runtime replacement, update choices and all external originals/player files. A changed version can require another keyed build and clean its temporary generated-source directory; keep recovery data outside disposable build work. Finish deliberate maintenance with actual players and companions closed, retain a working copy and profiles, then review/relink changed selected executable bytes. Removing registration preserves external files; Portcove does not promise external update, backup, rollback, save conversion or deletion."
         }
       ],
       "warnings": [
-        "Pinned source and provider metadata only: no ZIP/installer/PE inspection, first-run generation, game/helper execution, real saves, installed-client or protected acceptance. Exact original content hashes, package/source correspondence and full-playthrough compatibility remain unqualified. Other games and Linux routes do not inherit this Windows evidence."
+        "Pinned source and provider metadata only: no ZIP/installer/PE inspection, first-run generation, game/helper execution, real saves, installed-client or protected acceptance. Exact original content hashes, package/source correspondence and full-playthrough compatibility remain unqualified. Other games and Linux routes do not inherit this Windows evidence.",
+        "Upstream startup can copy missing player files from earlier Verdite2/KingsField2/KingsField2Recomp or installation locations and copy legacy named folders/cached assemblies; existing destination files are kept and the source is not deleted by these copy routines. Keep separate backups of old and new roots before first startup and do not infer save compatibility from those historical names. Portcove does not create an environment override or perform that migration."
       ],
-      "help_url": "https://github.com/dannyowelch/deception-recomp/blob/fd60be7758bb20ef6622c6055f00ada1b6b7ded4/README.md"
+      "help_url": "https://github.com/dannyowelch/deception-recomp/blob/fd60be7758bb20ef6622c6055f00ada1b6b7ded4/README.md",
+      "references": [
+        {
+          "title": "Preserve all effective profile and build locations",
+          "instruction": "The packaged launcher changes its own working directory to %LOCALAPPDATA%/Deception, or an already established DECEPTION_DATA override. Preserve settings.json, interface.ini, carda.sav/cardb.sav and their backups/metadata, builds/, mods/ with .cache, crashes, logs and every effective custom root. Upstream startup can copy missing player files from earlier Verdite2/KingsField2/KingsField2Recomp or installation locations and copy legacy named folders/cached assemblies; existing destination files are kept and the source is not deleted by these copy routines. Keep separate backups of old and new roots before first startup and do not infer save compatibility from those historical names. Portcove does not create an environment override or perform that migration."
+        }
+      ]
     }
   },
   "upstream_lineage": {

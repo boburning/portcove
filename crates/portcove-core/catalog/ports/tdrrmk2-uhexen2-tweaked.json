@@ -20,16 +20,19 @@
         {
           "title": "Select the OpenGL player",
           "instruction": "Extract the complete Windows test ZIP into that prepared working copy. Select glh2.exe with the working game folder, then choose Play. This is a Win32 OpenGL Hexen II preview, not HexenWorld."
-        },
+        }
+      ],
+      "warnings": [
+        "Updates remain upstream/player-owned. Portcove registration does not manage original data, patching, saves or expansion compatibility.",
+        "Back up the complete folder before applying upstream updates, including portals or custom mod folders when used. Portal of Praevus requires its own portals/pak3.pak and the separate launch argument -portals."
+      ],
+      "help_url": "https://github.com/TDRRmk2/uhexen2-tweaked#readme",
+      "references": [
         {
           "title": "Preserve the whole working copy",
           "instruction": "Windows saves, configuration, demos and screenshots use the selected game directory, normally data1. Back up the complete folder before applying upstream updates, including portals or custom mod folders when used. Portal of Praevus requires its own portals/pak3.pak and the separate launch argument -portals."
         }
-      ],
-      "warnings": [
-        "Updates remain upstream/player-owned. Portcove registration does not manage original data, patching, saves or expansion compatibility."
-      ],
-      "help_url": "https://github.com/TDRRmk2/uhexen2-tweaked#readme"
+      ]
     },
     "download_asset_hints": {
       "windows-x86-64": ["H2HoT-Tweaked-", "-win32.zip"]

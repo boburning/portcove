@@ -2991,7 +2991,10 @@
       "recommended_download_channel": "stable",
       "manual_setup": {
         "help_url": "https://github.com/k4zmu2a/SpaceCadetPinball/blob/Release_2.1.0/README.md",
-        "warnings": [],
+        "warnings": [
+          "Close the game and preserve your original/custom resources, any chosen external font, and the SpaceCadetPinball user profile before changing versions.",
+          "Verify your options and progress in the new copy before retiring the old one. Removing the Portcove registration leaves every external file untouched; it does not provide managed Update, Backup or Rollback."
+        ],
         "steps": [
           {
             "title": "Keep the player and your game resources together",
@@ -3004,7 +3007,9 @@
           {
             "title": "Keep the intended table and its scores together",
             "instruction": "For Release 2.1.0, use a separate working folder for the table data you intend to play. The player searches the working folder before its executable folder and user profile; it normally tries Full Tilt CADET.DAT before Windows PINBALL.DAT, then DEMO.DAT. Its Prefer 3D Pinball data option changes that file preference. Keep the matching resource set together rather than mixing editions. The same imgui_pb.ini stores options, controls and high-score names/scores; preserve it as a complete file with its verification value, not selected score lines. Other player copies can share that profile. Changing the runtime folder does not isolate it, and original Windows registry scores are not automatically imported."
-          },
+          }
+        ],
+        "references": [
           {
             "title": "Keep your profile and resources when updating",
             "instruction": "You or upstream provide updates to this external copy. Close the game and preserve your original/custom resources, any chosen external font, and the SpaceCadetPinball user profile before changing versions. On Windows the normal profile is %APPDATA%\\SpaceCadetPinball and includes imgui_pb.ini; it is separate from the downloaded player folder. Verify your options and progress in the new copy before retiring the old one. Removing the Portcove registration leaves every external file untouched; it does not provide managed Update, Backup or Rollback."
@@ -10654,16 +10659,20 @@
             "instruction": "On Windows, use the official Windows ZIP and select raze.exe with the extracted player folder as its working directory. Keep the DLLs, raze.pk3 and soundfonts together. Registration does not start the player; Play does. Raze may ask which detected game/edition to use, because the same player supports several games. For a fixed entry, Change launch details can use two argument lines: -gamegrp, then the local Windows drive-letter absolute path (for example C:/Games/...) to your BLOOD.RFF archive. Use Raze’s game picker for UNC/network paths; this fixed-entry example does not establish a POSIX/macOS path rule. Keep that archive’s companion files together."
           },
           {
-            "title": "Keep the shared profile this game uses",
-            "instruction": "Windows normally keeps raze.ini in Documents/My Games/raze, saves under the system Saved Games/Raze folder, and screenshots in the system Screenshots/Raze folder; redirected Windows known folders can change those absolute locations. A writable raze_portable.ini outside Program Files uses the player folder with Save and Screenshots instead. Custom -config/-savedir locations remain external. Normal save roots contain game/edition subfolders. A custom -savedir disables that partition, so keep a separate chosen directory for each game. Several entries can share Raze settings. Switching a portable marker redirects paths; it does not move normal-profile saves. Close all copies and back up the actual locations, original data and selected mods before changing versions. First Play in a newer copy may migrate an older configuration; preserve its old location too. Keep a working runtime until its saves work in the replacement."
-          },
-          {
             "title": "Keep upstream update ownership and platform handoffs",
             "instruction": "You and upstream replace this external player. Portcove registration preserves every external file and does not promise managed Update, Backup or Rollback. On macOS, use the official universal Raze.app through the normal OS application flow; do not register its private Contents/MacOS binary. Its normal settings are ~/Library/Preferences/raze.ini saves ~/Documents/raze/Savegames and screenshots ~/Documents/raze/Screenshots. Linux has no native archive in this selected GitHub release: use an already prepared upstream/system-package copy or upstream’s build instructions, then its native player. Linux normally uses ~/.config/raze for configuration and savegames, and can move an older ~/.raze directory on first use. Platform handoffs do not establish native execution or save compatibility."
           }
         ],
-        "warnings": [],
-        "help_url": "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/wadsrc/static/engine/grpinfo.txt"
+        "warnings": [
+          "A custom -savedir disables that partition, so keep a separate chosen directory for each game. Several entries can share Raze settings. Switching a portable marker redirects paths; it does not move normal-profile saves. Close all copies and back up the actual locations, original data and selected mods before changing versions. First Play in a newer copy may migrate an older configuration; preserve its old location too. Keep a working runtime until its saves work in the replacement."
+        ],
+        "help_url": "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/wadsrc/static/engine/grpinfo.txt",
+        "references": [
+          {
+            "title": "Keep the shared profile this game uses",
+            "instruction": "Windows normally keeps raze.ini in Documents/My Games/raze, saves under the system Saved Games/Raze folder, and screenshots in the system Screenshots/Raze folder; redirected Windows known folders can change those absolute locations. A writable raze_portable.ini outside Program Files uses the player folder with Save and Screenshots instead. Custom -config/-savedir locations remain external. Normal save roots contain game/edition subfolders. A custom -savedir disables that partition, so keep a separate chosen directory for each game. Several entries can share Raze settings. Switching a portable marker redirects paths; it does not move normal-profile saves. Close all copies and back up the actual locations, original data and selected mods before changing versions. First Play in a newer copy may migrate an older configuration; preserve its old location too. Keep a working runtime until its saves work in the replacement."
+          }
+        ]
       },
       "artwork": {
         "game_id": 7644,
@@ -11216,7 +11225,11 @@
       "download_block_reason": "Portcove downloads are paused while permission for this package's game-derived launcher art and title-font resources remains unresolved. Keep an existing permitted copy. Reconsider when upstream supplies compatible resource grants or a package that obtains those resources from your own disc.",
       "manual_setup": {
         "help_url": "https://github.com/josiahg2502-glitch/BrawlRecompiled/blob/7f3ac07b7d17dda048ef3a9421fd8fd4996a088c/README.md",
-        "warnings": [],
+        "warnings": [
+          "Close both game and launcher before copying data or replacing the runtime. Back up the complete engine/UserData tree in packaged releases, including Config.toml, NAND saves, SD and mods, plus any sd.raw card and configured custom disc, NAND or card roots. Development builds can instead use Play/UserData; use the folder opened by your actual launcher. Keep Disc and your original image separately.",
+          "SD/card writes are copied back when the game exits, so wait for a clean exit. Use the upstream launcher for save import, controls and mod selection.",
+          "Keep the current working copy and full data backup, prepare a new permitted version separately and verify your own progress before removing the old copy. Do not replace your data with a clean package. Portcove registration does not manage Update, Backup or Rollback; removing it leaves every external file untouched."
+        ],
         "steps": [
           {
             "title": "Keep a permitted complete player",
@@ -11225,7 +11238,9 @@
           {
             "title": "Choose your own supported disc on first Play",
             "instruction": "Use the launcher's Play page to choose your own USA RSBE01 revision 1 Brawl ISO, CISO or WBFS. It validates the disc and extracts Disc/DATA, about 7 GB. A matching Dolphin-extracted Disc/DATA folder is another upstream route. Keep the original image recoverable; no original disc or automatic helper execution is supplied by Portcove. Reuse a valid remembered disc choice."
-          },
+          }
+        ],
+        "references": [
           {
             "title": "Keep saves, SD content and mods together",
             "instruction": "Close both game and launcher before copying data or replacing the runtime. Back up the complete engine/UserData tree in packaged releases, including Config.toml, NAND saves, SD and mods, plus any sd.raw card and configured custom disc, NAND or card roots. Development builds can instead use Play/UserData; use the folder opened by your actual launcher. Keep Disc and your original image separately. SD/card writes are copied back when the game exits, so wait for a clean exit. Use the upstream launcher for save import, controls and mod selection."
@@ -11432,14 +11447,19 @@
           {
             "title": "Register the completed player",
             "instruction": "When the upstream build succeeds, use Open game folder and choose b2.exe with that folder as its working directory in Portcove. Save the launch details, then choose Play separately. For Linux use upstream Install.desktop; macOS uses Install.command and its Xcode/macOS prerequisites. These experimental native platforms have separate dependency/build instructions; Windows package inspection does not qualify them. Keep source, build and data folders together, and rerun upstream setup after moving them."
-          },
+          }
+        ],
+        "warnings": [
+          "Before updating, close the game and builder and back up data/user, data/local/settings.cfg and any data/local/custom-music beside the player.",
+          "Keep the old working copy and originals recoverable. Portcove external registration leaves files untouched and supplies no managed Update, Backup or Rollback."
+        ],
+        "help_url": "https://github.com/timftw21/burnout2-recompilation/blob/2259fea7d99e16436456ce49467833dd918b1b7c/README.md",
+        "references": [
           {
             "title": "Back up and rebuild when updating",
             "instruction": "You or upstream own the runtime, generated game files and updates. Before updating, close the game and builder and back up data/user, data/local/settings.cfg and any data/local/custom-music beside the player. Extract updated source over the retained source folder while keeping build and data, then deliberately rerun the platform setup with your own XISO. Keep the old working copy and originals recoverable. Portcove external registration leaves files untouched and supplies no managed Update, Backup or Rollback."
           }
-        ],
-        "warnings": [],
-        "help_url": "https://github.com/timftw21/burnout2-recompilation/blob/2259fea7d99e16436456ce49467833dd918b1b7c/README.md"
+        ]
       },
       "recommended_download_channel": "stable",
       "download_asset_hints": {
@@ -12992,10 +13012,6 @@
             "instruction": "Keep the entire creating writable Windows folder with matching DLLs, assets and notices. Place the supported .z64 beside Dora64-3.exe, choose that native executable and its containing directory, and use no arguments. Windows wmain rejects extra arguments and discovers the matching adjacent ROM; do not use the private ROM/run-directory diagnostic interface, research probes, Android package or Linux setup script. Review and consent to the exact executable/CWD/arguments, then request Play separately."
           },
           {
-            "title": "Preserve local saves and every settings file",
-            "instruction": "The Windows source registers the executable directory as its configuration root and names the game dora3.n64.jp with EEPROM16k storage. Preserve the complete saves/ tree, including any dora3.n64.jp.bin and temporary/backup variants, port_pc_settings.json, port_input_settings.json, legacy port-settings.json, other runtime config/mod metadata, assets, originals and existing logs/diagnostics. Upstream imports legacy settings only when new destinations are missing and leaves the legacy file. Keep all actual custom/external roots too; this Windows entry offers no new custom-root launch argument through this guide."
-          },
-          {
             "title": "Close the game before changing files",
             "instruction": "The native entry calls the pinned runtime in-process and waits for its game/event/saving threads before returning. The documented reset restarts the game in the same window; it is not a new Core orchestration path. Upstream/user owns preparation, replacement and recovery. Close the actual player normally, keep a separate working runtime/data backup, perform upstream maintenance, then review/relink changed selected bytes. Removing registration preserves external files; Portcove offers no external update, backup, rollback, migration, deletion or cross-version save guarantee."
           },
@@ -13006,7 +13022,14 @@
         ],
         "warnings": [
           "Selected live startup source explicitly calls itself a research frontend with no validated gameplay loop and retains a not-playable log label. The documented Windows build enables LIVE_RT64 and disables diagnostic logging by default, so that log label is compiled out; this does not establish that the underlying comment is stale or that the game is usable. dora3_pending still stops with code77 if reached; no actual reachability/failure or normal playable session was observed. Keep this source/README1.0 conflict open for exact per-port review; do not count the guide as stable/playable runtime qualification or bypass stop paths.",
-          "Source/tag and provider expected package digest only; no ZIP/PE bytes, package/source correspondence, native/game/real-save/installed-client/Supported/protected acceptance was inspected or executed."
+          "Source/tag and provider expected package digest only; no ZIP/PE bytes, package/source correspondence, native/game/real-save/installed-client/Supported/protected acceptance was inspected or executed.",
+          "Upstream imports legacy settings only when new destinations are missing and leaves the legacy file. Keep all actual custom/external roots too; this Windows entry offers no new custom-root launch argument through this guide."
+        ],
+        "references": [
+          {
+            "title": "Preserve local saves and every settings file",
+            "instruction": "The Windows source registers the executable directory as its configuration root and names the game dora3.n64.jp with EEPROM16k storage. Preserve the complete saves/ tree, including any dora3.n64.jp.bin and temporary/backup variants, port_pc_settings.json, port_input_settings.json, legacy port-settings.json, other runtime config/mod metadata, assets, originals and existing logs/diagnostics. Upstream imports legacy settings only when new destinations are missing and leaves the legacy file. Keep all actual custom/external roots too; this Windows entry offers no new custom-root launch argument through this guide."
+          }
         ]
       }
     },
@@ -13036,17 +13059,20 @@
             "instruction": "The selected pinned SDK plus title patch adds PrepareGameCode before the ordinary native window/game loop: it checks stale DLL targets, can launch/wait for compiler children with a progress window, then loads the generated DLL into the native program. Complete those setup/rebuild paths outside this attachment and retain a separate known-working copy before first prepared startup; if inputs/compiler/configuration change, startup may rebuild again. Ordinary ready-player execution stays in the native process. The SDK also supports Xbox quick-reboot handoff to another executable; actual title use is unqualified and successors are outside this attached-session promise. Close all actual players/compiler/helpers/successors before maintenance."
           },
           {
-            "title": "Keep every creating-runtime data and diagnostic root",
-            "instruction": "Preserve settings.toml, the whole executable-adjacent hdd/ tree including hdd/E saves and any numbered instance hdd roots, original assets/disc, generated/runtime/compiler working outputs, shader/pipeline caches, logs/compile.log, CrashDumps/, reports/ and captures/. Preserve actual XBE_CAPTURE_DIR and other established custom/external locations too; this guide does not create environment settings or assume another port’s root. First startup may create default settings; logs can be replaced on later starts, so save independent recovery/diagnostic copies before startup or replacement. No cross-version/title save compatibility or observed write/recovery safety is claimed."
-          },
-          {
             "title": "Use permitted files and update through the project",
             "instruction": "Project/SDK and compiler/third-party licenses apply to their own code and do not grant the original game/assets or arbitrary mods. Use only a completed copy, sources and components you are independently permitted to use. Upstream/user owns generation, preparation, updates, runtime replacement and recovery. Keep previous complete runtime/data separately, maintain it upstream, then review/relink changed selected bytes. Removing registration preserves every external file; no Core builder, external update/backup/rollback/migration, save conversion or deletion is offered."
           }
         ],
         "warnings": [
           "Beta/playthrough/co-op/rendering and performance claims belong to upstream; selected source/patch evidence is not an observed completed native build or full campaign acceptance.",
-          "Windows package SHA-256 is provider expected metadata only. No ZIP/PE payload, compiler/generated output, source-to-binary/ABI, actual input/game/save/native/installed-client/Supported/protected acceptance was inspected or executed."
+          "Windows package SHA-256 is provider expected metadata only. No ZIP/PE payload, compiler/generated output, source-to-binary/ABI, actual input/game/save/native/installed-client/Supported/protected acceptance was inspected or executed.",
+          "First startup may create default settings; logs can be replaced on later starts, so save independent recovery/diagnostic copies before startup or replacement. No cross-version/title save compatibility or observed write/recovery safety is claimed."
+        ],
+        "references": [
+          {
+            "title": "Keep every creating-runtime data and diagnostic root",
+            "instruction": "Preserve settings.toml, the whole executable-adjacent hdd/ tree including hdd/E saves and any numbered instance hdd roots, original assets/disc, generated/runtime/compiler working outputs, shader/pipeline caches, logs/compile.log, CrashDumps/, reports/ and captures/. Preserve actual XBE_CAPTURE_DIR and other established custom/external locations too; this guide does not create environment settings or assume another port’s root. First startup may create default settings; logs can be replaced on later starts, so save independent recovery/diagnostic copies before startup or replacement. No cross-version/title save compatibility or observed write/recovery safety is claimed."
+          }
         ]
       }
     },
@@ -14310,10 +14336,6 @@
             "instruction": "Window size, monitor, VSync or adapter changes can make the next launcher Play start a successor window/process; upstream restart explicitly relaunches and quits the selected process. Finish settings/setup/restart and upstream updater work separately, close every actual game/helper/successor, then attach the resulting prepared player. Do not register trg-updater.exe or rely on automatic successor adoption/termination. Upstream/user is the sole runtime-replacement owner; Core offers no external update or rollback."
           },
           {
-            "title": "Back up the actual user-data root before first prepared startup",
-            "instruction": "The selected source uses user_data/ beside the program, or explicit --user_data_root; if the default is not writable it refuses rather than claiming another profile. Preserve settings.toml, all4D5307DC profile/campaign/header data, save-versions/base and tu6 snapshots, achievements, caches, separate originals/game/, logs and every actual --cache_root/--update_data_root/custom location. No legacy Documents migration is inferred from another title. Keep a separate complete recovery copy outside upstream transaction/workspace directories."
-          },
-          {
             "title": "Retain upstream save switching and cleanup boundaries",
             "instruction": "Normal startup selects base or the separately installed TU6 guest and can recover an interrupted save switch, snapshot/swap live profile and campaign/header slots, then remove completed .switch-* staging under save-versions. These are upstream-owned writes, not Portcove migration or cross-version compatibility promises. TU6 and Four-Play/Free-for-All DLC are optional separately owned inputs with their own exact source checks; Free-for-All requires TU6. Do not remove/update content through this guide. The updater constructor may remove %TEMP%/trg-update-* directories older than24hours; ordinary exit may remove non-crash session logs unless detailed logging is enabled. Preserve recovery/diagnostic copies separately before startup/maintenance."
           },
@@ -14324,7 +14346,16 @@
         ],
         "warnings": [
           "This guide’s source evidence is for v0.6.2; later source revisions differ. The published package SHA-256 is the provider’s expected value. Portcove has not inspected the ZIP or executable files or confirmed which source and SDK produced them.",
-          "No actual player/helper/installer/game, native session, real save, installed-client, Supported or protected acceptance was performed. Own hard-exit/renderer/save/updater claims retain source scope, not observed safety or playability."
+          "No actual player/helper/installer/game, native session, real save, installed-client, Supported or protected acceptance was performed. Own hard-exit/renderer/save/updater claims retain source scope, not observed safety or playability.",
+          "Keep a separate complete recovery copy outside upstream transaction/workspace directories.",
+          "Normal startup selects base or the separately installed TU6 guest and can recover an interrupted save switch, snapshot/swap live profile and campaign/header slots, then remove completed .switch-* staging under save-versions. These are upstream-owned writes, not Portcove migration or cross-version compatibility promises.",
+          "The updater constructor may remove %TEMP%/trg-update-* directories older than24hours; ordinary exit may remove non-crash session logs unless detailed logging is enabled. Preserve recovery/diagnostic copies separately before startup/maintenance."
+        ],
+        "references": [
+          {
+            "title": "Back up the actual user-data root before first prepared startup",
+            "instruction": "The selected source uses user_data/ beside the program, or explicit --user_data_root; if the default is not writable it refuses rather than claiming another profile. Preserve settings.toml, all4D5307DC profile/campaign/header data, save-versions/base and tu6 snapshots, achievements, caches, separate originals/game/, logs and every actual --cache_root/--update_data_root/custom location. No legacy Documents migration is inferred from another title. Keep a separate complete recovery copy outside upstream transaction/workspace directories."
+          }
         ]
       },
       "download_block_reason": "Fresh acquisition of this Crackdown Windows package is held: its own v0.6.2 source requires and bundles the TRG launcher at b384a28c712c9320eea8f9d50639dec49981b6c1, for which upstream explicitly defers an applicable license grant. Resume with attributable permission covering that selected component/package operation or a separately reviewed supported route excluding it. This condition does not prohibit independently permitted completed-copy registration or establish a title-wide rights ruling."
@@ -14666,18 +14697,21 @@
             "instruction": "The SDK has a conditional quick-reboot path that starts a successor and exits the original process after readiness or a short wait. Retained evidence does not establish that a normal Finest Hour transition requires it; actual title use is Unknown. Portcove does not follow, adopt or terminate that successor, an updater’s relaunched game, or a settings-restart successor. Those operations and continuation through them are not offered by this entry. Close every actual game/successor and updater yourself before another attachment, relinking, backup, replacement or removal; a stopped original PID does not prove successors closed."
           },
           {
-            "title": "Preserve every active data and recovery location",
-            "instruction": "Back up the complete installation and each active profile before upstream startup or maintenance. Settings live in codfh.toml beside the EXE, saves in hdd/, prepared shaders in shadercache/, and logs beside the game. Preserve any existing crash dumps and the original inputs separately. If an established external setup uses --instance N, preserve its hddN and instance logs separately rather than merging them with the default hdd. Do not keep recovery files in %TEMP%/FinestHourRemastered: upstream startup attempts cleanup of that updater scratch directory and retries locked leftovers. No migration, backup or save compatibility promise is supplied by this registration."
-          },
-          {
             "title": "Leave replacement and recovery with upstream",
             "instruction": "Upstream installer/player owns preparation, first-start shader writes and runtime replacement. Its optional in-game Update action checks updater size/SHA-256, closes the game and starts an external updater that can relaunch it; do that outside this entry’s tracked-session scope and review the resulting completed installation before relinking changed bytes. Preserve independent backups and original files before updating or uninstalling. Removing Portcove registration preserves external files; Portcove does not own updates, rollback, data deletion, successor continuation or external-file recovery."
           }
         ],
         "warnings": [
-          "Source inspection and release metadata only: no installer, multipart payload, compiled output, native game, real save, installed-client or protected qualification was performed. Expected provider hashes are not newly observed package integrity or source/binary certification. Windows requirements include SSE4.2/x86-64-v2 and upstream-documented GPU requirements; no host hardware acceptance is claimed. Applicable code/component terms do not grant original-game/remaster-pack rights; the named fresh-acquisition condition remains separate."
+          "Source inspection and release metadata only: no installer, multipart payload, compiled output, native game, real save, installed-client or protected qualification was performed. Expected provider hashes are not newly observed package integrity or source/binary certification. Windows requirements include SSE4.2/x86-64-v2 and upstream-documented GPU requirements; no host hardware acceptance is claimed. Applicable code/component terms do not grant original-game/remaster-pack rights; the named fresh-acquisition condition remains separate.",
+          "Back up the complete installation and each active profile before upstream startup or maintenance. Settings live in codfh.toml beside the EXE, saves in hdd/, prepared shaders in shadercache/, and logs beside the game. Preserve any existing crash dumps and the original inputs separately. If an established external setup uses --instance N, preserve its hddN and instance logs separately rather than merging them with the default hdd. Do not keep recovery files in %TEMP%/FinestHourRemastered: upstream startup attempts cleanup of that updater scratch directory and retries locked leftovers. No migration, backup or save compatibility promise is supplied by this registration."
         ],
-        "help_url": "https://github.com/crazyriddler/FinestHourRemastered/blob/d908d2f994ecb64379986aaced826de3adf0d06a/README.md"
+        "help_url": "https://github.com/crazyriddler/FinestHourRemastered/blob/d908d2f994ecb64379986aaced826de3adf0d06a/README.md",
+        "references": [
+          {
+            "title": "Preserve every active data and recovery location",
+            "instruction": "Back up the complete installation and each active profile before upstream startup or maintenance. Settings live in codfh.toml beside the EXE, saves in hdd/, prepared shaders in shadercache/, and logs beside the game. Preserve any existing crash dumps and the original inputs separately. If an established external setup uses --instance N, preserve its hddN and instance logs separately rather than merging them with the default hdd. Do not keep recovery files in %TEMP%/FinestHourRemastered: upstream startup attempts cleanup of that updater scratch directory and retries locked leftovers. No migration, backup or save compatibility promise is supplied by this registration."
+          }
+        ]
       },
       "download_block_reason": "Fresh Core acquisition of the selected Finest Hour Windows installer/required remaster-pack asset set is held: upstream identifies original COD.PAK textures and remastered game models in that pack, but an applicable grant for those selected components has not been established by the code/tool licenses. Resume with attributable permission/authorized source for the selected asset set or a separately reviewed supported preparation route excluding the unresolved components. An independently permitted completed copy remains distinct; successor-process continuation is not offered by its conditional ordinary-entry guide."
     },
@@ -15052,18 +15086,21 @@
             "instruction": "Choose the package-root Deception.exe with that complete package directory as working directory and no arguments for the established saved-disc layout. Its Windows stub waits for bin/DeceptionLauncher.exe; the launcher loads and calls the prepared Deception game assembly in that child process until play returns. Keep that supplied chain intact. If your established setup deliberately passes the supported disc path as its first argument, preserve that exact path as one argument. Saving launch details and requesting Play are separate actions; do not select a setup executable, generator, DLL or private build-cache path."
           },
           {
-            "title": "Preserve all effective profile and build locations",
-            "instruction": "The packaged launcher changes its own working directory to %LOCALAPPDATA%/Deception, or an already established DECEPTION_DATA override. Preserve settings.json, interface.ini, carda.sav/cardb.sav and their backups/metadata, builds/, mods/ with .cache, crashes, logs and every effective custom root. Upstream startup can copy missing player files from earlier Verdite2/KingsField2/KingsField2Recomp or installation locations and copy legacy named folders/cached assemblies; existing destination files are kept and the source is not deleted by these copy routines. Keep separate backups of old and new roots before first startup and do not infer save compatibility from those historical names. Portcove does not create an environment override or perform that migration."
-          },
-          {
             "title": "Keep runtime replacement with upstream and the player",
             "instruction": "Upstream/player owns setup, first-run rebuilds, runtime replacement, update choices and all external originals/player files. A changed version can require another keyed build and clean its temporary generated-source directory; keep recovery data outside disposable build work. Finish deliberate maintenance with actual players and companions closed, retain a working copy and profiles, then review/relink changed selected executable bytes. Removing registration preserves external files; Portcove does not promise external update, backup, rollback, save conversion or deletion."
           }
         ],
         "warnings": [
-          "Pinned source and provider metadata only: no ZIP/installer/PE inspection, first-run generation, game/helper execution, real saves, installed-client or protected acceptance. Exact original content hashes, package/source correspondence and full-playthrough compatibility remain unqualified. Other games and Linux routes do not inherit this Windows evidence."
+          "Pinned source and provider metadata only: no ZIP/installer/PE inspection, first-run generation, game/helper execution, real saves, installed-client or protected acceptance. Exact original content hashes, package/source correspondence and full-playthrough compatibility remain unqualified. Other games and Linux routes do not inherit this Windows evidence.",
+          "Upstream startup can copy missing player files from earlier Verdite2/KingsField2/KingsField2Recomp or installation locations and copy legacy named folders/cached assemblies; existing destination files are kept and the source is not deleted by these copy routines. Keep separate backups of old and new roots before first startup and do not infer save compatibility from those historical names. Portcove does not create an environment override or perform that migration."
         ],
-        "help_url": "https://github.com/dannyowelch/deception-recomp/blob/fd60be7758bb20ef6622c6055f00ada1b6b7ded4/README.md"
+        "help_url": "https://github.com/dannyowelch/deception-recomp/blob/fd60be7758bb20ef6622c6055f00ada1b6b7ded4/README.md",
+        "references": [
+          {
+            "title": "Preserve all effective profile and build locations",
+            "instruction": "The packaged launcher changes its own working directory to %LOCALAPPDATA%/Deception, or an already established DECEPTION_DATA override. Preserve settings.json, interface.ini, carda.sav/cardb.sav and their backups/metadata, builds/, mods/ with .cache, crashes, logs and every effective custom root. Upstream startup can copy missing player files from earlier Verdite2/KingsField2/KingsField2Recomp or installation locations and copy legacy named folders/cached assemblies; existing destination files are kept and the source is not deleted by these copy routines. Keep separate backups of old and new roots before first startup and do not infer save compatibility from those historical names. Portcove does not create an environment override or perform that migration."
+          }
+        ]
       }
     },
     {
@@ -15212,14 +15249,21 @@
             "instruction": "Select the matching completed daytona.exe from the output location printed by upstream setup: normally build/Release/daytona.exe (or build/daytona.exe with Ninja) for daytona93, and the corresponding build-daytona/ output for Revision A. Use the project root containing roms/ and those build folders as working directory. Supply --rom and the absolute path to your own matching archive as two literal arguments. The native process owns both its launcher and game loop. If your established setup also uses --profile <name>, preserve that exact profile argument. Do not select a setup/recompile script, test/oracle executable or another variant. Saving launch details and Play are separate actions."
           },
           {
-            "title": "Preserve separate settings and runtime ownership",
-            "instruction": "Upstream/player owns toolchain setup, ROM generation, rebuilding and runtime replacement. Windows settings, EEPROM, backup RAM and logs use %APPDATA%/daytona-recomp/daytona93 or daytona, with a separate <set>-<profile> folder when --profile is used; preserve launcher.ini, ioboard_eeprom.bin, backup_ram.bin, daytona.log and every active profile. Retain the entire working project, originals and old complete player before updating/rebuilding, then review/relink changed selected bytes. Revision A’s initial twin-cabinet configuration may require upstream Test mode to choose a single cabinet; no network/link/wheel acceptance is supplied. Removing registration preserves external files; Portcove does not own backups, rollback, save migration, compatibility or deletion."
+            "title": "Check the Revision A cabinet choice",
+            "instruction": "Revision A’s initial twin-cabinet configuration may require upstream Test mode to choose a single cabinet; no network/link/wheel acceptance is supplied."
           }
         ],
         "warnings": [
-          "Pinned source and documented build contract only. No ROM archive, generated source/output, compiled player, package integrity, native game, real save, hardware renderer, link play or device qualification was executed. Source BSD3 and separate component terms do not grant Sega ROM rights; actual independently permitted source/components/originals remain required."
+          "Pinned source and documented build contract only. No ROM archive, generated source/output, compiled player, package integrity, native game, real save, hardware renderer, link play or device qualification was executed. Source BSD3 and separate component terms do not grant Sega ROM rights; actual independently permitted source/components/originals remain required.",
+          "Retain the entire working project, originals and old complete player before updating/rebuilding, then review/relink changed selected bytes. Revision A’s initial twin-cabinet configuration may require upstream Test mode to choose a single cabinet; no network/link/wheel acceptance is supplied."
         ],
-        "help_url": "https://github.com/alphanu1/daytona-arcade-recomp/blob/f32c48ff9b9bb41ecc7a25d9998c281b9bd0952c/docs/getting-started.md"
+        "help_url": "https://github.com/alphanu1/daytona-arcade-recomp/blob/f32c48ff9b9bb41ecc7a25d9998c281b9bd0952c/docs/getting-started.md",
+        "references": [
+          {
+            "title": "Preserve separate settings and runtime ownership",
+            "instruction": "Upstream/player owns toolchain setup, ROM generation, rebuilding and runtime replacement. Windows settings, EEPROM, backup RAM and logs use %APPDATA%/daytona-recomp/daytona93 or daytona, with a separate <set>-<profile> folder when --profile is used; preserve launcher.ini, ioboard_eeprom.bin, backup_ram.bin, daytona.log and every active profile. Retain the entire working project, originals and old complete player before updating/rebuilding, then review/relink changed selected bytes. Removing registration preserves external files; Portcove does not own backups, rollback, save migration, compatibility or deletion."
+          }
+        ]
       }
     },
     {
@@ -15396,16 +15440,19 @@
             "instruction": "Review and consent to the exact selected executable, working directory and empty argument list, then choose Play separately. You and upstream own preparation, Check for Updates, runtime replacement and recovery. Complete update/restart operations outside the attached session, close all players and companions, preserve the old working copy separately from the updater’s disposable .old file, then review and relink changed selected bytes. Removing registration preserves every external file. Portcove supplies no external update, backup, rollback, conversion, migration or deletion."
           },
           {
-            "title": "Preserve original, package and profile data separately",
-            "instruction": "Keep original disc images and the complete assets/ folder beside the executable, together with doa3_settings.ini, doa3_input.ini, doa3_log.txt when enabled, mods, caches, unknown files and every custom root. The USA save root defaults to %LOCALAPPDATA%/DeadOrAlive3, with TitleData/, UserData/ and Cache/; if the platform path is unavailable the inspected runtime falls back to SaveData/ in the current directory. Preserve all actual roots, backups and creating runtimes; the Japan build uses a separate DeadOrAlive3_JPN root, and no save conversion or compatibility is certified."
-          },
-          {
             "title": "Use permitted content and check feature limits",
             "instruction": "Preserve the project MIT and separate component notices. Their grants cover their own code, not Tecmo or Koei Tecmo original-game content; your original-disc and other component permissions remain separate. This guide offers local completed-copy launch. Online matches, router/firewall changes, account setup and cross-version save behavior are outside its evidence. Upstream claims of complete gameplay are not Portcove observations."
           }
         ],
         "warnings": [
-          "Use only a completed copy and components you are permitted to use. Preserve the whole creating runtime, originals, saves, settings, mods, caches, backups and every custom root. Static source/release metadata review is not an inspected package, native game run, real-save, installed-client, managed, Supported or protected acceptance."
+          "Use only a completed copy and components you are permitted to use. Preserve the whole creating runtime, originals, saves, settings, mods, caches, backups and every custom root. Static source/release metadata review is not an inspected package, native game run, real-save, installed-client, managed, Supported or protected acceptance.",
+          "Preserve all actual roots, backups and creating runtimes; the Japan build uses a separate DeadOrAlive3_JPN root, and no save conversion or compatibility is certified."
+        ],
+        "references": [
+          {
+            "title": "Preserve original, package and profile data separately",
+            "instruction": "Keep original disc images and the complete assets/ folder beside the executable, together with doa3_settings.ini, doa3_input.ini, doa3_log.txt when enabled, mods, caches, unknown files and every custom root. The USA save root defaults to %LOCALAPPDATA%/DeadOrAlive3, with TitleData/, UserData/ and Cache/; if the platform path is unavailable the inspected runtime falls back to SaveData/ in the current directory. Preserve all actual roots, backups and creating runtimes; the Japan build uses a separate DeadOrAlive3_JPN root, and no save conversion or compatibility is certified."
+          }
         ]
       }
     },
@@ -15836,18 +15883,21 @@
             "instruction": "Select <install>/DefJamLauncher.exe, use that actual install root as working directory, and leave arguments empty. This documented native launcher reads installed.ini, supplies the chosen DEFJAM_DATA, DEFJAM_INSTALL_DIR and log root, and starts the recorded compiled player with its recorded source directory as child working directory. It holds play.lock and waits for that child to exit. Do not select the setup wizard, setup scripts or an internal versioned defjam_recomp.exe. Saving launch details and Play are separate actions. An interrupted setup transaction requires upstream setup recovery."
           },
           {
-            "title": "Back up every active data and recovery root before startup or maintenance",
-            "instruction": "Preserve the complete chosen data folder: settings.ini, save/ (including UserData, TitleData, cache and partition images), extracted originals, mods, texture/HD caches and artwork. Also retain setup logs under %LOCALAPPDATA%/DefJamSetup/logs, install logs, and the active version source/logs; custom RECOMP_SETTINGS or RECOMP_SAVE_DIR paths remain separate roots when present. The pinned runtime copies missing disc UDATA metadata without overwriting it; its legacy save-name compatibility lookup does not rename or rewrite saves. Preserve any older game-side UserData/TitleData and unconfigured %LOCALAPPDATA%/xboxrecomp saves separately; no automatic migration or save compatibility is promised."
-          },
-          {
             "title": "Keep replacement and cleanup with upstream setup",
             "instruction": "Close the game before upstream install/repair/update/rebuild/uninstall. Setup owns its activation journal, versioned builds and stable launcher; successful older builds may be retained, failed/cancelled attempts remove their own candidate, and upstream uninstall removes recognized application versions/launcher/receipts while retaining player data and originals. Preserve independent backups outside those application/version paths before maintenance. Review the selected release’s actual offered operations; documented future updater protocol is not proof of a published compatible pair. After replacement review/relink changed launcher bytes. Removing Portcove registration preserves external files; Portcove does not own update, rollback, backup, migration or deletion."
           }
         ],
         "warnings": [
-          "Pinned v0.12.3 source and release metadata only: no installer/payload/provenance bytes, generated output, compiler, native game, real save, installed-client or protected qualification was performed. The project MIT licence covers its code, not the original game; the pinned toolkit has separate MIT/LGPL-2.1-or-later and component notices. Preserve applicable notices and use independently permitted inputs/components. Network multiplayer and complete gameplay compatibility are not claimed."
+          "Pinned v0.12.3 source and release metadata only: no installer/payload/provenance bytes, generated output, compiler, native game, real save, installed-client or protected qualification was performed. The project MIT licence covers its code, not the original game; the pinned toolkit has separate MIT/LGPL-2.1-or-later and component notices. Preserve applicable notices and use independently permitted inputs/components. Network multiplayer and complete gameplay compatibility are not claimed.",
+          "Preserve any older game-side UserData/TitleData and unconfigured %LOCALAPPDATA%/xboxrecomp saves separately; no automatic migration or save compatibility is promised."
         ],
-        "help_url": "https://github.com/vyanhursky/DefJamFFNY-recomp/blob/65038d047249c3456fe037cd91d07f8bce81653d/docs/setup-installer.md"
+        "help_url": "https://github.com/vyanhursky/DefJamFFNY-recomp/blob/65038d047249c3456fe037cd91d07f8bce81653d/docs/setup-installer.md",
+        "references": [
+          {
+            "title": "Back up every active data and recovery root before startup or maintenance",
+            "instruction": "Preserve the complete chosen data folder: settings.ini, save/ (including UserData, TitleData, cache and partition images), extracted originals, mods, texture/HD caches and artwork. Also retain setup logs under %LOCALAPPDATA%/DefJamSetup/logs, install logs, and the active version source/logs; custom RECOMP_SETTINGS or RECOMP_SAVE_DIR paths remain separate roots when present. The pinned runtime copies missing disc UDATA metadata without overwriting it; its legacy save-name compatibility lookup does not rename or rewrite saves. Preserve any older game-side UserData/TitleData and unconfigured %LOCALAPPDATA%/xboxrecomp saves separately; no automatic migration or save compatibility is promised."
+          }
+        ]
       }
     },
     {
@@ -15876,10 +15926,6 @@
             "instruction": "Select files/Def Jam Vendetta Recompiled.exe in the complete creating installation, use files as working directory and pass the one literal argument game/SLUS_206.39. Keep the complete game/, disc/, DLLs, settings and companion runtime files. The official settings Play consumer passes that same extracted ELF with the files working directory; the generated player owns its normal runtime.run loop. Do not select the settings bootstrapper, run.bat or incomplete output."
           },
           {
-            "title": "Back up effective data before startup or maintenance",
-            "instruction": "With the game closed, keep a separate complete prior installation plus current files/settings.toml, files/game/mc0, sibling card-port roots, extracted game data, original disc and logs. Cards are filesystem folders derived from the selected ELF directory; ordinary guest operations can create, overwrite, delete or format their files. VENDETTA_SETTINGS can select another settings file; preserve it if configured, and preserve any external roots from your own installation. Startup can rewrite legacy fullscreen settings to borderless through a temporary replacement; logs are recreated. Do not assume save compatibility or restore older player data with an old runtime."
-          },
-          {
             "title": "Keep Update and Rebuild outside the tracked game session",
             "instruction": "The normal startup check can offer Play or hand off to the upstream settings program for Update/Rebuild and end the game process. Finish pending preparation and replacements before registration. If you choose maintenance, let the selected game session end, complete upstream work, then revalidate the resulting native player before another Play. Portcove does not follow that successor, suppress the feature or own upstream repair."
           },
@@ -15894,7 +15940,15 @@
         ],
         "warnings": [
           "Only an independently permitted completed copy is offered; fresh package acquisition has a separate named-branding permission condition.",
-          "The optional upstream update/rebuild handoff ends the registered player session; Portcove does not follow or control it."
+          "The optional upstream update/rebuild handoff ends the registered player session; Portcove does not follow or control it.",
+          "With the game closed, keep a separate complete prior installation plus current files/settings.toml, files/game/mc0, sibling card-port roots, extracted game data, original disc and logs. Cards are filesystem folders derived from the selected ELF directory; ordinary guest operations can create, overwrite, delete or format their files. VENDETTA_SETTINGS can select another settings file; preserve it if configured, and preserve any external roots from your own installation. Startup can rewrite legacy fullscreen settings to borderless through a temporary replacement; logs are recreated.",
+          "Do not assume save compatibility or restore older player data with an old runtime."
+        ],
+        "references": [
+          {
+            "title": "Back up effective data before startup or maintenance",
+            "instruction": "With the game closed, keep a separate complete prior installation plus current files/settings.toml, files/game/mc0, sibling card-port roots, extracted game data, original disc and logs. Cards are filesystem folders derived from the selected ELF directory; ordinary guest operations can create, overwrite, delete or format their files. VENDETTA_SETTINGS can select another settings file; preserve it if configured, and preserve any external roots from your own installation. Startup can rewrite legacy fullscreen settings to borderless through a temporary replacement; logs are recreated. Do not assume save compatibility or restore older player data with an old runtime."
+          }
         ]
       },
       "download_block_reason": "Fresh acquisition of the selected Def Jam Vendetta Recompiled Windows kit is held while the applicable permission or authorized-source basis for its settings-app game-logo and artwork assets remains unresolved. THIRD-PARTY-NOTICES explicitly excludes those components from the project GPL grant. Resume with an attributable applicable basis or a reviewed supported kit excluding/replacing those assets; independently permitted completed copies remain separate."
@@ -16848,16 +16902,25 @@
             "instruction": "The upstream Windows web installer is the simplest setup route. Follow the linked instructions, choose a separate KeeperFX folder and supply your own supported Dungeon Keeper CD, GOG, EA or Steam files. If you downloaded the complete .7z package here, extract it with your archive tool and open keeperfx-launcher.exe yourself; it prompts for the original files. The archive is not an installer, and patches/alphas alone are not a complete game."
           },
           {
-            "title": "Choose the upstream launcher",
-            "instruction": "On Windows 10 or newer, choose keeperfx-launcher.exe from the prepared KeeperFX folder, with that folder as its working directory. It provides setup, settings and upstream updates. Save launch details in Portcove, then choose Play separately. Upstream also documents keeperfx-launcher-legacy.exe or the direct keeperfx.exe route for older environments; those are deliberate alternatives, not another required setup question."
+            "title": "Select original CD data",
+            "instruction": "Select the CD’s keeper folder when upstream asks for original CD data; other editions have their own folder rules in the linked guide."
           },
           {
-            "title": "Preserve the external copy when updating",
-            "instruction": "Let the upstream launcher provide updates, and keep a separate copy of your working folder before replacing files. Preserve save (including settings.toml), keeperfx.cfg, original data, screenshots and any custom maps, campaigns or mods. Select the CD’s keeper folder when upstream asks for original CD data; other editions have their own folder rules in the linked guide. Portcove does not own these files or provide managed Update, Backup or Rollback for them."
+            "title": "Choose the upstream launcher",
+            "instruction": "On Windows 10 or newer, choose keeperfx-launcher.exe from the prepared KeeperFX folder, with that folder as its working directory. It provides setup, settings and upstream updates. Save launch details in Portcove, then choose Play separately. Upstream also documents keeperfx-launcher-legacy.exe or the direct keeperfx.exe route for older environments; those are deliberate alternatives, not another required setup question."
           }
         ],
-        "warnings": [],
-        "help_url": "https://github.com/dkfans/keeperfx/wiki#installation-of-keeperfx"
+        "warnings": [
+          "Let the upstream launcher provide updates, and keep a separate copy of your working folder before replacing files. Preserve save (including settings.toml), keeperfx.cfg, original data, screenshots and any custom maps, campaigns or mods.",
+          "Portcove does not own these files or provide managed Update, Backup or Rollback for them."
+        ],
+        "help_url": "https://github.com/dkfans/keeperfx/wiki#installation-of-keeperfx",
+        "references": [
+          {
+            "title": "Preserve the external copy when updating",
+            "instruction": "Let the upstream launcher provide updates, and keep a separate copy of your working folder before replacing files. Preserve save (including settings.toml), keeperfx.cfg, original data, screenshots and any custom maps, campaigns or mods. Portcove does not own these files or provide managed Update, Backup or Rollback for them."
+          }
+        ]
       },
       "download_asset_hints": {
         "windows-x86-64": [
@@ -17781,7 +17844,7 @@
           },
           {
             "title": "Review Play and preserve every effective profile",
-            "instruction": "Review and consent to this exact executable, working directory and literal arguments, then request Play separately. Keep burstlimit.toml, game_data_root/, mods/, textures, sounds, any shader_seed and actual log/capture roots beside the creating player. The Windows SDK defaults user data to the actual Documents known folder/burstlimit, with user_data_root override; caches normally live below that user root unless overridden. Preserve saves, online_identity.json, export/import archives in the executable-adjacent saves/ folder, backups and every custom cache/update/metadata/user-data root. Do not assume the export folder contains every live save or that other runtimes have compatible state."
+            "instruction": "Review and consent to this exact executable, working directory and literal arguments, then request Play separately."
           },
           {
             "title": "Retain one external replacement owner",
@@ -17794,7 +17857,15 @@
         ],
         "warnings": [
           "This guidance is based on upstream source and release descriptions. Portcove has not inspected the package or confirmed that it matches the source and SDK, and has not tested game startup, saves or installed behavior.",
-          "The Windows player and Linux Wine package have separate requirements. Upstream performance, renderer, controller, online and full-game claims have not been confirmed by Portcove. Use only components and original files you are independently permitted to use."
+          "The Windows player and Linux Wine package have separate requirements. Upstream performance, renderer, controller, online and full-game claims have not been confirmed by Portcove. Use only components and original files you are independently permitted to use.",
+          "Preserve saves, online_identity.json, export/import archives in the executable-adjacent saves/ folder, backups and every custom cache/update/metadata/user-data root. Do not assume the export folder contains every live save or that other runtimes have compatible state.",
+          "Upstream owns cleanup during normal prepared startup, independently of choosing the Update button. EarlySetup calls BurstLimitUpdateCleanup on the executable directory: it removes update_staging immediately and deletes regular *.old files in the executable directory and licenses/, with deletion retries lasting up to 30 seconds. Before the first prepared startup, keep complete prior working runtimes and recovery backups outside those disposable *.old and update_staging paths. Preserve the actual original, saves, settings and custom roots separately. Portcove does not disable this cleanup, manage the upstream replacement, or promise preservation of files that upstream treats as disposable."
+        ],
+        "references": [
+          {
+            "title": "Burst Limit data and profile locations",
+            "instruction": "Keep burstlimit.toml, game_data_root/, mods/, textures, sounds, any shader_seed and actual log/capture roots beside the creating player. The Windows SDK defaults user data to the actual Documents known folder/burstlimit, with user_data_root override; caches normally live below that user root unless overridden. Preserve saves, online_identity.json, export/import archives in the executable-adjacent saves/ folder, backups and every custom cache/update/metadata/user-data root. Do not assume the export folder contains every live save or that other runtimes have compatible state."
+          }
         ]
       }
     },
@@ -18260,16 +18331,20 @@
             "instruction": "On Windows, use the official Windows ZIP and select raze.exe with the extracted player folder as its working directory. Keep the DLLs, raze.pk3 and soundfonts together. Registration does not start the player; Play does. Raze may ask which detected game/edition to use, because the same player supports several games. For a fixed entry, Change launch details can use two argument lines: -gamegrp, then the local Windows drive-letter absolute path (for example C:/Games/...) to your DUKE3D.GRP archive. Use Raze’s game picker for UNC/network paths; this fixed-entry example does not establish a POSIX/macOS path rule. Keep that archive’s companion files together."
           },
           {
-            "title": "Keep the shared profile this game uses",
-            "instruction": "Windows normally keeps raze.ini in Documents/My Games/raze, saves under the system Saved Games/Raze folder, and screenshots in the system Screenshots/Raze folder; redirected Windows known folders can change those absolute locations. A writable raze_portable.ini outside Program Files uses the player folder with Save and Screenshots instead. Custom -config/-savedir locations remain external. Normal save roots contain game/edition subfolders. A custom -savedir disables that partition, so keep a separate chosen directory for each game. Several entries can share Raze settings. Switching a portable marker redirects paths; it does not move normal-profile saves. Close all copies and back up the actual locations, original data and selected mods before changing versions. First Play in a newer copy may migrate an older configuration; preserve its old location too. Keep a working runtime until its saves work in the replacement."
-          },
-          {
             "title": "Keep upstream update ownership and platform handoffs",
             "instruction": "You and upstream replace this external player. Portcove registration preserves every external file and does not promise managed Update, Backup or Rollback. On macOS, use the official universal Raze.app through the normal OS application flow; do not register its private Contents/MacOS binary. Its normal settings are ~/Library/Preferences/raze.ini saves ~/Documents/raze/Savegames and screenshots ~/Documents/raze/Screenshots. Linux has no native archive in this selected GitHub release: use an already prepared upstream/system-package copy or upstream’s build instructions, then its native player. Linux normally uses ~/.config/raze for configuration and savegames, and can move an older ~/.raze directory on first use. Platform handoffs do not establish native execution or save compatibility."
           }
         ],
-        "warnings": [],
-        "help_url": "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/wadsrc/static/engine/grpinfo.txt"
+        "warnings": [
+          "A custom -savedir disables that partition, so keep a separate chosen directory for each game. Several entries can share Raze settings. Switching a portable marker redirects paths; it does not move normal-profile saves. Close all copies and back up the actual locations, original data and selected mods before changing versions. First Play in a newer copy may migrate an older configuration; preserve its old location too. Keep a working runtime until its saves work in the replacement."
+        ],
+        "help_url": "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/wadsrc/static/engine/grpinfo.txt",
+        "references": [
+          {
+            "title": "Keep the shared profile this game uses",
+            "instruction": "Windows normally keeps raze.ini in Documents/My Games/raze, saves under the system Saved Games/Raze folder, and screenshots in the system Screenshots/Raze folder; redirected Windows known folders can change those absolute locations. A writable raze_portable.ini outside Program Files uses the player folder with Save and Screenshots instead. Custom -config/-savedir locations remain external. Normal save roots contain game/edition subfolders. A custom -savedir disables that partition, so keep a separate chosen directory for each game. Several entries can share Raze settings. Switching a portable marker redirects paths; it does not move normal-profile saves. Close all copies and back up the actual locations, original data and selected mods before changing versions. First Play in a newer copy may migrate an older configuration; preserve its old location too. Keep a working runtime until its saves work in the replacement."
+          }
+        ]
       },
       "artwork": {
         "game_id": 342,
@@ -18307,7 +18382,7 @@
           },
           {
             "title": "Keep the existing portable or personal profile choice",
-            "instruction": "Select native dunedynasty.exe and its actual prepared working directory. Keep dunedynasty.cfg: an existing executable-side config selects portable state; otherwise Windows normally uses the current account’s roaming AppData/Dune Dynasty profile. Do not create an executable-side config merely to register the game. Preserve that whole actual profile, its save directory, configuration, original data, custom campaigns/music and the old creating runtime before replacement. Original-format save reading is not a promise that every newer save works in an older engine."
+            "instruction": "Select native dunedynasty.exe and its actual prepared working directory."
           },
           {
             "title": "Check the working copy before registration",
@@ -18320,7 +18395,14 @@
         ],
         "warnings": [
           "Use only a copy and content you are already permitted to use. Engine licensing does not grant rights to original game assets, music, mods or bundled components.",
-          "Before updating the game, keep a copy of its working files and every location containing saved data. Choosing a different executable does not give it a separate profile."
+          "Before updating the game, keep a copy of its working files and every location containing saved data. Choosing a different executable does not give it a separate profile.",
+          "Do not create an executable-side config merely to register the game. Preserve that whole actual profile, its save directory, configuration, original data, custom campaigns/music and the old creating runtime before replacement. Original-format save reading is not a promise that every newer save works in an older engine."
+        ],
+        "references": [
+          {
+            "title": "Dune Dynasty profile and compatibility notes",
+            "instruction": "Keep dunedynasty.cfg: an existing executable-side config selects portable state; otherwise Windows normally uses the current account’s roaming AppData/Dune Dynasty profile. Do not create an executable-side config merely to register the game. Preserve that whole actual profile, its save directory, configuration, original data, custom campaigns/music and the old creating runtime before replacement. Original-format save reading is not a promise that every newer save works in an older engine."
+          }
         ]
       }
     },
@@ -18351,7 +18433,7 @@
           },
           {
             "title": "Retain the creating data and save paths",
-            "instruction": "Keep the actual prepared runtime directory as working directory. Retain opendune.ini and its [opendune] datadir and savedir choices. On Windows, upstream looks for the INI first in the actual AppData/OpenDUNE location, then the working directory, then data/. savedir overrides the personal path; otherwise Windows uses the current account’s roaming AppData/OpenDUNE, with a working-directory fallback if that lookup fails. Preserve the actual personal directory, OPTIONS.CFG, all saves, originals and custom/unknown files."
+            "instruction": "Keep the actual prepared runtime directory as working directory. Retain opendune.ini and its [opendune] datadir and savedir choices."
           },
           {
             "title": "Check the working copy before registration",
@@ -18364,7 +18446,14 @@
         ],
         "warnings": [
           "Use only a copy and content you are already permitted to use. Engine licensing does not grant rights to original game assets, music, mods or bundled components.",
-          "Before updating the game, keep a copy of its working files and every location containing saved data. Choosing a different executable does not give it a separate profile."
+          "Before updating the game, keep a copy of its working files and every location containing saved data. Choosing a different executable does not give it a separate profile.",
+          "Preserve the actual personal directory, OPTIONS.CFG, all saves, originals and custom/unknown files."
+        ],
+        "references": [
+          {
+            "title": "OpenDUNE configuration and save locations",
+            "instruction": "On Windows, upstream looks for the INI first in the actual AppData/OpenDUNE location, then the working directory, then data/. savedir overrides the personal path; otherwise Windows uses the current account’s roaming AppData/OpenDUNE, with a working-directory fallback if that lookup fails. Preserve the actual personal directory, OPTIONS.CFG, all saves, originals and custom/unknown files."
+          }
         ]
       }
     },
@@ -18957,10 +19046,6 @@
             "instruction": "Select the completed native Windows liliumvoyhm client (the selected Makefile adds the actual architecture/Windows executable suffix), not liliumvoyded or another dedicated server or an original-game installer. Keep its established working directory and explicit supported +set fs_basepath / +set fs_homepath arguments where used. Finish upstream setup and dependencies first; do not point a Quake III player at Elite Force data."
           },
           {
-            "title": "Keep the complete installation and effective profile",
-            "instruction": "Default Windows user files use AppData/Lilium Voyager; baseEF, client configuration, demos, screenshots, downloaded packages/mods and custom directories follow the actual fs_homepath/fs_game settings. Preserve the complete creating installation and every effective original/home/custom root. Failed home lookup or deliberate overrides can use installation-relative paths; never assume only the named default contains player files. Existing peers, server connectivity and multiplayer behavior are unqualified."
-          },
-          {
             "title": "Review the completed player and intent",
             "instruction": "Complete upstream preparation and a normal start/quit with the intended permitted copy before attachment. Review its actual native executable, creating working directory and established supported literal arguments, consent to the selected intent, then choose Play separately. Attachment does not certify original data, gameplay or save compatibility."
           },
@@ -18971,7 +19056,14 @@
         ],
         "warnings": [
           "Use only components you are already permitted to use; public engine source or releases do not grant original-game, music, mod or middleware rights.",
-          "Keep the complete creating runtime and all actual effective data/profile roots before changes. Another executable can share the same player profile."
+          "Keep the complete creating runtime and all actual effective data/profile roots before changes. Another executable can share the same player profile.",
+          "Preserve the complete creating installation and every effective original/home/custom root. Failed home lookup or deliberate overrides can use installation-relative paths; never assume only the named default contains player files. Existing peers, server connectivity and multiplayer behavior are unqualified."
+        ],
+        "references": [
+          {
+            "title": "Keep the complete installation and effective profile",
+            "instruction": "Default Windows user files use AppData/Lilium Voyager; baseEF, client configuration, demos, screenshots, downloaded packages/mods and custom directories follow the actual fs_homepath/fs_game settings. Preserve the complete creating installation and every effective original/home/custom root. Failed home lookup or deliberate overrides can use installation-relative paths; never assume only the named default contains player files. Existing peers, server connectivity and multiplayer behavior are unqualified."
+          }
         ]
       }
     },
@@ -19286,17 +19378,20 @@
             "instruction": "Review and consent to the exact native executable, working directory and literal arguments, then request Play separately. The game and launcher execute in this program. Changing disc or restarting from particular launcher/game-menu choices can call _execv and replace the Windows process; those restart paths are outside this attached-session promise. Finish them outside attachment, close all actual players/successors, and review/relink the completed copy before another session."
           },
           {
-            "title": "Preserve every effective data location",
-            "instruction": "Keep the creating directory, original disc, generated/main.dol, settings.ini, saves/slot*.state, saves/reports/, ed-GEDP01-slot-a.dolcard, any slot-B card, corresponding SRAM files, textures, caches and logs. Preserve actual --card/--card-b overrides, ED_CARD/ED_CARD_B/ED_QUICKSTATE/custom paths and build/runs/quick.state where used; registration does not create those environment settings. Quickstates and memory cards are distinct, and no cross-version/game-save compatibility is asserted. This direct route does not create the batch wrapper play.log/previous-log rotation."
-          },
-          {
             "title": "Retain content and replacement ownership",
             "instruction": "HD texture packs and PAL supplements are optional separate player material with their own permissions; this guide does not acquire them. GPL3-or-later host/runtime terms, named third-party and OFL/CC0 notices do not grant the original game or texture-pack rights. Upstream/user owns runtime replacement and recovery: close actual sessions, retain old working files and data, replace upstream, then review/relink changed bytes. Removing registration preserves external files; Portcove offers no external update, backup, rollback, import, migration or deletion."
           }
         ],
         "warnings": [
           "Windows package v0.9.6 names source revision 1cb3fe6; later source revision 58393a9 is different. A filename or published expected checksum does not confirm the uninspected package’s contents. Portcove has not tested startup, gameplay, saves or installed behavior.",
-          "Fresh acquisition/distribution of translated game-code content remains unresolved; independently permitted existing-copy use is conditional. No SmartScreen bypass, optional texture download or original acquisition operation is offered."
+          "Fresh acquisition/distribution of translated game-code content remains unresolved; independently permitted existing-copy use is conditional. No SmartScreen bypass, optional texture download or original acquisition operation is offered.",
+          "Preserve actual --card/--card-b overrides, ED_CARD/ED_CARD_B/ED_QUICKSTATE/custom paths and build/runs/quick.state where used; registration does not create those environment settings. Quickstates and memory cards are distinct, and no cross-version/game-save compatibility is asserted. This direct route does not create the batch wrapper play.log/previous-log rotation."
+        ],
+        "references": [
+          {
+            "title": "Preserve every effective data location",
+            "instruction": "Keep the creating directory, original disc, generated/main.dol, settings.ini, saves/slot*.state, saves/reports/, ed-GEDP01-slot-a.dolcard, any slot-B card, corresponding SRAM files, textures, caches and logs. Preserve actual --card/--card-b overrides, ED_CARD/ED_CARD_B/ED_QUICKSTATE/custom paths and build/runs/quick.state where used; registration does not create those environment settings. Quickstates and memory cards are distinct, and no cross-version/game-save compatibility is asserted. This direct route does not create the batch wrapper play.log/previous-log rotation."
+          }
         ]
       },
       "download_block_reason": "New downloads are waiting for attributable permission covering the selected Windows package and its included translated original-game code. Upstream explicitly distinguishes that included game code from the engine/project source; a project or engine license does not by itself establish its distribution grant. Reconsider on an attributable applicable grant or a separately reviewed supported owned-input preparation/package that excludes that unresolved material."
@@ -19634,10 +19729,6 @@
             "instruction": "Use the actual prepared game folder as working directory and preserve its supported literal arguments. Windows entry does not chdir for you. fallout2.cfg is located from the executable path while actual DAT/patch/music paths can be relative or absolute. Keep those real paths and selected mod setup; do not rewrite a host root or force a fresh profile. Review exact consent and choose Play separately."
           },
           {
-            "title": "Preserve every actual player-data root",
-            "instruction": "Keep the complete runtime/original data, fallout2.cfg, actual configured master-patches root (normally data) and its SAVEGAME/SLOT contents, music, mods, logs and unknowns, including configured external/legacy roots. Preserve the old creating copy before upstream replacement. Another runtime folder is not a save/instance isolation or cross-version state-compatibility guarantee."
-          },
-          {
             "title": "Retain the engine license and original rights separately",
             "instruction": "The selected engine uses Sustainable Use License 1.0, not GPL/MIT. Personal/noncommercial/internal-business scope, free noncommercial distribution conditions and notices remain applicable. This guide adds no general commercial, original/mod asset, repackaging or redistribution grant; attach only a copy you are already permitted to use."
           },
@@ -19649,7 +19740,14 @@
         "warnings": [
           "Use only a copy and content you are already permitted to use. These instructions do not establish permission for the original game or other components, or confirm the resulting game files.",
           "These instructions do not confirm gameplay, saving, mods, network play, physical controls or behavior on other platforms.",
-          "Before updating the game, keep a recoverable copy of its working files and every location containing saved data. Another game folder may use the same profile."
+          "Before updating the game, keep a recoverable copy of its working files and every location containing saved data. Another game folder may use the same profile.",
+          "Preserve the old creating copy before upstream replacement. Another runtime folder is not a save/instance isolation or cross-version state-compatibility guarantee."
+        ],
+        "references": [
+          {
+            "title": "Preserve every actual player-data root",
+            "instruction": "Keep the complete runtime/original data, fallout2.cfg, actual configured master-patches root (normally data) and its SAVEGAME/SLOT contents, music, mods, logs and unknowns, including configured external/legacy roots. Preserve the old creating copy before upstream replacement. Another runtime folder is not a save/instance isolation or cross-version state-compatibility guarantee."
+          }
         ]
       }
     },
@@ -19687,10 +19785,6 @@
             "instruction": "Select the actual game folder as working directory and preserve supported existing literal arguments. Windows entry does not change directory for you. fallout.cfg is located using the executable path; actual master/critter DAT, patch and music locations can be relative or custom absolute paths. Keep the exact established paths rather than rewriting a host root or forcing a new portable profile. Review consent and choose Play separately."
           },
           {
-            "title": "Keep all actual save and data roots",
-            "instruction": "Preserve the complete external runtime/original data, fallout.cfg, actual master_patches/data root including SAVEGAME and slot contents, music, mods, screenshots/logs and unknown files. Retain every configured external root and old creating copy; another executable directory alone does not prove save or instance isolation. No arbitrary Fallout mod or cross-version save compatibility is established."
-          },
-          {
             "title": "Keep the separate license and asset boundaries",
             "instruction": "The selected engine uses Sustainable Use License 1.0, not GPL/MIT. Its personal/noncommercial/internal-business scope, free noncommercial distribution conditions and notices remain applicable. This guide adds no general commercial, original-asset, mod, repackaging or redistribution grant; attach only a copy you are already permitted to use."
           },
@@ -19702,7 +19796,14 @@
         "warnings": [
           "Use only a copy and content you are already permitted to use. These instructions do not establish permission for the original game or other components, or confirm the resulting game files.",
           "These instructions do not confirm gameplay, saving, mods, network play, physical controls or behavior on other platforms.",
-          "Before updating the game, keep a recoverable copy of its working files and every location containing saved data. Another game folder may use the same profile."
+          "Before updating the game, keep a recoverable copy of its working files and every location containing saved data. Another game folder may use the same profile.",
+          "Retain every configured external root and old creating copy; another executable directory alone does not prove save or instance isolation. No arbitrary Fallout mod or cross-version save compatibility is established."
+        ],
+        "references": [
+          {
+            "title": "Keep all actual save and data roots",
+            "instruction": "Preserve the complete external runtime/original data, fallout.cfg, actual master_patches/data root including SAVEGAME and slot contents, music, mods, screenshots/logs and unknown files. Retain every configured external root and old creating copy; another executable directory alone does not prove save or instance isolation. No arbitrary Fallout mod or cross-version save compatibility is established."
+          }
         ]
       }
     },
@@ -19826,16 +19927,19 @@
           {
             "title": "Add the prepared native player",
             "instruction": "After upstream preparation, choose roller.exe with its containing folder as working folder and no arguments for the ordinary portable layout. Its main function runs the native game loop in that process. The supported --whiplash-root <folder> override selects an existing alternate root and changes the game data/working directory; retain the exact override if you use it. --midi-root <folder> is a separate MIDI location. Do not substitute a DOS executable, matching-decomp build, browser bundle or setup tool. Saving launch details and Play are separate actions."
-          },
+          }
+        ],
+        "warnings": [
+          "The recorded evidence includes the provider’s file hashes and a specific source revision. Portcove has not inspected the package contents or checked dependency loading, native import, gameplay, equivalence to the original game or saving. Results from other platforms and the browser freeware demo do not establish that this Windows version works.",
+          "Preserve that whole root, custom MIDI location and any logs/crash data before changing a daily build. Portcove does not own original assets, external saves, update compatibility, backups, rollback or deletion."
+        ],
+        "help_url": "https://github.com/FatalDecomp/ROLLER#readme",
+        "references": [
           {
             "title": "Preserve the whole active data root",
             "instruction": "Upstream/player owns runtime replacement. The native source enters FATDATA/fatdata under the executable or --whiplash-root root; original extracted data and mutable FATAL.INI, ROLLER.INI, records and save slots live there. REPLAYS/ and TRACKS/ are created under the root. Preserve that whole root, custom MIDI location and any logs/crash data before changing a daily build. Portcove does not own original assets, external saves, update compatibility, backups, rollback or deletion."
           }
-        ],
-        "warnings": [
-          "The recorded evidence includes the provider’s file hashes and a specific source revision. Portcove has not inspected the package contents or checked dependency loading, native import, gameplay, equivalence to the original game or saving. Results from other platforms and the browser freeware demo do not establish that this Windows version works."
-        ],
-        "help_url": "https://github.com/FatalDecomp/ROLLER#readme"
+        ]
       }
     },
     {
@@ -21004,10 +21108,6 @@
             "instruction": "Prepare a complete official Windows FreeSpace Open player copy compatible with your CPU and data, keeping its DLLs. The reviewed release_26_2_0-RC3 is a release candidate; choose that channel deliberately. The inspected x64 SSE2 package’s normal player is fs2_open_26_2_0_RC3_x64_SSE2.exe; select the actual compatible fs2_open player executable from your prepared copy, not FRED, a dedicated server, installer or mod manager. Keep the retail root as working directory and the established literal -mod and other supported arguments. Launcher-only setup is not reproduced by selecting an engine executable."
           },
           {
-            "title": "Retain all creating data and preference roots",
-            "instruction": "Keep the complete game root, data, mods, launcher settings and all actual player/pilot/campaign files. Current FreeSpace Open normally uses the current account’s AppData/HardLightProductions/FreeSpaceOpen preferences on Windows. FSO_PREFERENCES_PATH can redirect it; -portable_mode uses local paths, and legacy settings or failed profile lookup can change the effective location. Retain the effective preferences root, cmdline_fso.cfg, logs, captures, custom and unknown files. Preserve any launcher-provided environment; attaching a standalone player does not reconstruct it."
-          },
-          {
             "title": "Check the prepared copy before registration",
             "instruction": "Finish setup with the project’s tools, then start and quit the copy you intend to add. Keep its game executable, working folder and supported launch arguments. Review those details in Portcove and agree to launch them, then choose Play separately. Adding a copy does not confirm its original game files, gameplay or save compatibility."
           },
@@ -21018,7 +21118,14 @@
         ],
         "warnings": [
           "Use only a copy and content you are already permitted to use. Engine licensing does not grant rights to original game assets, music, mods or bundled components.",
-          "Before updating the game, keep a copy of its working files and every location containing saved data. Choosing a different executable does not give it a separate profile."
+          "Before updating the game, keep a copy of its working files and every location containing saved data. Choosing a different executable does not give it a separate profile.",
+          "Retain the effective preferences root, cmdline_fso.cfg, logs, captures, custom and unknown files. Preserve any launcher-provided environment; attaching a standalone player does not reconstruct it."
+        ],
+        "references": [
+          {
+            "title": "Retain all creating data and preference roots",
+            "instruction": "Keep the complete game root, data, mods, launcher settings and all actual player/pilot/campaign files. Current FreeSpace Open normally uses the current account’s AppData/HardLightProductions/FreeSpaceOpen preferences on Windows. FSO_PREFERENCES_PATH can redirect it; -portable_mode uses local paths, and legacy settings or failed profile lookup can change the effective location. Retain the effective preferences root, cmdline_fso.cfg, logs, captures, custom and unknown files. Preserve any launcher-provided environment; attaching a standalone player does not reconstruct it."
+          }
         ]
       }
     },
@@ -21515,16 +21622,19 @@
           {
             "title": "Add the prepared native player",
             "instruction": "Choose geometry_wars_retro_evolved_2.exe with its containing package folder as the working folder and no arguments for ordinary Play. Its built-in launcher starts the game in the same native process. Finish setup and any update or setting that requires Restart before adding or starting a tracked session; Restart and the separate updater may replace the process. Saving launch details and Play are separate actions. Use the actual selected copy, not a guessed path."
-          },
+          }
+        ],
+        "warnings": [
+          "This guidance follows upstream source and release descriptions. Portcove has not inspected the package or tested launch, gameplay, saving or updates. Experimental Linux AppImages are a separate route.",
+          "Before the first upstream startup, back up the legacy Documents/geometry_wars_retro_evolved_2 profile and any portable user_data/ profile separately. When upstream migrates legacy data, it moves the legacy folder by rename, or uses a staged verified copy and then removes the legacy folder after activation; successful migration does not leave the old profile in place. A failed migration falls back to the legacy root for that run and retries on the next startup. If only legacy cleanup fails after activation, portable user_data/ stays active and the legacy folder may remain. An unwritable portable root can also fall back to the system root. --user_data_root=<folder> selects that root without migration; --cache_root can select a separate cache. Preserve every active root and the separate backups. Portcove does not own these external files or promise backup, rollback, save compatibility or deletion."
+        ],
+        "help_url": "https://github.com/saulob/geometry-wars-retro-evolved-2-recompiled#readme",
+        "references": [
           {
             "title": "Preserve original and player data",
             "instruction": "Upstream/player remains the only runtime-replacement owner. Preserve game/, user_data/, logs/, the executable TOML and any chosen custom roots before changing versions. Portable user_data/ contains the 584108FF profile/local scores, achievements, cache and launcher settings. Before the first upstream startup, back up the legacy Documents/geometry_wars_retro_evolved_2 profile and any portable user_data/ profile separately. When upstream migrates legacy data, it moves the legacy folder by rename, or uses a staged verified copy and then removes the legacy folder after activation; successful migration does not leave the old profile in place. A failed migration falls back to the legacy root for that run and retries on the next startup. If only legacy cleanup fails after activation, portable user_data/ stays active and the legacy folder may remain. An unwritable portable root can also fall back to the system root. --user_data_root=<folder> selects that root without migration; --cache_root can select a separate cache. Preserve every active root and the separate backups. Portcove does not own these external files or promise backup, rollback, save compatibility or deletion."
           }
-        ],
-        "warnings": [
-          "This guidance follows upstream source and release descriptions. Portcove has not inspected the package or tested launch, gameplay, saving or updates. Experimental Linux AppImages are a separate route."
-        ],
-        "help_url": "https://github.com/saulob/geometry-wars-retro-evolved-2-recompiled#readme"
+        ]
       },
       "download_block_reason": "New downloads are waiting for attributable distribution permission covering this title’s selected package and bundled TRG launcher. The title’s own documentation identifies TRG launcher revision b384a28c712c9320eea8f9d50639dec49981b6c1 and acknowledges that it has no explicit license; a different component’s or title’s license is not a grant for that bundled launcher. Reconsider on an attributable applicable grant or a separately reviewed supported package/preparation route that excludes the unresolved component."
     },
@@ -22121,10 +22231,6 @@
             "instruction": "Select the successful build-release/Galerians_Recompiled.exe product, use its complete build-release directory as working directory and leave arguments empty. Keep matching bios/, mods/, assets, game.toml and runtime companions and the selected own disc paths. The completed player runs its normal launcher and game in the selected process. Do not register the root setup host, scripts, toolchain or unfinished output: a Windows setup host can forward to another process and exit. Saving launch details and requesting Play are separate actions requiring your consent."
           },
           {
-            "title": "Preserve all effective settings, cards and original roots",
-            "instruction": "Before startup, back up the complete kit and creating player directory, settings.toml, disc/BIOS sidecars, saves/ with card1.mcd/card2.mcd, game options/save states, mods/, logs/reports/cache/captures and every actual custom/external root. Existing explicit card paths, --memcard-dir or PSX_OVERLAY_CAPTURE_ROOT remain separate choices; do not merge them. Startup can remove an older settings.toml.bad and rename malformed settings.toml there, so preserve both outside the installation before launching. No cross-disc-variant, BIOS, build or mod save compatibility is promised."
-          },
-          {
             "title": "Keep legacy state migration and disc selection explicit",
             "instruction": "Upstream’s first legacy-state migration can move loose state_*.pst files into openbios/ or scph1001/ subfolders and writes .pst_bios_isolated even when some files are skipped. Preserve the old and new save folders and marker together in separate pre-start backups; no automatic retry or cross-BIOS compatibility is promised. Use the native player’s own Disc Selection/Change disc controls for later owned CUEs and retain every source disc; Portcove does not import saves, switch discs or migrate profiles."
           },
@@ -22138,7 +22244,15 @@
           }
         ],
         "warnings": [
-          "The release is a setup kit; attach the completed private native product. Keep all three owned discs and separate backups before legacy-state migration or rebuilding. Saving/loading and mid-game disc changes remain upstream-unverified beyond the reported early test scope."
+          "The release is a setup kit; attach the completed private native product. Keep all three owned discs and separate backups before legacy-state migration or rebuilding. Saving/loading and mid-game disc changes remain upstream-unverified beyond the reported early test scope.",
+          "Before startup, back up the complete kit and creating player directory, settings.toml, disc/BIOS sidecars, saves/ with card1.mcd/card2.mcd, game options/save states, mods/, logs/reports/cache/captures and every actual custom/external root. Existing explicit card paths, --memcard-dir or PSX_OVERLAY_CAPTURE_ROOT remain separate choices; do not merge them. Startup can remove an older settings.toml.bad and rename malformed settings.toml there, so preserve both outside the installation before launching. No cross-disc-variant, BIOS, build or mod save compatibility is promised.",
+          "Upstream’s first legacy-state migration can move loose state_*.pst files into openbios/ or scph1001/ subfolders and writes .pst_bios_isolated even when some files are skipped. Preserve the old and new save folders and marker together in separate pre-start backups; no automatic retry or cross-BIOS compatibility is promised."
+        ],
+        "references": [
+          {
+            "title": "Preserve all effective settings, cards and original roots",
+            "instruction": "Before startup, back up the complete kit and creating player directory, settings.toml, disc/BIOS sidecars, saves/ with card1.mcd/card2.mcd, game options/save states, mods/, logs/reports/cache/captures and every actual custom/external root. Existing explicit card paths, --memcard-dir or PSX_OVERLAY_CAPTURE_ROOT remain separate choices; do not merge them. Startup can remove an older settings.toml.bad and rename malformed settings.toml there, so preserve both outside the installation before launching. No cross-disc-variant, BIOS, build or mod save compatibility is promised."
+          }
         ]
       }
     },
@@ -22266,7 +22380,7 @@
           },
           {
             "title": "Preserve the actual working directory as well as game data",
-            "instruction": "Retain the creating working directory and established literal -g argument pointing to the actual absolute Gothic II data root, if used. Automatic discovery is not a reason to change a working data selection. The selected Windows code uses working-directory Gothic.ini and log.txt, separately from original System/Gothic.ini, and writes save_slot_0.sav/save_slot_N.sav relative to the working directory. Preserve the complete creating working directory, actual original-data root, every save/config/mod and unknown file; do not assume the original vendor save directory contains all OpenGothic state."
+            "instruction": "Retain the creating working directory and established literal -g argument pointing to the actual absolute Gothic II data root, if used. Automatic discovery is not a reason to change a working data selection."
           },
           {
             "title": "Check the working copy before registration",
@@ -22279,7 +22393,14 @@
         ],
         "warnings": [
           "Use only a copy and content you are already permitted to use. Engine licensing does not grant rights to original game assets, music, mods or bundled components.",
-          "Before updating the game, keep a copy of its working files and every location containing saved data. Choosing a different executable does not give it a separate profile."
+          "Before updating the game, keep a copy of its working files and every location containing saved data. Choosing a different executable does not give it a separate profile.",
+          "Preserve the complete creating working directory, actual original-data root, every save/config/mod and unknown file; do not assume the original vendor save directory contains all OpenGothic state."
+        ],
+        "references": [
+          {
+            "title": "OpenGothic settings and save locations",
+            "instruction": "The selected Windows code uses working-directory Gothic.ini and log.txt, separately from original System/Gothic.ini, and writes save_slot_0.sav/save_slot_N.sav relative to the working directory. Preserve the complete creating working directory, actual original-data root, every save/config/mod and unknown file; do not assume the original vendor save directory contains all OpenGothic state."
+          }
         ]
       }
     },
@@ -22495,10 +22616,6 @@
             "instruction": "The launcher stays alive, hides to the tray during Play and watches its child game; when the game exits it harvests the card and returns Home. The launcher supplies required renderer environment, config, per-session files and card locks. Quit/save through the game, wait for the upstream launcher to finish card handling, then close the launcher to end the selected session. Closing it while playing asks first and can end the game through its kill-on-close job. Do not register an internal payload, bypass the owner or assume closing Portcove provides a save checkpoint."
           },
           {
-            "title": "Preserve effective saves and recovery paths",
-            "instruction": "Large data normally stays in <install>/data; a nonwritable install may read that folder while writing to %LOCALAPPDATA%/GT4Recomp. Per-user settings, controls, save/replay libraries and card backups normally use %APPDATA%/GT4Recomp, with upstream fallback/read layers retained during migration. Before Play the launcher builds the runtime card from its library, then harvests after exit; do not edit card/library files concurrently. It prunes older session folders to 20 and may rewrite corrupt update metadata to .json.bad. Preserve all current/fallback/legacy roots before maintenance; do not assume cross-version save compatibility."
-          },
-          {
             "title": "Keep update and restart transitions upstream-owned",
             "instruction": "Upstream owns setup, renderer downloads/updates, runtime replacement, data movement and recovery. A launcher update starts its installer and exits; WebView recovery can restart the launcher in safe mode. Complete these transitions outside the registered normal session and revalidate the resulting launcher. Portcove does not reproduce renderer environment, follow replacement processes, acquire originals or delete/restore external data."
           },
@@ -22509,7 +22626,15 @@
         ],
         "warnings": [
           "Use an independently permitted complete installation; bundled brand/cover artwork permission is a separate acquisition condition.",
-          "Track the official launcher session and let it own preparation, renderer environment, card handling and ordinary game launch. Optional installer/WebView restarts are not followed."
+          "Track the official launcher session and let it own preparation, renderer environment, card handling and ordinary game launch. Optional installer/WebView restarts are not followed.",
+          "Keep the backups outside old installation cleanup targets. Startup can move user and large data, flatten textures and remove the old per-user program/game folder, fixed shortcuts and registry entries. The running installation and its data-folder layout are excluded from that legacy cleanup; do not rely on an old executable folder as your recovery copy.",
+          "Before Play the launcher builds the runtime card from its library, then harvests after exit; do not edit card/library files concurrently. It prunes older session folders to 20 and may rewrite corrupt update metadata to .json.bad. Preserve all current/fallback/legacy roots before maintenance; do not assume cross-version save compatibility."
+        ],
+        "references": [
+          {
+            "title": "Preserve effective saves and recovery paths",
+            "instruction": "Large data normally stays in <install>/data; a nonwritable install may read that folder while writing to %LOCALAPPDATA%/GT4Recomp. Per-user settings, controls, save/replay libraries and card backups normally use %APPDATA%/GT4Recomp, with upstream fallback/read layers retained during migration. Before Play the launcher builds the runtime card from its library, then harvests after exit; do not edit card/library files concurrently. It prunes older session folders to 20 and may rewrite corrupt update metadata to .json.bad. Preserve all current/fallback/legacy roots before maintenance; do not assume cross-version save compatibility."
+          }
         ]
       },
       "download_block_reason": "Fresh acquisition of the selected branded GT4Recomp Windows package is held while the applicable permission or authorized-source basis for its bundled cover-front artwork and derived brand assets remains unresolved. NOTICE leaves the cover-art licence for owner confirmation; the MIT code grant does not resolve it. Resume on an attributable applicable basis or a reviewed supported de-branded package/preparation; independently permitted complete installations remain separate."
@@ -23262,12 +23387,22 @@
       "download_block_reason": "Portcove downloads remain paused while the desktop package's separately owned EA/PopCap and other game-resource permissions are unresolved. The website license and upstream personal-use terms do not establish a grant for those resources. Keep a permitted copy; reconsider when the needed grants or a resource-free package are established.",
       "manual_setup": {
         "help_url": "https://pvzge.com/en/guide/FAQ.html",
-        "warnings": [],
+        "warnings": [
+          "Keep the old player and export recoverable; a different platform, package or edition may not inherit progress automatically. Use the matching upstream import route and verify your progress in the new player before removing the old package.",
+          "Close the game, then copy the whole directory, including mod configuration, mod-data, patches, __gpn_edits and save-backups, plus any custom locations. Native exports and cloud saves do not automatically include mod-owned progress. Keep the original working package too; never assume Standard and Lite share or isolate the same profile.",
+          "Recovery snapshots capture the current failure state and are not guaranteed healthy saves; save rollback does not restore mod-owned files. Failed backups block upstream reset or restore. Check the player and backup date, restore needed mods, and never manually replace saves while the game is running."
+        ],
         "steps": [
           {
             "title": "Keep your chosen permitted edition",
             "instruction": "Keep the complete Windows Standard or Lite package and its own player together; use the Standard package's own player or pvzge-lite.exe for Lite. Register that player with its folder as the working directory, save launch details, then choose Play separately. Standard and Lite are meaningful choices and can use different data folders. For an upstream macOS edition, follow its separate platform instructions and keep its complete app; do not use the Windows executable."
           },
+          {
+            "title": "Use upstream recovery with a separate backup",
+            "instruction": "If GP-Next opens recovery, keep the separate copy and use its suggested action. Recovery snapshots capture the current failure state and are not guaranteed healthy saves; save rollback does not restore mod-owned files. Failed backups block upstream reset or restore. Check the player and backup date, restore needed mods, and never manually replace saves while the game is running. You or upstream own updates and data backups; Portcove registration promises no managed Update, Backup or Rollback, and its removal preserves every external file."
+          }
+        ],
+        "references": [
           {
             "title": "Export saves before changing a version or package",
             "instruction": "Select your player name in the game main menu to export a save. Keep the old player and export recoverable; a different platform, package or edition may not inherit progress automatically. Use the matching upstream import route and verify your progress in the new player before removing the old package."
@@ -23275,10 +23410,6 @@
           {
             "title": "Back up this edition's actual data folder",
             "instruction": "Choose Mods then Open Folder to find the data directory actually used by this edition. Close the game, then copy the whole directory, including mod configuration, mod-data, patches, __gpn_edits and save-backups, plus any custom locations. Native exports and cloud saves do not automatically include mod-owned progress. Keep the original working package too; never assume Standard and Lite share or isolate the same profile."
-          },
-          {
-            "title": "Use upstream recovery with a separate backup",
-            "instruction": "If GP-Next opens recovery, keep the separate copy and use its suggested action. Recovery snapshots capture the current failure state and are not guaranteed healthy saves; save rollback does not restore mod-owned files. Failed backups block upstream reset or restore. Check the player and backup date, restore needed mods, and never manually replace saves while the game is running. You or upstream own updates and data backups; Portcove registration promises no managed Update, Backup or Rollback, and its removal preserves every external file."
           }
         ]
       }
@@ -29745,18 +29876,21 @@
             "instruction": "Keep the complete existing Windows or Linux package together. Select its native Mario Forever Community Edition game executable and containing folder. This is a self-contained community remake of Mario Forever; it does not ask for a commercial Super Mario ROM."
           },
           {
-            "title": "Keep the existing profile",
-            "instruction": "Upstream places saves, settings and logs in the user-data folder MeteoDream/Mario Forever Community Edition. Preserve that actual profile, any custom location and your existing working package before changing versions."
-          },
-          {
             "title": "Play and update deliberately",
             "instruction": "Choose Play explicitly after registering the existing player. Runtime updates and external profiles remain with you and upstream; Portcove does not replace, back up or remove those files."
           }
         ],
         "warnings": [
-          "The project’s original contributions and bundled third-party game assets have separate distribution terms. Existing-copy registration does not certify those assets or grant acquisition permission."
+          "The project’s original contributions and bundled third-party game assets have separate distribution terms. Existing-copy registration does not certify those assets or grant acquisition permission.",
+          "Preserve that actual profile, any custom location and your existing working package before changing versions."
         ],
-        "help_url": "https://github.com/meteo-dream/mf-community-edition#readme"
+        "help_url": "https://github.com/meteo-dream/mf-community-edition#readme",
+        "references": [
+          {
+            "title": "Keep the existing profile",
+            "instruction": "Upstream places saves, settings and logs in the user-data folder MeteoDream/Mario Forever Community Edition. Preserve that actual profile, any custom location and your existing working package before changing versions."
+          }
+        ]
       },
       "download_block_reason": "New downloads are paused while the bundled third-party game assets are reviewed. Keep using your permitted existing copy; downloads can resume when the package’s distribution terms are established."
     },
@@ -32028,16 +32162,20 @@
             "instruction": "On Windows, use the official Windows ZIP and select raze.exe with the extracted player folder as its working directory. Keep the DLLs, raze.pk3 and soundfonts together. Registration does not start the player; Play does. Raze may ask which detected game/edition to use, because the same player supports several games. For a fixed entry, Change launch details can use two argument lines: -gamegrp, then the local Windows drive-letter absolute path (for example C:/Games/...) to your NAM.GRP archive (NAPALM.GRP for that owned edition). Use Raze’s game picker for UNC/network paths; this fixed-entry example does not establish a POSIX/macOS path rule. Keep that archive’s companion files together."
           },
           {
-            "title": "Keep the shared profile this game uses",
-            "instruction": "Windows normally keeps raze.ini in Documents/My Games/raze, saves under the system Saved Games/Raze folder, and screenshots in the system Screenshots/Raze folder; redirected Windows known folders can change those absolute locations. A writable raze_portable.ini outside Program Files uses the player folder with Save and Screenshots instead. Custom -config/-savedir locations remain external. Normal save roots contain game/edition subfolders. A custom -savedir disables that partition, so keep a separate chosen directory for each game. Several entries can share Raze settings. Switching a portable marker redirects paths; it does not move normal-profile saves. Close all copies and back up the actual locations, original data and selected mods before changing versions. First Play in a newer copy may migrate an older configuration; preserve its old location too. Keep a working runtime until its saves work in the replacement."
-          },
-          {
             "title": "Keep upstream update ownership and platform handoffs",
             "instruction": "You and upstream replace this external player. Portcove registration preserves every external file and does not promise managed Update, Backup or Rollback. On macOS, use the official universal Raze.app through the normal OS application flow; do not register its private Contents/MacOS binary. Its normal settings are ~/Library/Preferences/raze.ini saves ~/Documents/raze/Savegames and screenshots ~/Documents/raze/Screenshots. Linux has no native archive in this selected GitHub release: use an already prepared upstream/system-package copy or upstream’s build instructions, then its native player. Linux normally uses ~/.config/raze for configuration and savegames, and can move an older ~/.raze directory on first use. Platform handoffs do not establish native execution or save compatibility."
           }
         ],
-        "warnings": [],
-        "help_url": "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/wadsrc/static/engine/grpinfo.txt"
+        "warnings": [
+          "A custom -savedir disables that partition, so keep a separate chosen directory for each game. Several entries can share Raze settings. Switching a portable marker redirects paths; it does not move normal-profile saves. Close all copies and back up the actual locations, original data and selected mods before changing versions. First Play in a newer copy may migrate an older configuration; preserve its old location too. Keep a working runtime until its saves work in the replacement."
+        ],
+        "help_url": "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/wadsrc/static/engine/grpinfo.txt",
+        "references": [
+          {
+            "title": "Keep the shared profile this game uses",
+            "instruction": "Windows normally keeps raze.ini in Documents/My Games/raze, saves under the system Saved Games/Raze folder, and screenshots in the system Screenshots/Raze folder; redirected Windows known folders can change those absolute locations. A writable raze_portable.ini outside Program Files uses the player folder with Save and Screenshots instead. Custom -config/-savedir locations remain external. Normal save roots contain game/edition subfolders. A custom -savedir disables that partition, so keep a separate chosen directory for each game. Several entries can share Raze settings. Switching a portable marker redirects paths; it does not move normal-profile saves. Close all copies and back up the actual locations, original data and selected mods before changing versions. First Play in a newer copy may migrate an older configuration; preserve its old location too. Keep a working runtime until its saves work in the replacement."
+          }
+        ]
       },
       "artwork": {
         "game_id": 2534,
@@ -34130,16 +34268,20 @@
             "instruction": "Choose Play explicitly to open that game’s own content screen. OpenRA can import your original media or offer its minimal content download; review that choice in OpenRA. No content installer or helper is started by discovery or by saving launch details."
           },
           {
-            "title": "Keep your upstream profile and update route",
-            "instruction": "OpenRA or you provide updates. Preserve the actual profile: normally %APPDATA%\\OpenRA on Windows, ~/.config/openra on Linux, or ~/Library/Application Support/OpenRA on macOS. A local Support folder, an older profile or a custom override can change it. Keep settings, saves, maps, mods and content together, and retain a working copy when changing versions. These external files are outside Portcove backup and rollback."
-          },
-          {
             "title": "Use the native upstream launcher on other systems",
             "instruction": "On Linux, choose the AppImage for the game you want and prepare it using upstream instructions; retain the game-specific launcher. On macOS, install the desired game application from the disk image and retain its application bundle. These formats use upstream setup; Portcove does not extract or execute an AppImage, disk image, installer or shell helper automatically."
           }
         ],
-        "warnings": [],
-        "help_url": "https://github.com/OpenRA/OpenRA/blob/b4f3d8ae02b6bd6f4a3a5441e6d0daf7c5073787/README.md"
+        "warnings": [
+          "Keep settings, saves, maps, mods and content together, and retain a working copy when changing versions. These external files are outside Portcove backup and rollback."
+        ],
+        "help_url": "https://github.com/OpenRA/OpenRA/blob/b4f3d8ae02b6bd6f4a3a5441e6d0daf7c5073787/README.md",
+        "references": [
+          {
+            "title": "Keep your upstream profile and update route",
+            "instruction": "OpenRA or you provide updates. Preserve the actual profile: normally %APPDATA%\\OpenRA on Windows, ~/.config/openra on Linux, or ~/Library/Application Support/OpenRA on macOS. A local Support folder, an older profile or a custom override can change it. Keep settings, saves, maps, mods and content together, and retain a working copy when changing versions. These external files are outside Portcove backup and rollback."
+          }
+        ]
       }
     },
     {
@@ -35742,7 +35884,9 @@
       "download_block_reason": "Fresh package/build acquisition remains held under #2722: upstream embeds original SAB2.COM data in every binary, and an attributable grant covering distribution of those original materials has not been established. The port-code Unlicense permits compiled redistribution of that software; it does not resolve the separately recorded original-data condition. Reconsider on attributable original-content distribution evidence or a reviewed route creating those materials from the player’s own inputs. These instructions grant no permission to acquire, register or execute a copy.",
       "manual_setup": {
         "help_url": "https://github.com/petarov/saboteur2#readme",
-        "warnings": [],
+        "warnings": [
+          "Forced quit keys do not save scores. Before changing versions, close the game and keep a separate copy of the working runtime and actual preferences/fallback file. You or upstream own runtime updates. Portcove does not manage, back up, restore, roll back or delete these external runtime or player-data files."
+        ],
         "steps": [
           {
             "title": "Check the existing acquisition condition",
@@ -35751,7 +35895,9 @@
           {
             "title": "Keep a permitted existing player together",
             "instruction": "If you already have a native copy you are permitted to use, keep its complete matching runtime. On Windows x64 choose saboteur2.exe beside SDL2.dll, with its folder as the working directory. Linux x64 uses saboteur2 and requires system SDL2 and glibc 2.34 or newer according to upstream. Save launch details, then choose Play deliberately. Mac versions follow their own upstream instructions. Registration preserves external ownership and does not grant permission to use a copy."
-          },
+          }
+        ],
+        "references": [
           {
             "title": "Preserve actual settings and progress",
             "instruction": "The player normally stores fullscreen settings and high scores in SDL’s per-user petarov/saboteur2 preferences folder. When that folder is unavailable, high scores can fall back to SAB_II.SCR in the working directory; preserve that file too. Forced quit keys do not save scores. Before changing versions, close the game and keep a separate copy of the working runtime and actual preferences/fallback file. You or upstream own runtime updates. Portcove does not manage, back up, restore, roll back or delete these external runtime or player-data files."
@@ -37273,16 +37419,20 @@
             "instruction": "On Windows, use the official Windows ZIP and select raze.exe with the extracted player folder as its working directory. Keep the DLLs, raze.pk3 and soundfonts together. Registration does not start the player; Play does. Raze may ask which detected game/edition to use, because the same player supports several games. For a fixed entry, Change launch details can use two argument lines: -gamegrp, then the local Windows drive-letter absolute path (for example C:/Games/...) to your STUFF.DAT archive. Use Raze’s game picker for UNC/network paths; this fixed-entry example does not establish a POSIX/macOS path rule. Keep that archive’s companion files together."
           },
           {
-            "title": "Keep the shared profile this game uses",
-            "instruction": "Windows normally keeps raze.ini in Documents/My Games/raze, saves under the system Saved Games/Raze folder, and screenshots in the system Screenshots/Raze folder; redirected Windows known folders can change those absolute locations. A writable raze_portable.ini outside Program Files uses the player folder with Save and Screenshots instead. Custom -config/-savedir locations remain external. Normal save roots contain game/edition subfolders. A custom -savedir disables that partition, so keep a separate chosen directory for each game. Several entries can share Raze settings. Switching a portable marker redirects paths; it does not move normal-profile saves. Close all copies and back up the actual locations, original data and selected mods before changing versions. First Play in a newer copy may migrate an older configuration; preserve its old location too. Keep a working runtime until its saves work in the replacement."
-          },
-          {
             "title": "Keep upstream update ownership and platform handoffs",
             "instruction": "You and upstream replace this external player. Portcove registration preserves every external file and does not promise managed Update, Backup or Rollback. On macOS, use the official universal Raze.app through the normal OS application flow; do not register its private Contents/MacOS binary. Its normal settings are ~/Library/Preferences/raze.ini saves ~/Documents/raze/Savegames and screenshots ~/Documents/raze/Screenshots. Linux has no native archive in this selected GitHub release: use an already prepared upstream/system-package copy or upstream’s build instructions, then its native player. Linux normally uses ~/.config/raze for configuration and savegames, and can move an older ~/.raze directory on first use. Platform handoffs do not establish native execution or save compatibility."
           }
         ],
-        "warnings": [],
-        "help_url": "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/wadsrc/static/engine/grpinfo.txt"
+        "warnings": [
+          "A custom -savedir disables that partition, so keep a separate chosen directory for each game. Several entries can share Raze settings. Switching a portable marker redirects paths; it does not move normal-profile saves. Close all copies and back up the actual locations, original data and selected mods before changing versions. First Play in a newer copy may migrate an older configuration; preserve its old location too. Keep a working runtime until its saves work in the replacement."
+        ],
+        "help_url": "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/wadsrc/static/engine/grpinfo.txt",
+        "references": [
+          {
+            "title": "Keep the shared profile this game uses",
+            "instruction": "Windows normally keeps raze.ini in Documents/My Games/raze, saves under the system Saved Games/Raze folder, and screenshots in the system Screenshots/Raze folder; redirected Windows known folders can change those absolute locations. A writable raze_portable.ini outside Program Files uses the player folder with Save and Screenshots instead. Custom -config/-savedir locations remain external. Normal save roots contain game/edition subfolders. A custom -savedir disables that partition, so keep a separate chosen directory for each game. Several entries can share Raze settings. Switching a portable marker redirects paths; it does not move normal-profile saves. Close all copies and back up the actual locations, original data and selected mods before changing versions. First Play in a newer copy may migrate an older configuration; preserve its old location too. Keep a working runtime until its saves work in the replacement."
+          }
+        ]
       },
       "artwork": {
         "game_id": 188071,
@@ -39486,16 +39636,20 @@
             "instruction": "On Windows, use the official Windows ZIP and select raze.exe with the extracted player folder as its working directory. Keep the DLLs, raze.pk3 and soundfonts together. Registration does not start the player; Play does. Raze may ask which detected game/edition to use, because the same player supports several games. For a fixed entry, Change launch details can use two argument lines: -gamegrp, then the local Windows drive-letter absolute path (for example C:/Games/...) to your REDNECK.GRP archive. Use Raze’s game picker for UNC/network paths; this fixed-entry example does not establish a POSIX/macOS path rule. Keep that archive’s companion files together."
           },
           {
-            "title": "Keep the shared profile this game uses",
-            "instruction": "Windows normally keeps raze.ini in Documents/My Games/raze, saves under the system Saved Games/Raze folder, and screenshots in the system Screenshots/Raze folder; redirected Windows known folders can change those absolute locations. A writable raze_portable.ini outside Program Files uses the player folder with Save and Screenshots instead. Custom -config/-savedir locations remain external. Normal save roots contain game/edition subfolders. A custom -savedir disables that partition, so keep a separate chosen directory for each game. Several entries can share Raze settings. Switching a portable marker redirects paths; it does not move normal-profile saves. Close all copies and back up the actual locations, original data and selected mods before changing versions. First Play in a newer copy may migrate an older configuration; preserve its old location too. Keep a working runtime until its saves work in the replacement."
-          },
-          {
             "title": "Keep upstream update ownership and platform handoffs",
             "instruction": "You and upstream replace this external player. Portcove registration preserves every external file and does not promise managed Update, Backup or Rollback. On macOS, use the official universal Raze.app through the normal OS application flow; do not register its private Contents/MacOS binary. Its normal settings are ~/Library/Preferences/raze.ini saves ~/Documents/raze/Savegames and screenshots ~/Documents/raze/Screenshots. Linux has no native archive in this selected GitHub release: use an already prepared upstream/system-package copy or upstream’s build instructions, then its native player. Linux normally uses ~/.config/raze for configuration and savegames, and can move an older ~/.raze directory on first use. Platform handoffs do not establish native execution or save compatibility."
           }
         ],
-        "warnings": [],
-        "help_url": "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/wadsrc/static/engine/grpinfo.txt"
+        "warnings": [
+          "A custom -savedir disables that partition, so keep a separate chosen directory for each game. Several entries can share Raze settings. Switching a portable marker redirects paths; it does not move normal-profile saves. Close all copies and back up the actual locations, original data and selected mods before changing versions. First Play in a newer copy may migrate an older configuration; preserve its old location too. Keep a working runtime until its saves work in the replacement."
+        ],
+        "help_url": "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/wadsrc/static/engine/grpinfo.txt",
+        "references": [
+          {
+            "title": "Keep the shared profile this game uses",
+            "instruction": "Windows normally keeps raze.ini in Documents/My Games/raze, saves under the system Saved Games/Raze folder, and screenshots in the system Screenshots/Raze folder; redirected Windows known folders can change those absolute locations. A writable raze_portable.ini outside Program Files uses the player folder with Save and Screenshots instead. Custom -config/-savedir locations remain external. Normal save roots contain game/edition subfolders. A custom -savedir disables that partition, so keep a separate chosen directory for each game. Several entries can share Raze settings. Switching a portable marker redirects paths; it does not move normal-profile saves. Close all copies and back up the actual locations, original data and selected mods before changing versions. First Play in a newer copy may migrate an older configuration; preserve its old location too. Keep a working runtime until its saves work in the replacement."
+          }
+        ]
       }
     },
     {
@@ -41441,16 +41595,20 @@
             "instruction": "On Windows, use the official Windows ZIP and select raze.exe with the extracted player folder as its working directory. Keep the DLLs, raze.pk3 and soundfonts together. Registration does not start the player; Play does. Raze may ask which detected game/edition to use, because the same player supports several games. For a fixed entry, Change launch details can use two argument lines: -gamegrp, then the local Windows drive-letter absolute path (for example C:/Games/...) to your SW.GRP archive. Use Raze’s game picker for UNC/network paths; this fixed-entry example does not establish a POSIX/macOS path rule. Keep that archive’s companion files together."
           },
           {
-            "title": "Keep the shared profile this game uses",
-            "instruction": "Windows normally keeps raze.ini in Documents/My Games/raze, saves under the system Saved Games/Raze folder, and screenshots in the system Screenshots/Raze folder; redirected Windows known folders can change those absolute locations. A writable raze_portable.ini outside Program Files uses the player folder with Save and Screenshots instead. Custom -config/-savedir locations remain external. Normal save roots contain game/edition subfolders. A custom -savedir disables that partition, so keep a separate chosen directory for each game. Several entries can share Raze settings. Switching a portable marker redirects paths; it does not move normal-profile saves. Close all copies and back up the actual locations, original data and selected mods before changing versions. First Play in a newer copy may migrate an older configuration; preserve its old location too. Keep a working runtime until its saves work in the replacement."
-          },
-          {
             "title": "Keep upstream update ownership and platform handoffs",
             "instruction": "You and upstream replace this external player. Portcove registration preserves every external file and does not promise managed Update, Backup or Rollback. On macOS, use the official universal Raze.app through the normal OS application flow; do not register its private Contents/MacOS binary. Its normal settings are ~/Library/Preferences/raze.ini saves ~/Documents/raze/Savegames and screenshots ~/Documents/raze/Screenshots. Linux has no native archive in this selected GitHub release: use an already prepared upstream/system-package copy or upstream’s build instructions, then its native player. Linux normally uses ~/.config/raze for configuration and savegames, and can move an older ~/.raze directory on first use. Platform handoffs do not establish native execution or save compatibility."
           }
         ],
-        "warnings": [],
-        "help_url": "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/wadsrc/static/engine/grpinfo.txt"
+        "warnings": [
+          "A custom -savedir disables that partition, so keep a separate chosen directory for each game. Several entries can share Raze settings. Switching a portable marker redirects paths; it does not move normal-profile saves. Close all copies and back up the actual locations, original data and selected mods before changing versions. First Play in a newer copy may migrate an older configuration; preserve its old location too. Keep a working runtime until its saves work in the replacement."
+        ],
+        "help_url": "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/wadsrc/static/engine/grpinfo.txt",
+        "references": [
+          {
+            "title": "Keep the shared profile this game uses",
+            "instruction": "Windows normally keeps raze.ini in Documents/My Games/raze, saves under the system Saved Games/Raze folder, and screenshots in the system Screenshots/Raze folder; redirected Windows known folders can change those absolute locations. A writable raze_portable.ini outside Program Files uses the player folder with Save and Screenshots instead. Custom -config/-savedir locations remain external. Normal save roots contain game/edition subfolders. A custom -savedir disables that partition, so keep a separate chosen directory for each game. Several entries can share Raze settings. Switching a portable marker redirects paths; it does not move normal-profile saves. Close all copies and back up the actual locations, original data and selected mods before changing versions. First Play in a newer copy may migrate an older configuration; preserve its old location too. Keep a working runtime until its saves work in the replacement."
+          }
+        ]
       },
       "artwork": {
         "game_id": 2947,
@@ -46308,16 +46466,19 @@
           {
             "title": "Select the OpenGL player",
             "instruction": "Extract the complete Windows test ZIP into that prepared working copy. Select glh2.exe with the working game folder, then choose Play. This is a Win32 OpenGL Hexen II preview, not HexenWorld."
-          },
+          }
+        ],
+        "warnings": [
+          "Updates remain upstream/player-owned. Portcove registration does not manage original data, patching, saves or expansion compatibility.",
+          "Back up the complete folder before applying upstream updates, including portals or custom mod folders when used. Portal of Praevus requires its own portals/pak3.pak and the separate launch argument -portals."
+        ],
+        "help_url": "https://github.com/TDRRmk2/uhexen2-tweaked#readme",
+        "references": [
           {
             "title": "Preserve the whole working copy",
             "instruction": "Windows saves, configuration, demos and screenshots use the selected game directory, normally data1. Back up the complete folder before applying upstream updates, including portals or custom mod folders when used. Portal of Praevus requires its own portals/pak3.pak and the separate launch argument -portals."
           }
-        ],
-        "warnings": [
-          "Updates remain upstream/player-owned. Portcove registration does not manage original data, patching, saves or expansion compatibility."
-        ],
-        "help_url": "https://github.com/TDRRmk2/uhexen2-tweaked#readme"
+        ]
       },
       "download_asset_hints": {
         "windows-x86-64": [
@@ -50353,14 +50514,17 @@
           {
             "title": "Review launch details and manage updates",
             "instruction": "Review the selected game executable, working folder and launch arguments, then agree to use them. Choose Play separately when you are ready. You manage setup, game replacement and recovery. Removing the registration leaves external files in place. Before changing versions, close the game and its companion programs and keep the working copy and every data location it uses. Review and select the changed executable before playing again. Portcove does not offer updates, backups, rollback, conversion, data migration or deletion for these external files."
-          },
+          }
+        ],
+        "warnings": [
+          "Use only a copy and components you are permitted to use. Keep the complete working game, originals, saves, settings, mods, caches, backups and every custom data location before changing versions. Another executable may use those same locations. These instructions do not establish Portcove-managed installation, gameplay or save compatibility.",
+          "Upstream memory-card import copies into an empty slot and renames the source card .imported; do not use originals as disposable migration input. Emulator save states cannot be imported; native states have build/platform compatibility limits. Keep the creating runtime, original BIN, old saves, native/code mods, caches and backups before upstream updates. Upstream’s update notification is separate from Portcove management."
+        ],
+        "references": [
           {
             "title": "Preserve the whole creating copy and effective data",
             "instruction": "Preserve Documents/My Games/YFM Re-Decomp and all actual custom roots: settings, controls, memory cards, save states and mods live outside the package. Upstream memory-card import copies into an empty slot and renames the source card .imported; do not use originals as disposable migration input. Emulator save states cannot be imported; native states have build/platform compatibility limits. Keep the creating runtime, original BIN, old saves, native/code mods, caches and backups before upstream updates. Upstream’s update notification is separate from Portcove management."
           }
-        ],
-        "warnings": [
-          "Use only a copy and components you are permitted to use. Keep the complete working game, originals, saves, settings, mods, caches, backups and every custom data location before changing versions. Another executable may use those same locations. These instructions do not establish Portcove-managed installation, gameplay or save compatibility."
         ]
       },
       "download_block_reason": "Fresh bundled-package acquisition remains held for the explicitly excluded upstream decompilation and Konami game/data scope, including the bundled European translation texts. The MIT PC-layer grant does not settle those named components. Resume only with applicable permissions for the exact components or a reviewed compatible package resolving that scope. A conditional independently permitted existing-copy route does not clear this hold."
@@ -53404,16 +53568,20 @@
             "instruction": "On Windows, use the official Windows ZIP and select raze.exe with the extracted player folder as its working directory. Keep the DLLs, raze.pk3 and soundfonts together. Registration does not start the player; Play does. Raze may ask which detected game/edition to use, because the same player supports several games. For a fixed entry, Change launch details can use two argument lines: -gamegrp, then the local Windows drive-letter absolute path (for example C:/Games/...) to your WW2GI.GRP archive. Use Raze’s game picker for UNC/network paths; this fixed-entry example does not establish a POSIX/macOS path rule. Keep that archive’s companion files together."
           },
           {
-            "title": "Keep the shared profile this game uses",
-            "instruction": "Windows normally keeps raze.ini in Documents/My Games/raze, saves under the system Saved Games/Raze folder, and screenshots in the system Screenshots/Raze folder; redirected Windows known folders can change those absolute locations. A writable raze_portable.ini outside Program Files uses the player folder with Save and Screenshots instead. Custom -config/-savedir locations remain external. Normal save roots contain game/edition subfolders. A custom -savedir disables that partition, so keep a separate chosen directory for each game. Several entries can share Raze settings. Switching a portable marker redirects paths; it does not move normal-profile saves. Close all copies and back up the actual locations, original data and selected mods before changing versions. First Play in a newer copy may migrate an older configuration; preserve its old location too. Keep a working runtime until its saves work in the replacement."
-          },
-          {
             "title": "Keep upstream update ownership and platform handoffs",
             "instruction": "You and upstream replace this external player. Portcove registration preserves every external file and does not promise managed Update, Backup or Rollback. On macOS, use the official universal Raze.app through the normal OS application flow; do not register its private Contents/MacOS binary. Its normal settings are ~/Library/Preferences/raze.ini saves ~/Documents/raze/Savegames and screenshots ~/Documents/raze/Screenshots. Linux has no native archive in this selected GitHub release: use an already prepared upstream/system-package copy or upstream’s build instructions, then its native player. Linux normally uses ~/.config/raze for configuration and savegames, and can move an older ~/.raze directory on first use. Platform handoffs do not establish native execution or save compatibility."
           }
         ],
-        "warnings": [],
-        "help_url": "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/wadsrc/static/engine/grpinfo.txt"
+        "warnings": [
+          "A custom -savedir disables that partition, so keep a separate chosen directory for each game. Several entries can share Raze settings. Switching a portable marker redirects paths; it does not move normal-profile saves. Close all copies and back up the actual locations, original data and selected mods before changing versions. First Play in a newer copy may migrate an older configuration; preserve its old location too. Keep a working runtime until its saves work in the replacement."
+        ],
+        "help_url": "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/wadsrc/static/engine/grpinfo.txt",
+        "references": [
+          {
+            "title": "Keep the shared profile this game uses",
+            "instruction": "Windows normally keeps raze.ini in Documents/My Games/raze, saves under the system Saved Games/Raze folder, and screenshots in the system Screenshots/Raze folder; redirected Windows known folders can change those absolute locations. A writable raze_portable.ini outside Program Files uses the player folder with Save and Screenshots instead. Custom -config/-savedir locations remain external. Normal save roots contain game/edition subfolders. A custom -savedir disables that partition, so keep a separate chosen directory for each game. Several entries can share Raze settings. Switching a portable marker redirects paths; it does not move normal-profile saves. Close all copies and back up the actual locations, original data and selected mods before changing versions. First Play in a newer copy may migrate an older configuration; preserve its old location too. Keep a working runtime until its saves work in the replacement."
+          }
+        ]
       }
     },
     {
@@ -54146,14 +54314,18 @@
           {
             "title": "Keep the generated assets and player data together",
             "instruction": "Keep the complete prepared project, your original ROM, zelda3_assets.dat, zelda3.user.ini overrides, saves, custom sprites/shaders/MSU packs, and any randomizer YAML, seed/spoiler files or selected feature-asset folders separately backed up. The game tries zelda3.user.ini before zelda3.ini. Keep packaged defaults with their own release and use user overrides for personal settings. The native release ZIP supplies a player and SDL but no generated zelda3_assets.dat; copying that executable alone is not finished setup."
-          },
+          }
+        ],
+        "warnings": [
+          "The game’s guide requires asset regeneration after relevant executable/source, extraction-script, YAML or INI behavior changes. Copying an older generated asset file into a replacement runtime cannot satisfy that requirement. Preserve the old prepared copy and randomizer choices before regeneration; extracting clean ROM data after randomizing overwrites the randomized YAML. Portcove registers the prepared player without claiming Update, Backup or Rollback for these externally owned files. The related Python Z3R-Launcher and current lawn delivery are helpers for this same engine identity, not extra games."
+        ],
+        "help_url": "https://github.com/xander-haj/lawn/blob/883cced10e5eb4bee81be56513ec96df8ddf5763/README.md",
+        "references": [
           {
             "title": "Regenerate matching assets when updating",
             "instruction": "Let the selected upstream launcher manage its own project setup and updates. The game’s guide requires asset regeneration after relevant executable/source, extraction-script, YAML or INI behavior changes. Copying an older generated asset file into a replacement runtime cannot satisfy that requirement. Preserve the old prepared copy and randomizer choices before regeneration; extracting clean ROM data after randomizing overwrites the randomized YAML. Portcove registers the prepared player without claiming Update, Backup or Rollback for these externally owned files. The related Python Z3R-Launcher and current lawn delivery are helpers for this same engine identity, not extra games. The launcher’s Updates action uses its matching platform installer or self-replacement route; keep that owner. Its download feed follows releases without a fixed tag in this listing."
           }
-        ],
-        "warnings": [],
-        "help_url": "https://github.com/xander-haj/lawn/blob/883cced10e5eb4bee81be56513ec96df8ddf5763/README.md"
+        ]
       },
       "download_asset_hints": {
         "windows-x86-64": [

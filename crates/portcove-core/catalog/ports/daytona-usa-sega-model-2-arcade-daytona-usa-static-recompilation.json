@@ -25,14 +25,21 @@
           "instruction": "Select the matching completed daytona.exe from the output location printed by upstream setup: normally build/Release/daytona.exe (or build/daytona.exe with Ninja) for daytona93, and the corresponding build-daytona/ output for Revision A. Use the project root containing roms/ and those build folders as working directory. Supply --rom and the absolute path to your own matching archive as two literal arguments. The native process owns both its launcher and game loop. If your established setup also uses --profile <name>, preserve that exact profile argument. Do not select a setup/recompile script, test/oracle executable or another variant. Saving launch details and Play are separate actions."
         },
         {
-          "title": "Preserve separate settings and runtime ownership",
-          "instruction": "Upstream/player owns toolchain setup, ROM generation, rebuilding and runtime replacement. Windows settings, EEPROM, backup RAM and logs use %APPDATA%/daytona-recomp/daytona93 or daytona, with a separate <set>-<profile> folder when --profile is used; preserve launcher.ini, ioboard_eeprom.bin, backup_ram.bin, daytona.log and every active profile. Retain the entire working project, originals and old complete player before updating/rebuilding, then review/relink changed selected bytes. Revision A’s initial twin-cabinet configuration may require upstream Test mode to choose a single cabinet; no network/link/wheel acceptance is supplied. Removing registration preserves external files; Portcove does not own backups, rollback, save migration, compatibility or deletion."
+          "title": "Check the Revision A cabinet choice",
+          "instruction": "Revision A’s initial twin-cabinet configuration may require upstream Test mode to choose a single cabinet; no network/link/wheel acceptance is supplied."
         }
       ],
       "warnings": [
-        "Pinned source and documented build contract only. No ROM archive, generated source/output, compiled player, package integrity, native game, real save, hardware renderer, link play or device qualification was executed. Source BSD3 and separate component terms do not grant Sega ROM rights; actual independently permitted source/components/originals remain required."
+        "Pinned source and documented build contract only. No ROM archive, generated source/output, compiled player, package integrity, native game, real save, hardware renderer, link play or device qualification was executed. Source BSD3 and separate component terms do not grant Sega ROM rights; actual independently permitted source/components/originals remain required.",
+        "Retain the entire working project, originals and old complete player before updating/rebuilding, then review/relink changed selected bytes. Revision A’s initial twin-cabinet configuration may require upstream Test mode to choose a single cabinet; no network/link/wheel acceptance is supplied."
       ],
-      "help_url": "https://github.com/alphanu1/daytona-arcade-recomp/blob/f32c48ff9b9bb41ecc7a25d9998c281b9bd0952c/docs/getting-started.md"
+      "help_url": "https://github.com/alphanu1/daytona-arcade-recomp/blob/f32c48ff9b9bb41ecc7a25d9998c281b9bd0952c/docs/getting-started.md",
+      "references": [
+        {
+          "title": "Preserve separate settings and runtime ownership",
+          "instruction": "Upstream/player owns toolchain setup, ROM generation, rebuilding and runtime replacement. Windows settings, EEPROM, backup RAM and logs use %APPDATA%/daytona-recomp/daytona93 or daytona, with a separate <set>-<profile> folder when --profile is used; preserve launcher.ini, ioboard_eeprom.bin, backup_ram.bin, daytona.log and every active profile. Retain the entire working project, originals and old complete player before updating/rebuilding, then review/relink changed selected bytes. Removing registration preserves external files; Portcove does not own backups, rollback, save migration, compatibility or deletion."
+        }
+      ]
     }
   },
   "upstream_lineage": {

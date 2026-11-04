@@ -26,10 +26,6 @@
           "instruction": "Select files/Def Jam Vendetta Recompiled.exe in the complete creating installation, use files as working directory and pass the one literal argument game/SLUS_206.39. Keep the complete game/, disc/, DLLs, settings and companion runtime files. The official settings Play consumer passes that same extracted ELF with the files working directory; the generated player owns its normal runtime.run loop. Do not select the settings bootstrapper, run.bat or incomplete output."
         },
         {
-          "title": "Back up effective data before startup or maintenance",
-          "instruction": "With the game closed, keep a separate complete prior installation plus current files/settings.toml, files/game/mc0, sibling card-port roots, extracted game data, original disc and logs. Cards are filesystem folders derived from the selected ELF directory; ordinary guest operations can create, overwrite, delete or format their files. VENDETTA_SETTINGS can select another settings file; preserve it if configured, and preserve any external roots from your own installation. Startup can rewrite legacy fullscreen settings to borderless through a temporary replacement; logs are recreated. Do not assume save compatibility or restore older player data with an old runtime."
-        },
-        {
           "title": "Keep Update and Rebuild outside the tracked game session",
           "instruction": "The normal startup check can offer Play or hand off to the upstream settings program for Update/Rebuild and end the game process. Finish pending preparation and replacements before registration. If you choose maintenance, let the selected game session end, complete upstream work, then revalidate the resulting native player before another Play. Portcove does not follow that successor, suppress the feature or own upstream repair."
         },
@@ -44,7 +40,15 @@
       ],
       "warnings": [
         "Only an independently permitted completed copy is offered; fresh package acquisition has a separate named-branding permission condition.",
-        "The optional upstream update/rebuild handoff ends the registered player session; Portcove does not follow or control it."
+        "The optional upstream update/rebuild handoff ends the registered player session; Portcove does not follow or control it.",
+        "With the game closed, keep a separate complete prior installation plus current files/settings.toml, files/game/mc0, sibling card-port roots, extracted game data, original disc and logs. Cards are filesystem folders derived from the selected ELF directory; ordinary guest operations can create, overwrite, delete or format their files. VENDETTA_SETTINGS can select another settings file; preserve it if configured, and preserve any external roots from your own installation. Startup can rewrite legacy fullscreen settings to borderless through a temporary replacement; logs are recreated.",
+        "Do not assume save compatibility or restore older player data with an old runtime."
+      ],
+      "references": [
+        {
+          "title": "Back up effective data before startup or maintenance",
+          "instruction": "With the game closed, keep a separate complete prior installation plus current files/settings.toml, files/game/mc0, sibling card-port roots, extracted game data, original disc and logs. Cards are filesystem folders derived from the selected ELF directory; ordinary guest operations can create, overwrite, delete or format their files. VENDETTA_SETTINGS can select another settings file; preserve it if configured, and preserve any external roots from your own installation. Startup can rewrite legacy fullscreen settings to borderless through a temporary replacement; logs are recreated. Do not assume save compatibility or restore older player data with an old runtime."
+        }
       ]
     },
     "download_block_reason": "Fresh acquisition of the selected Def Jam Vendetta Recompiled Windows kit is held while the applicable permission or authorized-source basis for its settings-app game-logo and artwork assets remains unresolved. THIRD-PARTY-NOTICES explicitly excludes those components from the project GPL grant. Resume with an attributable applicable basis or a reviewed supported kit excluding/replacing those assets; independently permitted completed copies remain separate."

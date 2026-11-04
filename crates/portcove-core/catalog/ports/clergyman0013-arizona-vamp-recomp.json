@@ -26,17 +26,20 @@
           "instruction": "The selected pinned SDK plus title patch adds PrepareGameCode before the ordinary native window/game loop: it checks stale DLL targets, can launch/wait for compiler children with a progress window, then loads the generated DLL into the native program. Complete those setup/rebuild paths outside this attachment and retain a separate known-working copy before first prepared startup; if inputs/compiler/configuration change, startup may rebuild again. Ordinary ready-player execution stays in the native process. The SDK also supports Xbox quick-reboot handoff to another executable; actual title use is unqualified and successors are outside this attached-session promise. Close all actual players/compiler/helpers/successors before maintenance."
         },
         {
-          "title": "Keep every creating-runtime data and diagnostic root",
-          "instruction": "Preserve settings.toml, the whole executable-adjacent hdd/ tree including hdd/E saves and any numbered instance hdd roots, original assets/disc, generated/runtime/compiler working outputs, shader/pipeline caches, logs/compile.log, CrashDumps/, reports/ and captures/. Preserve actual XBE_CAPTURE_DIR and other established custom/external locations too; this guide does not create environment settings or assume another port’s root. First startup may create default settings; logs can be replaced on later starts, so save independent recovery/diagnostic copies before startup or replacement. No cross-version/title save compatibility or observed write/recovery safety is claimed."
-        },
-        {
           "title": "Use permitted files and update through the project",
           "instruction": "Project/SDK and compiler/third-party licenses apply to their own code and do not grant the original game/assets or arbitrary mods. Use only a completed copy, sources and components you are independently permitted to use. Upstream/user owns generation, preparation, updates, runtime replacement and recovery. Keep previous complete runtime/data separately, maintain it upstream, then review/relink changed selected bytes. Removing registration preserves every external file; no Core builder, external update/backup/rollback/migration, save conversion or deletion is offered."
         }
       ],
       "warnings": [
         "Beta/playthrough/co-op/rendering and performance claims belong to upstream; selected source/patch evidence is not an observed completed native build or full campaign acceptance.",
-        "Windows package SHA-256 is provider expected metadata only. No ZIP/PE payload, compiler/generated output, source-to-binary/ABI, actual input/game/save/native/installed-client/Supported/protected acceptance was inspected or executed."
+        "Windows package SHA-256 is provider expected metadata only. No ZIP/PE payload, compiler/generated output, source-to-binary/ABI, actual input/game/save/native/installed-client/Supported/protected acceptance was inspected or executed.",
+        "First startup may create default settings; logs can be replaced on later starts, so save independent recovery/diagnostic copies before startup or replacement. No cross-version/title save compatibility or observed write/recovery safety is claimed."
+      ],
+      "references": [
+        {
+          "title": "Keep every creating-runtime data and diagnostic root",
+          "instruction": "Preserve settings.toml, the whole executable-adjacent hdd/ tree including hdd/E saves and any numbered instance hdd roots, original assets/disc, generated/runtime/compiler working outputs, shader/pipeline caches, logs/compile.log, CrashDumps/, reports/ and captures/. Preserve actual XBE_CAPTURE_DIR and other established custom/external locations too; this guide does not create environment settings or assume another port’s root. First startup may create default settings; logs can be replaced on later starts, so save independent recovery/diagnostic copies before startup or replacement. No cross-version/title save compatibility or observed write/recovery safety is claimed."
+        }
       ]
     }
   },

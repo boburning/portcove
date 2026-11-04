@@ -26,14 +26,18 @@
         {
           "title": "Keep the generated assets and player data together",
           "instruction": "Keep the complete prepared project, your original ROM, zelda3_assets.dat, zelda3.user.ini overrides, saves, custom sprites/shaders/MSU packs, and any randomizer YAML, seed/spoiler files or selected feature-asset folders separately backed up. The game tries zelda3.user.ini before zelda3.ini. Keep packaged defaults with their own release and use user overrides for personal settings. The native release ZIP supplies a player and SDL but no generated zelda3_assets.dat; copying that executable alone is not finished setup."
-        },
+        }
+      ],
+      "warnings": [
+        "The game’s guide requires asset regeneration after relevant executable/source, extraction-script, YAML or INI behavior changes. Copying an older generated asset file into a replacement runtime cannot satisfy that requirement. Preserve the old prepared copy and randomizer choices before regeneration; extracting clean ROM data after randomizing overwrites the randomized YAML. Portcove registers the prepared player without claiming Update, Backup or Rollback for these externally owned files. The related Python Z3R-Launcher and current lawn delivery are helpers for this same engine identity, not extra games."
+      ],
+      "help_url": "https://github.com/xander-haj/lawn/blob/883cced10e5eb4bee81be56513ec96df8ddf5763/README.md",
+      "references": [
         {
           "title": "Regenerate matching assets when updating",
           "instruction": "Let the selected upstream launcher manage its own project setup and updates. The game’s guide requires asset regeneration after relevant executable/source, extraction-script, YAML or INI behavior changes. Copying an older generated asset file into a replacement runtime cannot satisfy that requirement. Preserve the old prepared copy and randomizer choices before regeneration; extracting clean ROM data after randomizing overwrites the randomized YAML. Portcove registers the prepared player without claiming Update, Backup or Rollback for these externally owned files. The related Python Z3R-Launcher and current lawn delivery are helpers for this same engine identity, not extra games. The launcher’s Updates action uses its matching platform installer or self-replacement route; keep that owner. Its download feed follows releases without a fixed tag in this listing."
         }
-      ],
-      "warnings": [],
-      "help_url": "https://github.com/xander-haj/lawn/blob/883cced10e5eb4bee81be56513ec96df8ddf5763/README.md"
+      ]
     },
     "download_asset_hints": {
       "windows-x86-64": ["Z3R-Launcher-", "windows-x64-setup.exe"]

@@ -25,16 +25,20 @@
           "instruction": "Choose Play explicitly to open that game’s own content screen. OpenRA can import your original media or offer its minimal content download; review that choice in OpenRA. No content installer or helper is started by discovery or by saving launch details."
         },
         {
-          "title": "Keep your upstream profile and update route",
-          "instruction": "OpenRA or you provide updates. Preserve the actual profile: normally %APPDATA%\\OpenRA on Windows, ~/.config/openra on Linux, or ~/Library/Application Support/OpenRA on macOS. A local Support folder, an older profile or a custom override can change it. Keep settings, saves, maps, mods and content together, and retain a working copy when changing versions. These external files are outside Portcove backup and rollback."
-        },
-        {
           "title": "Use the native upstream launcher on other systems",
           "instruction": "On Linux, choose the AppImage for the game you want and prepare it using upstream instructions; retain the game-specific launcher. On macOS, install the desired game application from the disk image and retain its application bundle. These formats use upstream setup; Portcove does not extract or execute an AppImage, disk image, installer or shell helper automatically."
         }
       ],
-      "warnings": [],
-      "help_url": "https://github.com/OpenRA/OpenRA/blob/b4f3d8ae02b6bd6f4a3a5441e6d0daf7c5073787/README.md"
+      "warnings": [
+        "Keep settings, saves, maps, mods and content together, and retain a working copy when changing versions. These external files are outside Portcove backup and rollback."
+      ],
+      "help_url": "https://github.com/OpenRA/OpenRA/blob/b4f3d8ae02b6bd6f4a3a5441e6d0daf7c5073787/README.md",
+      "references": [
+        {
+          "title": "Keep your upstream profile and update route",
+          "instruction": "OpenRA or you provide updates. Preserve the actual profile: normally %APPDATA%\\OpenRA on Windows, ~/.config/openra on Linux, or ~/Library/Application Support/OpenRA on macOS. A local Support folder, an older profile or a custom override can change it. Keep settings, saves, maps, mods and content together, and retain a working copy when changing versions. These external files are outside Portcove backup and rollback."
+        }
+      ]
     }
   }
 }
