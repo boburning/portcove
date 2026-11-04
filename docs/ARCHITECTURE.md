@@ -9,6 +9,16 @@ readiness, actions and the shared exclusion selector. Changing layout preserves
 query, filters and durable entries.
 
 Desktop invocation context and action presentation are owned by `features/operations`; see [ADR 0003](adr/0003-ephemeral-desktop-orchestration.md). React combines Core assessments with known local exclusions, retains independent task/readback failures and suppresses outgoing library continuations. Activity consumes existing durable records and exact-ID live progress. This adds no scheduler, durable queue, Core authority or operation database; Tauri application-update trust and native consent remain separate host responsibilities.
+
+The workspace snapshot is one pure local-IPC TanStack Query in
+`usePortcoveData`, keyed by library generation and owned by that hook's client.
+Query owns snapshot/error/fetch state and structural sharing; a narrow port-ID
+adapter preserves unchanged statuses across reordering. Reads work offline,
+retry is disabled, and the existing subscription/reconciliation adapter owns
+refresh timing and the required post-mutation follow-up. Recovery stays outside
+the query function. Activity ordering and diagnostic revision guards remain
+explicit; a query lifecycle does not cancel backend work by itself.
+
 Desktop interface enlargement is presentation authority: `InterfaceSizeController`
 serializes the existing Tauri WebView zoom API and persists acknowledged choices
 within the browser profile, independently of library generations. React owns

@@ -1,4 +1,4 @@
-import { controlledAct as act } from "../../../test/controlled-react-act";
+import { controlledAct } from "../../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { fixtureValue } from "../../test-fixtures";
 import { StrictMode, useMemo } from "react";
@@ -12,6 +12,14 @@ import { failureReport, portDefinition, portStatus } from "../../test-fixtures";
 import type { DoctorReport, OperationEvent, WorkspaceSnapshot } from "../../types";
 import { WorkspaceRefreshNotice } from "./WorkspaceRefreshNotice";
 import { indexStatuses } from "../../view-model";
+
+// Flush the existing fake clock's zero-delay notifications inside the controlled React batch.
+async function act<T>(callback: () => T | Promise<T>) {
+  await controlledAct(async () => {
+    await callback();
+    await vi.advanceTimersByTimeAsync(0);
+  });
+}
 
 vi.mock("@tauri-apps/api/event", () => ({ listen: vi.fn() }));
 
@@ -179,9 +187,20 @@ afterEach(async () => {
 });
 
 describe("workspace refresh recovery", () => {
+  it("reads the coherent workspace through local IPC while offline without running recovery", async () => {
+    vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(false);
+    window.dispatchEvent(new Event("offline"));
+    await render();
+    expect(data.catalog).toEqual(snapshot.catalog);
+    await act(async () => data.refresh());
+    expect(desktopApi.workspaceSnapshot).toHaveBeenCalledTimes(2);
+    expect(desktopApi.discoverOrphanedOperations).not.toHaveBeenCalled();
+  });
+
   it("accepts listing-only changes atomically without replacing strict catalog state", async () => {
     await render();
     const strictCatalog = data.catalog;
+    const previousListings = data.listingStatuses;
     const listedStatus = { ...portStatus(), port_id: "listing-only" };
     const next = {
       ...structuredClone(snapshot),
@@ -210,7 +229,8 @@ describe("workspace refresh recovery", () => {
     await act(async () => data.refresh());
     expect(data.catalog).toBe(strictCatalog);
     expect(data.listingCatalog).toBe(next.listing_catalog);
-    expect(data.listingStatuses).toBe(next.listing_statuses);
+    expect(data.listingStatuses).not.toBe(previousListings);
+    expect(data.listingStatuses).toEqual(next.listing_statuses);
     const accepted = data.listingStatuses;
     vi.mocked(desktopApi.workspaceSnapshot).mockResolvedValue(structuredClone(next));
     await act(async () => data.refresh());
@@ -301,7 +321,7 @@ describe("workspace refresh recovery", () => {
 
   it("updates only a changed catalog reference", async () => {
     await render();
-    const before = { statuses: data.statuses, sources: data.sources };
+    const before = { catalog: data.catalog, statuses: data.statuses, sources: data.sources };
     const changed = structuredClone(snapshot);
     fixtureValue(changed.catalog.ports[0], "changed.catalog.ports[0]").name =
       "Changed by an external client";
@@ -309,14 +329,15 @@ describe("workspace refresh recovery", () => {
 
     await act(async () => data.refresh());
 
-    expect(data.catalog).toBe(changed.catalog);
+    expect(data.catalog).not.toBe(before.catalog);
+    expect(data.catalog).toEqual(changed.catalog);
     expect(data.statuses).toBe(before.statuses);
     expect(data.sources).toBe(before.sources);
   });
 
   it("updates only a changed source reference", async () => {
     await render();
-    const before = { catalog: data.catalog, statuses: data.statuses };
+    const before = { catalog: data.catalog, statuses: data.statuses, sources: data.sources };
     const changed = structuredClone(snapshot);
     changed.sources = [
       {
@@ -335,7 +356,8 @@ describe("workspace refresh recovery", () => {
 
     expect(data.catalog).toBe(before.catalog);
     expect(data.statuses).toBe(before.statuses);
-    expect(data.sources).toBe(changed.sources);
+    expect(data.sources).not.toBe(before.sources);
+    expect(data.sources).toEqual(changed.sources);
   });
 
   it("keeps retained status records correct across removal and reordering", async () => {
