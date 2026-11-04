@@ -8,6 +8,15 @@ const MAX_MATCHING_FILES: usize = 1024;
 
 /// Check one newly declared path without following links or scanning a tree.
 pub(crate) fn require_absent_path(root: &Path, relative: &str) -> Result<()> {
+    require_path(root, relative, true)
+}
+
+/// Existing or absent coordinates must have exact spelling and ordinary parents.
+pub(crate) fn require_exact_path(root: &Path, relative: &str) -> Result<()> {
+    require_path(root, relative, false)
+}
+
+fn require_path(root: &Path, relative: &str, absent: bool) -> Result<()> {
     crate::archive::validate_relative_path(relative, false)?;
     for ancestor in root.ancestors() {
         match fs::symlink_metadata(ancestor) {
@@ -59,6 +68,9 @@ pub(crate) fn require_absent_path(root: &Path, relative: &str) -> Result<()> {
             return Ok(());
         };
         if index + 1 == components.len() {
+            if !absent {
+                return crate::path::refuse_symlink_ancestors(&found);
+            }
             return Err(PortcoveError::conflict("a newly declared player-data path is already present; preserve it before changing versions")
                 .detail("path", found.display().to_string()));
         }
@@ -105,12 +117,19 @@ pub(crate) fn legacy_direct_reader(port_id: &str) -> Option<(&'static str, &'sta
 }
 
 pub(crate) fn fresh_direct_data_guard_capability(port: &crate::PortDefinition) -> Option<u32> {
-    requires_fresh_direct_data_guard(port).then_some(26)
+    if port.archive_data_compatibility_v1.is_some() {
+        Some(27)
+    } else {
+        requires_fresh_direct_data_guard(port).then_some(26)
+    }
 }
 
 pub(crate) fn requires_fresh_direct_data_guard(port: &crate::PortDefinition) -> bool {
     if !ready_staged_archive(port) {
         return false;
+    }
+    if port.archive_data_compatibility_v1.is_some() {
+        return true;
     }
     let Some((version, sha256)) = legacy_direct_reader(&port.id) else {
         return false;

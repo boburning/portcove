@@ -400,6 +400,8 @@ struct InstallManifest {
     port_id: String,
     version: String,
     artifact: ArtifactIdentity,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    github_artifact_identity: Option<crate::definition_acquisition::GithubArtifactIdentity>,
     #[serde(default)]
     runtime: Option<RuntimeIdentity>,
     #[serde(default)]
@@ -2204,6 +2206,11 @@ impl Installer {
         if let Some(contract) = &qualification.retained_contract {
             let catalog = contract.catalog(port_id)?;
             let port = catalog.port(port_id)?;
+            if port.archive_data_compatibility_v1.is_some() {
+                return Err(PortcoveError::unsupported(
+                    "external-tree adoption cannot establish a managed archive's provider or player-data contract",
+                ));
+            }
             crate::preparation::source::require_fresh_canonical_data(port, &self.library)?;
             if crate::preparation::source::native(port) {
                 let selected = resolve_declared_executable(root, qualification)?;
@@ -2225,6 +2232,45 @@ impl Installer {
         install: &InstallRecord,
     ) -> Result<Option<crate::Catalog>> {
         retained_catalog_for_install(install)
+    }
+
+    pub(crate) fn require_github_artifact_identity(
+        &self,
+        port_id: &str,
+        release: &ResolvedRelease,
+        identity: Option<&crate::definition_acquisition::GithubArtifactIdentity>,
+    ) -> Result<()> {
+        let Some(identity) = identity else {
+            return Ok(());
+        };
+        identity.validate()?;
+        let actual = ArtifactIdentity {
+            asset_name: release.asset.name.clone(),
+            sha256: release.asset.sha256.clone(),
+            size: release.asset.size,
+        };
+        for install in self
+            .library
+            .all_installs()?
+            .into_iter()
+            .filter(|i| i.port_id == port_id)
+        {
+            let manifest = verified_manifest(&install)?;
+            let Some(previous) = manifest.github_artifact_identity else {
+                continue;
+            };
+            if (previous.repository == identity.repository
+                && previous.repository_id != identity.repository_id)
+                || (previous.repository_id == identity.repository_id
+                    && previous.asset_id == identity.asset_id
+                    && (previous.release_id != identity.release_id || manifest.artifact != actual))
+            {
+                return Err(PortcoveError::verification(
+                    "previously recorded GitHub artifact bytes or repository identity changed; preserve the installed runtime and review this exact upstream identity",
+                ).detail("reason", "provider_artifact_identity_changed"));
+            }
+        }
+        Ok(())
     }
 
     pub(crate) fn retained_shared_preferences(
@@ -2556,6 +2602,7 @@ mod legacy_dkr_tests {
             port_id: "dkr-r".into(),
             version: artifact.version.clone(),
             artifact: artifact_identity.clone(),
+            github_artifact_identity: None,
             runtime: None,
             runtime_root: None,
             selected_executable: artifact.executable.clone(),
@@ -2798,6 +2845,15 @@ pub(crate) fn portability_catalog_for_install(
     {
         // Legacy metadata can name an embedded install without carrying the newer retained
         // manifest. It receives only the embedded contract and cannot claim successor admission.
+        if embedded
+            .port(&install.port_id)?
+            .archive_data_compatibility_v1
+            .is_some()
+        {
+            return Err(PortcoveError::verification(
+                "partitioned data portability requires the installation's actual retained contract",
+            ));
+        }
         crate::managed_shared_preferences::refuse_scope_transfer(embedded.port(&install.port_id)?)?;
         return Ok(None);
     }
@@ -2907,6 +2963,10 @@ fn write_manifest(
         port_id: port_id.into(),
         version: version.into(),
         artifact: artifact.clone(),
+        github_artifact_identity: qualification
+            .acquisition
+            .as_ref()
+            .and_then(|proof| proof.github_identity.clone()),
         selected_executable: selected_relative.clone(),
         mutable_paths,
         mutable_file_patterns: qualification.file_patterns(root, &selected)?,
@@ -3201,6 +3261,9 @@ fn verified_manifest_with_budget(
         ));
     }
     let manifest: InstallManifest = serde_json::from_slice(&bytes)?;
+    if let Some(identity) = &manifest.github_artifact_identity {
+        identity.validate()?;
+    }
     let selected = manifest_relative(
         &install.path,
         &install.path.join(&install.selected_executable),

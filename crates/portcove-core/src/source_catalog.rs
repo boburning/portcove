@@ -245,6 +245,10 @@ pub struct PortSourceContract {
     pub evidence_gap: Option<String>,
     #[serde(default)]
     pub applicability: Vec<SourceContractApplicability>,
+    /// An explicit one-time acceptance of the declared source integration for
+    /// compatible provider releases. Exact historical evidence stays exact.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub release_policy: Option<SourceReleasePolicy>,
     #[serde(default)]
     pub aliases: Vec<String>,
     #[serde(default)]
@@ -272,17 +276,25 @@ pub struct SourceContractApplicability {
     pub artifact_sha256: Option<String>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum SourceReleasePolicy {
+    IntegrationContractV1,
+}
+
 impl PortSourceContract {
     pub(crate) fn applies_to_release(&self, upstream_ref: &str, artifact_sha256: &str) -> bool {
-        artifact_sha256.len() == 64
+        !upstream_ref.is_empty()
+            && artifact_sha256.len() == 64
             && artifact_sha256.bytes().all(|byte| byte.is_ascii_hexdigit())
-            && self.applicability.iter().any(|binding| {
-                binding.upstream_ref == upstream_ref
-                    && binding
-                        .artifact_sha256
-                        .as_ref()
-                        .is_none_or(|hash| hash.eq_ignore_ascii_case(artifact_sha256))
-            })
+            && (self.release_policy == Some(SourceReleasePolicy::IntegrationContractV1)
+                || self.applicability.iter().any(|binding| {
+                    binding.upstream_ref == upstream_ref
+                        && binding
+                            .artifact_sha256
+                            .as_ref()
+                            .is_none_or(|hash| hash.eq_ignore_ascii_case(artifact_sha256))
+                }))
     }
 }
 
@@ -478,6 +490,16 @@ impl SourceCatalog {
                     )));
                 }
                 _ => {}
+            }
+            if contract.release_policy.is_some()
+                && (contract.admission_mode != CatalogAdmissionMode::Enforced
+                    || contract.supported_variant_ids.is_empty()
+                    || contract.evidence_ids.is_empty()
+                    || contract.evidence_gap.is_some())
+            {
+                return Err(PortcoveError::usage(
+                    "reusable source applicability requires a reviewed enforced identity contract",
+                ));
             }
             let mut applicability_keys = HashSet::new();
             for applicability in &contract.applicability {

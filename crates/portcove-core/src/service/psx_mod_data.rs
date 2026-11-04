@@ -688,9 +688,16 @@ impl PortcoveService {
         }
         let mut plans = Vec::new();
         let mut mods = None;
-        for relative in crate::persistence::entries(port, &[persistent_root, user_root])? {
+        let entries = crate::archive_data::entries(
+            port,
+            Some(&install.artifact.sha256),
+            persistent_root,
+            user_root,
+        )?;
+        for entry in entries {
+            let relative = entry.relative;
             let from = persistent_root.join(&relative);
-            let to = user_root.join(&relative);
+            let to = entry.canonical;
             // Package identity compares complete content, not publisher timestamps.
             // Keep the additive preflight for conflicting unproven root state.
             let plan = AdditiveTree::prepare(
@@ -705,6 +712,7 @@ impl PortcoveService {
             }
             plans.push((relative, plan));
         }
+        crate::archive_data::initialize(port, user_root)?;
         let mut copied = Vec::new();
         for (relative, plan) in plans {
             if relative == "mods" && owns_mods(port) {

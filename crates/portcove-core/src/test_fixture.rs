@@ -4,6 +4,37 @@ use std::{
     path::{Path, PathBuf},
 };
 
+pub(crate) fn v26_diagnostic_port(id: &str) -> crate::PortDefinition {
+    let value: serde_json::Value =
+        serde_json::from_str(include_str!("../tests/fixtures/direct-diagnostic-v26.json")).unwrap();
+    serde_json::from_value(
+        value["ports"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|p| p["id"] == id)
+            .unwrap()
+            .clone(),
+    )
+    .unwrap()
+}
+
+#[cfg(windows)]
+pub(crate) fn v26_diagnostic_contract(id: &str) -> crate::PortSourceContract {
+    let value: serde_json::Value =
+        serde_json::from_str(include_str!("../tests/fixtures/direct-diagnostic-v26.json")).unwrap();
+    serde_json::from_value(
+        value["source_contracts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|p| p["port_id"] == id)
+            .unwrap()
+            .clone(),
+    )
+    .unwrap()
+}
+
 pub(crate) fn versioned_mod_catalog() -> crate::Catalog {
     crate::Catalog::from_json(
         &serde_json::json!({

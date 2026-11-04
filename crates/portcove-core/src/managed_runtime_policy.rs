@@ -9,7 +9,8 @@ pub(crate) fn requires_provider_resolution(port: &PortDefinition) -> bool {
             || port.managed_shared_preferences
                 == Some(crate::PreparedSharedPreferencesContract::GbRecompiledWindowsV1)
             || port.runtime_data_policy
-                == Some(crate::RuntimeDataPolicy::VersionLocalRetroAchievementsV1))
+                == Some(crate::RuntimeDataPolicy::VersionLocalRetroAchievementsV1)
+            || port.archive_data_compatibility_v1.is_some())
 }
 
 pub(crate) fn validate_release_rules(port: &PortDefinition) -> Result<()> {

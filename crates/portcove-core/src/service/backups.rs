@@ -403,6 +403,9 @@ struct BackupManifest {
     /// Earlier verifiers cannot silently ignore it and restore the raw tree.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     guarded_archive_v1: Option<String>,
+    /// Included in content framing so earlier unpartitioned readers refuse it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    partitioned_data_v1: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -473,10 +476,14 @@ impl PortcoveService {
         let replaced = if contract.writes_directly || additive {
             Vec::new()
         } else {
-            crate::persistence::entries(port, &[&root, &user])?
+            crate::archive_data::entries(port, contract.archive_sha256.as_deref(), &root, &user)?
                 .into_iter()
-                .map(|relative| {
-                    let path = user.join(&relative);
+                .map(|entry| {
+                    let path = entry.canonical;
+                    let relative = path
+                        .strip_prefix(&user)
+                        .map_err(|_| PortcoveError::state("data mapping escaped canonical root"))?
+                        .to_path_buf();
                     refuse_symlink_ancestors(&path)?;
                     match fs::canonicalize(&path) {
                         Ok(actual) => actual
@@ -487,9 +494,7 @@ impl PortcoveService {
                                     "reviewed player-data coordinate escaped its canonical root",
                                 )
                             }),
-                        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                            Ok(std::path::PathBuf::from(relative))
-                        }
+                        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(relative),
                         Err(error) => Err(error.into()),
                     }
                 })
@@ -551,6 +556,7 @@ impl PortcoveService {
         // Both callers have successfully collected the active runtime under the
         // port lock. A catalog pin cannot supply this producer observation.
         let producer = self.guarded_backup_producer(port_id)?;
+        let partitioned_policy = crate::archive_data::snapshot_policy(&source)?;
 
         let parent = self.library.backups_dir().join(port_id);
         refuse_symlink_ancestors(&parent)?;
@@ -590,7 +596,9 @@ impl PortcoveService {
             let mut stats = BackupStats::default();
             copy_backup_tree(&source, &staging_path.join("data"), &source, &mut stats)?;
             self.faults.check(LifecycleFaultPoint::BackupDataCopied)?;
-            if self.guarded_backup_producer(port_id)? != producer {
+            if self.guarded_backup_producer(port_id)? != producer
+                || crate::archive_data::snapshot_policy(&source)? != partitioned_policy
+            {
                 return Err(PortcoveError::conflict(
                     "backup producing installation changed while copying",
                 ));
@@ -626,8 +634,10 @@ impl PortcoveService {
                 sha256: guarded_archive::content_digest(
                     hasher,
                     producer.as_ref().map(|p| p.archive_sha256.as_str()),
+                    partitioned_policy.as_deref(),
                 )?,
                 metadata_sha256: Some(hex::encode(metadata_hasher.finalize())),
+                partitioned_data_v1: partitioned_policy.clone(),
                 guarded_archive_v1: producer.map(|p| p.archive_sha256),
             };
             let final_path = parent.join(&manifest.id);
@@ -1049,15 +1059,28 @@ impl PortcoveService {
                     let contract = self.persistence_contract_for_install(active)?;
                     let port = contract.port;
                     let persistent_root = self.persistence_root(&port, &active.path)?;
-                    let entries =
-                        crate::persistence::entries(&port, &[&persistent_root, &user_root])?;
+                    let entries = crate::archive_data::entries(
+                        &port,
+                        contract.archive_sha256.as_deref(),
+                        &persistent_root,
+                        &user_root,
+                    )?;
                     if !contract.writes_directly {
-                        for relative in entries {
+                        for entry in entries {
+                            let relative = entry.relative;
                             crate::archive::validate_relative_path(&relative, false)?;
-                            replaced.push(PathBuf::from(&relative));
+                            replaced.push(
+                                entry
+                                    .canonical
+                                    .strip_prefix(&user_root)
+                                    .map_err(|_| {
+                                        PortcoveError::state("data mapping escaped canonical root")
+                                    })?
+                                    .to_path_buf(),
+                            );
                             if scan.collectible_has_files(
                                 &persistent_root.join(&relative),
-                                &user_root.join(relative),
+                                &entry.canonical,
                                 0,
                             )? {
                                 return Ok(true);
@@ -1330,6 +1353,7 @@ impl PortcoveService {
                 stats,
                 manifest.metadata_sha256.as_deref(),
                 manifest.guarded_archive_v1.as_deref(),
+                manifest.partitioned_data_v1.as_deref(),
             )?;
             require_reviewed_manifest()?;
             if self.collectible_data_review(port_id)? != reviewed_runtime
@@ -1344,6 +1368,7 @@ impl PortcoveService {
                 port_id,
                 &staged_data,
                 manifest.guarded_archive_v1.as_deref(),
+                manifest.partitioned_data_v1.as_deref(),
             )?;
             self.collect_active_user_data_if_launched(port_id)?;
             let collected_canonical = self.canonical_data_review(port_id)?;
@@ -1648,6 +1673,7 @@ fn read_backup_manifest(path: &Path, port_id: &str, backup_id: &str) -> Result<B
         ));
     }
     guarded_archive::validate_binding(manifest.guarded_archive_v1.as_deref())?;
+    guarded_archive::validate_binding(manifest.partitioned_data_v1.as_deref())?;
     Ok(manifest)
 }
 
@@ -1798,6 +1824,7 @@ fn verify_backup_stats(
     stats: BackupStats,
     expected_metadata_sha256: Option<&str>,
     guarded_archive_v1: Option<&str>,
+    partitioned_data_v1: Option<&str>,
 ) -> Result<()> {
     let BackupStats {
         file_count,
@@ -1805,7 +1832,7 @@ fn verify_backup_stats(
         hasher,
         metadata_hasher,
     } = stats;
-    let sha256 = guarded_archive::content_digest(hasher, guarded_archive_v1)?;
+    let sha256 = guarded_archive::content_digest(hasher, guarded_archive_v1, partitioned_data_v1)?;
     if let Some(expected) = expected_metadata_sha256 {
         let actual = hex::encode(metadata_hasher.finalize());
         if actual != expected {
@@ -1882,7 +1909,8 @@ fn copy_backup_tree(
         let parent = destination
             .parent()
             .ok_or_else(|| PortcoveError::state("backup target has no parent"))?;
-        let mut output = tempfile::NamedTempFile::new_in(parent)?;
+        let publication = crate::durability::tempfile_destination(destination)?;
+        let mut output = tempfile::NamedTempFile::new_in(publication.parent().unwrap_or(parent))?;
         // Keep the existing bounded copy buffer off each recursive stack frame.
         // Empty deep directories must not consume 64 KiB per ancestor.
         let mut buffer = vec![0_u8; 64 * 1024];
@@ -1912,9 +1940,11 @@ fn copy_backup_tree(
         crate::runtime_data_policy::preserve_modified_time(output.as_file(), &before)?;
         output.as_file().sync_all()?;
         refuse_symlink_ancestors(destination)?;
-        output
-            .persist(destination)
-            .map_err(|error| PortcoveError::from(error.error))?;
+        output.persist(&publication).map_err(|error| {
+            PortcoveError::from(error.error)
+                .detail("backup_copy_phase", "atomic_file_publication")
+                .detail("destination", destination.display().to_string())
+        })?;
         stats.file_count += 1;
         return Ok(());
     }

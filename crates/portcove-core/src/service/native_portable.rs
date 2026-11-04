@@ -83,6 +83,7 @@ impl PortcoveService {
                 != crate::persistence::ready_staged_archive(to)
             || retained.mod_package_policy != to.mod_package_policy
             || retained.persistent_file_patterns != to.persistent_file_patterns
+            || retained.archive_data_compatibility_v1 != to.archive_data_compatibility_v1
             || retained.runtime_subdirectory != to.runtime_subdirectory
             || retained.windows_temp_directory != to.windows_temp_directory
             || retained.launch_from_install_root != to.launch_from_install_root
@@ -3774,19 +3775,9 @@ mod tests {
 
     #[test]
     fn mmx2_diagnostic_package_has_exact_source_admission_and_retains_older_bindings() {
-        let catalog = Catalog::embedded().unwrap();
-        let port = catalog.port("mega-man-x2-snes-recomp").unwrap();
+        let port = crate::test_fixture::v26_diagnostic_port("mega-man-x2-snes-recomp");
         let release = &port.release.direct[&Platform::WindowsX86_64];
-        let contract = catalog
-            .source_catalog()
-            .unwrap()
-            .contracts
-            .iter()
-            .find(|contract| {
-                contract.port_id == port.id
-                    && contract.role == crate::source_catalog::PortSourceRole::Game
-            })
-            .unwrap();
+        let contract = crate::test_fixture::v26_diagnostic_contract(&port.id);
         assert_eq!(release.version, "v0.2.2");
         assert!(contract.applies_to_release(&release.version, &release.sha256));
         assert!(!contract.applies_to_release(&release.version, &"a".repeat(64)));
@@ -3803,21 +3794,14 @@ mod tests {
         ] {
             assert!(contract.applies_to_release(version, sha256));
         }
-        assert!(crate::persistence::requires_fresh_direct_data_guard(port));
+        assert!(crate::persistence::requires_fresh_direct_data_guard(&port));
     }
 
     #[test]
     fn sonic1_diagnostic_package_has_exact_source_admission_and_retains_older_bindings() {
-        let catalog = Catalog::embedded().unwrap();
-        let port = catalog.port("sonic-the-hedgehog-recomp").unwrap();
+        let port = crate::test_fixture::v26_diagnostic_port("sonic-the-hedgehog-recomp");
         let release = &port.release.direct[&Platform::WindowsX86_64];
-        let contract = catalog
-            .source_catalog()
-            .unwrap()
-            .contracts
-            .iter()
-            .find(|contract| contract.port_id == port.id)
-            .unwrap();
+        let contract = crate::test_fixture::v26_diagnostic_contract(&port.id);
         assert_eq!(release.version, "v0.8.3");
         assert_eq!(
             release.sha256,
@@ -3839,14 +3823,14 @@ mod tests {
             assert!(contract.applies_to_release(version, sha256));
         }
         assert!(port.persistent_paths.iter().any(|path| path == "logs"));
-        assert!(crate::persistence::requires_fresh_direct_data_guard(port));
+        assert!(crate::persistence::requires_fresh_direct_data_guard(&port));
     }
 
     fn diagnostic_scope_fixture(id: &str, current: bool, original: &[u8]) -> Catalog {
         // Retain exact historical definitions independently of the evolving catalog.
         // Only source authority is substituted with inert first-party bytes.
         let port: PortDefinition = if current {
-            Catalog::embedded().unwrap().port(id).unwrap().clone()
+            crate::test_fixture::v26_diagnostic_port(id)
         } else {
             serde_json::from_str(match id {
                 "sonic-the-hedgehog-recomp" => {
@@ -3901,6 +3885,313 @@ mod tests {
             .to_string(),
         )
         .unwrap()
+    }
+
+    fn compatible_archive_fixture_catalog(mut port: PortDefinition, original: &[u8]) -> Catalog {
+        // Controlled original bytes replace only this consumer's original identity.
+        // The real schema-3 source-policy gate and all other declarations remain.
+        let embedded = Catalog::embedded().unwrap();
+        let mut document = serde_json::to_value(embedded.authoritative_document()).unwrap();
+        let hash = hex::encode(Sha256::digest(original));
+        port.runtime_source_hashes
+            .insert(port.runtime_source_filename.clone().unwrap(), hash.clone());
+        let profile = port.source_profile.as_ref().unwrap();
+        let identity = document["source_catalog"]["identities"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|p| p["id"] == *profile)
+            .unwrap();
+        for variant in identity["variants"].as_array_mut().unwrap() {
+            for representation in variant["representations"].as_array_mut().unwrap() {
+                representation["identities"] = serde_json::json!([{ "scope":"original-file", "sha1":null, "sha256":hash, "crc32":null }]);
+            }
+        }
+        let index = document["ports"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .position(|p| p["id"] == port.id)
+            .unwrap();
+        document["ports"][index] = serde_json::to_value(port).unwrap();
+        Catalog::from_json(&document.to_string()).unwrap()
+    }
+
+    #[tokio::test]
+    async fn compatible_archive_consumers_progress_with_populated_data_and_frozen_definitions() {
+        let client_path = std::env::current_exe().unwrap();
+        let client_sha256 =
+            crate::external_runtime::hash_stable_regular(&client_path, 1024 * 1024 * 1024, &|| {
+                Ok(())
+            })
+            .unwrap()
+            .0;
+        let cases = [
+            (
+                "mega-man-x2-snes-recomp",
+                "MegaManX2SNESRecomp.exe",
+                "MegaManX2SNESRecomp-windows-x64-",
+                "config.ini",
+                "saves/save1.sav",
+                None,
+            ),
+            (
+                "sonic-the-hedgehog-recomp",
+                "SonicTheHedgehogRecomp.exe",
+                "SonicTheHedgehogRecomp-windows-x64-",
+                "settings.ini",
+                "native_save_1.bin",
+                None,
+            ),
+            (
+                "super-metroid-recomp",
+                "SuperMetroidSNESRecomp.exe",
+                "supermetroid-",
+                "config.ini",
+                "saves/save1.sav",
+                Some("saves/save.srm"),
+            ),
+        ];
+        let mut completed = std::collections::BTreeSet::new();
+        for (id, executable, prefix, settings, state, sram) in cases {
+            let started = std::time::Instant::now();
+            let temporary = tempfile::tempdir().unwrap();
+            let library = Library::open(temporary.path().join("library")).unwrap();
+            let server = Server::new();
+            let embedded = Catalog::embedded().unwrap();
+            let declared = embedded.port(id).unwrap().clone();
+            assert_eq!(declared.release.provider, ReleaseSource::Github);
+            assert!(declared.release.direct.is_empty());
+            assert_eq!(
+                declared.executable_hints[&Platform::WindowsX86_64],
+                [executable]
+            );
+            let original = b"lawful fixed first-party original fixture";
+            let fixed = compatible_archive_fixture_catalog(declared.clone(), original);
+            let definition = serde_json::to_vec(&fixed.authoritative_document()).unwrap();
+            let definition_sha256 = hex::encode(Sha256::digest(&definition));
+            let package = |version: &str, revision| {
+                let mut release = server.release_in_folder(version, revision, "", executable);
+                release.asset.name = if id == "super-metroid-recomp" {
+                    format!("{prefix}{version}-windows-x64.zip")
+                } else {
+                    format!("{prefix}{version}.zip")
+                };
+                release
+            };
+            let provider = Arc::new(Provider(Mutex::new(package("fixture-n", 1))));
+            let mut service = build_service(library.clone(), provider.clone());
+            service.replace_catalog_for_test(fixed.clone());
+            struct Trace(std::time::Instant);
+            impl LifecycleFaultInjector for Trace {
+                fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
+                    eprintln!(
+                        "compatible release phase {point:?} at {:?}",
+                        self.0.elapsed()
+                    );
+                    Ok(())
+                }
+            }
+            service.faults = Arc::new(Trace(started));
+            let source = temporary.path().join(if id.starts_with("sonic-") {
+                "owned.bin"
+            } else {
+                "owned.sfc"
+            });
+            fs::write(&source, original).unwrap();
+            service
+                .register_source(declared.source_profile.as_ref().unwrap(), &source)
+                .unwrap();
+            let first = service
+                .install(id, None, None, None, true, |_| {})
+                .await
+                .unwrap();
+            service.prepare_launch(id, None).unwrap();
+            fs::write(first.path.join(settings), b"player settings from N").unwrap();
+            fs::create_dir_all(first.path.join(state).parent().unwrap()).unwrap();
+            fs::write(first.path.join(state), b"N-only host snapshot").unwrap();
+            if let Some(sram) = sram {
+                fs::write(first.path.join(sram), b"conventional guest SRAM").unwrap();
+            }
+            service.create_backup(id).unwrap();
+            *provider.0.lock().unwrap() = package("fixture-next", 2);
+            let update = service.check_update(id).await.unwrap();
+            assert!(update.update_available);
+            let source_contract = fixed
+                .source_catalog()
+                .unwrap()
+                .contracts
+                .iter()
+                .find(|c| c.port_id == id)
+                .unwrap();
+            assert!(
+                source_contract
+                    .applies_to_release(&update.release.version, &update.release.asset.sha256),
+                "the unchanged reusable source policy must cover the newly resolved artifact"
+            );
+            let plan = service.plan_install(id, None).await.unwrap();
+            assert!(
+                plan.preservation_notices
+                    .iter()
+                    .any(|n| n.contains("creating runtime"))
+            );
+            service
+                .set_update_policy(id, UpdatePolicy::Automatic)
+                .unwrap();
+            let staged = service.reconcile(id, |_| {}).await.unwrap();
+            assert_eq!(staged.action, ReconcileAction::Staged);
+            assert_eq!(
+                staged.policy,
+                UpdatePolicy::Automatic,
+                "review must preserve the saved preference"
+            );
+            assert_eq!(service.status(id).unwrap().active.unwrap().id, first.id);
+            let second = service.activate_staged(id).unwrap();
+            assert_eq!(
+                fs::read(second.path.join(settings)).unwrap(),
+                b"player settings from N"
+            );
+            assert!(
+                !second.path.join(state).exists(),
+                "a new archive must not consume an old snapshot"
+            );
+            assert_eq!(
+                fs::read(first.path.join(state)).unwrap(),
+                b"N-only host snapshot"
+            );
+            if let Some(sram) = sram {
+                assert_eq!(
+                    fs::read(second.path.join(sram)).unwrap(),
+                    b"conventional guest SRAM"
+                );
+            }
+            fs::write(second.path.join(settings), b"current conventional settings").unwrap();
+            let backup = service.create_backup(id).unwrap();
+            let manifest: serde_json::Value =
+                serde_json::from_slice(&fs::read(backup.path.join("backup.json")).unwrap())
+                    .unwrap();
+            assert_eq!(manifest["guarded_archive_v1"], second.artifact.sha256);
+            assert_eq!(
+                manifest["partitioned_data_v1"],
+                crate::archive_data::policy_sha256(fixed.port(id).unwrap()).unwrap()
+            );
+            let previous = service.rollback(id).unwrap();
+            assert_eq!(previous.id, first.id);
+            assert_eq!(
+                fs::read(first.path.join(state)).unwrap(),
+                b"N-only host snapshot"
+            );
+            assert_eq!(
+                fs::read(first.path.join(settings)).unwrap(),
+                b"current conventional settings",
+                "runtime rollback does not rewind shared data"
+            );
+            let preview = service
+                .preview_backup_action(id, &backup.id, crate::BackupAction::Restore)
+                .unwrap();
+            let consent = service
+                .authorize_backup_action(
+                    id,
+                    &backup.id,
+                    crate::BackupAction::Restore,
+                    &preview.preview_sha256,
+                )
+                .unwrap();
+            service
+                .restore_backup(id, &backup.id, &consent.token)
+                .unwrap();
+            let mut restarted = build_service(library.clone(), provider);
+            restarted.replace_catalog_for_test(fixed);
+            assert_eq!(restarted.status(id).unwrap().active.unwrap().id, first.id);
+            assert_eq!(
+                fs::read(first.path.join(state)).unwrap(),
+                b"N-only host snapshot"
+            );
+            assert_eq!(fs::read(&source).unwrap(), original);
+            assert_eq!(
+                serde_json::to_vec(&restarted.catalog.authoritative_document()).unwrap(),
+                definition
+            );
+            if id == "super-metroid-recomp" {
+                let removal = restarted.preview_removal(id).unwrap();
+                let removal_consent = restarted
+                    .authorize_removal(id, &removal.preview_sha256)
+                    .unwrap();
+                restarted.remove(id, &removal_consent.token).unwrap();
+                assert!(library.all_installs().unwrap().is_empty());
+                let opaque = restarted.create_backup(id).unwrap();
+                let opaque_manifest: serde_json::Value =
+                    serde_json::from_slice(&fs::read(opaque.path.join("backup.json")).unwrap())
+                        .unwrap();
+                assert!(
+                    opaque_manifest.get("guarded_archive_v1").is_none(),
+                    "no active producer must be invented"
+                );
+                assert_eq!(
+                    opaque_manifest["partitioned_data_v1"],
+                    manifest["partitioned_data_v1"]
+                );
+                let mut drift =
+                    serde_json::to_value(restarted.catalog.authoritative_document()).unwrap();
+                let index = drift["ports"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .position(|p| p["id"] == id)
+                    .unwrap();
+                drift["ports"][index]["archive_data_compatibility_v1"]["contract_id"] =
+                    serde_json::json!("changed-catalog-policy");
+                restarted.replace_catalog_for_test(Catalog::from_json(&drift.to_string()).unwrap());
+                let preview = restarted
+                    .preview_backup_action(id, &opaque.id, crate::BackupAction::Restore)
+                    .unwrap();
+                let consent = restarted
+                    .authorize_backup_action(
+                        id,
+                        &opaque.id,
+                        crate::BackupAction::Restore,
+                        &preview.preview_sha256,
+                    )
+                    .unwrap();
+                restarted
+                    .restore_backup(id, &opaque.id, &consent.token)
+                    .unwrap();
+                assert_eq!(
+                    crate::archive_data::snapshot_policy(&library.user_dir(id))
+                        .unwrap()
+                        .unwrap(),
+                    manifest["partitioned_data_v1"].as_str().unwrap()
+                );
+                assert!(
+                    restarted
+                        .require_direct_fresh_data(restarted.catalog.port(id).unwrap())
+                        .is_err(),
+                    "opaque preservation must not grant fresh runtime data-compatibility authority"
+                );
+            }
+            assert!(completed.insert(id));
+            eprintln!(
+                "{}",
+                serde_json::json!({"kind":"compiled-core-controlled-release", "port_id":id,
+                "client_sha256":client_sha256, "authored_definition_sha256":definition_sha256,
+                "from_archive":first.artifact.sha256,"to_archive":second.artifact.sha256,
+                "maintainer_interventions_after_freeze":0,"upstream_game_executed":false,
+                "outcome":"passed", "duration_ms":started.elapsed().as_millis()})
+            );
+        }
+        assert_eq!(
+            completed.len(),
+            3,
+            "every declared representative must execute exactly once"
+        );
+        assert_eq!(
+            crate::external_runtime::hash_stable_regular(&client_path, 1024 * 1024 * 1024, &|| Ok(
+                ()
+            ))
+            .unwrap()
+            .0,
+            client_sha256
+        );
     }
 
     #[tokio::test]
@@ -4284,8 +4575,7 @@ mod tests {
         ] {
             let sonic = id == "sonic-the-hedgehog-recomp";
             let filename = if sonic { "game.bin" } else { "game.sfc" };
-            let embedded = Catalog::embedded().unwrap();
-            let port = embedded.port(id).unwrap();
+            let port = crate::test_fixture::v26_diagnostic_port(id);
             let release = &port.release.direct[&Platform::WindowsX86_64];
             let executable = &port.executable_hints[&Platform::WindowsX86_64][0];
             let original = b"inert first-party source, never retail game data";

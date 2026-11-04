@@ -388,6 +388,22 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
     "success-output": "immediate",
   });
+  const windowsPartitionedEnvelopeFilter =
+    "package(portcove-core) & test(/^installed_contract::tests::partitioned_archive_envelope_preserves_origins_and_refuses_downgraded_readers$/)";
+  assert.deepEqual(overrideFor(windowsPartitionedEnvelopeFilter, "x86_64-pc-windows-msvc"), {
+    platform: "x86_64-pc-windows-msvc",
+    filter: windowsPartitionedEnvelopeFilter,
+    "slow-timeout": { period: "5s", "terminate-after": 18, "grace-period": "0s" },
+    "success-output": "immediate",
+  });
+  const windowsCompatibleArchiveMatrixFilter =
+    "package(portcove-core) & test(/^service::native_portable::tests::compatible_archive_consumers_progress_with_populated_data_and_frozen_definitions$/)";
+  assert.deepEqual(overrideFor(windowsCompatibleArchiveMatrixFilter, "x86_64-pc-windows-msvc"), {
+    platform: "x86_64-pc-windows-msvc",
+    filter: windowsCompatibleArchiveMatrixFilter,
+    "slow-timeout": { period: "5s", "terminate-after": 180, "grace-period": "0s" },
+    "success-output": "immediate",
+  });
   const curatedInstalledWithdrawalFilter =
     "package(portcove-core) & (test(/^definition_repository::tests::publisher_policy_tests::curated_installed_withdrawal_allows_critical_verification_but_holds_fresh_acquisition$/) | test(/^definition_repository::tests::publisher_policy_tests::curated_installed_revocation_holds_critical_verification_and_fresh_acquisition$/))";
   const currentFullBaselineBudgets = [
@@ -758,6 +774,8 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
         filter,
       })),
       { platform: "x86_64-pc-windows-msvc", filter: windowsGhostshipBackupFilter },
+      { platform: "x86_64-pc-windows-msvc", filter: windowsPartitionedEnvelopeFilter },
+      { platform: "x86_64-pc-windows-msvc", filter: windowsCompatibleArchiveMatrixFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsRestoreSynchronizedFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsIndexedRetentionFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsSelectedPlayerDiagnosticFilter },
