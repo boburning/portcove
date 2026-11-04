@@ -4237,8 +4237,13 @@ mod tests {
                 // Reopen with a different current recipe. The retained actual
                 // installation, not the current pin, supplies the destination.
                 drop(service);
-                let mut reopened =
-                    build_service(Library::open(library.root()).unwrap(), provider.clone());
+                // Defer automatic startup recovery until the drifted catalog
+                // is installed, then exercise this exact persisted operation.
+                let mut reopened = PortcoveService::with_provider_read_only(
+                    Library::open(library.root()).unwrap(),
+                    provider.clone(),
+                )
+                .unwrap();
                 let prior: PortDefinition = serde_json::from_str(include_str!(
                     "../../tests/fixtures/mmx2-021-historical.json"
                 ))
@@ -4246,7 +4251,7 @@ mod tests {
                 reopened.replace_catalog_for_test(diagnostic_port_fixture(prior, original));
                 let result = crate::recovery::recover_restore(&reopened, &store, &mut operation);
                 if tamper == "none" {
-                    result.unwrap();
+                    result.unwrap_or_else(|error| panic!("{point:?} {tamper}: {error:?}"));
                     assert_eq!(
                         fs::read(install.path.join("logs/session.replay")).unwrap(),
                         b"backup state"

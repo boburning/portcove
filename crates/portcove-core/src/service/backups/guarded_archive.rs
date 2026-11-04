@@ -124,7 +124,7 @@ pub(super) fn manifest_input(
 ) -> Result<Option<PathBuf>> {
     match operation.original_paths.as_slice() {
         [] => Ok(None),
-        [path] if path.parent() == Some(recovery) => {
+        [path] if path.parent() == Some(recovery) && manifest_filename(path) => {
             let manifest = read_input(path)?;
             if manifest.port_id != operation.port_id {
                 return Err(PortcoveError::verification(
@@ -133,10 +133,18 @@ pub(super) fn manifest_input(
             }
             Ok(Some(path.clone()))
         }
-        _ => Err(PortcoveError::verification(
-            "restore manifest input is not owned by this operation",
+        _ => Err(PortcoveError::state(
+            "backup restore journal has an incompatible identity or family payload",
         )),
     }
+}
+
+fn manifest_filename(path: &Path) -> bool {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .and_then(|name| name.strip_prefix("verified-backup-"))
+        .and_then(|name| name.strip_suffix(".json"))
+        .is_some_and(|sha| validate_binding(Some(sha)).is_ok())
 }
 
 impl PortcoveService {
