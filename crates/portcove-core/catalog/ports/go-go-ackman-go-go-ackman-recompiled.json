@@ -27,17 +27,25 @@
         },
         {
           "title": "Review intent and keep recovery upstream-owned",
-          "instruction": "Review and consent to the selected executable, working directory and arguments, then choose Play separately. Portcove tracks the selected process; it does not isolate the game’s files or prevent other instances. You and upstream manage setup, profiles, repairs and updates. Shader, driver or mod changes can restart the game’s child process, restore checkpoints or use backup configurations; the application waits for its child, while Portcove tracks the selected application. Complete recovery through upstream tools, close every real instance, keep the previous working copy and data, then relink and review a changed executable. Removing the registration leaves all external files in place."
-        },
-        {
-          "title": "Retain the complete creating profile and all recovery data",
-          "instruction": "Keep the whole runtime/original and actual config.ini/custom --config, rom/ and external original path, saves/slots/custom states/GGA1_autosave.sav and emergency checkpoints, mods/native packages/MSU audio/player edits, shaders, screenshots, logs/status files, fallback configuration backups and all unknown/custom files. Windows writable assets/profile use the actual executable-side root; changing CWD alone is not a profile redirect. This cartridge declares no battery SRAM; native states are not interchangeable emulator saves. Keep state/mod/recovery history with its creating build. Metadata removal preserves every external byte."
+          "instruction": "Review and consent to the selected executable, working directory and arguments, then choose Play separately. Portcove tracks the selected process; it does not isolate the game’s files or prevent other instances."
         }
       ],
       "warnings": [
         "Follow the project and framework’s PolyForm Noncommercial terms and component notices. They do not grant rights to the original ROM or external translations and audio. The selected source includes an English translation table and English/PT-BR metadata; PT-BR metadata does not confirm an embedded full PT-BR patch. Portcove has not inspected the package or resolved those separate component permissions.",
         "Release v1.0 also names an experimental game build. The source combines compiled code with an interpreter; Portcove has not measured native execution or tested gameplay, saves, states, mods, stability or installed behavior. Keep upstream’s interpreter fallback and recovery features intact.",
-        "Portcove does not download, extract, translate, build, install, update, back up, roll back, migrate or delete this external copy. Permission to use an existing private copy does not settle permission for a new download’s components."
+        "Portcove does not download, extract, translate, build, install, update, back up, roll back, migrate or delete this external copy. Permission to use an existing private copy does not settle permission for a new download’s components.",
+        "Complete recovery through upstream tools, close every real instance, keep the previous working copy and data, then relink and review a changed executable.",
+        "Windows writable assets/profile use the actual executable-side root; changing CWD alone is not a profile redirect. This cartridge declares no battery SRAM; native states are not interchangeable emulator saves. Keep state/mod/recovery history with its creating build. Metadata removal preserves every external byte."
+      ],
+      "references": [
+        {
+          "title": "Keep Ackman recovery and replacement upstream-owned",
+          "instruction": "You and upstream manage setup, profiles, repairs and updates. Shader, driver or mod changes can restart the game’s child process, restore checkpoints or use backup configurations; the application waits for its child, while Portcove tracks the selected application. Complete recovery through upstream tools, close every real instance, keep the previous working copy and data, then relink and review a changed executable. Removing the registration leaves all external files in place."
+        },
+        {
+          "title": "Retain the complete creating profile and all recovery data",
+          "instruction": "Keep the whole runtime/original and actual config.ini/custom --config, rom/ and external original path, saves/slots/custom states/GGA1_autosave.sav and emergency checkpoints, mods/native packages/MSU audio/player edits, shaders, screenshots, logs/status files, fallback configuration backups and all unknown/custom files. Windows writable assets/profile use the actual executable-side root; changing CWD alone is not a profile redirect. This cartridge declares no battery SRAM; native states are not interchangeable emulator saves. Keep state/mod/recovery history with its creating build. Metadata removal preserves every external byte."
+        }
       ]
     },
     "download_block_reason": "New downloads are waiting for applicable selected-package permission covering any included source-bound embedded English translation payload and translation metadata. The project/framework grant does not grant external translation/audio rights; source consumer evidence is not a certificate of the unacquired asset contents. Reconsider an exact attributable applicable component/package grant or reviewed asset-clean route. Already permitted private base-game copies remain a separate use question."

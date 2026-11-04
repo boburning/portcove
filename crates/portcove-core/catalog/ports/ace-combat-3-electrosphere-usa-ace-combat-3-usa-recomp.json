@@ -2,7 +2,7 @@
   "format_version": 1,
   "listing": {
     "id": "ace-combat-3-electrosphere-usa-ace-combat-3-usa-recomp",
-    "name": "Ace Combat 3: Electrosphere \u2014 USA / Ace Combat 3 USA Recomp",
+    "name": "Ace Combat 3: Electrosphere — USA / Ace Combat 3 USA Recomp",
     "summary": "PlayStation port prepared with your own matching disc and any required BIOS. Complete setup with the project’s launcher; you manage this copy, its updates and your saved data.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/ace-combat-3-electrosphere-usa-recomp",
     "issue_number": 328,
@@ -21,11 +21,19 @@
         },
         {
           "title": "Finish upstream setup, then add the player",
-          "instruction": "Open the project’s launcher to build the game from your own files. Follow the instructions for that version and keep the completed game with its required runtime and compiler files. In Portcove, select the completed game executable or supported launcher and its working folder. If setup created the game elsewhere, select that location. Save the launch details, then choose Play when you are ready. You manage updates, original files, saves and settings; Portcove does not back up these external files. Keep a working copy and its data before changing versions."
+          "instruction": "Open the project’s launcher to build the game from your own files. Follow the instructions for that version and keep the completed game with its required runtime and compiler files. In Portcove, select the completed game executable or supported launcher and its working folder. If setup created the game elsewhere, select that location. Save the launch details, then choose Play when you are ready."
         }
       ],
-      "warnings": [],
-      "help_url": "https://github.com/alexbeavs-ps1-ports/ace-combat-3-electrosphere-usa-recomp#readme"
+      "warnings": [
+        "You manage updates, original files, saves and settings; Portcove does not back up these external files. Keep a working copy and its data before changing versions."
+      ],
+      "help_url": "https://github.com/alexbeavs-ps1-ports/ace-combat-3-electrosphere-usa-recomp#readme",
+      "references": [
+        {
+          "title": "Preserve the working player and external data",
+          "instruction": "You manage updates, original files, saves and settings; Portcove does not back up these external files. Keep a working copy and its data before changing versions."
+        }
+      ]
     },
     "release_url": "https://github.com/alexbeavs-ps1-ports/ace-combat-3-electrosphere-usa-recomp/releases",
     "download_asset_hints": {

@@ -27,7 +27,16 @@
         {
           "title": "Keep the selected disc and card paths",
           "instruction": "The player reuses an existing valid saved disc path; otherwise it tries ../disc/Jet Moto 2 - Championship Edition (USA).cue beside the creating build. Settings can select another disc or card path and require a restart. A custom path does not establish that another edition is compatible."
-        },
+        }
+      ],
+      "help_url": "https://github.com/goodshepherd23/JetMoto2-Recomp/blob/cd14d8727d16c1da12cf1da547de3f5b8d6b473b/README.md",
+      "warnings": [
+        "Only an independently permitted completed native copy is offered; upstream setup and replacement remain external.",
+        "The launcher that compiles and starts a child player is not the registered player.",
+        "With the game closed, keep a separate complete prior kit/build backup and copies of settings.json, interface.ini, carda.sav, cardb.sav and cheats.json in build, plus every configured external card/disc path.",
+        "Missing cards are formatted in memory and later written; unreadable or short existing cards and malformed settings need your recovery copy. Do not assume save compatibility across builds or replace current player data with an older runtime backup."
+      ],
+      "references": [
         {
           "title": "Back up before starting or rebuilding",
           "instruction": "With the game closed, keep a separate complete prior kit/build backup and copies of settings.json, interface.ini, carda.sav, cardb.sav and cheats.json in build, plus every configured external card/disc path. Settings and cards are working-directory relative unless customized; cheats.json is beside the player. Missing cards are formatted in memory and later written; unreadable or short existing cards and malformed settings need your recovery copy. Do not assume save compatibility across builds or replace current player data with an older runtime backup."
@@ -40,11 +49,6 @@
           "title": "Respect the early-release limits",
           "instruction": "Upstream reports a completed Slickrock Gorge race, with sound/CD music, memory-card saving, other tracks, season, gamepad and two-player play untested. Menu art can extend beyond the right edge. Optional JM2 diagnostic/input/cheat environment features are outside this route. Keep the project and RecompOne notices; their MIT grants do not grant original game content. Upstream states that this early release was tested only on Windows 11 x64; this is its reported test scope, not Portcove qualification for Windows 10 or another host."
         }
-      ],
-      "help_url": "https://github.com/goodshepherd23/JetMoto2-Recomp/blob/cd14d8727d16c1da12cf1da547de3f5b8d6b473b/README.md",
-      "warnings": [
-        "Only an independently permitted completed native copy is offered; upstream setup and replacement remain external.",
-        "The launcher that compiles and starts a child player is not the registered player."
       ]
     }
   },

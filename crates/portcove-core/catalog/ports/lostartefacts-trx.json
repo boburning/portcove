@@ -22,13 +22,20 @@
         },
         {
           "title": "Choose the installed player",
-          "instruction": "Finish Portcove setup with the installed TRX.exe and its folder. Keep game files, cfg, saves, screenshots and any custom profile folders backed up when applying upstream updates."
+          "instruction": "Finish Portcove setup with the installed TRX.exe and its folder."
         }
       ],
       "warnings": [
-        "The three games keep their corresponding original-data requirements. Installing the engine does not supply ownership of commercial game data."
+        "The three games keep their corresponding original-data requirements. Installing the engine does not supply ownership of commercial game data.",
+        "Keep game files, cfg, saves, screenshots and any custom profile folders backed up when applying upstream updates."
       ],
-      "help_url": "https://github.com/LostArtefacts/TRX/blob/develop/docs/trx/INSTALLING.md"
+      "help_url": "https://github.com/LostArtefacts/TRX/blob/develop/docs/trx/INSTALLING.md",
+      "references": [
+        {
+          "title": "Preserve the TRX game data and profiles",
+          "instruction": "Keep game files, cfg, saves, screenshots and any custom profile folders backed up when applying upstream updates."
+        }
+      ]
     },
     "download_asset_hints": {
       "windows-x86-64": ["TRX-", "-Windows_Installer.exe"]

@@ -23,16 +23,32 @@
           "instruction": "Extract the complete Windows player package and choose openjkdf2-64.exe with its containing folder as the working directory. On first Play, follow OpenJKDF2’s picker to import your own supported Jedi Knight: Dark Forces II installation. Upstream recommends GOG and also supports Steam/original game layouts. Soundtrack disc extraction is separate; the player does not supply original game data. The published player is a debug build and includes an upstream runtime updater."
         },
         {
-          "title": "Keep updates and data with the working copy",
-          "instruction": "You or upstream manage runtime updates, original files, saves and settings. Keep the current working copy until another version is ready. Save launch details in Portcove, then choose Play separately. Registration does not adopt the files or grant managed Backup, Rollback or removal of the external folder. Before changing versions, preserve the actual imported game-data folder and player profiles/saves, resource, episode, MUSIC, expansions and custom mods, plus local cvars/binds/registry JSON, screenshots and any selected custom paths. Setup may use the user AppData location or an existing working-folder resource/jk_.cd layout; copying just the executable is not a data backup."
+          "title": "Save launch details before Play",
+          "instruction": "Save launch details in Portcove, then choose Play separately. Registration does not adopt the files or grant managed Backup, Rollback or removal of the external folder."
         },
         {
           "title": "Add the game and manage your files",
-          "instruction": "Register the real Windows player with its matching working directory and separate literal arguments; do not select a converter, installer or updater as the game player. Complete any original-data or prerequisite setup deliberately through upstream instructions. Registration does not perform or authenticate that preparation, and Play is a separate explicit action. You and upstream own this external runtime, original files, saves, settings and profiles. Preserve the complete working copy and every actual data/profile location with the game closed before upstream replacement. Registration-only removal preserves all external files; managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
+          "instruction": "Register the real Windows player with its matching working directory and separate literal arguments; do not select a converter, installer or updater as the game player. Complete any original-data or prerequisite setup deliberately through upstream instructions. Registration does not perform or authenticate that preparation, and Play is a separate explicit action."
         }
       ],
-      "warnings": [],
-      "help_url": "https://github.com/shinyquagsire23/OpenJKDF2/blob/814b684c0d06bbfc6e1121941fc8a9e88e3aede7/README.md"
+      "warnings": [
+        "Before changing versions, preserve the actual imported game-data folder and player profiles/saves, resource, episode, MUSIC, expansions and custom mods, plus local cvars/binds/registry JSON, screenshots and any selected custom paths. Setup may use the user AppData location or an existing working-folder resource/jk_.cd layout; copying just the executable is not a data backup."
+      ],
+      "help_url": "https://github.com/shinyquagsire23/OpenJKDF2/blob/814b684c0d06bbfc6e1121941fc8a9e88e3aede7/README.md",
+      "references": [
+        {
+          "title": "Keep updates and data with the working copy",
+          "instruction": "You or upstream manage runtime updates, original files, saves and settings. Keep the current working copy until another version is ready."
+        },
+        {
+          "title": "Preserve imported Jedi Knight data and profiles",
+          "instruction": "Before changing versions, preserve the actual imported game-data folder and player profiles/saves, resource, episode, MUSIC, expansions and custom mods, plus local cvars/binds/registry JSON, screenshots and any selected custom paths. Setup may use the user AppData location or an existing working-folder resource/jk_.cd layout; copying just the executable is not a data backup."
+        },
+        {
+          "title": "Keep external ownership and all player data",
+          "instruction": "You and upstream own this external runtime, original files, saves, settings and profiles. Preserve the complete working copy and every actual data/profile location with the game closed before upstream replacement. Registration-only removal preserves all external files; managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
+        }
+      ]
     },
     "download_asset_hints": {
       "windows-x86-64": ["win64-debug.zip"]
