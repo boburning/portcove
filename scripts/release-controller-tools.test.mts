@@ -1448,7 +1448,8 @@ void test("installed bootstrap clears inherited GitHub credentials only for comp
   const projectedPins: Record<string, unknown>[] = [];
   for (const [name, historicalJob] of Object.entries(historical.jobs)) {
     assert.ok(isRecord(historicalJob) && Array.isArray(historicalJob.steps));
-    for (const [index, step] of historicalJob.steps.entries()) {
+    const historicalSteps: unknown[] = historicalJob.steps;
+    for (const [index, step] of historicalSteps.entries()) {
       if (!isRecord(step) || !isRecord(step.with) || !("node-version" in step.with)) continue;
       literalPins.push(`${name}/${index}`);
       assert.equal(step.uses, "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1");
