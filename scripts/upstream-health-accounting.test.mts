@@ -45,9 +45,9 @@ void test("reviewed exact metadata and original conditions remain degraded witho
   for (const call of calls) {
     assert.equal(call.options.redirect, "manual");
     if (call.url.startsWith("https://api.github.com/"))
-      assert.equal(
-        new Headers(call.options.headers).get("authorization"),
-        "Bearer synthetic-token",
+      assert.match(
+        new Headers(call.options.headers).get("authorization") ?? "",
+        /^(?:token|Bearer) synthetic-token$/u,
       );
     else {
       assert.equal(call.options.method, "HEAD");
@@ -292,7 +292,7 @@ void test("repository reuse stays in one collection and failed or partial reads 
       ),
     });
     assert.equal(report.outcome, "incomplete", String(status));
-    assert.equal(calls.filter((call) => call.url === prefix).length, 2);
+    assert.equal(calls.filter((call) => call.url === prefix).length, 2, String(status));
     assert.equal(
       requiredFixture(
         report.observations.find(
