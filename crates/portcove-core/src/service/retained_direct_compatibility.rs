@@ -452,7 +452,7 @@ mod tests {
             "mega-man-x2-snes-recomp",
             "super-metroid-recomp",
         ] {
-            let mut port = Catalog::embedded().unwrap().port(id).unwrap().clone();
+            let mut port = crate::test_fixture::v26_diagnostic_port(id);
             let (version, hash) = legacy_reader(id).unwrap();
             port.release.provider = crate::ReleaseSource::DirectManifest;
             let release = port

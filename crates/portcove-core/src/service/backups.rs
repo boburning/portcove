@@ -1909,7 +1909,8 @@ fn copy_backup_tree(
         let parent = destination
             .parent()
             .ok_or_else(|| PortcoveError::state("backup target has no parent"))?;
-        let mut output = tempfile::NamedTempFile::new_in(parent)?;
+        let publication = crate::durability::tempfile_destination(destination)?;
+        let mut output = tempfile::NamedTempFile::new_in(publication.parent().unwrap_or(parent))?;
         // Keep the existing bounded copy buffer off each recursive stack frame.
         // Empty deep directories must not consume 64 KiB per ancestor.
         let mut buffer = vec![0_u8; 64 * 1024];
@@ -1939,9 +1940,11 @@ fn copy_backup_tree(
         crate::runtime_data_policy::preserve_modified_time(output.as_file(), &before)?;
         output.as_file().sync_all()?;
         refuse_symlink_ancestors(destination)?;
-        output
-            .persist(destination)
-            .map_err(|error| PortcoveError::from(error.error))?;
+        output.persist(&publication).map_err(|error| {
+            PortcoveError::from(error.error)
+                .detail("backup_copy_phase", "atomic_file_publication")
+                .detail("destination", destination.display().to_string())
+        })?;
         stats.file_count += 1;
         return Ok(());
     }

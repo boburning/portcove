@@ -118,6 +118,61 @@ mod tests {
     }
 
     #[test]
+    #[cfg(windows)]
+    fn partitioned_backup_and_runtime_copy_preserve_deep_windows_data_and_timestamps() {
+        use std::os::windows::ffi::OsStrExt;
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join("source");
+        fs::create_dir(&source).unwrap();
+        fs::write(
+            source.join("snapshot-境界.sav"),
+            b"exact first-party snapshot fixture",
+        )
+        .unwrap();
+        let parent = temporary
+            .path()
+            .join("recovery")
+            .join(uuid::Uuid::new_v4().to_string())
+            .join("staged-data")
+            .join(".portcove-archive-data-v1")
+            .join("a".repeat(64))
+            .join("b".repeat(64));
+        fs::create_dir_all(&parent).unwrap();
+        let mut destination = parent.join("preserved");
+        while destination.as_os_str().encode_wide().count() < 280 {
+            destination = destination.join("owned-data-coordinate");
+        }
+        fs::create_dir_all(&destination).unwrap();
+        let output = destination.join("snapshot-境界.sav");
+        crate::runtime_data_policy::copy_ordinary_file(&source.join("snapshot-境界.sav"), &output)
+            .unwrap();
+        assert_eq!(
+            fs::read(&output).unwrap(),
+            b"exact first-party snapshot fixture"
+        );
+        assert_eq!(
+            fs::metadata(&output).unwrap().modified().unwrap(),
+            fs::metadata(source.join("snapshot-境界.sav"))
+                .unwrap()
+                .modified()
+                .unwrap()
+        );
+        let mut stats = BackupStats::default();
+        copy_backup_tree(&source, &destination.join("backup"), &source, &mut stats).unwrap();
+        let copied = destination.join("backup/snapshot-境界.sav");
+        assert_eq!(fs::read(&copied).unwrap(), fs::read(&output).unwrap());
+        assert_eq!(
+            fs::metadata(&copied).unwrap().modified().unwrap(),
+            fs::metadata(&output).unwrap().modified().unwrap()
+        );
+        assert_eq!(stats.file_count, 1);
+        assert_eq!(
+            fs::read(source.join("snapshot-境界.sav")).unwrap(),
+            b"exact first-party snapshot fixture"
+        );
+    }
+
+    #[test]
     fn opaque_partitioned_restore_retains_proof_before_publication() {
         opaque_partitioned_restore_at(LifecycleFaultPoint::RestorePrepared);
     }

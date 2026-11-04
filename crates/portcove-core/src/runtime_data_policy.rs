@@ -235,10 +235,12 @@ pub(crate) fn copy_ordinary_file(source: &Path, destination: &Path) -> Result<()
     crate::path::refuse_symlink_ancestors(destination)?;
     let mut input = crate::external_runtime::open_single_link_file(source)?;
     let before = input.metadata()?;
+    let publication = crate::durability::tempfile_destination(destination)?;
     let parent = destination
         .parent()
         .ok_or_else(|| PortcoveError::state("copy target has no parent"))?;
-    let mut output = tempfile::NamedTempFile::new_in(parent)?;
+    let mut output =
+        tempfile::NamedTempFile::new_in(publication.parent().expect("checked parent"))?;
     let mut total = 0_u64;
     let mut buffer = [0_u8; 64 * 1024];
     loop {
@@ -261,9 +263,11 @@ pub(crate) fn copy_ordinary_file(source: &Path, destination: &Path) -> Result<()
     output.as_file().set_permissions(before.permissions())?;
     output.as_file().sync_all()?;
     crate::path::refuse_symlink_ancestors(destination)?;
-    output
-        .persist(destination)
-        .map_err(|error| PortcoveError::from(error.error))?;
+    output.persist(&publication).map_err(|error| {
+        PortcoveError::from(error.error)
+            .detail("copy_phase", "atomic_file_publication")
+            .detail("destination", destination.display().to_string())
+    })?;
     crate::durability::sync_publication(parent)
 }
 

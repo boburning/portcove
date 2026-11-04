@@ -2566,7 +2566,7 @@
     {
       "id": "mega-man-x2-snes-recomp",
       "name": "Mega Man X2 Recompiled",
-      "summary": "Native Mega Man X2 recompilation with an exact original and managed Windows runtime.",
+      "summary": "Native Mega Man X2 recompilation.",
       "project_url": "https://github.com/mstan/MegaManX2Recomp",
       "original_game_title": "Mega Man X2",
       "issue_number": 165,

@@ -193,6 +193,26 @@ pub(crate) fn write_bytes_atomically(
     write_bytes_atomically_with_prefix(destination, bytes, replace, None)
 }
 
+/// tempfile passes persistence paths directly to Win32. Use the same existing
+/// canonical parent for its private file and final name, including UTF-16 and
+/// the extended namespace needed for deep library/recovery coordinates.
+pub(crate) fn tempfile_destination(destination: &Path) -> Result<std::path::PathBuf> {
+    #[cfg(windows)]
+    {
+        let parent = destination
+            .parent()
+            .ok_or_else(|| PortcoveError::usage("publication path has no parent"))?;
+        let parent = fs::canonicalize(parent)?;
+        return Ok(parent.join(
+            destination
+                .file_name()
+                .ok_or_else(|| PortcoveError::usage("publication path has no filename"))?,
+        ));
+    }
+    #[cfg(not(windows))]
+    Ok(destination.to_path_buf())
+}
+
 /// Use a fixed Core-owned namespace for precisely identified metadata writes.
 pub(crate) fn write_bytes_atomically_with_prefix(
     destination: &Path,
@@ -201,22 +221,11 @@ pub(crate) fn write_bytes_atomically_with_prefix(
     prefix: Option<&str>,
 ) -> Result<()> {
     use std::io::Write;
+    let destination = tempfile_destination(destination)?;
+    let destination = destination.as_path();
     let parent = destination
         .parent()
         .ok_or_else(|| PortcoveError::usage("publication path has no parent"))?;
-    // tempfile's Windows persistence passes paths directly to Win32 rather than
-    // applying std's long-path normalization. Bind both names to the same
-    // existing canonical parent, including its verbatim namespace and UTF-16.
-    #[cfg(windows)]
-    let parent = fs::canonicalize(parent)?;
-    #[cfg(windows)]
-    let destination = parent.join(
-        destination
-            .file_name()
-            .ok_or_else(|| PortcoveError::usage("publication path has no filename"))?,
-    );
-    #[cfg(windows)]
-    let (parent, destination) = (parent.as_path(), destination.as_path());
     let mut temporary = match prefix {
         Some(prefix) => tempfile::Builder::new()
             .prefix(prefix)

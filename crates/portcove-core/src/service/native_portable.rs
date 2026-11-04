@@ -3773,45 +3773,11 @@ mod tests {
         catalog
     }
 
-    fn v26_diagnostic_port(id: &str) -> PortDefinition {
-        let value: serde_json::Value = serde_json::from_str(include_str!(
-            "../../tests/fixtures/direct-diagnostic-v26.json"
-        ))
-        .unwrap();
-        serde_json::from_value(
-            value["ports"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .find(|p| p["id"] == id)
-                .unwrap()
-                .clone(),
-        )
-        .unwrap()
-    }
-
-    fn v26_diagnostic_contract(id: &str) -> crate::PortSourceContract {
-        let value: serde_json::Value = serde_json::from_str(include_str!(
-            "../../tests/fixtures/direct-diagnostic-v26.json"
-        ))
-        .unwrap();
-        serde_json::from_value(
-            value["source_contracts"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .find(|p| p["port_id"] == id)
-                .unwrap()
-                .clone(),
-        )
-        .unwrap()
-    }
-
     #[test]
     fn mmx2_diagnostic_package_has_exact_source_admission_and_retains_older_bindings() {
-        let port = v26_diagnostic_port("mega-man-x2-snes-recomp");
+        let port = crate::test_fixture::v26_diagnostic_port("mega-man-x2-snes-recomp");
         let release = &port.release.direct[&Platform::WindowsX86_64];
-        let contract = v26_diagnostic_contract(&port.id);
+        let contract = crate::test_fixture::v26_diagnostic_contract(&port.id);
         assert_eq!(release.version, "v0.2.2");
         assert!(contract.applies_to_release(&release.version, &release.sha256));
         assert!(!contract.applies_to_release(&release.version, &"a".repeat(64)));
@@ -3833,9 +3799,9 @@ mod tests {
 
     #[test]
     fn sonic1_diagnostic_package_has_exact_source_admission_and_retains_older_bindings() {
-        let port = v26_diagnostic_port("sonic-the-hedgehog-recomp");
+        let port = crate::test_fixture::v26_diagnostic_port("sonic-the-hedgehog-recomp");
         let release = &port.release.direct[&Platform::WindowsX86_64];
-        let contract = v26_diagnostic_contract(&port.id);
+        let contract = crate::test_fixture::v26_diagnostic_contract(&port.id);
         assert_eq!(release.version, "v0.8.3");
         assert_eq!(
             release.sha256,
@@ -3864,7 +3830,7 @@ mod tests {
         // Retain exact historical definitions independently of the evolving catalog.
         // Only source authority is substituted with inert first-party bytes.
         let port: PortDefinition = if current {
-            v26_diagnostic_port(id)
+            crate::test_fixture::v26_diagnostic_port(id)
         } else {
             serde_json::from_str(match id {
                 "sonic-the-hedgehog-recomp" => {
@@ -4016,6 +3982,17 @@ mod tests {
             let provider = Arc::new(Provider(Mutex::new(package("fixture-n", 1))));
             let mut service = build_service(library.clone(), provider.clone());
             service.replace_catalog_for_test(fixed.clone());
+            struct Trace(std::time::Instant);
+            impl LifecycleFaultInjector for Trace {
+                fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
+                    eprintln!(
+                        "compatible release phase {point:?} at {:?}",
+                        self.0.elapsed()
+                    );
+                    Ok(())
+                }
+            }
+            service.faults = Arc::new(Trace(started));
             let source = temporary.path().join(if id.starts_with("sonic-") {
                 "owned.bin"
             } else {
@@ -4598,7 +4575,7 @@ mod tests {
         ] {
             let sonic = id == "sonic-the-hedgehog-recomp";
             let filename = if sonic { "game.bin" } else { "game.sfc" };
-            let port = v26_diagnostic_port(id);
+            let port = crate::test_fixture::v26_diagnostic_port(id);
             let release = &port.release.direct[&Platform::WindowsX86_64];
             let executable = &port.executable_hints[&Platform::WindowsX86_64][0];
             let original = b"inert first-party source, never retail game data";
