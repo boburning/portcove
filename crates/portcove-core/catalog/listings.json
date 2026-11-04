@@ -30977,16 +30977,12 @@
             "instruction": "Finish the upstream ROM/BIOS picker, any independently permitted translation and settings first; keep independent originals. Request Play separately, then use the upstream Play UI for the already configured game. The selected native entry runs its setup UI and linked game in process. Complete missing input, patch application, imports or maintenance outside the attached attempt. This guide obtains or executes no BIOS, ROM, patch, compiler, helper or game."
           },
           {
-            "title": "Preserve battery saves, derivatives and old paths",
-            "instruction": "Legacy cfg paths can be relative to their own folder; do not silently reinterpret them under a new CWD. Upstream import accepts battery .sav/.srm, not emulator save states; this is not observed compatibility acceptance. This guide performs no patching, import, migration, restore, backup or deletion."
+            "title": "Preserve player data and maintain the external copy",
+            "instruction": "Legacy cfg paths can be relative to their own folder; do not silently reinterpret them under a new CWD. Upstream import accepts battery .sav/.srm, not emulator save states; this is not observed compatibility acceptance. This guide performs no patching, import, migration, restore, backup or deletion. Quit the actual game normally before upstream replacement, ROM/patch changes or save imports. Preserve independent recovery copies. Forced termination is not a save-flush guarantee. Upstream HQ audio, smoothing, translation and save-import reports remain upstream claims; patch-dependent interpreter behavior, performance and compatibility are not generalized. No native/installed, campaign, save/reload or Supported acceptance is asserted."
           },
           {
             "title": "Retain individual component and content terms",
             "instruction": "Preserve the port/runtime PolyForm Noncommercial 1.0.0 notices, the separately shipped recomp-ui MIT notice, and SDL, TinyCC, toolchain and other component notices. The selected dependency lock binds the GBA/UI revisions and verified title-specific patches; those source bindings are not source-to-binary reproducibility. Component licenses do not provide Nintendo ROM/BIOS, translation-team or third-party mod rights. Use only a complete copy and patches you are independently permitted to use. Existing RetroAchievements/account settings remain upstream-owned; no login, credential change or online acceptance is provided."
-          },
-          {
-            "title": "Maintain the external copy and its limits",
-            "instruction": "Quit the actual game normally before upstream replacement, ROM/patch changes or save imports. Preserve independent recovery copies. Forced termination is not a save-flush guarantee. Upstream HQ audio, smoothing, translation and save-import reports remain upstream claims; patch-dependent interpreter behavior, performance and compatibility are not generalized. No native/installed, campaign, save/reload or Supported acceptance is asserted."
           },
           {
             "title": "Select the prepared player",

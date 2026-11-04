@@ -204,3 +204,14 @@ void test("ordinary declarations generate distinct bounded title tests without a
   fresh.listing.id = 'unsafe");panic!("injected';
   assert.throws(() => renderRouteTests([fresh]), /safe literals/);
 });
+
+void test("expanded route guides refuse the retained concrete entry bound before output", () => {
+  const raw = structuredClone(input(ids[0]!));
+  const setup = raw.listing.manual_setup;
+  assert.ok(isRecord(setup) && Array.isArray(setup.steps));
+  setup.steps = Array.from({ length: 8 }, (_, index) => ({
+    title: `Distinct instruction ${index}`,
+    instruction: "Keep a genuine title requirement.",
+  }));
+  assert.throws(() => projectRouteFacts(raw), /Expanded route guide exceeds/);
+});
