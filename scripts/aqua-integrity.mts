@@ -1,7 +1,8 @@
 import { parseDocument } from "yaml";
 import { isRecord } from "./runtime-values.mts";
 import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
-import { spawnSync } from "node:child_process";
+import { createGitHubClient } from "./github-client.mts";
+import { localDeveloperCredential } from "./github-cli.mts";
 import { copyFile, mkdir, mkdtemp, readFile, rename, rm } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -229,7 +230,6 @@ export function verifyPublisherDigests(entries: readonly AquaChecksumEntry[], re
 }
 
 function run(
-  command: string,
   arguments_: string[],
   options: Pick<SpawnSyncOptionsWithStringEncoding, "cwd" | "env"> = {},
 ) {
@@ -239,18 +239,17 @@ function run(
     env: options.env ?? process.env,
     windowsHide: true,
   };
-  const result =
-    command === "aqua" ? runAqua(arguments_, settings) : spawnSync(command, arguments_, settings);
+  const result = runAqua(arguments_, settings);
   if (result.error) throw result.error;
   if (result.status !== 0)
     throw new Error(
-      `${command} ${arguments_.join(" ")} failed: ${result.stderr.trim() || result.stdout.trim()}`,
+      `aqua ${arguments_.join(" ")} failed: ${result.stderr.trim() || result.stdout.trim()}`,
     );
   return result.stdout.trim();
 }
 
 function assertPinnedAquaVersion(expected: string) {
-  const output = run("aqua", ["-v"]);
+  const output = run(["-v"]);
   const actual = /^aqua version (\S+)$/mu.exec(output)?.[1];
   if (`v${actual}` !== expected)
     throw new Error(
@@ -258,19 +257,29 @@ function assertPinnedAquaVersion(expected: string) {
     );
 }
 
-function releaseMetadata(config: AquaConfig) {
-  return Object.fromEntries(
-    config.packages.map(({ name, version }) => {
-      const output = run("gh", [
-        "api",
-        "--method",
-        "GET",
-        `repos/${name}/releases/tags/${encodeURIComponent(version)}`,
-      ]);
-      const release: unknown = JSON.parse(output);
-      return [`${name}@${version}`, release];
-    }),
-  );
+async function releaseMetadata(config: AquaConfig) {
+  const deadline = performance.now() + 120_000;
+  const client = await createGitHubClient({
+    credential: localDeveloperCredential({ deadline }),
+    deadline,
+    allowRequest: (method, url) =>
+      method === "GET" &&
+      config.packages.some(
+        ({ name, version }) =>
+          url.pathname === `/repos/${name}/releases/tags/${encodeURIComponent(version)}`,
+      ),
+  });
+  const entries: [string, unknown][] = [];
+  for (const { name, version } of config.packages) {
+    const response = await client.request("GET /repos/{owner}/{repo}/releases/tags/{tag}", {
+      owner: name.split("/")[0]!,
+      repo: name.split("/")[1]!,
+      tag: version,
+      request: { portcove: { replay: "safe-read", attempts: 0 } },
+    });
+    entries.push([`${name}@${version}`, response.data]);
+  }
+  return Object.fromEntries(entries);
 }
 
 function stableNonReleaseEntries(ledger: AquaChecksumLedger) {
@@ -325,7 +334,7 @@ async function update() {
   try {
     await copyFile(path.join(projectRoot, "aqua.yaml"), stagedConfig);
     await copyFile(path.join(projectRoot, "aqua-checksums.json"), stagedLedger);
-    run("aqua", ["--config", stagedConfig, "update-checksum", "--prune"], {
+    run(["--config", stagedConfig, "update-checksum", "--prune"], {
       cwd: temporary,
       env: {
         ...process.env,
@@ -338,7 +347,7 @@ async function update() {
     const generated: unknown = JSON.parse(generatedText);
     const releaseEntries = validateAquaChecksumLedger(current.config, generated);
     requireStableNonReleaseEntries(current.ledger, generated);
-    verifyPublisherDigests(releaseEntries, releaseMetadata(current.config));
+    verifyPublisherDigests(releaseEntries, await releaseMetadata(current.config));
 
     await copyFile(stagedLedger, promotion);
     requireUnchangedInputs(current, {

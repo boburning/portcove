@@ -1522,21 +1522,24 @@ Make such changes as one reviewed migration: explain the pressure and tradeoffs 
 
 In this document, “thin adapter” means that the CLI and desktop do not reimplement catalog, installation, release, source, or library policy. Adapters may own concerns that exist only at their boundary, including argument and IPC translation, native dialogs, credential-store access, process attachment, and presentation-shaped aggregation. If a boundary concern becomes reusable domain behavior, move it behind the shared authority instead of copying it.
 
-Repository-owned Node maintenance tools use `scripts/github-api.mts` as their
-single GitHub process and wire-format boundary. It owns `gh` execution, JSON
-stdin for GraphQL and REST bodies, included-response parsing, rate-limit
-metadata and generic REST page traversal. Roadmap, pull-request delivery,
-contribution conventions, repository settings and provenance clients retain
-their own domain validation and mutation policy. The shared boundary is not a
-Portcove product API, credential store or planning authority, and it cannot
-weaken exact-head, complete-inventory or readback requirements.
+Repository-owned Node tools are migrating from `scripts/github-api.mts` to
+one credential-scoped Octokit factory in `scripts/github-client.mts`.
+The configured SDK owns bounded metadata transport, attempt accounting and
+request evidence. Pure error/result shaping lives in `github-operation.mts`;
+`github-cli.mts` owns eligible local credential resolution and retained bounded
+attestation verification. These modules cannot depend on domain tooling.
 
-Automation-facing GitHub operations use one versioned result envelope from the
-same module. The envelope standardizes terminal status and sanitized errors,
-while operation-specific evidence remains owned by the caller. Human output is
-the default and JSON is opt-in. Project bulk mutations are bounded, quota-aware
-and readback-gated per chunk so transport ambiguity produces resumable evidence
-instead of an automatic replay.
+The `capture-port` production REST inventory/intake path and ordinary Aqua,
+handoff, postmerge and CI-health metadata readers use this asynchronous boundary.
+Other callers temporarily retain the legacy transport while #4319 migrates their
+families. Existing artifact-byte acquisition remains separately bounded. Domain
+owners retain authorization, cache eligibility, completeness, reconciliation and
+release policy. SDK endpoint types do not replace runtime validation.
+
+Automation-facing operations retain their versioned result envelopes and
+sanitized errors. Project mutations remain quota-aware and readback-gated;
+ambiguous writes produce recovery evidence rather than automatic replay. The
+migration grants no publication or activation authority.
 
 The CLI's schema module assembles the transport schema inventory from existing
 Rust `JsonSchema`/Serde definitions. Explicit input and output contracts use

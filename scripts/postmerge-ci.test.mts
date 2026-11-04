@@ -125,33 +125,30 @@ function fixture() {
     ["actions/artifacts/9/zip", zip],
     ["actions/runs/42", run],
   ]);
-  const invoke = (command: string, args: string[], binary = false): string | Buffer => {
-    if (command === "gh") {
-      const route = args[1];
-      assert(route);
-      const value = responses.get(route.replace(`repos/${repository}/`, ""));
-      if (value === undefined) throw Error("unexpected route");
-      if (binary) {
-        assert(Buffer.isBuffer(value));
-        return value;
-      }
-      const serialized = JSON.stringify(value);
-      assert(typeof serialized === "string");
-      return serialized;
+  const read = async (route: string, binary = false): Promise<unknown> => {
+    const value = responses.get(route);
+    if (value === undefined) throw Error("unexpected route");
+    if (binary) {
+      assert(Buffer.isBuffer(value));
+      return Buffer.from(value);
     }
+    return structuredClone(value);
+  };
+  const git = (args: string[]) => {
     if (args[0] === "show") return workflow;
     if (args[0] === "rev-parse") return sha("f");
     if (args[0] === "cat-file") return "";
     throw Error("unexpected git");
   };
-  return { plan, invoke, responses, run, jobs, artifact, discoverPlan: () => plan };
+  return { plan, read, git, responses, run, jobs, artifact, discoverPlan: () => plan };
 }
 
-void test("trusted identical tested composition reuses explicit groups while current aggregates remain honest", () => {
+void test("trusted identical tested composition reuses explicit groups while current aggregates remain honest", async () => {
   const f = fixture();
-  const reuse = discoverPostmergeReuse(f.plan, {
+  const reuse = await discoverPostmergeReuse(f.plan, {
     event: "push",
-    invoke: f.invoke,
+    read: f.read,
+    git: f.git,
     discoverPlan: f.discoverPlan,
   });
   assert.ok(reuse);
@@ -168,7 +165,10 @@ void test("trusted identical tested composition reuses explicit groups while cur
     }),
     /reused CI 42/,
   );
-  assert.equal(discoverPostmergeReuse(f.plan, { event: "pull_request", invoke: f.invoke }), null);
+  assert.equal(
+    await discoverPostmergeReuse(f.plan, { event: "pull_request", read: f.read, git: f.git }),
+    null,
+  );
   assert.throws(() => validatePostmergeReuse({ ...reuse, checkout: sha("a") }, f.plan));
   assert.throws(() =>
     evaluateCiResults({
@@ -182,7 +182,7 @@ void test("trusted identical tested composition reuses explicit groups while cur
     }),
   );
 });
-void test("changed composition, direct push, pending/failing or incomplete provenance execute normally", () => {
+void test("changed composition, direct push, pending/failing or incomplete provenance execute normally", async () => {
   for (const mutate of [
     (f) => (f.run.conclusion = "failure"),
     (f) => (f.run.status = "in_progress"),
@@ -205,9 +205,10 @@ void test("changed composition, direct push, pending/failing or incomplete prove
     const f = fixture();
     mutate(f);
     assert.equal(
-      discoverPostmergeReuse(f.plan, {
+      await discoverPostmergeReuse(f.plan, {
         event: "push",
-        invoke: f.invoke,
+        read: f.read,
+        git: f.git,
         discoverPlan: f.discoverPlan,
       }),
       null,
@@ -215,13 +216,12 @@ void test("changed composition, direct push, pending/failing or incomplete prove
   }
   const f = fixture();
   assert.equal(
-    discoverPostmergeReuse(f.plan, {
+    await discoverPostmergeReuse(f.plan, {
       event: "push",
       discoverPlan: f.discoverPlan,
-      invoke: (c, args, b) =>
-        c === "git" && args[0] === "rev-parse" && args[1]?.startsWith(sha("c"))
-          ? sha("e")
-          : f.invoke(c, args, b),
+      read: f.read,
+      git: (args) =>
+        args[0] === "rev-parse" && args[1]?.startsWith(sha("c")) ? sha("e") : f.git(args),
     }),
     null,
   );
@@ -242,7 +242,7 @@ void test("changed composition, direct push, pending/failing or incomplete prove
   }
 });
 
-void test("malformed provider identities and artifact metadata always retain fresh execution", () => {
+void test("malformed provider identities and artifact metadata always retain fresh execution", async () => {
   const runsRoute = `actions/workflows/ci.yml/runs?head_sha=${sha("d")}&event=pull_request&per_page=20`;
   const mutate: readonly ((candidate: ReturnType<typeof fixture>) => unknown)[] = [
     (f) => f.responses.set(runsRoute, { workflow_runs: [null] }),
@@ -264,12 +264,35 @@ void test("malformed provider identities and artifact metadata always retain fre
     const f = fixture();
     alter(f);
     assert.equal(
-      discoverPostmergeReuse(f.plan, {
+      await discoverPostmergeReuse(f.plan, {
         event: "push",
-        invoke: f.invoke,
+        read: f.read,
+        git: f.git,
         discoverPlan: f.discoverPlan,
       }),
       null,
     );
   }
+});
+
+void test("postmerge workflow installs locked dependencies before credentialed observation", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const { parse } = await import("yaml");
+  const workflow: unknown = parse(
+    await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8"),
+  );
+  const { isRecord } = await import("./runtime-values.mts");
+  assert.ok(isRecord(workflow) && isRecord(workflow.jobs) && isRecord(workflow.jobs.classify));
+  assert.ok(Array.isArray(workflow.jobs.classify.steps));
+  const steps = workflow.jobs.classify.steps.filter(isRecord);
+  const install = steps.findIndex(
+    (step) =>
+      step.run === "pnpm install --filter portcove-repository --frozen-lockfile --ignore-scripts",
+  );
+  const observe = steps.findIndex((step) => step.id === "plan");
+  assert.ok(install >= 0 && install < observe);
+  assert.equal(steps[install]?.if, "github.event_name == 'push'");
+  assert.equal(steps[install]?.env, undefined);
+  const environment = steps[observe]?.env;
+  assert.ok(isRecord(environment) && environment.GH_TOKEN);
 });

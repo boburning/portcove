@@ -1,3 +1,4 @@
+import type { createGitHubClient } from "./github-client.mts";
 import type { ValidationGroup, ValidationPlan } from "./validation-plan.mts";
 import type { discoverCiPlan } from "./select-ci-plan.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -22,7 +23,8 @@ export interface PostmergeReuseBinding {
 }
 interface PostmergeOptions {
   event?: string | undefined;
-  invoke?: (command: string, args: string[], binary?: boolean) => string | Buffer;
+  read?: (route: string, binary?: boolean) => Promise<unknown>;
+  git?: (args: string[], binary?: boolean) => string | Buffer;
   discoverPlan?: typeof discoverCiPlan;
 }
 
@@ -87,30 +89,54 @@ export function validatePostmergeReuse(
 
 // One bounded lookup using existing workflow provenance, never a cross-run cache.
 // Any missing proof returns normal fresh execution.
-export function discoverPostmergeReuse(
+export async function discoverPostmergeReuse(
   plan: ValidationPlan,
   options: PostmergeOptions = {},
-): PostmergeReuseBinding | null {
+): Promise<PostmergeReuseBinding | null> {
   if (options.event !== "push" || !postmergeEligible(plan)) return null;
-  const deadline = Date.now() + 60000;
-  const invoke =
-    options.invoke ??
-    ((command, args, binary = false) =>
-      execFileSync(command, args, {
+  const deadline = performance.now() + 60000;
+  const invokeGit =
+    options.git ??
+    ((args: string[], binary = false) =>
+      execFileSync("git", args, {
         encoding: binary ? "buffer" : "utf8",
-        timeout: Math.max(1, Math.min(15000, deadline - Date.now())),
+        timeout: Math.max(1, Math.min(15000, Math.ceil(deadline - performance.now()))),
         maxBuffer: 4 * 1024 * 1024,
         windowsHide: true,
       }));
-  const api = (route: string, binary = false): unknown => {
-    if (Date.now() >= deadline) throw new Error("Reuse observation deadline");
-    const result = invoke("gh", ["api", `${prefix}/${route}`], binary);
-    return binary ? result : JSON.parse(String(result));
+  let client: ReturnType<typeof createGitHubClient> | undefined;
+  const api = async (route: string, binary = false): Promise<unknown> => {
+    if (performance.now() >= deadline) throw new Error("Reuse observation deadline");
+    if (options.read) return options.read(route, binary);
+    if (binary)
+      return (await import("./github-binary.mts")).readGitHubArtifactArchive(`${prefix}/${route}`, {
+        cwd: process.cwd(),
+        maxBytes: 4 * 1024 * 1024,
+        timeoutMs: Math.max(1, Math.min(15000, Math.ceil(deadline - performance.now()))),
+      });
+    client ??= Promise.all([import("./github-client.mts"), import("./github-cli.mts")]).then(
+      ([{ createGitHubClient }, { localDeveloperCredential }]) =>
+        createGitHubClient({
+          credential: localDeveloperCredential({ deadline }),
+          deadline,
+          maxBytes: 4 * 1024 * 1024,
+          allowRequest: (method, url) => method === "GET" && url.pathname.startsWith(`/${prefix}/`),
+        }),
+    );
+    return (
+      await (
+        await client
+      ).request({
+        method: "GET",
+        url: new URL(`${prefix}/${route}`, "https://api.github.com/").href,
+        request: { portcove: { replay: "safe-read", attempts: 0 } },
+      })
+    ).data as unknown;
   };
-  const git = (...args: string[]) => String(invoke("git", args)).trim();
+  const git = (...args: string[]) => String(invokeGit(args)).trim();
   try {
     const head = plan.identities.checkout;
-    const pulls = api(`commits/${head}/pulls?per_page=100`);
+    const pulls = await api(`commits/${head}/pulls?per_page=100`);
     if (!Array.isArray(pulls) || pulls.length >= 100) return null;
     const pullRecords: unknown[] = pulls;
     const merged = pullRecords.filter(
@@ -132,7 +158,7 @@ export function discoverPostmergeReuse(
     );
     const pull = merged[0];
     if (merged.length !== 1 || !pull) return null;
-    const listed = api(
+    const listed = await api(
       `actions/workflows/ci.yml/runs?head_sha=${pull.head.sha}&event=pull_request&per_page=20`,
     );
     if (!isRecord(listed) || !Array.isArray(listed.workflow_runs) || !listed.workflow_runs.length)
@@ -164,7 +190,7 @@ export function discoverPostmergeReuse(
     const runId = run.id,
       runAttempt = run.run_attempt,
       runHead = run.head_sha;
-    const jobs = api(`actions/runs/${runId}/jobs?filter=latest&per_page=100`);
+    const jobs = await api(`actions/runs/${runId}/jobs?filter=latest&per_page=100`);
     if (
       !isRecord(jobs) ||
       !Array.isArray(jobs.jobs) ||
@@ -196,7 +222,7 @@ export function discoverPostmergeReuse(
       )
         return null;
     }
-    const artifacts = api(`actions/runs/${runId}/artifacts?per_page=100`);
+    const artifacts = await api(`actions/runs/${runId}/artifacts?per_page=100`);
     if (
       !isRecord(artifacts) ||
       !Array.isArray(artifacts.artifacts) ||
@@ -221,7 +247,7 @@ export function discoverPostmergeReuse(
       !/^sha256:[a-f0-9]{64}$/u.test(artifact.digest)
     )
       return null;
-    const bytes = api(`actions/artifacts/${artifact.id}/zip`, true);
+    const bytes = await api(`actions/artifacts/${artifact.id}/zip`, true);
     if (!Buffer.isBuffer(bytes) || hash(bytes) !== artifact.digest.slice(7)) return null;
     const provenance: unknown = parseProvenanceArchive(bytes);
     validateWorkflowProvenance(provenance, {
@@ -252,7 +278,7 @@ export function discoverPostmergeReuse(
         proseOnlyEnabled: true,
         fastValidationEnabled: true,
       },
-      (args, settings) => invoke("git", args, settings?.encoding === "buffer"),
+      (args, settings) => invokeGit(args, settings?.encoding === "buffer"),
     );
     if (
       producerPlan.digest !== provenance.validation.plan_digest ||
@@ -262,13 +288,13 @@ export function discoverPostmergeReuse(
       return null;
     const tree = git("rev-parse", `${head}^{tree}`);
     if (git("rev-parse", `${checkout}^{tree}`) !== tree) return null;
-    const workflow = invoke("git", ["show", `${head}:.github/workflows/ci.yml`]);
+    const workflow = invokeGit(["show", `${head}:.github/workflows/ci.yml`]);
     if (
       hash(workflow) !== provenance.workflow.content_sha256 ||
       provenance.observed.node !== process.versions.node
     )
       return null;
-    const final = api(`actions/runs/${runId}`);
+    const final = await api(`actions/runs/${runId}`);
     if (
       !isRecord(final) ||
       final.head_sha !== runHead ||

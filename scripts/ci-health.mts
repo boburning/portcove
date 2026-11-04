@@ -169,13 +169,14 @@ function pagedItems<T>(
   if (items.length !== expected) throw new Error(incomplete);
   return items;
 }
-import { execFile } from "node:child_process";
+import { createGitHubClient } from "./github-client.mts";
+import { localDeveloperCredential } from "./github-cli.mts";
+import { nextLink, GitHubApiError } from "./github-operation.mts";
+import { readGitHubArtifactArchive } from "./github-binary.mts";
 import { createHash } from "node:crypto";
-import { parseArgs, promisify } from "node:util";
+import { parseArgs } from "node:util";
 import { pathToFileURL } from "node:url";
 import { parseProvenanceArchive, validateWorkflowProvenance } from "./workflow-provenance.mts";
-
-const execute = promisify(execFile);
 
 function secondsBetween(start: unknown, end: unknown) {
   if (typeof start !== "string" || typeof end !== "string") return null;
@@ -788,7 +789,7 @@ async function main() {
   });
   if (values.help) {
     console.log(
-      "Usage: node scripts/ci-health.mts [--workflow ci.yml] [--branch main] [--event push] [--runs 20] [--since ISO-date] [--json]\nRead-only GitHub CLI access is required. Push reports default to main; other events cover all branches unless --branch is supplied. All attempts of the selected runs are inspected.",
+      "Usage: node scripts/ci-health.mts [--workflow ci.yml] [--branch main] [--event push] [--runs 20] [--since ISO-date] [--json]\nRead-only GitHub access is required. Push reports default to main; other events cover all branches unless --branch is supplied. All attempts of the selected runs are inspected.",
     );
     return;
   }
@@ -801,20 +802,62 @@ async function main() {
     throw new Error("--since must be a valid ISO date");
   const branch = values.branch ?? (values.event === "push" ? "main" : undefined);
   const { repository } = roadmapConfig;
+  const deadline = performance.now() + 10 * 60_000;
+  const client = await createGitHubClient({
+    credential: localDeveloperCredential({ deadline }),
+    deadline,
+    requestTimeoutMs: 30_000,
+    maxBytes: 20 * 1024 * 1024,
+    allowRequest: (method, url) =>
+      method === "GET" && url.pathname.startsWith(`/repos/${repository}/`),
+  });
   const request: CiRequest = async (route, paginate = false, responseType = "json") => {
-    const args = ["api", "--method", "GET", route];
-    if (paginate) args.push("--paginate", "--slurp");
-    const { stdout } = await execute("gh", args, {
-      encoding: responseType === "buffer" ? "buffer" : "utf8",
-      windowsHide: true,
-      timeout: 30_000,
-      maxBuffer: 20 * 1024 * 1024,
+    if (performance.now() >= deadline)
+      throw new GitHubApiError("deadline_exceeded", "CI report deadline exhausted");
+    if (responseType === "buffer")
+      return readGitHubArtifactArchive(route, {
+        cwd: process.cwd(),
+        maxBytes: 20 * 1024 * 1024,
+        timeoutMs: Math.max(1, Math.min(30_000, Math.ceil(deadline - performance.now()))),
+      });
+    const requestDeadline = Math.min(deadline, performance.now() + 30_000);
+    const pages: unknown[] = [];
+    const seen = new Set<string>();
+    let received = 0;
+    const reserve = () => ({
+      consumeBytes: (bytes: number) => {
+        received += bytes;
+        if (received > 20 * 1024 * 1024)
+          throw new GitHubApiError(
+            "budget_exhausted",
+            "CI metadata collection exceeded its byte budget",
+          );
+      },
+      settle() {},
     });
-    if (responseType === "buffer") return stdout;
-    const parsed: unknown = JSON.parse(
-      typeof stdout === "string" ? stdout : stdout.toString("utf8"),
-    );
-    return parsed;
+    let current: string | null = route;
+    while (current) {
+      if (seen.has(current)) throw new Error("CI metadata pagination did not advance");
+      seen.add(current);
+      const response: Awaited<ReturnType<typeof client.request>> = await client.request({
+        method: "GET",
+        url: new URL(current, "https://api.github.com/").href,
+        request: {
+          portcove: { replay: "safe-read", attempts: 0, reserve, deadline: requestDeadline },
+        },
+      });
+      pages.push(response.data as unknown);
+      current = paginate
+        ? nextLink(
+            new Map(
+              Object.entries(response.headers).filter(
+                (entry): entry is [string, string] => typeof entry[1] === "string",
+              ),
+            ),
+          )
+        : null;
+    }
+    return paginate ? pages : pages[0];
   };
   const report = await collectHistory(request, {
     repository,

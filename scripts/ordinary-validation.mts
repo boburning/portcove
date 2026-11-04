@@ -1890,6 +1890,7 @@ for (const [file, tests] of [
   ["scripts/repository-issue-inventory.fixture.mts", roadmapContractTests],
   ...[
     "scripts/github-api.mts",
+    "scripts/github-operation.mts",
     "scripts/repository-issue-inventory.mts",
     "scripts/roadmap-inventory.mts",
     "scripts/roadmap-scoped.mts",
@@ -2011,6 +2012,8 @@ for (const file of [
   ]);
 explicitNodeTests.set("scripts/fixtures/module-closure.mts", [
   ...(explicitNodeTests.get("scripts/fixtures/module-closure.mts") ?? []),
+  "scripts/repository-settings.test.mts",
+  "scripts/release-controller-tools.test.mts",
   "scripts/release-windows-webview-driver.test.mts",
   "scripts/catalog-proposal-costs.test.mts",
   "scripts/production-aggregate-steps.test.mts",
@@ -2146,6 +2149,36 @@ for (const file of [
     ...(explicitNodeTests.get(file) ?? []),
     ...coordinatorStateContractTests,
   ]);
+}
+
+for (const file of [
+  "package.json",
+  "pnpm-lock.yaml",
+  "scripts/github-client.mts",
+  "scripts/github-client.test.mts",
+  "scripts/github-operation.mts",
+  "scripts/github-cli.mts",
+  "scripts/github-rest-inventory.mts",
+  "scripts/roadmap-rest-intake.mts",
+  "scripts/aqua-integrity.mts",
+  "scripts/ci-health.mts",
+  "scripts/handoff-evidence.mts",
+  "scripts/postmerge-ci.mts",
+])
+  explicitNodeTests.set(file, [
+    ...(explicitNodeTests.get(file) ?? []),
+    "scripts/github-client.test.mts",
+    "scripts/roadmap-rest-intake.test.mts",
+  ]);
+
+explicitNodeTests.set("scripts/aqua-integrity.mts", [
+  ...(explicitNodeTests.get("scripts/aqua-integrity.mts") ?? []),
+  "scripts/quality-tools.test.mts",
+  "scripts/recovery-tools.test.mts",
+]);
+for (const name of ["ci-health", "handoff-evidence", "postmerge-ci"]) {
+  const file = `scripts/${name}.mts`;
+  explicitNodeTests.set(file, [...(explicitNodeTests.get(file) ?? []), `scripts/${name}.test.mts`]);
 }
 
 for (const file of [

@@ -333,9 +333,13 @@ void test("Desktop unit-test discovery retains test roots without promoting prod
 
 void test("repository graph preserves the established Desktop shared-to-feature rule", () => {
   const desktop = desktopConfig;
-  assert.deepEqual(config.boundaries.rules, desktop.boundaries.rules);
+  const names = new Set(desktop.boundaries.zones.map((zone) => zone.name));
   assert.deepEqual(
-    config.boundaries.zones,
+    config.boundaries.rules.filter((rule) => names.has(rule.from)),
+    desktop.boundaries.rules,
+  );
+  assert.deepEqual(
+    config.boundaries.zones.filter((zone) => names.has(zone.name)),
     desktop.boundaries.zones.map((zone) => ({
       ...zone,
       patterns: zone.patterns.map((pattern) => `apps/desktop/${pattern}`),
@@ -565,4 +569,34 @@ void test("native process member credits preserve unrelated and unconsumed membe
     "utf8",
   );
   for (const name of members) assert.ok(consumer.includes(`view.${name}`), name);
+});
+
+void test("GitHub SDK boundary admits neutral primitives and rejects domain dependencies", () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "portcove-github-boundary-"));
+  try {
+    mkdirSync(path.join(directory, "scripts"), { recursive: true });
+    writeFileSync(path.join(directory, ".fallow-tooling.json"), JSON.stringify(config));
+    writeFileSync(path.join(directory, "package.json"), JSON.stringify({ type: "module" }));
+    writeFileSync(
+      path.join(directory, "scripts/github-client.test.mts"),
+      'import { value } from "./github-client.mts"; console.log(value);',
+    );
+    writeFileSync(path.join(directory, "scripts/runtime-values.mts"), "export const value = 1;");
+    writeFileSync(
+      path.join(directory, "scripts/github-client.mts"),
+      'export { value } from "./runtime-values.mts";',
+    );
+    assert.equal(
+      deadCodeReport(analyze(directory, ["dead-code"])).boundary_violations?.length ?? 0,
+      0,
+    );
+    writeFileSync(path.join(directory, "scripts/release-policy.mts"), "export const value = 1;");
+    writeFileSync(
+      path.join(directory, "scripts/github-client.mts"),
+      'export { value } from "./release-policy.mts";',
+    );
+    assert.equal(deadCodeReport(analyze(directory, ["dead-code"])).boundary_violations?.length, 1);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 });

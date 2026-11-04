@@ -735,8 +735,10 @@ void test("fixture module closure edits retain all independent policy and constr
     "scripts/precommit-check.test.mts",
     "scripts/production-aggregate-steps.test.mts",
     "scripts/release-control-inputs.test.mts",
+    "scripts/release-controller-tools.test.mts",
     "scripts/release-windows-webview-driver.test.mts",
     "scripts/renovate-engine-probe.test.mts",
+    "scripts/repository-settings.test.mts",
   ];
   const root = fileURLToPath(new URL("../", import.meta.url));
   const importers = readdirSync(path.join(root, "scripts"))
@@ -4461,4 +4463,33 @@ void test("POSIX qualification identity module retains its public caller tests o
       variant,
     );
   }
+});
+
+void test("GitHub dependency changes select actual SDK and REST integration contracts", () => {
+  for (const file of [
+    "package.json",
+    "pnpm-lock.yaml",
+    "scripts/github-client.mts",
+    "scripts/github-cli.mts",
+    "scripts/github-rest-inventory.mts",
+  ]) {
+    const selected = classifyChanges([{ status: "M", path: file }], { fileExists: () => false });
+    assert.ok(selected.nodeTests.has("scripts/github-client.test.mts"), file);
+    assert.ok(selected.nodeTests.has("scripts/roadmap-rest-intake.test.mts"), file);
+  }
+  for (const name of ["ci-health", "handoff-evidence", "postmerge-ci"]) {
+    const file = `scripts/${name}.mts`;
+    const selected = classifyChanges([{ status: "M", path: file }], { fileExists: () => false });
+    assert.ok(selected.nodeTests.has("scripts/github-client.test.mts"), file);
+    assert.ok(selected.nodeTests.has(`scripts/${name}.test.mts`), file);
+    assert.ok(existsSync(new URL(`../scripts/${name}.test.mts`, import.meta.url)));
+  }
+  const aqua = classifyChanges([{ status: "M", path: "scripts/aqua-integrity.mts" }], {
+    fileExists: () => false,
+  });
+  for (const file of ["scripts/quality-tools.test.mts", "scripts/recovery-tools.test.mts"]) {
+    assert.ok(aqua.nodeTests.has(file), file);
+    assert.ok(existsSync(new URL(`../${file}`, import.meta.url)));
+  }
+  assert.ok(!aqua.nodeTests.has("scripts/aqua-integrity.test.mts"));
 });

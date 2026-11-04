@@ -1,4 +1,9 @@
 import {
+  validateDurableIssueBody,
+  neutralPortFields,
+  prepareCanonicalPortIssue,
+} from "./roadmap-issue.mts";
+import {
   continueRoadmapCapacity,
   roadmapQuotaDeferred,
   retainRoadmapQuotaDeferral,
@@ -85,7 +90,6 @@ import {
   canonicalPortTitlePrefix,
   captureText,
   findPortIssueDuplicates,
-  isNonCatalogResearchBody,
   issueNumber,
   itemBody,
   itemTitle,
@@ -98,7 +102,6 @@ import {
   portTitlePrefix,
   portUpstreamMarkers,
   reconcilePortIssueMarkers,
-  renderPortIssueBody,
   diagnosticText,
   fieldValue,
 } from "./roadmap-issue.mts";
@@ -263,28 +266,6 @@ export interface SetManyClient<Context = unknown> {
   verifySetMany(plan: SetManyPlan<Context>): SetManyReadback[];
   applySetMany(plan: SetManyPlan<Context>, changes: SetManyAssignment[]): unknown;
 }
-const durableIssueHeadings = [
-  "User outcome",
-  "Current behavior and evidence",
-  "Scope",
-  "Non-goals",
-  "Acceptance criteria",
-  "Required tests",
-  "Documentation impact",
-  "Dependencies and blockers",
-  "Completion evidence",
-];
-const neutralPortFields = Object.freeze({
-  Status: "Inbox",
-  Priority: "None",
-  Horizon: "Someday",
-  "Target release": "Unscheduled",
-  "Work type": "Port",
-  Workstream: "Port catalog",
-  Platform: "Unknown",
-  "Port stage": "Watchlist",
-  Effort: "Unknown",
-});
 const uxAuditNamespaces = {
   SYS: 14,
   UI: 47,
@@ -1149,31 +1130,7 @@ export function materializeViews(config: Pick<RoadmapConfig, "views" | "active_r
   }));
 }
 
-export function validateDurableIssueBody(body: unknown) {
-  ensureString(body, "durable issue body");
-  validateGitHubBody(body);
-  const missing = durableIssueHeadings.filter((heading: string) => {
-    const match = body.match(
-      new RegExp(`^## ${heading.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")}\\s*$`, "im"),
-    );
-    if (!match) return true;
-    const start = (match.index ?? 0) + match[0].length;
-    const next = body.slice(start).search(/^##\s/m);
-    const content = body.slice(start, next < 0 ? undefined : start + next).trim();
-    return !content || /^(?:pending|tbd|todo)[.!]?$/i.test(content.replace(/^[-*]\s*/, ""));
-  });
-  if (missing.length)
-    throw new Error(`durable issue specification is incomplete: ${missing.join(", ")}`);
-  if (
-    body.includes(portMarker) &&
-    portCatalogMarkers(body).length === 0 &&
-    !isNonCatalogResearchBody(body)
-  )
-    throw new Error(
-      "Non-catalog port issue must identify research/watchlist status and disclaim support",
-    );
-  return body;
-}
+export { validateDurableIssueBody } from "./roadmap-issue.mts";
 
 export function portFieldInitialization(item: RoadmapIssueItem | null) {
   const updates: Record<string, string> = {};
@@ -3302,29 +3259,15 @@ export class RoadmapClient {
     const issues = inventory
       ? requireRoadmapInventory(inventory, this.config.repository, this, "identity").issues
       : requireRepositoryIssueInventory(this.repositoryIssues(), this).issues;
-    const duplicates = findPortIssueDuplicates(issues, {
-      title,
-      upstream,
-      catalogId,
-      portKey,
-      repositoryIdentity,
-      catalogRecords: repositoryIdentity
+    const { body } = prepareCanonicalPortIssue(
+      { title, upstream, catalogId, portKey, body: suppliedBody, repositoryIdentity },
+      issues,
+      repositoryIdentity
         ? readCatalogSource(
             fileURLToPath(new URL("../crates/portcove-core/catalog", import.meta.url)),
           ).records
         : undefined,
-    });
-    if (duplicates.length) {
-      throw new Error(
-        `port already has a durable issue: ${duplicates
-          .map((match) => `${itemUrl(match.issue)} (${match.reasons.join(", ")})`)
-          .join("; ")}`,
-      );
-    }
-    const body = suppliedBody ?? renderPortIssueBody({ title, upstream, catalogId, portKey });
-    validateDurableIssueBody(body);
-    if (reconcilePortIssueMarkers(body, { upstream, catalogId, portKey }) !== body)
-      throw new Error("Intake body differs from reviewed canonical markers");
+    );
     if (inventory) invalidateRoadmapInventory(inventory);
     const issue = repositoryIssueObservation(
       this.api.request("POST", `repos/${this.config.repository}/issues`, {
@@ -4313,7 +4256,44 @@ async function main(argv: readonly string[]) {
       const title = requiredOption(parsed.options, "--title");
       const url = requiredOption(parsed.options, "--url");
       if (!/^https:\/\//.test(url)) throw new Error("--url must be an https URL");
-      const item = client.createPortIssue({
+      const { createGitHubClient } = await import("./github-client.mts");
+      const { localDeveloperCredential } = await import("./github-cli.mts");
+      const { RestPortIntakeClient } = await import("./roadmap-rest-intake.mts");
+      const deadline = performance.now() + 120_000;
+      const sdk = await createGitHubClient({
+        credential: localDeveloperCredential({
+          deadline,
+          command: process.env.PORTCOVE_ROADMAP_GH,
+        }),
+        deadline,
+        allowRequest: (method, endpoint) => {
+          const path = endpoint.pathname;
+          const project = new RegExp(
+            `^/(?:users|orgs)/${config.owner}/projectsV2/${config.project.number}(?:/(?:fields|items)(?:/[1-9][0-9]*)?)?$`,
+            "u",
+          );
+          const projectAlias = new RegExp(
+            `^/(?:user|organizations)/[1-9][0-9]*/projectsV2/${config.project.number}(?:/(?:fields|items)(?:/[1-9][0-9]*)?)?$`,
+            "u",
+          );
+          if (method === "GET")
+            return (
+              path === `/users/${config.owner}` ||
+              path === `/repos/${config.repository}` ||
+              path === `/repos/${config.repository}/issues` ||
+              /^\/repositories\/[1-9][0-9]*\/issues$/u.test(path) ||
+              project.test(path) ||
+              projectAlias.test(path)
+            );
+          return (
+            (method === "POST" && path === `/repos/${config.repository}/issues`) ||
+            (["POST", "PATCH"].includes(method) &&
+              project.test(path) &&
+              /\/items(?:\/[1-9][0-9]*)?$/u.test(path))
+          );
+        },
+      });
+      const item = await RestPortIntakeClient.fromSDK(config, sdk).createPortIssue({
         title,
         upstream: url,
         catalogId:

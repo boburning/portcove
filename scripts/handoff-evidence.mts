@@ -1,7 +1,8 @@
 import type { FileIdentity } from "./development-evidence.mts";
 import { errorMessage, errorCode, isRecord } from "./runtime-values.mts";
 import { lstat, readFile, realpath } from "node:fs/promises";
-import { spawnSync } from "node:child_process";
+import { createGitHubClient } from "./github-client.mts";
+import { localDeveloperCredential } from "./github-cli.mts";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { fileIdentity } from "./development-evidence.mts";
@@ -253,24 +254,29 @@ export async function inspectResource(
   }
 }
 
-export function readSelectedPullRequest(
+export async function readSelectedPullRequest(
   selected: SelectedPullRequest,
-  run: (
-    command: string,
-    args: string[],
-    options: { encoding: "utf8"; timeout: number; maxBuffer: number; windowsHide: boolean },
-  ) => { error?: Error; status: number | null; stdout?: string } = spawnSync,
-): PullRequestObservation {
-  const result = run("gh", ["api", `repos/${selected.repository}/pulls/${selected.number}`], {
-    encoding: "utf8",
-    timeout: 15000,
-    maxBuffer: 1024 * 1024,
-    windowsHide: true,
-  });
-  if (result.error || result.status !== 0)
-    return { status: "unknown", reason: "remote readback unavailable" };
+  read: (endpoint: string) => Promise<unknown> = async (endpoint) => {
+    const deadline = performance.now() + 15_000;
+    const client = await createGitHubClient({
+      credential: localDeveloperCredential({ deadline }),
+      deadline,
+      maxBytes: 1024 * 1024,
+      allowRequest: (method, url) =>
+        method === "GET" &&
+        url.pathname === `/repos/${selected.repository}/pulls/${selected.number}`,
+    });
+    return (
+      await client.request({
+        method: "GET",
+        url: new URL(endpoint, "https://api.github.com/").href,
+        request: { portcove: { replay: "safe-read", attempts: 0 } },
+      })
+    ).data as unknown;
+  },
+): Promise<PullRequestObservation> {
   try {
-    const parsed: unknown = JSON.parse(result.stdout ?? "");
+    const parsed = await read(`repos/${selected.repository}/pulls/${selected.number}`);
     const pr = object(parsed),
       base = object(object(pr.base).repo),
       head = object(pr.head);
