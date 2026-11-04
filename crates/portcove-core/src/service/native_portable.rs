@@ -3778,7 +3778,7 @@ mod tests {
                     && contract.role == crate::source_catalog::PortSourceRole::Game
             })
             .unwrap();
-        assert_eq!(release.version, "v0.2.1");
+        assert_eq!(release.version, "v0.2.2");
         assert!(contract.applies_to_release(&release.version, &release.sha256));
         assert!(!contract.applies_to_release(&release.version, &"a".repeat(64)));
         assert!(!contract.applies_to_release("unreviewed-version", &release.sha256));
@@ -3839,21 +3839,29 @@ mod tests {
         let mut port: PortDefinition = if current {
             Catalog::embedded().unwrap().port(id).unwrap().clone()
         } else {
-            serde_json::from_str(if id == "sonic-the-hedgehog-recomp" {
-                include_str!("../../tests/fixtures/sonic1-073-historical.json")
-            } else {
-                include_str!("../../tests/fixtures/mmx2-015-historical.json")
+            serde_json::from_str(match id {
+                "sonic-the-hedgehog-recomp" => {
+                    include_str!("../../tests/fixtures/sonic1-073-historical.json")
+                }
+                "mega-man-x2-snes-recomp" => {
+                    include_str!("../../tests/fixtures/mmx2-015-historical.json")
+                }
+                "super-metroid-recomp" => {
+                    include_str!("../../tests/fixtures/super-metroid-0312-historical.json")
+                }
+                _ => panic!("unknown diagnostic scope fixture"),
             })
             .unwrap()
         };
         let profile = port.source_profile.clone().unwrap();
         let hash = hex::encode(Sha256::digest(original));
         let source_name = port.runtime_source_filename.clone().unwrap();
-        let extension = if id == "sonic-the-hedgehog-recomp" {
-            "bin"
-        } else {
-            "sfc"
-        };
+        let extension = Path::new(&source_name)
+            .extension()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_owned();
         port.runtime_source_hashes.insert(source_name, hash.clone());
         Catalog::from_json(
             &serde_json::json!({
@@ -3879,7 +3887,7 @@ mod tests {
                 "MegaManX2SNESRecomp.exe"
             };
             let old_version = if sonic { "v0.7.3" } else { "v0.1.5" };
-            let new_version = if sonic { "v0.8.3" } else { "v0.2.1" };
+            let new_version = if sonic { "v0.8.3" } else { "v0.2.2" };
             let original = b"inert source fixture, never a retail original";
             for blocked in [
                 None,
@@ -3993,62 +4001,174 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn sonic1_fresh_diagnostics_follow_backup_restore_and_preserving_removal() {
-        const ID: &str = "sonic-the-hedgehog-recomp";
-        let original = b"inert first-party source, never retail game data";
+    async fn fresh_direct_diagnostics_follow_backup_restore_and_preserving_removal() {
+        for id in [
+            "sonic-the-hedgehog-recomp",
+            "mega-man-x2-snes-recomp",
+            "super-metroid-recomp",
+        ] {
+            let sonic = id == "sonic-the-hedgehog-recomp";
+            let filename = if sonic { "game.bin" } else { "game.sfc" };
+            let embedded = Catalog::embedded().unwrap();
+            let port = embedded.port(id).unwrap();
+            let release = &port.release.direct[&Platform::WindowsX86_64];
+            let executable = &port.executable_hints[&Platform::WindowsX86_64][0];
+            let original = b"inert first-party source, never retail game data";
+            let temporary = tempfile::tempdir().unwrap();
+            let library = Library::open(temporary.path().join("library")).unwrap();
+            let source = temporary
+                .path()
+                .join(if sonic { "fixture.bin" } else { "fixture.sfc" });
+            fs::write(&source, original).unwrap();
+            let server = Server::new();
+            let provider = Arc::new(Provider(Mutex::new(server.release_in_folder(
+                &release.version,
+                1,
+                "",
+                executable,
+            ))));
+            let mut service = build_service(library.clone(), provider);
+            service.replace_catalog_for_test(diagnostic_scope_fixture(id, true, original));
+            service
+                .register_source(port.source_profile.as_ref().unwrap(), &source)
+                .unwrap();
+            let install = service
+                .install(id, None, None, None, true, |_| {})
+                .await
+                .unwrap();
+            let prepared = service.prepare_launch(id, None).unwrap();
+            let expected = if sonic {
+                vec!["--no-launcher", "game.bin"]
+            } else if id == "super-metroid-recomp" {
+                vec!["--rom", "game.sfc"]
+            } else {
+                vec!["--no-launcher", "game.sfc"]
+            };
+            assert_eq!(prepared.arguments, expected);
+            let receipt = fs::read(install.path.join(PSX_DATA_RECEIPT)).unwrap();
+            assert!(!install.path.join(LAUNCH_MARKER).exists());
+            fs::create_dir_all(install.path.join("logs")).unwrap();
+            fs::write(
+                install.path.join("logs/fixture.replay"),
+                b"private input history",
+            )
+            .unwrap();
+            fs::write(
+                install.path.join("logs/fixture.replay.sav"),
+                b"private state sidecar",
+            )
+            .unwrap();
+            let backup = service.create_backup(id).unwrap();
+            for (name, bytes) in [
+                ("logs/fixture.replay", b"private input history".as_slice()),
+                (
+                    "logs/fixture.replay.sav",
+                    b"private state sidecar".as_slice(),
+                ),
+                (filename, original.as_slice()),
+            ] {
+                assert_eq!(
+                    fs::read(backup.path.join("data").join(name)).unwrap(),
+                    bytes
+                );
+            }
+            fs::write(install.path.join("logs/fixture.replay"), b"later capture").unwrap();
+            let preview = service
+                .preview_backup_action(id, &backup.id, crate::BackupAction::Restore)
+                .unwrap();
+            let consent = service
+                .authorize_backup_action(
+                    id,
+                    &backup.id,
+                    crate::BackupAction::Restore,
+                    &preview.preview_sha256,
+                )
+                .unwrap();
+            service
+                .restore_backup(id, &backup.id, &consent.token)
+                .unwrap();
+            assert_eq!(
+                fs::read(install.path.join("logs/fixture.replay")).unwrap(),
+                b"private input history"
+            );
+            // A runtime/launch marker is not authority to initialize foreign data.
+            fs::remove_file(install.path.join(PSX_DATA_RECEIPT)).unwrap();
+            assert!(
+                service
+                    .require_psx_restore_preflight(id, &backup.path.join("data"))
+                    .is_err()
+            );
+            assert!(service.synchronize_restored_user_data(id).is_err());
+            assert_eq!(
+                fs::read(install.path.join("logs/fixture.replay")).unwrap(),
+                b"private input history"
+            );
+            assert!(!install.path.join(PSX_DATA_RECEIPT).exists());
+            // Restore only this fixture's exact saved initialization preimage.
+            fs::write(install.path.join(PSX_DATA_RECEIPT), receipt).unwrap();
+            let preview = service.preview_removal(id).unwrap();
+            let consent = service
+                .authorize_removal(id, &preview.preview_sha256)
+                .unwrap();
+            service.remove(id, &consent.token).unwrap();
+            assert!(!install.path.exists());
+            assert_eq!(
+                fs::read(library.user_dir(id).join("logs/fixture.replay.sav")).unwrap(),
+                b"private state sidecar"
+            );
+            assert_eq!(
+                fs::read(library.user_dir(id).join(filename)).unwrap(),
+                original
+            );
+            assert_eq!(fs::read(source).unwrap(), original);
+            // prepare_launch resolves first-party fixture coordinates; no package
+            // executable, original game or upstream helper is executed in this test.
+        }
+    }
+
+    #[tokio::test]
+    async fn super_metroid_legacy_play_and_restore_keep_the_creating_contract() {
+        const ID: &str = "super-metroid-recomp";
+        let original = b"inert legacy reader fixture, never retail data";
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
-        let source = temporary.path().join("fixture.bin");
+        let source = temporary.path().join("fixture.sfc");
         fs::write(&source, original).unwrap();
         let server = Server::new();
         let provider = Arc::new(Provider(Mutex::new(server.release_in_folder(
-            "v0.8.3",
+            "v0.3.12",
             1,
             "",
-            "SonicTheHedgehogRecomp.exe",
+            "SuperMetroidSNESRecomp.exe",
         ))));
         let mut service = build_service(library.clone(), provider);
-        service.replace_catalog_for_test(diagnostic_scope_fixture(ID, true, original));
+        service.replace_catalog_for_test(diagnostic_scope_fixture(ID, false, original));
         service
-            .register_source("sonic-the-hedgehog-genesis-jue-rev00", &source)
+            .register_source("super-metroid-snes-japan-usa", &source)
             .unwrap();
-        let install = service
+        let old = service
             .install(ID, None, None, None, true, |_| {})
             .await
             .unwrap();
-        let prepared = service.prepare_launch(ID, None).unwrap();
-        assert_eq!(prepared.arguments, ["--no-launcher", "game.bin"]);
-        fs::create_dir_all(install.path.join("logs")).unwrap();
+        service.prepare_launch(ID, None).unwrap();
+        let retained = serde_json::to_value(service.installed_port(&old).unwrap()).unwrap();
+        fs::create_dir_all(old.path.join("saves")).unwrap();
         fs::write(
-            install.path.join("logs/Sonic1-feedback.replay"),
-            b"private input history",
-        )
-        .unwrap();
-        fs::write(
-            install.path.join("logs/Sonic1-feedback.replay.sav"),
-            b"private state sidecar",
+            old.path.join("saves/slot1.sav"),
+            b"exact creating-build state bytes",
         )
         .unwrap();
         let backup = service.create_backup(ID).unwrap();
-        for (name, bytes) in [
-            (
-                "logs/Sonic1-feedback.replay",
-                b"private input history".as_slice(),
-            ),
-            (
-                "logs/Sonic1-feedback.replay.sav",
-                b"private state sidecar".as_slice(),
-            ),
-            ("game.bin", original.as_slice()),
-        ] {
-            assert_eq!(
-                fs::read(backup.path.join("data").join(name)).unwrap(),
-                bytes
-            );
-        }
+        service.replace_catalog_for_test(diagnostic_scope_fixture(ID, true, original));
+        let prepared = service.prepare_launch(ID, None).unwrap();
+        assert_eq!(prepared.arguments, ["game.sfc"]);
+        assert_eq!(
+            serde_json::to_value(service.installed_port(&old).unwrap()).unwrap(),
+            retained
+        );
         fs::write(
-            install.path.join("logs/Sonic1-feedback.replay"),
-            b"later capture",
+            old.path.join("saves/slot1.sav"),
+            b"later creating-build bytes",
         )
         .unwrap();
         let preview = service
@@ -4066,27 +4186,14 @@ mod tests {
             .restore_backup(ID, &backup.id, &consent.token)
             .unwrap();
         assert_eq!(
-            fs::read(install.path.join("logs/Sonic1-feedback.replay")).unwrap(),
-            b"private input history"
+            fs::read(old.path.join("saves/slot1.sav")).unwrap(),
+            b"exact creating-build state bytes"
         );
-        let preview = service.preview_removal(ID).unwrap();
-        let consent = service
-            .authorize_removal(ID, &preview.preview_sha256)
-            .unwrap();
-        service.remove(ID, &consent.token).unwrap();
-        assert!(!install.path.exists());
-        assert_eq!(
-            fs::read(library.user_dir(ID).join("logs/Sonic1-feedback.replay.sav")).unwrap(),
-            b"private state sidecar"
-        );
-        assert_eq!(
-            fs::read(library.user_dir(ID).join("game.bin")).unwrap(),
-            original
-        );
+        assert_eq!(service.status(ID).unwrap().active.unwrap().id, old.id);
         assert_eq!(fs::read(source).unwrap(), original);
-        // prepare_launch resolves first-party fixture coordinates; no package
-        // executable, original game or upstream helper is executed in this test.
-        assert!(!temporary.path().join(LAUNCH_MARKER).exists());
+        assert!(!old.path.join(LAUNCH_MARKER).exists());
+        // Byte preservation and exact retained recipe readback do not prove
+        // that a real game can load these inert first-party fixture bytes.
     }
 
     fn sonic3k_compatibility_fixture(legacy: bool) -> Catalog {
@@ -4157,53 +4264,87 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn sonic3k_fresh_creation_and_recovery_refuse_unproven_canonical_data() {
-        const ID: &str = "sonic-3-and-knuckles-recomp";
-        let temporary = tempfile::tempdir().unwrap();
-        let library = Library::open(temporary.path().join("library")).unwrap();
-        let server = Server::new();
-        let provider = Arc::new(Provider(Mutex::new(server.release("v2", 2))));
-        let mut service = build_service(library.clone(), provider);
-        service.replace_catalog_for_test(sonic3k_compatibility_fixture(false));
-        fs::create_dir_all(library.user_dir(ID)).unwrap();
-        fs::write(
-            library.user_dir(ID).join("settings.ini"),
-            b"unknown creating runtime",
-        )
-        .unwrap();
-        assert!(
+    async fn fresh_direct_creation_and_recovery_refuse_unproven_canonical_data() {
+        for id in [
+            "sonic-3-and-knuckles-recomp",
+            "sonic-the-hedgehog-recomp",
+            "mega-man-x2-snes-recomp",
+            "super-metroid-recomp",
+        ] {
+            let original = b"inert original for data-guard recovery fixtures";
+            let embedded = Catalog::embedded().unwrap();
+            let port = embedded.port(id).unwrap();
+            let executable = &port.executable_hints[&Platform::WindowsX86_64][0];
+            let version = port
+                .release
+                .direct
+                .get(&Platform::WindowsX86_64)
+                .map(|release| release.version.as_str())
+                .unwrap_or("fixture-v2");
+            let config = if id.starts_with("sonic-") {
+                "settings.ini"
+            } else {
+                "config.ini"
+            };
+            let temporary = tempfile::tempdir().unwrap();
+            let library = Library::open(temporary.path().join("library")).unwrap();
+            let server = Server::new();
+            let provider = Arc::new(Provider(Mutex::new(
+                server.release_in_folder(version, 2, "", executable),
+            )));
+            let mut service = build_service(library.clone(), provider);
+            service.replace_catalog_for_test(diagnostic_scope_fixture(id, true, original));
+            let source = temporary.path().join(
+                if port.runtime_source_filename.as_deref() == Some("game.bin") {
+                    "fixture.bin"
+                } else {
+                    "fixture.sfc"
+                },
+            );
+            fs::write(&source, original).unwrap();
             service
-                .install(ID, None, None, None, true, |_| {})
-                .await
-                .is_err()
-        );
-        assert!(library.all_installs().unwrap().is_empty());
-        fs::remove_file(library.user_dir(ID).join("settings.ini")).unwrap();
-        let staged = service
-            .install(ID, None, None, None, false, |_| {})
-            .await
+                .register_source(port.source_profile.as_ref().unwrap(), &source)
+                .unwrap();
+            fs::create_dir_all(library.user_dir(id)).unwrap();
+            fs::write(
+                library.user_dir(id).join(config),
+                b"unknown creating runtime",
+            )
             .unwrap();
-        // An attacker or interrupted/manual copy cannot acquire creating-runtime
-        // authority from a launch marker or a new manifest alone.
-        let receipt = staged.path.join(PSX_DATA_RECEIPT);
-        if receipt.exists() {
-            fs::remove_file(&receipt).unwrap();
+            assert!(
+                service
+                    .install(id, None, None, None, true, |_| {})
+                    .await
+                    .is_err()
+            );
+            assert!(library.all_installs().unwrap().is_empty());
+            fs::remove_file(library.user_dir(id).join(config)).unwrap();
+            let staged = service
+                .install(id, None, None, None, false, |_| {})
+                .await
+                .unwrap();
+            // An attacker or interrupted/manual copy cannot acquire creating-runtime
+            // authority from a launch marker or a new manifest alone.
+            let receipt = staged.path.join(PSX_DATA_RECEIPT);
+            if receipt.exists() {
+                fs::remove_file(&receipt).unwrap();
+            }
+            fs::write(staged.path.join(LAUNCH_MARKER), b"").unwrap();
+            fs::write(
+                library.user_dir(id).join(config),
+                b"unknown creating runtime",
+            )
+            .unwrap();
+            assert!(service.prepare_retained_install_data(&staged).is_err());
+            assert!(service.activate_staged(id).is_err());
+            assert!(!receipt.exists());
+            assert!(!staged.path.join(config).exists());
+            assert_eq!(
+                fs::read(library.user_dir(id).join(config)).unwrap(),
+                b"unknown creating runtime"
+            );
+            assert!(service.status(id).unwrap().active.is_none());
         }
-        fs::write(staged.path.join(LAUNCH_MARKER), b"").unwrap();
-        fs::write(
-            library.user_dir(ID).join("settings.ini"),
-            b"unknown creating runtime",
-        )
-        .unwrap();
-        assert!(service.prepare_retained_install_data(&staged).is_err());
-        assert!(service.activate_staged(ID).is_err());
-        assert!(!receipt.exists());
-        assert!(!staged.path.join("settings.ini").exists());
-        assert_eq!(
-            fs::read(library.user_dir(ID).join("settings.ini")).unwrap(),
-            b"unknown creating runtime"
-        );
-        assert!(service.status(ID).unwrap().active.is_none());
     }
 
     #[tokio::test]

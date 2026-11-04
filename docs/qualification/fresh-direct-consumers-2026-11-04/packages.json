@@ -273,65 +273,77 @@
       "source_files": [
         {
           "url": "https://github.com/mstan/SonicTheHedgehogRecomp/blob/5cfa5f92341459b28e3bcf66df068fe425bc1354/.gitmodules",
-          "sha256": "080c14c163384ae51a1ebf51d7b443e3ea8877e0249b18a85b44cf92eac67048",
-          "scope": "inspected source text, not executed"
+          "git_blob_sha": "db58e40cae1b18049323df273f22bca6d1db43cd",
+          "sha256": "f430dfafac5e39ba57dd0f3a6a434eb74c239fb0d69484e0126f34968ff95ab4",
+          "scope": "exact Git blob text inspected, not executed"
         },
         {
           "url": "https://github.com/mstan/SonicTheHedgehogRecomp/blob/5cfa5f92341459b28e3bcf66df068fe425bc1354/CMakeLists.txt",
-          "sha256": "be0c07e817feca542ee5dcb0a3c27415ba2db9e506a16a50be925e892e29c705",
-          "scope": "inspected source text, not executed"
+          "git_blob_sha": "1b6224bb286f145aaeaf072656de1e78c0db6e6c",
+          "sha256": "912be9008b80dd5018ecdaf355aee78a752d8b6d36ea8bc6e3c1f2e52d67b381",
+          "scope": "exact Git blob text inspected, not executed"
         },
         {
           "url": "https://github.com/mstan/SonicTheHedgehogRecomp/blob/5cfa5f92341459b28e3bcf66df068fe425bc1354/LICENSE.md",
-          "sha256": "1c56e04ce290d2292e2d6dea0204554eb8c4c76f881e9438a5329d57a016b654",
-          "scope": "inspected source text, not executed"
+          "git_blob_sha": "f6cf52f4276cf810369ff71a986221072021548b",
+          "sha256": "812c4a36b2d3d1e321c723b3a38d92cdf655c76e8a9007ff59740394dba2ef04",
+          "scope": "exact Git blob text inspected, not executed"
         },
         {
           "url": "https://github.com/mstan/SonicTheHedgehogRecomp/blob/5cfa5f92341459b28e3bcf66df068fe425bc1354/README.md",
-          "sha256": "b964d85f3d91636374103fdc835ee9c9003899d163797f75bcada64b65770e36",
-          "scope": "inspected source text, not executed"
+          "git_blob_sha": "012e5ff5ca302340651d658f5f86c296475f2909",
+          "sha256": "160a5c4776813a202627d90622f113f4b320da1a3d712f4d7a84a10f688f7d45",
+          "scope": "exact Git blob text inspected, not executed"
         },
         {
           "url": "https://github.com/mstan/SonicTheHedgehogRecomp/blob/5cfa5f92341459b28e3bcf66df068fe425bc1354/docs/RELEASE_NOTES_0.8.3.md",
-          "sha256": "3a14bd3acbc341b073d6cf04381794dec4ef2a806f0a1680e464f8f55e85a980",
-          "scope": "inspected source text, not executed"
+          "git_blob_sha": "e85c7fc2b93c6854af7cbf27f07ab3fda56bbd89",
+          "sha256": "ad576170edda2307751fda18d5cb2b7c964f2e8fa46fe4f42be07b94abc49323",
+          "scope": "exact Git blob text inspected, not executed"
         },
         {
           "url": "https://github.com/mstan/SonicTheHedgehogRecomp/blob/5cfa5f92341459b28e3bcf66df068fe425bc1354/game/game.toml",
-          "sha256": "d5e47eb7290e4a5aaf2a3dd5c19157b3a836e1f7024b521c8d1a97d5ba8e021d",
-          "scope": "inspected source text, not executed"
+          "git_blob_sha": "71c749f74a79310de251c0625d30a7ecb9032726",
+          "sha256": "d8d821f01e6c0ce6df518eccc56676b7fa8d4c00be73a3ea86bca60d4b2342dd",
+          "scope": "exact Git blob text inspected, not executed"
         },
         {
           "url": "https://github.com/mstan/SonicTheHedgehogRecomp/blob/5cfa5f92341459b28e3bcf66df068fe425bc1354/game/sonic1_spec.c",
-          "sha256": "357cf3c008d79aa3e03a700a3528a86a582924fd2434044bc8c3f1dbc01e5763",
-          "scope": "inspected source text, not executed"
+          "git_blob_sha": "80d1bd0d8e1de2038177582fd40ea257e6d2ae12",
+          "sha256": "d9abe4288eddafba2283d51d9b917eb6e04127316aef2b8e1b0512b625732a91",
+          "scope": "exact Git blob text inspected, not executed"
         },
         {
           "url": "https://github.com/mstan/SonicTheHedgehogRecomp/blob/5cfa5f92341459b28e3bcf66df068fe425bc1354/release/README.txt",
-          "sha256": "29728262eaca5583a7f67dbb29f6b0ba5a43e0032a49f6b48c3fe8638c7aabf9",
-          "scope": "inspected source text, not executed"
+          "git_blob_sha": "45682575b4ffa8342efe24b0c83d0efa00039807",
+          "sha256": "4499dbf9a9c903b127006c8dada2dfc2772bfbff03365184b7b8162d6bf7d0b8",
+          "scope": "exact Git blob text inspected, not executed"
         }
       ],
       "framework_source_observations": [
         {
           "url": "https://github.com/mstan/segagenesisrecomp/blob/755e7f6b740a0c0ab19af7d1d21e85061f8e622d/runner/app_config.c",
-          "sha256": "fe36eb073a172a2ac4a224ceefc40951436bdfe286aba034b21191d7211e9f0b",
-          "scope": "source-text inspection only"
+          "git_blob_sha": "b82d6c48fc39e586ff17da1b3db2288a252722c4",
+          "sha256": "41e412fbd361e412ea39065245828722b087ddb5cf099fe69c69f4f8e57cee2f",
+          "scope": "exact Git blob text inspected, not executed"
         },
         {
           "url": "https://github.com/mstan/segagenesisrecomp/blob/755e7f6b740a0c0ab19af7d1d21e85061f8e622d/runner/diagnostic_replay.c",
-          "sha256": "0066281bcedaae78259c4582b0c5be352bd01bee3ccfab3997f78e8ca5d39b31",
-          "scope": "source-text inspection only"
+          "git_blob_sha": "3ddda9848a2f0f0b0de12976648437c54560c815",
+          "sha256": "e576e2c1fcee4e0ed52878ee157aefff4b6046e5e50fe0e4525b006baeb7a444",
+          "scope": "exact Git blob text inspected, not executed"
         },
         {
           "url": "https://github.com/mstan/segagenesisrecomp/blob/755e7f6b740a0c0ab19af7d1d21e85061f8e622d/runner/main.c",
-          "sha256": "869f17ece0530f9aa4365d2d0ac5c705d2b92ee8c704bd6a1b854c96b2676c99",
-          "scope": "source-text inspection only"
+          "git_blob_sha": "5cc05b4c2e4db543446dbb7e34345ba351ccffb6",
+          "sha256": "c1372143f08225d6d379957a4266dcbd5857aa518aa14d600bf799ddf65375ac",
+          "scope": "exact Git blob text inspected, not executed"
         },
         {
           "url": "https://github.com/mstan/segagenesisrecomp/blob/755e7f6b740a0c0ab19af7d1d21e85061f8e622d/runner/replay_writer.c",
-          "sha256": "a502c78a223dc6639f3a050c39385602aace9341fc47f2a9852e846c177c7fb6",
-          "scope": "source-text inspection only"
+          "git_blob_sha": "39db89d5abf5073bb5c46582afc424859e8c93ab",
+          "sha256": "51ea25a8c45eb7d3ee12baed1baee0e29d2adfc755bcc9b949279b82b2516991",
+          "scope": "exact Git blob text inspected, not executed"
         }
       ]
     },
@@ -595,75 +607,107 @@
       "source_files": [
         {
           "url": "https://github.com/mstan/MegaManX2Recomp/blob/f1a975512b2d86f88c6805b05095a782860741d1/.gitmodules",
-          "sha256": "edcd47d5f0562a639af2c7ddc4ecc68763b21d4e71a36c810a83675e0eb048fd",
-          "scope": "inspected source text, not executed"
+          "git_blob_sha": "b5f5fe746ca235671ae688dcb397fcf758401378",
+          "sha256": "7eb2058abeadca059485a1f1ea76e2cd7d220d1bc9f733875551edc3b1635238",
+          "scope": "exact Git blob text inspected, not executed"
+        },
+        {
+          "url": "https://github.com/mstan/MegaManX2Recomp/blob/f1a975512b2d86f88c6805b05095a782860741d1/CMakeLists.txt",
+          "git_blob_sha": "254f9f90fe1fe6cf6f40a3ef6829f43abd857ec6",
+          "sha256": "1ca738a24fdd9b39bf386c9eecd3f21210c2bf350b56a6df7e8a1f088e194e47",
+          "scope": "exact Git blob text inspected, not executed"
         },
         {
           "url": "https://github.com/mstan/MegaManX2Recomp/blob/f1a975512b2d86f88c6805b05095a782860741d1/LICENSE",
-          "sha256": "b2edda4890b6419a05ed22b4328c02600ae41677570e3ba8516b220b2385dc04",
-          "scope": "inspected source text, not executed"
+          "git_blob_sha": "b981b950da9e5e7363b08bd3c573cf0f479e07f6",
+          "sha256": "168689b754213aaa4f64b974ecfb15203b31f46b824ef436482cdb4a88a35b50",
+          "scope": "exact Git blob text inspected, not executed"
         },
         {
           "url": "https://github.com/mstan/MegaManX2Recomp/blob/f1a975512b2d86f88c6805b05095a782860741d1/README.md",
-          "sha256": "2cf4bad0850fa448f152ed6985a3ada71d74fa9e212083d2599374608f16b96d",
-          "scope": "inspected source text, not executed"
+          "git_blob_sha": "29110fe55c8ce2deb8058ec1705fd180a74ade17",
+          "sha256": "4d8a47982ee1771ed8db334b8fc6c5cd259cefc5f5713de9f45bed0b6e433be0",
+          "scope": "exact Git blob text inspected, not executed"
         },
         {
           "url": "https://github.com/mstan/MegaManX2Recomp/blob/f1a975512b2d86f88c6805b05095a782860741d1/docs/DIAGNOSTICS.md",
-          "sha256": "6435547c6a17478314ff9d8403a7cd42f795fdd59a212180dd506054cf257ee2",
-          "scope": "inspected source text, not executed"
+          "git_blob_sha": "ee7321aaf7131047363846d682b3e75d842b176a",
+          "sha256": "1345e63b9141be8f00600cc78b5b365c15f05d8b4948dc41ea622a39cb346bd7",
+          "scope": "exact Git blob text inspected, not executed"
         },
         {
           "url": "https://github.com/mstan/MegaManX2Recomp/blob/f1a975512b2d86f88c6805b05095a782860741d1/docs/SAVE_STATES.md",
-          "sha256": "3710d955f47e8dfea2e494e65cade40614a695bbd66bb678ab3ac6cba73bb1df",
-          "scope": "inspected source text, not executed"
+          "git_blob_sha": "f57ddf83cfc43dd9ab766d0c6ad1479b506af373",
+          "sha256": "c2c2f34ceb4636e2d0b291d728557dd18b12985e6d6696ef1332887edbb00f3b",
+          "scope": "exact Git blob text inspected, not executed"
         },
         {
           "url": "https://github.com/mstan/MegaManX2Recomp/blob/f1a975512b2d86f88c6805b05095a782860741d1/framework_pins.txt",
-          "sha256": "cf17e4e01e39e6ad5e49288b780da30184ed77f52d8edb7388ab31b21726e529",
-          "scope": "inspected source text, not executed"
+          "git_blob_sha": "638352b23e14af51989a49fb418ab0b69066b4d9",
+          "sha256": "06f2feb98a70ed8a1d9ebd82c5b1663d516f779b9daa06f53a98af4b5f52f67a",
+          "scope": "exact Git blob text inspected, not executed"
         },
         {
           "url": "https://github.com/mstan/MegaManX2Recomp/blob/f1a975512b2d86f88c6805b05095a782860741d1/rom_identity.txt",
-          "sha256": "2f6a95e27b5c368cd9c88a9cd42ddd2b790db58293acdba072211470a5e7ad8c",
-          "scope": "inspected source text, not executed"
+          "git_blob_sha": "236e23b2d1c2272fb7207e52d3860255c849b24f",
+          "sha256": "1241ecd4988b16a1b222f887ff6099dd0bcbebbf626a203676004353df557e28",
+          "scope": "exact Git blob text inspected, not executed"
         },
         {
           "url": "https://github.com/mstan/MegaManX2Recomp/blob/f1a975512b2d86f88c6805b05095a782860741d1/src/main.c",
-          "sha256": "0a183ef7be2ffa485218e0758287ce9e4515ebdcce1fd580d665b2ae4308dddc",
-          "scope": "inspected source text, not executed"
+          "git_blob_sha": "b8287f5d788e4f2c67b43d5b9fe7730f131e753a",
+          "sha256": "55cc8798b08f70164103b5ef0f1ca3c86f42be43d3a991ae81a2fcc0127c5f18",
+          "scope": "exact Git blob text inspected, not executed"
+        },
+        {
+          "url": "https://github.com/mstan/MegaManX2Recomp/blob/f1a975512b2d86f88c6805b05095a782860741d1/src/mmx_diagnostics_host.h",
+          "git_blob_sha": "6488c29c4d52558d1b8a0a3242b49674e96193de",
+          "sha256": "de4e638f0fcbeb1211645a8259ed6d7748141e3440b794d58f3fc796edf1492d",
+          "scope": "exact Git blob text inspected, not executed"
         },
         {
           "url": "https://github.com/mstan/MegaManX2Recomp/blob/f1a975512b2d86f88c6805b05095a782860741d1/src/mmx_replay.c",
-          "sha256": "4f8870cf1d5d8b49d9bc1d4db1ce804f07b195f38be88479485bc2c9cec94716",
-          "scope": "inspected source text, not executed"
+          "git_blob_sha": "34bc548f32bbe4ddfa6e67b0a0586e44c4b16ecd",
+          "sha256": "6d1361235b04402ac01609f5b8a24972c385f7945e9af19e60780fbefdb3ec5d",
+          "scope": "exact Git blob text inspected, not executed"
         },
         {
           "url": "https://github.com/mstan/MegaManX2Recomp/blob/f1a975512b2d86f88c6805b05095a782860741d1/src/mmx_startup.c",
-          "sha256": "a4ffde226b59e35ef5249e2d68073c5ff9e18bbf614fa4d292eb2af020bc1b80",
-          "scope": "inspected source text, not executed"
+          "git_blob_sha": "b5456485af036941153724f9883625aa967aeb13",
+          "sha256": "c6a2c4afdd18da823337fd3cf768a0bd9456b1d45d618eac4ec713185ea3051c",
+          "scope": "exact Git blob text inspected, not executed"
         },
         {
           "url": "https://github.com/mstan/MegaManX2Recomp/blob/f1a975512b2d86f88c6805b05095a782860741d1/tools/make_release.ps1",
-          "sha256": "83ff2b56591a591ee94a99efc27ccbe6c035f637a535340abf373327f8b62ca9",
-          "scope": "inspected source text, not executed"
+          "git_blob_sha": "0f8e9d9468e36813fd01321190dd86909387b9d9",
+          "sha256": "2299e81aaa1ed48c56ea010115e3bd63393dae8bb168c24d97b1ebeff775bbbc",
+          "scope": "exact Git blob text inspected, not executed"
         }
       ],
       "framework_source_observations": [
         {
           "url": "https://github.com/RetroPortingToolKit/snesrecomp/blob/93fc677a2a9b688751d575ed1232343d83d3d2c0/runner/src/desktop/host_main.c",
-          "sha256": "783b014950b2816e98689ee9960ee54d918e6130f2c75719d008c0b99f9c8a01",
-          "scope": "source-text inspection only"
+          "git_blob_sha": "5d2f638c3efd095f0e782ad9b8e0f407374402ef",
+          "sha256": "9639907a8a538112e5486e20b8faacd6f5565dc4f4c51ce39c98178334ec9576",
+          "scope": "exact Git blob text inspected, not executed"
         },
         {
           "url": "https://github.com/RetroPortingToolKit/snesrecomp/blob/93fc677a2a9b688751d575ed1232343d83d3d2c0/runner/src/desktop/host_relaunch.c",
-          "sha256": "9733978976803f2509889fdbcd08b272c8b6870afd353d002025734a8fa5876e",
-          "scope": "source-text inspection only"
+          "git_blob_sha": "56e3aaf10b1e0bc2f8ef39a2dcd31fcdcf090d90",
+          "sha256": "b06e8bd9469cb46fc9e44c76badb88e37f422cb912dbf788e578a3398ff2a4aa",
+          "scope": "exact Git blob text inspected, not executed"
+        },
+        {
+          "url": "https://github.com/RetroPortingToolKit/snesrecomp/blob/93fc677a2a9b688751d575ed1232343d83d3d2c0/runner/src/desktop/mmx23_host_main.inc",
+          "git_blob_sha": "e8a4b63093513e642db65bf4d84c53582f7ba04f",
+          "sha256": "4a5fcb36fe9821dd8200b51bc940709506a7272da1a6ccf45783aef2ab03b872",
+          "scope": "exact Git blob text inspected, not executed"
         },
         {
           "url": "https://github.com/RetroPortingToolKit/snesrecomp/blob/93fc677a2a9b688751d575ed1232343d83d3d2c0/runner/src/host_paths.c",
-          "sha256": "17ea78047d71a323dca5d1826487afa07fcb1be2dc1db61bdedc5e7c36281f77",
-          "scope": "source-text inspection only"
+          "git_blob_sha": "216a8ff13e945dd211d6ca05cc7d39f9df266832",
+          "sha256": "bb68edf79c89da8fb83d9eb98259d980896a0af5e123afe0369bab1025ccdb88",
+          "scope": "exact Git blob text inspected, not executed"
         }
       ]
     },
@@ -994,115 +1038,131 @@
       "source_files": [
         {
           "url": "https://github.com/mstan/SuperMetroidRecomp/blob/a1457dc339cae7ab8f9f1795177c464b499f6ab7/.gitmodules",
-          "sha256": "9dcd31fd182047650200cdceafe06d4a83c174356bae16c0ffab296a25592554",
-          "scope": "inspected source text, not executed"
+          "git_blob_sha": "ddd3281172d7b112479e0a6e9f37681c913523a3",
+          "sha256": "289c828d0e5ca104ac13038cae228afd1fe5ca67042e51e05656ad3a12458ec5",
+          "scope": "exact Git blob text inspected, not executed"
         },
         {
           "url": "https://github.com/mstan/SuperMetroidRecomp/blob/a1457dc339cae7ab8f9f1795177c464b499f6ab7/LICENSE",
-          "sha256": "b2edda4890b6419a05ed22b4328c02600ae41677570e3ba8516b220b2385dc04",
-          "scope": "inspected source text, not executed"
+          "git_blob_sha": "b981b950da9e5e7363b08bd3c573cf0f479e07f6",
+          "sha256": "168689b754213aaa4f64b974ecfb15203b31f46b824ef436482cdb4a88a35b50",
+          "scope": "exact Git blob text inspected, not executed"
         },
         {
           "url": "https://github.com/mstan/SuperMetroidRecomp/blob/a1457dc339cae7ab8f9f1795177c464b499f6ab7/README.md",
-          "sha256": "9e2009fc4a80b1d345f19dccad51ac1a751a796cf5f0c5b02c978fac3dcef366",
-          "scope": "inspected source text, not executed"
+          "git_blob_sha": "22ca014757cd6caf807e0302b48e8e274c83f2e7",
+          "sha256": "b3c95e7224f3f9766b1fa3f01d1c9d5ecee3828eeec188a623295a312f3971d6",
+          "scope": "exact Git blob text inspected, not executed"
         },
         {
           "url": "https://github.com/mstan/SuperMetroidRecomp/blob/a1457dc339cae7ab8f9f1795177c464b499f6ab7/docs/ZERO_MISSION_MAP_ART.md",
-          "sha256": "aaf73be5ab311098914d18f6102857877ca457d3b36c4e688394812b62dc4561",
-          "scope": "inspected source text, not executed"
+          "git_blob_sha": "c4d8b04ef00d973c7b93297b9794f06ceb7e7736",
+          "sha256": "083ff791cb9d9021bc0507ad04af4d548e2ff82065d21e9084164e4e00b9c897",
+          "scope": "exact Git blob text inspected, not executed"
         },
         {
           "url": "https://github.com/mstan/SuperMetroidRecomp/blob/a1457dc339cae7ab8f9f1795177c464b499f6ab7/docs/releases/v0.4.2.md",
-          "sha256": "b8f24af17b3e6e3433c146f7bf74a36c11ede574ec7b021e2a48eafd1b12c9c9",
-          "scope": "inspected source text, not executed"
+          "git_blob_sha": "544b7719433cefc795b90fc4f5a8b921c020708d",
+          "sha256": "acebd2aee1e5b4aec0a66274f4326ab60a7ea810408390f7fb65f58413502ab8",
+          "scope": "exact Git blob text inspected, not executed"
         },
         {
           "url": "https://github.com/mstan/SuperMetroidRecomp/blob/a1457dc339cae7ab8f9f1795177c464b499f6ab7/framework_pins.txt",
-          "sha256": "a1d9023b214777bb033d6fd6ca4b0ed15c472f19abf82314fbf866442cc4f192",
-          "scope": "inspected source text, not executed"
+          "git_blob_sha": "a8aae3703d29666758e6abc6690f572c1c019ac4",
+          "sha256": "bf238852f1458704721a6ca8b68e993a73701a7e77ea16ad84d3ff070158dbcf",
+          "scope": "exact Git blob text inspected, not executed"
         },
         {
           "url": "https://github.com/mstan/SuperMetroidRecomp/blob/a1457dc339cae7ab8f9f1795177c464b499f6ab7/rom_identity.txt",
-          "sha256": "a0e7e62f657c858b3a46718189097ca0cd79167d259ca142fc9ec2bc54f22211",
-          "scope": "inspected source text, not executed"
+          "git_blob_sha": "298ef60bd94355d285060757ce021954ff57c8fa",
+          "sha256": "a7ee288244ae3b19a4016236d9f6c6572243b96ba3204b7feca06d64fa6985e1",
+          "scope": "exact Git blob text inspected, not executed"
         },
         {
           "url": "https://github.com/mstan/SuperMetroidRecomp/blob/a1457dc339cae7ab8f9f1795177c464b499f6ab7/src/main.c",
-          "sha256": "2d4249c34e948c1b338d2502563b46d8e8488e902a78c43fc9bfd5529fb5b837",
-          "scope": "inspected source text, not executed"
+          "git_blob_sha": "854e5a5c38e19c4505ca6aefeec9c2f898599aaf",
+          "sha256": "6a30727ae13491a88a23713e15350451951a09ca445d59a4cb20990e87ed4480",
+          "scope": "exact Git blob text inspected, not executed"
         },
         {
           "url": "https://github.com/mstan/SuperMetroidRecomp/blob/a1457dc339cae7ab8f9f1795177c464b499f6ab7/src/mods/sm_map_art.c",
-          "sha256": "487fa03207084a205e7c55d9a9ca2491c6a9aca716fb958fd5fc9630d5e158d7",
-          "scope": "inspected source text, not executed"
+          "git_blob_sha": "c5d975bed333bcfe52bb9732799b5b9e0e5fe8d7",
+          "sha256": "71e0ea5f1462a80f9e6dc992ded5eac3e4619a0ddb1e797acd386d80789204c9",
+          "scope": "exact Git blob text inspected, not executed"
         },
         {
           "url": "https://github.com/mstan/SuperMetroidRecomp/blob/a1457dc339cae7ab8f9f1795177c464b499f6ab7/src/sm_mods.c",
-          "sha256": "664b5c1a5de9f746936f8e443bf0e63e66d8f34ca0c49cb03dc3e62e5567ea25",
-          "scope": "inspected source text, not executed"
+          "git_blob_sha": "c6a54fa2760caa72970c308a63348495a30cd36a",
+          "sha256": "19196892dd3cd25f0c5efb2ee30d84a0ae6b19eaeba3c526a94720c9f4872a0a",
+          "scope": "exact Git blob text inspected, not executed"
         },
         {
           "url": "https://github.com/mstan/SuperMetroidRecomp/blob/a1457dc339cae7ab8f9f1795177c464b499f6ab7/src/sm_replay.c",
-          "sha256": "b7d23419b489f27b8dd6747632cf63bd9add4b91d72eb8d28ad7be70062c8ed7",
-          "scope": "inspected source text, not executed"
+          "git_blob_sha": "9b263c2dbc5fcad8c11534c2679bcd81995cc933",
+          "sha256": "fbbe8bc2bd24711640051b1acce0d9e0e95a44851d4becc18e0cfc1d84bf998c",
+          "scope": "exact Git blob text inspected, not executed"
         },
         {
           "url": "https://github.com/mstan/SuperMetroidRecomp/blob/a1457dc339cae7ab8f9f1795177c464b499f6ab7/src/sm_startup.c",
-          "sha256": "d0214aee494d618f5403385900f5d16b7dd3b01b1f8f80ba1883c59eb87193b5",
-          "scope": "inspected source text, not executed"
+          "git_blob_sha": "47f0e2ea386ba299e322a962492339ae660cb3f2",
+          "sha256": "4126eace296eb9ef235e9fb1989b2055922d70b467059a4b999ae1e9a5aef600",
+          "scope": "exact Git blob text inspected, not executed"
         },
         {
           "url": "https://github.com/mstan/SuperMetroidRecomp/blob/a1457dc339cae7ab8f9f1795177c464b499f6ab7/src/sm_video.c",
-          "sha256": "7664ef08939f1a9e51b24a3c9eef0d9e527689db1cf30a3c81d9cb6afd9b2102",
-          "scope": "inspected source text, not executed"
+          "git_blob_sha": "0817391b5767f38a394d22ac9b3e42ec29cde974",
+          "sha256": "1232edf91abfea7a92be11eb9dcf450d55cfb0b14282288c195d408a13859251",
+          "scope": "exact Git blob text inspected, not executed"
         },
         {
           "url": "https://github.com/mstan/SuperMetroidRecomp/blob/a1457dc339cae7ab8f9f1795177c464b499f6ab7/tools/make_release.ps1",
-          "sha256": "1afe1a64d4519aab1f1ba07de86a700edfbb65f6b9f8cdcc5fc9217d3ee709ab",
-          "scope": "inspected source text, not executed"
+          "git_blob_sha": "c0908fd57ca3fc6bdbf55cf91b433f32a1a07662",
+          "sha256": "3dcafc72c5f2334fad85b7767034aedd75c711dc1e99eb74968a384f7a32ad07",
+          "scope": "exact Git blob text inspected, not executed"
         },
         {
           "url": "https://github.com/mstan/SuperMetroidRecomp/blob/a1457dc339cae7ab8f9f1795177c464b499f6ab7/tools/release_payload.py",
-          "sha256": "32bcfc637c9693dee17c5a37716f099ea32e1616a22e3fe50a1a12d6b7d1d2cc",
-          "scope": "inspected source text, not executed"
+          "git_blob_sha": "b8c11054a13c5d0973b4eb6f9b9cb07be29d5d5d",
+          "sha256": "f44ede5348a7ebcce0933770444420b972c7a19c03f19c3570da1bbda73ffaef",
+          "scope": "exact Git blob text inspected, not executed"
         }
       ],
       "framework_source_observations": [
         {
           "url": "https://github.com/RetroPortingToolKit/snesrecomp/blob/6ca2dbbe12f65901ae76015a15943c8254c4a85f/runner/src/desktop/host_main.c",
-          "sha256": "831a95082b97678b87601d3c6a038c3de645a5248f4ac4f55dbb468ff12e6a9a",
-          "scope": "source-text inspection only"
+          "git_blob_sha": "e322c6e49ecc21d711df38d0497ffcdffa496e1a",
+          "sha256": "c72a9d62802155fe323cafd51e1a3ea12e9977839c35ae216f459a60c22d814e",
+          "scope": "exact Git blob text inspected, not executed"
         },
         {
           "url": "https://github.com/RetroPortingToolKit/snesrecomp/blob/6ca2dbbe12f65901ae76015a15943c8254c4a85f/runner/src/desktop/mmx_config.c",
-          "sha256": "6a5b8adff335e1cbd13a9d8385f7eb68c862c80353166982d6d1875358572421",
-          "scope": "source-text inspection only"
+          "git_blob_sha": "f9c1bdff1796d4beecc171f3662ab556dec9fc81",
+          "sha256": "d87fb483da409276736dce1d4cedd33a7562a817ddabc691af49e9b643c0c820",
+          "scope": "exact Git blob text inspected, not executed"
         },
         {
           "url": "https://github.com/RetroPortingToolKit/snesrecomp/blob/6ca2dbbe12f65901ae76015a15943c8254c4a85f/runner/src/host_paths.c",
-          "sha256": "17ea78047d71a323dca5d1826487afa07fcb1be2dc1db61bdedc5e7c36281f77",
-          "scope": "source-text inspection only"
+          "git_blob_sha": "216a8ff13e945dd211d6ca05cc7d39f9df266832",
+          "sha256": "bb68edf79c89da8fb83d9eb98259d980896a0af5e123afe0369bab1025ccdb88",
+          "scope": "exact Git blob text inspected, not executed"
         },
         {
           "url": "https://github.com/RetroPortingToolKit/snesrecomp/blob/6ca2dbbe12f65901ae76015a15943c8254c4a85f/runner/src/launcher.c",
-          "sha256": "cb2455085bd092a5b687f297b47f5cf0e1c83c829b42ea59426e07ec51568090",
-          "scope": "source-text inspection only"
+          "git_blob_sha": "09958c01ce2ba258133ea57ef49e914edba57ccc",
+          "sha256": "e1f2507cf0f4b54f782dcb0dfad9e460def6acc0379ee7a35b1749dc046ea3a6",
+          "scope": "exact Git blob text inspected, not executed"
         },
         {
           "url": "https://github.com/RetroPortingToolKit/snesrecomp/blob/6ca2dbbe12f65901ae76015a15943c8254c4a85f/runner/src/launcher_cache.c",
-          "sha256": "233e2690067d7ea769ae382085ea8e75c5882f381d071529a3733c50d07fa9c3",
-          "scope": "source-text inspection only"
+          "git_blob_sha": "b425c72eea5c3cae854350758b7d2c9d3fcf634d",
+          "sha256": "81d25a8ef1fe5f8cacf18c12738c9c22a2b4486c4d1006cd461c9977da304cad",
+          "scope": "exact Git blob text inspected, not executed"
         },
         {
           "url": "https://github.com/RetroPortingToolKit/snesrecomp/blob/6ca2dbbe12f65901ae76015a15943c8254c4a85f/runner/src/snes_savestate_menu.c",
-          "sha256": "7dee48c00128e2a36fc83a5b928494c79d4625f02d865e363b45c9852f7ff9c4",
-          "scope": "source-text inspection only"
-        },
-        {
-          "url": "https://github.com/RetroPortingToolKit/snesrecomp/blob/6ca2dbbe12f65901ae76015a15943c8254c4a85f/runner/src/desktop/host_relaunch.c",
-          "git_blob_sha": "56e3aaf10b1e0bc2f8ef39a2dcd31fcdcf090d90",
-          "scope": "same exact Git blob inspected at MMX2 pinned framework"
+          "git_blob_sha": "f42f1ab96bd96a9b6417fae62eee6c6c08a1eee5",
+          "sha256": "e2a81330921151da68f2c4f81151dada9f30070f75d524e608a511375891b17e",
+          "scope": "exact Git blob text inspected, not executed"
         }
       ]
     }

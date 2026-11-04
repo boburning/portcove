@@ -16,7 +16,7 @@ component fixtures do not complete either production outcome.
 Core advertises each installed `AdapterKind` template with contract version 1.
 The public inventory additionally advertises native portable versions 2–7,
 managed PS1 version 2, N64 portable versions 2 and 3 and
-staged-source portable versions 2–5, 8, 10–12 and 15–25. Staged-source creation
+staged-source portable versions 2–5, 8, 10–12 and 15–26. Staged-source creation
 versions 6, 7, 9, 13 and 14 are absent from that inventory. Serialized identifiers
 and historical meanings are preserved; version numbers are not reused.
 
@@ -163,6 +163,16 @@ their existing versions and bytes. Current Core applies its runtime compatibilit
 checks independently of the retained envelope version. This is neither state ABI
 proof nor old flat-catalog, protected publication or #534 unchanged-client
 qualification. It introduces no new recipe field or console-family primitive.
+
+Version 26 extends that same isolation boundary to fresh Super Metroid recipes.
+The exact accepted Direct v0.3.12 package reader keeps its creating contract;
+new SM entries must start their staged-source interval at 26 or later. Reader 25
+semantics remain unchanged and cannot enforce this new title boundary, so its
+inventory refuses a minimum 26 entry. Core rejects lower-bound underclaims and
+applies the existing collection, restore, backup, transition and recovery guards
+to the new recipe. Retained exact historical definitions and administrative
+restore keep their meanings. This grants no populated-data migration, legacy
+state readability, native-game or protected-publication acceptance.
 
 The N64 portable template also advertises version 2, which implements the
 catalog-declared fresh Windows D3D12 default. Inventory identities are unique

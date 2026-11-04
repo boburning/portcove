@@ -1,4 +1,4 @@
-//! Three bounded historical reader holds; no save conversion or adoption authority.
+//! Bounded historical reader holds; no save conversion or adoption authority.
 use super::*;
 
 #[cfg(test)]
@@ -229,7 +229,11 @@ mod tests {
         let library_root = tempfile::tempdir().unwrap();
         let library = Library::open(library_root.path().join("library")).unwrap();
         let service = PortcoveService::new(library.clone()).unwrap();
-        for id in ["sonic-the-hedgehog-recomp", "mega-man-x2-snes-recomp"] {
+        for id in [
+            "sonic-the-hedgehog-recomp",
+            "mega-man-x2-snes-recomp",
+            "super-metroid-recomp",
+        ] {
             let mut port = Catalog::embedded().unwrap().port(id).unwrap().clone();
             let (version, hash) = legacy_reader(id).unwrap();
             port.release.provider = crate::ReleaseSource::DirectManifest;

@@ -146,6 +146,10 @@ impl EngineTemplateCapability {
             template: AdapterKind::StagedSourcePortable,
             contract_version: 25,
         });
+        supported.push(Self {
+            template: AdapterKind::StagedSourcePortable,
+            contract_version: 26,
+        });
         supported
     }
 }
@@ -603,53 +607,62 @@ mod tests {
     }
 
     #[test]
-    fn fresh_direct_entry_requires_v25_while_prior_reader_inventory_refuses_it() {
+    fn fresh_direct_entries_require_their_v25_or_v26_reader_inventory() {
         let catalog = crate::Catalog::embedded().unwrap();
-        let id = "sonic-3-and-knuckles-recomp";
-        let bundle = crate::test_fixture::indexed_catalog_bundle(&catalog, id);
-        let index = crate::DefinitionContentIndex::parse(&bundle.index).unwrap();
-        let entry = bundle
-            .contents
-            .iter()
-            .find_map(|(_, bytes)| {
-                let value: serde_json::Value = serde_json::from_slice(bytes).ok()?;
-                (value.get("definition_schema").is_some()).then_some(bytes)
-            })
-            .unwrap();
-        assert!(
-            index
-                .inspect_entry("official", id, entry)
-                .unwrap()
-                .capabilities()
-                .compatible
-        );
-        let value: serde_json::Value = serde_json::from_slice(entry).unwrap();
-        let requirement: DefinitionCapabilityRequest = serde_json::from_value(serde_json::json!({
+        for (id, minimum) in [
+            ("sonic-3-and-knuckles-recomp", 25),
+            ("super-metroid-recomp", 26),
+        ] {
+            let bundle = crate::test_fixture::indexed_catalog_bundle(&catalog, id);
+            let index = crate::DefinitionContentIndex::parse(&bundle.index).unwrap();
+            let entry = bundle
+                .contents
+                .iter()
+                .find_map(|(_, bytes)| {
+                    let value: serde_json::Value = serde_json::from_slice(bytes).ok()?;
+                    (value.get("definition_schema").is_some()).then_some(bytes)
+                })
+                .unwrap();
+            assert!(
+                index
+                    .inspect_entry("official", id, entry)
+                    .unwrap()
+                    .capabilities()
+                    .compatible
+            );
+            let value: serde_json::Value = serde_json::from_slice(entry).unwrap();
+            assert_eq!(
+                value["required_capabilities"][0]["minimum_version"],
+                minimum
+            );
+            let requirement: DefinitionCapabilityRequest = serde_json::from_value(serde_json::json!({
             "capability_contract_schema":1, "required_capabilities":value["required_capabilities"]
         }))
         .unwrap();
-        let previous: Vec<_> = EngineTemplateCapability::current()
-            .into_iter()
-            .filter(|entry| {
-                entry.template != AdapterKind::StagedSourcePortable || entry.contract_version <= 24
-            })
-            .collect();
-        let refused = check_with_inventory(&requirement, &previous).unwrap();
-        assert!(!refused.compatible);
-        assert_eq!(
-            refused.checks[0].outcome,
-            DefinitionCapabilityOutcome::UnsupportedVersion
-        );
-        assert!(
-            check_definition_capabilities(&requirement)
-                .unwrap()
-                .compatible
-        );
-        assert!(
-            check_with_inventory(&request("staged-source-portable", 23, 24), &previous)
-                .unwrap()
-                .compatible
-        );
+            let previous: Vec<_> = EngineTemplateCapability::current()
+                .into_iter()
+                .filter(|entry| {
+                    entry.template != AdapterKind::StagedSourcePortable
+                        || entry.contract_version < minimum
+                })
+                .collect();
+            let refused = check_with_inventory(&requirement, &previous).unwrap();
+            assert!(!refused.compatible);
+            assert_eq!(
+                refused.checks[0].outcome,
+                DefinitionCapabilityOutcome::UnsupportedVersion
+            );
+            assert!(
+                check_definition_capabilities(&requirement)
+                    .unwrap()
+                    .compatible
+            );
+            assert!(
+                check_with_inventory(&request("staged-source-portable", 23, 24), &previous)
+                    .unwrap()
+                    .compatible
+            );
+        }
     }
 
     #[test]
@@ -674,7 +687,7 @@ mod tests {
         assert!(!n64.compatible);
         assert_eq!(n64.checks[0].installed_version, Some(4));
         let future =
-            check_definition_capabilities(&request("staged-source-portable", 26, 26)).unwrap();
+            check_definition_capabilities(&request("staged-source-portable", 27, 27)).unwrap();
         assert!(!future.compatible);
     }
 
