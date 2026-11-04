@@ -6,6 +6,7 @@ import path from "node:path";
 import test from "node:test";
 import {
   ObservationFailure,
+  type ProviderObservation,
   observationHash,
   githubDirectPin,
   observeUpstream,
@@ -1302,8 +1303,12 @@ void test("scoped candidate assets reuse complete headers without fetching irrel
     fetch: server.fetch,
     selectAssetReleases: async (headers) => {
       assert.equal(headers.format, 2);
-      assert.deepEqual(headers.coverage?.asset_release_ids, []);
-      assert.ok(headers.facts.releases.every((release) => release.assets.length === 0));
+      const covered = headers.coverage?.asset_release_ids ?? [];
+      assert.ok(
+        headers.facts.releases.every(
+          (release) => covered.includes(release.id) || release.assets.length === 0,
+        ),
+      );
       // Only the transport choice is mocked here. Rust tests exercise real Core
       // candidate selection and refusal of incomplete asset coverage.
       return [3];
@@ -1322,6 +1327,107 @@ void test("scoped candidate assets reuse complete headers without fetching irrel
       fetch: async () => assert.fail("missing selector reached provider"),
     }),
     /maintained Core channel selector/,
+  );
+});
+
+void test("platform-stream discovery collects preceding candidates and resumes within the same budgets", async () => {
+  const scoped = validateObserverConfig({
+    ...config,
+    format: 2,
+    asset_scope: "core-channel-candidates",
+    policy_input_sha256: "a".repeat(64),
+    budget: { ...config.budget, requests: 2 },
+  });
+  const server = fixture();
+  server.replies.get(`${root}/releases?per_page=100&page=1`).body = [release(2), release(1)];
+  const linux = asset(20);
+  linux.name = "fixture-linux.zip";
+  linux.browser_download_url = `https://github.com/${config.repository}/releases/download/v2.0.0/fixture-linux.zip`;
+  server.replies.set(`${root}/releases/2/assets?per_page=100&page=1`, { body: [linux] });
+  // Transport control only: Core's real platform/channel predicate and unknown
+  // coverage semantics have an independent Rust regression.
+  const selectAssetReleases = async (observation: ProviderObservation) => {
+    const covered = observation.coverage!.asset_release_ids;
+    const candidate = observation.facts.releases.find(
+      (release) =>
+        !covered.includes(release.id) ||
+        release.assets.some((asset) => asset.name.includes("windows")),
+    );
+    return candidate ? [candidate.id] : [];
+  };
+  let checkpoint: unknown = null;
+  let complete = false;
+  for (let batch = 0; batch < 12; batch++) {
+    const before = server.requests.length;
+    const result = await advanceObservation(scoped, checkpoint, {
+      fetch: server.fetch,
+      project,
+      selectAssetReleases,
+    });
+    assert.ok(server.requests.length - before <= 2);
+    checkpoint = result.checkpoint;
+    if (result.report.transition === "initial-baseline") {
+      assert.deepEqual(
+        objectFixture(result.report.observation?.coverage).asset_release_ids,
+        [1, 2],
+      );
+      const facts = objectFixture(result.report.observation?.facts);
+      assert.deepEqual(
+        arrayFixture(facts.releases).map(
+          (release) => arrayFixture(objectFixture(release).assets).length,
+        ),
+        [1, 1],
+      );
+      complete = true;
+      break;
+    }
+    assert.equal(result.report.observation, null);
+  }
+  assert.ok(
+    complete,
+    "adaptive selection must finish rather than resetting validation on every resume",
+  );
+});
+
+void test("adaptive multichannel validation resumes in the same canonical page order", async () => {
+  const scoped = validateObserverConfig({
+    ...config,
+    format: 2,
+    asset_scope: "core-channel-candidates",
+    policy_input_sha256: "a".repeat(64),
+    budget: { ...config.budget, requests: 6 },
+  });
+  const server = fixture();
+  server.replies.get(`${root}/releases?per_page=100&page=1`).body = [
+    release(3),
+    release(2),
+    release(1),
+  ];
+  for (const id of [3, 2]) {
+    const value = asset(id * 10);
+    value.browser_download_url = value.browser_download_url.replace("v1.0.0", `v${id}.0.0`);
+    server.replies.set(`${root}/releases/${id}/assets?per_page=100&page=1`, { body: [value] });
+  }
+  const selectAssetReleases = async (observation: ProviderObservation) =>
+    observation.coverage!.asset_release_ids.includes(3) ? [2, 1] : [3, 1];
+  const first = await advanceObservation(scoped, null, {
+    fetch: server.fetch,
+    project,
+    selectAssetReleases,
+  });
+  assert.equal(first.checkpoint.continuation?.phase, "validate");
+  assert.equal(first.checkpoint.continuation?.validation_cursor, 1);
+  assert.deepEqual(first.checkpoint.continuation?.selected_asset_release_ids, [1, 2, 3]);
+  const resumed = await advanceObservation(scoped, first.checkpoint, {
+    fetch: server.fetch,
+    project,
+    selectAssetReleases,
+  });
+  assert.equal(resumed.report.transition, "initial-baseline");
+  assert.equal(resumed.report.exception, null);
+  assert.deepEqual(
+    objectFixture(resumed.report.observation?.coverage).asset_release_ids,
+    [1, 2, 3],
   );
 });
 
@@ -1356,7 +1462,10 @@ void test("scoped asset selection resumes bounded batches and automatically rech
     assert.ok(server.requests.length - before <= 2);
     checkpoint = result.checkpoint;
     if (result.report.transition === "initial-baseline") {
-      assert.deepEqual(objectFixture(result.report.observation?.coverage).asset_release_ids, [2]);
+      assert.deepEqual(
+        objectFixture(result.report.observation?.coverage).asset_release_ids,
+        [1, 2],
+      );
       completed = true;
       break;
     }

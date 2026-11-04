@@ -1087,6 +1087,64 @@ void test("Core selection and policy projection resume exact per-port cursors ac
   assert.equal(h.exported.at(-1)![3].length, 40);
 });
 
+void test("nonempty asset selection preserves post-asset Core progress across finite invocations", async () => {
+  const h = harness();
+  h.input.ports = [h.input.ports[0]!];
+  h.options.config = validateObserverConfig({
+    ...h.options.config,
+    budget: { ...h.options.config.budget, duration_ms: 15000 },
+  });
+  const fetch = h.options.fetch!;
+  h.options.fetch = async (url, init) => {
+    if (new URL(url).pathname.endsWith("/releases/1/assets")) {
+      h.network.push(url);
+      return new Response(
+        JSON.stringify([
+          {
+            id: 10,
+            name: "player-windows.zip",
+            size: 16,
+            state: "uploaded",
+            digest: `sha256:${"a".repeat(64)}`,
+            created_at: "2026-09-09T12:00:00Z",
+            updated_at: "2026-09-09T12:00:00Z",
+            browser_download_url:
+              "https://github.com/owner/shared/releases/download/v1.0.0/player-windows.zip",
+          },
+        ]),
+        { headers: { "content-type": "application/json" } },
+      );
+    }
+    return fetch(url, init);
+  };
+  const project = h.options.project;
+  let calls = 0;
+  h.options.project = async (...args) => {
+    calls++;
+    const result = await project(...args);
+    h.tick();
+    return result;
+  };
+  let state: CatalogObserverCheckpoint | null = null;
+  let complete = false;
+  for (let batch = 0; batch < 6; batch++) {
+    const result = await advanceCatalogObservations(h.input, state, h.options);
+    state = result.checkpoint;
+    if (result.report.pending_source_keys.length === 0) {
+      complete = true;
+      break;
+    }
+  }
+  assert.ok(complete, "header-only probes must not overwrite a retained post-assets cursor");
+  assert.equal(calls, 3, "one header projection, one covered selection, one final policy");
+  const observed = h.exported.at(-1)![2].report.observation;
+  assert.ok(observed && isRecord(observed.facts));
+  assert.equal(
+    (observed.facts.releases as ProviderObservation["facts"]["releases"])[1]!.assets.length,
+    1,
+  );
+});
+
 void test("source byte admission includes identity lookups while smaller unrelated sources continue", async () => {
   const h = harness();
   h.options.repositoryId = async (source, transport) => {
