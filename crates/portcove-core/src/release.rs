@@ -973,29 +973,7 @@ impl GithubReleaseProvider {
         target: &GithubAsset,
         scope: Option<&crate::DefinitionAcquisitionScope>,
     ) -> Result<Option<String>> {
-        let exact_name = format!("{}.sha256", target.name);
-        let exact = assets
-            .iter()
-            .any(|asset| asset.name.eq_ignore_ascii_case(&exact_name));
-        let sidecars = assets
-            .iter()
-            .filter(|asset| {
-                if exact {
-                    asset.name.eq_ignore_ascii_case(&exact_name)
-                } else {
-                    ["sha256sums", "sha256sums.txt", "checksums.txt"]
-                        .iter()
-                        .any(|name| asset.name.eq_ignore_ascii_case(name))
-                }
-            })
-            .take(CHECKSUM_MAX_SIDECARS + 1)
-            .collect::<Vec<_>>();
-        if sidecars.len() > CHECKSUM_MAX_SIDECARS {
-            return Err(PortcoveError::verification(
-                "selected checksum authority exceeds the 8-sidecar limit",
-            )
-            .detail("reason", "checksum_source_limit"));
-        }
+        let (exact, sidecars) = checksum_sidecars(assets, target)?;
         let mut checksum = None;
         let client = match scope {
             Some(scope) => reqwest::Client::builder()
@@ -1031,6 +1009,38 @@ impl GithubReleaseProvider {
         }
         Ok(checksum)
     }
+}
+
+/// Pure authority selection shared by resolution and inert observation. Exact
+/// per-asset sidecars take precedence; every applicable authority must agree.
+fn checksum_sidecars<'a>(
+    assets: &'a [GithubAsset],
+    target: &GithubAsset,
+) -> Result<(bool, Vec<&'a GithubAsset>)> {
+    let exact_name = format!("{}.sha256", target.name);
+    let exact = assets
+        .iter()
+        .any(|asset| asset.name.eq_ignore_ascii_case(&exact_name));
+    let sidecars = assets
+        .iter()
+        .filter(|asset| {
+            if exact {
+                asset.name.eq_ignore_ascii_case(&exact_name)
+            } else {
+                ["sha256sums", "sha256sums.txt", "checksums.txt"]
+                    .iter()
+                    .any(|name| asset.name.eq_ignore_ascii_case(name))
+            }
+        })
+        .take(CHECKSUM_MAX_SIDECARS + 1)
+        .collect::<Vec<_>>();
+    if sidecars.len() > CHECKSUM_MAX_SIDECARS {
+        return Err(PortcoveError::verification(
+            "selected checksum authority exceeds the 8-sidecar limit",
+        )
+        .detail("reason", "checksum_source_limit"));
+    }
+    Ok((exact, sidecars))
 }
 
 fn merge_checksum_entries(
