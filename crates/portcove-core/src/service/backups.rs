@@ -1360,9 +1360,9 @@ impl PortcoveService {
             lifecycle.activate = user_root.exists();
             self.retain_restore_manifest(&mut lifecycle, &reviewed_manifest)?;
             let mut restore = self.validate_restore_operation(&lifecycle)?;
-            let require_reviewed_data = || -> Result<()> {
+            let require_reviewed_data = |operation: &LifecycleOperation| -> Result<()> {
                 require_reviewed_manifest()?;
-                self.require_restore_snapshot_authority(&lifecycle, &staged_data)?;
+                self.require_restore_snapshot_authority(operation, &staged_data)?;
                 self.preflight_psx_mod_restores(port_id, &staged_data)?;
                 if self.collectible_data_review(port_id)? != reviewed_runtime
                     || self.canonical_data_review(port_id)? != collected_canonical
@@ -1373,12 +1373,12 @@ impl PortcoveService {
                 }
                 Ok(())
             };
-            require_reviewed_data()?;
+            require_reviewed_data(&lifecycle)?;
             restore.advance(RestorePhase::ReadyToPublish, &mut lifecycle, &store)?;
             self.faults.check(LifecycleFaultPoint::RestorePrepared)?;
             let final_review = self
                 .validate_restore_operation(&lifecycle)
-                .and_then(|_| require_reviewed_data());
+                .and_then(|_| require_reviewed_data(&lifecycle));
             if let Err(refusal) = final_review {
                 if let Err(error) =
                     restore.abandon_before_publication(&mut lifecycle, &store, &refusal.message)
