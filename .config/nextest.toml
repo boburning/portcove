@@ -7,6 +7,18 @@ test-threads = 2
 status-level = "pass"
 final-status-level = "slow"
 
+
+# CI 41868332544/a1 Windows 6 retained a 30.190s cutoff in this unchanged
+# inert prepared-manifest/catalog/backup fixture; the same case passed in
+# 8.274s in 41855177445/a1. Allow only this Windows case finite 60s completion.
+# Preserve every retained-contract/assessment/data assertion, cleanup, two
+# workers and zero retries. This is harness headroom, not a performance claim.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::ghostship_persistence_tests::ghostship_legacy_backup_assessment_matches_collection_without_a_source$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
 # R64 CI 41786426031/a1 Windows 7 retained a 30.039s cutoff after signed
 # admission/install/baseline progress through 17.652s. This unchanged fixture
 # passed 14.635s/21.384s in the preceding two deliveries. Allow only this Windows

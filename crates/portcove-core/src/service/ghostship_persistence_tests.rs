@@ -178,7 +178,16 @@ fn ghostship_legacy_persistence_restores_collects_and_synchronizes_cwd() {
 
 #[test]
 fn ghostship_legacy_backup_assessment_matches_collection_without_a_source() {
+    let started = std::time::Instant::now();
+    let phase = |name| {
+        eprintln!(
+            "ghostship legacy backup phase={name} elapsed={:?}",
+            started.elapsed()
+        )
+    };
+    phase("fixture-begin");
     let (_temporary, mut service, _original, prepared) = fixture();
+    phase("fixture-ready");
     // A changed current definition must not reinterpret retained persistence.
     let mut document = service.catalog.authoritative_document();
     let changed = document
@@ -198,10 +207,14 @@ fn ghostship_legacy_backup_assessment_matches_collection_without_a_source() {
     fs::write(prepared.path.join(LAUNCH_MARKER), b"1").unwrap();
     fs::write(prepared.path.join("ghostship.cfg.json"), b"runtime only").unwrap();
     let user = service.library.user_dir("ghostship");
+    phase("assessment-begin");
     let assessment = service.list_backups("ghostship").unwrap().create_assessment;
+    phase("assessment-ready");
     assert_eq!(assessment.availability, PortActionAvailability::Allowed);
     assert!(!user.join("ghostship.cfg.json").exists());
+    phase("backup-begin");
     let backup = service.create_backup("ghostship").unwrap();
+    phase("backup-ready");
     assert_eq!(
         fs::read(backup.path.join("data").join("ghostship.cfg.json")).unwrap(),
         b"runtime only"
@@ -210,6 +223,7 @@ fn ghostship_legacy_backup_assessment_matches_collection_without_a_source() {
         fs::read(user.join("ghostship.cfg.json")).unwrap(),
         b"runtime only"
     );
+    phase("assertions-complete");
 }
 
 #[test]
