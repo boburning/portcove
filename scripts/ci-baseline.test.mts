@@ -77,6 +77,21 @@ void test("integrated Vite+ graphical diagnostics expose only a bounded rule and
     "   ╭─[scripts/check.mts:1234567:9]",
   ])
     assert.equal(source.test(line), false);
+  // Captured from the pinned checker through the normal staged entry point.
+  // Vite Task's command-scoped FORCE_COLOR produces SGR even on CI pipes.
+  const red = "\u001b[38;2;225;80;80;1m",
+    reset = "\u001b[0m",
+    blue = "\u001b[38;2;92;157;255;1m";
+  assert.deepEqual(
+    rule.exec(`${red}×${reset} ${red}typescript(TS2322): PRIVATE${reset}`)?.slice(1),
+    ["typescript(TS2322)"],
+  );
+  assert.deepEqual(
+    source.exec(`      ╭─[${blue}scripts/ci-baseline.test.mts${reset}:1045:7]`)?.slice(1),
+    ["scripts/ci-baseline.test.mts", "1045", "7"],
+  );
+  assert.equal(source.test(`      ╭─[${blue}/private/scripts/check.mts${reset}:1045:7]`), false);
+  assert.equal(rule.test(`\u001b[${"1".repeat(33)}m× typescript(TS2322): PRIVATE`), false);
   assert.equal(rule.test("× typescript(PRIVATE_DATA): secret"), false);
 });
 
