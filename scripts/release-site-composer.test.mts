@@ -368,6 +368,8 @@ void test("authenticated entry rejects wrong public root or tool before executin
   await mkdir(path.join(inputs, "records"));
   const root = Buffer.from("inert public root");
   await writeFile(path.join(inputs, "root.json"), root);
+  const verifier = path.join(f.root, "inert-keyless-verifier");
+  await writeFile(verifier, "inert negative verifier fixture\n", { flag: "wx", mode: 0o700 });
   await writeFile(path.join(inputs, "offline.json"), "{}");
   await writeFile(path.join(inputs, "registry.json"), "{}");
   const context = path.join(inputs, "context.json");
@@ -387,7 +389,7 @@ void test("authenticated entry rejects wrong public root or tool before executin
     context,
     signed_roles: path.join(inputs, "roles"),
     trusted_root_sha256: "0".repeat(64),
-    verifier: process.execPath,
+    verifier,
     verifier_sha256: "0".repeat(64),
     previous_site: null,
     expected_previous_generation: null,

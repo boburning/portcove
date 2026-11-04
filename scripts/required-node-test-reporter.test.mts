@@ -7,6 +7,52 @@ import test, { type TestContext } from "node:test";
 import { pathToFileURL } from "node:url";
 import { disposableDirectory } from "./fixtures/disposable-directory.mts";
 import { isRecord } from "./runtime-values.mts";
+import { nodeFailureAnnotation } from "./required-node-test-reporter.mts";
+
+void test("required reporter annotations expose only registered public failure locations", () => {
+  const root = process.cwd(),
+    file = "scripts/required-node-test-reporter.test.mts";
+  const registered = [file];
+  const failure = (values: Record<string, unknown> = {}) =>
+    ({
+      type: "test:fail",
+      data: {
+        file: path.join(root, file),
+        line: 123,
+        name: "PRIVATE user data",
+        details: { error: "PRIVATE credential" },
+        ...values,
+      },
+    }) as unknown as import("node:test/reporters").TestEvent;
+  const annotation = nodeFailureAnnotation(failure(), root, registered);
+  assert.equal(
+    annotation,
+    `::error file=${file},line=123,title=Node contract failed::Node contract failed at its public source location`,
+  );
+  assert.doesNotMatch(annotation, /PRIVATE|credential|user data/u);
+  for (const values of [
+    { file: path.resolve(root, "../private.test.mts") },
+    { file: path.join(root, "scripts/unregistered.test.mts") },
+    { file: path.join(root, "work/private.test.mts") },
+    { line: 0 },
+    { line: Infinity },
+    { skip: true },
+    { todo: "PRIVATE" },
+  ])
+    assert.equal(nodeFailureAnnotation(failure(values), root, registered), null);
+  const hostile = failure();
+  Object.defineProperty(hostile.data, "name", {
+    get() {
+      throw new Error("PRIVATE");
+    },
+  });
+  Object.defineProperty(hostile.data, "details", {
+    get() {
+      throw new Error("PRIVATE");
+    },
+  });
+  assert.equal(nodeFailureAnnotation(hostile, root, registered), annotation);
+});
 
 const reporter = new URL("./required-node-test-reporter.mts", import.meta.url).href;
 

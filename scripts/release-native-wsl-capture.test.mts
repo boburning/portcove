@@ -2,7 +2,7 @@ import { isRecord } from "./runtime-values.mts";
 import { disposableDirectory } from "./fixtures/disposable-directory.mts";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { writeFile, readFile, readdir } from "node:fs/promises";
+import { writeFile, readFile, readdir, realpath } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import { createHash } from "node:crypto";
@@ -421,6 +421,17 @@ void test(
     const scheduler = await import("./release-native-scheduler.mts");
     const childProcess = await import("node:child_process");
     const root = fileURLToPath(new URL("..", import.meta.url)).replace(/\/$/u, "");
+    const sourceRoot = await realpath(root),
+      temporaryRoot = await realpath(os.tmpdir());
+    const relativeTemporary = path.relative(sourceRoot, temporaryRoot);
+    const temporaryInsideSource =
+      relativeTemporary === "" ||
+      (!path.isAbsolute(relativeTemporary) &&
+        relativeTemporary !== ".." &&
+        !relativeTemporary.startsWith(`..${path.sep}`));
+    // The maintained storage wrapper may put TMPDIR under the checkout.
+    // This fixture must satisfy the real outside-source capture constraint.
+    const fixtureParent = temporaryInsideSource ? path.dirname(sourceRoot) : temporaryRoot;
     const driver = fileURLToPath(
       new URL("./release-hosted-native-linux-driver.mts", import.meta.url),
     );
@@ -576,7 +587,7 @@ void test(
         await t.test(kind, { timeout: 20000 }, async (context) => {
           const directory = disposableDirectory(
             context,
-            path.join(os.tmpdir(), "hosted-linux-driver-"),
+            path.join(fixtureParent, "hosted-linux-driver-"),
           );
           const original = Buffer.from("inert-package"),
             prior = Buffer.from("inert-predecessor");

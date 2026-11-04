@@ -1,7 +1,7 @@
 import { defineConfig } from "vite-plus";
 import { registeredNodeCommand } from "./scripts/node-test-suites.mts";
 import { desktopProjects, testReporters } from "./scripts/frontend-tests.ts";
-import { checkStagedFiles } from "./scripts/viteplus-cli.mts";
+import { checkStagedFiles, exactByteFormatInputs } from "./scripts/viteplus-cli.mts";
 
 export default defineConfig({
   defaultPackage: "./apps/desktop",
@@ -15,11 +15,7 @@ export default defineConfig({
     },
     ignorePatterns: [
       // Exact trust, workflow and historical fixture bytes are digest-bound.
-      "release/bootstrap-public-inputs/**",
-      ".github/workflows/application-update-production.yml",
-      "docs/qualification/application-update-production.windows-20261103.proposed.yml",
-      "scripts/fixtures/release-resource-baseline-20261103/**",
-      "vendor/rfd/**", // Preserve third-party bytes; provenance and GTK probes cover the backport.
+      ...exactByteFormatInputs,
       "apps/desktop/node_modules/**",
       "apps/desktop/dist/**",
       "apps/desktop/src-tauri/gen/**",

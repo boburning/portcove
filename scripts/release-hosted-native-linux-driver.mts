@@ -18,7 +18,10 @@ import {
 import { inspectHostedNativeLinuxHost } from "./release-native-wsl-host.mts";
 import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.mts";
 import { hashNativeCapturedFile } from "./release-native-capture-files.mts";
-import { readNativeSchedulerToolDigest } from "./release-native-scheduler.mts";
+import {
+  readNativeSchedulerToolDigest,
+  nativeSchedulerNodeMaximumBytes,
+} from "./release-native-scheduler.mts";
 import {
   inspectNativeQualificationCandidate,
   inspectNativeQualificationJourney,
@@ -388,7 +391,7 @@ async function runPreparedCapture(prepared: Prepared, origin: { wall: number; mo
   );
   assert.equal(process.execPath, prepared.node.path);
   assert.equal(
-    await readNativeSchedulerToolDigest(process.execPath, 128 * mib),
+    await readNativeSchedulerToolDigest(process.execPath, nativeSchedulerNodeMaximumBytes),
     prepared.node.sha256,
   );
   for (const tool of Object.values(prepared.tools)) {

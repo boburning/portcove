@@ -1,4 +1,3 @@
-import type { BinaryLike } from "node:crypto";
 import { errorMessage, isRecord } from "./runtime-values.mts";
 import assert from "node:assert/strict";
 import { readFileSync, writeFileSync, mkdirSync, cpSync, realpathSync } from "node:fs";
@@ -102,7 +101,8 @@ function dependency(value: unknown): ProbeDependency {
     lockedVersion: text(raw.lockedVersion),
   };
 }
-const hash = (bytes: BinaryLike) => createHash("sha256").update(bytes).digest("hex");
+const hash = (bytes: string | NodeJS.ArrayBufferView) =>
+  createHash("sha256").update(bytes).digest("hex");
 const fixturePath = fileURLToPath(
   new URL("./fixtures/serde-json-renovate-44.156.3.json", import.meta.url),
 );

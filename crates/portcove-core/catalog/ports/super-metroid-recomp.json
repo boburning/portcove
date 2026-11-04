@@ -27,11 +27,11 @@
         },
         {
           "title": "Prepare the separate Preview player",
-          "instruction": "Open the linked v0.3.16 Preview release page and use its official Windows x64 ZIP in a new writable folder. Keep SuperMetroidSNESRecomp.exe, packaged config.ini, assets, framework pins, notices and all other companions together inside supermetroid-0.3.16-windows-x64. Use the packaged defaults without old configuration, states, mods, donor assets or developer/path overrides. Finish upstream setup deliberately. Register that folder’s SuperMetroidSNESRecomp.exe with the same containing folder as working directory and two literal argument lines: --rom then game.sfc. Do not select replay_diagnostic.py or a source/build helper as the player."
+          "instruction": "Open the linked v0.3.16 Preview release page and use its official Windows x64 ZIP in a new writable folder. Keep SuperMetroidSNESRecomp.exe, packaged config.ini, assets, framework pins, notices and all other companions together inside supermetroid-0.3.16-windows-x64. Use the packaged defaults without old configuration, states, mods, donor assets or developer/path overrides. Finish upstream setup deliberately. Register that folder\u2019s SuperMetroidSNESRecomp.exe with the same containing folder as working directory and two literal argument lines: --rom then game.sfc. Do not select replay_diagnostic.py or a source/build helper as the player."
         },
         {
           "title": "Choose Play and manage updates through the project",
-          "instruction": "You and upstream own this external package and its data. Play is explicit; removing its Portcove registration preserves the external files. Managed Update, Backup, Rollback, migration and external deletion are unavailable for this copy. Settings changes can restart into a successor game window while the initial registered process exits. Do not rely on that initial process’s completion as proof that every game copy has stopped: close all windows/processes before copying or replacing runtime or data. Keep the shipped PolyForm Noncommercial and dependency notices; do not run Generate & rebuild, debug/replay helpers or extra mods as part of these instructions. A Portcove library containing any managed installation of this identity cannot also attach this external copy. Keep that managed installation and use the new upstream copy directly, or register only in a separate library with no managed installation, other registration or pending launch for this identity. Do not remove an older managed runtime or kept data just to enable registration."
+          "instruction": "You and upstream own this external package and its data. Play is explicit; removing its Portcove registration preserves the external files. Managed Update, Backup, Rollback, migration and external deletion are unavailable for this copy. Settings changes can restart into a successor game window while the initial registered process exits. Do not rely on that initial process\u2019s completion as proof that every game copy has stopped: close all windows/processes before copying or replacing runtime or data. Keep the shipped PolyForm Noncommercial and dependency notices; do not run Generate & rebuild, debug/replay helpers or extra mods as part of these instructions. A Portcove library containing any managed installation of this identity cannot also attach this external copy. Keep that managed installation and use the new upstream copy directly, or register only in a separate library with no managed installation, other registration or pending launch for this identity. Do not remove an older managed runtime or kept data just to enable registration."
         }
       ],
       "warnings": [
@@ -126,6 +126,10 @@
         "sm-video.ini.tmp"
       ],
       "build_specific_progress_paths": ["saves"]
+    },
+    "archive_data_transition_v1": {
+      "predecessor_archive_sha256": "72b7c179b855fba9404eec07abdbacefaffa4c67898f5c5232f0b1444b73d531",
+      "creating_contract_sha256": "dbfb431248dd3126148a13d9e04e12aa371ecc042de09e0a2aac1fd1a5d6b02e"
     }
   }
 }

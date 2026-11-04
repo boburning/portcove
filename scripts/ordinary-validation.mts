@@ -202,6 +202,11 @@ const catalogAuthoringContractTests = [
   "scripts/catalog-proposal-comparison.test.mts",
   "scripts/catalog-artwork-dispatch.test.mts",
 ];
+const catalogPreparationContractTests = [
+  "scripts/prepare-port.test.mts",
+  "scripts/package-player-observation.test.mts",
+  "scripts/upstream-lineage.test.mts",
+];
 
 const upstreamHealthObservationTests = [
   "scripts/upstream-health-providers.test.mts",
@@ -404,13 +409,13 @@ for (const [file, tests] of [
     "apps/desktop/scripts/desktop-capture-target.mts",
     ["scripts/capture-target.test.mts", "scripts/native-helper-dependencies.test.mts"],
   ],
-  ["scripts/prepare-port.mts", ["scripts/prepare-port.test.mts"]],
+  ["scripts/prepare-port.mts", catalogPreparationContractTests],
   ["scripts/catalog-capacity.mts", ["scripts/sign-catalog.test.mts"]],
   [
     "scripts/artwork-preparation-progress.mts",
     ["scripts/prepare-port.test.mts", "scripts/catalog-artwork-batches.test.mts"],
   ],
-  ["scripts/port-upstream-facts.mts", ["scripts/prepare-port.test.mts"]],
+  ["scripts/port-upstream-facts.mts", catalogPreparationContractTests],
   [
     "scripts/catalog-authoring-inspector.mts",
     ["scripts/prepare-port.test.mts", ...catalogGeneratorContractTests],
@@ -1902,6 +1907,7 @@ for (const [file, tests] of [
     "deny.toml",
   ].map((file): [string, string[]] => [file, roadmapContractTests]),
   [".github/pr-conventions.json", ["scripts/pr-conventions.test.mts"]],
+  [".github/viteplus-problem-matcher.json", ["scripts/ci-baseline.test.mts"]],
   [
     ".github/upstream-health-accounting.json",
     [
@@ -2191,6 +2197,19 @@ for (const file of [
     "scripts/check-catalog-repositories.test.mts",
     "scripts/cleanup-intel-artifacts.test.mts",
     ...upstreamHealthContractTests,
+  ]);
+
+// Preparation's accepted-observation reuse and lineage refusals also consume
+// the SDK's response decoding and error shapes through port-upstream-facts.
+for (const file of [
+  "scripts/github-client.mts",
+  "scripts/github-operation.mts",
+  "package.json",
+  "pnpm-lock.yaml",
+])
+  explicitNodeTests.set(file, [
+    ...(explicitNodeTests.get(file) ?? []),
+    ...catalogPreparationContractTests,
   ]);
 
 explicitNodeTests.set("scripts/aqua-integrity.mts", [

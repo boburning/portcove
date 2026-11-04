@@ -185,6 +185,7 @@ fn fresh_direct_entries_require_v26_without_reinterpreting_retained_or_exact_old
     ] {
         let mut port = catalog.port(id).unwrap().clone();
         port.archive_data_compatibility_v1 = None; // Preserve the prior v26 interpretation.
+        port.archive_data_transition_v1 = None;
         // Synthetic successor identity selects the guard; no artifact is run.
         port.release.provider = crate::ReleaseSource::Github;
         port.release.repository = "fixture/guarded-reader".into();
@@ -211,8 +212,8 @@ fn fresh_direct_entries_require_v26_without_reinterpreting_retained_or_exact_old
         entry["required_capabilities"][0]["minimum_version"] = json!(26);
         entry["required_capabilities"][0]["maximum_version"] = json!(26);
         assert!(inspect(&entry).unwrap().capabilities().compatible);
-        entry["required_capabilities"][0]["minimum_version"] = json!(28);
-        entry["required_capabilities"][0]["maximum_version"] = json!(28);
+        entry["required_capabilities"][0]["minimum_version"] = json!(29);
+        entry["required_capabilities"][0]["maximum_version"] = json!(29);
         assert!(!inspect(&entry).unwrap().capabilities().compatible);
         let old = packet["rows"]
             .as_array()

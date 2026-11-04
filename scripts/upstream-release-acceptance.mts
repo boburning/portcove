@@ -162,7 +162,7 @@ export function inspectRehearsalAcceptance(
   );
   assert.ok(isDeepStrictEqual(before, after));
   for (const key of ["installed_truncated_stage", "installed_tampered_stage"]) {
-    const refusal = installed[key];
+    const refusal: unknown = installed[key];
     assert.ok(
       isRecord(refusal) &&
         refusal.exit_code === 1 &&
@@ -212,7 +212,7 @@ export function inspectRehearsalAcceptance(
     ["helper", helperExit.pid],
     ["candidate", renderer.relaunch_process_marker.process_id],
   ] as const) {
-    const process = renderer.natural_process_exit[role];
+    const process: unknown = renderer.natural_process_exit[role];
     assert.ok(
       isRecord(process) &&
         isRecord(process.capture) &&
