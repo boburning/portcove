@@ -1080,3 +1080,44 @@ void test("explicit redirect observation uses bounded SDK parsing without follow
     assert.equal(dispatched, 1);
   }
 });
+
+void test("status-only redirect observation cancels unread bodies without following", async () => {
+  for (const [status, readRedirectBodyFor] of [
+    [301, []],
+    [302, [301]],
+  ] as const) {
+    let cancelled = false,
+      dispatched = 0;
+    const client = await createGitHubClient({
+      credential: { kind: "anonymous" },
+      deadline: performance.now() + 5000,
+      observeRedirects: true,
+      fetch: async () => {
+        dispatched++;
+        return new Response(
+          new ReadableStream({
+            start(controller) {
+              controller.enqueue(new TextEncoder().encode("unconsumed body"));
+            },
+            cancel() {
+              cancelled = true;
+            },
+          }),
+          {
+            status,
+            headers: {
+              "content-type": "application/json",
+              location: "https://untrusted.invalid/private",
+            },
+          },
+        );
+      },
+    });
+    const response = await client.request("GET /repos/owner/repo", {
+      request: { portcove: { ...once(), readRedirectBodyFor } },
+    });
+    assert.equal(response.status, status);
+    assert.equal(cancelled, true);
+    assert.equal(dispatched, 1);
+  }
+});

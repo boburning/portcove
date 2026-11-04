@@ -140,7 +140,7 @@ function requiredFixture<T>(value: T | null | undefined): T {
       assert.ok(options.signal instanceof AbortSignal);
       assert.equal(
         new URL(url).host === "api.github.com",
-        Object.hasOwn(options.headers, "Authorization"),
+        new Headers(options.headers).has("authorization"),
       );
       assert.equal(
         new URL(url).host === "gitlab.com",

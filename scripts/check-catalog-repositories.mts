@@ -309,6 +309,7 @@ export interface HealthOptions {
   incremental?: boolean;
   resumeObservations?: unknown[];
   operationDeadline?: number;
+  operationMonotonicDeadline?: number;
   abortSignal?: AbortSignal;
   sessionStartedAt?: number;
   providerBackoff?: Record<string, string>;
@@ -407,9 +408,11 @@ function assessedLineage(catalog: HealthCatalog, records: unknown[]) {
 const scriptPath = fileURLToPath(import.meta.url);
 class HealthFailure extends Error {
   reason: keyof typeof resume;
-  constructor(reason: keyof typeof resume) {
+  httpStatus: number | null;
+  constructor(reason: keyof typeof resume, httpStatus: number | null = null) {
     super(reason);
     this.reason = reason;
+    this.httpStatus = httpStatus;
   }
 }
 const HARD_REQUEST_CEILING: number = 320;
@@ -1075,6 +1078,10 @@ async function metadata(
     throw new HealthFailure("invalid-metadata");
   if ("data" in response) {
     if (now() >= deadline) throw new HealthFailure("budget");
+    // The pinned SDK can return raw text after a JSON parse failure. Health
+    // metadata requires an object or collection before domain identity checks.
+    if (typeof response.data !== "object" || response.data === null)
+      throw new HealthFailure("invalid-metadata", response.status);
     return response.data;
   }
   if (!response.body) throw new HealthFailure("invalid-metadata");
@@ -1311,6 +1318,7 @@ export async function collectRepositoryHealth(
     incremental = false,
     resumeObservations = [],
     operationDeadline,
+    operationMonotonicDeadline,
     onObservation,
     abortSignal,
     sessionStartedAt,
@@ -1366,7 +1374,10 @@ export async function collectRepositoryHealth(
   )
     throw new Error("Health operation deadline is unavailable");
   const deadline = Math.min(started + limits.duration_ms, operationDeadline ?? Infinity);
-  const monotonicDeadline = performance.now() + Math.max(0, deadline - started);
+  const monotonicDeadline = Math.min(
+    operationMonotonicDeadline ?? Infinity,
+    performance.now() + Math.max(0, deadline - started),
+  );
   if (
     Buffer.byteLength(JSON.stringify(resumeObservations)) > HEALTH_HISTORY_BYTES ||
     resumeObservations.some((value) => !isHealthObservationHistory(value, started))
@@ -1493,7 +1504,10 @@ export async function collectRepositoryHealth(
   };
   // One credential-scoped SDK per collection; external providers never see it.
   let sdk: ReturnType<typeof createGitHubClient> | undefined;
-  const readGithubResponse = async (url: string): Promise<HealthMetadataResponse> => {
+  const readGithubResponse = async (
+    url: string,
+    readRedirectBody = false,
+  ): Promise<HealthMetadataResponse> => {
     if (
       now() >= deadline ||
       consumed.requests >= limits.requests ||
@@ -1561,6 +1575,8 @@ export async function collectRepositoryHealth(
     const policy: GitHubRequestPolicy = {
       replay: "once",
       attempts: 0,
+      deadline: Math.min(monotonicDeadline, performance.now() + Math.max(0, deadline - now())),
+      readRedirectBodyFor: readRedirectBody ? [301] : [],
       observe: (attempt) => {
         evidence.attempt = attempt;
       },
@@ -1579,15 +1595,21 @@ export async function collectRepositoryHealth(
     } catch (error) {
       if (abortSignal?.aborted) throw abortSignal.reason;
       if (error instanceof HealthFailure) throw error;
+      const httpStatus = evidence.attempt?.status ?? null;
       if (error instanceof GitHubApiError) {
         if (["response_limit", "budget_exhausted"].includes(error.code))
-          throw new HealthFailure("budget");
-        if (error.code === "deadline_exceeded") throw new HealthFailure("timeout");
-        if (error.code === "invalid_response") throw new HealthFailure("invalid-metadata");
+          throw new HealthFailure("budget", httpStatus);
+        if (error.code === "deadline_exceeded") throw new HealthFailure("timeout", httpStatus);
+        if (error.code === "invalid_response")
+          throw new HealthFailure("invalid-metadata", httpStatus);
+        if (error.code === "rate_limited") {
+          deferred.set("github", retryAt(new Headers(evidence.attempt?.headers), now()));
+          throw new HealthFailure("rate-limit", httpStatus);
+        }
         if (
           evidence.attempt?.status !== null &&
           evidence.attempt?.status !== undefined &&
-          evidence.attempt.status >= 400
+          evidence.attempt.status >= 300
         )
           return {
             status: evidence.attempt.status,
@@ -1596,9 +1618,8 @@ export async function collectRepositoryHealth(
             data: null,
             body: null,
           };
-        if (error.code === "rate_limited") throw new HealthFailure("rate-limit");
       }
-      throw new HealthFailure("transport");
+      throw new HealthFailure("transport", httpStatus);
     } finally {
       await policy.admissionSettled;
     }
@@ -1717,11 +1738,12 @@ export async function collectRepositoryHealth(
         retained &&
         retained.observation_contract_sha256 === contract &&
         sessionStartedAt !== undefined &&
-        retained.reason !== "budget" &&
+        (retained.reason !== "budget" || retained.http_status !== null) &&
         !collected(retained) &&
         Date.parse(retained.observed_at) >= sessionStartedAt
       ) {
-        // A failed read is retained for this job; another independent run may retry it.
+        // A received response is a spent read, including a capped body. Only
+        // unattempted budget tails can resume; a new job may observe again.
         observations.push({
           ...structuredClone(retained),
           ...record,
@@ -1877,12 +1899,16 @@ export async function collectRepositoryHealth(
       if (!reused && !github) consumed.requests++;
       result.attempted = !reused;
       result.metadata_reused = Boolean(reused);
+      const conditions = originalRules(record);
       let response: Response | HealthMetadataResponse | undefined;
       try {
         response = reused
           ? new Response(null, { status: 200 })
           : github
-            ? await readGithubResponse(requestUrl)
+            ? await readGithubResponse(
+                requestUrl,
+                conditions.length > 0 && conditions.every((rule) => rule.http_status === 301),
+              )
             : await fetcher(requestUrl, {
                 headers,
                 // Observe a redirect as an HTTP fact rather than losing it in a fetch
@@ -1895,7 +1921,6 @@ export async function collectRepositoryHealth(
         result.http_status = response.status;
         if (response.status !== 200) {
           fail(statusReason(response));
-          const conditions = originalRules(record);
           if (
             conditions.length &&
             conditions.every(
@@ -2169,6 +2194,11 @@ export async function collectRepositoryHealth(
         result.observed_repository_id = facts.id;
       } catch (error) {
         abortSignal?.throwIfAborted();
+        if (error instanceof HealthFailure) {
+          if (error.httpStatus !== null) result.http_status = error.httpStatus;
+          if (error.reason === "rate-limit" && github)
+            result.retry_at = deferred.get("github") ?? null;
+        }
         fail(
           error instanceof HealthFailure ? error.reason : signal.aborted ? "timeout" : "transport",
         );
