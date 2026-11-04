@@ -5,7 +5,7 @@ import type { GitHubClientOptions } from "./github-client.mts";
 import { GitHubApiError, sanitizeOperationError } from "./github-operation.mts";
 
 const repository = "boburning/portcove";
-const root = `repos/${repository}`;
+const root = `https://api.github.com/repos/${repository}`;
 // The hourly recovery sweep is intentionally limited to typical rerun attempts.
 // All attempts, including higher ones, are supported by the exact-run event/manual path.
 const recoveryAttempts = [1, 2, 3, 4] as const;
@@ -45,7 +45,8 @@ export async function createCleanupOperations(options: {
     headers: { accept: "application/vnd.github+json", "x-github-api-version": "2022-11-28" },
     ...(options.fetch ? { fetch: options.fetch } : {}),
     allowRequest: (method, url) =>
-      ["GET", "DELETE"].includes(method) && url.pathname.startsWith(`/${root}/actions/`),
+      ["GET", "DELETE"].includes(method) &&
+      url.pathname.startsWith(`/repos/${repository}/actions/`),
     reserve,
   });
   const list = async (endpoint: string, key: "artifacts" | "jobs") => {

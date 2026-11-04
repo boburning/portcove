@@ -283,3 +283,45 @@ void test("SDK collection refuses escaped pagination, duplicate IDs and missing 
     assert.equal(sends, failure === "duplicate" ? 2 : 1);
   }
 });
+
+void test("production SDK operations reconcile an ambiguous one-shot DELETE with exact readback", async () => {
+  let absent = false;
+  const calls: string[] = [];
+  const api = await createCleanupOperations({
+    token: "synthetic-token",
+    fetch: async (input, init) => {
+      const url = new URL(
+        input instanceof Request ? input.url : input instanceof URL ? input.href : input,
+      );
+      assert.equal(url.origin, "https://api.github.com");
+      const key = `${init?.method} ${url.pathname}`;
+      calls.push(key);
+      let data: unknown,
+        status = 200;
+      if (key === "GET /repos/boburning/portcove/actions/runs/20/artifacts")
+        data = { total_count: 1, artifacts: [artifact] };
+      else if (key === "GET /repos/boburning/portcove/actions/runs/20/attempts/1/jobs")
+        data = { total_count: 3, jobs };
+      else if (key === "GET /repos/boburning/portcove/actions/runs/20") data = run;
+      else if (key === "DELETE /repos/boburning/portcove/actions/artifacts/10") {
+        absent = true;
+        status = 503;
+        data = { message: "ambiguous response" };
+      } else if (key === "GET /repos/boburning/portcove/actions/artifacts/10") {
+        status = absent ? 404 : 200;
+        data = absent ? { message: "Not found" } : artifact;
+      } else assert.fail(`Unexpected SDK operation ${key}`);
+      return new Response(JSON.stringify(data), {
+        status,
+        headers: { "content-type": "application/json" },
+      });
+    },
+  });
+  const result = await cleanup(api, { apply: true, runId: 20 });
+  assert.deepEqual(result.deleted, [10]);
+  assert.equal(calls.filter((key) => key.startsWith("DELETE ")).length, 1);
+  assert.deepEqual(calls.slice(-2), [
+    "DELETE /repos/boburning/portcove/actions/artifacts/10",
+    "GET /repos/boburning/portcove/actions/artifacts/10",
+  ]);
+});
