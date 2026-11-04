@@ -143,22 +143,38 @@ export async function collectPortFacts(options: PortFactsOptions) {
   const deferral = { primary: new Map<string, number>(), secondary: 0 };
   let received = 0;
   const sdk = await createGitHubClient({
-    credential: options.token === undefined ? { kind: "anonymous" } : { kind: "explicit", token: options.token },
-    deadline, wallNow: now, deferral, maxBytes: 2 * 1024 * 1024, requestTimeoutMs: 20000,
+    credential:
+      options.token === undefined
+        ? { kind: "anonymous" }
+        : { kind: "explicit", token: options.token },
+    deadline,
+    wallNow: now,
+    deferral,
+    maxBytes: 2 * 1024 * 1024,
+    requestTimeoutMs: 20000,
     ...(options.fetcher ? { fetch: options.fetcher } : {}),
     headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
     allowRequest: (method, url) => method === "GET" && url.origin === "https://api.github.com",
     reserve: async ({ url }) => {
-      if (budget.usage.requests >= limits.requests || received >= limits.bytes || performance.now() >= deadline)
-        throw new GitHubApiError("budget_exhausted", "Ordinary facts collection allowance exhausted");
+      if (
+        budget.usage.requests >= limits.requests ||
+        received >= limits.bytes ||
+        performance.now() >= deadline
+      )
+        throw new GitHubApiError(
+          "budget_exhausted",
+          "Ordinary facts collection allowance exhausted",
+        );
       await budget.admit(1, 1);
       return {
         consumeBytes(bytes) {
           received += bytes;
-          if (received > limits.bytes) throw new GitHubApiError("budget_exhausted", "Ordinary facts byte allowance exhausted");
+          if (received > limits.bytes)
+            throw new GitHubApiError("budget_exhausted", "Ordinary facts byte allowance exhausted");
         },
         settle(observation) {
-          if (observation.dispatched) budget.charge("GET", url.href, 1, observation.bytes, String(observation.status ?? 0));
+          if (observation.dispatched)
+            budget.charge("GET", url.href, 1, observation.bytes, String(observation.status ?? 0));
         },
       };
     },
@@ -225,17 +241,36 @@ export async function collectPortFacts(options: PortFactsOptions) {
       else if (budget.usage.backoff_until && Date.parse(budget.usage.backoff_until) > now())
         result = unavailable("provider-backoff", budget.usage.backoff_until);
       else {
-        let response: { status: number; headers: Readonly<Record<string, string | number | undefined>>; data?: unknown; error?: true; backoff_until?: string };
+        let response: {
+          status: number;
+          headers: Readonly<Record<string, string | number | undefined>>;
+          data?: unknown;
+          error?: true;
+          backoff_until?: string;
+        };
         try {
-          const result = await sdk.request({ method: "GET", url: url.href,
+          const result = await sdk.request({
+            method: "GET",
+            url: url.href,
             // These bounded, cached observations have always been one-shot.
-            request: { portcove: { replay: "once", attempts: 0 } } });
-          response = { status: result.status, headers: result.headers, data: result.data as unknown };
+            request: { portcove: { replay: "once", attempts: 0 } },
+          });
+          response = {
+            status: result.status,
+            headers: result.headers,
+            data: result.data as unknown,
+          };
         } catch (error) {
           const deferred = Math.max(deferral.secondary, ...deferral.primary.values());
-          const status = error instanceof GitHubApiError ? error.status ?? 0 : 0;
-          response = { status, headers: {}, ...(status >= 400 ? {} : { error: true as const }),
-            ...(deferred > now() && Number.isFinite(new Date(deferred).getTime()) ? { backoff_until: new Date(deferred).toISOString() } : {}) };
+          const status = error instanceof GitHubApiError ? (error.status ?? 0) : 0;
+          response = {
+            status,
+            headers: {},
+            ...(status >= 400 ? {} : { error: true as const }),
+            ...(deferred > now() && Number.isFinite(new Date(deferred).getTime())
+              ? { backoff_until: new Date(deferred).toISOString() }
+              : {}),
+          };
         }
         if (response.backoff_until) {
           budget.retainBackoff(response.backoff_until);
@@ -254,7 +289,8 @@ export async function collectPortFacts(options: PortFactsOptions) {
           );
         else {
           const body: unknown = response.data;
-          if (body === undefined || typeof body === "string") result = unavailable("invalid-provider-json");
+          if (body === undefined || typeof body === "string")
+            result = unavailable("invalid-provider-json");
           else {
             const observed = now();
             const entry: CachedFact = {

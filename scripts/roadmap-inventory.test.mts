@@ -28,7 +28,9 @@ import {
   DiscoverySession,
 } from "./daily-discovery-session.mts";
 async function unusedGitHubRoles() {
-  const sdk = await fixtureGitHub(() => { throw new Error("Unexpected inventory HTTP operation"); });
+  const sdk = await fixtureGitHub(() => {
+    throw new Error("Unexpected inventory HTTP operation");
+  });
   return { project: sdk, repository: sdk };
 }
 const config = validateConfig(
@@ -44,13 +46,25 @@ function fixture(count = 2, bodySize = 32) {
     updatedAt: "2026-10-17T00:00:00Z",
     body: "x".repeat(bodySize),
   }));
-  const unavailable = async () => { throw new Error("Unexpected inventory domain operation"); };
+  const unavailable = async () => {
+    throw new Error("Unexpected inventory domain operation");
+  };
   const client: HostedRoadmapOperations = {
-    config, _completeProjectContext: undefined, _projectContext: undefined,
-    completeProjectContext: unavailable, itemList: unavailable, graphql: unavailable,
-    directProjectItem: unavailable, viewList: unavailable, projectAudit: unavailable,
-    repositoryIssues: unavailable, executionIssue: unavailable,
-    createPortIssue: unavailable, normalizePortIssue: unavailable, repositoryIssue: unavailable, setItemFields: unavailable,
+    config,
+    _completeProjectContext: undefined,
+    _projectContext: undefined,
+    completeProjectContext: unavailable,
+    itemList: unavailable,
+    graphql: unavailable,
+    directProjectItem: unavailable,
+    viewList: unavailable,
+    projectAudit: unavailable,
+    repositoryIssues: unavailable,
+    executionIssue: unavailable,
+    createPortIssue: unavailable,
+    normalizePortIssue: unavailable,
+    repositoryIssue: unavailable,
+    setItemFields: unavailable,
   };
   let bodyReads = 0,
     marker = 0,
@@ -226,7 +240,7 @@ void test("intake membership survives unrelated Project field/view churn without
   const graphql = f.client.graphql.bind(f.client);
   let revisions = 0;
   f.client.graphql = async (query, variables) => {
-    const value = (await graphql(query, variables));
+    const value = await graphql(query, variables);
     if (query.includes("projectRevision"))
       (value as { projectRevision: { updatedAt: string } }).projectRevision.updatedAt =
         `2026-10-29T00:00:${String(++revisions).padStart(2, "0")}Z`;
@@ -341,7 +355,7 @@ void test("intake membership replacement, archive drift, provider holes and targ
         if (change === "redacted") f.project[0]!.content = null;
         if (change === "denied") throw new GitHubApiError("http_error", "Denied", { status: 403 });
       }
-      return (await list(number, options));
+      return await list(number, options);
     };
     f.client.directProjectItem = async (id) => ({
       ...f.project[0]!,
@@ -382,17 +396,19 @@ async function temporarySession(
     assert.ok(path.resolve(state).startsWith(path.resolve(work) + path.sep));
     await rm(state, { recursive: true, force: true });
   });
-  const session = (await DiscoverySession.open(
+  const session = await DiscoverySession.open(
     state,
     run,
     config,
     "fixture-token",
     new Date().toISOString(),
     "fixture-head",
-  ));
-  session.sdk.request = (await fixtureGitHub(() => {
-    throw new Error("Unexpected fixture HTTP request; live network forbidden");
-  })).request;
+  );
+  session.sdk.request = (
+    await fixtureGitHub(() => {
+      throw new Error("Unexpected fixture HTTP request; live network forbidden");
+    })
+  ).request;
   return {
     state,
     run,
@@ -406,7 +422,7 @@ for (const mode of ["local", "hosted"] as const) {
     let revisions = 0,
       keepMoving = false;
     f.client.graphql = async (query, variables) => {
-      const data = (await original(query, variables));
+      const data = await original(query, variables);
       if (query.includes("projectRevision")) {
         revisions++;
         const marker = (data as { projectRevision: { updatedAt: string } }).projectRevision;
@@ -432,13 +448,13 @@ for (const mode of ["local", "hosted"] as const) {
         throw new Error("No research in inventory fixture");
       },
       (_name, value) => retained.push(value),
-      async () => (await session.budget.admit(1, 1)),
+      async () => await session.budget.admit(1, 1),
     );
     const read = async () =>
       mode === "local" ? await session.refresh() : await hosted.inventory(undefined, true);
     const counter = () =>
       mode === "local" ? session.inventoryRecollections : hosted.inventoryRecollections;
-    const result = (await read());
+    const result = await read();
     assert.equal(counter(), 1);
     assert.equal(revisions, 4);
     assert.equal(
@@ -480,7 +496,9 @@ void test("inventory replacement refuses second drift, provider denial, integrit
             admissions++;
             if (kind === "budget") throw new Error("budget exhausted");
           },
-          after: (status) => { statuses.push(status); },
+          after: (status) => {
+            statuses.push(status);
+          },
         }),
     );
     assert.equal(traversals, kind === "second-drift" ? 2 : 1);
@@ -510,7 +528,7 @@ void test("prepared metadata needs no reviewer but stale primary evidence stays 
     bytes: 8,
     url: "https://github.com/example/fixture/blob/main/README.md",
   };
-  const candidate = (await session.propose({
+  const candidate = await session.propose({
     kind: "comment",
     title: "Fixture",
     upstream: "https://github.com/example/fixture",
@@ -518,7 +536,7 @@ void test("prepared metadata needs no reviewer but stale primary evidence stays 
     issue: 1,
     body: "Dated primary observation",
     evidence_ids: ["primary"],
-  }));
+  });
   assert.equal(candidate.status, "prepared");
   assert.equal(candidate.review, undefined);
   let reads = 0;
@@ -526,7 +544,7 @@ void test("prepared metadata needs no reviewer but stale primary evidence stays 
     reads++;
     return { requests: 1, bytes: 7, status: 200, headers: {}, text: "changed" };
   };
-  await assert.rejects((session.apply()), /Primary evidence changed/u);
+  await assert.rejects(session.apply(), /Primary evidence changed/u);
   assert.equal(reads, 1);
   assert.equal(candidate.status, "needs-research");
   assert.equal(candidate.created_comment, undefined);
@@ -534,14 +552,14 @@ void test("prepared metadata needs no reviewer but stale primary evidence stays 
   assert.equal(reads, 1, "stale facts cannot silently retry without new research");
   const resumedRun = path.join(state, "runs", "resumed");
   await mkdir(resumedRun);
-  const resumed = (await DiscoverySession.open(
+  const resumed = await DiscoverySession.open(
     state,
     resumedRun,
     config,
     "fixture-token",
     new Date().toISOString(),
     "fixture-head",
-  ));
+  );
   assert.equal(resumed.journal.candidates[candidate.id]?.status, "needs-research");
 });
 void test("exact-snapshot intake reconciliation preserves owner text and fields, refuses drift and releases recovery reserve without review", async (t) => {
@@ -609,7 +627,7 @@ void test("exact-snapshot intake reconciliation preserves owner text and fields,
     review: { ...candidate.review, body_sha256: observationHash(waitingBody) },
   };
   await session.refresh();
-  (await session.budget.reserveDelivery(180, 1000));
+  await session.budget.reserveDelivery(180, 1000);
   const prepared = await session.reconcile({ candidate_id: "fixture" });
   assert.ok("snapshot_sha256" in prepared);
   const review = {
@@ -620,7 +638,7 @@ void test("exact-snapshot intake reconciliation preserves owner text and fields,
     snapshot_sha256: prepared.snapshot_sha256,
   };
   await assert.rejects(
-    (session.reconcile({ candidate_id: "fixture", review: { ...review, model: "wrong" } })),
+    session.reconcile({ candidate_id: "fixture", review: { ...review, model: "wrong" } }),
     /snapshot binding/,
   );
   const savedIssue = structuredClone(f.rows[0]!);
@@ -651,7 +669,7 @@ void test("exact-snapshot intake reconciliation preserves owner text and fields,
     for (const item of f.project) item.content = { ...f.rows[0]!, body: undefined };
     await session.refresh();
     await assert.rejects(
-      (session.reconcile({ candidate_id: "fixture" })),
+      session.reconcile({ candidate_id: "fixture" }),
       /identity|ambiguous|archive/,
     );
     Object.assign(f.rows[0]!, structuredClone(savedIssue));
@@ -663,7 +681,7 @@ void test("exact-snapshot intake reconciliation preserves owner text and fields,
   f.rows[0]!.updatedAt = "2026-10-24T00:00:00Z";
   f.project[0]!.content = { ...f.rows[0]!, body: undefined };
   await assert.rejects(
-    (session.reconcile({ candidate_id: "fixture", snapshot_sha256: prepared.snapshot_sha256 })),
+    session.reconcile({ candidate_id: "fixture", snapshot_sha256: prepared.snapshot_sha256 }),
     /snapshot changed/,
   );
   assert.equal(candidate.status, "doctor-pending");
@@ -688,14 +706,14 @@ void test("exact-snapshot intake reconciliation preserves owner text and fields,
     ]),
   );
   assert.equal(session.journal.delivery, "pending");
-  const resumed = (await DiscoverySession.open(
+  const resumed = await DiscoverySession.open(
     state,
     run,
     config,
     "fixture-token",
     new Date().toISOString(),
     "fixture-head",
-  ));
+  );
   assert.equal(resumed.journal.candidates.fixture?.status, "delivered");
   assert.deepEqual(await resumed.reconcile({ candidate_id: "fixture" }), {
     reconciled: "fixture",
@@ -710,14 +728,14 @@ void test("exact-snapshot intake reconciliation preserves owner text and fields,
   writeFileSync(path.join(state, "active-run.json"), corrupted);
   await assert.rejects(
     async () =>
-      (await DiscoverySession.open(
+      await DiscoverySession.open(
         state,
         run,
         config,
         "fixture-token",
         new Date().toISOString(),
         "fixture-head",
-      )),
+      ),
     /reconciliation binding/,
   );
 });
@@ -798,22 +816,22 @@ void test("retained intake amendment prepares without review and preserves ident
   } satisfies NonNullable<typeof session.journal.candidates.fixture>);
   session.journal.candidates.other = { ...c, id: "other", created_issue: 43 };
   session.persist();
-  (await assert.rejects(
+  await assert.rejects(
     async () =>
-      (await session.amend({
+      await session.amend({
         candidate_id: c.id,
         expected_body_sha256: "stale",
         body,
         reason: "metadata",
-      })),
+      }),
     /exact retained/,
-  ));
-  (await session.amend({
+  );
+  await session.amend({
     candidate_id: c.id,
     expected_body_sha256: c.body_sha256,
     body,
     reason: "metadata",
-  }));
+  });
   assert.equal(c.created_issue, 42);
   assert.equal(c.status, "prepared");
   assert.equal(c.review, undefined);
@@ -826,14 +844,14 @@ void test("retained intake amendment prepares without review and preserves ident
     })),
   );
   assert.deepEqual(session.budget.reserve, expected);
-  const resumed = (await DiscoverySession.open(
+  const resumed = await DiscoverySession.open(
     state,
     run,
     config,
     "fixture-token",
     new Date().toISOString(),
     "fixture-head",
-  ));
+  );
   assert.equal(resumed.journal.candidates.fixture?.created_issue, 42);
   assert.equal(resumed.journal.candidates.fixture?.status, "prepared");
   assert.equal(resumed.journal.candidates.fixture?.amendment?.status, "prepared");
@@ -867,9 +885,11 @@ void test("a stale unattempted amendment reconciles fresh owner metadata after r
   f.project[0]!.content = { ...f.rows[0]!, body: undefined };
   f.project[0]!.fieldValues = [{ name: "Port", field: { name: "Work type" } }];
   const wire = async (target: DiscoverySession) => {
-    target.sdk.request = (await fixtureGitHub(() => {
-      throw new Error("No public write is permitted in this recovery fixture");
-    })).request;
+    target.sdk.request = (
+      await fixtureGitHub(() => {
+        throw new Error("No public write is permitted in this recovery fixture");
+      })
+    ).request;
     target.client.graphql = f.client.graphql;
     target.client.completeProjectContext = f.client.completeProjectContext;
     target.client.itemList = f.client.itemList;
@@ -890,7 +910,7 @@ void test("a stale unattempted amendment reconciles fresh owner metadata after r
     });
     await target.refresh();
   };
-  (await wire(session));
+  await wire(session);
   const file = path.join(run, "old-primary.json");
   writeFileSync(file, JSON.stringify({ text: "old" }));
   session.journal.evidence.primary = {
@@ -919,34 +939,34 @@ void test("a stale unattempted amendment reconciles fresh owner metadata after r
     "<!-- portcove-port -->",
     "Unpublished amendment based on old primary evidence.\n\n<!-- portcove-port -->",
   );
-  (await session.amend({
+  await session.amend({
     candidate_id: "fixture",
     expected_body_sha256: observationHash(original),
     body: draft,
     reason: "fresh metadata",
-  }));
-  await assert.rejects((session.apply()), /Primary evidence changed/u);
+  });
+  await assert.rejects(session.apply(), /Primary evidence changed/u);
   assert.equal(session.journal.candidates.fixture.status, "needs-research");
   const resumedRun = path.join(state, "runs", "resumed");
   await mkdir(resumedRun);
-  const resumed = (await DiscoverySession.open(
+  const resumed = await DiscoverySession.open(
     state,
     resumedRun,
     config,
     "fixture-token",
     new Date().toISOString(),
     "fixture-head",
-  ));
+  );
   f.rows[0]!.body =
     original + "\n## Dated owner research\nFresh primary findings; research/watch only.";
   f.rows[0]!.updatedAt = "2026-10-28T21:00:00Z";
   f.project[0]!.content = { ...f.rows[0]!, body: undefined };
-  (await wire(resumed));
+  await wire(resumed);
   const before = JSON.stringify([f.rows, f.project]);
   const amendment = resumed.journal.candidates.fixture!.amendment!;
   for (const status of ["attempted", "applied"] as const) {
     amendment.status = status;
-    await assert.rejects((resumed.reconcile({ candidate_id: "fixture" })), /unamended pending/u);
+    await assert.rejects(resumed.reconcile({ candidate_id: "fixture" }), /unamended pending/u);
   }
   amendment.status = "prepared";
   const snapshot = await resumed.reconcile({ candidate_id: "fixture" });
@@ -993,9 +1013,14 @@ void test("interrupted state preserves checkpoint work, matching review and the 
     body,
     state: "open",
   });
-  session.sdk.request = (await fixtureGitHub(() => ({ resources: {
-    core: { remaining: 5000, reset: 4070908800 }, graphql: { remaining: 5000, reset: 4070908800 },
-  } }))).request;
+  session.sdk.request = (
+    await fixtureGitHub(() => ({
+      resources: {
+        core: { remaining: 5000, reset: 4070908800 },
+        graphql: { remaining: 5000, reset: 4070908800 },
+      },
+    }))
+  ).request;
   session.client.viewList = async () => [];
   session.client.projectAudit = async () => ({
     id: "PROJECT",
@@ -1043,18 +1068,18 @@ void test("interrupted state preserves checkpoint work, matching review and the 
   };
   session.checkpoint.checked["42"] = new Date().toISOString();
   session.persist();
-  const resumed = (await DiscoverySession.open(
+  const resumed = await DiscoverySession.open(
     state,
     run,
     config,
     "fixture-token",
     new Date().toISOString(),
     "fixture-head",
-  ));
+  );
   assert.ok(resumed.checkpoint.checked["42"]);
   assert.equal(resumed.journal.candidates.fixture?.created_issue, 42);
   await session.refresh();
-  await assert.rejects((session.apply()), /readback|Project drift/);
+  await assert.rejects(session.apply(), /readback|Project drift/);
   assert.equal(registered, 1);
   assert.equal(session.journal.candidates.fixture?.created_issue, 42);
   assert.equal(session.journal.candidates.fixture?.status, "doctor-pending");
@@ -1070,14 +1095,14 @@ void test("interrupted state preserves checkpoint work, matching review and the 
   writeFileSync(path.join(state, "active-run.json"), JSON.stringify(journal));
   await assert.rejects(
     async () =>
-      (await DiscoverySession.open(
+      await DiscoverySession.open(
         state,
         run,
         config,
         "fixture-token",
         new Date().toISOString(),
         "fixture-head",
-      )),
+      ),
     /binding is invalid/,
   );
 });
@@ -1118,7 +1143,8 @@ void test("unchanged finish preserves final inventory guards and records no plan
   session.client.graphql = f.client.graphql;
   session.client.completeProjectContext = f.client.completeProjectContext;
   session.client.itemList = f.client.itemList;
-  session.client.projectAudit = async () => assert.fail("Unchanged finish must not run full doctor");
+  session.client.projectAudit = async () =>
+    assert.fail("Unchanged finish must not run full doctor");
   session.checkProviderCapacity = async () => {};
   await session.refresh();
   session.journal.collection_done = true;
@@ -1126,7 +1152,7 @@ void test("unchanged finish preserves final inventory guards and records no plan
   const refresh = session.refresh.bind(session);
   session.refresh = async () => {
     refreshes++;
-    return (await refresh());
+    return await refresh();
   };
   const receipt = await session.finish();
   assert.equal(receipt.status, "completed", JSON.stringify(receipt.notes));
@@ -1153,14 +1179,14 @@ void test("charged final recollection fits the scheduled budget and refuses genu
       session.budget.delivery = true;
       session.budget.charge("GET", "prior collection and delivery", priorRequests, 3500000, "200");
       session.client.completeProjectContext = async () => {
-        (await session.budget.admit(2, 2));
+        await session.budget.admit(2, 2);
         session.budget.charge("POST", "fixture project details and fields", 2, 2, "200");
         return await f.client.completeProjectContext();
       };
       session.client.itemList = RoadmapClient.prototype.itemList;
       let traversals = 0;
       session.client.graphql = async (query, vars) => {
-        (await session.budget.admit(1, 1));
+        await session.budget.admit(1, 1);
         let response: Awaited<ReturnType<typeof f.client.graphql>>;
         if (query.includes("items(first:") && !query.includes("projectRevision")) {
           if (vars?.after === null) traversals++;
@@ -1331,10 +1357,19 @@ void test("delivery provider preflight defers before evidence refresh or any mut
     status: "reviewed",
   };
   let probes = 0;
-  session.sdk.request = (await fixtureGitHub(({ method, endpoint }) => {
-    assert.equal(method, "GET"); assert.equal(endpoint, "rate_limit"); probes++;
-    return { resources: { core: { remaining: 5000, reset: 4070908800 }, graphql: { remaining: 0, reset: 4070908800 } } };
-  })).request;
+  session.sdk.request = (
+    await fixtureGitHub(({ method, endpoint }) => {
+      assert.equal(method, "GET");
+      assert.equal(endpoint, "rate_limit");
+      probes++;
+      return {
+        resources: {
+          core: { remaining: 5000, reset: 4070908800 },
+          graphql: { remaining: 0, reset: 4070908800 },
+        },
+      };
+    })
+  ).request;
   session.applyBatch = async () => {
     throw new Error("Delivery batch must not start without provider capacity");
   };
@@ -1353,14 +1388,14 @@ void test("malformed inventory JSON selects cold rebuild and retains the origina
   writeFileSync(file, '{"truncated":');
   assert.equal(readDiscoveryCache(file), undefined);
   assert.equal(readFileSync(file, "utf8"), '{"truncated":');
-  const rebuilt = (await DiscoverySession.open(
+  const rebuilt = await DiscoverySession.open(
     state,
     run,
     config,
     "fixture-token",
     new Date().toISOString(),
     "fixture-head",
-  ));
+  );
   assert.equal(rebuilt.budget.usage.profile, "cold");
   assert.equal(rebuilt.inventoryCache, undefined);
   const saved = readdirSync(run).find((name) => name.startsWith("invalid-inventory-"));
@@ -1386,8 +1421,11 @@ void test("material proposal identity ignores wording and invalid replacements p
     body: "Material facts",
     evidence_ids: ["one"],
   };
-  const first = (await session.propose(input));
-  assert.equal((await session.propose({ ...input, body: "Same facts, different wording" })).id, first.id);
+  const first = await session.propose(input);
+  assert.equal(
+    (await session.propose({ ...input, body: "Same facts, different wording" })).id,
+    first.id,
+  );
   assert.equal(Object.keys(session.journal.candidates).length, 1);
   session.hold({
     candidate_id: first.id,
@@ -1401,13 +1439,16 @@ void test("material proposal identity ignores wording and invalid replacements p
     requests: 1,
     bytes: 1,
   };
-  (await assert.rejects(
-    async () => (await session.propose({ ...input, title: null, evidence_ids: ["two"] })),
+  await assert.rejects(
+    async () => await session.propose({ ...input, title: null, evidence_ids: ["two"] }),
     /Missing discovery message text/,
-  ));
+  );
   assert.equal(session.journal.candidates[first.id]?.status, "held");
   session.budget.usage.requests = session.budget.limits.requests;
-  (await assert.rejects(async () => (await session.propose({ ...input, evidence_ids: ["two"] })), /budget/));
+  await assert.rejects(
+    async () => await session.propose({ ...input, evidence_ids: ["two"] }),
+    /budget/,
+  );
   assert.equal(session.journal.candidates[first.id]?.status, "held");
   assert.equal(Object.keys(session.journal.candidates).length, 1);
 });
@@ -1426,21 +1467,23 @@ void test("quiet rotation preserves its reserved floor and continues beyond hist
     Object.assign(f.project[row.number - 1]!.content!, row, { body: undefined });
   }
   session.inventory = await collectRoadmapInventory(f.client);
-  (await session.budget.reserveDelivery(session.budget.limits.requests, 0));
-  const deferred = (await session.recheck());
+  await session.budget.reserveDelivery(session.budget.limits.requests, 0);
+  const deferred = await session.recheck();
   assert.deepEqual(deferred.checked, []);
   assert.equal(session.quietAttempts, 0);
   assert.equal(session.journal.coverage, "partial");
   assert.ok(session.journal.notes.length);
   session.budget.reserve = { requests: 0, bytes: 0 };
-  session.sdk.request = (await fixtureGitHub(() => ({ id: 1, full_name: "example/fixture", archived: false }))).request;
-  const first = (await session.recheck());
+  session.sdk.request = (
+    await fixtureGitHub(() => ({ id: 1, full_name: "example/fixture", archived: false }))
+  ).request;
+  const first = await session.recheck();
   assert.equal(first.checked.length, 60);
   assert.equal(session.quietAttempts, 60);
   assert.deepEqual((await session.recheck()).checked, []);
   session.deepInvestigations = 12;
   session.budget.usage.requests = session.budget.limits.requests;
-  (await assert.rejects(async () => (await session.research("example/fixture")), /budget/));
+  await assert.rejects(async () => await session.research("example/fixture"), /budget/);
   assert.equal(session.deepInvestigations, 12);
 });
 void test("warm inventory fetches changed bodies only and rejects corrupt cached body hashes", async () => {
@@ -1475,7 +1518,7 @@ void test("one hydration revision change reconciles the whole issue before fresh
       });
       Object.assign(f.project[0]!.content!, f.rows[0], { body: undefined });
     }
-    return (await graphql(query, vars));
+    return await graphql(query, vars);
   };
   const got = await collectRoadmapInventory(f.client, warm);
   assert.equal(got.issues[0]?.title, "New title");
@@ -1502,12 +1545,12 @@ void test("a comment edit during the Project window discards that entire view an
     };
     f.client.itemList = async (number, options) => {
       traversals++;
-      const result = (await items(number, options));
+      const result = await items(number, options);
       if (timing === "items" && !moved) edit();
       return result;
     };
     f.client.graphql = async (query, vars) => {
-      const result = (await graphql(query, vars));
+      const result = await graphql(query, vars);
       if (timing === "project-after" && query.includes("projectRevision") && ++projectMarkers === 2)
         edit();
       if (timing === "hydration" && query.includes("UPDATED_AT") && !moved && traversals === 0) {
@@ -1536,7 +1579,7 @@ void test("same-second semantic changes force fresh bodies and fresh Project met
       Object.assign(f.rows[0]!, { title: "Renamed", state: "CLOSED", body: "new canonical key" });
       Object.assign(f.project[0]!.content!, f.rows[0], { body: undefined });
     }
-    return (await items(number, options));
+    return await items(number, options);
   };
   const got = await collectRoadmapInventory(f.client, previous);
   assert.equal(reads, 2);
@@ -1579,7 +1622,7 @@ void test("foreign issue comment drift is reconciled only once with a fresh whol
     f.client.itemList = async (number, options) => {
       reads++;
       f.project[1]!.content!.updatedAt = foreign.updatedAt;
-      return (await items(number, options));
+      return await items(number, options);
     };
     f.client.graphql = async (query, vars) => {
       if (
@@ -1591,7 +1634,7 @@ void test("foreign issue comment drift is reconciled only once with a fresh whol
           foreign.updatedAt = `2026-10-17T0${hydrations}:00:00Z`;
         return { nodes: [{ __typename: "Issue", ...foreign }] };
       }
-      return (await graphql(query, vars));
+      return await graphql(query, vars);
     };
     if (alwaysMove)
       await assert.rejects(
@@ -1621,7 +1664,7 @@ void test("comment recovery is charged under 200 requests and a failed replaceme
       session.budget.charge("GET", "prior collection", prior, 3500000, "200");
       const retained = readFileSync(path.join(state, "inventory.json"), "utf8");
       session.client.graphql = async (query, vars) => {
-        (await session.budget.admit(1, 1));
+        await session.budget.admit(1, 1);
         const result = await f.client.graphql(query, vars);
         session.budget.charge(
           "POST",
@@ -1636,7 +1679,7 @@ void test("comment recovery is charged under 200 requests and a failed replaceme
       let reads = 0;
       session.client.itemList = async (number, options) => {
         const pages = Math.ceil(f.project.length / 100);
-        (await session.budget.admit(pages, 1));
+        await session.budget.admit(pages, 1);
         const result = await f.client.itemList(number, options);
         session.budget.charge(
           "POST",
@@ -1713,7 +1756,7 @@ void test("stable drafts and merged PRs retain their kind-specific fields throug
       f.client.itemList = async (number, options) => {
         reads++;
         f.project[1]!.content!.updatedAt = foreign.updatedAt;
-        return (await items(number, options));
+        return await items(number, options);
       };
       f.client.graphql = async (query, vars) => {
         if (
@@ -1724,7 +1767,7 @@ void test("stable drafts and merged PRs retain their kind-specific fields throug
           if (++hydrations <= changes) foreign.updatedAt = `2026-10-17T0${hydrations}:00:00Z`;
           return { nodes: [{ __typename: kind, ...foreign }] };
         }
-        return (await graphql(query, vars));
+        return await graphql(query, vars);
       };
       if (changes === 2)
         await assert.rejects(
@@ -1750,7 +1793,7 @@ void test("a second comment change in the replacement Project read refuses the e
   const items = f.client.itemList.bind(f.client);
   let reads = 0;
   f.client.itemList = async (number, options) => {
-    const result = (await items(number, options));
+    const result = await items(number, options);
     f.rows[0]!.updatedAt = `2026-10-17T0${++reads}:00:00Z`;
     f.project[0]!.content!.updatedAt = f.rows[0]!.updatedAt;
     return result;
@@ -1789,7 +1832,7 @@ void test("same-timestamp Project title disagreement cannot reuse an old body or
   let reads = 0;
   f.client.itemList = async (number, options) => {
     reads++;
-    const result = (await items(number, options));
+    const result = await items(number, options);
     result[0]!.content!.title = "unconfirmed Project title";
     return result;
   };
@@ -1806,7 +1849,7 @@ void test("hydration identity mismatch remains fatal and identifies the affected
   f.project[0]!.content!.updatedAt = f.rows[0]!.updatedAt;
   const graphql = f.client.graphql.bind(f.client);
   f.client.graphql = async (query, vars) => {
-    const data = (await graphql(query, vars));
+    const data = await graphql(query, vars);
     if (query.includes("nodes(ids:")) {
       const value = data as { nodes: { url: string }[] };
       value.nodes[0]!.url = "https://github.com/foreign/repo/issues/1";
@@ -1821,7 +1864,7 @@ void test("reconciliation never inherits a changed repository provider identity 
     const graphql = f.client.graphql.bind(f.client);
     let markers = 0;
     f.client.graphql = async (query, vars) => {
-      const data = (await graphql(query, vars));
+      const data = await graphql(query, vars);
       if (query.includes("UPDATED_AT") && ++markers > 1)
         Object.assign((data as { repository: Record<string, unknown> }).repository, replacement);
       return data;
@@ -1894,11 +1937,11 @@ void test("1000 issue, 16 MiB corpus fits cold and warm two-candidate delivery r
   ]);
   const rebuilt = new DiscoveryBudget("cold");
   rebuilt.charge("GET", "fixture cold inventory", coldUsage.requests, coldUsage.bytes, "200");
-  (await rebuilt.reserveDelivery(cost.requests, cost.bytes));
+  await rebuilt.reserveDelivery(cost.requests, cost.bytes);
   assert.ok(rebuilt.remaining().requests >= 20);
   const ordinary = new DiscoveryBudget("ordinary");
   ordinary.charge("GET", "fixture warm inventory", delta.requests, delta.bytes, "200");
-  (await ordinary.reserveDelivery(cost.requests, cost.bytes));
+  await ordinary.reserveDelivery(cost.requests, cost.bytes);
   assert.equal(delta.requests, 29);
   assert.equal(cost.requests, 152);
   assert.equal(ordinary.remaining().requests, 19);
@@ -1923,9 +1966,9 @@ void test("1919-issue cold startup preserves research, delivery and final invent
   budget.charge("POST", "complete cold inventory", usage.requests, usage.bytes, "200");
   budget.charge("GET", "provider, authorities and observer", 11, 512 * 1024, "200");
   const reserve = discoveryDeliveryCost(cold, []);
-  (await budget.reserveDelivery(reserve.requests, reserve.bytes));
+  await budget.reserveDelivery(reserve.requests, reserve.bytes);
   // Collection and the required two upstream investigations must fit before final guards.
-  (await budget.admit(48, 2 * 1024 * 1024));
+  await budget.admit(48, 2 * 1024 * 1024);
   budget.charge("GET", "bounded collection and two investigations", 48, 2 * 1024 * 1024, "200");
   budget.delivery = true;
   const before = f.stats();
@@ -1962,7 +2005,7 @@ void test("1919-issue cold startup preserves research, delivery and final invent
   );
   // New intake still needs its complete batch reserve; larger batches are not exempt.
   budget.delivery = false;
-  (await assert.rejects(async () => (await budget.reserveDelivery(300, 0)), /budget cannot admit/));
+  await assert.rejects(async () => await budget.reserveDelivery(300, 0), /budget cannot admit/);
 });
 
 void test("cold count-drift recollection fits the current corpus budget and a second drift preserves the cache", async (t) => {
@@ -1977,14 +2020,14 @@ void test("cold count-drift recollection fits the current corpus budget and a se
       assert.equal(session.budget.usage.profile, "cold");
       const retained = readFileSync(path.join(state, "inventory.json"), "utf8");
       session.client.completeProjectContext = async () => {
-        (await session.budget.admit(2, 2));
+        await session.budget.admit(2, 2);
         session.budget.charge("POST", "fixture details and fields", 2, 2, "200");
         return await f.client.completeProjectContext();
       };
       session.client.itemList = RoadmapClient.prototype.itemList;
       let traversals = 0;
       session.client.graphql = async (query, vars) => {
-        (await session.budget.admit(1, 1));
+        await session.budget.admit(1, 1);
         let response: Awaited<ReturnType<typeof f.client.graphql>>;
         if (query.includes("items(first:") && !query.includes("projectRevision")) {
           if (vars?.after === null) traversals++;
@@ -2032,8 +2075,8 @@ void test("cold count-drift recollection fits the current corpus budget and a se
         requireRoadmapInventory(session.inventory, config.repository, session.client);
         session.budget.charge("GET", "provider, authority and observer", 11, 512 * 1024, "200");
         const reserve = discoveryDeliveryCost(session.inventory, []);
-        (await session.budget.reserveDelivery(reserve.requests, reserve.bytes));
-        (await session.budget.admit(32, 1024 * 1024));
+        await session.budget.reserveDelivery(reserve.requests, reserve.bytes);
+        await session.budget.admit(32, 1024 * 1024);
         assert.match(JSON.stringify(session.journal.notes), /"status":"complete"/);
       }
       assert.equal(traversals, 2);
@@ -2053,7 +2096,7 @@ void test("intake confirms exact semantics through comment-only Project-window a
   f.client.itemList = async (number, options) => {
     f.rows[0]!.updatedAt = `2026-10-17T00:00:0${++reads}Z`;
     f.project[0]!.content!.updatedAt = f.rows[0]!.updatedAt;
-    return (await list(number, options));
+    return await list(number, options);
   };
   const got = await collectRoadmapInventory(f.client, undefined, {
     scope: "intake",
@@ -2077,7 +2120,7 @@ void test("intake delta refuses every changed semantic field, including equal-se
           else f.rows[0]![field] = field === "state" ? "CLOSED" : "changed";
           Object.assign(f.project[0]!.content!, f.rows[0], { body: undefined });
         }
-        return (await list(n, o));
+        return await list(n, o);
       };
       await assert.rejects(
         async () =>
@@ -2109,7 +2152,7 @@ void test("intake delta independently validates complete filtered pagination and
         graphql = f.client.graphql.bind(f.client);
       let pages = 0;
       f.client.graphql = async (q, v) => {
-        const raw = (await graphql(q, v));
+        const raw = await graphql(q, v);
         if (!q.includes("IntakeIssueUpdates")) return raw;
         const data = raw as {
           repository: {
@@ -2186,7 +2229,7 @@ void test("fresh target fields accept proven comment-only movement and still rej
         });
       if (change === "body") await assert.rejects(read, /target changed/u);
       else {
-        const got = (await read());
+        const got = await read();
         assert.equal(got.items[0]!.content!.updatedAt, f.rows[0]!.updatedAt);
         assert.equal(
           requireRoadmapInventory(got, config.repository, f.client, { planningIssue: 1 }),

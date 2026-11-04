@@ -31,7 +31,11 @@ export const discoveryBootstrapModules = Object.freeze([
 ]);
 
 export const discoveryDependencyInputs = Object.freeze([
-  "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", "apps/desktop/package.json", ".node-version",
+  "package.json",
+  "pnpm-lock.yaml",
+  "pnpm-workspace.yaml",
+  "apps/desktop/package.json",
+  ".node-version",
 ]);
 
 /** This runs after source refresh and before importing the SDK/session or
@@ -41,23 +45,80 @@ export async function prepareDiscoveryDependencies() {
   const { runResourceCommand, bootstrapOutputResources } = await import("./resource-command.mts");
   const environment: NodeJS.ProcessEnv = {};
   for (const [key, value] of Object.entries(process.env))
-    if (["PATH", "HOME", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "SYSTEMROOT", "WINDIR", "COMSPEC", "PATHEXT", "TMP", "TEMP", "TMPDIR", "XDG_CACHE_HOME", "XDG_CONFIG_HOME", "XDG_DATA_HOME", "PNPM_HOME", "CI", "GITHUB_ACTIONS"].includes(key.toUpperCase()) ||
-        /^PORTCOVE_(?:RESOURCE_|HOST_CAPACITY|CONTAINER_GUEST|TOOL_CACHE|DEV_STORAGE)/u.test(key))
+    if (
+      [
+        "PATH",
+        "HOME",
+        "USERPROFILE",
+        "APPDATA",
+        "LOCALAPPDATA",
+        "SYSTEMROOT",
+        "WINDIR",
+        "COMSPEC",
+        "PATHEXT",
+        "TMP",
+        "TEMP",
+        "TMPDIR",
+        "XDG_CACHE_HOME",
+        "XDG_CONFIG_HOME",
+        "XDG_DATA_HOME",
+        "PNPM_HOME",
+        "CI",
+        "GITHUB_ACTIONS",
+      ].includes(key.toUpperCase()) ||
+      /^PORTCOVE_(?:RESOURCE_|HOST_CAPACITY|CONTAINER_GUEST|TOOL_CACHE|DEV_STORAGE)/u.test(key)
+    )
       environment[key] = value;
   const manifest: unknown = JSON.parse(await readFile(path.join(root, "package.json"), "utf8"));
-  if (!manifest || typeof manifest !== "object" || !("packageManager" in manifest) ||
-      typeof manifest.packageManager !== "string" || !/^pnpm@\d+\.\d+\.\d+$/u.test(manifest.packageManager))
+  if (
+    !manifest ||
+    typeof manifest !== "object" ||
+    !("packageManager" in manifest) ||
+    typeof manifest.packageManager !== "string" ||
+    !/^pnpm@\d+\.\d+\.\d+$/u.test(manifest.packageManager)
+  )
     throw new Error("Discovery requires the repository-pinned package manager");
   const node = (await readFile(path.join(root, ".node-version"), "utf8")).trim();
-  if (process.version !== `v${node}`) throw new Error("Discovery requires the repository-pinned Node runtime");
-  const version = spawnCommand("pnpm", ["--version"], { cwd: root, env: environment, encoding: "utf8", timeout: 15000, maxBuffer: 65536, windowsHide: true });
-  if (version.error || version.status !== 0 || version.stdout.trim() !== manifest.packageManager.slice(5))
+  if (process.version !== `v${node}`)
+    throw new Error("Discovery requires the repository-pinned Node runtime");
+  const version = spawnCommand("pnpm", ["--version"], {
+    cwd: root,
+    env: environment,
+    encoding: "utf8",
+    timeout: 15000,
+    maxBuffer: 65536,
+    windowsHide: true,
+  });
+  if (
+    version.error ||
+    version.status !== 0 ||
+    version.stdout.trim() !== manifest.packageManager.slice(5)
+  )
     throw new Error(`Provide ${manifest.packageManager} before discovery dependency preparation`);
-  const status = await runResourceCommand("analysis", process.execPath, [
-    path.join(root, "scripts/dev-storage.mts"), "run", "--scope", "tooling", "--", "pnpm", "install",
-    "--frozen-lockfile", "--ignore-scripts", "--ignore-pnpmfile",
-  ], { environment, cwd: root, exclusive: bootstrapOutputResources(environment), executionTimeoutMilliseconds: 600000 });
-  if (status !== 0) throw new Error("Discovery dependency installation failed before credential resolution");
+  const status = await runResourceCommand(
+    "analysis",
+    process.execPath,
+    [
+      path.join(root, "scripts/dev-storage.mts"),
+      "run",
+      "--scope",
+      "tooling",
+      "--",
+      "pnpm",
+      "install",
+      "--frozen-lockfile",
+      "--ignore-scripts",
+      "--ignore-pnpmfile",
+    ],
+    {
+      environment,
+      cwd: root,
+      exclusive: bootstrapOutputResources(environment),
+      executionTimeoutMilliseconds: 600000,
+    },
+  );
+  if (status !== 0)
+    throw new Error("Discovery dependency installation failed before credential resolution");
 }
 
 export function fetchDiscoveryMetadata(runGit: (args: string[]) => string) {
@@ -144,7 +205,10 @@ export async function dailyDiscoveryMain(args: string[]) {
           "Discovery requires a dedicated linked metadata checkout; preserve the primary checkout",
         );
       const loaded = await Promise.all(
-        [...discoveryBootstrapModules.map(name => `scripts/${name}`), ...discoveryDependencyInputs].map(
+        [
+          ...discoveryBootstrapModules.map((name) => `scripts/${name}`),
+          ...discoveryDependencyInputs,
+        ].map(
           async (name) =>
             [
               name,
@@ -161,15 +225,22 @@ export async function dailyDiscoveryMain(args: string[]) {
       git(["checkout", "--detach", head]);
       const verifyLoaded = async () => {
         for (const [name, hash] of loaded)
-          if (createHash("sha256").update(await readFile(path.join(root, name))).digest("hex") !== hash)
-            throw new Error(name.startsWith("scripts/")
-              ? "Loaded bootstrap updated; restart with current main before investigation"
-              : "Loaded dependency inputs updated; restart with current main before investigation");
+          if (
+            createHash("sha256")
+              .update(await readFile(path.join(root, name)))
+              .digest("hex") !== hash
+          )
+            throw new Error(
+              name.startsWith("scripts/")
+                ? "Loaded bootstrap updated; restart with current main before investigation"
+                : "Loaded dependency inputs updated; restart with current main before investigation",
+            );
       };
       await verifyLoaded();
       await prepareDiscoveryDependencies();
       await verifyLoaded();
-      if (git(["rev-parse", "HEAD"]) !== head) throw new Error("Discovery source changed during dependency preparation");
+      if (git(["rev-parse", "HEAD"]) !== head)
+        throw new Error("Discovery source changed during dependency preparation");
       const { runDiscoverySession } = await import("./daily-discovery-session.mts");
       await runDiscoverySession(state, root, head, startedAt);
     });

@@ -272,14 +272,16 @@ void test("exact older consumption reference is bound to configured repository, 
         }),
       /does not match/,
     );
-  (await assert.rejects(
+  await assert.rejects(
     async () =>
-      (await (await sdkRoadmap(config, {})).coordinationComment(
+      await (
+        await sdkRoadmap(config, {})
+      ).coordinationComment(
         "https://github.com/other/repo/issues/793#issuecomment-1",
         coordinationTarget(config, 1104),
-      )),
+      ),
     /this repository/,
-  ));
+  );
 });
 
 void test("structured queue preserves Planned recommendations without inferring a grant or execution route", () => {
@@ -404,7 +406,10 @@ void test("selected issue and explicit PR history routes bind work/repository", 
     `https://github.com/${config.repository}/issues/11040`,
   ]) {
     node = { ...node, body };
-    (await assert.rejects(async () => (await client.coordinationBinding(target)), /does not reference/));
+    await assert.rejects(
+      async () => await client.coordinationBinding(target),
+      /does not reference/,
+    );
   }
   for (const suffix of ["", ")", "#issuecomment-1", "?query=value"]) {
     node = {
@@ -414,7 +419,7 @@ void test("selected issue and explicit PR history routes bind work/repository", 
     assert.equal((await client.coordinationBinding(target)).number, 1543);
   }
   node = { ...node, body: "Refs #1104", html_url: "https://github.com/other/repo/pull/1543" };
-  (await assert.rejects(async () => (await client.coordinationBinding(target)), /identity/));
+  await assert.rejects(async () => await client.coordinationBinding(target), /identity/);
   assert.throws(() => coordinationTarget(config, 793), /read-only/);
   assert.throws(() => coordinationTarget(config, 1104, 793), /read-only/);
 });
@@ -428,12 +433,14 @@ void test("exact legacy refs are read-only comparison; other work refs and ident
     issue_url: `https://api.github.com/repos/${config.repository}/issues/793`,
     body: acknowledgment().body,
   };
-  const client = await sdkRoadmap(config, { rest: ({ method, endpoint }) => {
-    requests.push([method, endpoint]);
-    return original;
-  } });
+  const client = await sdkRoadmap(config, {
+    rest: ({ method, endpoint }) => {
+      requests.push([method, endpoint]);
+      return original;
+    },
+  });
   assert.equal(
-    consumedReference((await client.coordinationComment(url, target)), {
+    consumedReference(await client.coordinationComment(url, target), {
       repository: config.repository,
       runner: "Local",
       issue: 1104,
@@ -441,28 +448,28 @@ void test("exact legacy refs are read-only comparison; other work refs and ident
     1104,
   );
   assert.deepEqual(requests, [["GET", `repos/${config.repository}/issues/comments/1`]]);
-  (await assert.rejects(
+  await assert.rejects(
     async () =>
-      (await client.coordinationComment(
+      await client.coordinationComment(
         `https://github.com/${config.repository}/issues/209#issuecomment-1`,
         target,
-      )),
+      ),
     /selected issue/,
-  ));
-  (await assert.rejects(
+  );
+  await assert.rejects(
     async () =>
-      consumedReference((await client.coordinationComment(url, target)), {
+      consumedReference(await client.coordinationComment(url, target), {
         repository: config.repository,
         runner: "Other",
         issue: 1104,
       }),
     /does not match/,
-  ));
+  );
   original = {
     ...original,
     issue_url: `https://api.github.com/repos/${config.repository}/issues/1104`,
   };
-  (await assert.rejects(async () => (await client.coordinationComment(url, target)), /identity/));
+  await assert.rejects(async () => await client.coordinationComment(url, target), /identity/);
   const substituted = acknowledgmentComment(
     pickupContext(pickupIssue(), pickupRelations(), {
       target: coordinationTarget(config, 1104, 1543),

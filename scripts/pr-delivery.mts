@@ -1,4 +1,12 @@
-import { fields, pullMetadata, checkMetadata, statusMetadata, assertWorkflow, assertJob, requiredContextsFromConfigs } from "./pr-delivery-snapshot.mts";
+import {
+  fields,
+  pullMetadata,
+  checkMetadata,
+  statusMetadata,
+  assertWorkflow,
+  assertJob,
+  requiredContextsFromConfigs,
+} from "./pr-delivery-snapshot.mts";
 export { requiredContextsFromConfigs } from "./pr-delivery-snapshot.mts";
 import { isRecord, errorMessage } from "./runtime-values.mts";
 import { readFile, open, lstat } from "node:fs/promises";
@@ -33,6 +41,7 @@ import type { Octokit } from "@octokit/core";
 import { localDeveloperCredential } from "./github-cli.mts";
 import type { RenovatePull, RenovateBaseEvidence } from "./renovate-fast-lane.mts";
 import {
+  GitHubApiError,
   githubOperationEnvelope,
   sanitizeOperationError,
 } from "./github-operation.mts";
@@ -162,11 +171,17 @@ export interface DeliveryQueueSnapshot {
 export interface DeliveryQueueClient {
   branch(name: string): Promise<{ commit: { sha: string } }>;
   openRenovatePulls(): Promise<{ number: number; head?: unknown }[]>;
-  renovateSnapshot(number: number, head: string, contexts: string[]): Promise<DeliveryQueueSnapshot>;
+  renovateSnapshot(
+    number: number,
+    head: string,
+    contexts: string[],
+  ): Promise<DeliveryQueueSnapshot>;
   sourceWorkflowRuns(
     head: string,
-  ): Promise<(Pick<DeliveryWorkflow, "id" | "run_attempt" | "status"> &
-    Partial<Pick<DeliveryWorkflow, "name" | "conclusion" | "run_started_at" | "html_url">>)[]>;
+  ): Promise<
+    (Pick<DeliveryWorkflow, "id" | "run_attempt" | "status"> &
+      Partial<Pick<DeliveryWorkflow, "name" | "conclusion" | "run_started_at" | "html_url">>)[]
+  >;
 }
 
 export interface WatchContext {
@@ -304,84 +319,123 @@ export function parsePullRequestReference(value: string | number) {
 
 export class PullRequestDeliveryClient {
   private observationDeadline = Infinity;
-  beginObservation() { this.observationDeadline = (this.scope.now ?? performance.now.bind(performance))() + 60000; }
+  beginObservation() {
+    this.observationDeadline = (this.scope.now ?? performance.now.bind(performance))() + 60000;
+  }
   private sdk: Octokit;
   private scope: GitHubClientOptions;
-  constructor(sdk: Octokit, scope: GitHubClientOptions) { this.sdk = sdk; this.scope = scope; }
+  constructor(sdk: Octokit, scope: GitHubClientOptions) {
+    this.sdk = sdk;
+    this.scope = scope;
+  }
 
-  static async connect(options: Partial<GitHubClientOptions> = {}) {
+  static async connect(options: Partial<GitHubClientOptions> = {}, observationRequired = false) {
     const deadline = options.deadline ?? performance.now() + 30 * 60000;
     let bytes = 0;
     const scope: GitHubClientOptions = {
-      credential: options.credential ?? localDeveloperCredential({ deadline }), deadline, requestTimeoutMs: 15000,
+      credential: options.credential ?? localDeveloperCredential({ deadline }),
+      deadline,
+      requestTimeoutMs: 15000,
       headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
-      reserve: () => ({ consumeBytes(received) {
-        bytes += received;
-        if (bytes > 64 * 1024 * 1024) throw new Error("Delivery metadata allowance exhausted");
-      }, settle() {} }),
+      reserve: () => ({
+        consumeBytes(received) {
+          bytes += received;
+          if (bytes > 64 * 1024 * 1024)
+            throw new GitHubApiError("budget_exhausted", "Delivery metadata allowance exhausted");
+        },
+        settle() {},
+      }),
       ...options,
       allowRequest: (method, url) =>
-        (method === "POST" && url.pathname === "/graphql" ||
-          (method === "GET" && url.pathname.startsWith(`/repos/${repository}/`) || method === "PUT" && new RegExp(`^/repos/${repository}/pulls/[1-9][0-9]*/merge$`, "u").test(url.pathname))) &&
+        ((method === "POST" && url.pathname === "/graphql") ||
+          (method === "GET" && url.pathname.startsWith(`/repos/${repository}/`)) ||
+          (method === "PUT" &&
+            new RegExp(`^/repos/${repository}/pulls/[1-9][0-9]*/merge$`, "u").test(
+              url.pathname,
+            ))) &&
         options.allowRequest?.(method, url) !== false,
     };
     const sdk = await createGitHubClient(scope);
-    return new PullRequestDeliveryClient(sdk, scope);
+    const client = new PullRequestDeliveryClient(sdk, scope);
+    if (observationRequired) client.observationDeadline = 0;
+    return client;
   }
 
   private async request(method: "GET" | "PUT", endpoint: string, data?: unknown) {
-    return await this.sdk.request({ method, url: `https://api.github.com/${endpoint}`,
+    return await this.sdk.request({
+      method,
+      url: `https://api.github.com/${endpoint}`,
       ...(data === undefined ? {} : { data }),
-      request: { portcove: { replay: method === "GET" ? "safe-read" : "once", attempts: 0,
-        deadline: Math.min(this.scope.deadline, this.observationDeadline) } },
+      request: {
+        portcove: {
+          replay: method === "GET" ? "safe-read" : "once",
+          attempts: 0,
+          deadline: Math.min(this.scope.deadline, this.observationDeadline),
+        },
+      },
     });
   }
 
   /** Delivery inventories retain stable totals and unique provider identities. */
   private async collect(endpoint: string, identityKey: string, collectionKey?: string) {
-    const records: unknown[] = [], identities = new Set<string | number>();
+    const records: unknown[] = [],
+      identities = new Set<string | number>();
     let expected: number | undefined;
     for await (const response of iterateGitHubPages(this.sdk, {
-      url: `https://api.github.com/${endpoint}`, deadline: Math.min(this.scope.deadline, this.observationDeadline),
+      url: `https://api.github.com/${endpoint}`,
+      deadline: Math.min(this.scope.deadline, this.observationDeadline),
     })) {
       const body: unknown = response.data;
       const values: unknown = collectionKey && isRecord(body) ? body[collectionKey] : body;
       if (!Array.isArray(values)) throw new Error("Delivery collection response is incomplete");
       if (collectionKey) {
         const count = isRecord(body) ? body.total_count : undefined;
-        if (typeof count !== "number" || !Number.isSafeInteger(count) || count < 0) throw new Error(`${collectionKey} total is invalid`);
+        if (typeof count !== "number" || !Number.isSafeInteger(count) || count < 0)
+          throw new Error(`${collectionKey} total is invalid`);
         expected ??= count;
         if (count !== expected) throw new Error(`${collectionKey} total changed during pagination`);
       }
       for (const value of values as readonly unknown[]) {
         const id = isRecord(value) ? value[identityKey] : null;
-        if ((typeof id !== "string" && typeof id !== "number") || !id || (typeof id === "number" && (!Number.isSafeInteger(id) || id < 1)) || identities.has(id))
+        if (
+          (typeof id !== "string" && typeof id !== "number") ||
+          !id ||
+          (typeof id === "number" && (!Number.isSafeInteger(id) || id < 1)) ||
+          identities.has(id)
+        )
           throw new Error("Delivery collection contains a missing or duplicate ID");
-        identities.add(id); records.push(value);
+        identities.add(id);
+        records.push(value);
       }
-      if (expected !== undefined && records.length > expected) throw new Error("Delivery count exceeds reported total");
+      if (expected !== undefined && records.length > expected)
+        throw new Error("Delivery count exceeds reported total");
     }
-    if (expected !== undefined && records.length !== expected) throw new Error("Delivery count does not match reported total");
+    if (expected !== undefined && records.length !== expected)
+      throw new Error("Delivery count does not match reported total");
     return records;
   }
 
   async openRenovatePulls() {
-    return (await this.collect(`repos/${repository}/pulls?state=open&per_page=100`, "number"))
-      .flatMap((pull) => {
-        if (
-          !isRecord(pull) ||
-          !isRecord(pull.user) ||
-          typeof pull.user.login !== "string" ||
-          !["renovate[bot]", "app/renovate"].includes(pull.user.login)
-        )
-          return [];
-        if (typeof pull.number !== "number") throw new Error("Pull request number is unavailable");
-        return [{ ...pull, number: pull.number }];
-      });
+    return (
+      await this.collect(`repos/${repository}/pulls?state=open&per_page=100`, "number")
+    ).flatMap((pull) => {
+      if (
+        !isRecord(pull) ||
+        !isRecord(pull.user) ||
+        typeof pull.user.login !== "string" ||
+        !["renovate[bot]", "app/renovate"].includes(pull.user.login)
+      )
+        return [];
+      if (typeof pull.number !== "number") throw new Error("Pull request number is unavailable");
+      return [{ ...pull, number: pull.number }];
+    });
   }
 
   async pull(number: number) {
-    return pullMetadata((await this.request("GET", `repos/${repository}/pulls/${number}`)).data, number);
+    return pullMetadata(
+      (await this.request("GET", `repos/${repository}/pulls/${number}`)).data,
+      number,
+    );
   }
 
   private async paginatedConnection(endpoint: string, key: string) {
@@ -389,67 +443,75 @@ export class PullRequestDeliveryClient {
   }
 
   async checkRuns(sha: string) {
-    return (await this.paginatedConnection(
-      `repos/${repository}/commits/${sha}/check-runs?filter=all&per_page=100`,
-      "check_runs",
-    )).map(checkMetadata);
+    return (
+      await this.paginatedConnection(
+        `repos/${repository}/commits/${sha}/check-runs?filter=all&per_page=100`,
+        "check_runs",
+      )
+    ).map(checkMetadata);
   }
 
   async commitStatuses(sha: string) {
-    return (await this.paginatedConnection(
-      `repos/${repository}/commits/${sha}/status?per_page=100`,
-      "statuses",
-    )).map(statusMetadata);
+    return (
+      await this.paginatedConnection(
+        `repos/${repository}/commits/${sha}/status?per_page=100`,
+        "statuses",
+      )
+    ).map(statusMetadata);
   }
 
   async pullFiles(number: number) {
-    return (await this.collect(`repos/${repository}/pulls/${number}/files?per_page=100`, "filename"))
-      .map((file) => {
-        if (!isRecord(file) || typeof file.filename !== "string")
-          throw new Error("Pull request file identity is invalid");
-        const result: { filename: string; status?: string } = { ...file, filename: file.filename };
-        if (file.status !== undefined) {
-          if (typeof file.status !== "string")
-            throw new Error("Pull request file status is invalid");
-          result.status = file.status;
-        }
-        return result;
-      });
+    return (
+      await this.collect(`repos/${repository}/pulls/${number}/files?per_page=100`, "filename")
+    ).map((file) => {
+      if (!isRecord(file) || typeof file.filename !== "string")
+        throw new Error("Pull request file identity is invalid");
+      const result: { filename: string; status?: string } = { ...file, filename: file.filename };
+      if (file.status !== undefined) {
+        if (typeof file.status !== "string") throw new Error("Pull request file status is invalid");
+        result.status = file.status;
+      }
+      return result;
+    });
   }
 
   async pullCommits(number: number) {
-    return (await this.collect(`repos/${repository}/pulls/${number}/commits?per_page=100`, "sha"))
-      .map((commit) => {
-        if (!isRecord(commit) || typeof commit.sha !== "string" || !/^[0-9a-f]{40}$/u.test(commit.sha))
-          throw new Error("Pull request commit identity is invalid");
-        fields(commit, {});
-        if (commit.author !== undefined && commit.author !== null)
-          fields(commit.author, { login: "string" });
-        if (commit.commit !== undefined) fields(commit.commit, { message: "string" });
-        const result: {
-          sha: string;
-          author?: { login?: string } | null;
-          commit?: { message?: string };
-        } = { ...commit, sha: commit.sha };
-        if (isRecord(commit.author))
-          result.author =
-            typeof commit.author.login === "string"
-              ? { ...commit.author, login: commit.author.login }
-              : { ...commit.author };
-        if (isRecord(commit.commit))
-          result.commit =
-            typeof commit.commit.message === "string"
-              ? { ...commit.commit, message: commit.commit.message }
-              : { ...commit.commit };
-        return result;
-      });
+    return (
+      await this.collect(`repos/${repository}/pulls/${number}/commits?per_page=100`, "sha")
+    ).map((commit) => {
+      if (
+        !isRecord(commit) ||
+        typeof commit.sha !== "string" ||
+        !/^[0-9a-f]{40}$/u.test(commit.sha)
+      )
+        throw new Error("Pull request commit identity is invalid");
+      fields(commit, {});
+      if (commit.author !== undefined && commit.author !== null)
+        fields(commit.author, { login: "string" });
+      if (commit.commit !== undefined) fields(commit.commit, { message: "string" });
+      const result: {
+        sha: string;
+        author?: { login?: string } | null;
+        commit?: { message?: string };
+      } = { ...commit, sha: commit.sha };
+      if (isRecord(commit.author))
+        result.author =
+          typeof commit.author.login === "string"
+            ? { ...commit.author, login: commit.author.login }
+            : { ...commit.author };
+      if (isRecord(commit.commit))
+        result.commit =
+          typeof commit.commit.message === "string"
+            ? { ...commit.commit, message: commit.commit.message }
+            : { ...commit.commit };
+      return result;
+    });
   }
 
   async branch(name: string) {
-    const body: unknown = (await this.request(
-      "GET",
-      `repos/${repository}/branches/${encodeURIComponent(name)}`,
-    )).data;
+    const body: unknown = (
+      await this.request("GET", `repos/${repository}/branches/${encodeURIComponent(name)}`)
+    ).data;
     if (
       !isRecord(body) ||
       !isRecord(body.commit) ||
@@ -461,7 +523,8 @@ export class PullRequestDeliveryClient {
   }
 
   async workflowRun(id: number) {
-    const body: unknown = (await this.request("GET", `repos/${repository}/actions/runs/${id}`)).data;
+    const body: unknown = (await this.request("GET", `repos/${repository}/actions/runs/${id}`))
+      .data;
     if (
       !isRecord(body) ||
       body.id !== id ||
@@ -475,10 +538,12 @@ export class PullRequestDeliveryClient {
   }
 
   async sourceWorkflowRuns(sha: string) {
-    const runs = (await this.paginatedConnection(
-      `repos/${repository}/actions/runs?head_sha=${sha}&per_page=100`,
-      "workflow_runs",
-    )).map((run) => {
+    const runs = (
+      await this.paginatedConnection(
+        `repos/${repository}/actions/runs?head_sha=${sha}&per_page=100`,
+        "workflow_runs",
+      )
+    ).map((run) => {
       assertWorkflow(run);
       return run;
     });
@@ -488,10 +553,12 @@ export class PullRequestDeliveryClient {
   }
 
   async workflowJobs(run: number, _attempt: number) {
-    return (await this.paginatedConnection(
-      `repos/${repository}/actions/runs/${run}/jobs?filter=all&per_page=100`,
-      "jobs",
-    )).map((job) => {
+    return (
+      await this.paginatedConnection(
+        `repos/${repository}/actions/runs/${run}/jobs?filter=all&per_page=100`,
+        "jobs",
+      )
+    ).map((job) => {
       assertJob(job);
       return job;
     });
@@ -503,13 +570,13 @@ export class PullRequestDeliveryClient {
     requiredContexts: string[],
     binding?: { run: number; attempt: number },
   ) {
-    const pull = (await this.pull(number));
+    const pull = await this.pull(number);
     if (pull.head.sha !== head)
       throw new Error(`pull request #${number} head changed: ${pull.head.sha} != ${head}`);
-    const jobs = binding ? (await this.workflowJobs(binding.run, binding.attempt)) : undefined;
+    const jobs = binding ? await this.workflowJobs(binding.run, binding.attempt) : undefined;
     const contexts = requiredCheckContexts(
-      (await this.checkRuns(head)),
-      (await this.commitStatuses(head)),
+      await this.checkRuns(head),
+      await this.commitStatuses(head),
       requiredContexts,
       binding && jobs ? { head, ...binding, jobs } : undefined,
     );
@@ -517,11 +584,11 @@ export class PullRequestDeliveryClient {
   }
 
   async renovateSnapshot(number: number, head: string, requiredContexts: string[]) {
-    const pull = (await this.pull(number));
-    const checkRuns = (await this.checkRuns(head));
-    const statuses = (await this.commitStatuses(head));
-    const commits = (await this.pullCommits(number));
-    const files = (await this.pullFiles(number));
+    const pull = await this.pull(number);
+    const checkRuns = await this.checkRuns(head);
+    const statuses = await this.commitStatuses(head);
+    const commits = await this.pullCommits(number);
+    const files = await this.pullFiles(number);
     if (!Number.isSafeInteger(pull.commits) || commits.length !== pull.commits)
       throw new Error(
         `pull request commit inventory is incomplete: expected ${pull.commits ?? "unknown"}, observed ${commits.length}`,
@@ -537,7 +604,7 @@ export class PullRequestDeliveryClient {
       checkRuns,
       statuses,
       contexts: requiredCheckContexts(checkRuns, statuses, requiredContexts),
-      target: (await this.branch(pull.base.ref ?? "")),
+      target: await this.branch(pull.base.ref ?? ""),
     };
   }
 
@@ -548,11 +615,11 @@ export class PullRequestDeliveryClient {
     closureIntent?: unknown,
     mergeMessage?: unknown,
   ) {
-    const state = (await this.requiredCheckState(number, head, requiredContexts));
+    const state = await this.requiredCheckState(number, head, requiredContexts);
     validateMergeReadiness(number, head, state.pull, state.contexts);
     const message = validateMergeMessage(mergeMessage);
     const closing = await readClosingRelationships(this.sdk, repository, number);
-    const commits = (await this.pullCommits(number));
+    const commits = await this.pullCommits(number);
     validateMergeCandidate({
       number,
       head,
@@ -571,18 +638,20 @@ export class PullRequestDeliveryClient {
     let result: unknown = null;
     let requestError: unknown = null;
     try {
-      result = (await this.request("PUT", `repos/${repository}/pulls/${number}/merge`, {
-        merge_method: "squash",
-        sha: head,
-        commit_title: message.title,
-        commit_message: message.body,
-      })).data;
+      result = (
+        await this.request("PUT", `repos/${repository}/pulls/${number}/merge`, {
+          merge_method: "squash",
+          sha: head,
+          commit_title: message.title,
+          commit_message: message.body,
+        })
+      ).data;
     } catch (error) {
       requestError = error;
     }
     let readback;
     try {
-      readback = (await this.pull(number));
+      readback = await this.pull(number);
     } catch (error) {
       throw deliveryOutcomeError(
         "unknown",
@@ -645,10 +714,9 @@ export class PullRequestDeliveryClient {
       closing: null,
     };
     try {
-      const actual: unknown = (await this.request(
-        "GET",
-        `repos/${repository}/git/commits/${readback.merge_commit_sha}`,
-      )).data;
+      const actual: unknown = (
+        await this.request("GET", `repos/${repository}/git/commits/${readback.merge_commit_sha}`)
+      ).data;
       closureReadback.actual_commit = actual;
       validateMergedCommit(actual, readback.merge_commit_sha, message);
       const after = await readClosingRelationships(this.sdk, repository, number);
@@ -710,9 +778,14 @@ export function renovateCheckEnvelope<Evidence extends object>({
 /** Each observation has its existing 60-second collection budget; the command
  * deadline remains the original boundary across observations. */
 export async function createWatchClient(options: Partial<GitHubClientOptions> = {}) {
-  const client = await PullRequestDeliveryClient.connect({ ...options,
-    allowRequest: (method, url) => method === "GET" && options.allowRequest?.(method, url) !== false,
-  });
+  const client = await PullRequestDeliveryClient.connect(
+    {
+      ...options,
+      allowRequest: (method, url) =>
+        method === "GET" && options.allowRequest?.(method, url) !== false,
+    },
+    true,
+  );
   return client;
 }
 
@@ -808,8 +881,8 @@ export async function watchRequiredChecks(
   for (;;) {
     try {
       client.beginObservation?.();
-      observed = (await client.workflowRun(run));
-      state = (await client.requiredCheckState(number, head, requiredContexts, { run, attempt }));
+      observed = await client.workflowRun(run);
+      state = await client.requiredCheckState(number, head, requiredContexts, { run, attempt });
       try {
         observe({
           format: 1,
@@ -873,7 +946,7 @@ export async function watchRequiredChecks(
         let jobs;
         try {
           if (!client.workflowJobs) throw new Error("watch job readback is unavailable");
-          jobs = (await client.workflowJobs(run, attempt));
+          jobs = await client.workflowJobs(run, attempt);
           try {
             observe({ format: 1, kind: "delivery-jobs", ...evidence(), jobs });
           } catch {
@@ -894,7 +967,7 @@ export async function watchRequiredChecks(
           throw deliveryOutcomeError("failed", errorMessage(error), evidence(), error);
         }
         try {
-          observed = (await client.workflowRun(run));
+          observed = await client.workflowRun(run);
         } catch (error) {
           throw deliveryOutcomeError(
             "failed",
@@ -963,7 +1036,7 @@ export async function inspectRenovateQueue(
     const head = isRecord(listed.head) ? listed.head.sha : undefined;
     if (typeof head !== "string" || !/^[0-9a-f]{40}$/u.test(head))
       throw new Error("queue candidate lacks exact head");
-    const snapshot = (await client.renovateSnapshot(listed.number, head, contexts));
+    const snapshot = await client.renovateSnapshot(listed.number, head, contexts);
     if (snapshot.pull.head.sha !== head || snapshot.target.commit.sha !== target)
       throw new Error("queue head or target changed; refresh once before selection");
     const updates = parseRenovateUpdates(snapshot.pull.body);
@@ -1014,9 +1087,8 @@ export async function inspectRenovateQueue(
       release_age: age,
       release_age_diagnosis: ageDiagnosis,
       checks: snapshot.contexts,
-      runs: (await client
-        .sourceWorkflowRuns(head))
-        .map(({ id, run_attempt, name, status, conclusion, run_started_at, html_url }) => ({
+      runs: (await client.sourceWorkflowRuns(head)).map(
+        ({ id, run_attempt, name, status, conclusion, run_started_at, html_url }) => ({
           id,
           attempt: run_attempt,
           name,
@@ -1024,7 +1096,8 @@ export async function inspectRenovateQueue(
           conclusion,
           started_at: run_started_at,
           url: html_url,
-        })),
+        }),
+      ),
       next_action: snapshot.pull.draft
         ? "Resume the current owner's draft after verifying actual writer release and the retained checkpoint."
         : failures.length
@@ -1222,13 +1295,13 @@ export async function inspectDelivery(
 ) {
   client.beginObservation?.();
   try {
-    const pull = (await client.pull(number));
+    const pull = await client.pull(number);
     assertInspectionPull(pull);
     const ref = pull.base.ref!;
     const target = (await client.branch(ref)).commit.sha;
     const checks = requiredCheckContexts(
-      (await client.checkRuns(pull.head.sha)),
-      (await client.commitStatuses(pull.head.sha)),
+      await client.checkRuns(pull.head.sha),
+      await client.commitStatuses(pull.head.sha),
       contexts,
     ).map(({ context, outcome }) => ({ context, outcome }));
     const observeReference = async (
@@ -1250,7 +1323,7 @@ export async function inspectDelivery(
         return { ...identity, state: "referenced", result: references.acceptance.result };
       const watcher = references.watcher;
       if (!watcher) throw new Error("watcher reference declaration is unavailable");
-      const run = (await client.workflowRun(watcher.run));
+      const run = await client.workflowRun(watcher.run);
       if (
         !["queued", "in_progress", "completed", "waiting", "requested", "pending"].includes(
           run.status,
@@ -1288,7 +1361,7 @@ export async function inspectDelivery(
     const review = await observeReference("review");
     const acceptance = await observeReference("acceptance");
     const watcher = await observeReference("watcher");
-    const after = (await client.pull(number));
+    const after = await client.pull(number);
     assertInspectionPull(after);
     if (
       JSON.stringify([
@@ -1666,7 +1739,9 @@ async function main(argv: string[]) {
   }
   const client =
     command === "watch" || command === "inspect"
-      ? await createWatchClient({ deadline: performance.now() + Date.parse(optionText(options, "--deadline")) - Date.now() })
+      ? await createWatchClient({
+          deadline: performance.now() + Date.parse(optionText(options, "--deadline")) - Date.now(),
+        })
       : await PullRequestDeliveryClient.connect();
   if (command === "inspect") {
     if (!Number.isSafeInteger(number))
@@ -1691,7 +1766,7 @@ async function main(argv: string[]) {
     const config: unknown = JSON.parse(
       await readFile(path.join(projectRoot, "renovate.json"), "utf8"),
     );
-    const snapshot = (await client.renovateSnapshot(number, head, contexts));
+    const snapshot = await client.renovateSnapshot(number, head, contexts);
     let baseEvidence: RenovateBaseEvidence;
     if (snapshot.pull.head.sha !== head) {
       baseEvidence = {
@@ -1831,13 +1906,13 @@ async function main(argv: string[]) {
     return;
   }
   if (command === "merge") {
-    const merged = (await client.merge(
+    const merged = await client.merge(
       number,
       head,
       contexts,
       JSON.parse(await readFile(optionText(options, "--closure-intent-file"), "utf8")),
       JSON.parse(await readFile(optionText(options, "--merge-message-file"), "utf8")),
-    ));
+    );
     const directory = path.join(projectRoot, "work/pr-delivery");
     const closureReceipt = retainMergeReceipt(directory, { number, head, ...merged });
     const summary =

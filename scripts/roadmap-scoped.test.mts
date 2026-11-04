@@ -67,7 +67,9 @@ async function fixture() {
     content: { ...issue, __typename: "Issue" },
     fieldValues: fields(),
   });
-  const client = await sdkRoadmap(config, { graphql: async () => assert.fail("Unexpected transport") });
+  const client = await sdkRoadmap(config, {
+    graphql: async () => assert.fail("Unexpected transport"),
+  });
   client.projectDetails = async () => ({ id: "PVT" });
   client.completeProjectContext = async () => ({
     number: config.project.number,
@@ -192,7 +194,7 @@ void test("Project discovery retains provider authentication failures and their 
   ] as const) {
     const refused = () => Response.json({ message: "Project credential was refused" }, { status });
     const client = await sdkRoadmap(config, {
-      rest: () => stage === "owner" ? refused() : { type: "User", node_id: "OWNER" },
+      rest: () => (stage === "owner" ? refused() : { type: "User", node_id: "OWNER" }),
       graphql: refused,
     });
     await assert.rejects(

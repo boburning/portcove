@@ -28,8 +28,17 @@ export interface BodyWriteOptions {
   observe?: (observation: BodyObservation) => void;
 }
 export interface BodyApi {
-  request(options: { method: "GET" | "POST" | "PATCH"; url: string; data?: unknown; request?: { portcove: GitHubRequestPolicy } }): Promise<{ data: unknown }>;
-  validateRoadmapReplacement?: (number: number, previousBody: string, body: string) => void | Promise<void>;
+  request(options: {
+    method: "GET" | "POST" | "PATCH";
+    url: string;
+    data?: unknown;
+    request?: { portcove: GitHubRequestPolicy };
+  }): Promise<{ data: unknown }>;
+  validateRoadmapReplacement?: (
+    number: number,
+    previousBody: string,
+    body: string,
+  ) => void | Promise<void>;
 }
 function positiveId(value: unknown): value is number {
   return typeof value === "number" && Number.isSafeInteger(value) && value > 0;
@@ -71,14 +80,24 @@ export async function createBodyClient() {
   const deadline = performance.now() + 120000;
   let bytes = 0;
   return await createGitHubClient({
-    credential: localDeveloperCredential({ deadline }), deadline,
+    credential: localDeveloperCredential({ deadline }),
+    deadline,
     headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
-    reserve: () => ({ consumeBytes(received) {
-      bytes += received;
-      if (bytes > 32 * 1024 * 1024) throw new GitHubApiError("budget_exhausted", "Body operation metadata allowance exhausted");
-    }, settle() {} }),
-    allowRequest: (method, url) => (method === "POST" && url.pathname === "/graphql") ||
-      (["GET", "POST", "PATCH"].includes(method) && url.pathname.startsWith(`/repos/${repository}/`)),
+    reserve: () => ({
+      consumeBytes(received) {
+        bytes += received;
+        if (bytes > 32 * 1024 * 1024)
+          throw new GitHubApiError(
+            "budget_exhausted",
+            "Body operation metadata allowance exhausted",
+          );
+      },
+      settle() {},
+    }),
+    allowRequest: (method, url) =>
+      (method === "POST" && url.pathname === "/graphql") ||
+      (["GET", "POST", "PATCH"].includes(method) &&
+        url.pathname.startsWith(`/repos/${repository}/`)),
   });
 }
 
@@ -95,7 +114,14 @@ export async function writeGitHubBody(options: BodyWriteOptions, api?: BodyApi) 
   let endpoint: string;
   if (operation === "pr-create") {
     for (const value of [title, head, base]) validateGitHubBody(value);
-    result = (await api.request({ method: "POST", url: `https://api.github.com/${`${prefix}/pulls`}`, data: { title, head, base, body }, request: { portcove: { replay: "once", attempts: 0 } } })).data;
+    result = (
+      await api.request({
+        method: "POST",
+        url: `https://api.github.com/${`${prefix}/pulls`}`,
+        data: { title, head, base, body },
+        request: { portcove: { replay: "once", attempts: 0 } },
+      })
+    ).data;
     options.observe?.({ phase: "mutation", result });
     if (!isRecord(result) || !positiveId(result.id) || !positiveId(result.number))
       throw new Error("Created PR identity unavailable; do not retry automatically");
@@ -104,7 +130,13 @@ export async function writeGitHubBody(options: BodyWriteOptions, api?: BodyApi) 
     const number = targetNumber(target, operation.startsWith("pr-") ? "pr" : "issue");
     if (!Number.isSafeInteger(number)) throw new Error("Invalid target number");
     const item = `${prefix}/${operation.startsWith("pr-") ? "pulls" : "issues"}/${number}`;
-    const before = (await api.request({ method: "GET", url: `https://api.github.com/${item}`, request: { portcove: { replay: "safe-read", attempts: 0 } } })).data;
+    const before = (
+      await api.request({
+        method: "GET",
+        url: `https://api.github.com/${item}`,
+        request: { portcove: { replay: "safe-read", attempts: 0 } },
+      })
+    ).data;
     options.observe?.({ phase: "preimage", result: before });
     if (!isRecord(before) || !positiveId(before.id) || before.number !== number)
       throw new Error("Target identity unavailable");
@@ -129,20 +161,40 @@ export async function writeGitHubBody(options: BodyWriteOptions, api?: BodyApi) 
           relationships: closing.relationships,
         });
       }
-      result = (await api.request({ method: "PATCH", url: `https://api.github.com/${item}`, data: { body }, request: { portcove: { replay: "once", attempts: 0 } } })).data;
+      result = (
+        await api.request({
+          method: "PATCH",
+          url: `https://api.github.com/${item}`,
+          data: { body },
+          request: { portcove: { replay: "once", attempts: 0 } },
+        })
+      ).data;
       options.observe?.({ phase: "mutation", result });
       if (!isRecord(result) || result.id !== before.id)
         throw new Error("Mutation identity mismatch; reconcile before retrying");
       endpoint = item;
     } else {
-      result = (await api.request({ method: "POST", url: `https://api.github.com/${`${prefix}/issues/${number}/comments`}`, data: { body }, request: { portcove: { replay: "once", attempts: 0 } } })).data;
+      result = (
+        await api.request({
+          method: "POST",
+          url: `https://api.github.com/${`${prefix}/issues/${number}/comments`}`,
+          data: { body },
+          request: { portcove: { replay: "once", attempts: 0 } },
+        })
+      ).data;
       options.observe?.({ phase: "mutation", result });
       if (!isRecord(result) || !positiveId(result.id))
         throw new Error("Comment identity unavailable; do not retry automatically");
       endpoint = `${prefix}/issues/comments/${result.id}`;
     }
   }
-  const observed = (await api.request({ method: "GET", url: `https://api.github.com/${endpoint}`, request: { portcove: { replay: "safe-read", attempts: 0 } } })).data;
+  const observed = (
+    await api.request({
+      method: "GET",
+      url: `https://api.github.com/${endpoint}`,
+      request: { portcove: { replay: "safe-read", attempts: 0 } },
+    })
+  ).data;
   options.observe?.({ phase: "readback", result: observed });
   if (
     !isRecord(observed) ||

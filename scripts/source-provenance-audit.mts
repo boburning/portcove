@@ -835,17 +835,30 @@ export async function readLiveSourceProvenance({
       const deadline = performance.now() + 30 * 60_000;
       let bytes = 0;
       scope = {
-        credential: localDeveloperCredential({ deadline }), deadline, maxBytes: 32 * 1024 * 1024,
-        failedReads: new Map(), deferral: { primary: new Map(), secondary: 0 },
-        reserve: () => ({ consumeBytes(received) {
-          bytes += received;
-          if (bytes > 64 * 1024 * 1024) throw new GitHubApiError("budget_exhausted", "Provenance metadata budget exhausted");
-        }, settle() {} }),
+        credential: localDeveloperCredential({ deadline }),
+        deadline,
+        maxBytes: 32 * 1024 * 1024,
+        failedReads: new Map(),
+        deferral: { primary: new Map(), secondary: 0 },
+        reserve: () => ({
+          consumeBytes(received) {
+            bytes += received;
+            if (bytes > 64 * 1024 * 1024)
+              throw new GitHubApiError("budget_exhausted", "Provenance metadata budget exhausted");
+          },
+          settle() {},
+        }),
       };
     }
-    const client = await RoadmapClient.connect({
-      ...configured, repository, owner, project: { ...configured.project, number: projectNumber },
-    }, { ...scope, allowMutations: false });
+    const client = await RoadmapClient.connect(
+      {
+        ...configured,
+        repository,
+        owner,
+        project: { ...configured.project, number: projectNumber },
+      },
+      { ...scope, allowMutations: false },
+    );
     phase = "reading the issue inventory";
     const issues = requireRepositoryIssueInventory(await client.repositoryIssues(), client).issues;
     phase = "reading the Project inventory";

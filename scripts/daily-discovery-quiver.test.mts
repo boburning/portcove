@@ -45,7 +45,7 @@ await test("joins differently ordered feeds by stable app ID and exhausts each c
     page([release("b")], "release-cursor"),
     page([release("a")]),
   ]);
-  const result = (await f.collect());
+  const result = await f.collect();
   assert.equal(result.status, "complete");
   assert.deepEqual(
     result.records.map((r) => r.key),
@@ -62,7 +62,10 @@ await test("deduplicates identical boundary records, refusing conflicting identi
   assert.equal((await changed.collect()).status, "partial");
 });
 await test("retains empty game-target metadata for research or exclusion", async () => {
-  const source = (await fixture([page([{ ...app("a"), games: [] }]), page([release("a")])]).collect());
+  const source = await fixture([
+    page([{ ...app("a"), games: [] }]),
+    page([release("a")]),
+  ]).collect();
   assert.equal(source.status, "complete");
   assert.equal(source.records[0]!.key, "a");
 });
@@ -83,12 +86,12 @@ for (const [name, pages] of Object.entries({
   failedSecondFeed: [page([app("a")]), new Error("source unavailable")],
 }))
   await test(`refuses ${name} without replacing prior checkpoint`, async () => {
-    const good = (await fixture([page([app("a")]), page([release("a")])]).collect());
+    const good = await fixture([page([app("a")]), page([release("a")])]).collect();
     const before = advanceDiscovery(emptyCheckpoint(), {
       observed_at: "2026-10-24T00:00:00Z",
       sources: [good],
     });
-    const result = (await fixture([...pages]).collect());
+    const result = await fixture([...pages]).collect();
     assert.notEqual(result.status, "complete");
     assert.deepEqual(
       advanceDiscovery(before, { observed_at: "2026-10-24T01:00:00Z", sources: [result] }),
@@ -96,13 +99,19 @@ for (const [name, pages] of Object.entries({
     );
   });
 await test("unchanged repeat ignores collection time and engagement; repository rename keeps app identity", async () => {
-  const first = (await fixture([page([{ ...app("a"), reviewCount: 1 }]), page([release("a")])]).collect());
-  const repeated = (await fixture([
+  const first = await fixture([
+    page([{ ...app("a"), reviewCount: 1 }]),
+    page([release("a")]),
+  ]).collect();
+  const repeated = await fixture([
     page([{ ...app("a"), reviewCount: 2 }]),
     page([release("a")]),
-  ]).collect());
+  ]).collect();
   assert.deepEqual(repeated.records, first.records);
-  const renamed = (await fixture([page([app("a")]), page([release("a", "new-owner/engine")])]).collect());
+  const renamed = await fixture([
+    page([app("a")]),
+    page([release("a", "new-owner/engine")]),
+  ]).collect();
   assert.equal(renamed.records[0]!.key, first.records[0]!.key);
   assert.notEqual(renamed.records[0]!.fingerprint, first.records[0]!.fingerprint);
   let state = advanceDiscovery(emptyCheckpoint(), {
@@ -124,12 +133,12 @@ await test("unchanged repeat ignores collection time and engagement; repository 
   assert.deepEqual(repeat.receipts, state.receipts);
 });
 await test("temporary disappearance retains pending identities and only records absence", async () => {
-  const first = (await fixture([page([app("a")]), page([release("a")])]).collect());
+  const first = await fixture([page([app("a")]), page([release("a")])]).collect();
   const before = advanceDiscovery(emptyCheckpoint(), {
     observed_at: "2026-10-24T00:00:00Z",
     sources: [first],
   });
-  const empty = (await fixture([page([]), page([])]).collect());
+  const empty = await fixture([page([]), page([])]).collect();
   const after = advanceDiscovery(before, { observed_at: "2026-10-24T01:00:00Z", sources: [empty] });
   for (const [id, pending] of Object.entries(before.pending))
     assert.deepEqual(after.pending[id], pending);

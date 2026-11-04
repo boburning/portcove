@@ -115,17 +115,17 @@ void test("production writer rejects lost metadata and identity before PATCH", a
     .replace(renderPortResearchDeclaration(), "")
     .replace("Not assigned (researched candidate)", "Unassigned");
   assert.throws(() => validateDurableIssueBody(missing), /research\/watchlist/);
-  (await assert.rejects(
+  await assert.rejects(
     async () =>
-      (await writeGitHubBody(
+      await writeGitHubBody(
         { operation: "issue-edit", target: 1, previousBody: body, body: missing },
         api,
-      )),
+      ),
     /research\/watchlist/,
-  ));
-  (await assert.rejects(
+  );
+  await assert.rejects(
     async () =>
-      (await writeGitHubBody(
+      await writeGitHubBody(
         {
           operation: "issue-edit",
           target: 1,
@@ -133,9 +133,9 @@ void test("production writer rejects lost metadata and identity before PATCH", a
           body: body.replace("portcove-port-key: wave-race", "portcove-port-key: other-game"),
         },
         api,
-      )),
+      ),
     /canonical identity/,
-  ));
+  );
   assert.equal(writes, 0);
   assert.doesNotThrow(() =>
     validateRoadmapReplacement(

@@ -104,7 +104,13 @@ void test("closure permission is independent, canonical and covers variants and 
 void test("closing relationships require complete stable opaque identities and cursors", async () => {
   const issue = { id: "opaque-issue", number: 244, repository: { nameWithOwner: repository } };
   assert.deepEqual(
-    (await readClosingRelationships({ request: async () => ({ data: closingPage([issue]) }) }, repository, 7)).relationships,
+    (
+      await readClosingRelationships(
+        { request: async () => ({ data: closingPage([issue]) }) },
+        repository,
+        7,
+      )
+    ).relationships,
     ["boburning/portcove#244"],
   );
   for (const extra of [
@@ -113,11 +119,21 @@ void test("closing relationships require complete stable opaque identities and c
     { totalCount: 2, pageInfo: { hasNextPage: true, endCursor: null } },
   ])
     await assert.rejects(
-      () => readClosingRelationships({ request: async () => ({ data: closingPage([issue], extra) }) }, repository, 7),
+      () =>
+        readClosingRelationships(
+          { request: async () => ({ data: closingPage([issue], extra) }) },
+          repository,
+          7,
+        ),
       /incomplete/,
     );
   await assert.rejects(
-    () => readClosingRelationships({ request: async () => ({ data: closingPage([issue, issue]) }) }, repository, 7),
+    () =>
+      readClosingRelationships(
+        { request: async () => ({ data: closingPage([issue, issue]) }) },
+        repository,
+        7,
+      ),
     /Duplicate/,
   );
   let page = 0;
@@ -140,9 +156,9 @@ void test("PR writer refuses undeclared intent before mutation", async () => {
       assert.fail("No remote mutation permitted");
     },
   };
-  (await assert.rejects(
+  await assert.rejects(
     async () =>
-      (await writeGitHubBody(
+      await writeGitHubBody(
         {
           operation: "pr-create",
           body: "Closes #244",
@@ -152,12 +168,12 @@ void test("PR writer refuses undeclared intent before mutation", async () => {
           closureIntent: emptyIntent,
         },
         api,
-      )),
+      ),
     /Undeclared/,
-  ));
-  (await assert.rejects(
+  );
+  await assert.rejects(
     async () =>
-      (await writeGitHubBody(
+      await writeGitHubBody(
         {
           operation: "pr-create",
           body: "Fixes https://github.com/boburning/portcove/issues/244",
@@ -167,9 +183,9 @@ void test("PR writer refuses undeclared intent before mutation", async () => {
           closureIntent: emptyIntent,
         },
         api,
-      )),
+      ),
     /Undeclared/,
-  ));
+  );
   assert.throws(
     () =>
       parseBodyArguments([
@@ -201,9 +217,9 @@ void test("PR body edit checks fresh manual links before any write", async () =>
       };
     },
   };
-  (await assert.rejects(
+  await assert.rejects(
     async () =>
-      (await writeGitHubBody(
+      await writeGitHubBody(
         {
           operation: "pr-edit",
           target: 7,
@@ -212,9 +228,9 @@ void test("PR body edit checks fresh manual links before any write", async () =>
           closureIntent: emptyIntent,
         },
         api,
-      )),
+      ),
     /Undeclared/,
-  ));
+  );
   assert.equal(writes, 0);
 });
 
@@ -223,20 +239,26 @@ void test("relationship pagination completes multiple pages and refuses repeated
   const api = {
     async request() {
       const index = page++;
-      return { data: closingPage(
-        [{ id: `id-${index}`, number: 244 + index, repository: { nameWithOwner: repository } }],
-        { totalCount: 2, pageInfo: { hasNextPage: index === 0, endCursor: "first" } },
-      ) };
+      return {
+        data: closingPage(
+          [{ id: `id-${index}`, number: 244 + index, repository: { nameWithOwner: repository } }],
+          { totalCount: 2, pageInfo: { hasNextPage: index === 0, endCursor: "first" } },
+        ),
+      };
     },
   };
   assert.equal((await readClosingRelationships(api, repository, 7)).relationships.length, 2);
   page = 0;
-  api.request = async () =>
-    ({ data: closingPage(
+  api.request = async () => ({
+    data: closingPage(
       [{ id: `id-${page}`, number: 244 + page++, repository: { nameWithOwner: repository } }],
       { totalCount: 4, pageInfo: { hasNextPage: true, endCursor: "same" } },
-    ) });
-  await assert.rejects(() => readClosingRelationships(api, repository, 7), /pagination is incomplete/);
+    ),
+  });
+  await assert.rejects(
+    () => readClosingRelationships(api, repository, 7),
+    /pagination is incomplete/,
+  );
 });
 import {
   validateGitHubBody,
@@ -304,8 +326,12 @@ void test("edits compare fresh preimages and verify exact validated content", as
     },
   };
   assert.equal(
-    (await writeGitHubBody({ operation: "issue-edit", target: 1685, previousBody: "old", body }, api))
-      .verified,
+    (
+      await writeGitHubBody(
+        { operation: "issue-edit", target: 1685, previousBody: "old", body },
+        api,
+      )
+    ).verified,
     true,
   );
   assert.deepEqual(
@@ -314,14 +340,14 @@ void test("edits compare fresh preimages and verify exact validated content", as
   );
   assert.equal(record(requiredFixture(calls[1]).payload).body, body);
   calls.length = 0;
-  (await assert.rejects(
+  await assert.rejects(
     async () =>
-      (await writeGitHubBody(
+      await writeGitHubBody(
         { operation: "issue-edit", target: 1685, previousBody: "changed", body },
         api,
-      )),
+      ),
     /Remote body changed/,
-  ));
+  );
   assert.equal(calls.length, 1);
 });
 
@@ -337,9 +363,9 @@ void test("mutations retain response observations, never retry and refuse bad re
       return { data: { id: 55, number: 1685, body: "different" } };
     },
   };
-  (await assert.rejects(
+  await assert.rejects(
     async () =>
-      (await writeGitHubBody(
+      await writeGitHubBody(
         {
           operation: "pr-comment",
           target: 1685,
@@ -347,9 +373,9 @@ void test("mutations retain response observations, never retry and refuse bad re
           observe: (entry) => observations.push(entry),
         },
         api,
-      )),
+      ),
     /readback mismatch/,
-  ));
+  );
   assert.equal(writes, 1);
   assert.ok(
     observations.some((entry) => entry.phase === "mutation" && record(entry.result).id === 55),
@@ -364,10 +390,14 @@ void test("mutations retain response observations, never retry and refuse bad re
       return { data: { id: 1, number: 1685 } };
     },
   };
-  (await assert.rejects(
-    async () => (await writeGitHubBody({ operation: "issue-comment", target: 1685, body: "candidate" }, failing)),
+  await assert.rejects(
+    async () =>
+      await writeGitHubBody(
+        { operation: "issue-comment", target: 1685, body: "candidate" },
+        failing,
+      ),
     (error) => error === timeout,
-  ));
+  );
   assert.equal(writes, 2);
 });
 
@@ -377,17 +407,18 @@ void test("body writer restricts operations and repository identity before mutat
       assert.fail("Unexpected API call");
     },
   };
-  (await assert.rejects(async () =>
-    (await writeGitHubBody(
-      {
-        operation: "issue-edit",
-        target: "https://github.com/other/repo/issues/1",
-        body: "candidate",
-        previousBody: "old",
-      },
-      api,
-    )),
-  ));
+  await assert.rejects(
+    async () =>
+      await writeGitHubBody(
+        {
+          operation: "issue-edit",
+          target: "https://github.com/other/repo/issues/1",
+          body: "candidate",
+          previousBody: "old",
+        },
+        api,
+      ),
+  );
   assert.throws(() =>
     parseBodyArguments(["issue-edit", "--target", "1", "--body-file", "candidate"]),
   );
@@ -414,9 +445,9 @@ void test("PR creation refuses a missing mutation ID even when number and body r
       return { data: { number: 7, body: "Related to #244.", head: { sha: "a".repeat(40) } } };
     },
   };
-  (await assert.rejects(
+  await assert.rejects(
     async () =>
-      (await writeGitHubBody(
+      await writeGitHubBody(
         {
           operation: "pr-create",
           body: "Related to #244.",
@@ -426,33 +457,40 @@ void test("PR creation refuses a missing mutation ID even when number and body r
           closureIntent: emptyIntent,
         },
         api,
-      )),
+      ),
     /Created PR identity unavailable/,
-  ));
+  );
   assert.equal(reads, 0, "An unidentifiable mutation must stop before a false verified readback");
 });
 
 void test("asynchronous Roadmap validation settles before a body mutation or refusal", async () => {
   for (const rejectValidation of [false, true]) {
     let release!: () => void;
-    const validation = new Promise<void>((resolve) => { release = resolve; });
+    const validation = new Promise<void>((resolve) => {
+      release = resolve;
+    });
     const methods: string[] = [];
     const previousBody = "## User outcome\nPrevious durable specification";
     let body = previousBody;
-    const pending = writeGitHubBody({
-      operation: "issue-edit", target: 1685, previousBody,
-      body: "## User outcome\nUpdated durable specification",
-    }, {
-      async request({ method, data: payload }: Parameters<BodyApi["request"]>[0]) {
-        methods.push(method);
-        if (method === "PATCH") body = String(record(payload).body);
-        return { data: { id: 123, number: 1685, body } };
+    const pending = writeGitHubBody(
+      {
+        operation: "issue-edit",
+        target: 1685,
+        previousBody,
+        body: "## User outcome\nUpdated durable specification",
       },
-      async validateRoadmapReplacement() {
-        await validation;
-        if (rejectValidation) throw new Error("Invalid Roadmap proposal");
+      {
+        async request({ method, data: payload }: Parameters<BodyApi["request"]>[0]) {
+          methods.push(method);
+          if (method === "PATCH") body = String(record(payload).body);
+          return { data: { id: 123, number: 1685, body } };
+        },
+        async validateRoadmapReplacement() {
+          await validation;
+          if (rejectValidation) throw new Error("Invalid Roadmap proposal");
+        },
       },
-    });
+    );
     const result = rejectValidation ? assert.rejects(pending, /Invalid Roadmap proposal/) : pending;
     assert.deepEqual(methods, ["GET"]);
     release();

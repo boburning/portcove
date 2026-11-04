@@ -7,6 +7,9 @@ export async function boundedDiscoveryRequest(input: unknown, fetcher: typeof fe
     !isRecord(input) ||
     typeof input.url !== "string" ||
     typeof input.method !== "string" ||
+    !["GET", "HEAD"].includes(input.method) ||
+    input.body !== undefined ||
+    input.conditionalEtag !== undefined ||
     typeof input.cap !== "number" ||
     !Number.isSafeInteger(input.cap) ||
     input.cap < 1 ||
@@ -20,19 +23,10 @@ export async function boundedDiscoveryRequest(input: unknown, fetcher: typeof fe
     input.maxRequests > 5
   )
     throw new Error("Invalid bounded request");
-  if (
-    input.conditionalEtag !== undefined &&
-    (typeof input.conditionalEtag !== "string" ||
-      input.conditionalEtag.length > 512 ||
-      /[\r\n]/u.test(input.conditionalEtag) ||
-      input.method !== "GET" ||
-      new URL(input.url).origin !== "https://api.github.com")
-  )
-    throw new Error("Invalid scoped discovery conditional request");
   let url = new URL(input.url);
-  let method = input.method;
-  let body = typeof input.body === "string" ? input.body : undefined;
-  const started = Date.now();
+  const initialUrl = url.href;
+  const method = input.method;
+  const started = performance.now();
   let requests = 0;
   let bytes = 0;
   let status = 0;
@@ -43,25 +37,33 @@ export async function boundedDiscoveryRequest(input: unknown, fetcher: typeof fe
     for (;;) {
       if (url.protocol !== "https:" || url.username || url.password)
         throw new Error("Only credential-free HTTPS URLs are allowed");
+      if (
+        url.origin === "https://api.github.com" &&
+        (input.binary !== true ||
+          method !== "GET" ||
+          url.href !== initialUrl ||
+          !/^\/repos\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/actions\/artifacts\/[1-9][0-9]*\/zip$/u.test(
+            url.pathname,
+          ))
+      )
+        throw new Error(
+          "GitHub metadata must use the configured SDK; only the original artifact byte route is retained",
+        );
       if (requests >= input.maxRequests) throw new Error("Redirect/request budget exhausted");
-      const remaining = input.timeout - (Date.now() - started);
+      const remaining = input.timeout - (performance.now() - started);
       if (remaining <= 0) throw new Error("Request deadline exhausted");
       requests++;
       const response = await fetcher(url, {
         method,
         redirect: "manual",
-        signal: AbortSignal.timeout(remaining),
+        signal: AbortSignal.timeout(Math.ceil(remaining)),
         headers: {
           "User-Agent": "Portcove bounded discovery",
           Accept: "application/vnd.github+json",
-          ...(url.href === new URL(input.url).href && typeof input.conditionalEtag === "string"
-            ? { "If-None-Match": input.conditionalEtag }
-            : {}),
           ...(url.origin === "https://api.github.com" && typeof input.token === "string"
             ? { Authorization: `Bearer ${input.token}` }
             : {}),
         },
-        ...(body === undefined ? {} : { body }),
       });
       status = response.status;
       headers = Object.fromEntries(response.headers);
@@ -82,8 +84,6 @@ export async function boundedDiscoveryRequest(input: unknown, fetcher: typeof fe
         const location = response.headers.get("location");
         if (!location) throw new Error("Redirect location missing");
         const next = new URL(location, url);
-        if (method !== "GET" && method !== "HEAD")
-          throw new Error("Mutation redirects require reconciliation");
         url = next;
         continue;
       }

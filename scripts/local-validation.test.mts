@@ -4476,7 +4476,12 @@ void test("GitHub dependency changes select actual SDK and REST integration cont
     const selected = classifyChanges([{ status: "M", path: file }], { fileExists: () => false });
     assert.ok(selected.nodeTests.has("scripts/github-client.test.mts"), file);
     assert.ok(selected.nodeTests.has("scripts/roadmap-rest-intake.test.mts"), file);
-    for (const consumer of ["scripts/roadmap-sdk.test.mts", "scripts/roadmap-provider-inventory.test.mts", "scripts/discovery-github.test.mts", "scripts/discovery-primary-progress.test.mts"]) {
+    for (const consumer of [
+      "scripts/roadmap-sdk.test.mts",
+      "scripts/roadmap-provider-inventory.test.mts",
+      "scripts/discovery-github.test.mts",
+      "scripts/discovery-primary-progress.test.mts",
+    ]) {
       assert.ok(selected.nodeTests.has(consumer), file);
       assert.ok(existsSync(new URL(`../${consumer}`, import.meta.url)));
     }

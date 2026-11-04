@@ -108,10 +108,13 @@ void test("Release commitment field migration is idempotent", () => {
 
 void test("promotion validation happens before any GitHub mutation", async () => {
   let calls = 0;
-  const client = await sdkRoadmap(config, { graphql: () => {
-    calls += 1;
-    throw new Error("Unexpected transport");
-  }, allowMutations: true });
+  const client = await sdkRoadmap(config, {
+    graphql: () => {
+      calls += 1;
+      throw new Error("Unexpected transport");
+    },
+    allowMutations: true,
+  });
   await assert.rejects(
     async () => await client.promote("PVTI_draft", "lightweight note"),
     /incomplete/,
@@ -122,68 +125,67 @@ void test("promotion validation happens before any GitHub mutation", async () =>
 void test("move refuses ambiguous item references", async () => {
   const mockedConfig = structuredClone(config);
   mockedConfig.project.number = 7;
-  const client = await sdkRoadmap(mockedConfig, { graphql: (query) => {
-    if (query.includes("projectV2(number:")) return projectData("PVT_project", 7);
-    return ({
-          node: {
-            items: {
-              totalCount: 3,
-              nodes: [
-                {
-                  id: "A",
-                  content: {
-                    __typename: "DraftIssue",
-                    id: "DI_same",
-                    updatedAt: "2026-10-17T00:00:00Z",
-                    body: "Draft",
-                    title: "Same",
-                  },
-                  fieldValues: {
-                    totalCount: 0,
-                    nodes: [],
-                    pageInfo: { hasNextPage: false, endCursor: null },
-                  },
+  const client = await sdkRoadmap(mockedConfig, {
+    graphql: (query) => {
+      if (query.includes("projectV2(number:")) return projectData("PVT_project", 7);
+      return {
+        node: {
+          items: {
+            totalCount: 3,
+            nodes: [
+              {
+                id: "A",
+                content: {
+                  __typename: "DraftIssue",
+                  id: "DI_same",
+                  updatedAt: "2026-10-17T00:00:00Z",
+                  body: "Draft",
+                  title: "Same",
                 },
-                {
-                  id: "B",
-                  content: {
-                    __typename: "DraftIssue",
-                    id: "DI_same",
-                    updatedAt: "2026-10-17T00:00:00Z",
-                    body: "Draft",
-                    title: "Same",
-                  },
-                  fieldValues: {
-                    totalCount: 0,
-                    nodes: [],
-                    pageInfo: { hasNextPage: false, endCursor: null },
-                  },
+                fieldValues: {
+                  totalCount: 0,
+                  nodes: [],
+                  pageInfo: { hasNextPage: false, endCursor: null },
                 },
-                {
-                  id: "C",
-                  content: {
-                    __typename: "DraftIssue",
-                    id: "DI_before",
-                    updatedAt: "2026-10-17T00:00:00Z",
-                    body: "Draft",
-                    title: "Before",
-                  },
-                  fieldValues: {
-                    totalCount: 0,
-                    nodes: [],
-                    pageInfo: { hasNextPage: false, endCursor: null },
-                  },
+              },
+              {
+                id: "B",
+                content: {
+                  __typename: "DraftIssue",
+                  id: "DI_same",
+                  updatedAt: "2026-10-17T00:00:00Z",
+                  body: "Draft",
+                  title: "Same",
                 },
-              ],
-              pageInfo: { hasNextPage: false, endCursor: null },
-            },
+                fieldValues: {
+                  totalCount: 0,
+                  nodes: [],
+                  pageInfo: { hasNextPage: false, endCursor: null },
+                },
+              },
+              {
+                id: "C",
+                content: {
+                  __typename: "DraftIssue",
+                  id: "DI_before",
+                  updatedAt: "2026-10-17T00:00:00Z",
+                  body: "Draft",
+                  title: "Before",
+                },
+                fieldValues: {
+                  totalCount: 0,
+                  nodes: [],
+                  pageInfo: { hasNextPage: false, endCursor: null },
+                },
+              },
+            ],
+            pageInfo: { hasNextPage: false, endCursor: null },
           },
-      });
-  } });
-  await assert.rejects(
-    async () => await client.moveBefore("Same", "Before"),
-    /ambiguous/,
-  );
+        },
+      };
+    },
+  });
+  await assert.rejects(async () => await client.moveBefore("Same", "Before"), /ambiguous/);
 });
 
 void test("set-many validates transitions before one mutation and exact readback", async () => {
@@ -196,11 +198,13 @@ void test("set-many validates transitions before one mutation and exact readback
     nodes: [{ name: status, field: { name: "Status" } }],
     pageInfo: { hasNextPage: false, endCursor: null },
   });
-  const client = await sdkRoadmap(mockedConfig, { allowMutations: true, graphql: (query, variables) => {
-    calls.push(query);
-    const request = { query, variables };
-    if (request.query.includes("projectV2(number:"))
-      return ({
+  const client = await sdkRoadmap(mockedConfig, {
+    allowMutations: true,
+    graphql: (query, variables) => {
+      calls.push(query);
+      const request = { query, variables };
+      if (request.query.includes("projectV2(number:"))
+        return {
           user: {
             projectV2: {
               id: "PVT",
@@ -229,9 +233,9 @@ void test("set-many validates transitions before one mutation and exact readback
               },
             },
           },
-      });
-    if (request.query.includes("items(first: 50"))
-      return ({
+        };
+      if (request.query.includes("items(first: 50"))
+        return {
           node: {
             items: {
               totalCount: 1,
@@ -254,15 +258,16 @@ void test("set-many validates transitions before one mutation and exact readback
               pageInfo: { hasNextPage: false, endCursor: null },
             },
           },
-      });
-    if (request.query.includes("updateProjectV2ItemFieldValue")) {
-      status = "Done";
-      return { f0: { projectV2Item: { id: "PVTI_838" } } };
-    }
-    if (request.query.includes("nodes(ids:"))
-      return { nodes: [{ id: "PVTI_838", fieldValues: fieldConnection() }] };
-    throw new Error(`unexpected GraphQL request: ${request.query}`);
-  } });
+        };
+      if (request.query.includes("updateProjectV2ItemFieldValue")) {
+        status = "Done";
+        return { f0: { projectV2Item: { id: "PVTI_838" } } };
+      }
+      if (request.query.includes("nodes(ids:"))
+        return { nodes: [{ id: "PVTI_838", fieldValues: fieldConnection() }] };
+      throw new Error(`unexpected GraphQL request: ${request.query}`);
+    },
+  });
   client.executionIssue = async () => ({
     item: {
       id: "PVTI_838",
@@ -289,10 +294,7 @@ void test("set-many validates transitions before one mutation and exact readback
   await client.applySetMany(plan);
   assert.ok((await client.verifySetMany(plan)).every((result) => result.verified));
   assert.equal(calls.filter((call) => call.includes("items(first: 50")).length, 0);
-  assert.equal(
-    calls.filter((call) => call.includes("updateProjectV2ItemFieldValue")).length,
-    1,
-  );
+  assert.equal(calls.filter((call) => call.includes("updateProjectV2ItemFieldValue")).length, 1);
 });
 
 void test("set-many specifications fail closed before GitHub access", () => {
@@ -496,7 +498,7 @@ void test("commitment rename preserves IDs, assignments and metadata and resumes
   };
   assert.equal((await executeCommitmentRename({ client, config: desired })).status, "planned");
   assert.equal(writes, 0);
-  const result = (await executeCommitmentRename({ client, config: desired, apply: true }));
+  const result = await executeCommitmentRename({ client, config: desired, apply: true });
   assert.equal(result.assignmentsVerified, 2);
   assert.equal(result.option, "planned");
   assert.equal(writes, 1);
@@ -508,10 +510,10 @@ void test("commitment rename preserves IDs, assignments and metadata and resumes
   );
   assert.equal(writes, 1);
   fixtureElement(fields, 0).options.push({ id: "duplicate", name: "Opportunistic" });
-  (await assert.rejects(
-    async () => (await executeCommitmentRename({ client, config: desired, apply: true })),
+  await assert.rejects(
+    async () => await executeCommitmentRename({ client, config: desired, apply: true }),
     /both historical and active/,
-  ));
+  );
   assert.equal(writes, 1);
 });
 
@@ -552,10 +554,10 @@ void test("commitment rename refuses divergent assignment readback and reconcile
       fixtureElement(fields, 0).options = opts;
     },
   };
-  (await assert.rejects(
-    async () => (await executeCommitmentRename({ client, config, apply: true })),
+  await assert.rejects(
+    async () => await executeCommitmentRename({ client, config, apply: true }),
     /assignment changed/,
-  ));
+  );
   fixtureElement(fixtureElement(fields, 0).options, 1).name = "Opportunistic";
   client.itemList = async () => [
     {
@@ -572,7 +574,10 @@ void test("commitment rename refuses divergent assignment readback and reconcile
     fixtureElement(fields, 0).options = opts;
     throw Error("lost response");
   };
-  assert.equal((await executeCommitmentRename({ client, config, apply: true })).reconciledAfterError, true);
+  assert.equal(
+    (await executeCommitmentRename({ client, config, apply: true })).reconciledAfterError,
+    true,
+  );
 });
 
 void test("127 assignments resume from durable verified chunks without specification splitting", async (t) => {
@@ -712,9 +717,11 @@ void test("bulk progress refuses changed resolved identities, malformed journals
 });
 
 void test("final bulk readback requests at most25 distinct item identities per query", async () => {
-  const client = await sdkRoadmap(config, { graphql: () => {
-    throw new Error("Unexpected transport");
-  } });
+  const client = await sdkRoadmap(config, {
+    graphql: () => {
+      throw new Error("Unexpected transport");
+    },
+  });
   const calls: number[] = [];
   client.graphql = async (_query, variables) => {
     const ids = variables?.ids;
@@ -1202,9 +1209,11 @@ void test("a concurrent field reversal sharing an unchanged timestamp still fail
 });
 
 void test("durable field readback binds exact field and option IDs despite duplicate display names", async () => {
-  const client = await sdkRoadmap(config, { graphql: () => {
-    throw new Error("Unexpected transport");
-  } });
+  const client = await sdkRoadmap(config, {
+    graphql: () => {
+      throw new Error("Unexpected transport");
+    },
+  });
   client.completeProjectContext = async () => ({
     number: config.project.number,
     details: { id: "PROJECT" },

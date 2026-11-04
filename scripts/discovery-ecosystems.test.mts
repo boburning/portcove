@@ -83,20 +83,26 @@ void test("the actual feed collector flags a lost overlap and preserves inaccess
     http: {
       request: async (_method: string, url: string) => {
         assert.equal(url, "https://recomp.fyi/feed.xml");
-        return { status, text: feed(entry()), headers: {}, requests: 1, bytes: Buffer.byteLength(feed(entry())) };
+        return {
+          status,
+          text: feed(entry()),
+          headers: {},
+          requests: 1,
+          bytes: Buffer.byteLength(feed(entry())),
+        };
       },
     },
     save: (name: string, value: unknown) => {
       saved[name] = value;
     },
   };
-  const initial = (await collectRecompBoardSource(context, emptyCheckpoint()));
+  const initial = await collectRecompBoardSource(context, emptyCheckpoint());
   assert.equal(initial.status, "complete");
   const state = advanceDiscovery(emptyCheckpoint(), {
     observed_at: "2026-10-24T04:00:00Z",
     sources: [initial],
   });
-  const gap = (await collectRecompBoardSource(context, state));
+  const gap = await collectRecompBoardSource(context, state);
   assert.equal(gap.status, "partial");
   assert.match(String(gap.next_action), /missing interval/u);
   assert.deepEqual(
@@ -104,7 +110,7 @@ void test("the actual feed collector flags a lost overlap and preserves inaccess
     state.sources,
   );
   status = 403;
-  (await assert.rejects(async () => (await collectRecompBoardSource(context, state)), /unavailable/u));
+  await assert.rejects(async () => await collectRecompBoardSource(context, state), /unavailable/u);
   assert.equal((saved["recomp-board-feed"] as { status: number }).status, 403);
 });
 void test("manifest omission remains Unknown and independent toolchains/source systems remain explicit", () => {

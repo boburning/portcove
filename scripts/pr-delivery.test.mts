@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { GitHubApiClient } from "./github-api.mts";
+import { fixtureGitHub } from "./fixtures/github-sdk-fixtures.mts";
 import { isRecord, errorMessage } from "./runtime-values.mts";
 import type {
   DeliveryPull,
@@ -134,14 +134,18 @@ void test("baseline timings separate initial queue and all required gate complet
   assert.equal(baselineTimingWindow({}, jobs, []).measurement, "unavailable");
 });
 
-function included(body: unknown, headers: Record<string, string> = {}) {
-  return (
-    "HTTP/2.0 200 OK\r\n" +
-    Object.entries(headers)
-      .map(([name, value]) => `${name}: ${value}\r\n`)
-      .join("") +
-    `\r\n${JSON.stringify(body)}`
-  );
+type DeliveryFixtureRequest = Parameters<Parameters<typeof fixtureGitHub>[0]>[0];
+async function deliveryFixture(
+  respond: (request: DeliveryFixtureRequest) => unknown = ({ endpoint }) => {
+    if (endpoint === "graphql") return Response.json(closingPage());
+    assert.fail(`Unexpected delivery HTTP request: ${endpoint}`);
+  },
+) {
+  const sdk = await fixtureGitHub(respond);
+  return new PullRequestDeliveryClient(sdk, {
+    credential: { kind: "anonymous" },
+    deadline: performance.now() + 60000,
+  });
 }
 
 function pull(overrides: Partial<DeliveryPull> = {}): DeliveryPull {
@@ -173,30 +177,38 @@ function successfulRuns() {
 }
 
 void test("queue inventory follows all open-PR pages and rejects duplicate identities", async () => {
-  const client = new PullRequestDeliveryClient((args) => {
-    if (requiredFixture(args[2]).includes("page=2"))
-      return included([{ number: 9, user: { login: "app/renovate" } }]);
-    return included(
+  const client = await deliveryFixture(({ endpoint }) => {
+    if (endpoint.includes("page=2"))
+      return Response.json([{ number: 9, user: { login: "app/renovate" } }]);
+    return Response.json(
       [
         { number: 7, user: { login: "renovate[bot]" } },
         { number: 8, user: { login: "contributor" } },
       ],
-      { link: '<https://api.github.test/pulls?page=2>; rel="next"' },
+      {
+        headers: {
+          link: '<https://api.github.com/repos/boburning/portcove/pulls?page=2>; rel="next"',
+        },
+      },
     );
   });
   assert.deepEqual(
     (await client.openRenovatePulls()).map(({ number }) => number),
     [7, 9],
   );
-  const duplicate = new PullRequestDeliveryClient((args) =>
-    included(
+  const duplicate = await deliveryFixture(({ endpoint }) =>
+    Response.json(
       [{ number: 7, user: { login: "renovate[bot]" } }],
-      requiredFixture(args[2]).includes("page=2")
+      endpoint.includes("page=2")
         ? {}
-        : { link: '<https://api.github.test/pulls?page=2>; rel="next"' },
+        : {
+            headers: {
+              link: '<https://api.github.com/repos/boburning/portcove/pulls?page=2>; rel="next"',
+            },
+          },
     ),
   );
-  (await assert.rejects(async () => (await duplicate.openRenovatePulls()), /duplicate/));
+  await assert.rejects(async () => await duplicate.openRenovatePulls(), /duplicate/);
 });
 
 function queueClient(overrides: QueueOverrides = {}): DeliveryQueueClient {
@@ -223,9 +235,9 @@ function queueClient(overrides: QueueOverrides = {}): DeliveryQueueClient {
     checkRuns: successfulRuns(),
   };
   return {
-    branch: () => ({ commit: { sha: base } }),
-    openRenovatePulls: () => [snapshot.pull],
-    sourceWorkflowRuns: () => [
+    branch: async () => ({ commit: { sha: base } }),
+    openRenovatePulls: async () => [snapshot.pull],
+    sourceWorkflowRuns: async () => [
       {
         id: 42,
         run_attempt: 1,
@@ -235,7 +247,7 @@ function queueClient(overrides: QueueOverrides = {}): DeliveryQueueClient {
         run_started_at: "2026-10-01T00:00:00Z",
       },
     ],
-    renovateSnapshot: () => ({
+    renovateSnapshot: async () => ({
       ...snapshot,
       ...overrides,
       pull: { ...snapshot.pull, ...overrides.pull },
@@ -256,8 +268,8 @@ const queueBase = () => ({
   targetDependencyPaths: [],
 });
 
-void test("queue recommends only an actionable exact-head candidate and never supplies merge authority", () => {
-  const queue = inspectRenovateQueue(queueClient(), queueConfig, required, queueBase);
+void test("queue recommends only an actionable exact-head candidate and never supplies merge authority", async () => {
+  const queue = await inspectRenovateQueue(queueClient(), queueConfig, required, queueBase);
   assert.equal(queue.selected, 7);
   assert.equal(requiredFixture(queue.candidates[0]).path, "routine-fast-lane-candidate");
   assert.match(requiredFixture(queue.candidates[0]).next_action, /renovate-check --pr 7 --head/);
@@ -267,9 +279,9 @@ void test("queue recommends only an actionable exact-head candidate and never su
     queue.selection_boundary,
     /Candidate delivery requires actual writer and source-ownership checks/,
   );
-  assert.throws(
-    () =>
-      inspectRenovateQueue(
+  await assert.rejects(
+    async () =>
+      await inspectRenovateQueue(
         queueClient({ target: { commit: { sha: "d".repeat(40) } } }),
         queueConfig,
         required,
@@ -277,9 +289,9 @@ void test("queue recommends only an actionable exact-head candidate and never su
       ),
     /target changed/,
   );
-  assert.throws(
-    () =>
-      inspectRenovateQueue(queueClient(), queueConfig, required, () => ({
+  await assert.rejects(
+    async () =>
+      await inspectRenovateQueue(queueClient(), queueConfig, required, () => ({
         ...queueBase(),
         changedHead: "d".repeat(40),
       })),
@@ -287,7 +299,7 @@ void test("queue recommends only an actionable exact-head candidate and never su
   );
 });
 
-void test("cooldown draft failed CI and rejected targets cannot become actionable controlled candidates", () => {
+void test("cooldown draft failed CI and rejected targets cannot become actionable controlled candidates", async () => {
   for (const overrides of [
     {
       statuses: [
@@ -299,15 +311,20 @@ void test("cooldown draft failed CI and rejected targets cannot become actionabl
     { pull: { base: { sha: base, ref: "different" } } },
     { pull: { mergeable: null } },
   ] satisfies QueueOverrides[]) {
-    const queue = inspectRenovateQueue(queueClient(overrides), queueConfig, required, queueBase);
+    const queue = await inspectRenovateQueue(
+      queueClient(overrides),
+      queueConfig,
+      required,
+      queueBase,
+    );
     assert.equal(queue.selected, null);
     assert.equal(requiredFixture(queue.candidates[0]).actionable, false);
     assert.ok(requiredFixture(queue.candidates[0]).next_action);
   }
 });
 
-void test("branch-only security intent uses controlled expedited assessment without asserting vulnerability", () => {
-  const queue = inspectRenovateQueue(
+void test("branch-only security intent uses controlled expedited assessment without asserting vulnerability", async () => {
+  const queue = await inspectRenovateQueue(
     queueClient({
       pull: { head: { sha: head, ref: "renovate/security/crc32fast" } },
       statuses: [{ context: "renovate/stability-days", state: "pending" }],
@@ -407,16 +424,20 @@ void test("Renovate verdicts have matching human and JSON output", () => {
 
 void test("check-run pagination requires complete unique totals", async () => {
   const calls: string[] = [];
-  const client = new PullRequestDeliveryClient((args) => {
-    calls.push(requiredFixture(args[2]));
-    if (requiredFixture(args[2]).includes("page=2"))
-      return included({
+  const client = await deliveryFixture(({ endpoint }) => {
+    calls.push(endpoint);
+    if (endpoint.includes("page=2"))
+      return Response.json({
         total_count: 2,
         check_runs: [{ id: 2, name: "two", status: "completed" }],
       });
-    return included(
+    return Response.json(
       { total_count: 2, check_runs: [{ id: 1, name: "one", status: "completed" }] },
-      { link: '<https://api.github.test/checks?page=2>; rel="next"' },
+      {
+        headers: {
+          link: '<https://api.github.com/repos/boburning/portcove/commits/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/check-runs?page=2>; rel="next"',
+        },
+      },
     );
   });
   assert.deepEqual(
@@ -426,37 +447,55 @@ void test("check-run pagination requires complete unique totals", async () => {
   assert.equal(calls.length, 2);
 });
 
+void test("delivery refuses a malformed provider identity before collecting another page", async () => {
+  let calls = 0;
+  const client = await deliveryFixture(() => {
+    calls++;
+    return Response.json(
+      { total_count: 2, check_runs: [{ id: "unsafe", name: "catalog", status: "completed" }] },
+      {
+        headers: {
+          link: `<https://api.github.com/repos/boburning/portcove/commits/${head}/check-runs?page=2>; rel="next"`,
+        },
+      },
+    );
+  });
+  await assert.rejects(client.checkRuns(head), /missing or duplicate ID/u);
+  assert.equal(calls, 1);
+});
+
 void test("provider nulls and unconsumed metadata survive the delivery boundary", async () => {
   const retained = { provider_note: "preserved raw metadata" };
-  const client = new PullRequestDeliveryClient((args) => {
-    const endpoint = requiredFixture(args[2]);
+  const client = await deliveryFixture(({ endpoint }) => {
     if (endpoint === "repos/boburning/portcove/pulls/7")
-      return included({ ...pull({ user: null, body: null }), ...retained });
+      return Response.json({ ...pull({ user: null, body: null }), ...retained });
     if (endpoint.includes("/commits?"))
-      return included([{ sha: head, author: null, commit: { message: "fixture" }, ...retained }]);
+      return Response.json([
+        { sha: head, author: null, commit: { message: "fixture" }, ...retained },
+      ]);
     if (endpoint.includes("/jobs?"))
-      return included({
+      return Response.json({
         total_count: required.length,
         jobs: workflowJobs().map((job) => ({ ...job, completed_at: null })),
       });
     if (endpoint.includes("/actions/runs/42"))
-      return included({
+      return Response.json({
         ...workflow({ created_at: null, run_started_at: null }),
         repository: { full_name: "boburning/portcove" },
         ...retained,
       });
-    return included([
+    return Response.json([
       { number: 7, user: { login: "renovate[bot]" }, head: { sha: head }, ...retained },
     ]);
   });
-  const request = (await client.pull(7));
+  const request = await client.pull(7);
   assert.equal(request.user, null);
   assert.equal(request.body, null);
   assert.equal(record(request).provider_note, retained.provider_note);
   const commit = requiredFixture((await client.pullCommits(7))[0]);
   assert.equal(commit.author, null);
   assert.equal(record(commit).provider_note, retained.provider_note);
-  const run = (await client.workflowRun(42));
+  const run = await client.workflowRun(42);
   assert.equal(run.created_at, null);
   assert.equal(run.run_started_at, null);
   assert.equal(record(run).provider_note, retained.provider_note);
@@ -475,37 +514,42 @@ void test("delivery response projections reject malformed known metadata without
     { mergeable: "true" },
     { assignees: [{ login: 7 }] },
   ]) {
-    const client = new PullRequestDeliveryClient(() => included({ ...pull(), ...malformed }));
-    (await assert.rejects(async () => (await client.pull(7))));
+    const client = await deliveryFixture(() => Response.json({ ...pull(), ...malformed }));
+    await assert.rejects(async () => await client.pull(7));
   }
 });
 
 void test("Renovate snapshot inventories every commit and file page exactly once", async () => {
   const calls: string[] = [];
-  const client = new PullRequestDeliveryClient((args) => {
-    const endpoint = requiredFixture(args[2]);
+  const client = await deliveryFixture(({ endpoint }) => {
     calls.push(endpoint);
     if (endpoint === "repos/boburning/portcove/pulls/7")
-      return included(pull({ commits: 2, changed_files: 2, base: { sha: base, ref: "main" } }));
+      return Response.json(
+        pull({ commits: 2, changed_files: 2, base: { sha: base, ref: "main" } }),
+      );
     if (endpoint.includes("check-runs"))
-      return included({ total_count: required.length, check_runs: successfulRuns() });
-    if (endpoint.includes("/status?")) return included({ total_count: 0, statuses: [] });
+      return Response.json({ total_count: required.length, check_runs: successfulRuns() });
+    if (endpoint.includes("/status?")) return Response.json({ total_count: 0, statuses: [] });
     if (endpoint.includes("/commits?") && endpoint.includes("page=2"))
-      return included([{ sha: "d".repeat(40) }]);
+      return Response.json([{ sha: "d".repeat(40) }]);
     if (endpoint.includes("/commits?"))
-      return included([{ sha: head }], {
-        link: '<https://api.github.test/commits?page=2>; rel="next"',
+      return Response.json([{ sha: head }], {
+        headers: {
+          link: '<https://api.github.com/repos/boburning/portcove/pulls/7/commits?page=2>; rel="next"',
+        },
       });
     if (endpoint.includes("/files?") && endpoint.includes("page=2"))
-      return included([{ filename: "Cargo.lock" }]);
+      return Response.json([{ filename: "Cargo.lock" }]);
     if (endpoint.includes("/files?"))
-      return included([{ filename: "Cargo.toml" }], {
-        link: '<https://api.github.test/files?page=2>; rel="next"',
+      return Response.json([{ filename: "Cargo.toml" }], {
+        headers: {
+          link: '<https://api.github.com/repos/boburning/portcove/pulls/7/files?page=2>; rel="next"',
+        },
       });
-    if (endpoint.endsWith("/branches/main")) return included({ commit: { sha: base } });
+    if (endpoint.endsWith("/branches/main")) return Response.json({ commit: { sha: base } });
     throw new Error(`unexpected endpoint ${endpoint}`);
   });
-  const result = (await client.renovateSnapshot(7, head, required));
+  const result = await client.renovateSnapshot(7, head, required);
   assert.deepEqual(
     result.commits.map((commit) => commit.sha),
     [head, "d".repeat(40)],
@@ -525,14 +569,17 @@ void test("Renovate snapshot rejects incomplete commit and file inventories", as
     { commits: 2, changed_files: 2 },
     { commits: 1, changed_files: 3 },
   ]) {
-    const client = new PullRequestDeliveryClient();
-    client.pull = () => pull({ ...mismatch, base: { sha: base, ref: "main" } });
-    client.checkRuns = () => successfulRuns();
-    client.commitStatuses = () => [];
-    client.pullCommits = () => [{ sha: head }];
-    client.pullFiles = () => [{ filename: "Cargo.toml" }, { filename: "Cargo.lock" }];
-    client.branch = () => ({ commit: { sha: base } });
-    (await assert.rejects(async () => (await client.renovateSnapshot(7, head, required)), /inventory is incomplete/));
+    const client = await deliveryFixture();
+    client.pull = async () => pull({ ...mismatch, base: { sha: base, ref: "main" } });
+    client.checkRuns = async () => successfulRuns();
+    client.commitStatuses = async () => [];
+    client.pullCommits = async () => [{ sha: head }];
+    client.pullFiles = async () => [{ filename: "Cargo.toml" }, { filename: "Cargo.lock" }];
+    client.branch = async () => ({ commit: { sha: base } });
+    await assert.rejects(
+      async () => await client.renovateSnapshot(7, head, required),
+      /inventory is incomplete/,
+    );
   }
 });
 
@@ -553,26 +600,31 @@ void test("required context reduction fails closed on missing and duplicate prod
 });
 
 void test("required check observation is exact-head and fails closed on ambiguity", async () => {
-  const client = new PullRequestDeliveryClient();
-  client.pull = () => pull();
-  client.checkRuns = () => successfulRuns();
-  client.commitStatuses = () => [];
+  const client = await deliveryFixture();
+  client.pull = async () => pull();
+  client.checkRuns = async () => successfulRuns();
+  client.commitStatuses = async () => [];
   assert.ok(
-    (await client
-      .requiredCheckState(7, head, required))
-      .contexts.every((item) => item.outcome === "success"),
+    (await client.requiredCheckState(7, head, required)).contexts.every(
+      (item) => item.outcome === "success",
+    ),
   );
-  client.commitStatuses = () => [
+  client.commitStatuses = async () => [
     { id: 99, context: "rust", state: "success", target_url: "https://github.test/status" },
   ];
   assert.equal(
     requiredFixture(
-      (await client.requiredCheckState(7, head, required)).contexts.find((item) => item.context === "rust"),
+      (await client.requiredCheckState(7, head, required)).contexts.find(
+        (item) => item.context === "rust",
+      ),
     ).conclusion,
     "ambiguous",
   );
-  client.pull = () => pull({ head: { sha: "d".repeat(40) } });
-  (await assert.rejects(async () => (await client.requiredCheckState(7, head, required)), /head changed/));
+  client.pull = async () => pull({ head: { sha: "d".repeat(40) } });
+  await assert.rejects(
+    async () => await client.requiredCheckState(7, head, required),
+    /head changed/,
+  );
 });
 
 const watchOptions = {
@@ -625,12 +677,12 @@ void test("watcher waits quietly on one run and requires both terminal success a
   let calls = 0;
   const pauses: number[] = [];
   const pendingThenSuccess = {
-    workflowJobs,
-    workflowRun(id: number) {
+    workflowJobs: async () => workflowJobs(),
+    async workflowRun(id: number) {
       assert.equal(id, 42);
       return workflow(calls >= 1 ? { status: "completed", conclusion: "success" } : {});
     },
-    requiredCheckState(): WatchState {
+    async requiredCheckState(): Promise<WatchState> {
       calls += 1;
       return {
         contexts: required.map((context, index) => ({
@@ -666,8 +718,8 @@ void test("watcher waits quietly on one run and requires both terminal success a
     await assert.rejects(
       watchRequiredChecks(
         {
-          workflowRun: () => workflow(),
-          requiredCheckState: () => ({
+          workflowRun: async () => workflow(),
+          requiredCheckState: async () => ({
             contexts: [{ context: "rust", outcome: "failure", conclusion }],
           }),
         },
@@ -684,8 +736,8 @@ void test("resuming an expired deadline reads evidence once and never creates an
     await assert.rejects(
       watchRequiredChecks(
         {
-          workflowRun: () => workflow(),
-          requiredCheckState: () => {
+          workflowRun: async () => workflow(),
+          requiredCheckState: async () => {
             reads += 1;
             return checkState();
           },
@@ -715,7 +767,7 @@ void test("watcher caps its final sleep to the retained deadline", async () => {
   const pauses: number[] = [];
   await assert.rejects(
     watchRequiredChecks(
-      { workflowRun: () => workflow(), requiredCheckState: () => checkState() },
+      { workflowRun: async () => workflow(), requiredCheckState: async () => checkState() },
       {
         ...watchOptions,
         now: () => current,
@@ -744,8 +796,8 @@ void test("watcher stops on replacement identity, failed workflow, absent gates 
     await assert.rejects(
       watchRequiredChecks(
         {
-          workflowRun: () => workflow(runState),
-          requiredCheckState: () => checkState(),
+          workflowRun: async () => workflow(runState),
+          requiredCheckState: async () => checkState(),
         },
         { ...watchOptions, sleep: async () => assert.fail("terminal state must stop") },
       ),
@@ -755,7 +807,7 @@ void test("watcher stops on replacement identity, failed workflow, absent gates 
     watchRequiredChecks(
       // @ts-expect-error Deliberately omit later capabilities; the first read must retain its failure.
       {
-        workflowRun: () => {
+        workflowRun: async () => {
           throw new Error("403 readback unavailable");
         },
       },
@@ -770,7 +822,9 @@ void test("watcher stops on replacement identity, failed workflow, absent gates 
 });
 
 void test("watcher rejects missing identity/deadline before querying and does not accept old green gates while the run is pending", async () => {
-  const client = { workflowRun: () => assert.fail("invalid options must stop before API access") };
+  const client = {
+    workflowRun: async () => assert.fail("invalid options must stop before API access"),
+  };
   for (const overrides of [
     { run: 0 },
     { attempt: 0 },
@@ -783,7 +837,10 @@ void test("watcher rejects missing identity/deadline before querying and does no
     await assert.rejects(watchRequiredChecks(client, { ...watchOptions, ...overrides }));
   await assert.rejects(
     watchRequiredChecks(
-      { workflowRun: () => workflow(), requiredCheckState: () => checkState("success") },
+      {
+        workflowRun: async () => workflow(),
+        requiredCheckState: async () => checkState("success"),
+      },
       { ...watchOptions, now: () => Date.parse(watchOptions.deadline) },
     ),
     /timed out/,
@@ -792,15 +849,15 @@ void test("watcher rejects missing identity/deadline before querying and does no
 
 void test("workflow REST readback validates repository and opaque run identity", async () => {
   let body = { ...workflow(), repository: { full_name: "boburning/portcove" } };
-  const client = new PullRequestDeliveryClient((args) => {
-    assert.equal(requiredFixture(args[2]), "repos/boburning/portcove/actions/runs/42");
-    return included(body);
+  const client = await deliveryFixture(({ endpoint }) => {
+    assert.equal(endpoint, "repos/boburning/portcove/actions/runs/42");
+    return Response.json(body);
   });
   assert.equal((await client.workflowRun(42)).id, 42);
   body = { ...body, id: 43 };
-  (await assert.rejects(async () => (await client.workflowRun(42)), /identity/));
+  await assert.rejects(async () => await client.workflowRun(42), /identity/);
   body = { ...body, id: 42, repository: { full_name: "other/portcove" } };
-  (await assert.rejects(async () => (await client.workflowRun(42)), /identity/));
+  await assert.rejects(async () => await client.workflowRun(42), /identity/);
 });
 
 void test("watcher rejects green checks from another run/attempt or incomplete job inventory", async () => {
@@ -832,9 +889,9 @@ void test("watcher rejects green checks from another run/attempt or incomplete j
     await assert.rejects(
       watchRequiredChecks(
         {
-          workflowRun: () => workflow({ status: "completed", conclusion: "success" }),
-          requiredCheckState: () => checkState("success"),
-          workflowJobs: () => change(workflowJobs()),
+          workflowRun: async () => workflow({ status: "completed", conclusion: "success" }),
+          requiredCheckState: async () => checkState("success"),
+          workflowJobs: async () => change(workflowJobs()),
         },
         watchOptions,
       ),
@@ -843,9 +900,9 @@ void test("watcher rejects green checks from another run/attempt or incomplete j
   await assert.rejects(
     watchRequiredChecks(
       {
-        workflowRun: () => workflow({ status: "completed", conclusion: "success" }),
-        requiredCheckState: () => checkState("success"),
-        workflowJobs: () => {
+        workflowRun: async () => workflow({ status: "completed", conclusion: "success" }),
+        requiredCheckState: async () => checkState("success"),
+        workflowJobs: async () => {
           throw new Error("incomplete paginated jobs");
         },
       },
@@ -857,63 +914,71 @@ void test("watcher rejects green checks from another run/attempt or incomplete j
 
 void test("workflow attempt job inventory follows pagination and rejects incomplete totals", async () => {
   let incomplete = false;
-  const client = new PullRequestDeliveryClient((args) => {
-    const endpoint = requiredFixture(args[2]);
+  const client = await deliveryFixture(({ endpoint }) => {
     assert.match(endpoint, /actions\/runs\/42\/jobs\?filter=all/);
     if (endpoint.includes("page=2"))
-      return included({ total_count: 5, jobs: workflowJobs().slice(1) });
-    return included(
+      return Response.json({ total_count: 5, jobs: workflowJobs().slice(1) });
+    return Response.json(
       { total_count: incomplete ? 6 : 5, jobs: workflowJobs().slice(0, 1) },
       {
-        link: '<https://api.github.com/repos/boburning/portcove/actions/runs/42/jobs?filter=all&per_page=100&page=2>; rel="next"',
+        headers: {
+          link: '<https://api.github.com/repos/boburning/portcove/actions/runs/42/jobs?filter=all&per_page=100&page=2>; rel="next"',
+        },
       },
     );
   });
   assert.equal((await client.workflowJobs(42, 1)).length, 5);
   incomplete = true;
-  (await assert.rejects(async () => (await client.workflowJobs(42, 1)), /incomplete|total/));
+  await assert.rejects(async () => await client.workflowJobs(42, 1), /incomplete|total/);
 });
 
-void test("watch-only API reads bound subprocess and whole observation without altering merge clients", () => {
+void test("watch SDK reads retain per-request and whole-observation bounds", async (t) => {
   let time = 1000;
-  const timeouts: (number | undefined)[] = [];
-  const client = createWatchClient({
-    now: () => time,
-    spawn: (_command, _args, options) => {
-      timeouts.push(options.timeout);
-      assert.equal(options.killSignal, "SIGKILL");
-      return {
-        status: 0,
-        stdout: included({ ...workflow(), repository: { full_name: "boburning/portcove" } }),
-        stderr: "",
-      };
-    },
+  const timeouts: number[] = [];
+  t.mock.method(AbortSignal, "timeout", (milliseconds: number) => {
+    timeouts.push(milliseconds);
+    return new AbortController().signal;
   });
-  assert.throws(() => client.workflowRun(42), /60-second budget/);
+  const client = await createWatchClient({
+    credential: { kind: "anonymous" },
+    deadline: 121000,
+    now: () => time,
+    fetch: async () =>
+      Response.json({ ...workflow(), repository: { full_name: "boburning/portcove" } }),
+  });
+  await assert.rejects(client.workflowRun(42), { code: "deadline_exceeded" });
+  timeouts.length = 0;
   client.beginObservation();
-  client.workflowRun(42);
-  time += 59_500;
-  client.workflowRun(42);
+  await client.workflowRun(42);
+  time += 59500;
+  await client.workflowRun(42);
   time += 500;
-  assert.throws(() => client.workflowRun(42), /60-second budget/);
-  assert.deepEqual(timeouts, [15_000, 500]);
+  await assert.rejects(client.workflowRun(42), { code: "deadline_exceeded" });
+  assert.deepEqual(timeouts, [15000, 500]);
 });
 
-void test("subprocess timeout is retained as a failed observation with no retry", async () => {
+void test("SDK timeout retains a failed observation and original watch deadline without replay", async (t) => {
+  const keepAlive = setInterval(() => {}, 1000);
+  t.after(() => clearInterval(keepAlive));
   let calls = 0;
-  const client = createWatchClient({
-    spawn: () => {
-      calls += 1;
-      return {
-        status: null,
-        stdout: "",
-        stderr: "",
-        error: Object.assign(new Error("spawnSync gh ETIMEDOUT"), { code: "ETIMEDOUT" }),
-      };
+  const client = await createWatchClient({
+    credential: { kind: "anonymous" },
+    deadline: performance.now() + 5000,
+    requestTimeoutMs: 20,
+    fetch: async (_input, init) => {
+      calls++;
+      const signal = init?.signal;
+      assert.ok(signal instanceof AbortSignal);
+      await new Promise<void>((resolve) => {
+        if (signal.aborted) resolve();
+        else signal.addEventListener("abort", () => resolve(), { once: true });
+      });
+      signal.throwIfAborted();
+      assert.fail("The request must be cancelled");
     },
   });
   await assert.rejects(watchRequiredChecks(client, watchOptions), (error) => {
-    assert.match(errorMessage(error), /monitoring failed.*ETIMEDOUT/);
+    assert.match(errorMessage(error), /monitoring failed/u);
     assert.equal(evidence(error).deadline, watchOptions.deadline);
     return true;
   });
@@ -925,14 +990,14 @@ void test("watcher rejects an attempt changed during otherwise successful job co
   await assert.rejects(
     watchRequiredChecks(
       {
-        workflowRun: () =>
+        workflowRun: async () =>
           workflow({
             status: "completed",
             conclusion: "success",
             run_attempt: ++reads === 1 ? 1 : 2,
           }),
-        requiredCheckState: () => checkState("success"),
-        workflowJobs,
+        requiredCheckState: async () => checkState("success"),
+        workflowJobs: async () => workflowJobs(),
       },
       watchOptions,
     ),
@@ -946,38 +1011,43 @@ void test("watcher rejects an attempt changed during otherwise successful job co
 });
 
 void test("REST merge uses the exact SHA and verifies remote completion", async () => {
-  const calls: { method: string | undefined; endpoint: string; input: string | undefined }[] = [];
+  const calls: { method: string | undefined; endpoint: string; payload: unknown }[] = [];
   let merged = false;
-  const client = new PullRequestDeliveryClient((args, input) => {
-    const method = requiredFixture(args[4]);
-    const endpoint = args[1] === "graphql" ? "graphql" : requiredFixture(args[2]);
-    calls.push({ method, endpoint, input });
-    if (endpoint === "graphql") return included(closingPage());
+  const client = await deliveryFixture(({ method, endpoint, body: payload }) => {
+    calls.push({ method, endpoint, payload });
+    if (endpoint === "graphql") return Response.json(closingPage());
     if (endpoint === "repos/boburning/portcove/pulls/7/commits?per_page=100")
-      return included([{ sha: head, commit: { message: squashMessage.title } }]);
+      return Response.json([{ sha: head, commit: { message: squashMessage.title } }]);
     if (endpoint === `repos/boburning/portcove/git/commits/${merge}`)
-      return included({ sha: merge, message: `${squashMessage.title}\n\n${squashMessage.body}` });
+      return Response.json({
+        sha: merge,
+        message: `${squashMessage.title}\n\n${squashMessage.body}`,
+      });
     if (endpoint === "repos/boburning/portcove/pulls/7") {
-      return included(
+      return Response.json(
         merged ? pull({ merged: true, state: "closed", merge_commit_sha: merge }) : pull(),
       );
     }
     if (endpoint.includes("check-runs"))
-      return included({ total_count: required.length, check_runs: successfulRuns() });
-    if (endpoint.includes("/status?")) return included({ total_count: 0, statuses: [] });
+      return Response.json({ total_count: required.length, check_runs: successfulRuns() });
+    if (endpoint.includes("/status?")) return Response.json({ total_count: 0, statuses: [] });
     if (endpoint === "repos/boburning/portcove/pulls/7/merge") {
       merged = true;
-      assert.deepEqual(JSON.parse(input ?? ""), {
+      assert.deepEqual(payload, {
         merge_method: "squash",
         sha: head,
         commit_title: squashMessage.title,
         commit_message: squashMessage.body,
       });
-      return included({ merged: true, sha: merge, message: "Pull Request successfully merged" });
+      return Response.json({
+        merged: true,
+        sha: merge,
+        message: "Pull Request successfully merged",
+      });
     }
     throw new Error(`unexpected endpoint ${endpoint}`);
   });
-  const result = (await client.merge(7, head, required, emptyIntent, squashMessage));
+  const result = await client.merge(7, head, required, emptyIntent, squashMessage);
   assert.equal(result.result.sha, merge);
   assert.equal(calls.filter((call) => call.method === "PUT").length, 1);
   assert.equal(
@@ -988,86 +1058,92 @@ void test("REST merge uses the exact SHA and verifies remote completion", async 
 
 void test("merge command errors are reconciled through remote readback before retry", async () => {
   let merged = false;
-  const client = new PullRequestDeliveryClient((args) => {
-    const endpoint = args[1] === "graphql" ? "graphql" : requiredFixture(args[2]);
-    if (endpoint === "graphql") return included(closingPage());
+  const client = await deliveryFixture(({ endpoint }) => {
+    if (endpoint === "graphql") return Response.json(closingPage());
     if (endpoint === "repos/boburning/portcove/pulls/7/commits?per_page=100")
-      return included([{ sha: head, commit: { message: squashMessage.title } }]);
+      return Response.json([{ sha: head, commit: { message: squashMessage.title } }]);
     if (endpoint === `repos/boburning/portcove/git/commits/${merge}`)
-      return included({ sha: merge, message: `${squashMessage.title}\n\n${squashMessage.body}` });
+      return Response.json({
+        sha: merge,
+        message: `${squashMessage.title}\n\n${squashMessage.body}`,
+      });
     if (endpoint === "repos/boburning/portcove/pulls/7")
-      return included(
+      return Response.json(
         merged ? pull({ merged: true, state: "closed", merge_commit_sha: merge }) : pull(),
       );
     if (endpoint.includes("check-runs"))
-      return included({ total_count: required.length, check_runs: successfulRuns() });
-    if (endpoint.includes("/status?")) return included({ total_count: 0, statuses: [] });
+      return Response.json({ total_count: required.length, check_runs: successfulRuns() });
+    if (endpoint.includes("/status?")) return Response.json({ total_count: 0, statuses: [] });
     if (endpoint === "repos/boburning/portcove/pulls/7/merge") {
       merged = true;
       throw new Error("local cleanup failed after request");
     }
     throw new Error(`unexpected endpoint ${endpoint}`);
   });
-  const result = (await client.merge(7, head, required, emptyIntent, squashMessage));
+  const result = await client.merge(7, head, required, emptyIntent, squashMessage);
   assert.equal(result.result.sha, merge);
   assert.match(String(result.result.message), /readback confirmed/);
 });
 
 void test("merge reports unknown when mutation and remote readback are both ambiguous", async () => {
-  const client = new PullRequestDeliveryClient();
-  client.api = new GitHubApiClient(() => included(closingPage()));
-  client.pullCommits = () => [{ sha: head, commit: { message: squashMessage.title } }];
-  client.requiredCheckState = () => ({
+  const client = await deliveryFixture(({ endpoint }) => {
+    if (endpoint === "graphql") return Response.json(closingPage());
+    throw new Error("connection closed");
+  });
+  client.pullCommits = async () => [{ sha: head, commit: { message: squashMessage.title } }];
+  client.requiredCheckState = async () => ({
     head,
     pull: pull(),
     contexts: requiredCheckContexts(successfulRuns(), [], required),
   });
-  client.request = () => {
-    throw new Error("connection closed");
-  };
-  client.pull = () => {
+  client.pull = async () => {
     throw new Error("readback unavailable");
   };
-  (await assert.rejects(
-    async () => (await client.merge(7, head, required, emptyIntent, squashMessage)),
+  await assert.rejects(
+    async () => await client.merge(7, head, required, emptyIntent, squashMessage),
     (error) =>
       deliveryError(error).operationStatus === "unknown" &&
       evidence(error).pull_request === 7 &&
       /outcome is unknown/.test(errorMessage(error)),
-  ));
+  );
 });
 
 void test("merge refuses draft conflict and incomplete-check states before mutation", async () => {
   for (const overrides of [{ draft: true }, { mergeable: false }, { mergeable: null }]) {
-    const client = new PullRequestDeliveryClient();
-    client.pull = () => pull(overrides);
-    client.checkRuns = () => successfulRuns();
-    client.commitStatuses = () => [];
-    (await assert.rejects(async () => (await client.merge(7, head, required)), /draft|conflict|determined/));
+    const client = await deliveryFixture();
+    client.pull = async () => pull(overrides);
+    client.checkRuns = async () => successfulRuns();
+    client.commitStatuses = async () => [];
+    await assert.rejects(
+      async () => await client.merge(7, head, required),
+      /draft|conflict|determined/,
+    );
   }
-  const client = new PullRequestDeliveryClient();
-  client.pull = () => pull();
-  client.checkRuns = () => successfulRuns().slice(1);
-  client.commitStatuses = () => [];
-  (await assert.rejects(async () => (await client.merge(7, head, required)), /not successful/));
+  const client = await deliveryFixture();
+  client.pull = async () => pull();
+  client.checkRuns = async () => successfulRuns().slice(1);
+  client.commitStatuses = async () => [];
+  await assert.rejects(async () => await client.merge(7, head, required), /not successful/);
 });
 
-function closureGuardClient(
+async function closureGuardClient(
   pages: unknown[],
   commits = [{ sha: head, commit: { message: "fix: scoped component" } }],
+  respond?: (request: DeliveryFixtureRequest) => unknown,
 ) {
   let index = 0;
-  const client = new PullRequestDeliveryClient();
-  client.api = new GitHubApiClient(() =>
-    included(requiredFixture(pages[Math.min(index++, pages.length - 1)])),
-  );
-  client.requiredCheckState = () => ({
+  const client = await deliveryFixture((request) => {
+    if (request.endpoint === "graphql")
+      return Response.json(requiredFixture(pages[Math.min(index++, pages.length - 1)]));
+    if (respond) return respond(request);
+    assert.fail("Closure refusal must precede merge mutation");
+  });
+  client.requiredCheckState = async () => ({
     head,
     pull: pull(),
     contexts: requiredCheckContexts(successfulRuns(), [], required),
   });
-  client.pullCommits = () => commits;
-  client.request = () => assert.fail("Closure refusal must precede merge mutation");
+  client.pullCommits = async () => commits;
   return client;
 }
 
@@ -1081,11 +1157,11 @@ void test("empty component intent refuses keyword-free manual closure relationsh
       pageInfo: { hasNextPage: false, endCursor: null },
     },
   });
-  const client = closureGuardClient([page]);
-  (await assert.rejects(
-    async () => (await client.merge(7, head, required, emptyIntent, squashMessage)),
+  const client = await closureGuardClient([page]);
+  await assert.rejects(
+    async () => await client.merge(7, head, required, emptyIntent, squashMessage),
     /Undeclared closing relationship/,
-  ));
+  );
 });
 
 void test("unchanged source head does not hide PR body or relationship changes", async () => {
@@ -1101,17 +1177,13 @@ void test("unchanged source head does not hide PR body or relationship changes",
       },
     }),
   ]) {
-    (await assert.rejects(
+    await assert.rejects(
       async () =>
-        (await closureGuardClient([closingPage(), second]).merge(
-          7,
-          head,
-          required,
-          emptyIntent,
-          squashMessage,
-        )),
+        await (
+          await closureGuardClient([closingPage(), second])
+        ).merge(7, head, required, emptyIntent, squashMessage),
       /changed before merge/,
-    ));
+    );
   }
 });
 
@@ -1120,61 +1192,65 @@ void test("candidate commit and actual proposed squash text require explicit clo
     "Fixes https://github.com/boburning/portcove/issues/244",
     "Fixes https://github.com/other/repo/issues/244",
   ]) {
-    (await assert.rejects(
+    await assert.rejects(
       async () =>
-        (await closureGuardClient([closingPage()], [{ sha: head, commit: { message: text } }]).merge(
-          7,
-          head,
-          required,
-          emptyIntent,
-          squashMessage,
-        )),
+        await (
+          await closureGuardClient([closingPage()], [{ sha: head, commit: { message: text } }])
+        ).merge(7, head, required, emptyIntent, squashMessage),
       /Undeclared/,
-    ));
-    (await assert.rejects(
+    );
+    await assert.rejects(
       async () =>
-        (await closureGuardClient([closingPage()]).merge(7, head, required, emptyIntent, {
+        await (
+          await closureGuardClient([closingPage()])
+        ).merge(7, head, required, emptyIntent, {
           ...squashMessage,
           body: text,
-        })),
+        }),
       /Undeclared/,
-    ));
+    );
   }
-  (await assert.rejects(
+  await assert.rejects(
     async () =>
-      (await closureGuardClient(
-        [closingPage()],
-        [{ sha: head, commit: { message: "Closes #244" } }],
-      ).merge(7, head, required, emptyIntent, squashMessage)),
+      await (
+        await closureGuardClient(
+          [closingPage()],
+          [{ sha: head, commit: { message: "Closes #244" } }],
+        )
+      ).merge(7, head, required, emptyIntent, squashMessage),
     /Undeclared/,
-  ));
-  (await assert.rejects(
+  );
+  await assert.rejects(
     async () =>
-      (await closureGuardClient([closingPage()]).merge(7, head, required, emptyIntent, {
+      await (
+        await closureGuardClient([closingPage()])
+      ).merge(7, head, required, emptyIntent, {
         ...squashMessage,
         body: "Fixes: #244",
-      })),
+      }),
     /Undeclared/,
-  ));
-  (await assert.rejects(
-    async () => (await closureGuardClient([closingPage()]).merge(7, head, required, undefined, squashMessage)),
+  );
+  await assert.rejects(
+    async () =>
+      await (
+        await closureGuardClient([closingPage()])
+      ).merge(7, head, required, undefined, squashMessage),
     /independent/,
-  ));
+  );
 });
 
 void test("unexpected actual squash message preserves a merged outcome without retry", async () => {
-  const client = closureGuardClient([closingPage()]);
   let writes = 0;
-  client.request = (method) => {
+  const client = await closureGuardClient([closingPage()], undefined, ({ method }) => {
     if (method === "PUT") {
       writes++;
-      return { body: { merged: true, sha: merge, message: "merged" } };
+      return Response.json({ merged: true, sha: merge, message: "merged" });
     }
-    return { body: { sha: merge, message: "Unexpected Closes #244" } };
-  };
-  client.pull = () => pull({ merged: true, state: "closed", merge_commit_sha: merge });
-  (await assert.rejects(
-    async () => (await client.merge(7, head, required, emptyIntent, squashMessage)),
+    return Response.json({ sha: merge, message: "Unexpected Closes #244" });
+  });
+  client.pull = async () => pull({ merged: true, state: "closed", merge_commit_sha: merge });
+  await assert.rejects(
+    async () => await client.merge(7, head, required, emptyIntent, squashMessage),
     (error) =>
       deliveryError(error).operationStatus === "unknown" &&
       evidence(error).merge_commit_sha === merge &&
@@ -1183,7 +1259,7 @@ void test("unexpected actual squash message preserves a merged outcome without r
         "Unexpected Closes #244" &&
       record(record(evidence(error).closure_readback).mutation).merged === true &&
       record(record(evidence(error).closure_readback).pull).merge_commit_sha === merge,
-  ));
+  );
   assert.equal(writes, 1);
 });
 
@@ -1261,9 +1337,10 @@ void test("selective retry retains independent success but refuses newer authori
   const state = checkState("success");
   requiredFixture(state.contexts[0]).check_run_id = 100;
   const client = {
-    workflowRun: () => workflow({ run_attempt: 2, status: "completed", conclusion: "success" }),
-    requiredCheckState: () => state,
-    workflowJobs: () => [...old, rerun],
+    workflowRun: async () =>
+      workflow({ run_attempt: 2, status: "completed", conclusion: "success" }),
+    requiredCheckState: async () => state,
+    workflowJobs: async () => [...old, rerun],
   };
   await watchRequiredChecks(client, { ...watchOptions, attempt: 2 });
   for (const newer of [
@@ -1272,14 +1349,18 @@ void test("selective retry retains independent success but refuses newer authori
   ]) {
     await assert.rejects(
       watchRequiredChecks(
-        { ...client, workflowJobs: () => [...old, newer] },
+        { ...client, workflowJobs: async () => [...old, newer] },
         { ...watchOptions, attempt: 2 },
       ),
     );
     const stale = checkState("success");
     await assert.rejects(
       watchRequiredChecks(
-        { ...client, requiredCheckState: () => stale, workflowJobs: () => [...old, newer] },
+        {
+          ...client,
+          requiredCheckState: async () => stale,
+          workflowJobs: async () => [...old, newer],
+        },
         { ...watchOptions, attempt: 2 },
       ),
     );
@@ -1288,7 +1369,7 @@ void test("selective retry retains independent success but refuses newer authori
     watchRequiredChecks(
       {
         ...client,
-        workflowJobs: () => [
+        workflowJobs: async () => [
           ...old,
           rerun,
           {
@@ -1304,7 +1385,7 @@ void test("selective retry retains independent success but refuses newer authori
   );
 });
 
-function inspectionClient(
+async function inspectionClient(
   options: {
     pull?: Partial<DeliveryPull>;
     checks?: ReturnType<typeof successfulRuns>;
@@ -1318,13 +1399,12 @@ function inspectionClient(
   let pullReads = 0;
   let targetReads = 0;
   const calls: string[] = [];
-  const client = new PullRequestDeliveryClient((args) => {
-    assert.equal(args[args.indexOf("--method") + 1], "GET", "inspection must issue only GETs");
-    const endpoint = requiredFixture(args[2]);
+  const client = await deliveryFixture(({ endpoint, method }) => {
+    assert.equal(method, "GET", "inspection must issue only GETs");
     calls.push(endpoint);
     if (endpoint.endsWith("/pulls/7")) {
       pullReads++;
-      return included(
+      return Response.json(
         pull({
           base: { sha: base, ref: "main" },
           ...options.pull,
@@ -1334,12 +1414,14 @@ function inspectionClient(
     }
     if (endpoint.endsWith("/branches/main")) {
       targetReads++;
-      return included({ commit: { sha: options.changeTarget && targetReads > 1 ? merge : base } });
+      return Response.json({
+        commit: { sha: options.changeTarget && targetReads > 1 ? merge : base },
+      });
     }
     if (endpoint.includes("/check-runs?")) {
       const runs = options.checks ?? successfulRuns();
       if (options.paginated)
-        return included(
+        return Response.json(
           {
             total_count: runs.length,
             check_runs: endpoint.includes("page=2") ? runs.slice(3) : runs.slice(0, 3),
@@ -1347,20 +1429,22 @@ function inspectionClient(
           endpoint.includes("page=2")
             ? {}
             : {
-                link:
-                  "<https://api.github.com/repos/boburning/portcove/commits/" +
-                  head +
-                  '/check-runs?filter=all&per_page=100&page=2>; rel="next"',
+                headers: {
+                  link:
+                    "<https://api.github.com/repos/boburning/portcove/commits/" +
+                    head +
+                    '/check-runs?filter=all&per_page=100&page=2>; rel="next"',
+                },
               },
         );
-      return included({
+      return Response.json({
         total_count: runs.length + (options.incomplete ? 1 : 0),
         check_runs: runs,
       });
     }
-    if (endpoint.includes("/status?")) return included({ total_count: 0, statuses: [] });
+    if (endpoint.includes("/status?")) return Response.json({ total_count: 0, statuses: [] });
     if (endpoint.endsWith("/actions/runs/42"))
-      return included({
+      return Response.json({
         id: 42,
         run_attempt: 1,
         head_sha: head,
@@ -1381,7 +1465,7 @@ void test("inspection observes pending, failure, success, changed head and confi
     [successfulRuns().map((run) => ({ ...run, conclusion: "failure" })), "Inspect failed"],
     [successfulRuns(), "Complete or reconcile independent review"],
   ] as const) {
-    const fixture = inspectionClient({ checks: [...checks] });
+    const fixture = await inspectionClient({ checks: [...checks] });
     const result = await inspectDelivery(fixture.client, inspectOptions);
     assert.equal(result.observation, "complete");
     assert.ok(result.next_action.startsWith(expected));
@@ -1389,18 +1473,19 @@ void test("inspection observes pending, failure, success, changed head and confi
     assert.equal(fixture.calls.length, 6);
   }
   const changed = await inspectDelivery(
-    inspectionClient({ pull: { head: { sha: merge } } }).client,
+    (await inspectionClient({ pull: { head: { sha: merge } } })).client,
     inspectOptions,
   );
   assert.equal(changed.source.matches, false);
   assert.match(changed.next_action, /observed source head/);
   const merged = await inspectDelivery(
-    inspectionClient({ pull: { state: "closed", merged: true, merge_commit_sha: merge } }).client,
+    (await inspectionClient({ pull: { state: "closed", merged: true, merge_commit_sha: merge } }))
+      .client,
     inspectOptions,
   );
   assert.equal(merged.pull.merge_commit_sha, merge);
   assert.match(merged.next_action, /Reconcile the owning issue/);
-  const paginated = inspectionClient({ paginated: true });
+  const paginated = await inspectionClient({ paginated: true });
   assert.ok(
     (await inspectDelivery(paginated.client, inspectOptions)).checks.every(
       (check) => check.outcome === "success",
@@ -1418,7 +1503,7 @@ void test("inspection refuses incomplete pagination, contradictory PR fields and
     { pull: { base: { sha: base } } },
   ] satisfies Parameters<typeof inspectionClient>[0][]) {
     await assert.rejects(
-      inspectDelivery(inspectionClient(options).client, inspectOptions),
+      inspectDelivery((await inspectionClient(options)).client, inspectOptions),
       (error) =>
         deliveryError(error).operationStatus === "unknown" &&
         evidence(error).observation === "unknown",
@@ -1442,12 +1527,12 @@ void test("inspection verifies hashed finite references without converting decla
     acceptance: { head, result: "passed", reference },
     watcher: { head, run: 42, attempt: 1, deadline: "2026-10-19T00:00:00Z", reference },
   };
-  const inspect = (
+  const inspect = async (
     value = declaration,
     options: Parameters<typeof inspectionClient>[0] = {},
     now = Date.parse("2026-10-18T00:00:00Z"),
   ) =>
-    inspectDelivery(inspectionClient(options).client, {
+    inspectDelivery((await inspectionClient(options)).client, {
       ...inspectOptions,
       references: parseInspectionReferences(JSON.stringify(value), 7),
       now: () => now,
@@ -1534,7 +1619,7 @@ void test("inspection declaration schema and full CLI serialization include UTF-
     JSON.stringify({ format_version: 1, pull_request: 7, approval: true }),
   ])
     assert.throws(() => parseInspectionReferences(text, 7));
-  const inspection = await inspectDelivery(inspectionClient().client, inspectOptions);
+  const inspection = await inspectDelivery((await inspectionClient()).client, inspectOptions);
   const moduleUrl = new URL("./pr-delivery.mts", import.meta.url).href;
   for (const json of [true, false]) {
     const result = spawnHelp(
@@ -1593,7 +1678,7 @@ void test("inspection declaration schema and full CLI serialization include UTF-
   assert.match(incompatible.stderr, /mutually exclusive/);
 });
 
-void test("queue exposes age uncertainty without changing the pending-status gate", () => {
+void test("queue exposes age uncertainty without changing the pending-status gate", async () => {
   const statuses = [
     {
       context: "renovate/stability-days",
@@ -1601,14 +1686,22 @@ void test("queue exposes age uncertainty without changing the pending-status gat
       description: "Updates have not met minimum release age requirement",
     },
   ];
-  const queue = inspectRenovateQueue(queueClient({ statuses }), queueConfig, required, queueBase);
+  const queue = await inspectRenovateQueue(
+    queueClient({ statuses }),
+    queueConfig,
+    required,
+    queueBase,
+  );
   const candidate = requiredFixture(queue.candidates[0]);
   assert.equal(candidate.release_age_diagnosis.classification, "pending-unexplained");
   assert.deepEqual(candidate.release_age, statuses);
   assert.equal(candidate.actionable, false);
   assert.equal(queue.selected, null);
   assert.match(candidate.next_action, /hosted lookup\/branch inputs/);
-  assert.equal(inspectRenovateQueue(queueClient(), queueConfig, required, queueBase).selected, 7);
+  assert.equal(
+    (await inspectRenovateQueue(queueClient(), queueConfig, required, queueBase)).selected,
+    7,
+  );
 });
 
 void test("watch REST collection resolves complete replay lineage without hiding raw observations", async () => {
@@ -1628,17 +1721,16 @@ void test("watch REST collection resolves complete replay lineage without hiding
     conclusion: job.conclusion,
   }));
   let runState = workflow({ run_attempt: 2, status: "completed", conclusion: "success" });
-  const client = new PullRequestDeliveryClient((args) => {
-    const endpoint = requiredFixture(args[2]);
-    if (endpoint === "repos/boburning/portcove/pulls/7") return included(pull());
+  const client = await deliveryFixture(({ endpoint }) => {
+    if (endpoint === "repos/boburning/portcove/pulls/7") return Response.json(pull());
     if (endpoint === "repos/boburning/portcove/actions/runs/42")
-      return included({ ...runState, repository: { full_name: "boburning/portcove" } });
-    if (endpoint.includes("/jobs?")) return included({ total_count: jobs.length, jobs });
+      return Response.json({ ...runState, repository: { full_name: "boburning/portcove" } });
+    if (endpoint.includes("/jobs?")) return Response.json({ total_count: jobs.length, jobs });
     if (endpoint.includes("/check-runs?")) {
       assert.match(endpoint, /filter=all/);
-      return included({ total_count: checks.length, check_runs: checks });
+      return Response.json({ total_count: checks.length, check_runs: checks });
     }
-    if (endpoint.includes("/status?")) return included({ total_count: 0, statuses: [] });
+    if (endpoint.includes("/status?")) return Response.json({ total_count: 0, statuses: [] });
     throw new Error(`unexpected endpoint ${endpoint}`);
   });
   const observations: import("./pr-delivery.mts").WatchObservation[] = [];

@@ -188,7 +188,11 @@ export async function createGitHubClient(options: GitHubClientOptions) {
         Number(rawPolicy.attempts) >= 0
           ? (rawPolicy as unknown as GitHubRequestPolicy)
           : { replay: "once" as const, attempts: 0 };
-      policy.deadline ??= Math.min(options.deadline, now() + requestTimeoutMs);
+      policy.deadline = Math.min(
+        policy.deadline ?? Infinity,
+        options.deadline,
+        now() + requestTimeoutMs,
+      );
       deadline = Math.min(options.deadline, policy.deadline);
       if (deadline <= now())
         throw new GitHubApiError("deadline_exceeded", "GitHub logical request deadline exhausted");

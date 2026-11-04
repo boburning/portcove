@@ -104,7 +104,7 @@ void test("resource-admitted six-page batches rotate all families and preserve e
   for (let run = 0; run < 5; run++) {
     const session = Object.create(DiscoverySession.prototype) as DiscoverySession;
     const budget = new DiscoveryBudget("ordinary");
-    (await budget.reserveDelivery(178, 1024)); // Six pages fit before the investigation reserve.
+    await budget.reserveDelivery(178, 1024); // Six pages fit before the investigation reserve.
     Object.assign(session, {
       stateDir: root,
       runDir: root,
@@ -148,7 +148,7 @@ void test("resource-admitted six-page batches rotate all families and preserve e
         },
       },
     });
-    (await session.discover());
+    await session.discover();
     assert.equal(session.searches, 6);
     const evidence = JSON.parse(readFileSync(path.join(root, "lead-search-1.json"), "utf8")) as {
       sort: string;
@@ -228,7 +228,7 @@ void test("current, capped and typed-drift skips cannot hide a due Switch topic 
       },
     },
   });
-  (await session.discover());
+  await session.discover();
   assert.deepEqual(requested, [
     "new-recompiled",
     ...Array<string>(6).fill("changed-switch-topics"),
@@ -295,7 +295,7 @@ for (const driftingFamilies of [1, 2, 4])
         },
       },
     });
-    (await session.discover());
+    await session.discover();
     assert.equal(
       requests.length,
       leadFamilyIds.length,
@@ -328,7 +328,7 @@ for (const driftingFamilies of [1, 2, 4])
       "bounded partial search effort permits rotation",
     );
     const calls = requests.length;
-    (await session.discover());
+    await session.discover();
     assert.equal(requests.length, calls, "repeat discover does not retry any page");
   });
 void test("Brawl missed by newest-ten remains discoverable and queued across paginated runs", () => {
@@ -568,7 +568,7 @@ void test("runner charges complementary pages, guards rotation and retains queue
   mkdirSync(run);
   const session = Object.create(DiscoverySession.prototype) as DiscoverySession;
   const budget = new DiscoveryBudget("ordinary");
-  (await budget.reserveDelivery(60, 1024));
+  await budget.reserveDelivery(60, 1024);
   let calls = 0;
   Object.assign(session, {
     stateDir: root,
@@ -606,7 +606,7 @@ void test("runner charges complementary pages, guards rotation and retains queue
   });
   assert.equal("status" in (await session.recheck()) ? "deferred" : "unexpected", "deferred");
   assert.equal(calls, 0);
-  (await session.discover());
+  await session.discover();
   assert.equal(calls, leadFamilyIds.length);
   assert.equal(budget.usage.requests, leadFamilyIds.length + 4);
   assert.equal(
@@ -671,13 +671,20 @@ void test("runner charges complementary pages, guards rotation and retains queue
   const config = JSON.parse(
     readFileSync(new URL("../.github/roadmap.json", import.meta.url), "utf8"),
   ) as RoadmapConfig;
-  const recovered = (await DiscoverySession.open(root, run, config, "fixture-token", now, "fixture-head"));
+  const recovered = await DiscoverySession.open(
+    root,
+    run,
+    config,
+    "fixture-token",
+    now,
+    "fixture-head",
+  );
   assert.equal(recovered.leads.records["2"]?.status, "held");
   assert.equal(recovered.leads.records["2"]?.research?.evidence_id, "retained-2");
   const restored = parseLeadState(JSON.parse(JSON.stringify(session.leads)));
   assert.equal(pendingLeads(restored, new Set(), Date.parse(now)).length, leadFamilyIds.length - 3);
   const constrained = new DiscoveryBudget("ordinary");
-  (await constrained.reserveDelivery(190, 1024));
+  await constrained.reserveDelivery(190, 1024);
   Object.assign(session, {
     budget: constrained,
     leadFamilies: new Set(),
@@ -687,7 +694,7 @@ void test("runner charges complementary pages, guards rotation and retains queue
     leadPages: 0,
     leads: parseLeadState(undefined),
   });
-  (await session.discover());
+  await session.discover();
   assert.equal(calls, leadFamilyIds.length, "reserve refusal must happen before HTTP");
   assert.equal(session.leadWorkComplete(), false);
 });

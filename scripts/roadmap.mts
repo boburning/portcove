@@ -1300,9 +1300,10 @@ Usage:
 
 Required arguments appear in angle brackets; optional arguments appear in square
 brackets. Use <command> --help for its purpose, options and an example. --json
-preserves the command's machine-readable output. Live commands require an
-authenticated GitHub CLI with repository and Project access; unavailable or
-incomplete reads fail and do not establish an empty or accepted Project state.
+preserves the command's machine-readable output. Live commands require the locked
+Node dependencies and a credential with repository and Project access. Eligible
+local tooling may use an existing gh login; explicit credentials never fall back.
+Unavailable or incomplete reads do not establish an empty or accepted Project state.
 
 Use capture-port for direct maintainer intake. Use normalize-port for a public
 New Port form submission; it preserves form content, reconciles canonical
@@ -2018,19 +2019,24 @@ export class RoadmapClient {
     });
     owner = new this(config, sdk, scope);
     const repository = scope.repositoryMutations;
-    if (repository) owner.repositorySdk = await createGitHubClient({
-      ...repository,
-      allowRequest(method, url) {
-        const issues = `/repos/${config.repository}/issues`;
-        const allowed = method === "POST" ? url.pathname === issues :
-          method === "PATCH" && url.pathname.startsWith(`${issues}/`) && /^[1-9][0-9]*$/u.test(url.pathname.slice(issues.length + 1));
-        return allowed && repository.allowRequest?.(method, url) !== false;
-      },
-      observe(attempt) {
-        repository.observe?.(attempt);
-        owner?.observeAttempt(attempt);
-      },
-    });
+    if (repository)
+      owner.repositorySdk = await createGitHubClient({
+        ...repository,
+        allowRequest(method, url) {
+          const issues = `/repos/${config.repository}/issues`;
+          const allowed =
+            method === "POST"
+              ? url.pathname === issues
+              : method === "PATCH" &&
+                url.pathname.startsWith(`${issues}/`) &&
+                /^[1-9][0-9]*$/u.test(url.pathname.slice(issues.length + 1));
+          return allowed && repository.allowRequest?.(method, url) !== false;
+        },
+        observe(attempt) {
+          repository.observe?.(attempt);
+          owner?.observeAttempt(attempt);
+        },
+      });
     return owner;
   }
 
@@ -2064,10 +2070,10 @@ export class RoadmapClient {
     const replay =
       method === "GET" ? "safe-read" : query && /^\s*query\b/u.test(query) ? "pure-query" : "once";
     if (replay === "once" && this.scope.allowMutations !== true)
-      throw Object.assign(new GitHubApiError(
-        "request_refused",
-        "This Roadmap operation does not admit mutations",
-      ), { mutation_dispatched: false });
+      throw Object.assign(
+        new GitHubApiError("request_refused", "This Roadmap operation does not admit mutations"),
+        { mutation_dispatched: false },
+      );
     const key = createHash("sha256")
       .update(JSON.stringify([method, endpoint, body]))
       .digest("hex");
@@ -2109,11 +2115,20 @@ export class RoadmapClient {
     } catch (thrown) {
       // Keep consumed operation error codes for genuine provider HTTP failures;
       // local bounded-fetch refusals retain their more precise typed code.
-      const error = thrown instanceof GitHubApiError && thrown.status !== null && thrown.status >= 400 &&
+      const error =
+        thrown instanceof GitHubApiError &&
+        thrown.status !== null &&
+        thrown.status >= 400 &&
         ["request_failed", "operation_failed"].includes(thrown.code)
-        ? new GitHubApiError("command_failed", thrown.message, { status: thrown.status, rateLimit: thrown.rateLimit,
-            requestId: thrown.requestId, responseDate: thrown.responseDate, responseBytes: thrown.responseBytes, retryAfter: thrown.retryAfter })
-        : thrown;
+          ? new GitHubApiError("command_failed", thrown.message, {
+              status: thrown.status,
+              rateLimit: thrown.rateLimit,
+              requestId: thrown.requestId,
+              responseDate: thrown.responseDate,
+              responseBytes: thrown.responseBytes,
+              retryAfter: thrown.retryAfter,
+            })
+          : thrown;
       const final = evidence.attempts.at(-1);
       if (final) {
         final.failure = sanitizeOperationError(error).code;
@@ -2861,7 +2876,8 @@ export class RoadmapClient {
   }
 
   private unknownMutation(message: string, error?: unknown) {
-    if (error instanceof Error && isRecord(error) && error.mutation_dispatched === false) throw error;
+    if (error instanceof Error && isRecord(error) && error.mutation_dispatched === false)
+      throw error;
     return new GitHubApiError(
       "mutation_unknown",
       error ? `${message}: ${sanitizeOperationError(error).message}` : message,
@@ -2888,7 +2904,8 @@ export class RoadmapClient {
     try {
       await mutation();
     } catch (error) {
-      if (error instanceof Error && isRecord(error) && error.mutation_dispatched === false) throw error;
+      if (error instanceof Error && isRecord(error) && error.mutation_dispatched === false)
+        throw error;
       failure = error;
     }
     let result: Value;
@@ -3692,9 +3709,11 @@ export class RoadmapClient {
       )
         throw new Error("Issue changed during normalization; refresh the issue before retrying");
       await this.reconcileMutation(
-        () => this.githubRequest("PATCH", `repos/${this.config.repository}/issues/${number}`, { body }),
+        () =>
+          this.githubRequest("PATCH", `repos/${this.config.repository}/issues/${number}`, { body }),
         () => this.repositoryIssue(number),
-        (after) => after.node_id === issue.node_id && after.title === issueTitle && after.body === body,
+        (after) =>
+          after.node_id === issue.node_id && after.title === issueTitle && after.body === body,
         "Canonical issue body normalization",
       );
     }

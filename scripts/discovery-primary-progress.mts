@@ -129,7 +129,15 @@ export class DiscoveryPrimaryReads {
   }
   private async read(endpoint: string, etag?: string): Promise<DiscoveryMetadataResponse> {
     try {
-      return (await this.sdk.request({ method: "GET", url: new URL(endpoint, "https://api.github.com/").href, headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", ...(etag ? { "If-None-Match": etag } : {}) } }));
+      return await this.sdk.request({
+        method: "GET",
+        url: new URL(endpoint, "https://api.github.com/").href,
+        headers: {
+          accept: "application/vnd.github+json",
+          "X-GitHub-Api-Version": "2022-11-28",
+          ...(etag ? { "If-None-Match": etag } : {}),
+        },
+      });
     } catch (error) {
       if (
         error instanceof GitHubApiError &&
@@ -159,7 +167,9 @@ export class DiscoveryPrimaryReads {
       read = {
         ...value,
         etag:
-          typeof response.headers.etag === "string" && response.headers.etag.length <= 512
+          typeof response.headers.etag === "string" &&
+          response.headers.etag.length <= 512 &&
+          !/[\r\n]/u.test(response.headers.etag)
             ? response.headers.etag
             : null,
         sha256: digest(value),
@@ -249,14 +259,21 @@ export function discoveryNextPage(
     )
       throw new Error("Research pagination has malformed or ambiguous continuation");
   }
-  const next = nextLink(new Map(Object.entries(response.headers).filter((entry): entry is [string, string] => typeof entry[1] === "string")));
+  const next = nextLink(
+    new Map(
+      Object.entries(response.headers).filter(
+        (entry): entry is [string, string] => typeof entry[1] === "string",
+      ),
+    ),
+  );
   if (!next) return null;
   const base = new URL(first, "https://api.github.com/");
   const last = new URL(current, "https://api.github.com/");
   const candidate = new URL(next, "https://api.github.com/");
-  const collection = /^\/repos\/[^/]+\/[^/]+\/(releases(?:\/[1-9]\d*\/assets)?|actions\/runs\/[1-9]\d*\/artifacts)$/u.exec(
-    base.pathname,
-  )?.[1];
+  const collection =
+    /^\/repos\/[^/]+\/[^/]+\/(releases(?:\/[1-9]\d*\/assets)?|actions\/runs\/[1-9]\d*\/artifacts)$/u.exec(
+      base.pathname,
+    )?.[1];
   // GitHub emits immutable numeric repository routes in Link headers even when
   // the request used owner/name. Accept only the primary metadata's exact ID
   // and this exact collection; keep journal requests on their original route.

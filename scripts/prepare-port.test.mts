@@ -455,7 +455,9 @@ void test("facts SDK preserves explicit and anonymous credential intent and call
   try {
     for (const token of [undefined, "synthetic-facts-token"]) {
       const result = await collectPortFacts({
-        projectUrl: project, cacheDirectory: join(f.root, token ? "explicit" : "anonymous"), token,
+        projectUrl: project,
+        cacheDirectory: join(f.root, token ? "explicit" : "anonymous"),
+        token,
         fetcher: async (_url, init) => {
           const headers = new Headers(init?.headers);
           assert.equal(headers.get("authorization"), token ? `token ${token}` : null);
@@ -468,11 +470,20 @@ void test("facts SDK preserves explicit and anonymous credential intent and call
       assert.equal(result.project?.status, "observed");
       assert.equal(result.usage.requests, 1);
     }
-    await assert.rejects(collectPortFacts({
-      projectUrl: project, cacheDirectory: join(f.root, "missing-explicit"), token: "",
-      fetcher: async () => { assert.fail("Missing explicit credential must not dispatch"); },
-    }), { code: "credential_unavailable" });
-  } finally { f.clean(); }
+    await assert.rejects(
+      collectPortFacts({
+        projectUrl: project,
+        cacheDirectory: join(f.root, "missing-explicit"),
+        token: "",
+        fetcher: async () => {
+          assert.fail("Missing explicit credential must not dispatch");
+        },
+      }),
+      { code: "credential_unavailable" },
+    );
+  } finally {
+    f.clean();
+  }
 });
 
 void test("ordinary listing fetches identity only, shares fresh observations and preserves stale facts after outage", async () => {

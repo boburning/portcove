@@ -267,7 +267,9 @@ async function main() {
     const requested = process.env.ROADMAP_INVENTORY_ITEMS ?? process.argv.slice(2).join(" ");
     report = await readbackMemberships(
       await MembershipReadbackClient.connect(config, {
-        credential: process.env.GH_TOKEN ? { kind: "explicit", token: process.env.GH_TOKEN } : { kind: "anonymous" },
+        credential: process.env.GH_TOKEN
+          ? { kind: "explicit", token: process.env.GH_TOKEN }
+          : { kind: "anonymous" },
         deadline: performance.now() + 30 * 60_000,
         failedReads: new Map(),
         deferral: { primary: new Map(), secondary: 0 },

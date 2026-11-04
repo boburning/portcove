@@ -673,7 +673,8 @@ export async function admitDoctorReadRetry(
   try {
     if (!Number.isFinite(pointHeadroom) || pointHeadroom < 10) return false;
     const requiredMs = Math.max(1, Math.ceil(elapsedMs));
-    const enoughTime = () => time.deadline - (time.now ?? (() => performance.now()))() >= requiredMs;
+    const enoughTime = () =>
+      time.deadline - (time.now ?? (() => performance.now()))() >= requiredMs;
     if (!enoughTime()) return false;
     const [owner, name] = reader.config.repository.split("/");
     const data = object(

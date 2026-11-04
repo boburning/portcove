@@ -30,10 +30,24 @@ import {
   sdkRoadmap,
   projectData,
 } from "./fixtures/roadmap-fixtures.mts";
-type IntakeCall = { method: string; endpoint: string; query?: string; variables?: Readonly<Record<string, unknown>>; body?: unknown };
-const connection = (nodes: unknown[]) => ({ totalCount: nodes.length, nodes, pageInfo: { hasNextPage: false, endCursor: null } });
+type IntakeCall = {
+  method: string;
+  endpoint: string;
+  query?: string;
+  variables?: Readonly<Record<string, unknown>>;
+  body?: unknown;
+};
+const connection = (nodes: unknown[]) => ({
+  totalCount: nodes.length,
+  nodes,
+  pageInfo: { hasNextPage: false, endCursor: null },
+});
 const selectField = (id: string, name: string, options: { id: string; name: string }[]) => ({
-  __typename: "ProjectV2SingleSelectField", dataType: "SINGLE_SELECT", id, name, options,
+  __typename: "ProjectV2SingleSelectField",
+  dataType: "SINGLE_SELECT",
+  id,
+  name,
+  options,
 });
 
 function fixtureSelectInput(value: unknown) {
@@ -387,10 +401,21 @@ void test("capture consumes the primary identity through its real duplicate guar
     }),
   };
   let posts = 0;
-  const client = await sdkRoadmap(config, { allowMutations: true, rest: ({ method, endpoint, body }) => {
-    assert.equal(method, "POST"); assert.equal(endpoint, "repos/boburning/portcove/issues"); posts++;
-    return { ...fixtureObject(body), id: 2, node_id: "I2", number: 2, html_url: "https://github.com/boburning/portcove/issues/2" };
-  } });
+  const client = await sdkRoadmap(config, {
+    allowMutations: true,
+    rest: ({ method, endpoint, body }) => {
+      assert.equal(method, "POST");
+      assert.equal(endpoint, "repos/boburning/portcove/issues");
+      posts++;
+      return {
+        ...fixtureObject(body),
+        id: 2,
+        node_id: "I2",
+        number: 2,
+        html_url: "https://github.com/boburning/portcove/issues/2",
+      };
+    },
+  });
   client.repositoryIssues = async () => await fixtureIssueInventory(client, [old]);
   client.ensureIssueItem = async () => ({ id: "PVTI_new" });
   client.setItemFields = async () => {};
@@ -653,28 +678,48 @@ void test("SDK draft capture stores planning fields only in Project mutations", 
   const mockedConfig = structuredClone(config);
   mockedConfig.project.number = 7;
   const body = "Upstream: https://example.test/port";
-  const client = await sdkRoadmap(mockedConfig, { allowMutations: true, graphql: (query, variables) => {
-    calls.push({ method: "POST", endpoint: "graphql", query, variables });
-    if (query.includes("projectV2(number:")) return projectData("PVT_project", 7, [
-      selectField("PVTSSF_status", "Status", [{ id: "OPT_inbox", name: "Inbox" }]),
-      selectField("PVTSSF_priority", "Priority", [{ id: "OPT_none", name: "None" }]),
-    ]);
-    if (query.includes("addProjectV2DraftIssue")) return { addProjectV2DraftIssue: { projectItem: { id: "PVTI_draft" } } };
-    if (query.includes("ScopedProjectItem")) return { node: {
-      id: "PVTI_draft", isArchived: false, project: { id: "PVT_project" },
-      content: { __typename: "DraftIssue", id: "DI_draft", title: "Candidate", body, updatedAt: "2026-10-17T00:00:00Z" },
-      fieldValues: connection([]),
-    } };
-    if (query.includes("updateProjectV2ItemFieldValue")) return { f0: { projectV2Item: { id: "PVTI_draft" } }, f1: { projectV2Item: { id: "PVTI_draft" } } };
-    throw new Error(`Unexpected draft operation ${query}`);
-  } });
+  const client = await sdkRoadmap(mockedConfig, {
+    allowMutations: true,
+    graphql: (query, variables) => {
+      calls.push({ method: "POST", endpoint: "graphql", query, variables });
+      if (query.includes("projectV2(number:"))
+        return projectData("PVT_project", 7, [
+          selectField("PVTSSF_status", "Status", [{ id: "OPT_inbox", name: "Inbox" }]),
+          selectField("PVTSSF_priority", "Priority", [{ id: "OPT_none", name: "None" }]),
+        ]);
+      if (query.includes("addProjectV2DraftIssue"))
+        return { addProjectV2DraftIssue: { projectItem: { id: "PVTI_draft" } } };
+      if (query.includes("ScopedProjectItem"))
+        return {
+          node: {
+            id: "PVTI_draft",
+            isArchived: false,
+            project: { id: "PVT_project" },
+            content: {
+              __typename: "DraftIssue",
+              id: "DI_draft",
+              title: "Candidate",
+              body,
+              updatedAt: "2026-10-17T00:00:00Z",
+            },
+            fieldValues: connection([]),
+          },
+        };
+      if (query.includes("updateProjectV2ItemFieldValue"))
+        return {
+          f0: { projectV2Item: { id: "PVTI_draft" } },
+          f1: { projectV2Item: { id: "PVTI_draft" } },
+        };
+      throw new Error(`Unexpected draft operation ${query}`);
+    },
+  });
   const result = await client.capture({
     title: "Candidate",
     body: "Upstream: https://example.test/port",
     fields: { Status: "Inbox", Priority: "None" },
   });
   assert.equal(result.id, "PVTI_draft");
-  assert.equal(calls.filter(call => call.query?.includes("addProjectV2DraftIssue")).length, 1);
+  assert.equal(calls.filter((call) => call.query?.includes("addProjectV2DraftIssue")).length, 1);
   const edit = calls.find((call) => call.query?.includes("updateProjectV2ItemFieldValue"));
   const variables = fixtureObject(edit?.variables);
   assert.deepEqual(
@@ -705,20 +750,44 @@ void test("capture-port creates one Project-backed issue without depending on pa
     Effort: "Unknown",
   };
   let linked = false;
-  const client = await sdkRoadmap(mockedConfig, { allowMutations: true,
+  const client = await sdkRoadmap(mockedConfig, {
+    allowMutations: true,
     rest: ({ method, endpoint, body }) => {
       calls.push({ method, endpoint, body });
-      if (method === "GET" && endpoint === "users/boburning") return { type: "User", node_id: "OWNER" };
-      assert.equal(method, "POST"); assert.equal(endpoint, "repos/boburning/portcove/issues");
-      return { ...fixtureObject(body), node_id: "I_new", html_url: "https://github.com/boburning/portcove/issues/88", number: 88 };
+      if (method === "GET" && endpoint === "users/boburning")
+        return { type: "User", node_id: "OWNER" };
+      assert.equal(method, "POST");
+      assert.equal(endpoint, "repos/boburning/portcove/issues");
+      return {
+        ...fixtureObject(body),
+        node_id: "I_new",
+        html_url: "https://github.com/boburning/portcove/issues/88",
+        number: 88,
+      };
     },
     graphql: (query, variables) => {
       calls.push({ method: "POST", endpoint: "graphql", query, variables });
       assert.doesNotMatch(query, /issue\(number: 16\)|\bparent\s*\{|addSubIssue|removeSubIssue/u);
-      if (query.includes("projectV2(number:")) return projectData("PVT_project", 7,
-        Object.entries(expectedFields).map(([name, value], index) => selectField(`F${index}`, name, [{ id: `O${index}`, name: value }])));
-      if (query.includes("addProjectV2ItemById")) { linked = true; return { addProjectV2ItemById: { item: { id: "PVTI_new" } } }; }
-      if (query.includes("projectItems(")) return { node: { projectItems: connection(linked ? [{ id: "PVTI_new", project: { id: "PVT_project" } }] : []) } };
+      if (query.includes("projectV2(number:"))
+        return projectData(
+          "PVT_project",
+          7,
+          Object.entries(expectedFields).map(([name, value], index) =>
+            selectField(`F${index}`, name, [{ id: `O${index}`, name: value }]),
+          ),
+        );
+      if (query.includes("addProjectV2ItemById")) {
+        linked = true;
+        return { addProjectV2ItemById: { item: { id: "PVTI_new" } } };
+      }
+      if (query.includes("projectItems("))
+        return {
+          node: {
+            projectItems: connection(
+              linked ? [{ id: "PVTI_new", project: { id: "PVT_project" } }] : [],
+            ),
+          },
+        };
       if (query.includes("updateProjectV2ItemFieldValue")) return {};
       throw new Error(`Unexpected issue intake operation ${query}`);
     },
@@ -734,7 +803,7 @@ void test("capture-port creates one Project-backed issue without depending on pa
     calls.filter((call) => call.endpoint === "repos/boburning/portcove/issues").length,
     1,
   );
-  const created = calls.find(call => call.endpoint === "repos/boburning/portcove/issues");
+  const created = calls.find((call) => call.endpoint === "repos/boburning/portcove/issues");
   const createdBody = fixtureObject(created?.body).body;
   assert.ok(typeof createdBody === "string");
   assert.match(createdBody, /<!-- portcove-port -->/u);
@@ -803,21 +872,31 @@ Preserve this contributor text.`;
         ["Port stage", "Researching"],
         ["Effort", "M"],
       ].map(([name, value]) => ({ name: value, field: { name } }));
-    const client = await sdkRoadmap(mockedConfig, { allowMutations: true,
+    const client = await sdkRoadmap(mockedConfig, {
+      allowMutations: true,
       rest: ({ method, endpoint, body: payload }) => {
         calls.push({ method, endpoint, body: payload });
-        if (method === "GET" && endpoint === "users/boburning") return { type: "User", node_id: "OWNER" };
+        if (method === "GET" && endpoint === "users/boburning")
+          return { type: "User", node_id: "OWNER" };
         assert.equal(endpoint, "repos/boburning/portcove/issues/42");
         if (method === "PATCH") {
-          const value = fixtureObject(payload); assert.ok(typeof value.body === "string"); body = value.body;
+          const value = fixtureObject(payload);
+          assert.ok(typeof value.body === "string");
+          body = value.body;
         } else assert.equal(method, "GET");
         return issue();
       },
       graphql: (query, variables) => {
         calls.push({ method: "POST", endpoint: "graphql", query, variables });
         assert.doesNotMatch(query, /issue\(number: 16\)|\bparent\s*\{|addSubIssue|removeSubIssue/u);
-        if (query.includes("projectV2(number:")) return projectData("PVT_project", 7, [selectField("F_work_type", "Work type", [{ id: "O_port", name: "Port" }])]);
-        if (query.includes("updateProjectV2ItemFieldValue")) { workType = "Port"; return { f0: { projectV2Item: { id: "PVTI_form" } } }; }
+        if (query.includes("projectV2(number:"))
+          return projectData("PVT_project", 7, [
+            selectField("F_work_type", "Work type", [{ id: "O_port", name: "Port" }]),
+          ]);
+        if (query.includes("updateProjectV2ItemFieldValue")) {
+          workType = "Port";
+          return { f0: { projectV2Item: { id: "PVTI_form" } } };
+        }
         throw new Error(`Unexpected normalization operation ${query}`);
       },
     });

@@ -7,9 +7,16 @@ import { observationHash } from "./upstream-observer.mts";
 import { GitHubApiError } from "./github-api.mts";
 import type { RoadmapClient } from "./roadmap.mts";
 
-export type RoadmapInventoryClient = Pick<RoadmapClient,
-  "config" | "graphql" | "_completeProjectContext" | "_projectContext" |
-  "completeProjectContext" | "itemList" | "directProjectItem">;
+export type RoadmapInventoryClient = Pick<
+  RoadmapClient,
+  | "config"
+  | "graphql"
+  | "_completeProjectContext"
+  | "_projectContext"
+  | "completeProjectContext"
+  | "itemList"
+  | "directProjectItem"
+>;
 import type { RoadmapIssueItem } from "./roadmap-issue.mts";
 
 export interface InventoryCache {

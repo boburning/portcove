@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { isRecord } from "./runtime-values.mts";
 import { GitHubApiError } from "./github-operation.mts";
 import { fixtureGitHub } from "./fixtures/github-sdk-fixtures.mts";
 import { DiscoveryPrimaryReads, discoveryNextPage } from "./discovery-primary-progress.mts";
@@ -20,53 +21,59 @@ async function primaryFixture(numericLinks = false) {
   const calls: { endpoint: string; conditional: boolean }[] = [];
   const entries: Record<string, unknown> = {};
   let writes = 0;
-  const sdk = await fixtureGitHub(({ method, endpoint, headers }) => {
-    assert.equal(method, "GET");
-    const conditional = headers.has("if-none-match");
-    calls.push({ endpoint, conditional });
-    let body: unknown;
-    let link: string | undefined;
-    if (endpoint === "repos/owner/game")
-      body = { id: repositoryId, full_name: "owner/game", default_branch: "main" };
-    else if (/\/releases\?/u.test(endpoint)) {
-      const page = Number(
-        new URL(endpoint, "https://api.github.com").searchParams.get("page") ?? 1,
-      );
-      body = [
-        {
-          id: page,
-          tag_name: `v${page}`,
-          draft: false,
-          prerelease: false,
-          published_at: new Date(epoch + page * 1000).toISOString(),
-          body: changed && page === 1 ? "changed" : "stable",
-        },
-      ];
-      if (page < 24)
-        link = `<https://api.github.com/${numericLinks ? "repositories/41" : "repos/owner/game"}/releases?per_page=10&page=${page + 1}>; rel="next"`;
-    } else if (/\/assets\?/u.test(endpoint)) {
-      const page = Number(
-        new URL(endpoint, "https://api.github.com").searchParams.get("page") ?? 1,
-      );
-      body = [{ id: corrupt ? 1 : page, size: 17, name: `file-${page}.zip` }];
-      if (page < 4)
-        link = `<https://api.github.com/${numericLinks ? "repositories/41" : "repos/owner/game"}/releases/24/assets?per_page=100&page=${page + 1}>; rel="next"`;
-    } else if (endpoint.includes("/git/ref/tags/"))
-      body = { object: { type: "commit", sha: "a".repeat(40) } };
-    else if (endpoint.includes("/readme?"))
-      body = {
-        sha: "b".repeat(40),
-        content: Buffer.from("Primary upstream readme").toString("base64"),
-      };
-    else if (endpoint.includes("/contents/.recomp.json?"))
-      return Response.json({ message: "fixture absent manifest" }, { status: 404 });
-    else throw new Error(`Unexpected fixture endpoint ${endpoint}`);
-    if (conditional && !changed) return new Response(null, { status: 304 });
-    return Response.json(body, { headers: { etag: '"fixture"', ...(link ? { link } : {}) } });
-  }, { reserve: () => {
-    if (allowance-- <= 0) throw new GitHubApiError("budget_exhausted", "fixture batch exhausted");
-    return { consumeBytes() {}, settle() {} };
-  } });
+  const sdk = await fixtureGitHub(
+    ({ method, endpoint, headers }) => {
+      assert.equal(method, "GET");
+      const conditional = headers.has("if-none-match");
+      calls.push({ endpoint, conditional });
+      let body: unknown;
+      let link: string | undefined;
+      if (endpoint === "repos/owner/game")
+        body = { id: repositoryId, full_name: "owner/game", default_branch: "main" };
+      else if (/\/releases\?/u.test(endpoint)) {
+        const page = Number(
+          new URL(endpoint, "https://api.github.com").searchParams.get("page") ?? 1,
+        );
+        body = [
+          {
+            id: page,
+            tag_name: `v${page}`,
+            draft: false,
+            prerelease: false,
+            published_at: new Date(epoch + page * 1000).toISOString(),
+            body: changed && page === 1 ? "changed" : "stable",
+          },
+        ];
+        if (page < 24)
+          link = `<https://api.github.com/${numericLinks ? "repositories/41" : "repos/owner/game"}/releases?per_page=10&page=${page + 1}>; rel="next"`;
+      } else if (/\/assets\?/u.test(endpoint)) {
+        const page = Number(
+          new URL(endpoint, "https://api.github.com").searchParams.get("page") ?? 1,
+        );
+        body = [{ id: corrupt ? 1 : page, size: 17, name: `file-${page}.zip` }];
+        if (page < 4)
+          link = `<https://api.github.com/${numericLinks ? "repositories/41" : "repos/owner/game"}/releases/24/assets?per_page=100&page=${page + 1}>; rel="next"`;
+      } else if (endpoint.includes("/git/ref/tags/"))
+        body = { object: { type: "commit", sha: "a".repeat(40) } };
+      else if (endpoint.includes("/readme?"))
+        body = {
+          sha: "b".repeat(40),
+          content: Buffer.from("Primary upstream readme").toString("base64"),
+        };
+      else if (endpoint.includes("/contents/.recomp.json?"))
+        return Response.json({ message: "fixture absent manifest" }, { status: 404 });
+      else throw new Error(`Unexpected fixture endpoint ${endpoint}`);
+      if (conditional && !changed) return new Response(null, { status: 304 });
+      return Response.json(body, { headers: { etag: '"fixture"', ...(link ? { link } : {}) } });
+    },
+    {
+      reserve: () => {
+        if (allowance-- <= 0)
+          throw new GitHubApiError("budget_exhausted", "fixture batch exhausted");
+        return { consumeBytes() {}, settle() {} };
+      },
+    },
+  );
   const context = {
     sdk,
     budget: new DiscoveryBudget(
@@ -74,7 +81,11 @@ async function primaryFixture(numericLinks = false) {
       () => {},
       () => clock,
     ),
-    http: { request: async () => { throw new Error("Unexpected non-GitHub HTTP request"); } },
+    http: {
+      request: async () => {
+        throw new Error("Unexpected non-GitHub HTTP request");
+      },
+    },
     save: () => {},
     primaryProgress: {
       entries,
@@ -109,79 +120,88 @@ async function primaryFixture(numericLinks = false) {
 
 void test("primary investigations and complete validation advance through bounded pages without replaying completed collection", async (t) => {
   for (const numericLinks of [false, true])
-    await t.test(numericLinks ? "numeric repository aliases" : "named repository links", async () => {
-      const h = await primaryFixture(numericLinks);
-      let result: Awaited<ReturnType<typeof investigateDiscoveryUpstream>> | undefined;
-      let batches = 0;
-      while (!result && batches < 30) {
-        h.setAllowance(7);
-        h.tick();
-        batches += 1;
-        try {
-          result = (await investigateDiscoveryUpstream(h.context, "owner/game"));
-        } catch (error) {
-          assert.ok(error instanceof GitHubApiError && error.code === "budget_exhausted", String(error));
+    await t.test(
+      numericLinks ? "numeric repository aliases" : "named repository links",
+      async () => {
+        const h = await primaryFixture(numericLinks);
+        let result: Awaited<ReturnType<typeof investigateDiscoveryUpstream>> | undefined;
+        let batches = 0;
+        while (!result && batches < 30) {
+          h.setAllowance(7);
+          h.tick();
+          batches += 1;
+          try {
+            result = await investigateDiscoveryUpstream(h.context, "owner/game");
+          } catch (error) {
+            assert.ok(
+              error instanceof GitHubApiError && error.code === "budget_exhausted",
+              String(error),
+            );
+          }
         }
-      }
-      assert.ok(result);
-      assert.ok(batches > 6);
-      assert.equal(result.releases.length, 24);
-      assert.equal(result.selected[0]!.assets instanceof Array, true);
-      assert.equal((result.selected[0]!.assets as unknown[]).length, 4);
-      assert.equal(result.manifest_evidence.status, "unavailable-or-invalid");
-      assert.ok(result.observed_at);
-      const reads = h.calls.filter((call) => call.endpoint !== "repos/owner/game");
-      for (const endpoint of new Set(reads.map((call) => call.endpoint))) {
-        const operations = reads.filter((call) => call.endpoint === endpoint);
-        assert.equal(
-          operations.filter((call) => !call.conditional).length,
-          endpoint.includes(".recomp.json") ? 2 : 1,
-        );
-      }
-      assert.ok(h.writes() > 30);
-    });
+        assert.ok(result);
+        assert.ok(batches > 6);
+        assert.equal(result.releases.length, 24);
+        assert.equal(result.selected[0]!.assets instanceof Array, true);
+        assert.equal((result.selected[0]!.assets as unknown[]).length, 4);
+        assert.equal(result.manifest_evidence.status, "unavailable-or-invalid");
+        assert.ok(result.observed_at);
+        const reads = h.calls.filter((call) => call.endpoint !== "repos/owner/game");
+        for (const endpoint of new Set(reads.map((call) => call.endpoint))) {
+          const operations = reads.filter((call) => call.endpoint === endpoint);
+          assert.equal(
+            operations.filter((call) => !call.conditional).length,
+            endpoint.includes(".recomp.json") ? 2 : 1,
+          );
+        }
+        assert.ok(h.writes() > 30);
+      },
+    );
 });
 
 void test("changed or corrupt primary facts, repository identities and duplicate pages cannot complete resumed research", async () => {
   const changed = await primaryFixture();
-  (await assert.rejects(
-    async () => (await investigateDiscoveryUpstream(changed.context, "owner/game")),
+  await assert.rejects(
+    async () => await investigateDiscoveryUpstream(changed.context, "owner/game"),
     /fixture batch exhausted/,
-  ));
+  );
   changed.change();
   changed.setAllowance(100);
-  (await assert.rejects(async () => (await investigateDiscoveryUpstream(changed.context, "owner/game")), /facts changed/));
+  await assert.rejects(
+    async () => await investigateDiscoveryUpstream(changed.context, "owner/game"),
+    /facts changed/,
+  );
   assert.deepEqual(changed.entries, {});
   const identity = await primaryFixture();
-  (await assert.rejects(
-    async () => (await investigateDiscoveryUpstream(identity.context, "owner/game")),
+  await assert.rejects(
+    async () => await investigateDiscoveryUpstream(identity.context, "owner/game"),
     /fixture batch exhausted/,
-  ));
+  );
   identity.changeIdentity();
   identity.setAllowance(100);
-  (await assert.rejects(
-    async () => (await investigateDiscoveryUpstream(identity.context, "owner/game")),
+  await assert.rejects(
+    async () => await investigateDiscoveryUpstream(identity.context, "owner/game"),
     /identity or shape changed/,
-  ));
+  );
   const corrupt = await primaryFixture();
-  (await assert.rejects(
-    async () => (await investigateDiscoveryUpstream(corrupt.context, "owner/game")),
+  await assert.rejects(
+    async () => await investigateDiscoveryUpstream(corrupt.context, "owner/game"),
     /fixture batch exhausted/,
-  ));
+  );
   const state = corrupt.entries["owner/game"] as { reads: { body: unknown }[] };
   state.reads[0]!.body = [];
   corrupt.setAllowance(100);
-  (await assert.rejects(
-    async () => (await investigateDiscoveryUpstream(corrupt.context, "owner/game")),
+  await assert.rejects(
+    async () => await investigateDiscoveryUpstream(corrupt.context, "owner/game"),
     /corrupt or foreign/,
-  ));
+  );
   const duplicate = await primaryFixture();
   duplicate.setAllowance(100);
   duplicate.corrupt();
-  (await assert.rejects(
-    async () => (await investigateDiscoveryUpstream(duplicate.context, "owner/game")),
+  await assert.rejects(
+    async () => await investigateDiscoveryUpstream(duplicate.context, "owner/game"),
     /duplicate identities/,
-  ));
+  );
   assert.deepEqual(duplicate.entries, {});
 });
 
@@ -265,48 +285,58 @@ void test("manifest work drains fairly past eight files, persists each exact blo
     { length: 17 },
     (_, i) => `game-${String(i).padStart(2, "0")}.forge.json`,
   );
-  const sdk = await fixtureGitHub(({ endpoint }) => {
-    let body: unknown;
-    const repo = endpoint.startsWith("repos/RetroPortingToolKit/")
-      ? "RetroPortingToolKit/Retro-Catalog"
-      : "zamiba/portforge-mediaitems";
-    if (endpoint === "repos/SirDiabo/GHLAppList") throw new Error("unrelated unavailable registry");
-    if (endpoint === `repos/${repo}`)
-      body = { id: repo.startsWith("Retro") ? 1 : 2, full_name: repo, default_branch: "main" };
-    else if (endpoint.includes("/git/ref/heads/")) body = { object: { sha: "a".repeat(40) } };
-    else if (endpoint.includes("/git/trees/"))
-      body = {
-        truncated: false,
-        tree: repo.startsWith("Retro")
-          ? retcomm.map((title) => ({ path: `titles/${title}.json`, sha: `ret-${title}` }))
-          : forge.map((file) => ({ path: file, sha: `forge-${file}` })),
-      };
-    else if (endpoint.includes("/contents/")) {
-      const file = decodeURIComponent(endpoint.split("/contents/")[1]!.split("?")[0]!);
-      const isIndex = file === "index.json";
-      if (!isIndex) {
-        if (providerFailure && file === forge[5])
-          return Response.json({ message: "fixture isolated provider failure" }, { status: 503 });
-        loaded.push(`${repo}/${file}`);
-      }
-      const data = isIndex
-        ? { platforms: { psx: { dir: "titles", titles: retcomm } } }
-        : { name: file, repository: "owner/game" };
-      body = {
-        sha: isIndex
-          ? "index"
-          : repo.startsWith("Retro")
-            ? `ret-${file.slice(7, -5)}`
-            : `forge-${file}`,
-        content: Buffer.from(JSON.stringify(data)).toString("base64"),
-      };
-    } else throw new Error(`Unexpected registry fixture ${endpoint}`);
-    return body;
-  }, { reserve: ({ url }) => {
-    if (url.pathname.includes("/contents/") && !url.pathname.endsWith("/index.json") && allowance-- <= 0)
-      throw new GitHubApiError("budget_exhausted", "fixture manifest batch exhausted");
-    return { consumeBytes() {}, settle() {} };
-  } });
+  const sdk = await fixtureGitHub(
+    ({ endpoint }) => {
+      let body: unknown;
+      const repo = endpoint.startsWith("repos/RetroPortingToolKit/")
+        ? "RetroPortingToolKit/Retro-Catalog"
+        : "zamiba/portforge-mediaitems";
+      if (endpoint === "repos/SirDiabo/GHLAppList")
+        throw new Error("unrelated unavailable registry");
+      if (endpoint === `repos/${repo}`)
+        body = { id: repo.startsWith("Retro") ? 1 : 2, full_name: repo, default_branch: "main" };
+      else if (endpoint.includes("/git/ref/heads/")) body = { object: { sha: "a".repeat(40) } };
+      else if (endpoint.includes("/git/trees/"))
+        body = {
+          truncated: false,
+          tree: repo.startsWith("Retro")
+            ? retcomm.map((title) => ({ path: `titles/${title}.json`, sha: `ret-${title}` }))
+            : forge.map((file) => ({ path: file, sha: `forge-${file}` })),
+        };
+      else if (endpoint.includes("/contents/")) {
+        const file = decodeURIComponent(endpoint.split("/contents/")[1]!.split("?")[0]!);
+        const isIndex = file === "index.json";
+        if (!isIndex) {
+          if (providerFailure && file === forge[5])
+            return Response.json({ message: "fixture isolated provider failure" }, { status: 503 });
+          loaded.push(`${repo}/${file}`);
+        }
+        const data = isIndex
+          ? { platforms: { psx: { dir: "titles", titles: retcomm } } }
+          : { name: file, repository: "owner/game" };
+        body = {
+          sha: isIndex
+            ? "index"
+            : repo.startsWith("Retro")
+              ? `ret-${file.slice(7, -5)}`
+              : `forge-${file}`,
+          content: Buffer.from(JSON.stringify(data)).toString("base64"),
+        };
+      } else throw new Error(`Unexpected registry fixture ${endpoint}`);
+      return body;
+    },
+    {
+      reserve: ({ url }) => {
+        if (
+          url.pathname.includes("/contents/") &&
+          !url.pathname.endsWith("/index.json") &&
+          allowance-- <= 0
+        )
+          throw new GitHubApiError("budget_exhausted", "fixture manifest batch exhausted");
+        return { consumeBytes() {}, settle() {} };
+      },
+    },
+  );
   const context: SourceContext = {
     sdk,
     budget: new DiscoveryBudget(
@@ -326,7 +356,7 @@ void test("manifest work drains fairly past eight files, persists each exact blo
       });
     },
   };
-  const first = (await collectDiscoverySources(context, checkpoint));
+  const first = await collectDiscoverySources(context, checkpoint);
   assert.equal(loaded.length, 5);
   assert.ok(loaded[0]!.startsWith("RetroPortingToolKit/"));
   assert.ok(loaded[1]!.startsWith("zamiba/"));
@@ -338,12 +368,12 @@ void test("manifest work drains fairly past eight files, persists each exact blo
   const prefix = [...loaded];
   allowance = 100;
   providerFailure = true;
-  (await collectDiscoverySources(context, checkpoint));
+  await collectDiscoverySources(context, checkpoint);
   assert.equal(loaded.length, 34);
   assert.equal(accepted.at(-1)!.status, "partial");
   providerFailure = false;
   allowance = 100;
-  (await collectDiscoverySources(context, checkpoint));
+  await collectDiscoverySources(context, checkpoint);
   assert.equal(loaded.length, 35);
   assert.equal(new Set(loaded).size, 35);
   assert.ok(prefix.every((file) => loaded.filter((value) => value === file).length === 1));
@@ -368,10 +398,10 @@ void test("durably accepted research reads survive checkpoint interruption and s
     original();
     if (++writes === 5) throw new Error("fixture interruption");
   };
-  (await assert.rejects(
-    async () => (await investigateDiscoveryUpstream(h.context, "owner/game")),
+  await assert.rejects(
+    async () => await investigateDiscoveryUpstream(h.context, "owner/game"),
     /checkpoint interrupted/,
-  ));
+  );
   assert.ok(h.entries["owner/game"]);
   h.context.primaryProgress.persist = original;
   h.context.primaryProgress.now = () => epoch + 13 * 3600000;
@@ -383,7 +413,10 @@ void test("durably accepted research reads survive checkpoint interruption and s
     41,
     h.context.primaryProgress,
   );
-  (await assert.rejects(async () => (await reads.request("repos/foreign/game/releases?per_page=10")), /escaped/));
+  await assert.rejects(
+    async () => await reads.request("repos/foreign/game/releases?per_page=10"),
+    /escaped/,
+  );
   const tooLarge = {
     entries: { foreign: "x".repeat(32 * 1024 * 1024) },
     persist: () => {},
@@ -395,36 +428,45 @@ void test("durably accepted research reads survive checkpoint interruption and s
   );
 });
 
-void test("conditional discovery headers stay scoped to the original provider read and cannot become credentials or redirect authority", async () => {
-  const { boundedDiscoveryRequest } = await import("./discovery-http.mts");
-  const initial = {
-    url: "https://api.github.com/repos/owner/game/releases?per_page=10",
-    method: "GET",
-    cap: 1024,
-    timeout: 1000,
-    maxRequests: 2,
-    conditionalEtag: '"facts"',
-  };
+void test("discovery metadata uses SDK conditional reads and refuses redirect authority", async () => {
   let calls = 0;
-  const result = await boundedDiscoveryRequest(initial, async (_input, options) => {
-    const headers = options!.headers as Record<string, string>;
-    assert.equal(headers["If-None-Match"], calls === 0 ? '"facts"' : undefined);
-    calls += 1;
-    return calls === 1
-      ? new Response(null, { status: 302, headers: { location: "https://other.example/release" } })
-      : new Response(null, { status: 304 });
+  const { createGitHubClient } = await import("./github-client.mts");
+  const client = await createGitHubClient({
+    credential: { kind: "anonymous" },
+    deadline: performance.now() + 5000,
+    fetch: async (_input, options) => {
+      calls++;
+      assert.equal(new Headers(options?.headers).get("if-none-match"), '"facts"');
+      return new Response(null, {
+        status: 302,
+        headers: { location: "https://other.example/release" },
+      });
+    },
   });
-  assert.equal(result.status, 304);
-  assert.equal(calls, 2);
   await assert.rejects(
-    boundedDiscoveryRequest({ ...initial, conditionalEtag: "bad\r\nAuthorization: secret" }),
-    /Invalid scoped/,
+    client.request("GET /repos/owner/game/releases", {
+      headers: { "If-None-Match": '"facts"' },
+      request: { portcove: { replay: "safe-read", attempts: 0 } },
+    }),
+    { code: "redirect_refused" },
   );
-  await assert.rejects(
-    boundedDiscoveryRequest({ ...initial, url: "https://other.example/file" }),
-    /Invalid scoped/,
-  );
-  await assert.rejects(boundedDiscoveryRequest({ ...initial, method: "POST" }), /Invalid scoped/);
+  assert.equal(calls, 1);
+  const h = await primaryFixture();
+  const journal = h.context.primaryProgress;
+  const reader = new DiscoveryPrimaryReads(h.context.sdk, "owner/game", 41, journal);
+  await reader.request("repos/owner/game/readme?ref=main");
+  assert.doesNotThrow(() => new DiscoveryPrimaryReads(h.context.sdk, "owner/game", 41, journal));
+  const entry = journal.entries["owner/game"];
+  assert.ok(isRecord(entry) && Array.isArray(entry.reads));
+  const saved: unknown = entry.reads[0];
+  assert.ok(isRecord(saved));
+  for (const etag of ["bad\r\nAuthorization: secret", "x".repeat(513)]) {
+    saved.etag = etag;
+    assert.throws(
+      () => new DiscoveryPrimaryReads(h.context.sdk, "owner/game", 41, journal),
+      /read evidence|continuation/u,
+    );
+  }
 });
 
 void test("a source burst exceeds former record and pending counts within a bounded physical checkpoint", () => {
@@ -472,10 +514,10 @@ void test("optional-manifest checkpoint interruption cannot discard completed pr
       throw new Error("fixture interruption at optional manifest");
     }
   };
-  (await assert.rejects(
-    async () => (await investigateDiscoveryUpstream(h.context, "owner/game")),
+  await assert.rejects(
+    async () => await investigateDiscoveryUpstream(h.context, "owner/game"),
     /checkpoint interrupted/,
-  ));
+  );
   const saved = h.entries["owner/game"] as { reads: { endpoint: string }[] };
   assert.ok(saved.reads.at(-1)!.endpoint.includes("/contents/.recomp.json?"));
   const accepted = saved.reads
@@ -483,7 +525,7 @@ void test("optional-manifest checkpoint interruption cannot discard completed pr
     .filter((endpoint) => !endpoint.includes(".recomp.json"));
   h.context.primaryProgress.persist = persist;
   h.setAllowance(100);
-  const result = (await investigateDiscoveryUpstream(h.context, "owner/game"));
+  const result = await investigateDiscoveryUpstream(h.context, "owner/game");
   assert.equal(result.releases.length, 24);
   for (const endpoint of accepted)
     assert.equal(

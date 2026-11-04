@@ -295,10 +295,11 @@ void test("doctor drift covers identity linkage field options and view propertie
 
 void test("GraphQL view pagination reads every page", async () => {
   const calls: unknown[] = [];
-  const client = await sdkRoadmap(config, { graphql: (_query, variables) => {
-    calls.push(variables);
-    const after = variables.after;
-    return ({
+  const client = await sdkRoadmap(config, {
+    graphql: (_query, variables) => {
+      calls.push(variables);
+      const after = variables.after;
+      return {
         node: {
           id: "PVT",
           views: after
@@ -313,8 +314,9 @@ void test("GraphQL view pagination reads every page", async () => {
                 pageInfo: { hasNextPage: true, endCursor: "next" },
               },
         },
-    });
-  } });
+      };
+    },
+  });
   assert.deepEqual(
     (await client.viewList("PVT")).map((view) => view.name),
     ["First", "Second"],
@@ -392,17 +394,25 @@ void test("view inventory refuses incomplete records rather than claiming a comp
     };
     alter(node);
     await assert.rejects(
-      async () =>
-        await (await sdkRoadmap(config, { graphql: () => ({ node }) })).viewList("PVT"),
+      async () => await (await sdkRoadmap(config, { graphql: () => ({ node }) })).viewList("PVT"),
       /incomplete GitHub inventory/,
     );
   }
 });
 
 void test("Project provider observations reject malformed option scalars before planning", async () => {
-  const client = await sdkRoadmap(config, { graphql: () => projectData("PVT", config.project.number, [
-    { __typename: "ProjectV2SingleSelectField", dataType: "SINGLE_SELECT", id: "F_status", name: "Status", options: [{ id: "O_bad", name: 7 }] },
-  ]) });
+  const client = await sdkRoadmap(config, {
+    graphql: () =>
+      projectData("PVT", config.project.number, [
+        {
+          __typename: "ProjectV2SingleSelectField",
+          dataType: "SINGLE_SELECT",
+          id: "F_status",
+          name: "Status",
+          options: [{ id: "O_bad", name: 7 }],
+        },
+      ]),
+  });
   await assert.rejects(
     async () => await client.fieldList(config.project.number),
     /malformed Project option/,
@@ -450,9 +460,11 @@ void test("view reconciliation preflights every view and verifies saved identiti
     filter: "old",
     fields: { nodes: [{ id: "Ftitle", name: "Title" }] },
   }));
-  const client = await sdkRoadmap(settings, { graphql: () => {
-    throw new Error("unexpected GitHub call");
-  } });
+  const client = await sdkRoadmap(settings, {
+    graphql: () => {
+      throw new Error("unexpected GitHub call");
+    },
+  });
   client.viewList = async () => saved;
   const writes = [];
   client.graphql = async (_query, variables) => {

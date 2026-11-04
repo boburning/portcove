@@ -696,21 +696,29 @@ export async function acquireReleaseAdmission(
     // This release acquisition family retains its existing bounded source API
     // until its approved SDK slice; consume pure delivery metadata validation.
     const qualificationRecords = (suffix: string, key: string) =>
-      GitHubApiClient.prototype.paginateRest.call(checkApi,
-        `repos/boburning/portcove/commits/${active.prepared_commit}/${suffix}${suffix === "check-runs" ? "?filter=all&per_page=100" : "?per_page=100"}`, {
-          select: body => record(body)[key],
-          totalCount: body => {
+      GitHubApiClient.prototype.paginateRest.call(
+        checkApi,
+        `repos/boburning/portcove/commits/${active.prepared_commit}/${suffix}${suffix === "check-runs" ? "?filter=all&per_page=100" : "?per_page=100"}`,
+        {
+          select: (body) => record(body)[key],
+          totalCount: (body) => {
             const count = record(body).total_count;
             if (typeof count !== "number") throw new Error("qualification total is invalid");
             return count;
           },
-          identity: value => { const id = record(value).id; return typeof id === "number" && Number.isSafeInteger(id) ? String(id) : null; },
+          identity: (value) => {
+            const id = record(value).id;
+            return typeof id === "number" && Number.isSafeInteger(id) ? String(id) : null;
+          },
           label: key,
-        });
-    const readQualification = () => requiredCheckContexts(
-      qualificationRecords("check-runs", "check_runs").map(checkMetadata),
-      qualificationRecords("status", "statuses").map(statusMetadata), required,
-    );
+        },
+      );
+    const readQualification = () =>
+      requiredCheckContexts(
+        qualificationRecords("check-runs", "check_runs").map(checkMetadata),
+        qualificationRecords("status", "statuses").map(statusMetadata),
+        required,
+      );
     const contexts = readQualification();
     if (contexts.some((context) => context.outcome !== "success" || context.source !== "check-run"))
       holds.add("exact-prepared-head-required-contexts-not-successful");

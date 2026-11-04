@@ -1098,4 +1098,3 @@ export function requiredContextsFromConfigs(ruleset: unknown, coverage: unknown)
     throw new Error("repository ruleset and qualification protected contexts differ");
   return contexts;
 }
-

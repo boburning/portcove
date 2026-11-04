@@ -19,13 +19,22 @@ const sha = (character: string) => character.repeat(40);
 function httpResponse(body: unknown, headers: Record<string, string> = {}) {
   return Response.json(body, { headers });
 }
-type QueryResponse = (query: string, variables: Readonly<Record<string, unknown>>) => Response | Promise<Response>;
-function liveScope(readQuery: QueryResponse, observe: (method: string, endpoint: string) => void = () => {}): RoadmapRequestScope {
+type QueryResponse = (
+  query: string,
+  variables: Readonly<Record<string, unknown>>,
+) => Response | Promise<Response>;
+function liveScope(
+  readQuery: QueryResponse,
+  observe: (method: string, endpoint: string) => void = () => {},
+): RoadmapRequestScope {
   return {
-    credential: { kind: "anonymous" }, deadline: performance.now() + 60_000,
-    failedReads: new Map(), maxBytes: 32 * 1024 * 1024,
+    credential: { kind: "anonymous" },
+    deadline: performance.now() + 60_000,
+    failedReads: new Map(),
+    maxBytes: 32 * 1024 * 1024,
     fetch: async (input, init) => {
-      const url = new URL(input instanceof Request ? input.url : input), method = init?.method ?? "GET";
+      const url = new URL(input instanceof Request ? input.url : input),
+        method = init?.method ?? "GET";
       observe(method, url.pathname);
       if (method === "GET") {
         assert.equal(url.pathname, "/users/boburning");
@@ -844,33 +853,64 @@ void test("misclassified Project state is surfaced as drift", () => {
 });
 
 void test("live enrichment uses only bounded read queries and API errors do not expose credentials", async () => {
-  const calls: string[] = [], queries: string[] = [];
+  const calls: string[] = [],
+    queries: string[] = [];
   const result = await readLiveSourceProvenance({
-    repository: "boburning/portcove", owner: "boburning", projectNumber: 1,
-    scope: liveScope((query, variables) => {
-      queries.push(query);
-      if (query.includes("projectV2(number:")) {
-        assert.deepEqual(variables, { login: "boburning", number: 1 });
-        return httpResponse({ data: { user: { projectV2: { id: "PVT", number: 1 } } } });
-      }
-      const page = { totalCount: 0, nodes: [], pageInfo: { hasNextPage: false, endCursor: null } };
-      return httpResponse({ data: query.includes("RepositoryIssue")
-        ? { repository: { id: "R", nameWithOwner: "boburning/portcove", issues: page } }
-        : { node: { items: page } } });
-    }, (method, endpoint) => calls.push(`${method} ${endpoint}`)),
+    repository: "boburning/portcove",
+    owner: "boburning",
+    projectNumber: 1,
+    scope: liveScope(
+      (query, variables) => {
+        queries.push(query);
+        if (query.includes("projectV2(number:")) {
+          assert.deepEqual(variables, { login: "boburning", number: 1 });
+          return httpResponse({ data: { user: { projectV2: { id: "PVT", number: 1 } } } });
+        }
+        const page = {
+          totalCount: 0,
+          nodes: [],
+          pageInfo: { hasNextPage: false, endCursor: null },
+        };
+        return httpResponse({
+          data: query.includes("RepositoryIssue")
+            ? { repository: { id: "R", nameWithOwner: "boburning/portcove", issues: page } }
+            : { node: { items: page } },
+        });
+      },
+      (method, endpoint) => calls.push(`${method} ${endpoint}`),
+    ),
   });
-  assert.deepEqual(result, { issues: [], projectItems: [], pullRequests: [], projectState: "available" });
-  assert.deepEqual(calls, ["POST /graphql", "POST /graphql", "POST /graphql", "GET /users/boburning", "POST /graphql", "POST /graphql"]);
+  assert.deepEqual(result, {
+    issues: [],
+    projectItems: [],
+    pullRequests: [],
+    projectState: "available",
+  });
+  assert.deepEqual(calls, [
+    "POST /graphql",
+    "POST /graphql",
+    "POST /graphql",
+    "GET /users/boburning",
+    "POST /graphql",
+    "POST /graphql",
+  ]);
   for (const query of queries) {
     assert.match(query, /^query(?: |\()/u);
     assert.doesNotMatch(query, /\bmutation\b/u);
     if (!query.includes("projectV2(number:")) assert.match(query, /totalCount/u);
   }
   const secret = "github_pat_secret_value_that_must_not_appear";
-  await assert.rejects(readLiveSourceProvenance({
-    repository: "boburning/portcove", owner: "boburning", projectNumber: 1,
-    scope: liveScope(() => { throw new Error(secret); }),
-  }), error => error instanceof Error && !error.message.includes(secret));
+  await assert.rejects(
+    readLiveSourceProvenance({
+      repository: "boburning/portcove",
+      owner: "boburning",
+      projectNumber: 1,
+      scope: liveScope(() => {
+        throw new Error(secret);
+      }),
+    }),
+    (error) => error instanceof Error && !error.message.includes(secret),
+  );
 });
 
 void test("rendered output labels evidence authority and catalog versus research scope", () => {
@@ -902,7 +942,8 @@ function paginatedResponses(
   intercept: (call: PageCall) => void = () => {},
 ): QueryResponse {
   return (query, variables) => {
-    if (query.includes("projectV2(number:")) return httpResponse({ data: { user: { projectV2: { id: "PVT", number: 1 } } } });
+    if (query.includes("projectV2(number:"))
+      return httpResponse({ data: { user: { projectV2: { id: "PVT", number: 1 } } } });
     if (query.includes("RepositoryIssue")) {
       const marker = query.includes("RepositoryIssueMarker");
       const offset = Number(variables.after ?? 0),
@@ -1064,9 +1105,7 @@ void test("failed live collection phases preserve snapshots without exposing raw
       readQuery(query, variables) {
         if (
           query &&
-          (isIssues
-            ? query.includes("RepositoryIssue")
-            : query.includes("items(first:"))
+          (isIssues ? query.includes("RepositoryIssue") : query.includes("items(first:"))
         )
           return httpResponse({ invalid: secret });
         return baseRun(query, variables);
@@ -1336,8 +1375,7 @@ void test("live reference lookup bounds work before requesting any PR", async ()
         owner: "boburning",
         projectNumber: 1,
         scope: liveScope((query, variables) => {
-          if (query && query.includes("pullRequest(number:"))
-            prRequests++;
+          if (query && query.includes("pullRequest(number:")) prRequests++;
           return baseRun(query, variables);
         }),
       }),

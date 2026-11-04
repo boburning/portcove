@@ -958,3 +958,33 @@ void test("malformed quota reset cannot skip a dispatched attempt settlement or 
     assert.equal(observations[0]?.rate?.resetAt, null);
   }
 });
+
+void test("a caller collection deadline cannot lengthen the request budget or renew a failed logical read", async (t) => {
+  let time = 1000;
+  let requests = 0;
+  const timeouts: number[] = [];
+  t.mock.method(AbortSignal, "timeout", (milliseconds: number) => {
+    timeouts.push(milliseconds);
+    return new AbortController().signal;
+  });
+  const client = await createGitHubClient({
+    credential: { kind: "anonymous" },
+    deadline: 101000,
+    requestTimeoutMs: 100,
+    now: () => time,
+    fetch: async () => {
+      requests++;
+      return Response.json({ id: 1 });
+    },
+  });
+  const policy: GitHubRequestPolicy = { replay: "safe-read", attempts: 0, deadline: 99000 };
+  await client.request("GET /rate_limit", { request: { portcove: policy } });
+  assert.equal(timeouts.at(-1), 100);
+  assert.equal(policy.deadline, 1100);
+  time = 1100;
+  await assert.rejects(client.request("GET /rate_limit", { request: { portcove: policy } }), {
+    code: "deadline_exceeded",
+  });
+  assert.equal(policy.deadline, 1100);
+  assert.equal(requests, 1);
+});

@@ -127,8 +127,11 @@ void test("read-only Roadmap roles refuse mutations before dispatch", async () =
   );
   await assert.rejects(
     client.graphql("mutation Write { updateProjectV2 { projectV2 { id } } }"),
-    (error) => error instanceof GitHubApiError && error.code === "request_refused" &&
-      isRecord(error) && error.mutation_dispatched === false,
+    (error) =>
+      error instanceof GitHubApiError &&
+      error.code === "request_refused" &&
+      isRecord(error) &&
+      error.mutation_dispatched === false,
   );
   assert.equal(sends, 0);
   assert.equal(client.observations.length, 0);
@@ -190,36 +193,63 @@ void test("GraphQL HTTP 200 rate limits retain owner evidence and defer subseque
   let sends = 0;
   const operation = scope(async () => {
     sends++;
-    return response({ errors: [{ type: "RATE_LIMITED", message: "quota exhausted" }],
-      data: { rateLimit: { cost: 3, remaining: 0, used: 5000, limit: 5000, resetAt: "2035-01-01T00:00:00Z" } } });
+    return response({
+      errors: [{ type: "RATE_LIMITED", message: "quota exhausted" }],
+      data: {
+        rateLimit: {
+          cost: 3,
+          remaining: 0,
+          used: 5000,
+          limit: 5000,
+          resetAt: "2035-01-01T00:00:00Z",
+        },
+      },
+    });
   });
   const client = await RoadmapClient.connect(config, operation);
-  await assert.rejects(client.graphql("query Limited { rateLimit { cost remaining used limit resetAt } }"), (error) => error instanceof GitHubApiError);
+  await assert.rejects(
+    client.graphql("query Limited { rateLimit { cost remaining used limit resetAt } }"),
+    (error) => error instanceof GitHubApiError,
+  );
   assert.equal(sends, 1);
   assert.equal(isRecord(client.graphqlRate) && client.graphqlRate.remaining, 0);
   assert.equal(client.observations[0]?.status, 200);
   assert.equal(client.observations[0]?.rate?.cost, 3);
-  await assert.rejects(client.graphql("query Another { value }"), (error) => error instanceof GitHubApiError);
+  await assert.rejects(
+    client.graphql("query Another { value }"),
+    (error) => error instanceof GitHubApiError,
+  );
   assert.equal(sends, 1);
 });
 
 void test("local mutation refusal cannot be accepted by a matching domain readback", async () => {
   let sends = 0;
-  const client = await RoadmapClient.connect(config, scope(async () => {
-    sends++;
-    throw new Error("Unexpected transport");
-  }));
+  const client = await RoadmapClient.connect(
+    config,
+    scope(async () => {
+      sends++;
+      throw new Error("Unexpected transport");
+    }),
+  );
   let reads = 0;
   client.projectDetails = async () => {
     reads++;
     return { id: "PVT", number: config.project.number, title: config.project.title };
   };
-  await assert.rejects(client.editProject(config.project.number), error =>
-    error instanceof GitHubApiError && error.code === "request_refused");
+  await assert.rejects(
+    client.editProject(config.project.number),
+    (error) => error instanceof GitHubApiError && error.code === "request_refused",
+  );
   assert.equal(reads, 1, "no reconciliation read follows a refusal before dispatch");
   assert.equal(sends, 0);
-  client.projectContext = async () => ({ details: { id: "PVT" }, fields: [], number: config.project.number });
-  await assert.rejects(client.capture({ title: "draft", body: "body", fields: {} }), error =>
-    error instanceof GitHubApiError && error.code === "request_refused");
+  client.projectContext = async () => ({
+    details: { id: "PVT" },
+    fields: [],
+    number: config.project.number,
+  });
+  await assert.rejects(
+    client.capture({ title: "draft", body: "body", fields: {} }),
+    (error) => error instanceof GitHubApiError && error.code === "request_refused",
+  );
   assert.equal(sends, 0);
 });

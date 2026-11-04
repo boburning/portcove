@@ -49,12 +49,15 @@ const encode = (data: unknown) =>
 void test("read-only bootstrap and queue quota/budget holds produce qualified continuation", async () => {
   for (const phase of ["bootstrap", "queue"])
     for (const code of ["quota_stale", "budget_exhausted"]) {
-      const f = (await fixture());
+      const f = await fixture();
       const failure = () => {
         throw new GitHubApiError(code, "Read-only capacity hold");
       };
       f.bridge.comments = phase === "queue" ? failure : async () => [];
-      const result = (await collectHostedRequests(f.bridge, phase === "bootstrap" ? failure : () => {}));
+      const result = await collectHostedRequests(
+        f.bridge,
+        phase === "bootstrap" ? failure : () => {},
+      );
       assert.equal(result.status, "held");
       assert.equal(f.creations, 0);
       assert.equal(f.writes, 0);
@@ -71,7 +74,9 @@ void test("real Project field writes use the complete API schema without CLI com
     public: true,
     closed: false,
   };
-  const client = await sdkRoadmap(config, { allowMutations: true, graphql: async (query, variables) => {
+  const client = await sdkRoadmap(config, {
+    allowMutations: true,
+    graphql: async (query, variables) => {
       const request = { query, variables };
       let data: Record<string, unknown>;
       if (request.query.startsWith("mutation")) {
@@ -115,7 +120,8 @@ void test("real Project field writes use the complete API schema without CLI com
         };
       }
       return data;
-    } });
+    },
+  });
   client._ownerType = "User";
   await client.setItemFields("PVTI_selected", { Priority: "None" });
   assert.deepEqual(mutations, [
@@ -164,21 +170,26 @@ async function fixture(candidates = [candidate]) {
   let normalizations = 0;
   const snapshots: unknown[] = [];
   let lastInventorySnapshot: unknown;
-  const client = await sdkRoadmap(config, { graphql: async () => { throw new Error("Unexpected domain transport"); } });
+  const client = await sdkRoadmap(config, {
+    graphql: async () => {
+      throw new Error("Unexpected domain transport");
+    },
+  });
   const sdk = await fixtureGitHub(({ method: _method, endpoint, body }) => {
     const value = body as { body: string };
     if (_method === "GET") {
-      if (endpoint === "repos/boburning/portcove/issues/177") return {
-        node_id: "I177", comments: [...comments.values()].filter(c => c.issue_url === issueUrl).length,
-        updated_at: "2026-10-28T00:00:00Z",
-      };
+      if (endpoint === "repos/boburning/portcove/issues/177")
+        return {
+          node_id: "I177",
+          comments: [...comments.values()].filter((c) => c.issue_url === issueUrl).length,
+          updated_at: "2026-10-28T00:00:00Z",
+        };
       const listing = endpoint.match(/issues\/(\d+)\/comments\?per_page=(?:20|100)$/u);
       if (listing)
         return [...comments.values()].filter(
-            (c) =>
-              c.issue_url ===
-              `https://api.github.com/repos/boburning/portcove/issues/${listing[1]}`,
-          );
+          (c) =>
+            c.issue_url === `https://api.github.com/repos/boburning/portcove/issues/${listing[1]}`,
+        );
       const c = comments.get(Number(endpoint.split("/").at(-1)));
       if (!c) throw new Error("Unknown comment read");
       return structuredClone(c);
@@ -248,24 +259,23 @@ async function fixture(candidates = [candidate]) {
       itemId: `PVTI${number}`,
     };
   };
-  client.executionIssue = async (number) =>
-    ({
-      item: {
-        id: [177, 3849].includes(number) ? "PVTICANARY" : `PVTI${number}`,
-        content: [177, 3849].includes(number)
-          ? {
-              id: "ICANARY",
-              number,
-              title: "[Port] Neutral canary",
-              state: "OPEN",
-              url: `https://github.com/boburning/portcove/issues/${number}`,
-              body: hostedBody({ ...candidate, port_key: "neutral-canary" }, 99),
-            }
-          : { ...issues.find((i) => i.number === number)! },
-        ...([177, 3849].includes(number) ? portFieldInitialization(null) : fields),
-      },
-      relationships: { parent: null, subIssues: [], blockedBy: [], blocking: [] },
-    });
+  client.executionIssue = async (number) => ({
+    item: {
+      id: [177, 3849].includes(number) ? "PVTICANARY" : `PVTI${number}`,
+      content: [177, 3849].includes(number)
+        ? {
+            id: "ICANARY",
+            number,
+            title: "[Port] Neutral canary",
+            state: "OPEN",
+            url: `https://github.com/boburning/portcove/issues/${number}`,
+            body: hostedBody({ ...candidate, port_key: "neutral-canary" }, 99),
+          }
+        : { ...issues.find((i) => i.number === number)! },
+      ...([177, 3849].includes(number) ? portFieldInitialization(null) : fields),
+    },
+    relationships: { parent: null, subIssues: [], blockedBy: [], blocking: [] },
+  });
   client.setItemFields = async (_id, values) => {
     writes++;
     if (denied) throw new GitHubApiError("http_error", "Project access denied", { status: 403 });
@@ -378,7 +388,7 @@ async function fixture(candidates = [candidate]) {
     all,
     prepare: async () => {
       denied = true;
-      await assert.rejects((bridge.process(request, all())), /denied/u);
+      await assert.rejects(bridge.process(request, all()), /denied/u);
       denied = false;
     },
     comments,
@@ -408,7 +418,7 @@ async function fixture(candidates = [candidate]) {
 }
 
 async function partialFixture(count = 3, stopIndex = count - 1) {
-  const f = (await fixture(
+  const f = await fixture(
     Array.from({ length: count }, (_, i) => ({
       ...candidate,
       title: `Recovery game ${i}`,
@@ -417,7 +427,7 @@ async function partialFixture(count = 3, stopIndex = count - 1) {
       port_key: `${candidate.port_key}-${i}`,
       repository_id: candidate.repository_id + i,
     })),
-  ));
+  );
   const inventory = f.bridge.inventory.bind(f.bridge);
   f.bridge.inventory = (cache, full) => {
     const comment = f.all().find((c) => c.body.startsWith("<!-- portcove-hosted-intake-receipt:"));
@@ -432,7 +442,7 @@ async function partialFixture(count = 3, stopIndex = count - 1) {
       throw new Error("Unstarted preflight exhausted");
     return inventory(cache, full);
   };
-  await assert.rejects((f.bridge.process(f.request, f.all())), /Unstarted preflight/u);
+  await assert.rejects(f.bridge.process(f.request, f.all()), /Unstarted preflight/u);
   assert.equal(f.creations, stopIndex);
   f.bridge.inventory = inventory;
   return f;
@@ -446,7 +456,7 @@ void test("an existing canonical implementation is retained while unrelated new 
     repository_id: candidate.repository_id + 1,
     port_key: "another-game",
   };
-  const f = (await fixture([candidate, other]));
+  const f = await fixture([candidate, other]);
   const body = hostedBody({ ...candidate, port_key: "original-owner-key" }, 99);
   f.issues.push({
     id: "I150",
@@ -481,7 +491,7 @@ void test("an existing canonical implementation is retained while unrelated new 
   assert.equal(f.comments.size, before);
 });
 async function existingOwnerFixture(candidates = [candidate]) {
-  const f = (await fixture(candidates));
+  const f = await fixture(candidates);
   const body = hostedBody({ ...candidate, port_key: "existing-key" }, 99);
   f.issues.push({
     id: "I150",
@@ -497,7 +507,7 @@ async function existingOwnerFixture(candidates = [candidate]) {
   return f;
 }
 void test("a canonical owner appearing in the final pre-POST inventory is observed instead of duplicated", async () => {
-  const f = (await fixture());
+  const f = await fixture();
   const inventory = f.bridge.inventory.bind(f.bridge);
   f.bridge.inventory = (cache, full) => {
     const receipt = f.all().find((c) => c.body.startsWith("<!-- portcove-hosted-intake-receipt:"));
@@ -535,7 +545,7 @@ void test("a canonical owner appearing in the final pre-POST inventory is observ
   assert.equal(f.creations, 0);
 });
 void test("same-game implementations with distinct immutable repositories do not conflict on their display title", async () => {
-  const f = (await existingOwnerFixture());
+  const f = await existingOwnerFixture();
   f.issues[0]!.title = `[Port] ${candidate.title}`;
   f.issues[0]!.body = hostedBody(
     {
@@ -551,7 +561,7 @@ void test("same-game implementations with distinct immutable repositories do not
   assert.equal(f.creations, 1);
 });
 void test("equal-title independent implementations retain canonical catalog-lineage evidence without a body ID", async () => {
-  const f = (await fixture());
+  const f = await fixture();
   // Use the real authored catalog owner to exercise the bridge's catalog path.
   const c = {
     ...candidate,
@@ -598,7 +608,7 @@ void test("equal-title independent implementations retain canonical catalog-line
   );
 });
 void test("existing observations deduplicate across proposals and preserve non-neutral owner fields", async () => {
-  const f = (await existingOwnerFixture());
+  const f = await existingOwnerFixture();
   Object.assign(f.fields, { Status: "Deferred", Priority: "High" });
   await f.bridge.process(f.request, f.all());
   const request = { ...f.request, id: 101 };
@@ -619,7 +629,7 @@ void test("a transferred immutable catalog repository routes to its original own
     game: "Soulcalibur III",
     port_key: "new-owner-claimed-key",
   };
-  const f = (await fixture([c]));
+  const f = await fixture([c]);
   const body = hostedBody(
     {
       ...c,
@@ -645,8 +655,9 @@ void test("a transferred immutable catalog repository routes to its original own
 });
 void test("uncertain observation POSTs recover only a confirmed marker and never repost on absence", async () => {
   for (const confirmed of [true, false]) {
-    const f = (await existingOwnerFixture());
-    let posts = 0, active = true;
+    const f = await existingOwnerFixture();
+    let posts = 0,
+      active = true;
     f.sdk.hook.wrap("request", async (request, options) => {
       if (active && options.method === "POST" && options.url.endsWith("/150/comments")) {
         posts++;
@@ -658,13 +669,13 @@ void test("uncertain observation POSTs recover only a confirmed marker and never
     await assert.rejects(f.bridge.process(f.request, f.all()));
     active = false;
     if (confirmed) assert.equal((await f.bridge.process(f.request, f.all())).status, "complete");
-    else await assert.rejects((f.bridge.process(f.request, f.all())), /without reposting/u);
+    else await assert.rejects(f.bridge.process(f.request, f.all()), /without reposting/u);
     assert.equal(posts, 1);
   }
 });
 void test("unknown game scope and conflicting immutable identity remain held before any plan or write", async () => {
   for (const mode of ["unknown", "conflict"]) {
-    const f = (await existingOwnerFixture());
+    const f = await existingOwnerFixture();
     f.issues[0]!.body =
       mode === "unknown"
         ? f.issues[0]!.body.replace(/Underlying game: \*\*[^*]+\*\*/u, "Game scope unknown")
@@ -672,14 +683,14 @@ void test("unknown game scope and conflicting immutable identity remain held bef
             String(candidate.repository_id),
             String(candidate.repository_id + 1),
           );
-    await assert.rejects((f.bridge.process(f.request, f.all())), /identity held/u);
+    await assert.rejects(f.bridge.process(f.request, f.all()), /identity held/u);
     assert.equal(f.comments.size, 1);
     assert.equal(f.writes, 0);
     assert.equal(f.creations, 0);
   }
 });
 void test("reporting reads only hash-bound receipts and refuses completion without scoped or full doctor", async () => {
-  const f = (await fixture());
+  const f = await fixture();
   assert.equal((await f.bridge.status(f.request, f.all())).status, "submitted");
   await f.bridge.process(f.request, f.all());
   assert.equal((await f.bridge.status(f.request, f.all())).status, "complete");
@@ -692,11 +703,14 @@ void test("reporting reads only hash-bound receipts and refuses completion witho
     /```json\n[\s\S]+\n```/u,
     "```json\n" + JSON.stringify(r) + "\n```",
   );
-  (await assert.rejects(async () => (await f.bridge.status(f.request, [f.request, receipt])), /doctor|object/u));
+  await assert.rejects(
+    async () => await f.bridge.status(f.request, [f.request, receipt]),
+    /doctor|object/u,
+  );
 });
 void test("pre-plan diagnostics report blocked while stale diagnostics cannot describe an edited proposal", async () => {
-  const f = (await fixture());
-  (await f.bridge.diagnostic(f.request, new Error("Unknown game identity"), f.all()));
+  const f = await fixture();
+  await f.bridge.diagnostic(f.request, new Error("Unknown game identity"), f.all());
   assert.equal((await f.bridge.status(f.request, f.all())).status, "blocked");
   assert.equal((await f.bridge.status(f.request, f.all())).pending, 1);
   f.request.body = encode({ ...proposal, investigator: "edited-context" });
@@ -711,7 +725,7 @@ void test("a large logical batch ending in an existing owner cannot finish witho
     repository_id: candidate.repository_id + i + 1,
     port_key: `new-game-${i}`,
   }));
-  const f = (await existingOwnerFixture([...candidates, candidate]));
+  const f = await existingOwnerFixture([...candidates, candidate]);
   const inventory = f.bridge.inventory.bind(f.bridge);
   let fullRequired = false;
   f.bridge.inventory = (cache, full) => {
@@ -721,7 +735,7 @@ void test("a large logical batch ending in an existing owner cannot finish witho
     }
     return inventory(cache, full);
   };
-  await assert.rejects((f.bridge.process(f.request, f.all())), /Full doctor input unavailable/u);
+  await assert.rejects(f.bridge.process(f.request, f.all()), /Full doctor input unavailable/u);
   assert.equal(fullRequired, true);
   assert.equal(f.creations, 10);
   const receipt = f.all().find((c) => c.body.startsWith("<!-- portcove-hosted-intake-receipt:"))!;
@@ -738,7 +752,10 @@ void test("a large logical batch ending in an existing owner cannot finish witho
     /```json\n[\s\S]+\n```/u,
     "```json\n" + JSON.stringify(raw) + "\n```",
   );
-  (await assert.rejects(async () => (await f.bridge.status(f.request, [f.request, receipt])), /required full doctor/u));
+  await assert.rejects(
+    async () => await f.bridge.status(f.request, [f.request, receipt]),
+    /required full doctor/u,
+  );
 });
 void test("neutral recovery prefix spends no empty normalization or intermediate whole-inventory reads", async () => {
   const f = await partialFixture();
@@ -761,7 +778,7 @@ void test("cached-neutral owner drift holds on fresh readback without repair", a
     if (number === 200) Object.assign(got.item, { Priority: "High" });
     return got;
   };
-  await assert.rejects((f.bridge.process(f.request, f.all())), /Neutral intake field differs/u);
+  await assert.rejects(f.bridge.process(f.request, f.all()), /Neutral intake field differs/u);
   assert.equal(f.normalizations, 0);
   assert.equal(f.creations, 2);
 });
@@ -774,7 +791,7 @@ void test("needed normalization refreshes and rechecks ownership before writing"
     if (++calls === 2) f.fields.Priority = "High";
     return inventory(cache, full);
   };
-  await assert.rejects((f.bridge.process(f.request, f.all())), /owner changes/u);
+  await assert.rejects(f.bridge.process(f.request, f.all()), /owner changes/u);
   assert.equal(calls, 2);
   assert.equal(f.normalizations, 0);
   assert.equal(f.creations, 2);
@@ -805,7 +822,7 @@ void test("a new POST invalidation refreshes before a later retained record", as
     port_key: `${candidate.port_key}-${i}`,
     repository_id: candidate.repository_id + i,
   }));
-  const f = (await fixture(candidates));
+  const f = await fixture(candidates);
   const plan = [];
   for (const c of candidates) plan.push(await f.bridge.primary(c, f.request.id));
   f.issues.push({
@@ -901,7 +918,7 @@ void test("generated body retains maintained research and exact identity markers
   assert.match(body, /GitHub repository ID: 987654321/u);
 });
 void test("ten long candidates retain a single compact logical receipt", async () => {
-  const f = (await fixture(
+  const f = await fixture(
     Array.from({ length: 10 }, (_, i) => ({
       ...candidate,
       title: `Long game ${i}`,
@@ -911,7 +928,7 @@ void test("ten long candidates retain a single compact logical receipt", async (
       port_key: `${candidate.port_key}-${i}`,
       evidence: "Dated primary upstream evidence; gameplay remains Unknown. ".repeat(65),
     })),
-  ));
+  );
   await f.prepare();
   const prior = [...f.comments.values()].find((c) => c.user.login === "github-actions[bot]")!;
   assert(Buffer.byteLength(prior.body) < 20000);
@@ -927,7 +944,7 @@ void test("ten long candidates retain a single compact logical receipt", async (
   );
 });
 void test("compact plan tampering refuses and legacy complete receipts stay byte-identical", async () => {
-  const f = (await fixture());
+  const f = await fixture();
   await f.prepare();
   const prior = [...f.comments.values()].find((c) => c.user.login === "github-actions[bot]")!;
   const wire = JSON.parse(prior.body.match(/```json\n([\s\S]+)\n```$/u)![1]!) as {
@@ -943,7 +960,7 @@ void test("compact plan tampering refuses and legacy complete receipts stay byte
       /```json\n[\s\S]+\n```$/u,
       `\`\`\`json\n${JSON.stringify(altered)}\n\`\`\``,
     );
-    await assert.rejects((f.bridge.process(f.request, f.all())), /exact proposal/u);
+    await assert.rejects(f.bridge.process(f.request, f.all()), /exact proposal/u);
     assert.equal(f.creations, 0);
   }
   delete wire.plan_encoding;
@@ -959,7 +976,7 @@ void test("compact plan tampering refuses and legacy complete receipts stay byte
   assert.equal(f.creations, 0);
 });
 void test("safe preflight drift recovers in a fresh pass without duplicate POSTs", async () => {
-  const f = (await fixture());
+  const f = await fixture();
   const inventory = f.bridge.inventory.bind(f.bridge);
   let drift = true;
   f.bridge.inventory = (...args) => {
@@ -982,7 +999,7 @@ void test("safe preflight drift recovers in a fresh pass without duplicate POSTs
 });
 void test("an unconfirmed issue or receipt mutation permanently excludes automatic continuation", async () => {
   for (const target of ["issue", "receipt"]) {
-    const f = (await fixture());
+    const f = await fixture();
     if (target === "issue") {
       f.client.createPortIssue = async () => {
         throw new GitHubApiError("budget_exhausted", "POST result unknown");
@@ -1006,7 +1023,7 @@ void test("an unconfirmed issue or receipt mutation permanently excludes automat
   }
 });
 void test("a legacy pending plan resumes without a reviewer or a duplicate proposal", async () => {
-  const f = (await fixture());
+  const f = await fixture();
   await f.prepare();
   const comment = [...f.comments.values()].find((c) => c.user.login === "github-actions[bot]")!;
   const plan = JSON.parse(comment.body.match(/```json\n([\s\S]+)\n```$/u)![1]!) as {
@@ -1023,7 +1040,7 @@ void test("a legacy pending plan resumes without a reviewer or a duplicate propo
   assert.equal(f.creations, 1);
 });
 void test("one proposal creates once without review, verifies neutral fields and runs the real scoped evaluator", async () => {
-  const f = (await fixture());
+  const f = await fixture();
   const result = await f.bridge.process(f.request, f.all());
   assert.equal(result?.status, "complete");
   assert(result?.delivery[0]);
@@ -1037,16 +1054,16 @@ void test("one proposal creates once without review, verifies neutral fields and
   assert.equal(f.creations, 1);
 });
 void test("a lost issue POST response stays held when absence is ambiguous", async () => {
-  const f = (await fixture());
+  const f = await fixture();
   f.failPost();
-  await assert.rejects((f.bridge.process(f.request, f.all())), /unknown/u);
-  await assert.rejects((f.bridge.process(f.request, f.all())), /do not recapture/u);
+  await assert.rejects(f.bridge.process(f.request, f.all()), /unknown/u);
+  await assert.rejects(f.bridge.process(f.request, f.all()), /do not recapture/u);
   assert.equal(f.creations, 1);
 });
 void test("delivery refreshes only for a remaining candidate or mandatory global input", async (t) => {
   for (const count of [1, 2, 11]) {
     await t.test(`${count} candidates`, async () => {
-      const f = (await fixture(
+      const f = await fixture(
         Array.from({ length: count }, (_, i) => ({
           ...candidate,
           title: `Game ${i}`,
@@ -1057,7 +1074,7 @@ void test("delivery refreshes only for a remaining candidate or mandatory global
           resume: "Revisit release.",
           repository_id: candidate.repository_id + i,
         })),
-      ));
+      );
       if (count > 10) {
         // A retained large plan still owes global validation even when its
         // current creation-envelope reservation would refuse new capture.
@@ -1100,7 +1117,7 @@ void test("delivery refreshes only for a remaining candidate or mandatory global
         return inventory(cache);
       };
       if (count > 10) {
-        await assert.rejects((f.bridge.process(f.request, f.all())), /Final global input/u);
+        await assert.rejects(f.bridge.process(f.request, f.all()), /Final global input/u);
         assert(refreshedAfterDelivery.has(count), "global doctor requires a fresh final inventory");
       } else {
         const receipt = await f.bridge.process(f.request, f.all());
@@ -1115,9 +1132,9 @@ void test("delivery refreshes only for a remaining candidate or mandatory global
   }
 });
 void test("interrupted Project delivery recovers the same issue without another POST", async () => {
-  const f = (await fixture());
+  const f = await fixture();
   f.failProject(true);
-  await assert.rejects((f.bridge.process(f.request, f.all())), /interrupted/u);
+  await assert.rejects(f.bridge.process(f.request, f.all()), /interrupted/u);
   f.failProject(false);
   const result = await f.bridge.process(f.request, f.all());
   assert.equal(result?.status, "complete");
@@ -1125,47 +1142,47 @@ void test("interrupted Project delivery recovers the same issue without another 
 });
 void test("changed primary, request or existing issue body refuses stale preparation", async () => {
   for (const change of ["primary", "request", "issue"] as const) {
-    const f = (await fixture());
+    const f = await fixture();
     if (change !== "issue") await f.prepare();
     if (change === "primary") f.changePrimary();
     if (change === "request") f.comments.get(100)!.body += "edited";
     if (change === "issue") {
       f.failProject(true);
-      await assert.rejects((f.bridge.process(f.request, f.all())));
+      await assert.rejects(f.bridge.process(f.request, f.all()));
       f.failProject(false);
       f.issues[0]!.body += "Owner revision";
     }
-    await assert.rejects((f.bridge.process(f.request, f.all())));
+    await assert.rejects(f.bridge.process(f.request, f.all()));
     assert.equal(f.creations, change === "issue" ? 1 : 0);
   }
 });
 void test("a non-neutral field prevents successful intake; permission probe really writes and refuses denied access", async () => {
-  const f = (await fixture());
+  const f = await fixture();
   f.fields.Priority = "High";
-  await assert.rejects((f.bridge.process(f.request, f.all())), /Neutral intake field/u);
+  await assert.rejects(f.bridge.process(f.request, f.all()), /Neutral intake field/u);
   f.fields.Priority = "None";
   const proof = await probeHostedProjectWrite(f.client, 200);
   assert.equal(proof.fields_unchanged, true);
   assert.equal(f.writes, 2);
   f.deny();
-  await assert.rejects((probeHostedProjectWrite(f.client, 200)), /denied/u);
+  await assert.rejects(probeHostedProjectWrite(f.client, 200), /denied/u);
 });
 
 void test("recovery refuses changed Work type and closed state before normalizer writes", async () => {
   for (const change of ["work", "closed"]) {
-    const f = (await fixture());
+    const f = await fixture();
     f.failProject(true);
-    await assert.rejects((f.bridge.process(f.request, f.all())));
+    await assert.rejects(f.bridge.process(f.request, f.all()));
     f.failProject(false);
     if (change === "work") f.fields["Work type"] = "Product feature";
     else f.issues[0]!.state = "CLOSED";
-    await assert.rejects((f.bridge.process(f.request, f.all())), /owner changes|owner\/state/u);
+    await assert.rejects(f.bridge.process(f.request, f.all()), /owner changes|owner\/state/u);
     assert.equal(f.normalizations, 0);
     assert.equal(f.creations, 1);
   }
 });
 void test("an unrelated malformed owner request cannot block a valid candidate", async () => {
-  const f = (await fixture());
+  const f = await fixture();
   f.comments.set(102, { ...f.request, id: 102, body: hostedRequestMarker + " malformed" });
   assert.equal((await f.bridge.process(f.request, f.all()))?.status, "complete");
 });
@@ -1190,7 +1207,7 @@ void test("authored shared repositories preserve independently catalogable games
   assert.throws(() => assertHostedCatalogIdentity(candidate, [{ ...record, listing: unknown }]));
 });
 void test("multibyte evidence fits without duplicating proposal text in the receipt", async () => {
-  const f = (await fixture());
+  const f = await fixture();
   const p = {
     ...proposal,
     candidates: [0, 1, 2].map((i) => ({
@@ -1207,9 +1224,9 @@ void test("multibyte evidence fits without duplicating proposal text in the rece
   assert.equal(f.creations, 3);
 });
 void test("denied hosted Project write access prevents issue creation", async () => {
-  const f = (await fixture());
+  const f = await fixture();
   f.deny();
-  await assert.rejects((f.bridge.process(f.request, f.all())), /denied/u);
+  await assert.rejects(f.bridge.process(f.request, f.all()), /denied/u);
   assert.equal(f.creations, 0);
 });
 
@@ -1256,7 +1273,7 @@ async function reconciliationFixture(count = 3, stopIndex = count - 1, ambiguous
 void test("owner reconciliation preserves six owners and ambiguous intent, then recovers an exact seventh marker", async () => {
   const f = await reconciliationFixture(10, 6, true);
   const before = f.issues.map((i) => structuredClone(i));
-  await assert.rejects((f.bridge.process(f.successor, f.all())), /Ambiguous issue POST/u);
+  await assert.rejects(f.bridge.process(f.successor, f.all()), /Ambiguous issue POST/u);
   assert.equal(f.creations, 6);
   assert.equal(
     f.sourceReceipt.body,
@@ -1306,7 +1323,7 @@ void test("nineteen-candidate reconciliation reserves growth once and still requ
     }
     return inventory(cache, full);
   };
-  await assert.rejects((f.bridge.process(f.successor, f.all())), /Required full doctor input/u);
+  await assert.rejects(f.bridge.process(f.successor, f.all()), /Required full doctor input/u);
   assert(fullRequired);
   assert.equal(f.creations, 19);
   const comment = f
@@ -1325,7 +1342,7 @@ void test("nineteen-candidate reconciliation reserves growth once and still requ
   assert.equal(f.sourceReceipt.body, f.sourceReceiptBody);
 });
 void test("an oversized logical batch refuses before publishing a receipt or creating issues", async () => {
-  const f = (await fixture(
+  const f = await fixture(
     Array.from({ length: 25 }, (_, i) => ({
       ...candidate,
       title: `Large game ${i}`,
@@ -1334,9 +1351,9 @@ void test("an oversized logical batch refuses before publishing a receipt or cre
       port_key: `${candidate.port_key}-${i}`,
       repository_id: candidate.repository_id + i,
     })),
-  ));
+  );
   await assert.rejects(
-    (f.bridge.process(f.request, f.all())),
+    f.bridge.process(f.request, f.all()),
     /cannot retain complete delivery receipts/u,
   );
   assert.equal(f.creations, 0);
@@ -1373,7 +1390,7 @@ void test("reconciliation refuses changed lineage, active sources and incomplete
       f.successor.body = encode(f.proposal);
       const before = f.creations,
         writes = f.writes;
-      await assert.rejects((f.bridge.process(f.successor, f.all())));
+      await assert.rejects(f.bridge.process(f.successor, f.all()));
       assert.equal(f.creations, before);
       assert.equal(f.writes, writes);
     });
@@ -1383,14 +1400,14 @@ void test("reconciliation preserves owner bodies, duplicate marker holds and the
   await t.test("owner revised canonical body", async () => {
     const f = await reconciliationFixture();
     f.issues[0]!.body += "\nOwner revision";
-    await assert.rejects((f.bridge.process(f.successor, f.all())), /Created issue was revised/u);
+    await assert.rejects(f.bridge.process(f.successor, f.all()), /Created issue was revised/u);
     assert.equal(f.creations, 2);
     assert.equal(f.normalizations, 0);
   });
   await t.test("duplicate original marker", async () => {
     const f = await reconciliationFixture();
     f.issues[1]!.body = f.issues[0]!.body;
-    await assert.rejects((f.bridge.process(f.successor, f.all())), /Ambiguous created issue marker/u);
+    await assert.rejects(f.bridge.process(f.successor, f.all()), /Ambiguous created issue marker/u);
     assert.equal(f.creations, 2);
   });
   await t.test("eleven remain one logical batch", async () => {
@@ -1404,7 +1421,7 @@ void test("reconciliation preserves owner bodies, duplicate marker holds and the
       }
       return inventory(cache, full);
     };
-    await assert.rejects((f.bridge.process(f.successor, f.all())), /Required full doctor input/u);
+    await assert.rejects(f.bridge.process(f.successor, f.all()), /Required full doctor input/u);
     assert.equal(requiredGlobal, true);
     assert.equal(f.creations, 11);
     const comment = f
@@ -1429,13 +1446,13 @@ void test("source preimage is checked during successor delivery before a pending
     if (++observations === 2) f.sourceReceipt.body += "\nConcurrent edit";
     return result;
   };
-  await assert.rejects((f.bridge.process(f.successor, f.all())), /preimage changed/u);
+  await assert.rejects(f.bridge.process(f.successor, f.all()), /preimage changed/u);
   assert.equal(f.creations, 2);
   assert.equal(f.issues.length, 2);
 });
 void test("a second explicit reconciliation preserves the original marker and the uncertain state", async () => {
   const f = await reconciliationFixture(3, 2, true);
-  await assert.rejects((f.bridge.process(f.successor, f.all())), /Ambiguous issue POST/u);
+  await assert.rejects(f.bridge.process(f.successor, f.all()), /Ambiguous issue POST/u);
   const source = f.successor,
     original = source.body;
   const receipt = f
@@ -1460,7 +1477,7 @@ void test("a second explicit reconciliation preserves the original marker and th
     }),
   };
   f.comments.set(102, next);
-  await assert.rejects((f.bridge.process(next, f.all())), /Ambiguous issue POST/u);
+  await assert.rejects(f.bridge.process(next, f.all()), /Ambiguous issue POST/u);
   assert.equal(f.creations, 2);
   const result = f
     .all()
@@ -1493,10 +1510,11 @@ void test("warm admission charges bounded publications, preserves IDs and never 
       if (mode === "byte threshold") budget.usage.bytes = budget.limits.bytes - 2 * 1024 * 1024;
       let attemptPublications = 0;
       f.sdk.hook.wrap("request", async (request, options) => {
-        const method = options.method, endpoint = options.url;
+        const method = options.method,
+          endpoint = options.url;
         const input: unknown = options.data;
         const sent = input === undefined ? 0 : Buffer.byteLength(JSON.stringify(input));
-        (await budget.admit(1, 1 + sent));
+        await budget.admit(1, 1 + sent);
         budget.usage.accounting_bytes += sent;
         const result = await request(options);
         budget.charge(method, endpoint, 1, Buffer.byteLength(JSON.stringify(result.data)), "200");
@@ -1526,7 +1544,7 @@ void test("warm admission charges bounded publications, preserves IDs and never 
               "200",
             );
           const c = discoveryInventoryCost(cache);
-          (await budget.admit(c.requests + 12, c.bytes + 2 * 1024 * 1024));
+          await budget.admit(c.requests + 12, c.bytes + 2 * 1024 * 1024);
         },
       });
       f.bridge.inventory = HostedIntakeBridge.prototype.inventory.bind(f.bridge);
@@ -1553,7 +1571,7 @@ void test("warm admission charges bounded publications, preserves IDs and never 
       assert.equal(receipt.status, "incomplete");
       assert.equal(receipt.delivery[2]!.status, "prepared");
       assert.equal(receipt.delivery[2]!.created_issue, undefined);
-      (await f.bridge.diagnostic(f.request, failure, f.all()));
+      await f.bridge.diagnostic(f.request, failure, f.all());
       assert(
         f.all().some((c) => c.body.startsWith("<!-- portcove-hosted-intake-diagnostic:100 -->")),
       );

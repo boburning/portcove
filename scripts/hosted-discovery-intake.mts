@@ -228,7 +228,7 @@ export async function assertHostedRecovery(
   number: number,
 ) {
   requireRoadmapInventory(inventory, client.config.repository, client, { planningIssue: number });
-  const issue = (await client.repositoryIssue(number));
+  const issue = await client.repositoryIssue(number);
   const assignees = object(issue).assignees;
   const rows = [...inventory.items, ...inventory.archivedItems].filter(
     (i) => i.content?.id === issue.node_id,
@@ -400,9 +400,18 @@ function receiptBody(r: Receipt) {
     throw new Error("Hosted receipt exceeds its bounded comment envelope");
   return body;
 }
-export type HostedRoadmapOperations = RoadmapInventoryClient & Pick<RoadmapClient,
-  "viewList" | "projectAudit" | "repositoryIssues" |
-  "createPortIssue" | "normalizePortIssue" | "repositoryIssue" | "executionIssue" | "setItemFields">;
+export type HostedRoadmapOperations = RoadmapInventoryClient &
+  Pick<
+    RoadmapClient,
+    | "viewList"
+    | "projectAudit"
+    | "repositoryIssues"
+    | "createPortIssue"
+    | "normalizePortIssue"
+    | "repositoryIssue"
+    | "executionIssue"
+    | "setItemFields"
+  >;
 export class HostedIntakeBridge {
   // Failed mutations remain sticky even if publishing a later diagnostic works.
   uncertainMutations = 0;
@@ -456,7 +465,8 @@ export class HostedIntakeBridge {
   }
   private async issueComments(issue: number, perPage: number) {
     if (!Number.isSafeInteger(issue) || issue < 1) throw new Error("Invalid comment owner");
-    const rows: unknown[] = [], ids = new Set<number>();
+    const rows: unknown[] = [],
+      ids = new Set<number>();
     for await (const page of iterateGitHubPages(this.github.project, {
       url: `https://api.github.com/${this.prefix}/${issue}/comments?per_page=${perPage}`,
       headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
@@ -465,15 +475,32 @@ export class HostedIntakeBridge {
       for (const row of page.data as unknown[]) {
         const id = positive(object(row).id);
         if (ids.has(id)) throw new Error("Hosted comments contain duplicate identities");
-        ids.add(id); rows.push(row);
+        ids.add(id);
+        rows.push(row);
       }
     }
     return rows;
   }
   async comments() {
-    const before = object((await this.github.project.request({ method: "GET", url: new URL(`${this.prefix}/177`, "https://api.github.com/").href })).data);
-    const comments = (await this.issueComments(177, 20)).map((v) => object(v) as unknown as Comment);
-    const after = object((await this.github.project.request({ method: "GET", url: new URL(`${this.prefix}/177`, "https://api.github.com/").href })).data);
+    const before = object(
+      (
+        await this.github.project.request({
+          method: "GET",
+          url: new URL(`${this.prefix}/177`, "https://api.github.com/").href,
+        })
+      ).data,
+    );
+    const comments = (await this.issueComments(177, 20)).map(
+      (v) => object(v) as unknown as Comment,
+    );
+    const after = object(
+      (
+        await this.github.project.request({
+          method: "GET",
+          url: new URL(`${this.prefix}/177`, "https://api.github.com/").href,
+        })
+      ).data,
+    );
     if (
       typeof before.node_id !== "string" ||
       before.node_id !== after.node_id ||
@@ -494,7 +521,12 @@ export class HostedIntakeBridge {
   }
   async fresh(c: Comment) {
     const got = object(
-      (await this.github.project.request({ method: "GET", url: new URL(`${this.prefix}/comments/${c.id}`, "https://api.github.com/").href })).data,
+      (
+        await this.github.project.request({
+          method: "GET",
+          url: new URL(`${this.prefix}/comments/${c.id}`, "https://api.github.com/").href,
+        })
+      ).data,
     ) as unknown as Comment;
     if (
       got.id !== c.id ||
@@ -509,18 +541,33 @@ export class HostedIntakeBridge {
     receipt.observed_at = new Date().toISOString();
     this.save(`receipt-${receipt.request_comment}`, receipt);
     const body = receiptBody(receipt);
-    if (prior) (await this.fresh(prior));
-    return (await this.mutation(async () => {
+    if (prior) await this.fresh(prior);
+    return await this.mutation(async () => {
       const got = object(
-        (await this.github.repository.request({ method: prior ? "PATCH" : "POST", url: new URL(prior ? `${this.prefix}/comments/${prior.id}` : `${this.prefix}/177/comments`, "https://api.github.com/").href, data: { body } })).data,
+        (
+          await this.github.repository.request({
+            method: prior ? "PATCH" : "POST",
+            url: new URL(
+              prior ? `${this.prefix}/comments/${prior.id}` : `${this.prefix}/177/comments`,
+              "https://api.github.com/",
+            ).href,
+            data: { body },
+          })
+        ).data,
       );
       const observed = object(
-        (await this.github.project.request({ method: "GET", url: new URL(`${this.prefix}/comments/${positive(got.id)}`, "https://api.github.com/").href })).data,
+        (
+          await this.github.project.request({
+            method: "GET",
+            url: new URL(`${this.prefix}/comments/${positive(got.id)}`, "https://api.github.com/")
+              .href,
+          })
+        ).data,
       );
       if (observed.body !== body || object(observed.user).login !== "github-actions[bot]")
         throw new Error("Bot receipt publication/readback is unconfirmed; no further mutation");
       return observed as unknown as Comment;
-    }));
+    });
   }
   async diagnostic(request: Comment, error: unknown, all: Comment[]) {
     const marker = `<!-- portcove-hosted-intake-diagnostic:${request.id} -->`;
@@ -543,12 +590,27 @@ export class HostedIntakeBridge {
         : "Resolve the named failure and reread the exact proposal/plan before resuming; never repeat an ambiguous creation.",
     };
     const body = `${marker}\n\`\`\`json\n${JSON.stringify(diagnostic, null, 2)}\n\`\`\``;
-    if (previous) (await this.fresh(previous));
+    if (previous) await this.fresh(previous);
     const got = object(
-      (await this.github.repository.request({ method: previous ? "PATCH" : "POST", url: new URL(previous ? `${this.prefix}/comments/${previous.id}` : `${this.prefix}/177/comments`, "https://api.github.com/").href, data: { body } })).data,
+      (
+        await this.github.repository.request({
+          method: previous ? "PATCH" : "POST",
+          url: new URL(
+            previous ? `${this.prefix}/comments/${previous.id}` : `${this.prefix}/177/comments`,
+            "https://api.github.com/",
+          ).href,
+          data: { body },
+        })
+      ).data,
     );
     const after = object(
-      (await this.github.project.request({ method: "GET", url: new URL(`${this.prefix}/comments/${positive(got.id)}`, "https://api.github.com/").href })).data,
+      (
+        await this.github.project.request({
+          method: "GET",
+          url: new URL(`${this.prefix}/comments/${positive(got.id)}`, "https://api.github.com/")
+            .href,
+        })
+      ).data,
     );
     if (after.body !== body || object(after.user).login !== "github-actions[bot]")
       throw new Error("Diagnostic publication readback is unconfirmed");
@@ -668,7 +730,7 @@ export class HostedIntakeBridge {
       throw new Error("Canonical owner changed during retained delivery");
     const expected = inventory.issues.find((issue) => issue.number === owner);
     const freshOwner = async () => {
-      const current = (await this.client.repositoryIssue(owner));
+      const current = await this.client.repositoryIssue(owner);
       if (
         !expected ||
         expected.id !== current.node_id ||
@@ -678,38 +740,52 @@ export class HostedIntakeBridge {
       )
         throw new Error("Existing canonical owner changed; preserve owner work");
     };
-    (await freshOwner());
+    await freshOwner();
     this.planningIssues.add(owner);
     const observation = { candidate: p.candidate, primary: p.primary };
     const marker = `<!-- portcove-hosted-observation:${observationHash(observation)} -->`;
     const body = `${marker}\nDated discovery observation from #177 for existing canonical owner #${owner}. Immutable repository ID and game scope match this owner; any proposed independent-implementation claim is superseded by that identity readback. Candidate prose below remains attributed investigator evidence, not verified qualification or a change to this owner's specification. No new implementation, catalog admission or planning change is claimed.\n\n\`\`\`json\n${JSON.stringify(observation, null, 2)}\n\`\`\``;
     validateGitHubBody(body);
     const rows = (await this.issueComments(owner, 100))
-      .map(value => object(value) as unknown as Comment)
-      .filter(c => c.user.login === "github-actions[bot]" && c.body.startsWith(marker));
+      .map((value) => object(value) as unknown as Comment)
+      .filter((c) => c.user.login === "github-actions[bot]" && c.body.startsWith(marker));
     if (rows.length > 1) throw new Error("Ambiguous existing-owner observation marker");
     let comment = rows[0];
     if (!comment) {
       assertDiscoveryCommentMayPost(d);
-      (await freshOwner());
-      (await this.fresh(request));
+      await freshOwner();
+      await this.fresh(request);
       d.canonical_issue = owner;
-      comment = (await this.mutation(async () =>
-        (await discoveryPost(
-          d,
-          async () => {
-            const posted = object(
-              (await this.github.repository.request({ method: "POST", url: new URL(`${this.prefix}/${owner}/comments`, "https://api.github.com/").href, data: { body } })).data,
-            );
-            (await recordDiscoveryComment(d, posted.id, persist));
-            return posted as unknown as Comment;
-          },
-          persist,
-        )),
-      ));
+      comment = await this.mutation(
+        async () =>
+          await discoveryPost(
+            d,
+            async () => {
+              const posted = object(
+                (
+                  await this.github.repository.request({
+                    method: "POST",
+                    url: new URL(`${this.prefix}/${owner}/comments`, "https://api.github.com/")
+                      .href,
+                    data: { body },
+                  })
+                ).data,
+              );
+              await recordDiscoveryComment(d, posted.id, persist);
+              return posted as unknown as Comment;
+            },
+            persist,
+          ),
+      );
     }
     const observed = object(
-      (await this.github.project.request({ method: "GET", url: new URL(`${this.prefix}/comments/${positive(comment.id)}`, "https://api.github.com/").href })).data,
+      (
+        await this.github.project.request({
+          method: "GET",
+          url: new URL(`${this.prefix}/comments/${positive(comment.id)}`, "https://api.github.com/")
+            .href,
+        })
+      ).data,
     ) as unknown as Comment;
     if (
       observed.body !== body ||
@@ -718,7 +794,7 @@ export class HostedIntakeBridge {
       (d.created_comment && d.created_comment !== observed.id)
     )
       throw new Error("Existing-owner observation readback differs");
-    (await freshOwner());
+    await freshOwner();
     d.canonical_issue = owner;
     d.created_comment = observed.id;
     d.observation_sha256 = observationHash(body);
@@ -727,7 +803,7 @@ export class HostedIntakeBridge {
     this.save(`doctor-${request.id}-${owner}`, doctor);
     d.doctor = compactDoctor(doctor);
     d.status = "existing";
-    (await persist());
+    await persist();
   }
   async status(request: Comment, all: Comment[]) {
     trustedHostedComment(request, this.client.config.owner);
@@ -736,7 +812,7 @@ export class HostedIntakeBridge {
       (c) => c.user.login === "github-actions[bot]" && c.body.startsWith(receiptMarker(request.id)),
     );
     if (found.length > 1) throw new Error("Ambiguous hosted receipt identity");
-    const lineage = (await this.reconciliation(request, proposal, all));
+    const lineage = await this.reconciliation(request, proposal, all);
     const receipt = found[0]
       ? readHostedReceipt(found[0], request, proposal, lineage?.bodyRequest ?? request.id)
       : undefined;
@@ -853,8 +929,8 @@ export class HostedIntakeBridge {
       throw new Error("Ambiguous reconciliation source receipt identity");
     const source = trustedHostedComment(sources[0], this.client.config.owner),
       comment = receipts[0]!;
-    (await this.fresh(source));
-    (await this.fresh(comment));
+    await this.fresh(source);
+    await this.fresh(comment);
     const offset = source.body.indexOf(hostedRequestMarker);
     if (
       offset <= 0 ||
@@ -892,14 +968,14 @@ export class HostedIntakeBridge {
   async process(request: Comment, all: Comment[]) {
     this.uncertainMutations = 0;
     trustedHostedComment(request, this.client.config.owner);
-    (await this.fresh(request));
+    await this.fresh(request);
     const proposal = parseHostedRequest(request.body);
-    const lineage = (await this.reconciliation(request, proposal, all));
+    const lineage = await this.reconciliation(request, proposal, all);
     const bodyRequest = lineage?.bodyRequest ?? request.id;
     const freshLineage = async () => {
       if (lineage) {
-        (await this.fresh(lineage.source));
-        (await this.fresh(lineage.comment));
+        await this.fresh(lineage.source);
+        await this.fresh(lineage.comment);
       }
     };
     const found = all.filter(
@@ -909,12 +985,13 @@ export class HostedIntakeBridge {
     let prior = found[0];
     let receipt: Receipt | undefined;
     if (prior) {
-      (await this.fresh(prior));
+      await this.fresh(prior);
       receipt = readHostedReceipt(prior, request, proposal, bodyRequest);
       if (receipt.status === "complete") return receipt;
     }
     const plan: Planned[] = [];
-    for (const candidate of proposal.candidates) plan.push(await this.primary(candidate, bodyRequest));
+    for (const candidate of proposal.candidates)
+      plan.push(await this.primary(candidate, bodyRequest));
     this.planningIssues = new Set(
       (receipt?.delivery ?? lineage?.receipt.delivery ?? []).flatMap((d) =>
         d.created_issue ? [d.created_issue] : d.canonical_issue ? [d.canonical_issue] : [],
@@ -935,7 +1012,7 @@ export class HostedIntakeBridge {
         );
         if (owner) owners.set(index, owner);
       }
-      (await freshLineage());
+      await freshLineage();
       receipt = {
         schema_version: 1,
         request_comment: request.id,
@@ -973,19 +1050,19 @@ export class HostedIntakeBridge {
         throw new Error(
           "Logical batch cannot retain complete delivery receipts; reduce evidence text",
         );
-      prior = (await this.persist(receipt));
+      prior = await this.persist(receipt);
     }
     if (receipt.plan_sha256 !== hostedPlanHash(observationHash(request.body), plan))
       throw new Error("Primary evidence changed since preparation; a fresh proposal is required");
-    (await freshLineage());
+    await freshLineage();
     receipt.head = this.head;
     receipt.run = process.env.GITHUB_RUN_ID ?? "local";
     receipt.attempt = process.env.GITHUB_RUN_ATTEMPT ?? "1";
     receipt.status = "applying";
     const persist = async () => {
-      prior = (await this.persist(receipt, prior));
+      prior = await this.persist(receipt, prior);
     };
-    (await persist());
+    await persist();
     try {
       this.uncertainMutations++;
       const writeProof = await probeHostedProjectWrite(this.client, 177);
@@ -1004,8 +1081,8 @@ export class HostedIntakeBridge {
           inventory = await this.inventory(inventory);
           invalidated = false;
         }
-        (await this.fresh(request));
-        (await freshLineage());
+        await this.fresh(request);
+        await freshLineage();
         const marker = `<!-- portcove-discovery-intake:hosted-${bodyRequest}-${p.candidate.port_key} -->`;
         const recovered = inventory.issues.filter((i) => i.body?.includes(marker));
         if (recovered.length > 1) throw new Error("Ambiguous created issue marker");
@@ -1014,7 +1091,7 @@ export class HostedIntakeBridge {
         if (!d.created_issue && recovered.length) {
           d.created_issue = Number(recovered[0]!.number);
           this.planningIssues.add(d.created_issue);
-          (await persist());
+          await persist();
           inventory = await this.inventory(inventory);
           invalidated = false;
         }
@@ -1029,7 +1106,7 @@ export class HostedIntakeBridge {
         if (d.canonical_issue)
           throw new Error("Retained canonical ownership is no longer established");
         if (d.created_issue) {
-          const issue = (await assertHostedRecovery(this.client, inventory, d.created_issue));
+          const issue = await assertHostedRecovery(this.client, inventory, d.created_issue);
           if (issue.body !== p.body || issue.title !== `[Port] ${p.candidate.title}`)
             throw new Error("Created issue was revised; preserve owner changes and reconcile");
           const member = inventory.items.find((item) => item.content?.id === issue.node_id);
@@ -1044,10 +1121,10 @@ export class HostedIntakeBridge {
             // the earlier routing observation looked repairable.
             inventory = await this.inventory(inventory);
             invalidated = false;
-            const latest = (await assertHostedRecovery(this.client, inventory, d.created_issue));
+            const latest = await assertHostedRecovery(this.client, inventory, d.created_issue);
             if (latest.body !== p.body || latest.title !== `[Port] ${p.candidate.title}`)
               throw new Error("Created issue was revised; preserve owner changes and reconcile");
-            const normalized = (await this.mutation(
+            const normalized = await this.mutation(
               async () =>
                 await this.client.normalizePortIssue({
                   number: d.created_issue!,
@@ -1062,7 +1139,7 @@ export class HostedIntakeBridge {
                   inventory,
                   repositoryIdentity: { id: p.candidate.repository_id, game: p.candidate.game },
                 }),
-            ));
+            );
             invalidated = true;
             d.item_id = normalized.itemId;
           }
@@ -1073,52 +1150,53 @@ export class HostedIntakeBridge {
           // Persist the attempt before recollection: publishing it advances
           // #177's revision, so the negative inventory must come afterwards.
           d.status = "create-attempted";
-          (await persist());
+          await persist();
           let lateOwner: number | undefined;
           try {
             inventory = await this.inventory(inventory);
             invalidated = false;
-            (await this.fresh(request));
-            (await freshLineage());
+            await this.fresh(request);
+            await freshLineage();
             lateOwner = this.duplicates(inventory, p);
           } catch (error) {
             d.status = "prepared"; // No POST has begun in this preflight.
-            (await persist());
+            await persist();
             throw error;
           }
           if (lateOwner) {
             d.status = "prepared";
             d.canonical_issue = lateOwner;
             d.existing = true;
-            (await persist());
+            await persist();
             await this.observeExisting(request, p, d, lateOwner, inventory, persist);
             invalidated = true;
             continue;
           }
-          (await this.mutation(async () =>
-            (await discoveryPost(
-              d,
-              async () =>
-                await this.client.createPortIssue({
-                  title: p.candidate.title,
-                  upstream: p.candidate.upstream,
-                  portKey: p.candidate.port_key,
-                  body: p.body,
-                  inventory,
-                  repositoryIdentity: { id: p.candidate.repository_id, game: p.candidate.game },
-                  onIssueCreated: async (issue) => {
-                    d.created_issue = issue.number;
-                    this.planningIssues.add(issue.number);
-                    d.status = "created";
-                    await persist();
-                  },
-                }),
-              () => this.save(`receipt-${request.id}`, receipt),
-            )),
-          ));
+          await this.mutation(
+            async () =>
+              await discoveryPost(
+                d,
+                async () =>
+                  await this.client.createPortIssue({
+                    title: p.candidate.title,
+                    upstream: p.candidate.upstream,
+                    portKey: p.candidate.port_key,
+                    body: p.body,
+                    inventory,
+                    repositoryIdentity: { id: p.candidate.repository_id, game: p.candidate.game },
+                    onIssueCreated: async (issue) => {
+                      d.created_issue = issue.number;
+                      this.planningIssues.add(issue.number);
+                      d.status = "created";
+                      await persist();
+                    },
+                  }),
+                () => this.save(`receipt-${request.id}`, receipt),
+              ),
+          );
           invalidated = true;
         }
-        const issue = (await this.client.repositoryIssue(d.created_issue!));
+        const issue = await this.client.repositoryIssue(d.created_issue!);
         const item = (await this.client.executionIssue(d.created_issue!)).item;
         if (issue.body !== p.body || item.content.id !== issue.node_id)
           throw new Error("Exact created body/item readback failed");
@@ -1136,7 +1214,7 @@ export class HostedIntakeBridge {
         this.save(`doctor-${request.id}-${d.created_issue}`, doctor);
         d.doctor = compactDoctor(doctor);
         d.status = "delivered";
-        (await persist());
+        await persist();
       }
       if (plan.length > 10) {
         inventory = await this.inventory(inventory, true);
@@ -1155,13 +1233,13 @@ export class HostedIntakeBridge {
       receipt.status = "complete";
       delete receipt.error;
       delete receipt.continuation;
-      (await persist());
+      await persist();
     } catch (error) {
       receipt.status = "incomplete";
       receipt.error = sanitizeOperationError(error);
       receipt.continuation = this.continuation(error);
       try {
-        (await persist());
+        await persist();
       } catch (publication) {
         this.save(`publication-failure-${request.id}`, sanitizeOperationError(publication));
       }
@@ -1211,7 +1289,7 @@ export async function collectHostedRequests(
 ) {
   try {
     await initialize();
-    return { status: "collected" as const, comments: (await bridge.comments()) };
+    return { status: "collected" as const, comments: await bridge.comments() };
   } catch (error) {
     const continuation = bridge.continuation(error);
     if (!continuation) throw error;
@@ -1219,17 +1297,24 @@ export async function collectHostedRequests(
   }
 }
 export async function connectHostedGitHub(
-  config: ConstructorParameters<typeof RoadmapClient>[0], budget: DiscoveryBudget,
+  config: ConstructorParameters<typeof RoadmapClient>[0],
+  budget: DiscoveryBudget,
   credentials: { project: string; repository: string },
   options: Parameters<typeof discoveryGitHubScope>[2] = {},
 ) {
   if (!credentials.project || !credentials.repository)
-    throw new GitHubApiError("credential_unavailable", "Dedicated Project and repository credentials are required");
+    throw new GitHubApiError(
+      "credential_unavailable",
+      "Dedicated Project and repository credentials are required",
+    );
   const projectScope = discoveryGitHubScope(budget, credentials.project, options);
   const repositoryScope = discoveryGitHubScope(budget, credentials.repository, options);
   const project = await createGitHubClient(projectScope);
   const repository = await createGitHubClient(repositoryScope);
-  const client = await RoadmapClient.connect(config, { ...projectScope, repositoryMutations: repositoryScope });
+  const client = await RoadmapClient.connect(config, {
+    ...projectScope,
+    repositoryMutations: repositoryScope,
+  });
   return { client, project, repository };
 }
 async function main() {
@@ -1251,7 +1336,11 @@ async function main() {
     const id = positive(Number(args[1]));
     const { localDeveloperCredential } = await import("./github-cli.mts");
     const deadline = performance.now() + 120_000;
-    const scope = { credential: localDeveloperCredential({ deadline }), deadline, failedReads: new Map() };
+    const scope = {
+      credential: localDeveloperCredential({ deadline }),
+      deadline,
+      failedReads: new Map(),
+    };
     const client = await RoadmapClient.connect(config, scope);
     const sdk = await createGitHubClient(scope);
     const bridge = new HostedIntakeBridge(
@@ -1265,10 +1354,10 @@ async function main() {
         throw new Error("Status cannot save or write");
       },
     );
-    const comments = (await bridge.comments());
+    const comments = await bridge.comments();
     const request = comments.find((c) => c.id === id);
     if (!request) throw new Error("Requested proposal is unavailable");
-    console.log(JSON.stringify((await bridge.status(request, comments))));
+    console.log(JSON.stringify(await bridge.status(request, comments)));
     return;
   }
   const pass = process.env.HOSTED_INTAKE_PASS ?? "1";
@@ -1308,7 +1397,8 @@ async function main() {
     throw new Error("Dedicated Project and repository credentials are required");
   const budget = new DiscoveryBudget("cold", (usage) => save("budget", usage));
   const { client, project, repository } = await connectHostedGitHub(config, budget, {
-    project: process.env.GH_TOKEN, repository: process.env.REPOSITORY_TOKEN,
+    project: process.env.GH_TOKEN,
+    repository: process.env.REPOSITORY_TOKEN,
   });
   const http = createDiscoveryTransport(budget, process.env.GH_TOKEN);
   const head = runCheckedGit(["rev-parse", "HEAD"], { cwd: root }).trim();
@@ -1316,13 +1406,13 @@ async function main() {
     const cost = cache ? discoveryInventoryCost(cache) : { requests: 1, bytes: 1 };
     // Leave enough existing capacity to restore prepared and publish a bounded
     // receipt/diagnostic if preflight cannot fit; this is not a usage reset.
-    (await budget.admit(cost.requests + 12, cost.bytes + 2 * 1024 * 1024));
+    await budget.admit(cost.requests + 12, cost.bytes + 2 * 1024 * 1024);
   };
   const bridge = new HostedIntakeBridge(
     client,
     { project, repository },
     head,
-    async (repo) => (await investigateDiscoveryUpstream({ sdk: project, budget, http, save }, repo)),
+    async (repo) => await investigateDiscoveryUpstream({ sdk: project, budget, http, save }, repo),
     save,
     admitInventory,
     admitInventory,
@@ -1330,8 +1420,14 @@ async function main() {
   const settleAdmission = async () => {
     const failures = await budget.drain();
     if (failures.length) {
-      try { save("admission-cleanup", failures.map(error => sanitizeOperationError(error))); }
-      catch (error) { console.error(JSON.stringify(sanitizeOperationError(error))); }
+      try {
+        save(
+          "admission-cleanup",
+          failures.map((error) => sanitizeOperationError(error)),
+        );
+      } catch (error) {
+        console.error(JSON.stringify(sanitizeOperationError(error)));
+      }
     }
   };
   const initialize = async () => {
@@ -1376,10 +1472,10 @@ async function main() {
       }
       return;
     }
-    const collected = (await collectHostedRequests(bridge, initialize));
+    const collected = await collectHostedRequests(bridge, initialize);
     if (collected.status === "held") {
       await settleAdmission();
-    save("summary", {
+      save("summary", {
         status: "incomplete",
         head,
         requests: 0,
@@ -1432,7 +1528,7 @@ async function main() {
         let continuation = bridge.continuation(error);
         save(`failure-${c.id}`, sanitizeOperationError(error));
         try {
-          (await bridge.diagnostic(c, error, comments));
+          await bridge.diagnostic(c, error, comments);
         } catch (publication) {
           continuation = null;
           save(`publication-failure-${c.id}`, sanitizeOperationError(publication));

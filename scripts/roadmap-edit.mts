@@ -81,7 +81,13 @@ export async function editRoadmapBatch(
   };
   const read = async (index: number) => {
     const number = input[index]!.number;
-    const observed = (await api.request({ method: "GET", url: `https://api.github.com/repos/${config.repository}/issues/${number}`, request: { portcove: { replay: "safe-read", attempts: 0 } } })).data;
+    const observed = (
+      await api.request({
+        method: "GET",
+        url: `https://api.github.com/repos/${config.repository}/issues/${number}`,
+        request: { portcove: { replay: "safe-read", attempts: 0 } },
+      })
+    ).data;
     if (
       !isRecord(observed) ||
       observed.number !== number ||
@@ -302,37 +308,65 @@ async function runBodyEdits(specPath: string) {
     const deadline = performance.now() + 30 * 60000;
     let received = 0;
     const scope = {
-      credential: localDeveloperCredential({ deadline }), deadline,
-      allowMutations: true, failedReads: new Map(),
+      credential: localDeveloperCredential({ deadline }),
+      deadline,
+      allowMutations: true,
+      failedReads: new Map(),
       deferral: { primary: new Map<string, number>(), secondary: 0 },
       headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
-      reserve: () => ({ consumeBytes(bytes: number) {
-        received += bytes;
-        if (received > 64 * 1024 * 1024) throw new GitHubApiError("budget_exhausted", "Roadmap body metadata allowance exhausted");
-      }, settle() {} }),
+      reserve: () => ({
+        consumeBytes(bytes: number) {
+          received += bytes;
+          if (received > 64 * 1024 * 1024)
+            throw new GitHubApiError(
+              "budget_exhausted",
+              "Roadmap body metadata allowance exhausted",
+            );
+        },
+        settle() {},
+      }),
     };
     const client = await RoadmapClient.connect(validateConfig(config), scope);
     observations = client.observations;
-    const api = await createGitHubClient({ ...scope,
-      allowRequest: (method, url) => method === "GET" && url.pathname === "/rate_limit" ||
-        (["GET", "PATCH"].includes(method) && url.pathname.startsWith(`/repos/${config.repository}/issues/`) && /^[1-9][0-9]*$/u.test(url.pathname.split("/").at(-1) ?? "")),
+    const api = await createGitHubClient({
+      ...scope,
+      allowRequest: (method, url) =>
+        (method === "GET" && url.pathname === "/rate_limit") ||
+        (["GET", "PATCH"].includes(method) &&
+          url.pathname.startsWith(`/repos/${config.repository}/issues/`) &&
+          /^[1-9][0-9]*$/u.test(url.pathname.split("/").at(-1) ?? "")),
       reserve(request) {
         const reserved = scope.reserve();
-        return { ...reserved, settle(attempt) {
-          reserved.settle();
-          const headers = attempt.headers;
-          observations.push({ operation: `${request.method} ${request.url.pathname}`, status: attempt.status,
-            request_id: headers["x-github-request-id"] ?? null, date: headers.date ?? null,
-            bytes: attempt.bytes, bytes_known: true, elapsed_ms: attempt.elapsedMs,
-            rate: attempt.rate ?? null, attempt: attempt.attempt, dispatched: attempt.dispatched });
-        } };
+        return {
+          ...reserved,
+          settle(attempt) {
+            reserved.settle();
+            const headers = attempt.headers;
+            observations.push({
+              operation: `${request.method} ${request.url.pathname}`,
+              status: attempt.status,
+              request_id: headers["x-github-request-id"] ?? null,
+              date: headers.date ?? null,
+              bytes: attempt.bytes,
+              bytes_known: true,
+              elapsed_ms: attempt.elapsedMs,
+              rate: attempt.rate ?? null,
+              attempt: attempt.attempt,
+              dispatched: attempt.dispatched,
+            });
+          },
+        };
       },
     });
     const rates = new Map<string, GitHubRateLimit>();
     let offset = 0;
     let observedCost = progress.state.graphql_cost ?? 10;
     const sample = async () => {
-      const body: unknown = (await api.request("GET /rate_limit", { request: { portcove: { replay: "safe-read", attempts: 0 } } })).data;
+      const body: unknown = (
+        await api.request("GET /rate_limit", {
+          request: { portcove: { replay: "safe-read", attempts: 0 } },
+        })
+      ).data;
       const core = isRecord(body) && isRecord(body.resources) ? body.resources.core : null;
       if (
         !isRecord(core) ||
@@ -354,7 +388,7 @@ async function runBodyEdits(specPath: string) {
     const result = await editRoadmapBatch(
       edits,
       {
-        request: options => api.request(options),
+        request: (options) => api.request(options),
         validateRoadmapReplacement: async (number, previous, body) =>
           await validateLiveRoadmapReplacement(number, previous, body, client),
       },

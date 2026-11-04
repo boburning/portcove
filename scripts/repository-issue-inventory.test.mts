@@ -165,7 +165,8 @@ void test("stable forward/reverse contradiction stops one whole read with retain
         repositories: { nodes: [] },
       };
     },
-    itemList: async () => assert.fail("Contradictory coverage cannot trigger another complete listing"),
+    itemList: async () =>
+      assert.fail("Contradictory coverage cannot trigger another complete listing"),
     async repositoryIssues(options?: { projectMemberships?: boolean }) {
       return await collectRepositoryIssueInventory(this, options);
     },
@@ -273,7 +274,7 @@ void test("doctor discards reverse membership proof on a changed or missing Proj
     let audits = 0;
     const client = {
       ...f.reader,
-        completeProjectContext: async () => ({ details: { id: "P" }, fields: [] }),
+      completeProjectContext: async () => ({ details: { id: "P" }, fields: [] }),
       viewList: async () => [],
       projectAudit: async () => ({
         id: "P",
@@ -436,7 +437,7 @@ void test("programmatic doctor uses the same strict collector with or without an
     });
     const client = {
       ...f.reader,
-        completeProjectContext: async () => ({ details: { id: "P" }, fields: [] }),
+      completeProjectContext: async () => ({ details: { id: "P" }, fields: [] }),
       viewList: async () => [],
       projectAudit: async () => ({
         id: "P",
@@ -541,24 +542,25 @@ void test("real Project reads and doctor reject malformed content before interpr
     { ...base, url: `https://github.com/${repository}/pull/1` },
     { ...base, state: "UNKNOWN" },
   ]) {
-    const real = await sdkRoadmap(config, { graphql: () => ({
-          node: {
-            items: {
-              totalCount: 1,
-              nodes: [
-                {
-                  id: "ITEM",
-                  content,
-                  fieldValues: {
-                    totalCount: 0,
-                    nodes: [],
-                    pageInfo: { hasNextPage: false, endCursor: null },
-                  },
+    const real = await sdkRoadmap(config, {
+      graphql: () => ({
+        node: {
+          items: {
+            totalCount: 1,
+            nodes: [
+              {
+                id: "ITEM",
+                content,
+                fieldValues: {
+                  totalCount: 0,
+                  nodes: [],
+                  pageInfo: { hasNextPage: false, endCursor: null },
                 },
-              ],
-              pageInfo: { hasNextPage: false, endCursor: null },
-            },
+              },
+            ],
+            pageInfo: { hasNextPage: false, endCursor: null },
           },
+        },
       }),
     });
     await assert.rejects(async () => await real.itemList(1, { details: { id: "P" } }), {
@@ -567,7 +569,7 @@ void test("real Project reads and doctor reject malformed content before interpr
     const f = readerFixture(0);
     const client = {
       ...f.reader,
-        completeProjectContext: async () => ({ details: { id: "P" }, fields: [] }),
+      completeProjectContext: async () => ({ details: { id: "P" }, fields: [] }),
       viewList: async () => [],
       projectAudit: async () => ({
         id: "P",
@@ -591,10 +593,13 @@ void test("intake and normalization never mutate after incomplete collection", a
     if (!marker) connection(value).nodes.pop();
   });
   let writes = 0;
-  const client = await sdkRoadmap(config, { graphql: () => {
-    writes++;
-    throw new Error("unexpected mutation");
-  }, allowMutations: true });
+  const client = await sdkRoadmap(config, {
+    graphql: () => {
+      writes++;
+      throw new Error("unexpected mutation");
+    },
+    allowMutations: true,
+  });
   client.graphql = f.reader.graphql.bind(f.reader);
   client.repositoryIssue = async () => ({
     number: 1,
@@ -621,18 +626,32 @@ void test("intake and normalization never mutate after incomplete collection", a
   assert.equal(writes, 0);
 });
 void test("HTTP-200 partial-data throttling is nonretryable and retains safe request metadata", async () => {
-  const client = await sdkRoadmap(config, { graphql: () => Response.json({
-    data: { repository: {} }, errors: [{ type: "RATE_LIMITED", message: "throttled" }],
-  }, { headers: { "x-github-request-id": "REQUEST", "retry-after": "60" } }) });
-  await assert.rejects(client.graphql("query { rateLimit { cost } }"), error =>
-    error instanceof GitHubApiError && !retryableInventoryRead(error));
+  const client = await sdkRoadmap(config, {
+    graphql: () =>
+      Response.json(
+        {
+          data: { repository: {} },
+          errors: [{ type: "RATE_LIMITED", message: "throttled" }],
+        },
+        { headers: { "x-github-request-id": "REQUEST", "retry-after": "60" } },
+      ),
+  });
+  await assert.rejects(
+    client.graphql("query { rateLimit { cost } }"),
+    (error) => error instanceof GitHubApiError && !retryableInventoryRead(error),
+  );
   assert.equal(client.observations[0]?.request_id, "REQUEST");
   assert.ok(!JSON.stringify(client.observations).includes('"repository"'));
 });
 void test("oversized responses are rejected without reusing partial output", async () => {
-  const client = await sdkRoadmap(config, { maxBytes: 32, graphql: () => ({ value: "x".repeat(64) }) });
-  await assert.rejects(client.graphql("query { viewer { id } }"), error =>
-    error instanceof GitHubApiError && !retryableInventoryRead(error));
+  const client = await sdkRoadmap(config, {
+    maxBytes: 32,
+    graphql: () => ({ value: "x".repeat(64) }),
+  });
+  await assert.rejects(
+    client.graphql("query { viewer { id } }"),
+    (error) => error instanceof GitHubApiError && !retryableInventoryRead(error),
+  );
 });
 void test("whole-read retry retains attempts, resets context and stops after the second failure", async () => {
   for (const succeeds of [true, false]) {
@@ -709,7 +728,10 @@ void test("retry admission requires fresh totals, known quota and the existing d
       }),
     };
     assert.equal(await admitDoctorReadRetry(reader, "P", 1000), remaining === 1000);
-    assert.equal(await admitDoctorReadRetry(reader, "P", 1000, 10, { deadline: performance.now() + 100 }), false);
+    assert.equal(
+      await admitDoctorReadRetry(reader, "P", 1000, 10, { deadline: performance.now() + 100 }),
+      false,
+    );
   }
 });
 void test("provider query points are distinct from requests and increase admission headroom", async () => {
@@ -719,23 +741,36 @@ void test("provider query points are distinct from requests and increase admissi
   assert.equal(budget.usage.requests, 0);
   assert.equal(budget.usage.graphql_points_observed, 15);
   assert.equal(budget.usage.graphql_cost_unknown_requests, 1);
-  (await budget.reserveDelivery(2, 0));
+  await budget.reserveDelivery(2, 0);
   budget.observeProvider({
     resource: "graphql",
     remaining: 35,
     resetAt: new Date(Date.now() + 60000).toISOString(),
   });
-  (await assert.rejects(async () => (await budget.requireProviderCapacity(1)), /capacity unknown|reserve/));
+  await assert.rejects(
+    async () => await budget.requireProviderCapacity(1),
+    /capacity unknown|reserve/,
+  );
   assert.equal(budget.graphqlPointHeadroom, 15);
 });
 
 void test("failed HTTP responses retain backoff, request identity and received byte evidence", async () => {
   const body = JSON.stringify({ message: "temporarily unavailable" });
-  const client = await sdkRoadmap(config, { graphql: () => new Response(body, {
-    status: 503, headers: { "retry-after": "60", "x-github-request-id": "failed-request", "x-ratelimit-remaining": "1000" },
-  }) });
-  await assert.rejects(client.graphql("query { viewer { id } }"), error =>
-    error instanceof GitHubApiError && !retryableInventoryRead(error));
+  const client = await sdkRoadmap(config, {
+    graphql: () =>
+      new Response(body, {
+        status: 503,
+        headers: {
+          "retry-after": "60",
+          "x-github-request-id": "failed-request",
+          "x-ratelimit-remaining": "1000",
+        },
+      }),
+  });
+  await assert.rejects(
+    client.graphql("query { viewer { id } }"),
+    (error) => error instanceof GitHubApiError && !retryableInventoryRead(error),
+  );
   assert.equal(client.observations[0]?.request_id, "failed-request");
   assert.equal(client.observations[0]?.bytes, Buffer.byteLength(body));
 });
@@ -761,8 +796,9 @@ void test("retry admission refuses expired quota and query costs above original 
 });
 void test("response byte observations preserve whitespace and Unicode rather than reserializing JSON", async () => {
   const body = '  { "data" : { "name" : "雪" } }\n';
-  const client = await sdkRoadmap(config, { graphql: () => new Response(body, { headers: { "content-type": "application/json" } }) });
+  const client = await sdkRoadmap(config, {
+    graphql: () => new Response(body, { headers: { "content-type": "application/json" } }),
+  });
   await client.graphql("query { viewer { id } }");
   assert.equal(client.observations[0]?.bytes, Buffer.byteLength(body));
 });
-

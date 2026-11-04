@@ -54,8 +54,12 @@ async function fixture() {
   ];
   const direct = new Map(items.map((item) => [item.id, item]));
   const client = await MembershipReadbackClient.connect(config, {
-    credential: { kind: "anonymous" }, deadline: performance.now() + 10000,
-    failedReads: new Map(), fetch: async () => { throw new Error("Unexpected transport"); },
+    credential: { kind: "anonymous" },
+    deadline: performance.now() + 10000,
+    failedReads: new Map(),
+    fetch: async () => {
+      throw new Error("Unexpected transport");
+    },
   });
   client.projectDetails = async () => ({ id: "PVT", number: config.project.number });
   client.completeProjectContext = async () => ({

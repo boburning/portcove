@@ -66,7 +66,12 @@ export function checkClosureIntent(
 
 export async function readClosingRelationships(
   api: {
-    request(options: { method: "POST"; url: string; data: unknown; request: { portcove: GitHubRequestPolicy } }): Promise<{ data: unknown }>;
+    request(options: {
+      method: "POST";
+      url: string;
+      data: unknown;
+      request: { portcove: GitHubRequestPolicy };
+    }): Promise<{ data: unknown }>;
   },
   repository: string,
   number: number,
@@ -80,7 +85,9 @@ export async function readClosingRelationships(
     targets = new Set<string>(),
     cursors = new Set<string>();
   for (;;) {
-    const { data: envelope } = await api.request({ method: "POST", url: "https://api.github.com/graphql",
+    const { data: envelope } = await api.request({
+      method: "POST",
+      url: "https://api.github.com/graphql",
       data: { query, variables: { owner, name, number, cursor } },
       request: { portcove: { replay: "pure-query", attempts: 0 } },
     });

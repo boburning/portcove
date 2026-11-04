@@ -41,16 +41,23 @@ export class DiscoveryBudget {
   readonly persist: (usage: Usage) => void;
   readonly now: () => number;
   graphqlPointHeadroom = discoveryGraphqlPointHeadroom;
-  private readonly providers = new Map<string, { id: string; refresh: (signal?: AbortSignal) => void | Promise<void> }>();
+  private readonly providers = new Map<
+    string,
+    { id: string; refresh: (signal?: AbortSignal) => void | Promise<void> }
+  >();
   private readonly refreshAttempts = new Set<string>();
   private refreshing = false;
   private readonly pending = new Set<Promise<unknown>>();
   private cleanupFailures: unknown[] = [];
   track<T>(work: Promise<T>): Promise<T> {
     this.pending.add(work);
-    void work.then(() => this.pending.delete(work), error => {
-      this.pending.delete(work); this.cleanupFailures.push(error);
-    });
+    void work.then(
+      () => this.pending.delete(work),
+      (error) => {
+        this.pending.delete(work);
+        this.cleanupFailures.push(error);
+      },
+    );
     return work;
   }
   async drain() {
@@ -268,7 +275,13 @@ export class DiscoveryBudget {
       this.usage.backoff_until = until;
     this.persist(this.usage);
   }
-  async admitProvider(resource: string, points: number, required = false, source?: string, signal?: AbortSignal) {
+  async admitProvider(
+    resource: string,
+    points: number,
+    required = false,
+    source?: string,
+    signal?: AbortSignal,
+  ) {
     await this.refreshExpired(resource, source, signal);
     signal?.throwIfAborted();
     const quota = source
@@ -351,22 +364,34 @@ export function createDiscoveryTransport(
   token: string,
   worker = fileURLToPath(new URL("./discovery-http.mts", import.meta.url)),
 ) {
-  const request = async (
-    method: string, url: string, body?: string, binary = false, conditionalEtag?: string,
-  ) => {
+  const request = async (method: string, url: string, body?: string, binary = false) => {
     const target = new URL(url);
     if (method !== "GET" || body !== undefined)
-      throw new GitHubApiError("request_refused", "Discovery external/byte transport admits reads only");
+      throw new GitHubApiError(
+        "request_refused",
+        "Discovery external/byte transport admits reads only",
+      );
     const github = target.origin === "https://api.github.com";
-    if (github && (!binary || !/^\/repos\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/actions\/artifacts\/[1-9][0-9]*\/zip$/u.test(target.pathname)))
+    if (
+      github &&
+      (!binary ||
+        !/^\/repos\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/actions\/artifacts\/[1-9][0-9]*\/zip$/u.test(
+          target.pathname,
+        ))
+    )
       throw new GitHubApiError("request_refused", "GitHub metadata must use the configured SDK");
     await budget.admit(1, 1);
     if (github) await budget.admitProvider("core", 1);
-    const left = budget.remaining(), cap = Math.min(2 * 1024 * 1024, left.bytes);
-    const maxRequests = Math.min(5, left.requests), timeout = Math.min(20000, left.milliseconds);
+    const left = budget.remaining(),
+      cap = Math.min(2 * 1024 * 1024, left.bytes);
+    const maxRequests = Math.min(5, left.requests),
+      timeout = Math.min(20000, left.milliseconds);
     const response = spawnSync(process.execPath, [worker], {
-      input: JSON.stringify({ method, url, binary, token, cap, maxRequests, timeout, conditionalEtag }),
-      encoding: "utf8", windowsHide: true, timeout: timeout + 1000, maxBuffer: cap * 2 + 65536,
+      input: JSON.stringify({ method, url, binary, token, cap, maxRequests, timeout }),
+      encoding: "utf8",
+      windowsHide: true,
+      timeout: timeout + 1000,
+      maxBuffer: cap * 2 + 65536,
     });
     const unknown = (message: string): never => {
       budget.charge(method, target.origin + target.pathname, maxRequests, cap, "unknown");
@@ -375,26 +400,75 @@ export function createDiscoveryTransport(
     if (response.error || response.status !== 0)
       unknown("Bounded external/byte worker failed; usage conservatively charged");
     let parsed: unknown;
-    try { parsed = JSON.parse(response.stdout); }
-    catch { unknown("Malformed external/byte receipt; usage conservatively charged"); }
-    if (!isRecord(parsed) || !Number.isSafeInteger(parsed.requests) || Number(parsed.requests) < 0 || Number(parsed.requests) > maxRequests ||
-        !Number.isSafeInteger(parsed.bytes) || Number(parsed.bytes) < 0 || !Number.isSafeInteger(parsed.status) ||
-        !isRecord(parsed.headers) || Object.values(parsed.headers).some(value => typeof value !== "string") || typeof parsed.text !== "string")
+    try {
+      parsed = JSON.parse(response.stdout);
+    } catch {
+      unknown("Malformed external/byte receipt; usage conservatively charged");
+    }
+    if (
+      !isRecord(parsed) ||
+      !Number.isSafeInteger(parsed.requests) ||
+      Number(parsed.requests) < 0 ||
+      Number(parsed.requests) > maxRequests ||
+      !Number.isSafeInteger(parsed.bytes) ||
+      Number(parsed.bytes) < 0 ||
+      !Number.isSafeInteger(parsed.status) ||
+      !isRecord(parsed.headers) ||
+      Object.values(parsed.headers).some((value) => typeof value !== "string") ||
+      typeof parsed.text !== "string"
+    )
       unknown("Malformed external/byte receipt; usage conservatively charged");
     // The runtime checks above establish every consumed worker field.
-    const receipt = parsed as { requests: number; bytes: number; status: number; headers: Record<string, string>; text: string; backoff_until?: unknown; error?: unknown };
-    budget.charge(method, target.origin + target.pathname, receipt.requests, receipt.bytes, String(receipt.status));
+    const receipt = parsed as {
+      requests: number;
+      bytes: number;
+      status: number;
+      headers: Record<string, string>;
+      text: string;
+      backoff_until?: unknown;
+      error?: unknown;
+    };
+    budget.charge(
+      method,
+      target.origin + target.pathname,
+      receipt.requests,
+      receipt.bytes,
+      String(receipt.status),
+    );
     if (github) {
-      const remaining = Number(receipt.headers["x-ratelimit-remaining"]), reset = Number(receipt.headers["x-ratelimit-reset"]);
-      if (receipt.headers["x-ratelimit-resource"] === "core" && Number.isSafeInteger(remaining) && remaining >= 0 &&
-          Number.isSafeInteger(reset) && reset >= 0 && reset <= 8_640_000_000_000)
-        budget.observeProvider({ resource: "core", remaining, resetAt: new Date(reset * 1000).toISOString() });
+      const remaining = Number(receipt.headers["x-ratelimit-remaining"]),
+        reset = Number(receipt.headers["x-ratelimit-reset"]);
+      if (
+        receipt.headers["x-ratelimit-resource"] === "core" &&
+        Number.isSafeInteger(remaining) &&
+        remaining >= 0 &&
+        Number.isSafeInteger(reset) &&
+        reset >= 0 &&
+        reset <= 8_640_000_000_000
+      )
+        budget.observeProvider({
+          resource: "core",
+          remaining,
+          resetAt: new Date(reset * 1000).toISOString(),
+        });
     }
     if (typeof receipt.backoff_until === "string") budget.retainBackoff(receipt.backoff_until);
-    if (receipt.error) throw new GitHubApiError("download_failed",
-      sanitizeOperationError(new Error(typeof receipt.error === "string" ? receipt.error : "Bounded byte read failed"), { secrets: [token] }).message,
-      { status: receipt.status, responseBytes: receipt.bytes });
-    return { requests: receipt.requests, bytes: receipt.bytes, status: receipt.status, headers: receipt.headers, text: receipt.text };
+    if (receipt.error)
+      throw new GitHubApiError(
+        "download_failed",
+        sanitizeOperationError(
+          new Error(typeof receipt.error === "string" ? receipt.error : "Bounded byte read failed"),
+          { secrets: [token] },
+        ).message,
+        { status: receipt.status, responseBytes: receipt.bytes },
+      );
+    return {
+      requests: receipt.requests,
+      bytes: receipt.bytes,
+      status: receipt.status,
+      headers: receipt.headers,
+      text: receipt.text,
+    };
   };
   return { request };
 }

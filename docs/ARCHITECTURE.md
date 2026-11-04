@@ -1530,7 +1530,9 @@ request evidence. Pure error/result shaping lives in `github-operation.mts`;
 attestation verification. These modules cannot depend on domain tooling.
 
 The `capture-port` production REST inventory/intake path and ordinary Aqua,
-handoff, postmerge, repository-settings and CI-health metadata readers use this asynchronous boundary.
+handoff, postmerge, repository-settings, CI-health and advisory PR readers use
+this asynchronous boundary. Roadmap inventories/mutations, body edits, PR delivery,
+source provenance, discovery and upstream preparation now use it as well.
 Other callers temporarily retain the legacy transport while #4319 migrates their
 families. Existing artifact-byte acquisition remains separately bounded. Domain
 owners retain authorization, cache eligibility, completeness, reconciliation and

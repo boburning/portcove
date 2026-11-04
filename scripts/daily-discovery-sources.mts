@@ -48,10 +48,16 @@ export interface SourceContext {
   primaryProgress?: DiscoveryPrimaryProgress;
   acceptSource?: (source: CollectedSource) => void;
 }
-async function metadataRequest(c: SourceContext, endpoint: string): Promise<DiscoveryMetadataResponse> {
+async function metadataRequest(
+  c: SourceContext,
+  endpoint: string,
+): Promise<DiscoveryMetadataResponse> {
   if (c.primaryReads) return await c.primaryReads.request(endpoint);
-  return await c.sdk.request({ method: "GET", url: new URL(endpoint, "https://api.github.com/").href,
-    headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" } });
+  return await c.sdk.request({
+    method: "GET",
+    url: new URL(endpoint, "https://api.github.com/").href,
+    headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
+  });
 }
 
 export async function collectRecompBoardSource(
@@ -59,7 +65,7 @@ export async function collectRecompBoardSource(
   known: DiscoveryCheckpoint,
 ): Promise<CollectedSource> {
   const url = "https://recomp.fyi/feed.xml";
-  const response = (await c.http.request("GET", url));
+  const response = await c.http.request("GET", url);
   c.save("recomp-board-feed", response);
   if (response.status !== 200) throw new Error("recomp.board Atom feed unavailable");
   const leads = parseRecompFeed(response.text);
@@ -92,7 +98,7 @@ async function list(c: SourceContext, endpoint: string, label: string, repositor
   const identities = new Set<unknown>();
   let next: string | null = endpoint;
   while (next) {
-    const response = (await metadataRequest(c, next));
+    const response = await metadataRequest(c, next);
     if (!Array.isArray(response.data)) throw new Error(`${label} response is incomplete`);
     for (const value of response.data) {
       const id = rec(value).id;
@@ -116,7 +122,12 @@ async function commit(c: SourceContext, meta: Record<string, unknown>) {
   return str(
     rec(
       rec(
-        (await metadataRequest(c, `repos/${str(meta.full_name)}/git/ref/heads/${encodeURIComponent(str(meta.default_branch))}`)).data,
+        (
+          await metadataRequest(
+            c,
+            `repos/${str(meta.full_name)}/git/ref/heads/${encodeURIComponent(str(meta.default_branch))}`,
+          )
+        ).data,
       ).object,
     ).sha,
   );
@@ -136,7 +147,8 @@ async function content(c: SourceContext, repo: string, file: string, ref: string
     throw new Error("Unsafe registry source path");
   const encoded = parts.map(encodeURIComponent).join("/");
   const blob = rec(
-    (await metadataRequest(c, `repos/${repo}/contents/${encoded}?ref=${encodeURIComponent(ref)}`)).data,
+    (await metadataRequest(c, `repos/${repo}/contents/${encoded}?ref=${encodeURIComponent(ref)}`))
+      .data,
   );
   return {
     blob: str(blob.sha),
@@ -176,18 +188,18 @@ export async function collectDiscoverySources(
       error: errorMessage(error),
     });
   try {
-    accept((await collectQuiver(c)));
+    accept(await collectQuiver(c));
   } catch (error) {
     fail("quiver", "https://github.com/Paroxy/Quiver", error);
   }
   for (const repo of ["SirDiabo/GHLAppList"] as const) {
     try {
-      const meta = (await metadata(c, repo));
-      const ref = (await commit(c, meta));
+      const meta = await metadata(c, repo);
+      const ref = await commit(c, meta);
       {
         const id = "githublauncher";
         const file = "apps.json";
-        const got = (await content(c, repo, file, ref));
+        const got = await content(c, repo, file, ref);
         c.save(id, got);
         const data = rec(got.data);
         const entries = data.apps ?? Object.values(data).flat();
@@ -210,10 +222,10 @@ export async function collectDiscoverySources(
     }
   }
   try {
-    const meta = (await metadata(c, "RetroPortingToolKit/Retro-Catalog"));
+    const meta = await metadata(c, "RetroPortingToolKit/Retro-Catalog");
     const repo = str(meta.full_name);
-    const ref = (await commit(c, meta));
-    const got = (await content(c, repo, "index.json", ref));
+    const ref = await commit(c, meta);
+    const got = await content(c, repo, "index.json", ref);
     c.save("retcomm-index", got);
     accept({
       id: "retcomm-index",
@@ -278,7 +290,7 @@ export async function collectDiscoverySources(
         id: t.key,
         evidence: `https://github.com/${repo}/blob/${ref}/${t.file}`,
         run: async () => {
-          const manifest = (await content(c, repo, t.file, ref));
+          const manifest = await content(c, repo, t.file, ref);
           if (manifest.blob !== t.sha)
             throw new Error("RetComM content differs from the exact tree blob");
           c.save(t.key, manifest);
@@ -318,8 +330,8 @@ export async function collectDiscoverySources(
     fail("retcomm-collection", "https://github.com/RetroPortingToolKit/Retro-Catalog", e);
   }
   try {
-    const meta = (await metadata(c, "zamiba/portforge-mediaitems"));
-    const ref = (await commit(c, meta));
+    const meta = await metadata(c, "zamiba/portforge-mediaitems");
+    const ref = await commit(c, meta);
     const tree = rec(
       (await metadataRequest(c, `repos/${str(meta.full_name)}/git/trees/${ref}?recursive=1`)).data,
     );
@@ -352,7 +364,7 @@ export async function collectDiscoverySources(
         run: async () => {
           const file = str(entry.path);
           const id = `portforge-${observationHash(file).slice(0, 12)}`;
-          const got = (await content(c, str(meta.full_name), file, ref));
+          const got = await content(c, str(meta.full_name), file, ref);
           if (got.blob !== entry.sha)
             throw new Error("PortForge content differs from the exact tree blob");
           c.save(id, got);
@@ -389,10 +401,10 @@ export async function collectDiscoverySources(
     fail("portforge", "https://github.com/zamiba/portforge-mediaitems", e);
   }
   try {
-    const page = (await c.http.request(
+    const page = await c.http.request(
       "GET",
       "https://www.pcgamingwiki.com/wiki/List_of_unofficial_ports",
-    ));
+    );
     c.save("pcgamingwiki", page);
     accept({
       id: "pcgamingwiki",
@@ -411,7 +423,7 @@ export async function collectDiscoverySources(
     fail("pcgamingwiki", "https://www.pcgamingwiki.com/wiki/List_of_unofficial_ports", e);
   }
   try {
-    accept((await collectRecompBoardSource(c, known)));
+    accept(await collectRecompBoardSource(c, known));
   } catch (e) {
     fail("recomp-board-feed", "https://recomp.fyi/feed.xml", e);
   }
@@ -422,7 +434,7 @@ export async function collectDiscoverySources(
         const job = queue.jobs.shift();
         if (!job) continue;
         try {
-          (await c.budget.admit(1, 1));
+          await c.budget.admit(1, 1);
           await job.run();
         } catch (error) {
           if (
@@ -447,7 +459,12 @@ export async function consumeConfiguredObserver(c: SourceContext) {
     JSON.parse(readFileSync(new URL("../release/upstream-observer.json", import.meta.url), "utf8")),
   );
   const runs = rec(
-    (await metadataRequest(c, "repos/boburning/portcove/actions/workflows/354075266/runs?event=schedule&per_page=5")).data,
+    (
+      await metadataRequest(
+        c,
+        "repos/boburning/portcove/actions/workflows/354075266/runs?event=schedule&per_page=5",
+      )
+    ).data,
   );
   if (!Array.isArray(runs.workflow_runs)) throw new Error("Missing scheduled observer runs");
   const run = runs.workflow_runs
@@ -457,17 +474,26 @@ export async function consumeConfiguredObserver(c: SourceContext) {
   const artifacts: Record<string, unknown>[] = [];
   const artifactIds = new Set<number>();
   const first = `repos/boburning/portcove/actions/runs/${String(run.id)}/artifacts?per_page=100`;
-  let next: string | null = first, total: number | undefined;
+  let next: string | null = first,
+    total: number | undefined;
   while (next) {
-    const response = await metadataRequest(c, next), data = rec(response.data);
-    if (!Array.isArray(data.artifacts) || !Number.isSafeInteger(data.total_count) || Number(data.total_count) < 0 ||
-        (total !== undefined && total !== data.total_count)) throw new Error("Observer artifact inventory is incomplete or changed");
+    const response = await metadataRequest(c, next),
+      data = rec(response.data);
+    if (
+      !Array.isArray(data.artifacts) ||
+      !Number.isSafeInteger(data.total_count) ||
+      Number(data.total_count) < 0 ||
+      (total !== undefined && total !== data.total_count)
+    )
+      throw new Error("Observer artifact inventory is incomplete or changed");
     total = Number(data.total_count);
     for (const raw of data.artifacts) {
-      const artifact = rec(raw), id = artifact.id;
+      const artifact = rec(raw),
+        id = artifact.id;
       if (!Number.isSafeInteger(id) || Number(id) < 1 || artifactIds.has(Number(id)))
         throw new Error("Observer artifacts contain missing or duplicate identities");
-      artifactIds.add(Number(id)); artifacts.push(artifact);
+      artifactIds.add(Number(id));
+      artifacts.push(artifact);
     }
     next = discoveryNextPage(response, first, next, Number(expected.repository_id));
   }
@@ -479,7 +505,7 @@ export async function consumeConfiguredObserver(c: SourceContext) {
   );
   if (!artifact || Number(artifact.size_in_bytes) > 2 * 1024 * 1024)
     throw new Error("Missing/oversized observer artifact");
-  const response = (await c.http.request("GET", str(artifact.archive_download_url), undefined, true));
+  const response = await c.http.request("GET", str(artifact.archive_download_url), undefined, true);
   if (response.status !== 200) throw new Error("Observer artifact unavailable");
   const got = readDiscoveryReport(
     Buffer.from(response.text, "base64"),
@@ -526,7 +552,7 @@ export async function consumeConfiguredObserver(c: SourceContext) {
 }
 export async function investigateDiscoveryUpstream(c: SourceContext, repository: string) {
   const meta = await metadata(c, repository);
-  if (!c.primaryProgress) return (await investigatePrimary(c, meta));
+  if (!c.primaryProgress) return await investigatePrimary(c, meta);
   const repo = str(meta.full_name);
   if (
     repo.toLowerCase() !== repository.toLowerCase() ||
@@ -547,12 +573,14 @@ export async function investigateDiscoveryUpstream(c: SourceContext, repository:
 }
 async function investigatePrimary(c: SourceContext, meta: Record<string, unknown>) {
   const repo = str(meta.full_name);
-  const releases = (await list(
-    c,
-    `repos/${repo}/releases?per_page=10`,
-    "complete upstream release listing",
-    Number(meta.id),
-  )).map(rec);
+  const releases = (
+    await list(
+      c,
+      `repos/${repo}/releases?per_page=10`,
+      "complete upstream release listing",
+      Number(meta.id),
+    )
+  ).map(rec);
   const ordered = [...releases]
     .filter((r) => !r.draft)
     .sort(
@@ -572,15 +600,20 @@ async function investigatePrimary(c: SourceContext, meta: Record<string, unknown
     ).values(),
   ];
   for (const release of selected) {
-    release.assets = (await list(
+    release.assets = await list(
       c,
       `repos/${repo}/releases/${String(release.id)}/assets?per_page=100`,
       "selected release assets",
       Number(meta.id),
-    ));
+    );
     let target = rec(
       rec(
-        (await metadataRequest(c, `repos/${repo}/git/ref/tags/${encodeURIComponent(str(release.tag_name))}`)).data,
+        (
+          await metadataRequest(
+            c,
+            `repos/${repo}/git/ref/tags/${encodeURIComponent(str(release.tag_name))}`,
+          )
+        ).data,
       ).object,
     );
     let depth = 0;
@@ -591,7 +624,7 @@ async function investigatePrimary(c: SourceContext, meta: Record<string, unknown
     if (target.type !== "commit") throw new Error("Selected tag target unresolved");
     release.resolved_tag_commit = str(target.sha);
   }
-  const ref = selected[0] ? str(selected[0].resolved_tag_commit) : (await commit(c, meta));
+  const ref = selected[0] ? str(selected[0].resolved_tag_commit) : await commit(c, meta);
   const readme = rec((await metadataRequest(c, `repos/${repo}/readme?ref=${ref}`)).data);
   // One optional project-authored manifest per investigation, inside the same
   // charged budget. Multi-game siblings require separately scoped primary reads.
@@ -601,7 +634,9 @@ async function investigatePrimary(c: SourceContext, meta: Record<string, unknown
     status: "not-observed",
   };
   try {
-    const got = rec((await metadataRequest(c, `repos/${repo}/contents/.recomp.json?ref=${ref}`)).data);
+    const got = rec(
+      (await metadataRequest(c, `repos/${repo}/contents/.recomp.json?ref=${ref}`)).data,
+    );
     manifest = parseRecompManifest(
       JSON.parse(Buffer.from(str(got.content), "base64").toString("utf8")),
     );
