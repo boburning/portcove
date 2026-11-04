@@ -863,7 +863,11 @@ void test("Syft updates coordinate the release workflow and its independent expe
   const owns = (file: string) =>
     manager.managerFilePatterns.some((pattern) => new RegExp(pattern.slice(1, -1), "u").test(file));
   const pins = new Set<string>();
-  for (const file of [".github/workflows/release.yml", "scripts/release-workflow.test.mts"]) {
+  for (const file of [
+    ".github/workflows/release.yml",
+    "scripts/release-workflow.test.mts",
+    "scripts/release-acceptance-evidence.mts",
+  ]) {
     assert.ok(owns(file), file);
     const source = await read(file);
     for (const text of [source, source.replaceAll("\n", "\r\n")]) {
@@ -874,7 +878,7 @@ void test("Syft updates coordinate the release workflow and its independent expe
       const pin = required(required(matches[0]).groups).currentValue;
       assert.match(required(pin), /^\d+\.\d+\.\d+$/u);
       pins.add(required(pin));
-      const future = text.replace(`syft-version: v${pin}`, "syft-version: v1.57.0");
+      const future = text.replace(required(pin), "1.57.0");
       const next: RegExpExecArray[] = manager.matchStrings.flatMap((pattern) => [
         ...future.matchAll(new RegExp(pattern, "gu")),
       ]);
@@ -884,6 +888,7 @@ void test("Syft updates coordinate the release workflow and its independent expe
   }
   assert.equal(pins.size, 1, "the independent expected pin must match the release input");
   for (const file of [
+    "scripts/release-acceptance-evidence.test.mts",
     "scripts/release-workflow.test.mts.bak",
     "nested/scripts/release-workflow.test.mts",
     "scripts/other-release-workflow.test.mts",

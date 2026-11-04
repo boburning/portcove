@@ -38,10 +38,19 @@ const document = {
 };
 void test("SPDX producer compatibility admits the current scanner while retaining historical evidence", () => {
   const current = structuredClone(document);
-  current.creationInfo.creators = ["Tool: syft-1.55.0"];
-  assert.doesNotThrow(() => inspectReleaseSpdx(current));
+  for (const creator of ["Tool: syft-1.55.0", "Tool: syft-1.56.0"]) {
+    current.creationInfo.creators = [creator];
+    assert.doesNotThrow(() => inspectReleaseSpdx(current));
+  }
   assert.doesNotThrow(() => inspectReleaseSpdx(document));
-  for (const creator of ["Tool: syft-1.55.1", "Tool: syft-1.55.0-unreviewed", "Tool: other"]) {
+  for (const creator of [
+    "Tool: syft-1.55.1",
+    "Tool: syft-1.55.0-unreviewed",
+    "Tool: syft-1.56.1",
+    "Tool: syft-1.56.0-unreviewed",
+    "Tool: syft-1.57.0",
+    "Tool: other",
+  ]) {
     current.creationInfo.creators = [creator];
     assert.throws(() => inspectReleaseSpdx(current), /pinned Syft producer/);
   }

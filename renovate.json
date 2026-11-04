@@ -286,9 +286,13 @@
       "customType": "regex",
       "managerFilePatterns": [
         "/^\\.github\\/workflows\\/release\\.yml$/",
-        "/^scripts\\/release-workflow\\.test\\.mts$/"
+        "/^scripts\\/release-workflow\\.test\\.mts$/",
+        "/^scripts\\/release-acceptance-evidence\\.mts$/"
       ],
-      "matchStrings": ["syft-version:\\s*v(?<currentValue>\\d+\\.\\d+\\.\\d+)"],
+      "matchStrings": [
+        "syft-version:\\s*v(?<currentValue>\\d+\\.\\d+\\.\\d+)",
+        "const reviewedSyftProducer = \"Tool: syft-(?<currentValue>\\d+\\.\\d+\\.\\d+)\";"
+      ],
       "depNameTemplate": "anchore/syft",
       "datasourceTemplate": "github-releases",
       "versioningTemplate": "semver"
