@@ -309,6 +309,28 @@ void test("budget retains actual prior time, refuses unsafe retry and never rebu
   assert.equal(admitted.observed_milliseconds, 50 * 60000);
   assert.equal(admitted.remaining_declared_minutes, 25);
   assert.equal(admitted.reservation, false);
+  const skipped = {
+    name: "public_installed",
+    status: "completed",
+    conclusion: "skipped",
+    started_at: "2026-11-04T04:31:26Z",
+    completed_at: "2026-11-04T04:31:25Z",
+    steps: [],
+  };
+  // Retain the actual provider's reversed timestamp shape: skipped jobs ran
+  // no steps, whereas cancelled/executed jobs still need valid measured time.
+  const withSkipped = { total_count: 2, jobs: [...prior(50).jobs, skipped] };
+  assert.equal(inspectRehearsalBudget("feed", [withSkipped]).observed_milliseconds, 50 * 60000);
+  assert.throws(() =>
+    inspectRehearsalBudget("feed", [
+      { total_count: 1, jobs: [{ ...skipped, steps: [{ conclusion: "success" }] }] },
+    ]),
+  );
+  assert.throws(() =>
+    inspectRehearsalBudget("feed", [
+      { total_count: 1, jobs: [{ ...skipped, conclusion: "cancelled" }] },
+    ]),
+  );
   assert.throws(() => inspectRehearsalBudget("feed", [prior(116)]), /application140/u);
   assert.throws(() => inspectRehearsalBudget("package", [prior(1)]), /original package/u);
   assert.throws(() => inspectRehearsalBudget("readback", [{ ...prior(1), total_count: 2 }]));

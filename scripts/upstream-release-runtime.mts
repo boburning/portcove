@@ -42,11 +42,14 @@ export function inspectRehearsalBudget(job: string, completedAttempts: unknown[]
       if (job === "package" && value.name === "package" && value.conclusion === "success")
         throw new Error("successful original package must be reused; rerun failed jobs only");
       if (value.status !== "completed") continue;
-      if (
-        (value.conclusion === "skipped" || value.conclusion === "cancelled") &&
-        value.started_at === null
-      )
+      // GitHub assigns synthetic timestamps to skipped jobs, sometimes with
+      // completed_at one second before started_at. Only a provider-confirmed
+      // skipped job with no executed steps consumes zero runner time.
+      if (value.conclusion === "skipped") {
+        assert.deepEqual(value.steps, []);
         continue;
+      }
+      if (value.conclusion === "cancelled" && value.started_at === null) continue;
       assert.ok(typeof value.started_at === "string" && typeof value.completed_at === "string");
       const milliseconds = Date.parse(value.completed_at) - Date.parse(value.started_at);
       assert.ok(
