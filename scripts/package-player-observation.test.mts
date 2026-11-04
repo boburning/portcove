@@ -135,6 +135,33 @@ void test("unrelated prose/data details preserve applicable evidence; selected i
   assert.notEqual(packagePlayerProjectionKey(changed, observed), initial);
 });
 
+void test("repository spelling reuses the retained observation without rewriting its exact binding", () => {
+  const input = record();
+  const observed = structuredClone(input.package_observation_v1);
+  assert.ok(observed, "exercise the real retained pre-normalization observation");
+  const before = JSON.stringify(observed);
+  const key = packagePlayerProjectionKey(input, observed);
+  const expected = acceptedPlayerRouteExpectations([input]);
+  const cased = structuredClone(input);
+  cased.listing.project_url = cased.listing.project_url
+    .toUpperCase()
+    .replace("HTTPS://GITHUB.COM", "https://github.com");
+  assert.equal(packagePlayerProjection(cased, observed).status, "observed");
+  assert.equal(packagePlayerProjectionKey(cased, observed), key);
+  assert.deepEqual(acceptedPlayerRouteExpectations([cased]), expected);
+  const refreshed = acceptPackagePlayerObservation(cased, row(), reference, observed);
+  assert.equal(refreshed.scope_sha256, observed.scope_sha256);
+  assert.equal(refreshed.selection_sha256, observed.selection_sha256);
+  assert.equal(refreshed.repository, observed.repository);
+  assert.equal(packagePlayerProjectionKey(cased, refreshed), key);
+  assert.equal(JSON.stringify(observed), before);
+  cased.listing.project_url = "https://github.com/another-owner/Mother3Recomp";
+  assert.equal(packagePlayerProjection(cased, observed).status, "inapplicable");
+  assert.notEqual(packagePlayerProjectionKey(cased, observed), key);
+  assert.throws(() => acceptedPlayerRouteExpectations([cased]), /changed selection contract/);
+  assert.throws(() => acceptPackagePlayerObservation(cased, row(), reference, observed));
+});
+
 void test("a new artifact invalidates its scoped receipt while changed bytes under recorded identity refuse", () => {
   const input = record(),
     original = acceptPackagePlayerObservation(input, row(), reference);

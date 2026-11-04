@@ -416,6 +416,10 @@ for (const [file, tests] of [
     ["scripts/prepare-port.test.mts", "scripts/catalog-artwork-batches.test.mts"],
   ],
   ["scripts/port-upstream-facts.mts", catalogPreparationContractTests],
+  ...["catalog-route-facts", "package-player-observation"].map((name): [string, string[]] => [
+    `scripts/${name}.mts`,
+    [`scripts/${name}.test.mts`, ...catalogGeneratorContractTests, ...catalogPreparationContractTests],
+  ]),
   [
     "scripts/catalog-authoring-inspector.mts",
     ["scripts/prepare-port.test.mts", ...catalogGeneratorContractTests],
