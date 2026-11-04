@@ -6,7 +6,7 @@
     "summary": "Attach an independently permitted, prepared W.G. 3D Hockey Windows player for your own USA V1.0 N64 ROM. Preserve its WG3DRecomp Roaming data root and per-port Controller Pak directories; another edition or hockey title is not the same source contract.",
     "original_game_title": "Wayne Gretzky's 3D Hockey",
     "project_url": "https://github.com/geno55/wg3d-recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/geno55/wg3d-recomp",
     "artwork": {

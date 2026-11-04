@@ -6,7 +6,7 @@
     "summary": "A beta openQ4 player using your own legitimate installed PC Quake 4 and matching data. Windows/Linux x64 and ARM64 packages are documented, with Linux ARM64 in preview and macOS experimental. Windows ARM64 has been built but not confirmed on physical hardware. Engine GPL and game SDK terms apply separately; keep all notices and do not treat package availability as permission for every component. Exact accepted original revision/hashes and BIOS/firmware needs are unconfirmed. You and the project manage setup and replacement; Portcove has not qualified a release package or confirmed gameplay.",
     "original_game_title": "Quake 4",
     "project_url": "https://github.com/themuffinator/openQ4",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/themuffinator/openQ4",
     "artwork": {

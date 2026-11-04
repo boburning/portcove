@@ -6,7 +6,7 @@
     "summary": "Attach an independently permitted, prepared Jet Force Gemini Windows launcher with its prebuilt native runtime and exactly verified US ROM import. Preserve the active profile, imported ROM and storage locator; no developer build tools or campaign acceptance are inferred.",
     "original_game_title": "Jet Force Gemini",
     "project_url": "https://github.com/TK22-26/JetForceGemini-Recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/TK22-26/JetForceGemini-Recomp",
     "issue_number": 2835,

@@ -6,7 +6,7 @@
     "summary": "Attach the prepared PartyBoard Windows player for the packaged Mario Party 4 USA or Europe revisions. Select the native player rather than the detached script or optional online companion, and preserve its SDL preference root and regional memory cards.",
     "original_game_title": "Mario Party 4",
     "project_url": "https://github.com/zeranemesis/Marioparty4",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/zeranemesis/Marioparty4",
     "issue_number": 2850,

@@ -6,7 +6,7 @@
     "summary": "Attach an independently permitted, prepared UltraCombo Windows player for Killer Instinct 2 arcade, with your own matching ROMs and CHD. Upstream owns first-use native-module preparation; preserve per-game/version settings sectors and states.",
     "original_game_title": "Killer Instinct 2 (arcade)",
     "project_url": "https://github.com/thefixinhixon/UltraCombo",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/thefixinhixon/UltraCombo",
     "issue_number": 2585,

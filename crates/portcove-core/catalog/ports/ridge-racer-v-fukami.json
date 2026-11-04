@@ -6,7 +6,7 @@
     "summary": "Attach an independently permitted, prepared Fukami Windows application with your supported Ridge Racer V disc. Its native parent prepares and waits for a same-image game child; preserve actual LocalAppData, memory cards, extracted-disc data and matching resource packages.",
     "original_game_title": "Ridge Racer V",
     "project_url": "https://github.com/danisandoval/fukami",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/danisandoval/fukami",
     "artwork": {

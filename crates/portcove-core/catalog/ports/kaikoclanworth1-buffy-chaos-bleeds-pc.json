@@ -6,7 +6,7 @@
     "summary": "Attach an independently permitted, prepared Buffy: Chaos Bleeds Windows player matching the installed PAL v2 or North American v1 Xbox original. Preserve SaveData, retained migration backups and the full matching regional program pair.",
     "original_game_title": "Buffy the Vampire Slayer: Chaos Bleeds",
     "project_url": "https://github.com/KaikoClanworth1/buffy-chaos-bleeds-pc",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/KaikoClanworth1/buffy-chaos-bleeds-pc",
     "artwork": {

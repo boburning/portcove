@@ -6,7 +6,7 @@
     "summary": "Attach an independently permitted, prepared South Park: Let’s Go Tower Defense Play! Windows player with its exact owned XBLA data and upstream startup settings already saved. Normal direct play stays in process; preserve separate game, settings and Documents save roots, and finish update/restart changes upstream.",
     "original_game_title": "South Park: Let's Go Tower Defense Play!",
     "project_url": "https://github.com/TekRantGaming/south-park-tower-defense-recompiled",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/TekRantGaming/south-park-tower-defense-recompiled",
     "issue_number": 2709,

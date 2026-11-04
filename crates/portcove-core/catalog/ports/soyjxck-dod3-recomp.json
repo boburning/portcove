@@ -6,7 +6,7 @@
     "summary": "An alpha Drakengard 3 PS3 port with statically translated PPU/SPU code and replacement system services. Windows and macOS ARM64 routes use Direct3D 12/Metal/Vulkan; other player OS routes are unconfirmed. Full-game progress and hardware coverage are unconfirmed, and a native label does not establish a playthrough. Supply your own BLUS31197 game and follow the project’s local generation/toolchain requirements. Exact accepted revision/hashes and BIOS/firmware needs remain unconfirmed. You and the project manage setup and replacement; Portcove has not qualified a release package or confirmed gameplay.",
     "original_game_title": "Drakengard 3",
     "project_url": "https://github.com/soyjxck/dod3-recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/soyjxck/dod3-recomp",
     "artwork": {

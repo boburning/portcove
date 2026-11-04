@@ -6,7 +6,7 @@
     "summary": "Attach an independently permitted, prepared Weltall Windows native game with your own supported Xenogears discs. Preserve the full Unreal Engine package, original disc representations and LocalAppData saves/settings; optional undubs and translations retain separate terms.",
     "original_game_title": "Xenogears",
     "project_url": "https://github.com/Roman215/Weltall",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Roman215/Weltall",
     "artwork": {

@@ -6,7 +6,7 @@
     "summary": "Attach the prepared official Forza Motorsport 4 Windows alpha player for the exact Europe GOTY Disc 1 inputs. Preserve its explicit game/user/cache roots and independent originals; current native-player packaging supersedes older builder-first instructions.",
     "original_game_title": "Forza Motorsport 4",
     "project_url": "https://github.com/Alexbeav/fm4-recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Alexbeav/fm4-recomp",
     "artwork": {
