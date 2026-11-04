@@ -12,7 +12,7 @@ import {
 } from "./pr-conventions.mts";
 import { isRecord } from "./runtime-values.mts";
 import type { PrConventionFinding } from "./pr-conventions.mts";
-import { GitHubApiClient } from "./github-api.mts";
+import type { PullRequestReader } from "./pr-conventions.mts";
 
 function requiredFixture<T>(value: T | undefined): T {
   assert.notEqual(value, undefined);
@@ -272,13 +272,16 @@ void test("commit pagination must be structured and complete", () => {
   assert.throws(() => flattenCommitPages(unterminated, 251), /terminal page/);
 });
 
-void test("live pull request loading uses the shared JSON-stdin GraphQL transport", async () => {
-  const calls: { args: readonly string[]; input: string | undefined }[] = [];
-  const api = new GitHubApiClient((args, input) => {
-    calls.push({ args, input });
-    if (args[1] === "--include") {
-      return JSON.stringify({
-        number: 608,
+void test("live pull request loading awaits narrow operations and retains complete commit output", async () => {
+  const cursors: (string | null)[] = [];
+  let pullRead = false;
+  const api: PullRequestReader = {
+    async readPull(number) {
+      await Promise.resolve();
+      assert.equal(number, 608);
+      pullRead = true;
+      return {
+        number,
         html_url: "https://github.com/boburning/portcove/pull/608",
         title: "chore(repo): standardize conventions",
         body: "body",
@@ -286,47 +289,85 @@ void test("live pull request loading uses the shared JSON-stdin GraphQL transpor
         user: { login: "maintainer" },
         draft: false,
         commits: 2,
-      });
-    }
-    const request: unknown = JSON.parse(input ?? "");
-    assert.ok(isRecord(request) && isRecord(request.variables));
-    const second = request.variables.endCursor !== null;
-    return JSON.stringify({
-      data: {
-        repository: {
-          pullRequest: {
-            commits: {
-              totalCount: 2,
-              nodes: [
-                {
-                  commit: {
-                    oid: second ? "second" : "first",
-                    message: second ? "fix(repo): finish" : "chore(repo): start",
+      };
+    },
+    async readCommitPage(_query, variables) {
+      assert.equal(pullRead, true);
+      assert.deepEqual(
+        [variables.owner, variables.name, variables.number],
+        ["boburning", "portcove", 608],
+      );
+      cursors.push(variables.endCursor);
+      const second = variables.endCursor !== null;
+      await Promise.resolve();
+      return {
+        data: {
+          repository: {
+            pullRequest: {
+              commits: {
+                totalCount: 2,
+                nodes: [
+                  {
+                    commit: {
+                      oid: second ? "second" : "first",
+                      message: second ? "fix(repo): finish" : "chore(repo): start",
+                    },
                   },
-                },
-              ],
-              pageInfo: second
-                ? { hasNextPage: false, endCursor: null }
-                : { hasNextPage: true, endCursor: "next" },
+                ],
+                pageInfo: second
+                  ? { hasNextPage: false, endCursor: null }
+                  : { hasNextPage: true, endCursor: "next" },
+              },
             },
           },
         },
-      },
-    });
+      };
+    },
+  };
+  const loaded = await loadLivePullRequest("608", config, api);
+  assert.deepEqual(loaded, {
+    number: 608,
+    url: "https://github.com/boburning/portcove/pull/608",
+    title: "chore(repo): standardize conventions",
+    body: "body",
+    branch: "chore/conventions",
+    headSha,
+    actor: "maintainer",
+    isDraft: false,
+    commits: [
+      { sha: "first", message: "chore(repo): start" },
+      { sha: "second", message: "fix(repo): finish" },
+    ],
   });
-  const pull = await loadLivePullRequest("608", config, api);
-  assert.deepEqual(
-    pull.commits.map((commit) => commit.sha),
-    ["first", "second"],
-  );
-  const graphqlCalls = calls.filter((call) => call.args[1] === "graphql");
-  assert.equal(graphqlCalls.length, 2);
-  assert.ok(graphqlCalls.every((call) => call.args.includes("--input")));
-  for (const [index, expected] of [null, "next"].entries()) {
-    const request: unknown = JSON.parse(requiredFixture(graphqlCalls[index]).input ?? "");
-    assert.ok(isRecord(request) && isRecord(request.variables));
-    assert.equal(request.variables.endCursor, expected);
-  }
+  assert.deepEqual(cursors, [null, "next"]);
+});
+
+void test("pull request loading propagates a later page failure without partial success or replay", async () => {
+  let reads = 0;
+  const api: PullRequestReader = {
+    async readPull() {
+      return { commits: 2 };
+    },
+    async readCommitPage() {
+      reads++;
+      if (reads === 2) throw new Error("second observation unavailable");
+      return {
+        data: {
+          repository: {
+            pullRequest: {
+              commits: {
+                totalCount: 2,
+                nodes: [{ commit: { oid: "first", message: "first" } }],
+                pageInfo: { hasNextPage: true, endCursor: "next" },
+              },
+            },
+          },
+        },
+      };
+    },
+  };
+  await assert.rejects(loadLivePullRequest("608", config, api), /second observation unavailable/);
+  assert.equal(reads, 2);
 });
 
 void test("pull request references accept repository numbers and URLs only", () => {
@@ -393,6 +434,14 @@ void test("advisory workflow executes only trusted base metadata with read permi
     /ref: \$\{\{ github\.event\.pull_request\.base\.sha \|\| github\.event\.repository\.default_branch \}\}/,
   );
   assert.match(workflow, /persist-credentials: false/);
+  const install = workflow.indexOf("run: pnpm install --frozen-lockfile --ignore-scripts");
+  const credential = workflow.indexOf("GH_TOKEN:");
+  assert.ok(
+    install > 0 && credential > install,
+    "trusted locked dependencies are installed before credentials enter the step",
+  );
+  assert.match(workflow, /pnpm\/action-setup@[a-f0-9]{40}/u);
+  assert.doesNotMatch(workflow.slice(0, install), /GH_TOKEN:|GITHUB_TOKEN:/u);
   assert.match(workflow, /node scripts\/pr-conventions\.mts --pr "\$PR_NUMBER"/);
   assert.doesNotMatch(
     workflow,

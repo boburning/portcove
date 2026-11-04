@@ -2,7 +2,7 @@ import { isRecord, errorMessage } from "./runtime-values.mts";
 import { appendFile, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
+import { GitHubApiError } from "./github-operation.mts";
 import { hasHazardousClosingNegation } from "./closure-intent.mts";
 
 export interface PrConventionConfig {
@@ -33,7 +33,6 @@ interface CommitConnection {
 }
 
 const scriptPath = fileURLToPath(import.meta.url);
-const projectRoot = fileURLToPath(new URL("..", import.meta.url));
 const configPath = new URL("../.github/pr-conventions.json", import.meta.url);
 
 function exactKeys(
@@ -424,7 +423,68 @@ export function parsePullRequestReference(value: string, repository: string) {
   return Number(parts[3]);
 }
 
-function ghCommitPages(repository: string, number: number, api: Pick<GitHubApiClient, "graphql">) {
+export interface PullRequestReader {
+  readPull(number: number): Promise<unknown>;
+  readCommitPage(
+    query: string,
+    variables: {
+      owner: string;
+      name: string;
+      number: number;
+      endCursor: string | null;
+    },
+  ): Promise<unknown>;
+}
+
+async function sdkPullRequestReader(repository: string): Promise<PullRequestReader> {
+  const { createGitHubClient } = await import("./github-client.mts");
+  const { localDeveloperCredential } = await import("./github-cli.mts");
+  const deadline = performance.now() + 120000;
+  let bytes = 0;
+  const sdk = await createGitHubClient({
+    credential: localDeveloperCredential({ deadline }),
+    deadline,
+    allowRequest: (method, url) =>
+      (method === "GET" &&
+        url.pathname.startsWith(`/repos/${repository}/pulls/`) &&
+        /^[1-9][0-9]*$/u.test(url.pathname.slice(`/repos/${repository}/pulls/`.length))) ||
+      (method === "POST" && url.pathname === "/graphql"),
+    reserve: () => ({
+      consumeBytes(received) {
+        bytes += received;
+        if (bytes > 16 * 1024 * 1024)
+          throw new GitHubApiError("budget_exhausted", "Pull request metadata budget exhausted");
+      },
+      settle() {},
+    }),
+  });
+  const headers = { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" };
+  return {
+    async readPull(number) {
+      return (
+        await sdk.request({
+          method: "GET",
+          url: `https://api.github.com/repos/${repository}/pulls/${number}`,
+          headers,
+          request: { portcove: { replay: "safe-read", attempts: 0 } },
+        })
+      ).data;
+    },
+    async readCommitPage(query, variables) {
+      return (
+        await sdk.request({
+          method: "POST",
+          url: "https://api.github.com/graphql",
+          headers,
+          data: { query, variables },
+          request: { portcove: { replay: "pure-query", attempts: 0 } },
+        })
+      ).data;
+    },
+  };
+}
+
+async function commitPages(repository: string, number: number, api: PullRequestReader) {
   const [owner, name] = repository.split("/");
   const query = `
     query($owner: String!, $name: String!, $number: Int!, $endCursor: String) {
@@ -443,9 +503,9 @@ function ghCommitPages(repository: string, number: number, api: Pick<GitHubApiCl
   const cursors = new Set();
   let endCursor: string | null = null;
   for (;;) {
-    const data = api.graphql(query, { owner, name, number, endCursor }).data;
-    const connection = commitConnection({ data });
-    pages.push({ data });
+    const page = await api.readCommitPage(query, { owner, name, number, endCursor });
+    const connection = commitConnection(page);
+    pages.push(page);
     if (connection?.pageInfo?.hasNextPage !== true) break;
     endCursor = connection.pageInfo.endCursor;
     if (!connection.nodes?.length || !endCursor || cursors.has(endCursor)) {
@@ -465,13 +525,17 @@ function providerText(value: unknown): string {
 export async function loadLivePullRequest(
   reference: string,
   config: PrConventionConfig,
-  api = new GitHubApiClient(createGitHubRunner({ cwd: projectRoot })),
+  reader?: PullRequestReader,
 ) {
   const number = parsePullRequestReference(reference, config.repository);
-  const pull = api.request("GET", `repos/${config.repository}/pulls/${number}`).body;
+  const api = reader ?? (await sdkPullRequestReader(config.repository));
+  const pull = await api.readPull(number);
   if (!isRecord(pull) || typeof pull.commits !== "number")
     throw new Error("pull request metadata is incomplete");
-  const commits = flattenCommitPages(ghCommitPages(config.repository, number, api), pull.commits);
+  const commits = flattenCommitPages(
+    await commitPages(config.repository, number, api),
+    pull.commits,
+  );
   return {
     number,
     url: providerText(pull.html_url),
