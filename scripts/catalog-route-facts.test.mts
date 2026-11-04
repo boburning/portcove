@@ -53,7 +53,9 @@ for (const id of ids)
       rendered.steps.some(
         (step) =>
           isRecord(step) &&
-          String(step.instruction).includes(raw.route_facts_v1!.prepared_player.executable),
+          String(step.instruction).includes(
+            routeEnrollment([raw]).cases[0]!.prepared_player.executable,
+          ),
       ),
     );
     assert.equal(

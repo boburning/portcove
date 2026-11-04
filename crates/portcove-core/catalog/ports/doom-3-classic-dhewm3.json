@@ -25,12 +25,7 @@
         "Back up that external profile and your original game separately before changing engines or versions."
       ],
       "help_url": "https://dhewm3.org/#how-to-install",
-      "references": [
-        {
-          "title": "Keep your saves and existing copy",
-          "instruction": "Normal Windows saves, settings, screenshots, demos and logs are in your actual Documents/My Games/dhewm3 profile, with separate base and d3xp scopes. Back up that external profile and your original game separately before changing engines or versions. Existing customized copies keep their own launch details and runtime owner."
-        }
-      ]
+      "references": []
     }
   },
   "upstream_lineage": {
@@ -83,11 +78,10 @@
   "route_facts_v1": {
     "format_version": 1,
     "prepared_player": {
-      "executable": "dhewm3.exe",
       "working_directory": "executable-parent",
       "arguments": [],
       "data_locations": [
-        "Documents/My Games/dhewm3 with separate base and d3xp scopes",
+        "saves, settings, screenshots, demos and logs in actual Documents/My Games/dhewm3 with separate base and d3xp scopes",
         "original game installation and any custom external profile"
       ]
     },

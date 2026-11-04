@@ -27447,16 +27447,12 @@
           "help_url": "https://dhewm3.org/#how-to-install",
           "references": [
             {
-              "title": "Keep your saves and existing copy",
-              "instruction": "Normal Windows saves, settings, screenshots, demos and logs are in your actual Documents/My Games/dhewm3 profile, with separate base and d3xp scopes. Back up that external profile and your original game separately before changing engines or versions. Existing customized copies keep their own launch details and runtime owner."
-            },
-            {
               "title": "Registration ownership and removal",
               "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
             },
             {
               "title": "Player-data ownership",
-              "instruction": "You and upstream own the external copy's data: Documents/My Games/dhewm3 with separate base and d3xp scopes; original game installation and any custom external profile. Back up these locations separately; registration does not migrate or certify their compatibility."
+              "instruction": "You and upstream own the external copy's data: saves, settings, screenshots, demos and logs in actual Documents/My Games/dhewm3 with separate base and d3xp scopes; original game installation and any custom external profile. Back up these locations separately; registration does not migrate or certify their compatibility."
             },
             {
               "title": "Managed runtime ownership",

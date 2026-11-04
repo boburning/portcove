@@ -15,7 +15,7 @@
       "steps": [
         {
           "title": "Keep a complete permitted Windows copy",
-          "instruction": "Use your independently permitted completed TetrisGBRecomp Windows copy. The reviewed upstream v0.0.3 route corrects the earlier v0.0.2 ROM-gate failure. Keep Tetris.exe, assets and its matching runtime DLLs together; SDL2 and the dynamically loaded EGL/GLES companions are not optional just because a dependency listing omits them. Finish upstream generation/build outside Portcove if using source. Portcove does not compile this game, redistribute originals or authenticate an arbitrary external package."
+          "instruction": "Use your independently permitted completed TetrisGBRecomp Windows copy. The reviewed upstream v0.0.3 route corrects the earlier v0.0.2 ROM-gate failure. Keep the player, assets and its matching runtime DLLs together; SDL2 and the dynamically loaded EGL/GLES companions are not optional just because a dependency listing omits them. Finish upstream generation/build outside Portcove if using source. Portcove does not compile this game, redistribute originals or authenticate an arbitrary external package."
         },
         {
           "title": "Keep the exact original",
@@ -26,12 +26,7 @@
         "The v0.0.2 rejection is a known upstream failure; use the separately corrected v0.0.3 route rather than treating any old build as equivalent. Upstream gameplay claims are not Portcove qualification. Only use software and original data you are permitted to use.",
         "Preserve separately selected or absolute output paths too. Moving the original may require correcting the upstream ROM selection; registration does not migrate paths or certify cross-version state compatibility."
       ],
-      "references": [
-        {
-          "title": "Preserve runtime settings and actual data locations",
-          "instruction": "Keep the complete working copy and original location, including rom.cfg, runtime_prefs.ini, keybinds.ini, assets and any created save/state/RTC, mod, capture or diagnostic files. The reviewed Windows runtime anchors its ROM cache and runtime preferences beside the executable; keybinds.ini also uses the working folder. Save/state names come from the creating runtime, not a guessed generic save directory. Preserve separately selected or absolute output paths too. Moving the original may require correcting the upstream ROM selection; registration does not migrate paths or certify cross-version state compatibility."
-        }
-      ]
+      "references": []
     }
   },
   "upstream_lineage": {
@@ -53,7 +48,7 @@
       "working_directory": "executable-parent",
       "arguments": [],
       "data_locations": [
-        "rom.cfg, runtime_prefs.ini and keybinds.ini beside the executable",
+        "rom.cfg and runtime_prefs.ini beside the executable, keybinds.ini in the working folder",
         "creating-runtime save/state/RTC, mods, captures and diagnostics",
         "any separately selected or absolute output paths"
       ]

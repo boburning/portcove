@@ -5,7 +5,7 @@ type Step = { title: string; instruction: string };
 export interface RouteFactsV1 {
   format_version: 1;
   prepared_player: {
-    executable: string;
+    executable?: string;
     working_directory: "executable-parent";
     arguments: string[];
     data_locations: string[];
@@ -46,6 +46,21 @@ function strings(value: unknown, maximum: number): value is string[] {
     new Set(value).size === value.length
   );
 }
+function playerExecutable(
+  player: Record<string, unknown>,
+  integration?: Record<string, unknown>,
+): unknown {
+  if (player.executable !== undefined) return player.executable;
+  const hints = isRecord(integration?.executable_hints)
+    ? integration.executable_hints["windows-x86-64"]
+    : undefined;
+  return Array.isArray(hints) && hints.length === 1 ? hints[0] : undefined;
+}
+function resolvedPlayer(facts: RouteFactsV1, integration?: Record<string, unknown>) {
+  const executable = playerExecutable(facts.prepared_player, integration);
+  if (!text(executable, 160)) throw new Error("Route has no unique concrete player executable.");
+  return { ...facts.prepared_player, executable };
+}
 export function checkRouteFacts(
   value: unknown,
   integration?: Record<string, unknown>,
@@ -55,11 +70,12 @@ export function checkRouteFacts(
   fields(value, ["format_version", "prepared_player", "managed_native"]);
   const player = value.prepared_player;
   fields(player, ["executable", "working_directory", "arguments", "data_locations"]);
+  const executable = playerExecutable(player, integration);
   if (
-    !text(player.executable, 160) ||
-    /[\\/:]/u.test(player.executable) ||
-    !player.executable.toLowerCase().endsWith(".exe") ||
-    player.executable === ".exe" ||
+    !text(executable, 160) ||
+    /[\\/:]/u.test(executable) ||
+    !executable.toLowerCase().endsWith(".exe") ||
+    executable === ".exe" ||
     player.working_directory !== "executable-parent" ||
     !strings(player.arguments, 32) ||
     !strings(player.data_locations, 32) ||
@@ -90,7 +106,7 @@ export function checkRouteFacts(
     if (
       !isRecord(integration.executable_hints) ||
       !Array.isArray(integration.executable_hints["windows-x86-64"]) ||
-      !integration.executable_hints["windows-x86-64"].includes(player.executable)
+      !integration.executable_hints["windows-x86-64"].includes(executable)
     )
       throw new Error("Managed executable facts disagree with the operational declaration.");
   } else if (integration !== undefined)
@@ -110,7 +126,7 @@ export function projectRouteFacts(record: AuthoredPort): AuthoredPort {
     (guide.references !== undefined && !Array.isArray(guide.references))
   )
     throw new Error("Route facts require a concrete bespoke guide envelope.");
-  const player = facts.prepared_player;
+  const player = resolvedPlayer(facts, record.integration);
   const selector: Step = {
     title: "Select the prepared player",
     instruction: `Select ${player.executable} and use its containing folder as the working directory. ${player.arguments.length ? `Enter these literal argument values in order, one array item per argument: ${JSON.stringify(player.arguments)}.` : "Leave arguments empty."} Keep the complete independently permitted runtime and finish the title-specific preparation before Play.`,
@@ -160,7 +176,7 @@ export function routeEnrollment(records: readonly AuthoredPort[]) {
         checkRouteFacts(record.route_facts_v1, record.integration);
         return {
           port_id: record.listing.id,
-          prepared_player: record.route_facts_v1.prepared_player,
+          prepared_player: resolvedPlayer(record.route_facts_v1, record.integration),
           managed_native: record.route_facts_v1.managed_native !== undefined,
         };
       })

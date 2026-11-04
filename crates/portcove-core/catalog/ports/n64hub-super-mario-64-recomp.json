@@ -15,7 +15,7 @@
       "steps": [
         {
           "title": "Keep the complete permitted Windows player",
-          "instruction": "Use an independently permitted completed Windows copy of this specific implementation; the reviewed upstream route is v0.1.2. Keep SuperMario64Recompiled.exe, assets and all matching companions together. Finish any upstream source build outside Portcove. This is an existing-copy route, not managed package acquisition, source generation or a redistribution-rights grant."
+          "instruction": "Use an independently permitted completed Windows copy of this specific implementation; the reviewed upstream route is v0.1.2. Keep the player, assets and all matching companions together. Finish any upstream source build outside Portcove. This is an existing-copy route, not managed package acquisition, source generation or a redistribution-rights grant."
         },
         {
           "title": "Keep the matching original",
@@ -28,12 +28,7 @@
         "Keep the creating mode and actual locations; adding or removing the marker does not migrate existing data.",
         "Edit settings only while the player is closed; registration does not move profiles or certify state compatibility between versions."
       ],
-      "references": [
-        {
-          "title": "Keep the creating profile and portable mode",
-          "instruction": "The reviewed Windows profile defaults to %LOCALAPPDATA%/SuperMario64Recompiled. An existing portable.txt in the working folder selects that folder instead. Keep the creating mode and actual locations; adding or removing the marker does not migrate existing data. Keep the whole profile, its original/EEPROM data, all JSON settings, controller profiles, mods and generated hires_font data. Preserve the complete runtime folder and any custom or external paths too. Edit settings only while the player is closed; registration does not move profiles or certify state compatibility between versions."
-        }
-      ]
+      "references": []
     }
   },
   "upstream_lineage": {

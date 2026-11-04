@@ -4,13 +4,13 @@
     {
       "port_id": "doom-3-classic-dhewm3",
       "prepared_player": {
-        "executable": "dhewm3.exe",
         "working_directory": "executable-parent",
         "arguments": [],
         "data_locations": [
-          "Documents/My Games/dhewm3 with separate base and d3xp scopes",
+          "saves, settings, screenshots, demos and logs in actual Documents/My Games/dhewm3 with separate base and d3xp scopes",
           "original game installation and any custom external profile"
-        ]
+        ],
+        "executable": "dhewm3.exe"
       },
       "managed_native": true
     },
@@ -21,7 +21,7 @@
         "working_directory": "executable-parent",
         "arguments": [],
         "data_locations": [
-          "rom.cfg, runtime_prefs.ini and keybinds.ini beside the executable",
+          "rom.cfg and runtime_prefs.ini beside the executable, keybinds.ini in the working folder",
           "creating-runtime save/state/RTC, mods, captures and diagnostics",
           "any separately selected or absolute output paths"
         ]

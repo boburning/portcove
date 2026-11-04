@@ -17188,16 +17188,12 @@
         "help_url": "https://dhewm3.org/#how-to-install",
         "references": [
           {
-            "title": "Keep your saves and existing copy",
-            "instruction": "Normal Windows saves, settings, screenshots, demos and logs are in your actual Documents/My Games/dhewm3 profile, with separate base and d3xp scopes. Back up that external profile and your original game separately before changing engines or versions. Existing customized copies keep their own launch details and runtime owner."
-          },
-          {
             "title": "Registration ownership and removal",
             "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
           },
           {
             "title": "Player-data ownership",
-            "instruction": "You and upstream own the external copy's data: Documents/My Games/dhewm3 with separate base and d3xp scopes; original game installation and any custom external profile. Back up these locations separately; registration does not migrate or certify their compatibility."
+            "instruction": "You and upstream own the external copy's data: saves, settings, screenshots, demos and logs in actual Documents/My Games/dhewm3 with separate base and d3xp scopes; original game installation and any custom external profile. Back up these locations separately; registration does not migrate or certify their compatibility."
           },
           {
             "title": "Managed runtime ownership",
@@ -31705,7 +31701,7 @@
         "steps": [
           {
             "title": "Keep a complete permitted Windows copy",
-            "instruction": "Use your independently permitted completed TetrisGBRecomp Windows copy. The reviewed upstream v0.0.3 route corrects the earlier v0.0.2 ROM-gate failure. Keep Tetris.exe, assets and its matching runtime DLLs together; SDL2 and the dynamically loaded EGL/GLES companions are not optional just because a dependency listing omits them. Finish upstream generation/build outside Portcove if using source. Portcove does not compile this game, redistribute originals or authenticate an arbitrary external package."
+            "instruction": "Use your independently permitted completed TetrisGBRecomp Windows copy. The reviewed upstream v0.0.3 route corrects the earlier v0.0.2 ROM-gate failure. Keep the player, assets and its matching runtime DLLs together; SDL2 and the dynamically loaded EGL/GLES companions are not optional just because a dependency listing omits them. Finish upstream generation/build outside Portcove if using source. Portcove does not compile this game, redistribute originals or authenticate an arbitrary external package."
           },
           {
             "title": "Keep the exact original",
@@ -31722,16 +31718,12 @@
         ],
         "references": [
           {
-            "title": "Preserve runtime settings and actual data locations",
-            "instruction": "Keep the complete working copy and original location, including rom.cfg, runtime_prefs.ini, keybinds.ini, assets and any created save/state/RTC, mod, capture or diagnostic files. The reviewed Windows runtime anchors its ROM cache and runtime preferences beside the executable; keybinds.ini also uses the working folder. Save/state names come from the creating runtime, not a guessed generic save directory. Preserve separately selected or absolute output paths too. Moving the original may require correcting the upstream ROM selection; registration does not migrate paths or certify cross-version state compatibility."
-          },
-          {
             "title": "Registration ownership and removal",
             "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
           },
           {
             "title": "Player-data ownership",
-            "instruction": "You and upstream own the external copy's data: rom.cfg, runtime_prefs.ini and keybinds.ini beside the executable; creating-runtime save/state/RTC, mods, captures and diagnostics; any separately selected or absolute output paths. Back up these locations separately; registration does not migrate or certify their compatibility."
+            "instruction": "You and upstream own the external copy's data: rom.cfg and runtime_prefs.ini beside the executable, keybinds.ini in the working folder; creating-runtime save/state/RTC, mods, captures and diagnostics; any separately selected or absolute output paths. Back up these locations separately; registration does not migrate or certify their compatibility."
           }
         ]
       }
@@ -32192,7 +32184,7 @@
         "steps": [
           {
             "title": "Keep the complete permitted Windows player",
-            "instruction": "Use an independently permitted completed Windows copy of this specific implementation; the reviewed upstream route is v0.1.2. Keep SuperMario64Recompiled.exe, assets and all matching companions together. Finish any upstream source build outside Portcove. This is an existing-copy route, not managed package acquisition, source generation or a redistribution-rights grant."
+            "instruction": "Use an independently permitted completed Windows copy of this specific implementation; the reviewed upstream route is v0.1.2. Keep the player, assets and all matching companions together. Finish any upstream source build outside Portcove. This is an existing-copy route, not managed package acquisition, source generation or a redistribution-rights grant."
           },
           {
             "title": "Keep the matching original",
@@ -32210,10 +32202,6 @@
           "Edit settings only while the player is closed; registration does not move profiles or certify state compatibility between versions."
         ],
         "references": [
-          {
-            "title": "Keep the creating profile and portable mode",
-            "instruction": "The reviewed Windows profile defaults to %LOCALAPPDATA%/SuperMario64Recompiled. An existing portable.txt in the working folder selects that folder instead. Keep the creating mode and actual locations; adding or removing the marker does not migrate existing data. Keep the whole profile, its original/EEPROM data, all JSON settings, controller profiles, mods and generated hires_font data. Preserve the complete runtime folder and any custom or external paths too. Edit settings only while the player is closed; registration does not move profiles or certify state compatibility between versions."
-          },
           {
             "title": "Registration ownership and removal",
             "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
