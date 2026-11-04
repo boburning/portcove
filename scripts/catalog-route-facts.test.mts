@@ -144,7 +144,12 @@ void test("generated enrollment matches every declaration exactly once and uses 
     JSON.parse(readFileSync(join(catalogRoot, "route-enrollment.generated.json"), "utf8")),
     generated,
   );
-  assert.deepEqual(new Set(generated.cases.map((row) => row.port_id)), new Set(ids));
+  assert.deepEqual(
+    new Set(generated.cases.map((row) => row.port_id)),
+    new Set(
+      source.records.filter((row) => row.route_facts_v1 !== undefined).map((row) => row.listing.id),
+    ),
+  );
   assert.equal(generated.cases.length, new Set(generated.cases.map((row) => row.port_id)).size);
   for (const id of ids) assert.ok(generated.cases.some((row) => row.port_id === id));
   const legacy = source.records.find((row) => row.route_facts_v1 === undefined)!;
