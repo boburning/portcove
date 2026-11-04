@@ -23,11 +23,20 @@ pub(super) fn validate_binding(binding: Option<&str>) -> Result<()> {
     Ok(())
 }
 
-pub(super) fn content_digest(mut hasher: Sha256, binding: Option<&str>) -> Result<String> {
+pub(super) fn content_digest(
+    mut hasher: Sha256,
+    binding: Option<&str>,
+    partitioned: Option<&str>,
+) -> Result<String> {
     validate_binding(binding)?;
+    validate_binding(partitioned)?;
     if let Some(sha) = binding {
         hasher.update(b"\0portcove-backup-guarded-archive-v1\0");
         hasher.update(sha.as_bytes());
+    }
+    if let Some(policy) = partitioned {
+        hasher.update(b"\0portcove-backup-partitioned-data-v1\0");
+        hasher.update(policy.as_bytes());
     }
     Ok(hex::encode(hasher.finalize()))
 }
@@ -64,6 +73,7 @@ fn read_input(path: &Path) -> Result<BackupManifest> {
         ));
     }
     validate_binding(manifest.guarded_archive_v1.as_deref())?;
+    validate_binding(manifest.partitioned_data_v1.as_deref())?;
     Ok(manifest)
 }
 
@@ -76,17 +86,35 @@ mod tests {
         let mut hash = Sha256::new();
         hash.update(b"dir\0\0file\0save.bin\0private fixture");
         let legacy = hex::encode(Sha256::digest(b"dir\0\0file\0save.bin\0private fixture"));
-        assert_eq!(content_digest(hash.clone(), None).unwrap(), legacy);
-        let bound = content_digest(hash.clone(), Some(&"a".repeat(64))).unwrap();
+        assert_eq!(content_digest(hash.clone(), None, None).unwrap(), legacy);
+        let bound = content_digest(hash.clone(), Some(&"a".repeat(64)), None).unwrap();
         assert_ne!(
             bound, legacy,
             "older raw-byte readers must refuse a bound backup"
         );
         assert_ne!(
             bound,
-            content_digest(hash.clone(), Some(&"b".repeat(64))).unwrap()
+            content_digest(hash.clone(), Some(&"b".repeat(64)), None).unwrap()
         );
-        assert!(content_digest(hash, Some("unverified-tag")).is_err());
+        assert!(content_digest(hash, Some("unverified-tag"), None).is_err());
+        let mut hash = Sha256::new();
+        hash.update(b"same private snapshot");
+        let partitioned =
+            content_digest(hash.clone(), Some(&"a".repeat(64)), Some(&"b".repeat(64))).unwrap();
+        assert_ne!(
+            partitioned,
+            content_digest(hash.clone(), Some(&"a".repeat(64)), None).unwrap(),
+            "earlier unpartitioned readers must fail integrity, even at the same archive"
+        );
+        assert_ne!(
+            partitioned,
+            content_digest(hash.clone(), Some(&"a".repeat(64)), Some(&"c".repeat(64))).unwrap()
+        );
+        assert_ne!(
+            content_digest(hash.clone(), None, Some(&"b".repeat(64))).unwrap(),
+            content_digest(hash, None, None).unwrap(),
+            "opaque retained data still fences older readers"
+        );
     }
 
     #[test]
@@ -216,23 +244,30 @@ impl PortcoveService {
         snapshot: &Path,
     ) -> Result<()> {
         let restore = self.validate_restore_operation(operation)?;
-        let binding = if let Some(path) = restore.input_manifest {
+        let (binding, partitioned) = if let Some(path) = restore.input_manifest {
             let manifest = read_input(&path)?;
             let mut stats = BackupStats::default();
             inspect_snapshot(snapshot, snapshot, &mut stats, &mut 0, 0)?;
             let metadata = manifest.metadata_sha256.clone();
             let binding = manifest.guarded_archive_v1.clone();
+            let partitioned = manifest.partitioned_data_v1.clone();
             verify_backup_stats(
                 &backup_record(manifest, snapshot.to_path_buf()),
                 stats,
                 metadata.as_deref(),
                 binding.as_deref(),
+                partitioned.as_deref(),
             )?;
-            binding
+            (binding, partitioned)
         } else {
-            None
+            (None, None)
         };
-        self.require_direct_backup_snapshot(&operation.port_id, snapshot, binding.as_deref())
+        self.require_direct_backup_snapshot(
+            &operation.port_id,
+            snapshot,
+            binding.as_deref(),
+            partitioned.as_deref(),
+        )
     }
 }
 

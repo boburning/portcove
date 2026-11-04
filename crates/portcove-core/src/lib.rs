@@ -2,6 +2,7 @@ mod activity_diagnostics;
 mod adapter;
 mod application_runtime;
 mod archive;
+mod archive_data;
 mod artwork;
 mod artwork_image;
 mod artwork_ingestion;

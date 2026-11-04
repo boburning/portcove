@@ -653,6 +653,18 @@ pub enum ModPackagePolicy {
     VersionedPackagesV1,
 }
 
+/// Reviewed conventional data shared by compatible runtimes. Every other
+/// persistent object remains bound to its producing archive, including unknown
+/// children of a declared directory. This does not rewind data on rollback.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ArchiveDataCompatibilityV1 {
+    pub contract_id: String,
+    pub shared_paths: Vec<String>,
+    /// Player progress that cannot move to a different producing archive.
+    pub build_specific_progress_paths: Vec<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct PortDefinition {
     pub id: String,
@@ -680,6 +692,8 @@ pub struct PortDefinition {
     pub persistent_paths: Vec<String>,
     #[serde(default)]
     pub persistent_file_patterns: Vec<PersistentFilePattern>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub archive_data_compatibility_v1: Option<ArchiveDataCompatibilityV1>,
     #[serde(default)]
     pub runtime_mutable_paths: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]

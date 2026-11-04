@@ -4,7 +4,7 @@
   "listing": {
     "id": "mega-man-x2-snes-recomp",
     "name": "Mega Man X2 Recompiled",
-    "summary": "Native Mega Man X2 recompilation with an exact original and pinned Windows runtime.",
+    "summary": "Native Mega Man X2 recompilation with an exact original and managed Windows runtime.",
     "project_url": "https://github.com/mstan/MegaManX2Recomp",
     "original_game_title": "Mega Man X2",
     "issue_number": 165,
@@ -25,15 +25,10 @@
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
     "release": {
-      "provider": "direct-manifest",
-      "direct": {
-        "windows-x86-64": {
-          "version": "v0.2.2",
-          "url": "https://github.com/mstan/MegaManX2Recomp/releases/download/v0.2.2/MegaManX2SNESRecomp-windows-x64-v0.2.2.zip",
-          "size": 13139689,
-          "sha256": "f54bf04ea2975c338d62db5b4647082d8d1342f0378a861e15e42ddeb6d0e95a",
-          "published_at": "2026-11-01T03:48:20Z"
-        }
+      "provider": "github",
+      "repository": "mstan/MegaManX2Recomp",
+      "asset_hints": {
+        "windows-x86-64": ["MegaManX2SNESRecomp-windows-x64-", ".zip"]
       }
     },
     "source_profile": "mega-man-x2-snes-usa",
@@ -82,8 +77,13 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Select your own headerless Mega Man X2 (USA) original. This fresh managed route uses the checked official Windows v0.2.2 package and starts the game directly. Use a separate empty library when retaining an older installation or player data; Portcove holds incompatible active transitions and fresh adoption of preserved canonical data. Existing installations keep their creating version and files. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Default configuration, saves, screenshots and selected mod-state files and the default logs directory remain in the declared managed scope; packaged mod files stay immutable. Gameplay and in-game save/load remain unqualified. Quickstates require their creating runtime; a new runtime or unchanged original does not establish state compatibility or rewind progress. Backups include the checked private game.sfc original copy. Default diagnostic recording stays enabled. The logs directory contains session output, game memory, inputs, build/original identities, settings and mod options, which may include private local paths. No upload happens automatically; share diagnostics only with your consent. Each launch retains at most one hour of ten-second segments and 256 MiB of checkpoint bytes; older sessions accumulate until you remove them. Keep replay files and their save/config/mod sidecars together. A read-only installation can fall back to %TEMP%/MegaManX2SNESRecomp/logs, outside managed backup and removal scope. MMX_REPLAY_RECORD=0 is an optional user opt-out. Keep config.local.ini absent and separate developer trace, oracle and custom path overrides disabled. Keep packaged executables, libraries, assets, built-in mod manifests and notices unchanged; extra mods and donor assets require separate qualification. Preserve upstream PolyForm Noncommercial and dependency notices; original game data is not included in the runtime package."
+      "manual_preparation": "Select your own headerless Mega Man X2 (USA) original. The managed route selects compatible official Windows packages and starts the game directly. Historical installations without the partitioned-data contract retain their creating rules and remain held for a separate reviewed transition. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Default configuration, saves, screenshots and selected mod-state files and the default logs directory remain in the declared managed scope; packaged mod files stay immutable. Gameplay and in-game save/load remain unqualified. Quickstates require their creating runtime; a new runtime or unchanged original does not establish state compatibility or rewind progress. Backups include the checked private game.sfc original copy. Default diagnostic recording stays enabled. The logs directory contains session output, game memory, inputs, build/original identities, settings and mod options, which may include private local paths. No upload happens automatically; share diagnostics only with your consent. Each launch retains at most one hour of ten-second segments and 256 MiB of checkpoint bytes; older sessions accumulate until you remove them. Keep replay files and their save/config/mod sidecars together. A read-only installation can fall back to %TEMP%/MegaManX2SNESRecomp/logs, outside managed backup and removal scope. MMX_REPLAY_RECORD=0 is an optional user opt-out. Keep config.local.ini absent and separate developer trace, oracle and custom path overrides disabled. Keep packaged executables, libraries, assets, built-in mod manifests and notices unchanged; extra mods and donor assets require separate qualification. Preserve upstream PolyForm Noncommercial and dependency notices; original game data is not included in the runtime package."
     },
-    "windows_runtime_path_policy": "printable-ascii-max-path"
+    "windows_runtime_path_policy": "printable-ascii-max-path",
+    "archive_data_compatibility_v1": {
+      "contract_id": "mega-man-x2-snes-recomp-conventional-v1",
+      "shared_paths": ["game.sfc", "config.ini", "keybinds.ini", "rom.cfg"],
+      "build_specific_progress_paths": ["saves"]
+    }
   }
 }

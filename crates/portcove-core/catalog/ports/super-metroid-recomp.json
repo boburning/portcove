@@ -57,15 +57,10 @@
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
     "release": {
-      "provider": "direct-manifest",
-      "direct": {
-        "windows-x86-64": {
-          "version": "v0.4.2",
-          "url": "https://github.com/mstan/SuperMetroidRecomp/releases/download/v0.4.2/supermetroid-0.4.2-windows-x64.zip",
-          "size": 14907383,
-          "sha256": "72b7c179b855fba9404eec07abdbacefaffa4c67898f5c5232f0b1444b73d531",
-          "published_at": "2026-11-04T01:36:27Z"
-        }
+      "provider": "github",
+      "repository": "mstan/SuperMetroidRecomp",
+      "asset_hints": {
+        "windows-x86-64": ["supermetroid-", "-windows-x64.zip"]
       }
     },
     "source_profile": "super-metroid-snes-japan-usa",
@@ -116,12 +111,21 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Provide your own exact unchanged headerless Super Metroid (Japan, USA) original. This fresh managed route uses official Windows v0.4.2, a SHA256-checked game.sfc copy beside the executable, and direct --rom game.sfc with the startup launcher disabled. Backups include that private original copy. Use a separate empty library when keeping any older runtime or player data; incompatible active transitions and preserved canonical-data adoption stay held. Existing installations keep their creating runtime and exact contract. Host snapshots are build-specific; this route proves no old/new state compatibility or gameplay. The installation folder needs basic Latin characters and a short path. Keep config.local.ini absent and developer, oracle, replay-playback and custom path modes disabled. Default settings, keybindings, SRAM, states, screenshots, sm-video.ini and its temporary companion, selected mod state and logs are managed; packaged mod manifests, assets, libraries and notices stay immutable. Fresh upstream Widescreen/Fit and experimental optional enhancements are not full-game fidelity acceptance. The optional Zero Mission map-art route requires separately owned donor input and is unused here; extra mods and donor assets need separate qualification. Default diagnostic recording stays enabled: logs contain game memory, inputs, build/original identities, settings and possibly private local paths. No automatic upload occurs; share only deliberately and keep replay sidecars together. Each session retains at most one hour/360 segments and 256 MiB of checkpoint bytes; old sessions accumulate. SM_REPLAY_RECORD=0 is an optional user opt-out. A read-only installation can fall back to %TEMP%/SuperMetroidSNESRecomp/logs outside managed backup/removal. Preserve upstream PolyForm Noncommercial and dependency notices; game originals and donor artwork are not included."
+      "manual_preparation": "Provide your own exact unchanged headerless Super Metroid (Japan, USA) original. The managed route selects compatible official Windows packages, a SHA256-checked game.sfc copy beside the executable, and direct --rom game.sfc with the startup launcher disabled. Backups include that private original copy. Historical installations without the partitioned-data contract retain their creating rules and remain held for a separate reviewed transition. Existing installations keep their creating runtime and exact contract. Host snapshots are build-specific; this route proves no old/new state compatibility or gameplay. The installation folder needs basic Latin characters and a short path. Keep config.local.ini absent and developer, oracle, replay-playback and custom path modes disabled. Default settings, keybindings, SRAM, states, screenshots, sm-video.ini and its temporary companion, selected mod state and logs are managed; packaged mod manifests, assets, libraries and notices stay immutable. Fresh upstream Widescreen/Fit and experimental optional enhancements are not full-game fidelity acceptance. The optional Zero Mission map-art route requires separately owned donor input and is unused here; extra mods and donor assets need separate qualification. Default diagnostic recording stays enabled: logs contain game memory, inputs, build/original identities, settings and possibly private local paths. No automatic upload occurs; share only deliberately and keep replay sidecars together. Each session retains at most one hour/360 segments and 256 MiB of checkpoint bytes; old sessions accumulate. SM_REPLAY_RECORD=0 is an optional user opt-out. A read-only installation can fall back to %TEMP%/SuperMetroidSNESRecomp/logs outside managed backup/removal. Preserve upstream PolyForm Noncommercial and dependency notices; game originals and donor artwork are not included."
     },
-    "windows_runtime_path_policy": "printable-ascii-max-path"
-  },
-  "release_maintenance": {
-    "reason": "The exact fresh v0.4.2 recipe is isolated from legacy and unknown-creator data. Accepted v0.3.12 installations retain their creating contract and runtime; unchanged original bytes or paths do not qualify state compatibility.",
-    "reconsider_when": "Reassess a newer exact Windows package only with source, companions, process lifetime, all data writers and safe fresh/retained boundaries. Populated transitions and legacy state readability remain held; protected-client delivery stays with #246/#534."
+    "windows_runtime_path_policy": "printable-ascii-max-path",
+    "archive_data_compatibility_v1": {
+      "contract_id": "super-metroid-recomp-conventional-v1",
+      "shared_paths": [
+        "game.sfc",
+        "config.ini",
+        "keybinds.ini",
+        "rom.cfg",
+        "saves/save.srm",
+        "sm-video.ini",
+        "sm-video.ini.tmp"
+      ],
+      "build_specific_progress_paths": ["saves"]
+    }
   }
 }

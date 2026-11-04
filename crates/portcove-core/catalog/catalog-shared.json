@@ -11367,7 +11367,8 @@
           }
         ],
         "aliases": [],
-        "tombstones": []
+        "tombstones": [],
+        "release_policy": "integration-contract-v1"
       },
       {
         "id": "the-force-engine-dark-forces-managed-data",
@@ -11546,7 +11547,8 @@
           }
         ],
         "aliases": [],
-        "tombstones": []
+        "tombstones": [],
+        "release_policy": "integration-contract-v1"
       },
       {
         "id": "mega-man-x2-snes-recomp-game-source",
@@ -11589,7 +11591,8 @@
           }
         ],
         "aliases": [],
-        "tombstones": []
+        "tombstones": [],
+        "release_policy": "integration-contract-v1"
       },
       {
         "id": "resident-evil-gaiden-recomp-game-source",

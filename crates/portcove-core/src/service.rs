@@ -99,6 +99,7 @@ struct RollbackTargetFailure {
 struct PersistenceContract {
     port: PortDefinition,
     writes_directly: bool,
+    archive_sha256: Option<String>,
 }
 
 #[cfg(test)]
@@ -1425,7 +1426,7 @@ impl PortcoveService {
             temporary_space,
             storage: self.library.storage_summary()?,
             output_location,
-            preservation_notices: crate::runtime_data_policy::notices(port),
+            preservation_notices: port.preservation_notices(),
             shared_preferences,
         })
     }
@@ -2630,9 +2631,16 @@ impl PortcoveService {
             &port.id,
         )?;
         crate::curated_acquisition::require_runtime_scope(port, scope.as_ref())?;
-        self.releases
+        let resolved = self
+            .releases
             .resolve_scoped(port, channel, platform, scope.as_ref())
-            .await
+            .await?;
+        Installer::new(self.library.clone())?.require_github_artifact_identity(
+            &port.id,
+            &resolved.release,
+            resolved.github_identity.as_ref(),
+        )?;
+        Ok(resolved)
     }
 
     pub(crate) fn require_definition_adoption(
@@ -2640,6 +2648,11 @@ impl PortcoveService {
         catalog: &Catalog,
         port: &PortDefinition,
     ) -> Result<()> {
+        if port.archive_data_compatibility_v1.is_some() {
+            return Err(PortcoveError::unsupported(
+                "partitioned managed data requires the official provider-selected installation; registering an external copy grants no replacement or migration rights",
+            ));
+        }
         crate::runtime_data_policy::refuse_adoption(port)?;
         crate::managed_tfe::refuse_adoption(port)?;
         crate::managed_shared_preferences::refuse_scope_transfer(port)?;
@@ -3391,7 +3404,20 @@ impl PortcoveService {
                         install: None,
                     });
                 }
-                let activate = status.update_policy == UpdatePolicy::Automatic;
+                let policy = status.update_policy;
+                let needs_choice = if let Some(active) = &status.active {
+                    let retained = self.installed_port(active)?;
+                    active.artifact.sha256 != release.release.asset.sha256
+                        && crate::archive_data::progress_requires_choice(
+                            &retained,
+                            &active.artifact.sha256,
+                            &self.persistence_root(&retained, &active.path)?,
+                            &self.library.user_dir(port_id),
+                        )?
+                } else {
+                    false
+                };
+                let activate = policy == UpdatePolicy::Automatic && !needs_choice;
                 let mut reporter = OperationReporter {
                     operation: &operation,
                     emit: &mut emit,
@@ -3412,11 +3438,7 @@ impl PortcoveService {
                     .await?;
                 return Ok(ReconcileResult {
                     port_id: port_id.into(),
-                    policy: if activate {
-                        UpdatePolicy::Automatic
-                    } else {
-                        UpdatePolicy::Stage
-                    },
+                    policy,
                     action: if activate {
                         ReconcileAction::Activated
                     } else {
@@ -5819,6 +5841,7 @@ impl PortcoveService {
             None => {
                 if self.catalog.port(&install.port_id).is_ok_and(|current| {
                     current.runtime_data_policy.is_some()
+                        || current.archive_data_compatibility_v1.is_some()
                         || current.managed_shared_preferences.is_some()
                         || current.n64_runtime_at_executable_parent
                 }) {
@@ -5891,6 +5914,7 @@ impl PortcoveService {
         Ok(PersistenceContract {
             port,
             writes_directly,
+            archive_sha256: Some(install.artifact.sha256.clone()),
         })
     }
 
@@ -5924,6 +5948,7 @@ impl PortcoveService {
         Ok(PersistenceContract {
             port: fallback.clone(),
             writes_directly: writes_directly_to_user_root(fallback),
+            archive_sha256: None,
         })
     }
 
@@ -6062,9 +6087,16 @@ impl PortcoveService {
             let port = &contract.port;
             let persistent_root = self.persistence_root(port, &install_root)?;
             if !contract.writes_directly {
-                for relative in crate::persistence::entries(port, &[&user_root, &persistent_root])?
-                {
-                    let source = user_root.join(&relative);
+                let entries = crate::archive_data::entries(
+                    port,
+                    contract.archive_sha256.as_deref(),
+                    &persistent_root,
+                    &user_root,
+                )?;
+                crate::archive_data::initialize(port, &user_root)?;
+                for entry in entries {
+                    let relative = entry.relative;
+                    let source = entry.canonical;
                     let destination = persistent_root.join(&relative);
                     refuse_symlink_ancestors(&source)?;
                     refuse_symlink_ancestors(&destination)?;
@@ -6134,9 +6166,17 @@ impl PortcoveService {
             None
         };
         let mut copied = Vec::new();
-        for relative in crate::persistence::entries(port, &[&persistent_root, &user_root])? {
+        let entries = crate::archive_data::entries(
+            port,
+            contract.archive_sha256.as_deref(),
+            &persistent_root,
+            &user_root,
+        )?;
+        crate::archive_data::initialize(port, &user_root)?;
+        for entry in entries {
+            let relative = entry.relative;
             let source = persistent_root.join(&relative);
-            let destination = user_root.join(&relative);
+            let destination = entry.canonical;
             if contract.writes_directly {
                 if destination.exists() {
                     copied.push(destination);
@@ -6215,8 +6255,16 @@ impl PortcoveService {
             } else {
                 None
             };
-            for relative in crate::persistence::entries(port, &[&user_root, &persistent_root])? {
-                let source = user_root.join(&relative);
+            let entries = crate::archive_data::entries(
+                port,
+                contract.archive_sha256.as_deref(),
+                &persistent_root,
+                &user_root,
+            )?;
+            crate::archive_data::initialize(port, &user_root)?;
+            for entry in entries {
+                let relative = entry.relative;
+                let source = entry.canonical;
                 let destination = persistent_root.join(&relative);
                 refuse_symlink_ancestors(&source)?;
                 refuse_symlink_ancestors(&destination)?;

@@ -394,6 +394,7 @@ export type SupportTier = "stable" | "beta" | "rolling";
  */
 export type WindowsRuntimePathPolicy = "printable-ascii-max-path" | "relative-file-max-path";
 export type CatalogAdmissionMode = "enforced" | "informational";
+export type SourceReleasePolicy = "integration-contract-v1";
 export type CatalogEvidenceRole =
   "upstream_support" | "byte_identity" | "preservation_crosswalk" | "portcove_qualification";
 export type SourceIdentityKind = "file" | "file-set" | "optical-disc" | "multi-disc-set" | "compound";
@@ -1729,6 +1730,7 @@ export interface CatalogDocument {
 }
 export interface PortDefinition {
   adapter: AdapterKind;
+  archive_data_compatibility_v1?: ArchiveDataCompatibilityV1 | null;
   automated_tested_platforms: Platform[];
   bios_source_profile: string | null;
   bundled_runtime: {
@@ -1812,6 +1814,19 @@ export interface PortDefinition {
    */
   windows_temp_directory?: string | null;
   [k: string]: unknown;
+}
+/**
+ * Reviewed conventional data shared by compatible runtimes. Every other
+ * persistent object remains bound to its producing archive, including unknown
+ * children of a declared directory. This does not rewind data on rollback.
+ */
+export interface ArchiveDataCompatibilityV1 {
+  /**
+   * Player progress that cannot move to a different producing archive.
+   */
+  build_specific_progress_paths: string[];
+  contract_id: string;
+  shared_paths: string[];
 }
 export interface BundledRuntime {
   archive_root: string;
@@ -2087,6 +2102,11 @@ export interface PortSourceContract {
   live_review_url: string | null;
   port_id: string;
   profile_id: string;
+  /**
+   * An explicit one-time acceptance of the declared source integration for
+   * compatible provider releases. Exact historical evidence stays exact.
+   */
+  release_policy?: SourceReleasePolicy | null;
   reviewed_at: string;
   role: PortSourceRole;
   supported_variant_ids: string[];
@@ -3729,7 +3749,8 @@ export interface SourceQualificationCoverage {
 export interface SourceReleaseApplicability {
   reviewed_bindings: SourceContractApplicability[];
   /**
-   * Open code: `artifact_bound`, `upstream_release_bound`, or `not_rebound`.
+   * Open code: `artifact_bound`, `upstream_release_bound`,
+   * `integration_contract_bound`, or `not_rebound`.
    */
   state_code: string;
   [k: string]: unknown;

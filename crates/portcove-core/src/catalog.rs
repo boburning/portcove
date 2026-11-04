@@ -447,7 +447,26 @@ impl Catalog {
             }
         }
         let mut port_ids = HashSet::new();
+        if let Some(sources) = &self.document.source_catalog {
+            for contract in sources
+                .contracts
+                .iter()
+                .filter(|c| c.release_policy.is_some())
+            {
+                let port = self.port(&contract.port_id)?;
+                if port.archive_data_compatibility_v1.is_none()
+                    || !crate::managed_runtime_policy::requires_provider_resolution(port)
+                    || contract.role != crate::PortSourceRole::Game
+                    || port.source_profile.as_deref() != Some(contract.profile_id.as_str())
+                {
+                    return Err(PortcoveError::usage(
+                        "reusable source applicability requires its reviewed provider-bound managed integration",
+                    ));
+                }
+            }
+        }
         for port in &self.document.ports {
+            crate::archive_data::validate(port)?;
             crate::native_temp::validate(port)?;
             if let Some(settings) = &port.game_settings {
                 settings.validate(&port.persistent_paths)?;
@@ -2250,60 +2269,45 @@ mod tests {
     #[test]
     fn managed_snes_genesis_routes_pin_source_copies_without_inheriting_gameplay() {
         let catalog = Catalog::embedded().unwrap();
-        for (id, filename, version, original_sha256) in [
+        for (id, filename, original_sha256) in [
             (
                 "dkc3-recomp",
                 "dkc3.sfc",
-                None,
                 "2277a2d8dddb01fe5cb0ae9a0fa225d42b3a11adccaeafa18e3c339b3794a32b",
             ),
             (
                 "super-mario-world-recomp",
                 "smw.sfc",
-                None,
                 "0838e531fe22c077528febe14cb3ff7c492f1f5fa8de354192bdff7137c27f5b",
             ),
             (
                 "the-legend-of-zelda-a-link-to-the-past-snes-recomp",
                 "zelda.sfc",
-                None,
                 "66871d66be19ad2c34c927d6b14cd8eb6fc3181965b6e517cb361f7316009cfb",
             ),
             (
                 "sonic-the-hedgehog-recomp",
                 "game.bin",
-                Some("v0.8.3"),
                 "46160baa06362c711c9f1a5017cb7371026444936c8af5e93a78996cf32ff2a6",
             ),
             (
                 "sonic-the-hedgehog-2-recomp",
                 "game.bin",
-                None,
                 "193bc4064ce0daf27ea9e908ed246d87ec576cc294833badebb590b6ad8e8f6b",
             ),
             (
                 "sonic-3-and-knuckles-recomp",
                 "game.bin",
-                None,
                 "fba0677fde9f76df93f3e98d6310d8af68b9847bde16e253d73cd4dd8134ed23",
             ),
         ] {
             let port = catalog.port(id).unwrap();
-            if let Some(version) = version {
-                assert_eq!(port.release.provider, ReleaseSource::DirectManifest, "{id}");
-                assert_eq!(
-                    port.release.direct[&Platform::WindowsX86_64].version,
-                    version,
-                    "{id}"
-                );
-            } else {
-                assert_eq!(port.release.provider, ReleaseSource::Github, "{id}");
-                assert!(port.release.direct.is_empty(), "{id}");
-                assert!(
-                    !port.release.asset_hints[&Platform::WindowsX86_64].is_empty(),
-                    "{id}"
-                );
-            }
+            assert_eq!(port.release.provider, ReleaseSource::Github, "{id}");
+            assert!(port.release.direct.is_empty(), "{id}");
+            assert!(
+                !port.release.asset_hints[&Platform::WindowsX86_64].is_empty(),
+                "{id}"
+            );
             assert!(port.release.user_prepared.is_empty(), "{id}");
             assert_eq!(port.platforms, [Platform::WindowsX86_64], "{id}");
             assert_eq!(

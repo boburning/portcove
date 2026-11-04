@@ -744,6 +744,7 @@ function applicabilityLabel(
   if (contract === "unreviewed_for_release") return "Not reviewed for this release";
   const labels: Record<string, string> = {
     artifact_bound: "Applies to this exact download",
+    integration_contract_bound: "Applies to compatible releases under the reviewed integration",
     upstream_release_bound: "Applies to the reviewed game version",
     not_rebound: "No game version was recorded for these checks",
   };

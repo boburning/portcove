@@ -221,6 +221,9 @@ impl PortDefinition {
     /// Preservation limits for players, shared by plans and maintained clients.
     pub fn preservation_notices(&self) -> Vec<String> {
         notices(self)
+            .into_iter()
+            .chain(crate::archive_data::preservation_notices(self))
+            .collect()
     }
 }
 
