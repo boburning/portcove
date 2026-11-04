@@ -489,6 +489,18 @@ export async function buildControllerTools(
       );
       files.push({ path: name, bytes: bytes.length, sha256: hash(bytes) });
     }
+    if (process.env.GITHUB_ACTIONS === "true") {
+      // Paths come only from the closed platform profile; expose sizes, never
+      // source contents, private filesystem locations or compiler error text.
+      console.log(
+        `::notice title=Controller inventory bytes::${JSON.stringify({
+          platform,
+          maximum: 320 * 1024 ** 2,
+          total: files.reduce((total, file) => total + file.bytes, 0),
+          files: files.map(({ path, bytes }) => ({ path, bytes })),
+        })}`,
+      );
+    }
     const manifest = inspectControllerToolManifest(
       {
         schema_version: profile.schema_version,
