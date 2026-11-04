@@ -56,6 +56,15 @@ pub struct ChannelObservation {
     pub channel_candidate: Option<ObservedReleaseIdentity>,
     pub latest_eligible: Option<ObservedResolution>,
     pub hold_reasons: Vec<String>,
+    /// Exact provider assets required for automatic integrity continuation.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub checksum_sources: Vec<ObservedChecksumSource>,
+}
+
+#[derive(Debug, Serialize, JsonSchema)]
+pub struct ObservedChecksumSource {
+    pub release_id: u64,
+    pub asset_id: u64,
 }
 
 #[derive(Deserialize)]
@@ -227,6 +236,37 @@ fn validate_facts(facts: &Value, port: &PortDefinition, repository_id: u64) -> R
             }
         }
     }
+    if let Some(sidecars) = facts.get("checksum_sidecars") {
+        let sidecars = sidecars
+            .as_array()
+            .filter(|a| a.len() <= 128)
+            .ok_or_else(|| PortcoveError::verification("invalid checksum observation list"))?;
+        let mut identities = HashSet::new();
+        let mut total = 0usize;
+        for sidecar in sidecars {
+            let release_id = metadata_identity(&sidecar["release_id"])?;
+            let asset_id = metadata_identity(&sidecar["asset_id"])?;
+            let text = sidecar["text"]
+                .as_str()
+                .ok_or_else(|| PortcoveError::verification("invalid checksum text"))?;
+            total = total.saturating_add(text.len());
+            if sidecar.as_object().is_none_or(|o| o.len() != 3)
+                || !identities.insert(asset_id)
+                || text.len() > super::CHECKSUM_MAX_BYTES as usize
+                || total > 16 * 1024 * 1024
+                || !releases.iter().any(|release| {
+                    release["id"] == release_id
+                        && release["assets"].as_array().is_some_and(|assets| {
+                            assets.iter().any(|asset| asset["id"] == asset_id)
+                        })
+                })
+            {
+                return Err(PortcoveError::verification(
+                    "checksum observation escaped its asset scope or bound",
+                ));
+            }
+        }
+    }
     Ok(())
 }
 
@@ -320,6 +360,7 @@ fn project_channel(
         channel_candidate: candidate.map(release_identity),
         latest_eligible: None,
         hold_reasons: Vec::new(),
+        checksum_sources: Vec::new(),
     };
     if !port.channels.contains(&channel) {
         output.hold_reasons.push("channel-not-offered".into());
@@ -348,7 +389,44 @@ fn project_channel(
             return output;
         }
     };
-    let Some(sha256) = asset.digest.as_deref().and_then(parse_digest) else {
+    let mut checksum = asset.digest.as_deref().and_then(parse_digest);
+    if checksum.is_none() {
+        let (exact, sources) = match super::checksum_sidecars(&candidate.provider.assets, asset) {
+            Ok(selected) => selected,
+            Err(_) => {
+                output.hold_reasons.push("checksum-source-limit".into());
+                return output;
+            }
+        };
+        let mut incomplete = false;
+        for source in sources {
+            let id = source.id.expect("validated identity");
+            let observed = facts["checksum_sidecars"].as_array().and_then(|items| {
+                items
+                    .iter()
+                    .find(|item| item["release_id"] == candidate.id && item["asset_id"] == id)
+            });
+            let Some(text) = observed.and_then(|item| item["text"].as_str()) else {
+                output.checksum_sources.push(ObservedChecksumSource {
+                    release_id: candidate.id,
+                    asset_id: id,
+                });
+                incomplete = true;
+                continue;
+            };
+            if super::merge_checksum_entries(text, &asset.name, exact, &mut checksum).is_err() {
+                output.hold_reasons.push("checksum-ambiguity".into());
+                return output;
+            }
+        }
+        if incomplete {
+            output
+                .hold_reasons
+                .push("checksum-observation-incomplete".into());
+            return output;
+        }
+    }
+    let Some(sha256) = checksum else {
         output
             .hold_reasons
             .push("authenticated-digest-requires-further-resolution".into());
@@ -400,7 +478,7 @@ pub fn inspect_upstream_observation(
             "bounded observation currently supports GitHub only",
         ));
     }
-    let bytes = read_bounded_regular(path, 4 * 1024 * 1024)?;
+    let bytes = read_bounded_regular(path, 32 * 1024 * 1024)?;
     let document: Value = serde_json::from_slice(&bytes)?;
     if (document["format"] != 1 && document["format"] != 2)
         || document["authority"] != "provider-observation-only"

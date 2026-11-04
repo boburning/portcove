@@ -348,6 +348,13 @@
       ]
     },
     {
+      "file": "scripts/catalog-route-facts.test.mts",
+      "memberships": [
+        ["catalog-full-2", 8911],
+        ["repository-tools-2", 3911]
+      ]
+    },
+    {
       "file": "scripts/catalog-source-authoring.test.mts",
       "memberships": [
         ["catalog-full-2", 8910],
