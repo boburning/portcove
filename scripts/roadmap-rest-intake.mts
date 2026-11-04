@@ -1,4 +1,19 @@
-import { RoadmapClient } from "./roadmap.mts";
+import type { Octokit } from "@octokit/core";
+import { prepareCanonicalPortIssue, neutralPortFields } from "./roadmap-issue.mts";
+import { requireRepositoryIssueInventory } from "./repository-issue-inventory.mts";
+import type { GitHubMetadataResponse } from "./github-operation.mts";
+import type { RestInventoryReader } from "./github-rest-inventory.mts";
+import { readCatalogSource } from "./catalog-authoring.mts";
+import { fileURLToPath } from "node:url";
+export interface RestPortIntakeApi {
+  read: RestInventoryReader;
+  write: (
+    method: "POST" | "PATCH",
+    endpoint: string,
+    body: unknown,
+  ) => Promise<GitHubMetadataResponse>;
+}
+import type { RoadmapClient, RoadmapConfig } from "./roadmap.mts";
 import type { RoadmapIssueItem } from "./roadmap-issue.mts";
 import { RestInventoryTransport } from "./github-rest-inventory.mts";
 import { collectRestRepositoryIssueInventory } from "./repository-issue-inventory.mts";
@@ -22,8 +37,38 @@ interface RestField {
 
 /** REST transport for freshly created canonical ports, not historical normalization
  * or global Project health. Those retain explicit archived-membership validation. */
-export class RestPortIntakeClient extends RoadmapClient {
-  readonly rest = new RestInventoryTransport(this.api);
+export class RestPortIntakeClient {
+  readonly config: RoadmapConfig;
+  readonly api: RestPortIntakeApi;
+  readonly rest: RestInventoryTransport;
+  constructor(config: RoadmapConfig, api: RestPortIntakeApi) {
+    this.config = config;
+    this.api = api;
+    this.rest = new RestInventoryTransport(api.read);
+  }
+  static fromSDK(config: RoadmapConfig, client: Pick<Octokit, "request">) {
+    return new RestPortIntakeClient(config, {
+      read: RestInventoryTransport.fromSDK(client).read,
+      write: async (method, endpoint, body) => {
+        const response = await client.request({
+          method,
+          url: new URL(endpoint, "https://api.github.com/").href,
+          data: body,
+          headers: { "X-GitHub-Api-Version": "2026-03-10" },
+          request: { portcove: { replay: "once", attempts: 0 } },
+        });
+        return {
+          status: response.status,
+          body: response.data as unknown,
+          headers: new Map(
+            Object.entries(response.headers).filter(
+              (entry): entry is [string, string] => typeof entry[1] === "string",
+            ),
+          ),
+        };
+      },
+    });
+  }
   private created = new Map<string, number>();
   private items = new Map<string, { id: number; content: string }>();
   private projectNode: string | undefined;
@@ -32,25 +77,53 @@ export class RestPortIntakeClient extends RoadmapClient {
   private fields: RestField[] | undefined;
   private fieldsRevision: string | undefined;
 
-  override repositoryIssues(options: { projectMemberships?: boolean } = {}) {
+  async repositoryIssues(options: { projectMemberships?: boolean } = {}) {
     if (options.projectMemberships)
       throw new Error("REST intake does not claim archived Project coverage");
     return collectRestRepositoryIssueInventory(this, this.rest);
   }
 
-  override createPortIssue(input: Parameters<RoadmapClient["createPortIssue"]>[0]) {
-    return super.createPortIssue({
-      ...input,
-      onIssueCreated: (issue) => {
-        this.created.set(issue.node_id, issue.number);
-        input.onIssueCreated?.(issue);
-      },
+  async createPortIssue(input: Parameters<RoadmapClient["createPortIssue"]>[0]) {
+    const inventory = await this.repositoryIssues();
+    const { title, body } = prepareCanonicalPortIssue(
+      input,
+      requireRepositoryIssueInventory(inventory, this).issues,
+      input.repositoryIdentity
+        ? readCatalogSource(
+            fileURLToPath(new URL("../crates/portcove-core/catalog", import.meta.url)),
+          ).records
+        : undefined,
+    );
+    const response = await this.api.write("POST", `repos/${this.config.repository}/issues`, {
+      title,
+      body,
     });
+    const observed = object(response.body);
+    if (
+      response.status !== 201 ||
+      typeof observed.node_id !== "string" ||
+      !observed.node_id ||
+      typeof observed.number !== "number" ||
+      !Number.isSafeInteger(observed.number) ||
+      observed.number < 1 ||
+      observed.html_url !== `https://github.com/${this.config.repository}/issues/${observed.number}`
+    )
+      throw new Error("GitHub did not return the created issue identity");
+    const issue = {
+      node_id: observed.node_id,
+      number: observed.number,
+      html_url: String(observed.html_url),
+    };
+    this.created.set(issue.node_id, issue.number);
+    input.onIssueCreated?.(issue);
+    const item = await this.ensureIssueItem(issue.node_id);
+    await this.setItemFields(item.id, neutralPortFields);
+    return { ...issue, itemId: item.id };
   }
 
-  private context() {
+  private async context() {
     if (!this.root) {
-      const owner = object(this.rest.get(`users/${this.config.owner}`).body);
+      const owner = object((await this.rest.get(`users/${this.config.owner}`)).body);
       if (
         String(owner.login).toLowerCase() !== this.config.owner.toLowerCase() ||
         !["User", "Organization"].includes(String(owner.type))
@@ -64,7 +137,7 @@ export class RestPortIntakeClient extends RoadmapClient {
         `/${owner.type === "User" ? "user" : "organizations"}/${numericOwner}/projectsV2/${this.config.project.number}`,
       ];
     }
-    const project = object(this.rest.get(this.root).body);
+    const project = object((await this.rest.get(this.root)).body);
     if (
       project.number !== this.config.project.number ||
       typeof project.node_id !== "string" ||
@@ -77,7 +150,7 @@ export class RestPortIntakeClient extends RoadmapClient {
       throw new Error("REST Project identity or revision mismatch");
     this.projectNode = project.node_id;
     if (!this.fields || this.fieldsRevision !== project.updated_at) {
-      const result = this.rest.pages(
+      const result = await this.rest.pages(
         `${this.root}/fields?per_page=100`,
         this.aliases.map((path) => `${path}/fields`),
       );
@@ -111,13 +184,13 @@ export class RestPortIntakeClient extends RoadmapClient {
     return { root: this.root, project, fields: this.fields };
   }
 
-  private activeItems(target?: string) {
-    const before = this.context();
-    const result = this.rest.pages(
+  private async activeItems(target?: string) {
+    const before = await this.context();
+    const result = await this.rest.pages(
       `${before.root}/items?per_page=100`,
       this.aliases.map((path) => `${path}/items`),
     );
-    const after = this.context();
+    const after = await this.context();
     for (const item of result.rows) {
       if (item.project_url !== `https://api.github.com/${before.root}` || item.archived_at !== null)
         throw new Error("REST active membership scope mismatch");
@@ -135,23 +208,23 @@ export class RestPortIntakeClient extends RoadmapClient {
     return result.rows;
   }
 
-  override ensureIssueItem(contentId: string) {
+  async ensureIssueItem(contentId: string) {
     const number = this.created.get(contentId);
     if (number === undefined)
       throw new Error(
         "REST creation requires a current creation receipt; historical recovery needs archived-membership validation",
       );
-    const matches = this.activeItems(contentId).filter(
+    const matches = (await this.activeItems(contentId)).filter(
       (item) => object(item.content).node_id === contentId,
     );
     if (matches.length > 1) throw new Error("Duplicate active REST Project membership");
     let item = matches[0];
     if (!item) {
-      const { root } = this.context();
+      const { root } = await this.context();
       const [owner, repo] = this.config.repository.split("/");
       // A failed/ambiguous POST is never retried here. The caller retains its
       // already-created issue receipt for explicit membership recovery.
-      const response = this.rest.write("POST", `${root}/items`, {
+      const response = await this.api.write("POST", `${root}/items`, {
         type: "Issue",
         owner,
         repo,
@@ -175,13 +248,15 @@ export class RestPortIntakeClient extends RoadmapClient {
     return { id: item.node_id };
   }
 
-  private readItem(reference: string) {
+  private async readItem(reference: string) {
     const binding = this.items.get(reference);
     if (!binding) throw new Error("REST readback requires the exact newly created item identity");
-    const { root, fields } = this.context();
+    const { root, fields } = await this.context();
     const item = object(
-      this.rest.get(
-        `${root}/items/${binding.id}?fields=${fields.map((field) => field.id).join(",")}`,
+      (
+        await this.rest.get(
+          `${root}/items/${binding.id}?fields=${fields.map((field) => field.id).join(",")}`,
+        )
       ).body,
     );
     const content = object(item.content);
@@ -217,9 +292,9 @@ export class RestPortIntakeClient extends RoadmapClient {
     return { item, content, observed, fields, root, binding };
   }
 
-  override setItemFields(itemId: string, values: Readonly<Record<string, string>>) {
+  async setItemFields(itemId: string, values: Readonly<Record<string, string>>) {
     this.fields = undefined;
-    const before = this.readItem(itemId);
+    const before = await this.readItem(itemId);
     const updates = Object.entries(values).map(([name, value]) => {
       const field = before.fields.find((entry) => entry.name === name),
         option = field?.options.get(value);
@@ -229,8 +304,8 @@ export class RestPortIntakeClient extends RoadmapClient {
         throw new Error("Preserve concurrently assigned Project planning");
       return { id: field.id, value: option };
     });
-    this.rest.write("PATCH", `${before.root}/items/${before.binding.id}`, { fields: updates });
-    const after = this.readItem(itemId);
+    await this.api.write("PATCH", `${before.root}/items/${before.binding.id}`, { fields: updates });
+    const after = await this.readItem(itemId);
     for (const [name, value] of Object.entries(values))
       if (after.observed.get(name) !== value)
         throw new Error("REST intake Project field readback mismatch");
@@ -239,8 +314,8 @@ export class RestPortIntakeClient extends RoadmapClient {
         throw new Error("Unrequested Project planning changed during REST intake");
   }
 
-  override directProjectItem(reference: string): RoadmapIssueItem & { id: string } {
-    const { item, content, observed } = this.readItem(reference);
+  async directProjectItem(reference: string): Promise<RoadmapIssueItem & { id: string }> {
+    const { item, content, observed } = await this.readItem(reference);
     if (
       typeof content.title !== "string" ||
       !("body" in content) ||

@@ -696,6 +696,10 @@ void test("repository GitHub callers do not spawn gh outside the shared transpor
     "pr-conventions.mts",
     "repository-settings.mts",
     "source-provenance-audit.mts",
+    "aqua-integrity.mts",
+    "ci-health.mts",
+    "handoff-evidence.mts",
+    "postmerge-ci.mts",
   ]) {
     const source = await readFile(new URL(file, import.meta.url), "utf8");
     assert.doesNotMatch(source, /(?:spawn|spawnSync|execFile|execFileSync)\(\s*["']gh["']/u, file);

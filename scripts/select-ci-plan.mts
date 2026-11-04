@@ -277,7 +277,7 @@ async function main() {
     callerWorkflow: process.env.PORTCOVE_CALLER_WORKFLOW ?? "",
   });
   validateValidationPlan(plan);
-  const reuse = discoverPostmergeReuse(plan, {
+  const reuse = await discoverPostmergeReuse(plan, {
     event: process.env.GITHUB_EVENT_NAME,
     discoverPlan: discoverCiPlan,
   });

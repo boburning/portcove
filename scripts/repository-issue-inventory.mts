@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { GitHubApiError, sanitizeOperationError } from "./github-api.mts";
+import { GitHubApiError, sanitizeOperationError } from "./github-operation.mts";
 import { isRecord, errorCode } from "./runtime-values.mts";
 import { coordinatorCommandTimeout } from "./release-coordinator-deadline.mts";
 import { RestInventoryTransport } from "./github-rest-inventory.mts";
@@ -223,13 +223,13 @@ export interface VerifiedRepositoryIssueInventory {
 }
 const verified = new WeakMap<
   VerifiedRepositoryIssueInventory,
-  { reader: InventoryReader; hash: string }
+  { reader: Pick<InventoryReader, "config">; hash: string }
 >();
 /** Complete open/closed REST issue inventory for intake; no Project-membership claim. */
-export function collectRestRepositoryIssueInventory(
-  reader: InventoryReader,
+export async function collectRestRepositoryIssueInventory(
+  reader: Pick<InventoryReader, "config">,
   rest: RestInventoryTransport,
-): VerifiedRepositoryIssueInventory {
+): Promise<VerifiedRepositoryIssueInventory> {
   const binding = reader.config.repository;
   if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(binding))
     throw new InventoryError("inventory_identity", "Invalid REST repository binding");
@@ -243,8 +243,8 @@ export function collectRestRepositoryIssueInventory(
   };
   try {
     let numericRepository: number | undefined;
-    const repository = () => {
-      const value = object(rest.get(`repos/${binding}`).body);
+    const repository = async () => {
+      const value = object((await rest.get(`repos/${binding}`)).body);
       if (
         typeof value.node_id !== "string" ||
         !value.node_id ||
@@ -258,20 +258,21 @@ export function collectRestRepositoryIssueInventory(
       numericRepository = value.id;
       return value.node_id;
     };
-    const identity = repository();
+    const identity = await repository();
     evidence.repository_node_id = identity;
-    const marker = (sort: "created" | "updated") => {
+    const marker = async (sort: "created" | "updated") => {
       const endpoint = `repos/${binding}/issues?state=all&sort=${sort}&direction=desc&per_page=1`;
       const values =
         sort === "created"
-          ? rest.get(endpoint).body
-          : rest
-              .prefixThrough(
+          ? (await rest.get(endpoint)).body
+          : (
+              await rest.prefixThrough(
                 endpoint,
                 [`/repos/${binding}/issues`, `/repositories/${numericRepository}/issues`],
                 (row) => !row.pull_request,
               )
-              .rows.filter((row) => !row.pull_request)
+            ).rows
+              .filter((row) => !row.pull_request)
               .slice(0, 1);
       if (!Array.isArray(values) || values.length > 1)
         throw new InventoryError("inventory_malformed", "Malformed REST repository marker");
@@ -300,8 +301,8 @@ export function collectRestRepositoryIssueInventory(
             };
       });
     };
-    const before = { created: marker("created"), updated: marker("updated") };
-    const collected = rest.pages(
+    const before = { created: await marker("created"), updated: await marker("updated") };
+    const collected = await rest.pages(
       `repos/${binding}/issues?state=all&sort=created&direction=asc&per_page=100`,
       [`/repos/${binding}/issues`, `/repositories/${numericRepository}/issues`],
     );
@@ -348,11 +349,11 @@ export function collectRestRepositoryIssueInventory(
         }),
       );
     }
-    const after = { created: marker("created"), updated: marker("updated") };
+    const after = { created: await marker("created"), updated: await marker("updated") };
     const newestIssue = before.updated[0];
     const collectedNewest = issues.find((issue) => issue.id === newestIssue?.id);
     if (
-      repository() !== identity ||
+      (await repository()) !== identity ||
       hash(before) !== hash(after) ||
       (collected.rows.at(-1)?.node_id ?? null) !== (before.created[0]?.id ?? null) ||
       (newestIssue

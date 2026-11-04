@@ -1,3 +1,4 @@
+import { validateGitHubBody } from "./github-body-text.mts";
 import { assessUpstreamLineage } from "./upstream-lineage.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
 
@@ -408,4 +409,75 @@ export function blockingNodes(
     return Array.isArray(value);
   }
   return isList(value) ? value : (value?.nodes ?? []);
+}
+
+const durableIssueHeadings = [
+  "User outcome",
+  "Current behavior and evidence",
+  "Scope",
+  "Non-goals",
+  "Acceptance criteria",
+  "Required tests",
+  "Documentation impact",
+  "Dependencies and blockers",
+  "Completion evidence",
+];
+export const neutralPortFields = Object.freeze({
+  Status: "Inbox",
+  Priority: "None",
+  Horizon: "Someday",
+  "Target release": "Unscheduled",
+  "Work type": "Port",
+  Workstream: "Port catalog",
+  Platform: "Unknown",
+  "Port stage": "Watchlist",
+  Effort: "Unknown",
+});
+
+export function validateDurableIssueBody(body: unknown) {
+  if (typeof body !== "string" || !body.trim())
+    throw new Error("durable issue body must be a non-empty string");
+  validateGitHubBody(body);
+  const missing = durableIssueHeadings.filter((heading: string) => {
+    const match = body.match(
+      new RegExp(`^## ${heading.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")}\\s*$`, "im"),
+    );
+    if (!match) return true;
+    const start = (match.index ?? 0) + match[0].length;
+    const next = body.slice(start).search(/^##\s/m);
+    const content = body.slice(start, next < 0 ? undefined : start + next).trim();
+    return !content || /^(?:pending|tbd|todo)[.!]?$/i.test(content.replace(/^[-*]\s*/, ""));
+  });
+  if (missing.length)
+    throw new Error(`durable issue specification is incomplete: ${missing.join(", ")}`);
+  if (
+    body.includes(portMarker) &&
+    portCatalogMarkers(body).length === 0 &&
+    !isNonCatalogResearchBody(body)
+  )
+    throw new Error(
+      "Non-catalog port issue must identify research/watchlist status and disclaim support",
+    );
+  return body;
+}
+
+/** Shared canonical admission; transport and verified-inventory ownership stay
+ * with the caller. A matching title alone never establishes upstream identity. */
+export function prepareCanonicalPortIssue(
+  input: Parameters<typeof findPortIssueDuplicates>[1] & { body?: string | undefined },
+  issues: readonly RoadmapIssueItem[],
+  catalogRecords?: readonly AuthoredPort[],
+) {
+  const duplicates = findPortIssueDuplicates(issues, { ...input, catalogRecords });
+  if (duplicates.length)
+    throw new Error(
+      `port already has a durable issue: ${duplicates
+        .map((match) => `${itemUrl(match.issue)} (${match.reasons.join(", ")})`)
+        .join("; ")}`,
+    );
+  const body = input.body ?? renderPortIssueBody(input);
+  validateDurableIssueBody(body);
+  if (reconcilePortIssueMarkers(body, input) !== body)
+    throw new Error("Intake body differs from reviewed canonical markers");
+  return { title: `[Port] ${input.title}`, body };
 }

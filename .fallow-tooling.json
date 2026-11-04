@@ -47,7 +47,11 @@
     "scripts/viteplus-cli.{mjs,mts}",
     "scripts/daily-discovery.mts",
     "scripts/qualify-semantic-isolation.mts",
-    "scripts/release-reviewed-inputs.mts"
+    "scripts/release-reviewed-inputs.mts",
+    "scripts/windows-rust-tests.mts",
+    "scripts/run-actionlint.mts",
+    "scripts/qualify-dialog-gtk.mts",
+    "scripts/desktop-linux-namespace-preflight.mts"
   ],
   "ignoreUnresolvedImports": [
     "/theme-bootstrap.js",
@@ -73,6 +77,22 @@
       {
         "name": "features",
         "patterns": ["apps/desktop/src/features/**"]
+      },
+      {
+        "name": "github-sdk",
+        "patterns": [
+          "scripts/github-client.mts",
+          "scripts/github-operation.mts",
+          "scripts/github-cli.mts"
+        ]
+      },
+      {
+        "name": "tooling-primitives",
+        "patterns": ["scripts/runtime-values.mts"]
+      },
+      {
+        "name": "tooling-domain",
+        "patterns": ["scripts/**"]
       }
     ],
     "rules": [
@@ -80,6 +100,11 @@
         "from": "shared",
         "allow": ["shared"],
         "allowTypeOnly": []
+      },
+      {
+        "from": "github-sdk",
+        "allow": ["github-sdk", "tooling-primitives"],
+        "allowTypeOnly": ["github-sdk", "tooling-primitives"]
       }
     ]
   },

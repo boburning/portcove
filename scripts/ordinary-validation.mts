@@ -2155,6 +2155,13 @@ for (const file of [
   "scripts/github-client.mts",
   "scripts/github-client.test.mts",
   "scripts/github-operation.mts",
+  "scripts/github-cli.mts",
+  "scripts/github-rest-inventory.mts",
+  "scripts/roadmap-rest-intake.mts",
+  "scripts/aqua-integrity.mts",
+  "scripts/ci-health.mts",
+  "scripts/handoff-evidence.mts",
+  "scripts/postmerge-ci.mts",
 ])
   explicitNodeTests.set(file, [
     ...(explicitNodeTests.get(file) ?? []),

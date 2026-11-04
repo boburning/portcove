@@ -57,55 +57,11 @@ export function parseIncludedResponse(output: unknown): IncludedResponse {
   };
 }
 
-function numericHeader(headers: ReadonlyMap<string, string>, name: string) {
-  const raw = headers.get(name.toLowerCase());
-  if (raw === undefined) return null;
-  const value = Number(raw);
-  return Number.isSafeInteger(value) && value >= 0 ? value : null;
-}
+export { rateLimitFromResponse } from "./github-operation.mts";
+import { rateLimitFromResponse } from "./github-operation.mts";
 
-export function rateLimitFromResponse(response: IncludedResponse): GitHubRateLimit {
-  const resource = response.headers.get("x-ratelimit-resource") ?? null;
-  const resetSeconds = numericHeader(response.headers, "x-ratelimit-reset");
-  const headerRate = {
-    resource,
-    limit: numericHeader(response.headers, "x-ratelimit-limit"),
-    remaining: numericHeader(response.headers, "x-ratelimit-remaining"),
-    used: numericHeader(response.headers, "x-ratelimit-used"),
-    resetAt: resetSeconds === null ? null : new Date(resetSeconds * 1000).toISOString(),
-  };
-  const body = response.body;
-  const bodyRate = isRecord(body) && isRecord(body.data) ? body.data.rateLimit : undefined;
-  if (!isRecord(bodyRate)) return headerRate;
-  return {
-    resource: resource ?? "graphql",
-    limit:
-      typeof bodyRate.limit === "number" && Number.isSafeInteger(bodyRate.limit)
-        ? bodyRate.limit
-        : headerRate.limit,
-    remaining:
-      typeof bodyRate.remaining === "number" && Number.isSafeInteger(bodyRate.remaining)
-        ? bodyRate.remaining
-        : headerRate.remaining,
-    used:
-      typeof bodyRate.used === "number" && Number.isSafeInteger(bodyRate.used)
-        ? bodyRate.used
-        : headerRate.used,
-    resetAt: typeof bodyRate.resetAt === "string" ? bodyRate.resetAt : headerRate.resetAt,
-    cost:
-      typeof bodyRate.cost === "number" && Number.isSafeInteger(bodyRate.cost)
-        ? bodyRate.cost
-        : null,
-  };
-}
-
-export function nextLink(headers: ReadonlyMap<string, string>) {
-  const value = headers.get("link");
-  if (!value) return null;
-  const matches = [...value.matchAll(/<([^>]+)>;\s*rel="([^"]+)"/gu)];
-  const next = matches.find((match) => (match[2] ?? "").split(/\s+/u).includes("next"));
-  return next?.[1] ?? null;
-}
+export { nextLink } from "./github-operation.mts";
+import { nextLink } from "./github-operation.mts";
 
 export function githubRateLimitMessage(
   rate: Pick<GitHubRateLimit, "remaining" | "resetAt"> | null | undefined,

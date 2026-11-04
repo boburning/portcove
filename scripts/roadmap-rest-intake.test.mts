@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
-import { GitHubApiClient } from "./github-api.mts";
+import type { RestInventoryReader } from "./github-rest-inventory.mts";
+import { isRecord } from "./runtime-values.mts";
+import { createGitHubClient } from "./github-client.mts";
 import { RestInventoryTransport } from "./github-rest-inventory.mts";
 import {
   collectRestRepositoryIssueInventory,
@@ -12,16 +14,14 @@ import { validateConfig } from "./roadmap.mts";
 import { renderPortIssueBody } from "./roadmap-issue.mts";
 
 function response(body: unknown, headers: Record<string, string> = {}, status = 200) {
-  return `HTTP/2.0 ${status}\r\n${Object.entries(headers)
-    .map(([key, value]) => `${key}: ${value}\r\n`)
-    .join("")}\r\n${status === 304 ? "" : JSON.stringify(body)}`;
+  return { status, body, headers: new Map(Object.entries(headers)) };
 }
 const config = validateConfig(
   JSON.parse(readFileSync(new URL("../.github/roadmap.json", import.meta.url), "utf8")),
 );
 const base = "https://api.github.com";
 
-await test("REST pagination rejects changed origin, filters, duplicate parameters, skipped pages and loops", () => {
+await test("REST pagination rejects changed origin, filters, duplicate parameters, skipped pages and loops", async () => {
   const path = "/repos/example/repo/issues";
   for (const next of [
     `https://other.example${path}?sort=created&page=2`,
@@ -31,66 +31,64 @@ await test("REST pagination rejects changed origin, filters, duplicate parameter
     `${base}${path}?sort=created&page=3`,
     `${base}${path}?sort=created`,
   ]) {
-    const api = new GitHubApiClient(() =>
-      response([{ node_id: "one" }], { link: `<${next}>; rel="next"` }),
+    const api: RestInventoryReader = async () =>
+      response([{ node_id: "one" }], { link: `<${next}>; rel="next"` });
+    await assert.rejects(() =>
+      new RestInventoryTransport(api).pages(`${path}?sort=created`, [path]),
     );
-    assert.throws(() => new RestInventoryTransport(api).pages(`${path}?sort=created`, [path]));
   }
 });
 
-await test("REST pagination follows identity-checked aliases and refuses duplicate IDs or malformed pages", () => {
+await test("REST pagination follows identity-checked aliases and refuses duplicate IDs or malformed pages", async () => {
   for (const malformed of [null, {}, [{ node_id: "one" }]]) {
     let calls = 0;
-    const api = new GitHubApiClient(() =>
+    const api: RestInventoryReader = async () =>
       ++calls === 1
         ? response([{ node_id: "one" }], {
             link: `<${base}/user/1/projectsV2/1/items?after=next&per_page=100>; rel="next"`,
           })
-        : response(malformed),
-    );
-    assert.throws(() =>
+        : response(malformed);
+    await assert.rejects(() =>
       new RestInventoryTransport(api).pages("users/example/projectsV2/1/items?per_page=100", [
         "/users/example/projectsV2/1/items",
         "/user/1/projectsV2/1/items",
       ]),
     );
   }
-  const api = new GitHubApiClient(() => response([]));
+  const api: RestInventoryReader = async () => response([]);
   assert.deepEqual(
-    new RestInventoryTransport(api).pages("repos/example/repo/issues", [
-      "/repos/example/repo/issues",
-    ]).rows,
+    (
+      await new RestInventoryTransport(api).pages("repos/example/repo/issues", [
+        "/repos/example/repo/issues",
+      ])
+    ).rows,
     [],
   );
 });
 
-await test("REST conditional pages require a live304 and drop obsolete validators after200", () => {
-  const requests: readonly string[][] = [];
-  const writable = requests as string[][];
+await test("REST conditional pages require a live304 and drop obsolete validators after200", async () => {
+  const requests: Readonly<Record<string, string>>[] = [];
   let call = 0;
   const link = `<${base}/items?after=next>; rel="next"`;
-  const api = new GitHubApiClient((args) => {
-    writable.push([...args]);
+  const rest = new RestInventoryTransport(async (_endpoint, headers) => {
+    requests.push(headers);
     call++;
-    if (call === 1) return response([{ node_id: "old" }], { etag: "old-etag", link });
-    if (call === 2) return response([{ node_id: "new" }], { link });
-    return response([{ node_id: "new" }], { link });
+    return call === 1
+      ? response([{ node_id: "old" }], { etag: "old-etag", link })
+      : response([{ node_id: "new" }], { link });
   });
-  const rest = new RestInventoryTransport(api);
-  rest.get("items");
-  rest.get("items");
-  rest.get("items");
-  assert.ok(requests[1]?.includes("If-None-Match: old-etag"));
-  assert.ok(!requests[2]?.some((argument) => argument.startsWith("If-None-Match:")));
+  await rest.get("items");
+  await rest.get("items");
+  await rest.get("items");
+  assert.equal(requests[1]?.["If-None-Match"], "old-etag");
+  assert(!requests[2]?.["If-None-Match"]);
   let hits = 0;
-  const cached = new RestInventoryTransport(
-    new GitHubApiClient(() =>
-      ++hits === 1
-        ? response([{ node_id: "old" }], { etag: "tag", link })
-        : response(null, { etag: "tag", link }, 304),
-    ),
+  const cached = new RestInventoryTransport(async () =>
+    ++hits === 1
+      ? response([{ node_id: "old" }], { etag: "tag", link })
+      : response(null, { etag: "tag", link }, 304),
   );
-  assert.deepEqual(cached.get("items").body, cached.get("items").body);
+  assert.deepEqual((await cached.get("items")).body, (await cached.get("items")).body);
   assert.equal(hits, 2);
 });
 
@@ -159,14 +157,12 @@ function fixture(
           : values.get(field.id),
     })),
   });
-  const api = new GitHubApiClient((args, input) => {
-    assert.ok(!args.includes("graphql"), "intake must not invoke GraphQL");
-    const endpoint = args[2] ?? "",
-      method = args[args.indexOf("--method") + 1];
+  const invoke = async (method: "GET" | "POST" | "PATCH", endpoint: string, supplied?: unknown) => {
     const url = new URL(endpoint, `${base}/`),
       path = url.pathname.slice(1);
     if (method !== "GET") {
-      const body = JSON.parse(input ?? "{}") as Record<string, unknown>;
+      assert(isRecord(supplied));
+      const body = supplied;
       writes.push({ method: String(method), endpoint: path, body });
       if (path === `repos/${config.repository}/issues`) {
         current = {
@@ -216,7 +212,8 @@ function fixture(
     if (path === `${root}/items`) return response(options.autoAdd ? [item()] : []);
     if (path === `${root}/items/100`) return response(item());
     throw new Error(`Unexpected fixture GET ${path}`);
-  });
+  };
+  const api = { read: async (endpoint: string) => invoke("GET", endpoint), write: invoke };
   const client = new RestPortIntakeClient(config, api);
   const input = {
     title: "Example",
@@ -227,27 +224,27 @@ function fixture(
   return { client, input, writes, rows, api };
 }
 
-await test("REST repository proof covers closed issues, rejects partial/drifting reads and binds its reader", () => {
+await test("REST repository proof covers closed issues, rejects partial/drifting reads and binds its reader", async () => {
   const good = fixture();
-  const inventory = good.client.repositoryIssues();
+  const inventory = await good.client.repositoryIssues();
   assert.equal(inventory.evidence.source, "rest");
   assert.equal(inventory.issues[0]?.state, "CLOSED");
   assert.equal(requireRepositoryIssueInventory(inventory, good.client), inventory);
   assert.throws(() => requireRepositoryIssueInventory(inventory, fixture().client));
   for (const options of [{ partial: true }, { changed: true }])
-    assert.throws(() => fixture(options).client.repositoryIssues());
-  assert.throws(() =>
+    await assert.rejects(() => fixture(options).client.repositoryIssues());
+  await assert.rejects(() =>
     collectRestRepositoryIssueInventory(
       good.client,
-      new RestInventoryTransport(new GitHubApiClient(() => response({}))),
+      new RestInventoryTransport(async () => response({})),
     ),
   );
 });
 
-await test("normal canonical intake completes viaREST with exact neutral Project readback", () => {
+await test("normal canonical intake completes viaREST with exact neutral Project readback", async () => {
   const { client, input, writes } = fixture();
   let receipt = false;
-  const result = client.createPortIssue({
+  const result = await client.createPortIssue({
     ...input,
     onIssueCreated: () => {
       receipt = true;
@@ -255,7 +252,7 @@ await test("normal canonical intake completes viaREST with exact neutral Project
   });
   assert.ok(receipt);
   assert.equal(result.number, 2);
-  const observed = client.directProjectItem(result.itemId);
+  const observed = await client.directProjectItem(result.itemId);
   assert.equal(observed.content?.number, 2);
   assert.equal(
     observed.fieldValues?.find((field) => field.field?.name === "Target release")?.name,
@@ -265,18 +262,61 @@ await test("normal canonical intake completes viaREST with exact neutral Project
     writes.map((write) => write.method),
     ["POST", "POST", "PATCH"],
   );
-  assert.throws(() => client.ensureIssueItem("historical-issue"), /historical recovery/u);
-  assert.throws(() => client.repositoryIssues({ projectMemberships: true }), /archived/u);
+  await assert.rejects(() => client.ensureIssueItem("historical-issue"), /historical recovery/u);
+  await assert.rejects(() => client.repositoryIssues({ projectMemberships: true }), /archived/u);
 });
 
-await test("REST duplicate, ambiguous-add, wrong-project and planning conflicts preserve write boundaries", () => {
+await test("production REST SDK adapter performs inventory, creation and exact readback without CLI emulation", async () => {
+  const source = fixture();
+  const observations: string[] = [];
+  const sdk = await createGitHubClient({
+    credential: { kind: "explicit", token: "ghs_SYNTHETIC_ONLY" },
+    deadline: performance.now() + 5000,
+    fetch: async (input, init) => {
+      const url = new URL(
+        input instanceof Request ? input.url : input instanceof URL ? input.href : input,
+      );
+      const endpoint = url.pathname.slice(1) + url.search;
+      const headers = new Headers(init?.headers);
+      assert.equal(headers.get("x-github-api-version"), "2026-03-10");
+      assert(headers.has("authorization"));
+      observations.push(`${init?.method} ${url.pathname}`);
+      let result;
+      if (init?.method === "GET") result = await source.api.read(endpoint);
+      else {
+        assert(init?.method === "POST" || init?.method === "PATCH");
+        assert(typeof init.body === "string");
+        const body: unknown = JSON.parse(init.body);
+        result = await source.api.write(init.method, endpoint, body);
+      }
+      return new Response(JSON.stringify(result.body), {
+        status: result.status,
+        headers: { "content-type": "application/json", ...Object.fromEntries(result.headers) },
+      });
+    },
+  });
+  const client = RestPortIntakeClient.fromSDK(config, sdk);
+  let receipt = false;
+  const created = await client.createPortIssue({
+    ...source.input,
+    onIssueCreated: () => {
+      receipt = true;
+    },
+  });
+  assert(receipt);
+  assert.equal((await client.directProjectItem(created.itemId)).content?.number, 2);
+  assert(observations.includes(`GET /repos/${config.repository}/issues`));
+  assert.equal(source.writes.filter((value) => value.method === "POST").length, 2);
+});
+
+await test("REST duplicate, ambiguous-add, wrong-project and planning conflicts preserve write boundaries", async () => {
   const duplicate = fixture({ duplicate: true });
-  assert.throws(() => duplicate.client.createPortIssue(duplicate.input), /durable issue/u);
+  await assert.rejects(() => duplicate.client.createPortIssue(duplicate.input), /durable issue/u);
   assert.equal(duplicate.writes.length, 0);
   for (const options of [{ ambiguous: true }, { wrongProject: true }, { planningConflict: true }]) {
     const setup = fixture(options);
     let created = 0;
-    assert.throws(() =>
+    await assert.rejects(() =>
       setup.client.createPortIssue({
         ...setup.input,
         onIssueCreated: () => {
@@ -294,16 +334,16 @@ await test("REST duplicate, ambiguous-add, wrong-project and planning conflicts 
   }
 });
 
-await test("board activity preserves exact positive membership but invalidates a negative add", () => {
+await test("board activity preserves exact positive membership but invalidates a negative add", async () => {
   const positive = fixture({ autoAdd: true, projectChanged: true });
-  const created = positive.client.createPortIssue(positive.input);
-  assert.equal(positive.client.directProjectItem(created.itemId).content?.number, 2);
+  const created = await positive.client.createPortIssue(positive.input);
+  assert.equal((await positive.client.directProjectItem(created.itemId)).content?.number, 2);
   assert.deepEqual(
     positive.writes.map((write) => write.method),
     ["POST", "PATCH"],
   );
   const negative = fixture({ projectChanged: true });
-  assert.throws(
+  await assert.rejects(
     () => negative.client.createPortIssue(negative.input),
     /negative active membership/u,
   );
@@ -313,7 +353,7 @@ await test("board activity preserves exact positive membership but invalidates a
   );
 });
 
-await test("REST issue inventory ignores PR-only edits but refuses creations and real-issue drift", () => {
+await test("REST issue inventory ignores PR-only edits but refuses creations and real-issue drift", async () => {
   for (const mode of [
     "pr-edits",
     "new-pr",
@@ -335,8 +375,8 @@ await test("REST issue inventory ignores PR-only edits but refuses creations and
     const mainRows = mode === "all-prs" ? prs : [existing, ...prs];
     let createdReads = 0,
       markerPages = 0;
-    const api = new GitHubApiClient((args) => {
-      const url = new URL(args[2]!, base + "/");
+    const read: RestInventoryReader = async (endpoint) => {
+      const url = new URL(endpoint, base + "/");
       if (url.pathname === `/repos/${config.repository}`)
         return response({ id: 10, node_id: "repo", full_name: config.repository });
       if (url.searchParams.get("direction") === "asc") return response(mainRows);
@@ -381,37 +421,55 @@ await test("REST issue inventory ignores PR-only edits but refuses creations and
           ? `${base}/repos/${config.repository}/issues?state=all&sort=updated&direction=desc&per_page=1&page=${mode === "loop" ? page : page + 1}`
           : null;
       return response(current ? [current] : [], next ? { link: `<${next}>; rel="next"` } : {});
+    };
+    const client = new RestPortIntakeClient(config, {
+      read,
+      write: async () => {
+        throw new Error("unexpected write");
+      },
     });
-    const client = new RestPortIntakeClient(config, api);
     if (mode === "pr-edits" || mode === "all-prs") {
-      const result = client.repositoryIssues();
+      const result = await client.repositoryIssues();
       assert.equal(result.issues.length, mode === "all-prs" ? 0 : 1);
       assert.ok(markerPages >= 6, "walk through every PR-only prefix page");
     } else
-      assert.throws(
+      await assert.rejects(
         () => client.repositoryIssues(),
         mode === "loop" ? /skipped a page/u : /changed/u,
       );
   }
 });
 
-await test("REST endpoints omitting Link on304 use complete unconditional pages afterward", () => {
-  const requests: string[][] = [];
+await test("REST endpoints omitting Link on304 use complete unconditional pages afterward", async () => {
+  const requests: Readonly<Record<string, string>>[] = [];
   const link = `<${base}/items?after=next>; rel="next"`;
-  const rest = new RestInventoryTransport(
-    new GitHubApiClient((args) => {
-      requests.push([...args]);
-      return requests.length === 2
-        ? response(null, { etag: "tag" }, 304)
-        : response([{ node_id: "one" }], { etag: "tag", link });
-    }),
-  );
-  rest.get("items");
-  rest.get("items");
-  rest.get("items");
+  const rest = new RestInventoryTransport(async (_endpoint, headers) => {
+    requests.push(headers);
+    return requests.length === 2
+      ? response(null, { etag: "tag" }, 304)
+      : response([{ node_id: "one" }], { etag: "tag", link });
+  });
+  await rest.get("items");
+  await rest.get("items");
+  await rest.get("items");
   assert.equal(requests.length, 4);
-  assert.ok(requests[1]!.includes("If-None-Match: tag"));
-  assert.ok(
-    requests.slice(2).every((args) => !args.some((value) => value.startsWith("If-None-Match:"))),
-  );
+  assert.equal(requests[1]?.["If-None-Match"], "tag");
+  assert(requests.slice(2).every((headers) => !headers["If-None-Match"]));
+});
+
+void test("inventory recovery cannot renew a failed page's SDK attempt allowance", async () => {
+  let dispatched = 0;
+  const client = await createGitHubClient({
+    credential: { kind: "anonymous" },
+    deadline: performance.now() + 15000,
+    random: () => 0,
+    fetch: async () => {
+      dispatched++;
+      return new Response("unavailable", { status: 503 });
+    },
+  });
+  const inventory = RestInventoryTransport.fromSDK(client);
+  await assert.rejects(inventory.get("repos/example/repo/issues"));
+  await assert.rejects(inventory.get("repos/example/repo/issues"));
+  assert.equal(dispatched, 3);
 });

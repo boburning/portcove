@@ -1008,19 +1008,38 @@ console.log('Literal `roadmap` and $(text)');
 
 For update/scan harness engineering, read [native IPC probes](reference/desktop-ipc-probes.md).
 
-## Bounded GitHub subprocess collection
+## Bounded GitHub metadata and retained CLI execution
 
-The shared GitHub API runner limits each ordinary `gh` subprocess to 15 seconds
-and 16 MiB of collected output. Timeout terminates that owned subprocess with
-`SIGKILL` and refuses its output, even if it contains complete JSON. It reports a
-sanitized failure without retrying. These are per-subprocess limits, not a deadline
-for an entire paginated inventory. The CI watcher's existing 60-second observation
-budget and retained execution deadline remain separate.
+The configured Octokit integration in `scripts/github-client.mts` collects each
+metadata body under a byte cap before SDK parsing, defaults to 16 MiB and a
+15-second request deadline, and retains an original monotonic operation deadline.
+The production `capture-port` path uses asynchronous REST inventory and intake;
+Aqua, handoff evidence, postmerge metadata and CI-health metadata use the same
+factory. API-version headers remain owned by each caller. Existing unmigrated
+callers still use the bounded legacy runner during #4319.
+
+Eligible reads have at most three total attempts; writes run once and require
+authoritative reconciliation after ambiguity. Reusing a logical request policy
+preserves exhausted allowances across recovery. Intentional inventory stability
+observations remain separate reads charged to the operation budget. Secondary
+limits defer across REST and GraphQL, using provider waits or increasing
+60/120-second fallback waits, subject to the original deadline.
+
+Explicit credentials never fall back to another source. Anonymous clients never
+inherit credentials. Eligible local tooling selects `GH_TOKEN`, then
+`GITHUB_TOKEN`, then resolves an existing `gh` login once per command; workflows
+must supply their credential. Retained attestation verification has its own
+bounded subprocess helper and cannot invoke `gh api`. Artifact-byte acquisition
+retains its existing bounded helper until its caller family migrates.
+
+Transport evidence is scoped to the command and distinguishes dispatched
+attempts. REST inventory owns cache validation and completeness. GraphQL callers
+needing headers use the raw configured SDK request path, without another request
+or a global last-response slot. Unsafe numeric JSON identifiers are refused
+before persisted JSON/hash boundaries rather than silently rounded.
 
 A timed-out mutation may already have reached GitHub. Delivery still requires
-remote state readback before any retry; unavailable readback remains an unknown
-outcome. A local timeout is neither rollback nor proof of server-side failure.
-No global GitHub CLI configuration or additional execution authority is required.
+remote state readback before any retry; unavailable readback remains unknown.
 
 Public operation errors retain the existing `code` and `message` fields. The
 shared sanitizer reads those fields without serializing thrown objects, SDK
