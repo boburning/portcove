@@ -2189,6 +2189,7 @@ for (const file of [
     "scripts/catalog-upstream-observer.test.mts",
     "scripts/observer-checkpoint-artifact.test.mts",
     "scripts/check-catalog-repositories.test.mts",
+    "scripts/cleanup-intel-artifacts.test.mts",
     ...upstreamHealthContractTests,
   ]);
 

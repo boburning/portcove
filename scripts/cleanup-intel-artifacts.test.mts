@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { cleanup, consumedTransfer, parseCleanupArgs } from "./cleanup-intel-artifacts.mts";
+import {
+  cleanup,
+  consumedTransfer,
+  parseCleanupArgs,
+  createCleanupOperations,
+} from "./cleanup-intel-artifacts.mts";
+
+import type { CleanupOperations } from "./cleanup-intel-artifacts.mts";
 
 const artifact = { id: 10, name: "intel-rust-tests-1", expired: false, workflow_run: { id: 20 } };
 const run = {
@@ -47,64 +54,54 @@ void test("active, failed, missing, ambiguous, changed-attempt and foreign evide
     assert.equal(consumedTransfer(artifact, run, changed), false);
   assert.equal(consumedTransfer({ ...artifact, name: "release-payload" }, run, jobs), false);
 });
-void test("dry run never deletes; apply checks identity and verifies deletion", () => {
-  let deleted = false;
-  const api = {
-    paginateRest: (endpoint: string) => (endpoint.includes("/jobs?") ? jobs : [artifact]),
-    request: (method: string, endpoint: string) => {
-      if (method === "DELETE") {
-        deleted = true;
-        return { body: null };
-      }
-      if (endpoint.endsWith("/runs/20")) return { body: run };
-      if (deleted) throw Object.assign(new Error("not found"), { status: 404 });
-      return { body: artifact };
-    },
+function operations(overrides: Partial<CleanupOperations> = {}): CleanupOperations {
+  return {
+    artifacts: async () => [artifact],
+    jobs: async () => jobs,
+    run: async () => run,
+    artifact: async () => artifact,
+    removeArtifact: async () => assert.fail("Unexpected deletion"),
+    ...overrides,
   };
-  assert.deepEqual(cleanup(api, { runId: 20 }).eligible, [10]);
+}
+void test("dry run never deletes; apply checks identity and verifies deletion", async () => {
+  let deleted = false;
+  const api = operations({
+    removeArtifact: async () => {
+      deleted = true;
+    },
+    artifact: async () => {
+      if (deleted) throw Object.assign(new Error("not found"), { status: 404 });
+      return artifact;
+    },
+  });
+  assert.deepEqual((await cleanup(api, { runId: 20 })).eligible, [10]);
   assert.equal(deleted, false);
-  assert.deepEqual(cleanup(api, { apply: true, runId: 20 }).deleted, [10]);
+  assert.deepEqual((await cleanup(api, { apply: true, runId: 20 })).deleted, [10]);
 });
-void test("incomplete pagination and a concurrently restarted run block deletion", () => {
-  const incomplete = {
-    request: () => assert.fail("Incomplete pagination must abort before provider requests"),
-    paginateRest: () => {
+void test("incomplete inventory and a concurrently restarted run block deletion", async () => {
+  const incomplete = operations({
+    artifacts: async () => {
       throw new Error("incomplete");
     },
-  };
-  assert.throws(() => cleanup(incomplete, { apply: true, runId: 20 }), /incomplete/u);
+    run: async () => assert.fail("Incomplete inventory must stop before run read"),
+  });
+  await assert.rejects(cleanup(incomplete, { apply: true, runId: 20 }), /incomplete/u);
   let reads = 0;
-  const api = {
-    paginateRest: (endpoint: string) => (endpoint.includes("/jobs?") ? jobs : [artifact]),
-    request: (method: string, endpoint: string) => {
-      assert.notEqual(method, "DELETE");
-      if (endpoint.endsWith("/runs/20"))
-        return { body: ++reads === 1 ? run : { ...run, status: "in_progress" } };
-      return { body: artifact };
-    },
-  };
-  assert.throws(() => cleanup(api, { apply: true, runId: 20 }), /changed/u);
+  const api = operations({ run: async () => ({ ...run, run_attempt: ++reads === 1 ? 1 : 2 }) });
+  await assert.rejects(cleanup(api, { apply: true, runId: 20 }), /changed/u);
 });
-
-void test("unknown artifact expiry cannot authorize cleanup", () => {
-  for (const expired of [undefined, null, 0, "false", true]) {
-    const candidate = { ...artifact, expired };
-    assert.equal(consumedTransfer(candidate, run, jobs), false);
-    let deletions = 0;
-    const api = {
-      paginateRest: (endpoint: string) => (endpoint.includes("/jobs?") ? jobs : [candidate]),
-      request: (method: string) => {
-        if (method === "DELETE") deletions++;
-        return { body: run };
-      },
-    };
-    const result = cleanup(api, { apply: true, runId: 20 });
-    assert.equal(deletions, 0);
-    assert.deepEqual(result.eligible, []);
+void test("unknown artifact expiry cannot authorize cleanup", async () => {
+  for (const expired of [undefined, null, "false", 0]) {
+    const result = await cleanup(
+      operations({ artifacts: async () => [{ ...artifact, expired }] }),
+      { apply: true, runId: 20 },
+    );
+    assert.deepEqual(result.deleted, []);
     assert.equal(result.preserved, 1);
   }
 });
-void test("uncertain deletion is not retried and readable artifacts retain the original provider failure", () => {
+void test("uncertain deletion is not retried and readable readback retains exact failure", async () => {
   for (const failure of [
     new Error("provider failure"),
     null,
@@ -115,115 +112,122 @@ void test("uncertain deletion is not retried and readable artifacts retain the o
   ]) {
     let deletions = 0,
       readbacks = 0;
-    const api = {
-      paginateRest: (endpoint: string) => (endpoint.includes("/jobs?") ? jobs : [artifact]),
-      request: (method: string, endpoint: string) => {
-        if (method === "DELETE") {
-          deletions++;
-          // Deliberately malformed provider rejections must keep their exact identity.
-          // oxlint-disable-next-line typescript/only-throw-error
-          throw failure;
-        }
-        if (endpoint.endsWith("/runs/20")) return { body: run };
-        if (deletions) readbacks++;
-        return { body: artifact };
+    const api = operations({
+      removeArtifact: async () => {
+        deletions++;
+        // Preserve deliberately malformed provider rejection identity.
+        // oxlint-disable-next-line typescript/only-throw-error
+        throw failure;
       },
-    };
-    assert.throws(
-      () => cleanup(api, { apply: true, runId: 20 }),
+      artifact: async () => {
+        if (deletions) readbacks++;
+        return artifact;
+      },
+    });
+    await assert.rejects(
+      cleanup(api, { apply: true, runId: 20 }),
       (error: unknown) => error === failure,
     );
     assert.equal(deletions, 1);
     assert.equal(readbacks, 1);
   }
 });
-
-void test("completion event enumerates only its run and ignores unrelated artifacts", () => {
-  const calls: string[] = [];
-  let deletions = 0;
-  const api = {
-    paginateRest: (endpoint: string) => {
-      calls.push(endpoint);
-      return endpoint.includes("/jobs?")
-        ? jobs
-        : [{ ...artifact, id: 11, name: "other" }, artifact];
-    },
-    request: (method: string, endpoint: string) => {
-      if (method === "DELETE") deletions++;
-      return { body: endpoint.endsWith("/runs/20") ? run : artifact };
-    },
-  };
-  assert.deepEqual(cleanup(api, { runId: 20 }).eligible, [10]);
-  assert.equal(deletions, 0);
-  assert.equal(calls[0], "repos/boburning/portcove/actions/runs/20/artifacts?per_page=100");
-  assert.equal(calls[1], "repos/boburning/portcove/actions/runs/20/attempts/1/jobs?per_page=100");
-  assert.equal(calls.length, 2);
+void test("completion event enumerates only its exact run and higher attempts", async () => {
+  for (const attempt of [1, 27]) {
+    const scopes: unknown[] = [],
+      selectedJobs: unknown[] = [];
+    const candidate = { ...artifact, name: `intel-rust-tests-${attempt}` };
+    const api = operations({
+      artifacts: async (scope) => {
+        scopes.push(scope);
+        return [{ ...artifact, id: 11, name: "other" }, candidate];
+      },
+      jobs: async (id, number) => {
+        selectedJobs.push([id, number]);
+        return jobs;
+      },
+      run: async () => ({ ...run, run_attempt: attempt }),
+    });
+    assert.deepEqual((await cleanup(api, { runId: 20 })).eligible, [10]);
+    assert.deepEqual(scopes, [{ runId: 20 }]);
+    assert.deepEqual(selectedJobs, [[20, attempt]]);
+  }
 });
-
-void test("hourly recovery enumerates exact names, never the entire repository inventory", () => {
-  const calls: string[] = [];
-  const api = {
-    paginateRest: (endpoint: string) => {
-      calls.push(endpoint);
-      if (endpoint.includes("/jobs?")) return jobs;
-      return endpoint.includes("name=intel-rust-tests-1&") ? [artifact] : [];
+void test("hourly recovery completes all four exact inventories before reading eligibility", async () => {
+  const calls: unknown[] = [];
+  const api = operations({
+    artifacts: async (scope) => {
+      calls.push(scope);
+      return "attempt" in scope && scope.attempt === 1 ? [artifact] : [];
     },
-    request: (_method: string, endpoint: string) => ({
-      body: endpoint.endsWith("/runs/20") ? run : artifact,
-    }),
-  };
-  assert.deepEqual(cleanup(api).eligible, [10]);
+    run: async () => {
+      assert.equal(calls.length, 4);
+      return run;
+    },
+  });
+  assert.deepEqual((await cleanup(api)).eligible, [10]);
   assert.deepEqual(
-    calls.slice(0, 4),
-    [1, 2, 3, 4].map(
-      (attempt) =>
-        `repos/boburning/portcove/actions/artifacts?name=intel-rust-tests-${attempt}&per_page=100`,
-    ),
+    calls,
+    [1, 2, 3, 4].map((attempt) => ({ attempt })),
   );
-  assert.equal(calls.length, 5);
 });
-
-void test("an exact run supports arbitrary higher attempts without requiring a broad scan", () => {
-  const attempt = 27;
-  const candidate = { ...artifact, name: `intel-rust-tests-${attempt}` };
-  const runAtAttempt = { ...run, run_attempt: attempt };
-  const calls: string[] = [];
-  const api = {
-    paginateRest: (endpoint: string) => {
-      calls.push(endpoint);
-      return endpoint.includes("/jobs?") ? jobs : [candidate];
-    },
-    request: (_method: string, endpoint: string) => ({
-      body: endpoint.endsWith("/runs/20") ? runAtAttempt : candidate,
-    }),
-  };
-  assert.deepEqual(cleanup(api, { runId: 20 }).eligible, [10]);
-  assert.equal(calls.length, 2);
+void test("foreign artifact, duplicate inventory and invalid run ID fail before further effects", async () => {
+  const foreign = operations({
+    artifacts: async () => [{ ...artifact, workflow_run: { id: 99 } }],
+    run: async () => assert.fail("Foreign artifact cannot be read"),
+  });
+  await assert.rejects(cleanup(foreign, { apply: true, runId: 20 }), /selected run/u);
+  const duplicate = operations({
+    run: async () => assert.fail("Duplicate inventory cannot be read"),
+  });
+  await assert.rejects(cleanup(duplicate, { apply: true }), /duplicate artifact/u);
+  for (const runId of [NaN, 0])
+    await assert.rejects(cleanup(duplicate, { runId }), /positive safe/u);
 });
-
-void test("a foreign artifact, duplicate sweep inventory or invalid run ID fails before deletion", () => {
-  let effects = 0;
-  const foreign = {
-    paginateRest: () => [{ ...artifact, workflow_run: { id: 99 } }],
-    request: () => {
-      effects++;
-      return { body: run };
+void test("locked SDK preserves complete pagination and makes DELETE exactly once", async () => {
+  const sends: string[] = [];
+  const api = await createCleanupOperations({
+    token: "synthetic-cleanup-token",
+    fetch: async (input, init) => {
+      const url = new URL(
+        input instanceof Request ? input.url : input instanceof URL ? input.href : input,
+      );
+      sends.push(`${init?.method} ${url.pathname}${url.search}`);
+      assert.equal(
+        new Headers(init?.headers).get("authorization"),
+        "Bearer synthetic-cleanup-token",
+      );
+      assert.equal(new Headers(init?.headers).get("x-github-api-version"), "2022-11-28");
+      if (init?.method === "DELETE")
+        return new Response('{"message":"unavailable"}', {
+          status: 503,
+          headers: { "content-type": "application/json" },
+        });
+      const second = url.searchParams.get("page") === "2";
+      return new Response(
+        JSON.stringify({
+          total_count: 101,
+          artifacts: second
+            ? [{ id: 101 }]
+            : Array.from({ length: 100 }, (_, index) => ({ id: index + 1 })),
+        }),
+        {
+          headers: {
+            "content-type": "application/json",
+            ...(second
+              ? {}
+              : {
+                  link: `<https://api.github.com/repos/boburning/portcove/actions/runs/20/artifacts?per_page=100&page=2>; rel="next"`,
+                }),
+          },
+        },
+      );
     },
-  };
-  assert.throws(() => cleanup(foreign, { apply: true, runId: 20 }), /selected run/u);
-  assert.equal(effects, 0);
-  const duplicates = {
-    paginateRest: () => [artifact],
-    request: () => {
-      effects++;
-      return { body: run };
-    },
-  };
-  assert.throws(() => cleanup(duplicates, { apply: true }), /duplicate artifact/u);
-  assert.equal(effects, 0);
-  assert.throws(() => cleanup(duplicates, { runId: Number.NaN }), /positive safe/u);
-  assert.throws(() => cleanup(duplicates, { runId: 0 }), /positive safe/u);
-  assert.equal(effects, 0);
+  });
+  assert.equal((await api.artifacts({ runId: 20 })).length, 101);
+  await assert.rejects(api.removeArtifact(10));
+  assert.equal(sends.length, 3);
+  assert.equal(sends.filter((entry) => entry.startsWith("DELETE ")).length, 1);
 });
 
 void test("CLI accepts only valid exact run IDs and explicit apply", () => {
@@ -241,4 +245,41 @@ void test("CLI accepts only valid exact run IDs and explicit apply", () => {
     ["--unknown"],
   ])
     assert.throws(() => parseCleanupArgs(args));
+});
+
+void test("SDK collection refuses escaped pagination, duplicate IDs and missing terminal coverage", async () => {
+  for (const failure of ["escape", "duplicate", "truncated"] as const) {
+    let sends = 0;
+    const api = await createCleanupOperations({
+      token: "synthetic-token",
+      fetch: async (input) => {
+        sends++;
+        const url = new URL(
+          input instanceof Request ? input.url : input instanceof URL ? input.href : input,
+        );
+        const second = url.searchParams.get("page") === "2";
+        const next = failure === "escape" ? "21" : "20";
+        return new Response(
+          JSON.stringify({
+            total_count: 101,
+            artifacts: second
+              ? [{ id: 100 }]
+              : Array.from({ length: 100 }, (_, index) => ({ id: index + 1 })),
+          }),
+          {
+            headers: {
+              "content-type": "application/json",
+              ...(second || failure === "truncated"
+                ? {}
+                : {
+                    link: `<https://api.github.com/repos/boburning/portcove/actions/runs/${next}/artifacts?per_page=100&page=2>; rel="next"`,
+                  }),
+            },
+          },
+        );
+      },
+    });
+    await assert.rejects(api.artifacts({ runId: 20 }), /collection|duplicate|count/u);
+    assert.equal(sends, failure === "duplicate" ? 2 : 1);
+  }
 });
