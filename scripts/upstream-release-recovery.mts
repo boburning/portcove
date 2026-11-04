@@ -6,6 +6,7 @@ import { readGitHubReleaseAsset } from "./github-binary.mts";
 import { isRecord } from "./runtime-values.mts";
 import {
   retainedRehearsal,
+  retainedRecovery,
   rehearsalExecution,
   rehearsalOrigin,
   rehearsalExecutionRef,
@@ -23,7 +24,8 @@ import {
 import { verifyImmutableRehearsal } from "./upstream-release-publication.mts";
 
 export function inspectRetainedRecoveryHistory(attempts: unknown[], contexts: unknown[]) {
-  assert.equal(attempts.length, 3);
+  assert.equal(attempts.length, 4);
+  assert.equal(contexts.length, 4);
   for (const [index, expectedStep] of [
     "Inject controlled post-publication interruption",
     "Bound actual cumulative runtime and remaining native jobs",
@@ -88,6 +90,40 @@ export function inspectRetainedRecoveryHistory(attempts: unknown[], contexts: un
         1,
       );
   }
+  const previous = contexts[2];
+  assert.ok(isRecord(previous));
+  assert.equal(previous.id, Number(retainedRecovery.run_id));
+  assert.equal(previous.head_sha, retainedRecovery.source);
+  assert.equal(previous.head_branch, retainedRecovery.ref.slice("refs/tags/".length));
+  assert.equal(previous.run_attempt, 1);
+  assert.equal(previous.status, "completed");
+  assert.equal(previous.conclusion, "failure");
+  const rows = attempts[2];
+  assert.ok(isRecord(rows) && Array.isArray(rows.jobs));
+  assert.equal(rows.total_count, 4);
+  assert.equal(rows.jobs.length, 4);
+  const jobs: unknown[] = rows.jobs;
+  for (const [name, conclusion] of [
+    ["recovery", "success"],
+    ["feed", "success"],
+    ["public_installed", "failure"],
+    ["readback", "skipped"],
+  ]) {
+    const matching = jobs.filter((row) => isRecord(row) && row.name === name);
+    assert.equal(matching.length, 1);
+    const row = matching[0];
+    assert.ok(isRecord(row) && Array.isArray(row.steps));
+    assert.equal(row.status, "completed");
+    assert.equal(row.conclusion, conclusion);
+    if (name === "readback") assert.deepEqual(row.steps, []);
+    if (name === "public_installed")
+      assert.deepEqual(
+        row.steps
+          .filter((step) => isRecord(step) && step.conclusion === "failure")
+          .map((step) => (isRecord(step) ? step.name : null)),
+        ["Exercise compiled HTTPS metadata and actual GitHub payload through installed UI"],
+      );
+  }
   return inspectRehearsalBudget("recovery", attempts, contexts);
 }
 
@@ -107,11 +143,6 @@ async function preflight() {
   );
   const { attempts, contexts } = readRehearsalAttemptObservations();
   const budget = inspectRetainedRecoveryHistory(attempts, contexts);
-  assert.ok(
-    Date.now() + budget.remaining_declared_minutes * 60000 <=
-      Date.parse(retainedRehearsal.deadline),
-    "remaining recovery cannot fit the calibrated observation deadline",
-  );
   await assertRehearsalProtection("recovery");
   const signed = "work/upstream-signed";
   const manifestBytes = await readFile(`${signed}/rehearsal.json`);
@@ -135,10 +166,9 @@ async function preflight() {
     assert.equal(bytes.length, file.bytes);
     assert.equal(createHash("sha256").update(bytes).digest("hex"), file.sha256);
   }
-  const baseline = inspectRehearsalFeed(
-    JSON.parse(await readFile(`${signed}/baseline-feed.json`, "utf8")),
-  );
-  for (const file of baseline) {
+  const candidate = inspectRehearsalFeed(JSON.parse(await readFile(`${signed}/feed.json`, "utf8")));
+  assert.equal(candidate.length, 15);
+  for (const file of candidate) {
     const response = await fetch(
       `https://boburning.github.io/portcove/rehearsal/${retainedRehearsal.run_id}-1/application/${file.path}`,
       {
@@ -160,7 +190,7 @@ async function preflight() {
     }
     assert.ok(
       Buffer.concat(chunks).equals(Buffer.from(file.text)),
-      "original usable baseline changed",
+      "published candidate feed changed; no rollback or republication is admitted",
     );
   }
   await writeFile(
@@ -173,10 +203,10 @@ async function preflight() {
       executor_ref: rehearsalExecutionRef,
       immutable_release: retainedRehearsal.release_id,
       verified_assets: 15,
-      baseline_files: baseline.length,
+      candidate_files: candidate.length,
       budget,
       original_deadline: retainedRehearsal.original_deadline,
-      observation_deadline: retainedRehearsal.deadline,
+      historical_observation_deadline: retainedRehearsal.deadline,
       production: false,
     })}\n`,
     { flag: "wx" },

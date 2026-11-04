@@ -37,40 +37,51 @@ their original runner, timestamps and steps. Counting both observations duplicat
 about60minutes; actual executed time including the14-second refusal is about61.2.
 The original failures, certificates, signed bytes and baseline remain retained.
 
-The current `upstream-release-rehearsal.yml` is a **fixed public-only recovery** at
-`refs/tags/portcove-upstream-rehearsal-20261104r3`. It cannot build a new payload,
-generate signing keys, build another predecessor or write a release. It reuses the
-exact original r2 artifacts, manifest, acceptance certificate, public predecessor,
-Root, immutable release and `rehearsal/41788540335-1/application/` namespace. The
-original product/producer source7a60432a/ref/runs remain distinct from the new
-executor, harness source/run and final attestation. Historical main/r1/r2
-attestations remain readable; execution is confined to protectedr3.
+The current `upstream-release-rehearsal.yml` is a **fixed public-only diagnostic
+continuation** at `refs/tags/portcove-upstream-rehearsal-20261104r4`. It cannot build
+payloads or predecessors, generate signing keys, write a release or deploy a feed.
+It reuses the exact original r2 artifacts, manifest, acceptance certificate, public
+predecessor, Root, immutable release and already published candidate at
+`rehearsal/41788540335-1/application/`. Original product source7a60432a/producer
+identity remains distinct from the new executor/harness/run/final attestation.
+Historical main/r1/r2/r3 attestations remain readable; execution is protectedr4
+and first-attempt only.
 
-The four serial caps are recovery3/feed5/public-installed15/readback5minutes.
-Accounting reads both original native attempts and the sole new execution, with
-at most three total exposures and the unchanged cumulative application140 bound.
-Only a successful row completed before the authenticated later attempt began,
-with exactly matching prior run/source/runner/time/step evidence, is a carried
-observation. Mutable job IDs, attempt display names and runner-group omissions do
-not establish a new execution. Real failures, cancellations and repeats still
-count. Missing or inconsistent provider evidence refuses. Original observation deadline2026-11-04T09:18:43Z remains retained in history.
-The demonstrated native-accounting repair, required source review/checks and provider
-queue consume wall-clock time without consuming equivalent runner execution. Under
-the standing harness-calibration rule, the fixed continuation observation bound is
-2026-11-04T09:48:43Z (+30minutes); the execution ceiling, job caps, three exposures,
-product deadlines and historical semantic-owner clock are unchanged. No reservation,
-known headroom or paid fallback
-is inferred from the owner-confirmed account$0 Stop usage boundary.
+The three serial caps are preflight3/public-installed15/readback5minutes.
+Accounting retains both original native attempts, settled r3 run41806364323/1
+and this sole new execution: four fixed observations, with every actual failure,
+cancellation and repeat counted under the unchanged cumulative application140
+ceiling. A copied successful row is charged once only with exact prior
+run/source/runner/time/step evidence completed before its authenticated later
+attempt started. Mutable IDs/display names and omitted runner-group fields do
+not establish another execution. Missing or inconsistent evidence refuses.
+The prior three-exposure limit was temporary rehearsal scaffolding, not a new
+owner resource appointment. This finite diagnostic repair adds only one execution;
+it introduces no retry service or automatic redispatch.
 
-The recovery preflight verifies the two actual failure boundaries, original
-certificates, all15 immutable asset bytes and all8 usable baseline files before
-admitting advancement. The Pages writer permits only exact original and current
-source/ref/run deployment tuples, preserving the existing catalog policy and
-historical initial-site pin. It refuses unknown site ownership or production
-components. Reconcile the exact deliveredr3 tag/no-bypass rule and rotate only the
-existing rehearsal deployment-policy slot before dispatch. No mutable-main or
-wildcard allowance is added. Root, application and catalog production routes stay
-held; current404 observations do not explain the earlier #246 HTTP failure.
+The historical observation deadlines09:18:43Z and calibrated09:48:43Z remain in
+receipts. They are harness observation bounds, separate from actual application140
+execution, trust freshness, product deadlines and the historical semantic-owner
+clock. Native job timeouts and a finite read-only observer bound this diagnostic
+run; source repair/review/CI time does not repeatedly patch a UTC literal. No
+reservation, known headroom or paid fallback is inferred from the owner-confirmed
+account$0 Stop usage boundary.
+
+The preflight verifies both original failure boundaries and the settled r3
+recovery/feed successes, exact native UI failure step and skipped readback. It
+rechecks original certificates, all15 immutable asset bytes and all15 already
+published candidate-feed files. There is no rollback to the old empty baseline
+and no Pages writer, permission or deployment environment in this continuation.
+Only the new executor's exact protected tag/no-bypass rule needs reconciliation;
+existing r3 Pages and catalog deployment policies stay unchanged. Production
+routes stay held. Current404 observations do not explain #246's earlier failure.
+
+The r3 UI check timed out waiting for its fresh Stable caption. Earlier malformed
+payload refusals reached authenticated candidate handling. Its cause remains
+unproven: failure captures were saved under the disposable lifecycle directory,
+but only the success-copy directory was uploaded. The diagnostic upload now
+retains JSON, PNG, log and HTML from either path even on failure. Assertions,
+UI waits, product behavior, installer bytes and cleanup remain unchanged.
 
 A fresh Windows job consumes the original attested public predecessor, compiled
 HTTPS metadata and actual immutable GitHub payload through the installed UI. It

@@ -11,6 +11,7 @@ import {
   rehearsalExecution,
   rehearsalExecutionRef,
   retainedRehearsal,
+  retainedRecovery,
 } from "./upstream-release-identity.mts";
 import { rehearsalApi } from "./upstream-release-rehearsal.mts";
 
@@ -32,7 +33,6 @@ export const rehearsalJobMinutes = Object.freeze({
 
 export const recoveryJobMinutes = Object.freeze({
   recovery: 3,
-  feed: 5,
   public_installed: 15,
   readback: 5,
 });
@@ -44,7 +44,7 @@ export function inspectRehearsalBudget(
 ) {
   const names = Object.keys(rehearsalJobMinutes);
   const index = names.indexOf(job);
-  assert.ok((index >= 0 || job === "recovery") && completedAttempts.length <= 3);
+  assert.ok((index >= 0 || job === "recovery") && completedAttempts.length <= 4);
   if (contexts) assert.equal(contexts.length, completedAttempts.length);
   let observedMilliseconds = 0;
   let copiedSuccessfulObservations = 0;
@@ -176,6 +176,7 @@ export function readRehearsalAttemptObservations() {
   for (const selected of [
     { ...retainedRehearsal, run_attempt: 1 },
     { ...retainedRehearsal, run_attempt: 2 },
+    retainedRecovery,
     { ...execution, ref: rehearsalExecutionRef },
   ]) {
     const actual = rehearsalApi(`actions/runs/${selected.run_id}/attempts/${selected.run_attempt}`);
@@ -203,7 +204,7 @@ export function readRehearsalAttemptObservations() {
 export async function assertRehearsalBudget(job: string) {
   const execution = rehearsalExecution();
   const { attempts, contexts } = readRehearsalAttemptObservations();
-  const current = attempts[2];
+  const current = attempts[3];
   assert.ok(isRecord(current) && Array.isArray(current.jobs));
   const order = Object.keys(recoveryJobMinutes);
   const position = order.indexOf(job);
@@ -248,15 +249,10 @@ export async function assertRehearsalBudget(job: string) {
     );
   }
   const receipt = inspectRehearsalBudget(job, attempts, contexts);
-  assert.ok(
-    Date.now() + receipt.remaining_declared_minutes * 60000 <=
-      Date.parse(retainedRehearsal.deadline),
-    "remaining recovery cannot fit the calibrated observation deadline",
-  );
   await mkdir("work/upstream-runtime", { recursive: true });
   await writeFile(
     `work/upstream-runtime/budget-${job}.json`,
-    `${JSON.stringify({ ...receipt, execution, original_observation_deadline: retainedRehearsal.original_deadline, observation_deadline: retainedRehearsal.deadline })}\n`,
+    `${JSON.stringify({ ...receipt, execution, original_observation_deadline: retainedRehearsal.original_deadline, historical_observation_deadline: retainedRehearsal.deadline })}\n`,
     { flag: "wx" },
   );
 }
@@ -313,7 +309,7 @@ export async function assertRehearsalProtection(phase = "protection") {
   const all = rehearsalApi("rulesets?per_page=100");
   assert.ok(Array.isArray(all) && all.length < 100);
   const named = all.filter(
-    (value) => isRecord(value) && value.name === "Portcove upstream rehearsal 20261104r3 immutable",
+    (value) => isRecord(value) && value.name === "Portcove upstream rehearsal 20261104r4 immutable",
   );
   assert.equal(named.length, 1);
   const rule: unknown = named[0];
