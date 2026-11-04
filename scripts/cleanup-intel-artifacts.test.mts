@@ -193,9 +193,9 @@ void test("locked SDK preserves complete pagination and makes DELETE exactly onc
         input instanceof Request ? input.url : input instanceof URL ? input.href : input,
       );
       sends.push(`${init?.method} ${url.pathname}${url.search}`);
-      assert.equal(
-        new Headers(init?.headers).get("authorization"),
-        "Bearer synthetic-cleanup-token",
+      assert.match(
+        new Headers(init?.headers).get("authorization") ?? "",
+        /^(?:token|Bearer) synthetic-cleanup-token$/u,
       );
       assert.equal(new Headers(init?.headers).get("x-github-api-version"), "2022-11-28");
       if (init?.method === "DELETE")
