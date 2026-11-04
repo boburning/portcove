@@ -1,3 +1,4 @@
+import { controllerNodeMaximumBytes } from "./controller-node-runtime.mts";
 /** The fixed local loader joins this observation to protected setup custody.
  * A task description or this readback alone never grants native execution. */
 import { spawnSync } from "node:child_process";
@@ -287,7 +288,7 @@ export function inspectNativeSchedulerObservation(
   };
 }
 
-export const nativeSchedulerNodeMaximumBytes = 128 * 1024 * 1024;
+export const nativeSchedulerNodeMaximumBytes = controllerNodeMaximumBytes;
 
 /** Bounded byte identity only; this helper grants no tool or scheduler authority. */
 export async function readNativeSchedulerToolDigest(filename: string, limit: number) {

@@ -53,7 +53,7 @@ Object.defineProperties(process,{platform:{value:'win32'},arch:{value:'x64'}});
 let fault='',home='',clock=1000,receives=0,imports=0,prepared=0,pathReads=0,connected=false,settlementPathObserved=false;
 const source={revision:'a'.repeat(40),execution_ref:'refs/tags/portcove-production-controller-fixture',run_id:'123',run_attempt:1,actor_id:'456'};
 const workflow=Buffer.from('fixed Windows workflow');
-globalThis.fixture={read:actual.readControllerToolFile,guard,home:()=>home,now:()=>clock,
+globalThis.fixture={read:actual.readControllerToolFile,readNode:actual.readControllerNodeFile,guard,home:()=>home,now:()=>clock,
  workflow:async()=>workflow,
  admit:(policy,env,bytes,platform,stage)=>{assert.equal(platform,'windows-x86_64');assert.equal(stage,'payload-signing');assert.equal(env.GITHUB_JOB,'native_windows');assert.equal(bytes,workflow);if(fault==='source')throw Error('refused source');return source},
  require:(value,job,purpose)=>{assert.equal(value,source);assert.equal(job,'native_windows');assert.equal(purpose,'application')},
@@ -75,7 +75,7 @@ const routes={
  './release-authority-configuration-contract.mts':{inspectBoundSelectedPublicationAuthorities:'selected'},
  './release-signing-job-budget.mts':{currentNativeJobDeadline:'deadline'},
  './release-controller-tool-admission.mts':{receiveControllerTools:'receive',verifiedControllerToolPaths:'paths'},
- './release-controller-tools.mts':{controllerToolPaths:'linuxPaths',controllerToolPlatformProfile:'profile',readControllerToolFile:'read'},
+ './release-controller-tools.mts':{controllerToolPaths:'linuxPaths',controllerToolPlatformProfile:'profile',readControllerToolFile:'read',readControllerNodeFile:'readNode'},
  './release-native-runtime-custody.mts':{inspectNativeRuntimeCustody:'custody',recheckNativeRuntimeCustody:'recheck'},
  './heavy-rust-test-lock.mts':{readProcessIdentity:'birth'},
 };

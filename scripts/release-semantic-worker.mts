@@ -1,3 +1,4 @@
+import { controllerNodeMaximumBytes } from "./controller-node-runtime.mts";
 import {
   assertCatalogReviewRequestBaseline,
   inspectCatalogReviewRequest,
@@ -392,14 +393,14 @@ async function runInitialSemanticSetupProbe(
         await readBoundedPublicBuildInputFile(
           path.dirname(config.runtime.node_executable),
           path.basename(config.runtime.node_executable),
-          128 * 1024 * 1024,
+          controllerNodeMaximumBytes,
         ),
       ) !== config.runtime.node_sha256 ||
       digest(
         await readBoundedPublicBuildInputFile(
           path.dirname(process.execPath),
           path.basename(process.execPath),
-          128 * 1024 * 1024,
+          controllerNodeMaximumBytes,
         ),
       ) !== config.runtime.node_sha256
     )

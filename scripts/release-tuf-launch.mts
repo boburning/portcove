@@ -1,3 +1,4 @@
+import { readControllerNodeFile } from "./release-controller-tools.mts";
 /** Builtins-only launcher; role jobs never resolve source dependencies/hooks. */
 import path from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
@@ -59,8 +60,8 @@ export async function launchFixedTufController(
     ),
     tools = await verifiedControllerToolPaths(receipt);
   if (
-    hash(await readControllerToolFile(process.execPath)) !==
-    hash(await readControllerToolFile(tools.node))
+    hash(await readControllerNodeFile(process.execPath)) !==
+    hash(await readControllerNodeFile(tools.node))
   )
     throw new Error("running Node differs from authenticated TUF controller executable");
   const entry = tools.entries["release-tuf-controller"];

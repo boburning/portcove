@@ -90,7 +90,7 @@ export async function controllerScenario({
         LayoutCounts
       >;
       for (const scope of ["fixture_controls", "fixture_container", "outside_fixture"] as const) {
-        const counts = sample[scope];
+        const counts: unknown = sample[scope];
         assert(isRecord(counts));
         assert.ok(
           Number.isSafeInteger(counts.getClientRects) && Number(counts.getClientRects) >= 0,

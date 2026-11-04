@@ -304,7 +304,7 @@ if(-not $refused -or (Test-Path -LiteralPath (Join-Path $parent 'extract'))){thr
         OWNED_FETCHES: fetches,
       },
     });
-    assert.equal(result.error, undefined, result.error?.message);
+    assert.equal(result.error, undefined, String(result.error?.message ?? ""));
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout, /actual-bootstrap-cli-passed/u);
     assert.equal((await readFile(fetches, "utf8")).trim().split("\n").length, 2);

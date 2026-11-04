@@ -8,6 +8,7 @@ import { slice4CapacityResources } from "./release-capacity.mts";
 import { maximumProductionControllerWorkflowBytes } from "./production-controller-admission.mts";
 import { sharedProtectionOriginalJobDeadline } from "./release-signing-job-budget.mts";
 import { applicationProtectionObserver } from "./release-control-phases.mts";
+import { controllerWorkflowAtCurrentNode } from "./fixtures/release-capacity-fixture.mts";
 
 void test("shared observer phases retain mode routing and the original ten-minute provider allocation", async () => {
   const workflow = parse(
@@ -256,7 +257,7 @@ void test("selected D1 workflow uses source-bound observer outputs and skips leg
     }
   assert.equal(observerCalls, 14);
 });
-void test("installed workflows remain inert without configuration and preserve exactly reviewed proposal bytes", async () => {
+void test("installed workflows remain inert and preserve reviewed proposal bytes except the current Node anchor", async () => {
   for (const [actual, proposal] of [
     [
       ".github/workflows/application-update-production.yml",
@@ -268,7 +269,13 @@ void test("installed workflows remain inert without configuration and preserve e
     ],
   ] as const) {
     const source = await readFile(new URL(actual, root), "utf8");
-    assert.equal(source, await readFile(new URL(proposal, root), "utf8"));
+    const historical = await readFile(new URL(proposal, root), "utf8");
+    assert.equal(
+      source,
+      proposal.endsWith("windows-20261103.proposed.yml")
+        ? controllerWorkflowAtCurrentNode(historical)
+        : historical,
+    );
     const workflow = parse(source) as Workflow;
     const states: Record<string, { result: string; outputs: Record<string, string> }> = {};
     for (const [name, job] of Object.entries(workflow.jobs)) {

@@ -31,6 +31,7 @@ import {
   controllerNativeDriverVersion,
   controllerToolSourceAssetMaximumBytes,
   controllerToolPlatformProfile,
+  controllerToolFileMaximumBytes,
   type ControllerToolPlatform,
 } from "./release-controller-tools.mts";
 /** Installed package API is the repository-pinned Vite+ Pack, not a downloaded
@@ -456,10 +457,14 @@ export async function buildControllerTools(
         path.join(driverRoot, "bin", `tauri-driver${profile.suffix}`),
       ],
     ])
-      await writeFile(path.join(tools, "bin", name!), await readControllerToolFile(filename!), {
-        flag: "wx",
-        mode: 0o700,
-      });
+      await writeFile(
+        path.join(tools, "bin", name!),
+        await readControllerToolFile(filename!, controllerToolFileMaximumBytes(`bin/${name}`)),
+        {
+          flag: "wx",
+          mode: 0o700,
+        },
+      );
     for (const name of profile.assets) {
       await mkdir(path.dirname(path.join(tools, name)), { recursive: true, mode: 0o700 });
       await writeFile(
@@ -478,8 +483,23 @@ export async function buildControllerTools(
     guard();
     const files = [];
     for (const name of profile.paths) {
-      const bytes = await readControllerToolFile(path.join(tools, name));
+      const bytes = await readControllerToolFile(
+        path.join(tools, name),
+        controllerToolFileMaximumBytes(name),
+      );
       files.push({ path: name, bytes: bytes.length, sha256: hash(bytes) });
+    }
+    if (process.env.GITHUB_ACTIONS === "true") {
+      // Paths come only from the closed platform profile; expose sizes, never
+      // source contents, private filesystem locations or compiler error text.
+      console.log(
+        `::notice title=Controller inventory bytes::${JSON.stringify({
+          platform,
+          maximum: 320 * 1024 ** 2,
+          total: files.reduce((total, file) => total + file.bytes, 0),
+          files: files.map(({ path, bytes }) => ({ path, bytes })),
+        })}`,
+      );
     }
     const manifest = inspectControllerToolManifest(
       {
@@ -530,9 +550,11 @@ export async function buildControllerTools(
       }),
       { flag: "wx", mode: 0o600 },
     ).catch(() => {});
-    throw new Error(
-      `fixed controller bootstrap refused in ${phase}: ${failure}; retain ${directory}`,
-      { cause: error },
+    throw Object.assign(
+      new Error(`fixed controller bootstrap refused in ${phase}: ${failure}; retain ${directory}`, {
+        cause: error,
+      }),
+      { controllerBootstrapPhase: phase },
     );
   }
 }

@@ -72,7 +72,7 @@ export function inspectNativeDependencyWorkspace(bytes: Buffer) {
     raw.minimumReleaseAgeStrict === undefined || typeof raw.minimumReleaseAgeStrict === "boolean",
   );
   for (const key of ["catalog", "overrides", "patchedDependencies", "allowBuilds"]) {
-    const value = raw[key];
+    const value: unknown = raw[key];
     assert.ok(
       value === undefined ||
         (isRecord(value) &&
@@ -87,7 +87,7 @@ export function inspectNativeDependencyWorkspace(bytes: Buffer) {
     );
   }
   for (const key of ["catalog", "overrides"]) {
-    const versions =
+    const versions: string[] =
       raw[key] === undefined ? [] : Object.values(raw[key] as Record<string, string>);
     assert.ok(
       versions.every(

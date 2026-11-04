@@ -1902,6 +1902,7 @@ for (const [file, tests] of [
     "deny.toml",
   ].map((file): [string, string[]] => [file, roadmapContractTests]),
   [".github/pr-conventions.json", ["scripts/pr-conventions.test.mts"]],
+  [".github/viteplus-problem-matcher.json", ["scripts/ci-baseline.test.mts"]],
   [
     ".github/upstream-health-accounting.json",
     [

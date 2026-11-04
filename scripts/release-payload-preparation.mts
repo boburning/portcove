@@ -1,3 +1,4 @@
+import { controllerNodeMaximumBytes } from "./controller-node-runtime.mts";
 import { applicationPublicBuildInputs } from "./release-authority-configuration-contract.mts";
 import {
   isInitialBetaReleaseProfile,
@@ -628,7 +629,10 @@ export async function runPayloadSigningController(
   )
     throw new Error("fixed controller requires exactly two native invocation locators");
   const pinned = {
-    node: { path: tools.node, sha256: hash(await readBounded(tools.node, 128 * 1024 ** 2)) },
+    node: {
+      path: tools.node,
+      sha256: hash(await readBounded(tools.node, controllerNodeMaximumBytes)),
+    },
     tauriAddon: {
       path: tools.tauriAddon,
       sha256: hash(await readBounded(tools.tauriAddon, 128 * 1024 ** 2)),
