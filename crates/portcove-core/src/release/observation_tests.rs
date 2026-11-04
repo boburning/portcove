@@ -126,7 +126,7 @@ fn cvlod_windows_successor_holds_incomplete_metadata_without_older_fallback() ->
         assert_eq!(
             report.projections[0].hold_reasons,
             [if defect == "unhashed" {
-                "authenticated-digest-requires-further-resolution"
+                "checksum-observation-incomplete"
             } else {
                 "asset-missing-or-ambiguous"
             }],
@@ -233,7 +233,7 @@ fn persona_owned_input_selection_refuses_missing_ambiguous_or_unhashed_kit() -> 
         assert_eq!(
             report.projections[0].hold_reasons,
             [if defect == "unhashed" {
-                "authenticated-digest-requires-further-resolution"
+                "checksum-observation-incomplete"
             } else {
                 "asset-missing-or-ambiguous"
             }],
@@ -294,6 +294,72 @@ fn inspect(port: &PortDefinition, document: &Value) -> Result<UpstreamObservatio
     let path = directory.path().join("observation.json");
     std::fs::write(&path, serde_json::to_vec(document)?)?;
     inspect_upstream_observation(port, REPOSITORY_ID, &path)
+}
+
+#[test]
+fn checksum_observation_requests_exact_sources_and_resolves_without_authoring_changes() -> Result<()>
+{
+    let mut port = crate::Catalog::embedded()?.port("shipwright")?.clone();
+    port.platforms = vec![Platform::WindowsX86_64];
+    port.channels = vec![ReleaseChannel::Stable];
+    let mut release = release(1, "v1");
+    release["assets"][0]["digest"] = Value::Null;
+    for (id, name) in [(11, "game-windows.zip.sha256"), (12, "checksums.txt")] {
+        let mut sidecar = release["assets"][0].clone();
+        sidecar["id"] = json!(id);
+        sidecar["name"] = json!(name);
+        sidecar["browser_download_url"] = json!(format!(
+            "https://github.com/HarbourMasters/Shipwright/releases/download/v1/{name}"
+        ));
+        release["assets"].as_array_mut().unwrap().push(sidecar);
+    }
+    let mut document = envelope(vec![release])?;
+    let frozen = serde_json::to_vec(&port)?;
+    let held = inspect(&port, &document)?;
+    assert_eq!(
+        held.projections[0].hold_reasons,
+        ["checksum-observation-incomplete"]
+    );
+    assert_eq!(held.projections[0].checksum_sources.len(), 1);
+    assert_eq!(held.projections[0].checksum_sources[0].asset_id, 11);
+    let text = format!("{}  game-windows.zip\n", "b".repeat(64));
+    document["facts"]["checksum_sidecars"] = json!([{ "release_id":1,"asset_id":11,"text":text }]);
+    document["facts_sha256"] = json_digest(&document["facts"])?.into();
+    let resolved = inspect(&port, &document)?;
+    assert_eq!(
+        resolved.projections[0]
+            .latest_eligible
+            .as_ref()
+            .unwrap()
+            .release
+            .asset
+            .sha256,
+        "b".repeat(64)
+    );
+    assert!(resolved.projections[0].hold_reasons.is_empty());
+    let mut runtime = None;
+    super::super::merge_checksum_entries(&text, "game-windows.zip", true, &mut runtime)?;
+    assert_eq!(runtime.unwrap(), "b".repeat(64));
+    assert_eq!(serde_json::to_vec(&port)?, frozen);
+    document["facts"]["checksum_sidecars"][0]["text"] =
+        json!(format!("{text}{} game-windows.zip\n", "c".repeat(64)));
+    document["facts_sha256"] = json_digest(&document["facts"])?.into();
+    assert_eq!(
+        inspect(&port, &document)?.projections[0].hold_reasons,
+        ["checksum-ambiguity"]
+    );
+    document["facts"]["checksum_sidecars"][0]["text"] =
+        json!(format!("{} unrelated.zip", "b".repeat(64)));
+    document["facts_sha256"] = json_digest(&document["facts"])?.into();
+    assert!(
+        inspect(&port, &document)?.projections[0]
+            .latest_eligible
+            .is_none()
+    );
+    document["facts"]["checksum_sidecars"][0]["asset_id"] = json!(99);
+    document["facts_sha256"] = json_digest(&document["facts"])?.into();
+    assert!(inspect(&port, &document).is_err());
+    Ok(())
 }
 
 #[test]
@@ -515,6 +581,75 @@ fn native_observer_and_runtime_share_platform_stream_selection() -> Result<()> {
         report.projections[0].hold_reasons,
         ["release-asset-observation-incomplete"]
     );
+    Ok(())
+}
+
+#[test]
+fn opted_in_archive_consumers_share_the_platform_stream_policy() -> Result<()> {
+    let catalog = crate::Catalog::embedded()?;
+    for (id, windows_name, linux_name) in [
+        (
+            "mega-man-x2-snes-recomp",
+            "MegaManX2SNESRecomp-windows-x64-fixture-1.zip",
+            "MegaManX2SNESRecomp-linux-x64-fixture-2.zip",
+        ),
+        (
+            "sonic-the-hedgehog-recomp",
+            "SonicTheHedgehogRecomp-windows-x64-fixture-1.zip",
+            "SonicTheHedgehogRecomp-linux-x64-fixture-2.zip",
+        ),
+        (
+            "super-metroid-recomp",
+            "supermetroid-fixture-1-windows-x64.zip",
+            "supermetroid-fixture-2-linux-x64.zip",
+        ),
+    ] {
+        let port = catalog.port(id)?;
+        let mut document = envelope(vec![release(2, "fixture-2"), release(1, "fixture-1")])?;
+        document["port_id"] = json!(id);
+        document["facts"]["repository"]["full_name"] = json!(port.release.repository);
+        for (index, tag, name) in [(0, "fixture-2", linux_name), (1, "fixture-1", windows_name)] {
+            document["facts"]["releases"][index]["assets"][0]["name"] = json!(name);
+            document["facts"]["releases"][index]["assets"][0]["browser_download_url"] =
+                json!(format!(
+                    "https://github.com/{}/releases/download/{tag}/{name}",
+                    port.release.repository
+                ));
+        }
+        document["facts_sha256"] = json!(json_digest(&document["facts"])?);
+        let observed = inspect(port, &document)?;
+        assert_eq!(
+            observed.projections[0]
+                .channel_candidate
+                .as_ref()
+                .unwrap()
+                .id,
+            1,
+            "{id}"
+        );
+        assert_eq!(
+            observed.projections[0]
+                .latest_eligible
+                .as_ref()
+                .unwrap()
+                .release
+                .asset
+                .name,
+            windows_name
+        );
+        let releases: Vec<super::super::GithubRelease> =
+            serde_json::from_value(document["facts"]["releases"].clone())?;
+        assert!(!super::super::native_release_applies_to_platform(
+            port,
+            Platform::WindowsX86_64,
+            &releases[0]
+        ));
+        assert!(super::super::native_release_applies_to_platform(
+            port,
+            Platform::WindowsX86_64,
+            &releases[1]
+        ));
+    }
     Ok(())
 }
 

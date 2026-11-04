@@ -14,6 +14,7 @@ import {
   compactObserverCache,
   reusableProviderObservation,
   validateObservationContinuation,
+  checksumSourcesFromProjections,
 } from "./upstream-observer.mts";
 import {
   advanceObservation,
@@ -128,6 +129,205 @@ void test("the compiled CLI fixture uses the same canonical facts digest", async
   );
   assert.ok(isRecord(fixture));
   assert.equal(observationHash(fixture.facts), fixture.facts_sha256);
+});
+
+function checksumFixture(redirect = false, changed = false) {
+  let reads = 0;
+  const body = `${"b".repeat(64)}  fixture-2-windows.zip\n`;
+  const server = fixture({
+    intercept: (url, options) => {
+      if (url === `${root}/releases/assets/3` && redirect)
+        return new Response(null, {
+          status: 302,
+          headers: { location: "https://release-assets.githubusercontent.com/fixture/checksum" },
+        });
+      if (
+        url === `${root}/releases/assets/3` ||
+        url.startsWith("https://release-assets.githubusercontent.com/")
+      ) {
+        if (url.startsWith("https://release-assets"))
+          assert.equal(options.headers.Authorization, undefined);
+        reads++;
+        const text = changed && reads > 1 ? `${"c".repeat(64)}  fixture-2-windows.zip\n` : body;
+        return options.headers["If-None-Match"] === '"checksum"' && !changed
+          ? new Response(null, { status: 304 })
+          : new Response(text, { headers: { "content-type": "text/plain", etag: '"checksum"' } });
+      }
+      return null;
+    },
+  });
+  server.replies.set(`${root}/releases/1/assets?per_page=100&page=1`, {
+    body: [
+      { ...asset(), digest: null },
+      {
+        ...asset(3),
+        name: "fixture-2-windows.zip.sha256",
+        digest: null,
+        browser_download_url: `https://github.com/${config.repository}/releases/download/v1.0.0/fixture-2-windows.zip.sha256`,
+      },
+    ],
+  });
+  return { ...server, body };
+}
+const checksumSelection = async () => [{ release_id: 1, asset_id: 3 }];
+
+void test("checksum continuation retains exact text, charges redirects and reuses revalidated facts", async () => {
+  const server = checksumFixture(true);
+  const result = await observeUpstream(config, {
+    fetch: server.fetch,
+    token: "private-test-token",
+    selectChecksumSources: checksumSelection,
+  });
+  assert.deepEqual(result.observation.facts.checksum_sidecars, [
+    { release_id: 1, asset_id: 3, text: server.body },
+  ]);
+  assert.equal(result.observation.consumed.requests, 10);
+  assert.equal(server.requests.length, 10);
+  assert.deepEqual(
+    reusableProviderObservation(config, result.observation, result.cache, undefined, Date.now())
+      ?.facts,
+    result.observation.facts,
+  );
+  const compacted = compactObserverCache(result.cache, config);
+  assert.deepEqual(
+    reusableProviderObservation(config, result.observation, compacted, undefined, Date.now())
+      ?.facts,
+    result.observation.facts,
+  );
+});
+
+void test("checksum continuation resumes with finite request budgets and refuses changed text", async () => {
+  const bounded = validateObserverConfig({ ...config, budget: { ...config.budget, requests: 2 } });
+  const server = checksumFixture();
+  let continuation;
+  let result;
+  for (let turn = 0; turn < 8 && !result; turn++) {
+    try {
+      result = await observeUpstream(bounded, {
+        fetch: server.fetch,
+        continuation,
+        selectChecksumSources: checksumSelection,
+      });
+    } catch (error) {
+      assert.ok(error instanceof ObservationFailure);
+      assert.equal(error.rule, "budget");
+      continuation = error.continuation;
+    }
+  }
+  assert.ok(result, "checksum collection and every revalidation must make bounded progress");
+  assert.equal(result.observation.facts.checksum_sidecars?.[0]?.text, server.body);
+  const mutable = checksumFixture(false, true);
+  await assert.rejects(
+    observeUpstream(config, { fetch: mutable.fetch, selectChecksumSources: checksumSelection }),
+    (error: unknown) =>
+      error instanceof ObservationFailure &&
+      error.rule === "concurrent-change" &&
+      error.continuation?.phase === "restart",
+  );
+});
+
+void test("checksum redirects make progress with one physical request per turn", async () => {
+  const bounded = validateObserverConfig({ ...config, budget: { ...config.budget, requests: 1 } });
+  const server = checksumFixture(true);
+  let continuation;
+  let result;
+  for (let turn = 0; turn < 16 && !result; turn++) {
+    const before = server.requests.length;
+    try {
+      result = await observeUpstream(bounded, {
+        fetch: server.fetch,
+        continuation,
+        selectChecksumSources: checksumSelection,
+      });
+    } catch (error) {
+      assert.ok(error instanceof ObservationFailure);
+      assert.equal(error.rule, "budget");
+      continuation = error.continuation;
+      validateObservationContinuation(continuation, bounded);
+    }
+    assert.ok(
+      server.requests.length - before <= 1,
+      "redirect continuation must retain physical admission",
+    );
+  }
+  assert.ok(result, "one-request source quanta must finish both redirected reads and revalidation");
+  assert.equal(result.observation.facts.checksum_sidecars?.[0]?.text, server.body);
+  assert.equal(server.requests.length, 10);
+});
+
+void test("checksum dependency changes reset validation without discarding bounded evidence", async () => {
+  const bounded = validateObserverConfig({ ...config, budget: { ...config.budget, requests: 5 } });
+  const server = checksumFixture();
+  const assets = arrayFixture(
+    server.replies.get(`${root}/releases/1/assets?per_page=100&page=1`).body,
+  );
+  assets.push({
+    ...asset(4),
+    name: "checksums.txt",
+    browser_download_url: `https://github.com/${config.repository}/releases/download/v1.0.0/checksums.txt`,
+  });
+  const fetcher = async (...args: Parameters<typeof server.fetch>) =>
+    args[0] === `${root}/releases/assets/4`
+      ? new Response(server.body, { headers: { "content-type": "text/plain" } })
+      : server.fetch(...args);
+  let continuation;
+  try {
+    await observeUpstream(bounded, { fetch: fetcher, selectChecksumSources: checksumSelection });
+    assert.fail("expected a finite validation interruption");
+  } catch (error) {
+    assert.ok(error instanceof ObservationFailure);
+    assert.equal(error.rule, "budget");
+    continuation = error.continuation;
+  }
+  assert.equal(continuation?.phase, "validate");
+  let result;
+  for (let turn = 0; turn < 4 && !result; turn++) {
+    try {
+      result = await observeUpstream(bounded, {
+        fetch: fetcher,
+        continuation,
+        selectChecksumSources: async () => [{ release_id: 1, asset_id: 4 }],
+      });
+    } catch (error) {
+      assert.ok(error instanceof ObservationFailure);
+      assert.equal(error.rule, "budget");
+      continuation = error.continuation;
+    }
+  }
+  assert.deepEqual(result?.observation.facts.checksum_sidecars, [
+    { release_id: 1, asset_id: 4, text: server.body },
+  ]);
+});
+
+void test("checksum dependency requests are exact, bounded and preserve incomplete holds", async () => {
+  assert.deepEqual(
+    checksumSourcesFromProjections([
+      { checksum_sources: [{ release_id: 1, asset_id: 3 }] },
+      { checksum_sources: [{ release_id: 1, asset_id: 3 }] },
+      { hold_reasons: ["channel-not-offered"], checksum_sources: [{ release_id: 2, asset_id: 4 }] },
+    ]),
+    [{ release_id: 1, asset_id: 3 }],
+  );
+  const server = checksumFixture();
+  await assert.rejects(
+    observeUpstream(config, {
+      fetch: server.fetch,
+      selectChecksumSources: async () => [{ release_id: 999, asset_id: 3 }],
+    }),
+    /outside collected assets/,
+  );
+  const old = await observeUpstream(config, { fetch: server.fetch });
+  const outcome = await advanceObservation(config, null, { project, fetch: server.fetch });
+  const refreshed = await advanceObservation(config, outcome.checkpoint, {
+    project,
+    reprojectFreshFacts: true,
+    fetch: server.fetch,
+    selectChecksumSources: checksumSelection,
+  });
+  assert.ok(old.observation.facts.checksum_sidecars === undefined);
+  const facts = refreshed.report.observation?.facts;
+  assert.ok(isRecord(facts) && Array.isArray(facts.checksum_sidecars));
+  assert.equal(facts.checksum_sidecars.length, 1);
 });
 
 void test("scheduled observation keeps the configured cadence, read-only authority and bounded recovery cache", async () => {

@@ -93,7 +93,8 @@ pub struct SourceApplicationInspection {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SourceReleaseApplicability {
-    /// Open code: `artifact_bound`, `upstream_release_bound`, or `not_rebound`.
+    /// Open code: `artifact_bound`, `upstream_release_bound`,
+    /// `integration_contract_bound`, or `not_rebound`.
     pub state_code: String,
     #[serde(default)]
     pub reviewed_bindings: Vec<crate::SourceContractApplicability>,
@@ -294,7 +295,9 @@ fn assemble_report(
                 contract: contract.clone(),
                 contract_result: contract_result(contract, inspection.as_ref()),
                 release_applicability: SourceReleaseApplicability {
-                    state_code: if contract
+                    state_code: if contract.release_policy.is_some() {
+                        "integration_contract_bound"
+                    } else if contract
                         .applicability
                         .iter()
                         .any(|binding| binding.artifact_sha256.is_some())

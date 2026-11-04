@@ -7839,6 +7839,17 @@
           "profile_id": {
             "type": "string"
           },
+          "release_policy": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/SourceReleasePolicy"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "An explicit one-time acceptance of the declared source integration for\ncompatible provider releases. Exact historical evidence stays exact."
+          },
           "reviewed_at": {
             "type": "string"
           },
@@ -8882,7 +8893,7 @@
             "type": "array"
           },
           "state_code": {
-            "description": "Open code: `artifact_bound`, `upstream_release_bound`, or `not_rebound`.",
+            "description": "Open code: `artifact_bound`, `upstream_release_bound`,\n`integration_contract_bound`, or `not_rebound`.",
             "type": "string"
           }
         },
@@ -8891,6 +8902,12 @@
           "reviewed_bindings"
         ],
         "type": "object"
+      },
+      "SourceReleasePolicy": {
+        "enum": [
+          "integration-contract-v1"
+        ],
+        "type": "string"
       },
       "SourceRepresentation": {
         "oneOf": [
@@ -9764,6 +9781,17 @@
           },
           "profile_id": {
             "type": "string"
+          },
+          "release_policy": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/SourceReleasePolicy"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "An explicit one-time acceptance of the declared source integration for\ncompatible provider releases. Exact historical evidence stays exact."
           },
           "reviewed_at": {
             "type": "string"
@@ -10800,7 +10828,7 @@
             "type": "array"
           },
           "state_code": {
-            "description": "Open code: `artifact_bound`, `upstream_release_bound`, or `not_rebound`.",
+            "description": "Open code: `artifact_bound`, `upstream_release_bound`,\n`integration_contract_bound`, or `not_rebound`.",
             "type": "string"
           }
         },
@@ -10809,6 +10837,12 @@
           "reviewed_bindings"
         ],
         "type": "object"
+      },
+      "SourceReleasePolicy": {
+        "enum": [
+          "integration-contract-v1"
+        ],
+        "type": "string"
       },
       "SourceRepresentation": {
         "oneOf": [
@@ -12489,6 +12523,34 @@
             "type": "string"
           }
         ]
+      },
+      "ArchiveDataCompatibilityV1": {
+        "additionalProperties": false,
+        "description": "Reviewed conventional data shared by compatible runtimes. Every other\npersistent object remains bound to its producing archive, including unknown\nchildren of a declared directory. This does not rewind data on rollback.",
+        "properties": {
+          "build_specific_progress_paths": {
+            "description": "Player progress that cannot move to a different producing archive.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "contract_id": {
+            "type": "string"
+          },
+          "shared_paths": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "contract_id",
+          "shared_paths",
+          "build_specific_progress_paths"
+        ],
+        "type": "object"
       },
       "ArtifactIdentity": {
         "properties": {
@@ -15052,6 +15114,16 @@
           "adapter": {
             "$ref": "#/$defs/AdapterKind"
           },
+          "archive_data_compatibility_v1": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ArchiveDataCompatibilityV1"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "automated_tested_platforms": {
             "default": [],
             "items": {
@@ -15794,6 +15866,17 @@
           },
           "profile_id": {
             "type": "string"
+          },
+          "release_policy": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/SourceReleasePolicy"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "An explicit one-time acceptance of the declared source integration for\ncompatible provider releases. Exact historical evidence stays exact."
           },
           "reviewed_at": {
             "type": "string"
@@ -17251,6 +17334,12 @@
           "missing_tool",
           "check_failed",
           "consent_required"
+        ],
+        "type": "string"
+      },
+      "SourceReleasePolicy": {
+        "enum": [
+          "integration-contract-v1"
         ],
         "type": "string"
       },

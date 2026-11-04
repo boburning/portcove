@@ -19,6 +19,27 @@ filter = 'package(portcove-core) & test(/^service::ghostship_persistence_tests::
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
 
+# CI41882520528/a1 Windows1 cut the nine-origin partitioned-envelope and
+# downgrade/cache fixture at30.086s; Linux completed the same checks in23.403s.
+# Give this exact Windows case finite90s completion. Retain every origin,
+# downgrade, cache assertion, worker setting and zero retries; no product deadline changes.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^installed_contract::tests::partitioned_archive_envelope_preserves_origins_and_refuses_downgraded_readers$/)'
+slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
+success-output = "immediate"
+
+# CI41889778486/a1 Windows2 retained a 90.276s cutoff after continuous
+# install/prepare/backup/stage/apply progress (activation committed at83.320s).
+# This single test executes three complete title lifecycles plus opaque restore.
+# Give only this Windows matrix finite15-minute completion. Keep all assertions,
+# product deadlines, two workers, cleanup and zero retries; no speedup is claimed.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::native_portable::tests::compatible_archive_consumers_progress_with_populated_data_and_frozen_definitions$/)'
+slow-timeout = { period = "5s", terminate-after = 180, grace-period = "0s" }
+success-output = "immediate"
+
 # R64 CI 41786426031/a1 Windows 7 retained a 30.039s cutoff after signed
 # admission/install/baseline progress through 17.652s. This unchanged fixture
 # passed 14.635s/21.384s in the preceding two deliveries. Allow only this Windows

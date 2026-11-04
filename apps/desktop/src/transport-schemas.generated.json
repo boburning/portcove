@@ -3882,6 +3882,34 @@
           }
         ]
       },
+      "ArchiveDataCompatibilityV1": {
+        "additionalProperties": false,
+        "description": "Reviewed conventional data shared by compatible runtimes. Every other\npersistent object remains bound to its producing archive, including unknown\nchildren of a declared directory. This does not rewind data on rollback.",
+        "properties": {
+          "build_specific_progress_paths": {
+            "description": "Player progress that cannot move to a different producing archive.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "contract_id": {
+            "type": "string"
+          },
+          "shared_paths": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "contract_id",
+          "shared_paths",
+          "build_specific_progress_paths"
+        ],
+        "type": "object"
+      },
       "BundledRuntime": {
         "properties": {
           "archive_root": {
@@ -4883,6 +4911,16 @@
           "adapter": {
             "$ref": "#/$defs/AdapterKind"
           },
+          "archive_data_compatibility_v1": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ArchiveDataCompatibilityV1"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "automated_tested_platforms": {
             "default": [],
             "items": {
@@ -5419,6 +5457,17 @@
           },
           "profile_id": {
             "type": "string"
+          },
+          "release_policy": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/SourceReleasePolicy"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "An explicit one-time acceptance of the declared source integration for\ncompatible provider releases. Exact historical evidence stays exact."
           },
           "reviewed_at": {
             "type": "string"
@@ -6243,6 +6292,12 @@
           "members"
         ],
         "type": "object"
+      },
+      "SourceReleasePolicy": {
+        "enum": [
+          "integration-contract-v1"
+        ],
+        "type": "string"
       },
       "SourceRepresentation": {
         "oneOf": [
@@ -25437,6 +25492,34 @@
           }
         ]
       },
+      "ArchiveDataCompatibilityV1": {
+        "additionalProperties": false,
+        "description": "Reviewed conventional data shared by compatible runtimes. Every other\npersistent object remains bound to its producing archive, including unknown\nchildren of a declared directory. This does not rewind data on rollback.",
+        "properties": {
+          "build_specific_progress_paths": {
+            "description": "Player progress that cannot move to a different producing archive.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "contract_id": {
+            "type": "string"
+          },
+          "shared_paths": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "contract_id",
+          "shared_paths",
+          "build_specific_progress_paths"
+        ],
+        "type": "object"
+      },
       "BundledRuntime": {
         "properties": {
           "archive_root": {
@@ -26793,6 +26876,16 @@
       "adapter": {
         "$ref": "#/$defs/AdapterKind"
       },
+      "archive_data_compatibility_v1": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ArchiveDataCompatibilityV1"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
       "automated_tested_platforms": {
         "default": [],
         "items": {
@@ -27994,6 +28087,17 @@
           "profile_id": {
             "type": "string"
           },
+          "release_policy": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/SourceReleasePolicy"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "An explicit one-time acceptance of the declared source integration for\ncompatible provider releases. Exact historical evidence stays exact."
+          },
           "reviewed_at": {
             "type": "string"
           },
@@ -29175,7 +29279,7 @@
             "type": "array"
           },
           "state_code": {
-            "description": "Open code: `artifact_bound`, `upstream_release_bound`, or `not_rebound`.",
+            "description": "Open code: `artifact_bound`, `upstream_release_bound`,\n`integration_contract_bound`, or `not_rebound`.",
             "type": "string"
           }
         },
@@ -29184,6 +29288,12 @@
           "reviewed_bindings"
         ],
         "type": "object"
+      },
+      "SourceReleasePolicy": {
+        "enum": [
+          "integration-contract-v1"
+        ],
+        "type": "string"
       },
       "SourceRepresentation": {
         "oneOf": [
@@ -32817,6 +32927,34 @@
           }
         ]
       },
+      "ArchiveDataCompatibilityV1": {
+        "additionalProperties": false,
+        "description": "Reviewed conventional data shared by compatible runtimes. Every other\npersistent object remains bound to its producing archive, including unknown\nchildren of a declared directory. This does not rewind data on rollback.",
+        "properties": {
+          "build_specific_progress_paths": {
+            "description": "Player progress that cannot move to a different producing archive.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "contract_id": {
+            "type": "string"
+          },
+          "shared_paths": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "contract_id",
+          "shared_paths",
+          "build_specific_progress_paths"
+        ],
+        "type": "object"
+      },
       "BundledRuntime": {
         "properties": {
           "archive_root": {
@@ -33855,6 +33993,16 @@
           "adapter": {
             "$ref": "#/$defs/AdapterKind"
           },
+          "archive_data_compatibility_v1": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ArchiveDataCompatibilityV1"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "automated_tested_platforms": {
             "default": [],
             "items": {
@@ -34391,6 +34539,17 @@
           },
           "profile_id": {
             "type": "string"
+          },
+          "release_policy": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/SourceReleasePolicy"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "An explicit one-time acceptance of the declared source integration for\ncompatible provider releases. Exact historical evidence stays exact."
           },
           "reviewed_at": {
             "type": "string"
@@ -35215,6 +35374,12 @@
           "members"
         ],
         "type": "object"
+      },
+      "SourceReleasePolicy": {
+        "enum": [
+          "integration-contract-v1"
+        ],
+        "type": "string"
       },
       "SourceRepresentation": {
         "oneOf": [
@@ -36899,6 +37064,17 @@
           "profile_id": {
             "type": "string"
           },
+          "release_policy": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/SourceReleasePolicy"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "An explicit one-time acceptance of the declared source integration for\ncompatible provider releases. Exact historical evidence stays exact."
+          },
           "reviewed_at": {
             "type": "string"
           },
@@ -37934,7 +38110,7 @@
             "type": "array"
           },
           "state_code": {
-            "description": "Open code: `artifact_bound`, `upstream_release_bound`, or `not_rebound`.",
+            "description": "Open code: `artifact_bound`, `upstream_release_bound`,\n`integration_contract_bound`, or `not_rebound`.",
             "type": "string"
           }
         },
@@ -37943,6 +38119,12 @@
           "reviewed_bindings"
         ],
         "type": "object"
+      },
+      "SourceReleasePolicy": {
+        "enum": [
+          "integration-contract-v1"
+        ],
+        "type": "string"
       },
       "SourceRepresentation": {
         "oneOf": [
@@ -38590,6 +38772,17 @@
           "profile_id": {
             "type": "string"
           },
+          "release_policy": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/SourceReleasePolicy"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "An explicit one-time acceptance of the declared source integration for\ncompatible provider releases. Exact historical evidence stays exact."
+          },
           "reviewed_at": {
             "type": "string"
           },
@@ -38959,6 +39152,12 @@
           "identities"
         ],
         "type": "object"
+      },
+      "SourceReleasePolicy": {
+        "enum": [
+          "integration-contract-v1"
+        ],
+        "type": "string"
       },
       "SourceRepresentation": {
         "oneOf": [
@@ -42277,6 +42476,17 @@
           "profile_id": {
             "type": "string"
           },
+          "release_policy": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/SourceReleasePolicy"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "An explicit one-time acceptance of the declared source integration for\ncompatible provider releases. Exact historical evidence stays exact."
+          },
           "reviewed_at": {
             "type": "string"
           },
@@ -43210,7 +43420,7 @@
             "type": "array"
           },
           "state_code": {
-            "description": "Open code: `artifact_bound`, `upstream_release_bound`, or `not_rebound`.",
+            "description": "Open code: `artifact_bound`, `upstream_release_bound`,\n`integration_contract_bound`, or `not_rebound`.",
             "type": "string"
           }
         },
@@ -43219,6 +43429,12 @@
           "reviewed_bindings"
         ],
         "type": "object"
+      },
+      "SourceReleasePolicy": {
+        "enum": [
+          "integration-contract-v1"
+        ],
+        "type": "string"
       },
       "SourceRepresentation": {
         "oneOf": [
@@ -43971,6 +44187,17 @@
           },
           "profile_id": {
             "type": "string"
+          },
+          "release_policy": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/SourceReleasePolicy"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "An explicit one-time acceptance of the declared source integration for\ncompatible provider releases. Exact historical evidence stays exact."
           },
           "reviewed_at": {
             "type": "string"
@@ -44999,7 +45226,7 @@
             "type": "array"
           },
           "state_code": {
-            "description": "Open code: `artifact_bound`, `upstream_release_bound`, or `not_rebound`.",
+            "description": "Open code: `artifact_bound`, `upstream_release_bound`,\n`integration_contract_bound`, or `not_rebound`.",
             "type": "string"
           }
         },
@@ -45008,6 +45235,12 @@
           "reviewed_bindings"
         ],
         "type": "object"
+      },
+      "SourceReleasePolicy": {
+        "enum": [
+          "integration-contract-v1"
+        ],
+        "type": "string"
       },
       "SourceRepresentation": {
         "oneOf": [
@@ -46242,6 +46475,17 @@
           "profile_id": {
             "type": "string"
           },
+          "release_policy": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/SourceReleasePolicy"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "An explicit one-time acceptance of the declared source integration for\ncompatible provider releases. Exact historical evidence stays exact."
+          },
           "reviewed_at": {
             "type": "string"
           },
@@ -47285,7 +47529,7 @@
             "type": "array"
           },
           "state_code": {
-            "description": "Open code: `artifact_bound`, `upstream_release_bound`, or `not_rebound`.",
+            "description": "Open code: `artifact_bound`, `upstream_release_bound`,\n`integration_contract_bound`, or `not_rebound`.",
             "type": "string"
           }
         },
@@ -47294,6 +47538,12 @@
           "reviewed_bindings"
         ],
         "type": "object"
+      },
+      "SourceReleasePolicy": {
+        "enum": [
+          "integration-contract-v1"
+        ],
+        "type": "string"
       },
       "SourceRepresentation": {
         "oneOf": [
@@ -48029,6 +48279,17 @@
           },
           "profile_id": {
             "type": "string"
+          },
+          "release_policy": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/SourceReleasePolicy"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "An explicit one-time acceptance of the declared source integration for\ncompatible provider releases. Exact historical evidence stays exact."
           },
           "reviewed_at": {
             "type": "string"
@@ -49057,7 +49318,7 @@
             "type": "array"
           },
           "state_code": {
-            "description": "Open code: `artifact_bound`, `upstream_release_bound`, or `not_rebound`.",
+            "description": "Open code: `artifact_bound`, `upstream_release_bound`,\n`integration_contract_bound`, or `not_rebound`.",
             "type": "string"
           }
         },
@@ -49066,6 +49327,12 @@
           "reviewed_bindings"
         ],
         "type": "object"
+      },
+      "SourceReleasePolicy": {
+        "enum": [
+          "integration-contract-v1"
+        ],
+        "type": "string"
       },
       "SourceRepresentation": {
         "oneOf": [
@@ -51906,6 +52173,13 @@
               }
             ]
           },
+          "checksum_sources": {
+            "description": "Exact provider assets required for automatic integrity continuation.",
+            "items": {
+              "$ref": "#/$defs/ObservedChecksumSource"
+            },
+            "type": "array"
+          },
           "hold_reasons": {
             "items": {
               "type": "string"
@@ -51962,6 +52236,25 @@
           "provider_authenticated",
           "artifact_bytes_verified",
           "catalog_admission_assessed"
+        ],
+        "type": "object"
+      },
+      "ObservedChecksumSource": {
+        "properties": {
+          "asset_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "release_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "release_id",
+          "asset_id"
         ],
         "type": "object"
       },

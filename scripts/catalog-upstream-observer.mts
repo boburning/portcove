@@ -15,8 +15,14 @@ import {
   observationHash,
   ObservationFailure,
   validateObserverConfig,
+  checksumSourcesFromProjections,
 } from "./upstream-observer.mts";
-import type { ObserverConfig, ObserveOptions, ProviderObservation } from "./upstream-observer.mts";
+import type {
+  ChecksumSource,
+  ObserverConfig,
+  ObserveOptions,
+  ProviderObservation,
+} from "./upstream-observer.mts";
 import { advanceObservation } from "./observe-configured-upstream.mts";
 
 export interface ObservablePort {
@@ -41,6 +47,8 @@ interface SelectionProgress {
   cursor: number;
   release_ids: number[];
   sha256: string;
+  checksum_sources?: ChecksumSource[];
+  checksum_sources_sha256?: string;
 }
 interface PolicyProgress {
   binding: string;
@@ -393,6 +401,15 @@ export function validateCatalogObserverCheckpoint(
       )
         throw new Error("Invalid Core continuation binding");
       if (key === "selection_progress") {
+        if (
+          progress.checksum_sources !== undefined &&
+          (!Array.isArray(progress.checksum_sources) ||
+            progress.checksum_sources_sha256 !== observationHash(progress.checksum_sources) ||
+            observationHash(
+              checksumSourcesFromProjections([{ checksum_sources: progress.checksum_sources }]),
+            ) !== progress.checksum_sources_sha256)
+        )
+          throw new Error("Invalid Core checksum continuation");
         if (
           !Number.isSafeInteger(progress.cursor) ||
           Number(progress.cursor) < 0 ||
@@ -979,7 +996,7 @@ export async function advanceCatalogObservations(
           await options.commit(structuredClone(state));
           coreProgress++;
         }
-        policies.push(...pendingPolicies.policies);
+        policies.splice(0, policies.length, ...pendingPolicies.policies);
         return policies[source.ports.findIndex((port) => port.id === config.port_id)];
       };
       let sourceRequests = 0;
@@ -987,6 +1004,61 @@ export async function advanceCatalogObservations(
         1,
         Math.min(template.budget.requests, Math.floor(capacity() / (pending.length - index))),
       );
+      const selectAssetReleases = async (headers: ProviderObservation) => {
+        if (
+          progress.selection_progress?.binding !== binding ||
+          progress.selection_progress.facts_sha256 !== headers.facts_sha256 ||
+          progress.selection_progress.checksum_sources === undefined
+        )
+          progress.selection_progress = {
+            binding,
+            facts_sha256: headers.facts_sha256,
+            cursor: 0,
+            release_ids: [],
+            sha256: observationHash([]),
+            checksum_sources: [],
+            checksum_sources_sha256: observationHash([]),
+          };
+        const selection = progress.selection_progress;
+        if (
+          selection.cursor > source.ports.length ||
+          selection.sha256 !== observationHash(selection.release_ids) ||
+          selection.release_ids.some(
+            (id) => !headers.facts.releases.some((release) => release.id === id),
+          )
+        )
+          throw new ObservationFailure(
+            "invalid-checkpoint",
+            "Continued Core selection differs from exact policy or release headers",
+          );
+        const candidates = new Set(selection.release_ids);
+        for (let index = selection.cursor; index < source.ports.length; index++) {
+          const port = source.ports[index]!;
+          const policy = await projectBound(port, config.repository_id, scoped(headers, port.id));
+          if (port.listing)
+            for (const id of listingObservationReleaseIds(headers)) candidates.add(id);
+          for (const projection of policy.projections as unknown[]) {
+            if (
+              isRecord(projection) &&
+              port.channels.includes(String(projection.channel)) &&
+              isRecord(projection.channel_candidate) &&
+              Number.isSafeInteger(projection.channel_candidate.id)
+            )
+              candidates.add(Number(projection.channel_candidate.id));
+          }
+          selection.checksum_sources = checksumSourcesFromProjections([
+            { checksum_sources: selection.checksum_sources },
+            ...(policy.projections as unknown[]),
+          ]);
+          selection.checksum_sources_sha256 = observationHash(selection.checksum_sources);
+          selection.release_ids = [...candidates].sort((a, b) => a - b);
+          selection.sha256 = observationHash(selection.release_ids);
+          selection.cursor = index + 1;
+          await options.commit(structuredClone(state));
+          coreProgress++;
+        }
+        return selection.release_ids;
+      };
       const result = await options.withSourceLock(config, async () => {
         const priorSource = decodeStoredObserverCheckpoint(
           await options.load(config),
@@ -1029,56 +1101,10 @@ export async function advanceCatalogObservations(
           },
           observeResponse,
           consumeResponseBytes,
-          selectAssetReleases: async (headers) => {
-            if (
-              progress.selection_progress?.binding !== binding ||
-              progress.selection_progress.facts_sha256 !== headers.facts_sha256
-            )
-              progress.selection_progress = {
-                binding,
-                facts_sha256: headers.facts_sha256,
-                cursor: 0,
-                release_ids: [],
-                sha256: observationHash([]),
-              };
-            const selection = progress.selection_progress;
-            if (
-              selection.cursor > source.ports.length ||
-              selection.sha256 !== observationHash(selection.release_ids) ||
-              selection.release_ids.some(
-                (id) => !headers.facts.releases.some((release) => release.id === id),
-              )
-            )
-              throw new ObservationFailure(
-                "invalid-checkpoint",
-                "Continued Core selection differs from exact policy or release headers",
-              );
-            const candidates = new Set(selection.release_ids);
-            for (let index = selection.cursor; index < source.ports.length; index++) {
-              const port = source.ports[index]!;
-              const policy = await projectBound(
-                port,
-                config.repository_id,
-                scoped(headers, port.id),
-              );
-              if (port.listing)
-                for (const id of listingObservationReleaseIds(headers)) candidates.add(id);
-              for (const projection of policy.projections as unknown[]) {
-                if (
-                  isRecord(projection) &&
-                  port.channels.includes(String(projection.channel)) &&
-                  isRecord(projection.channel_candidate) &&
-                  Number.isSafeInteger(projection.channel_candidate.id)
-                )
-                  candidates.add(Number(projection.channel_candidate.id));
-              }
-              selection.release_ids = [...candidates].sort((a, b) => a - b);
-              selection.sha256 = observationHash(selection.release_ids);
-              selection.cursor = index + 1;
-              await options.commit(structuredClone(state));
-              coreProgress++;
-            }
-            return selection.release_ids;
+          selectAssetReleases,
+          selectChecksumSources: async (observation) => {
+            await selectAssetReleases(observation);
+            return progress.selection_progress!.checksum_sources!;
           },
           project: projectAll,
           commitContinuation: (checkpoint) => options.save(config, checkpoint),

@@ -184,6 +184,7 @@ fn fresh_direct_entries_require_v26_without_reinterpreting_retained_or_exact_old
         "mega-man-x2-snes-recomp",
     ] {
         let mut port = catalog.port(id).unwrap().clone();
+        port.archive_data_compatibility_v1 = None; // Preserve the prior v26 interpretation.
         // Synthetic successor identity selects the guard; no artifact is run.
         port.release.provider = crate::ReleaseSource::Github;
         port.release.repository = "fixture/guarded-reader".into();
@@ -210,8 +211,8 @@ fn fresh_direct_entries_require_v26_without_reinterpreting_retained_or_exact_old
         entry["required_capabilities"][0]["minimum_version"] = json!(26);
         entry["required_capabilities"][0]["maximum_version"] = json!(26);
         assert!(inspect(&entry).unwrap().capabilities().compatible);
-        entry["required_capabilities"][0]["minimum_version"] = json!(27);
-        entry["required_capabilities"][0]["maximum_version"] = json!(27);
+        entry["required_capabilities"][0]["minimum_version"] = json!(28);
+        entry["required_capabilities"][0]["maximum_version"] = json!(28);
         assert!(!inspect(&entry).unwrap().capabilities().compatible);
         let old = packet["rows"]
             .as_array()
@@ -236,21 +237,34 @@ fn fresh_direct_entries_require_v26_without_reinterpreting_retained_or_exact_old
 
 #[test]
 fn fresh_super_metroid_requires_v26_and_preserves_its_exact_legacy_reader() {
-    let catalog = crate::Catalog::embedded().unwrap();
-    let port = catalog.port("super-metroid-recomp").unwrap();
+    let fixture: Value =
+        serde_json::from_str(include_str!("../tests/fixtures/direct-diagnostic-v26.json")).unwrap();
+    let port: crate::PortDefinition = serde_json::from_value(
+        fixture["ports"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|p| p["id"] == "super-metroid-recomp")
+            .unwrap()
+            .clone(),
+    )
+    .unwrap();
     let release = &port.release.direct[&crate::Platform::WindowsX86_64];
     assert_eq!(release.version, "v0.4.2");
     assert_eq!(
         release.sha256,
         "72b7c179b855fba9404eec07abdbacefaffa4c67898f5c5232f0b1444b73d531"
     );
-    let source_contract = catalog
-        .source_catalog()
-        .unwrap()
-        .contracts
-        .iter()
-        .find(|contract| contract.port_id == port.id)
-        .unwrap();
+    let source_contract: crate::PortSourceContract = serde_json::from_value(
+        fixture["source_contracts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|c| c["port_id"] == port.id)
+            .unwrap()
+            .clone(),
+    )
+    .unwrap();
     assert!(source_contract.applies_to_release(&release.version, &release.sha256));
     assert!(!source_contract.applies_to_release(&release.version, &"a".repeat(64)));
     assert!(!source_contract.applies_to_release("unreviewed-version", &release.sha256));
@@ -258,7 +272,7 @@ fn fresh_super_metroid_requires_v26_and_preserves_its_exact_legacy_reader() {
         "v0.3.12",
         "2b864f287e971f4ed8fa4205b69927ab43ecce5b1a4e79d08a8bd7530c3d87c9"
     ));
-    let mut entry = entry_for_port(port);
+    let mut entry = entry_for_port(&port);
     for minimum in [1, 23, 24, 25] {
         entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
         entry["required_capabilities"][0]["maximum_version"] = json!(26);

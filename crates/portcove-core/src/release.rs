@@ -99,6 +99,7 @@ struct DeviceSession {
 pub(crate) struct ReleaseSelectionCacheKey {
     adapter: AdapterKind,
     n64_runtime_at_executable_parent: bool,
+    partitioned_archive: bool,
     repository: String,
     channel: ReleaseChannel,
     platform: Platform,
@@ -112,6 +113,7 @@ impl ReleaseSelectionCacheKey {
         Self {
             adapter: port.adapter,
             n64_runtime_at_executable_parent: port.n64_runtime_at_executable_parent,
+            partitioned_archive: port.archive_data_compatibility_v1.is_some(),
             scope_binding: None,
             repository: port.release.repository.clone(),
             channel,
@@ -135,6 +137,12 @@ impl ReleaseSelectionCacheKey {
 struct CachedRelease {
     stored_at: Instant,
     release: ResolvedRelease,
+    identity: Option<crate::definition_acquisition::GithubArtifactIdentity>,
+}
+
+struct ResolvedGithub {
+    release: ResolvedRelease,
+    identity: Option<crate::definition_acquisition::GithubArtifactIdentity>,
 }
 
 const RELEASE_CACHE_TTL: Duration = Duration::from_secs(5 * 60);
@@ -650,13 +658,31 @@ impl GithubReleaseProvider {
         )))
     }
 
+    #[cfg(test)]
     async fn cached_release(&self, key: &ReleaseSelectionCacheKey) -> Option<ResolvedRelease> {
-        let mut cache = self.cache.write().await;
-        cache.retain(|_, entry| entry.stored_at.elapsed() < RELEASE_CACHE_TTL);
-        cache.get(key).map(|entry| entry.release.clone())
+        self.cached_selection(key).await.map(|value| value.release)
     }
 
+    async fn cached_selection(&self, key: &ReleaseSelectionCacheKey) -> Option<ResolvedGithub> {
+        let mut cache = self.cache.write().await;
+        cache.retain(|_, entry| entry.stored_at.elapsed() < RELEASE_CACHE_TTL);
+        cache.get(key).map(|entry| ResolvedGithub {
+            release: entry.release.clone(),
+            identity: entry.identity.clone(),
+        })
+    }
+
+    #[cfg(test)]
     async fn store_release(&self, key: ReleaseSelectionCacheKey, release: ResolvedRelease) {
+        self.store_selection(key, release, None).await;
+    }
+
+    async fn store_selection(
+        &self,
+        key: ReleaseSelectionCacheKey,
+        release: ResolvedRelease,
+        identity: Option<crate::definition_acquisition::GithubArtifactIdentity>,
+    ) {
         let mut cache = self.cache.write().await;
         cache.retain(|_, entry| entry.stored_at.elapsed() < RELEASE_CACHE_TTL);
         if !cache.contains_key(&key)
@@ -673,6 +699,7 @@ impl GithubReleaseProvider {
             CachedRelease {
                 stored_at: Instant::now(),
                 release,
+                identity,
             },
         );
     }
@@ -946,29 +973,7 @@ impl GithubReleaseProvider {
         target: &GithubAsset,
         scope: Option<&crate::DefinitionAcquisitionScope>,
     ) -> Result<Option<String>> {
-        let exact_name = format!("{}.sha256", target.name);
-        let exact = assets
-            .iter()
-            .any(|asset| asset.name.eq_ignore_ascii_case(&exact_name));
-        let sidecars = assets
-            .iter()
-            .filter(|asset| {
-                if exact {
-                    asset.name.eq_ignore_ascii_case(&exact_name)
-                } else {
-                    ["sha256sums", "sha256sums.txt", "checksums.txt"]
-                        .iter()
-                        .any(|name| asset.name.eq_ignore_ascii_case(name))
-                }
-            })
-            .take(CHECKSUM_MAX_SIDECARS + 1)
-            .collect::<Vec<_>>();
-        if sidecars.len() > CHECKSUM_MAX_SIDECARS {
-            return Err(PortcoveError::verification(
-                "selected checksum authority exceeds the 8-sidecar limit",
-            )
-            .detail("reason", "checksum_source_limit"));
-        }
+        let (exact, sidecars) = checksum_sidecars(assets, target)?;
         let mut checksum = None;
         let client = match scope {
             Some(scope) => reqwest::Client::builder()
@@ -1004,6 +1009,38 @@ impl GithubReleaseProvider {
         }
         Ok(checksum)
     }
+}
+
+/// Pure authority selection shared by resolution and inert observation. Exact
+/// per-asset sidecars take precedence; every applicable authority must agree.
+fn checksum_sidecars<'a>(
+    assets: &'a [GithubAsset],
+    target: &GithubAsset,
+) -> Result<(bool, Vec<&'a GithubAsset>)> {
+    let exact_name = format!("{}.sha256", target.name);
+    let exact = assets
+        .iter()
+        .any(|asset| asset.name.eq_ignore_ascii_case(&exact_name));
+    let sidecars = assets
+        .iter()
+        .filter(|asset| {
+            if exact {
+                asset.name.eq_ignore_ascii_case(&exact_name)
+            } else {
+                ["sha256sums", "sha256sums.txt", "checksums.txt"]
+                    .iter()
+                    .any(|name| asset.name.eq_ignore_ascii_case(name))
+            }
+        })
+        .take(CHECKSUM_MAX_SIDECARS + 1)
+        .collect::<Vec<_>>();
+    if sidecars.len() > CHECKSUM_MAX_SIDECARS {
+        return Err(PortcoveError::verification(
+            "selected checksum authority exceeds the 8-sidecar limit",
+        )
+        .detail("reason", "checksum_source_limit"));
+    }
+    Ok((exact, sidecars))
 }
 
 fn merge_checksum_entries(
@@ -1063,6 +1100,7 @@ impl ReleaseProvider for GithubReleaseProvider {
         let scope = self.bind_qualification_scope(scope.as_ref())?;
         self.resolve_with_scope(port, channel, platform, scope.as_ref())
             .await
+            .map(|selection| selection.release)
     }
 
     async fn resolve_scoped(
@@ -1072,27 +1110,30 @@ impl ReleaseProvider for GithubReleaseProvider {
         platform: Platform,
         scope: Option<&crate::DefinitionAcquisitionScope>,
     ) -> Result<crate::ScopedResolvedRelease> {
+        let inferred = match (scope, &self.library) {
+            (None, Some(library)) => {
+                let (catalog, _) = library.load_catalog()?;
+                crate::definition_repository::publisher_policy::acquisition_scope(
+                    library, &catalog, &port.id,
+                )?
+            }
+            _ => None,
+        };
+        let scope = scope.or(inferred.as_ref());
         #[cfg(feature = "qualification-fixtures")]
         let bound_scope = self.bind_qualification_scope(scope)?;
         #[cfg(feature = "qualification-fixtures")]
         let scope = bound_scope.as_ref();
-        if scope.is_none() {
-            return self
-                .resolve(port, channel, platform)
-                .await
-                .and_then(|release| {
-                    crate::ScopedResolvedRelease::legacy(release)
-                        .for_selection(port, platform, channel)
-                });
-        }
-        let release = self
+        let selected = self
             .resolve_with_scope(port, channel, platform, scope)
             .await?;
-        match scope {
-            Some(scope) => crate::ScopedResolvedRelease::managed(release, scope.clone()),
-            None => Ok(crate::ScopedResolvedRelease::legacy(release)),
+        let mut resolved = match scope {
+            Some(scope) => crate::ScopedResolvedRelease::managed(selected.release, scope.clone()),
+            None => Ok(crate::ScopedResolvedRelease::legacy(selected.release)),
         }?
-        .for_selection(port, platform, channel)
+        .for_selection(port, platform, channel)?;
+        resolved.github_identity = selected.identity;
+        Ok(resolved)
     }
 }
 
@@ -1103,7 +1144,7 @@ impl GithubReleaseProvider {
         channel: ReleaseChannel,
         platform: Platform,
         scope: Option<&crate::DefinitionAcquisitionScope>,
-    ) -> Result<ResolvedRelease> {
+    ) -> Result<ResolvedGithub> {
         crate::curated_acquisition::require_runtime_scope(port, scope)?;
         if let Some(scope) = scope {
             scope.require_current()?;
@@ -1162,13 +1203,22 @@ impl GithubReleaseProvider {
         // Curated selection revalidates mutable release, asset and tag identity;
         // only the separately verified byte cache may be reused.
         if curated.is_none()
-            && let Some(release) = self.cached_release(&cache_key).await
+            && let Some(selection) = self.cached_selection(&cache_key).await
         {
+            if selection
+                .identity
+                .as_ref()
+                .is_some_and(|identity| Some(identity.repository_id) != repository.id)
+            {
+                return Err(PortcoveError::verification(
+                    "GitHub repository identity changed since cached selection",
+                ));
+            }
             if let Some(scope) = scope {
                 scope.require_current()?;
-                scope.require_asset_url(&release.asset.url)?;
+                scope.require_asset_url(&selection.release.asset.url)?;
             }
-            return Ok(release);
+            return Ok(selection);
         }
         let releases = match scope {
             Some(scope) => self.releases_scoped(&repository_url, Some(scope)).await?,
@@ -1270,8 +1320,31 @@ impl GithubReleaseProvider {
                 sha256,
             },
         };
-        self.store_release(cache_key, resolved.clone()).await;
-        Ok(resolved)
+        let identity = match (repository.id, release.id, asset.id) {
+            (Some(repository_id), Some(release_id), Some(asset_id)) => {
+                let identity = crate::definition_acquisition::GithubArtifactIdentity {
+                    repository: port.release.repository.clone(),
+                    repository_id,
+                    release_id,
+                    asset_id,
+                    tag: release.tag_name.clone(),
+                };
+                identity.validate()?;
+                Some(identity)
+            }
+            _ if port.archive_data_compatibility_v1.is_some() => {
+                return Err(PortcoveError::verification(
+                    "GitHub release observation is missing exact repository, release or asset identity",
+                ));
+            }
+            _ => None,
+        };
+        self.store_selection(cache_key, resolved.clone(), identity.clone())
+            .await;
+        Ok(ResolvedGithub {
+            release: resolved,
+            identity,
+        })
     }
 }
 
@@ -1280,7 +1353,9 @@ fn native_release_applies_to_platform(
     platform: Platform,
     release: &GithubRelease,
 ) -> bool {
-    if port.adapter != AdapterKind::NativePortable || port.release.curated.contains_key(&platform) {
+    if (port.adapter != AdapterKind::NativePortable && port.archive_data_compatibility_v1.is_none())
+        || port.release.curated.contains_key(&platform)
+    {
         return true;
     }
     let mut other_platform_player = false;
@@ -1799,6 +1874,62 @@ mod tests {
     };
 
     mod unchanged_definition;
+
+    #[tokio::test]
+    async fn github_selection_retains_exact_ids_through_cache_and_refuses_repository_rebinding() {
+        let port = crate::Catalog::embedded()
+            .unwrap()
+            .port("shipwright")
+            .unwrap()
+            .clone();
+        let response = |value: serde_json::Value| {
+            let body = value.to_string();
+            format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.len()
+            )
+        };
+        let repository = serde_json::json!({"id":1,"archived":false});
+        let releases = serde_json::json!([{"id":2,"tag_name":"fixture-n","draft":false,"prerelease":false,
+            "assets":[{"id":3,"name":"game-windows.zip","size":42,"digest":format!("sha256:{}","a".repeat(64)),
+            "browser_download_url":"https://github.com/HarbourMasters/Shipwright/releases/download/fixture-n/game-windows.zip"}]}]);
+        let (origin, _, server) = serve_http(vec![
+            response(repository.clone()),
+            response(releases),
+            response(repository),
+            response(serde_json::json!({"id":4,"archived":false})),
+        ]);
+        let provider = GithubReleaseProvider::with_api_root(origin).unwrap();
+        let first = provider
+            .resolve_scoped(&port, ReleaseChannel::Stable, Platform::WindowsX86_64, None)
+            .await
+            .unwrap();
+        let identity = first.github_identity.unwrap();
+        assert_eq!(
+            (
+                identity.repository_id,
+                identity.release_id,
+                identity.asset_id
+            ),
+            (1, 2, 3)
+        );
+        assert_eq!(identity.tag, "fixture-n");
+        let cached = provider
+            .resolve_scoped(&port, ReleaseChannel::Stable, Platform::WindowsX86_64, None)
+            .await
+            .unwrap();
+        assert_eq!(cached.github_identity, Some(identity));
+        assert_eq!(cached.release.asset.sha256, "a".repeat(64));
+        assert!(
+            provider
+                .resolve_scoped(&port, ReleaseChannel::Stable, Platform::WindowsX86_64, None)
+                .await
+                .unwrap_err()
+                .message
+                .contains("repository identity changed")
+        );
+        server.join().unwrap();
+    }
 
     #[tokio::test]
     async fn pending_auth_status_http_observation_releases_library_lease() {
@@ -2336,6 +2467,7 @@ mod tests {
         let oldest_key = ReleaseSelectionCacheKey {
             adapter: AdapterKind::NativePortable,
             n64_runtime_at_executable_parent: false,
+            partitioned_archive: false,
             scope_binding: None,
             repository: "owner/repository-0".into(),
             channel: ReleaseChannel::Stable,
@@ -2359,6 +2491,7 @@ mod tests {
                     ReleaseSelectionCacheKey {
                         adapter: AdapterKind::NativePortable,
                         n64_runtime_at_executable_parent: false,
+                        partitioned_archive: false,
                         scope_binding: None,
                         repository: format!("owner/repository-{index}"),
                         channel: ReleaseChannel::Stable,

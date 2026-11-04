@@ -1554,7 +1554,9 @@ jobs:
     needs: classify
     # Exercise the no-global route for toolchain, Unix custody and native text-navigation changes.
     if: (needs.classify.outputs.mode == 'qualification' && contains(fromJSON(needs.classify.outputs.platforms_json), 'macos-aarch64')) || (needs.classify.outputs.mode != 'qualification' && (contains(needs.classify.outputs.files_json, 'apps/desktop/scripts/browser-runtime.mts') || contains(needs.classify.outputs.files_json, 'scripts/run-rust-tests.mts') || contains(needs.classify.outputs.files_json, 'scripts/run-rust-tests.test.mts') || contains(needs.classify.outputs.files_json, 'scripts/rust-test-tree-supervisor.mts') || contains(needs.classify.outputs.files_json, 'scripts/rust-test-tree-supervisor.test.mts') || contains(needs.classify.outputs.files_json, 'pnpm-workspace.yaml') || contains(needs.classify.outputs.files_json, 'apps/desktop/src/browser/display-recovery.browser.test.tsx') || contains(needs.classify.outputs.files_json, 'apps/desktop/src/browser/compact-navigation.browser.test.tsx') || contains(needs.classify.outputs.files_json, 'apps/desktop/src/components/AdoptionModal.browser.test.tsx') || contains(needs.classify.outputs.files_json, 'apps/desktop/src/components/Artwork.browser.test.tsx') || contains(needs.classify.outputs.files_json, 'apps/desktop/src/browser/workspace-feedback-user-intent.browser.test.tsx')))
-    runs-on: macos-26
+    # Two macos-26 attempts acquired no ARM64 runner. Keep the same standard
+    # ARM64 portability contract on the supported macOS 15 pool.
+    runs-on: macos-15
     # 40718922826/a1 exhausted 15m after 5m38s of cold setup and while
     # browser cases were still passing. Keep the complete contributor route,
     # assertions and cleanup; this finite outer budget is not a latency claim.
@@ -1574,6 +1576,8 @@ jobs:
       - name: Verify the contributor route has no global Vite+
         shell: bash
         run: |
+          node -e 'if (process.platform !== "darwin" || process.arch !== "arm64") throw new Error("Expected macOS ARM64"); console.log(JSON.stringify({ platform: process.platform, arch: process.arch }));'
+          sw_vers
           if command -v vp; then
             echo 'Expected a Node/pnpm-only environment for this portability check.' >&2
             exit 1

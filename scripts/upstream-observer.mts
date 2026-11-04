@@ -61,7 +61,7 @@ interface CachedPage {
 }
 export interface ObserverRequestOptions {
   headers: Record<string, string>;
-  redirect: "error";
+  redirect: "error" | "manual";
   signal: AbortSignal;
 }
 export type ObserverFetch = (url: string, options: ObserverRequestOptions) => Promise<Response>;
@@ -76,6 +76,7 @@ export interface ProviderObservation extends Record<string, unknown> {
   facts: {
     repository: ReturnType<typeof repositoryFact>;
     releases: (ReturnType<typeof releaseFact> & { assets: ReturnType<typeof assetFact>[] })[];
+    checksum_sidecars?: ChecksumText[];
   };
   consumed: { requests: number; response_bytes: number; conditional_hits: number };
   batch_consumed?: ProviderObservation["consumed"];
@@ -98,6 +99,8 @@ export interface ObservationContinuation {
   first_validated_at: string | null;
   validation_order_sha256: string | null;
   selected_asset_release_ids?: number[];
+  /** Operation-owned transport progress; never integrity or eligibility authority. */
+  asset_redirects?: Record<string, string[]>;
   consumed: { requests: number; response_bytes: number; conditional_hits: number };
 }
 export interface ObserveOptions {
@@ -106,6 +109,7 @@ export interface ObserveOptions {
   onCheckpoint?: (continuation: ObservationContinuation) => void | Promise<void>;
   signal?: AbortSignal;
   selectAssetReleases?: (headers: ProviderObservation) => Promise<readonly number[]>;
+  selectChecksumSources?: (observation: ProviderObservation) => Promise<readonly ChecksumSource[]>;
   /** Additional invocation-wide admission; cannot relax configured operation bounds. */
   admitRequest?: () => void;
   observeResponse?: (response: Response) => void;
@@ -117,6 +121,73 @@ export interface ObserveOptions {
   sleep?: (milliseconds: number) => Promise<unknown>;
   token?: string;
 }
+export interface ChecksumSource {
+  release_id: number;
+  asset_id: number;
+}
+interface ChecksumText extends ChecksumSource {
+  text: string;
+}
+function checksumDeliveryUrl(value: unknown): boolean {
+  if (typeof value !== "string" || value.length > 8192) return false;
+  try {
+    const url = new URL(value);
+    return (
+      url.protocol === "https:" &&
+      !url.username &&
+      !url.password &&
+      !url.port &&
+      !url.hash &&
+      ["release-assets.githubusercontent.com", "objects.githubusercontent.com"].includes(
+        url.hostname,
+      )
+    );
+  } catch {
+    return false;
+  }
+}
+
+/** Read Core's selected integrity dependencies without duplicating its checksum rules. */
+export function checksumSourcesFromProjections(projections: readonly unknown[]): ChecksumSource[] {
+  const sources = new Map<number, ChecksumSource>();
+  for (const projection of projections) {
+    if (!isRecord(projection))
+      throw new ObservationFailure("core-binding", "Invalid Core projection");
+    if (
+      Array.isArray(projection.hold_reasons) &&
+      projection.hold_reasons.includes("channel-not-offered")
+    )
+      continue;
+    if (projection.checksum_sources === undefined) continue; // older projections remain held
+    requireFact(
+      Array.isArray(projection.checksum_sources),
+      "core-binding",
+      "Invalid checksum dependencies",
+    );
+    for (const source of projection.checksum_sources) {
+      requireFact(
+        isRecord(source) &&
+          Number.isSafeInteger(source.release_id) &&
+          Number(source.release_id) > 0 &&
+          Number.isSafeInteger(source.asset_id) &&
+          Number(source.asset_id) > 0,
+        "core-binding",
+        "Invalid checksum identity",
+      );
+      const exact = { release_id: Number(source.release_id), asset_id: Number(source.asset_id) };
+      requireFact(
+        !sources.has(exact.asset_id) ||
+          sources.get(exact.asset_id)!.release_id === exact.release_id,
+        "core-binding",
+        "Checksum identity appears in distinct releases",
+      );
+      sources.set(exact.asset_id, exact);
+    }
+  }
+  requireFact(sources.size <= 128, "budget", "Checksum dependency set exceeds its bound");
+  return [...sources.values()].sort((a, b) => a.asset_id - b.asset_id);
+}
+
 const apiRoot = "https://api.github.com";
 
 export class ObservationFailure extends Error {
@@ -608,6 +679,25 @@ function observerPageFacts(
 ) {
   const tail = new URL(address).pathname.slice(`/repos/${config.repository}`.length);
   if (tail === "") return repositoryFact(body, config);
+  if (/^\/releases\/assets\/\d+$/u.test(tail)) {
+    const id = Number(tail.split("/")[3]);
+    const matches = Object.entries(pages).flatMap(([url, page]) => {
+      if (
+        !/\/releases\/\d+\/assets$/u.test(new URL(url).pathname) ||
+        !isRecord(page) ||
+        !Array.isArray(page.body)
+      )
+        return [];
+      const assets: unknown[] = page.body;
+      return assets.filter((asset) => isRecord(asset) && asset.id === id);
+    });
+    requireFact(
+      matches.length === 1 && typeof body === "string" && Buffer.byteLength(body) <= 1024 * 1024,
+      "invalid-checkpoint",
+      "checksum text lacks its exact asset context or exceeds its bound",
+    );
+    return body;
+  }
   requireFact(
     Array.isArray(body) && body.length <= 100,
     "invalid-checkpoint",
@@ -753,6 +843,7 @@ export function validateObservationContinuation(
       ...(isRecord(value) && Object.hasOwn(value, "selected_asset_release_ids")
         ? ["selected_asset_release_ids"]
         : []),
+      ...(isRecord(value) && Object.hasOwn(value, "asset_redirects") ? ["asset_redirects"] : []),
     ],
     "observation continuation",
   );
@@ -832,6 +923,7 @@ export function validateObservationContinuation(
         !url.hash &&
         url.pathname.startsWith(repositoryPath) &&
         ((tail === "" && url.search === "") ||
+          (/^\/releases\/assets\/\d+$/u.test(tail) && url.search === "") ||
           (/^\/releases(?:\/\d+\/assets)?$/u.test(tail) &&
             url.searchParams.get("per_page") === "100" &&
             /^\d+$/u.test(url.searchParams.get("page") ?? "") &&
@@ -842,6 +934,32 @@ export function validateObservationContinuation(
       "continued page escaped its configured collection",
     );
     validatedPage(page, address, config, value.pages);
+  }
+  if (value.asset_redirects !== undefined) {
+    requireFact(
+      isRecord(value.asset_redirects) && Object.keys(value.asset_redirects).length <= 128,
+      "invalid-checkpoint",
+      "Checksum redirect progress exceeds its bound",
+    );
+    for (const [address, chain] of Object.entries(value.asset_redirects)) {
+      const url = new URL(address);
+      requireFact(
+        url.origin === apiRoot &&
+          !url.search &&
+          !url.hash &&
+          !url.username &&
+          !url.password &&
+          url.pathname.startsWith(`${repositoryPath}/releases/assets/`) &&
+          /^\d+$/u.test(url.pathname.slice(`${repositoryPath}/releases/assets/`.length)) &&
+          Array.isArray(chain) &&
+          chain.length > 0 &&
+          chain.length <= 3 &&
+          chain.every(checksumDeliveryUrl),
+        "invalid-checkpoint",
+        "Checksum redirect escaped its exact asset transport",
+      );
+      observerPageFacts(address, "", config, value.pages);
+    }
   }
   return value as unknown as ObservationContinuation;
 }
@@ -981,7 +1099,27 @@ export function reusableProviderObservation(
       assets.add(asset.id);
     }
   }
-  const facts = { repository, releases };
+  const checksum_sidecars = Object.entries(proof.pages)
+    .flatMap(([url, page]) => {
+      const match = new URL(url).pathname.match(/\/releases\/assets\/(\d+)$/u);
+      if (!match) return [];
+      const asset_id = Number(match[1]);
+      const release = releases.find((release) =>
+        release.assets.some((asset) => asset.id === asset_id),
+      );
+      requireFact(
+        release && typeof page.body === "string",
+        "invalid-checkpoint",
+        "checksum asset context differs",
+      );
+      return [{ release_id: release.id, asset_id, text: page.body }];
+    })
+    .sort((a, b) => a.asset_id - b.asset_id);
+  const facts = {
+    repository,
+    releases,
+    ...(checksum_sidecars.length ? { checksum_sidecars } : {}),
+  };
   requireFact(
     observationHash(facts) === observation.facts_sha256 &&
       observationHash(observation.facts) === observation.facts_sha256,
@@ -1123,6 +1261,7 @@ export async function observeUpstream(
         "Observation cancelled; retain the exact continuation",
       );
     const url = `${apiRoot}${pathname}${page === null ? "" : `?per_page=100&page=${page}`}`;
+    const checksumText = /^\/repos\/[^/]+\/[^/]+\/releases\/assets\/\d+$/u.test(pathname);
     const candidate = cached ?? prior[url];
     let previous: CachedPage | undefined;
     if (candidate) {
@@ -1151,7 +1290,7 @@ export async function observeUpstream(
         "observation request or time budget exhausted",
       );
       const headers: Record<string, string> = {
-        Accept: "application/vnd.github+json",
+        Accept: checksumText ? "application/octet-stream" : "application/vnd.github+json",
         "X-GitHub-Api-Version": "2022-11-28",
         "User-Agent": "Portcove-upstream-observer",
       };
@@ -1161,14 +1300,56 @@ export async function observeUpstream(
       consumed.requests++;
       let response;
       try {
-        response = await fetcher(url, {
-          headers,
-          redirect: "error",
-          signal: options.signal
-            ? AbortSignal.any([options.signal, AbortSignal.timeout(Math.min(15_000, remaining))])
-            : AbortSignal.timeout(Math.min(15_000, remaining)),
-        });
-      } catch {
+        const chain = [...(checksumText ? (continuation.asset_redirects?.[url] ?? []) : [])];
+        let address = chain.at(-1) ?? url;
+        for (let redirects = 0; ; redirects++) {
+          const hopRemaining = deadline - now();
+          requireFact(hopRemaining > 0, "budget", "checksum/provider deadline exhausted");
+          if (redirects) {
+            requireFact(
+              redirects <= 3 && now() < deadline && consumed.requests < config.budget.requests,
+              "budget",
+              "checksum redirect/request boundary exhausted",
+            );
+            options.admitRequest?.();
+            consumed.requests++;
+          }
+          response = await fetcher(address, {
+            headers:
+              new URL(address).origin === apiRoot
+                ? headers
+                : Object.fromEntries(
+                    Object.entries(headers).filter(
+                      ([key]) => !["Authorization", "X-GitHub-Api-Version"].includes(key),
+                    ),
+                  ),
+            redirect: checksumText ? "manual" : "error",
+            signal: options.signal
+              ? AbortSignal.any([
+                  options.signal,
+                  AbortSignal.timeout(Math.min(15_000, hopRemaining)),
+                ])
+              : AbortSignal.timeout(Math.min(15_000, hopRemaining)),
+          });
+          if (!checksumText || ![301, 302, 303, 307, 308].includes(response.status)) break;
+          options.observeResponse?.(response);
+          const location = response.headers.get("location");
+          await response.body?.cancel();
+          requireFact(location, "asset-scope", "checksum redirect has no location");
+          const next = new URL(location, address);
+          requireFact(
+            checksumDeliveryUrl(next.href) && chain.length < 3,
+            "asset-scope",
+            "checksum redirect escaped GitHub asset delivery",
+          );
+          address = next.href;
+          chain.push(address);
+          continuation.asset_redirects ??= {};
+          continuation.asset_redirects[url] = chain;
+          await retain();
+        }
+      } catch (error) {
+        if (error instanceof ObservationFailure) throw error;
         if (options.signal?.aborted)
           throw new ObservationFailure(
             "cancelled",
@@ -1227,16 +1408,24 @@ export async function observeUpstream(
           "provider returned 304 without a validated conditional response",
         );
         consumed.conditional_hits++;
+        if (checksumText && continuation.asset_redirects) delete continuation.asset_redirects[url];
         return { url, value: previous };
       }
       if (response.status !== 200) {
         await response.body?.cancel();
-        throw new ObservationFailure(
+        if (checksumText && continuation.asset_redirects?.[url])
+          delete continuation.asset_redirects[url];
+        const failure = new ObservationFailure(
           "provider-status",
           `provider returned HTTP ${response.status}`,
         );
+        failure.restartContinuation = checksumText;
+        throw failure;
       }
-      if (!(response.headers.get("content-type") ?? "").includes("application/json")) {
+      if (
+        !checksumText &&
+        !(response.headers.get("content-type") ?? "").includes("application/json")
+      ) {
         await response.body?.cancel();
         throw new ObservationFailure("invalid-metadata", "provider response is not JSON");
       }
@@ -1254,7 +1443,7 @@ export async function observeUpstream(
         consumed.response_bytes += bytesChunk.length;
         options.consumeResponseBytes?.(bytesChunk.length);
         requireFact(
-          bytes <= config.budget.response_bytes &&
+          bytes <= Math.min(config.budget.response_bytes, checksumText ? 1024 * 1024 : Infinity) &&
             consumed.response_bytes <= config.budget.total_bytes,
           "budget",
           "provider response byte budget exhausted",
@@ -1263,10 +1452,12 @@ export async function observeUpstream(
       }
       let body: unknown;
       try {
-        body = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(chunks)));
+        const text = new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(chunks));
+        body = checksumText ? text : JSON.parse(text);
       } catch {
         throw new ObservationFailure("invalid-metadata", "provider returned malformed UTF-8 JSON");
       }
+      if (checksumText && continuation.asset_redirects) delete continuation.asset_redirects[url];
       return {
         url,
         value: {
@@ -1370,12 +1561,17 @@ export async function observeUpstream(
       assets: [],
     }));
     const collected = new Set<number>();
+    const checksum_sidecars: ChecksumText[] = [];
     const assetIds = new Set();
     const previousSelection = continuation.selected_asset_release_ids;
-    async function selectAssets(): Promise<readonly number[]> {
-      const facts = { repository, releases };
-      const selected = await options.selectAssetReleases!({
-        format: 2,
+    function probe(): ProviderObservation {
+      const facts = {
+        repository,
+        releases,
+        ...(checksum_sidecars.length ? { checksum_sidecars } : {}),
+      };
+      return {
+        format: config.format,
         config_sha256: configHash,
         port_id: config.port_id,
         started_at: continuation.started_at,
@@ -1391,7 +1587,10 @@ export async function observeUpstream(
         interval_semantics:
           "Inert Core channel-selection probe; not a completed provider observation",
         authority: "provider-observation-only",
-      });
+      };
+    }
+    async function selectAssets(): Promise<readonly number[]> {
+      const selected = await options.selectAssetReleases!(probe());
       requireFact(
         Array.isArray(selected) &&
           new Set(selected).size === selected.length &&
@@ -1471,6 +1670,60 @@ export async function observeUpstream(
       }
       await retain();
     }
+    const requestedChecksums = (await options.selectChecksumSources?.(probe())) ?? [];
+    requireFact(
+      requestedChecksums.length <= 128 &&
+        new Set(requestedChecksums.map((s) => s.asset_id)).size === requestedChecksums.length,
+      "core-selection",
+      "Core checksum dependencies repeat or exceed their bound",
+    );
+    const expectedChecksumPaths = requestedChecksums
+      .map((source) => `${apiRoot}${repositoryPath}/releases/assets/${source.asset_id}`)
+      .sort();
+    const retainedChecksumPaths = Object.keys(pages)
+      .filter((url) => /\/releases\/assets\/\d+$/u.test(new URL(url).pathname))
+      .sort();
+    if (
+      continuation.phase === "validate" &&
+      observationHash(expectedChecksumPaths) !== observationHash(retainedChecksumPaths)
+    ) {
+      continuation.phase = "collect";
+      continuation.validation_cursor = 0;
+      continuation.first_validated_at = null;
+      continuation.last_validated_at = null;
+      continuation.validation_order_sha256 = null;
+      await retain();
+    }
+    const checksumPaths = new Set<string>();
+    for (const source of requestedChecksums) {
+      const release = releases.find((release) => release.id === source.release_id);
+      const asset = release?.assets.find((asset) => asset.id === source.asset_id);
+      requireFact(
+        asset && asset.size <= 1024 * 1024,
+        "core-selection",
+        "Core checksum dependency is outside collected assets or its byte bound",
+      );
+      const pathname = `${repositoryPath}/releases/assets/${source.asset_id}`;
+      checksumPaths.add(`${apiRoot}${pathname}`);
+      const page = await read(pathname, null, (body) => {
+        requireFact(
+          typeof body === "string" && Buffer.byteLength(body) <= 1024 * 1024,
+          "invalid-metadata",
+          "Checksum text exceeds its bound",
+        );
+        return body;
+      });
+      checksum_sidecars.push({ ...source, text: page.body as string });
+    }
+    for (const url of Object.keys(pages)) {
+      if (/\/releases\/assets\/\d+$/u.test(new URL(url).pathname) && !checksumPaths.has(url))
+        delete pages[url];
+    }
+    if (continuation.asset_redirects)
+      for (const url of Object.keys(continuation.asset_redirects)) {
+        if (!checksumPaths.has(url)) delete continuation.asset_redirects[url];
+      }
+    await retain();
     // GitHub provides no atomic repository snapshot. Revalidate every consumed
     // page and preserve the observation interval; any detected change aborts.
     if (selectedAssets) {
@@ -1480,6 +1733,7 @@ export async function observeUpstream(
       const positions = new Map(headers.map((header, index) => [header.id, index]));
       const position = (entry: (typeof requestOrder)[number]) => {
         const id = entry.pathname.match(/\/releases\/(\d+)\/assets$/u)?.[1];
+        if (/\/releases\/assets\/\d+$/u.test(entry.pathname)) return headers.length;
         return id ? positions.get(Number(id))! : -1;
       };
       requestOrder.sort(
@@ -1534,7 +1788,11 @@ export async function observeUpstream(
       "clock-or-budget",
       "observation clock moved backwards or exceeded its deadline",
     );
-    const facts = { repository, releases };
+    const facts = {
+      repository,
+      releases,
+      ...(checksum_sidecars.length ? { checksum_sidecars } : {}),
+    };
     return {
       observation: {
         format: config.format,

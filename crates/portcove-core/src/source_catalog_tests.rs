@@ -76,12 +76,35 @@ fn fixture() -> SourceCatalog {
                 upstream_ref: "v1.0.0".into(),
                 artifact_sha256: Some("3".repeat(64)),
             }],
+            release_policy: None,
             aliases: vec![],
             tombstones: vec![],
         }],
         validators: vec![],
         qualification: vec![],
     }
+}
+
+#[test]
+fn reusable_source_policy_is_explicit_and_preserves_exact_qualification_bindings() {
+    let mut catalog = fixture();
+    let old = catalog.contracts[0].clone();
+    assert!(old.applies_to_release("v1.0.0", &"3".repeat(64)));
+    assert!(!old.applies_to_release("v-next", &"4".repeat(64)));
+    catalog.contracts[0].release_policy = Some(SourceReleasePolicy::IntegrationContractV1);
+    catalog.validate(["sample-port"]).unwrap();
+    assert!(catalog.contracts[0].applies_to_release("rolling-build-xyz", &"4".repeat(64)));
+    assert!(!catalog.contracts[0].applies_to_release("", &"4".repeat(64)));
+    assert!(
+        !catalog.contracts[0]
+            .applies_to_release("v-next", "locally-computed-is-not-provider-authority")
+    );
+    assert_eq!(
+        catalog.contracts[0].applicability, old.applicability,
+        "historical artifact evidence must not be rewritten as future observations"
+    );
+    catalog.contracts[0].evidence_ids.clear();
+    assert!(catalog.validate(["sample-port"]).is_err());
 }
 
 fn qualification(kind: SourceEvidenceKind, outcome: SourceEvidenceOutcome) -> SourceEvidence {

@@ -20,6 +20,7 @@ catalog:
 overrides:
   # Remove audited development-tool traversal/pattern DoS versions; retire as parents upgrade.
   "glob@13.0.6": 14.0.3
+  # Renovate 44.156.3 still consumes minimatch 10.2.6; CLI 1.82.4 uses 11 directly.
   "minimatch@10.2.6": 11.0.4
   vite@*: "catalog:"
   vitest@*: "catalog:"
@@ -31,6 +32,6 @@ peerDependencyRules:
     vite: "*"
     vitest: "*"
 patchedDependencies:
-  "i18next-cli@1.82.0": patches/i18next-cli@1.82.0.patch
+  "i18next-cli@1.82.4": patches/i18next-cli@1.82.4.patch
   "@sigstore/sign@5.0.0": patches/@sigstore__sign@5.0.0.patch
   "@tauri-apps/api@2.12.4": patches/@tauri-apps__api@2.12.4.patch

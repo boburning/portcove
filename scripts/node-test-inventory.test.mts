@@ -438,9 +438,12 @@ void test("declared case routes require their selected Mac producer despite ordi
     requireNodeTestInventory([first], workflow, surfaces().local, "", JSON.stringify(value));
   };
   check();
+  check("owned", "macos-15");
   for (const mutation of [
     () => check("other"),
     () => check("owned", "windows-latest"),
+    () => check("owned", "macos-15-intel"),
+    () => check("owned", "macos-unverified"),
     () => check("owned", "macos-26", false),
   ])
     assert.throws(mutation, /Skip route has no complete intended producer/);
