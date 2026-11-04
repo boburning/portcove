@@ -17,7 +17,10 @@ fn transition_fixture_catalogs(
         .unwrap();
     direct.version = predecessor.version.clone();
     direct.sha256 = predecessor.asset.sha256.clone();
-    direct.url = predecessor.asset.url.clone();
+    direct.size = predecessor.asset.size;
+    // The injected provider supplies loopback bytes; the authoring fixture keeps
+    // the ordinary production HTTPS Direct contract rather than a fixture grant.
+    direct.url = "https://example.invalid/controlled-predecessor.zip".into();
     let mut contract = v26_diagnostic_contract(id);
     contract
         .applicability
