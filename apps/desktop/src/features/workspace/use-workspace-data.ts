@@ -1,10 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { QueryClient, replaceEqualDeep, useQuery } from "@tanstack/react-query";
 import { desktopApi } from "../../api";
 import { listenDesktopEvent } from "../../desktop-events";
 import type {
   ActivityFeed,
-  CatalogDocument,
-  CatalogListingDocument,
   PortListingStatus,
   PendingSetupRecord,
   DoctorReport,
@@ -38,79 +37,51 @@ function activitySnapshotIdentity(feed: ActivityFeed) {
   return JSON.stringify(feed);
 }
 
-interface EssentialSnapshotIdentity {
-  catalog: string;
-  statuses: string;
-  sources: string;
-  browsing: string;
-  listings: string;
+interface WorkspaceRead {
+  snapshot: WorkspaceSnapshot;
+  activityRequest: number;
 }
 
-function essentialSnapshotIdentity(snapshot: WorkspaceSnapshot): EssentialSnapshotIdentity {
+function shareWorkspaceRead(previous: unknown, next: unknown): WorkspaceRead {
+  const old = previous as WorkspaceRead | undefined;
+  const incoming = next as WorkspaceRead;
+  const shared = replaceEqualDeep(old, incoming);
+  if (!old) return shared;
+  // Port identity survives removal/reordering; generic array-index sharing cannot supply this.
+  const byPort = new Map(old.snapshot.statuses.map((status) => [status.port_id, status]));
+  const statuses = incoming.snapshot.statuses.map((status) =>
+    replaceEqualDeep(byPort.get(status.port_id), status),
+  );
+  const retained =
+    statuses.length === old.snapshot.statuses.length &&
+    statuses.every((status, index) => status === old.snapshot.statuses[index]);
   return {
-    catalog: JSON.stringify(snapshot.catalog),
-    statuses: JSON.stringify(snapshot.statuses),
-    sources: JSON.stringify(snapshot.sources),
-    browsing: JSON.stringify(snapshot.browsing ?? null),
-    listings: JSON.stringify([
-      snapshot.listing_catalog,
-      snapshot.listing_statuses,
-      snapshot.pending_setups,
-    ]),
+    ...shared,
+    snapshot: { ...shared.snapshot, statuses: retained ? old.snapshot.statuses : statuses },
   };
 }
 
-function retainUnchangedStatuses(previous: PortStatus[], next: PortStatus[]) {
-  const previousByPort = new Map(
-    previous.map((status) => [status.port_id, { identity: JSON.stringify(status), status }]),
-  );
-  return next.map((status) => {
-    const retained = previousByPort.get(status.port_id);
-    return retained?.identity === JSON.stringify(status) ? retained.status : status;
-  });
-}
+const emptyStatuses: PortStatus[] = [];
+const emptySources: SourceRecord[] = [];
+const emptyListingStatuses: PortListingStatus[] = [];
+const emptyPendingSetups: PendingSetupRecord[] = [];
 
 function useWorkspaceViewState() {
-  const [catalog, setCatalog] = useState<CatalogDocument>();
-  const [statuses, setStatuses] = useState<PortStatus[]>([]);
-  const [sources, setSources] = useState<SourceRecord[]>([]);
-  const [browsing, setBrowsing] = useState<WorkspaceSnapshot["browsing"]>();
-  const [listings, setListings] = useState<{
-    catalog?: CatalogListingDocument;
-    statuses: PortListingStatus[];
-    pending: PendingSetupRecord[];
-  }>({ statuses: [], pending: [] });
   const [activityFeed, setActivityFeed] = useState<ActivityFeed>(() => emptyActivityFeed());
   const [doctor, setDoctor] = useState<DoctorReport>();
-  const [refreshFailure, setRefreshFailure] = useState<{ error: unknown }>();
   const [recoveryFailure, setRecoveryFailure] = useState<{ error: unknown }>();
-  const [refreshing, setRefreshing] = useState(false);
   const [diagnosticFailure, setDiagnosticFailure] = useState<{ error: unknown }>();
   const [diagnosticRefreshing, setDiagnosticRefreshing] = useState(false);
   const [diagnosticsStale, setDiagnosticsStale] = useState(true);
   const [diagnosticRevision, setDiagnosticRevision] = useState(0);
   const [subscriptionFailure, setSubscriptionFailure] = useState<{ error: unknown }>();
   return {
-    catalog,
-    setCatalog,
-    statuses,
-    setStatuses,
-    sources,
-    setSources,
-    browsing,
-    setBrowsing,
-    listings,
-    setListings,
     activityFeed,
     setActivityFeed,
     doctor,
     setDoctor,
-    refreshFailure,
-    setRefreshFailure,
     recoveryFailure,
     setRecoveryFailure,
-    refreshing,
-    setRefreshing,
     diagnosticFailure,
     setDiagnosticFailure,
     diagnosticRefreshing,
@@ -121,89 +92,34 @@ function useWorkspaceViewState() {
     setDiagnosticRevision,
     subscriptionFailure,
     setSubscriptionFailure,
-  };
-}
-
-function essentialSnapshotUpdate(
-  snapshot: WorkspaceSnapshot,
-  libraryGeneration: number,
-  previousIdentity: EssentialSnapshotIdentity | undefined,
-  acceptedLibraryGeneration: number | undefined,
-  acceptedStatuses: PortStatus[],
-) {
-  const identity = essentialSnapshotIdentity(snapshot);
-  const sameLibrary = acceptedLibraryGeneration === libraryGeneration;
-  const catalogChanged = !sameLibrary || previousIdentity?.catalog !== identity.catalog;
-  const statusesChanged = !sameLibrary || previousIdentity?.statuses !== identity.statuses;
-  const sourcesChanged = !sameLibrary || previousIdentity?.sources !== identity.sources;
-  const browsingChanged = !sameLibrary || previousIdentity?.browsing !== identity.browsing;
-  const listingsChanged = !sameLibrary || previousIdentity?.listings !== identity.listings;
-  if (
-    !catalogChanged &&
-    !statusesChanged &&
-    !sourcesChanged &&
-    !browsingChanged &&
-    !listingsChanged
-  )
-    return undefined;
-  return {
-    identity,
-    catalogChanged,
-    statusesChanged,
-    sourcesChanged,
-    browsingChanged,
-    listingsChanged,
-    nextStatuses: statusesChanged
-      ? sameLibrary
-        ? retainUnchangedStatuses(acceptedStatuses, snapshot.statuses)
-        : snapshot.statuses
-      : acceptedStatuses,
   };
 }
 
 export function usePortcoveData(libraryGeneration = 0) {
   const view = useWorkspaceViewState();
   const {
-    catalog,
-    statuses,
-    sources,
-    browsing,
-    listings,
     activityFeed,
     doctor,
-    refreshFailure,
     recoveryFailure,
-    refreshing,
     diagnosticFailure,
     diagnosticRefreshing,
     diagnosticsStale,
     diagnosticRevision,
     subscriptionFailure,
     setActivityFeed,
-    setCatalog,
     setDiagnosticFailure,
     setDiagnosticRefreshing,
     setDiagnosticsStale,
     setDiagnosticRevision,
     setDoctor,
-    setRefreshFailure,
     setRecoveryFailure,
-    setRefreshing,
-    setSources,
-    setStatuses,
     setSubscriptionFailure,
-    setBrowsing,
-    setListings,
   } = view;
-  const refreshGeneration = useRef(new LatestRequestGeneration());
   const activityGeneration = useRef(new LatestRequestGeneration());
   const diagnosticGeneration = useRef(new LatestRequestGeneration());
   const externalGeneration = useRef(new LatestRequestGeneration());
   const diagnosticInvalidationRevision = useRef(0);
   const activityIdentity = useRef(activitySnapshotIdentity(emptyActivityFeed()));
-  const essentialIdentity = useRef<EssentialSnapshotIdentity | undefined>(undefined);
-  const acceptedLibraryGeneration = useRef<number | undefined>(undefined);
-  const acceptedStatuses = useRef<PortStatus[]>([]);
   const lastFullReconciliationAt = useRef(0);
   const forceWorkspaceReconciliation = useRef(false);
   const acceptActivities = useCallback(
@@ -222,61 +138,63 @@ export function usePortcoveData(libraryGeneration = 0) {
     setDiagnosticRefreshing(false);
     setDiagnosticsStale(true);
   }, [setDiagnosticRefreshing, setDiagnosticsStale, setDiagnosticRevision]);
-  const runRefresh = useCallback(async () => {
-    const generation = refreshGeneration.current.begin();
+  const [queryClient] = useState(() => new QueryClient());
+  const readWorkspace = useCallback(async (): Promise<WorkspaceRead> => {
     const activityRequest = activityGeneration.current.begin();
-    setRefreshing(true);
-    try {
-      const snapshot: WorkspaceSnapshot = await desktopApi.workspaceSnapshot(libraryGeneration);
-      if (!refreshGeneration.current.isCurrent(generation)) return;
-      const update = essentialSnapshotUpdate(
-        snapshot,
-        libraryGeneration,
-        essentialIdentity.current,
-        acceptedLibraryGeneration.current,
-        acceptedStatuses.current,
-      );
-      if (update) {
-        if (essentialIdentity.current !== undefined) invalidateDiagnostics();
-        acceptedLibraryGeneration.current = libraryGeneration;
-        essentialIdentity.current = update.identity;
-        if (update.catalogChanged) setCatalog(snapshot.catalog);
-        if (update.statusesChanged) {
-          acceptedStatuses.current = update.nextStatuses;
-          setStatuses(update.nextStatuses);
-        }
-        if (update.sourcesChanged) setSources(snapshot.sources);
-        if (update.browsingChanged) setBrowsing(snapshot.browsing);
-        if (update.listingsChanged)
-          setListings({
-            ...(snapshot.listing_catalog ? { catalog: snapshot.listing_catalog } : {}),
-            statuses: snapshot.listing_statuses ?? [],
-            pending: snapshot.pending_setups ?? [],
-          });
-      }
-      lastFullReconciliationAt.current = Date.now();
-      if (activityGeneration.current.isCurrent(activityRequest))
-        acceptActivities(snapshot.activities);
-      setRefreshFailure(undefined);
-    } catch (error) {
-      if (!refreshGeneration.current.isCurrent(generation)) return;
-      setRefreshFailure({ error });
-      throw error;
-    } finally {
-      if (refreshGeneration.current.isCurrent(generation)) setRefreshing(false);
-    }
-  }, [
-    acceptActivities,
-    invalidateDiagnostics,
-    libraryGeneration,
-    setCatalog,
-    setRefreshFailure,
-    setRefreshing,
-    setSources,
-    setBrowsing,
-    setListings,
-    setStatuses,
-  ]);
+    // No recovery or mutation belongs in an automatically executable read function.
+    return { snapshot: await desktopApi.workspaceSnapshot(libraryGeneration), activityRequest };
+  }, [libraryGeneration]);
+  const options = useMemo(
+    () => ({
+      queryKey: ["workspace-snapshot", libraryGeneration],
+      queryFn: readWorkspace,
+      // The existing event/subscription adapter decides when a coherent IPC read is needed.
+      enabled: false,
+      networkMode: "always" as const,
+      retry: false as const,
+      retryOnMount: false,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      staleTime: 0,
+      gcTime: 0,
+      structuralSharing: shareWorkspaceRead,
+    }),
+    [libraryGeneration, readWorkspace],
+  );
+  const workspace = useQuery(options, queryClient);
+  const snapshot = workspace.data?.snapshot;
+  const catalog = snapshot?.catalog;
+  const statuses = snapshot?.statuses ?? emptyStatuses;
+  const sources = snapshot?.sources ?? emptySources;
+  const browsing = snapshot?.browsing;
+  const refreshFailure = workspace.isError ? { error: workspace.error } : undefined;
+  const refreshing = workspace.isFetching;
+  const previousSnapshot = useRef<WorkspaceSnapshot | undefined>(undefined);
+  useLayoutEffect(() => {
+    if (!workspace.data) return;
+    const next = workspace.data.snapshot;
+    const previous = previousSnapshot.current;
+    if (
+      previous &&
+      (next.catalog !== previous.catalog ||
+        next.statuses !== previous.statuses ||
+        next.sources !== previous.sources ||
+        next.browsing !== previous.browsing ||
+        next.listing_catalog !== previous.listing_catalog ||
+        next.listing_statuses !== previous.listing_statuses ||
+        next.pending_setups !== previous.pending_setups)
+    )
+      invalidateDiagnostics();
+    previousSnapshot.current = next;
+    lastFullReconciliationAt.current = workspace.dataUpdatedAt;
+    if (activityGeneration.current.isCurrent(workspace.data.activityRequest))
+      acceptActivities(next.activities);
+  }, [workspace.data, workspace.dataUpdatedAt, acceptActivities, invalidateDiagnostics]);
+  const runRefresh = useCallback(async () => {
+    await queryClient.fetchQuery(options);
+  }, [queryClient, options]);
+  // An invalidation during a read requires a fresh follow-up, not merely the same
+  // in-flight promise. Keep that boundary alongside the non-query coordinators.
   const coordinators = useRef<
     | {
         refresh: CoalescedRequest;
@@ -414,7 +332,6 @@ export function usePortcoveData(libraryGeneration = 0) {
   }, [reconcileWorkspace]);
 
   useEffect(() => {
-    const refreshRequests = refreshGeneration.current;
     const activityRequests = activityGeneration.current;
     const diagnosticRequests = diagnosticGeneration.current;
     const externalRequests = externalGeneration.current;
@@ -440,7 +357,6 @@ export function usePortcoveData(libraryGeneration = 0) {
     })();
     return () => {
       closed = true;
-      refreshRequests.begin();
       activityRequests.begin();
       diagnosticRequests.begin();
       externalRequests.begin();
@@ -487,9 +403,11 @@ export function usePortcoveData(libraryGeneration = 0) {
     statuses,
     sources,
     browsing,
-    listingCatalog: listings.catalog,
-    listingStatuses: listings.statuses,
-    pendingSetups: listings.pending,
+    refreshFailure,
+    refreshing,
+    listingCatalog: snapshot?.listing_catalog ?? undefined,
+    listingStatuses: snapshot?.listing_statuses ?? emptyListingStatuses,
+    pendingSetups: snapshot?.pending_setups ?? emptyPendingSetups,
     activities,
     activityFeed,
     doctor,
@@ -498,9 +416,7 @@ export function usePortcoveData(libraryGeneration = 0) {
     refreshAfterMutation,
     retryRefresh,
     refreshActivities,
-    refreshFailure,
     recoveryFailure,
-    refreshing,
     retryRecovery,
     refreshDiagnostics,
     refreshDiagnosticsAfterMutation,
