@@ -5,6 +5,7 @@ import { render as renderComponent, cleanup, type RenderResult } from "vitest-br
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
+import { currentCatalogPort } from "../catalog-test-fixtures";
 import { pickInstallFolder, pickHostToolExecutable } from "../file-picker";
 import { failureReport, portDefinition, portStatus } from "../test-fixtures";
 import type {
@@ -407,6 +408,40 @@ it("reviews explicit user launch details without accepted-package or file-manage
   );
   expect(changed).toHaveBeenCalledOnce();
 });
+
+it.each(["ghostship", "starship"])(
+  "shows %s’s actual prepared-installation guide beside executable selection",
+  async (id) => {
+    const selectedPort = currentCatalogPort(id);
+    const status = { ...portStatus(), port_id: id };
+    await root.rerender(
+      <UserSelectedRuntimeControl
+        port={selectedPort}
+        status={status}
+        listingStatus={{
+          port_id: id,
+          status,
+          actions: [{ action: "attach-existing", allowed: true }],
+        }}
+        generation={7}
+        busy={false}
+      />,
+    );
+    for (const step of selectedPort.presentation!.manual_setup!.steps) {
+      await expect.element(page.getByText(step.instruction, { exact: true })).toBeVisible();
+    }
+    for (const warning of selectedPort.presentation!.manual_setup!.warnings) {
+      await expect.element(page.getByText(warning, { exact: true })).toBeVisible();
+    }
+    await expect
+      .element(page.getByRole("button", { name: "Choose game executable…" }))
+      .toBeEnabled();
+    await expect
+      .element(page.getByRole("link", { name: "Detailed preparation guide" }))
+      .toHaveAttribute("href", selectedPort.presentation!.manual_setup!.help_url!);
+    await expect.element(page.getByLabelText("Start in folder")).toBeVisible();
+  },
+);
 
 it("shows authored setup warnings and instructions for a user-managed installation", async () => {
   const selectedPort = {

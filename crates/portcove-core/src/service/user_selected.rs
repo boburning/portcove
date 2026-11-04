@@ -909,6 +909,37 @@ mod tests {
         );
     }
 
+    // Actual catalog identities with an owned inert probe, never game execution.
+    // Keep the managed definition while exercising the independent external route.
+    fn assert_harbour_day_one_route(id: &str) {
+        let (temporary, mut service, executable, working) = fixture(id);
+        service.catalog = Catalog::embedded().unwrap();
+        assert_eq!(
+            service.catalog.port(id).unwrap().adapter,
+            "libultraship-portable"
+        );
+        assert!(service.catalog.listing(id).unwrap().manual_setup.is_some());
+        assert_selected_listing_lifecycle_with_arguments(
+            temporary,
+            service,
+            executable,
+            working,
+            id,
+            Vec::new(),
+            None,
+        );
+    }
+
+    #[test]
+    fn ghostship_day_one_registration_launch_and_removal_preserve_managed_route() {
+        assert_harbour_day_one_route("ghostship");
+    }
+
+    #[test]
+    fn starship_day_one_registration_launch_and_removal_preserve_managed_route() {
+        assert_harbour_day_one_route("starship");
+    }
+
     #[test]
     fn listing_only_registration_relink_restart_and_launch_preserve_user_ownership() {
         assert_listing_only_player_route("listing-only", None);

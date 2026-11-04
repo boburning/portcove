@@ -151,6 +151,26 @@ beta, consume completed admissions and evidence at their actual scope, and keep
 optional gameplay/save/device observations separate. Do not reopen completed
 admissions or extend this set to future projects, forks, libraries or releases.
 
+The November 4, 2026 owner decision defines #53 and #61’s **Required / Public
+beta** minimum as day-one availability: discover the game, follow official
+upstream/original-file preparation instructions, explicitly add the prepared
+executable and launch it, with clear operation ownership and limitations. Preserve
+the best working managed route and all credited Ghostship installation, startup
+and qualified recovery evidence. When managed acquisition or distribution is held,
+use the existing non-owning registration/launch route; Starship does not wait for
+a publisher checksum to offer this alternative. User selection is execution
+intent, never publisher authentication. A listing alone is insufficient.
+
+Protected per-title catalog delivery, automatic acquisition, advanced maintenance
+and later-version acceptance remain unfinished follow-up under #53/#61 and the
+existing #315/#246/#534 owners where applicable, with no promised release; they do
+not gate these two titles’ revised minimum through #1422/#2510/#2926 or another
+parent. Shared application security, trust, production and release acceptance
+remain independently required at their existing scope. Known issues hold only
+the affected operation; preserve originals, installations and saves. Reuse accepted
+evidence and validate the offered setup/launch route without adding gameplay,
+all-version, populated-save, automatic-update or other-platform campaigns.
+
 Other port expansion, title-specific qualification under this rollout and whole historical/all-port
 completion are ongoing Planned / Unscheduled work with no promised release.
 #1422 keeps its 317 rows / 316 identities; #2510/#2926 keep the frozen 858-identity
