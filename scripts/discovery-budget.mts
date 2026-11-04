@@ -1,6 +1,7 @@
+import type { GitHubApiObservation } from "./github-operation.mts";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { GitHubApiError, parseIncludedResponse, rateLimitFromResponse } from "./github-api.mts";
+import { GitHubApiError, sanitizeOperationError } from "./github-operation.mts";
 import { isRecord } from "./runtime-values.mts";
 import { isDiscoveryCache } from "./discovery-cache.mts";
 
@@ -31,17 +32,42 @@ export interface Usage {
 }
 export class DiscoveryBudget {
   readonly usage: Usage;
+  readonly observations: GitHubApiObservation[] = [];
   readonly limits;
+  readonly deadline: number;
+  readonly deferral = { primary: new Map<string, number>(), secondary: 0 };
   reserve = { requests: 0, bytes: 0 };
   delivery = false;
   readonly persist: (usage: Usage) => void;
   readonly now: () => number;
   graphqlPointHeadroom = discoveryGraphqlPointHeadroom;
-  private readonly providers = new Map<string, { id: string; refresh: () => void }>();
+  private readonly providers = new Map<
+    string,
+    { id: string; refresh: (signal?: AbortSignal) => void | Promise<void> }
+  >();
   private readonly refreshAttempts = new Set<string>();
   private refreshing = false;
+  private readonly pending = new Set<Promise<unknown>>();
+  private cleanupFailures: unknown[] = [];
+  track<T>(work: Promise<T>): Promise<T> {
+    this.pending.add(work);
+    void work.then(
+      () => this.pending.delete(work),
+      (error) => {
+        this.pending.delete(work);
+        this.cleanupFailures.push(error);
+      },
+    );
+    return work;
+  }
+  async drain() {
+    while (this.pending.size) await Promise.allSettled([...this.pending]);
+    const failures = this.cleanupFailures;
+    this.cleanupFailures = [];
+    return failures;
+  }
   private coreObserved = false;
-  registerProvider(token: string, refresh: () => void) {
+  registerProvider(token: string, refresh: (signal?: AbortSignal) => void | Promise<void>) {
     const existing = this.providers.get(token);
     if (existing) return existing.id;
     const id = `provider${this.providers.size + 1}`;
@@ -71,7 +97,10 @@ export class DiscoveryBudget {
       };
     }
   }
-  refreshProvider(id: string, action: () => void) {
+  refreshProvider(id: string, action: () => void | Promise<void>) {
+    return this.track(this.performRefresh(id, action));
+  }
+  private async performRefresh(id: string, action: () => void | Promise<void>) {
     const generation = `${id}:${JSON.stringify(
       Object.entries(this.usage.provider_sources?.[id] ?? {})
         .map(([key, value]) => [key, value.resetAt])
@@ -88,12 +117,13 @@ export class DiscoveryBudget {
     try {
       this.admitQuotaProbe();
       this.refreshAttempts.add(generation);
-      action();
+      await action();
     } finally {
       this.refreshing = false;
     }
   }
-  private refreshExpired(resource: string, id?: string) {
+  private async refreshExpired(resource: string, id?: string, signal?: AbortSignal) {
+    signal?.throwIfAborted();
     if (this.refreshing) return;
     for (const provider of this.providers.values()) {
       if (id && provider.id !== id) continue;
@@ -102,7 +132,7 @@ export class DiscoveryBudget {
         (quota && Date.parse(quota.resetAt) <= this.now()) ||
         (!quota && resource === "core" && this.coreObserved)
       )
-        provider.refresh();
+        await provider.refresh(signal);
     }
   }
   admitQuotaProbe() {
@@ -131,17 +161,21 @@ export class DiscoveryBudget {
     profile: DiscoveryProfile,
     persist: (usage: Usage) => void = () => {},
     now: () => number = Date.now,
+    startedAt = new Date(now()).toISOString(),
   ) {
     this.persist = persist;
     this.now = now;
     this.limits = discoveryProfiles[profile];
+    const started = Date.parse(startedAt);
+    if (!Number.isFinite(started)) throw new Error("Invalid discovery start time");
+    this.deadline = performance.now() + this.limits.milliseconds - Math.max(0, now() - started);
     this.usage = {
       requests: 0,
       bytes: 0,
       accounting_bytes: 0,
       graphql_points_observed: 0,
       graphql_cost_unknown_requests: 0,
-      started_at: new Date(now()).toISOString(),
+      started_at: startedAt,
       profile,
       attempts: [],
     };
@@ -179,7 +213,8 @@ export class DiscoveryBudget {
       milliseconds,
     };
   }
-  admit(requests: number, bytes: number) {
+  async admit(requests: number, bytes: number, signal?: AbortSignal) {
+    signal?.throwIfAborted();
     if (
       !Number.isSafeInteger(requests) ||
       requests < 0 ||
@@ -188,7 +223,8 @@ export class DiscoveryBudget {
     )
       throw new Error("Invalid operation budget");
     this.checkBackoff();
-    this.refreshExpired("core");
+    await this.refreshExpired("core", undefined, signal);
+    signal?.throwIfAborted();
     this.checkBackoff();
     const left = this.remaining();
     if (left.milliseconds <= 0 || requests > left.requests || bytes > left.bytes)
@@ -197,11 +233,11 @@ export class DiscoveryBudget {
         "Discovery budget cannot admit the complete operation",
       );
   }
-  reserveDelivery(requests: number, bytes: number) {
+  async reserveDelivery(requests: number, bytes: number) {
     const previous = this.reserve;
     this.reserve = { requests: 0, bytes: 0 };
     try {
-      this.admit(requests, bytes);
+      await this.admit(requests, bytes);
       this.reserve = { requests, bytes };
     } catch (e) {
       this.reserve = previous;
@@ -239,8 +275,15 @@ export class DiscoveryBudget {
       this.usage.backoff_until = until;
     this.persist(this.usage);
   }
-  admitProvider(resource: string, points: number, required = false, source?: string) {
-    this.refreshExpired(resource, source);
+  async admitProvider(
+    resource: string,
+    points: number,
+    required = false,
+    source?: string,
+    signal?: AbortSignal,
+  ) {
+    await this.refreshExpired(resource, source, signal);
+    signal?.throwIfAborted();
     const quota = source
       ? this.usage.provider_sources?.[source]?.[resource]
       : this.usage.provider_quotas?.[resource];
@@ -262,9 +305,9 @@ export class DiscoveryBudget {
         `GitHub ${resource} quota cannot preserve delivery reserve: remaining ${quota.remaining}, needed ${points + reserve}; resume after ${quota.resetAt}`,
       );
   }
-  requireProviderCapacity(requests: number) {
-    this.admitProvider("core", requests, true);
-    this.admitProvider("graphql", requests * this.graphqlPointHeadroom, true);
+  async requireProviderCapacity(requests: number) {
+    await this.admitProvider("core", requests, true);
+    await this.admitProvider("graphql", requests * this.graphqlPointHeadroom, true);
   }
   observeGraphqlCost(cost: unknown, unknownRequests = 1) {
     if (typeof cost === "number" && Number.isSafeInteger(cost) && cost >= 0) {
@@ -314,254 +357,118 @@ export function selectDiscoveryProfile(cache: unknown, now = Date.now()): Discov
     return "cold";
   return "ordinary";
 }
+/** Retained external/raw artifact reads only. GitHub metadata uses the SDK;
+ * no CLI command protocol or included-HTTP emulation remains here. */
 export function createDiscoveryTransport(
   budget: DiscoveryBudget,
   token: string,
   worker = fileURLToPath(new URL("./discovery-http.mts", import.meta.url)),
 ) {
-  const source = budget.registerProvider(token, () => refreshQuotas());
-  const perform = (
-    method: string,
-    url: string,
-    body?: string,
-    binary = false,
-    conditionalEtag?: string,
-    quotaProbe = false,
-  ) => {
+  const request = async (method: string, url: string, body?: string, binary = false) => {
     const target = new URL(url);
-    if (
-      quotaProbe &&
-      (method !== "GET" ||
-        url !== "https://api.github.com/rate_limit" ||
-        body ||
-        binary ||
-        conditionalEtag)
-    )
-      throw new Error("Quota observation is restricted to the exact read-only provider endpoint");
-    if (!quotaProbe) budget.admit(1, 1);
-    if (target.origin === "https://api.github.com" && target.pathname !== "/rate_limit")
-      budget.admitProvider(
-        target.pathname === "/graphql"
-          ? "graphql"
-          : target.pathname.startsWith("/search/")
-            ? "search"
-            : "core",
-        target.pathname === "/graphql" ? budget.graphqlPointHeadroom : 1,
-        false,
-        source,
+    if (method !== "GET" || body !== undefined)
+      throw new GitHubApiError(
+        "request_refused",
+        "Discovery external/byte transport admits reads only",
       );
-    const left = quotaProbe ? budget.admitQuotaProbe() : budget.remaining();
-    const cap = Math.min(2 * 1024 * 1024, left.bytes);
-    const maxRequests = Math.min(5, left.requests);
-    const timeout = Math.min(20000, left.milliseconds);
+    const github = target.origin === "https://api.github.com";
+    if (
+      github &&
+      (!binary ||
+        !/^\/repos\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/actions\/artifacts\/[1-9][0-9]*\/zip$/u.test(
+          target.pathname,
+        ))
+    )
+      throw new GitHubApiError("request_refused", "GitHub metadata must use the configured SDK");
+    await budget.admit(1, 1);
+    if (github) await budget.admitProvider("core", 1);
+    const left = budget.remaining(),
+      cap = Math.min(2 * 1024 * 1024, left.bytes);
+    const maxRequests = Math.min(5, left.requests),
+      timeout = Math.min(20000, left.milliseconds);
     const response = spawnSync(process.execPath, [worker], {
-      input: JSON.stringify({
-        method,
-        url,
-        body,
-        binary,
-        token,
-        cap,
-        maxRequests,
-        timeout,
-        conditionalEtag,
-      }),
+      input: JSON.stringify({ method, url, binary, token, cap, maxRequests, timeout }),
       encoding: "utf8",
       windowsHide: true,
       timeout: timeout + 1000,
       maxBuffer: cap * 2 + 65536,
     });
-    if (response.error || response.status !== 0) {
-      if (target.origin === "https://api.github.com" && target.pathname === "/graphql")
-        budget.observeGraphqlCost(undefined, maxRequests);
-      budget.charge(
-        method,
-        new URL(url).origin + new URL(url).pathname,
-        maxRequests,
-        cap,
-        "unknown",
-      );
-      throw new Error("Bounded HTTP worker failed; usage conservatively charged");
-    }
+    const unknown = (message: string): never => {
+      budget.charge(method, target.origin + target.pathname, maxRequests, cap, "unknown");
+      throw new Error(message);
+    };
+    if (response.error || response.status !== 0)
+      unknown("Bounded external/byte worker failed; usage conservatively charged");
     let parsed: unknown;
     try {
       parsed = JSON.parse(response.stdout);
     } catch {
-      if (target.origin === "https://api.github.com" && target.pathname === "/graphql")
-        budget.observeGraphqlCost(undefined, maxRequests);
-      budget.charge(
-        method,
-        new URL(url).origin + new URL(url).pathname,
-        maxRequests,
-        cap,
-        "unknown",
-      );
-      throw new Error("Malformed bounded transport receipt; conservative charge");
+      unknown("Malformed external/byte receipt; usage conservatively charged");
     }
     if (
       !isRecord(parsed) ||
-      typeof parsed.requests !== "number" ||
       !Number.isSafeInteger(parsed.requests) ||
-      parsed.requests < 0 ||
-      parsed.requests > maxRequests ||
-      (quotaProbe && parsed.requests !== 1) ||
-      typeof parsed.bytes !== "number" ||
+      Number(parsed.requests) < 0 ||
+      Number(parsed.requests) > maxRequests ||
       !Number.isSafeInteger(parsed.bytes) ||
-      parsed.bytes < 0 ||
-      typeof parsed.status !== "number" ||
+      Number(parsed.bytes) < 0 ||
+      !Number.isSafeInteger(parsed.status) ||
       !isRecord(parsed.headers) ||
+      Object.values(parsed.headers).some((value) => typeof value !== "string") ||
       typeof parsed.text !== "string"
-    ) {
-      if (target.origin === "https://api.github.com" && target.pathname === "/graphql")
-        budget.observeGraphqlCost(undefined, maxRequests);
-      budget.charge(
-        method,
-        new URL(url).origin + new URL(url).pathname,
-        maxRequests,
-        cap,
-        "unknown",
-      );
-      throw new Error("Malformed bounded transport receipt; conservative charge");
-    }
-    if (target.origin === "https://api.github.com" && target.pathname === "/graphql") {
-      let cost: unknown;
-      try {
-        const body: unknown = JSON.parse(parsed.text);
-        if (isRecord(body) && isRecord(body.data) && isRecord(body.data.rateLimit))
-          cost = body.data.rateLimit.cost;
-      } catch {
-        /* Invalid JSON remains an invalid provider response; it establishes no cost. */
-      }
-      budget.observeGraphqlCost(cost);
-      if (parsed.requests > 1) budget.observeGraphqlCost(undefined, parsed.requests - 1);
-    }
-    budget.charge(
-      method,
-      new URL(url).origin + new URL(url).pathname,
-      parsed.requests,
-      parsed.bytes,
-      String(parsed.status),
-    );
-    const resource = parsed.headers["x-ratelimit-resource"];
-    const remaining = parsed.headers["x-ratelimit-remaining"];
-    const reset = parsed.headers["x-ratelimit-reset"];
-    if (
-      !quotaProbe &&
-      target.origin === "https://api.github.com" &&
-      typeof resource === "string" &&
-      ["core", "graphql", "search"].includes(resource) &&
-      typeof remaining === "string" &&
-      /^\d+$/u.test(remaining) &&
-      typeof reset === "string" &&
-      /^\d+$/u.test(reset)
     )
-      budget.observeProvider(
-        {
-          resource,
-          remaining: Number(remaining),
-          resetAt: new Date(Number(reset) * 1000).toISOString(),
-        },
-        source,
-      );
-    if (typeof parsed.backoff_until === "string") {
-      budget.retainBackoff(parsed.backoff_until);
-    }
-    if (parsed.error)
-      throw new Error(typeof parsed.error === "string" ? parsed.error : "Bounded transport failed");
-    return parsed as {
+      unknown("Malformed external/byte receipt; usage conservatively charged");
+    // The runtime checks above establish every consumed worker field.
+    const receipt = parsed as {
       requests: number;
       bytes: number;
       status: number;
       headers: Record<string, string>;
       text: string;
+      backoff_until?: unknown;
+      error?: unknown;
+    };
+    budget.charge(
+      method,
+      target.origin + target.pathname,
+      receipt.requests,
+      receipt.bytes,
+      String(receipt.status),
+    );
+    if (github) {
+      const remaining = Number(receipt.headers["x-ratelimit-remaining"]),
+        reset = Number(receipt.headers["x-ratelimit-reset"]);
+      if (
+        receipt.headers["x-ratelimit-resource"] === "core" &&
+        Number.isSafeInteger(remaining) &&
+        remaining >= 0 &&
+        Number.isSafeInteger(reset) &&
+        reset >= 0 &&
+        reset <= 8_640_000_000_000
+      )
+        budget.observeProvider({
+          resource: "core",
+          remaining,
+          resetAt: new Date(reset * 1000).toISOString(),
+        });
+    }
+    if (typeof receipt.backoff_until === "string") budget.retainBackoff(receipt.backoff_until);
+    if (receipt.error)
+      throw new GitHubApiError(
+        "download_failed",
+        sanitizeOperationError(
+          new Error(typeof receipt.error === "string" ? receipt.error : "Bounded byte read failed"),
+          { secrets: [token] },
+        ).message,
+        { status: receipt.status, responseBytes: receipt.bytes },
+      );
+    return {
+      requests: receipt.requests,
+      bytes: receipt.bytes,
+      status: receipt.status,
+      headers: receipt.headers,
+      text: receipt.text,
     };
   };
-  const request = (
-    method: string,
-    url: string,
-    body?: string,
-    binary = false,
-    conditionalEtag?: string,
-  ) => perform(method, url, body, binary, conditionalEtag);
-  const refreshQuotas = () =>
-    budget.refreshProvider(source, () => {
-      // A valid HTTP 200 can straddle a reset boundary. Reobserve that read
-      // once, charging the same envelope; never retry a failed transport or POST.
-      for (let observation = 0; observation < 2; observation++) {
-        const response = perform(
-          "GET",
-          "https://api.github.com/rate_limit",
-          undefined,
-          false,
-          undefined,
-          true,
-        );
-        if (response.status !== 200)
-          throw new GitHubApiError("http_error", `Quota observation HTTP ${response.status}`, {
-            status: response.status,
-          });
-        const data: unknown = JSON.parse(response.text);
-        if (!isRecord(data) || !isRecord(data.resources))
-          throw new Error("Incomplete provider quota observation");
-        const quotas = ["core", "graphql", "search"].map((resource) => {
-          const value = (data.resources as Record<string, unknown>)[resource];
-          if (
-            !isRecord(value) ||
-            !Number.isSafeInteger(value.remaining) ||
-            Number(value.remaining) < 0 ||
-            !Number.isSafeInteger(value.limit) ||
-            Number(value.limit) < Number(value.remaining) ||
-            !Number.isSafeInteger(value.reset) ||
-            Number(value.reset) <= 0
-          )
-            throw new Error("Incomplete provider quota observation");
-          return {
-            resource,
-            remaining: Number(value.remaining),
-            resetAt: new Date(Number(value.reset) * 1000).toISOString(),
-          };
-        });
-        if (quotas.some((quota) => Date.parse(quota.resetAt) <= budget.now())) continue;
-        for (const quota of quotas)
-          budget.observeProvider(quota, source, quota.resource === "core");
-        return;
-      }
-      throw new GitHubApiError(
-        "quota_stale",
-        "Provider quota observation remains stale after its bounded refresh",
-      );
-    });
-  const runner = (args: readonly string[], input?: string) => {
-    if (args[0] === "auth" && args[1] === "status") return "";
-    if (args[0] !== "api") throw new Error("Discovery requires bounded API commands");
-    const graphql = args[1] === "graphql";
-    const endpoint = graphql ? "graphql" : args[2];
-    if (!endpoint) throw new Error("Missing API endpoint");
-    const url = new URL(endpoint, "https://api.github.com/");
-    if (url.origin !== "https://api.github.com") throw new Error("Unexpected GitHub API origin");
-    const method = graphql ? "POST" : (args[args.indexOf("--method") + 1] ?? "GET");
-    let etag: string | undefined;
-    for (let index = 0; index < args.length; index++)
-      if (args[index] === "--header") {
-        const header = args[++index];
-        if (!header?.startsWith("If-None-Match: ") || etag !== undefined)
-          throw new Error("Discovery supports only one scoped conditional read header");
-        etag = header.slice("If-None-Match: ".length);
-      }
-    const response = request(method, url.href, input, false, etag);
-    const included = `HTTP/2 ${response.status}\n${Object.entries(response.headers)
-      .map(([k, v]) => `${k}: ${v}`)
-      .join("\n")}\n\n${response.text}`;
-    if (response.status >= 400)
-      throw new GitHubApiError("http_error", `GitHub HTTP ${response.status}`, {
-        status: response.status,
-        rateLimit: rateLimitFromResponse(parseIncludedResponse(included)),
-        retryAfter: response.headers["retry-after"] ?? null,
-        requestId: response.headers["x-github-request-id"] ?? null,
-        responseDate: response.headers.date ?? null,
-        responseBytes: Buffer.byteLength(response.text),
-      });
-    return included;
-  };
-  return { runner, request };
+  return { request };
 }

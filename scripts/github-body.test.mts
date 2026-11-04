@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { isRecord } from "./runtime-values.mts";
-import type { BodyObservation } from "./github-body.mts";
+import type { BodyApi, BodyObservation } from "./github-body.mts";
 function requiredFixture<T>(value: T): NonNullable<T> {
   assert.ok(value !== null && value !== undefined);
   return value;
@@ -101,10 +101,16 @@ void test("closure permission is independent, canonical and covers variants and 
   );
 });
 
-void test("closing relationships require complete stable opaque identities and cursors", () => {
+void test("closing relationships require complete stable opaque identities and cursors", async () => {
   const issue = { id: "opaque-issue", number: 244, repository: { nameWithOwner: repository } };
   assert.deepEqual(
-    readClosingRelationships({ graphql: () => closingPage([issue]) }, repository, 7).relationships,
+    (
+      await readClosingRelationships(
+        { request: async () => ({ data: closingPage([issue]) }) },
+        repository,
+        7,
+      )
+    ).relationships,
     ["boburning/portcove#244"],
   );
   for (const extra of [
@@ -112,37 +118,47 @@ void test("closing relationships require complete stable opaque identities and c
     { pageInfo: {} },
     { totalCount: 2, pageInfo: { hasNextPage: true, endCursor: null } },
   ])
-    assert.throws(
-      () => readClosingRelationships({ graphql: () => closingPage([issue], extra) }, repository, 7),
+    await assert.rejects(
+      () =>
+        readClosingRelationships(
+          { request: async () => ({ data: closingPage([issue], extra) }) },
+          repository,
+          7,
+        ),
       /incomplete/,
     );
-  assert.throws(
-    () => readClosingRelationships({ graphql: () => closingPage([issue, issue]) }, repository, 7),
+  await assert.rejects(
+    () =>
+      readClosingRelationships(
+        { request: async () => ({ data: closingPage([issue, issue]) }) },
+        repository,
+        7,
+      ),
     /Duplicate/,
   );
   let page = 0;
   const api = {
-    graphql() {
+    async request() {
       const value = closingPage([{ ...issue, id: `id-${page}`, number: 244 + page }], {
         totalCount: 2,
         pageInfo: { hasNextPage: page === 0, endCursor: "cursor" },
       });
       if (page++) value.data.repository.pullRequest.body = "Changed without head change";
-      return value;
+      return { data: value };
     },
   };
-  assert.throws(() => readClosingRelationships(api, repository, 7), /changed/);
+  await assert.rejects(() => readClosingRelationships(api, repository, 7), /changed/);
 });
 
-void test("PR writer refuses undeclared intent before mutation", () => {
+void test("PR writer refuses undeclared intent before mutation", async () => {
   const api = {
-    request() {
+    async request() {
       assert.fail("No remote mutation permitted");
     },
   };
-  assert.throws(
-    () =>
-      writeGitHubBody(
+  await assert.rejects(
+    async () =>
+      await writeGitHubBody(
         {
           operation: "pr-create",
           body: "Closes #244",
@@ -155,9 +171,9 @@ void test("PR writer refuses undeclared intent before mutation", () => {
       ),
     /Undeclared/,
   );
-  assert.throws(
-    () =>
-      writeGitHubBody(
+  await assert.rejects(
+    async () =>
+      await writeGitHubBody(
         {
           operation: "pr-create",
           body: "Fixes https://github.com/boburning/portcove/issues/244",
@@ -187,23 +203,23 @@ void test("PR writer refuses undeclared intent before mutation", () => {
   );
 });
 
-void test("PR body edit checks fresh manual links before any write", () => {
+void test("PR body edit checks fresh manual links before any write", async () => {
   let writes = 0;
   const page = closingPage([
     { id: "manual", number: 244, repository: { nameWithOwner: repository } },
   ]);
   const api = {
-    graphql: () => page,
-    request(method: string) {
+    async request({ method, url: endpoint }: Parameters<BodyApi["request"]>[0]) {
+      if (endpoint.endsWith("/graphql")) return { data: page };
       if (method !== "GET") writes++;
       return {
-        body: { id: 123, number: 7, body: "Related to #244.", head: { sha: "a".repeat(40) } },
+        data: { id: 123, number: 7, body: "Related to #244.", head: { sha: "a".repeat(40) } },
       };
     },
   };
-  assert.throws(
-    () =>
-      writeGitHubBody(
+  await assert.rejects(
+    async () =>
+      await writeGitHubBody(
         {
           operation: "pr-edit",
           target: 7,
@@ -218,25 +234,31 @@ void test("PR body edit checks fresh manual links before any write", () => {
   assert.equal(writes, 0);
 });
 
-void test("relationship pagination completes multiple pages and refuses repeated cursors", () => {
+void test("relationship pagination completes multiple pages and refuses repeated cursors", async () => {
   let page = 0;
   const api = {
-    graphql() {
+    async request() {
       const index = page++;
-      return closingPage(
-        [{ id: `id-${index}`, number: 244 + index, repository: { nameWithOwner: repository } }],
-        { totalCount: 2, pageInfo: { hasNextPage: index === 0, endCursor: "first" } },
-      );
+      return {
+        data: closingPage(
+          [{ id: `id-${index}`, number: 244 + index, repository: { nameWithOwner: repository } }],
+          { totalCount: 2, pageInfo: { hasNextPage: index === 0, endCursor: "first" } },
+        ),
+      };
     },
   };
-  assert.equal(readClosingRelationships(api, repository, 7).relationships.length, 2);
+  assert.equal((await readClosingRelationships(api, repository, 7)).relationships.length, 2);
   page = 0;
-  api.graphql = () =>
-    closingPage(
+  api.request = async () => ({
+    data: closingPage(
       [{ id: `id-${page}`, number: 244 + page++, repository: { nameWithOwner: repository } }],
       { totalCount: 4, pageInfo: { hasNextPage: true, endCursor: "same" } },
-    );
-  assert.throws(() => readClosingRelationships(api, repository, 7), /pagination is incomplete/);
+    ),
+  });
+  await assert.rejects(
+    () => readClosingRelationships(api, repository, 7),
+    /pagination is incomplete/,
+  );
 });
 import {
   validateGitHubBody,
@@ -287,14 +309,14 @@ void test("text guard preserves every C0 and DEL boundary and the first UTF-16 o
   });
 });
 
-void test("edits compare fresh preimages and verify exact validated content", () => {
+void test("edits compare fresh preimages and verify exact validated content", async () => {
   const calls: { method: string; endpoint: string; payload?: unknown }[] = [];
   const body = "new `body`\r\n🎮";
   const api = {
-    request(method: string, endpoint: string, payload?: unknown) {
+    async request({ method, url: endpoint, data: payload }: Parameters<BodyApi["request"]>[0]) {
       calls.push({ method, endpoint, payload });
       return {
-        body: {
+        data: {
           id: 123,
           number: 1685,
           html_url: "https://github.com/boburning/portcove/issues/1685",
@@ -304,8 +326,12 @@ void test("edits compare fresh preimages and verify exact validated content", ()
     },
   };
   assert.equal(
-    writeGitHubBody({ operation: "issue-edit", target: 1685, previousBody: "old", body }, api)
-      .verified,
+    (
+      await writeGitHubBody(
+        { operation: "issue-edit", target: 1685, previousBody: "old", body },
+        api,
+      )
+    ).verified,
     true,
   );
   assert.deepEqual(
@@ -314,9 +340,9 @@ void test("edits compare fresh preimages and verify exact validated content", ()
   );
   assert.equal(record(requiredFixture(calls[1]).payload).body, body);
   calls.length = 0;
-  assert.throws(
-    () =>
-      writeGitHubBody(
+  await assert.rejects(
+    async () =>
+      await writeGitHubBody(
         { operation: "issue-edit", target: 1685, previousBody: "changed", body },
         api,
       ),
@@ -325,21 +351,21 @@ void test("edits compare fresh preimages and verify exact validated content", ()
   assert.equal(calls.length, 1);
 });
 
-void test("mutations retain response observations, never retry and refuse bad readback", () => {
+void test("mutations retain response observations, never retry and refuse bad readback", async () => {
   let writes = 0;
   const observations: BodyObservation[] = [];
   const api = {
-    request(method: string) {
+    async request({ method }: Parameters<BodyApi["request"]>[0]) {
       if (method === "POST") {
         writes++;
-        return { body: { id: 55 } };
+        return { data: { id: 55 } };
       }
-      return { body: { id: 55, number: 1685, body: "different" } };
+      return { data: { id: 55, number: 1685, body: "different" } };
     },
   };
-  assert.throws(
-    () =>
-      writeGitHubBody(
+  await assert.rejects(
+    async () =>
+      await writeGitHubBody(
         {
           operation: "pr-comment",
           target: 1685,
@@ -356,37 +382,42 @@ void test("mutations retain response observations, never retry and refuse bad re
   );
   const timeout = new Error("ambiguous timeout");
   const failing = {
-    request(method: string) {
+    async request({ method }: Parameters<BodyApi["request"]>[0]) {
       if (method === "POST") {
         writes++;
         throw timeout;
       }
-      return { body: { id: 1, number: 1685 } };
+      return { data: { id: 1, number: 1685 } };
     },
   };
-  assert.throws(
-    () => writeGitHubBody({ operation: "issue-comment", target: 1685, body: "candidate" }, failing),
+  await assert.rejects(
+    async () =>
+      await writeGitHubBody(
+        { operation: "issue-comment", target: 1685, body: "candidate" },
+        failing,
+      ),
     (error) => error === timeout,
   );
   assert.equal(writes, 2);
 });
 
-void test("body writer restricts operations and repository identity before mutations", () => {
+void test("body writer restricts operations and repository identity before mutations", async () => {
   const api = {
-    request() {
+    async request() {
       assert.fail("Unexpected API call");
     },
   };
-  assert.throws(() =>
-    writeGitHubBody(
-      {
-        operation: "issue-edit",
-        target: "https://github.com/other/repo/issues/1",
-        body: "candidate",
-        previousBody: "old",
-      },
-      api,
-    ),
+  await assert.rejects(
+    async () =>
+      await writeGitHubBody(
+        {
+          operation: "issue-edit",
+          target: "https://github.com/other/repo/issues/1",
+          body: "candidate",
+          previousBody: "old",
+        },
+        api,
+      ),
   );
   assert.throws(() =>
     parseBodyArguments(["issue-edit", "--target", "1", "--body-file", "candidate"]),
@@ -405,19 +436,18 @@ void test("body writer restricts operations and repository identity before mutat
   assert.throws(() => parseBodyArguments(["issue-create", "--body-file", "candidate"]));
 });
 
-void test("PR creation refuses a missing mutation ID even when number and body read back", () => {
+void test("PR creation refuses a missing mutation ID even when number and body read back", async () => {
   let reads = 0;
   const api = {
-    graphql: () => closingPage(),
-    request(method: string) {
-      if (method === "POST") return { body: { number: 7 } };
+    async request({ method }: Parameters<BodyApi["request"]>[0]) {
+      if (method === "POST") return { data: { number: 7 } };
       reads++;
-      return { body: { number: 7, body: "Related to #244.", head: { sha: "a".repeat(40) } } };
+      return { data: { number: 7, body: "Related to #244.", head: { sha: "a".repeat(40) } } };
     },
   };
-  assert.throws(
-    () =>
-      writeGitHubBody(
+  await assert.rejects(
+    async () =>
+      await writeGitHubBody(
         {
           operation: "pr-create",
           body: "Related to #244.",
@@ -431,4 +461,86 @@ void test("PR creation refuses a missing mutation ID even when number and body r
     /Created PR identity unavailable/,
   );
   assert.equal(reads, 0, "An unidentifiable mutation must stop before a false verified readback");
+});
+
+void test("asynchronous Roadmap validation settles before a body mutation or refusal", async () => {
+  for (const rejectValidation of [false, true]) {
+    let release!: () => void;
+    const validation = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const methods: string[] = [];
+    const previousBody = "## User outcome\nPrevious durable specification";
+    let body = previousBody;
+    const pending = writeGitHubBody(
+      {
+        operation: "issue-edit",
+        target: 1685,
+        previousBody,
+        body: "## User outcome\nUpdated durable specification",
+      },
+      {
+        async request({ method, data: payload }: Parameters<BodyApi["request"]>[0]) {
+          methods.push(method);
+          if (method === "PATCH") body = String(record(payload).body);
+          return { data: { id: 123, number: 1685, body } };
+        },
+        async validateRoadmapReplacement() {
+          await validation;
+          if (rejectValidation) throw new Error("Invalid Roadmap proposal");
+        },
+      },
+    );
+    const result = rejectValidation ? assert.rejects(pending, /Invalid Roadmap proposal/) : pending;
+    assert.deepEqual(methods, ["GET"]);
+    release();
+    await result;
+    assert.deepEqual(methods, rejectValidation ? ["GET"] : ["GET", "PATCH", "GET"]);
+  }
+});
+
+void test("body validation reuses its original command credential and deadline", async (t) => {
+  const { createBodyClient } = await import("./github-body.mts");
+  const { RoadmapClient } = await import("./roadmap.mts");
+  const previous = process.env.GH_TOKEN;
+  t.after(() => {
+    if (previous === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = previous;
+  });
+  process.env.GH_TOKEN = "synthetic-original-body-role";
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (_input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      assert.equal(
+        new Headers(init?.headers).get("authorization"),
+        "token synthetic-original-body-role",
+      );
+      return Response.json({ id: 1 });
+    },
+  );
+  const api = await createBodyClient();
+  const constructed = performance.now();
+  await api.request({
+    method: "GET",
+    url: "https://api.github.com/repos/boburning/portcove/issues/1",
+  });
+  process.env.GH_TOKEN = "synthetic-substitute-must-not-be-used";
+  t.mock.method(
+    RoadmapClient,
+    "connect",
+    async (
+      _config: Parameters<typeof RoadmapClient.connect>[0],
+      scope: Parameters<typeof RoadmapClient.connect>[1],
+    ) => {
+      assert.equal(scope.credential.kind, "explicit");
+      if (scope.credential.kind === "explicit")
+        assert.equal(scope.credential.token, "synthetic-original-body-role");
+      assert.ok(scope.deadline <= constructed + 120000);
+      throw new Error("Validation boundary reached");
+    },
+  );
+  const validate = api.validateRoadmapReplacement;
+  assert.ok(validate);
+  await assert.rejects(async () => validate(1, "old", "new"), /Validation boundary reached/u);
 });

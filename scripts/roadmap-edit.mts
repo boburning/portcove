@@ -3,12 +3,14 @@ import { RoadmapClient, roadmapLockPath, validateConfig } from "./roadmap.mts";
 import { acquireOwnedProcessLock } from "./process-lock.mts";
 import {
   continueRoadmapCapacity,
+  createRoadmapRequestScope,
   roadmapQuotaDeferred,
   retainRoadmapQuotaDeferral,
 } from "./roadmap-capacity-continuation.mts";
 import { runScopedDoctor } from "./roadmap-scoped.mts";
 import { captureCheckoutContext, checkContextualDoctor } from "./checkout-context.mts";
-import type { GitHubRateLimit } from "./github-api.mts";
+import type { GitHubRateLimit, GitHubApiObservation } from "./github-operation.mts";
+import { createGitHubClient } from "./github-client.mts";
 import { RoadmapBodyJournal, bodyOperationHash } from "./roadmap-body-progress.mts";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
@@ -16,7 +18,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { writeGitHubBody, validateGitHubBody } from "./github-body.mts";
 import type { BodyApi, BodyWriteOptions } from "./github-body.mts";
-import { GitHubApiClient, sanitizeOperationError } from "./github-api.mts";
+import { sanitizeOperationError } from "./github-operation.mts";
 import { isRoadmapSpecification, validateLiveRoadmapReplacement } from "./roadmap-authoring.mts";
 import { isRecord } from "./runtime-values.mts";
 import config from "../.github/roadmap.json" with { type: "json" };
@@ -76,9 +78,15 @@ export async function editRoadmapBatch(
       throw new Error("Body source files or configuration changed; no further operation");
     await options.admit?.(phase, index);
   };
-  const read = (index: number) => {
+  const read = async (index: number) => {
     const number = input[index]!.number;
-    const observed = api.request("GET", `repos/${config.repository}/issues/${number}`).body;
+    const observed = (
+      await api.request({
+        method: "GET",
+        url: `https://api.github.com/repos/${config.repository}/issues/${number}`,
+        request: { portcove: { replay: "safe-read", attempts: 0 } },
+      })
+    ).data;
     if (
       !isRecord(observed) ||
       observed.number !== number ||
@@ -95,10 +103,10 @@ export async function editRoadmapBatch(
   for (let i = state.identities.length; i < edits.length; i++) {
     await admit("body-preflight", i);
     const edit = editAt(i),
-      before = read(i);
+      before = await read(i);
     if (before.body !== edit.previousBody && before.body !== edit.body)
       throw new Error(`Issue #${input[i]!.number} preimage changed before batch publication`);
-    (api.validateRoadmapReplacement ?? validateLiveRoadmapReplacement)(
+    await (api.validateRoadmapReplacement ?? validateLiveRoadmapReplacement)(
       input[i]!.number,
       String(before.body),
       String(edit.body),
@@ -126,7 +134,7 @@ export async function editRoadmapBatch(
     for (const index of state.verified) {
       if (state.resumption.checked.includes(index)) continue;
       await admit("body-resumption-read", index);
-      if (read(index).body !== editAt(index).body)
+      if ((await read(index)).body !== editAt(index).body)
         throw new Error(
           `Issue #${input[index]!.number} previously verified body changed; no further writes`,
         );
@@ -139,7 +147,7 @@ export async function editRoadmapBatch(
     await admit("body-mutation", i);
     const edit = editAt(i);
     if (state.uncertain.includes(i)) {
-      const observed = read(i);
+      const observed = await read(i);
       if (observed.body !== edit.body)
         throw new Error(
           `Issue #${input[i]!.number} has an ambiguous prior write; do not resend automatically`,
@@ -151,35 +159,35 @@ export async function editRoadmapBatch(
     }
     const guarded: BodyApi = {
       ...api,
-      ...(api.graphql ? { graphql: (query, variables) => api.graphql!(query, variables) } : {}),
       ...(api.validateRoadmapReplacement
         ? {
             validateRoadmapReplacement: (number, previous, body) =>
               api.validateRoadmapReplacement!(number, previous, body),
           }
         : {}),
-      request: (method, endpoint, payload) => {
+      request: async (options) => {
+        const { method } = options;
         if (method === "PATCH") {
           state.uncertain.push(i);
           progress.save();
         }
-        const result = api.request(method, endpoint, payload);
-        if (method === "GET" && (!isRecord(result.body) || result.body.id !== state.identities[i]))
+        const result = await api.request(options);
+        if (method === "GET" && (!isRecord(result.data) || result.data.id !== state.identities[i]))
           throw new Error("Body mutation target identity changed; preserve prior operation");
         if (
           method === "GET" &&
           !state.uncertain.includes(i) &&
-          isRecord(result.body) &&
-          result.body.body === edit.body
+          isRecord(result.data) &&
+          result.data.body === edit.body
         ) {
-          edit.observe?.({ phase: "readback", result: result.body });
+          edit.observe?.({ phase: "readback", result: result.data });
           throw new BodyAlreadyDesired("Exact desired body observed before any mutation");
         }
         return result;
       },
     };
     try {
-      writeGitHubBody(edit, guarded);
+      await writeGitHubBody(edit, guarded);
     } catch (error) {
       if (!(error instanceof BodyAlreadyDesired)) throw error;
     }
@@ -192,7 +200,7 @@ export async function editRoadmapBatch(
   for (let i = 0; i < edits.length; i++) {
     if (state.checked.includes(i)) continue;
     await admit("body-final-read", i);
-    if (read(i).body !== editAt(i).body)
+    if ((await read(i)).body !== editAt(i).body)
       throw new Error(`Issue #${input[i]!.number} changed after its verified write; no overwrite`);
     state.checked.push(i);
     progress.save();
@@ -271,7 +279,7 @@ function inputIdentity(edits: readonly BodyWriteOptions[]) {
     })),
   });
 }
-async function runBodyEdits(specPath: string) {
+async function runBodyEdits(specPath: string, scope: ReturnType<typeof createRoadmapRequestScope>) {
   const lockPath = roadmapLockPath(root);
   const key = bodyOperationHash(path.resolve(specPath));
   const directory = path.join(path.dirname(lockPath), "body-edits", key);
@@ -282,7 +290,7 @@ async function runBodyEdits(specPath: string) {
     { label: "Roadmap body operation" },
   );
   let roadmapLock;
-  let observations: unknown[] = [];
+  let observations: GitHubApiObservation[] = [];
   try {
     roadmapLock = await acquireOwnedProcessLock(
       lockPath,
@@ -296,14 +304,47 @@ async function runBodyEdits(specPath: string) {
       identity,
       edits.length,
     );
-    const api = new GitHubApiClient(),
-      client = new RoadmapClient(validateConfig(config), api);
-    observations = api.observations;
+    const client = await RoadmapClient.connect(validateConfig(config), scope);
+    observations = client.observations;
+    const api = await createGitHubClient({
+      ...scope,
+      allowRequest: (method, url) =>
+        (method === "GET" && url.pathname === "/rate_limit") ||
+        (["GET", "PATCH"].includes(method) &&
+          url.pathname.startsWith(`/repos/${config.repository}/issues/`) &&
+          /^[1-9][0-9]*$/u.test(url.pathname.split("/").at(-1) ?? "")),
+      reserve(request) {
+        const reserved = scope.reserve();
+        return {
+          ...reserved,
+          settle(attempt) {
+            reserved.settle();
+            const headers = attempt.headers;
+            observations.push({
+              operation: `${request.method} ${request.url.pathname}`,
+              status: attempt.status,
+              request_id: headers["x-github-request-id"] ?? null,
+              date: headers.date ?? null,
+              bytes: attempt.bytes,
+              bytes_known: true,
+              elapsed_ms: attempt.elapsedMs,
+              rate: attempt.rate ?? null,
+              attempt: attempt.attempt,
+              dispatched: attempt.dispatched,
+            });
+          },
+        };
+      },
+    });
     const rates = new Map<string, GitHubRateLimit>();
     let offset = 0;
     let observedCost = progress.state.graphql_cost ?? 10;
-    const sample = () => {
-      const body = api.request("GET", "rate_limit").body;
+    const sample = async () => {
+      const body: unknown = (
+        await api.request("GET /rate_limit", {
+          request: { portcove: { replay: "safe-read", attempts: 0 } },
+        })
+      ).data;
       const core = isRecord(body) && isRecord(body.resources) ? body.resources.core : null;
       if (
         !isRecord(core) ||
@@ -319,15 +360,15 @@ async function runBodyEdits(specPath: string) {
         used: null,
         resetAt: new Date(Number(core.reset) * 1000).toISOString(),
       });
-      client.sampleGraphqlRate();
+      await client.sampleGraphqlRate();
     };
-    sample();
+    await sample();
     const result = await editRoadmapBatch(
       edits,
       {
-        request: (method, endpoint, payload) => api.request(method, endpoint, payload),
-        validateRoadmapReplacement: (number, previous, body) =>
-          validateLiveRoadmapReplacement(number, previous, body, client),
+        request: (options) => api.request(options),
+        validateRoadmapReplacement: async (number, previous, body) =>
+          await validateLiveRoadmapReplacement(number, previous, body, client),
       },
       async (issues) => {
         const checked = await checkContextualDoctor({
@@ -358,7 +399,7 @@ async function runBodyEdits(specPath: string) {
             ),
           }),
         admit: (phase, index) => {
-          const newObservations = api.observations.slice(offset);
+          const newObservations = observations.slice(offset);
           observedCost = Math.max(
             observedCost,
             newObservations.reduce(
@@ -371,7 +412,7 @@ async function runBodyEdits(specPath: string) {
           for (const entry of newObservations)
             if (entry.rate?.resource && entry.rate.remaining !== null)
               rates.set(entry.rate.resource, entry.rate);
-          offset = api.observations.length;
+          offset = observations.length;
           for (const resource of ["core", "graphql"]) {
             const rate = rates.get(resource);
             if (
@@ -427,7 +468,10 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         "Usage: roadmap-edit.mts --spec-file FILE (JSON array of {target, body_file, previous_body_file})",
       );
     const spec = path.resolve(root, process.argv[3]!);
-    await continueRoadmapCapacity(() => runBodyEdits(spec), {
+    const scope = createRoadmapRequestScope({ allowMutations: true });
+    await continueRoadmapCapacity(() => runBodyEdits(spec, scope), {
+      deadline: scope.deadline,
+      monotonicNow: scope.now,
       identity: () =>
         bodyOperationHash({
           input: inputIdentity(loadBodyEdits(spec, path.join(root, "work/roadmap-edit"))),

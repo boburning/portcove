@@ -8,6 +8,20 @@ export interface GitHubRateLimit {
   resetAt: string | null;
   cost?: number | null;
 }
+export interface GitHubApiObservation {
+  operation: string;
+  query_sha256?: string;
+  status: number | null;
+  request_id: string | null;
+  date: string | null;
+  bytes: number;
+  bytes_known: boolean;
+  elapsed_ms: number;
+  rate: GitHubRateLimit | null;
+  failure?: string;
+  attempt: number;
+  dispatched: boolean;
+}
 export interface GitHubMetadataResponse {
   status?: number;
   headers: ReadonlyMap<string, string>;
@@ -216,4 +230,13 @@ export function nextLink(headers: ReadonlyMap<string, string>) {
   const matches = [...value.matchAll(/<([^>]+)>;\s*rel="([^"]+)"/gu)];
   const next = matches.find((match) => (match[2] ?? "").split(/\s+/u).includes("next"));
   return next?.[1] ?? null;
+}
+
+export function githubRateLimitMessage(
+  rate: Pick<GitHubRateLimit, "remaining" | "resetAt"> | null | undefined,
+  prefix = "GitHub API rate limit",
+) {
+  const remaining = rate?.remaining ?? "unknown";
+  const reset = rate?.resetAt ?? "unknown";
+  return `${prefix}: ${remaining} points remain; reset at ${reset}`;
 }

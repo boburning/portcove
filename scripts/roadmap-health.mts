@@ -3,7 +3,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { readFileSync, writeFileSync, mkdirSync, appendFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { sanitizeOperationError } from "./github-api.mts";
+import { sanitizeOperationError } from "./github-operation.mts";
 import { isRecord, errorMessage } from "./runtime-values.mts";
 import { observationStatus } from "./roadmap-report.mts";
 

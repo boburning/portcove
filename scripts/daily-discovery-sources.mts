@@ -4,7 +4,9 @@ import {
   DiscoveryCheckpointInterrupted,
 } from "./discovery-primary-progress.mts";
 import type { DiscoveryPrimaryProgress } from "./discovery-primary-progress.mts";
-import { GitHubApiClient, GitHubApiError } from "./github-api.mts";
+import { GitHubApiError } from "./github-operation.mts";
+import type { Octokit } from "@octokit/core";
+import type { DiscoveryMetadataResponse } from "./discovery-primary-progress.mts";
 import { readFileSync } from "node:fs";
 import { observationHash } from "./upstream-observer.mts";
 import { releaseFingerprint } from "./discovery-checkpoint.mts";
@@ -38,19 +40,32 @@ export const repoName = (v: unknown) => {
   return s;
 };
 export interface SourceContext {
-  api: GitHubApiClient;
+  sdk: Octokit;
+  primaryReads?: DiscoveryPrimaryReads;
   budget: DiscoveryBudget;
-  http: ReturnType<typeof createDiscoveryTransport>;
+  http: Pick<ReturnType<typeof createDiscoveryTransport>, "request">;
   save: (name: string, value: unknown) => void;
   primaryProgress?: DiscoveryPrimaryProgress;
   acceptSource?: (source: CollectedSource) => void;
 }
-export function collectRecompBoardSource(
+async function metadataRequest(
+  c: SourceContext,
+  endpoint: string,
+): Promise<DiscoveryMetadataResponse> {
+  if (c.primaryReads) return await c.primaryReads.request(endpoint);
+  return await c.sdk.request({
+    method: "GET",
+    url: new URL(endpoint, "https://api.github.com/").href,
+    headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
+  });
+}
+
+export async function collectRecompBoardSource(
   c: Pick<SourceContext, "http" | "save">,
   known: DiscoveryCheckpoint,
-): CollectedSource {
+): Promise<CollectedSource> {
   const url = "https://recomp.fyi/feed.xml";
-  const response = c.http.request("GET", url);
+  const response = await c.http.request("GET", url);
   c.save("recomp-board-feed", response);
   if (response.status !== 200) throw new Error("recomp.board Atom feed unavailable");
   const leads = parseRecompFeed(response.text);
@@ -78,14 +93,14 @@ export function collectRecompBoardSource(
     provenance: "recomp.board Atom feed; discovery hints require direct upstream research",
   };
 }
-function list(c: SourceContext, endpoint: string, label: string, repositoryId: number) {
+async function list(c: SourceContext, endpoint: string, label: string, repositoryId: number) {
   const records: unknown[] = [];
   const identities = new Set<unknown>();
   let next: string | null = endpoint;
   while (next) {
-    const response = c.api.request("GET", next);
-    if (!Array.isArray(response.body)) throw new Error(`${label} response is incomplete`);
-    for (const value of response.body) {
+    const response = await metadataRequest(c, next);
+    if (!Array.isArray(response.data)) throw new Error(`${label} response is incomplete`);
+    for (const value of response.data) {
       const id = rec(value).id;
       if (!Number.isSafeInteger(id) || Number(id) < 1 || identities.has(id))
         throw new Error(`${label} contains missing or duplicate identities`);
@@ -96,26 +111,28 @@ function list(c: SourceContext, endpoint: string, label: string, repositoryId: n
   }
   return records;
 }
-function metadata(c: SourceContext, repo: string) {
-  const meta = rec(c.api.request("GET", `repos/${repoName(repo)}`).body);
+async function metadata(c: SourceContext, repo: string) {
+  const meta = rec((await metadataRequest(c, `repos/${repoName(repo)}`)).data);
   repoName(meta.full_name);
   if (!Number.isSafeInteger(meta.id) || Number(meta.id) < 1)
     throw new Error("Missing provider repository ID");
   return meta;
 }
-function commit(c: SourceContext, meta: Record<string, unknown>) {
+async function commit(c: SourceContext, meta: Record<string, unknown>) {
   return str(
     rec(
       rec(
-        c.api.request(
-          "GET",
-          `repos/${str(meta.full_name)}/git/ref/heads/${encodeURIComponent(str(meta.default_branch))}`,
-        ).body,
+        (
+          await metadataRequest(
+            c,
+            `repos/${str(meta.full_name)}/git/ref/heads/${encodeURIComponent(str(meta.default_branch))}`,
+          )
+        ).data,
       ).object,
     ).sha,
   );
 }
-function content(c: SourceContext, repo: string, file: string, ref: string) {
+async function content(c: SourceContext, repo: string, file: string, ref: string) {
   const parts = file.split("/");
   if (
     parts.some(
@@ -130,7 +147,8 @@ function content(c: SourceContext, repo: string, file: string, ref: string) {
     throw new Error("Unsafe registry source path");
   const encoded = parts.map(encodeURIComponent).join("/");
   const blob = rec(
-    c.api.request("GET", `repos/${repo}/contents/${encoded}?ref=${encodeURIComponent(ref)}`).body,
+    (await metadataRequest(c, `repos/${repo}/contents/${encoded}?ref=${encodeURIComponent(ref)}`))
+      .data,
   );
   return {
     blob: str(blob.sha),
@@ -143,18 +161,18 @@ const entryKey = (v: Record<string, unknown>) =>
     .normalize("NFKD")
     .replace(/[^a-zA-Z0-9:/_.-]/gu, "-")
     .slice(0, 240);
-export function collectDiscoverySources(
+export async function collectDiscoverySources(
   c: SourceContext,
   known: DiscoveryCheckpoint,
-): CollectedSource[] {
+): Promise<CollectedSource[]> {
   const result: CollectedSource[] = [];
   const accept = (source: CollectedSource) => {
     result.push(source);
     c.acceptSource?.(source);
   };
   const queues: {
-    jobs: { id: string; evidence: string; run: () => void }[];
-    finish: () => void;
+    jobs: { id: string; evidence: string; run: () => void | Promise<void> }[];
+    finish: () => void | Promise<void>;
   }[] = [];
   const now = c.budget.now();
   const due = (changed: boolean, checked: string) =>
@@ -170,18 +188,18 @@ export function collectDiscoverySources(
       error: errorMessage(error),
     });
   try {
-    accept(collectQuiver(c));
+    accept(await collectQuiver(c));
   } catch (error) {
     fail("quiver", "https://github.com/Paroxy/Quiver", error);
   }
   for (const repo of ["SirDiabo/GHLAppList"] as const) {
     try {
-      const meta = metadata(c, repo);
-      const ref = commit(c, meta);
+      const meta = await metadata(c, repo);
+      const ref = await commit(c, meta);
       {
         const id = "githublauncher";
         const file = "apps.json";
-        const got = content(c, repo, file, ref);
+        const got = await content(c, repo, file, ref);
         c.save(id, got);
         const data = rec(got.data);
         const entries = data.apps ?? Object.values(data).flat();
@@ -204,10 +222,10 @@ export function collectDiscoverySources(
     }
   }
   try {
-    const meta = metadata(c, "RetroPortingToolKit/Retro-Catalog");
+    const meta = await metadata(c, "RetroPortingToolKit/Retro-Catalog");
     const repo = str(meta.full_name);
-    const ref = commit(c, meta);
-    const got = content(c, repo, "index.json", ref);
+    const ref = await commit(c, meta);
+    const got = await content(c, repo, "index.json", ref);
     c.save("retcomm-index", got);
     accept({
       id: "retcomm-index",
@@ -219,7 +237,7 @@ export function collectDiscoverySources(
       repository_id: meta.id,
       continuity: "Historical transfer continuity requires independently bound provider identity",
     });
-    const tree = rec(c.api.request("GET", `repos/${repo}/git/trees/${ref}?recursive=1`).body);
+    const tree = rec((await metadataRequest(c, `repos/${repo}/git/trees/${ref}?recursive=1`)).data);
     if (tree.truncated !== false || !Array.isArray(tree.tree))
       throw new Error("RetComM tree is incomplete");
     const paths = new Map(tree.tree.map(rec).map((n) => [str(n.path), str(n.sha)]));
@@ -271,8 +289,8 @@ export function collectDiscoverySources(
       jobs: pending.map((t) => ({
         id: t.key,
         evidence: `https://github.com/${repo}/blob/${ref}/${t.file}`,
-        run: () => {
-          const manifest = content(c, repo, t.file, ref);
+        run: async () => {
+          const manifest = await content(c, repo, t.file, ref);
           if (manifest.blob !== t.sha)
             throw new Error("RetComM content differs from the exact tree blob");
           c.save(t.key, manifest);
@@ -312,10 +330,10 @@ export function collectDiscoverySources(
     fail("retcomm-collection", "https://github.com/RetroPortingToolKit/Retro-Catalog", e);
   }
   try {
-    const meta = metadata(c, "zamiba/portforge-mediaitems");
-    const ref = commit(c, meta);
+    const meta = await metadata(c, "zamiba/portforge-mediaitems");
+    const ref = await commit(c, meta);
     const tree = rec(
-      c.api.request("GET", `repos/${str(meta.full_name)}/git/trees/${ref}?recursive=1`).body,
+      (await metadataRequest(c, `repos/${str(meta.full_name)}/git/trees/${ref}?recursive=1`)).data,
     );
     if (!Array.isArray(tree.tree)) throw new Error("Malformed recipe tree");
     const entries = tree.tree
@@ -343,10 +361,10 @@ export function collectDiscoverySources(
       jobs: pending.map((entry) => ({
         id: `portforge-${observationHash(entry.path).slice(0, 12)}`,
         evidence: `https://github.com/${str(meta.full_name)}/blob/${ref}/${str(entry.path)}`,
-        run: () => {
+        run: async () => {
           const file = str(entry.path);
           const id = `portforge-${observationHash(file).slice(0, 12)}`;
-          const got = content(c, str(meta.full_name), file, ref);
+          const got = await content(c, str(meta.full_name), file, ref);
           if (got.blob !== entry.sha)
             throw new Error("PortForge content differs from the exact tree blob");
           c.save(id, got);
@@ -383,7 +401,7 @@ export function collectDiscoverySources(
     fail("portforge", "https://github.com/zamiba/portforge-mediaitems", e);
   }
   try {
-    const page = c.http.request(
+    const page = await c.http.request(
       "GET",
       "https://www.pcgamingwiki.com/wiki/List_of_unofficial_ports",
     );
@@ -405,7 +423,7 @@ export function collectDiscoverySources(
     fail("pcgamingwiki", "https://www.pcgamingwiki.com/wiki/List_of_unofficial_ports", e);
   }
   try {
-    accept(collectRecompBoardSource(c, known));
+    accept(await collectRecompBoardSource(c, known));
   } catch (e) {
     fail("recomp-board-feed", "https://recomp.fyi/feed.xml", e);
   }
@@ -416,8 +434,8 @@ export function collectDiscoverySources(
         const job = queue.jobs.shift();
         if (!job) continue;
         try {
-          c.budget.admit(1, 1);
-          job.run();
+          await c.budget.admit(1, 1);
+          await job.run();
         } catch (error) {
           if (
             error instanceof GitHubApiError &&
@@ -432,36 +450,54 @@ export function collectDiscoverySources(
       if (exhausted) break;
     }
   } finally {
-    for (const queue of queues) queue.finish();
+    for (const queue of queues) await queue.finish();
   }
   return result;
 }
-export function consumeConfiguredObserver(c: SourceContext) {
+export async function consumeConfiguredObserver(c: SourceContext) {
   const expected = rec(
     JSON.parse(readFileSync(new URL("../release/upstream-observer.json", import.meta.url), "utf8")),
   );
   const runs = rec(
-    c.api.request(
-      "GET",
-      "repos/boburning/portcove/actions/workflows/354075266/runs?event=schedule&per_page=5",
-    ).body,
+    (
+      await metadataRequest(
+        c,
+        "repos/boburning/portcove/actions/workflows/354075266/runs?event=schedule&per_page=5",
+      )
+    ).data,
   );
   if (!Array.isArray(runs.workflow_runs)) throw new Error("Missing scheduled observer runs");
   const run = runs.workflow_runs
     .map(rec)
     .find((r) => r.status === "completed" && r.conclusion === "success");
   if (!run) throw new Error("No successful scheduled observer in bounded recent window");
-  const artifacts = c.api
-    .paginateRest(
-      `repos/boburning/portcove/actions/runs/${String(run.id)}/artifacts?per_page=100`,
-      {
-        identity: (v) => rec(v).id,
-        select: (v) => rec(v).artifacts,
-        totalCount: (v) => Number(rec(v).total_count),
-        label: "observer artifacts",
-      },
+  const artifacts: Record<string, unknown>[] = [];
+  const artifactIds = new Set<number>();
+  const first = `repos/boburning/portcove/actions/runs/${String(run.id)}/artifacts?per_page=100`;
+  let next: string | null = first,
+    total: number | undefined;
+  while (next) {
+    const response = await metadataRequest(c, next),
+      data = rec(response.data);
+    if (
+      !Array.isArray(data.artifacts) ||
+      !Number.isSafeInteger(data.total_count) ||
+      Number(data.total_count) < 0 ||
+      (total !== undefined && total !== data.total_count)
     )
-    .map(rec);
+      throw new Error("Observer artifact inventory is incomplete or changed");
+    total = Number(data.total_count);
+    for (const raw of data.artifacts) {
+      const artifact = rec(raw),
+        id = artifact.id;
+      if (!Number.isSafeInteger(id) || Number(id) < 1 || artifactIds.has(Number(id)))
+        throw new Error("Observer artifacts contain missing or duplicate identities");
+      artifactIds.add(Number(id));
+      artifacts.push(artifact);
+    }
+    next = discoveryNextPage(response, first, next, Number(expected.repository_id));
+  }
+  if (artifacts.length !== total) throw new Error("Observer artifact count is incomplete");
   const artifact = artifacts.find(
     (a) =>
       a.name === `configured-upstream-observation-${String(run.id)}-${String(run.run_attempt)}` &&
@@ -469,7 +505,7 @@ export function consumeConfiguredObserver(c: SourceContext) {
   );
   if (!artifact || Number(artifact.size_in_bytes) > 2 * 1024 * 1024)
     throw new Error("Missing/oversized observer artifact");
-  const response = c.http.request("GET", str(artifact.archive_download_url), undefined, true);
+  const response = await c.http.request("GET", str(artifact.archive_download_url), undefined, true);
   if (response.status !== 200) throw new Error("Observer artifact unavailable");
   const got = readDiscoveryReport(
     Buffer.from(response.text, "base64"),
@@ -514,9 +550,9 @@ export function consumeConfiguredObserver(c: SourceContext) {
     ],
   };
 }
-export function investigateDiscoveryUpstream(c: SourceContext, repository: string) {
-  const meta = metadata(c, repository);
-  if (!c.primaryProgress) return investigatePrimary(c, meta);
+export async function investigateDiscoveryUpstream(c: SourceContext, repository: string) {
+  const meta = await metadata(c, repository);
+  if (!c.primaryProgress) return await investigatePrimary(c, meta);
   const repo = str(meta.full_name);
   if (
     repo.toLowerCase() !== repository.toLowerCase() ||
@@ -524,15 +560,10 @@ export function investigateDiscoveryUpstream(c: SourceContext, repository: strin
     Number(meta.id) < 1
   )
     throw new Error("Research repository identity changed; independent continuity review required");
-  const reads = new DiscoveryPrimaryReads(c.api, repo, Number(meta.id), c.primaryProgress);
-  const api = Object.create(c.api) as GitHubApiClient;
-  api.request = (_method, endpoint) => ({
-    ...reads.request(endpoint),
-    rateLimit: { resource: null, limit: null, remaining: null, used: null, resetAt: null },
-  });
+  const reads = new DiscoveryPrimaryReads(c.sdk, repo, Number(meta.id), c.primaryProgress);
   try {
-    const data = investigatePrimary({ ...c, api }, meta);
-    const observed_at = reads.finish();
+    const data = await investigatePrimary({ ...c, primaryReads: reads }, meta);
+    const observed_at = await reads.finish();
     return { ...data, observed_at };
   } catch (error) {
     if (!(error instanceof GitHubApiError) && !(error instanceof DiscoveryCheckpointInterrupted))
@@ -540,13 +571,15 @@ export function investigateDiscoveryUpstream(c: SourceContext, repository: strin
     throw error;
   }
 }
-function investigatePrimary(c: SourceContext, meta: Record<string, unknown>) {
+async function investigatePrimary(c: SourceContext, meta: Record<string, unknown>) {
   const repo = str(meta.full_name);
-  const releases = list(
-    c,
-    `repos/${repo}/releases?per_page=10`,
-    "complete upstream release listing",
-    Number(meta.id),
+  const releases = (
+    await list(
+      c,
+      `repos/${repo}/releases?per_page=10`,
+      "complete upstream release listing",
+      Number(meta.id),
+    )
   ).map(rec);
   const ordered = [...releases]
     .filter((r) => !r.draft)
@@ -567,7 +600,7 @@ function investigatePrimary(c: SourceContext, meta: Record<string, unknown>) {
     ).values(),
   ];
   for (const release of selected) {
-    release.assets = list(
+    release.assets = await list(
       c,
       `repos/${repo}/releases/${String(release.id)}/assets?per_page=100`,
       "selected release assets",
@@ -575,22 +608,24 @@ function investigatePrimary(c: SourceContext, meta: Record<string, unknown>) {
     );
     let target = rec(
       rec(
-        c.api.request(
-          "GET",
-          `repos/${repo}/git/ref/tags/${encodeURIComponent(str(release.tag_name))}`,
-        ).body,
+        (
+          await metadataRequest(
+            c,
+            `repos/${repo}/git/ref/tags/${encodeURIComponent(str(release.tag_name))}`,
+          )
+        ).data,
       ).object,
     );
     let depth = 0;
     while (target.type === "tag" && depth++ < 4)
       target = rec(
-        rec(c.api.request("GET", `repos/${repo}/git/tags/${str(target.sha)}`).body).object,
+        rec((await metadataRequest(c, `repos/${repo}/git/tags/${str(target.sha)}`)).data).object,
       );
     if (target.type !== "commit") throw new Error("Selected tag target unresolved");
     release.resolved_tag_commit = str(target.sha);
   }
-  const ref = selected[0] ? str(selected[0].resolved_tag_commit) : commit(c, meta);
-  const readme = rec(c.api.request("GET", `repos/${repo}/readme?ref=${ref}`).body);
+  const ref = selected[0] ? str(selected[0].resolved_tag_commit) : await commit(c, meta);
+  const readme = rec((await metadataRequest(c, `repos/${repo}/readme?ref=${ref}`)).data);
   // One optional project-authored manifest per investigation, inside the same
   // charged budget. Multi-game siblings require separately scoped primary reads.
   let manifest: ReturnType<typeof parseRecompManifest> | undefined;
@@ -599,7 +634,9 @@ function investigatePrimary(c: SourceContext, meta: Record<string, unknown>) {
     status: "not-observed",
   };
   try {
-    const got = rec(c.api.request("GET", `repos/${repo}/contents/.recomp.json?ref=${ref}`).body);
+    const got = rec(
+      (await metadataRequest(c, `repos/${repo}/contents/.recomp.json?ref=${ref}`)).data,
+    );
     manifest = parseRecompManifest(
       JSON.parse(Buffer.from(str(got.content), "base64").toString("utf8")),
     );

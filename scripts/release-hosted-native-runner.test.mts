@@ -895,7 +895,7 @@ void test(
   "Linux executing custody refuses writable/link/replaced inputs and retains ancestry",
   { skip: process.platform !== "linux" || process.getuid?.() === 0 },
   (t) => {
-    // /tmp is intentionally refused: its writable ancestry cannot protect code.
+    // Exercise private positive custody and an explicitly exposed negative fixture.
     const root = nativeFixtureDirectory(t, ".portcove-runtime-custody-");
     chmodSync(root, 0o700);
     const directory = path.join(root, "tools");
@@ -928,6 +928,9 @@ void test(
     writeFileSync(file, "inert exact bytes", { mode: 0o600 });
     assert.throws(() => recheckNativeRuntimeCustody([file], original), /custody/);
     const temp = mkdtempSync(path.join(os.tmpdir(), "portcove-runtime-unprotected-"));
+    // The configured temp parent may be private. This owned fixture is explicitly
+    // exposed so the custody refusal remains the behavior under test.
+    chmodSync(temp, 0o777);
     t.after(() => rmSync(temp, { recursive: true, force: true }));
     const exposed = path.join(temp, "driver");
     writeFileSync(exposed, "inert", { mode: 0o600 });
@@ -1064,11 +1067,13 @@ const run=(directory,deadline)=>{if(fault==='configured')return (post?api.runCon
 const read=post?api.readHostedNativePostSignUploadRequest:api.readHostedNativeUploadRequest,ack=post?api.acknowledgeHostedNativePostSignUpload:api.acknowledgeHostedNativeUpload;
 for(const name of ['valid','configured','wrong-request','corrupt-ack','provider','timeout']){
  fault=name;const directory=path.join(root,name);await mkdir(directory,{mode:0o700});
- const running=run(directory,performance.now()+(name==='timeout'?1500:20000));
- // Attach rejection immediately while waiting for the other process's routing view.
- const outcome=running.then(value=>({value}),error=>({error}));
- let request;for(let i=0;i<100;i++){try{request=await read(directory);break}catch(error){if(error.code!=='ENOENT')throw error;await delay(5)}}
- assert.ok(request);assert.equal(request.files.length,4);assert.equal(request.authority,'none');
+ const originalDeadline=performance.now()+(name==='timeout'?1500:20000);
+ const running=run(directory,originalDeadline);
+ // Wait only within the original caller lifetime and stop after producer refusal.
+ let settled=false;
+ const outcome=running.then(value=>({value}),error=>({error})).finally(()=>{settled=true});
+ let request;while(!settled&&performance.now()<originalDeadline){try{request=await read(directory);break}catch(error){if(error.code!=='ENOENT')throw error;await delay(5)}}
+ assert.ok(request, "routing view missing for controlled scenario: "+name);assert.equal(request.files.length,4);assert.equal(request.authority,'none');
  await assert.rejects((post?api.readHostedNativeUploadRequest:api.readHostedNativePostSignUploadRequest)(directory));
  await assert.rejects((post?api.acknowledgeHostedNativeUpload:api.acknowledgeHostedNativePostSignUpload)(directory,request.request_sha256,123,'a'.repeat(64)));
  if(name==='wrong-request'){
@@ -1091,13 +1096,14 @@ for(const name of ['valid','configured','wrong-request','corrupt-ack','provider'
 assert.equal(readbacks,4);assert.equal(received,2); // A retained attempt can re-read tools, never re-prepare a proof.
 for(const name of ['delayed-read','late-settlement','late-ack']){
  fault=name;const directory=path.join(root,name);await mkdir(directory,{mode:0o700});
- const outcome=run(directory,performance.now()+20000).then(value=>({value}),error=>({error}));
+ const originalDeadline=performance.now()+20000;let settled=false;
+ const outcome=run(directory,originalDeadline).then(value=>({value}),error=>({error})).finally(()=>{settled=true});
  if(name==='delayed-read'){
    const result=await outcome;assert.match(result.error.message,/retain/);
    await assert.rejects(readFile(path.join(directory,'native-job-upload-request.json')),{code:'ENOENT'});
  }else{
-   let request;for(let i=0;i<100;i++){try{request=await read(directory);break}catch(error){if(error.code!=='ENOENT')throw error;await delay(5)}}
-   assert.ok(request);
+   let request;while(!settled&&performance.now()<originalDeadline){try{request=await read(directory);break}catch(error){if(error.code!=='ENOENT')throw error;await delay(5)}}
+   assert.ok(request, "routing view missing for controlled scenario: "+name);
    if(name==='late-ack')await assert.rejects(ack(directory,request.request_sha256,123,'a'.repeat(64)),/exhausted/);
    else await ack(directory,request.request_sha256,123,'a'.repeat(64));
    const result=await outcome;

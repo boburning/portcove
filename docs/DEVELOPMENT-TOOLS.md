@@ -1022,12 +1022,16 @@ For update/scan harness engineering, read [native IPC probes](reference/desktop-
 The configured Octokit integration in `scripts/github-client.mts` collects each
 metadata body under a byte cap before SDK parsing, defaults to 16 MiB and a
 15-second request deadline, and retains an original monotonic operation deadline.
+A supplied collection deadline can shorten that request limit but cannot lengthen
+it or renew an exhausted logical request.
 The production `capture-port` path uses asynchronous REST inventory and intake;
-Aqua, handoff evidence, postmerge metadata, repository settings and CI-health
-metadata use the same factory. Ordinary pagination uses the SDK iterator while
+Aqua, handoff evidence, postmerge metadata, repository settings, CI-health,
+Roadmap inventories and mutations, body edits, delivery checks, source provenance,
+discovery and upstream preparation use the same factory. Ordinary pagination uses the SDK iterator while
 preserving raw response/count evidence and refusing synthetic empty results for
 HTTP 409. API-version headers remain owned by each caller. Existing unmigrated
-callers still use the bounded legacy runner during #4319.
+callers, including the maintained report publisher and remaining release acquisition
+families, still use the bounded legacy runner during #4319.
 
 Eligible reads have at most three total attempts; writes run once and require
 authoritative reconciliation after ambiguity. Reusing a logical request policy
@@ -1041,7 +1045,15 @@ inherit credentials. Eligible local tooling selects `GH_TOKEN`, then
 `GITHUB_TOKEN`, then resolves an existing `gh` login once per command; workflows
 must supply their credential. Retained attestation verification has its own
 bounded subprocess helper and cannot invoke `gh api`. Artifact-byte acquisition
-retains its existing bounded helper until its caller family migrates.
+retains its existing bounded helper until its caller family migrates. The discovery
+worker now admits GitHub only for its original artifact ZIP byte route; external
+GET/HEAD provider reads remain separate from GitHub metadata.
+
+Discovery verifies its loaded bootstrap plus package manifests, lockfile,
+workspace and runtime inputs before and after refresh and dependency installation.
+A changed input requires restarting with current main. Frozen dependency setup
+uses the existing managed resource path, disables install hooks and receives no
+GitHub credentials; the SDK/session import and credential resolution follow it.
 
 Transport evidence is scoped to the command and distinguishes dispatched
 attempts. REST inventory owns cache validation and completeness. GraphQL callers

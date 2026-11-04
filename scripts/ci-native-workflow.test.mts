@@ -631,6 +631,14 @@ function assertOriginalControllerImportSetup(job: Record<string, unknown>) {
       installationIndex < accountIndex,
     "actual pinned Node and locked dependencies must precede original-C fixture",
   );
+  const discoveryIndex = index(
+    "Test discovery state replacement under actual Windows reader sharing",
+  );
+  if (discoveryIndex !== -1)
+    assert.ok(
+      installationIndex < discoveryIndex,
+      "SDK imports must be available before the filtered discovery test loads",
+    );
   const manager: unknown = steps[managerIndex],
     installation: unknown = steps[installationIndex],
     node: unknown = steps[nodeIndex];

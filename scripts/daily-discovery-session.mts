@@ -8,7 +8,10 @@ import { createInterface } from "node:readline";
 import { Transform } from "node:stream";
 import { spawnSync } from "node:child_process";
 import { isRecord, errorMessage } from "./runtime-values.mts";
-import { GitHubApiClient, GitHubApiError } from "./github-api.mts";
+import { GitHubApiError, sanitizeOperationError } from "./github-operation.mts";
+import { createGitHubClient, iterateGitHubPages } from "./github-client.mts";
+import type { Octokit } from "@octokit/core";
+import { discoveryGitHubScope } from "./discovery-github.mts";
 import {
   discoveryPost,
   recordDiscoveryComment,
@@ -153,7 +156,7 @@ export function atomic(file: string, value: unknown) {
   writeFileSync(temp, JSON.stringify(value, null, 2), { flag: "wx" });
   replacePreparedFileSync(temp, file);
 }
-const discoveryMaterial = (v: ReturnType<typeof investigateDiscoveryUpstream>) =>
+const discoveryMaterial = (v: Awaited<ReturnType<typeof investigateDiscoveryUpstream>>) =>
   observationHash({
     repository_id: v.metadata.id,
     repository: v.metadata.full_name,
@@ -258,8 +261,18 @@ export class DiscoverySession {
   checkpoint: DiscoveryCheckpoint;
   readonly journal: Journal;
   readonly budget: DiscoveryBudget;
-  readonly client: RoadmapClient;
-  readonly source: SourceContext;
+  private _client!: RoadmapClient;
+  private _source!: SourceContext;
+  private _sdk!: Octokit;
+  get client() {
+    return this._client;
+  }
+  get source() {
+    return this._source;
+  }
+  get sdk() {
+    return this._sdk;
+  }
   readonly checkpointPreimage: string;
   readonly journalFile: string;
   wrote = false;
@@ -279,14 +292,7 @@ export class DiscoverySession {
   deferredLeadFamilies = new Set<string>();
   researchedLeads = new Set<number>();
   leadCollectionAttempted = false;
-  constructor(
-    stateDir: string,
-    runDir: string,
-    config: ConstructorParameters<typeof RoadmapClient>[0],
-    token: string,
-    startedAt: string,
-    head: string,
-  ) {
+  private constructor(stateDir: string, runDir: string, startedAt: string, head: string) {
     this.stateDir = stateDir;
     this.runDir = runDir;
     this.head = head;
@@ -306,10 +312,12 @@ export class DiscoverySession {
     );
     this.inventoryCache = cache;
     const profile = selectDiscoveryProfile(cache);
-    this.budget = new DiscoveryBudget(profile, (usage) =>
-      atomic(path.join(runDir, "budget.json"), usage),
+    this.budget = new DiscoveryBudget(
+      profile,
+      (usage) => atomic(path.join(runDir, "budget.json"), usage),
+      Date.now,
+      startedAt,
     );
-    this.budget.usage.started_at = startedAt;
     this.journalFile = path.join(stateDir, "active-run.json");
     const previous: unknown = existsSync(this.journalFile)
       ? JSON.parse(readFileSync(this.journalFile, "utf8"))
@@ -441,10 +449,31 @@ export class DiscoverySession {
       this.checkpoint = parseDiscoveryCheckpoint(previous.checkpoint);
     if (isRecord(previous) && typeof previous.backoff_until === "string")
       this.budget.usage.backoff_until = previous.backoff_until;
+  }
+  static async open(
+    stateDir: string,
+    runDir: string,
+    config: ConstructorParameters<typeof RoadmapClient>[0],
+    token: string,
+    startedAt: string,
+    head: string,
+    options: Parameters<typeof discoveryGitHubScope>[2] = {},
+  ) {
+    const session = new DiscoverySession(stateDir, runDir, startedAt, head);
+    await session.connect(config, token, options);
+    return session;
+  }
+  private async connect(
+    config: ConstructorParameters<typeof RoadmapClient>[0],
+    token: string,
+    options: Parameters<typeof discoveryGitHubScope>[2],
+  ) {
+    const scope = discoveryGitHubScope(this.budget, token, options);
+    this._sdk = await createGitHubClient(scope);
+    this._client = await RoadmapClient.connect(config, scope);
     const http = createDiscoveryTransport(this.budget, token);
-    this.client = new RoadmapClient(config, new GitHubApiClient(http.runner));
-    this.source = {
-      api: this.client.api,
+    this._source = {
+      sdk: this.sdk,
       budget: this.budget,
       http,
       primaryProgress: { entries: this.journal.research_progress!, persist: () => this.persist() },
@@ -475,10 +504,32 @@ export class DiscoverySession {
     // Evidence references become visible only after their recoverable journal binding.
     atomic(path.join(this.stateDir, "leads.json"), this.leads);
   }
-  checkProviderCapacity(requests: number) {
-    const response = this.client.api.request("GET", "rate_limit");
-    this.save(`provider-admission-${this.budget.usage.requests}`, response.body);
-    const resources = object(object(response.body).resources);
+  private async issueComments(issue: number, perPage: number) {
+    if (!Number.isSafeInteger(issue) || issue < 1) throw new Error("Invalid comment owner");
+    const rows: unknown[] = [],
+      identities = new Set<number>();
+    for await (const page of iterateGitHubPages(this.sdk, {
+      url: `https://api.github.com/repos/${this.client.config.repository}/issues/${issue}/comments?per_page=${perPage}`,
+      headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
+    })) {
+      if (!Array.isArray(page.data)) throw new Error("Incomplete discovery comment inventory");
+      for (const row of page.data as unknown[]) {
+        const id = object(row).id;
+        if (!Number.isSafeInteger(id) || Number(id) < 1 || identities.has(Number(id)))
+          throw new Error("Discovery comments contain missing or duplicate identities");
+        identities.add(Number(id));
+        rows.push(row);
+      }
+    }
+    return rows;
+  }
+  async checkProviderCapacity(requests: number) {
+    const response = await this.sdk.request({
+      method: "GET",
+      url: new URL("rate_limit", "https://api.github.com/").href,
+    });
+    this.save(`provider-admission-${this.budget.usage.requests}`, response.data);
+    const resources = object(object(response.data).resources);
     for (const resource of ["core", "graphql"] as const) {
       const quota = object(resources[resource]);
       if (typeof quota.remaining !== "number" || typeof quota.reset !== "number")
@@ -489,13 +540,13 @@ export class DiscoverySession {
         resetAt: new Date(quota.reset * 1000).toISOString(),
       });
     }
-    this.budget.requireProviderCapacity(requests);
+    await this.budget.requireProviderCapacity(requests);
   }
-  refresh() {
+  async refresh() {
     const file = path.join(this.stateDir, "inventory.json");
     const old = this.inventoryCache;
-    const collect = () =>
-      collectRoadmapInventory(
+    const collect = async () =>
+      await collectRoadmapInventory(
         this.client,
         this.budget.usage.profile === "cold" && !this.inventoryStarted ? undefined : old,
       );
@@ -506,8 +557,8 @@ export class DiscoverySession {
       first: { error: "", requests_before: started, requests_after: started },
       second: { requests_before: started, requests_after: started, status: "pending", error: "" },
     };
-    this.inventory = collectRoadmapInventoryWithRecollection(this.client, collect, this, {
-      before: (error) => {
+    this.inventory = await collectRoadmapInventoryWithRecollection(this.client, collect, this, {
+      before: async (error) => {
         observation.allowance = this.inventoryRecollections;
         observation.first.error = errorMessage(error);
         observation.first.requests_after = this.budget.usage.requests;
@@ -518,8 +569,8 @@ export class DiscoverySession {
           // The batch reserve already includes this one replacement inventory.
           // Do not require another doctor plus another recollection reserve here.
           const cost = discoveryInventoryCost(this.inventory);
-          this.budget.admit(cost.requests, cost.bytes);
-        } else this.budget.admit(1, 1);
+          await this.budget.admit(cost.requests, cost.bytes);
+        } else await this.budget.admit(1, 1);
       },
       after: (status, error) => {
         observation.second.status = status;
@@ -575,20 +626,17 @@ export class DiscoverySession {
     ]);
     return this.inventory;
   }
-  start() {
-    this.checkProviderCapacity(this.budget.limits.requests);
-    this.refresh();
+  async start() {
+    await this.checkProviderCapacity(this.budget.limits.requests);
+    await this.refresh();
     for (const id of [177, 1422]) {
-      const issue = this.client.repositoryIssue(id);
+      const issue = await this.client.repositoryIssue(id);
       this.save(`authority-${id}`, issue);
-      const comments = this.client.api.paginateRest(
-        `repos/${this.client.config.repository}/issues/${id}/comments?per_page=20`,
-        { identity: (v) => object(v).id, label: `owner ${id} amendments` },
-      );
+      const comments = await this.issueComments(id, 20);
       this.save(`authority-${id}-comments`, comments);
     }
     try {
-      const observer = consumeConfiguredObserver(this.source);
+      const observer = await consumeConfiguredObserver(this.source);
       this.journal.sources.push(observer);
       this.checkpoint = advanceDiscovery(this.checkpoint, {
         observed_at: new Date().toISOString(),
@@ -607,7 +655,7 @@ export class DiscoverySession {
         .filter((c) => !["delivered", "held", "superseded"].includes(c.status))
         .slice(0, 1),
     );
-    this.budget.reserveDelivery(cost.requests, cost.bytes);
+    await this.budget.reserveDelivery(cost.requests, cost.bytes);
     this.persist();
     return {
       phase: "ready",
@@ -624,11 +672,11 @@ export class DiscoverySession {
       next: "Recover unfinished candidates, collect/discover, research and dispose leads before recheck, propose, apply, finish",
     };
   }
-  research(repository: string) {
-    this.budget.admit(1, 1);
+  async research(repository: string) {
+    await this.budget.admit(1, 1);
     this.deepInvestigations++;
     const before = { requests: this.budget.usage.requests, bytes: this.budget.usage.bytes };
-    const data = investigateDiscoveryUpstream(this.source, repoName(repository));
+    const data = await investigateDiscoveryUpstream(this.source, repoName(repository));
     const fingerprint = material(data);
     const id = observationHash({ repository: data.metadata.id, material: fingerprint });
     const file = path.join(this.runDir, `research-${id}.json`);
@@ -655,16 +703,19 @@ export class DiscoverySession {
     this.persist();
     return { id, file, material: fingerprint };
   }
-  search(query: string) {
+  async search(query: string) {
     if (query.length > 500) throw new Error("Lead-search query bound exceeded");
-    this.budget.admit(1, 1);
+    await this.budget.admit(1, 1);
     this.searches++;
-    const response = this.source.api.request(
-      "GET",
-      `search/repositories?q=${encodeURIComponent(query)}&sort=updated&per_page=${leadPageSize}`,
-    );
-    this.save(`lead-search-${this.searches}`, response.body);
-    const rows = object(response.body).items;
+    const response = await this.source.sdk.request({
+      method: "GET",
+      url: new URL(
+        `search/repositories?q=${encodeURIComponent(query)}&sort=updated&per_page=${leadPageSize}`,
+        "https://api.github.com/",
+      ).href,
+    });
+    this.save(`lead-search-${this.searches}`, response.data);
+    const rows = object(response.data).items;
     if (!Array.isArray(rows)) throw new Error("Malformed lead search response");
     this.leads = retainLeadResults(
       this.leads,
@@ -706,7 +757,7 @@ export class DiscoverySession {
       scope: "Bounded GitHub lead searches; not complete community discovery",
     };
   }
-  discover() {
+  async discover() {
     if (this.leadCollectionAttempted) return this.leadSummary();
     this.leadCollectionAttempted = true;
     this.leadFamilies ??= new Set();
@@ -749,14 +800,17 @@ export class DiscoverySession {
         });
         break;
       }
-      this.budget.admit(1, 1);
-      const response = this.source.api.request(
-        "GET",
-        `search/repositories?q=${encodeURIComponent(plan.query)}&per_page=${leadPageSize}&page=${plan.page}${plan.sort ? `&sort=${plan.sort}&order=desc` : ""}`,
-      );
+      await this.budget.admit(1, 1);
+      const response = await this.source.sdk.request({
+        method: "GET",
+        url: new URL(
+          `search/repositories?q=${encodeURIComponent(plan.query)}&per_page=${leadPageSize}&page=${plan.page}${plan.sort ? `&sort=${plan.sort}&order=desc` : ""}`,
+          "https://api.github.com/",
+        ).href,
+      });
       const name = `lead-search-${++this.searches}`;
       this.save(name, {
-        ...object(response.body),
+        ...object(response.data),
         query: plan.query,
         sort: plan.sort ?? "best-match",
         order: plan.sort ? "desc" : undefined,
@@ -766,7 +820,7 @@ export class DiscoverySession {
         this.leads = acceptLeadPage(
           this.leads,
           plan,
-          response.body,
+          response.data,
           this.journal.started_at,
           path.join(this.runDir, `${name}.json`),
         );
@@ -775,7 +829,7 @@ export class DiscoverySession {
         // Keep independently validated positive identities, never the refused pagination.
         this.leads = retainLeadResults(
           this.leads,
-          object(response.body).items as unknown[],
+          object(response.data).items as unknown[],
           this.journal.started_at,
           path.join(this.runDir, `${name}.json`),
           plan.family,
@@ -812,15 +866,16 @@ export class DiscoverySession {
       .slice(0, 4)) {
       if (this.budget.remaining().requests < 17 || this.budget.remaining().bytes < 1024 * 1024)
         break;
-      const response = this.source.api.request(
-        "GET",
-        `repos/${lead.repository}/releases?per_page=5`,
-      );
-      if (!Array.isArray(response.body)) throw new Error("Malformed lead release hints");
+      const response = await this.source.sdk.request({
+        method: "GET",
+        url: new URL(`repos/${lead.repository}/releases?per_page=5`, "https://api.github.com/")
+          .href,
+      });
+      if (!Array.isArray(response.data)) throw new Error("Malformed lead release hints");
       const name = `lead-release-hint-${lead.id}`;
-      this.save(name, response.body);
+      this.save(name, response.data);
       lead.release_hint = {
-        assets_observed: response.body.some((raw: unknown) => {
+        assets_observed: response.data.some((raw: unknown) => {
           const release = object(raw);
           return (
             release.draft === false &&
@@ -871,13 +926,13 @@ export class DiscoverySession {
     this.persist();
     return lead;
   }
-  readPrimary(repository: string, url: string) {
+  async readPrimary(repository: string, url: string) {
     const binding = repoName(repository);
     const parsed = new URL(url);
     if (parsed.protocol !== "https:" || parsed.username || parsed.password || parsed.hash)
       throw new Error("Primary evidence requires credential-free HTTPS");
     const before = { requests: this.budget.usage.requests, bytes: this.budget.usage.bytes };
-    const response = this.source.http.request("GET", parsed.href);
+    const response = await this.source.http.request("GET", parsed.href);
     if (response.status !== 200) throw new Error("Primary source unavailable");
     const fingerprint = observationHash(response.text);
     const id = observationHash({ url: parsed.href, fingerprint });
@@ -894,7 +949,7 @@ export class DiscoverySession {
     this.persist();
     return { id, file };
   }
-  propose(raw: unknown) {
+  async propose(raw: unknown) {
     const v = object(raw);
     if (v.kind !== "intake" && v.kind !== "comment")
       throw new Error("Only neutral intake or material comment is authorized");
@@ -1018,7 +1073,7 @@ export class DiscoverySession {
           ),
         })),
     );
-    this.budget.reserveDelivery(reserve.requests, reserve.bytes);
+    await this.budget.reserveDelivery(reserve.requests, reserve.bytes);
     for (const old of Object.values(this.journal.candidates))
       if (
         old.upstream === candidate.upstream &&
@@ -1212,9 +1267,9 @@ export class DiscoverySession {
     this.budget.delivery = true;
     try {
       const cost = discoveryInventoryCost(this.inventory);
-      this.budget.admit(cost.requests + 1, cost.bytes);
-      this.checkProviderCapacity(cost.requests);
-      this.refresh();
+      await this.budget.admit(cost.requests + 1, cost.bytes);
+      await this.checkProviderCapacity(cost.requests);
+      await this.refresh();
       const observed = snapshot(),
         hash = observationHash(observed);
       if (hash !== expectedSnapshot)
@@ -1268,13 +1323,13 @@ export class DiscoverySession {
           ),
         })),
       );
-      this.budget.reserveDelivery(reserve.requests, reserve.bytes);
+      await this.budget.reserveDelivery(reserve.requests, reserve.bytes);
       return { reconciled: c.id, issue: c.created_issue, snapshot_sha256: hash, public_writes: 0 };
     } finally {
       this.budget.delivery = false;
     }
   }
-  amend(raw: unknown) {
+  async amend(raw: unknown) {
     const v = object(raw),
       c = this.journal.candidates[text(v.candidate_id)];
     if (
@@ -1311,7 +1366,7 @@ export class DiscoverySession {
           ),
         })),
     );
-    this.budget.reserveDelivery(cost.requests, cost.bytes);
+    await this.budget.reserveDelivery(cost.requests, cost.bytes);
     this.save(`amend-history-${c.id}-${c.body_sha256.slice(0, 12)}`, {
       candidate: c,
       reason: text(v.reason),
@@ -1324,10 +1379,10 @@ export class DiscoverySession {
     this.persist();
     return c;
   }
-  collect() {
+  async collect() {
     if (this.journal.collection_done)
       throw new Error("Source collection already completed in this run");
-    this.discover();
+    await this.discover();
     const reserve = this.budget.reserve;
     const pending = pendingLeads(this.leads, this.knownLeadUrls());
     if (pending.length) {
@@ -1338,7 +1393,7 @@ export class DiscoverySession {
       };
     }
     try {
-      collectDiscoverySources(this.source, this.checkpoint);
+      await collectDiscoverySources(this.source, this.checkpoint);
     } finally {
       this.budget.reserve = reserve;
     }
@@ -1361,7 +1416,7 @@ export class DiscoverySession {
       pending: Object.keys(this.checkpoint.pending).length,
     };
   }
-  recheck() {
+  async recheck() {
     const records = sourceProvenancePortIssues(this.inventory.issues);
     const revision = (issue: (typeof records)[number]) =>
       typeof issue.id === "string" &&
@@ -1420,7 +1475,7 @@ export class DiscoverySession {
         });
         break;
       }
-      this.budget.admit(1, 1);
+      await this.budget.admit(1, 1);
       this.quietAttempts++;
       const issue = records.find((i) => Number(i.number) === id);
       if (!issue) continue;
@@ -1430,7 +1485,14 @@ export class DiscoverySession {
       if (!upstream?.startsWith("https://github.com/")) continue;
       try {
         const repo = repoName(new URL(upstream).pathname.slice(1));
-        const meta = object(this.client.api.request("GET", `repos/${repo}`).body);
+        const meta = object(
+          (
+            await this.sdk.request({
+              method: "GET",
+              url: new URL(`repos/${repo}`, "https://api.github.com/").href,
+            })
+          ).data,
+        );
         if (typeof meta.id !== "number" || typeof meta.full_name !== "string")
           throw new Error("Repository identity missing");
         this.save(`quiet-${id}`, {
@@ -1509,7 +1571,7 @@ export class DiscoverySession {
       // Admit a prefix of the unchanged logical journal; callers never split it.
       // Readback and the applicable doctor finish each independently safe batch.
       this.budget.reserve = { requests: 0, bytes: 0 };
-      this.checkProviderCapacity(0);
+      await this.checkProviderCapacity(0);
       const left = this.budget.remaining();
       let count = 0;
       for (let size = 1; size <= pending.length; size++) {
@@ -1530,7 +1592,7 @@ export class DiscoverySession {
         if (cost.requests > left.requests || cost.bytes > left.bytes || left.milliseconds <= 0)
           break;
         try {
-          this.budget.requireProviderCapacity(cost.requests);
+          await this.budget.requireProviderCapacity(cost.requests);
         } catch (error) {
           if (!(error instanceof GitHubApiError)) throw error;
           break;
@@ -1566,12 +1628,12 @@ export class DiscoverySession {
       })),
     );
     this.budget.reserve = { requests: 0, bytes: 0 };
-    this.budget.admit(cost.requests, cost.bytes);
+    await this.budget.admit(cost.requests, cost.bytes);
     this.budget.delivery = true;
     this.journal.delivery = "pending";
     this.persist();
     try {
-      this.checkProviderCapacity(cost.requests);
+      await this.checkProviderCapacity(cost.requests);
       for (const c of candidates) {
         for (const id of ["prepared", "needs-review", "reviewed"].includes(c.status)
           ? c.evidence_ids
@@ -1579,13 +1641,13 @@ export class DiscoverySession {
           const old = this.journal.evidence[id];
           if (!old) throw new Error("Missing reviewed evidence");
           const fresh = old.url
-            ? this.source.http.request("GET", old.url)
-            : investigateDiscoveryUpstream(this.source, old.repository);
+            ? await this.source.http.request("GET", old.url)
+            : await investigateDiscoveryUpstream(this.source, old.repository);
           const current = old.url
             ? "text" in fresh && fresh.status === 200
               ? observationHash(fresh.text)
               : null
-            : material(fresh as ReturnType<typeof investigateDiscoveryUpstream>);
+            : material(fresh as Awaited<ReturnType<typeof investigateDiscoveryUpstream>>);
           if (!old.url) delete this.journal.research_progress![old.repository.toLowerCase()];
           if (current !== old.material) {
             c.status = "needs-research";
@@ -1595,7 +1657,7 @@ export class DiscoverySession {
             );
           }
         }
-        this.refresh();
+        await this.refresh();
         // Fresh complete inventories still guard absence, uniqueness and mutation.
         // Routine candidate work does not require an unrelated global planning pass.
         if (c.kind === "intake") {
@@ -1615,7 +1677,7 @@ export class DiscoverySession {
             this.persist();
           }
           if (c.created_issue) {
-            const issue = this.client.repositoryIssue(c.created_issue);
+            const issue = await this.client.repositoryIssue(c.created_issue);
             if (!issue.body?.includes(`portcove-discovery-intake:${c.id}`))
               throw new Error("Retained issue does not match candidate");
             // Guard the reviewed preimage before normalization can write any fields.
@@ -1636,14 +1698,14 @@ export class DiscoverySession {
               if (current !== undefined && current !== null && current !== "" && current !== value)
                 throw new Error(`Retained intake field has owner changes: ${field}`);
             }
-            const result = this.client.normalizePortIssue({
+            const result = await this.client.normalizePortIssue({
               number: c.created_issue,
               catalog: { ports: [] },
               inventory: this.inventory,
             });
             c.itemId = result.itemId;
             if (c.amendment) {
-              const fresh = this.client.repositoryIssue(c.created_issue);
+              const fresh = await this.client.repositoryIssue(c.created_issue);
               if (intakeAmendmentAction(c.body, text(fresh.body), c.amendment) === "patch") {
                 this.save(
                   `amend-preimage-${c.id}-${c.amendment.expected_body_sha256.slice(0, 12)}`,
@@ -1651,11 +1713,14 @@ export class DiscoverySession {
                 );
                 c.amendment.status = "attempted";
                 this.persist();
-                this.client.api.request(
-                  "PATCH",
-                  `repos/${this.client.config.repository}/issues/${c.created_issue}`,
-                  { body: c.body },
-                );
+                await this.sdk.request({
+                  method: "PATCH",
+                  url: new URL(
+                    `repos/${this.client.config.repository}/issues/${c.created_issue}`,
+                    "https://api.github.com/",
+                  ).href,
+                  data: { body: c.body },
+                });
                 this.wrote = true;
               }
               c.amendment.status = "applied";
@@ -1668,10 +1733,10 @@ export class DiscoverySession {
                 "Canonical duplicate or independent-implementation conflict; capture held",
               );
             this.intakeAttempts++;
-            const issue = discoveryPost(
+            const issue = await discoveryPost(
               c,
-              () =>
-                this.client.createPortIssue({
+              async () =>
+                await this.client.createPortIssue({
                   title: c.title,
                   upstream: c.upstream,
                   portKey: c.portKey,
@@ -1688,18 +1753,13 @@ export class DiscoverySession {
             );
             c.itemId = issue.itemId;
           }
-          const observed = this.client.repositoryIssue(c.created_issue!);
+          const observed = await this.client.repositoryIssue(c.created_issue!);
           if (observed.body !== c.body) throw new Error("Intake body readback differs");
           c.readback = String(observed.html_url);
         } else {
-          const issue = this.client.repositoryIssue(c.issue!);
+          const issue = await this.client.repositoryIssue(c.issue!);
           this.save(`preimage-${c.id}`, issue);
-          const comments = this.client.api
-            .paginateRest(
-              `repos/${this.client.config.repository}/issues/${c.issue}/comments?per_page=100`,
-              { identity: (v) => object(v).id, label: "complete comment marker inventory" },
-            )
-            .map(object);
+          const comments = (await this.issueComments(c.issue!, 100)).map(object);
           const matches = comments.filter(
             (v) =>
               typeof v.body === "string" && v.body.includes(`portcove-discovery-comment:${c.id}`),
@@ -1709,26 +1769,36 @@ export class DiscoverySession {
           let found = matches[0];
           if (!found) {
             assertDiscoveryCommentMayPost(c);
-            found = discoveryPost(
+            found = await discoveryPost(
               c,
-              () =>
+              async () =>
                 object(
-                  this.client.api.request(
-                    "POST",
-                    `repos/${this.client.config.repository}/issues/${c.issue}/comments`,
-                    { body: c.body },
-                  ).body,
+                  (
+                    await this.sdk.request({
+                      method: "POST",
+                      url: new URL(
+                        `repos/${this.client.config.repository}/issues/${c.issue}/comments`,
+                        "https://api.github.com/",
+                      ).href,
+                      data: { body: c.body },
+                    })
+                  ).data,
                 ),
               () => this.persist(),
             );
             this.wrote = true;
           }
-          recordDiscoveryComment(c, found.id, () => this.persist());
+          await recordDiscoveryComment(c, found.id, () => this.persist());
           const observed = object(
-            this.client.api.request(
-              "GET",
-              `repos/${this.client.config.repository}/issues/comments/${String(found.id)}`,
-            ).body,
+            (
+              await this.sdk.request({
+                method: "GET",
+                url: new URL(
+                  `repos/${this.client.config.repository}/issues/comments/${String(found.id)}`,
+                  "https://api.github.com/",
+                ).href,
+              })
+            ).data,
           );
           if (observed.body !== c.body) throw new Error("Comment readback differs");
           c.readback = text(observed.html_url);
@@ -1736,7 +1806,7 @@ export class DiscoverySession {
         c.status = "doctor-pending";
         this.persist();
       }
-      this.refresh();
+      await this.refresh();
       for (const c of candidates) {
         if (c.kind !== "intake") continue;
         const issue = this.inventory.issues.find((i) => Number(i.number) === c.created_issue);
@@ -1828,8 +1898,8 @@ export class DiscoverySession {
     if (!error && !this.journal.doctor) {
       try {
         this.budget.delivery = true;
-        this.checkProviderCapacity(discoveryDeliveryCost(this.inventory, []).requests);
-        this.refresh();
+        await this.checkProviderCapacity(discoveryDeliveryCost(this.inventory, []).requests);
+        await this.refresh();
         // No changes need no planning doctor. Collection's complete, fresh
         // inventories and final guards remain required and retain their evidence.
         const doctor = {
@@ -1851,6 +1921,11 @@ export class DiscoverySession {
         this.budget.delivery = false;
       }
     }
+    for (const cleanup of await this.budget.drain())
+      this.journal.notes.push({
+        phase: "admission-cleanup",
+        error: sanitizeOperationError(cleanup),
+      });
     const pending = Object.values(this.journal.candidates).some(
       (c) => !["delivered", "superseded", "held"].includes(c.status),
     );
@@ -1964,13 +2039,15 @@ export async function runDiscoverySession(
   const config = JSON.parse(
     await readFile(path.join(root, ".github/roadmap.json"), "utf8"),
   ) as ConstructorParameters<typeof RoadmapClient>[0];
-  const session = new DiscoverySession(
+  const cancellation = new AbortController();
+  const session = await DiscoverySession.open(
     stateDir,
     runDir,
     config,
     tokenResult.stdout.trim(),
     startedAt,
     head,
+    { signal: cancellation.signal },
   );
   const emit = (v: unknown) => process.stdout.write(JSON.stringify(v) + "\n");
   const guardedInput = boundedDiscoveryInput();
@@ -1978,7 +2055,11 @@ export async function runDiscoverySession(
   let failed: unknown;
   let finished = false;
   const cancel = () => {
-    failed = new Error("Run cancelled; owned request worker drained before checkpoint/release");
+    failed = new GitHubApiError(
+      "cancelled",
+      "Run cancelled; owned requests settle before checkpoint/release",
+    );
+    cancellation.abort(failed);
     input.close();
   };
   guardedInput.on("error", (error) => {
@@ -1990,7 +2071,7 @@ export async function runDiscoverySession(
   process.on("SIGTERM", cancel);
   const timer = setTimeout(cancel, Math.max(1, session.budget.remaining().milliseconds));
   try {
-    emit(session.start());
+    emit(await session.start());
     for await (const line of input) {
       if (Buffer.byteLength(line) > 128 * 1024)
         throw new Error("Discovery control message exceeds cap");
@@ -2002,20 +2083,20 @@ export async function runDiscoverySession(
         finished = true;
         break;
       }
-      if (op === "collect") result = session.collect();
-      else if (op === "discover") result = session.discover();
+      if (op === "collect") result = await session.collect();
+      else if (op === "discover") result = await session.discover();
       else if (op === "lead-dispose") result = session.disposeLead(message.disposition);
-      else if (op === "amend") result = session.amend(message.amendment);
-      else if (op === "research") result = session.research(text(message.repository));
-      else if (op === "search") result = session.search(text(message.query));
+      else if (op === "amend") result = await session.amend(message.amendment);
+      else if (op === "research") result = await session.research(text(message.repository));
+      else if (op === "search") result = await session.search(text(message.query));
       else if (op === "read-primary")
-        result = session.readPrimary(text(message.repository), text(message.url));
-      else if (op === "propose") result = session.propose(message.candidate);
+        result = await session.readPrimary(text(message.repository), text(message.url));
+      else if (op === "propose") result = await session.propose(message.candidate);
       else if (op === "review") result = session.review(message.review);
       else if (op === "hold") result = session.hold(message.hold);
       else if (op === "reconcile") result = await session.reconcile(message.reconciliation);
       else if (op === "apply") result = await session.apply();
-      else if (op === "recheck") result = session.recheck();
+      else if (op === "recheck") result = await session.recheck();
       else if (op === "dispose") {
         const v = object(message.disposition);
         if (

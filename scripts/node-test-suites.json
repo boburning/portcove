@@ -3553,6 +3553,13 @@
       ]
     },
     {
+      "file": "scripts/roadmap-sdk.test.mts",
+      "memberships": [
+        ["catalog-full-2", 9675],
+        ["roadmap-check", 175]
+      ]
+    },
+    {
       "file": "scripts/roadmap-publish.test.mts",
       "memberships": [
         ["catalog-full-2", 9730],
@@ -4139,6 +4146,13 @@
       "memberships": [
         ["catalog-full", 1100],
         ["roadmap-check", 1100]
+      ]
+    },
+    {
+      "file": "scripts/discovery-github.test.mts",
+      "memberships": [
+        ["catalog-full", 1260],
+        ["roadmap-check", 1260]
       ]
     },
     {

@@ -356,3 +356,52 @@ void test("interrupted/overflowed publication replays retained results and prese
   );
   assert.deepEqual(recovered.observations, second.observations);
 });
+
+void test("converted Roadmap workflow entry points install locked packages before application credentials", () => {
+  for (const [file, name, command] of [
+    ["hosted-discovery-intake.yml", "contracts", "node --test scripts/hosted-discovery-intake"],
+    ["hosted-discovery-intake.yml", "intake", "node scripts/hosted-discovery-intake-runner.mts"],
+    ["roadmap-health.yml", "check", "node scripts/roadmap-health.mts"],
+    ["roadmap-report.yml", "publish", "node scripts/roadmap-publish.mts prepare"],
+  ]) {
+    const workflow: unknown = parse(
+      readFileSync(new URL(`../.github/workflows/${file}`, import.meta.url), "utf8"),
+    );
+    assert.ok(isRecord(workflow) && isRecord(workflow.jobs));
+    const job = workflow.jobs[name!];
+    assert.ok(isRecord(job) && Array.isArray(job.steps));
+    const steps: unknown[] = job.steps;
+    const invocation = steps.findIndex(
+      (step) => isRecord(step) && typeof step.run === "string" && step.run.includes(command!),
+    );
+    const installer = steps.findIndex(
+      (step) =>
+        isRecord(step) && typeof step.run === "string" && step.run.startsWith("pnpm install "),
+    );
+    assert.ok(
+      installer >= 0 && invocation > installer,
+      `${file}/${name} installs before SDK import`,
+    );
+    const installation = steps[installer];
+    assert.ok(isRecord(installation));
+    assert.equal(installation.if, undefined);
+    assert.equal(installation["continue-on-error"], undefined);
+    assert.equal(
+      installation.run,
+      "pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile",
+    );
+    for (const environment of [
+      workflow.env,
+      job.env,
+      ...steps.slice(0, installer + 1).map((step) => (isRecord(step) ? step.env : undefined)),
+    ]) {
+      if (!isRecord(environment)) continue;
+      for (const key of ["GH_TOKEN", "GITHUB_TOKEN", "REPOSITORY_TOKEN", "PORTCOVE_ROADMAP_TOKEN"])
+        assert.equal(
+          environment[key],
+          undefined,
+          `${file}/${name} installation cannot receive ${key}`,
+        );
+    }
+  }
+});

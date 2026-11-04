@@ -1,19 +1,19 @@
-import { GitHubApiError } from "./github-api.mts";
+import { GitHubApiError } from "./github-operation.mts";
 export interface DiscoveryMutation {
   status: string;
   created_issue?: number;
   created_comment?: number;
 }
 /** The rejection classification surrounds only the POST, never later readback. */
-export function discoveryPost<T>(
+export async function discoveryPost<T>(
   candidate: DiscoveryMutation,
-  post: () => T,
-  persist: () => void,
-): T {
+  post: () => T | Promise<T>,
+  persist: () => void | Promise<void>,
+): Promise<T> {
   candidate.status = "create-attempted";
-  persist();
+  await persist();
   try {
-    return post();
+    return await post();
   } catch (error) {
     if (
       error instanceof GitHubApiError &&
@@ -23,14 +23,14 @@ export function discoveryPost<T>(
       !candidate.created_comment
     )
       candidate.status = "prepared";
-    persist();
+    await persist();
     throw error;
   }
 }
-export function recordDiscoveryComment(
+export async function recordDiscoveryComment(
   candidate: DiscoveryMutation,
   id: unknown,
-  persist: () => void,
+  persist: () => void | Promise<void>,
 ) {
   if (typeof id !== "number" || !Number.isSafeInteger(id) || id < 1)
     throw new Error("Comment POST identity is unknown; reconcile the material marker");
@@ -38,7 +38,7 @@ export function recordDiscoveryComment(
     throw new Error("Comment marker identity changed; preserve and reconcile");
   candidate.created_comment = id;
   candidate.status = "created";
-  persist();
+  await persist();
 }
 export function assertDiscoveryCommentMayPost(candidate: DiscoveryMutation) {
   if (

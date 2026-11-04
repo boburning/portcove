@@ -12,6 +12,7 @@ import type {
   DeliveryJob,
   DeliveryPull,
   DeliveryStatus,
+  DeliveryWorkflow,
   RequiredContext,
   WatchContext,
 } from "./pr-delivery.mts";
@@ -919,4 +920,181 @@ export async function readDeliverySnapshot(file: string) {
   } finally {
     await handle.close();
   }
+}
+
+export function fields(
+  value: unknown,
+  shape: Readonly<
+    Record<string, "string" | "number" | "boolean" | "nullableString" | "nullableBoolean">
+  >,
+): asserts value is Record<string, unknown> {
+  if (!isRecord(value)) throw new Error("GitHub metadata is not an object");
+  for (const [key, type] of Object.entries(shape)) {
+    const field = value[key];
+    if (field === undefined) continue;
+    const valid =
+      type === "nullableString"
+        ? field === null || typeof field === "string"
+        : type === "nullableBoolean"
+          ? field === null || typeof field === "boolean"
+          : typeof field === type;
+    if (!valid) throw new Error(`GitHub ${key} metadata has an invalid type`);
+  }
+}
+function assertPullProjection(
+  value: unknown,
+  number: number,
+): asserts value is DeliveryPull & Record<string, unknown> {
+  fields(value, {
+    title: "string",
+    body: "nullableString",
+    commits: "number",
+    changed_files: "number",
+    html_url: "string",
+    merge_commit_sha: "nullableString",
+    draft: "boolean",
+    mergeable: "nullableBoolean",
+    merged: "boolean",
+    state: "string",
+  });
+  if (
+    !isRecord(value.head) ||
+    typeof value.head.sha !== "string" ||
+    !value.head.sha ||
+    !isRecord(value.base) ||
+    typeof value.base.sha !== "string" ||
+    !value.base.sha ||
+    value.number !== number
+  )
+    throw new Error(`pull request #${number} response is incomplete`);
+  fields(value.head, { ref: "string" });
+  fields(value.base, { ref: "string" });
+  if (value.user !== undefined && value.user !== null) fields(value.user, { login: "string" });
+  if (value.labels !== undefined) {
+    if (!Array.isArray(value.labels)) throw new Error("GitHub labels metadata is invalid");
+    const labels: unknown[] = value.labels;
+    for (const label of labels) fields(label, { name: "string" });
+  }
+  if (value.assignees !== undefined) {
+    if (!Array.isArray(value.assignees)) throw new Error("GitHub assignee metadata is invalid");
+    const assignees: unknown[] = value.assignees;
+    for (const assignee of assignees)
+      if (!isRecord(assignee) || typeof assignee.login !== "string")
+        throw new Error("GitHub assignee login is invalid");
+  }
+  // The above checks admit only the fields consumed by this delivery adapter;
+  // preserve other provider metadata without claiming its schema.
+}
+export function pullMetadata(value: unknown, number: number): DeliveryPull {
+  assertPullProjection(value, number);
+  return value;
+}
+export function checkMetadata(value: unknown): DeliveryCheckRun {
+  fields(value, { conclusion: "nullableString", html_url: "nullableString" });
+  if (
+    typeof value.id !== "number" ||
+    typeof value.name !== "string" ||
+    typeof value.status !== "string"
+  )
+    throw new Error("GitHub check-run metadata is incomplete");
+  return {
+    ...value,
+    id: value.id,
+    name: value.name,
+    status: value.status,
+    ...optionalCheckFields(value),
+  };
+}
+function optionalCheckFields(value: Record<string, unknown>): {
+  conclusion?: string | null;
+  html_url?: string | null;
+} {
+  const result: { conclusion?: string | null; html_url?: string | null } = {};
+  if (typeof value.conclusion === "string" || value.conclusion === null)
+    result.conclusion = value.conclusion;
+  if (typeof value.html_url === "string" || value.html_url === null)
+    result.html_url = value.html_url;
+  return result;
+}
+
+export function statusMetadata(value: unknown): DeliveryStatus {
+  fields(value, { description: "nullableString", target_url: "nullableString" });
+  if (
+    typeof value.id !== "number" ||
+    typeof value.context !== "string" ||
+    typeof value.state !== "string"
+  )
+    throw new Error("GitHub status metadata is incomplete");
+  const result: DeliveryStatus = {
+    ...value,
+    id: value.id,
+    context: value.context,
+    state: value.state,
+  };
+  if (typeof value.description === "string" || value.description === null)
+    result.description = value.description;
+  if (typeof value.target_url === "string" || value.target_url === null)
+    result.target_url = value.target_url;
+  return result;
+}
+export function assertWorkflow(value: unknown): asserts value is DeliveryWorkflow {
+  fields(value, {
+    conclusion: "nullableString",
+    name: "string",
+    html_url: "string",
+    created_at: "nullableString",
+    run_started_at: "nullableString",
+  });
+  if (
+    typeof value.id !== "number" ||
+    typeof value.run_attempt !== "number" ||
+    typeof value.head_sha !== "string" ||
+    typeof value.status !== "string"
+  )
+    throw new Error("GitHub workflow metadata is incomplete");
+}
+export function assertJob(value: unknown): asserts value is DeliveryJob {
+  fields(value, {
+    conclusion: "nullableString",
+    check_run_url: "string",
+    completed_at: "nullableString",
+  });
+  if (
+    typeof value.id !== "number" ||
+    typeof value.run_id !== "number" ||
+    typeof value.run_attempt !== "number" ||
+    typeof value.head_sha !== "string" ||
+    typeof value.name !== "string" ||
+    typeof value.status !== "string"
+  )
+    throw new Error("GitHub job metadata is incomplete");
+}
+export function requiredContextsFromConfigs(ruleset: unknown, coverage: unknown): string[] {
+  const rules = isRecord(ruleset) && Array.isArray(ruleset.rules) ? ruleset.rules : [];
+  const values: unknown[] = rules;
+  const rule = values.find(
+    (candidate): candidate is Record<string, unknown> =>
+      isRecord(candidate) && candidate.type === "required_status_checks",
+  );
+  const parameters = isRecord(rule?.parameters) ? rule.parameters : undefined;
+  const entries = parameters?.required_status_checks;
+  const contexts: unknown[] = Array.isArray(entries)
+    ? entries.map((entry: unknown) => (isRecord(entry) ? entry.context : undefined))
+    : [];
+  if (
+    !contexts.length ||
+    !contexts.every(
+      (context): context is string => typeof context === "string" && Boolean(context),
+    ) ||
+    new Set(contexts).size !== contexts.length
+  )
+    throw new Error("repository ruleset required checks are incomplete");
+  const coverageContexts = isRecord(coverage) ? coverage.protected_contexts : undefined;
+  if (
+    !Array.isArray(coverageContexts) ||
+    !coverageContexts.every((value: unknown): value is string => typeof value === "string") ||
+    JSON.stringify([...contexts].sort()) !== JSON.stringify([...coverageContexts].sort())
+  )
+    throw new Error("repository ruleset and qualification protected contexts differ");
+  return contexts;
 }

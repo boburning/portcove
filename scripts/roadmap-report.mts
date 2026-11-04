@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { isRecord } from "./runtime-values.mts";
-import { sanitizeOperationError } from "./github-api.mts";
+import { sanitizeOperationError } from "./github-operation.mts";
 
 export interface RoadmapObservation {
   scope: string;

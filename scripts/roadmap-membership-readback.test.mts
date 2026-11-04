@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { parse } from "yaml";
 import { validateConfig } from "./roadmap.mts";
-import { GitHubApiError } from "./github-api.mts";
+import { GitHubApiError } from "./github-operation.mts";
 import { isRecord } from "./runtime-values.mts";
 import {
   MembershipReadbackClient,
@@ -19,7 +19,7 @@ const connection = <T,>(nodes: T[]) => ({
   nodes,
   pageInfo: { hasNextPage: false, endCursor: null },
 });
-function fixture() {
+async function fixture() {
   const issues = [1, 2, 3].map((number) => ({
     id: `I${number}`,
     number,
@@ -53,22 +53,29 @@ function fixture() {
     },
   ];
   const direct = new Map(items.map((item) => [item.id, item]));
-  const client = new MembershipReadbackClient(config);
-  client.projectDetails = () => ({ id: "PVT", number: config.project.number });
-  client.completeProjectContext = () => ({
+  const client = await MembershipReadbackClient.connect(config, {
+    credential: { kind: "anonymous" },
+    deadline: performance.now() + 10000,
+    failedReads: new Map(),
+    fetch: async () => {
+      throw new Error("Unexpected transport");
+    },
+  });
+  client.projectDetails = async () => ({ id: "PVT", number: config.project.number });
+  client.completeProjectContext = async () => ({
     number: config.project.number,
     details: { id: "PVT" },
     fields: [],
   });
   let audits = 0;
   const revisions = ["2026-10-23T10:00:00Z", "2026-10-23T10:00:00Z"];
-  client.projectAudit = () => ({
+  client.projectAudit = async () => ({
     id: "PVT",
     updatedAt: revisions[audits++],
     items: { totalCount: 3 },
   });
   const queries: string[] = [];
-  client.graphql = (query, variables) => {
+  client.graphql = async (query, variables) => {
     queries.push(query);
     assert(!query.includes("mutation"), "Readback must not mutate GitHub");
     if (query.includes("ScopedProjectItem"))
@@ -130,9 +137,9 @@ void test("bounded Project item selection rejects issues, commands, duplicates a
     assert.throws(() => parseInventoryItems(value));
 });
 
-void test("complete readback compares exact bindings, retains pages, and distinguishes archived and draft rows", () => {
-  const f = fixture();
-  const report = readbackMemberships(f.client, "PVTI_1 PVTI_2");
+void test("complete readback compares exact bindings, retains pages, and distinguishes archived and draft rows", async () => {
+  const f = await fixture();
+  const report = await readbackMemberships(f.client, "PVTI_1 PVTI_2");
   assert.equal(report.verdict, "CONSISTENT");
   assert.equal(report.planning_evaluation, "not_run");
   assert.equal(report.repository_issue_count, 3);
@@ -158,29 +165,29 @@ void test("complete readback compares exact bindings, retains pages, and disting
   assert.equal(report.reverse_evidence[0]?.total, 3);
 });
 
-void test("stable complete forward omissions remain INCONSISTENT even when direct and reverse reads succeed", () => {
-  const f = fixture();
+void test("stable complete forward omissions remain INCONSISTENT even when direct and reverse reads succeed", async () => {
+  const f = await fixture();
   f.forward.splice(0, 1);
-  const report = readbackMemberships(f.client, "PVTI_1 PVTI_2");
+  const report = await readbackMemberships(f.client, "PVTI_1 PVTI_2");
   assert.equal(report.verdict, "INCONSISTENT");
   assert(report.discrepancies.includes("PVTI_1: reverse-only active membership"));
   assert(report.discrepancies.some((value) => value.includes("Forward active count")));
   assert.equal(report.direct.length, 2);
 });
 
-void test("equal counts cannot hide exchanged issue bindings or unrequested membership drift", () => {
-  const f = fixture();
+void test("equal counts cannot hide exchanged issue bindings or unrequested membership drift", async () => {
+  const f = await fixture();
   f.forward[0] = { ...f.items[0], content: f.issues[1] };
   f.forward[1] = { ...f.items[1], content: f.issues[0] };
-  const report = readbackMemberships(f.client, "PVTI_1");
+  const report = await readbackMemberships(f.client, "PVTI_1");
   assert.equal(report.verdict, "INCONSISTENT");
   assert(report.discrepancies.includes("PVTI_2: forward/reverse identity mismatch"));
 });
 
-void test("a changed Project revision makes otherwise complete reads UNKNOWN", () => {
-  const f = fixture();
+void test("a changed Project revision makes otherwise complete reads UNKNOWN", async () => {
+  const f = await fixture();
   f.revisions[1] = "2026-10-23T10:01:00Z";
-  const report = readbackMemberships(f.client, "PVTI_1");
+  const report = await readbackMemberships(f.client, "PVTI_1");
   assert.equal(report.verdict, "UNKNOWN");
   assert.equal(isRecord(report.error) && report.error.code, "inventory_changed");
   assert.equal(report.forward.length, 4);
@@ -188,15 +195,15 @@ void test("a changed Project revision makes otherwise complete reads UNKNOWN", (
   assert.equal(report.direct.length, 1);
 });
 
-void test("failed pagination retains partial page receipts without manufacturing an empty complete inventory", () => {
-  const f = fixture();
+void test("failed pagination retains partial page receipts without manufacturing an empty complete inventory", async () => {
+  const f = await fixture();
   const graphql = f.client.graphql.bind(f.client);
-  f.client.graphql = (query, variables) => {
+  f.client.graphql = async (query, variables) => {
     if (query.includes("items(first:") && variables?.after)
       throw new GitHubApiError("http_error", "Provider read failed", { status: 503 });
-    return graphql(query, variables);
+    return await graphql(query, variables);
   };
-  const report = readbackMemberships(f.client, "PVTI_1");
+  const report = await readbackMemberships(f.client, "PVTI_1");
   assert.equal(report.verdict, "UNKNOWN");
   assert.equal(isRecord(report.error) && report.error.code, "http_error");
   assert.equal(f.client.connections[0]?.pages.length, 1);
@@ -205,29 +212,29 @@ void test("failed pagination retains partial page receipts without manufacturing
   assert.equal(report.direct.length, 0);
 });
 
-void test("archived, missing, or foreign direct items cannot establish recovery", () => {
+void test("archived, missing, or foreign direct items cannot establish recovery", async () => {
   for (const kind of ["archived", "missing", "foreign"] as const) {
-    const f = fixture();
+    const f = await fixture();
     const original = f.direct.get("PVTI_1");
     assert(original);
     if (kind === "missing") f.direct.delete("PVTI_1");
     else if (kind === "archived") f.direct.set("PVTI_1", { ...original, isArchived: true });
     else f.direct.set("PVTI_1", { ...original, project: { id: "OTHER_PROJECT" } });
-    const report = readbackMemberships(f.client, "PVTI_1");
+    const report = await readbackMemberships(f.client, "PVTI_1");
     assert.equal(report.verdict, "UNKNOWN", kind);
     assert.equal(isRecord(report.error) && report.error.code, "inventory_identity");
     assert.equal(report.reverse.length, 3);
   }
 });
 
-void test("missing dedicated credential and invalid selection stop before any GitHub read", () => {
+void test("missing dedicated credential and invalid selection stop before any GitHub read", async () => {
   for (const [items, configured] of [
     ["PVTI_1", false],
     ["not-an-item", true],
   ] as const) {
-    const f = fixture();
-    f.client.projectDetails = () => assert.fail("No GitHub reads are permitted");
-    const report = readbackMemberships(f.client, items, configured);
+    const f = await fixture();
+    f.client.projectDetails = async () => assert.fail("No GitHub reads are permitted");
+    const report = await readbackMemberships(f.client, items, configured);
     assert.equal(report.verdict, "UNKNOWN");
     assert.equal(f.queries.length, 0);
   }

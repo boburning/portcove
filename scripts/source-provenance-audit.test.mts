@@ -1,31 +1,53 @@
 import { fileURLToPath } from "node:url";
 import type { RoadmapIssueItem } from "./roadmap-issue.mts";
-import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
 import { isRecord } from "./runtime-values.mts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { fixtureProjectDetails } from "./fixtures/roadmap-fixtures.mts";
+import type { RoadmapRequestScope } from "./roadmap.mts";
 
 import { renderPortIssueBody } from "./roadmap-issue.mts";
 import {
   buildSourceProvenanceAudit,
   readLiveSourceProvenance,
   renderSourceProvenanceAudit,
-  runReadOnlyGitHubCommand,
   runSourceProvenanceAudit,
 } from "./source-provenance-audit.mts";
 
 const sha = (character: string) => character.repeat(40);
 
-function included(body: unknown, headers: Record<string, string> = {}) {
-  return (
-    "HTTP/2.0 200 OK\r\n" +
-    Object.entries(headers)
-      .map(([name, value]) => `${name}: ${value}\r\n`)
-      .join("") +
-    `\r\n${JSON.stringify(body)}`
-  );
+function httpResponse(body: unknown, headers: Record<string, string> = {}) {
+  return Response.json(body, { headers });
+}
+type QueryResponse = (
+  query: string,
+  variables: Readonly<Record<string, unknown>>,
+) => Response | Promise<Response>;
+function liveScope(
+  readQuery: QueryResponse,
+  observe: (method: string, endpoint: string) => void = () => {},
+): RoadmapRequestScope {
+  return {
+    credential: { kind: "anonymous" },
+    deadline: performance.now() + 60_000,
+    failedReads: new Map(),
+    maxBytes: 32 * 1024 * 1024,
+    fetch: async (input, init) => {
+      const url = new URL(input instanceof Request ? input.url : input),
+        method = init?.method ?? "GET";
+      observe(method, url.pathname);
+      if (method === "GET") {
+        assert.equal(url.pathname, "/users/boburning");
+        return httpResponse({ type: "User", node_id: "OWNER" });
+      }
+      assert.equal(method, "POST");
+      assert.equal(url.pathname, "/graphql");
+      if (typeof init?.body !== "string") throw new Error("Expected JSON request body");
+      const body: unknown = JSON.parse(init.body);
+      assert.ok(isRecord(body) && typeof body.query === "string" && isRecord(body.variables));
+      return await readQuery(body.query, body.variables);
+    },
+  };
 }
 
 function catalog() {
@@ -134,13 +156,6 @@ function fixtureElement<T>(values: readonly T[], index: number): T {
 function fixtureObject(value: unknown): Record<string, unknown> {
   assert.ok(isRecord(value));
   return value;
-}
-function fixtureGraphql(input: unknown) {
-  assert.ok(typeof input === "string");
-  const value: unknown = JSON.parse(input);
-  const object = fixtureObject(value);
-  assert.ok(typeof object.query === "string");
-  return { query: object.query, variables: fixtureObject(object.variables) };
 }
 function fixture(): InputFixture {
   const catalogIssue = issue(1, "Sample", { catalogId: "sample" });
@@ -837,28 +852,33 @@ void test("misclassified Project state is surfaced as drift", () => {
   );
 });
 
-void test("live enrichment calls only bounded read commands and API errors do not expose tokens", () => {
-  const calls: { args: readonly string[]; input?: string }[] = [];
-  const result = readLiveSourceProvenance({
+void test("live enrichment uses only bounded read queries and API errors do not expose credentials", async () => {
+  const calls: string[] = [],
+    queries: string[] = [];
+  const result = await readLiveSourceProvenance({
     repository: "boburning/portcove",
     owner: "boburning",
     projectNumber: 1,
-    run(args, input) {
-      calls.push({ args, ...(input !== undefined ? { input } : {}) });
-      const project = fixtureProjectDetails(args, input, "PVT", 1);
-      if (project !== undefined) return project;
-      if (args[0] === "api" && args[1] === "--include" && !input) return included([]);
-      const page = {
-        totalCount: 0,
-        nodes: [],
-        pageInfo: { hasNextPage: false, endCursor: null },
-      };
-      return included({
-        data: fixtureGraphql(input).query.includes("RepositoryIssue")
-          ? { repository: { id: "R", nameWithOwner: "boburning/portcove", issues: page } }
-          : { node: { items: page } },
-      });
-    },
+    scope: liveScope(
+      (query, variables) => {
+        queries.push(query);
+        if (query.includes("projectV2(number:")) {
+          assert.deepEqual(variables, { login: "boburning", number: 1 });
+          return httpResponse({ data: { user: { projectV2: { id: "PVT", number: 1 } } } });
+        }
+        const page = {
+          totalCount: 0,
+          nodes: [],
+          pageInfo: { hasNextPage: false, endCursor: null },
+        };
+        return httpResponse({
+          data: query.includes("RepositoryIssue")
+            ? { repository: { id: "R", nameWithOwner: "boburning/portcove", issues: page } }
+            : { node: { items: page } },
+        });
+      },
+      (method, endpoint) => calls.push(`${method} ${endpoint}`),
+    ),
   });
   assert.deepEqual(result, {
     issues: [],
@@ -866,69 +886,31 @@ void test("live enrichment calls only bounded read commands and API errors do no
     pullRequests: [],
     projectState: "available",
   });
-  assert.deepEqual(
-    calls.map(({ args }) => args.slice(0, 2)),
-    [
-      ["api", "graphql"],
-      ["api", "graphql"],
-      ["api", "graphql"],
-      ["api", "--include"],
-      ["api", "graphql"],
-      ["api", "graphql"],
-    ],
-  );
-  assert.deepEqual(
-    calls
-      .filter(({ args }) => args[0] === "api" && args[1] === "--include" && args[2])
-      .map(({ args }) => fixtureElement(args, 2)),
-    ["users/boburning"],
-  );
-  for (const { input } of calls.filter((call) => call.input)) {
-    const query = fixtureGraphql(input).query;
-    assert.match(query, /^query(?: |\()/);
-    assert.doesNotMatch(query, /\bmutation\b/);
-    if (query.includes("projectV2(number: $number)")) {
-      assert.match(query, /projectV2\(number: \$number\) \{ id number/);
-      assert.deepEqual(fixtureGraphql(input).variables, { login: "boburning", number: 1 });
-    } else {
-      assert.match(query, /(?:issues\(first:(?:1|50)|items\(first: 50)/);
-      assert.match(query, /totalCount/);
-    }
+  assert.deepEqual(calls, [
+    "POST /graphql",
+    "POST /graphql",
+    "POST /graphql",
+    "GET /users/boburning",
+    "POST /graphql",
+    "POST /graphql",
+  ]);
+  for (const query of queries) {
+    assert.match(query, /^query(?: |\()/u);
+    assert.doesNotMatch(query, /\bmutation\b/u);
+    if (!query.includes("projectV2(number:")) assert.match(query, /totalCount/u);
   }
-
   const secret = "github_pat_secret_value_that_must_not_appear";
-  assert.throws(
-    () =>
-      readLiveSourceProvenance({
-        repository: "boburning/portcove",
-        owner: "boburning",
-        projectNumber: 1,
-        run() {
-          throw new Error(secret);
-        },
+  await assert.rejects(
+    readLiveSourceProvenance({
+      repository: "boburning/portcove",
+      owner: "boburning",
+      projectNumber: 1,
+      scope: liveScope(() => {
+        throw new Error(secret);
       }),
+    }),
     (error) => error instanceof Error && !error.message.includes(secret),
   );
-});
-
-void test("live GitHub reads allow the full bounded Project payload", () => {
-  let invocation:
-    | { command: string; args: readonly string[]; options: SpawnSyncOptionsWithStringEncoding }
-    | undefined;
-  const value = runReadOnlyGitHubCommand(
-    ["api", "graphql", "--input", "-"],
-    '{"query":"query { viewer { login } }"}',
-    (command, args, options) => {
-      invocation = { command, args, options };
-      return { status: 0, stdout: '{"items":[]}', stderr: "" };
-    },
-  );
-  assert.deepEqual(value, { items: [] });
-  assert.ok(invocation);
-  assert.equal(invocation.command, "gh");
-  assert.deepEqual(invocation.args, ["api", "graphql", "--input", "-"]);
-  assert.equal(invocation.options.input, '{"query":"query { viewer { login } }"}');
-  assert.equal(invocation.options.maxBuffer, 32 * 1024 * 1024);
 });
 
 void test("rendered output labels evidence authority and catalog versus research scope", () => {
@@ -950,20 +932,18 @@ type LiveIssueFixture = {
   html_url?: string;
   node_id?: string;
 };
-type ReadCommand = NonNullable<Parameters<typeof readLiveSourceProvenance>[0]["run"]>;
 interface PageCall {
   isIssues: boolean;
   offset: number;
 }
-function paginatedLiveRunner(
+function paginatedResponses(
   issues: readonly LiveIssueFixture[],
   projectItems: readonly unknown[],
   intercept: (call: PageCall) => void = () => {},
-): ReadCommand {
-  return (args, input) => {
-    const project = fixtureProjectDetails(args, input, "PVT", 1);
-    if (project !== undefined) return project;
-    const { query, variables } = fixtureGraphql(input);
+): QueryResponse {
+  return (query, variables) => {
+    if (query.includes("projectV2(number:"))
+      return httpResponse({ data: { user: { projectV2: { id: "PVT", number: 1 } } } });
     if (query.includes("RepositoryIssue")) {
       const marker = query.includes("RepositoryIssueMarker");
       const offset = Number(variables.after ?? 0),
@@ -978,7 +958,7 @@ function paginatedLiveRunner(
       }));
       const nodes = marker ? values.slice(-1) : values.slice(offset, offset + size);
       const hasNextPage = !marker && offset + nodes.length < values.length;
-      return included({
+      return httpResponse({
         data: {
           repository: {
             id: "R",
@@ -1021,7 +1001,7 @@ function paginatedLiveRunner(
         endCursor: hasNextPage ? String(offset + nodes.length) : null,
       },
     };
-    return included({ data: { node: { items: page } } });
+    return httpResponse({ data: { node: { items: page } } });
   };
 }
 
@@ -1067,15 +1047,15 @@ function largeLiveFixture() {
   return { input, issues, projectItems };
 }
 
-void test("live provenance includes canonical ports beyond 1000 records with deterministic output", () => {
+void test("live provenance includes canonical ports beyond 1000 records with deterministic output", async () => {
   const { input, issues, projectItems } = largeLiveFixture();
   const calls: PageCall[] = [];
-  const run = paginatedLiveRunner(issues, projectItems, (call) => calls.push(call));
-  const live = readLiveSourceProvenance({
+  const readQuery = paginatedResponses(issues, projectItems, (call) => calls.push(call));
+  const live = await readLiveSourceProvenance({
     repository: "boburning/portcove",
     owner: "boburning",
     projectNumber: 1,
-    run,
+    scope: liveScope(readQuery),
   });
   assert.equal(live.issues.length, 1003);
   assert.equal(live.projectItems.length, 1003);
@@ -1085,12 +1065,12 @@ void test("live provenance includes canonical ports beyond 1000 records with det
   const first = buildSourceProvenanceAudit({ ...input, ...live });
   const second = buildSourceProvenanceAudit({
     ...input,
-    ...readLiveSourceProvenance({
+    ...(await readLiveSourceProvenance({
       repository: "boburning/portcove",
       owner: "boburning",
       projectNumber: 1,
-      run,
-    }),
+      scope: liveScope(readQuery),
+    })),
   });
   assert.deepEqual(first.observations, []);
   assert.equal(first.counts.portIssues, 2);
@@ -1107,45 +1087,43 @@ void test("failed live collection phases preserve snapshots without exposing raw
   const absent = `${directory}/absent.md`;
   const secret = "github_pat_private_test_value";
   const { issues, projectItems } = largeLiveFixture();
-  const cases: { label: string; phase: string; run: ReadCommand }[] = [];
+  const cases: { label: string; phase: string; readQuery: QueryResponse }[] = [];
   for (const isIssues of [true, false]) {
     const phase = isIssues ? "reading the issue inventory" : "reading the Project inventory";
     for (const offset of [0, isIssues ? 100 : 50])
       cases.push({
         label: `${phase}, offset ${offset}`,
         phase,
-        run: paginatedLiveRunner(issues, projectItems, (call) => {
+        readQuery: paginatedResponses(issues, projectItems, (call) => {
           if (call.isIssues === isIssues && call.offset === offset) throw new Error(secret);
         }),
       });
-    const baseRun = paginatedLiveRunner(issues, projectItems);
+    const baseRun = paginatedResponses(issues, projectItems);
     cases.push({
       label: `${phase}, malformed response`,
       phase,
-      run(args, payload) {
+      readQuery(query, variables) {
         if (
-          payload &&
-          (isIssues
-            ? fixtureGraphql(payload).query.includes("RepositoryIssue")
-            : fixtureGraphql(payload).query.includes("items(first:"))
+          query &&
+          (isIssues ? query.includes("RepositoryIssue") : query.includes("items(first:"))
         )
-          return included({ invalid: secret });
-        return baseRun(args, payload);
+          return httpResponse({ invalid: secret });
+        return baseRun(query, variables);
       },
     });
   }
   const referenced = mergedBlockerFixture("Waiting for PR #31 to merge.");
   for (const malformed of [false, true]) {
-    const baseRun = paginatedLiveRunner(referenced.issues, []);
+    const baseRun = paginatedResponses(referenced.issues, []);
     cases.push({
       label: `resolving referenced PRs, ${malformed ? "malformed response" : "request failure"}`,
       phase: "resolving referenced PRs",
-      run(args, payload) {
-        if (payload && fixtureGraphql(payload).query.includes("pullRequest(number:")) {
+      readQuery(query, variables) {
+        if (query && query.includes("pullRequest(number:")) {
           if (!malformed) throw new Error(secret);
-          return included({ data: { repository: { pullRequest: { invalid: secret } } } });
+          return httpResponse({ data: { repository: { pullRequest: { invalid: secret } } } });
         }
-        return baseRun(args, payload);
+        return baseRun(query, variables);
       },
     });
   }
@@ -1154,19 +1132,19 @@ void test("failed live collection phases preserve snapshots without exposing raw
     number: i + 1,
     body: fixtureElement(referenced.issues, 0).body.replaceAll("PR #31", `PR #${i + 1}`),
   }));
-  const boundedRun = paginatedLiveRunner(boundedIssues, []);
+  const boundedRun = paginatedResponses(boundedIssues, []);
   let prRequests = 0;
   cases.push({
     label: "discovering active PR references, bound exceeded",
     phase: "discovering active PR references",
-    run(args, payload) {
-      if (payload && fixtureGraphql(payload).query.includes("pullRequest(number:")) prRequests++;
-      return boundedRun(args, payload);
+    readQuery(query, variables) {
+      if (query && query.includes("pullRequest(number:")) prRequests++;
+      return boundedRun(query, variables);
     },
   });
   try {
     await writeFile(existing, "previous verified snapshot\n");
-    for (const { label, phase, run } of cases)
+    for (const { label, phase, readQuery } of cases)
       await t.test(label, async () => {
         for (const output of [existing, absent])
           await assert.rejects(
@@ -1182,7 +1160,7 @@ void test("failed live collection phases preserve snapshots without exposing raw
                 "--output",
                 output,
               ],
-              { run },
+              { scope: liveScope(readQuery) },
             ),
             (error) =>
               error instanceof Error &&
@@ -1316,22 +1294,22 @@ void test("live blockers resolve referenced PRs independently of Project members
     ],
     ["unknown", null, 0],
   ] as const)
-    await t.test(label, () => {
+    await t.test(label, async () => {
       const input = mergedBlockerFixture("Waiting for PR #31 and PR #31 to merge.");
       input.projectItems.pop();
-      const baseRun = paginatedLiveRunner(input.issues, []);
+      const baseRun = paginatedResponses(input.issues, []);
       const requests: Record<string, unknown>[] = [];
-      const live = readLiveSourceProvenance({
+      const live = await readLiveSourceProvenance({
         repository: "boburning/portcove",
         owner: "boburning",
         projectNumber: 1,
-        run(args, payload) {
-          if (payload && fixtureGraphql(payload).query.includes("pullRequest(number:")) {
-            requests.push(fixtureGraphql(payload).variables);
-            return included({ data: { repository: { pullRequest: response } } });
+        scope: liveScope((query, variables) => {
+          if (query && query.includes("pullRequest(number:")) {
+            requests.push(variables);
+            return httpResponse({ data: { repository: { pullRequest: response } } });
           }
-          return baseRun(args, payload);
-        },
+          return baseRun(query, variables);
+        }),
       });
       assert.deepEqual(requests, [{ owner: "boburning", name: "portcove", number: 31 }]);
       assert.deepEqual(live.projectItems, []);
@@ -1352,20 +1330,20 @@ void test("referenced PR reads fail closed on partial or contradictory facts", a
       merged: true,
     },
   ]) {
-    await t.test(JSON.stringify(response) ?? "missing", () => {
+    await t.test(JSON.stringify(response) ?? "missing", async () => {
       const input = mergedBlockerFixture("Waiting for PR #31 to merge.");
-      const baseRun = paginatedLiveRunner(input.issues, []);
-      assert.throws(
-        () =>
-          readLiveSourceProvenance({
+      const baseRun = paginatedResponses(input.issues, []);
+      await assert.rejects(
+        async () =>
+          await readLiveSourceProvenance({
             repository: "boburning/portcove",
             owner: "boburning",
             projectNumber: 1,
-            run(args, payload) {
-              if (payload && fixtureGraphql(payload).query.includes("pullRequest(number:"))
-                return included({ data: { repository: { pullRequest: response } } });
-              return baseRun(args, payload);
-            },
+            scope: liveScope((query, variables) => {
+              if (query && query.includes("pullRequest(number:"))
+                return httpResponse({ data: { repository: { pullRequest: response } } });
+              return baseRun(query, variables);
+            }),
           }),
         /enrichment failed/,
       );
@@ -1373,7 +1351,7 @@ void test("referenced PR reads fail closed on partial or contradictory facts", a
   }
 });
 
-void test("live reference lookup bounds work before requesting any PR", () => {
+void test("live reference lookup bounds work before requesting any PR", async () => {
   const input = researchBlockerInput(
     "- Current blocker and exact resume condition: Waiting for " +
       Array.from({ length: 101 }, (_, i) => `PR #${i + 1}`).join(", "),
@@ -1388,19 +1366,18 @@ void test("live reference lookup bounds work before requesting any PR", () => {
       `- Current blocker and exact resume condition: Waiting for PR #${i + 1} to merge.`,
     ),
   }));
-  const baseRun = paginatedLiveRunner(issues, []);
+  const baseRun = paginatedResponses(issues, []);
   let prRequests = 0;
-  assert.throws(
-    () =>
-      readLiveSourceProvenance({
+  await assert.rejects(
+    async () =>
+      await readLiveSourceProvenance({
         repository: "boburning/portcove",
         owner: "boburning",
         projectNumber: 1,
-        run(args, payload) {
-          if (payload && fixtureGraphql(payload).query.includes("pullRequest(number:"))
-            prRequests++;
-          return baseRun(args, payload);
-        },
+        scope: liveScope((query, variables) => {
+          if (query && query.includes("pullRequest(number:")) prRequests++;
+          return baseRun(query, variables);
+        }),
       }),
     /enrichment failed/,
   );
