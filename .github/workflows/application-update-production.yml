@@ -543,7 +543,8 @@ jobs:
     if: ${{ needs.admission.outputs.publication_purpose == 'application' }}
   coordinator:
     name: Coordinate application release
-    if: ${{ always() && needs.admission.result == 'success' && needs.tool_bootstrap.result == 'success'
+    if:
+      ${{ always() && needs.admission.result == 'success' && needs.tool_bootstrap.result == 'success'
       && needs.tool_attest.result == 'success' }}
     needs: &a3
       - admission
@@ -637,7 +638,8 @@ jobs:
           PORTCOVE_FIXED_NEEDS: ${{ toJSON(needs) }}
           PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.authorities.outputs.credential_transport ==
             'legacy-app' && steps.journal.outputs.token || '' }}
-          PORTCOVE_RELEASE_DISPATCH_TOKEN: ${{ steps.authorities.outputs.credential_transport == 'fixed-job'
+          PORTCOVE_RELEASE_DISPATCH_TOKEN:
+            ${{ steps.authorities.outputs.credential_transport == 'fixed-job'
             && needs.admission.outputs.publication_purpose == 'application' && github.token ||
             steps.dispatch.outputs.token }}
         with:
@@ -645,7 +647,8 @@ jobs:
           phase: coordinator
   coordinator_protection_observation:
     name: Observe application coordinator protections
-    if: ${{ always() && needs.admission.result == 'success' && needs.tool_bootstrap.result == 'success'
+    if:
+      ${{ always() && needs.admission.result == 'success' && needs.tool_bootstrap.result == 'success'
       && needs.tool_attest.result == 'success' }}
     needs: *a3
     runs-on: ubuntu-22.04
@@ -759,7 +762,8 @@ jobs:
       - *a1
       - *a2
       - uses: ./.github/actions/release-control-observer
-        if: ${{ needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.publication_custody
+        if:
+          ${{ needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.publication_custody
           != 'reused' }}
         with:
           phase: admission
@@ -769,7 +773,8 @@ jobs:
           private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
           installation_id: ${{ needs.admission.outputs.protection_installation_id }}
       - uses: ./.github/actions/release-control-observer
-        if: ${{ needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.signing_custody !=
+        if:
+          ${{ needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.signing_custody !=
           'reused' }}
         with:
           phase: payload
@@ -779,7 +784,8 @@ jobs:
           private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
           installation_id: ${{ needs.admission.outputs.protection_installation_id }}
       - uses: ./.github/actions/release-control-observer
-        if: ${{ needs.coordinator.outputs.mode == 'metadata' || (needs.coordinator.outputs.mode == 'release'
+        if:
+          ${{ needs.coordinator.outputs.mode == 'metadata' || (needs.coordinator.outputs.mode == 'release'
           && needs.coordinator.outputs.signing_custody != 'reused') }}
         with:
           phase: tuf-releases
@@ -789,7 +795,8 @@ jobs:
           private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
           installation_id: ${{ needs.admission.outputs.protection_installation_id }}
       - uses: ./.github/actions/release-control-observer
-        if: ${{ needs.coordinator.outputs.mode == 'metadata' || (needs.coordinator.outputs.mode == 'release'
+        if:
+          ${{ needs.coordinator.outputs.mode == 'metadata' || (needs.coordinator.outputs.mode == 'release'
           && needs.coordinator.outputs.signing_custody != 'reused') }}
         with:
           phase: tuf-preview
@@ -799,7 +806,8 @@ jobs:
           private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
           installation_id: ${{ needs.admission.outputs.protection_installation_id }}
       - uses: ./.github/actions/release-control-observer
-        if: ${{ needs.coordinator.outputs.mode == 'metadata' || (needs.coordinator.outputs.mode == 'release'
+        if:
+          ${{ needs.coordinator.outputs.mode == 'metadata' || (needs.coordinator.outputs.mode == 'release'
           && needs.coordinator.outputs.signing_custody != 'reused') }}
         with:
           phase: tuf-stable
@@ -809,7 +817,8 @@ jobs:
           private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
           installation_id: ${{ needs.admission.outputs.protection_installation_id }}
       - uses: ./.github/actions/release-control-observer
-        if: ${{ needs.coordinator.outputs.mode == 'metadata' || (needs.coordinator.outputs.mode == 'release'
+        if:
+          ${{ needs.coordinator.outputs.mode == 'metadata' || (needs.coordinator.outputs.mode == 'release'
           && needs.coordinator.outputs.signing_custody != 'reused') }}
         with:
           phase: tuf-snapshot
@@ -819,7 +828,8 @@ jobs:
           private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
           installation_id: ${{ needs.admission.outputs.protection_installation_id }}
       - uses: ./.github/actions/release-control-observer
-        if: ${{ needs.coordinator.outputs.mode == 'metadata' || (needs.coordinator.outputs.mode == 'release'
+        if:
+          ${{ needs.coordinator.outputs.mode == 'metadata' || (needs.coordinator.outputs.mode == 'release'
           && needs.coordinator.outputs.signing_custody != 'reused') }}
         with:
           phase: tuf-timestamp
@@ -829,7 +839,8 @@ jobs:
           private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
           installation_id: ${{ needs.admission.outputs.protection_installation_id }}
       - uses: ./.github/actions/release-control-observer
-        if: ${{ needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.publication_custody
+        if:
+          ${{ needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.publication_custody
           != 'reused' }}
         with:
           phase: release-publication
