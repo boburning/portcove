@@ -538,9 +538,11 @@ export async function buildControllerTools(
       }),
       { flag: "wx", mode: 0o600 },
     ).catch(() => {});
-    throw new Error(
-      `fixed controller bootstrap refused in ${phase}: ${failure}; retain ${directory}`,
-      { cause: error },
+    throw Object.assign(
+      new Error(`fixed controller bootstrap refused in ${phase}: ${failure}; retain ${directory}`, {
+        cause: error,
+      }),
+      { controllerBootstrapPhase: phase },
     );
   }
 }

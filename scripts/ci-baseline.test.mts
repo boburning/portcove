@@ -1,4 +1,5 @@
 import { isRecord } from "./runtime-values.mts";
+import vitePlusMatcher from "../.github/viteplus-problem-matcher.json" with { type: "json" };
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
@@ -21,6 +22,34 @@ import {
   baselineRequiresRust,
   baselineRequiresDesktopDependencies,
 } from "./ci-baseline.mts";
+
+void test("Vite+ matcher exposes source locations and rule identities without private diagnostic text", () => {
+  const matcher = vitePlusMatcher.problemMatcher[0]?.pattern[0];
+  assert.ok(matcher);
+  assert.equal(matcher.message, 5);
+  const expression = new RegExp(matcher.regexp, "u");
+  const line =
+    "scripts/release-controller-tools.test.mts:2332:9: error typescript(no-unsafe-assignment): PRIVATE /secret/token";
+  assert.deepEqual(expression.exec(line)?.slice(1), [
+    "scripts/release-controller-tools.test.mts",
+    "2332",
+    "9",
+    "error",
+    "typescript(no-unsafe-assignment)",
+  ]);
+  assert.ok(
+    expression.test(
+      "apps/desktop/scripts/desktop-test.mts:123:4: error typescript(TS7022): PRIVATE",
+    ),
+  );
+  for (const privateLine of [
+    "/private/source/scripts/test.mts:123:4: error typescript(TS7022): PRIVATE",
+    "scripts/../../private.mts:123:4: error typescript(TS7022): PRIVATE",
+    "scripts/test.mts:123:4: error PRIVATE: secret",
+    "scripts/test.mts:123:4: error typescript(PRIVATE_DATA): secret",
+  ])
+    assert.equal(expression.test(privateLine), false);
+});
 
 void test("workflow Python provisioning follows its actual relocated consumer and declared renames", () => {
   const consumer = "scripts/nextest-equivalence.test.mts";

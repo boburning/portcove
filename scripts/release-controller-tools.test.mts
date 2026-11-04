@@ -2284,6 +2284,7 @@ void test("controller failure annotations expose bounded stage metadata while ex
   assert.ok(annotation.startsWith(prefix));
   assert.deepEqual(JSON.parse(annotation.slice(prefix.length)), {
     phase: "actual-fixed-build",
+    bootstrap_phase: null,
     code: "ERR_ASSERTION",
     site: { file: "release-controller-tool-build.mts", line: 417, column: 9 },
     build_milliseconds: 123,
@@ -2313,9 +2314,31 @@ void test("controller failure annotations expose bounded stage metadata while ex
   );
   assert.deepEqual(JSON.parse(refused.slice(prefix.length)), {
     phase: "unknown",
+    bootstrap_phase: null,
     code: "unclassified",
     site: null,
     build_milliseconds: null,
   });
   assert.doesNotMatch(refused, /PRIVATE|injected/u);
+  const inner = Object.assign(new Error("PRIVATE compiler error"), {
+    code: "ENOSPC",
+    stack:
+      "Error: PRIVATE\n at read (file:///private/source/scripts/release-controller-tools.mts:123:4)",
+  });
+  const outer = Object.assign(new Error("PRIVATE wrapper", { cause: inner }), {
+    controllerBootstrapPhase: "fixed-node-bundles",
+  });
+  const nested = controllerFixtureFailureAnnotation("actual-fixed-build", outer, null);
+  const observation: unknown = JSON.parse(nested.slice(prefix.length));
+  assert.deepEqual(observation, {
+    phase: "actual-fixed-build",
+    bootstrap_phase: "fixed-node-bundles",
+    code: "ENOSPC",
+    site: { file: "release-controller-tools.mts", line: 123, column: 4 },
+    build_milliseconds: null,
+  });
+  assert.doesNotMatch(nested, /PRIVATE|compiler error|\/private/u);
+  assert.ok(Buffer.byteLength(nested) < 512);
+  Object.assign(inner, { cause: outer, controllerBootstrapPhase: "PRIVATE" });
+  assert.equal(controllerFixtureFailureAnnotation("source", outer, 0).includes("PRIVATE"), false);
 });

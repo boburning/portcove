@@ -261,26 +261,50 @@ export function controllerFixtureFailureAnnotation(
     "ERR_MODULE_NOT_FOUND",
     "ERR_UNKNOWN_BUILTIN_MODULE",
   ]);
+  const bootstrapPhases = new Set([
+    "source-before",
+    "source-assets",
+    "fixed-native-package-manager",
+    "fixed-microsoft-webview-driver",
+    "fixed-node-bundles",
+    "fixed-rust-build",
+    "fixed-native-webdriver-build",
+    "tool-inventory",
+    "fixed-native-support-product",
+    "fixed-compiler-source-closure",
+    "complete",
+  ]);
   let code = "unclassified";
   let site: { file: string; line: number; column: number } | null = null;
+  let bootstrapPhase: string | null = null;
   try {
-    const observedCode: unknown = isRecord(error) ? error.code : undefined;
-    if (typeof observedCode === "string" && codes.has(observedCode)) code = observedCode;
-    const stack: unknown = error instanceof Error ? error.stack : undefined;
-    if (typeof stack === "string") {
-      const match = stack
-        .slice(0, 16384)
-        .match(
-          /\/(qualify-controller-tool-build|release-controller-tool-build|release-controller-tools)\.mts:([0-9]{1,6}):([0-9]{1,4})/u,
-        );
-      if (match && Number(match[2]) > 0 && Number(match[3]) > 0)
-        site = { file: `${match[1]}.mts`, line: Number(match[2]), column: Number(match[3]) };
+    let current: unknown = error;
+    const visited = new Set<object>();
+    for (let depth = 0; depth < 4 && isRecord(current) && !visited.has(current); depth++) {
+      visited.add(current);
+      const observedBootstrapPhase: unknown = current.controllerBootstrapPhase;
+      if (typeof observedBootstrapPhase === "string" && bootstrapPhases.has(observedBootstrapPhase))
+        bootstrapPhase = observedBootstrapPhase;
+      const observedCode: unknown = current.code;
+      if (typeof observedCode === "string" && codes.has(observedCode)) code = observedCode;
+      const stack: unknown = current instanceof Error ? current.stack : undefined;
+      if (typeof stack === "string") {
+        const match = stack
+          .slice(0, 16384)
+          .match(
+            /\/(qualify-controller-tool-build|release-controller-tool-build|release-controller-tools)\.mts:([0-9]{1,6}):([0-9]{1,4})/u,
+          );
+        if (match && Number(match[2]) > 0 && Number(match[3]) > 0)
+          site = { file: `${match[1]}.mts`, line: Number(match[2]), column: Number(match[3]) };
+      }
+      current = current.cause;
     }
   } catch {
     // A hostile error getter must not replace the original producer failure.
   }
   return `::error title=Controller fixture refused::${JSON.stringify({
     phase: phases.has(phase) ? phase : "unknown",
+    bootstrap_phase: bootstrapPhase,
     code,
     site,
     build_milliseconds:
