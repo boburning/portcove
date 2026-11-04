@@ -1899,6 +1899,7 @@ export async function collectRepositoryHealth(
       if (!reused && !github) consumed.requests++;
       result.attempted = !reused;
       result.metadata_reused = Boolean(reused);
+      const conditions = originalRules(record);
       let response: Response | HealthMetadataResponse | undefined;
       try {
         response = reused
@@ -1906,7 +1907,7 @@ export async function collectRepositoryHealth(
           : github
             ? await readGithubResponse(
                 requestUrl,
-                originalRules(record).some((rule) => rule.http_status === 301),
+                conditions.length > 0 && conditions.every((rule) => rule.http_status === 301),
               )
             : await fetcher(requestUrl, {
                 headers,
@@ -1920,7 +1921,6 @@ export async function collectRepositoryHealth(
         result.http_status = response.status;
         if (response.status !== 200) {
           fail(statusReason(response));
-          const conditions = originalRules(record);
           if (
             conditions.length &&
             conditions.every(
