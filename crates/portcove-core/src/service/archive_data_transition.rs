@@ -165,13 +165,44 @@ impl PortcoveService {
         &self,
         install: &InstallRecord,
     ) -> Result<PortDefinition> {
+        match self.admitted_archive_data_port(install)? {
+            Some(port) => Ok(port),
+            None => self.installed_port(install),
+        }
+    }
+
+    fn admitted_archive_data_port(
+        &self,
+        install: &InstallRecord,
+    ) -> Result<Option<PortDefinition>> {
         self.library
             .require_no_archive_data_transition(&install.port_id)?;
-        if let Some(port) = Installer::new(self.library.clone())?.archive_data_port(install)? {
+        let port = Installer::new(self.library.clone())?.archive_data_port(install)?;
+        if port.is_some() {
             psx_mod_data::require_admitted_receipt(install)?;
-            return Ok(port);
         }
-        self.installed_port(install)
+        Ok(port)
+    }
+
+    /// Add only an explicitly admitted mapping to an old target definition. Keep
+    /// every supplied execution/source/persistence field visible to its guards.
+    pub(super) fn retained_archive_data_target(
+        &self,
+        to: &PortDefinition,
+        target: Option<&InstallRecord>,
+    ) -> Result<PortDefinition> {
+        let mut effective = to.clone();
+        if let Some(target) = target {
+            if target.port_id != to.id {
+                return Err(held("retained data target belongs to another port"));
+            }
+            if let Some(admitted) = self.admitted_archive_data_port(target)?
+                && effective.archive_data_compatibility_v1.is_none()
+            {
+                effective.archive_data_compatibility_v1 = admitted.archive_data_compatibility_v1;
+            }
+        }
+        Ok(effective)
     }
 
     pub(crate) fn archive_data_transition_review(

@@ -155,10 +155,8 @@ impl PortcoveService {
         target: Option<&InstallRecord>,
     ) -> Result<()> {
         let retained = self.effective_archive_data_port(from)?;
-        let effective_target = target
-            .map(|install| self.effective_archive_data_port(install))
-            .transpose()?;
-        let to = effective_target.as_ref().unwrap_or(to);
+        let effective_target = self.retained_archive_data_target(to, target)?;
+        let to = &effective_target;
         if retained.id != to.id {
             return Err(held(to));
         }

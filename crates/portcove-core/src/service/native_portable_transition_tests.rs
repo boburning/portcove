@@ -260,6 +260,19 @@ async fn assert_reviewed_archive_transition(
     let admitted = service.status(id).unwrap().active.unwrap();
     assert_eq!(admitted.id, first.id);
     let effective = service.effective_archive_data_port(&admitted).unwrap();
+    if fault.is_none() {
+        let old_target = creating.port(id).unwrap();
+        let mapped_target = service.retained_archive_data_target(old_target, Some(&admitted)).unwrap();
+        let mut expected_target = old_target.clone();
+        expected_target.archive_data_compatibility_v1 = effective.archive_data_compatibility_v1.clone();
+        assert_eq!(serde_json::to_value(&mapped_target).unwrap(), serde_json::to_value(&expected_target).unwrap(), "data admission cannot hide any supplied target field");
+        let mut changed = old_target.clone();
+        changed.mod_package_policy = Some(crate::ModPackagePolicy::VersionedPackagesV1);
+        assert!(service.require_portable_transition_to(&admitted, &changed, Some(&admitted)).is_err(), "admitted data mapping cannot hide a changed mod ownership contract");
+        let mut changed = old_target.clone();
+        changed.launch_arguments.push("changed-execution-contract".into());
+        assert!(service.require_portable_transition_to(&admitted, &changed, Some(&admitted)).is_err(), "admitted data mapping cannot hide changed execution arguments");
+    }
     let mapped = crate::archive_data::entries(
         &effective,
         Some(&first.artifact.sha256),

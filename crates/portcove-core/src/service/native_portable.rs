@@ -67,10 +67,8 @@ impl PortcoveService {
         retained_rollback: Option<&InstallRecord>,
     ) -> Result<()> {
         let retained = self.effective_archive_data_port(from)?;
-        let rollback_data = retained_rollback
-            .map(|install| self.effective_archive_data_port(install))
-            .transpose()?;
-        let to = rollback_data.as_ref().unwrap_or(to);
+        let target = self.retained_archive_data_target(to, retained_rollback)?;
+        let to = &target;
         if retained.adapter != AdapterKind::NativePortable
             && to.adapter != AdapterKind::NativePortable
             && !crate::persistence::ready_staged_archive(&retained)
