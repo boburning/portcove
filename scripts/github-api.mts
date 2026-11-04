@@ -79,15 +79,59 @@ export class GitHubApiError extends Error {
 
 const operationStatuses = new Set(["planned", "succeeded", "partial", "unknown", "failed"]);
 
-export function sanitizeOperationError(error: unknown) {
-  const raw: unknown = (isRecord(error) ? error.message : undefined) ?? error ?? "unknown error";
-  const message = String(raw)
-    .replace(/(?:ghp|github_pat)_[A-Za-z0-9_]+/gu, "[REDACTED]")
-    .replace(/\b(token|authorization)\s*[:=]\s*\S+/giu, "$1=[REDACTED]")
-    .slice(0, 2000);
+export function sanitizeOperationError(
+  error: unknown,
+  { secrets = [] }: { secrets?: readonly string[] } = {},
+) {
+  // SDK errors retain requests, responses and nested causes. Only these two
+  // public fields belong to the existing operation envelope; never stringify
+  // an arbitrary thrown object (including its custom toString implementation).
+  const raw = typeof error === "string" ? error : isRecord(error) ? error.message : undefined;
+  const redact = (value: string) => {
+    const canonicalEscapes = (text: string) =>
+      text.replace(/%[0-9a-f]{2}/giu, (escape) => escape.toUpperCase());
+    value = canonicalEscapes(value);
+    for (const secret of secrets) {
+      if (!secret) continue;
+      for (const spelling of new Set([secret, encodeURIComponent(secret)]))
+        value = value.split(canonicalEscapes(spelling)).join("[REDACTED]");
+    }
+    return (
+      value
+        .replace(/https?:\/\/[^\s<>"']+/giu, (text) => {
+          try {
+            const url = new URL(text);
+            if (url.username || url.password) {
+              url.username = "[REDACTED]";
+              url.password = "";
+            }
+            for (const name of [...url.searchParams.keys()])
+              if (
+                /token|authorization|credential|secret|password|signature|^sig$|^key$|jwt/iu.test(
+                  name,
+                )
+              )
+                url.searchParams.set(name, "[REDACTED]");
+            // Error fragments are not provider identity evidence.
+            url.hash = "";
+            return url.href;
+          } catch {
+            return "[REDACTED URL]";
+          }
+        })
+        .replace(/(?:gh[pousr]|github_pat)_[A-Za-z0-9_.~+/=-]+/gu, "[REDACTED]")
+        // Consume the complete field, including its authentication scheme.
+        .replace(
+          /\b(token|authorization)\s*[:=]\s*[^\r\n]*(?:\r?\n[\t ]+[^\r\n]*)*/giu,
+          "$1=[REDACTED]",
+        )
+        .replace(/\b(Bearer|Basic)\s+[^\s,"'<>]+/giu, "$1 [REDACTED]")
+    );
+  };
+  const candidateCode = redact(errorCode(error) ?? "operation_failed");
   return {
-    code: errorCode(error) ?? "operation_failed",
-    message,
+    code: /^[a-z][a-z0-9_-]{0,63}$/iu.test(candidateCode) ? candidateCode : "operation_failed",
+    message: redact(typeof raw === "string" ? raw : "unknown error").slice(0, 2000),
   };
 }
 
