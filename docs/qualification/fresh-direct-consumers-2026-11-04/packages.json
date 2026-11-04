@@ -1,0 +1,1110 @@
+{
+  "format_version": 1,
+  "observed_date": "2026-11-04",
+  "scope": "dated public package/source observation; not live inventory or gameplay qualification",
+  "packages": [
+    {
+      "issue": 152,
+      "repository": "mstan/SonicTheHedgehogRecomp",
+      "tag": "v0.8.3",
+      "peeled_title_commit": "5cfa5f92341459b28e3bcf66df068fe425bc1354",
+      "published_at": "2026-11-03T23:08:16Z",
+      "release_api": "https://api.github.com/repos/mstan/SonicTheHedgehogRecomp/releases/433314484",
+      "asset_inventory": {
+        "url": "https://api.github.com/repos/mstan/SonicTheHedgehogRecomp/releases/433314484/assets?per_page=100&page=1",
+        "count": 1,
+        "terminal_short_page": true,
+        "selected_id": 707419855
+      },
+      "artifact": {
+        "id": 707419855,
+        "name": "SonicTheHedgehogRecomp-windows-x64-v0.8.3.zip",
+        "size": 5334148,
+        "digest": "sha256:54c73309c7bda1d030e4e8d4f3ec2108763ed2c539e275688fcfa602b6ceec38",
+        "browser_download_url": "https://github.com/mstan/SonicTheHedgehogRecomp/releases/download/v0.8.3/SonicTheHedgehogRecomp-windows-x64-v0.8.3.zip"
+      },
+      "observed_sha256": "54c73309c7bda1d030e4e8d4f3ec2108763ed2c539e275688fcfa602b6ceec38",
+      "digest_authority": "publisher GitHub asset metadata captured before download; no independent signing or runtime claim",
+      "raw_archive_preflight": {
+        "physical_records": 23,
+        "central_bytes": 1600,
+        "declared_expanded_bytes": 12219434,
+        "raw_names_bound_before_parser": true
+      },
+      "inspection_limits": {
+        "archive_bytes": 536870912,
+        "central_bytes": 4194304,
+        "physical_records": 32768,
+        "member_bytes": 536870912,
+        "expanded_aggregate_bytes": 2147483648,
+        "max_name_bytes": 512,
+        "selected_stream_chunk_bytes": 1048576,
+        "selected_header_bytes": 65560,
+        "documentation_total_bytes": 4194304
+      },
+      "members": [
+        {
+          "path": "assets/fonts/LatoLatin-Bold.ttf",
+          "bytes": 146156,
+          "compressed_bytes": 73900,
+          "crc32": "b70b8651",
+          "directory": false
+        },
+        {
+          "path": "assets/fonts/LatoLatin-Regular.ttf",
+          "bytes": 148540,
+          "compressed_bytes": 74121,
+          "crc32": "75e064f3",
+          "directory": false
+        },
+        {
+          "path": "assets/fonts/NotoSansSymbols2-Regular.ttf",
+          "bytes": 671568,
+          "compressed_bytes": 303533,
+          "crc32": "fe3d4ea8",
+          "directory": false
+        },
+        {
+          "path": "assets/fonts/OpenMoji-black-glyf.ttf",
+          "bytes": 1434276,
+          "compressed_bytes": 766655,
+          "crc32": "fee24841",
+          "directory": false
+        },
+        {
+          "path": "assets/img/boxart.tga",
+          "bytes": 268191,
+          "compressed_bytes": 205376,
+          "crc32": "14f5b91e",
+          "directory": false
+        },
+        {
+          "path": "assets/img/brand_genesis.tga",
+          "bytes": 9646,
+          "compressed_bytes": 3045,
+          "crc32": "83a3eca3",
+          "directory": false
+        },
+        {
+          "path": "assets/img/brand_mark.tga",
+          "bytes": 704364,
+          "compressed_bytes": 11341,
+          "crc32": "4a21f811",
+          "directory": false
+        },
+        {
+          "path": "assets/img/pad_genesis.tga",
+          "bytes": 71450,
+          "compressed_bytes": 27543,
+          "crc32": "5a3b11e7",
+          "directory": false
+        },
+        {
+          "path": "assets/img/verdict_bad.tga",
+          "bytes": 40018,
+          "compressed_bytes": 1825,
+          "crc32": "32e57a16",
+          "directory": false
+        },
+        {
+          "path": "assets/img/verdict_none.tga",
+          "bytes": 40018,
+          "compressed_bytes": 1591,
+          "crc32": "0d536f6a",
+          "directory": false
+        },
+        {
+          "path": "assets/img/verdict_ok.tga",
+          "bytes": 40018,
+          "compressed_bytes": 1837,
+          "crc32": "4fca94a3",
+          "directory": false
+        },
+        {
+          "path": "assets/img/verdict_warn.tga",
+          "bytes": 40018,
+          "compressed_bytes": 1734,
+          "crc32": "f30f7773",
+          "directory": false
+        },
+        {
+          "path": "build-info.json",
+          "bytes": 486,
+          "compressed_bytes": 307,
+          "crc32": "65e3bccb",
+          "directory": false
+        },
+        {
+          "path": "docs/ISSUE_BURNDOWN_2026-11-02.md",
+          "bytes": 55987,
+          "compressed_bytes": 20836,
+          "crc32": "ad847dda",
+          "directory": false
+        },
+        {
+          "path": "docs/RELEASE_NOTES_0.8.3.md",
+          "bytes": 1298,
+          "compressed_bytes": 753,
+          "crc32": "2ba6a334",
+          "directory": false
+        },
+        {
+          "path": "LICENSE",
+          "bytes": 4463,
+          "compressed_bytes": 1683,
+          "crc32": "4423d32d",
+          "directory": false
+        },
+        {
+          "path": "MSVCP140.dll",
+          "bytes": 557728,
+          "compressed_bytes": 183888,
+          "crc32": "a16f96b0",
+          "directory": false
+        },
+        {
+          "path": "README.txt",
+          "bytes": 934,
+          "compressed_bytes": 588,
+          "crc32": "1982bee8",
+          "directory": false
+        },
+        {
+          "path": "SDL2.dll",
+          "bytes": 2500096,
+          "compressed_bytes": 817616,
+          "crc32": "3fdd8e3f",
+          "directory": false
+        },
+        {
+          "path": "SonicTheHedgehogRecomp.exe",
+          "bytes": 5304320,
+          "compressed_bytes": 2743582,
+          "crc32": "56519a14",
+          "directory": false
+        },
+        {
+          "path": "THIRD-PARTY-LICENSES.md",
+          "bytes": 5523,
+          "compressed_bytes": 2590,
+          "crc32": "8ae9a1c5",
+          "directory": false
+        },
+        {
+          "path": "VCRUNTIME140.dll",
+          "bytes": 124544,
+          "compressed_bytes": 60515,
+          "crc32": "761aec31",
+          "directory": false
+        },
+        {
+          "path": "VCRUNTIME140_1.dll",
+          "bytes": 49792,
+          "compressed_bytes": 26435,
+          "crc32": "e09a320c",
+          "directory": false
+        }
+      ],
+      "native_member_observations": [
+        {
+          "path": "MSVCP140.dll",
+          "bytes": 557728,
+          "sha256": "0f885b509a685d2bbfa652fed26b5fb31d88fbdab0a978c641d1c7b8aa460aa9",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x8664",
+            "sections": 6,
+            "bytes_retained": 65560,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        },
+        {
+          "path": "SDL2.dll",
+          "bytes": 2500096,
+          "sha256": "de23db1694a3c7a4a735e7ecd3d214b2023cc2267922c6c35d30c7fc7370d677",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x8664",
+            "sections": 12,
+            "bytes_retained": 65560,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        },
+        {
+          "path": "SonicTheHedgehogRecomp.exe",
+          "bytes": 5304320,
+          "sha256": "2e03daa27f060faa6990076bfde23456110605e1a59be272c85e4ef97946e621",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x8664",
+            "sections": 6,
+            "bytes_retained": 65560,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        },
+        {
+          "path": "VCRUNTIME140.dll",
+          "bytes": 124544,
+          "sha256": "d5e4d9a3e835fa679450145d6a7d94e36573a509317111904d9b3712c30d9066",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x8664",
+            "sections": 8,
+            "bytes_retained": 65560,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        },
+        {
+          "path": "VCRUNTIME140_1.dll",
+          "bytes": 49792,
+          "sha256": "1f2d41c4aa5db0bc33ebf7b66d72943a817d7ce6cbe880502a9403823633093f",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x8664",
+            "sections": 6,
+            "bytes_retained": 49792,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        }
+      ],
+      "no_extraction_writes": true,
+      "no_upstream_execution": true,
+      "selected_stream_crc_only": true,
+      "source_files": [
+        {
+          "url": "https://github.com/mstan/SonicTheHedgehogRecomp/blob/5cfa5f92341459b28e3bcf66df068fe425bc1354/.gitmodules",
+          "sha256": "080c14c163384ae51a1ebf51d7b443e3ea8877e0249b18a85b44cf92eac67048",
+          "scope": "inspected source text, not executed"
+        },
+        {
+          "url": "https://github.com/mstan/SonicTheHedgehogRecomp/blob/5cfa5f92341459b28e3bcf66df068fe425bc1354/CMakeLists.txt",
+          "sha256": "be0c07e817feca542ee5dcb0a3c27415ba2db9e506a16a50be925e892e29c705",
+          "scope": "inspected source text, not executed"
+        },
+        {
+          "url": "https://github.com/mstan/SonicTheHedgehogRecomp/blob/5cfa5f92341459b28e3bcf66df068fe425bc1354/LICENSE.md",
+          "sha256": "1c56e04ce290d2292e2d6dea0204554eb8c4c76f881e9438a5329d57a016b654",
+          "scope": "inspected source text, not executed"
+        },
+        {
+          "url": "https://github.com/mstan/SonicTheHedgehogRecomp/blob/5cfa5f92341459b28e3bcf66df068fe425bc1354/README.md",
+          "sha256": "b964d85f3d91636374103fdc835ee9c9003899d163797f75bcada64b65770e36",
+          "scope": "inspected source text, not executed"
+        },
+        {
+          "url": "https://github.com/mstan/SonicTheHedgehogRecomp/blob/5cfa5f92341459b28e3bcf66df068fe425bc1354/docs/RELEASE_NOTES_0.8.3.md",
+          "sha256": "3a14bd3acbc341b073d6cf04381794dec4ef2a806f0a1680e464f8f55e85a980",
+          "scope": "inspected source text, not executed"
+        },
+        {
+          "url": "https://github.com/mstan/SonicTheHedgehogRecomp/blob/5cfa5f92341459b28e3bcf66df068fe425bc1354/game/game.toml",
+          "sha256": "d5e47eb7290e4a5aaf2a3dd5c19157b3a836e1f7024b521c8d1a97d5ba8e021d",
+          "scope": "inspected source text, not executed"
+        },
+        {
+          "url": "https://github.com/mstan/SonicTheHedgehogRecomp/blob/5cfa5f92341459b28e3bcf66df068fe425bc1354/game/sonic1_spec.c",
+          "sha256": "357cf3c008d79aa3e03a700a3528a86a582924fd2434044bc8c3f1dbc01e5763",
+          "scope": "inspected source text, not executed"
+        },
+        {
+          "url": "https://github.com/mstan/SonicTheHedgehogRecomp/blob/5cfa5f92341459b28e3bcf66df068fe425bc1354/release/README.txt",
+          "sha256": "29728262eaca5583a7f67dbb29f6b0ba5a43e0032a49f6b48c3fe8638c7aabf9",
+          "scope": "inspected source text, not executed"
+        }
+      ],
+      "framework_source_observations": [
+        {
+          "url": "https://github.com/mstan/segagenesisrecomp/blob/755e7f6b740a0c0ab19af7d1d21e85061f8e622d/runner/app_config.c",
+          "sha256": "fe36eb073a172a2ac4a224ceefc40951436bdfe286aba034b21191d7211e9f0b",
+          "scope": "source-text inspection only"
+        },
+        {
+          "url": "https://github.com/mstan/segagenesisrecomp/blob/755e7f6b740a0c0ab19af7d1d21e85061f8e622d/runner/diagnostic_replay.c",
+          "sha256": "0066281bcedaae78259c4582b0c5be352bd01bee3ccfab3997f78e8ca5d39b31",
+          "scope": "source-text inspection only"
+        },
+        {
+          "url": "https://github.com/mstan/segagenesisrecomp/blob/755e7f6b740a0c0ab19af7d1d21e85061f8e622d/runner/main.c",
+          "sha256": "869f17ece0530f9aa4365d2d0ac5c705d2b92ee8c704bd6a1b854c96b2676c99",
+          "scope": "source-text inspection only"
+        },
+        {
+          "url": "https://github.com/mstan/segagenesisrecomp/blob/755e7f6b740a0c0ab19af7d1d21e85061f8e622d/runner/replay_writer.c",
+          "sha256": "a502c78a223dc6639f3a050c39385602aace9341fc47f2a9852e846c177c7fb6",
+          "scope": "source-text inspection only"
+        }
+      ]
+    },
+    {
+      "issue": 165,
+      "repository": "mstan/MegaManX2Recomp",
+      "tag": "v0.2.2",
+      "peeled_title_commit": "f1a975512b2d86f88c6805b05095a782860741d1",
+      "published_at": "2026-11-01T03:48:20Z",
+      "release_api": "https://api.github.com/repos/mstan/MegaManX2Recomp/releases/430346388",
+      "asset_inventory": {
+        "url": "https://api.github.com/repos/mstan/MegaManX2Recomp/releases/430346388/assets?per_page=100&page=1",
+        "count": 1,
+        "terminal_short_page": true,
+        "selected_id": 697247854
+      },
+      "artifact": {
+        "id": 697247854,
+        "name": "MegaManX2SNESRecomp-windows-x64-v0.2.2.zip",
+        "size": 13139689,
+        "digest": "sha256:f54bf04ea2975c338d62db5b4647082d8d1342f0378a861e15e42ddeb6d0e95a",
+        "browser_download_url": "https://github.com/mstan/MegaManX2Recomp/releases/download/v0.2.2/MegaManX2SNESRecomp-windows-x64-v0.2.2.zip"
+      },
+      "observed_sha256": "f54bf04ea2975c338d62db5b4647082d8d1342f0378a861e15e42ddeb6d0e95a",
+      "digest_authority": "publisher GitHub asset metadata captured before download; no independent signing or runtime claim",
+      "raw_archive_preflight": {
+        "physical_records": 25,
+        "central_bytes": 1750,
+        "declared_expanded_bytes": 37667016,
+        "raw_names_bound_before_parser": true
+      },
+      "inspection_limits": {
+        "archive_bytes": 536870912,
+        "central_bytes": 4194304,
+        "physical_records": 32768,
+        "member_bytes": 536870912,
+        "expanded_aggregate_bytes": 2147483648,
+        "max_name_bytes": 512,
+        "selected_stream_chunk_bytes": 1048576,
+        "selected_header_bytes": 65560,
+        "documentation_total_bytes": 4194304
+      },
+      "members": [
+        {
+          "path": "assets/fonts/LatoLatin-Bold.ttf",
+          "bytes": 146156,
+          "compressed_bytes": 73940,
+          "crc32": "b70b8651",
+          "directory": false
+        },
+        {
+          "path": "assets/fonts/LatoLatin-Regular.ttf",
+          "bytes": 148540,
+          "compressed_bytes": 74148,
+          "crc32": "75e064f3",
+          "directory": false
+        },
+        {
+          "path": "assets/fonts/NotoSansSymbols2-Regular.ttf",
+          "bytes": 671568,
+          "compressed_bytes": 304203,
+          "crc32": "fe3d4ea8",
+          "directory": false
+        },
+        {
+          "path": "assets/fonts/OpenMoji-black-glyf.ttf",
+          "bytes": 1434276,
+          "compressed_bytes": 768211,
+          "crc32": "fee24841",
+          "directory": false
+        },
+        {
+          "path": "assets/img/boxart.tga",
+          "bytes": 298286,
+          "compressed_bytes": 213933,
+          "crc32": "8ec4e70f",
+          "directory": false
+        },
+        {
+          "path": "assets/img/brand_mark.tga",
+          "bytes": 704364,
+          "compressed_bytes": 12456,
+          "crc32": "4a21f811",
+          "directory": false
+        },
+        {
+          "path": "assets/img/flags.png",
+          "bytes": 220794,
+          "compressed_bytes": 219244,
+          "crc32": "aadf2631",
+          "directory": false
+        },
+        {
+          "path": "assets/img/pad.tga",
+          "bytes": 64793,
+          "compressed_bytes": 26054,
+          "crc32": "039b7a9d",
+          "directory": false
+        },
+        {
+          "path": "assets/img/verdict_bad.tga",
+          "bytes": 40018,
+          "compressed_bytes": 1965,
+          "crc32": "32e57a16",
+          "directory": false
+        },
+        {
+          "path": "assets/img/verdict_none.tga",
+          "bytes": 40018,
+          "compressed_bytes": 1703,
+          "crc32": "0d536f6a",
+          "directory": false
+        },
+        {
+          "path": "assets/img/verdict_ok.tga",
+          "bytes": 40018,
+          "compressed_bytes": 1963,
+          "crc32": "4fca94a3",
+          "directory": false
+        },
+        {
+          "path": "assets/img/verdict_warn.tga",
+          "bytes": 40018,
+          "compressed_bytes": 1858,
+          "crc32": "f30f7773",
+          "directory": false
+        },
+        {
+          "path": "docs/COVERAGE_2026-10-18.md",
+          "bytes": 2608,
+          "compressed_bytes": 1450,
+          "crc32": "fef5824a",
+          "directory": false
+        },
+        {
+          "path": "docs/CX4.md",
+          "bytes": 4167,
+          "compressed_bytes": 2194,
+          "crc32": "97429ec8",
+          "directory": false
+        },
+        {
+          "path": "docs/DIAGNOSTICS.md",
+          "bytes": 3020,
+          "compressed_bytes": 1536,
+          "crc32": "fcfca5fb",
+          "directory": false
+        },
+        {
+          "path": "docs/SAVE_STATES.md",
+          "bytes": 1833,
+          "compressed_bytes": 1024,
+          "crc32": "14c40765",
+          "directory": false
+        },
+        {
+          "path": "docs/WIDESCREEN.md",
+          "bytes": 20489,
+          "compressed_bytes": 9222,
+          "crc32": "1e04b421",
+          "directory": false
+        },
+        {
+          "path": "libiconv-2.dll",
+          "bytes": 1136529,
+          "compressed_bytes": 762418,
+          "crc32": "f4f223b1",
+          "directory": false
+        },
+        {
+          "path": "LICENSE",
+          "bytes": 3755,
+          "compressed_bytes": 1601,
+          "crc32": "89df0280",
+          "directory": false
+        },
+        {
+          "path": "logging.ini",
+          "bytes": 106,
+          "compressed_bytes": 93,
+          "crc32": "3f2961a5",
+          "directory": false
+        },
+        {
+          "path": "MegaManX2SNESRecomp.exe",
+          "bytes": 28584911,
+          "compressed_bytes": 8969600,
+          "crc32": "5c2e3525",
+          "directory": false
+        },
+        {
+          "path": "mods/preloaded/packages/megaman-x2.enhancement.widescreen/1.0.0/manifest.toml",
+          "bytes": 782,
+          "compressed_bytes": 448,
+          "crc32": "49201312",
+          "directory": false
+        },
+        {
+          "path": "README.md",
+          "bytes": 6522,
+          "compressed_bytes": 3425,
+          "crc32": "463e3cc2",
+          "directory": false
+        },
+        {
+          "path": "SDL3.dll",
+          "bytes": 4046729,
+          "compressed_bytes": 1681454,
+          "crc32": "cba0f7b2",
+          "directory": false
+        },
+        {
+          "path": "tools/replay_diagnostic.py",
+          "bytes": 6716,
+          "compressed_bytes": 2424,
+          "crc32": "f29490bc",
+          "directory": false
+        }
+      ],
+      "native_member_observations": [
+        {
+          "path": "libiconv-2.dll",
+          "bytes": 1136529,
+          "sha256": "ff31fa811f9c07cc7fdaa68c9e8bca3a7b4fdf6e0a079a58175ea58ba139c7ae",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x8664",
+            "sections": 12,
+            "bytes_retained": 65560,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        },
+        {
+          "path": "MegaManX2SNESRecomp.exe",
+          "bytes": 28584911,
+          "sha256": "746e5d06d0132dcd299bafa0f1aeef3cf80bf346ad8b5941ebee80dcdf1f0780",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x8664",
+            "sections": 19,
+            "bytes_retained": 65560,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        },
+        {
+          "path": "SDL3.dll",
+          "bytes": 4046729,
+          "sha256": "66cff64040b4e9eb22d2aa209a8cb0e9c0aa3cb17befabcdbfee5d2cc481f78b",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x8664",
+            "sections": 10,
+            "bytes_retained": 65560,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        }
+      ],
+      "no_extraction_writes": true,
+      "no_upstream_execution": true,
+      "selected_stream_crc_only": true,
+      "source_files": [
+        {
+          "url": "https://github.com/mstan/MegaManX2Recomp/blob/f1a975512b2d86f88c6805b05095a782860741d1/.gitmodules",
+          "sha256": "edcd47d5f0562a639af2c7ddc4ecc68763b21d4e71a36c810a83675e0eb048fd",
+          "scope": "inspected source text, not executed"
+        },
+        {
+          "url": "https://github.com/mstan/MegaManX2Recomp/blob/f1a975512b2d86f88c6805b05095a782860741d1/LICENSE",
+          "sha256": "b2edda4890b6419a05ed22b4328c02600ae41677570e3ba8516b220b2385dc04",
+          "scope": "inspected source text, not executed"
+        },
+        {
+          "url": "https://github.com/mstan/MegaManX2Recomp/blob/f1a975512b2d86f88c6805b05095a782860741d1/README.md",
+          "sha256": "2cf4bad0850fa448f152ed6985a3ada71d74fa9e212083d2599374608f16b96d",
+          "scope": "inspected source text, not executed"
+        },
+        {
+          "url": "https://github.com/mstan/MegaManX2Recomp/blob/f1a975512b2d86f88c6805b05095a782860741d1/docs/DIAGNOSTICS.md",
+          "sha256": "6435547c6a17478314ff9d8403a7cd42f795fdd59a212180dd506054cf257ee2",
+          "scope": "inspected source text, not executed"
+        },
+        {
+          "url": "https://github.com/mstan/MegaManX2Recomp/blob/f1a975512b2d86f88c6805b05095a782860741d1/docs/SAVE_STATES.md",
+          "sha256": "3710d955f47e8dfea2e494e65cade40614a695bbd66bb678ab3ac6cba73bb1df",
+          "scope": "inspected source text, not executed"
+        },
+        {
+          "url": "https://github.com/mstan/MegaManX2Recomp/blob/f1a975512b2d86f88c6805b05095a782860741d1/framework_pins.txt",
+          "sha256": "cf17e4e01e39e6ad5e49288b780da30184ed77f52d8edb7388ab31b21726e529",
+          "scope": "inspected source text, not executed"
+        },
+        {
+          "url": "https://github.com/mstan/MegaManX2Recomp/blob/f1a975512b2d86f88c6805b05095a782860741d1/rom_identity.txt",
+          "sha256": "2f6a95e27b5c368cd9c88a9cd42ddd2b790db58293acdba072211470a5e7ad8c",
+          "scope": "inspected source text, not executed"
+        },
+        {
+          "url": "https://github.com/mstan/MegaManX2Recomp/blob/f1a975512b2d86f88c6805b05095a782860741d1/src/main.c",
+          "sha256": "0a183ef7be2ffa485218e0758287ce9e4515ebdcce1fd580d665b2ae4308dddc",
+          "scope": "inspected source text, not executed"
+        },
+        {
+          "url": "https://github.com/mstan/MegaManX2Recomp/blob/f1a975512b2d86f88c6805b05095a782860741d1/src/mmx_replay.c",
+          "sha256": "4f8870cf1d5d8b49d9bc1d4db1ce804f07b195f38be88479485bc2c9cec94716",
+          "scope": "inspected source text, not executed"
+        },
+        {
+          "url": "https://github.com/mstan/MegaManX2Recomp/blob/f1a975512b2d86f88c6805b05095a782860741d1/src/mmx_startup.c",
+          "sha256": "a4ffde226b59e35ef5249e2d68073c5ff9e18bbf614fa4d292eb2af020bc1b80",
+          "scope": "inspected source text, not executed"
+        },
+        {
+          "url": "https://github.com/mstan/MegaManX2Recomp/blob/f1a975512b2d86f88c6805b05095a782860741d1/tools/make_release.ps1",
+          "sha256": "83ff2b56591a591ee94a99efc27ccbe6c035f637a535340abf373327f8b62ca9",
+          "scope": "inspected source text, not executed"
+        }
+      ],
+      "framework_source_observations": [
+        {
+          "url": "https://github.com/RetroPortingToolKit/snesrecomp/blob/93fc677a2a9b688751d575ed1232343d83d3d2c0/runner/src/desktop/host_main.c",
+          "sha256": "783b014950b2816e98689ee9960ee54d918e6130f2c75719d008c0b99f9c8a01",
+          "scope": "source-text inspection only"
+        },
+        {
+          "url": "https://github.com/RetroPortingToolKit/snesrecomp/blob/93fc677a2a9b688751d575ed1232343d83d3d2c0/runner/src/desktop/host_relaunch.c",
+          "sha256": "9733978976803f2509889fdbcd08b272c8b6870afd353d002025734a8fa5876e",
+          "scope": "source-text inspection only"
+        },
+        {
+          "url": "https://github.com/RetroPortingToolKit/snesrecomp/blob/93fc677a2a9b688751d575ed1232343d83d3d2c0/runner/src/host_paths.c",
+          "sha256": "17ea78047d71a323dca5d1826487afa07fcb1be2dc1db61bdedc5e7c36281f77",
+          "scope": "source-text inspection only"
+        }
+      ]
+    },
+    {
+      "issue": 164,
+      "repository": "mstan/SuperMetroidRecomp",
+      "tag": "v0.4.2",
+      "peeled_title_commit": "a1457dc339cae7ab8f9f1795177c464b499f6ab7",
+      "published_at": "2026-11-04T01:36:27Z",
+      "release_api": "https://api.github.com/repos/mstan/SuperMetroidRecomp/releases/433412381",
+      "asset_inventory": {
+        "url": "https://api.github.com/repos/mstan/SuperMetroidRecomp/releases/433412381/assets?per_page=100&page=1",
+        "count": 5,
+        "terminal_short_page": true,
+        "selected_id": 707800597
+      },
+      "artifact": {
+        "id": 707800597,
+        "name": "supermetroid-0.4.2-windows-x64.zip",
+        "size": 14907383,
+        "digest": "sha256:72b7c179b855fba9404eec07abdbacefaffa4c67898f5c5232f0b1444b73d531",
+        "browser_download_url": "https://github.com/mstan/SuperMetroidRecomp/releases/download/v0.4.2/supermetroid-0.4.2-windows-x64.zip"
+      },
+      "observed_sha256": "72b7c179b855fba9404eec07abdbacefaffa4c67898f5c5232f0b1444b73d531",
+      "digest_authority": "publisher GitHub asset metadata captured before download; no independent signing or runtime claim",
+      "raw_archive_preflight": {
+        "physical_records": 38,
+        "central_bytes": 4137,
+        "declared_expanded_bytes": 57933262,
+        "raw_names_bound_before_parser": true
+      },
+      "inspection_limits": {
+        "archive_bytes": 536870912,
+        "central_bytes": 4194304,
+        "physical_records": 32768,
+        "member_bytes": 536870912,
+        "expanded_aggregate_bytes": 2147483648,
+        "max_name_bytes": 512,
+        "selected_stream_chunk_bytes": 1048576,
+        "selected_header_bytes": 65560,
+        "documentation_total_bytes": 4194304
+      },
+      "members": [
+        {
+          "path": "supermetroid-0.4.2-windows-x64/assets/fonts/LatoLatin-Bold.ttf",
+          "bytes": 146156,
+          "compressed_bytes": 73940,
+          "crc32": "b70b8651",
+          "directory": false
+        },
+        {
+          "path": "supermetroid-0.4.2-windows-x64/assets/fonts/LatoLatin-Regular.ttf",
+          "bytes": 148540,
+          "compressed_bytes": 74148,
+          "crc32": "75e064f3",
+          "directory": false
+        },
+        {
+          "path": "supermetroid-0.4.2-windows-x64/assets/fonts/NotoSansSymbols2-Regular.ttf",
+          "bytes": 671568,
+          "compressed_bytes": 304203,
+          "crc32": "fe3d4ea8",
+          "directory": false
+        },
+        {
+          "path": "supermetroid-0.4.2-windows-x64/assets/fonts/OpenMoji-black-glyf.ttf",
+          "bytes": 1434276,
+          "compressed_bytes": 768211,
+          "crc32": "fee24841",
+          "directory": false
+        },
+        {
+          "path": "supermetroid-0.4.2-windows-x64/assets/img/boxart.tga",
+          "bytes": 298260,
+          "compressed_bytes": 229637,
+          "crc32": "6a1d2c06",
+          "directory": false
+        },
+        {
+          "path": "supermetroid-0.4.2-windows-x64/assets/img/brand_mark.tga",
+          "bytes": 704364,
+          "compressed_bytes": 12456,
+          "crc32": "4a21f811",
+          "directory": false
+        },
+        {
+          "path": "supermetroid-0.4.2-windows-x64/assets/img/flags.png",
+          "bytes": 220794,
+          "compressed_bytes": 219244,
+          "crc32": "aadf2631",
+          "directory": false
+        },
+        {
+          "path": "supermetroid-0.4.2-windows-x64/assets/img/pad.tga",
+          "bytes": 64793,
+          "compressed_bytes": 26054,
+          "crc32": "039b7a9d",
+          "directory": false
+        },
+        {
+          "path": "supermetroid-0.4.2-windows-x64/assets/img/verdict_bad.tga",
+          "bytes": 40018,
+          "compressed_bytes": 1965,
+          "crc32": "32e57a16",
+          "directory": false
+        },
+        {
+          "path": "supermetroid-0.4.2-windows-x64/assets/img/verdict_none.tga",
+          "bytes": 40018,
+          "compressed_bytes": 1703,
+          "crc32": "0d536f6a",
+          "directory": false
+        },
+        {
+          "path": "supermetroid-0.4.2-windows-x64/assets/img/verdict_ok.tga",
+          "bytes": 40018,
+          "compressed_bytes": 1963,
+          "crc32": "4fca94a3",
+          "directory": false
+        },
+        {
+          "path": "supermetroid-0.4.2-windows-x64/assets/img/verdict_warn.tga",
+          "bytes": 40018,
+          "compressed_bytes": 1858,
+          "crc32": "f30f7773",
+          "directory": false
+        },
+        {
+          "path": "supermetroid-0.4.2-windows-x64/assets/shaders/.src/crt.glsl",
+          "bytes": 1823,
+          "compressed_bytes": 780,
+          "crc32": "3b8529a8",
+          "directory": false
+        },
+        {
+          "path": "supermetroid-0.4.2-windows-x64/assets/shaders/.src/scanlines.glsl",
+          "bytes": 1117,
+          "compressed_bytes": 578,
+          "crc32": "86c26f7e",
+          "directory": false
+        },
+        {
+          "path": "supermetroid-0.4.2-windows-x64/assets/shaders/crt-light.glslp",
+          "bytes": 238,
+          "compressed_bytes": 132,
+          "crc32": "45d1af49",
+          "directory": false
+        },
+        {
+          "path": "supermetroid-0.4.2-windows-x64/assets/shaders/crt-strong.glslp",
+          "bytes": 238,
+          "compressed_bytes": 133,
+          "crc32": "976c26d1",
+          "directory": false
+        },
+        {
+          "path": "supermetroid-0.4.2-windows-x64/assets/shaders/crt.glslp",
+          "bytes": 68,
+          "compressed_bytes": 58,
+          "crc32": "8e66894c",
+          "directory": false
+        },
+        {
+          "path": "supermetroid-0.4.2-windows-x64/assets/shaders/scanlines-light.glslp",
+          "bytes": 175,
+          "compressed_bytes": 117,
+          "crc32": "0d252d8e",
+          "directory": false
+        },
+        {
+          "path": "supermetroid-0.4.2-windows-x64/assets/shaders/scanlines-strong.glslp",
+          "bytes": 175,
+          "compressed_bytes": 117,
+          "crc32": "979053d9",
+          "directory": false
+        },
+        {
+          "path": "supermetroid-0.4.2-windows-x64/assets/shaders/scanlines.glslp",
+          "bytes": 74,
+          "compressed_bytes": 62,
+          "crc32": "9ee8dbe4",
+          "directory": false
+        },
+        {
+          "path": "supermetroid-0.4.2-windows-x64/config.ini",
+          "bytes": 3347,
+          "compressed_bytes": 1765,
+          "crc32": "8adeaae6",
+          "directory": false
+        },
+        {
+          "path": "supermetroid-0.4.2-windows-x64/docs/custom-renderer.md",
+          "bytes": 57022,
+          "compressed_bytes": 22565,
+          "crc32": "f8d390bb",
+          "directory": false
+        },
+        {
+          "path": "supermetroid-0.4.2-windows-x64/docs/images/widescreen-landing-site.png",
+          "bytes": 106048,
+          "compressed_bytes": 92422,
+          "crc32": "c74bacf5",
+          "directory": false
+        },
+        {
+          "path": "supermetroid-0.4.2-windows-x64/docs/images/widescreen-tourian.jpg",
+          "bytes": 493611,
+          "compressed_bytes": 451194,
+          "crc32": "c8bfc9e5",
+          "directory": false
+        },
+        {
+          "path": "supermetroid-0.4.2-windows-x64/docs/release-notes.md",
+          "bytes": 1672,
+          "compressed_bytes": 912,
+          "crc32": "3f88d71e",
+          "directory": false
+        },
+        {
+          "path": "supermetroid-0.4.2-windows-x64/framework_pins.txt",
+          "bytes": 217,
+          "compressed_bytes": 151,
+          "crc32": "0012c623",
+          "directory": false
+        },
+        {
+          "path": "supermetroid-0.4.2-windows-x64/LICENSE",
+          "bytes": 3855,
+          "compressed_bytes": 1632,
+          "crc32": "c0052650",
+          "directory": false
+        },
+        {
+          "path": "supermetroid-0.4.2-windows-x64/mods/preloaded/packages/super-metroid.balance-fixes/1.0.0/manifest.toml",
+          "bytes": 9878,
+          "compressed_bytes": 2725,
+          "crc32": "931215e2",
+          "directory": false
+        },
+        {
+          "path": "supermetroid-0.4.2-windows-x64/mods/preloaded/packages/super-metroid.combat/1.0.0/manifest.toml",
+          "bytes": 6349,
+          "compressed_bytes": 1974,
+          "crc32": "344c86a4",
+          "directory": false
+        },
+        {
+          "path": "supermetroid-0.4.2-windows-x64/mods/preloaded/packages/super-metroid.controls/1.0.0/manifest.toml",
+          "bytes": 2629,
+          "compressed_bytes": 976,
+          "crc32": "0bc88d61",
+          "directory": false
+        },
+        {
+          "path": "supermetroid-0.4.2-windows-x64/mods/preloaded/packages/super-metroid.map-hud/1.0.0/manifest.toml",
+          "bytes": 6766,
+          "compressed_bytes": 2100,
+          "crc32": "a9ae19b4",
+          "directory": false
+        },
+        {
+          "path": "supermetroid-0.4.2-windows-x64/mods/preloaded/packages/super-metroid.movement/1.0.0/manifest.toml",
+          "bytes": 8483,
+          "compressed_bytes": 2270,
+          "crc32": "dac82f3f",
+          "directory": false
+        },
+        {
+          "path": "supermetroid-0.4.2-windows-x64/mods/preloaded/packages/super-metroid.pacing/1.0.0/manifest.toml",
+          "bytes": 7656,
+          "compressed_bytes": 2125,
+          "crc32": "e81724e4",
+          "directory": false
+        },
+        {
+          "path": "supermetroid-0.4.2-windows-x64/README.md",
+          "bytes": 14525,
+          "compressed_bytes": 6681,
+          "crc32": "f832adcf",
+          "directory": false
+        },
+        {
+          "path": "supermetroid-0.4.2-windows-x64/release-profile.json",
+          "bytes": 323,
+          "compressed_bytes": 217,
+          "crc32": "21828f47",
+          "directory": false
+        },
+        {
+          "path": "supermetroid-0.4.2-windows-x64/replay_diagnostic.py",
+          "bytes": 9791,
+          "compressed_bytes": 3319,
+          "crc32": "c539cab0",
+          "directory": false
+        },
+        {
+          "path": "supermetroid-0.4.2-windows-x64/SuperMetroidSNESRecomp.exe",
+          "bytes": 53348352,
+          "compressed_bytes": 12589299,
+          "crc32": "62d7b4f8",
+          "directory": false
+        },
+        {
+          "path": "supermetroid-0.4.2-windows-x64/VERSION",
+          "bytes": 7,
+          "compressed_bytes": 9,
+          "crc32": "6e717e8c",
+          "directory": false
+        }
+      ],
+      "native_member_observations": [
+        {
+          "path": "supermetroid-0.4.2-windows-x64/SuperMetroidSNESRecomp.exe",
+          "bytes": 53348352,
+          "sha256": "a911ccac284566ce41186d73059bd2077ac25509dee5e8b1821f4d48221cedbe",
+          "full_member_CRC_verified": true,
+          "pe_prefix": {
+            "machine": "0x8664",
+            "sections": 15,
+            "bytes_retained": 65560,
+            "scope": "bounded header only; no execution, complete imports, ABI or dependency resolution"
+          }
+        }
+      ],
+      "no_extraction_writes": true,
+      "no_upstream_execution": true,
+      "selected_stream_crc_only": true,
+      "source_files": [
+        {
+          "url": "https://github.com/mstan/SuperMetroidRecomp/blob/a1457dc339cae7ab8f9f1795177c464b499f6ab7/.gitmodules",
+          "sha256": "9dcd31fd182047650200cdceafe06d4a83c174356bae16c0ffab296a25592554",
+          "scope": "inspected source text, not executed"
+        },
+        {
+          "url": "https://github.com/mstan/SuperMetroidRecomp/blob/a1457dc339cae7ab8f9f1795177c464b499f6ab7/LICENSE",
+          "sha256": "b2edda4890b6419a05ed22b4328c02600ae41677570e3ba8516b220b2385dc04",
+          "scope": "inspected source text, not executed"
+        },
+        {
+          "url": "https://github.com/mstan/SuperMetroidRecomp/blob/a1457dc339cae7ab8f9f1795177c464b499f6ab7/README.md",
+          "sha256": "9e2009fc4a80b1d345f19dccad51ac1a751a796cf5f0c5b02c978fac3dcef366",
+          "scope": "inspected source text, not executed"
+        },
+        {
+          "url": "https://github.com/mstan/SuperMetroidRecomp/blob/a1457dc339cae7ab8f9f1795177c464b499f6ab7/docs/ZERO_MISSION_MAP_ART.md",
+          "sha256": "aaf73be5ab311098914d18f6102857877ca457d3b36c4e688394812b62dc4561",
+          "scope": "inspected source text, not executed"
+        },
+        {
+          "url": "https://github.com/mstan/SuperMetroidRecomp/blob/a1457dc339cae7ab8f9f1795177c464b499f6ab7/docs/releases/v0.4.2.md",
+          "sha256": "b8f24af17b3e6e3433c146f7bf74a36c11ede574ec7b021e2a48eafd1b12c9c9",
+          "scope": "inspected source text, not executed"
+        },
+        {
+          "url": "https://github.com/mstan/SuperMetroidRecomp/blob/a1457dc339cae7ab8f9f1795177c464b499f6ab7/framework_pins.txt",
+          "sha256": "a1d9023b214777bb033d6fd6ca4b0ed15c472f19abf82314fbf866442cc4f192",
+          "scope": "inspected source text, not executed"
+        },
+        {
+          "url": "https://github.com/mstan/SuperMetroidRecomp/blob/a1457dc339cae7ab8f9f1795177c464b499f6ab7/rom_identity.txt",
+          "sha256": "a0e7e62f657c858b3a46718189097ca0cd79167d259ca142fc9ec2bc54f22211",
+          "scope": "inspected source text, not executed"
+        },
+        {
+          "url": "https://github.com/mstan/SuperMetroidRecomp/blob/a1457dc339cae7ab8f9f1795177c464b499f6ab7/src/main.c",
+          "sha256": "2d4249c34e948c1b338d2502563b46d8e8488e902a78c43fc9bfd5529fb5b837",
+          "scope": "inspected source text, not executed"
+        },
+        {
+          "url": "https://github.com/mstan/SuperMetroidRecomp/blob/a1457dc339cae7ab8f9f1795177c464b499f6ab7/src/mods/sm_map_art.c",
+          "sha256": "487fa03207084a205e7c55d9a9ca2491c6a9aca716fb958fd5fc9630d5e158d7",
+          "scope": "inspected source text, not executed"
+        },
+        {
+          "url": "https://github.com/mstan/SuperMetroidRecomp/blob/a1457dc339cae7ab8f9f1795177c464b499f6ab7/src/sm_mods.c",
+          "sha256": "664b5c1a5de9f746936f8e443bf0e63e66d8f34ca0c49cb03dc3e62e5567ea25",
+          "scope": "inspected source text, not executed"
+        },
+        {
+          "url": "https://github.com/mstan/SuperMetroidRecomp/blob/a1457dc339cae7ab8f9f1795177c464b499f6ab7/src/sm_replay.c",
+          "sha256": "b7d23419b489f27b8dd6747632cf63bd9add4b91d72eb8d28ad7be70062c8ed7",
+          "scope": "inspected source text, not executed"
+        },
+        {
+          "url": "https://github.com/mstan/SuperMetroidRecomp/blob/a1457dc339cae7ab8f9f1795177c464b499f6ab7/src/sm_startup.c",
+          "sha256": "d0214aee494d618f5403385900f5d16b7dd3b01b1f8f80ba1883c59eb87193b5",
+          "scope": "inspected source text, not executed"
+        },
+        {
+          "url": "https://github.com/mstan/SuperMetroidRecomp/blob/a1457dc339cae7ab8f9f1795177c464b499f6ab7/src/sm_video.c",
+          "sha256": "7664ef08939f1a9e51b24a3c9eef0d9e527689db1cf30a3c81d9cb6afd9b2102",
+          "scope": "inspected source text, not executed"
+        },
+        {
+          "url": "https://github.com/mstan/SuperMetroidRecomp/blob/a1457dc339cae7ab8f9f1795177c464b499f6ab7/tools/make_release.ps1",
+          "sha256": "1afe1a64d4519aab1f1ba07de86a700edfbb65f6b9f8cdcc5fc9217d3ee709ab",
+          "scope": "inspected source text, not executed"
+        },
+        {
+          "url": "https://github.com/mstan/SuperMetroidRecomp/blob/a1457dc339cae7ab8f9f1795177c464b499f6ab7/tools/release_payload.py",
+          "sha256": "32bcfc637c9693dee17c5a37716f099ea32e1616a22e3fe50a1a12d6b7d1d2cc",
+          "scope": "inspected source text, not executed"
+        }
+      ],
+      "framework_source_observations": [
+        {
+          "url": "https://github.com/RetroPortingToolKit/snesrecomp/blob/6ca2dbbe12f65901ae76015a15943c8254c4a85f/runner/src/desktop/host_main.c",
+          "sha256": "831a95082b97678b87601d3c6a038c3de645a5248f4ac4f55dbb468ff12e6a9a",
+          "scope": "source-text inspection only"
+        },
+        {
+          "url": "https://github.com/RetroPortingToolKit/snesrecomp/blob/6ca2dbbe12f65901ae76015a15943c8254c4a85f/runner/src/desktop/mmx_config.c",
+          "sha256": "6a5b8adff335e1cbd13a9d8385f7eb68c862c80353166982d6d1875358572421",
+          "scope": "source-text inspection only"
+        },
+        {
+          "url": "https://github.com/RetroPortingToolKit/snesrecomp/blob/6ca2dbbe12f65901ae76015a15943c8254c4a85f/runner/src/host_paths.c",
+          "sha256": "17ea78047d71a323dca5d1826487afa07fcb1be2dc1db61bdedc5e7c36281f77",
+          "scope": "source-text inspection only"
+        },
+        {
+          "url": "https://github.com/RetroPortingToolKit/snesrecomp/blob/6ca2dbbe12f65901ae76015a15943c8254c4a85f/runner/src/launcher.c",
+          "sha256": "cb2455085bd092a5b687f297b47f5cf0e1c83c829b42ea59426e07ec51568090",
+          "scope": "source-text inspection only"
+        },
+        {
+          "url": "https://github.com/RetroPortingToolKit/snesrecomp/blob/6ca2dbbe12f65901ae76015a15943c8254c4a85f/runner/src/launcher_cache.c",
+          "sha256": "233e2690067d7ea769ae382085ea8e75c5882f381d071529a3733c50d07fa9c3",
+          "scope": "source-text inspection only"
+        },
+        {
+          "url": "https://github.com/RetroPortingToolKit/snesrecomp/blob/6ca2dbbe12f65901ae76015a15943c8254c4a85f/runner/src/snes_savestate_menu.c",
+          "sha256": "7dee48c00128e2a36fc83a5b928494c79d4625f02d865e363b45c9852f7ff9c4",
+          "scope": "source-text inspection only"
+        },
+        {
+          "url": "https://github.com/RetroPortingToolKit/snesrecomp/blob/6ca2dbbe12f65901ae76015a15943c8254c4a85f/runner/src/desktop/host_relaunch.c",
+          "git_blob_sha": "56e3aaf10b1e0bc2f8ef39a2dcd31fcdcf090d90",
+          "scope": "same exact Git blob inspected at MMX2 pinned framework"
+        }
+      ]
+    }
+  ]
+}

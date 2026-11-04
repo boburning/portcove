@@ -3797,30 +3797,69 @@ mod tests {
         assert!(crate::persistence::requires_fresh_direct_data_guard(port));
     }
 
-    fn mmx2_diagnostic_fixture(current: bool, original: &[u8]) -> Catalog {
-        // Retain the exact 0.1.5 definition independently of the evolving catalog.
+    #[test]
+    fn sonic1_diagnostic_package_has_exact_source_admission_and_retains_older_bindings() {
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog.port("sonic-the-hedgehog-recomp").unwrap();
+        let release = &port.release.direct[&Platform::WindowsX86_64];
+        let contract = catalog
+            .source_catalog()
+            .unwrap()
+            .contracts
+            .iter()
+            .find(|contract| contract.port_id == port.id)
+            .unwrap();
+        assert_eq!(release.version, "v0.8.3");
+        assert_eq!(
+            release.sha256,
+            "54c73309c7bda1d030e4e8d4f3ec2108763ed2c539e275688fcfa602b6ceec38"
+        );
+        assert!(contract.applies_to_release(&release.version, &release.sha256));
+        assert!(!contract.applies_to_release(&release.version, &"a".repeat(64)));
+        assert!(!contract.applies_to_release("unreviewed-version", &release.sha256));
+        for (version, sha256) in [
+            (
+                "v0.6.0",
+                "78fc4b14de5f232d345ad54bbf2561ece68e4353eb9f3161d4846d829285be40",
+            ),
+            (
+                "v0.7.3",
+                "082cfb48e1d35a5ae05f054ad663e4eee46b21e5d920ec7e7d6628bce32a3fc8",
+            ),
+        ] {
+            assert!(contract.applies_to_release(version, sha256));
+        }
+        assert!(port.persistent_paths.iter().any(|path| path == "logs"));
+        assert!(crate::persistence::requires_fresh_direct_data_guard(port));
+    }
+
+    fn diagnostic_scope_fixture(id: &str, current: bool, original: &[u8]) -> Catalog {
+        // Retain exact historical definitions independently of the evolving catalog.
         // Only source authority is substituted with inert first-party bytes.
         let mut port: PortDefinition = if current {
-            Catalog::embedded()
-                .unwrap()
-                .port("mega-man-x2-snes-recomp")
-                .unwrap()
-                .clone()
+            Catalog::embedded().unwrap().port(id).unwrap().clone()
         } else {
-            serde_json::from_str(include_str!(
-                "../../tests/fixtures/mmx2-015-historical.json"
-            ))
+            serde_json::from_str(if id == "sonic-the-hedgehog-recomp" {
+                include_str!("../../tests/fixtures/sonic1-073-historical.json")
+            } else {
+                include_str!("../../tests/fixtures/mmx2-015-historical.json")
+            })
             .unwrap()
         };
         let profile = port.source_profile.clone().unwrap();
         let hash = hex::encode(Sha256::digest(original));
-        port.runtime_source_hashes
-            .insert("game.sfc".into(), hash.clone());
+        let source_name = port.runtime_source_filename.clone().unwrap();
+        let extension = if id == "sonic-the-hedgehog-recomp" {
+            "bin"
+        } else {
+            "sfc"
+        };
+        port.runtime_source_hashes.insert(source_name, hash.clone());
         Catalog::from_json(
             &serde_json::json!({
                 "schema_version": 1,
-                "source_profiles": [{"id": profile, "label": "Mega Man X2 (USA) exact headerless SNES original",
-                    "kind": "file", "accepted_extensions": ["sfc"], "accepted_sha256": [hash]}],
+                "source_profiles": [{"id": profile, "label": "Inert diagnostic-scope source fixture",
+                    "kind": "file", "accepted_extensions": [extension], "accepted_sha256": [hash]}],
                 "ports": [port]
             })
             .to_string(),
@@ -3829,99 +3868,225 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn mmx2_diagnostic_expansion_preserves_empty_source_and_refuses_populated_or_shrinking_scope()
+    async fn direct_diagnostic_expansion_preserves_empty_source_and_refuses_populated_or_shrinking_scope()
      {
-        const ID: &str = "mega-man-x2-snes-recomp";
-        let original = b"inert source fixture, never a retail original";
-        for blocked in [
-            None,
-            Some("active-save"),
-            Some("canonical-config"),
-            Some("added-logs"),
-        ] {
-            let temporary = tempfile::tempdir().unwrap();
-            let library = Library::open(temporary.path().join("library")).unwrap();
-            let source = temporary.path().join("fixture.sfc");
-            fs::write(&source, original).unwrap();
-            let server = Server::new();
-            let provider = Arc::new(Provider(Mutex::new(server.release_in_folder(
-                "v0.1.5",
-                1,
-                "",
-                "MegaManX2SNESRecomp.exe",
-            ))));
-            let mut service = build_service(library.clone(), provider.clone());
-            service.replace_catalog_for_test(mmx2_diagnostic_fixture(false, original));
-            service
-                .register_source("mega-man-x2-snes-usa", &source)
-                .unwrap();
-            let old = service
-                .install(ID, None, None, None, true, |_| {})
-                .await
-                .unwrap();
-            let old_port = service.installed_port(&old).unwrap();
-            service
-                .prepare_launch_for_install(&old_port, &old, None, None)
-                .unwrap();
-            assert_eq!(fs::read(old.path.join("game.sfc")).unwrap(), original);
-            let manifest = fs::read(old.path.join(".portcove-manifest.json")).unwrap();
-            let retained = fs::read(old.path.join(PSX_DATA_RECEIPT)).unwrap();
-            let protected = blocked.map(|case| match case {
-                "active-save" => old.path.join("saves"),
-                "canonical-config" => library.user_dir(ID).join("config.ini"),
-                _ => library.user_dir(ID).join("logs"),
-            });
-            if let Some(path) = &protected {
-                fs::create_dir_all(path.parent().unwrap()).unwrap();
-                fs::write(path, b"retain exact player bytes").unwrap();
-            }
-            service.replace_catalog_for_test(mmx2_diagnostic_fixture(true, original));
-            let current = service.catalog.port(ID).unwrap().clone();
-            assert_eq!(current.persistent_paths.len(), 9);
-            assert_eq!(
-                &current.persistent_paths[..8],
-                old_port.persistent_paths.as_slice()
-            );
-            assert_eq!(current.persistent_paths[8], "logs");
-            *provider.0.lock().unwrap() =
-                server.release_in_folder("v0.2.1", 2, "", "MegaManX2SNESRecomp.exe");
-            let update = service.update(ID, None, None, true, |_| {}).await;
-            if let Some(path) = protected {
-                assert_eq!(
-                    update.unwrap_err().presentation().presentation_key,
-                    "portable_data_contract_changed"
-                );
-                assert_eq!(service.status(ID).unwrap().active.unwrap().id, old.id);
-                assert_eq!(fs::read(path).unwrap(), b"retain exact player bytes");
-                assert_eq!(library.all_installs().unwrap().len(), 1);
+        for id in ["mega-man-x2-snes-recomp", "sonic-the-hedgehog-recomp"] {
+            let sonic = id == "sonic-the-hedgehog-recomp";
+            let filename = if sonic { "game.bin" } else { "game.sfc" };
+            let executable = if sonic {
+                "SonicTheHedgehogRecomp.exe"
             } else {
-                let next = update.unwrap();
-                assert_eq!(service.status(ID).unwrap().active.unwrap().id, next.id);
-                assert_eq!(fs::read(next.path.join("game.sfc")).unwrap(), original);
-                fs::create_dir_all(next.path.join("logs")).unwrap();
-                fs::write(next.path.join("logs/session.replay"), b"private diagnostic").unwrap();
-                // An ordinary downgrade cannot silently shrink the creating scope.
-                assert!(
-                    service
-                        .require_portable_transition(&next, &old_port)
-                        .is_err()
-                );
-                assert!(
-                    service
-                        .require_portable_rollback_transition(&next, &old)
-                        .is_err()
-                );
+                "MegaManX2SNESRecomp.exe"
+            };
+            let old_version = if sonic { "v0.7.3" } else { "v0.1.5" };
+            let new_version = if sonic { "v0.8.3" } else { "v0.2.1" };
+            let original = b"inert source fixture, never a retail original";
+            for blocked in [
+                None,
+                Some("active-save"),
+                Some("canonical-config"),
+                Some("added-logs"),
+            ] {
+                let temporary = tempfile::tempdir().unwrap();
+                let library = Library::open(temporary.path().join("library")).unwrap();
+                let source =
+                    temporary
+                        .path()
+                        .join(if sonic { "fixture.bin" } else { "fixture.sfc" });
+                fs::write(&source, original).unwrap();
+                let server = Server::new();
+                let provider = Arc::new(Provider(Mutex::new(server.release_in_folder(
+                    old_version,
+                    1,
+                    "",
+                    executable,
+                ))));
+                let mut service = build_service(library.clone(), provider.clone());
+                service.replace_catalog_for_test(diagnostic_scope_fixture(id, false, original));
+                service
+                    .register_source(
+                        if sonic {
+                            "sonic-the-hedgehog-genesis-jue-rev00"
+                        } else {
+                            "mega-man-x2-snes-usa"
+                        },
+                        &source,
+                    )
+                    .unwrap();
+                let old = service
+                    .install(id, None, None, None, true, |_| {})
+                    .await
+                    .unwrap();
+                let old_port = service.installed_port(&old).unwrap();
+                service
+                    .prepare_launch_for_install(&old_port, &old, None, None)
+                    .unwrap();
+                assert_eq!(fs::read(old.path.join(filename)).unwrap(), original);
+                let manifest = fs::read(old.path.join(".portcove-manifest.json")).unwrap();
+                let retained = fs::read(old.path.join(PSX_DATA_RECEIPT)).unwrap();
+                let protected = blocked.map(|case| match case {
+                    "active-save" => {
+                        old.path
+                            .join(if sonic { "native_save_1.bin" } else { "saves" })
+                    }
+                    "canonical-config" => {
+                        library
+                            .user_dir(id)
+                            .join(if sonic { "settings.ini" } else { "config.ini" })
+                    }
+                    _ => library.user_dir(id).join("logs"),
+                });
+                if let Some(path) = &protected {
+                    fs::create_dir_all(path.parent().unwrap()).unwrap();
+                    fs::write(path, b"retain exact player bytes").unwrap();
+                }
+                service.replace_catalog_for_test(diagnostic_scope_fixture(id, true, original));
+                let current = service.catalog.port(id).unwrap().clone();
+                let prior_count = old_port.persistent_paths.len();
+                assert_eq!(current.persistent_paths.len(), prior_count + 1);
                 assert_eq!(
-                    fs::read(next.path.join("logs/session.replay")).unwrap(),
-                    b"private diagnostic"
+                    &current.persistent_paths[..prior_count],
+                    old_port.persistent_paths.as_slice()
                 );
+                assert_eq!(current.persistent_paths[prior_count], "logs");
+                *provider.0.lock().unwrap() =
+                    server.release_in_folder(new_version, 2, "", executable);
+                let update = service.update(id, None, None, true, |_| {}).await;
+                if let Some(path) = protected {
+                    assert_eq!(
+                        update.unwrap_err().presentation().presentation_key,
+                        "portable_data_contract_changed"
+                    );
+                    assert_eq!(service.status(id).unwrap().active.unwrap().id, old.id);
+                    assert_eq!(fs::read(path).unwrap(), b"retain exact player bytes");
+                    assert_eq!(library.all_installs().unwrap().len(), 1);
+                } else {
+                    let next = update.unwrap();
+                    assert_eq!(service.status(id).unwrap().active.unwrap().id, next.id);
+                    assert_eq!(fs::read(next.path.join(filename)).unwrap(), original);
+                    fs::create_dir_all(next.path.join("logs")).unwrap();
+                    fs::write(next.path.join("logs/session.replay"), b"private diagnostic")
+                        .unwrap();
+                    // An ordinary downgrade cannot silently shrink the creating scope.
+                    assert!(
+                        service
+                            .require_portable_transition(&next, &old_port)
+                            .is_err()
+                    );
+                    assert!(
+                        service
+                            .require_portable_rollback_transition(&next, &old)
+                            .is_err()
+                    );
+                    assert_eq!(
+                        fs::read(next.path.join("logs/session.replay")).unwrap(),
+                        b"private diagnostic"
+                    );
+                }
+                assert_eq!(
+                    fs::read(old.path.join(".portcove-manifest.json")).unwrap(),
+                    manifest
+                );
+                assert_eq!(fs::read(old.path.join(PSX_DATA_RECEIPT)).unwrap(), retained);
             }
-            assert_eq!(
-                fs::read(old.path.join(".portcove-manifest.json")).unwrap(),
-                manifest
-            );
-            assert_eq!(fs::read(old.path.join(PSX_DATA_RECEIPT)).unwrap(), retained);
         }
+    }
+
+    #[tokio::test]
+    async fn sonic1_fresh_diagnostics_follow_backup_restore_and_preserving_removal() {
+        const ID: &str = "sonic-the-hedgehog-recomp";
+        let original = b"inert first-party source, never retail game data";
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let source = temporary.path().join("fixture.bin");
+        fs::write(&source, original).unwrap();
+        let server = Server::new();
+        let provider = Arc::new(Provider(Mutex::new(server.release_in_folder(
+            "v0.8.3",
+            1,
+            "",
+            "SonicTheHedgehogRecomp.exe",
+        ))));
+        let mut service = build_service(library.clone(), provider);
+        service.replace_catalog_for_test(diagnostic_scope_fixture(ID, true, original));
+        service
+            .register_source("sonic-the-hedgehog-genesis-jue-rev00", &source)
+            .unwrap();
+        let install = service
+            .install(ID, None, None, None, true, |_| {})
+            .await
+            .unwrap();
+        let prepared = service.prepare_launch(ID, None).unwrap();
+        assert_eq!(prepared.arguments, ["--no-launcher", "game.bin"]);
+        fs::create_dir_all(install.path.join("logs")).unwrap();
+        fs::write(
+            install.path.join("logs/Sonic1-feedback.replay"),
+            b"private input history",
+        )
+        .unwrap();
+        fs::write(
+            install.path.join("logs/Sonic1-feedback.replay.sav"),
+            b"private state sidecar",
+        )
+        .unwrap();
+        let backup = service.create_backup(ID).unwrap();
+        for (name, bytes) in [
+            (
+                "logs/Sonic1-feedback.replay",
+                b"private input history".as_slice(),
+            ),
+            (
+                "logs/Sonic1-feedback.replay.sav",
+                b"private state sidecar".as_slice(),
+            ),
+            ("game.bin", original.as_slice()),
+        ] {
+            assert_eq!(
+                fs::read(backup.path.join("data").join(name)).unwrap(),
+                bytes
+            );
+        }
+        fs::write(
+            install.path.join("logs/Sonic1-feedback.replay"),
+            b"later capture",
+        )
+        .unwrap();
+        let preview = service
+            .preview_backup_action(ID, &backup.id, crate::BackupAction::Restore)
+            .unwrap();
+        let consent = service
+            .authorize_backup_action(
+                ID,
+                &backup.id,
+                crate::BackupAction::Restore,
+                &preview.preview_sha256,
+            )
+            .unwrap();
+        service
+            .restore_backup(ID, &backup.id, &consent.token)
+            .unwrap();
+        assert_eq!(
+            fs::read(install.path.join("logs/Sonic1-feedback.replay")).unwrap(),
+            b"private input history"
+        );
+        let preview = service.preview_removal(ID).unwrap();
+        let consent = service
+            .authorize_removal(ID, &preview.preview_sha256)
+            .unwrap();
+        service.remove(ID, &consent.token).unwrap();
+        assert!(!install.path.exists());
+        assert_eq!(
+            fs::read(library.user_dir(ID).join("logs/Sonic1-feedback.replay.sav")).unwrap(),
+            b"private state sidecar"
+        );
+        assert_eq!(
+            fs::read(library.user_dir(ID).join("game.bin")).unwrap(),
+            original
+        );
+        assert_eq!(fs::read(source).unwrap(), original);
+        // prepare_launch resolves first-party fixture coordinates; no package
+        // executable, original game or upstream helper is executed in this test.
+        assert!(!temporary.path().join(LAUNCH_MARKER).exists());
     }
 
     fn sonic3k_compatibility_fixture(legacy: bool) -> Catalog {
