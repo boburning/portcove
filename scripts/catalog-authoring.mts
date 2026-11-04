@@ -1,3 +1,8 @@
+import {
+  checkPackagePlayerObservation,
+  projectPackagePlayerFacts,
+} from "./package-player-observation.mts";
+import type { PackagePlayerObservationV1 } from "./package-player-observation.mts";
 import { checkRouteFacts, projectRouteFacts } from "./catalog-route-facts.mts";
 import type { RouteFactsV1 } from "./catalog-route-facts.mts";
 import { platforms } from "../apps/desktop/src/catalog-values.generated.ts";
@@ -47,6 +52,7 @@ export interface AuthoredPort extends Record<string, unknown> {
   format_version: 1;
   listing: AuthoredListing;
   route_facts_v1?: RouteFactsV1;
+  package_observation_v1?: PackagePlayerObservationV1;
   /** Strict operational fields; common descriptive fields have one authority above. */
   integration?: Record<string, unknown>;
   /** Retained only to preserve the established operational ordering at migration. */
@@ -296,6 +302,11 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
   const record = value as AuthoredPort;
   if (record.route_facts_v1 !== undefined)
     checkRouteFacts(record.route_facts_v1, record.integration);
+  if (record.package_observation_v1 !== undefined) {
+    checkPackagePlayerObservation(record.package_observation_v1);
+    if (!record.integration && record.listing.platforms !== undefined)
+      throw new Error("Observed package platforms must be derived, not separately transcribed.");
+  }
   assessUpstreamLineage(record);
   return record;
 }
@@ -323,7 +334,7 @@ export function authoringRecordFromPort(port: CatalogPort, order?: number): Auth
 }
 
 export function projectAuthoredPort(input: AuthoredPort): CatalogPort | undefined {
-  const record = projectRouteFacts(input);
+  const record = projectPackagePlayerFacts(projectRouteFacts(input));
   if (!record.integration) return undefined;
   const integration = structuredClone(record.integration);
   const common: Record<string, unknown> = {};
@@ -369,28 +380,31 @@ export function assembleCatalogRecords(shared: unknown, inputs: readonly unknown
     ...(hasReferences ? { schema_version: 3 } : {}),
     ports,
   });
-  const listings = records.map(projectRouteFacts).map((record) => ({
-    ...structuredClone(record.listing),
-    platforms: structuredClone(record.integration?.platforms ?? record.listing.platforms ?? []),
-    availability: record.listing.availability ?? "unknown",
-    ...(record.release_maintenance
-      ? {
-          release_maintenance: {
-            ...record.release_maintenance,
-            pinned_releases: Object.entries(
-              (record.integration!.release as Record<string, unknown>).direct as Record<
-                string,
-                { version: string; published_at?: string }
-              >,
-            ).map(([platform, pin]) => ({
-              platform,
-              version: pin.version,
-              published_at: pin.published_at ?? null,
-            })),
-          },
-        }
-      : {}),
-  }));
+  const listings = records
+    .map(projectRouteFacts)
+    .map(projectPackagePlayerFacts)
+    .map((record) => ({
+      ...structuredClone(record.listing),
+      platforms: structuredClone(record.integration?.platforms ?? record.listing.platforms ?? []),
+      availability: record.listing.availability ?? "unknown",
+      ...(record.release_maintenance
+        ? {
+            release_maintenance: {
+              ...record.release_maintenance,
+              pinned_releases: Object.entries(
+                (record.integration!.release as Record<string, unknown>).direct as Record<
+                  string,
+                  { version: string; published_at?: string }
+                >,
+              ).map(([platform, pin]) => ({
+                platform,
+                version: pin.version,
+                published_at: pin.published_at ?? null,
+              })),
+            },
+          }
+        : {}),
+    }));
   const extendedMedia = listings.some(
     (listing) =>
       Array.isArray(listing.media) &&

@@ -30958,9 +30958,6 @@
       "summary": "Attach an independently permitted, prepared MOTHER 3 Windows player with your own exact ROM, desktop GBA BIOS and any permitted translation already configured upstream. Preserve battery saves and patch derivatives; unknown patch outputs can use the compatibility interpreter and remain unqualified.",
       "original_game_title": "MOTHER 3",
       "project_url": "https://github.com/josiahg2502-glitch/Mother3Recomp",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "unknown",
       "setup_url": "https://github.com/josiahg2502-glitch/Mother3Recomp",
       "issue_number": 2596,
@@ -30976,26 +30973,39 @@
             "instruction": "The inspected official 1.0.8 Windows ZIP contains AMD64 Mother3Recomp.exe, matching libraries/assets and separate component license files. Keep its complete extracted folder. The game runs through the linked GBA framework: translated dispatch and runtime/interpreter fallback are distinct, and the source can force interpreter fallback when no dispatch table is present. A Windows PE is not proof every game instruction is statically native. A source build, Android APK and another GBA game are separate routes."
           },
           {
-            "title": "Add the project’s normal player",
-            "instruction": "Finish the upstream ROM/BIOS picker, any independently permitted translation and settings first; keep independent originals. Select Mother3Recomp.exe, set its complete extracted Windows directory as working directory and leave arguments empty. Review the exact intent and request Play separately, then use the upstream Play UI for the already configured game. The selected native entry runs its setup UI and linked game in process. Complete missing input, patch application, imports or maintenance outside the attached attempt. This guide obtains or executes no BIOS, ROM, patch, compiler, helper or game."
+            "title": "Finish upstream setup before Play",
+            "instruction": "Finish the upstream ROM/BIOS picker, any independently permitted translation and settings first; keep independent originals. Request Play separately, then use the upstream Play UI for the already configured game. The selected native entry runs its setup UI and linked game in process. Complete missing input, patch application, imports or maintenance outside the attached attempt. This guide obtains or executes no BIOS, ROM, patch, compiler, helper or game."
           },
           {
-            "title": "Preserve battery saves, derivatives and old paths",
-            "instruction": "Keep saves/mother3_en_v13.sav, its .sav.bak retained by upstream battery-save import, all state/settings data, config.ini, keybinds.ini, game.toml, rom.cfg, bios.cfg, mods/rom-patches and existing external original/patch/save paths. Legacy cfg paths can be relative to their own folder; do not silently reinterpret them under a new CWD. Upstream import accepts battery .sav/.srm, not emulator save states; this is not observed compatibility acceptance. This guide performs no patching, import, migration, restore, backup or deletion."
+            "title": "Preserve player data and maintain the external copy",
+            "instruction": "Legacy cfg paths can be relative to their own folder; do not silently reinterpret them under a new CWD. Upstream import accepts battery .sav/.srm, not emulator save states; this is not observed compatibility acceptance. This guide performs no patching, import, migration, restore, backup or deletion. Quit the actual game normally before upstream replacement, ROM/patch changes or save imports. Preserve independent recovery copies. Forced termination is not a save-flush guarantee. Upstream HQ audio, smoothing, translation and save-import reports remain upstream claims; patch-dependent interpreter behavior, performance and compatibility are not generalized. No native/installed, campaign, save/reload or Supported acceptance is asserted."
           },
           {
             "title": "Retain individual component and content terms",
             "instruction": "Preserve the port/runtime PolyForm Noncommercial 1.0.0 notices, the separately shipped recomp-ui MIT notice, and SDL, TinyCC, toolchain and other component notices. The selected dependency lock binds the GBA/UI revisions and verified title-specific patches; those source bindings are not source-to-binary reproducibility. Component licenses do not provide Nintendo ROM/BIOS, translation-team or third-party mod rights. Use only a complete copy and patches you are independently permitted to use. Existing RetroAchievements/account settings remain upstream-owned; no login, credential change or online acceptance is provided."
           },
           {
-            "title": "Maintain the external copy and its limits",
-            "instruction": "Quit the actual game normally before upstream replacement, ROM/patch changes or save imports. Preserve independent recovery copies and review/relink changed executable bytes. Forced termination is not a save-flush guarantee. Upstream HQ audio, smoothing, translation and save-import reports remain upstream claims; patch-dependent interpreter behavior, performance and compatibility are not generalized. No native/installed, campaign, save/reload or Supported acceptance is asserted. Removing registration preserves external files; managed lifecycle operations remain unavailable."
+            "title": "Select the prepared player",
+            "instruction": "Select Mother3Recomp.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
           }
         ],
         "warnings": [
           "Desktop needs its own GBA BIOS as well as the exact ROM/patch inputs. Keep battery saves and derivatives; accepting an unknown patch through interpreter fallback does not qualify it."
+        ],
+        "references": [
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          },
+          {
+            "title": "Player-data ownership",
+            "instruction": "You and upstream own the external copy's data: saves/mother3_en_v13.sav and its .sav.bak retained by upstream battery-save import; state/settings data, config.ini, keybinds.ini, game.toml, rom.cfg and bios.cfg; mods/rom-patches and existing external original/patch/save paths. Back up these locations separately; registration does not migrate or certify their compatibility."
+          }
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "mr-finster-stunts-hd",
