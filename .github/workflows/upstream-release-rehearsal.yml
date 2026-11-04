@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   package:
-    if: ${{ github.repository == 'boburning/portcove' && github.ref == 'refs/tags/portcove-upstream-rehearsal-20261104r1' && github.ref_protected }}
+    if: ${{ github.repository == 'boburning/portcove' && github.ref == 'refs/tags/portcove-upstream-rehearsal-20261104r2' && github.ref_protected }}
     runs-on: windows-2025
     timeout-minutes: 30
     outputs:

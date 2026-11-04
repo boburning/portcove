@@ -257,6 +257,7 @@ void test("retry keeps original package version and rejects missing, future or u
   for (const delta of [
     { GITHUB_REF_PROTECTED: "false" },
     { GITHUB_REF: "refs/heads/main" },
+    { GITHUB_REF: "refs/tags/portcove-upstream-rehearsal-20261104r1" },
     { GITHUB_RUN_ATTEMPT: "4" },
     { PORTCOVE_REHEARSAL_ORIGIN_ATTEMPT: "4" },
     { PORTCOVE_REHEARSAL_ORIGIN_ATTEMPT: "" },

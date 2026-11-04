@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import {
   inspectReleaseSourceAttestation,
+  verifyReleaseSourceAttestation,
   releaseProcessPredicate,
   upstreamRehearsalExecutionRef,
 } from "./release-source-attestation.mts";
@@ -138,4 +142,63 @@ void test("rehearsal scope authenticates only its fixed workflow and does not br
     () => inspectReleaseSourceAttestation(raw, rehearsal, "upstream-rehearsal"),
     /differs/,
   );
+});
+
+void test("historical rehearsal attestations remain readable without allowing an arbitrary ref", async () => {
+  for (const ref of [
+    "refs/heads/main",
+    "refs/tags/portcove-upstream-rehearsal-20261104r1",
+    upstreamRehearsalExecutionRef,
+  ]) {
+    const directory = await mkdtemp(path.join(tmpdir(), "portcove-rehearsal-history-"));
+    try {
+      const identity = { ...expected, ref };
+      const raw = fixture();
+      raw[0]!.verificationResult.signature.certificate.sourceRepositoryRef = ref;
+      raw[0]!.verificationResult.signature.certificate.buildSignerURI = `https://github.com/boburning/portcove/.github/workflows/upstream-release-rehearsal.yml@${ref}`;
+      const result = await verifyReleaseSourceAttestation(
+        directory,
+        identity.subjects[0]!.filename,
+        identity,
+        {
+          scope: "upstream-rehearsal",
+          spawn: (command, args) => {
+            assert.equal(command, "gh");
+            assert.equal(args[args.indexOf("--source-ref") + 1], ref);
+            const stdout = JSON.stringify(raw);
+            return {
+              pid: 1,
+              output: [null, stdout, ""],
+              stdout,
+              stderr: "",
+              status: 0,
+              signal: null,
+            };
+          },
+        },
+      );
+      assert.equal(result.evidence_scope, "injected-provider");
+      assert.equal(result.authority, "none");
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  }
+  let called = false;
+  await assert.rejects(
+    () =>
+      verifyReleaseSourceAttestation(
+        ".",
+        "fixture.json",
+        { ...expected, ref: "refs/tags/portcove-upstream-rehearsal-20261104r999" },
+        {
+          scope: "upstream-rehearsal",
+          spawn: () => {
+            called = true;
+            throw new Error("unexpected provider invocation");
+          },
+        },
+      ),
+    /identities unavailable/u,
+  );
+  assert.equal(called, false);
 });

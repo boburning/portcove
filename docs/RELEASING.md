@@ -17,8 +17,17 @@ cleanup. It did not establish ordinary-user/supported-client acceptance, immutab
 publication, public feed continuity or production readiness. Its retained screenshot
 also shows an interface-size confirmation warning. #52 and #246 remain separate.
 
+The first protected [run41778356884/1](https://github.com/boburning/portcove/actions/runs/41778356884)
+at source4d810380 passed package/provenance and the actual queued-duplicate refusal,
+then stopped before any baseline, release or installed execution. Its candidate
+repository exposed swapped Tough delegation arguments: generation2 was used as a
+signature threshold while metadata version stayed1. The corrected caller keeps
+one-key delegation thresholds independent from metadata versions, with actual
+version2/version3 repository consumption and immutable-retry coverage. Original
+failure, unsigned bytes, provenance and protectedr1 history remain retained.
+
 The extended `upstream-release-rehearsal.yml` is a **manual, disposable-authority**
-integration, confined to `refs/tags/portcove-upstream-rehearsal-20261104r1`. It remains
+integration, confined to `refs/tags/portcove-upstream-rehearsal-20261104r2`. It remains
 inert until the exact reviewed source/ref, protection and scoped Pages configuration
 are legitimately appointed and independently read back. Checking out a tag inside
 a main-ref job cannot satisfy a tag-only environment policy. Preserve the existing
