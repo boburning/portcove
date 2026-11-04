@@ -1,4 +1,5 @@
 import { controllerFixtureFailureAnnotation } from "./qualify-controller-tool-build.mts";
+import { controllerWorkflowAtCurrentNode } from "./fixtures/release-capacity-fixture.mts";
 import assert from "node:assert/strict";
 import { runInNewContext } from "node:vm";
 import { parseDocument } from "yaml";
@@ -55,6 +56,32 @@ import {
 } from "./assembler-job-identity.mts";
 import { launchFixedPayloadController } from "./release-controller-tool-launch.mts";
 import { controllerNodeVersion, controllerNodeMaximumBytes } from "./controller-node-runtime.mts";
+
+void test("reviewed workflow runtime projection refuses every other byte change", async () => {
+  const historical = await readFile(
+    new URL(
+      "../docs/qualification/application-update-production.windows-20261103.proposed.yml",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const projected = controllerWorkflowAtCurrentNode(historical);
+  assert.equal(
+    projected.replace(
+      `          node-version: ${controllerNodeVersion}\n`,
+      "          node-version: 24.22.2\n",
+    ),
+    historical,
+  );
+  for (const changed of [
+    historical + "\n",
+    historical.replace("timeout-minutes: 22", "timeout-minutes: 23"),
+    historical.replace("package-manager-cache: false", "package-manager-cache: true"),
+  ]) {
+    assert.notEqual(changed, historical);
+    assert.throws(() => controllerWorkflowAtCurrentNode(changed));
+  }
+});
 
 const sourceRoot = fileURLToPath(new URL("..", import.meta.url));
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
@@ -1430,16 +1457,15 @@ void test("installed bootstrap clears inherited GitHub credentials only for comp
   const workflowSha = createHash("sha256").update(text).digest("hex");
   assert.equal(slice4CapacityResources.aggregate_workflow_sha256, workflowSha);
   assert.equal(slice4CapacityResources.input_workflow_sha256, workflowSha);
-  const historicalDocument = parseDocument(
-    await readFile(
-      new URL(
-        "../docs/qualification/application-update-production.windows-20261103.proposed.yml",
-        import.meta.url,
-      ),
-      "utf8",
+  const historicalText = await readFile(
+    new URL(
+      "../docs/qualification/application-update-production.windows-20261103.proposed.yml",
+      import.meta.url,
     ),
-    { uniqueKeys: true },
+    "utf8",
   );
+  assert.equal(text, controllerWorkflowAtCurrentNode(historicalText));
+  const historicalDocument = parseDocument(historicalText, { uniqueKeys: true });
   assert.deepEqual(historicalDocument.errors, []);
   const historical: unknown = historicalDocument.toJS({ maxAliasCount: 100 });
   assert.ok(isRecord(historical) && isRecord(historical.jobs));

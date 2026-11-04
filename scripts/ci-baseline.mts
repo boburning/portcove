@@ -274,9 +274,25 @@ function main() {
           const entry = commands.find(
             (command) => command.executable === executable && command.args === args,
           );
-          return metrics.measure(entry?.id ?? "frontend-command", () =>
+          const result = metrics.measure(entry?.id ?? "frontend-command", () =>
             spawnCommand(executable, args, options),
           );
+          if (
+            annotateLint &&
+            process.env.PORTCOVE_CI_METRICS_DIR &&
+            entry &&
+            [
+              "repository-lint",
+              "oxfmt",
+              "actionlint",
+              "shell-lint",
+              "python-lint",
+              "lint-tool-fixtures",
+            ].includes(entry.id) &&
+            (result.error || result.status !== 0)
+          )
+            console.log(`::error::Repository lint producer failed: ${entry.id}`);
+          return result;
         },
       });
     } finally {

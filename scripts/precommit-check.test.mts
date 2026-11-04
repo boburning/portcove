@@ -19,10 +19,29 @@ import { tmpdir } from "node:os";
 import test from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { configureHooks } from "./hooks-install.mts";
-import { stagedFileBatches, vitePlusCommand } from "./viteplus-cli.mts";
+import { stagedFileBatches, stagedVitePlusChecks, vitePlusCommand } from "./viteplus-cli.mts";
 import { readFixtureModuleClosure } from "./fixtures/module-closure.mts";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
+void test("staged checks preserve declared exact-byte inputs while retaining lint and types", () => {
+  const ordinary = "scripts/regular.mts",
+    exact = ".github/workflows/application-update-production.yml";
+  assert.deepEqual(stagedVitePlusChecks([ordinary, path.join(root, exact)], root), [
+    ["check", "--fix", "--", ordinary],
+    ["check", "--fix", "--no-fmt", "--", path.join(root, exact)],
+  ]);
+  for (const nearMiss of [
+    "vendor/rfd-lookalike/source.rs",
+    "nested/" + exact,
+    "../" + exact,
+    "scripts/fixtures/release-resource-baseline-20261103-other/file.json",
+  ])
+    assert.deepEqual(stagedVitePlusChecks([nearMiss], root), [["check", "--fix", "--", nearMiss]]);
+  for (const file of ["vendor/rfd/source.rs", "release/bootstrap-public-inputs/input.json"])
+    assert.deepEqual(stagedVitePlusChecks([file], root), [
+      ["check", "--fix", "--no-fmt", "--", file],
+    ]);
+});
 void test("staged batches preserve literal paths beyond Windows shell limits", () => {
   const files = Array.from(
     { length: 180 },
