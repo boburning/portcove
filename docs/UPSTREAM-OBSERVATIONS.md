@@ -44,8 +44,25 @@ stay inside the exact collection, and asset URLs inside the configured
 repository and release. Duplicate IDs, malformed data and partial pagination
 fail the run. Every consumed page is revalidated after collection against its
 normalized observed facts and pagination links. Unrelated counters and prose
-cannot invalidate an otherwise unchanged release observation. The cache still
-binds each complete raw API response to its own digest and conditional header.
+cannot invalidate an otherwise unchanged release observation. New cached pages use
+the explicit `observer-facts-v1` representation: only the exact repository,
+release and asset fields consumed by these normalizers are retained. Release
+notes, author/uploader objects, unrelated counters and unused embedded assets are
+removed. This is a semantic projection, not lossless raw-response storage.
+The original `sha256` remains the canonical parsed-body identity and historical
+provenance; it cannot independently verify the removed raw body. The separate
+`facts_sha256` verifies the retained body, with its exact versioned field schema.
+ETags, Link headers, array order/count, accepted observation facts, cursors and
+clocks remain unchanged. Reuse compares normalized facts as well as original page
+identities and Link headers, including mixed raw/projected proofs. Asset pages
+remain bound to their matching release ID/tag. Historical conditional pages are checked under their original
+complete-cache or restart graph; replacement responses still match the current
+collected release headers. A changed fact schema needs a new
+projection revision and cannot silently gain evidence from an older projection.
+Legacy raw pages remain readable and their original body hashes and input bounds
+are checked before projection. Fresh responses are fully read, charged and
+validated before unused fields are removed. Independent declared-pin metadata
+checks, including embedded-asset completeness, retain their original raw inputs.
 GitHub offers
 no atomic repository snapshot: evidence therefore records the observation's
 start/end interval, and any detected change invalidates the entire attempt.
@@ -209,12 +226,24 @@ complete inert recovery snapshot, in addition to the existing four-MiB summary
 reserve. Source handoffs use the remaining eight MiB across all batches. The
 snapshot contains the catalog scheduler and its referenced per-source checkpoints;
 it excludes reports, locks, temporary files and executables. Production format 4
-streams original source JSON records through one Brotli compressor, preserving
+streams source checkpoint JSON records through one Brotli compressor, preserving
 cross-file redundancy that nested source gzip/base64 cannot share. A fixed binary
 magic and closed header of at most 512 bytes bind record count, complete framed
 byte count and SHA-256. The entire member remains limited to four MiB, with sixteen
 KiB reserved inside that allowance for ZIP framing. Formats 1, 2 and 3 remain
 readable with their original bounds; outer ZIP bounds remain unchanged.
+
+Production snapshot collection projects every referenced GitHub source's legacy
+raw pages to the versioned fact representation before encoding. It validates
+the full original source and page bounds/digests first; a tiny resulting projection
+cannot admit an oversized original input. Each complete projected source must
+also fit the existing thirty-two-MiB write bound. Export leaves the original cache
+files untouched; ordinary observation migrates pages when saving its replacement
+checkpoint. All accepted observations, Core projections, source configurations,
+scheduler positions, validation cursors, page identities, counters and clocks are
+retained. Null caches keep their fresh-read fallback. There is no history reset.
+Collection metrics distinguish original logical bytes, projected `fact_json_bytes`
+and compressed stored bytes so metadata reduction is not reported as lost work.
 
 Each record has a closed name/length header of at most 512 bytes. Scope metadata
 comes first (at most four KiB), then the controller and only source paths appointed
@@ -248,13 +277,14 @@ as one expanded graph. Collection and validation decode one source at a time and
 retain only its stored representation. Atomic restoration writes those compact
 files, whose aggregate stored bytes remain within the graph bound. Runtime loads
 decode before continuation, progress-position and retired-cache ownership checks.
-Existing raw writers, accepted provider pages/digests, clocks, Core cursors and
+Accepted provider facts and original page identities, clocks, Core cursors and
 configuration bindings remain unchanged. One absolute collection deadline covers
-codecs and graph validation. This reduces storage and transfer representation
-without discarding data or increasing any existing physical input/output ceiling.
+codecs and graph validation. These codecs are lossless for the represented
+checkpoints; the explicit fact-page migration above removes unused raw metadata.
+Neither increases an existing physical input/output ceiling.
 
-Collection diagnostics distinguish actual input-file bytes, logical JSON bytes,
-stored JSON bytes, largest source and file count. Export logs separately report
+Collection diagnostics distinguish actual input-file bytes, original logical JSON,
+projected fact JSON, stored JSON bytes, largest source and file count. Export logs separately report
 the complete stored graph, framed logical-transfer bytes and actual transferred bytes; controller size and
 compressed Actions-cache size alone cannot establish snapshot fit.
 

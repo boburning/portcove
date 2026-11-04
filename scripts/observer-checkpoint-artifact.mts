@@ -21,6 +21,7 @@ import {
   validateObserverCheckpoint,
   withCheckpointLock,
   observerCheckpointByteLimit,
+  compactObserverCheckpoint,
 } from "./observe-configured-upstream.mts";
 import { observationHash } from "./upstream-observer.mts";
 import {
@@ -192,6 +193,7 @@ async function collectUnlockedObserverSnapshot(
   deadline = Infinity,
   compact = false,
   log?: (value: Record<string, number>) => void,
+  projectFacts = false,
 ) {
   requireValue(Date.now() < deadline, "snapshot collection deadline exhausted");
   const work = await assertOwnedUnlinkedPath(
@@ -225,6 +227,7 @@ async function collectUnlockedObserverSnapshot(
   const metrics = {
     input_bytes: bytes.length,
     logical_json_bytes: Buffer.byteLength(JSON.stringify(controller)),
+    fact_json_bytes: Buffer.byteLength(JSON.stringify(controller)),
     stored_json_bytes: Buffer.byteLength(JSON.stringify(controller)),
     largest_source_json_bytes: 0,
     checkpoint_files: 1,
@@ -241,9 +244,12 @@ async function collectUnlockedObserverSnapshot(
     );
     validateObserverCheckpoint(parsed, sourceConfig);
     const logicalBytes = Buffer.byteLength(JSON.stringify(parsed));
-    const stored = compact ? encodeStoredObserverCheckpoint(parsed, deadline) : parsed;
+    const projected = projectFacts ? compactObserverCheckpoint(parsed, sourceConfig) : parsed;
+    requireValue(Date.now() < deadline, "snapshot projection deadline exhausted");
+    const stored = compact ? encodeStoredObserverCheckpoint(projected, deadline) : projected;
     const storedBytes = Buffer.byteLength(JSON.stringify(stored));
     metrics.logical_json_bytes += logicalBytes;
+    metrics.fact_json_bytes += Buffer.byteLength(JSON.stringify(projected));
     metrics.stored_json_bytes += compact ? storedBytes : Math.max(value.length, logicalBytes);
     metrics.largest_source_json_bytes = Math.max(metrics.largest_source_json_bytes, logicalBytes);
     metrics.checkpoint_files++;
@@ -300,6 +306,22 @@ export async function collectObserverSnapshot(
   await assertOwnedUnlinkedPath(root, path.join(root, "work"), "observer work directory");
   return withCheckpointLock(path.join(root, "work/upstream-observer/catalog/checkpoint.json"), () =>
     collectUnlockedObserverSnapshot(root, config, expected, now, deadline),
+  );
+}
+
+/** Explicit fact-only recovery: preserves observer state, removes unused raw
+ * GitHub response metadata only after validating its original identity/bounds. */
+export async function collectFactObserverSnapshot(
+  root: string,
+  config: string,
+  expected: Producer,
+  now = Date.now(),
+  deadline = Infinity,
+  log?: (value: Record<string, number>) => void,
+) {
+  await assertOwnedUnlinkedPath(root, path.join(root, "work"), "observer work directory");
+  return withCheckpointLock(path.join(root, "work/upstream-observer/catalog/checkpoint.json"), () =>
+    collectUnlockedObserverSnapshot(root, config, expected, now, deadline, true, log, true),
   );
 }
 
@@ -1234,7 +1256,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         Date.parse(process.env.PORTCOVE_OBSERVER_OPPORTUNITY_DEADLINE_UTC ?? "") + 60000,
       );
       requireValue(Number.isFinite(deadline), "export deadline unavailable");
-      const snapshot = await collectCompactObserverSnapshot(
+      const snapshot = await collectFactObserverSnapshot(
         root,
         config,
         current,
