@@ -42,6 +42,8 @@ import {
   encodeCompactObserverSnapshot,
   recoverObserverCheckpoint,
   validateObserverSnapshot,
+  encodeStreamingObserverSnapshot,
+  readRecoverableObserverSnapshotArchive,
 } from "./observer-checkpoint-artifact.mts";
 import {
   decodeStoredObserverCheckpoint,
@@ -49,6 +51,7 @@ import {
 } from "./observer-checkpoint-storage.mts";
 import { isRecord } from "./runtime-values.mts";
 import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
+import { encodeObserverRecords } from "./observer-snapshot-records.mts";
 
 function harness(requests = 256) {
   let now = Date.parse("2026-10-27T00:00:00Z");
@@ -210,6 +213,16 @@ void test("a separate batch recovers accepted provider pages and fair turns afte
   let result = await advanceCatalogObservations(h.input, null, h.options);
   const before = structuredClone(result.checkpoint);
   assert.ok(h.states.size > 0);
+  assert.ok(result.report.pending_source_keys.length > 0);
+  assert.ok(
+    [...h.states.values()].some(
+      (value) =>
+        isRecord(value) &&
+        isRecord(value.continuation) &&
+        isRecord(value.continuation.pages) &&
+        Object.keys(value.continuation.pages).length > 0,
+    ),
+  );
   const sourceTree = path.join(root, "work/upstream-observer");
   await mkdir(path.join(sourceTree, "catalog"), { recursive: true });
   await writeFile(path.join(sourceTree, "catalog/checkpoint.json"), JSON.stringify(before));
@@ -226,8 +239,9 @@ void test("a separate batch recovers accepted provider pages and fair turns afte
     Object.keys(snapshot.files).length > 1,
     "Provider continuation must accompany the scheduler",
   );
-  const archive = createAuditZip([["checkpoint.json", JSON.stringify(snapshot)]]);
-  const recovered = readObserverSnapshotArchive(
+  const transfer = await encodeStreamingObserverSnapshot(snapshot, Date.now() + 60000);
+  const archive = createAuditZip([["checkpoint.json", transfer.bytes]]);
+  const recovered = await readRecoverableObserverSnapshotArchive(
     archive,
     "c".repeat(64),
     Date.now(),
@@ -238,6 +252,7 @@ void test("a separate batch recovers accepted provider pages and fair turns afte
   await publishObserverSnapshot(root, recovered);
   for (const [name, value] of Object.entries(recovered.files)) {
     assert.deepEqual(JSON.parse(await readFile(path.join(sourceTree, name), "utf8")), value);
+    assert.deepEqual(decodeStoredObserverCheckpoint(value), snapshot.files[name]);
     if (name !== "catalog/checkpoint.json") h.states.set(name.split("/")[0]!, value);
   }
   let state = JSON.parse(
@@ -540,6 +555,143 @@ void test("production-shaped retained provider pages fit the fixed artifact rese
       decoded_bytes: encoded.decoded_bytes,
       artifact_bytes: encoded.bytes.length,
       artifact_byte_limit: observerSnapshotLimit,
+    }),
+  );
+});
+
+void test("419 source records stream globally when nested compressed snapshots exceed four MiB", async (t) => {
+  const root = await mkdtemp(
+    path.join(fileURLToPath(new URL("../work/", import.meta.url)), "catalog-record-snapshot-"),
+  );
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const h = harness(),
+    fetchOriginal = h.options.fetch!;
+  const entropy = Array.from({ length: 650 }, (_, i) => observationHash({ release_note: i })).join(
+    "",
+  );
+  const notes = entropy + "Preserve original provider metadata and continuation. ".repeat(1000);
+  h.options.fetch = async (url, options) => {
+    const response = await fetchOriginal(url, options),
+      body: unknown = await response.json();
+    return new Response(
+      JSON.stringify(
+        Array.isArray(body)
+          ? body.map((release: unknown) => {
+              assert.ok(isRecord(release));
+              return { ...release, body: notes };
+            })
+          : body,
+      ),
+      { headers: response.headers },
+    );
+  };
+  const result = await advanceCatalogObservations(h.input, null, h.options);
+  const progress = Object.values(result.checkpoint.sources).find(
+    (p) => p.current_config && h.states.has(observationHash(p.current_config)),
+  )!;
+  const sourceConfig = progress.current_config!,
+    originalHash = observationHash(sourceConfig);
+  const originalBytes = JSON.stringify(h.states.get(originalHash));
+  const sourceTree = path.join(root, "work/upstream-observer");
+  const originals = new Map<string, string>();
+  await mkdir(path.join(sourceTree, "catalog"), { recursive: true });
+  for (const [hash, value] of h.states) {
+    const bytes = JSON.stringify(value);
+    originals.set(`${hash}/checkpoint.json`, observationHash(value));
+    await mkdir(path.join(sourceTree, hash), { recursive: true });
+    await writeFile(path.join(sourceTree, hash, "checkpoint.json"), bytes);
+  }
+  for (let i = 0, extra = 418 - originals.size; i < extra; i++) {
+    const retained = validateObserverConfig({
+      ...sourceConfig,
+      budget: { ...sourceConfig.budget, duration_ms: 180000 - i - 1 },
+    });
+    const hash = observationHash(retained),
+      value: unknown = JSON.parse(originalBytes.replaceAll(originalHash, hash));
+    validateObserverCheckpoint(value, retained);
+    progress.retired_configs.push(retained);
+    originals.set(`${hash}/checkpoint.json`, observationHash(value));
+    await mkdir(path.join(sourceTree, hash), { recursive: true });
+    await writeFile(path.join(sourceTree, hash, "checkpoint.json"), JSON.stringify(value));
+  }
+  await writeFile(
+    path.join(sourceTree, "catalog/checkpoint.json"),
+    JSON.stringify(result.checkpoint),
+  );
+  let metrics: Record<string, number> = {};
+  const compact = await collectCompactObserverSnapshot(
+    root,
+    "c".repeat(64),
+    { run: 110, attempt: 1, source: "a".repeat(40) },
+    Date.now(),
+    Date.now() + 60000,
+    (m) => {
+      metrics = { ...m };
+    },
+  );
+  assert.equal(Object.keys(compact.files).length, 419);
+  assert.ok(Buffer.byteLength(JSON.stringify(compact)) < observerCheckpointByteLimit);
+  assert.throws(
+    () => encodeCompactObserverSnapshot(compact, Date.now() + 60000),
+    /larger|envelope|buffer/i,
+  );
+  const encoded = await encodeStreamingObserverSnapshot(compact, Date.now() + 60000);
+  const archive = createAuditZip([["checkpoint.json", encoded.bytes]]);
+  assert.ok(archive.length <= observerSnapshotLimit);
+  const restored = await readRecoverableObserverSnapshotArchive(
+    archive,
+    "c".repeat(64),
+    Date.now(),
+    Date.now() + 60000,
+  );
+  const { files: compactFiles, ...scope } = compact;
+  const incomplete = await encodeObserverRecords(
+    (async function* () {
+      yield { name: "$snapshot", bytes: Buffer.from(JSON.stringify(scope)) };
+      yield {
+        name: "catalog/checkpoint.json",
+        bytes: Buffer.from(JSON.stringify(compactFiles["catalog/checkpoint.json"])),
+      };
+    })(),
+    {
+      member: observerSnapshotLimit - 16384,
+      record: observerCheckpointByteLimit,
+      records: 1000,
+      deadline: Date.now() + 60000,
+    },
+  );
+  await assert.rejects(
+    readRecoverableObserverSnapshotArchive(
+      createAuditZip([["checkpoint.json", incomplete.bytes]]),
+      "c".repeat(64),
+      Date.now(),
+      Date.now() + 60000,
+    ),
+    /referenced complete checkpoint missing/,
+  );
+  for (const [name, expected] of originals)
+    assert.equal(observationHash(decodeStoredObserverCheckpoint(restored.files[name])), expected);
+  await rm(sourceTree, { recursive: true });
+  await publishObserverSnapshot(root, restored, Date.now() + 60000);
+  h.states.clear();
+  for (const name of originals.keys())
+    h.states.set(
+      name.split("/")[0]!,
+      JSON.parse(await readFile(path.join(sourceTree, name), "utf8")) as unknown,
+    );
+  const continued = await advanceCatalogObservations(
+    h.input,
+    restored.files["catalog/checkpoint.json"],
+    h.options,
+  );
+  assert.deepEqual(continued.checkpoint.sources, result.checkpoint.sources);
+  console.log(
+    JSON.stringify({
+      fixture: "419-record-global-compression",
+      ...metrics,
+      framed_bytes: encoded.logical_transfer_bytes,
+      member_bytes: encoded.bytes.length,
+      archive_bytes: archive.length,
     }),
   );
 });
