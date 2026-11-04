@@ -918,7 +918,7 @@ mod tests {
         service.catalog = Catalog::embedded().unwrap();
         assert_eq!(
             service.catalog.port(id).unwrap().adapter,
-            "libultraship-portable"
+            crate::AdapterKind::LibultrashipPortable
         );
         assert!(service.catalog.listing(id).unwrap().manual_setup.is_some());
         assert_selected_listing_lifecycle_with_arguments(
