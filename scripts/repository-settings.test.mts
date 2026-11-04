@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
-import { copyFileSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { isBuiltin } from "node:module";
+import { readFixtureModuleClosure } from "./fixtures/module-closure.mts";
 import os from "node:os";
 import path from "node:path";
 import ruleset from "../.github/repository-ruleset.json" with { type: "json" };
@@ -37,15 +40,16 @@ import {
 void test("repository-settings help does not read artifacts or contact GitHub", (t) => {
   const root = mkdtempSync(path.join(os.tmpdir(), "portcove-repository-help-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
-  mkdirSync(path.join(root, "scripts"));
-  for (const file of [
-    "repository-settings.mts",
-    "runtime-values.mts",
-    "github-api.mts",
-    "release-readonly-child-environment.mts",
-    "release-coordinator-deadline.mts",
-  ])
-    copyFileSync(new URL(file, import.meta.url), path.join(root, "scripts", file));
+  const closure = readFixtureModuleClosure(
+    fileURLToPath(new URL("../", import.meta.url)),
+    ["scripts/repository-settings.mts"],
+    { includeDynamicImports: false },
+  );
+  assert.ok(closure.external.every(isBuiltin));
+  for (const module of closure.modules) {
+    mkdirSync(path.dirname(path.join(root, module.path)), { recursive: true });
+    writeFileSync(path.join(root, module.path), module.bytes);
+  }
   const result = spawnSync(
     process.execPath,
     [path.join(root, "scripts/repository-settings.mts"), "--help"],

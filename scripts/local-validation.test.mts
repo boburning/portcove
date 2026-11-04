@@ -738,6 +738,7 @@ void test("fixture module closure edits retain all independent policy and constr
     "scripts/release-controller-tools.test.mts",
     "scripts/release-windows-webview-driver.test.mts",
     "scripts/renovate-engine-probe.test.mts",
+    "scripts/repository-settings.test.mts",
   ];
   const root = fileURLToPath(new URL("../", import.meta.url));
   const importers = readdirSync(path.join(root, "scripts"))
