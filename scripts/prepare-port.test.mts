@@ -311,7 +311,7 @@ function fixture() {
   return { root, requests, fetcher, clean: () => rmSync(root, { recursive: true, force: true }) };
 }
 const json = (value: unknown, headers?: Record<string, string>) =>
-  new Response(JSON.stringify(value), { status: 200, ...(headers ? { headers } : {}) });
+  Response.json(value, { status: 200, ...(headers ? { headers } : {}) });
 const metadata = {
   id: 123,
   full_name: "example/fixture",
@@ -450,6 +450,31 @@ void test("related release providers refuse private, unknown, invalid and confli
   }
 });
 
+void test("facts SDK preserves explicit and anonymous credential intent and caller headers", async () => {
+  const f = fixture();
+  try {
+    for (const token of [undefined, "synthetic-facts-token"]) {
+      const result = await collectPortFacts({
+        projectUrl: project, cacheDirectory: join(f.root, token ? "explicit" : "anonymous"), token,
+        fetcher: async (_url, init) => {
+          const headers = new Headers(init?.headers);
+          assert.equal(headers.get("authorization"), token ? `token ${token}` : null);
+          assert.equal(headers.get("x-github-api-version"), "2022-11-28");
+          assert.equal(headers.get("accept"), "application/vnd.github+json");
+          assert.equal(init?.redirect, "manual");
+          return json(metadata);
+        },
+      });
+      assert.equal(result.project?.status, "observed");
+      assert.equal(result.usage.requests, 1);
+    }
+    await assert.rejects(collectPortFacts({
+      projectUrl: project, cacheDirectory: join(f.root, "missing-explicit"), token: "",
+      fetcher: async () => { assert.fail("Missing explicit credential must not dispatch"); },
+    }), { code: "credential_unavailable" });
+  } finally { f.clean(); }
+});
+
 void test("ordinary listing fetches identity only, shares fresh observations and preserves stale facts after outage", async () => {
   const f = fixture();
   try {
@@ -476,6 +501,8 @@ void test("ordinary listing fetches identity only, shares fresh observations and
     assert.equal(failed.project?.status, "unavailable");
     assert.deepEqual(failed.project?.previous_observation?.body, metadata);
     assert.equal(failed.project?.body, undefined);
+    assert.equal(failed.usage.requests, 1);
+    assert.equal(f.requests.length, 2);
     assert.equal(readFileSync(cache, "utf8"), accepted);
   } finally {
     f.clean();

@@ -4,7 +4,10 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { GitHubApiClient, sanitizeOperationError } from "./github-api.mts";
+import { sanitizeOperationError, GitHubApiError } from "./github-operation.mts";
+import { createGitHubClient } from "./github-client.mts";
+import type { GitHubRequestPolicy } from "./github-client.mts";
+import { localDeveloperCredential } from "./github-cli.mts";
 import { checkClosureIntent, readClosingRelationships } from "./closure-intent.mts";
 import { isRecord } from "./runtime-values.mts";
 import config from "../.github/roadmap.json" with { type: "json" };
@@ -25,26 +28,16 @@ export interface BodyWriteOptions {
   observe?: (observation: BodyObservation) => void;
 }
 export interface BodyApi {
-  request(method: string, endpoint: string, payload?: unknown): { body: unknown };
-  validateRoadmapReplacement?: (number: number, previousBody: string, body: string) => void;
-  graphql?: Parameters<typeof readClosingRelationships>[0]["graphql"];
+  request(options: { method: "GET" | "POST" | "PATCH"; url: string; data?: unknown; request?: { portcove: GitHubRequestPolicy } }): Promise<{ data: unknown }>;
+  validateRoadmapReplacement?: (number: number, previousBody: string, body: string) => void | Promise<void>;
 }
 function positiveId(value: unknown): value is number {
   return typeof value === "number" && Number.isSafeInteger(value) && value > 0;
 }
 function closingRelationships(api: BodyApi, number: unknown) {
-  if (!api.graphql || typeof number !== "number" || !Number.isSafeInteger(number) || number < 1)
+  if (typeof number !== "number" || !Number.isSafeInteger(number) || number < 1)
     throw new Error("PR closure identity or reader is unavailable; reconcile before retrying");
-  return readClosingRelationships(
-    {
-      graphql: (query, variables) => {
-        if (!api.graphql) throw new Error("PR closure reader became unavailable");
-        return api.graphql(query, variables);
-      },
-    },
-    repository,
-    number,
-  );
+  return readClosingRelationships(api, repository, number);
 }
 function readClosureIntent(file: string): unknown {
   return JSON.parse(readGitHubBody(file));
@@ -74,19 +67,35 @@ function targetNumber(target: unknown, type: "pr" | "issue") {
   throw new Error("Target must identify an issue/PR in the configured repository");
 }
 
-export function writeGitHubBody(options: BodyWriteOptions, api: BodyApi = new GitHubApiClient()) {
+export async function createBodyClient() {
+  const deadline = performance.now() + 120000;
+  let bytes = 0;
+  return await createGitHubClient({
+    credential: localDeveloperCredential({ deadline }), deadline,
+    headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
+    reserve: () => ({ consumeBytes(received) {
+      bytes += received;
+      if (bytes > 32 * 1024 * 1024) throw new GitHubApiError("budget_exhausted", "Body operation metadata allowance exhausted");
+    }, settle() {} }),
+    allowRequest: (method, url) => (method === "POST" && url.pathname === "/graphql") ||
+      (["GET", "POST", "PATCH"].includes(method) && url.pathname.startsWith(`/repos/${repository}/`)),
+  });
+}
+
+export async function writeGitHubBody(options: BodyWriteOptions, api?: BodyApi) {
   const { operation, previousBody, target, title, head, base } = options;
   const body = validateGitHubBody(options.body);
   if (["pr-create", "pr-edit"].includes(operation))
     checkClosureIntent(options.closureIntent, { repository, texts: [body] });
   if (!["issue-edit", "issue-comment", "pr-edit", "pr-comment", "pr-create"].includes(operation))
     throw new Error("Unsupported GitHub body operation");
+  api ??= await createBodyClient();
   const prefix = `repos/${repository}`;
   let result: unknown;
   let endpoint: string;
   if (operation === "pr-create") {
     for (const value of [title, head, base]) validateGitHubBody(value);
-    result = api.request("POST", `${prefix}/pulls`, { title, head, base, body }).body;
+    result = (await api.request({ method: "POST", url: `https://api.github.com/${`${prefix}/pulls`}`, data: { title, head, base, body }, request: { portcove: { replay: "once", attempts: 0 } } })).data;
     options.observe?.({ phase: "mutation", result });
     if (!isRecord(result) || !positiveId(result.id) || !positiveId(result.number))
       throw new Error("Created PR identity unavailable; do not retry automatically");
@@ -95,7 +104,7 @@ export function writeGitHubBody(options: BodyWriteOptions, api: BodyApi = new Gi
     const number = targetNumber(target, operation.startsWith("pr-") ? "pr" : "issue");
     if (!Number.isSafeInteger(number)) throw new Error("Invalid target number");
     const item = `${prefix}/${operation.startsWith("pr-") ? "pulls" : "issues"}/${number}`;
-    const before = api.request("GET", item).body;
+    const before = (await api.request({ method: "GET", url: `https://api.github.com/${item}`, request: { portcove: { replay: "safe-read", attempts: 0 } } })).data;
     options.observe?.({ phase: "preimage", result: before });
     if (!isRecord(before) || !positiveId(before.id) || before.number !== number)
       throw new Error("Target identity unavailable");
@@ -104,13 +113,13 @@ export function writeGitHubBody(options: BodyWriteOptions, api: BodyApi = new Gi
       if ((before.body ?? "") !== previousBody)
         throw new Error("Remote body changed; refresh the preimage before editing");
       if (operation === "issue-edit" && isRoadmapSpecification(before))
-        (api.validateRoadmapReplacement ?? validateLiveRoadmapReplacement)(
+        await (api.validateRoadmapReplacement ?? validateLiveRoadmapReplacement)(
           number,
           previousBody,
           body,
         );
       if (operation === "pr-edit") {
-        const closing = closingRelationships(api, number);
+        const closing = await closingRelationships(api, number);
         options.observe?.({ phase: "closure-preimage", result: closing });
         if (closing.body !== previousBody || closing.head !== headSha(before))
           throw new Error("Remote PR closure preimage changed; refresh before editing");
@@ -120,20 +129,20 @@ export function writeGitHubBody(options: BodyWriteOptions, api: BodyApi = new Gi
           relationships: closing.relationships,
         });
       }
-      result = api.request("PATCH", item, { body }).body;
+      result = (await api.request({ method: "PATCH", url: `https://api.github.com/${item}`, data: { body }, request: { portcove: { replay: "once", attempts: 0 } } })).data;
       options.observe?.({ phase: "mutation", result });
       if (!isRecord(result) || result.id !== before.id)
         throw new Error("Mutation identity mismatch; reconcile before retrying");
       endpoint = item;
     } else {
-      result = api.request("POST", `${prefix}/issues/${number}/comments`, { body }).body;
+      result = (await api.request({ method: "POST", url: `https://api.github.com/${`${prefix}/issues/${number}/comments`}`, data: { body }, request: { portcove: { replay: "once", attempts: 0 } } })).data;
       options.observe?.({ phase: "mutation", result });
       if (!isRecord(result) || !positiveId(result.id))
         throw new Error("Comment identity unavailable; do not retry automatically");
       endpoint = `${prefix}/issues/comments/${result.id}`;
     }
   }
-  const observed = api.request("GET", endpoint).body;
+  const observed = (await api.request({ method: "GET", url: `https://api.github.com/${endpoint}`, request: { portcove: { replay: "safe-read", attempts: 0 } } })).data;
   options.observe?.({ phase: "readback", result: observed });
   if (
     !isRecord(observed) ||
@@ -144,7 +153,7 @@ export function writeGitHubBody(options: BodyWriteOptions, api: BodyApi = new Gi
   )
     throw new Error("GitHub body readback mismatch; reconcile before retrying");
   if (["pr-create", "pr-edit"].includes(operation)) {
-    const closing = closingRelationships(api, observed.number);
+    const closing = await closingRelationships(api, observed.number);
     options.observe?.({ phase: "closure-readback", result: closing });
     if (closing.body !== body || closing.head !== headSha(observed))
       throw new Error("PR closure readback changed; reconcile before retrying");
@@ -240,7 +249,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         writeFileSync(path.join(evidenceDirectory, "candidate.md"), body, { flag: "wx" });
         if (previousBody !== undefined)
           writeFileSync(path.join(evidenceDirectory, "preimage.md"), previousBody, { flag: "wx" });
-        const result = writeGitHubBody({
+        const result = await writeGitHubBody({
           operation: options.operation,
           body,
           previousBody,

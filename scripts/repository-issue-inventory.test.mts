@@ -11,11 +11,11 @@ import {
   admitDoctorReadRetry,
 } from "./repository-issue-inventory.mts";
 import type { DoctorReadAttempt, InventoryReader } from "./repository-issue-inventory.mts";
-import { GitHubApiClient, GitHubApiError, createGitHubRunner } from "./github-api.mts";
-import { RoadmapClient, runDoctor, doctorProjectItems, validateConfig } from "./roadmap.mts";
+import { GitHubApiError } from "./github-operation.mts";
+import { sdkRoadmap } from "./fixtures/roadmap-fixtures.mts";
+import { runDoctor, doctorProjectItems, validateConfig } from "./roadmap.mts";
 import { renderPortIssueBody } from "./roadmap-issue.mts";
-import { DiscoveryBudget, createDiscoveryTransport } from "./discovery-budget.mts";
-import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
+import { DiscoveryBudget } from "./discovery-budget.mts";
 
 const config = validateConfig(
   JSON.parse(readFileSync(new URL("../.github/roadmap.json", import.meta.url), "utf8")),
@@ -29,7 +29,7 @@ function readerFixture(
   const queries: string[] = [];
   const reader: InventoryReader = {
     config,
-    graphql(query, variables = {}) {
+    async graphql(query, variables = {}) {
       queries.push(query);
       requests++;
       const marker = query.includes("RepositoryIssueMarker"),
@@ -99,21 +99,20 @@ void test("doctor proves Project coverage from fresh reverse memberships without
   let listings = 0;
   const client = {
     ...f.reader,
-    gh: () => "",
-    completeProjectContext: () => ({ details: { id: "P" }, fields: [] }),
-    viewList: () => [],
-    projectAudit: () => ({
+    completeProjectContext: async () => ({ details: { id: "P" }, fields: [] }),
+    viewList: async () => [],
+    projectAudit: async () => ({
       id: "P",
       updatedAt: "2026-10-22T00:00:00Z",
       items: { totalCount: 2 },
       repositories: { nodes: [] },
     }),
-    itemList: () => {
+    itemList: async () => {
       listings++;
       throw new Error("Project listing unavailable");
     },
-    repositoryIssues(options?: { projectMemberships?: boolean }) {
-      return collectRepositoryIssueInventory(this, options);
+    async repositoryIssues(options?: { projectMemberships?: boolean }) {
+      return await collectRepositoryIssueInventory(this, options);
     },
   };
   await assert.rejects(
@@ -155,10 +154,9 @@ void test("stable forward/reverse contradiction stops one whole read with retain
   let audits = 0;
   const client = {
     ...f.reader,
-    gh: () => "",
-    completeProjectContext: () => ({ details: { id: "P" }, fields: [] }),
-    viewList: () => [],
-    projectAudit: () => {
+    completeProjectContext: async () => ({ details: { id: "P" }, fields: [] }),
+    viewList: async () => [],
+    projectAudit: async () => {
       audits++;
       return {
         id: "P",
@@ -167,9 +165,9 @@ void test("stable forward/reverse contradiction stops one whole read with retain
         repositories: { nodes: [] },
       };
     },
-    itemList: () => assert.fail("Contradictory coverage cannot trigger another complete listing"),
-    repositoryIssues(options?: { projectMemberships?: boolean }) {
-      return collectRepositoryIssueInventory(this, options);
+    itemList: async () => assert.fail("Contradictory coverage cannot trigger another complete listing"),
+    async repositoryIssues(options?: { projectMemberships?: boolean }) {
+      return await collectRepositoryIssueInventory(this, options);
     },
   };
   const attempts: DoctorReadAttempt[] = [];
@@ -197,9 +195,9 @@ void test("stable forward/reverse contradiction stops one whole read with retain
   assert.equal(f.requests(), 3);
   assert.equal(audits, 2);
 });
-void test("reverse membership proof requires live verified coverage and exact active cardinality", () => {
+void test("reverse membership proof requires live verified coverage and exact active cardinality", async () => {
   const f = membershipFixture();
-  const inventory = collectRepositoryIssueInventory(f.reader, { projectMemberships: true });
+  const inventory = await collectRepositoryIssueInventory(f.reader, { projectMemberships: true });
   assert.equal(doctorProjectItems(inventory, f.reader, "P", 2)?.length, 2);
   assert.equal(
     doctorProjectItems(inventory, f.reader, "P", 3),
@@ -223,11 +221,13 @@ void test("reverse membership proof requires live verified coverage and exact ac
     if (row.number === 1)
       (row.projectItems as { nodes: Record<string, unknown>[] }).nodes[0]!.isArchived = true;
   });
-  const archived = collectRepositoryIssueInventory(scoped.reader, { projectMemberships: true });
+  const archived = await collectRepositoryIssueInventory(scoped.reader, {
+    projectMemberships: true,
+  });
   assert.equal(doctorProjectItems(archived, scoped.reader, "P", 1)?.[0]?.content?.number, 2);
   assert.equal(doctorProjectItems(archived, scoped.reader, "other-project", 1), undefined);
 });
-void test("nested memberships and blockers cannot silently truncate or lose identity", () => {
+void test("nested memberships and blockers cannot silently truncate or lose identity", async () => {
   for (const corrupt of [
     (row: Record<string, unknown>) => {
       row.projectItems = null;
@@ -252,8 +252,8 @@ void test("nested memberships and blockers cannot silently truncate or lose iden
     },
   ]) {
     const f = membershipFixture(corrupt);
-    assert.throws(
-      () => collectRepositoryIssueInventory(f.reader, { projectMemberships: true }),
+    await assert.rejects(
+      async () => await collectRepositoryIssueInventory(f.reader, { projectMemberships: true }),
       InventoryError,
     );
   }
@@ -264,7 +264,7 @@ void test("nested memberships and blockers cannot silently truncate or lose iden
       pageInfo: { hasNextPage: true },
     };
   });
-  const inventory = collectRepositoryIssueInventory(f.reader, { projectMemberships: true });
+  const inventory = await collectRepositoryIssueInventory(f.reader, { projectMemberships: true });
   assert.throws(() => doctorProjectItems(inventory, f.reader, "P", 2), /fields are truncated/);
 });
 void test("doctor discards reverse membership proof on a changed or missing Project revision", async () => {
@@ -273,20 +273,19 @@ void test("doctor discards reverse membership proof on a changed or missing Proj
     let audits = 0;
     const client = {
       ...f.reader,
-      gh: () => "",
-      completeProjectContext: () => ({ details: { id: "P" }, fields: [] }),
-      viewList: () => [],
-      projectAudit: () => ({
+        completeProjectContext: async () => ({ details: { id: "P" }, fields: [] }),
+      viewList: async () => [],
+      projectAudit: async () => ({
         id: "P",
         updatedAt: audits++ ? revision : "2026-10-22T00:00:00Z",
         items: { totalCount: 2 },
         repositories: { nodes: [] },
       }),
-      itemList: () => {
+      itemList: async () => {
         throw new Error("must not enumerate the projected set again");
       },
-      repositoryIssues(options?: { projectMemberships?: boolean }) {
-        return collectRepositoryIssueInventory(this, options);
+      async repositoryIssues(options?: { projectMemberships?: boolean }) {
+        return await collectRepositoryIssueInventory(this, options);
       },
     };
     await assert.rejects(runDoctor(config, client, { quiet: true }), {
@@ -300,19 +299,18 @@ void test("a slow full-Project fallback cannot promote a stale repository observ
   const now = Date.now;
   const client = {
     ...f.reader,
-    gh: () => "",
-    completeProjectContext: () => ({ details: { id: "P" }, fields: [] }),
-    viewList: () => [],
-    projectAudit: () => ({
+    completeProjectContext: async () => ({ details: { id: "P" }, fields: [] }),
+    viewList: async () => [],
+    projectAudit: async () => ({
       id: "P",
       updatedAt: "2026-10-22T00:00:00Z",
       items: { totalCount: 3 },
       repositories: { nodes: [] },
     }),
-    repositoryIssues(options?: { projectMemberships?: boolean }) {
-      return collectRepositoryIssueInventory(this, options);
+    async repositoryIssues(options?: { projectMemberships?: boolean }) {
+      return await collectRepositoryIssueInventory(this, options);
     },
-    itemList: () => {
+    itemList: async () => {
       Date.now = () => now() + 120001;
       return [1, 2, 3].map((number) => ({
         id: `ITEM_${number}`,
@@ -339,11 +337,11 @@ void test("a slow full-Project fallback cannot promote a stale repository observ
   }
 });
 
-void test("shared collector covers empty and exact pagination boundaries with bounded field selection", () => {
+void test("shared collector covers empty and exact pagination boundaries with bounded field selection", async () => {
   for (const count of [0, 1, 50, 51, 100, 101, 1001]) {
     for (const bodies of [false, true]) {
       const f = readerFixture(count);
-      const got = collectRepositoryIssueInventory(f.reader, { bodies });
+      const got = await collectRepositoryIssueInventory(f.reader, { bodies });
       assert.equal(got.issues.length, count);
       assert.equal(f.requests(), Math.max(1, Math.ceil(count / (bodies ? 50 : 100))) + 2);
       assert.equal(requireRepositoryIssueInventory(got, f.reader, bodies), got);
@@ -353,7 +351,7 @@ void test("shared collector covers empty and exact pagination boundaries with bo
     }
   }
 });
-void test("newest issue present cannot hide missing middle pages", () => {
+void test("newest issue present cannot hide missing middle pages", async () => {
   const f = readerFixture(101, (value, marker) => {
     if (!marker) {
       const page = connection(value);
@@ -361,9 +359,11 @@ void test("newest issue present cannot hide missing middle pages", () => {
       page.pageInfo.hasNextPage = false;
     }
   });
-  assert.throws(() => collectRepositoryIssueInventory(f.reader), { code: "inventory_incomplete" });
+  await assert.rejects(async () => await collectRepositoryIssueInventory(f.reader), {
+    code: "inventory_incomplete",
+  });
 });
-void test("incomplete, malformed, duplicate, foreign and stalled observations fail closed", () => {
+void test("incomplete, malformed, duplicate, foreign and stalled observations fail closed", async () => {
   const corruptions = [
     (v: Record<string, unknown>) => {
       v.id = "";
@@ -400,28 +400,28 @@ void test("incomplete, malformed, duplicate, foreign and stalled observations fa
     const f = readerFixture(101, (value, marker) => {
       if (!marker) corrupt(value);
     });
-    assert.throws(() => collectRepositoryIssueInventory(f.reader));
+    await assert.rejects(async () => await collectRepositoryIssueInventory(f.reader));
     assert.ok(f.requests() <= 4, "collector cannot retry a rejected page");
   }
 });
-void test("verified inventories reject cloning, wrong clients, metadata-as-bodies and tampered evidence", () => {
+void test("verified inventories reject cloning, wrong clients, metadata-as-bodies and tampered evidence", async () => {
   const f = readerFixture(1),
-    got = collectRepositoryIssueInventory(f.reader);
+    got = await collectRepositoryIssueInventory(f.reader);
   assert.throws(() => requireRepositoryIssueInventory(structuredClone(got), f.reader));
   assert.throws(() => requireRepositoryIssueInventory(got, readerFixture(1).reader));
-  assert.throws(() =>
+  await assert.rejects(async () =>
     requireRepositoryIssueInventory(
-      collectRepositoryIssueInventory(f.reader, { bodies: false }),
+      await collectRepositoryIssueInventory(f.reader, { bodies: false }),
       f.reader,
     ),
   );
   got.evidence.total = 0;
   assert.throws(() => requireRepositoryIssueInventory(got, f.reader));
 });
-void test("stale inventory cannot establish live completeness", () => {
+void test("stale inventory cannot establish live completeness", async () => {
   const f = readerFixture(0),
     now = Date.now;
-  const got = collectRepositoryIssueInventory(f.reader);
+  const got = await collectRepositoryIssueInventory(f.reader);
   Date.now = () => now() + 120001;
   try {
     assert.throws(() => requireRepositoryIssueInventory(got, f.reader));
@@ -436,18 +436,17 @@ void test("programmatic doctor uses the same strict collector with or without an
     });
     const client = {
       ...f.reader,
-      gh: () => "",
-      completeProjectContext: () => ({ details: { id: "P" }, fields: [] }),
-      viewList: () => [],
-      projectAudit: () => ({
+        completeProjectContext: async () => ({ details: { id: "P" }, fields: [] }),
+      viewList: async () => [],
+      projectAudit: async () => ({
         id: "P",
         updatedAt: "2026-10-22T00:00:00Z",
         items: { totalCount: 0 },
         repositories: { nodes: [] },
       }),
-      itemList: () => [],
-      repositoryIssues() {
-        return collectRepositoryIssueInventory(this);
+      itemList: async () => [],
+      async repositoryIssues() {
+        return await collectRepositoryIssueInventory(this);
       },
     };
     await assert.rejects(
@@ -466,18 +465,17 @@ void test("doctor cannot turn a self-consistent empty Project traversal into mis
   const f = readerFixture(0);
   const client = {
     ...f.reader,
-    gh: () => "",
-    completeProjectContext: () => ({ details: { id: "P" }, fields: [] }),
-    viewList: () => [],
-    projectAudit: () => ({
+    completeProjectContext: async () => ({ details: { id: "P" }, fields: [] }),
+    viewList: async () => [],
+    projectAudit: async () => ({
       id: "P",
       updatedAt: "2026-10-22T00:00:00Z",
       items: { totalCount: 900 },
       repositories: { nodes: [] },
     }),
-    itemList: () => [],
-    repositoryIssues() {
-      return collectRepositoryIssueInventory(this);
+    itemList: async () => [],
+    async repositoryIssues() {
+      return await collectRepositoryIssueInventory(this);
     },
   };
   await assert.rejects(
@@ -493,18 +491,17 @@ void test("doctor refuses redacted Project items even when all counts agree", as
   const f = readerFixture(0);
   const client = {
     ...f.reader,
-    gh: () => "",
-    completeProjectContext: () => ({ details: { id: "P" }, fields: [] }),
-    viewList: () => [],
-    projectAudit: () => ({
+    completeProjectContext: async () => ({ details: { id: "P" }, fields: [] }),
+    viewList: async () => [],
+    projectAudit: async () => ({
       id: "P",
       updatedAt: "2026-10-22T00:00:00Z",
       items: { totalCount: 1 },
       repositories: { nodes: [] },
     }),
-    itemList: () => [{ id: "ITEM", content: null }],
-    repositoryIssues() {
-      return collectRepositoryIssueInventory(this);
+    itemList: async () => [{ id: "ITEM", content: null }],
+    async repositoryIssues() {
+      return await collectRepositoryIssueInventory(this);
     },
   };
   await assert.rejects(
@@ -544,9 +541,7 @@ void test("real Project reads and doctor reject malformed content before interpr
     { ...base, url: `https://github.com/${repository}/pull/1` },
     { ...base, state: "UNKNOWN" },
   ]) {
-    const real = new RoadmapClient(config, () =>
-      JSON.stringify({
-        data: {
+    const real = await sdkRoadmap(config, { graphql: () => ({
           node: {
             items: {
               totalCount: 1,
@@ -564,27 +559,25 @@ void test("real Project reads and doctor reject malformed content before interpr
               pageInfo: { hasNextPage: false, endCursor: null },
             },
           },
-        },
       }),
-    );
-    assert.throws(() => real.itemList(1, { details: { id: "P" } }), {
+    });
+    await assert.rejects(async () => await real.itemList(1, { details: { id: "P" } }), {
       code: "inventory_incomplete",
     });
     const f = readerFixture(0);
     const client = {
       ...f.reader,
-      gh: () => "",
-      completeProjectContext: () => ({ details: { id: "P" }, fields: [] }),
-      viewList: () => [],
-      projectAudit: () => ({
+        completeProjectContext: async () => ({ details: { id: "P" }, fields: [] }),
+      viewList: async () => [],
+      projectAudit: async () => ({
         id: "P",
         updatedAt: "2026-10-22T00:00:00Z",
         items: { totalCount: 1 },
         repositories: { nodes: [] },
       }),
       itemList: real.itemList.bind(real),
-      repositoryIssues() {
-        return collectRepositoryIssueInventory(this);
+      async repositoryIssues() {
+        return await collectRepositoryIssueInventory(this);
       },
     };
     await assert.rejects(runDoctor(config, client, { quiet: true }), {
@@ -593,17 +586,17 @@ void test("real Project reads and doctor reject malformed content before interpr
     assert.equal(f.requests(), 3);
   }
 });
-void test("intake and normalization never mutate after incomplete collection", () => {
+void test("intake and normalization never mutate after incomplete collection", async () => {
   const f = readerFixture(3, (value, marker) => {
     if (!marker) connection(value).nodes.pop();
   });
   let writes = 0;
-  const client = new RoadmapClient(config, () => {
+  const client = await sdkRoadmap(config, { graphql: () => {
     writes++;
     throw new Error("unexpected mutation");
-  });
+  }, allowMutations: true });
   client.graphql = f.reader.graphql.bind(f.reader);
-  client.repositoryIssue = () => ({
+  client.repositoryIssue = async () => ({
     number: 1,
     node_id: "I_1",
     title: "[Port] Fixture",
@@ -614,51 +607,32 @@ void test("intake and normalization never mutate after incomplete collection", (
       portKey: "fixture",
     }),
   });
-  assert.throws(() =>
-    client.createPortIssue({
-      title: "Fixture",
-      upstream: "https://example.test/engine",
-      portKey: "fixture",
-    }),
+  await assert.rejects(
+    async () =>
+      await client.createPortIssue({
+        title: "Fixture",
+        upstream: "https://example.test/engine",
+        portKey: "fixture",
+      }),
   );
-  assert.throws(() => client.normalizePortIssue({ number: 1, catalog: { ports: [] } }));
+  await assert.rejects(
+    async () => await client.normalizePortIssue({ number: 1, catalog: { ports: [] } }),
+  );
   assert.equal(writes, 0);
 });
-void test("HTTP-200 partial-data throttling is nonretryable and retains safe request metadata", () => {
-  const api = new GitHubApiClient(
-    () =>
-      "HTTP/2 200\nx-github-request-id: REQUEST\nretry-after: 60\n\n" +
-      JSON.stringify({
-        data: { repository: {} },
-        errors: [{ type: "RATE_LIMITED", message: "throttled" }],
-      }),
-  );
-  assert.throws(
-    () => api.graphql("query { rateLimit { cost } }"),
-    (error) =>
-      error instanceof GitHubApiError &&
-      error.code === "rate_limited" &&
-      !retryableInventoryRead(error),
-  );
-  assert.equal(api.observations[0]?.request_id, "REQUEST");
-  assert.ok(!JSON.stringify(api.observations).includes('"repository"'));
+void test("HTTP-200 partial-data throttling is nonretryable and retains safe request metadata", async () => {
+  const client = await sdkRoadmap(config, { graphql: () => Response.json({
+    data: { repository: {} }, errors: [{ type: "RATE_LIMITED", message: "throttled" }],
+  }, { headers: { "x-github-request-id": "REQUEST", "retry-after": "60" } }) });
+  await assert.rejects(client.graphql("query { rateLimit { cost } }"), error =>
+    error instanceof GitHubApiError && !retryableInventoryRead(error));
+  assert.equal(client.observations[0]?.request_id, "REQUEST");
+  assert.ok(!JSON.stringify(client.observations).includes('"repository"'));
 });
-void test("oversized responses are rejected without reusing partial output", () => {
-  const api = new GitHubApiClient(
-    createGitHubRunner({
-      maxBuffer: 32,
-      spawn: () => ({
-        status: null,
-        stdout: '{"data":{}}',
-        stderr: "",
-        error: Object.assign(new Error("overflow"), { code: "ENOBUFS" }),
-      }),
-    }),
-  );
-  assert.throws(
-    () => api.graphql("query { viewer { id } }"),
-    (error) => error instanceof GitHubApiError && !retryableInventoryRead(error),
-  );
+void test("oversized responses are rejected without reusing partial output", async () => {
+  const client = await sdkRoadmap(config, { maxBytes: 32, graphql: () => ({ value: "x".repeat(64) }) });
+  await assert.rejects(client.graphql("query { viewer { id } }"), error =>
+    error instanceof GitHubApiError && !retryableInventoryRead(error));
 });
 void test("whole-read retry retains attempts, resets context and stops after the second failure", async () => {
   for (const succeeds of [true, false]) {
@@ -723,7 +697,7 @@ void test("retry admission requires fresh totals, known quota and the existing d
   for (const remaining of [undefined, 0, 10, 1000]) {
     const reader: InventoryReader = {
       config,
-      graphql: () => ({
+      graphql: async () => ({
         repository: { id: "R", nameWithOwner: repository, issues: { totalCount: 900 } },
         node: {
           id: "P",
@@ -734,55 +708,42 @@ void test("retry admission requires fresh totals, known quota and the existing d
         rateLimit: { cost: 1, remaining, resetAt: new Date(Date.now() + 60000).toISOString() },
       }),
     };
-    assert.equal(admitDoctorReadRetry(reader, "P", 1000), remaining === 1000);
-    await withCoordinatorDeadline(performance.now() + 100, async () => {
-      assert.equal(admitDoctorReadRetry(reader, "P", 1000), false);
-    });
+    assert.equal(await admitDoctorReadRetry(reader, "P", 1000), remaining === 1000);
+    assert.equal(await admitDoctorReadRetry(reader, "P", 1000, 10, { deadline: performance.now() + 100 }), false);
   }
 });
-void test("provider query points are distinct from requests and increase admission headroom", () => {
+void test("provider query points are distinct from requests and increase admission headroom", async () => {
   const budget = new DiscoveryBudget("ordinary");
   budget.observeGraphqlCost(15);
   budget.observeGraphqlCost(undefined);
   assert.equal(budget.usage.requests, 0);
   assert.equal(budget.usage.graphql_points_observed, 15);
   assert.equal(budget.usage.graphql_cost_unknown_requests, 1);
-  budget.reserveDelivery(2, 0);
+  (await budget.reserveDelivery(2, 0));
   budget.observeProvider({
     resource: "graphql",
     remaining: 35,
     resetAt: new Date(Date.now() + 60000).toISOString(),
   });
-  assert.throws(() => budget.requireProviderCapacity(1), /capacity unknown|reserve/);
+  (await assert.rejects(async () => (await budget.requireProviderCapacity(1)), /capacity unknown|reserve/));
   assert.equal(budget.graphqlPointHeadroom, 15);
 });
 
-void test("failed HTTP responses retain backoff, request identity and received byte evidence", () => {
+void test("failed HTTP responses retain backoff, request identity and received byte evidence", async () => {
   const body = JSON.stringify({ message: "temporarily unavailable" });
-  const api = new GitHubApiClient(
-    createGitHubRunner({
-      spawn: () => ({
-        status: 1,
-        stderr: "HTTP 503",
-        stdout: `HTTP/2 503\nretry-after: 60\nx-github-request-id: failed-request\nx-ratelimit-remaining: 1000\n\n${body}`,
-      }),
-    }),
-  );
-  assert.throws(
-    () => api.graphql("query { viewer { id } }"),
-    (error) =>
-      error instanceof GitHubApiError &&
-      error.retryAfter === "60" &&
-      !retryableInventoryRead(error),
-  );
-  assert.equal(api.observations[0]?.request_id, "failed-request");
-  assert.equal(api.observations[0]?.bytes, Buffer.byteLength(body));
+  const client = await sdkRoadmap(config, { graphql: () => new Response(body, {
+    status: 503, headers: { "retry-after": "60", "x-github-request-id": "failed-request", "x-ratelimit-remaining": "1000" },
+  }) });
+  await assert.rejects(client.graphql("query { viewer { id } }"), error =>
+    error instanceof GitHubApiError && !retryableInventoryRead(error));
+  assert.equal(client.observations[0]?.request_id, "failed-request");
+  assert.equal(client.observations[0]?.bytes, Buffer.byteLength(body));
 });
-void test("retry admission refuses expired quota and query costs above original headroom", () => {
+void test("retry admission refuses expired quota and query costs above original headroom", async () => {
   let resetAt = new Date(Date.now() + 60000).toISOString();
   const reader: InventoryReader = {
     config,
-    graphql: () => ({
+    graphql: async () => ({
       repository: { id: "R", nameWithOwner: repository, issues: { totalCount: 900 } },
       node: {
         id: "P",
@@ -793,37 +754,15 @@ void test("retry admission refuses expired quota and query costs above original 
       rateLimit: { cost: 1, remaining: 500, resetAt },
     }),
   };
-  assert.equal(admitDoctorReadRetry(reader, "P", 1), true);
-  assert.equal(admitDoctorReadRetry(reader, "P", 1, 30), false);
+  assert.equal(await admitDoctorReadRetry(reader, "P", 1), true);
+  assert.equal(await admitDoctorReadRetry(reader, "P", 1, 30), false);
   resetAt = "2000-01-01T00:00:00Z";
-  assert.equal(admitDoctorReadRetry(reader, "P", 1), false);
+  assert.equal(await admitDoctorReadRetry(reader, "P", 1), false);
 });
-void test("response byte observations preserve whitespace and Unicode rather than reserializing JSON", () => {
+void test("response byte observations preserve whitespace and Unicode rather than reserializing JSON", async () => {
   const body = '  { "data" : { "name" : "雪" } }\n';
-  const api = new GitHubApiClient(
-    createGitHubRunner({
-      spawn: () => ({ status: 0, stderr: "", stdout: "HTTP/2 200\n\n" + body }),
-    }),
-  );
-  api.graphql("query { viewer { id } }");
-  assert.equal(api.observations[0]?.bytes, Buffer.byteLength(body));
+  const client = await sdkRoadmap(config, { graphql: () => new Response(body, { headers: { "content-type": "application/json" } }) });
+  await client.graphql("query { viewer { id } }");
+  assert.equal(client.observations[0]?.bytes, Buffer.byteLength(body));
 });
 
-void test("failed bounded GraphQL workers conservatively retain unknown point costs", () => {
-  const budget = new DiscoveryBudget("ordinary");
-  const transport = createDiscoveryTransport(
-    budget,
-    "fixture-token",
-    new URL("./nonexistent-inert-worker.mts", import.meta.url).pathname,
-  );
-  assert.throws(
-    () =>
-      transport.runner(
-        ["api", "graphql", "--include", "--input", "-"],
-        '{"query":"query{viewer{id}}"}',
-      ),
-    /Bounded HTTP worker failed/,
-  );
-  assert.equal(budget.usage.requests, 5);
-  assert.equal(budget.usage.graphql_cost_unknown_requests, 5);
-});

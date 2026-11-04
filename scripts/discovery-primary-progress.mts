@@ -1,8 +1,21 @@
 import { discoveryCheckpointBytes } from "./discovery-checkpoint.mts";
-import { GitHubApiError, nextLink } from "./github-api.mts";
-import type { GitHubApiClient, IncludedResponse } from "./github-api.mts";
+import { GitHubApiError, nextLink } from "./github-operation.mts";
+import type { Octokit } from "@octokit/core";
+
+export interface DiscoveryMetadataResponse {
+  status: number;
+  headers: Readonly<Record<string, string | number | undefined>>;
+  data: unknown;
+}
 import { observationHash } from "./upstream-observer.mts";
 import { isRecord } from "./runtime-values.mts";
+
+function header(response: Pick<DiscoveryMetadataResponse, "headers">, name: string): string | null {
+  const value = response.headers[name];
+  if (value === undefined) return null;
+  if (typeof value !== "string") throw new Error("Malformed primary response header");
+  return value;
+}
 
 export interface DiscoveryPrimaryProgress {
   entries: Record<string, unknown>;
@@ -43,15 +56,15 @@ export class DiscoveryPrimaryReads {
   private readonly state: Progress;
   private readonly resumed: boolean;
   private readonly started: number;
-  private readonly api: GitHubApiClient;
+  private readonly sdk: Pick<Octokit, "request">;
   private readonly journal: DiscoveryPrimaryProgress;
   constructor(
-    api: GitHubApiClient,
+    sdk: Pick<Octokit, "request">,
     repository: string,
     repositoryId: number,
     journal: DiscoveryPrimaryProgress,
   ) {
-    this.api = api;
+    this.sdk = sdk;
     this.journal = journal;
     this.started = (journal.now ?? Date.now)();
     this.key = repository.toLowerCase();
@@ -114,40 +127,40 @@ export class DiscoveryPrimaryReads {
       );
     }
   }
-  private read(endpoint: string, etag?: string): IncludedResponse {
+  private async read(endpoint: string, etag?: string): Promise<DiscoveryMetadataResponse> {
     try {
-      return this.api.request("GET", endpoint, null, etag ? { "If-None-Match": etag } : {});
+      return (await this.sdk.request({ method: "GET", url: new URL(endpoint, "https://api.github.com/").href, headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", ...(etag ? { "If-None-Match": etag } : {}) } }));
     } catch (error) {
       if (
         error instanceof GitHubApiError &&
         error.status === 404 &&
         /\/contents\/\.recomp\.json\?ref=/u.test(endpoint)
       )
-        return { status: 404, body: null, headers: new Map() };
+        return { status: 404, data: null, headers: {} };
       throw error;
     }
   }
-  request(endpoint: string): IncludedResponse {
+  async request(endpoint: string): Promise<DiscoveryMetadataResponse> {
     if (!endpoint.startsWith(`repos/${this.state.repository}/`) || endpoint.length > 2048)
       throw new Error("Research request escaped its bound repository");
     let read = this.state.reads[this.cursor];
     if (read && read.endpoint !== endpoint)
       throw new Error("Research continuation read order changed; reconcile before reuse");
     if (!read) {
-      const response = this.read(endpoint);
+      const response = await this.read(endpoint);
       if (response.status !== undefined && response.status !== 200 && response.status !== 404)
         throw new Error("Research collection requires a complete successful response");
       const value: Pick<Read, "endpoint" | "body" | "status" | "link"> = {
         endpoint,
-        body: structuredClone(response.body),
+        body: structuredClone(response.data),
         status: response.status === 404 ? 404 : 200,
-        link: response.headers.get("link") ?? null,
+        link: header(response, "link"),
       };
       read = {
         ...value,
         etag:
-          (response.headers.get("etag")?.length ?? 0) <= 512
-            ? (response.headers.get("etag") ?? null)
+          typeof response.headers.etag === "string" && response.headers.etag.length <= 512
+            ? response.headers.etag
             : null,
         sha256: digest(value),
         observed_at: new Date((this.journal.now ?? Date.now)()).toISOString(),
@@ -166,12 +179,12 @@ export class DiscoveryPrimaryReads {
       throw new GitHubApiError("http_error", "Optional primary manifest is absent", {
         status: 404,
       });
-    const headers = new Map<string, string>();
-    if (read.link) headers.set("link", read.link);
-    if (read.etag) headers.set("etag", read.etag);
-    return { status: 200, body: structuredClone(read.body), headers };
+    const headers: Record<string, string> = {};
+    if (read.link) headers.link = read.link;
+    if (read.etag) headers.etag = read.etag;
+    return { status: 200, data: structuredClone(read.body), headers };
   }
-  finish() {
+  async finish() {
     if (this.cursor !== this.state.reads.length)
       throw new Error("Research continuation retained an unmatched read tail");
     // Fresh uninterrupted reads keep their ordinary cost. Resumed mutable facts
@@ -179,15 +192,15 @@ export class DiscoveryPrimaryReads {
     if (this.resumed)
       while (this.state.validation_cursor < this.state.reads.length) {
         const read = this.state.reads[this.state.validation_cursor]!;
-        const response = this.read(read.endpoint, read.etag ?? undefined);
+        const response = await this.read(read.endpoint, read.etag ?? undefined);
         if (
           response.status !== 304 &&
           ((response.status !== undefined && response.status !== read.status) ||
             digest({
               status: response.status === 404 ? 404 : 200,
               endpoint: read.endpoint,
-              body: response.body,
-              link: response.headers.get("link") ?? null,
+              body: response.data,
+              link: header(response, "link"),
             }) !== read.sha256)
         ) {
           this.discard();
@@ -222,12 +235,12 @@ export class DiscoveryPrimaryReads {
 
 /** Provider links may change only their sequential page within the exact collection. */
 export function discoveryNextPage(
-  response: IncludedResponse,
+  response: Pick<DiscoveryMetadataResponse, "headers">,
   first: string,
   current: string,
   repositoryId?: number,
 ) {
-  const raw = response.headers.get("link");
+  const raw = header(response, "link");
   if (raw) {
     const links = [...raw.matchAll(/<([^>]+)>;\s*rel="([^"]+)"/gu)];
     if (
@@ -236,12 +249,12 @@ export function discoveryNextPage(
     )
       throw new Error("Research pagination has malformed or ambiguous continuation");
   }
-  const next = nextLink(response.headers);
+  const next = nextLink(new Map(Object.entries(response.headers).filter((entry): entry is [string, string] => typeof entry[1] === "string")));
   if (!next) return null;
   const base = new URL(first, "https://api.github.com/");
   const last = new URL(current, "https://api.github.com/");
   const candidate = new URL(next, "https://api.github.com/");
-  const collection = /^\/repos\/[^/]+\/[^/]+\/(releases(?:\/[1-9]\d*\/assets)?)$/u.exec(
+  const collection = /^\/repos\/[^/]+\/[^/]+\/(releases(?:\/[1-9]\d*\/assets)?|actions\/runs\/[1-9]\d*\/artifacts)$/u.exec(
     base.pathname,
   )?.[1];
   // GitHub emits immutable numeric repository routes in Link headers even when

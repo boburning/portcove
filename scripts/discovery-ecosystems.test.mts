@@ -15,7 +15,6 @@ import {
   leadSearchFamilyCount,
 } from "./discovery-leads.mts";
 import { collectRecompBoardSource } from "./daily-discovery-sources.mts";
-import type { SourceContext } from "./daily-discovery-sources.mts";
 
 const now = "2026-10-25T04:00:00.000Z";
 const entry = (id = "game", repo = "ports/game", updated = now) =>
@@ -77,27 +76,27 @@ void test("retained primary manifests reject non-normalized lists before summary
   assert.throws(() => parseLeadState(raw), /normalized lists/u);
   assert.deepEqual(parseLeadState(state), state);
 });
-void test("the actual feed collector flags a lost overlap and preserves inaccessible source evidence", () => {
+void test("the actual feed collector flags a lost overlap and preserves inaccessible source evidence", async () => {
   const saved: Record<string, unknown> = {};
   let status = 200;
   const context = {
     http: {
-      request: (_method: string, url: string) => {
+      request: async (_method: string, url: string) => {
         assert.equal(url, "https://recomp.fyi/feed.xml");
-        return { status, text: feed(entry()) };
+        return { status, text: feed(entry()), headers: {}, requests: 1, bytes: Buffer.byteLength(feed(entry())) };
       },
-    } as unknown as SourceContext["http"],
+    },
     save: (name: string, value: unknown) => {
       saved[name] = value;
     },
   };
-  const initial = collectRecompBoardSource(context, emptyCheckpoint());
+  const initial = (await collectRecompBoardSource(context, emptyCheckpoint()));
   assert.equal(initial.status, "complete");
   const state = advanceDiscovery(emptyCheckpoint(), {
     observed_at: "2026-10-24T04:00:00Z",
     sources: [initial],
   });
-  const gap = collectRecompBoardSource(context, state);
+  const gap = (await collectRecompBoardSource(context, state));
   assert.equal(gap.status, "partial");
   assert.match(String(gap.next_action), /missing interval/u);
   assert.deepEqual(
@@ -105,7 +104,7 @@ void test("the actual feed collector flags a lost overlap and preserves inaccess
     state.sources,
   );
   status = 403;
-  assert.throws(() => collectRecompBoardSource(context, state), /unavailable/u);
+  (await assert.rejects(async () => (await collectRecompBoardSource(context, state)), /unavailable/u));
   assert.equal((saved["recomp-board-feed"] as { status: number }).status, 403);
 });
 void test("manifest omission remains Unknown and independent toolchains/source systems remain explicit", () => {

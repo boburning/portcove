@@ -7,7 +7,7 @@ const feeds = ["apps", "release-status"] as const;
 
 // App IDs survive game-title changes and repository transfers. Repository names
 // are provenance/research hints, never a replacement for game + implementation.
-export function collectQuiver(c: SourceContext): CollectedSource {
+export async function collectQuiver(c: Pick<SourceContext, "http" | "save">): Promise<CollectedSource> {
   const collected_at = new Date().toISOString();
   const result: CollectedSource = {
     id: "quiver-api",
@@ -32,7 +32,7 @@ export function collectQuiver(c: SourceContext): CollectedSource {
         url.searchParams.set("limit", "100");
         if (feed === "apps") url.searchParams.set("sort", "added");
         if (cursor !== null) url.searchParams.set("cursor", cursor);
-        const response = c.http.request("GET", url.href);
+        const response = (await c.http.request("GET", url.href));
         c.save(`quiver-${feed}-${++page}`, {
           url: url.href,
           collected_at,

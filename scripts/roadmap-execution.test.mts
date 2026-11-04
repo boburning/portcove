@@ -15,7 +15,7 @@ import {
   renderExecutionQueue,
   selectNextItems,
 } from "./roadmap-execution.mts";
-import { RoadmapClient, roadmapCommandHelp } from "./roadmap.mts";
+import { roadmapCommandHelp } from "./roadmap.mts";
 import { analyzeReleaseReadiness } from "./roadmap-readiness.mts";
 
 import {
@@ -23,6 +23,7 @@ import {
   fixtureElement,
   fixtureObject,
   config,
+  sdkRoadmap,
 } from "./fixtures/roadmap-fixtures.mts";
 
 type PickupItem = Parameters<typeof deriveExecutionContext>[1];
@@ -253,7 +254,7 @@ void test("context distinguishes bounded absence, actual API recorder, reported 
   assert.equal(changed.recommendation.execution_capability.startsWith("not assessed"), true);
 });
 
-void test("exact older consumption reference is bound to configured repository, runner and task", () => {
+void test("exact older consumption reference is bound to configured repository, runner and task", async () => {
   const comment = acknowledgmentComment();
   assert.equal(
     consumedReference(comment, { repository: config.repository, runner: "Local", issue: 1104 })
@@ -271,14 +272,14 @@ void test("exact older consumption reference is bound to configured repository, 
         }),
       /does not match/,
     );
-  assert.throws(
-    () =>
-      new RoadmapClient(config).coordinationComment(
+  (await assert.rejects(
+    async () =>
+      (await (await sdkRoadmap(config, {})).coordinationComment(
         "https://github.com/other/repo/issues/793#issuecomment-1",
         coordinationTarget(config, 1104),
-      ),
+      )),
     /this repository/,
-  );
+  ));
 });
 
 void test("structured queue preserves Planned recommendations without inferring a grant or execution route", () => {
@@ -294,7 +295,7 @@ void test("structured queue preserves Planned recommendations without inferring 
   assert.equal(fixtureElement(output.candidates, 0).execution_capability, "not assessed");
 });
 
-void test("selected context collects typed relationships completely and matches opaque Project identity", () => {
+void test("selected context collects typed relationships completely and matches opaque Project identity", async () => {
   const connection = <T,>(nodes: T[], totalCount = nodes.length, hasNextPage = false) => ({
     nodes,
     totalCount,
@@ -314,9 +315,9 @@ void test("selected context collects typed relationships completely and matches 
     blocking: connection([reference]),
     subIssues: connection<PickupItem["content"]>([]),
   };
-  const client = new RoadmapClient(config);
-  client.projectDetails = () => ({ id: "PVT-selected" });
-  client.graphql = (query) => {
+  const client = await sdkRoadmap(config, { graphql: () => assert.fail("unexpected API call") });
+  client.projectDetails = async () => ({ id: "PVT-selected" });
+  client.graphql = async (query) => {
     if (query.includes("repository(owner")) return { repository: { issue } };
     if (query.includes("nodes(ids:"))
       return {
@@ -338,22 +339,22 @@ void test("selected context collects typed relationships completely and matches 
       },
     };
   };
-  const result = client.executionIssue(1104);
+  const result = await client.executionIssue(1104);
   assert.equal(result.item.id, "selected");
   assert.equal(result.relationships.blockedBy.length, 1);
   assert.equal(fixtureElement(result.relationships.blockedBy, 0).projectStatus, "Ready");
   assert.equal(fixtureElement(result.relationships.blocking, 0).number, 925);
   issue.blockedBy = connection([]);
   issue.subIssues = connection([reference, reference]);
-  client.graphql = () => ({ repository: { issue }, node: { subIssues: issue.subIssues } });
-  assert.throws(() => client.executionIssue(1104), /duplicate/);
+  client.graphql = async () => ({ repository: { issue }, node: { subIssues: issue.subIssues } });
+  await assert.rejects(async () => await client.executionIssue(1104), /duplicate/);
 });
 
-void test("acknowledgment history validates bounded coverage and refuses count changes", () => {
-  const client = new RoadmapClient(config);
+void test("acknowledgment history validates bounded coverage and refuses count changes", async () => {
+  const client = await sdkRoadmap(config, { graphql: () => assert.fail("unexpected API call") });
   const target = coordinationTarget(config, 1104);
-  client.coordinationBinding = () => ({ number: 1104, comments: 100 });
-  client.graphql = () => ({
+  client.coordinationBinding = async () => ({ number: 1104, comments: 100 });
+  client.graphql = async () => ({
     repository: {
       issue: {
         url: target.url,
@@ -361,7 +362,7 @@ void test("acknowledgment history validates bounded coverage and refuses count c
       },
     },
   });
-  assert.throws(() => client.coordinationRecords(target), /incomplete/);
+  await assert.rejects(async () => await client.coordinationRecords(target), /incomplete/);
   const nodes = Array.from({ length: 50 }, (_, i) => ({
     id: String(i),
     url: `${target.url}#issuecomment-${i + 1}`,
@@ -369,7 +370,7 @@ void test("acknowledgment history validates bounded coverage and refuses count c
     createdAt: "2026-10-06T12:00:00Z",
     updatedAt: "2026-10-06T12:00:00Z",
   }));
-  client.graphql = () => ({
+  client.graphql = async () => ({
     repository: {
       issue: {
         url: target.url,
@@ -377,13 +378,13 @@ void test("acknowledgment history validates bounded coverage and refuses count c
       },
     },
   });
-  assert.equal(client.coordinationRecords(target).coverage.complete, false);
+  assert.equal((await client.coordinationRecords(target)).coverage.complete, false);
   let reads = 0;
-  client.coordinationBinding = () => ({ number: 1104, comments: ++reads === 1 ? 100 : 101 });
-  assert.throws(() => client.coordinationRecords(target), /incomplete/);
+  client.coordinationBinding = async () => ({ number: 1104, comments: ++reads === 1 ? 100 : 101 });
+  await assert.rejects(async () => await client.coordinationRecords(target), /incomplete/);
 });
 
-void test("selected issue and explicit PR history routes bind work/repository", () => {
+void test("selected issue and explicit PR history routes bind work/repository", async () => {
   const target = coordinationTarget(config, 1104, 1543);
   let node = {
     number: 1543,
@@ -392,8 +393,8 @@ void test("selected issue and explicit PR history routes bind work/repository", 
     comments: 2,
     body: "Refs #1104.",
   };
-  const client = new RoadmapClient(config, () => JSON.stringify(node));
-  assert.equal(client.coordinationBinding(target).number, 1543);
+  const client = await sdkRoadmap(config, { rest: () => node });
+  assert.equal((await client.coordinationBinding(target)).number, 1543);
   for (const body of [
     "Refs #11040",
     "https://github.com/other/repo/issues/1104",
@@ -403,22 +404,22 @@ void test("selected issue and explicit PR history routes bind work/repository", 
     `https://github.com/${config.repository}/issues/11040`,
   ]) {
     node = { ...node, body };
-    assert.throws(() => client.coordinationBinding(target), /does not reference/);
+    (await assert.rejects(async () => (await client.coordinationBinding(target)), /does not reference/));
   }
   for (const suffix of ["", ")", "#issuecomment-1", "?query=value"]) {
     node = {
       ...node,
       body: `[Owner](https://github.com/${config.repository}/issues/1104${suffix}`,
     };
-    assert.equal(client.coordinationBinding(target).number, 1543);
+    assert.equal((await client.coordinationBinding(target)).number, 1543);
   }
   node = { ...node, body: "Refs #1104", html_url: "https://github.com/other/repo/pull/1543" };
-  assert.throws(() => client.coordinationBinding(target), /identity/);
+  (await assert.rejects(async () => (await client.coordinationBinding(target)), /identity/));
   assert.throws(() => coordinationTarget(config, 793), /read-only/);
   assert.throws(() => coordinationTarget(config, 1104, 793), /read-only/);
 });
 
-void test("exact legacy refs are read-only comparison; other work refs and identity substitutions fail", () => {
+void test("exact legacy refs are read-only comparison; other work refs and identity substitutions fail", async () => {
   const target = coordinationTarget(config, 1104);
   const url = `https://github.com/${config.repository}/issues/793#issuecomment-1`;
   const requests: string[][] = [];
@@ -427,12 +428,12 @@ void test("exact legacy refs are read-only comparison; other work refs and ident
     issue_url: `https://api.github.com/repos/${config.repository}/issues/793`,
     body: acknowledgment().body,
   };
-  const client = new RoadmapClient(config, (args) => {
-    requests.push([fixtureElement(args, args.indexOf("--method") + 1), fixtureElement(args, 2)]);
-    return JSON.stringify(original);
-  });
+  const client = await sdkRoadmap(config, { rest: ({ method, endpoint }) => {
+    requests.push([method, endpoint]);
+    return original;
+  } });
   assert.equal(
-    consumedReference(client.coordinationComment(url, target), {
+    consumedReference((await client.coordinationComment(url, target)), {
       repository: config.repository,
       runner: "Local",
       issue: 1104,
@@ -440,28 +441,28 @@ void test("exact legacy refs are read-only comparison; other work refs and ident
     1104,
   );
   assert.deepEqual(requests, [["GET", `repos/${config.repository}/issues/comments/1`]]);
-  assert.throws(
-    () =>
-      client.coordinationComment(
+  (await assert.rejects(
+    async () =>
+      (await client.coordinationComment(
         `https://github.com/${config.repository}/issues/209#issuecomment-1`,
         target,
-      ),
+      )),
     /selected issue/,
-  );
-  assert.throws(
-    () =>
-      consumedReference(client.coordinationComment(url, target), {
+  ));
+  (await assert.rejects(
+    async () =>
+      consumedReference((await client.coordinationComment(url, target)), {
         repository: config.repository,
         runner: "Other",
         issue: 1104,
       }),
     /does not match/,
-  );
+  ));
   original = {
     ...original,
     issue_url: `https://api.github.com/repos/${config.repository}/issues/1104`,
   };
-  assert.throws(() => client.coordinationComment(url, target), /identity/);
+  (await assert.rejects(async () => (await client.coordinationComment(url, target)), /identity/));
   const substituted = acknowledgmentComment(
     pickupContext(pickupIssue(), pickupRelations(), {
       target: coordinationTarget(config, 1104, 1543),
@@ -587,10 +588,10 @@ void test("capability milestones preserve history and fail closed during partial
   );
 });
 
-void test("coordination history rejects coerced creation and edit timestamps", () => {
-  const client = new RoadmapClient(config, () => assert.fail("unexpected API call"));
+void test("coordination history rejects coerced creation and edit timestamps", async () => {
+  const client = await sdkRoadmap(config, { graphql: () => assert.fail("unexpected API call") });
   const target = coordinationTarget(config, 1104);
-  client.coordinationBinding = () => ({ number: target.number, comments: 1 });
+  client.coordinationBinding = async () => ({ number: target.number, comments: 1 });
   for (const field of ["createdAt", "updatedAt"]) {
     for (const timestamp of [0, ["2026-10-07T03:00:00Z"]]) {
       const record = {
@@ -601,7 +602,7 @@ void test("coordination history rejects coerced creation and edit timestamps", (
         updatedAt: "2026-10-07T03:00:00Z",
         [field]: timestamp,
       };
-      client.graphql = () => ({
+      client.graphql = async () => ({
         repository: {
           issue: {
             url: target.url,
@@ -613,7 +614,10 @@ void test("coordination history rejects coerced creation and edit timestamps", (
           },
         },
       });
-      assert.throws(() => client.coordinationRecords(target), /unavailable or incomplete/);
+      await assert.rejects(
+        async () => await client.coordinationRecords(target),
+        /unavailable or incomplete/,
+      );
     }
   }
 });

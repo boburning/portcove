@@ -172,7 +172,7 @@ function successfulRuns() {
   }));
 }
 
-void test("queue inventory follows all open-PR pages and rejects duplicate identities", () => {
+void test("queue inventory follows all open-PR pages and rejects duplicate identities", async () => {
   const client = new PullRequestDeliveryClient((args) => {
     if (requiredFixture(args[2]).includes("page=2"))
       return included([{ number: 9, user: { login: "app/renovate" } }]);
@@ -185,7 +185,7 @@ void test("queue inventory follows all open-PR pages and rejects duplicate ident
     );
   });
   assert.deepEqual(
-    client.openRenovatePulls().map(({ number }) => number),
+    (await client.openRenovatePulls()).map(({ number }) => number),
     [7, 9],
   );
   const duplicate = new PullRequestDeliveryClient((args) =>
@@ -196,7 +196,7 @@ void test("queue inventory follows all open-PR pages and rejects duplicate ident
         : { link: '<https://api.github.test/pulls?page=2>; rel="next"' },
     ),
   );
-  assert.throws(() => duplicate.openRenovatePulls(), /duplicate/);
+  (await assert.rejects(async () => (await duplicate.openRenovatePulls()), /duplicate/));
 });
 
 function queueClient(overrides: QueueOverrides = {}): DeliveryQueueClient {
@@ -405,7 +405,7 @@ void test("Renovate verdicts have matching human and JSON output", () => {
   assert.equal(record(record(roundTrip).evidence).head, head);
 });
 
-void test("check-run pagination requires complete unique totals", () => {
+void test("check-run pagination requires complete unique totals", async () => {
   const calls: string[] = [];
   const client = new PullRequestDeliveryClient((args) => {
     calls.push(requiredFixture(args[2]));
@@ -420,13 +420,13 @@ void test("check-run pagination requires complete unique totals", () => {
     );
   });
   assert.deepEqual(
-    client.checkRuns(head).map((run) => run.id),
+    (await client.checkRuns(head)).map((run) => run.id),
     [1, 2],
   );
   assert.equal(calls.length, 2);
 });
 
-void test("provider nulls and unconsumed metadata survive the delivery boundary", () => {
+void test("provider nulls and unconsumed metadata survive the delivery boundary", async () => {
   const retained = { provider_note: "preserved raw metadata" };
   const client = new PullRequestDeliveryClient((args) => {
     const endpoint = requiredFixture(args[2]);
@@ -449,25 +449,25 @@ void test("provider nulls and unconsumed metadata survive the delivery boundary"
       { number: 7, user: { login: "renovate[bot]" }, head: { sha: head }, ...retained },
     ]);
   });
-  const request = client.pull(7);
+  const request = (await client.pull(7));
   assert.equal(request.user, null);
   assert.equal(request.body, null);
   assert.equal(record(request).provider_note, retained.provider_note);
-  const commit = requiredFixture(client.pullCommits(7)[0]);
+  const commit = requiredFixture((await client.pullCommits(7))[0]);
   assert.equal(commit.author, null);
   assert.equal(record(commit).provider_note, retained.provider_note);
-  const run = client.workflowRun(42);
+  const run = (await client.workflowRun(42));
   assert.equal(run.created_at, null);
   assert.equal(run.run_started_at, null);
   assert.equal(record(run).provider_note, retained.provider_note);
-  assert.ok(client.workflowJobs(42, 1).every((job) => job.completed_at === null));
+  assert.ok((await client.workflowJobs(42, 1)).every((job) => job.completed_at === null));
   assert.equal(
-    record(requiredFixture(client.openRenovatePulls()[0])).provider_note,
+    record(requiredFixture((await client.openRenovatePulls())[0])).provider_note,
     retained.provider_note,
   );
 });
 
-void test("delivery response projections reject malformed known metadata without inventing valid facts", () => {
+void test("delivery response projections reject malformed known metadata without inventing valid facts", async () => {
   for (const malformed of [
     { user: 7 },
     { head: { sha: 7 } },
@@ -476,11 +476,11 @@ void test("delivery response projections reject malformed known metadata without
     { assignees: [{ login: 7 }] },
   ]) {
     const client = new PullRequestDeliveryClient(() => included({ ...pull(), ...malformed }));
-    assert.throws(() => client.pull(7));
+    (await assert.rejects(async () => (await client.pull(7))));
   }
 });
 
-void test("Renovate snapshot inventories every commit and file page exactly once", () => {
+void test("Renovate snapshot inventories every commit and file page exactly once", async () => {
   const calls: string[] = [];
   const client = new PullRequestDeliveryClient((args) => {
     const endpoint = requiredFixture(args[2]);
@@ -505,7 +505,7 @@ void test("Renovate snapshot inventories every commit and file page exactly once
     if (endpoint.endsWith("/branches/main")) return included({ commit: { sha: base } });
     throw new Error(`unexpected endpoint ${endpoint}`);
   });
-  const result = client.renovateSnapshot(7, head, required);
+  const result = (await client.renovateSnapshot(7, head, required));
   assert.deepEqual(
     result.commits.map((commit) => commit.sha),
     [head, "d".repeat(40)],
@@ -520,7 +520,7 @@ void test("Renovate snapshot inventories every commit and file page exactly once
   );
 });
 
-void test("Renovate snapshot rejects incomplete commit and file inventories", () => {
+void test("Renovate snapshot rejects incomplete commit and file inventories", async () => {
   for (const mismatch of [
     { commits: 2, changed_files: 2 },
     { commits: 1, changed_files: 3 },
@@ -532,7 +532,7 @@ void test("Renovate snapshot rejects incomplete commit and file inventories", ()
     client.pullCommits = () => [{ sha: head }];
     client.pullFiles = () => [{ filename: "Cargo.toml" }, { filename: "Cargo.lock" }];
     client.branch = () => ({ commit: { sha: base } });
-    assert.throws(() => client.renovateSnapshot(7, head, required), /inventory is incomplete/);
+    (await assert.rejects(async () => (await client.renovateSnapshot(7, head, required)), /inventory is incomplete/));
   }
 });
 
@@ -552,14 +552,14 @@ void test("required context reduction fails closed on missing and duplicate prod
   );
 });
 
-void test("required check observation is exact-head and fails closed on ambiguity", () => {
+void test("required check observation is exact-head and fails closed on ambiguity", async () => {
   const client = new PullRequestDeliveryClient();
   client.pull = () => pull();
   client.checkRuns = () => successfulRuns();
   client.commitStatuses = () => [];
   assert.ok(
-    client
-      .requiredCheckState(7, head, required)
+    (await client
+      .requiredCheckState(7, head, required))
       .contexts.every((item) => item.outcome === "success"),
   );
   client.commitStatuses = () => [
@@ -567,12 +567,12 @@ void test("required check observation is exact-head and fails closed on ambiguit
   ];
   assert.equal(
     requiredFixture(
-      client.requiredCheckState(7, head, required).contexts.find((item) => item.context === "rust"),
+      (await client.requiredCheckState(7, head, required)).contexts.find((item) => item.context === "rust"),
     ).conclusion,
     "ambiguous",
   );
   client.pull = () => pull({ head: { sha: "d".repeat(40) } });
-  assert.throws(() => client.requiredCheckState(7, head, required), /head changed/);
+  (await assert.rejects(async () => (await client.requiredCheckState(7, head, required)), /head changed/));
 });
 
 const watchOptions = {
@@ -790,17 +790,17 @@ void test("watcher rejects missing identity/deadline before querying and does no
   );
 });
 
-void test("workflow REST readback validates repository and opaque run identity", () => {
+void test("workflow REST readback validates repository and opaque run identity", async () => {
   let body = { ...workflow(), repository: { full_name: "boburning/portcove" } };
   const client = new PullRequestDeliveryClient((args) => {
     assert.equal(requiredFixture(args[2]), "repos/boburning/portcove/actions/runs/42");
     return included(body);
   });
-  assert.equal(client.workflowRun(42).id, 42);
+  assert.equal((await client.workflowRun(42)).id, 42);
   body = { ...body, id: 43 };
-  assert.throws(() => client.workflowRun(42), /identity/);
+  (await assert.rejects(async () => (await client.workflowRun(42)), /identity/));
   body = { ...body, id: 42, repository: { full_name: "other/portcove" } };
-  assert.throws(() => client.workflowRun(42), /identity/);
+  (await assert.rejects(async () => (await client.workflowRun(42)), /identity/));
 });
 
 void test("watcher rejects green checks from another run/attempt or incomplete job inventory", async () => {
@@ -855,7 +855,7 @@ void test("watcher rejects green checks from another run/attempt or incomplete j
   );
 });
 
-void test("workflow attempt job inventory follows pagination and rejects incomplete totals", () => {
+void test("workflow attempt job inventory follows pagination and rejects incomplete totals", async () => {
   let incomplete = false;
   const client = new PullRequestDeliveryClient((args) => {
     const endpoint = requiredFixture(args[2]);
@@ -869,9 +869,9 @@ void test("workflow attempt job inventory follows pagination and rejects incompl
       },
     );
   });
-  assert.equal(client.workflowJobs(42, 1).length, 5);
+  assert.equal((await client.workflowJobs(42, 1)).length, 5);
   incomplete = true;
-  assert.throws(() => client.workflowJobs(42, 1), /incomplete|total/);
+  (await assert.rejects(async () => (await client.workflowJobs(42, 1)), /incomplete|total/));
 });
 
 void test("watch-only API reads bound subprocess and whole observation without altering merge clients", () => {
@@ -945,7 +945,7 @@ void test("watcher rejects an attempt changed during otherwise successful job co
   assert.equal(reads, 2);
 });
 
-void test("REST merge uses the exact SHA and verifies remote completion", () => {
+void test("REST merge uses the exact SHA and verifies remote completion", async () => {
   const calls: { method: string | undefined; endpoint: string; input: string | undefined }[] = [];
   let merged = false;
   const client = new PullRequestDeliveryClient((args, input) => {
@@ -977,7 +977,7 @@ void test("REST merge uses the exact SHA and verifies remote completion", () => 
     }
     throw new Error(`unexpected endpoint ${endpoint}`);
   });
-  const result = client.merge(7, head, required, emptyIntent, squashMessage);
+  const result = (await client.merge(7, head, required, emptyIntent, squashMessage));
   assert.equal(result.result.sha, merge);
   assert.equal(calls.filter((call) => call.method === "PUT").length, 1);
   assert.equal(
@@ -986,7 +986,7 @@ void test("REST merge uses the exact SHA and verifies remote completion", () => 
   );
 });
 
-void test("merge command errors are reconciled through remote readback before retry", () => {
+void test("merge command errors are reconciled through remote readback before retry", async () => {
   let merged = false;
   const client = new PullRequestDeliveryClient((args) => {
     const endpoint = args[1] === "graphql" ? "graphql" : requiredFixture(args[2]);
@@ -1008,12 +1008,12 @@ void test("merge command errors are reconciled through remote readback before re
     }
     throw new Error(`unexpected endpoint ${endpoint}`);
   });
-  const result = client.merge(7, head, required, emptyIntent, squashMessage);
+  const result = (await client.merge(7, head, required, emptyIntent, squashMessage));
   assert.equal(result.result.sha, merge);
   assert.match(String(result.result.message), /readback confirmed/);
 });
 
-void test("merge reports unknown when mutation and remote readback are both ambiguous", () => {
+void test("merge reports unknown when mutation and remote readback are both ambiguous", async () => {
   const client = new PullRequestDeliveryClient();
   client.api = new GitHubApiClient(() => included(closingPage()));
   client.pullCommits = () => [{ sha: head, commit: { message: squashMessage.title } }];
@@ -1028,28 +1028,28 @@ void test("merge reports unknown when mutation and remote readback are both ambi
   client.pull = () => {
     throw new Error("readback unavailable");
   };
-  assert.throws(
-    () => client.merge(7, head, required, emptyIntent, squashMessage),
+  (await assert.rejects(
+    async () => (await client.merge(7, head, required, emptyIntent, squashMessage)),
     (error) =>
       deliveryError(error).operationStatus === "unknown" &&
       evidence(error).pull_request === 7 &&
       /outcome is unknown/.test(errorMessage(error)),
-  );
+  ));
 });
 
-void test("merge refuses draft conflict and incomplete-check states before mutation", () => {
+void test("merge refuses draft conflict and incomplete-check states before mutation", async () => {
   for (const overrides of [{ draft: true }, { mergeable: false }, { mergeable: null }]) {
     const client = new PullRequestDeliveryClient();
     client.pull = () => pull(overrides);
     client.checkRuns = () => successfulRuns();
     client.commitStatuses = () => [];
-    assert.throws(() => client.merge(7, head, required), /draft|conflict|determined/);
+    (await assert.rejects(async () => (await client.merge(7, head, required)), /draft|conflict|determined/));
   }
   const client = new PullRequestDeliveryClient();
   client.pull = () => pull();
   client.checkRuns = () => successfulRuns().slice(1);
   client.commitStatuses = () => [];
-  assert.throws(() => client.merge(7, head, required), /not successful/);
+  (await assert.rejects(async () => (await client.merge(7, head, required)), /not successful/));
 });
 
 function closureGuardClient(
@@ -1071,7 +1071,7 @@ function closureGuardClient(
   return client;
 }
 
-void test("empty component intent refuses keyword-free manual closure relationships", () => {
+void test("empty component intent refuses keyword-free manual closure relationships", async () => {
   const page = closingPage({
     closingIssuesReferences: {
       totalCount: 1,
@@ -1082,13 +1082,13 @@ void test("empty component intent refuses keyword-free manual closure relationsh
     },
   });
   const client = closureGuardClient([page]);
-  assert.throws(
-    () => client.merge(7, head, required, emptyIntent, squashMessage),
+  (await assert.rejects(
+    async () => (await client.merge(7, head, required, emptyIntent, squashMessage)),
     /Undeclared closing relationship/,
-  );
+  ));
 });
 
-void test("unchanged source head does not hide PR body or relationship changes", () => {
+void test("unchanged source head does not hide PR body or relationship changes", async () => {
   for (const second of [
     closingPage({ body: "Related to #202." }),
     closingPage({
@@ -1101,68 +1101,68 @@ void test("unchanged source head does not hide PR body or relationship changes",
       },
     }),
   ]) {
-    assert.throws(
-      () =>
-        closureGuardClient([closingPage(), second]).merge(
+    (await assert.rejects(
+      async () =>
+        (await closureGuardClient([closingPage(), second]).merge(
           7,
           head,
           required,
           emptyIntent,
           squashMessage,
-        ),
+        )),
       /changed before merge/,
-    );
+    ));
   }
 });
 
-void test("candidate commit and actual proposed squash text require explicit closure permission", () => {
+void test("candidate commit and actual proposed squash text require explicit closure permission", async () => {
   for (const text of [
     "Fixes https://github.com/boburning/portcove/issues/244",
     "Fixes https://github.com/other/repo/issues/244",
   ]) {
-    assert.throws(
-      () =>
-        closureGuardClient([closingPage()], [{ sha: head, commit: { message: text } }]).merge(
+    (await assert.rejects(
+      async () =>
+        (await closureGuardClient([closingPage()], [{ sha: head, commit: { message: text } }]).merge(
           7,
           head,
           required,
           emptyIntent,
           squashMessage,
-        ),
+        )),
       /Undeclared/,
-    );
-    assert.throws(
-      () =>
-        closureGuardClient([closingPage()]).merge(7, head, required, emptyIntent, {
+    ));
+    (await assert.rejects(
+      async () =>
+        (await closureGuardClient([closingPage()]).merge(7, head, required, emptyIntent, {
           ...squashMessage,
           body: text,
-        }),
+        })),
       /Undeclared/,
-    );
+    ));
   }
-  assert.throws(
-    () =>
-      closureGuardClient(
+  (await assert.rejects(
+    async () =>
+      (await closureGuardClient(
         [closingPage()],
         [{ sha: head, commit: { message: "Closes #244" } }],
-      ).merge(7, head, required, emptyIntent, squashMessage),
+      ).merge(7, head, required, emptyIntent, squashMessage)),
     /Undeclared/,
-  );
-  assert.throws(
-    () =>
-      closureGuardClient([closingPage()]).merge(7, head, required, emptyIntent, {
+  ));
+  (await assert.rejects(
+    async () =>
+      (await closureGuardClient([closingPage()]).merge(7, head, required, emptyIntent, {
         ...squashMessage,
         body: "Fixes: #244",
-      }),
+      })),
     /Undeclared/,
-  );
-  assert.throws(
-    () => closureGuardClient([closingPage()]).merge(7, head, required, undefined, squashMessage),
+  ));
+  (await assert.rejects(
+    async () => (await closureGuardClient([closingPage()]).merge(7, head, required, undefined, squashMessage)),
     /independent/,
-  );
+  ));
 });
 
-void test("unexpected actual squash message preserves a merged outcome without retry", () => {
+void test("unexpected actual squash message preserves a merged outcome without retry", async () => {
   const client = closureGuardClient([closingPage()]);
   let writes = 0;
   client.request = (method) => {
@@ -1173,8 +1173,8 @@ void test("unexpected actual squash message preserves a merged outcome without r
     return { body: { sha: merge, message: "Unexpected Closes #244" } };
   };
   client.pull = () => pull({ merged: true, state: "closed", merge_commit_sha: merge });
-  assert.throws(
-    () => client.merge(7, head, required, emptyIntent, squashMessage),
+  (await assert.rejects(
+    async () => (await client.merge(7, head, required, emptyIntent, squashMessage)),
     (error) =>
       deliveryError(error).operationStatus === "unknown" &&
       evidence(error).merge_commit_sha === merge &&
@@ -1183,7 +1183,7 @@ void test("unexpected actual squash message preserves a merged outcome without r
         "Unexpected Closes #244" &&
       record(record(evidence(error).closure_readback).mutation).merged === true &&
       record(record(evidence(error).closure_readback).pull).merge_commit_sha === merge,
-  );
+  ));
   assert.equal(writes, 1);
 });
 
@@ -1652,7 +1652,7 @@ void test("watch REST collection resolves complete replay lineage without hiding
   assert.equal(array(raw.jobs).length, 6);
   assert.equal(array(record(array(raw.contexts)[0]).observations).length, 2);
   assert.equal(
-    client.requiredCheckState(7, head, required).contexts[0]!.conclusion,
+    (await client.requiredCheckState(7, head, required)).contexts[0]!.conclusion,
     "ambiguous",
     "unbound live route must still refuse duplicate observations",
   );

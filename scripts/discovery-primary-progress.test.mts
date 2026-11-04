@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { GitHubApiClient, GitHubApiError } from "./github-api.mts";
+import { GitHubApiError } from "./github-operation.mts";
+import { fixtureGitHub } from "./fixtures/github-sdk-fixtures.mts";
 import { DiscoveryPrimaryReads, discoveryNextPage } from "./discovery-primary-progress.mts";
 import {
   investigateDiscoveryUpstream,
@@ -10,7 +11,7 @@ import type { SourceContext, CollectedSource } from "./daily-discovery-sources.m
 import { DiscoveryBudget } from "./discovery-budget.mts";
 import { emptyCheckpoint, advanceDiscovery } from "./discovery-checkpoint.mts";
 const epoch = Date.parse("2026-10-27T00:00:00Z");
-function primaryFixture(numericLinks = false) {
+async function primaryFixture(numericLinks = false) {
   let allowance = 7;
   let clock = epoch;
   let changed = false;
@@ -19,12 +20,9 @@ function primaryFixture(numericLinks = false) {
   const calls: { endpoint: string; conditional: boolean }[] = [];
   const entries: Record<string, unknown> = {};
   let writes = 0;
-  const api = new GitHubApiClient((args) => {
-    assert.equal(args[0], "api");
-    assert.equal(args[args.indexOf("--method") + 1], "GET");
-    if (allowance-- <= 0) throw new GitHubApiError("budget_exhausted", "fixture batch exhausted");
-    const endpoint = args[2]!;
-    const conditional = args.some((value) => value.startsWith("If-None-Match: "));
+  const sdk = await fixtureGitHub(({ method, endpoint, headers }) => {
+    assert.equal(method, "GET");
+    const conditional = headers.has("if-none-match");
     calls.push({ endpoint, conditional });
     let body: unknown;
     let link: string | undefined;
@@ -61,19 +59,22 @@ function primaryFixture(numericLinks = false) {
         content: Buffer.from("Primary upstream readme").toString("base64"),
       };
     else if (endpoint.includes("/contents/.recomp.json?"))
-      throw new GitHubApiError("http_error", "fixture absent manifest", { status: 404 });
+      return Response.json({ message: "fixture absent manifest" }, { status: 404 });
     else throw new Error(`Unexpected fixture endpoint ${endpoint}`);
-    if (conditional && !changed) return "HTTP/2 304\n\n";
-    return `HTTP/2 200\netag: "fixture"\n${link ? `link: ${link}\n` : ""}\n${JSON.stringify(body)}`;
-  });
+    if (conditional && !changed) return new Response(null, { status: 304 });
+    return Response.json(body, { headers: { etag: '"fixture"', ...(link ? { link } : {}) } });
+  }, { reserve: () => {
+    if (allowance-- <= 0) throw new GitHubApiError("budget_exhausted", "fixture batch exhausted");
+    return { consumeBytes() {}, settle() {} };
+  } });
   const context = {
-    api,
+    sdk,
     budget: new DiscoveryBudget(
       "ordinary",
       () => {},
       () => clock,
     ),
-    http: {} as SourceContext["http"],
+    http: { request: async () => { throw new Error("Unexpected non-GitHub HTTP request"); } },
     save: () => {},
     primaryProgress: {
       entries,
@@ -108,18 +109,18 @@ function primaryFixture(numericLinks = false) {
 
 void test("primary investigations and complete validation advance through bounded pages without replaying completed collection", async (t) => {
   for (const numericLinks of [false, true])
-    await t.test(numericLinks ? "numeric repository aliases" : "named repository links", () => {
-      const h = primaryFixture(numericLinks);
-      let result: ReturnType<typeof investigateDiscoveryUpstream> | undefined;
+    await t.test(numericLinks ? "numeric repository aliases" : "named repository links", async () => {
+      const h = await primaryFixture(numericLinks);
+      let result: Awaited<ReturnType<typeof investigateDiscoveryUpstream>> | undefined;
       let batches = 0;
       while (!result && batches < 30) {
         h.setAllowance(7);
         h.tick();
         batches += 1;
         try {
-          result = investigateDiscoveryUpstream(h.context, "owner/game");
+          result = (await investigateDiscoveryUpstream(h.context, "owner/game"));
         } catch (error) {
-          assert.ok(error instanceof GitHubApiError && error.code === "budget_exhausted");
+          assert.ok(error instanceof GitHubApiError && error.code === "budget_exhausted", String(error));
         }
       }
       assert.ok(result);
@@ -141,46 +142,46 @@ void test("primary investigations and complete validation advance through bounde
     });
 });
 
-void test("changed or corrupt primary facts, repository identities and duplicate pages cannot complete resumed research", () => {
-  const changed = primaryFixture();
-  assert.throws(
-    () => investigateDiscoveryUpstream(changed.context, "owner/game"),
+void test("changed or corrupt primary facts, repository identities and duplicate pages cannot complete resumed research", async () => {
+  const changed = await primaryFixture();
+  (await assert.rejects(
+    async () => (await investigateDiscoveryUpstream(changed.context, "owner/game")),
     /fixture batch exhausted/,
-  );
+  ));
   changed.change();
   changed.setAllowance(100);
-  assert.throws(() => investigateDiscoveryUpstream(changed.context, "owner/game"), /facts changed/);
+  (await assert.rejects(async () => (await investigateDiscoveryUpstream(changed.context, "owner/game")), /facts changed/));
   assert.deepEqual(changed.entries, {});
-  const identity = primaryFixture();
-  assert.throws(
-    () => investigateDiscoveryUpstream(identity.context, "owner/game"),
+  const identity = await primaryFixture();
+  (await assert.rejects(
+    async () => (await investigateDiscoveryUpstream(identity.context, "owner/game")),
     /fixture batch exhausted/,
-  );
+  ));
   identity.changeIdentity();
   identity.setAllowance(100);
-  assert.throws(
-    () => investigateDiscoveryUpstream(identity.context, "owner/game"),
+  (await assert.rejects(
+    async () => (await investigateDiscoveryUpstream(identity.context, "owner/game")),
     /identity or shape changed/,
-  );
-  const corrupt = primaryFixture();
-  assert.throws(
-    () => investigateDiscoveryUpstream(corrupt.context, "owner/game"),
+  ));
+  const corrupt = await primaryFixture();
+  (await assert.rejects(
+    async () => (await investigateDiscoveryUpstream(corrupt.context, "owner/game")),
     /fixture batch exhausted/,
-  );
+  ));
   const state = corrupt.entries["owner/game"] as { reads: { body: unknown }[] };
   state.reads[0]!.body = [];
   corrupt.setAllowance(100);
-  assert.throws(
-    () => investigateDiscoveryUpstream(corrupt.context, "owner/game"),
+  (await assert.rejects(
+    async () => (await investigateDiscoveryUpstream(corrupt.context, "owner/game")),
     /corrupt or foreign/,
-  );
-  const duplicate = primaryFixture();
+  ));
+  const duplicate = await primaryFixture();
   duplicate.setAllowance(100);
   duplicate.corrupt();
-  assert.throws(
-    () => investigateDiscoveryUpstream(duplicate.context, "owner/game"),
+  (await assert.rejects(
+    async () => (await investigateDiscoveryUpstream(duplicate.context, "owner/game")),
     /duplicate identities/,
-  );
+  ));
   assert.deepEqual(duplicate.entries, {});
 });
 
@@ -194,7 +195,7 @@ void test("pagination refuses foreign scopes, skipped pages and ambiguous comple
     '<x>; rel="next", <y>; rel="next"',
   ])
     assert.throws(
-      () => discoveryNextPage({ headers: new Map([["link", value]]), body: [] }, first, first),
+      () => discoveryNextPage({ headers: { link: value } }, first, first),
       /pagination/,
     );
 });
@@ -203,8 +204,7 @@ void test("numeric pagination aliases require the exact metadata ID and release 
   const release = "repos/YeOldPress/alttp-dx/releases?per_page=10";
   const assets = "repos/YeOldPress/alttp-dx/releases/24/assets?per_page=100";
   const response = (url: string) => ({
-    headers: new Map([["link", `<${url}>; rel="next"`]]),
-    body: [],
+    headers: { link: `<${url}>; rel="next"` },
   });
   const valid = "https://api.github.com/repositories/1377070929/releases?per_page=10&page=2";
   assert.equal(
@@ -254,7 +254,7 @@ void test("numeric pagination aliases require the exact metadata ID and release 
   );
 });
 
-void test("manifest work drains fairly past eight files, persists each exact blob, and resumes after interruption and provider failure", () => {
+void test("manifest work drains fairly past eight files, persists each exact blob, and resumes after interruption and provider failure", async () => {
   let checkpoint = emptyCheckpoint();
   let allowance = 5;
   let providerFailure = false;
@@ -265,8 +265,7 @@ void test("manifest work drains fairly past eight files, persists each exact blo
     { length: 17 },
     (_, i) => `game-${String(i).padStart(2, "0")}.forge.json`,
   );
-  const api = new GitHubApiClient((args) => {
-    const endpoint = args[2]!;
+  const sdk = await fixtureGitHub(({ endpoint }) => {
     let body: unknown;
     const repo = endpoint.startsWith("repos/RetroPortingToolKit/")
       ? "RetroPortingToolKit/Retro-Catalog"
@@ -286,12 +285,8 @@ void test("manifest work drains fairly past eight files, persists each exact blo
       const file = decodeURIComponent(endpoint.split("/contents/")[1]!.split("?")[0]!);
       const isIndex = file === "index.json";
       if (!isIndex) {
-        if (allowance-- <= 0)
-          throw new GitHubApiError("budget_exhausted", "fixture manifest batch exhausted");
         if (providerFailure && file === forge[5])
-          throw new GitHubApiError("http_error", "fixture isolated provider failure", {
-            status: 503,
-          });
+          return Response.json({ message: "fixture isolated provider failure" }, { status: 503 });
         loaded.push(`${repo}/${file}`);
       }
       const data = isIndex
@@ -306,10 +301,14 @@ void test("manifest work drains fairly past eight files, persists each exact blo
         content: Buffer.from(JSON.stringify(data)).toString("base64"),
       };
     } else throw new Error(`Unexpected registry fixture ${endpoint}`);
-    return `HTTP/2 200\n\n${JSON.stringify(body)}`;
-  });
+    return body;
+  }, { reserve: ({ url }) => {
+    if (url.pathname.includes("/contents/") && !url.pathname.endsWith("/index.json") && allowance-- <= 0)
+      throw new GitHubApiError("budget_exhausted", "fixture manifest batch exhausted");
+    return { consumeBytes() {}, settle() {} };
+  } });
   const context: SourceContext = {
-    api,
+    sdk,
     budget: new DiscoveryBudget(
       "ordinary",
       () => {},
@@ -317,8 +316,8 @@ void test("manifest work drains fairly past eight files, persists each exact blo
     ),
     save: () => {},
     http: {
-      request: () => ({ status: 503, text: "", headers: {} }),
-    } as unknown as SourceContext["http"],
+      request: async () => ({ status: 503, text: "", headers: {}, requests: 1, bytes: 0 }),
+    },
     acceptSource: (source) => {
       accepted.push(source);
       checkpoint = advanceDiscovery(checkpoint, {
@@ -327,7 +326,7 @@ void test("manifest work drains fairly past eight files, persists each exact blo
       });
     },
   };
-  const first = collectDiscoverySources(context, checkpoint);
+  const first = (await collectDiscoverySources(context, checkpoint));
   assert.equal(loaded.length, 5);
   assert.ok(loaded[0]!.startsWith("RetroPortingToolKit/"));
   assert.ok(loaded[1]!.startsWith("zamiba/"));
@@ -339,12 +338,12 @@ void test("manifest work drains fairly past eight files, persists each exact blo
   const prefix = [...loaded];
   allowance = 100;
   providerFailure = true;
-  collectDiscoverySources(context, checkpoint);
+  (await collectDiscoverySources(context, checkpoint));
   assert.equal(loaded.length, 34);
   assert.equal(accepted.at(-1)!.status, "partial");
   providerFailure = false;
   allowance = 100;
-  collectDiscoverySources(context, checkpoint);
+  (await collectDiscoverySources(context, checkpoint));
   assert.equal(loaded.length, 35);
   assert.equal(new Set(loaded).size, 35);
   assert.ok(prefix.every((file) => loaded.filter((value) => value === file).length === 1));
@@ -360,8 +359,8 @@ void test("manifest work drains fairly past eight files, persists each exact blo
   );
 });
 
-void test("durably accepted research reads survive checkpoint interruption and stale prefixes require current validation", () => {
-  const h = primaryFixture();
+void test("durably accepted research reads survive checkpoint interruption and stale prefixes require current validation", async () => {
+  const h = await primaryFixture();
   h.setAllowance(100);
   const original = h.context.primaryProgress.persist;
   let writes = 0;
@@ -369,29 +368,29 @@ void test("durably accepted research reads survive checkpoint interruption and s
     original();
     if (++writes === 5) throw new Error("fixture interruption");
   };
-  assert.throws(
-    () => investigateDiscoveryUpstream(h.context, "owner/game"),
+  (await assert.rejects(
+    async () => (await investigateDiscoveryUpstream(h.context, "owner/game")),
     /checkpoint interrupted/,
-  );
+  ));
   assert.ok(h.entries["owner/game"]);
   h.context.primaryProgress.persist = original;
   h.context.primaryProgress.now = () => epoch + 13 * 3600000;
   h.setAllowance(100);
-  assert.equal(investigateDiscoveryUpstream(h.context, "owner/game").releases.length, 24);
+  assert.equal((await investigateDiscoveryUpstream(h.context, "owner/game")).releases.length, 24);
   const reads = new DiscoveryPrimaryReads(
-    h.context.api,
+    h.context.sdk,
     "owner/game",
     41,
     h.context.primaryProgress,
   );
-  assert.throws(() => reads.request("repos/foreign/game/releases?per_page=10"), /escaped/);
+  (await assert.rejects(async () => (await reads.request("repos/foreign/game/releases?per_page=10")), /escaped/));
   const tooLarge = {
     entries: { foreign: "x".repeat(32 * 1024 * 1024) },
     persist: () => {},
     now: () => epoch,
   };
   assert.throws(
-    () => new DiscoveryPrimaryReads(h.context.api, "owner/other", 3, tooLarge),
+    () => new DiscoveryPrimaryReads(h.context.sdk, "owner/other", 3, tooLarge),
     /byte envelope/,
   );
 });
@@ -460,8 +459,8 @@ void test("a source burst exceeds former record and pending counts within a boun
   assert.equal(Object.keys(next.pending).length, 12001);
 });
 
-void test("optional-manifest checkpoint interruption cannot discard completed primary research", () => {
-  const h = primaryFixture();
+void test("optional-manifest checkpoint interruption cannot discard completed primary research", async () => {
+  const h = await primaryFixture();
   h.setAllowance(100);
   const persist = h.context.primaryProgress.persist;
   let interrupted = false;
@@ -473,10 +472,10 @@ void test("optional-manifest checkpoint interruption cannot discard completed pr
       throw new Error("fixture interruption at optional manifest");
     }
   };
-  assert.throws(
-    () => investigateDiscoveryUpstream(h.context, "owner/game"),
+  (await assert.rejects(
+    async () => (await investigateDiscoveryUpstream(h.context, "owner/game")),
     /checkpoint interrupted/,
-  );
+  ));
   const saved = h.entries["owner/game"] as { reads: { endpoint: string }[] };
   assert.ok(saved.reads.at(-1)!.endpoint.includes("/contents/.recomp.json?"));
   const accepted = saved.reads
@@ -484,7 +483,7 @@ void test("optional-manifest checkpoint interruption cannot discard completed pr
     .filter((endpoint) => !endpoint.includes(".recomp.json"));
   h.context.primaryProgress.persist = persist;
   h.setAllowance(100);
-  const result = investigateDiscoveryUpstream(h.context, "owner/game");
+  const result = (await investigateDiscoveryUpstream(h.context, "owner/game"));
   assert.equal(result.releases.length, 24);
   for (const endpoint of accepted)
     assert.equal(

@@ -8,6 +8,20 @@ export interface GitHubRateLimit {
   resetAt: string | null;
   cost?: number | null;
 }
+export interface GitHubApiObservation {
+  operation: string;
+  query_sha256?: string;
+  status: number | null;
+  request_id: string | null;
+  date: string | null;
+  bytes: number;
+  bytes_known: boolean;
+  elapsed_ms: number;
+  rate: GitHubRateLimit | null;
+  failure?: string;
+  attempt: number;
+  dispatched: boolean;
+}
 export interface GitHubMetadataResponse {
   status?: number;
   headers: ReadonlyMap<string, string>;
@@ -165,12 +179,14 @@ function numericHeader(headers: ReadonlyMap<string, string>, name: string) {
 export function rateLimitFromResponse(response: GitHubMetadataResponse): GitHubRateLimit {
   const resource = response.headers.get("x-ratelimit-resource") ?? null;
   const resetSeconds = numericHeader(response.headers, "x-ratelimit-reset");
+  const resetMilliseconds = resetSeconds === null ? NaN : resetSeconds * 1000;
   const headerRate = {
     resource,
     limit: numericHeader(response.headers, "x-ratelimit-limit"),
     remaining: numericHeader(response.headers, "x-ratelimit-remaining"),
     used: numericHeader(response.headers, "x-ratelimit-used"),
-    resetAt: resetSeconds === null ? null : new Date(resetSeconds * 1000).toISOString(),
+    resetAt: Number.isFinite(resetMilliseconds) && resetMilliseconds <= 8_640_000_000_000_000
+      ? new Date(resetMilliseconds).toISOString() : null,
   };
   const body = response.body;
   const bodyRate = isRecord(body) && isRecord(body.data) ? body.data.rateLimit : undefined;
@@ -178,20 +194,20 @@ export function rateLimitFromResponse(response: GitHubMetadataResponse): GitHubR
   return {
     resource: resource ?? "graphql",
     limit:
-      typeof bodyRate.limit === "number" && Number.isSafeInteger(bodyRate.limit)
+      typeof bodyRate.limit === "number" && Number.isSafeInteger(bodyRate.limit) && bodyRate.limit >= 0
         ? bodyRate.limit
         : headerRate.limit,
     remaining:
-      typeof bodyRate.remaining === "number" && Number.isSafeInteger(bodyRate.remaining)
+      typeof bodyRate.remaining === "number" && Number.isSafeInteger(bodyRate.remaining) && bodyRate.remaining >= 0
         ? bodyRate.remaining
         : headerRate.remaining,
     used:
-      typeof bodyRate.used === "number" && Number.isSafeInteger(bodyRate.used)
+      typeof bodyRate.used === "number" && Number.isSafeInteger(bodyRate.used) && bodyRate.used >= 0
         ? bodyRate.used
         : headerRate.used,
-    resetAt: typeof bodyRate.resetAt === "string" ? bodyRate.resetAt : headerRate.resetAt,
+    resetAt: typeof bodyRate.resetAt === "string" && Number.isFinite(Date.parse(bodyRate.resetAt)) ? bodyRate.resetAt : headerRate.resetAt,
     cost:
-      typeof bodyRate.cost === "number" && Number.isSafeInteger(bodyRate.cost)
+      typeof bodyRate.cost === "number" && Number.isSafeInteger(bodyRate.cost) && bodyRate.cost >= 0
         ? bodyRate.cost
         : null,
   };
@@ -205,4 +221,13 @@ export function nextLink(headers: ReadonlyMap<string, string>) {
   const matches = [...value.matchAll(/<([^>]+)>;\s*rel="([^"]+)"/gu)];
   const next = matches.find((match) => (match[2] ?? "").split(/\s+/u).includes("next"));
   return next?.[1] ?? null;
+}
+
+export function githubRateLimitMessage(
+  rate: Pick<GitHubRateLimit, "remaining" | "resetAt"> | null | undefined,
+  prefix = "GitHub API rate limit",
+) {
+  const remaining = rate?.remaining ?? "unknown";
+  const reset = rate?.resetAt ?? "unknown";
+  return `${prefix}: ${remaining} points remain; reset at ${reset}`;
 }

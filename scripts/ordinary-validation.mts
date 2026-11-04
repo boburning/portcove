@@ -177,6 +177,7 @@ const roadmapFeatureTests = [
   "scripts/roadmap-mutations.test.mts",
   "scripts/roadmap-qualification.test.mts",
   "scripts/roadmap-provider-inventory.test.mts",
+  "scripts/roadmap-sdk.test.mts",
 ];
 const roadmapContractTests = ["scripts/roadmap.test.mts", ...roadmapFeatureTests];
 
@@ -2161,6 +2162,10 @@ for (const file of [
   "package.json",
   "pnpm-lock.yaml",
   "scripts/github-client.mts",
+  "scripts/discovery-github.mts",
+  "scripts/discovery-budget.mts",
+  "scripts/discovery-primary-progress.mts",
+  "scripts/daily-discovery-sources.mts",
   "scripts/github-client.test.mts",
   "scripts/github-operation.mts",
   "scripts/github-cli.mts",
@@ -2176,6 +2181,10 @@ for (const file of [
     ...(explicitNodeTests.get(file) ?? []),
     "scripts/github-client.test.mts",
     "scripts/roadmap-rest-intake.test.mts",
+    "scripts/roadmap-sdk.test.mts",
+    "scripts/discovery-github.test.mts",
+    "scripts/discovery-primary-progress.test.mts",
+    "scripts/roadmap-provider-inventory.test.mts",
   ]);
 
 explicitNodeTests.set("scripts/aqua-integrity.mts", [

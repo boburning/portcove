@@ -1,12 +1,10 @@
 import { fixtureIssueInventory } from "./repository-issue-inventory.fixture.mts";
 import type { RoadmapIssueItem } from "./roadmap-issue.mts";
-import type { GitHubRunner } from "./github-api.mts";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
-  RoadmapClient,
   featureIntakeFields,
   portFieldInitialization,
   uxAuditOriginIds,
@@ -28,12 +26,15 @@ import {
   fixtureValue,
   fixtureElement,
   fixtureObject,
-  fixtureJsonObject,
-  fixtureGraphql,
   config,
-  fixtureProjectDetails,
+  sdkRoadmap,
+  projectData,
 } from "./fixtures/roadmap-fixtures.mts";
-import type { RunnerCall } from "./fixtures/roadmap-fixtures.mts";
+type IntakeCall = { method: string; endpoint: string; query?: string; variables?: Readonly<Record<string, unknown>>; body?: unknown };
+const connection = (nodes: unknown[]) => ({ totalCount: nodes.length, nodes, pageInfo: { hasNextPage: false, endCursor: null } });
+const selectField = (id: string, name: string, options: { id: string; name: string }[]) => ({
+  __typename: "ProjectV2SingleSelectField", dataType: "SINGLE_SELECT", id, name, options,
+});
 
 function fixtureSelectInput(value: unknown) {
   const input = fixtureObject(value);
@@ -368,8 +369,7 @@ void test("primary repository/game identity refines title hints without bypassin
     1,
   );
 });
-void test("capture consumes the primary identity through its real duplicate guard before POST", () => {
-  const client = new RoadmapClient(config);
+void test("capture consumes the primary identity through its real duplicate guard before POST", async () => {
   const old = {
     id: "I1",
     node_id: "I1",
@@ -386,27 +386,15 @@ void test("capture consumes the primary identity through its real duplicate guar
       currentEvidence: "GitHub repository ID: 123\nUnderlying game: **Game one**",
     }),
   };
-  client.repositoryIssues = () => fixtureIssueInventory(client, [old]);
-  client.ensureIssueItem = () => ({ id: "PVTI_new" });
-  client.setItemFields = () => {};
   let posts = 0;
-  client.api.request = (method, endpoint, value) => {
-    assert.equal(method, "POST");
-    assert.equal(endpoint, "repos/boburning/portcove/issues");
-    posts++;
-    return {
-      body: {
-        ...(value as { title: string; body: string }),
-        id: 2,
-        node_id: "I2",
-        number: 2,
-        html_url: "https://github.com/boburning/portcove/issues/2",
-      },
-      headers: new Map(),
-      rateLimit: { resource: null, limit: null, remaining: null, used: null, resetAt: null },
-    };
-  };
-  client.createPortIssue({
+  const client = await sdkRoadmap(config, { allowMutations: true, rest: ({ method, endpoint, body }) => {
+    assert.equal(method, "POST"); assert.equal(endpoint, "repos/boburning/portcove/issues"); posts++;
+    return { ...fixtureObject(body), id: 2, node_id: "I2", number: 2, html_url: "https://github.com/boburning/portcove/issues/2" };
+  } });
+  client.repositoryIssues = async () => await fixtureIssueInventory(client, [old]);
+  client.ensureIssueItem = async () => ({ id: "PVTI_new" });
+  client.setItemFields = async () => {};
+  await client.createPortIssue({
     title: "Shared title",
     upstream: "https://github.com/owner/second",
     portKey: "second",
@@ -427,8 +415,8 @@ void test("capture consumes the primary identity through its real duplicate guar
       currentEvidence: "Underlying game: **Paper Mario**",
     }),
   };
-  client.repositoryIssues = () => fixtureIssueInventory(client, [catalogOwner]);
-  client.createPortIssue({
+  client.repositoryIssues = async () => await fixtureIssueInventory(client, [catalogOwner]);
+  await client.createPortIssue({
     title: "Shared title",
     upstream: "https://github.com/owner/second",
     portKey: "second",
@@ -660,43 +648,35 @@ void test("supported-source plan origin has exactly one canonical owner", () => 
   );
 });
 
-void test("RoadmapClient capture uses mocked gh output and stores planning fields only in Project calls", () => {
-  const calls: RunnerCall[] = [];
+void test("SDK draft capture stores planning fields only in Project mutations", async () => {
+  const calls: IntakeCall[] = [];
   const mockedConfig = structuredClone(config);
   mockedConfig.project.number = 7;
-  const runner: GitHubRunner = (args, input) => {
-    calls.push({ args, input });
-    if (args[1] === "item-create") return JSON.stringify({ id: "PVTI_draft", title: "Candidate" });
-    const project = fixtureProjectDetails(args, input, "PVT_project", 7);
-    if (project !== undefined) return project;
-    if (args[1] === "field-list")
-      return JSON.stringify({
-        fields: [
-          {
-            id: "PVTSSF_status",
-            name: "Status",
-            options: [{ id: "OPT_inbox", name: "Inbox" }],
-          },
-          {
-            id: "PVTSSF_priority",
-            name: "Priority",
-            options: [{ id: "OPT_none", name: "None" }],
-          },
-        ],
-      });
-    if (args[1] === "graphql") return JSON.stringify({ data: {} });
-    return "";
-  };
-  const client = new RoadmapClient(mockedConfig, runner);
-  const result = client.capture({
+  const body = "Upstream: https://example.test/port";
+  const client = await sdkRoadmap(mockedConfig, { allowMutations: true, graphql: (query, variables) => {
+    calls.push({ method: "POST", endpoint: "graphql", query, variables });
+    if (query.includes("projectV2(number:")) return projectData("PVT_project", 7, [
+      selectField("PVTSSF_status", "Status", [{ id: "OPT_inbox", name: "Inbox" }]),
+      selectField("PVTSSF_priority", "Priority", [{ id: "OPT_none", name: "None" }]),
+    ]);
+    if (query.includes("addProjectV2DraftIssue")) return { addProjectV2DraftIssue: { projectItem: { id: "PVTI_draft" } } };
+    if (query.includes("ScopedProjectItem")) return { node: {
+      id: "PVTI_draft", isArchived: false, project: { id: "PVT_project" },
+      content: { __typename: "DraftIssue", id: "DI_draft", title: "Candidate", body, updatedAt: "2026-10-17T00:00:00Z" },
+      fieldValues: connection([]),
+    } };
+    if (query.includes("updateProjectV2ItemFieldValue")) return { f0: { projectV2Item: { id: "PVTI_draft" } }, f1: { projectV2Item: { id: "PVTI_draft" } } };
+    throw new Error(`Unexpected draft operation ${query}`);
+  } });
+  const result = await client.capture({
     title: "Candidate",
     body: "Upstream: https://example.test/port",
     fields: { Status: "Inbox", Priority: "None" },
   });
   assert.equal(result.id, "PVTI_draft");
-  assert.equal(calls.filter((call) => call.args[1] === "item-create").length, 1);
-  const edit = calls.find((call) => call.input?.includes("updateProjectV2ItemFieldValue"));
-  const variables = fixtureGraphql(edit?.input).variables;
+  assert.equal(calls.filter(call => call.query?.includes("addProjectV2DraftIssue")).length, 1);
+  const edit = calls.find((call) => call.query?.includes("updateProjectV2ItemFieldValue"));
+  const variables = fixtureObject(edit?.variables);
   assert.deepEqual(
     Object.values(variables).map((value) => {
       const input = fixtureSelectInput(value);
@@ -709,8 +689,8 @@ void test("RoadmapClient capture uses mocked gh output and stores planning field
   );
 });
 
-void test("capture-port creates one Project-backed issue without depending on parent capacity", () => {
-  const calls: RunnerCall[] = [];
+void test("capture-port creates one Project-backed issue without depending on parent capacity", async () => {
+  const calls: IntakeCall[] = [];
   const mockedConfig = structuredClone(config);
   mockedConfig.project.number = 7;
   const expectedFields = {
@@ -724,81 +704,49 @@ void test("capture-port creates one Project-backed issue without depending on pa
     "Port stage": "Watchlist",
     Effort: "Unknown",
   };
-  const runner: GitHubRunner = (args, input) => {
-    calls.push({ args, input });
-    if (args[0] === "api" && args[2] === "repos/boburning/portcove/issues")
-      return JSON.stringify({
-        node_id: "I_new",
-        html_url: "https://github.com/boburning/portcove/issues/88",
-        number: 88,
-      });
-    const project = fixtureProjectDetails(args, input, "PVT_project", 7);
-    if (project !== undefined) return project;
-    if (args[0] === "project" && args[1] === "field-list")
-      return JSON.stringify({
-        fields: Object.entries(expectedFields).map(([name, value], index) => ({
-          id: `F${index}`,
-          name,
-          options: [{ id: `O${index}`, name: value }],
-        })),
-      });
-    if (args[0] === "api" && args[1] === "graphql") {
-      assert.doesNotMatch(
-        fixtureValue(input),
-        /issue\(number: 16\)|\bparent\s*\{|addSubIssue|removeSubIssue/,
-      );
-      if (fixtureValue(input).includes("issues(first: 100"))
-        return JSON.stringify({
-          data: {
-            repository: {
-              issues: {
-                totalCount: 0,
-                nodes: [],
-                pageInfo: { hasNextPage: false, endCursor: null },
-              },
-            },
-          },
-        });
-      if (fixtureValue(input).includes("addProjectV2ItemById"))
-        return JSON.stringify({
-          data: { addProjectV2ItemById: { item: { id: "PVTI_new" } } },
-        });
-      return JSON.stringify({
-        data: {
-          node: {
-            projectItems: {
-              totalCount: 0,
-              nodes: [],
-              pageInfo: { hasNextPage: false, endCursor: null },
-            },
-          },
-        },
-      });
-    }
-    return "";
-  };
-  const client = new RoadmapClient(mockedConfig, runner);
-  client.repositoryIssues = () => fixtureIssueInventory(client, []);
-  const result = client.createPortIssue({
+  let linked = false;
+  const client = await sdkRoadmap(mockedConfig, { allowMutations: true,
+    rest: ({ method, endpoint, body }) => {
+      calls.push({ method, endpoint, body });
+      if (method === "GET" && endpoint === "users/boburning") return { type: "User", node_id: "OWNER" };
+      assert.equal(method, "POST"); assert.equal(endpoint, "repos/boburning/portcove/issues");
+      return { ...fixtureObject(body), node_id: "I_new", html_url: "https://github.com/boburning/portcove/issues/88", number: 88 };
+    },
+    graphql: (query, variables) => {
+      calls.push({ method: "POST", endpoint: "graphql", query, variables });
+      assert.doesNotMatch(query, /issue\(number: 16\)|\bparent\s*\{|addSubIssue|removeSubIssue/u);
+      if (query.includes("projectV2(number:")) return projectData("PVT_project", 7,
+        Object.entries(expectedFields).map(([name, value], index) => selectField(`F${index}`, name, [{ id: `O${index}`, name: value }])));
+      if (query.includes("addProjectV2ItemById")) { linked = true; return { addProjectV2ItemById: { item: { id: "PVTI_new" } } }; }
+      if (query.includes("projectItems(")) return { node: { projectItems: connection(linked ? [{ id: "PVTI_new", project: { id: "PVT_project" } }] : []) } };
+      if (query.includes("updateProjectV2ItemFieldValue")) return {};
+      throw new Error(`Unexpected issue intake operation ${query}`);
+    },
+  });
+  client.repositoryIssues = async () => await fixtureIssueInventory(client, []);
+  const result = await client.createPortIssue({
     title: "New Port",
     upstream: "https://example.test/upstream",
     portKey: "new-port",
   });
   assert.equal(result.itemId, "PVTI_new");
   assert.equal(
-    calls.filter((call) => call.args[2] === "repos/boburning/portcove/issues").length,
+    calls.filter((call) => call.endpoint === "repos/boburning/portcove/issues").length,
     1,
   );
-  assert.ok(calls.some((call) => call.input?.includes("<!-- portcove-port -->")));
-  assert.ok(calls.some((call) => call.input?.includes("<!-- portcove-port-key: new-port -->")));
-  const fieldEdit = calls.find((call) => call.input?.includes("updateProjectV2ItemFieldValue"));
+  const created = calls.find(call => call.endpoint === "repos/boburning/portcove/issues");
+  const createdBody = fixtureObject(created?.body).body;
+  assert.ok(typeof createdBody === "string");
+  assert.match(createdBody, /<!-- portcove-port -->/u);
+  assert.match(createdBody, /<!-- portcove-port-key: new-port -->/u);
+  const fieldEdit = calls.find((call) => call.query?.includes("updateProjectV2ItemFieldValue"));
   assert.ok(
-    Object.values(fixtureGraphql(fieldEdit?.input).variables).some((value) => {
+    Object.values(fixtureObject(fieldEdit?.variables)).some((value) => {
       const input = fixtureSelectInput(value);
       return input.fieldId === "F6" && input.value.singleSelectOptionId === "O6";
     }),
   );
-  assert.equal(calls.filter((call) => call.input?.includes("addProjectV2ItemById")).length, 1);
+  assert.equal(calls.filter((call) => call.query?.includes("addProjectV2ItemById")).length, 1);
 });
 const normalizationCases = [null, 16, 777].flatMap((parentNumber) =>
   ["unlisted", "exact", "captured", "other-key", "other-upstream", "missing-upstream"].map(
@@ -809,8 +757,8 @@ const normalizationCases = [null, 16, 777].flatMap((parentNumber) =>
   ),
 );
 for (const { parentNumber, adoption } of normalizationCases) {
-  void test(`normalize-port preserves planning and parent ${parentNumber ?? "absence"} with ${adoption} catalog adoption idempotently`, () => {
-    const calls: RunnerCall[] = [];
+  void test(`normalize-port preserves planning and parent ${parentNumber ?? "absence"} with ${adoption} catalog adoption idempotently`, async () => {
+    const calls: IntakeCall[] = [];
     const mockedConfig = structuredClone(config);
     mockedConfig.project.number = 7;
     let body = `### Direct upstream URL
@@ -855,98 +803,26 @@ Preserve this contributor text.`;
         ["Port stage", "Researching"],
         ["Effort", "M"],
       ].map(([name, value]) => ({ name: value, field: { name } }));
-    const runner: GitHubRunner = (args, input) => {
-      calls.push({ args, input });
-      if (
-        args[0] === "api" &&
-        args[2] === "repos/boburning/portcove/issues/42" &&
-        args.includes("PATCH")
-      ) {
-        const payload = fixtureJsonObject(input);
-        assert.ok(typeof payload.body === "string");
-        body = payload.body;
-        return JSON.stringify(issue());
-      }
-      if (args[0] === "api" && args[2] === "repos/boburning/portcove/issues/42")
-        return JSON.stringify(issue());
-      const project = fixtureProjectDetails(args, input, "PVT_project", 7);
-      if (project !== undefined) return project;
-      if (args[0] === "project" && args[1] === "field-list")
-        return JSON.stringify({
-          fields: [
-            {
-              id: "F_work_type",
-              name: "Work type",
-              options: [{ id: "O_port", name: "Port" }],
-            },
-          ],
-        });
-      if (args[0] === "api" && args[1] === "graphql") {
-        assert.doesNotMatch(
-          fixtureValue(input),
-          /issue\(number: 16\)|\bparent\s*\{|addSubIssue|removeSubIssue/,
-        );
-        if (fixtureValue(input).includes("issues(first: 100"))
-          return JSON.stringify({
-            data: {
-              repository: {
-                issues: {
-                  totalCount: 1,
-                  nodes: [{ ...issue(), __typename: "Issue", url: issue().html_url }],
-                  pageInfo: { hasNextPage: false, endCursor: null },
-                },
-              },
-            },
-          });
-        if (fixtureValue(input).includes("items(first: 50"))
-          return JSON.stringify({
-            data: {
-              node: {
-                items: {
-                  totalCount: 1,
-                  nodes: [
-                    {
-                      id: "PVTI_form",
-                      content: {
-                        __typename: "Issue",
-                        id: "I_42",
-                        updatedAt: "2026-10-17T00:00:00Z",
-                        number: 42,
-                        title: issue().title,
-                        body,
-                        url: issue().html_url,
-                        state: "OPEN",
-                      },
-                      fieldValues: {
-                        totalCount: fieldValues().length,
-                        nodes: fieldValues().map((value) => ({
-                          ...value,
-                          field: {
-                            __typename: "ProjectV2SingleSelectField",
-                            ...value.field,
-                          },
-                        })),
-                        pageInfo: { hasNextPage: false, endCursor: null },
-                      },
-                    },
-                  ],
-                  pageInfo: { hasNextPage: false, endCursor: null },
-                },
-              },
-            },
-          });
-        if (fixtureValue(input).includes("updateProjectV2ItemFieldValue")) {
-          workType = "Port";
-          return JSON.stringify({
-            data: { f0: { projectV2Item: { id: "PVTI_form" } } },
-          });
-        }
-      }
-      return "";
-    };
-    const client = new RoadmapClient(mockedConfig, runner);
-    client.repositoryIssues = () =>
-      fixtureIssueInventory(client, [{ ...issue(), type: "Issue", url: issue().html_url }]);
+    const client = await sdkRoadmap(mockedConfig, { allowMutations: true,
+      rest: ({ method, endpoint, body: payload }) => {
+        calls.push({ method, endpoint, body: payload });
+        if (method === "GET" && endpoint === "users/boburning") return { type: "User", node_id: "OWNER" };
+        assert.equal(endpoint, "repos/boburning/portcove/issues/42");
+        if (method === "PATCH") {
+          const value = fixtureObject(payload); assert.ok(typeof value.body === "string"); body = value.body;
+        } else assert.equal(method, "GET");
+        return issue();
+      },
+      graphql: (query, variables) => {
+        calls.push({ method: "POST", endpoint: "graphql", query, variables });
+        assert.doesNotMatch(query, /issue\(number: 16\)|\bparent\s*\{|addSubIssue|removeSubIssue/u);
+        if (query.includes("projectV2(number:")) return projectData("PVT_project", 7, [selectField("F_work_type", "Work type", [{ id: "O_port", name: "Port" }])]);
+        if (query.includes("updateProjectV2ItemFieldValue")) { workType = "Port"; return { f0: { projectV2Item: { id: "PVTI_form" } } }; }
+        throw new Error(`Unexpected normalization operation ${query}`);
+      },
+    });
+    client.repositoryIssues = async () =>
+      await fixtureIssueInventory(client, [{ ...issue(), type: "Issue", url: issue().html_url }]);
     const catalog = {
       ports:
         adoption === "unlisted"
@@ -966,16 +842,16 @@ Preserve this contributor text.`;
             ],
     };
     const readInventory = client.readInventory.bind(client);
-    client.readInventory = (query, variables, select, identity) =>
+    client.readInventory = async (query, variables, select, identity) =>
       query.includes("projectItems(")
         ? [{ id: "PVTI_form", isArchived: false, project: { id: "PVT_project" } }]
-        : readInventory(query, variables, select, identity);
-    client.directProjectItem = () => ({
+        : await readInventory(query, variables, select, identity);
+    client.directProjectItem = async () => ({
       id: "PVTI_form",
       content: { ...issue(), type: "Issue", url: issue().html_url },
       fieldValues: fieldValues(),
     });
-    const first = client.normalizePortIssue({ number: 42, catalog });
+    const first = await client.normalizePortIssue({ number: 42, catalog });
     assert.equal(first.bodyChanged, true);
     assert.equal(first.projectItemAdded, false);
     assert.deepEqual(first.fieldsChanged, ["Work type"]);
@@ -987,21 +863,21 @@ Preserve this contributor text.`;
       assert.match(body, /<!-- portcove-port-key: form-port -->/);
       assert.doesNotMatch(body, /<!-- portcove-catalog-id:/);
     }
-    const second = client.normalizePortIssue({ number: 42, catalog });
+    const second = await client.normalizePortIssue({ number: 42, catalog });
     assert.equal(second.bodyChanged, false);
     assert.deepEqual(second.fieldsChanged, []);
-    assert.equal(calls.filter((call) => call.input?.includes("addProjectV2ItemById")).length, 0);
-    assert.equal(calls.filter((call) => call.input?.includes("addSubIssue")).length, 0);
+    assert.equal(calls.filter((call) => call.query?.includes("addProjectV2ItemById")).length, 0);
+    assert.equal(calls.filter((call) => call.query?.includes("addSubIssue")).length, 0);
     body = initialBody;
     const readIssue = client.repositoryIssue.bind(client);
     let reads = 0;
-    client.repositoryIssue = (number) => {
+    client.repositoryIssue = async (number) => {
       if (++reads === 2) body += "\nConcurrent contributor change.";
-      return readIssue(number);
+      return await readIssue(number);
     };
     const before = calls.length;
-    assert.throws(
-      () => client.normalizePortIssue({ number: 42, catalog }),
+    await assert.rejects(
+      async () => await client.normalizePortIssue({ number: 42, catalog }),
       /changed during normalization/,
     );
     assert.match(body, /Concurrent contributor change/);
@@ -1010,7 +886,7 @@ Preserve this contributor text.`;
         .slice(before)
         .filter(
           (call) =>
-            call.args.includes("PATCH") || call.input?.includes("updateProjectV2ItemFieldValue"),
+            call.method === "PATCH" || call.query?.includes("updateProjectV2ItemFieldValue"),
         ).length,
       0,
     );

@@ -3,7 +3,7 @@ import type { InventoryReader } from "./repository-issue-inventory.mts";
 import type { RoadmapIssueItem } from "./roadmap-issue.mts";
 
 /** Fixtures pass through the real collector; no production proof-construction bypass. */
-export function fixtureIssueInventory(
+export async function fixtureIssueInventory(
   client: InventoryReader,
   records: readonly RoadmapIssueItem[],
 ) {
@@ -21,7 +21,7 @@ export function fixtureIssueInventory(
     state: String(row.state ?? "OPEN").toUpperCase(),
     updatedAt: row.updatedAt ?? "2026-10-17T00:00:00Z",
   }));
-  client.graphql = (query) => ({
+  client.graphql = async (query) => ({
     repository: {
       id: "R_fixture",
       nameWithOwner: client.config.repository,
@@ -33,7 +33,7 @@ export function fixtureIssueInventory(
     },
   });
   try {
-    return collectRepositoryIssueInventory(client);
+    return await collectRepositoryIssueInventory(client);
   } finally {
     client.graphql = graphql;
   }

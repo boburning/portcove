@@ -279,7 +279,7 @@ export async function runScopedDoctor(
     const selected = new Set(requested);
     const observations = new Map<number, ReturnType<RoadmapClient["executionIssue"]>>();
     for (const number of requested) {
-      const observed = client.executionIssue(number);
+      const observed = await client.executionIssue(number);
       retain(number, observed);
       observations.set(number, observed);
       for (const node of [observed.relationships.parent, ...observed.relationships.blocking])
@@ -287,14 +287,14 @@ export async function runScopedDoctor(
           selected.add(node.number);
     }
     for (const number of selected) {
-      const observed = observations.get(number) ?? client.executionIssue(number);
+      const observed = observations.get(number) ?? (await client.executionIssue(number));
       retain(number, observed);
       revisions.set(number, revisionOf(observed));
       items.push(scopedIssueWithBlockers(observed.item, observed.relationships.blockedBy));
     }
     // A consistent direct read is still an observation, never an atomic GitHub snapshot.
     for (const [number, revision] of revisions) {
-      const after = client.executionIssue(number);
+      const after = await client.executionIssue(number);
       if (revisionOf(after) !== revision)
         throw new InventoryError(
           "inventory_changed",

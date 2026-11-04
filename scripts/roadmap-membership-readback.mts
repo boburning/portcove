@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { RoadmapClient, validateConfig } from "./roadmap.mts";
 import type { RoadmapIssueItem } from "./roadmap-issue.mts";
 import { captureCheckoutContext } from "./checkout-context.mts";
-import { sanitizeOperationError } from "./github-api.mts";
+import { sanitizeOperationError } from "./github-operation.mts";
 import { isRecord } from "./runtime-values.mts";
 import {
   collectRepositoryIssueInventory,
@@ -31,18 +31,18 @@ export function parseInventoryItems(value: string): string[] {
 
 export class MembershipReadbackClient extends RoadmapClient {
   readonly connections: { query_sha256: string; pages: InventoryPageEvidence[] }[] = [];
-  override readInventory(
+  override async readInventory(
     query: string,
     variables: Readonly<Record<string, unknown>>,
     select: (data: unknown) => unknown,
     identity: (node: unknown) => unknown,
-  ): unknown[] {
+  ): Promise<unknown[]> {
     const pages: InventoryPageEvidence[] = [];
     this.connections.push({
       query_sha256: createHash("sha256").update(query).digest("hex"),
       pages,
     });
-    return readCompleteConnection(this, query, variables, select, identity, pages);
+    return await readCompleteConnection(this, query, variables, select, identity, pages);
   }
 }
 
@@ -126,21 +126,21 @@ function retainFailure(report: MembershipReport, error: unknown) {
 }
 
 /** One independent read pass. Complete mismatches are evidence; incomplete reads remain UNKNOWN. */
-export function readbackMemberships(
+export async function readbackMemberships(
   client: MembershipReadbackClient,
   requested: string,
   credentialAvailable = true,
-): MembershipReport {
+): Promise<MembershipReport> {
   const report = emptyReport();
   report.forward_connections = client.connections;
-  report.api_observations = client.api.observations;
+  report.api_observations = client.observations;
   try {
     report.requested_items = parseInventoryItems(requested);
     if (!credentialAvailable)
       throw new Error(
         "Dedicated PORTCOVE_ROADMAP_TOKEN is unavailable; no comparison was performed",
       );
-    const details = client.projectDetails(client.config.project.number);
+    const details = await client.projectDetails(client.config.project.number);
     if (!details.id)
       throw new InventoryError("inventory_identity", "Project identity is unavailable");
     report.project = {
@@ -148,9 +148,9 @@ export function readbackMemberships(
       number: client.config.project.number,
       repository: client.config.repository,
     };
-    report.before = client.projectAudit(details.id);
+    report.before = await client.projectAudit(details.id);
     const before = marker(report.before, details.id);
-    for (const item of client.itemList(client.config.project.number, {
+    for (const item of await client.itemList(client.config.project.number, {
       details,
       includeArchived: true,
       includeBodies: false,
@@ -158,7 +158,7 @@ export function readbackMemberships(
       pageSize: 100,
     }))
       report.forward.push(identity(item));
-    const inventory = collectRepositoryIssueInventory(client, {
+    const inventory = await collectRepositoryIssueInventory(client, {
       bodies: false,
       projectMemberships: true,
       evidence: report.reverse_evidence,
@@ -185,12 +185,12 @@ export function readbackMemberships(
       });
     }
     for (const itemId of report.requested_items) {
-      const item = client.directProjectItem(itemId);
+      const item = await client.directProjectItem(itemId);
       if (!isRecord(item.project) || item.project.id !== details.id)
         throw new InventoryError("inventory_identity", "Direct item Project binding changed");
       report.direct.push(identity(item));
     }
-    report.after = client.projectAudit(details.id);
+    report.after = await client.projectAudit(details.id);
     const after = marker(report.after, details.id);
     if (JSON.stringify(before) !== JSON.stringify(after))
       throw new InventoryError(
@@ -246,7 +246,7 @@ export function readbackMemberships(
   return report;
 }
 
-function main() {
+async function main() {
   if (process.argv.includes("--help")) {
     console.log(
       "Usage: node scripts/roadmap-membership-readback.mts PVTI_ID [PVTI_ID...]\nRead-only comparison of complete forward/reverse inventories and 1–10 direct issue items.\nHosted input: ROADMAP_INVENTORY_ITEMS. Requires the dedicated GH_TOKEN; writes diagnostic evidence only.",
@@ -265,8 +265,13 @@ function main() {
       { requireProjectNumber: true },
     );
     const requested = process.env.ROADMAP_INVENTORY_ITEMS ?? process.argv.slice(2).join(" ");
-    report = readbackMemberships(
-      new MembershipReadbackClient(config),
+    report = await readbackMemberships(
+      await MembershipReadbackClient.connect(config, {
+        credential: process.env.GH_TOKEN ? { kind: "explicit", token: process.env.GH_TOKEN } : { kind: "anonymous" },
+        deadline: performance.now() + 30 * 60_000,
+        failedReads: new Map(),
+        deferral: { primary: new Map(), secondary: 0 },
+      }),
       requested,
       Boolean(process.env.GH_TOKEN),
     );
@@ -291,4 +296,4 @@ function main() {
     report.verdict === "CONSISTENT" ? 0 : report.verdict === "INCONSISTENT" ? 1 : 2;
 }
 
-if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) main();
+if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) await main();

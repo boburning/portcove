@@ -100,13 +100,13 @@ void test("explicit reconsideration fields pass without incidental resume verbs;
     );
   }
 });
-void test("production writer rejects lost metadata and identity before PATCH", () => {
+void test("production writer rejects lost metadata and identity before PATCH", async () => {
   const { item, body } = issue();
   let writes = 0;
   const api = {
-    request: (method: string) => {
+    request: async ({ method }: Parameters<BodyApi["request"]>[0]) => {
       if (method !== "GET") writes++;
-      return { body: { id: 1, number: 1, title: "[Port] Wave Race", body } };
+      return { data: { id: 1, number: 1, title: "[Port] Wave Race", body } };
     },
     validateRoadmapReplacement: (_number: number, previous: string, replacement: string) =>
       validateRoadmapReplacement(config, { ports: [] }, item, previous, replacement),
@@ -115,17 +115,17 @@ void test("production writer rejects lost metadata and identity before PATCH", (
     .replace(renderPortResearchDeclaration(), "")
     .replace("Not assigned (researched candidate)", "Unassigned");
   assert.throws(() => validateDurableIssueBody(missing), /research\/watchlist/);
-  assert.throws(
-    () =>
-      writeGitHubBody(
+  (await assert.rejects(
+    async () =>
+      (await writeGitHubBody(
         { operation: "issue-edit", target: 1, previousBody: body, body: missing },
         api,
-      ),
+      )),
     /research\/watchlist/,
-  );
-  assert.throws(
-    () =>
-      writeGitHubBody(
+  ));
+  (await assert.rejects(
+    async () =>
+      (await writeGitHubBody(
         {
           operation: "issue-edit",
           target: 1,
@@ -133,9 +133,9 @@ void test("production writer rejects lost metadata and identity before PATCH", (
           body: body.replace("portcove-port-key: wave-race", "portcove-port-key: other-game"),
         },
         api,
-      ),
+      )),
     /canonical identity/,
-  );
+  ));
   assert.equal(writes, 0);
   assert.doesNotThrow(() =>
     validateRoadmapReplacement(
@@ -163,10 +163,10 @@ void test("invalid second batch proposal prevents every mutation and final audit
           : body,
       })),
       {
-        request: (method, endpoint) => {
+        request: async ({ method, url: endpoint }: Parameters<BodyApi["request"]>[0]) => {
           if (method !== "GET") writes++;
           const number = Number(endpoint.split("/").at(-1));
-          return { body: { id: number, number, title: "[Port] Wave Race", body: first.body } };
+          return { data: { id: number, number, title: "[Port] Wave Race", body: first.body } };
         },
         validateRoadmapReplacement: (number, previous, body) =>
           validateRoadmapReplacement(config, { ports: [] }, issue(number).item, previous, body),
@@ -195,7 +195,7 @@ void test("larger body batches retain scoped-check failures without a count-trig
         body: body + "\nAdditional evidence.",
       })),
       {
-        request: (method, endpoint, payload) => {
+        request: async ({ method, url: endpoint, data: payload }) => {
           const number = Number(endpoint.split("/").at(-1));
           if (method === "PATCH") {
             writes++;
@@ -208,7 +208,7 @@ void test("larger body batches retain scoped-check failures without a count-trig
             bodies.set(number, payload.body);
           }
           return {
-            body: { id: number, number, title: "[Port] Wave Race", body: bodies.get(number) },
+            data: { id: number, number, title: "[Port] Wave Race", body: bodies.get(number) },
           };
         },
         validateRoadmapReplacement: (number, previous, body) => {
@@ -240,7 +240,7 @@ function durableBodies(count: number) {
   const bodies = new Map(edits.map((edit) => [Number(edit.target), String(edit.previousBody)]));
   const writes = new Map<number, number>();
   const api: BodyApi = {
-    request: (method, endpoint, payload) => {
+    request: async ({ method, url: endpoint, data: payload }) => {
       const number = Number(endpoint.split("/").at(-1));
       if (method === "PATCH") {
         assert(payload && typeof payload === "object" && "body" in payload);
@@ -248,7 +248,7 @@ function durableBodies(count: number) {
         writes.set(number, (writes.get(number) ?? 0) + 1);
       }
       return {
-        body: { id: number + 1000, number, title: "Finite task", body: bodies.get(number) },
+        data: { id: number + 1000, number, title: "Finite task", body: bodies.get(number) },
       };
     },
     validateRoadmapReplacement: () => {},
@@ -339,13 +339,13 @@ void test("a completed body write with a lost response resumes readback without 
     let lost = true;
     const api: BodyApi = {
       ...h.api,
-      request: (method, ...args) => {
-        if (method === "PATCH" && lost) {
+      request: async (options) => {
+        if (options.method === "PATCH" && lost) {
           lost = false;
-          if (applied) h.api.request(method, ...args);
+          if (applied) await h.api.request(options);
           throw new Error("original mutation response lost");
         }
-        return h.api.request(method, ...args);
+        return await h.api.request(options);
       },
     };
     const run = () =>

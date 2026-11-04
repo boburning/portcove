@@ -5,13 +5,13 @@ import { once } from "node:events";
 import {
   DiscoveryBudget,
   selectDiscoveryProfile,
-  createDiscoveryTransport,
 } from "./discovery-budget.mts";
 import { boundedDiscoveryRequest } from "./discovery-http.mts";
 import { boundedDiscoveryInput } from "./daily-discovery-session.mts";
 import { readDiscoveryReport } from "./discovery-artifact.mts";
 import { deflateRawSync, crc32 } from "node:zlib";
 import { createHash } from "node:crypto";
+import { isRecord } from "./runtime-values.mts";
 import { readFileSync } from "node:fs";
 import { mkdtempSync, rmSync, existsSync, writeFileSync, mkdirSync } from "node:fs";
 import { spawnSync, spawn } from "node:child_process";
@@ -23,11 +23,14 @@ import {
   assertDiscoveryCommentMayPost,
 } from "./discovery-mutation.mts";
 import type { DiscoveryMutation } from "./discovery-mutation.mts";
-import { GitHubApiError, GitHubApiClient } from "./github-api.mts";
+import { GitHubApiError } from "./github-operation.mts";
+import { createGitHubClient } from "./github-client.mts";
+import { discoveryGitHubScope } from "./discovery-github.mts";
+import { fixtureGitHub } from "./fixtures/github-sdk-fixtures.mts";
 import { renderPortIssueBody } from "./roadmap-issue.mts";
 import { renameSync, readdirSync } from "node:fs";
 import * as discoverySession from "./daily-discovery-session.mts";
-import { discoveryBootstrapModules, fetchDiscoveryMetadata } from "./daily-discovery.mts";
+import { discoveryBootstrapModules, discoveryDependencyInputs, fetchDiscoveryMetadata } from "./daily-discovery.mts";
 const envelope = {
   url: "https://api.github.com/repos/o/r",
   method: "GET",
@@ -199,6 +202,9 @@ void test("actual discovery startup consumes its bootstrap identities and bounde
     "original",
     "renamed-reordered",
     "changed-bootstrap",
+    "changed-dependency",
+    "failed-install",
+    "changed-during-install",
     "bypassed-fetch",
     "omitted-input",
     "removed-graph-guard",
@@ -208,8 +214,11 @@ void test("actual discovery startup consumes its bootstrap identities and bounde
       import assert from 'node:assert/strict';import {mock} from 'node:test';
       import {registerHooks} from 'node:module';import path from 'node:path';
       const entry=${JSON.stringify(entry)},state=${JSON.stringify(state)},variant=${JSON.stringify(variant)};
-      const expected=${JSON.stringify([...discoveryBootstrapModules])};
-      let fetched=false,checkedOut=false,sessions=0;const reads=new Map();
+      const expected=${JSON.stringify([...discoveryBootstrapModules.map(name => `scripts/${name}`), ...discoveryDependencyInputs])};
+      const root=path.dirname(path.dirname(new URL(entry).pathname));
+      let fetched=false,checkedOut=false,installed=false,sessions=0;const reads=new Map();
+      process.env.GH_TOKEN="synthetic-install-secret";process.env.GITHUB_TOKEN="synthetic-other-secret";
+      const clean=environment=>{assert.equal(environment.GH_TOKEN,undefined);assert.equal(environment.GITHUB_TOKEN,undefined);assert.equal(environment.NODE_OPTIONS,undefined);};
       Object.defineProperty(process.stdin,'isTTY',{value:true,configurable:true});
       mock.module('node:child_process',{namedExports:{execFileSync:(command,args)=>{
         assert.equal(command,'git');
@@ -223,18 +232,30 @@ void test("actual discovery startup consumes its bootstrap identities and bounde
         if(args[0]==='checkout'){assert.ok(fetched,'bounded fetch must precede checkout');checkedOut=true;return '';}
         throw Error('Unexpected Git call');
       }}});
-      mock.module('node:fs/promises',{namedExports:{mkdir:async()=>{},writeFile:async(file)=>{assert.ok(file.startsWith(state+path.sep));},readFile:async(file)=>{
-        const name=path.basename(file);assert.ok(expected.includes(name),'Unexpected bootstrap read');
+      mock.module('node:fs/promises',{namedExports:{mkdir:async()=>{},writeFile:async(file)=>{assert.ok(file.startsWith(state+path.sep));},readFile:async(file,encoding)=>{
+        const name=path.relative(root,file).split(path.sep).join('/');assert.ok(expected.includes(name),'Unexpected bootstrap read: '+name);
         const count=(reads.get(name)||0)+1;reads.set(name,count);
-        return Buffer.from(name+(variant==='changed-bootstrap'&&checkedOut&&name==='runtime-values.mts'?'changed':''));
+        const changed=(variant==='changed-bootstrap'&&checkedOut&&name==='scripts/runtime-values.mts')||((variant==='changed-dependency'&&checkedOut||variant==='changed-during-install'&&installed)&&name==='pnpm-lock.yaml');
+        const value=name==='package.json'?JSON.stringify({packageManager:'pnpm@99.0.0'}):name==='.node-version'?process.version.slice(1):name+(changed?'changed':'');
+        return encoding==='utf8'?value:Buffer.from(value);
       }}});
       mock.module(${JSON.stringify(dependency("./observe-configured-upstream.mts"))},{namedExports:{withCheckpointLock:async(file,body)=>{assert.equal(file,path.join(state,'investigation'));await body();}}});
       mock.module(${JSON.stringify(dependency("./release-path-safety.mts"))},{namedExports:{assertOwnedUnlinkedPath:async(parent,value)=>{assert.equal(value,state);return state;}}});
       mock.module(${JSON.stringify(dependency("./discovery-budget.mts"))},{namedExports:{selectDiscoveryProfile:()=>{throw Error('Unexpected profile selection');},discoveryProfiles:{}}});
       mock.module(${JSON.stringify(dependency("./discovery-cache.mts"))},{namedExports:{readDiscoveryCache:()=>{throw Error('Unexpected cache read');}}});
+      mock.module(${JSON.stringify(dependency("./dev-storage.mts"))},{namedExports:{spawnCommand:(command,args,options)=>{
+        assert.ok(checkedOut);assert.equal(command,'pnpm');assert.deepEqual(args,['--version']);clean(options.env);
+        return {status:0,stdout:'99.0.0\\n'};
+      }}});
+      mock.module(${JSON.stringify(dependency("./resource-command.mts"))},{namedExports:{bootstrapOutputResources:environment=>{clean(environment);return ['fixture-output'];},runResourceCommand:async(profile,executable,args,options)=>{
+        assert.ok(checkedOut);assert.equal(profile,'analysis');assert.equal(executable,process.execPath);
+        assert.deepEqual(args,[path.join(root,'scripts/dev-storage.mts'),'run','--scope','tooling','--','pnpm','install','--frozen-lockfile','--ignore-scripts','--ignore-pnpmfile']);
+        clean(options.environment);assert.deepEqual(options.exclusive,['fixture-output']);assert.equal(options.executionTimeoutMilliseconds,600000);
+        installed=true;return variant==='failed-install'?1:0;
+      }}});
       mock.module(${JSON.stringify(dependency("./daily-discovery-session.mts"))},{namedExports:{runDiscoverySession:async(observed,root,head)=>{
-        assert.equal(observed,state);assert.equal(head,'a'.repeat(40));assert.ok(fetched&&checkedOut);
-        for(const name of expected)assert.equal(reads.get(name),2);sessions++;
+        assert.equal(observed,state);assert.equal(head,'a'.repeat(40));assert.ok(fetched&&checkedOut&&installed);
+        for(const name of expected)assert.equal(reads.get(name),name==='package.json'||name==='.node-version'?4:3);sessions++;
       }}});
       registerHooks({load(url,context,next){const loaded=next(url,context);if(url!==entry)return loaded;
         let source=String(loaded.source);
@@ -250,7 +271,7 @@ void test("actual discovery startup consumes its bootstrap identities and bounde
         return {...loaded,source};
       }});
       const {dailyDiscoveryMain}=await import(entry);
-      if(variant==='changed-bootstrap'){await assert.rejects(dailyDiscoveryMain(['run','--state-dir',state]),/Loaded bootstrap updated/);assert.equal(sessions,0);}
+      if(['changed-bootstrap','changed-dependency','changed-during-install','failed-install'].includes(variant)){await assert.rejects(dailyDiscoveryMain(['run','--state-dir',state]),variant==='changed-bootstrap'?/Loaded bootstrap updated/:variant==='failed-install'?/installation failed/:/Loaded dependency inputs updated/);assert.equal(sessions,0);assert.equal(installed,['changed-during-install','failed-install'].includes(variant));}
       else{await dailyDiscoveryMain(['run','--state-dir',state]);assert.equal(sessions,1);}
       console.log('PASS actual discovery startup');
     `;
@@ -279,64 +300,53 @@ void test("actual discovery startup consumes its bootstrap identities and bounde
     }
   }
 });
-void test("provider quota protects delivery independently of the local request allowance", () => {
+void test("provider quota protects delivery independently of the local request allowance", async () => {
   const budget = new DiscoveryBudget("ordinary");
-  budget.reserveDelivery(60, 1024);
+  (await budget.reserveDelivery(60, 1024));
   budget.observeProvider({ resource: "graphql", remaining: 600, resetAt: "2099-01-01T00:00:00Z" });
-  assert.throws(() => budget.admitProvider("graphql", 1), /delivery reserve/);
+  (await assert.rejects(async () => (await budget.admitProvider("graphql", 1)), /delivery reserve/));
   assert.equal(budget.remaining().requests, 140);
   budget.delivery = true;
-  budget.admitProvider("graphql", 600);
-  assert.throws(() => budget.admitProvider("graphql", 601), /quota/);
-  assert.throws(() => budget.requireProviderCapacity(60), /core.*unknown/);
+  (await budget.admitProvider("graphql", 600));
+  (await assert.rejects(async () => (await budget.admitProvider("graphql", 601)), /quota/));
+  (await assert.rejects(async () => (await budget.requireProviderCapacity(60)), /core.*unknown/));
   budget.observeProvider({ resource: "core", remaining: 61, resetAt: "2099-01-01T00:00:00Z" });
-  budget.requireProviderCapacity(60);
+  (await budget.requireProviderCapacity(60));
   budget.observeProvider({ resource: "graphql", remaining: 0, resetAt: "2099-01-01T00:00:00Z" });
-  assert.throws(() => budget.requireProviderCapacity(1), /2099/);
+  (await assert.rejects(async () => (await budget.requireProviderCapacity(1)), /2099/));
   budget.observeProvider({ resource: "core", remaining: 0, resetAt: "2100-01-01T00:00:00Z" });
   budget.observeProvider({ resource: "graphql", remaining: 0, resetAt: "2099-01-01T00:00:00Z" });
   budget.retainBackoff("2098-01-01T00:00:00Z");
   assert.equal(budget.usage.backoff_until, "2100-01-01T00:00:00Z");
 });
-void test("bounded transport charges quota observations and stops before spending delivery headroom", (t) => {
-  const root = fileURLToPath(new URL("../", import.meta.url));
-  mkdirSync(path.join(root, "work"), { recursive: true });
-  const state = mkdtempSync(path.join(root, "work/discovery-quota-fixture-"));
-  t.after(() => rmSync(state, { recursive: true, force: true }));
-  const worker = path.join(state, "worker.mjs");
-  writeFileSync(
-    worker,
-    `for await (const _ of process.stdin) {}\nprocess.stdout.write(JSON.stringify(${JSON.stringify({ requests: 1, bytes: 2, status: 200, headers: { "x-ratelimit-resource": "graphql", "x-ratelimit-remaining": "600", "x-ratelimit-reset": "4070908800" }, text: "{}" })}));`,
-  );
+void test("SDK transport charges quota observations and stops before spending delivery headroom", async () => {
   const budget = new DiscoveryBudget("ordinary");
-  const transport = createDiscoveryTransport(budget, "fixture-token", worker);
-  transport.request("POST", "https://api.github.com/graphql", "{}");
-  assert.equal(budget.usage.requests, 1);
-  assert.equal(budget.usage.bytes, 2);
+  const sdk = await createGitHubClient(discoveryGitHubScope(budget, "fixture-token", {
+    fetch: async () => new Response("{}", { headers: { "content-type": "application/json", "x-ratelimit-resource": "graphql", "x-ratelimit-remaining": "600", "x-ratelimit-reset": "4070908800" } }),
+  }));
+  await sdk.request("POST /graphql", { query: "query { value }" });
+  assert.equal(budget.usage.requests, 1); assert.equal(budget.usage.bytes, 2);
   assert.equal(budget.usage.provider_quotas?.graphql?.remaining, 600);
-  budget.reserveDelivery(60, 1024);
-  assert.throws(
-    () => transport.request("POST", "https://api.github.com/graphql", "{}"),
-    /delivery reserve/,
-  );
+  await budget.reserveDelivery(60, 1024);
+  await assert.rejects(sdk.request("POST /graphql", { query: "query { value }" }), /delivery reserve/u);
   assert.equal(budget.usage.requests, 1);
 });
-void test("successful comment identity survives later readback denial and deletion without reposting", () => {
+void test("successful comment identity survives later readback denial and deletion without reposting", async () => {
   const candidate: DiscoveryMutation = { status: "prepared" };
   let posts = 0;
   let durable: DiscoveryMutation = { ...candidate };
   const persist = () => {
     durable = { ...candidate };
   };
-  const response = discoveryPost(
+  const response = (await discoveryPost(
     candidate,
     () => {
       posts++;
       return { id: 123 };
     },
     persist,
-  );
-  recordDiscoveryComment(candidate, response.id, persist);
+  ));
+  (await recordDiscoveryComment(candidate, response.id, persist));
   assert.throws(() => {
     throw new GitHubApiError("http_error", "readback denied", { status: 403 });
   }, /readback denied/);
@@ -345,37 +355,37 @@ void test("successful comment identity survives later readback denial and deleti
   assert.throws(() => assertDiscoveryCommentMayPost(durable), /without reposting/);
   assert.equal(posts, 1);
   const rejected: DiscoveryMutation = { status: "prepared" };
-  assert.throws(
-    () =>
-      discoveryPost(
+  (await assert.rejects(
+    async () =>
+      (await discoveryPost(
         rejected,
         () => {
           throw new GitHubApiError("http_error", "POST denied", { status: 403 });
         },
         () => {},
-      ),
+      )),
     /POST denied/,
-  );
+  ));
   assert.equal(rejected.status, "prepared");
   assertDiscoveryCommentMayPost(rejected);
   const unknown: DiscoveryMutation = { status: "prepared" };
-  assert.throws(
-    () =>
-      discoveryPost(
+  (await assert.rejects(
+    async () =>
+      (await discoveryPost(
         unknown,
         () => {
           throw new Error("connection lost");
         },
         () => {},
-      ),
+      )),
     /connection lost/,
-  );
+  ));
   assert.equal(unknown.status, "create-attempted");
   assert.throws(() => assertDiscoveryCommentMayPost(unknown), /without reposting/);
   const created: DiscoveryMutation = { status: "prepared" };
-  assert.throws(
-    () =>
-      discoveryPost(
+  (await assert.rejects(
+    async () =>
+      (await discoveryPost(
         created,
         () => {
           created.created_issue = 42;
@@ -383,9 +393,9 @@ void test("successful comment identity survives later readback denial and deleti
           throw new GitHubApiError("http_error", "Project denied", { status: 403 });
         },
         () => {},
-      ),
+      )),
     /Project denied/,
-  );
+  ));
   assert.equal(created.status, "created");
   assert.equal(created.created_issue, 42);
 });
@@ -467,7 +477,7 @@ void test("doctor rejection rules and order match the independently reviewed pre
   assert.ifError(result.error);
   assert.equal(result.status, 0, result.stderr);
 });
-void test("fixed profiles, weekly rebuild, reservation replacement, deadlines and provider backoff", () => {
+void test("fixed profiles, weekly rebuild, reservation replacement, deadlines and provider backoff", async () => {
   let now = Date.parse("2026-10-17T00:00:00Z");
   const b = new DiscoveryBudget(
     "ordinary",
@@ -490,19 +500,19 @@ void test("fixed profiles, weekly rebuild, reservation replacement, deadlines an
     selectDiscoveryProfile({ ...cache, baseline_completed_at: "2026-10-10T00:00:00Z" }, now),
     "cold",
   );
-  b.reserveDelivery(150, 1024);
-  b.reserveDelivery(175, 2048);
+  (await b.reserveDelivery(150, 1024));
+  (await b.reserveDelivery(175, 2048));
   assert.equal(b.remaining().requests, 25);
-  assert.throws(() => b.admit(26, 1), /budget/);
-  assert.throws(() => b.admit(-1, 1), /Invalid/);
+  (await assert.rejects(async () => (await b.admit(26, 1)), /budget/));
+  (await assert.rejects(async () => (await b.admit(-1, 1)), /Invalid/));
   b.usage.backoff_until = new Date(now + 1000).toISOString();
-  assert.throws(() => b.admit(1, 1), /backoff/);
+  (await assert.rejects(async () => (await b.admit(1, 1)), /backoff/));
   now += 2000;
-  b.admit(1, 1);
+  (await b.admit(1, 1));
   b.delivery = true;
-  b.admit(200, 20 * 1024 * 1024);
+  (await b.admit(200, 20 * 1024 * 1024));
   now += 30 * 60000;
-  assert.throws(() => b.admit(0, 0), /budget/);
+  (await assert.rejects(async () => (await b.admit(0, 0)), /budget/));
 });
 void test("bounded stream stops on response cap, counts redirects, and strips credentials outside GitHub", async () => {
   const calls: { url: string; auth: string | null }[] = [];
@@ -622,7 +632,7 @@ void test("control input rejects an overlong unterminated message while reading"
   assert.match(failures[0].message, /exceeds cap/);
 });
 
-void test("fresh observed capacity admits more than historical request counts without dropping finite resources", () => {
+void test("fresh observed capacity admits more than historical request counts without dropping finite resources", async () => {
   let now = Date.parse("2026-10-27T00:00:00Z");
   const budget = new DiscoveryBudget(
     "ordinary",
@@ -637,27 +647,27 @@ void test("fresh observed capacity admits more than historical request counts wi
   budget.charge("GET", "repos/o/r", 1, 100, "200");
   now += 10;
   for (let i = 1; i < 350; i++) {
-    budget.admit(1, 100);
+    (await budget.admit(1, 100));
     budget.charge("GET", "repos/o/r", 1, 100, "200");
     now += 10;
   }
   assert.equal(budget.usage.requests, 350);
-  budget.reserveDelivery(600, 1024);
+  (await budget.reserveDelivery(600, 1024));
   assert.ok(budget.remaining().requests <= 50);
-  assert.throws(() => budget.admit(51, 1), /budget/);
+  (await assert.rejects(async () => (await budget.admit(51, 1)), /budget/));
   budget.delivery = true;
-  assert.throws(() => budget.admit(1, budget.limits.bytes), /budget/);
+  (await assert.rejects(async () => (await budget.admit(1, budget.limits.bytes)), /budget/));
   budget.observeProvider({
     resource: "core",
     remaining: 0,
     resetAt: new Date(now + 3600000).toISOString(),
   });
-  assert.throws(() => budget.admit(1, 1), /backoff/);
+  (await assert.rejects(async () => (await budget.admit(1, 1)), /backoff/));
   now += 3600001;
-  assert.throws(() => budget.admit(1, 1), /budget/);
+  (await assert.rejects(async () => (await budget.admit(1, 1)), /budget/));
 });
 
-void test("observed response costs and runtime reduce adaptive admission", () => {
+void test("observed response costs and runtime reduce adaptive admission", async () => {
   let now = Date.parse("2026-10-27T00:00:00Z");
   const budget = new DiscoveryBudget(
     "ordinary",
@@ -676,7 +686,7 @@ void test("observed response costs and runtime reduce adaptive admission", () =>
     1,
     "remaining retained bytes admit only one observed-size operation",
   );
-  assert.throws(() => budget.admit(2, 1), /budget/);
+  (await assert.rejects(async () => (await budget.admit(2, 1)), /budget/));
   now += 29 * 60000;
   assert.equal(budget.remaining().requests, 0, "observed elapsed cost leaves insufficient runtime");
 });
@@ -688,23 +698,23 @@ void test("quiet rotation resumes past fifty from per-operation durable checkpoi
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const config = JSON.parse(
     readFileSync(new URL("../.github/roadmap.json", import.meta.url), "utf8"),
-  ) as ConstructorParameters<typeof discoverySession.DiscoverySession>[2];
+  ) as Parameters<typeof discoverySession.DiscoverySession.open>[2];
   const calls: number[] = [];
   const allowRecheck = new Set<number>();
-  const make = (runId: string) => {
+  const make = async (runId: string) => {
     const run = path.join(root, runId);
     mkdirSync(run);
-    const session = new discoverySession.DiscoverySession(
+    const session = (await discoverySession.DiscoverySession.open(
       root,
       run,
       config,
       "fixture-token",
       new Date().toISOString(),
       "fixture-head",
-    );
+    ));
     const budget = new DiscoveryBudget("ordinary");
-    const api = new GitHubApiClient((args) => {
-      const endpoint = args[2]!;
+    const sdk = await fixtureGitHub(({ method, endpoint }) => {
+      assert.equal(method, "GET");
       const id = Number(endpoint.match(/game-(\d+)$/u)?.[1]);
       assert.ok(id > 0);
       // Every prior successful operation must already be on disk before this read.
@@ -720,9 +730,9 @@ void test("quiet rotation resumes past fifty from per-operation durable checkpoi
       );
       calls.push(id);
       budget.charge("GET", endpoint, 1, 100, "200");
-      return `HTTP/2 200\n\n${JSON.stringify({ id, full_name: `ports/game-${id}`, archived: false })}`;
+      return { id, full_name: `ports/game-${id}`, archived: false };
     });
-    Object.assign(session.client, { api });
+    session.sdk.request = sdk.request;
     Object.assign(session, {
       budget,
       leadWorkComplete: () => true,
@@ -743,22 +753,22 @@ void test("quiet rotation resumes past fifty from per-operation durable checkpoi
     });
     return session;
   };
-  const first = make("first");
-  first.budget.reserveDelivery(145, 1024);
-  assert.equal(first.recheck().checked.length, 55);
+  const first = (await make("first"));
+  (await first.budget.reserveDelivery(145, 1024));
+  assert.equal((await first.recheck()).checked.length, 55);
   assert.equal(calls.length, 55);
   // Construct the real interrupted-session reader, not a hand-copied checkpoint.
-  const resumed = make("resumed");
-  assert.equal(resumed.recheck().checked.length, 20);
+  const resumed = (await make("resumed"));
+  assert.equal((await resumed.recheck()).checked.length, 20);
   assert.equal(calls.length, 75);
-  assert.equal(resumed.recheck().checked.length, 0);
+  assert.equal((await resumed.recheck()).checked.length, 0);
   const changed = resumed.inventory.issues[0]!;
   allowRecheck.add(1);
   changed.body += "\nChanged source contract";
   // Body hashing catches changes even within the provider timestamp resolution.
-  assert.deepEqual(resumed.recheck().checked, [1]);
+  assert.deepEqual((await resumed.recheck()).checked, [1]);
   delete changed.updatedAt;
-  assert.deepEqual(resumed.recheck().checked, [1], "unknown revisions cannot inherit freshness");
+  assert.deepEqual((await resumed.recheck()).checked, [1], "unknown revisions cannot inherit freshness");
   assert.ok(!resumed.checkpoint.checked_revisions?.[1]);
 });
 
@@ -771,17 +781,16 @@ void test("thirteen complete investigations retain independently bound evidence 
   mkdirSync(run);
   const config = JSON.parse(
     readFileSync(new URL("../.github/roadmap.json", import.meta.url), "utf8"),
-  ) as ConstructorParameters<typeof discoverySession.DiscoverySession>[2];
-  const session = new discoverySession.DiscoverySession(
+  ) as Parameters<typeof discoverySession.DiscoverySession.open>[2];
+  const session = (await discoverySession.DiscoverySession.open(
     root,
     run,
     config,
     "fixture-token",
     new Date().toISOString(),
     "fixture-head",
-  );
-  const api = new GitHubApiClient((args) => {
-    const endpoint = args[2]!;
+  ));
+  const sdk = await fixtureGitHub(({ endpoint }) => {
     session.budget.charge("GET", endpoint, 1, 100, "200");
     const repository = endpoint.match(/^repos\/([^/]+\/[^/?]+)/u)![1]!;
     let body: unknown;
@@ -792,7 +801,7 @@ void test("thirteen complete investigations retain independently bound evidence 
         sha: "b".repeat(40),
         content: Buffer.from("Reviewed upstream setup").toString("base64"),
       };
-    else if (endpoint.includes("/contents/")) return "HTTP/2 404\n\n{}";
+    else if (endpoint.includes("/contents/")) return Response.json({}, { status: 404 });
     else
       body = {
         id: Number(repository.split("-").at(-1)),
@@ -801,22 +810,22 @@ void test("thirteen complete investigations retain independently bound evidence 
         archived: false,
         fork: false,
       };
-    return `HTTP/2 200\n\n${JSON.stringify(body)}`;
+    return body;
   });
-  Object.assign(session.source, { api });
-  for (let id = 1; id <= 13; id++) session.research(`ports/game-${id}`);
+  Object.assign(session.source, { sdk });
+  for (let id = 1; id <= 13; id++) (await session.research(`ports/game-${id}`));
   assert.equal(session.deepInvestigations, 13);
   assert.equal(Object.keys(session.journal.evidence).length, 13);
   const resumedRun = path.join(root, "resumed");
   mkdirSync(resumedRun);
-  const resumed = new discoverySession.DiscoverySession(
+  const resumed = (await discoverySession.DiscoverySession.open(
     root,
     resumedRun,
     config,
     "fixture-token",
     new Date().toISOString(),
     "fixture-head",
-  );
+  ));
   assert.equal(Object.keys(resumed.journal.evidence).length, 13);
 });
 
@@ -827,25 +836,25 @@ void test("a logical journal beyond five candidates resumes verified batches wit
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const config = JSON.parse(
     readFileSync(new URL("../.github/roadmap.json", import.meta.url), "utf8"),
-  ) as ConstructorParameters<typeof discoverySession.DiscoverySession>[2];
+  ) as Parameters<typeof discoverySession.DiscoverySession.open>[2];
   const writes = new Set<string>();
   const batches: number[] = [];
-  const make = (name: string, interrupt: boolean) => {
+  const make = async (name: string, interrupt: boolean) => {
     const run = path.join(root, name);
     mkdirSync(run);
-    const session = new discoverySession.DiscoverySession(
+    const session = (await discoverySession.DiscoverySession.open(
       root,
       run,
       config,
       "fixture-token",
       new Date().toISOString(),
       "fixture-head",
-    );
+    ));
     Object.assign(session, {
       inventory: { issues: [], items: [], archivedItems: [] },
       budget: new DiscoveryBudget("ordinary"),
     });
-    session.checkProviderCapacity = () => {
+    session.checkProviderCapacity = async () => {
       for (const resource of ["core", "graphql"])
         session.budget.observeProvider({
           resource,
@@ -858,7 +867,7 @@ void test("a logical journal beyond five candidates resumes verified batches wit
     session.applyBatch = async (candidates) => {
       batches.push(candidates.length);
       for (const candidate of candidates) {
-        discoveryPost(
+        (await discoveryPost(
           candidate,
           () => {
             assert.ok(!writes.has(candidate.id));
@@ -866,7 +875,7 @@ void test("a logical journal beyond five candidates resumes verified batches wit
             return { id: writes.size };
           },
           () => session.persist(),
-        );
+        ));
         candidate.status = "delivered";
         session.budget.charge("POST", "fixture/readback-verified", 10, 100, "200");
         session.persist();
@@ -878,7 +887,7 @@ void test("a logical journal beyond five candidates resumes verified batches wit
     };
     return session;
   };
-  const first = make("first", true);
+  const first = (await make("first", true));
   const evidenceHash = (await import("./upstream-observer.mts")).observationHash;
   for (let id = 1; id <= 13; id++) {
     const body = `prepared-${id}`;
@@ -896,9 +905,9 @@ void test("a logical journal beyond five candidates resumes verified batches wit
       status: "prepared",
     };
   }
-  await assert.rejects(first.apply(), /fixture interruption/);
+  await assert.rejects((first.apply()), /fixture interruption/);
   assert.ok(writes.size > 5 && writes.size < 13);
-  const resumed = make("resumed", false);
+  const resumed = (await make("resumed", false));
   const result = await resumed.apply();
   assert.equal(result.pending, 0);
   assert.equal(writes.size, 13);
@@ -980,15 +989,15 @@ void test("automatic delivery batches retain separate doctor evidence files and 
   mkdirSync(run);
   const config = JSON.parse(
     readFileSync(new URL("../.github/roadmap.json", import.meta.url), "utf8"),
-  ) as ConstructorParameters<typeof discoverySession.DiscoverySession>[2];
-  const session = new discoverySession.DiscoverySession(
+  ) as Parameters<typeof discoverySession.DiscoverySession.open>[2];
+  const session = (await discoverySession.DiscoverySession.open(
     root,
     run,
     config,
     "fixture-token",
     new Date().toISOString(),
     "fixture-head",
-  );
+  ));
   Object.assign(session, {
     inventory: { issues: [], items: [], archivedItems: [] },
     checkProviderCapacity: () => {},
@@ -1009,14 +1018,14 @@ void test("automatic delivery batches retain separate doctor evidence files and 
   }
   const nextRun = path.join(root, "next");
   mkdirSync(nextRun);
-  const resumed = new discoverySession.DiscoverySession(
+  const resumed = (await discoverySession.DiscoverySession.open(
     root,
     nextRun,
     config,
     "fixture-token",
     new Date().toISOString(),
     "fixture-head",
-  );
+  ));
   assert.deepEqual(resumed.journal.doctors, receipts);
 });
 
@@ -1027,20 +1036,20 @@ void test("holding the final candidate cannot bypass a resumed substantial chang
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const config = JSON.parse(
     readFileSync(new URL("../.github/roadmap.json", import.meta.url), "utf8"),
-  ) as ConstructorParameters<typeof discoverySession.DiscoverySession>[2];
-  const make = (name: string) => {
+  ) as Parameters<typeof discoverySession.DiscoverySession.open>[2];
+  const make = async (name: string) => {
     const run = path.join(root, name);
     mkdirSync(run);
-    return new discoverySession.DiscoverySession(
+    return (await discoverySession.DiscoverySession.open(
       root,
       run,
       config,
       "fixture-token",
       new Date().toISOString(),
       "fixture-head",
-    );
+    ));
   };
-  const first = make("first");
+  const first = (await make("first"));
   const hash = (await import("./upstream-observer.mts")).observationHash;
   first.journal.candidates.held = {
     id: "held",
@@ -1057,7 +1066,7 @@ void test("holding the final candidate cannot bypass a resumed substantial chang
   first.journal.global_doctor_pending = true;
   first.journal.doctor = { status: "passed", scope: "issues", evidence: "earlier-scoped-batch" };
   first.persist();
-  const resumed = make("resumed");
+  const resumed = (await make("resumed"));
   assert.equal(resumed.journal.global_doctor_pending, true);
   resumed.journal.collection_done = true;
   Object.assign(resumed, { leadWorkComplete: () => true });
@@ -1071,88 +1080,50 @@ void test("holding the final candidate cannot bypass a resumed substantial chang
   assert.equal(checks, 1);
   assert.equal(receipt.status, "failed");
   assert.equal(resumed.journal.global_doctor_pending, true);
-  const next = make("next");
+  const next = (await make("next"));
   assert.equal(next.journal.global_doctor_pending, true);
   next.applyBatch = resumed.applyBatch;
   await assert.rejects(next.apply(), /global validation unavailable/);
   assert.equal(checks, 2);
 });
 
-function quotaRefreshFixture(t: TestContext, mode = "valid") {
-  const root = fileURLToPath(new URL("../", import.meta.url));
-  const dir = mkdtempSync(path.join(root, "work/quota-refresh-"));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
-  const clockFile = path.join(dir, "clock");
-  const callsFile = path.join(dir, "calls");
+async function quotaRefreshFixture(_t: TestContext, mode = "valid") {
   const now = Date.parse("2026-10-30T13:40:00Z");
-  writeFileSync(clockFile, String(now));
-  writeFileSync(callsFile, "");
-  const worker = path.join(dir, "worker.mjs");
-  writeFileSync(
-    worker,
-    `import {readFileSync,appendFileSync,writeFileSync} from 'node:fs';
-    let input='';for await(const part of process.stdin)input+=part;
-    const p=JSON.parse(input),clock=${JSON.stringify(clockFile)},calls=${JSON.stringify(callsFile)},mode=${JSON.stringify(mode)},epoch=${now};
-    const at=Number(readFileSync(clock,'utf8'));
-    appendFileSync(calls,JSON.stringify({method:p.method,url:p.url,cap:p.cap,maxRequests:p.maxRequests,token:p.token})+'\\n');
-    let status=200,text='{}',resource=p.url.endsWith('/graphql')?'graphql':'core';
-    let reset=Math.floor((at+3600000)/1000),remaining=p.token==='repo-token'?7:4700;
-    if(p.url.endsWith('/rate_limit')){
-      const boundary=mode==='boundary'&&(readFileSync(calls,'utf8').match(/rate_limit/g)||[]).length===1;
-      const row=(n)=>({limit:5000,remaining:n,reset:mode==='stale'||boundary?Math.floor(at/1000):reset});
-      text=JSON.stringify({resources:{core:row(mode==='zero'&&p.token==='repo-token'?0:remaining),graphql:row(p.token==='repo-token'?0:4700),search:row(30)}});
-      if(mode==='missing')text='{"resources":{}}';
-      if(mode==='denied')status=403;
-      if(mode==='broken'){process.stdout.write('not-json');process.exit(0);}
-    }else{
-      text='{"number":700}';
-      if(mode==='cross'&&at===epoch){writeFileSync(clock,String(epoch+2000));reset=Math.floor((epoch+1000)/1000);}
+  let clock = now;
+  const calls: { method: string; url: string; token: string }[] = [];
+  const budget = new DiscoveryBudget("cold", () => {}, () => clock);
+  budget.usage.requests = 339; budget.usage.bytes = 18743487;
+  const fetch: typeof globalThis.fetch = async (input, init) => {
+    const url = new URL(input instanceof Request ? input.url : input).href, method = init?.method ?? "GET";
+    const token = new Headers(init?.headers).get("authorization")?.replace(/^token /u, "") ?? "";
+    calls.push({ method, url, token });
+    let reset = Math.floor((clock + 3600000) / 1000), status = 200;
+    const resource = url.endsWith("/graphql") ? "graphql" : "core", remaining = token === "repo-token" ? 7 : 4700;
+    let body: unknown;
+    if (url.endsWith("/rate_limit")) {
+      const boundary = mode === "boundary" && calls.filter(call => call.url.endsWith("/rate_limit")).length === 1;
+      const row = (count: number) => ({ limit: 5000, remaining: count, reset: mode === "stale" || boundary ? Math.floor(clock / 1000) : reset });
+      body = { resources: { core: row(mode === "zero" && token === "repo-token" ? 0 : remaining), graphql: row(token === "repo-token" ? 0 : 4700), search: row(30) } };
+      if (mode === "missing") body = { resources: {} };
+      if (mode === "denied") status = 403;
+      if (mode === "broken") return new Response("not-json", { headers: { "content-type": "application/json" } });
+    } else {
+      body = { number: 700 };
+      if (mode === "cross" && clock === now) { clock = now + 2000; reset = Math.floor((now + 1000) / 1000); }
     }
-    process.stdout.write(JSON.stringify({requests:1,bytes:Buffer.byteLength(text),status,headers:{'x-ratelimit-resource':resource,'x-ratelimit-remaining':String(remaining),'x-ratelimit-reset':String(reset)},text}));
-  `,
-  );
-  const budget = new DiscoveryBudget(
-    "cold",
-    () => {},
-    () => Number(readFileSync(clockFile, "utf8")),
-  );
-  budget.usage.requests = 339;
-  budget.usage.bytes = 18743487;
-  const project = createDiscoveryTransport(budget, "project-token", worker);
-  budget.observeProvider({
-    resource: "core",
-    remaining: 4108,
-    resetAt: new Date(now + 1000).toISOString(),
-  });
-  return {
-    budget,
-    project,
-    worker,
-    now,
-    clockFile,
-    calls: () =>
-      readFileSync(callsFile, "utf8")
-        .trim()
-        .split("\n")
-        .filter(Boolean)
-        .map(
-          (line) =>
-            JSON.parse(line) as {
-              method: string;
-              url: string;
-              cap: number;
-              maxRequests: number;
-              token: string;
-            },
-        ),
+    return Response.json(body, { status, headers: { "x-ratelimit-resource": resource, "x-ratelimit-remaining": String(remaining), "x-ratelimit-reset": String(reset) } });
   };
+  const connect = async (token: string) => await createGitHubClient(discoveryGitHubScope(budget, token, { fetch }));
+  const project = await connect("project-token");
+  budget.observeProvider({ resource: "core", remaining: 4108, resetAt: new Date(now + 1000).toISOString() });
+  return { budget, project, connect, now, clock: (value: number) => { clock = value; }, calls: () => calls };
 }
-void test("expired quota refresh preserves one budget and precedes a normal POST", (t) => {
-  const f = quotaRefreshFixture(t);
-  writeFileSync(f.clockFile, String(f.now + 2000));
+void test("expired quota refresh preserves one budget and precedes a normal POST", async (t) => {
+  const f = await quotaRefreshFixture(t);
+  f.clock(f.now + 2000);
   const started = f.budget.usage.started_at,
     bytes = f.budget.usage.bytes;
-  f.project.request("POST", "https://api.github.com/repos/o/r/issues", "{}");
+  await f.project.request("POST /repos/o/r/issues", {});
   assert.deepEqual(
     f.calls().map((c) => [c.method, c.url]),
     [
@@ -1160,18 +1131,16 @@ void test("expired quota refresh preserves one budget and precedes a normal POST
       ["POST", "https://api.github.com/repos/o/r/issues"],
     ],
   );
-  assert.equal(f.calls()[0]!.maxRequests, 1);
-  assert.equal(f.calls()[0]!.cap, 16384);
   assert.equal(f.budget.usage.requests, 341);
   assert(f.budget.usage.bytes > bytes);
   assert.equal(f.budget.usage.started_at, started);
   assert.equal(f.budget.limits.bytes, 64 * 1024 * 1024);
   assert.equal(f.budget.limits.milliseconds, 30 * 60000);
 });
-void test("a successful quota observation crossing the reset boundary is refreshed before any POST", (t) => {
-  const f = quotaRefreshFixture(t, "boundary");
-  writeFileSync(f.clockFile, String(f.now + 2000));
-  f.project.request("POST", "https://api.github.com/repos/o/r/issues", "{}");
+void test("a successful quota observation crossing the reset boundary is refreshed before any POST", async (t) => {
+  const f = await quotaRefreshFixture(t, "boundary");
+  f.clock(f.now + 2000);
+  await f.project.request("POST /repos/o/r/issues", {});
   assert.deepEqual(
     f.calls().map((c) => [c.method, new URL(c.url).pathname]),
     [
@@ -1182,23 +1151,25 @@ void test("a successful quota observation crossing the reset boundary is refresh
   );
   assert.equal(f.budget.usage.requests, 342);
 });
-void test("successful admitted POST survives a quota reset during its response", (t) => {
-  const f = quotaRefreshFixture(t, "cross");
-  const first = f.project.request("POST", "https://api.github.com/repos/o/r/issues", "{}");
-  assert.equal((JSON.parse(first.text) as { number: number }).number, 700);
+void test("successful admitted POST survives a quota reset during its response", async (t) => {
+  const f = await quotaRefreshFixture(t, "cross");
+  const first = await f.project.request("POST /repos/o/r/issues", {});
+  const data: unknown = first.data;
+  assert.ok(isRecord(data));
+  assert.equal(data.number, 700);
   assert.equal(f.budget.usage.requests, 340);
-  f.project.request("GET", "https://api.github.com/repos/o/r/issues/700");
+  await f.project.request("GET /repos/o/r/issues/700");
   assert.deepEqual(
     f.calls().map((c) => c.method),
     ["POST", "GET", "GET"],
   );
   assert.equal(f.calls()[1]!.url, "https://api.github.com/rate_limit");
 });
-void test("separate credentials retain conservative quota and unused GraphQL zero does not certify or block another token", (t) => {
-  const f = quotaRefreshFixture(t);
-  const repo = createDiscoveryTransport(f.budget, "repo-token", f.worker);
-  writeFileSync(f.clockFile, String(f.now + 2000));
-  repo.request("POST", "https://api.github.com/repos/o/r/issues", "{}");
+void test("separate credentials retain conservative quota and unused GraphQL zero does not certify or block another token", async (t) => {
+  const f = await quotaRefreshFixture(t);
+  const repo = await f.connect("repo-token");
+  f.clock(f.now + 2000);
+  await repo.request("POST /repos/o/r/issues", {});
   assert.deepEqual(
     f.calls().map((c) => [c.method, c.token]),
     [
@@ -1209,27 +1180,27 @@ void test("separate credentials retain conservative quota and unused GraphQL zer
   );
   assert(f.budget.usage.provider_quotas!.core!.remaining <= 7);
   assert.equal(f.budget.usage.backoff_until, undefined);
-  f.project.request("POST", "https://api.github.com/graphql", "{}");
+  await f.project.request("POST /graphql", { query: "query { value }" });
   assert.equal(f.calls().length, 4);
-  const g = quotaRefreshFixture(t, "zero");
-  const blocked = createDiscoveryTransport(g.budget, "repo-token", g.worker);
-  writeFileSync(g.clockFile, String(g.now + 2000));
-  assert.throws(
-    () => blocked.request("POST", "https://api.github.com/repos/o/r/issues", "{}"),
+  const g = await quotaRefreshFixture(t, "zero");
+  const blocked = await g.connect("repo-token");
+  g.clock(g.now + 2000);
+  await assert.rejects(
+    () => blocked.request("POST /repos/o/r/issues", {}),
     /backoff|quota/u,
   );
   assert(g.calls().every((c) => c.method === "GET"));
 });
 void test("denied malformed stale or unknown quota refresh cannot retry or authorize a POST", async (t) => {
   for (const mode of ["denied", "missing", "stale", "broken"])
-    await t.test(mode, (t) => {
-      const f = quotaRefreshFixture(t, mode);
-      writeFileSync(f.clockFile, String(f.now + 2000));
-      assert.throws(() =>
-        f.project.request("POST", "https://api.github.com/repos/o/r/issues", "{}"),
+    await t.test(mode, async (t) => {
+      const f = await quotaRefreshFixture(t, mode);
+      f.clock(f.now + 2000);
+      await assert.rejects(() =>
+        f.project.request("POST /repos/o/r/issues", {}),
       );
-      assert.throws(
-        () => f.project.request("POST", "https://api.github.com/repos/o/r/issues", "{}"),
+      await assert.rejects(
+        () => f.project.request("POST /repos/o/r/issues", {}),
         /cannot be retried/u,
       );
       assert.equal(f.calls().length, mode === "stale" ? 2 : 1);
@@ -1237,19 +1208,19 @@ void test("denied malformed stale or unknown quota refresh cannot retry or autho
       assert(f.budget.usage.bytes > 18743487);
     });
 });
-void test("quota refresh cannot spend reserved bytes expired runtime or active provider backoff", (t) => {
+void test("quota refresh cannot spend reserved bytes expired runtime or active provider backoff", async (t) => {
   for (const mode of ["bytes", "time", "backoff"]) {
-    const f = quotaRefreshFixture(t);
-    writeFileSync(f.clockFile, String(f.now + 2000));
+    const f = await quotaRefreshFixture(t);
+    f.clock(f.now + 2000);
     if (mode === "bytes")
       f.budget.reserve = {
         requests: 0,
         bytes: f.budget.limits.bytes - f.budget.usage.bytes - 8192,
       };
     if (mode === "time")
-      writeFileSync(f.clockFile, String(f.now + f.budget.limits.milliseconds + 1));
+      f.clock(f.now + f.budget.limits.milliseconds + 1);
     if (mode === "backoff") f.budget.retainBackoff(new Date(f.now + 60000).toISOString());
-    assert.throws(() => f.project.request("POST", "https://api.github.com/repos/o/r/issues", "{}"));
+    await assert.rejects(() => f.project.request("POST /repos/o/r/issues", {}));
     assert.equal(f.calls().length, 0);
     assert.equal(f.budget.usage.requests, 339);
   }

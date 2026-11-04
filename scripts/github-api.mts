@@ -63,14 +63,8 @@ import { rateLimitFromResponse } from "./github-operation.mts";
 export { nextLink } from "./github-operation.mts";
 import { nextLink } from "./github-operation.mts";
 
-export function githubRateLimitMessage(
-  rate: Pick<GitHubRateLimit, "remaining" | "resetAt"> | null | undefined,
-  prefix = "GitHub API rate limit",
-) {
-  const remaining = rate?.remaining ?? "unknown";
-  const reset = rate?.resetAt ?? "unknown";
-  return `${prefix}: ${remaining} points remain; reset at ${reset}`;
-}
+export { githubRateLimitMessage } from "./github-operation.mts";
+import { githubRateLimitMessage } from "./github-operation.mts";
 
 function graphqlResponseError(response: IncludedResponse, operation: string) {
   const errors = isRecord(response.body) ? response.body.errors : undefined;

@@ -7,16 +7,14 @@ import type {
   SourceRepresentation,
   PortDefinition,
 } from "../apps/desktop/src/transport-types.generated.d.ts";
-import type { createGitHubRunner as RunnerFactory } from "./github-api.mts";
+import { GitHubApiError } from "./github-operation.mts";
 import { isRecord, errorMessage } from "./runtime-values.mts";
 import { readFileSync } from "node:fs";
-import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { createGitHubRunner } from "./github-api.mts";
 import {
   RoadmapClient,
   validateConfig,
@@ -24,6 +22,7 @@ import {
   validatePortIssueCoverage,
   validatePortStageSemantics,
 } from "./roadmap.mts";
+import type { RoadmapRequestScope } from "./roadmap.mts";
 import { sourceProvenancePortIdentity, sourceProvenancePortIssues } from "./roadmap-issue.mts";
 
 const scriptPath = fileURLToPath(import.meta.url);
@@ -205,7 +204,7 @@ function collection(value: unknown): RoadmapIssueItem[] {
     readIssue,
   );
 }
-type ReadCommand = (args: readonly string[], input?: string) => unknown;
+
 interface AuditInput {
   catalogText: string;
   issues: unknown;
@@ -814,56 +813,43 @@ export function renderSourceProvenanceAudit(audit: ReturnType<typeof buildSource
   return `# Supported-source provenance and Port-ticket audit\n\n> Dated read-only evidence. This document is not a roadmap, priority authority, live Project mirror, catalog, or support grant. Regenerate it from the current catalog and live read-only GitHub state instead of editing status rows.\n\n- Generated: ${audit.generatedAt}\n- Repository: ${audit.repository}\n- Repository base: \`${audit.baseCommit}\`\n- Generator revision: \`${audit.generatorCommit}\`\n- Snapshot revision: assigned by the commit containing this file\n- Catalog SHA-256: \`${audit.catalogSha256}\`\n- Project state: ${audit.project.state}${audit.project.url ? ` (${audit.project.url})` : ""}\n- Project item count: ${audit.project.itemCount}\n- Project-state fingerprint: ${projectFingerprint}\n\n## Discovered inventory\n\n- Catalog ports: ${audit.counts.catalogPorts}\n- Source profiles: ${audit.counts.sourceProfiles}\n- Source variants: ${audit.counts.sourceVariants}\n- Source representations: ${audit.counts.sourceRepresentations}\n- Source contracts: ${audit.counts.sourceContracts}\n- Source evidence records: ${audit.counts.sourceEvidence}\n- Preservation crosswalk evidence records: ${audit.counts.preservationCrosswalkEvidence}\n- Exact qualification records: ${audit.counts.qualificationRecords}\n- Durable Port issues: ${audit.counts.portIssues}\n- Cataloged Port issues: ${audit.counts.catalogedIssues}\n- Research Port issues: ${audit.counts.researchIssues}\n\n## Drift and explicit gaps\n\n${observations}\n\n## Cataloged support inventory\n\nOnly these catalog entries are player-visible. Exact qualification remains separate from historical platform arrays.\n\n| Catalog ID | Port ticket | Source contracts | Deterministic identity | Upstream evidence | Exact qualification | Project context at generation | Structural gap |\n|---|---|---|---|---|---|---|---|\n${catalogedRows || "| None | None | None | None | None | None | None | None |"}\n\n## Research inventory\n\nThese durable tickets are research/watchlist evidence and are not player-visible catalog support. Their Project values are timestamped context only.\n\n| Port ticket | Durable key | Direct upstream | Source evidence | Release integrity | Project context at generation | Exact gap or resume condition |\n|---|---|---|---|---|---|---|\n${researchRows || "| None | None | None | None | None | None | None |"}\n\n## Interpretation limits\n\n- Deterministic identity completeness means each supported contract variant has an active non-informational representation, or the contract uses a pinned validator. It is not gameplay or ownership evidence.\n- Upstream evidence counts catalog references and reports broken references; it does not re-fetch or reinterpret upstream sources.\n- Exact qualification counts only artifact/source-variant-scoped records. Historical platform arrays stay visible as legacy catalog data and are not promoted into exact claims.\n- Issue prose is reported as issue evidence or a gap. A mention of a checksum is not independently re-certified by this snapshot.\n- Project fields can change after generation and never replace catalog facts or issue acceptance.\n- Merged-reference observations use only explicit same-repository PR facts supplied offline or read directly for active blocker references. Unlisted, closed, partial or unavailable PR facts are not assumed merged; a finding never resolves remaining issue acceptance.\n`;
 }
 
-export function runReadOnlyGitHubCommand(
-  args: readonly string[],
-  input?: string,
-  spawn: NonNullable<Parameters<typeof RunnerFactory>[0]>["spawn"] = spawnSync,
-): unknown {
-  const run = createGitHubRunner({
-    cwd: projectRoot,
-    spawn,
-    maxBuffer: 32 * 1024 * 1024,
-  });
-  try {
-    const output = run(args, input);
-    return args.includes("--include") ? output : JSON.parse(output);
-  } catch {
-    throw new Error(`read-only GitHub command failed: gh ${args.slice(0, 3).join(" ")}`);
-  }
-}
-
-export function readLiveSourceProvenance({
+export async function readLiveSourceProvenance({
   repository,
   owner,
   projectNumber,
-  run = runReadOnlyGitHubCommand,
+  scope: suppliedScope,
 }: {
   repository: string;
   owner: string;
   projectNumber: number;
-  run?: ReadCommand;
+  scope?: RoadmapRequestScope;
 }) {
   let phase = "initializing GitHub collection";
   try {
     const configured = validateConfig(
       JSON.parse(readFileSync(path.join(projectRoot, ".github/roadmap.json"), "utf8")),
     );
-    const client = new RoadmapClient(
-      {
-        ...configured,
-        repository,
-        owner,
-        project: { ...configured.project, number: projectNumber },
-      },
-      (args, input) => {
-        const result = run(args, input);
-        return typeof result === "string" ? result : JSON.stringify(result);
-      },
-    );
+    let scope = suppliedScope;
+    if (!scope) {
+      const { localDeveloperCredential } = await import("./github-cli.mts");
+      const deadline = performance.now() + 30 * 60_000;
+      let bytes = 0;
+      scope = {
+        credential: localDeveloperCredential({ deadline }), deadline, maxBytes: 32 * 1024 * 1024,
+        failedReads: new Map(), deferral: { primary: new Map(), secondary: 0 },
+        reserve: () => ({ consumeBytes(received) {
+          bytes += received;
+          if (bytes > 64 * 1024 * 1024) throw new GitHubApiError("budget_exhausted", "Provenance metadata budget exhausted");
+        }, settle() {} }),
+      };
+    }
+    const client = await RoadmapClient.connect({
+      ...configured, repository, owner, project: { ...configured.project, number: projectNumber },
+    }, { ...scope, allowMutations: false });
     phase = "reading the issue inventory";
-    const issues = requireRepositoryIssueInventory(client.repositoryIssues(), client).issues;
+    const issues = requireRepositoryIssueInventory(await client.repositoryIssues(), client).issues;
     phase = "reading the Project inventory";
-    const projectItems = client.itemList(projectNumber);
+    const projectItems = await client.itemList(projectNumber);
     phase = "discovering active PR references";
     const references = [
       ...new Set(
@@ -878,34 +864,33 @@ export function readLiveSourceProvenance({
     if (references.length > 100) throw new Error("active PR reference bound exceeded");
     const [repositoryOwner, name] = repository.split("/");
     phase = "resolving referenced PRs";
-    const pullRequests = references
-      .map((number) => {
-        const data = client.graphql(
-          `query($owner: String!, $name: String!, $number: Int!) { repository(owner: $owner, name: $name) { pullRequest(number: $number) { __typename number url state merged } } }`,
-          { owner: repositoryOwner, name, number },
-        );
-        const raw = object(object(data).repository).pullRequest;
-        const pr = raw === null ? null : object(raw);
-        // A null PR is an unknown reference, not proof of a merge. Missing fields
-        // indicate a malformed/partial response and invalidate this snapshot.
-        if (pr === null) return null;
-        if (
-          !pr ||
-          pr.__typename !== "PullRequest" ||
-          pr.number !== number ||
-          !/^https:\/\/github\.com\/[^/]+\/[^/]+\/pull\/[1-9]\d*\/?$/u.test(
-            diagnosticText(pr.url ?? ""),
-          ) ||
-          sameRepositoryPrNumber(text(pr.url, "PR URL"), repository) !== number ||
-          typeof pr.state !== "string" ||
-          !["OPEN", "CLOSED", "MERGED"].includes(pr.state) ||
-          typeof pr.merged !== "boolean" ||
-          (pr.state === "MERGED") !== pr.merged
-        )
-          throw new Error("invalid referenced PR response");
-        return readIssue(pr);
-      })
-      .filter((pr) => pr !== null);
+    const pullRequests: ReturnType<typeof readIssue>[] = [];
+    for (const number of references) {
+      const data = await client.graphql(
+        `query($owner: String!, $name: String!, $number: Int!) { repository(owner: $owner, name: $name) { pullRequest(number: $number) { __typename number url state merged } } }`,
+        { owner: repositoryOwner, name, number },
+      );
+      const raw = object(object(data).repository).pullRequest;
+      const pr = raw === null ? null : object(raw);
+      // A null PR is an unknown reference, not proof of a merge. Missing fields
+      // indicate a malformed/partial response and invalidate this snapshot.
+      if (pr === null) continue;
+      if (
+        !pr ||
+        pr.__typename !== "PullRequest" ||
+        pr.number !== number ||
+        !/^https:\/\/github\.com\/[^/]+\/[^/]+\/pull\/[1-9]\d*\/?$/u.test(
+          diagnosticText(pr.url ?? ""),
+        ) ||
+        sameRepositoryPrNumber(text(pr.url, "PR URL"), repository) !== number ||
+        typeof pr.state !== "string" ||
+        !["OPEN", "CLOSED", "MERGED"].includes(pr.state) ||
+        typeof pr.merged !== "boolean" ||
+        (pr.state === "MERGED") !== pr.merged
+      )
+        throw new Error("invalid referenced PR response");
+      pullRequests.push(readIssue(pr));
+    }
     return { issues, projectItems, pullRequests, projectState: "available" };
   } catch {
     throw new Error(`read-only GitHub enrichment failed while ${phase}; no snapshot was written`);
@@ -947,7 +932,7 @@ function requireCompleteOfflineCollection(value: unknown, label: string) {
 
 export async function runSourceProvenanceAudit(
   argv: readonly string[],
-  { run = runReadOnlyGitHubCommand }: { run?: ReadCommand } = {},
+  { scope }: { scope?: RoadmapRequestScope } = {},
 ) {
   const parsed = parseOptions(argv);
   const options = parsed.values;
@@ -963,11 +948,11 @@ export async function runSourceProvenanceAudit(
   const [owner = ""] = repository.split("/");
   let input;
   if (parsed.live) {
-    input = readLiveSourceProvenance({
+    input = await readLiveSourceProvenance({
       repository,
       owner: options.owner ?? owner,
       projectNumber: Number(options.project ?? 1),
-      run,
+      ...(scope ? { scope } : {}),
     });
   } else {
     if (!options.issues) throw new Error("--issues is required unless --live is selected");
