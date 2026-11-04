@@ -62,23 +62,13 @@ impl Drop for HttpServer {
 pub(crate) fn serve_http(responses: Vec<String>) -> (String, Receiver<String>, HttpServer) {
     let expected = responses.len();
     let mut responses = responses.into_iter();
-    serve_requests(
-        expected,
-        Some(expected),
-        Duration::from_secs(30),
-        move |_| responses.next().unwrap(),
-    )
+    serve_requests(expected, Some(expected), move |_| responses.next().unwrap())
 }
 
 pub(crate) fn serve_http_bytes(responses: Vec<Vec<u8>>) -> (String, Receiver<String>, HttpServer) {
     let expected = responses.len();
     let mut responses = responses.into_iter();
-    serve_requests(
-        expected,
-        Some(expected),
-        Duration::from_secs(30),
-        move |_| responses.next().unwrap(),
-    )
+    serve_requests(expected, Some(expected), move |_| responses.next().unwrap())
 }
 
 pub(crate) fn serve_routed_http(
@@ -96,10 +86,18 @@ pub(crate) fn serve_routed_http_with_budget(
     response: impl Fn(&str) -> String + Send + 'static,
 ) -> (String, Receiver<String>, HttpServer) {
     assert!(!accept_budget.is_zero() && accept_budget <= Duration::from_secs(900));
-    serve_requests(request_limit, None, accept_budget, response)
+    serve_requests_with_budget(request_limit, None, accept_budget, response)
 }
 
 fn serve_requests<R: AsRef<[u8]>>(
+    limit: usize,
+    expected: Option<usize>,
+    response: impl FnMut(&str) -> R + Send + 'static,
+) -> (String, Receiver<String>, HttpServer) {
+    serve_requests_with_budget(limit, expected, Duration::from_secs(30), response)
+}
+
+fn serve_requests_with_budget<R: AsRef<[u8]>>(
     limit: usize,
     expected: Option<usize>,
     accept_budget: Duration,
