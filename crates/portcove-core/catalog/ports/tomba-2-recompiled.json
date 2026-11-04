@@ -6,7 +6,7 @@
     "summary": "Explore Tomba! 2 Recompiled and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/mstan/Tomba2Recomp",
     "issue_number": 169,
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/mstan/Tomba2Recomp",
     "artwork": {

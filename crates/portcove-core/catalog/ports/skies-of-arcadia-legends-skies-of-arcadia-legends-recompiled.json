@@ -6,7 +6,7 @@
     "summary": "Attach an independently permitted, prepared Skies of Arcadia Legends Windows beta with the matching regional GameCube disc and complete runner/modules. Preserve the active data folder, regional cards, states and imported original; the performance-test build is not selected.",
     "original_game_title": "Skies of Arcadia Legends",
     "project_url": "https://github.com/ogdanimal/SkiesOfArcadiaLegends-Recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/ogdanimal/SkiesOfArcadiaLegends-Recomp",
     "artwork": {

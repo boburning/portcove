@@ -6,7 +6,7 @@
     "summary": "Attach an independently permitted, prepared Estacado Windows player directly through TheDarkness.exe after upstream game setup. Preserve Saved Games or the existing portable/legacy layout, verified migration copies and original data; the separate settings launcher owns preparation and updates.",
     "original_game_title": "The Darkness (Xbox 360, 2007)",
     "project_url": "https://github.com/invinceble55-wq/Estacado-The-Darkness-Recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/invinceble55-wq/Estacado-The-Darkness-Recomp",
     "issue_number": 2615,

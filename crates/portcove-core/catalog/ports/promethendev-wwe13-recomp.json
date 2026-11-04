@@ -6,7 +6,7 @@
     "summary": "Attach an independently permitted, prepared WWE ’13 Windows native player with its matching 2.0.1.0 title update and explicit existing game/user-data paths. The combined ZIP also contains Linux files; each host and updater remains separately owned.",
     "original_game_title": "WWE '13",
     "project_url": "https://github.com/PromethenDev/wwe13-recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/PromethenDev/wwe13-recomp",
     "artwork": {

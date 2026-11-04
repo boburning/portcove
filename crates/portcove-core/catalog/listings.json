@@ -20678,7 +20678,9 @@
       "summary": "Attach the prepared official Forza Motorsport 4 Windows alpha player for the exact Europe GOTY Disc 1 inputs. Preserve its explicit game/user/cache roots and independent originals; current native-player packaging supersedes older builder-first instructions.",
       "original_game_title": "Forza Motorsport 4",
       "project_url": "https://github.com/Alexbeav/fm4-recomp",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/Alexbeav/fm4-recomp",
       "artwork": {
@@ -25163,7 +25165,9 @@
       "summary": "An experimental PSP Saru Get You: Saru Saru Daisakusen port. Its game profile reports early macOS startup/audio, Linux ARM64 startup and a Windows cross-build. Later root documentation and releases claim broader support and contradict the profile’s no-release/Android-unavailable statements; neither proves Android installation or gameplay. The SaruSaru launcher builds locally from your own Japanese UCJS10060 v1.00 compatible ISO; exact ISO hashes are unconfirmed. Source preparation needs CMake, Ninja, Python and a compiler, and PSPRecomp does not supply decryption. An optional interpreter handles code outside translated coverage. macOS ARM64, Linux x86-64/ARM64, Windows x86-64 and Android ARM64 launcher/build routes are documented, with their evidence differences unresolved. Portcove has not confirmed setup or gameplay.",
       "original_game_title": "Saru Get You: Saru Saru Daisakusen",
       "project_url": "https://github.com/jackgllghr/bigmission-recomp",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/jackgllghr/bigmission-recomp",
       "issue_number": 2805,
@@ -25694,7 +25698,9 @@
       "summary": "Attach an independently permitted, prepared FFCCEOT-Recomp Windows player for the supported USA or European Nintendo DS original. Upstream compiles a native module locally; keep the retained ROM, region-specific saves and the actual system or portable data root.",
       "original_game_title": "Final Fantasy Crystal Chronicles: Echoes of Time",
       "project_url": "https://github.com/JonathanDC64/FFCCEOT-Recomp",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/JonathanDC64/FFCCEOT-Recomp",
       "artwork": {
@@ -25953,7 +25959,9 @@
       "summary": "An experimental Bayonetta 2 static recompilation. Its Builder ZIP contains tools, source and a compiler rather than a prebuilt game; it generates C and a game DLL locally, with rebuilding through the project’s Builder for updates. Windows x64 requires Vulkan 1.3; Linux Builder testing is separate. Use your own Bayonetta 2 v1.2/update v131072 already-decrypted ExeFS/RomFS. Encrypted packages and keys are refused. Portcove offers no setup or launch integration and has not tested gameplay.",
       "original_game_title": "Bayonetta 2",
       "project_url": "https://github.com/K0NL/B2recomp",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/K0NL/B2recomp",
       "issue_number": 2755,
@@ -26000,7 +26008,9 @@
       "summary": "Attach an independently permitted, prepared Buffy: Chaos Bleeds Windows player matching the installed PAL v2 or North American v1 Xbox original. Preserve SaveData, retained migration backups and the full matching regional program pair.",
       "original_game_title": "Buffy the Vampire Slayer: Chaos Bleeds",
       "project_url": "https://github.com/KaikoClanworth1/buffy-chaos-bleeds-pc",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/KaikoClanworth1/buffy-chaos-bleeds-pc",
       "artwork": {
@@ -26354,7 +26364,9 @@
       "summary": "Attach an independently permitted, prepared UltraCombo Windows player for Killer Instinct 2 arcade, with your own matching ROMs and CHD. Upstream owns first-use native-module preparation; preserve per-game/version settings sectors and states.",
       "original_game_title": "Killer Instinct 2 (arcade)",
       "project_url": "https://github.com/thefixinhixon/UltraCombo",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/thefixinhixon/UltraCombo",
       "issue_number": 2585,
@@ -26411,7 +26423,9 @@
       "summary": "Attach an independently permitted, prepared UltraCombo Windows player for Killer Instinct arcade, with your own matching ROMs and CHD. Upstream owns first-use native-module preparation; preserve per-game/version settings sectors and states.",
       "original_game_title": "Killer Instinct (arcade)",
       "project_url": "https://github.com/thefixinhixon/UltraCombo",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/thefixinhixon/UltraCombo",
       "issue_number": 2584,
@@ -27494,7 +27508,9 @@
       "summary": "Attach an independently permitted, already prepared Darkwatch: Darker Edition native Windows runtime. Resolve its actual active version and keep the complete upstream installation; Play Darkwatch.exe only checks startup and does not wait for the game.",
       "original_game_title": "Darkwatch",
       "project_url": "https://github.com/linkssy2/DarkwatchDarkerEdition",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/linkssy2/DarkwatchDarkerEdition",
       "issue_number": 2736,
@@ -27849,7 +27865,9 @@
       "summary": "Attach an independently permitted, prepared Luigi’s Mansion Recompiled Windows player with its supported USA or PAL rev0 disc and locally built module. Preserve regional cards, both-disc overlays and actual system/portable data; upstream folder moves can remove the former root.",
       "original_game_title": "Luigi's Mansion",
       "project_url": "https://github.com/rob646464/luigis-mansion-recompiled",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/rob646464/luigis-mansion-recompiled",
       "issue_number": 2587,
@@ -30422,7 +30440,9 @@
       "summary": "Attach an independently permitted, prepared MOTHER 3 Windows player with your own exact ROM, desktop GBA BIOS and any permitted translation already configured upstream. Preserve battery saves and patch derivatives; unknown patch outputs can use the compatibility interpreter and remain unqualified.",
       "original_game_title": "MOTHER 3",
       "project_url": "https://github.com/josiahg2502-glitch/Mother3Recomp",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/josiahg2502-glitch/Mother3Recomp",
       "issue_number": 2596,
@@ -32417,7 +32437,9 @@
       "summary": "Attach an independently permitted, prepared Ninety Four Windows player using your own retail NHL ’94 US/Europe Genesis ROM. Preserve its working-directory settings, cartridge saves, states and roster data; online sessions and modified rosters retain separate compatibility requirements.",
       "original_game_title": "NHL '94 (Genesis)",
       "project_url": "https://github.com/1nputs/ninety-four",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/1nputs/ninety-four",
       "artwork": {
@@ -32604,7 +32626,9 @@
       "summary": "Attach an independently permitted, prepared Ninja Gaiden Black Windows player using your own supported original Xbox data. Preserve separate Local/Roaming roots and matching arcade companions; arcade handoffs and VM/Proton reports do not qualify a whole native Windows journey.",
       "original_game_title": "Ninja Gaiden Black",
       "project_url": "https://github.com/gamboozino/ngbrecomp",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/gamboozino/ngbrecomp",
       "artwork": {
@@ -36753,7 +36777,9 @@
       "summary": "A Windows 10/11 x64 Direct3D 11 port of The Darkness with project-reported gameplay, audio, saves and controls. Use the player ZIP rather than the optional diagnostic-launcher ZIP. Release play needs no source toolchain; development/update builds separately use VS2022 Clang, CMake, Python, MSYS2 and LLVM, including XMA preparation. Supply your own complete extracted Xbox 360 game, including default.xex, Content, System and all companions; an ISO alone is insufficient. The player checks the supported executable and documented Russian localization internally, but this guide does not specify their exact hashes. XexTool preparation is unnecessary and no separate console BIOS input is specified. You and the project manage setup and replacement; Portcove has not qualified the package or confirmed gameplay.",
       "original_game_title": "The Darkness",
       "project_url": "https://github.com/portingpete/The-Darkness-Recomp",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/portingpete/The-Darkness-Recomp",
       "issue_number": 2849,
@@ -36847,7 +36873,9 @@
       "summary": "An Azure Dreams port with a recompiled base game and interpreted overlays unless you separately compile them with compile_overlays.py --static. A release ZIP alone does not establish fully static coverage or a full playthrough. The Windows 10 player/source route downloads its framework toolchain, generates base C from your own USA SLUS-00614 PlayStation disc and rebuilds locally. OpenBIOS is bundled. Other player platforms, exact accepted revision/hashes and further BIOS/firmware requirements are unconfirmed. You and the project manage generated files and updates; Portcove has not confirmed setup or gameplay.",
       "original_game_title": "Azure Dreams",
       "project_url": "https://github.com/PotionDweller/Azure-Dreams-HD-Recompilation",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/PotionDweller/Azure-Dreams-HD-Recompilation",
       "issue_number": 2753,
@@ -37426,7 +37454,9 @@
       "summary": "Attach an independently permitted, prepared WWE ’13 Windows native player with its matching 2.0.1.0 title update and explicit existing game/user-data paths. The combined ZIP also contains Linux files; each host and updater remains separately owned.",
       "original_game_title": "WWE '13",
       "project_url": "https://github.com/PromethenDev/wwe13-recomp",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/PromethenDev/wwe13-recomp",
       "artwork": {
@@ -39505,7 +39535,9 @@
       "summary": "Attach an independently permitted, prepared Ridge Racer 6 Windows native game with its exact USA executable and explicit prepared game folder. Preserve the actual Documents data root; the official asset’s internal TestBuild-09 folder label differs from its 0.1.5 release tag.",
       "original_game_title": "Ridge Racer 6",
       "project_url": "https://github.com/Sirhalo23/RidgeRacer6-Recompilation",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/Sirhalo23/RidgeRacer6-Recompilation",
       "artwork": {
@@ -39628,7 +39660,9 @@
       "summary": "Attach an independently permitted, prepared Fukami Windows application with your supported Ridge Racer V disc. Its native parent prepares and waits for a same-image game child; preserve actual LocalAppData, memory cards, extracted-disc data and matching resource packages.",
       "original_game_title": "Ridge Racer V",
       "project_url": "https://github.com/danisandoval/fukami",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/danisandoval/fukami",
       "artwork": {
@@ -39699,7 +39733,9 @@
       "summary": "A hybrid Vagrant Story port: its ROM-free Windows player reads your own USA SLUS-01040 PlayStation disc, then compiles battle, menu and title code in the background with bundled GCC. An interpreter/TinyCC handles remaining code, so full-game native coverage is unconfirmed. The separate MSVC source build is a development route. The project manages generated code and caches. Other player platforms, exact accepted revision/hashes and BIOS/firmware requirements are unconfirmed. Portcove has not confirmed setup or gameplay.",
       "original_game_title": "Vagrant Story",
       "project_url": "https://github.com/riotashley81-jpg/vagrantstory_recomp",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/riotashley81-jpg/vagrantstory_recomp",
       "artwork": {
@@ -40037,7 +40073,9 @@
       "summary": "Attach an independently permitted, prepared Weltall Windows native game with your own supported Xenogears discs. Preserve the full Unreal Engine package, original disc representations and LocalAppData saves/settings; optional undubs and translations retain separate terms.",
       "original_game_title": "Xenogears",
       "project_url": "https://github.com/Roman215/Weltall",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/Roman215/Weltall",
       "artwork": {
@@ -40328,7 +40366,9 @@
       "summary": "Explore Rush 2 Recompiled and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/bryantmh/rush2recompiled",
       "issue_number": 1571,
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/bryantmh/rush2recompiled",
       "artwork": {
@@ -41408,7 +41448,9 @@
       "summary": "A Skate 2 Windows 10/11 x86-64 AVX2 setup/player route, separate from Skate 3 and other implementations. Drag your own USA English/French Xbox 360 ISO onto Setup.bat to extract and recompile locally. It targets title 4541087F, default.xex SHA-1 a9b539c1acbc80aeaade3ffbe708e1fbd3a2dad7. Other regions and title updates need different address configuration. No other completed platform package is established. Portcove has not confirmed setup or gameplay.",
       "original_game_title": "Skate 2",
       "project_url": "https://github.com/cookingwithsimon/Skate2Recompiled",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/cookingwithsimon/Skate2Recompiled",
       "artwork": {
@@ -41542,7 +41584,9 @@
       "summary": "Attach an independently permitted, prepared Skies of Arcadia Legends Windows beta with the matching regional GameCube disc and complete runner/modules. Preserve the active data folder, regional cards, states and imported original; the performance-test build is not selected.",
       "original_game_title": "Skies of Arcadia Legends",
       "project_url": "https://github.com/ogdanimal/SkiesOfArcadiaLegends-Recomp",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/ogdanimal/SkiesOfArcadiaLegends-Recomp",
       "artwork": {
@@ -42589,7 +42633,9 @@
       "summary": "Attach an independently permitted, prepared South Park: Let’s Go Tower Defense Play! Windows player with its exact owned XBLA data and upstream startup settings already saved. Normal direct play stays in process; preserve separate game, settings and Documents save roots, and finish update/restart changes upstream.",
       "original_game_title": "South Park: Let's Go Tower Defense Play!",
       "project_url": "https://github.com/TekRantGaming/south-park-tower-defense-recompiled",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/TekRantGaming/south-park-tower-defense-recompiled",
       "issue_number": 2709,
@@ -42632,7 +42678,9 @@
       "summary": "Attach an independently permitted, prepared South Park: Tenorman’s Revenge Windows player with its exact owned XBLA data and upstream startup settings already saved. Normal direct play stays in process; preserve separate game, settings and Documents save roots, and finish update/restart changes upstream.",
       "original_game_title": "South Park: Tenorman's Revenge",
       "project_url": "https://github.com/TekRantGaming/south-park-tenormans-revenge-recompiled",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/TekRantGaming/south-park-tenormans-revenge-recompiled",
       "artwork": {
@@ -42683,7 +42731,9 @@
       "summary": "An alpha Drakengard 3 PS3 port with statically translated PPU/SPU code and replacement system services. Windows and macOS ARM64 routes use Direct3D 12/Metal/Vulkan; other player OS routes are unconfirmed. Full-game progress and hardware coverage are unconfirmed, and a native label does not establish a playthrough. Supply your own BLUS31197 game and follow the project’s local generation/toolchain requirements. Exact accepted revision/hashes and BIOS/firmware needs remain unconfirmed. You and the project manage setup and replacement; Portcove has not qualified a release package or confirmed gameplay.",
       "original_game_title": "Drakengard 3",
       "project_url": "https://github.com/soyjxck/dod3-recomp",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/soyjxck/dod3-recomp",
       "artwork": {
@@ -42865,7 +42915,9 @@
       "summary": "A Castlevania Chronicles player with a self-updating 0.3.10 launcher. Its ZIP/tar.gz packages bundle .NET; player setup needs no separate .NET SDK. Select your own USA SLUS01384 PlayStation CUE/BIN or CHD and Play; first start prepares game code locally. Keep each CUE and every referenced BIN together. Windows x64, Linux x64 and Apple Silicon macOS packages are documented, with other host routes unconfirmed. The launcher checks versions, downloads in the background, defers updates and can roll back a failed start; those tests do not establish complete gameplay. A boss/orb sound issue remains open. Exact mastering/hashes and separate BIOS requirements are unconfirmed. Portcove has not confirmed setup or gameplay.",
       "original_game_title": "Castlevania Chronicles",
       "project_url": "https://github.com/Spicywonda/castlevania-chronicles-recomp",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/Spicywonda/castlevania-chronicles-recomp",
       "artwork": {
@@ -44925,7 +44977,9 @@
       "summary": "Attach an independently permitted, prepared Marchwind64 Windows player for the exact Japanese Rev0 Super Robot Taisen 64 ROM. Preserve the chosen LocalAppData or user-data layout and both sides of confirmed synchronization; the latest voice-mod tag is not the player package.",
       "original_game_title": "Super Robot Taisen 64",
       "project_url": "https://github.com/dyzz/srw64-recomp",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/dyzz/srw64-recomp",
       "artwork": {
@@ -45029,7 +45083,9 @@
       "summary": "Attach an independently permitted, prepared Super Street Fighter II Turbo HD Remix Windows player, with its exact base game and optional official TU1 already configured upstream. Preserve actual portable/legacy data and migration recovery; updates or image/settings changes can request a successor.",
       "original_game_title": "Super Street Fighter II Turbo HD Remix",
       "project_url": "https://github.com/saulob/ssf2t-hd-remix-recompiled",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/saulob/ssf2t-hd-remix-recompiled",
       "artwork": {
@@ -45080,7 +45136,9 @@
       "summary": "Attach the prepared native Windows player for the original DOS Prince of Persia 2: The Shadow and the Flame. Configure your own original game folder upstream and preserve its saves and drivers separately from player settings.",
       "original_game_title": "Prince of Persia 2: The Shadow and the Flame",
       "project_url": "https://github.com/Supermedo/prince-of-persia-2-windows",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/Supermedo/prince-of-persia-2-windows",
       "artwork": {
@@ -45963,7 +46021,9 @@
       "summary": "Explore Earthworm Jim HD / Earthworm Jim HD: PC Port (TekRantGaming) and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/TekRantGaming/earthworm-jim-hd-recompiled",
       "issue_number": 1820,
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/TekRantGaming/earthworm-jim-hd-recompiled",
       "artwork": {
@@ -46009,7 +46069,9 @@
       "summary": "Explore Outpost Kaloki X / Outpost Kaloki X PC Port (TekRantGaming) and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/TekRantGaming/outpost-kaloki-x-recompiled",
       "issue_number": 1862,
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/TekRantGaming/outpost-kaloki-x-recompiled",
       "artwork": {
@@ -46055,7 +46117,9 @@
       "summary": "Attach an independently permitted, prepared Point Blank PlayStation Windows player with your own USA SLUS-00481 CUE/BIN. The current package contains the native player; lightgun hardware, arcade originals and earlier builder packages retain separate scope.",
       "original_game_title": "Point Blank",
       "project_url": "https://github.com/TekRantGaming/point-blank-recompiled",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/TekRantGaming/point-blank-recompiled",
       "issue_number": 2839,
@@ -46094,7 +46158,9 @@
       "summary": "Explore The Simpsons Wrestling / Simpsons Wrestling Recompiled (TekRantGaming) and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/TekRantGaming/simpsons-wrestling-recompiled",
       "issue_number": 1883,
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/TekRantGaming/simpsons-wrestling-recompiled",
       "artwork": {
@@ -46718,7 +46784,9 @@
       "summary": "Attach an independently permitted, prepared Estacado Windows player directly through TheDarkness.exe after upstream game setup. Preserve Saved Games or the existing portable/legacy layout, verified migration copies and original data; the separate settings launcher owns preparation and updates.",
       "original_game_title": "The Darkness (Xbox 360, 2007)",
       "project_url": "https://github.com/invinceble55-wq/Estacado-The-Darkness-Recomp",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/invinceble55-wq/Estacado-The-Darkness-Recomp",
       "issue_number": 2615,
@@ -46892,7 +46960,9 @@
       "summary": "An experimental Link’s Awakening 2019 Switch recompilation. Release packages include a generator and compiler that prepare game code locally on first setup. Documented hosts are Windows x64 AVX2/Vulkan 1.3, Apple Silicon macOS 15+ and Linux x64; Linux ARM64 is experimental. Use your own prepared v1.0.0, v1.0.1 or v1.1.0 files. Your own Switch fonts are optional because replacements are used by default. Portcove offers no setup or launch integration and has not tested gameplay.",
       "original_game_title": "The Legend of Zelda: Link's Awakening (2019 Switch)",
       "project_url": "https://github.com/peiikai/LASRecomp",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/peiikai/LASRecomp",
       "issue_number": 2617,
@@ -47533,7 +47603,9 @@
       "summary": "A beta openQ4 player using your own legitimate installed PC Quake 4 and matching data. Windows/Linux x64 and ARM64 packages are documented, with Linux ARM64 in preview and macOS experimental. Windows ARM64 has been built but not confirmed on physical hardware. Engine GPL and game SDK terms apply separately; keep all notices and do not treat package availability as permission for every component. Exact accepted original revision/hashes and BIOS/firmware needs are unconfirmed. You and the project manage setup and replacement; Portcove has not qualified a release package or confirmed gameplay.",
       "original_game_title": "Quake 4",
       "project_url": "https://github.com/themuffinator/openQ4",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/themuffinator/openQ4",
       "artwork": {
@@ -47780,7 +47852,9 @@
       "summary": "Attach an independently permitted, prepared Jet Force Gemini Windows launcher with its prebuilt native runtime and exactly verified US ROM import. Preserve the active profile, imported ROM and storage locator; no developer build tools or campaign acceptance are inferred.",
       "original_game_title": "Jet Force Gemini",
       "project_url": "https://github.com/TK22-26/JetForceGemini-Recomp",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/TK22-26/JetForceGemini-Recomp",
       "issue_number": 2835,
@@ -48082,7 +48156,9 @@
       "summary": "Explore Tomba! 2 Recompiled and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/mstan/Tomba2Recomp",
       "issue_number": 169,
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/mstan/Tomba2Recomp",
       "artwork": {
@@ -48539,7 +48615,9 @@
       "summary": "Attach an independently permitted, prepared SpaceRanger Windows player for your own Toy Story 2 N64 USA Rev0 ROM. Keep the complete portable spaceranger-config tree; byte-order normalization, title-specific frontend patches and unqualified save/gameplay behavior remain explicit.",
       "original_game_title": "Toy Story 2: Buzz Lightyear to the Rescue! (N64)",
       "project_url": "https://github.com/Capridog/SpaceRanger",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/Capridog/SpaceRanger",
       "issue_number": 2618,
@@ -49996,7 +50074,9 @@
       "summary": "Attach an independently permitted, prepared Urban Reign Windows native game with its exact USA disc executable and explicit ISO path. Preserve executable-side settings, memory cards and states; the browser launcher, optional HD packs and multiplayer claims retain separate scope.",
       "original_game_title": "Urban Reign",
       "project_url": "https://github.com/thiagordsfx/urban-reign-recomp",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/thiagordsfx/urban-reign-recomp",
       "artwork": {
@@ -51828,7 +51908,9 @@
       "summary": "Attach an independently permitted, prepared W.G. 3D Hockey Windows player for your own USA V1.0 N64 ROM. Preserve its WG3DRecomp Roaming data root and per-port Controller Pak directories; another edition or hockey title is not the same source contract.",
       "original_game_title": "Wayne Gretzky's 3D Hockey",
       "project_url": "https://github.com/geno55/wg3d-recomp",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/geno55/wg3d-recomp",
       "artwork": {
@@ -52679,7 +52761,9 @@
       "summary": "A Battlezone: Rise of the Black Dogs N64 modernization beta, separate from arcade Battlezone and its existing source ports. Windows/Linux N64Recomp/RT64 packages are documented; complete-game, multiplayer, exact OS minimums and CPU coverage are unconfirmed. Use your own supported USA N64 ROM. Exact accepted revision/hashes and BIOS/firmware requirements are unconfirmed. You and the project manage setup and updates; Portcove has not qualified a release package or confirmed gameplay.",
       "original_game_title": "Battlezone: Rise of the Black Dogs",
       "project_url": "https://github.com/wootbeer/bzrecomp",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/wootbeer/bzrecomp",
       "artwork": {
@@ -54302,7 +54386,9 @@
       "summary": "Attach the prepared PartyBoard Windows player for the packaged Mario Party 4 USA or Europe revisions. Select the native player rather than the detached script or optional online companion, and preserve its SDL preference root and regional memory cards.",
       "original_game_title": "Mario Party 4",
       "project_url": "https://github.com/zeranemesis/Marioparty4",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/zeranemesis/Marioparty4",
       "issue_number": 2850,

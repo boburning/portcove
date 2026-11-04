@@ -6,7 +6,7 @@
     "summary": "Attach an independently permitted, prepared Marchwind64 Windows player for the exact Japanese Rev0 Super Robot Taisen 64 ROM. Preserve the chosen LocalAppData or user-data layout and both sides of confirmed synchronization; the latest voice-mod tag is not the player package.",
     "original_game_title": "Super Robot Taisen 64",
     "project_url": "https://github.com/dyzz/srw64-recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/dyzz/srw64-recomp",
     "artwork": {

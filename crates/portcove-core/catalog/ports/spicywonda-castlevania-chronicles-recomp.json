@@ -6,7 +6,7 @@
     "summary": "A Castlevania Chronicles player with a self-updating 0.3.10 launcher. Its ZIP/tar.gz packages bundle .NET; player setup needs no separate .NET SDK. Select your own USA SLUS01384 PlayStation CUE/BIN or CHD and Play; first start prepares game code locally. Keep each CUE and every referenced BIN together. Windows x64, Linux x64 and Apple Silicon macOS packages are documented, with other host routes unconfirmed. The launcher checks versions, downloads in the background, defers updates and can roll back a failed start; those tests do not establish complete gameplay. A boss/orb sound issue remains open. Exact mastering/hashes and separate BIOS requirements are unconfirmed. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Castlevania Chronicles",
     "project_url": "https://github.com/Spicywonda/castlevania-chronicles-recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Spicywonda/castlevania-chronicles-recomp",
     "artwork": {

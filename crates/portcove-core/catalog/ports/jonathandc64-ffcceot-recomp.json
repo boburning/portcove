@@ -6,7 +6,7 @@
     "summary": "Attach an independently permitted, prepared FFCCEOT-Recomp Windows player for the supported USA or European Nintendo DS original. Upstream compiles a native module locally; keep the retained ROM, region-specific saves and the actual system or portable data root.",
     "original_game_title": "Final Fantasy Crystal Chronicles: Echoes of Time",
     "project_url": "https://github.com/JonathanDC64/FFCCEOT-Recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/JonathanDC64/FFCCEOT-Recomp",
     "artwork": {

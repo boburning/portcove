@@ -6,7 +6,7 @@
     "summary": "Attach an independently permitted, prepared Super Street Fighter II Turbo HD Remix Windows player, with its exact base game and optional official TU1 already configured upstream. Preserve actual portable/legacy data and migration recovery; updates or image/settings changes can request a successor.",
     "original_game_title": "Super Street Fighter II Turbo HD Remix",
     "project_url": "https://github.com/saulob/ssf2t-hd-remix-recompiled",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/saulob/ssf2t-hd-remix-recompiled",
     "artwork": {

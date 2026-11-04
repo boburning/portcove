@@ -6,7 +6,7 @@
     "summary": "Attach an independently permitted, prepared Luigi’s Mansion Recompiled Windows player with its supported USA or PAL rev0 disc and locally built module. Preserve regional cards, both-disc overlays and actual system/portable data; upstream folder moves can remove the former root.",
     "original_game_title": "Luigi's Mansion",
     "project_url": "https://github.com/rob646464/luigis-mansion-recompiled",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/rob646464/luigis-mansion-recompiled",
     "issue_number": 2587,

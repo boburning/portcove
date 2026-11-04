@@ -6,7 +6,7 @@
     "summary": "Attach an independently permitted, prepared Ridge Racer 6 Windows native game with its exact USA executable and explicit prepared game folder. Preserve the actual Documents data root; the official asset’s internal TestBuild-09 folder label differs from its 0.1.5 release tag.",
     "original_game_title": "Ridge Racer 6",
     "project_url": "https://github.com/Sirhalo23/RidgeRacer6-Recompilation",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Sirhalo23/RidgeRacer6-Recompilation",
     "artwork": {
