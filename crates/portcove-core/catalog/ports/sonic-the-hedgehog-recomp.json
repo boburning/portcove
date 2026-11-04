@@ -28,11 +28,11 @@
       "provider": "direct-manifest",
       "direct": {
         "windows-x86-64": {
-          "version": "v0.7.3",
-          "url": "https://github.com/mstan/SonicTheHedgehogRecomp/releases/download/v0.7.3/SonicTheHedgehogRecomp-windows-x64-v0.7.3.zip",
-          "size": 4750567,
-          "sha256": "082cfb48e1d35a5ae05f054ad663e4eee46b21e5d920ec7e7d6628bce32a3fc8",
-          "published_at": "2026-10-28T16:23:58Z"
+          "version": "v0.8.3",
+          "url": "https://github.com/mstan/SonicTheHedgehogRecomp/releases/download/v0.8.3/SonicTheHedgehogRecomp-windows-x64-v0.8.3.zip",
+          "size": 5334148,
+          "sha256": "54c73309c7bda1d030e4e8d4f3ec2108763ed2c539e275688fcfa602b6ceec38",
+          "published_at": "2026-11-03T23:08:16Z"
         }
       }
     },
@@ -51,7 +51,7 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Select your own Sonic the Hedgehog (Japan/USA/Europe) raw big-endian Genesis original. This fresh managed route uses the checked official Windows v0.7.3 package and starts the base game directly. Use a separate empty library when retaining an older installation or player data; Portcove holds incompatible active transitions and fresh adoption of preserved canonical data. Existing installations keep their creating version and files. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Raw .bin or .md files and ZIPs containing the matching original are accepted; headered or byte-swapped images are not converted. Default settings, local state filenames and thumbnails stay in the declared managed scope. Gameplay, usable quickstates and in-game save/load remain unqualified; runtime replacement does not establish save compatibility or rewind progress."
+      "manual_preparation": "Select your own Sonic the Hedgehog (Japan/USA/Europe) raw big-endian Genesis original. This fresh managed route uses the checked official Windows v0.8.3 package and starts the base game directly. Use a separate empty library when retaining an older installation or player data; Portcove holds incompatible active transitions and fresh adoption of preserved canonical data. Existing installations keep their creating version and files. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Raw .bin or .md files and ZIPs containing the matching original are accepted; headered or byte-swapped images are not converted. Default settings, local state filenames and thumbnails stay in the declared managed scope. Gameplay, usable quickstates and in-game save/load remain unqualified; runtime replacement does not establish save compatibility or rewind progress. Default diagnostic recording is enabled. The managed logs directory contains input history, machine snapshots, original/build identities, settings and mod sidecars; these can contain private game memory and local paths. Nothing uploads automatically. Share these files only deliberately. Keep each replay and its sidecars together. Upstream retains the current capture and two previous captures, with 64 MiB input-history and 32 MiB state-attachment limits per capture and a 16 MiB background queue; recording stops on its bounds or storage failure. GENESIS_REPLAY_RECORD=0 is an optional user opt-out. Keep developer/debug, replay-playback and custom path overrides disabled. Backups include the checked private original copy and these diagnostics. Keep packaged libraries, assets and PolyForm Noncommercial/dependency notices together. No game original is included. Experimental fresh Widescreen/Fit is upstream default; saved choices stay in their creating installation."
     },
     "runtime_source_filename": "game.bin",
     "runtime_source_materialization": "copy",
@@ -81,7 +81,8 @@
       "native_save_6.bin.thumb",
       "native_save_7.bin.thumb",
       "native_save_8.bin.thumb",
-      "native_save_9.bin.thumb"
+      "native_save_9.bin.thumb",
+      "logs"
     ],
     "runtime_mutable_paths": [
       "framelog_step2.txt",

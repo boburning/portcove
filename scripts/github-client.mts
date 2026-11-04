@@ -249,14 +249,17 @@ export async function createGitHubClient(options: GitHubClientOptions) {
         let reservation: GitHubReservation | undefined;
         const settleAttempt = () => {
           try {
-            try { reservation?.settle(observation); }
-            catch (error) {
+            try {
+              reservation?.settle(observation);
+            } catch (error) {
               if (!requestFailed || !signal.aborted) throw error;
               const safe = sanitizeOperationError(error, { secrets: token ? [token] : [] });
               policy.admissionSettled = Promise.reject(new GitHubApiError(safe.code, safe.message));
               void policy.admissionSettled.catch(() => {});
             }
-          } finally { options.observe?.(observation); }
+          } finally {
+            options.observe?.(observation);
+          }
         };
         const boundedFetch: typeof globalThis.fetch = async (input, init) => {
           try {
@@ -346,35 +349,48 @@ export async function createGitHubClient(options: GitHubClientOptions) {
         try {
           const reserve = policy.reserve ?? options.reserve;
           if (reserve) {
-            const pending = Promise.resolve().then(() => reserve({
-              method: parameters.method, url: new URL(parameters.url, base), replay: policy.replay, signal,
-            }));
+            const pending = Promise.resolve().then(() =>
+              reserve({
+                method: parameters.method,
+                url: new URL(parameters.url, base),
+                replay: policy.replay,
+                signal,
+              }),
+            );
             reservation = await new Promise<GitHubReservation>((resolve, reject) => {
               let abandoned = false;
               const abort = () => {
                 abandoned = true;
-                policy.admissionSettled = pending.then(unused => {
-                  unused.settle({ ...observation, elapsedMs: now() - started });
-                }).catch(error => {
-                  const safe = sanitizeOperationError(error, { secrets: token ? [token] : [] });
-                  throw new GitHubApiError(safe.code, safe.message);
-                });
+                policy.admissionSettled = pending
+                  .then((unused) => {
+                    unused.settle({ ...observation, elapsedMs: now() - started });
+                  })
+                  .catch((error) => {
+                    const safe = sanitizeOperationError(error, { secrets: token ? [token] : [] });
+                    throw new GitHubApiError(safe.code, safe.message);
+                  });
                 // Keep the rejection available to the owning operation's join,
                 // including when it has not observed this attempt yet.
                 void policy.admissionSettled.catch(() => {});
                 reject(signal.reason);
               };
-              if (signal.aborted) { abort(); return; }
+              if (signal.aborted) {
+                abort();
+                return;
+              }
               signal.addEventListener("abort", abort, { once: true });
-              void pending.then(value => {
-                if (abandoned) return;
-                signal.removeEventListener("abort", abort);
-                resolve(value);
-              }, error => {
-                if (abandoned) return;
-                signal.removeEventListener("abort", abort);
-                reject(error);
-              });
+              void pending.then(
+                (value) => {
+                  if (abandoned) return;
+                  signal.removeEventListener("abort", abort);
+                  resolve(value);
+                },
+                (error) => {
+                  if (abandoned) return;
+                  signal.removeEventListener("abort", abort);
+                  reject(error);
+                },
+              );
             });
           }
           signal.throwIfAborted();
@@ -384,7 +400,10 @@ export async function createGitHubClient(options: GitHubClientOptions) {
           const result = await request(parameters);
           requireJsonValues(result.data as unknown);
           const body: unknown = result.data;
-          observation.rate = rateLimitFromResponse({ headers: new Map(Object.entries(observation.headers)), body });
+          observation.rate = rateLimitFromResponse({
+            headers: new Map(Object.entries(observation.headers)),
+            body,
+          });
           if (
             path === "/graphql" &&
             isRecord(body) &&
@@ -519,7 +538,10 @@ export async function createGitHubClient(options: GitHubClientOptions) {
           }
         } finally {
           observation.elapsedMs = now() - started;
-          observation.rate ??= rateLimitFromResponse({ headers: new Map(Object.entries(observation.headers)), body: null });
+          observation.rate ??= rateLimitFromResponse({
+            headers: new Map(Object.entries(observation.headers)),
+            body: null,
+          });
           settleAttempt();
         }
         if (retryAt) {

@@ -303,7 +303,13 @@ fn project_channel(
         releases,
         channel,
         port.release.rolling_tag.as_deref(),
-        |release| !release.provider.draft,
+        |release| {
+            !release.provider.draft
+                // Uncollected assets cannot establish that this release belongs
+                // to another platform's stream. Stop at that unknown candidate.
+                && (covered_assets.is_some_and(|covered| !covered.contains(&release.id))
+                    || super::native_release_applies_to_platform(port, platform, &release.provider))
+        },
         |release| is_beta_release(&release.provider),
         |release| release.provider.tag_name.as_str(),
     );

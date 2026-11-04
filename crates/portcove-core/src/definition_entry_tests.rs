@@ -172,7 +172,7 @@ fn ready_staged_archive_entries_require_prelaunch_preservation_reader() {
 }
 
 #[test]
-fn fresh_direct_entries_require_v25_without_reinterpreting_retained_or_exact_old_readers() {
+fn fresh_direct_entries_require_v26_without_reinterpreting_retained_or_exact_old_readers() {
     let catalog = crate::Catalog::embedded().unwrap();
     let packet: Value = serde_json::from_str(include_str!(
         "../../../docs/qualification/retained-direct-decisions-2026-10-27.json"
@@ -189,11 +189,11 @@ fn fresh_direct_entries_require_v25_without_reinterpreting_retained_or_exact_old
         port.release.repository = "fixture/guarded-reader".into();
         port.release.direct.clear();
         let mut entry = entry_for_port(&port);
-        for minimum in [1, 23, 24] {
+        for minimum in [1, 23, 24, 25] {
             entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
-            entry["required_capabilities"][0]["maximum_version"] = json!(25);
+            entry["required_capabilities"][0]["maximum_version"] = json!(26);
             assert!(
-                inspect(&entry).unwrap_err().message.contains("version 25"),
+                inspect(&entry).unwrap_err().message.contains("version 26"),
                 "{id}"
             );
         }
@@ -207,11 +207,11 @@ fn fresh_direct_entries_require_v25_without_reinterpreting_retained_or_exact_old
             serde_json::to_value(retained.port()).unwrap(),
             entry["port"]
         );
-        entry["required_capabilities"][0]["minimum_version"] = json!(25);
-        entry["required_capabilities"][0]["maximum_version"] = json!(25);
-        assert!(inspect(&entry).unwrap().capabilities().compatible);
         entry["required_capabilities"][0]["minimum_version"] = json!(26);
         entry["required_capabilities"][0]["maximum_version"] = json!(26);
+        assert!(inspect(&entry).unwrap().capabilities().compatible);
+        entry["required_capabilities"][0]["minimum_version"] = json!(27);
+        entry["required_capabilities"][0]["maximum_version"] = json!(27);
         assert!(!inspect(&entry).unwrap().capabilities().compatible);
         let old = packet["rows"]
             .as_array()
@@ -232,6 +232,76 @@ fn fresh_direct_entries_require_v25_without_reinterpreting_retained_or_exact_old
             "{id}"
         );
     }
+}
+
+#[test]
+fn fresh_super_metroid_requires_v26_and_preserves_its_exact_legacy_reader() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("super-metroid-recomp").unwrap();
+    let release = &port.release.direct[&crate::Platform::WindowsX86_64];
+    assert_eq!(release.version, "v0.4.2");
+    assert_eq!(
+        release.sha256,
+        "72b7c179b855fba9404eec07abdbacefaffa4c67898f5c5232f0b1444b73d531"
+    );
+    let source_contract = catalog
+        .source_catalog()
+        .unwrap()
+        .contracts
+        .iter()
+        .find(|contract| contract.port_id == port.id)
+        .unwrap();
+    assert!(source_contract.applies_to_release(&release.version, &release.sha256));
+    assert!(!source_contract.applies_to_release(&release.version, &"a".repeat(64)));
+    assert!(!source_contract.applies_to_release("unreviewed-version", &release.sha256));
+    assert!(source_contract.applies_to_release(
+        "v0.3.12",
+        "2b864f287e971f4ed8fa4205b69927ab43ecce5b1a4e79d08a8bd7530c3d87c9"
+    ));
+    let mut entry = entry_for_port(port);
+    for minimum in [1, 23, 24, 25] {
+        entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
+        entry["required_capabilities"][0]["maximum_version"] = json!(26);
+        assert!(inspect(&entry).unwrap_err().message.contains("version 26"));
+    }
+    entry["required_capabilities"][0]["minimum_version"] = json!(26);
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+    entry["required_capabilities"][0]["minimum_version"] = json!(23);
+    entry["required_capabilities"][0]["maximum_version"] = json!(23);
+    let bytes = serde_json::to_vec(&entry).unwrap();
+    assert_eq!(
+        serde_json::to_value(
+            index(&bytes, &port.id)
+                .inspect_retained_entry("official", &port.id, &bytes)
+                .unwrap()
+                .port()
+        )
+        .unwrap(),
+        entry["port"]
+    );
+    let old: crate::PortDefinition = serde_json::from_str(include_str!(
+        "../tests/fixtures/super-metroid-0312-historical.json"
+    ))
+    .unwrap();
+    assert_eq!(
+        crate::persistence::fresh_direct_data_guard_capability(&old),
+        None
+    );
+    let mut old_entry = entry_for_port(&old);
+    old_entry["required_capabilities"][0]["minimum_version"] = json!(23);
+    old_entry["required_capabilities"][0]["maximum_version"] = json!(23);
+    assert!(inspect(&old_entry).unwrap().capabilities().compatible);
+    let mut changed = old;
+    changed
+        .release
+        .direct
+        .get_mut(&crate::Platform::WindowsX86_64)
+        .unwrap()
+        .sha256 = "a".repeat(64);
+    assert_eq!(
+        crate::persistence::fresh_direct_data_guard_capability(&changed),
+        Some(26)
+    );
 }
 
 #[test]
@@ -520,8 +590,8 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
             20
         } else if crate::preparation::has_manual_marker(port) {
             2
-        } else if crate::persistence::requires_fresh_direct_data_guard(port) {
-            25
+        } else if let Some(version) = crate::persistence::fresh_direct_data_guard_capability(port) {
+            version
         } else if port.mod_package_policy.is_some() {
             24
         } else if crate::persistence::ready_staged_archive(port) {

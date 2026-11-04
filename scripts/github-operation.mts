@@ -185,8 +185,10 @@ export function rateLimitFromResponse(response: GitHubMetadataResponse): GitHubR
     limit: numericHeader(response.headers, "x-ratelimit-limit"),
     remaining: numericHeader(response.headers, "x-ratelimit-remaining"),
     used: numericHeader(response.headers, "x-ratelimit-used"),
-    resetAt: Number.isFinite(resetMilliseconds) && resetMilliseconds <= 8_640_000_000_000_000
-      ? new Date(resetMilliseconds).toISOString() : null,
+    resetAt:
+      Number.isFinite(resetMilliseconds) && resetMilliseconds <= 8_640_000_000_000_000
+        ? new Date(resetMilliseconds).toISOString()
+        : null,
   };
   const body = response.body;
   const bodyRate = isRecord(body) && isRecord(body.data) ? body.data.rateLimit : undefined;
@@ -194,18 +196,25 @@ export function rateLimitFromResponse(response: GitHubMetadataResponse): GitHubR
   return {
     resource: resource ?? "graphql",
     limit:
-      typeof bodyRate.limit === "number" && Number.isSafeInteger(bodyRate.limit) && bodyRate.limit >= 0
+      typeof bodyRate.limit === "number" &&
+      Number.isSafeInteger(bodyRate.limit) &&
+      bodyRate.limit >= 0
         ? bodyRate.limit
         : headerRate.limit,
     remaining:
-      typeof bodyRate.remaining === "number" && Number.isSafeInteger(bodyRate.remaining) && bodyRate.remaining >= 0
+      typeof bodyRate.remaining === "number" &&
+      Number.isSafeInteger(bodyRate.remaining) &&
+      bodyRate.remaining >= 0
         ? bodyRate.remaining
         : headerRate.remaining,
     used:
       typeof bodyRate.used === "number" && Number.isSafeInteger(bodyRate.used) && bodyRate.used >= 0
         ? bodyRate.used
         : headerRate.used,
-    resetAt: typeof bodyRate.resetAt === "string" && Number.isFinite(Date.parse(bodyRate.resetAt)) ? bodyRate.resetAt : headerRate.resetAt,
+    resetAt:
+      typeof bodyRate.resetAt === "string" && Number.isFinite(Date.parse(bodyRate.resetAt))
+        ? bodyRate.resetAt
+        : headerRate.resetAt,
     cost:
       typeof bodyRate.cost === "number" && Number.isSafeInteger(bodyRate.cost) && bodyRate.cost >= 0
         ? bodyRate.cost

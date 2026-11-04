@@ -1,4 +1,4 @@
-//! Three bounded historical reader holds; no save conversion or adoption authority.
+//! Bounded historical reader holds; no save conversion or adoption authority.
 use super::*;
 
 #[cfg(test)]
@@ -62,7 +62,98 @@ fn require_empty_player_data(port: &PortDefinition, root: &Path) -> Result<()> {
     Ok(())
 }
 
+fn require_source_only_snapshot(port: &PortDefinition, root: &Path) -> Result<()> {
+    require_empty_player_data(port, root)?;
+    for (count, entry) in fs::read_dir(root)?.enumerate() {
+        if count >= 4096 {
+            return Err(held(port));
+        }
+        let name = entry?.file_name();
+        let name = crate::path::unicode(Path::new(&name), "snapshot entry")?;
+        if port.runtime_source_filename.as_deref() != Some(name.as_str()) {
+            return Err(held(port));
+        }
+    }
+    Ok(())
+}
+
 impl PortcoveService {
+    pub(crate) fn require_direct_backup_snapshot(
+        &self,
+        port_id: &str,
+        snapshot: &Path,
+        producing_archive: Option<&str>,
+    ) -> Result<()> {
+        if crate::persistence::legacy_direct_reader(port_id).is_none() {
+            if producing_archive.is_some() {
+                return Err(PortcoveError::verification(
+                    "backup runtime binding belongs to an unrelated identity",
+                ));
+            }
+            return Ok(());
+        }
+        for install in self.library.all_installs()? {
+            if install.port_id != port_id {
+                continue;
+            }
+            let port = self.installed_port(&install)?;
+            if producing_archive.is_none() && !requires_fresh_data_guard(&port) {
+                // Exact historical readers keep their byte-only administrative
+                // restore contract. New bound snapshots cannot borrow it.
+                continue;
+            }
+            self.require_portable_runtime_unchanged(&install)?;
+            if producing_archive
+                .is_some_and(|sha| install.artifact.sha256.eq_ignore_ascii_case(sha))
+            {
+                continue;
+            }
+            require_source_only_snapshot(&port, snapshot)?;
+        }
+        // Restoring canonical bytes with no runtime does not authorize creating
+        // a fresh installation: its separate original-only guard still applies.
+        Ok(())
+    }
+
+    /// An initialized target proves its own restore, not that shared canonical
+    /// data came from the same build. Check before collecting or replacing data.
+    pub(super) fn require_direct_artifact_transition(
+        &self,
+        from: &InstallRecord,
+        to: &PortDefinition,
+        artifact_sha256: &str,
+        target: Option<&InstallRecord>,
+    ) -> Result<()> {
+        let retained = self.installed_port(from)?;
+        if retained.id != to.id {
+            return Err(held(to));
+        }
+        if !(requires_fresh_data_guard(&retained) || requires_fresh_data_guard(to)) {
+            return Ok(());
+        }
+        if from.artifact.sha256.len() == 64
+            && from
+                .artifact
+                .sha256
+                .bytes()
+                .all(|byte| byte.is_ascii_hexdigit())
+            && from.artifact.sha256.eq_ignore_ascii_case(artifact_sha256)
+        {
+            return Ok(());
+        }
+        let mut roots = vec![
+            self.persistence_root(&retained, &from.path)?,
+            self.library.user_dir(&from.port_id),
+        ];
+        if let Some(target) = target {
+            if target.port_id != from.port_id {
+                return Err(held(to));
+            }
+            roots.push(self.persistence_root(to, &target.path)?);
+        }
+        self.require_direct_empty_expansion(&retained, to, &roots)
+    }
+
     /// Preserve the exact legacy reader, while refusing unproven canonical data
     /// before a new route is created. Retained imports carry their own receipts.
     pub(super) fn require_direct_fresh_data(&self, port: &PortDefinition) -> Result<()> {
@@ -120,7 +211,9 @@ impl PortcoveService {
         to: &PortDefinition,
         roots: &[PathBuf],
     ) -> Result<()> {
-        if retained.id == to.id && requires_fresh_data_guard(to) {
+        if retained.id == to.id
+            && (requires_fresh_data_guard(retained) || requires_fresh_data_guard(to))
+        {
             // Shared paths may contain build-bound states even when every added
             // thumbnail/campaign sidecar is absent. Generic expansion alone is
             // not a compatibility proof for this historical reader transition.
@@ -229,7 +322,11 @@ mod tests {
         let library_root = tempfile::tempdir().unwrap();
         let library = Library::open(library_root.path().join("library")).unwrap();
         let service = PortcoveService::new(library.clone()).unwrap();
-        for id in ["sonic-the-hedgehog-recomp", "mega-man-x2-snes-recomp"] {
+        for id in [
+            "sonic-the-hedgehog-recomp",
+            "mega-man-x2-snes-recomp",
+            "super-metroid-recomp",
+        ] {
             let mut port = Catalog::embedded().unwrap().port(id).unwrap().clone();
             let (version, hash) = legacy_reader(id).unwrap();
             port.release.provider = crate::ReleaseSource::DirectManifest;

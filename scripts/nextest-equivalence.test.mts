@@ -380,6 +380,14 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
   });
   const windowsWholeMatrixFilter =
     "package(portcove-core) & (test(/^service::generated_cache_tests::generated_cache_unclaimed_outputs_hold_every_prewrite_data_route$/) | test(/^definition_projection::tests::every_current_port_retains_exact_bytes_and_complete_validated_source_graph$/))";
+  const windowsGhostshipBackupFilter =
+    "package(portcove-core) & test(/^service::ghostship_persistence_tests::ghostship_legacy_backup_assessment_matches_collection_without_a_source$/)";
+  assert.deepEqual(overrideFor(windowsGhostshipBackupFilter, "x86_64-pc-windows-msvc"), {
+    platform: "x86_64-pc-windows-msvc",
+    filter: windowsGhostshipBackupFilter,
+    "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
+    "success-output": "immediate",
+  });
   const curatedInstalledWithdrawalFilter =
     "package(portcove-core) & (test(/^definition_repository::tests::publisher_policy_tests::curated_installed_withdrawal_allows_critical_verification_but_holds_fresh_acquisition$/) | test(/^definition_repository::tests::publisher_policy_tests::curated_installed_revocation_holds_critical_verification_and_fresh_acquisition$/))";
   const currentFullBaselineBudgets = [
@@ -749,6 +757,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
         platform: "x86_64-pc-windows-msvc",
         filter,
       })),
+      { platform: "x86_64-pc-windows-msvc", filter: windowsGhostshipBackupFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsRestoreSynchronizedFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsIndexedRetentionFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsSelectedPlayerDiagnosticFilter },
