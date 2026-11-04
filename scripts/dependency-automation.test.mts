@@ -22,6 +22,51 @@ import {
 } from "./release-pnpm-runtime.mts";
 import { controllerNodeVersion } from "./controller-node-runtime.mts";
 import { validateRootPnpmToolchain } from "./pnpm-lock-inventory.mts";
+import { gtkQualificationObservation } from "./dialog-gtk-observation.mts";
+
+void test("GTK observations retain only closed phases, bounded statuses and Rust error identities", () => {
+  const observed = gtkQualificationObservation("patched-observation", {
+    status: 101,
+    signal: null,
+    output:
+      "private /secret/token\nerror[E0433] private\nerror[E0433] again\nerror[E0308] hidden\nPORTCOVE_RFD_TEXT_PROBE",
+  });
+  assert.deepEqual(observed, {
+    phase: "patched-observation",
+    status: 101,
+    signal: null,
+    constructor_marker: true,
+    rust_errors: ["E0308", "E0433"],
+  });
+  assert.doesNotMatch(JSON.stringify(observed), /private|secret|token/u);
+  assert.deepEqual(
+    gtkQualificationObservation("injected\n::error::private", {
+      status: Infinity,
+      signal: "private",
+      output: "private",
+    }),
+    { phase: "unknown", status: null, signal: null, constructor_marker: false, rust_errors: [] },
+  );
+  assert.deepEqual(gtkQualificationObservation("source"), {
+    phase: "source",
+    status: null,
+    signal: null,
+    constructor_marker: null,
+    rust_errors: [],
+  });
+  const errors = Array.from(
+    { length: 20 },
+    (_, index) => `error[E${String(index).padStart(4, "0")}]`,
+  ).join("\n");
+  assert.equal(
+    gtkQualificationObservation("unpatched-observation", {
+      status: 1,
+      signal: "SIGTERM",
+      output: errors,
+    }).rust_errors.length,
+    8,
+  );
+});
 
 function required<T>(value: T | null | undefined): T {
   assert.ok(value !== null && value !== undefined);
