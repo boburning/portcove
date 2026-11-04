@@ -1939,6 +1939,11 @@ registration/ownership/removal, declared managed preservation and rollback
 explanations come from `scripts/catalog-route-facts.mts`. Bespoke guide actions,
 source/edition requirements and immediate warnings remain explicit. No guide
 paragraph or descriptive fact authorizes execution or data ownership.
+Literal arguments preserve empty values, whitespace, repeated flags and order.
+They use Core's existing limit of 64 arguments and 32 KiB total UTF-8, with NUL
+refused. The fully escaped selector must also fit the existing concrete guide's
+4096-byte instruction bound; oversized vectors receive an authoring diagnostic
+before generation. Descriptive data-location labels keep separate validation.
 
 Generation expands those facts into the existing concrete versioned guides for
 Desktop, CLI and other consumers. Historical concrete guides remain exact; a new
@@ -1985,6 +1990,11 @@ needs a correspondingly accepted observation before authoring generation; it
 cannot accidentally disappear from the lifecycle inventory. Probe execution remains
 separate from upstream binary execution, dependency/gameplay and Supported
 qualification. Historical concrete definitions and prior receipts remain intact.
+GitHub owner/repository casing alone preserves applicable evidence and checkpoint
+reuse. Historical observations keep their exact repository spelling, selection
+hash and scope; a genuinely different repository or selected-player contract
+still needs newly applicable evidence. Changes to either shared authoring module
+select the existing generator's actual output-integrity check in local/hosted CI.
 
 Optional listing `original_game` is a version-1 descriptive identity: an explicitly
 reviewed stable `id`, one to eight public HTTPS `evidence_urls`, and up to sixteen
