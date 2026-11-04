@@ -139,7 +139,7 @@ jobs:
           path: target/release/bundle
       - name: Install DEB runtime prerequisites
         timeout-minutes: 15
-        run: ./scripts/install-linux-desktop-prerequisites.sh
+        run: ./scripts/install-linux-desktop-prerequisites.sh --prefer-archive-mirror
       - name: Verify installed DEB ownership guidance
         run: ./scripts/test-linux-package-ownership.sh deb
       - name: Retain bounded DEB ownership evidence
