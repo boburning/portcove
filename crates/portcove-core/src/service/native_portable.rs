@@ -4002,7 +4002,7 @@ mod tests {
             );
             let original = b"lawful fixed first-party original fixture";
             let fixed = compatible_archive_fixture_catalog(declared.clone(), original);
-            let definition = serde_json::to_vec(fixed.authoritative_document()).unwrap();
+            let definition = serde_json::to_vec(&fixed.authoritative_document()).unwrap();
             let definition_sha256 = hex::encode(Sha256::digest(&definition));
             let package = |version: &str, revision| {
                 let mut release = server.release_in_folder(version, revision, "", executable);
@@ -4132,7 +4132,7 @@ mod tests {
             );
             assert_eq!(fs::read(&source).unwrap(), original);
             assert_eq!(
-                serde_json::to_vec(restarted.catalog.authoritative_document()).unwrap(),
+                serde_json::to_vec(&restarted.catalog.authoritative_document()).unwrap(),
                 definition
             );
             if id == "super-metroid-recomp" {
