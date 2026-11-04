@@ -30,16 +30,19 @@
           "instruction": "Select recharged.exe, use its complete program folder as working directory and leave arguments empty for the normal launcher. Use your own supported Mario Strikers Charged Wii image through upstream’s picker; the pinned install guide documents ISO, RVZ or WBFS for USA R4QE01 revision 1 or Europe R4QP01 revision 1 or 2. Renaming an image does not change its revision. Keep Advanced → Interface → Reopen after the game off ([launcher] reopen_after_game=false). Normal Play continues into the game in the selected process; that optional setting instead starts another launcher after the game ends."
         },
         {
-          "title": "Preserve settings, regional saves and selected paths",
-          "instruction": "Keep recharged.ini, older mscharged.ini if retained, data/nand, data/pipeline_cache.db, data/launcher, texture_packs, data/texture_dumps, logs, screenshots and the actual original-image location. Preserve any configured save or texture folder outside the program folder too. The default USA saves use the save folder itself; European saves use its R4QP subfolder. Keep other creating-runtime region folders if present. Screenshots use the launch working folder; a non-writable program folder can send logs to user application data. Upstream owns old-layout imports and save conversion; registration does not move, merge or certify these files."
-        },
-        {
           "title": "Keep upstream updates outside Portcove Play",
           "instruction": "Perform upstream updates separately, outside a Portcove Play session: an update replaces program bytes and restarts another process. Review and relink the changed recharged.exe before the next Portcove launch. Registration records your selected native executable, working folder and literal arguments; Play is separate and supervises only that process. Removing the registration preserves every external file. Managed installation, runtime updates, backup, rollback, save migration and deletion are not offered for this copy."
         }
       ],
       "warnings": [
-        "The project’s CC0 dedication covers its own contributions, not reconstructed game code, third-party components, original assets or trademarks. Use only a copy and originals you are permitted to use. Nintendo WFC is unavailable. Upstream gameplay and controller claims are not Portcove native or gameplay observations; image authenticity and cross-version save compatibility remain unqualified."
+        "The project’s CC0 dedication covers its own contributions, not reconstructed game code, third-party components, original assets or trademarks. Use only a copy and originals you are permitted to use. Nintendo WFC is unavailable. Upstream gameplay and controller claims are not Portcove native or gameplay observations; image authenticity and cross-version save compatibility remain unqualified.",
+        "Upstream owns old-layout imports and save conversion; registration does not move, merge or certify these files."
+      ],
+      "references": [
+        {
+          "title": "Preserve settings, regional saves and selected paths",
+          "instruction": "Keep recharged.ini, older mscharged.ini if retained, data/nand, data/pipeline_cache.db, data/launcher, texture_packs, data/texture_dumps, logs, screenshots and the actual original-image location. Preserve any configured save or texture folder outside the program folder too. The default USA saves use the save folder itself; European saves use its R4QP subfolder. Keep other creating-runtime region folders if present. Screenshots use the launch working folder; a non-writable program folder can send logs to user application data. Upstream owns old-layout imports and save conversion; registration does not move, merge or certify these files."
+        }
       ]
     }
   },

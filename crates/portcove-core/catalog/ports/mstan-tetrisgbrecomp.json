@@ -22,16 +22,19 @@
           "instruction": "Select Tetris.exe in its intended writable runtime folder and use that same folder as working directory. Leave arguments empty for the normal in-process launcher. At the separate Play step, use upstream's picker for your own 32,768-byte Tetris World V1.0 original: CRC32 63F9407D and documented SHA-1 3f2a6407c9900ad5817ee1cfb3609c5ee17400fc. V1.1 is a different program image. The upstream runtime checks its own CRC gate; Portcove registration does not import or authenticate that original."
         },
         {
-          "title": "Preserve runtime settings and actual data locations",
-          "instruction": "Keep the complete working copy and original location, including rom.cfg, runtime_prefs.ini, keybinds.ini, assets and any created save/state/RTC, mod, capture or diagnostic files. The reviewed Windows runtime anchors its ROM cache and runtime preferences beside the executable; keybinds.ini also uses the working folder. Save/state names come from the creating runtime, not a guessed generic save directory. Preserve separately selected or absolute output paths too. Moving the original may require correcting the upstream ROM selection; registration does not migrate paths or certify cross-version state compatibility."
-        },
-        {
           "title": "Review registration before choosing Play",
           "instruction": "Portcove records your selected native executable, working folder and literal arguments after review; Play is separate. Only the selected process is supervised. Upstream or you own runtime replacement and updates; relink changed executable bytes after reviewing them. Removing the registration preserves all external files. Managed installation, generation, backup, rollback, migration and deletion are not offered for this copy."
         }
       ],
       "warnings": [
-        "The v0.0.2 rejection is a known upstream failure; use the separately corrected v0.0.3 route rather than treating any old build as equivalent. Upstream gameplay claims are not Portcove qualification. Only use software and original data you are permitted to use."
+        "The v0.0.2 rejection is a known upstream failure; use the separately corrected v0.0.3 route rather than treating any old build as equivalent. Upstream gameplay claims are not Portcove qualification. Only use software and original data you are permitted to use.",
+        "Preserve separately selected or absolute output paths too. Moving the original may require correcting the upstream ROM selection; registration does not migrate paths or certify cross-version state compatibility."
+      ],
+      "references": [
+        {
+          "title": "Preserve runtime settings and actual data locations",
+          "instruction": "Keep the complete working copy and original location, including rom.cfg, runtime_prefs.ini, keybinds.ini, assets and any created save/state/RTC, mod, capture or diagnostic files. The reviewed Windows runtime anchors its ROM cache and runtime preferences beside the executable; keybinds.ini also uses the working folder. Save/state names come from the creating runtime, not a guessed generic save directory. Preserve separately selected or absolute output paths too. Moving the original may require correcting the upstream ROM selection; registration does not migrate paths or certify cross-version state compatibility."
+        }
       ]
     }
   },

@@ -31,7 +31,14 @@
         {
           "title": "Keep one runtime replacement owner",
           "instruction": "Review and consent to the exact selected executable, working directory and empty argument list, then choose Play separately. You and upstream own installation, update checks, deliberate runtime replacement and recovery. Takedawn documents manual updates through its own installer; Portcove does not operate that updater. Close game and setup companions before replacement, retain the prior working program and effective data, then review and relink changed selected bytes. Removing the registration preserves all external files. Portcove supplies no external update, backup, rollback, conversion, migration, uninstall or data deletion."
-        },
+        }
+      ],
+      "warnings": [
+        "Use only a completed copy and components you are permitted to use. Preserve the whole creating program, original disc data, saves, settings, mods, caches, backups, earlier migrated profiles and all custom roots. Upstream setup, restarts and replacement remain external operations. No installer, player, game or real-save observation was performed for this guide.",
+        "The upstream program may migrate earlier Burnout3-named data on startup; retain those earlier folders too. Source review does not certify real-save or cross-version compatibility.",
+        "Preserve the project MIT notice and separate LGPL, GPL and other component notices and corresponding-source information shipped by upstream. These grants cover their own code, not Electronic Arts game content; your original-disc and other component rights remain separate."
+      ],
+      "references": [
         {
           "title": "Preserve game data, saves and custom roots separately",
           "instruction": "Keep %LOCALAPPDATA%/Takedawn/Game or the actual game folder chosen upstream, plus data-folder.txt that remembers an alternate root. Preserve %APPDATA%/Takedawn with settings, controller profiles and UDATA/4541005b saves, backups and save history; retain shader/texture caches, logs, custom music, mods, original images, old program copies and every effective custom root, including any RECOMP_SAVE_DIR override. The upstream program may migrate earlier Burnout3-named data on startup; retain those earlier folders too. Source review does not certify real-save or cross-version compatibility."
@@ -40,9 +47,6 @@
           "title": "Use permitted content and check this guide’s limits",
           "instruction": "Preserve the project MIT notice and separate LGPL, GPL and other component notices and corresponding-source information shipped by upstream. These grants cover their own code, not Electronic Arts game content; your original-disc and other component rights remain separate. Public release metadata and upstream BUILDINFO are publisher assertions, not a reproduced build or independently inspected installed package. This guide offers local completed-copy launch only; it grants no network/account setup, gameplay, installed-client, Supported or protected-publication acceptance."
         }
-      ],
-      "warnings": [
-        "Use only a completed copy and components you are permitted to use. Preserve the whole creating program, original disc data, saves, settings, mods, caches, backups, earlier migrated profiles and all custom roots. Upstream setup, restarts and replacement remain external operations. No installer, player, game or real-save observation was performed for this guide."
       ]
     }
   }

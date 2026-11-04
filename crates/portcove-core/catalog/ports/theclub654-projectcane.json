@@ -29,16 +29,19 @@
           "instruction": "Select Sly1-Release.exe and use the folder containing that player and its extracted game files as working directory. Leave arguments empty. The inspected Windows entry runs the game in the selected process. Exact compatible disc digest and revision beyond upstream’s NTSC requirement remain unconfirmed; registration does not extract, import or authenticate your ISO."
         },
         {
-          "title": "Keep the creating player and its saves",
-          "instruction": "Preserve the whole prepared folder, extracted assets, settings and any mods or diagnostic outputs. The reviewed Windows save implementation uses Saves beside Sly1-Release.exe, with slotN.sav files and adjacent .tmp files during replacement. Keep those files together; player settings are also stored in its save payload. Preserve any custom locations used by your own build. Portcove does not convert console saves or certify compatibility between ProjectCane builds."
-        },
-        {
           "title": "Review registration before choosing Play",
           "instruction": "Registration records the native executable, working folder and literal arguments; Play is separate. Only the selected process is supervised. You and upstream own preparation and runtime replacement; review and relink changed executable bytes. Removing the registration preserves external files. Managed installation, extraction, compilation, updates, backup, rollback, migration and deletion are not offered for this copy."
         }
       ],
       "warnings": [
-        "Use only the software and original data you are permitted to use. Upstream’s full-game and Windows claims are not Portcove gameplay or native observations. A Linux-named release file does not establish a Linux route when the inspected source documentation says Windows only."
+        "Use only the software and original data you are permitted to use. Upstream’s full-game and Windows claims are not Portcove gameplay or native observations. A Linux-named release file does not establish a Linux route when the inspected source documentation says Windows only.",
+        "Keep those files together; player settings are also stored in its save payload. Preserve any custom locations used by your own build. Portcove does not convert console saves or certify compatibility between ProjectCane builds."
+      ],
+      "references": [
+        {
+          "title": "Keep the creating player and its saves",
+          "instruction": "Preserve the whole prepared folder, extracted assets, settings and any mods or diagnostic outputs. The reviewed Windows save implementation uses Saves beside Sly1-Release.exe, with slotN.sav files and adjacent .tmp files during replacement. Keep those files together; player settings are also stored in its save payload. Preserve any custom locations used by your own build. Portcove does not convert console saves or certify compatibility between ProjectCane builds."
+        }
       ]
     }
   }

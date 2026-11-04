@@ -22,16 +22,20 @@
           "instruction": "Select the outer portable UrbanRecomp.exe and use its containing writable folder as working directory. Leave arguments empty for the normal launcher and choose your own clean US SNES SimCity original there at the separate Play step. Upstream documents SHA-256 e9c0bc05511e05a0d7c3e7cc42e761e1e8e532d46f59b9854b6902e1a2e9dd0a. Registration does not import or authenticate the original. The portable wrapper unpacks runtime files into a versioned LocalAppData/UrbanRecomp/bundles cache and waits for its child player; it is not the same layout as a source-build tree."
         },
         {
-          "title": "Preserve the data folder and complete save set",
-          "instruction": "The portable wrapper normally runs its child with the portable EXE folder as data working directory. Keep sc-settings.ini, keybinds.ini, the selected original and location, save states, mods, diagnostics and the complete save set there. The US SRAM file is urbanrecomp-us.srm with its .bak; Enhanced also keeps matching .population and .world sidecars. Keep them together with their creating runtime. Preserve actual SC_PORTABLE_DATA_DIR or SC_SRAM_PATH locations when independently configured; registration does not recreate a per-shell environment, move data or certify cross-version state compatibility. Original-derived translation/scenario data remain your upstream preparation and permission responsibility."
-        },
-        {
           "title": "Review registration before choosing Play",
           "instruction": "Portcove records the selected native executable, working folder and literal arguments after review; Play is separate. You and upstream own replacement, cache preparation and updates; relink changed portable EXE bytes after reviewing them. Only the selected process is supervised. Removing the registration preserves all external files. Managed installation, backup, rollback, migration, generation and deletion are not offered for this copy."
         }
       ],
       "warnings": [
-        "Use the Enhanced fork and its matching data deliberately; another SimCity port or an older base build does not inherit its save layouts. Upstream performance, original-game compatibility and gameplay reports are not Portcove qualification. The project MIT notice does not replace its included engine or original-content conditions."
+        "Use the Enhanced fork and its matching data deliberately; another SimCity port or an older base build does not inherit its save layouts. Upstream performance, original-game compatibility and gameplay reports are not Portcove qualification. The project MIT notice does not replace its included engine or original-content conditions.",
+        "The US SRAM file is urbanrecomp-us.srm with its .bak; Enhanced also keeps matching .population and .world sidecars. Keep them together with their creating runtime.",
+        "Preserve actual SC_PORTABLE_DATA_DIR or SC_SRAM_PATH locations when independently configured; registration does not recreate a per-shell environment, move data or certify cross-version state compatibility. Original-derived translation/scenario data remain your upstream preparation and permission responsibility."
+      ],
+      "references": [
+        {
+          "title": "Preserve the data folder and complete save set",
+          "instruction": "The portable wrapper normally runs its child with the portable EXE folder as data working directory. Keep sc-settings.ini, keybinds.ini, the selected original and location, save states, mods, diagnostics and the complete save set there. The US SRAM file is urbanrecomp-us.srm with its .bak; Enhanced also keeps matching .population and .world sidecars. Keep them together with their creating runtime. Preserve actual SC_PORTABLE_DATA_DIR or SC_SRAM_PATH locations when independently configured; registration does not recreate a per-shell environment, move data or certify cross-version state compatibility. Original-derived translation/scenario data remain your upstream preparation and permission responsibility."
+        }
       ]
     }
   },

@@ -33,16 +33,19 @@
         {
           "title": "Review launch details, then choose Play",
           "instruction": "For a completed permitted copy, select BlastCorpsRecompiled.exe, its established package directory and supported literal arguments. Review and consent to this exact execution intent, then choose Play separately. Preparation and runtime replacement stay with the player/upstream. Removing the registration preserves every external file; Core supplies no external engine update, backup, rollback, conversion, migration or deletion."
-        },
+        }
+      ],
+      "warnings": [
+        "The font condition stays open. Conditional permitted-copy guidance does not grant acquisition or component permission, gameplay, real-save, installed-app or protected-publication acceptance.",
+        "Keep a complete separate backup and compatible creating engine; runtime replacement does not rewind saves or certify mods. A custom profile remains external. Close the actual player before deliberate replacement and review/relink a changed executable."
+      ],
+      "help_url": "https://github.com/SlaveOfIDO/blastcorps-recomp/blob/b5510451aabc2373079cd01e8c0ec2a8d01eb742/README.md",
+      "references": [
         {
           "title": "Preserve the actual profile before maintenance",
           "instruction": "The normal Windows profile is %LOCALAPPDATA%/BlastCorpsRecompiled. A portable.txt marker chooses the working directory; failed known-folder lookup can also fall back to a relative folder. Preserve the actual selected location, including cached bc.n64.us.z64 original, saves, settings/config JSON and backups/temporary files, mods and mod configuration. Keep a complete separate backup and compatible creating engine; runtime replacement does not rewind saves or certify mods. A custom profile remains external. Close the actual player before deliberate replacement and review/relink a changed executable."
         }
-      ],
-      "warnings": [
-        "The font condition stays open. Conditional permitted-copy guidance does not grant acquisition or component permission, gameplay, real-save, installed-app or protected-publication acceptance."
-      ],
-      "help_url": "https://github.com/SlaveOfIDO/blastcorps-recomp/blob/b5510451aabc2373079cd01e8c0ec2a8d01eb742/README.md"
+      ]
     }
   },
   "upstream_lineage": {

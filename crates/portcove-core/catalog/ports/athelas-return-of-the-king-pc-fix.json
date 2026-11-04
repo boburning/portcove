@@ -23,10 +23,6 @@
           "instruction": "Finish upstream setup deliberately in Athelas: select the PC game and its actual installed folder. Athelas copies its enhancement DLLs and ROTKFix directory into that chosen game folder; protected locations may need your Windows approval. Select Athelas.exe in Portcove, use its complete containing folder as working directory and leave arguments empty. Use Athelas for this PC game’s settings and Play. Saving the registration does not install the enhancement or launch the original."
         },
         {
-          "title": "Preserve the PC game and its real profiles",
-          "instruction": "Keep the complete original PC installation, existing save/profile locations, game settings, ROTKFix.ini, installed DLLs, ROTKFix content/mods and every configured custom path. Preserve the launcher folder, Athelas.ini, Screenshots, upstream backups and all external locations separately. Athelas install/remove, settings, mod and save-restore actions can change external files; retain independent working copies with every actual game and launcher closed. Xbox save-folder rules and compatibility are not inherited by this PC enhancement. In the selected source, the game’s ROTK.ini lives under the actual Windows Documents folder, normally LOTR The Return of the King (tm) Data; the name can instead come from the installed executable’s language resource. Preserve that whole profile, ROTK.ini.before-rotkfix, game-folder Input.ini and Input.ini.original. Upstream Save/Play can create or rewrite these files; removing the enhancement can restore a prior copy or remove settings it created. Preserve independent backups before these actions."
-        },
-        {
           "title": "Track the selected launcher honestly",
           "instruction": "Only the selected Athelas process is supervised by this registration. Its separately started original game is not adopted or terminated by Portcove; a closed launcher is not proof that the game stopped. One launcher folder may serve several titles, so close all actual games and launcher instances before maintenance or replacement."
         },
@@ -36,7 +32,15 @@
         }
       ],
       "warnings": [
-        "Use only components and an original PC copy you are permitted to use. Package/DLL inspection, source review and owned probes are not original-game execution, protection acceptance, real-save, installed-client or Supported evidence."
+        "Use only components and an original PC copy you are permitted to use. Package/DLL inspection, source review and owned probes are not original-game execution, protection acceptance, real-save, installed-client or Supported evidence.",
+        "Athelas install/remove, settings, mod and save-restore actions can change external files; retain independent working copies with every actual game and launcher closed. Xbox save-folder rules and compatibility are not inherited by this PC enhancement.",
+        "Preserve that whole profile, ROTK.ini.before-rotkfix, game-folder Input.ini and Input.ini.original. Upstream Save/Play can create or rewrite these files; removing the enhancement can restore a prior copy or remove settings it created. Preserve independent backups before these actions."
+      ],
+      "references": [
+        {
+          "title": "Preserve the PC game and its real profiles",
+          "instruction": "Keep the complete original PC installation, existing save/profile locations, game settings, ROTKFix.ini, installed DLLs, ROTKFix content/mods and every configured custom path. Preserve the launcher folder, Athelas.ini, Screenshots, upstream backups and all external locations separately. Athelas install/remove, settings, mod and save-restore actions can change external files; retain independent working copies with every actual game and launcher closed. Xbox save-folder rules and compatibility are not inherited by this PC enhancement. In the selected source, the game’s ROTK.ini lives under the actual Windows Documents folder, normally LOTR The Return of the King (tm) Data; the name can instead come from the installed executable’s language resource. Preserve that whole profile, ROTK.ini.before-rotkfix, game-folder Input.ini and Input.ini.original. Upstream Save/Play can create or rewrite these files; removing the enhancement can restore a prior copy or remove settings it created. Preserve independent backups before these actions."
+        }
       ]
     },
     "artwork": {

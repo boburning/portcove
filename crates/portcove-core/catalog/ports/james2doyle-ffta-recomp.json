@@ -41,15 +41,19 @@
         {
           "title": "Review launch details, then choose Play",
           "instruction": "Review and consent to this exact native executable, working directory and literal arguments, then choose Play separately. Upstream and you own preparation, replacement and recovery of external files. Removing registration preserves every external file. Close the actual player before upstream maintenance; retain old runtime/data and review/relink changed selected bytes."
-        },
-        {
-          "title": "Preserve saves and all effective external roots",
-          "instruction": "The inspected game.toml uses saves/ffta_us.sav relative to its own directory for the 64KiB battery save. Existing --save or --save-path overrides can point elsewhere. Save-state slots normally live beside the actual selected ROM with .stateN names; --state-dir moves those basenames to the chosen directory. Do not assume all states live beside the player or in states/. Preserve your ROM directory and its state/sidecar files, actual custom save/state directories, the complete creating runtime, saves/, rom.cfg, bios.cfg, skip_launcher_on_boot, config.ini, keybinds.ini, game.toml, config overlays, mods, screenshots, logs, backups and temporary files. No cross-version state/save compatibility or managed backup is claimed."
         }
       ],
       "warnings": [
         "Use only components and original inputs you are permitted to use; keep every effective external file and custom root with its creating runtime. Portcove offers no external update, backup, rollback, migration or deletion.",
-        "This upstream preview is experimental. Source and package descriptions and static checks do not confirm that the package matches the source or that gameplay, normal shutdown, saves or installed Desktop behavior work. Other platforms have separate requirements."
+        "This upstream preview is experimental. Source and package descriptions and static checks do not confirm that the package matches the source or that gameplay, normal shutdown, saves or installed Desktop behavior work. Other platforms have separate requirements.",
+        "Do not assume all states live beside the player or in states/.",
+        "No cross-version state/save compatibility or managed backup is claimed."
+      ],
+      "references": [
+        {
+          "title": "Preserve saves and all effective external roots",
+          "instruction": "The inspected game.toml uses saves/ffta_us.sav relative to its own directory for the 64KiB battery save. Existing --save or --save-path overrides can point elsewhere. Save-state slots normally live beside the actual selected ROM with .stateN names; --state-dir moves those basenames to the chosen directory. Do not assume all states live beside the player or in states/. Preserve your ROM directory and its state/sidecar files, actual custom save/state directories, the complete creating runtime, saves/, rom.cfg, bios.cfg, skip_launcher_on_boot, config.ini, keybinds.ini, game.toml, config overlays, mods, screenshots, logs, backups and temporary files. No cross-version state/save compatibility or managed backup is claimed."
+        }
       ]
     }
   },

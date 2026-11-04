@@ -33,7 +33,15 @@
         {
           "title": "Select your original game on first Play",
           "instruction": "Choose Play explicitly, then select your own supported North American Snowboard Kids ROM in the game menu. The player checks the game identity and normalizes supported byte orders. No separate extraction or compiler step is needed for the released player."
-        },
+        }
+      ],
+      "warnings": [
+        "Upstream lists graphics/CPU requirements and Windows runtime prerequisites. Separately published native builds are not Portcove native or gameplay qualification.",
+        "Preserve the selected location, original ROM, saves, settings and mods; they are outside Portcove backup and rollback.",
+        "Keep both the app data and actual profile when updating; Portcove does not back up or remove them."
+      ],
+      "help_url": "https://github.com/cdlewis/snowboardkids-recomp/blob/2ac83a8af625acf7da92d5610b25f2693bff7c91/README.md",
+      "references": [
         {
           "title": "Preserve your actual profile when updating",
           "instruction": "You or upstream provide updates. Keep the working copy and actual profile: normally %LOCALAPPDATA%\\SnowboardKidsRecompiled on Windows, ~/.config/SnowboardKidsRecompiled on Linux, or ~/Library/Application Support/SnowboardKidsRecompiled on macOS. On Windows/native Linux, portable.txt in the working folder stores data there; on macOS the marker belongs beside the application bundle and data stays there. Preserve the selected location, original ROM, saves, settings and mods; they are outside Portcove backup and rollback."
@@ -42,11 +50,7 @@
           "title": "Keep Flatpak data alongside the actual profile",
           "instruction": "For Flatpak, also preserve the complete ~/.var/app/io.github.snowboardkidsrecomp.snowboardkidsrecomp folder. This build keeps additional writable mod data in its Flatpak data area, while the profile resolver still uses HOME/.config/SnowboardKidsRecompiled unless APP_FOLDER_PATH or portable mode selects another folder. Keep both the app data and actual profile when updating; Portcove does not back up or remove them."
         }
-      ],
-      "warnings": [
-        "Upstream lists graphics/CPU requirements and Windows runtime prerequisites. Separately published native builds are not Portcove native or gameplay qualification."
-      ],
-      "help_url": "https://github.com/cdlewis/snowboardkids-recomp/blob/2ac83a8af625acf7da92d5610b25f2693bff7c91/README.md"
+      ]
     },
     "download_block_reason": "The official RecompFrontend base now has a GPLv3 grant, but selected cdlewis/RecompFrontend fa4f0ca42ba2efaca631203ef1e0753f2be78985 contains separately modified input/theme/frontend code beyond that licensed official tree. An attributable applicable grant for that fork-specific scope remains unestablished; the parent game-project license does not settle it. Keep an existing copy you are permitted to use. Reconsider fresh acquisition with applicable permission for the exact selected fork or a reviewed appropriately licensed replacement package."
   }
