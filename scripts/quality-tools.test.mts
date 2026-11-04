@@ -715,3 +715,68 @@ $results | ConvertTo-Json -Depth 6 -Compress
     assert.equal(observations.filter((entry) => isRecord(entry) && entry.failed).length, 4);
   },
 );
+
+void test("Aqua configuration accepts semantic YAML formatting and rejects unsupported authority", async () => {
+  const aqua = await readFile(new URL("../aqua.yaml", import.meta.url), "utf8");
+  const expected = parseAquaConfig(aqua);
+  const packages = expected.packages.map(({ name, version }) => ({ name: `${name}@${version}` }));
+  const reformatted = JSON.stringify({
+    packages,
+    checksum: { require_checksum: true, enabled: true },
+    registries: [{ ref: expected.registryRef, type: "standard" }],
+  });
+  assert.deepEqual(parseAquaConfig(reformatted), expected);
+  assert.deepEqual(parseAquaConfig(aqua.replaceAll("\n", "\r\n")), expected);
+  assert.deepEqual(
+    parseAquaConfig(
+      "# ordinary comment\n" +
+        aqua.replace(/^#.*\n/u, "").replace("type: standard", 'type: "standard" # comment'),
+    ),
+    expected,
+  );
+  const invalid = [
+    "%YAML 1.1\n---\n" + aqua,
+    aqua.replace("require_checksum: true", ""),
+    aqua + "\n---\n{}",
+    aqua.replace("enabled: true", "enabled: true\n  enabled: true"),
+    aqua.replace("enabled: true", 'enabled: "true"'),
+    aqua.replace("require_checksum: true", "require_checksum: false"),
+    aqua.replace("type: standard", "type: local"),
+    aqua.replace("type: standard", "type: standard\n    url: https://example.com"),
+    aqua.replace("ref: ", "ref: !untrusted "),
+    aqua
+      .replace("enabled: true", "enabled: &flag true")
+      .replace("require_checksum: true", "require_checksum: *flag"),
+    aqua.replace("packages:", "unknown: true\npackages:"),
+    aqua.replace(/@[^\s]+/u, "@latest"),
+    aqua.replace("astral-sh/ruff", "unknown/tool"),
+    aqua.replace("packages:", "packages: []\nignored:"),
+    aqua + "\n" + "#".repeat(64 * 1024),
+    aqua.replace("packages:", "packages: ["),
+  ];
+  for (const input of invalid) assert.throws(() => parseAquaConfig(input));
+  const ledger: unknown = JSON.parse(
+    await readFile(new URL("../aqua-checksums.json", import.meta.url), "utf8"),
+  );
+  assert.throws(
+    () =>
+      validateAquaChecksumLedger(
+        parseAquaConfig(aqua.replace(/ref: \S+/u, "ref: changed-registry-ref")),
+        ledger,
+      ),
+    /drifted/u,
+  );
+  const duplicate = structuredClone(packages);
+  duplicate.push(packages[0]!);
+  assert.throws(
+    () =>
+      parseAquaConfig(
+        JSON.stringify({
+          registries: [{ type: "standard", ref: expected.registryRef }],
+          checksum: { enabled: true, require_checksum: true },
+          packages: duplicate,
+        }),
+      ),
+    /duplicates/u,
+  );
+});
