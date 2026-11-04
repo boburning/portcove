@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFile } from "node:fs/promises";
+import { parseDocument } from "yaml";
+import { isRecord } from "./runtime-values.mts";
 import { createHash } from "node:crypto";
 import { trustedAssemblyFixture } from "./fixtures/trusted-assembly-fixture.mts";
 import { releasePublicBuildProvenanceFixture } from "./fixtures/release-public-build-provenance-fixture.mts";
@@ -36,19 +39,43 @@ const document = {
     },
   ],
 };
-void test("SPDX producer compatibility admits the current scanner while retaining historical evidence", () => {
+void test("SPDX producer compatibility admits the current scanner while retaining historical evidence", async () => {
+  const yaml = parseDocument(
+    await readFile(new URL("../.github/workflows/release.yml", import.meta.url), "utf8"),
+    { uniqueKeys: true },
+  );
+  assert.equal(yaml.errors.length, 0);
+  assert.equal(yaml.warnings.length, 0);
+  const field = (value: unknown, key: string): unknown => {
+    assert.ok(isRecord(value));
+    return value[key];
+  };
+  const workflow: unknown = yaml.toJS();
+  const steps = field(field(field(workflow, "jobs"), "assemble"), "steps");
+  assert.ok(Array.isArray(steps));
+  const scanners: unknown[] = steps.filter(
+    (step: unknown) =>
+      isRecord(step) &&
+      typeof step.uses === "string" &&
+      step.uses.startsWith("anchore/sbom-action@"),
+  );
+  assert.equal(scanners.length, 1);
+  const pin = field(field(scanners[0], "with"), "syft-version");
+  assert.ok(typeof pin === "string");
+  const version = /^v(\d+)\.(\d+)\.(\d+)$/u.exec(pin);
+  assert.ok(version);
+  const producer = `Tool: syft-${pin.slice(1)}`;
+  const unreviewedPatch = `Tool: syft-${version[1]}.${version[2]}.${BigInt(version[3]!) + 1n}`;
   const current = structuredClone(document);
-  for (const creator of ["Tool: syft-1.55.0", "Tool: syft-1.56.0"]) {
+  for (const creator of ["Tool: syft-1.55.0", producer]) {
     current.creationInfo.creators = [creator];
     assert.doesNotThrow(() => inspectReleaseSpdx(current));
   }
   assert.doesNotThrow(() => inspectReleaseSpdx(document));
   for (const creator of [
-    "Tool: syft-1.55.1",
-    "Tool: syft-1.55.0-unreviewed",
-    "Tool: syft-1.56.1",
-    "Tool: syft-1.56.0-unreviewed",
-    "Tool: syft-1.57.0",
+    "Tool: syft-0.0.0",
+    unreviewedPatch,
+    `${producer}-unreviewed`,
     "Tool: other",
   ]) {
     current.creationInfo.creators = [creator];
