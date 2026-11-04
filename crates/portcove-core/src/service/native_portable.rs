@@ -3067,6 +3067,14 @@ mod tests {
     // Real catalog contracts and complete observed member coordinates, with
     // inert package bytes and synthetic originals. No upstream player is run.
     async fn assert_native_engine_adoption_lifecycle(id: &str) {
+        let started = std::time::Instant::now();
+        let phase = |name: &str| {
+            eprintln!(
+                "native-engine-adoption port_id={id} phase={name} elapsed_ms={}",
+                started.elapsed().as_millis()
+            )
+        };
+        phase("fixture-begin");
         let corpus: serde_json::Value = serde_json::from_str(include_str!(
             "../testdata/native-engine-adoption-2026-11-02.json"
         ))
@@ -3116,11 +3124,14 @@ mod tests {
         let mut service =
             PortcoveService::with_provider(library.clone(), provider.clone()).unwrap();
         service.replace_catalog_for_test(catalog.clone());
+        phase("fixture-ready");
         let channel = port.channels[0];
+        phase("install-begin");
         let first = service
             .install(id, Some(channel), None, None, true, |_| {})
             .await
             .unwrap();
+        phase("install-complete");
         let first_root = first.path.join(folder);
         let probes = if let Some(probes) = case["persistent_probes"].as_array() {
             probes
@@ -3167,7 +3178,9 @@ mod tests {
                 "{id}: {path}"
             );
         }
+        phase("backup-begin");
         let backup = service.create_backup(id).unwrap();
+        phase("backup-complete");
         for path in &probes {
             assert_eq!(
                 fs::read(backup.path.join("data").join(path)).unwrap(),
@@ -3176,6 +3189,7 @@ mod tests {
             );
         }
         if case["exercise_restore"] == true {
+            phase("reviewed-restore-begin");
             for path in &probes {
                 fs::write(first_root.join(path), b"later owned data").unwrap();
             }
@@ -3218,6 +3232,8 @@ mod tests {
                 );
             }
         }
+        phase("reviewed-restore-complete-or-not-applicable");
+        phase("update-begin");
         *provider.0.lock().unwrap() = release("fixture-N+1", 2);
         assert!(
             service.check_update(id).await.unwrap().update_available,
@@ -3231,6 +3247,8 @@ mod tests {
                 "{id}: update {path}"
             );
         }
+        phase("update-complete");
+        phase("rolling-stage-begin");
         // Rolling rebuilds also bind archive identity, not just a tag string.
         *provider.0.lock().unwrap() = release("fixture-N+1", 3);
         assert!(
@@ -3240,11 +3258,14 @@ mod tests {
         let staged = service.update(id, None, None, false, |_| {}).await.unwrap();
         assert!(staged.staged, "{id}");
         service.activate_staged(id).unwrap();
+        phase("rolling-activation-complete");
         let previous = service.rollback(id).unwrap();
         assert_eq!(previous.id, second.id, "{id}");
+        phase("rollback-complete");
         drop(service);
         let mut restarted = PortcoveService::with_provider(library.clone(), provider).unwrap();
         restarted.replace_catalog_for_test(catalog);
+        phase("restart-complete");
         let retained = restarted.installed_port(&previous).unwrap();
         let spec = restarted
             .prepare_launch_for_install(&retained, &previous, None, None)
@@ -3260,6 +3281,7 @@ mod tests {
             temporary.path().join("retained-unknown-player-addition"),
         )
         .unwrap();
+        phase("removal-begin");
         let preview = restarted.preview_removal(id).unwrap();
         let consent = restarted
             .authorize_removal(id, &preview.preview_sha256)
@@ -3280,6 +3302,7 @@ mod tests {
             fs::read(temporary.path().join("retained-unknown-player-addition")).unwrap(),
             b"keep for review"
         );
+        phase("complete");
     }
 
     #[tokio::test]

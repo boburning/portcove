@@ -761,6 +761,17 @@ filter = 'package(portcove-core) & test(/^service::native_portable::tests::ready
 slow-timeout = { period = "5s", terminate-after = 24, grace-period = "0s" }
 success-output = "immediate"
 
+# CI41914595618/a1 Windows7 retained a90.327s harness cutoff in SDLPal's
+# complete lifecycle. This case additionally exercises consented restore and
+# safety backup over six declared data probes. Give only this exact Windows
+# case finite180s with phase diagnostics; assertions, product/child deadlines,
+# cleanup, worker counts and zero retries stay unchanged. No speedup is claimed.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::native_portable::tests::native_engine_adoption_1878$/)'
+slow-timeout = { period = "5s", terminate-after = 36, grace-period = "0s" }
+success-output = "immediate"
+
 # The portable lifecycle fixtures perform several durable installs, activations
 # and recovery reopens. The retained local Windows run hit 30.042s and 30.085s
 # harness cutoffs while another full case completed at 28.979s. Keep every
