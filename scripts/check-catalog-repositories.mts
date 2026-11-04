@@ -1,3 +1,6 @@
+import { createGitHubClient } from "./github-client.mts";
+import type { GitHubAttemptObservation, GitHubRequestPolicy } from "./github-client.mts";
+import { GitHubApiError } from "./github-operation.mts";
 import type {
   PortDefinition,
   DirectReleaseSpec,
@@ -284,7 +287,16 @@ export interface HealthRequestOptions {
   method?: "HEAD";
 }
 export type HealthFetch = (url: string, options: HealthRequestOptions) => Promise<Response>;
+export interface HealthMetadataResponse {
+  status: number;
+  headers: Headers;
+  data: unknown;
+  body: null;
+  responseBytes: number;
+}
 export interface HealthOptions {
+  /** Async domain seam; HTTP behavior belongs to the configured SDK tests. */
+  githubMetadata?: (url: string) => Promise<HealthMetadataResponse>;
   fetch?: HealthFetch;
   now?: () => number;
   githubToken?: string | undefined;
@@ -1054,13 +1066,18 @@ async function cancelBody(response: { body?: ReadableStream<Uint8Array> | null }
 }
 
 async function metadata(
-  response: Response,
+  response: Response | HealthMetadataResponse,
   budget: { response_bytes: number },
   now: () => number,
   deadline: number,
 ): Promise<unknown> {
-  if (!(response.headers.get("content-type") ?? "").includes("application/json") || !response.body)
+  if (!(response.headers.get("content-type") ?? "").includes("application/json"))
     throw new HealthFailure("invalid-metadata");
+  if ("data" in response) {
+    if (now() >= deadline) throw new HealthFailure("budget");
+    return response.data;
+  }
+  if (!response.body) throw new HealthFailure("invalid-metadata");
   const chunks: Uint8Array[] = [];
   let bytes = 0;
   for await (const chunk of response.body) {
@@ -1283,6 +1300,7 @@ export async function collectRepositoryHealth(
   input: unknown,
   {
     fetch: fetcher = fetch,
+    githubMetadata,
     now = Date.now,
     githubToken,
     gitlabToken,
@@ -1348,6 +1366,7 @@ export async function collectRepositoryHealth(
   )
     throw new Error("Health operation deadline is unavailable");
   const deadline = Math.min(started + limits.duration_ms, operationDeadline ?? Infinity);
+  const monotonicDeadline = performance.now() + Math.max(0, deadline - started);
   if (
     Buffer.byteLength(JSON.stringify(resumeObservations)) > HEALTH_HISTORY_BYTES ||
     resumeObservations.some((value) => !isHealthObservationHistory(value, started))
@@ -1472,47 +1491,131 @@ export async function collectRepositoryHealth(
     )
       deferred.set(provider, retryAt(headers, now()));
   };
-  const readGithubMetadata = async (endpoint: string) => {
-    const remaining = deadline - now();
+  // One credential-scoped SDK per collection; external providers never see it.
+  let sdk: ReturnType<typeof createGitHubClient> | undefined;
+  const readGithubResponse = async (url: string): Promise<HealthMetadataResponse> => {
     if (
-      remaining <= 0 ||
+      now() >= deadline ||
       consumed.requests >= limits.requests ||
       consumed.response_bytes >= limits.total_bytes
     )
       throw new HealthFailure("budget");
     if (deferred.has("github")) throw new HealthFailure("rate-limit");
-    const headers = {
-      "User-Agent": "Portcove-catalog-audit",
-      Accept: "application/vnd.github+json",
-      "X-GitHub-Api-Version": "2022-11-28",
-      ...(githubToken ? { Authorization: `Bearer ${githubToken}` } : {}),
-    };
-    const signal = AbortSignal.timeout(Math.min(limits.request_ms, remaining));
-    let response;
-    consumed.requests++;
-    try {
-      response = await fetcher(`https://api.github.com/repos/${endpoint}`, {
-        headers,
-        redirect: "manual",
-        signal,
-      });
-      retainProviderReserve("github", response.headers);
-      if (response.status !== 200) {
-        const reason = statusReason(response);
-        if (reason === "rate-limit") deferred.set("github", retryAt(response.headers, now()));
-        throw new HealthFailure(reason);
-      }
-      if (response.headers.has("link")) throw new HealthFailure("invalid-metadata");
-      const facts = await metadata(response, consumed, now, deadline);
-      if (/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(endpoint))
-        repositoryMetadata.set(`https://api.github.com/repos/${endpoint}`, facts);
-      return facts;
-    } catch (error) {
-      if (error instanceof HealthFailure) throw error;
-      throw new HealthFailure(signal.aborted ? "timeout" : "transport");
-    } finally {
-      await cancelBody(response);
+    if (githubMetadata) {
+      consumed.requests++;
+      const response = await githubMetadata(url);
+      if (!Number.isSafeInteger(response.responseBytes) || response.responseBytes < 0)
+        throw new HealthFailure("invalid-metadata");
+      consumed.response_bytes += response.responseBytes;
+      if (
+        response.responseBytes > limits.response_bytes ||
+        consumed.response_bytes > limits.total_bytes ||
+        now() >= deadline
+      )
+        throw new HealthFailure("budget");
+      return response;
     }
+    sdk ??= createGitHubClient({
+      credential:
+        githubToken === undefined
+          ? { kind: "anonymous" }
+          : { kind: "explicit", token: githubToken },
+      deadline: monotonicDeadline,
+      ...(abortSignal ? { signal: abortSignal } : {}),
+      maxBytes: limits.response_bytes,
+      requestTimeoutMs: limits.request_ms,
+      observeRedirects: true,
+      headers: {
+        accept: "application/vnd.github+json",
+        "x-github-api-version": "2022-11-28",
+        "user-agent": "Portcove-catalog-audit",
+      },
+      allowRequest: (method, address) => method === "GET" && address.pathname.startsWith("/repos/"),
+      fetch: async (input, init) =>
+        fetcher(input instanceof Request ? input.url : input instanceof URL ? input.href : input, {
+          headers: Object.fromEntries(new Headers(init?.headers)),
+          redirect: "manual",
+          signal: init!.signal!,
+        }),
+      reserve() {
+        if (
+          now() >= deadline ||
+          consumed.requests >= limits.requests ||
+          consumed.response_bytes >= limits.total_bytes
+        )
+          throw new GitHubApiError("budget_exhausted", "Health metadata budget exhausted");
+        if (deferred.has("github"))
+          throw new GitHubApiError("rate_limited", "Health provider is deferred");
+        consumed.requests++;
+        return {
+          consumeBytes(bytes) {
+            consumed.response_bytes += bytes;
+            if (consumed.response_bytes > limits.total_bytes)
+              throw new GitHubApiError("budget_exhausted", "Health metadata byte budget exhausted");
+          },
+          settle() {},
+        };
+      },
+    });
+    const evidence: { attempt?: GitHubAttemptObservation } = {};
+    const policy: GitHubRequestPolicy = {
+      replay: "once",
+      attempts: 0,
+      observe: (attempt) => {
+        evidence.attempt = attempt;
+      },
+    };
+    try {
+      const response = await (
+        await sdk
+      ).request({ method: "GET", url, request: { portcove: policy } });
+      return {
+        status: response.status,
+        headers: new Headers(evidence.attempt?.headers),
+        responseBytes: evidence.attempt?.bytes ?? 0,
+        data: response.data as unknown,
+        body: null,
+      };
+    } catch (error) {
+      if (abortSignal?.aborted) throw abortSignal.reason;
+      if (error instanceof HealthFailure) throw error;
+      if (error instanceof GitHubApiError) {
+        if (["response_limit", "budget_exhausted"].includes(error.code))
+          throw new HealthFailure("budget");
+        if (error.code === "deadline_exceeded") throw new HealthFailure("timeout");
+        if (error.code === "invalid_response") throw new HealthFailure("invalid-metadata");
+        if (
+          evidence.attempt?.status !== null &&
+          evidence.attempt?.status !== undefined &&
+          evidence.attempt.status >= 400
+        )
+          return {
+            status: evidence.attempt.status,
+            headers: new Headers(evidence.attempt.headers),
+            responseBytes: evidence.attempt.bytes,
+            data: null,
+            body: null,
+          };
+        if (error.code === "rate_limited") throw new HealthFailure("rate-limit");
+      }
+      throw new HealthFailure("transport");
+    } finally {
+      await policy.admissionSettled;
+    }
+  };
+  const readGithubMetadata = async (endpoint: string) => {
+    const response = await readGithubResponse(`https://api.github.com/repos/${endpoint}`);
+    retainProviderReserve("github", response.headers);
+    if (response.status !== 200) {
+      const reason = statusReason(response);
+      if (reason === "rate-limit") deferred.set("github", retryAt(response.headers, now()));
+      throw new HealthFailure(reason);
+    }
+    if (response.headers.has("link")) throw new HealthFailure("invalid-metadata");
+    const facts = await metadata(response, consumed, now, deadline);
+    if (/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(endpoint))
+      repositoryMetadata.set(`https://api.github.com/repos/${endpoint}`, facts);
+    return facts;
   };
   const incompleteReasons = new Set([
     "authentication",
@@ -1769,28 +1872,25 @@ export async function collectRepositoryHealth(
         ? `${url}/releases/${github ? "tags/" : ""}${encodeURIComponent(record.release_ref)}`
         : url;
       const headers: Record<string, string> = { "User-Agent": "Portcove-catalog-audit" };
-      if (github) {
-        headers.Accept = "application/vnd.github+json";
-        headers["X-GitHub-Api-Version"] = "2022-11-28";
-        if (githubToken) headers.Authorization = `Bearer ${githubToken}`;
-      } else if (record.provider === "gitlab" && gitlabToken)
-        headers["PRIVATE-TOKEN"] = gitlabToken;
+      if (record.provider === "gitlab" && gitlabToken) headers["PRIVATE-TOKEN"] = gitlabToken;
       const signal = AbortSignal.timeout(Math.min(limits.request_ms, remaining));
-      if (!reused) consumed.requests++;
+      if (!reused && !github) consumed.requests++;
       result.attempted = !reused;
       result.metadata_reused = Boolean(reused);
-      let response: Response | undefined;
+      let response: Response | HealthMetadataResponse | undefined;
       try {
         response = reused
           ? new Response(null, { status: 200 })
-          : await fetcher(requestUrl, {
-              headers,
-              // Observe a redirect as an HTTP fact rather than losing it in a fetch
-              // exception. Never follow it or retain a potentially signed Location.
-              redirect: "manual",
-              signal,
-              ...(plain ? { method: "HEAD" } : {}),
-            });
+          : github
+            ? await readGithubResponse(requestUrl)
+            : await fetcher(requestUrl, {
+                headers,
+                // Observe a redirect as an HTTP fact rather than losing it in a fetch
+                // exception. Never follow it or retain a potentially signed Location.
+                redirect: "manual",
+                signal,
+                ...(plain ? { method: "HEAD" } : {}),
+              });
         retainProviderReserve(budgetProvider, response.headers);
         result.http_status = response.status;
         if (response.status !== 200) {
@@ -2068,6 +2168,7 @@ export async function collectRepositoryHealth(
         result.archived = typeof facts.archived === "boolean" ? facts.archived : null;
         result.observed_repository_id = facts.id;
       } catch (error) {
+        abortSignal?.throwIfAborted();
         fail(
           error instanceof HealthFailure ? error.reason : signal.aborted ? "timeout" : "transport",
         );
@@ -2075,6 +2176,8 @@ export async function collectRepositoryHealth(
         await cancelBody(response);
       }
     } finally {
+      // Cancellation is not a new provider observation or a completed checkpoint.
+      abortSignal?.throwIfAborted();
       const completed = observations[observationStart];
       if (completed) classify(completed);
       if (completed && !completed.metadata_reused && (completed.attempted || collected(completed)))

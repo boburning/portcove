@@ -2188,6 +2188,8 @@ for (const file of [
     "scripts/upstream-observer.test.mts",
     "scripts/catalog-upstream-observer.test.mts",
     "scripts/observer-checkpoint-artifact.test.mts",
+    "scripts/check-catalog-repositories.test.mts",
+    ...upstreamHealthContractTests,
   ]);
 
 explicitNodeTests.set("scripts/aqua-integrity.mts", [

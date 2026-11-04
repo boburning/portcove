@@ -1035,3 +1035,48 @@ void test("actual SDK refuses malformed UTF-8 before parsing without retry or re
     assert.equal(sends, 1);
   }
 });
+
+void test("explicit redirect observation uses bounded SDK parsing without following Location", async () => {
+  for (const mode of ["metadata", "oversize", "failed-stream"] as const) {
+    let dispatched = 0;
+    const client = await createGitHubClient({
+      credential: { kind: "anonymous" },
+      deadline: performance.now() + 5000,
+      observeRedirects: true,
+      maxBytes: mode === "oversize" ? 4 : 1024,
+      fetch: async (_url, init) => {
+        dispatched++;
+        assert.equal(init?.redirect, "manual");
+        return new Response(
+          mode === "failed-stream"
+            ? new ReadableStream({
+                start(controller) {
+                  controller.error(new Error("failed redirect body"));
+                },
+              })
+            : JSON.stringify({
+                message: "Moved Permanently",
+                url: "https://api.github.com/repositories/123",
+              }),
+          {
+            status: 301,
+            headers: {
+              "content-type": "application/json",
+              location: "https://elsewhere.invalid/private",
+            },
+          },
+        );
+      },
+    });
+    const request = client.request("GET /repos/owner/repo", { request: { portcove: read() } });
+    if (mode === "metadata") {
+      const result = await request;
+      assert.equal(result.status, 301);
+      assert.deepEqual(result.data, {
+        message: "Moved Permanently",
+        url: "https://api.github.com/repositories/123",
+      });
+    } else await assert.rejects(request, (error: unknown) => error instanceof GitHubApiError);
+    assert.equal(dispatched, 1);
+  }
+});

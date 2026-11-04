@@ -48,6 +48,8 @@ export interface GitHubClientOptions {
   deadline: number;
   signal?: AbortSignal;
   maxBytes?: number;
+  /** Return bounded redirect metadata as an HTTP fact; redirects are never followed. */
+  observeRedirects?: boolean;
   headers?: Readonly<Record<string, string>>;
   baseUrl?: string;
   fetch?: typeof globalThis.fetch;
@@ -315,7 +317,12 @@ export async function createGitHubClient(options: GitHubClientOptions) {
             }
             observation.status = response.status;
             observation.headers = Object.fromEntries(response.headers);
-            if (response.status >= 300 && response.status < 400 && response.status !== 304) {
+            if (
+              response.status >= 300 &&
+              response.status < 400 &&
+              response.status !== 304 &&
+              !options.observeRedirects
+            ) {
               await response.body?.cancel();
               throw new GitHubApiError("redirect_refused", "GitHub API redirect was refused");
             }

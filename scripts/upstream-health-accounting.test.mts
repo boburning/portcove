@@ -45,10 +45,13 @@ void test("reviewed exact metadata and original conditions remain degraded witho
   for (const call of calls) {
     assert.equal(call.options.redirect, "manual");
     if (call.url.startsWith("https://api.github.com/"))
-      assert.equal(call.options.headers.Authorization, "Bearer synthetic-token");
+      assert.equal(
+        new Headers(call.options.headers).get("authorization"),
+        "Bearer synthetic-token",
+      );
     else {
       assert.equal(call.options.method, "HEAD");
-      assert.equal(call.options.headers.Authorization, undefined);
+      assert.equal(new Headers(call.options.headers).get("authorization"), null);
     }
   }
   for (const record of report.observations.filter((record) => record.pin_assessment)) {
