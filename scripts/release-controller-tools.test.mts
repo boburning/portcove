@@ -1429,7 +1429,7 @@ void test("installed bootstrap clears inherited GitHub credentials only for comp
   const workflowSha = createHash("sha256").update(text).digest("hex");
   assert.equal(slice4CapacityResources.aggregate_workflow_sha256, workflowSha);
   assert.equal(slice4CapacityResources.input_workflow_sha256, workflowSha);
-  assert.equal(
+  const historicalDocument = parseDocument(
     await readFile(
       new URL(
         "../docs/qualification/application-update-production.windows-20261103.proposed.yml",
@@ -1437,8 +1437,35 @@ void test("installed bootstrap clears inherited GitHub credentials only for comp
       ),
       "utf8",
     ),
-    text,
+    { uniqueKeys: true },
   );
+  assert.deepEqual(historicalDocument.errors, []);
+  const historical: unknown = historicalDocument.toJS({ maxAliasCount: 100 });
+  assert.ok(isRecord(historical) && isRecord(historical.jobs));
+  // Preserve the dated proposal bytes. Only its two isolated setup-node pins
+  // project to today's separately validated runtime; every other field must match.
+  const literalPins = [];
+  const projectedPins: Record<string, unknown>[] = [];
+  for (const [name, historicalJob] of Object.entries(historical.jobs)) {
+    assert.ok(isRecord(historicalJob) && Array.isArray(historicalJob.steps));
+    for (const [index, step] of historicalJob.steps.entries()) {
+      if (!isRecord(step) || !isRecord(step.with) || !("node-version" in step.with)) continue;
+      literalPins.push(`${name}/${index}`);
+      assert.equal(step.uses, "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1");
+      assert.equal(step.with["node-version"], "24.22.2");
+      const currentJob = raw.jobs[name];
+      assert.ok(isRecord(currentJob) && Array.isArray(currentJob.steps));
+      const currentStep: unknown = currentJob.steps[index];
+      assert.ok(isRecord(currentStep) && isRecord(currentStep.with));
+      assert.equal(currentStep.uses, step.uses);
+      assert.equal(currentStep.with["node-version"], controllerNodeVersion);
+      projectedPins.push(step.with);
+    }
+  }
+  assert.deepEqual(literalPins.sort(), ["attest/0", "tool_attest/0"]);
+  // Check every original value before mutation: YAML aliases may share a map.
+  for (const pin of projectedPins) pin["node-version"] = controllerNodeVersion;
+  assert.deepEqual(historical, raw);
 });
 
 void test("fixed source asset preflight bounds real inventory and refuses before dependency or build work", async (t) => {

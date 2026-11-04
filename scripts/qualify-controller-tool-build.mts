@@ -13,6 +13,7 @@ import {
   controllerToolChildren,
   controllerCompilerSourceAsset,
   controllerNativeDriverVersion,
+  controllerToolFileMaximumBytes,
   readControllerToolFile,
 } from "./release-controller-tools.mts";
 import { inspectReleaseCompilerSourceClosure } from "./release-compiler-source-closure.mts";
@@ -275,7 +276,10 @@ async function main() {
     await record("manifest.json", built.manifest);
     phase = "opaque-tool-readback";
     for (const file of built.manifest.files) {
-      const bytes = await readControllerToolFile(path.join(built.tools, file.path));
+      const bytes = await readControllerToolFile(
+        path.join(built.tools, file.path),
+        controllerToolFileMaximumBytes(file.path),
+      );
       assert.equal(bytes.length, file.bytes);
       assert.equal(createHash("sha256").update(bytes).digest("hex"), file.sha256);
     }
@@ -366,8 +370,8 @@ async function main() {
     const workspace = inspectNativeDependencyWorkspace(
       await readControllerToolFile(path.join(nativeSource, "pnpm-workspace.yaml"), 65536),
     );
-    const toolIdentity = async (filename: string) => {
-      const bytes = await readControllerToolFile(filename);
+    const toolIdentity = async (filename: string, maximum = 128 * 1024 ** 2) => {
+      const bytes = await readControllerToolFile(filename, maximum);
       return {
         path: filename,
         bytes: bytes.length,
@@ -392,7 +396,7 @@ async function main() {
       broker_identity: readProcessIdentity(process.pid, { platform: "linux" }),
       deadline_ns: String(process.hrtime.bigint() + 90_000_000_000n),
       tools: {
-        node: await toolIdentity(node),
+        node: await toolIdentity(node, controllerToolFileMaximumBytes("bin/node")),
         driver: await toolIdentity(path.join(built.tools, "bin/tauri-driver")),
       },
       context: {
