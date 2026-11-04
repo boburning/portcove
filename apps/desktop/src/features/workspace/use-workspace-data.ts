@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { QueryClient, replaceEqualDeep, useQuery } from "@tanstack/react-query";
+import {
+  QueryClient,
+  focusManager,
+  isCancelledError,
+  replaceEqualDeep,
+  useQuery,
+} from "@tanstack/react-query";
 import { desktopApi } from "../../api";
 import { listenDesktopEvent } from "../../desktop-events";
 import type {
@@ -39,8 +45,26 @@ function activitySnapshotIdentity(feed: ActivityFeed) {
 
 interface WorkspaceRead {
   snapshot: WorkspaceSnapshot;
-  activityRequest: number;
+  activityRequest: number | null;
+  activities: ActivityFeed;
+  fullReadAt: number;
+  needsRecovery: boolean;
 }
+
+// Extend the documented focus adapter for desktop window focus as well as visibility.
+// Query's manager owns listener installation/removal with its mounted clients.
+focusManager.setEventListener((onFocus) => {
+  if (typeof window === "undefined") return;
+  const visible = () => {
+    if (!document.hidden) onFocus();
+  };
+  window.addEventListener("focus", visible);
+  document.addEventListener("visibilitychange", visible);
+  return () => {
+    window.removeEventListener("focus", visible);
+    document.removeEventListener("visibilitychange", visible);
+  };
+});
 
 function shareWorkspaceRead(previous: unknown, next: unknown): WorkspaceRead {
   const old = previous as WorkspaceRead | undefined;
@@ -117,11 +141,9 @@ export function usePortcoveData(libraryGeneration = 0) {
   } = view;
   const activityGeneration = useRef(new LatestRequestGeneration());
   const diagnosticGeneration = useRef(new LatestRequestGeneration());
-  const externalGeneration = useRef(new LatestRequestGeneration());
+  const recoveryGeneration = useRef(new LatestRequestGeneration());
   const diagnosticInvalidationRevision = useRef(0);
   const activityIdentity = useRef(activitySnapshotIdentity(emptyActivityFeed()));
-  const lastFullReconciliationAt = useRef(0);
-  const forceWorkspaceReconciliation = useRef(false);
   const acceptActivities = useCallback(
     (next: ActivityFeed) => {
       const identity = activitySnapshotIdentity(next);
@@ -139,29 +161,91 @@ export function usePortcoveData(libraryGeneration = 0) {
     setDiagnosticsStale(true);
   }, [setDiagnosticRefreshing, setDiagnosticsStale, setDiagnosticRevision]);
   const [queryClient] = useState(() => new QueryClient());
-  const readWorkspace = useCallback(async (): Promise<WorkspaceRead> => {
-    const activityRequest = activityGeneration.current.begin();
-    // No recovery or mutation belongs in an automatically executable read function.
-    return { snapshot: await desktopApi.workspaceSnapshot(libraryGeneration), activityRequest };
-  }, [libraryGeneration]);
+  const [readyGeneration, setReadyGeneration] = useState<number>();
+  const queryKey = useMemo(() => ["workspace-snapshot", libraryGeneration], [libraryGeneration]);
+  const fullReadRequested = useRef(false);
+  useEffect(() => {
+    queryClient.mount();
+    return () => queryClient.unmount();
+  }, [queryClient]);
+  const readWorkspace = useCallback(
+    async ({ signal }: { signal: AbortSignal }): Promise<WorkspaceRead> => {
+      const activityRequest = activityGeneration.current.begin();
+      const previous = queryClient.getQueryData<WorkspaceRead>(queryKey);
+      const full =
+        fullReadRequested.current ||
+        !previous ||
+        queryClient.getQueryState(queryKey)?.status === "error";
+      fullReadRequested.current = false;
+      if (!full && previous) {
+        let changed = false;
+        try {
+          changed = await desktopApi.workspaceChanged(libraryGeneration);
+        } catch {
+          /* Periodic/full read remains the actionable fallback. */
+        }
+        signal.throwIfAborted(); // Stops frontend continuations, not the already-started backend read.
+        if (
+          previous.needsRecovery ||
+          changed ||
+          document.hidden ||
+          Date.now() - previous.fullReadAt < 60_000
+        ) {
+          let activities = previous.activities;
+          let activityReadSucceeded = false;
+          try {
+            activities = await desktopApi.activities();
+            activityReadSucceeded = true;
+          } catch {
+            /* Harmless activity refresh failure. */
+          }
+          signal.throwIfAborted();
+          return {
+            ...previous,
+            activityRequest: activityReadSucceeded ? activityRequest : null,
+            activities,
+            needsRecovery:
+              !!queryClient.getQueryData<WorkspaceRead>(queryKey)?.needsRecovery || changed,
+          };
+        }
+      }
+      const snapshot = await desktopApi.workspaceSnapshot(libraryGeneration);
+      signal.throwIfAborted();
+      return {
+        snapshot,
+        activityRequest,
+        activities: snapshot.activities,
+        fullReadAt: Date.now(),
+        needsRecovery: queryClient.getQueryData<WorkspaceRead>(queryKey)?.needsRecovery ?? false,
+      };
+    },
+    [fullReadRequested, libraryGeneration, queryClient, queryKey],
+  );
   const options = useMemo(
     () => ({
-      queryKey: ["workspace-snapshot", libraryGeneration],
+      queryKey,
       queryFn: readWorkspace,
-      // The existing event/subscription adapter decides when a coherent IPC read is needed.
-      enabled: false,
       networkMode: "always" as const,
       retry: false as const,
       retryOnMount: false,
-      refetchOnWindowFocus: false,
+      refetchOnWindowFocus: true,
       refetchOnReconnect: false,
       staleTime: 0,
       gcTime: 0,
       structuralSharing: shareWorkspaceRead,
     }),
-    [libraryGeneration, readWorkspace],
+    [queryKey, readWorkspace],
   );
-  const workspace = useQuery(options, queryClient);
+  const hasRunningActivity = activityFeed.current_activity_ids.length > 0;
+  const workspace = useQuery(
+    {
+      ...options,
+      enabled: readyGeneration === libraryGeneration,
+      refetchInterval: hasRunningActivity ? 1000 : document.hidden ? 30_000 : 10_000,
+      refetchIntervalInBackground: true,
+    },
+    queryClient,
+  );
   const snapshot = workspace.data?.snapshot;
   const catalog = snapshot?.catalog;
   const statuses = snapshot?.statuses ?? emptyStatuses;
@@ -186,30 +270,41 @@ export function usePortcoveData(libraryGeneration = 0) {
     )
       invalidateDiagnostics();
     previousSnapshot.current = next;
-    lastFullReconciliationAt.current = workspace.dataUpdatedAt;
-    if (activityGeneration.current.isCurrent(workspace.data.activityRequest))
-      acceptActivities(next.activities);
+    if (
+      workspace.data.activityRequest !== null &&
+      activityGeneration.current.isCurrent(workspace.data.activityRequest)
+    )
+      acceptActivities(workspace.data.activities);
   }, [workspace.data, workspace.dataUpdatedAt, acceptActivities, invalidateDiagnostics]);
-  const runRefresh = useCallback(async () => {
-    await queryClient.fetchQuery(options);
-  }, [queryClient, options]);
-  // An invalidation during a read requires a fresh follow-up, not merely the same
-  // in-flight promise. Keep that boundary alongside the non-query coordinators.
+  const refresh = useCallback(async () => {
+    // A known mutation may have arrived after the current read began. Joining that
+    // promise is not enough: invalidate after it settles, without cancelling IPC.
+    if (queryClient.getQueryState(queryKey)?.fetchStatus === "fetching") {
+      try {
+        await queryClient.query(options);
+      } catch {
+        /* Still require a fresh read after failure. */
+      }
+    }
+    if (!queryClient.getQueryState(queryKey)) return; // Retired library or disposed hook.
+    fullReadRequested.current = true;
+    try {
+      await queryClient.invalidateQueries(
+        { queryKey, exact: true },
+        { cancelRefetch: false, throwOnError: true },
+      );
+    } catch (error) {
+      if (!isCancelledError(error)) throw error;
+    }
+  }, [options, queryClient, queryKey]);
   const coordinators = useRef<
     | {
-        refresh: CoalescedRequest;
         diagnostics: CoalescedRequest;
         activity: ActivityRefreshScheduler;
-        external: CoalescedRequest;
+        recovery: CoalescedRequest;
       }
     | undefined
   >(undefined);
-  const refresh = useCallback(
-    () =>
-      coordinators.current?.refresh.request(runRefresh, libraryGeneration) ??
-      Promise.resolve("disposed" as const),
-    [libraryGeneration, runRefresh],
-  );
   const retryRefresh = useCallback(async () => {
     try {
       await refresh();
@@ -277,64 +372,65 @@ export function usePortcoveData(libraryGeneration = 0) {
 
   useEffect(() => {
     const lifetime = {
-      refresh: new CoalescedRequest(),
       diagnostics: new CoalescedRequest(),
       activity: new ActivityRefreshScheduler(runActivityRefresh),
-      external: new CoalescedRequest(),
+      recovery: new CoalescedRequest(),
     };
     coordinators.current = lifetime;
     return () => {
       if (coordinators.current === lifetime) coordinators.current = undefined;
-      closeCoalescedRequest(lifetime.refresh);
       closeCoalescedRequest(lifetime.diagnostics);
       lifetime.activity.close();
-      closeCoalescedRequest(lifetime.external);
+      closeCoalescedRequest(lifetime.recovery);
     };
   }, [libraryGeneration, runActivityRefresh]);
 
-  const runWorkspaceReconciliation = useCallback(async () => {
-    const requestGeneration = externalGeneration.current.begin();
-    const force = forceWorkspaceReconciliation.current;
-    forceWorkspaceReconciliation.current = false;
-    let changed = false;
+  const runRecovery = useCallback(async () => {
+    const generation = recoveryGeneration.current.begin();
+    invalidateDiagnostics();
     try {
-      changed = await desktopApi.workspaceChanged(libraryGeneration);
-    } catch {
-      /* A forced or periodic full read remains the actionable fallback. */
+      await desktopApi.discoverOrphanedOperations(libraryGeneration);
+      if (recoveryGeneration.current.isCurrent(generation)) setRecoveryFailure(undefined);
+    } catch (error) {
+      if (recoveryGeneration.current.isCurrent(generation)) setRecoveryFailure({ error });
     }
-    if (!externalGeneration.current.isCurrent(requestGeneration)) return;
-    const periodicFullReadDue =
-      !document.hidden && Date.now() - lastFullReconciliationAt.current >= 60_000;
-    if (force || changed || periodicFullReadDue) {
-      try {
-        await desktopApi.discoverOrphanedOperations(libraryGeneration);
-        if (externalGeneration.current.isCurrent(requestGeneration)) setRecoveryFailure(undefined);
-      } catch (error) {
-        if (externalGeneration.current.isCurrent(requestGeneration)) setRecoveryFailure({ error });
-      }
-      if (!externalGeneration.current.isCurrent(requestGeneration)) return;
-      invalidateDiagnostics();
-    }
-    if (force || changed || periodicFullReadDue) await refresh();
-  }, [invalidateDiagnostics, libraryGeneration, refresh, setRecoveryFailure]);
-  const reconcileWorkspace = useCallback(
-    (force = false) => {
-      if (force) forceWorkspaceReconciliation.current = true;
-      return (
-        coordinators.current?.external.request(runWorkspaceReconciliation, libraryGeneration) ??
-        Promise.resolve("disposed" as const)
+    if (recoveryGeneration.current.isCurrent(generation)) {
+      queryClient.setQueryData<WorkspaceRead>(queryKey, (previous) =>
+        previous ? { ...previous, needsRecovery: false } : undefined,
       );
-    },
-    [libraryGeneration, runWorkspaceReconciliation],
-  );
+      await refreshAfterMutation();
+    }
+  }, [
+    invalidateDiagnostics,
+    libraryGeneration,
+    queryClient,
+    queryKey,
+    refreshAfterMutation,
+    setRecoveryFailure,
+  ]);
   const retryRecovery = useCallback(async () => {
-    await reconcileWorkspace(true);
-  }, [reconcileWorkspace]);
+    await (coordinators.current?.recovery.request(runRecovery, libraryGeneration) ??
+      Promise.resolve("disposed" as const));
+  }, [libraryGeneration, runRecovery]);
+  useLayoutEffect(() => {
+    if (workspace.data?.needsRecovery) void retryRecovery().catch(() => {});
+  }, [workspace.data?.needsRecovery, retryRecovery]);
+  const initialDiagnostics = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    if (
+      readyGeneration === libraryGeneration &&
+      workspace.isFetched &&
+      initialDiagnostics.current !== libraryGeneration
+    ) {
+      initialDiagnostics.current = libraryGeneration;
+      void refreshDiagnostics();
+    }
+  }, [libraryGeneration, readyGeneration, workspace.isFetched, refreshDiagnostics]);
 
   useEffect(() => {
     const activityRequests = activityGeneration.current;
     const diagnosticRequests = diagnosticGeneration.current;
-    const externalRequests = externalGeneration.current;
+    const recoveryRequests = recoveryGeneration.current;
     let closed = false;
     const subscription = startManagedSubscription<
       DesktopEventPayloads["portcove://library-changed"]
@@ -342,7 +438,7 @@ export function usePortcoveData(libraryGeneration = 0) {
       register: (accept) => listenDesktopEvent("portcove://library-changed", accept),
       onEvent: () => {
         invalidateDiagnostics();
-        void reconcileWorkspace(true).catch(() => {
+        void retryRecovery().catch(() => {
           /* The refresh failure remains visible; this event has no awaiting caller. */
         });
       },
@@ -351,53 +447,26 @@ export function usePortcoveData(libraryGeneration = 0) {
     void (async () => {
       await subscription.ready;
       if (closed) return;
-      await retryRefresh();
-      if (closed) return;
-      void refreshDiagnostics();
+      setReadyGeneration(libraryGeneration);
     })();
     return () => {
       closed = true;
       activityRequests.begin();
       diagnosticRequests.begin();
-      externalRequests.begin();
+      recoveryRequests.begin();
       subscription.stop();
+      queryClient.removeQueries({ queryKey, exact: true });
     };
   }, [
     invalidateDiagnostics,
-    reconcileWorkspace,
-    refreshDiagnostics,
-    retryRefresh,
+    retryRecovery,
+    libraryGeneration,
+    queryClient,
+    queryKey,
     setSubscriptionFailure,
   ]);
 
   const activities = activityFeed.records;
-  const hasRunningActivity = activityFeed.current_activity_ids.length > 0;
-  useEffect(() => {
-    let closed = false;
-    let timer = 0;
-    const interval = () => (hasRunningActivity ? 1000 : document.hidden ? 30_000 : 10_000);
-    const schedule = () => {
-      if (!closed) timer = window.setTimeout(poll, interval());
-    };
-    const poll = () => {
-      void Promise.allSettled([reconcileWorkspace(), refreshActivities("prompt")]).finally(
-        schedule,
-      );
-    };
-    const refreshWhenVisible = () => {
-      if (!document.hidden)
-        void Promise.allSettled([reconcileWorkspace(true), refreshActivities("prompt")]);
-    };
-    window.addEventListener("focus", refreshWhenVisible);
-    document.addEventListener("visibilitychange", refreshWhenVisible);
-    schedule();
-    return () => {
-      closed = true;
-      window.clearTimeout(timer);
-      window.removeEventListener("focus", refreshWhenVisible);
-      document.removeEventListener("visibilitychange", refreshWhenVisible);
-    };
-  }, [hasRunningActivity, reconcileWorkspace, refreshActivities]);
   return {
     catalog,
     statuses,

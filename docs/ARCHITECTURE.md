@@ -11,13 +11,16 @@ query, filters and durable entries.
 Desktop invocation context and action presentation are owned by `features/operations`; see [ADR 0003](adr/0003-ephemeral-desktop-orchestration.md). React combines Core assessments with known local exclusions, retains independent task/readback failures and suppresses outgoing library continuations. Activity consumes existing durable records and exact-ID live progress. This adds no scheduler, durable queue, Core authority or operation database; Tauri application-update trust and native consent remain separate host responsibilities.
 
 The workspace snapshot is one pure local-IPC TanStack Query in
-`usePortcoveData`, keyed by library generation and owned by that hook's client.
-Query owns snapshot/error/fetch state and structural sharing; a narrow port-ID
-adapter preserves unchanged statuses across reordering. Reads work offline,
-retry is disabled, and the existing subscription/reconciliation adapter owns
-refresh timing and the required post-mutation follow-up. Recovery stays outside
-the query function. Activity ordering and diagnostic revision guards remain
-explicit; a query lifecycle does not cancel backend work by itself.
+`usePortcoveData`, keyed by library generation and owned by that hook's mounted
+client. Subscription readiness enables the query; Query owns snapshot/error/fetch
+state, deduplication, polling and focus triggers. Structural sharing plus a narrow
+port-ID adapter preserves unchanged statuses across reordering. Reads work offline
+with retries disabled. Cheap change detection and activity reads precede periodic
+full reconciliation; explicit refresh requests a full snapshot. A mutation arriving
+during a read joins that read before targeted invalidation requests a fresh one,
+without cancelling or overlapping backend IPC. Recovery stays outside query
+execution. Activity ordering, pending-change handoff and diagnostic revision guards
+remain explicit; query cancellation only stops frontend continuations.
 
 Desktop interface enlargement is presentation authority: `InterfaceSizeController`
 serializes the existing Tauri WebView zoom API and persists acknowledged choices
@@ -2133,17 +2136,17 @@ is committed before retained manifests, source files, or definition eligibility 
 filesystem work and validation never extend the database snapshot; a later database write during
 that work is detected by the final comparison. Filesystem health remains an observation made during
 hydration, not transactional authority, and every later mutation still repeats its operation-time
-validation. The Tauri adapter creates one request-scoped service, including its normal recovery pass,
-and does not retain a second service or cancellation owner. Host and repair diagnostics remain a
+validation. The Tauri adapter creates one request-scoped read-only service and does not retain
+a second service or cancellation owner. Recovery is a separate explicit operation. Host and repair diagnostics remain a
 separate generation-bound request so a slow or failed probe cannot withhold essential library state.
 React coalesces refresh invalidations, retains stale snapshots explicitly after failure, and treats
 events as hints: SQLite readback remains authoritative, active work is polled without overlap, and
 idle polling backs off further while the window is hidden. Listener setup and cleanup failures
 degrade to visible manual refresh plus polling rather than an unhandled rejection or a second durable
-state authority. Each React effect lifetime owns fresh workspace, diagnostic, and activity
-coordinators. Strict Mode setup replay and library changes dispose the old generation, settle its
-waiters as disposed, and cannot reuse or reopen a coordinator whose callbacks belong to the prior
-lifetime.
+state authority. The hook mounts and unmounts its scoped QueryClient and removes its exact
+generation query at disposal. Diagnostic, activity and recovery coordinators remain separately
+scoped to each effect lifetime. Strict Mode replay and library changes retire old continuations
+and cannot reuse a disposed coordinator.
 
 The `features/workspace` unit owns the workspace cache hook, refresh-failure
 presentation and their colocated integration tests. Application composition and
@@ -2166,14 +2169,11 @@ paths are removed rather than retained as compatibility re-exports. Core and the
 Tauri host still own durable activity records, cancellation and mutation safety;
 this frontend owner only reconciles ephemeral progress and error presentation.
 
-For workspace data, `usePortcoveData` remains the single explicit frontend cache
-owner: it owns read coalescing, generations, subscriptions, invalidation and
-visible refresh failure. Adding TanStack Query alongside it would introduce a
-competing owner; replacing it would require migrating those established contracts.
-The current workspace slice therefore retains the smaller existing owner without
-adding a query dependency. Other frontend read owners and feature boundaries must
-still be evaluated separately; this is not a claim that all frontend state has
-already been consolidated.
+For workspace data, `usePortcoveData` integrates the one TanStack cache with
+Core IPC and subscriptions. It enables reads after listener setup settles, retains
+a manual-refresh/polling fallback after setup failure, and keeps recovery outside
+the query function. Other frontend read owners retain their existing boundaries;
+this integration does not imply a broader state migration.
 
 Application-update preferences use one app-session read owner in
 `features/application-update`. The global choice prompt, transition readback and
@@ -2194,28 +2194,12 @@ App and the remaining legacy Settings composition import the feature directly;
 `use-portcove.ts` no longer owns or re-exports these hooks. The existing shared-to-
 feature import rule applies without adding a second boundary checker.
 
-The essential workspace owner compares catalog, status and source collection
-identities separately while accepting them from one coherent backend snapshot. An
-unchanged collection retains its React reference when another collection changes;
-any accepted change invalidates diagnostics once and React batches the applicable
-setters. A changed status collection also retains an unchanged record by exact
-serialized identity keyed by `port_id`, including across reordering, while removal
-does not leave a stale record. A new library generation replaces all three
-references even when its values equal the previous library. Every accepted read
-still updates reconciliation time, accepts independently current activity data and
-clears a previous refresh failure. It does not skip IPC or cache operation
-authorization.
-
-The comparison serializes each whole collection once per accepted read. For the
-controlled fixture, the three identity strings contain four fewer framing bytes
-than the former combined-array identity, so the traversed payload does not grow;
-record comparison occurs only after the whole status identity changes and then
-serializes at most the previous and next records once. Five independently cloned
-unchanged IPC results still issue five requests with zero memoized status-index
-recomputations. A status-only control recomputes that index once while catalog and
-source projections remain at zero; catalog-only and source-only controls retain the
-other references. These are reference, serialization-byte and computation-count
-measurements, not native render-time or wall-clock benchmarks.
+The essential workspace owner accepts catalog, status and source collections from
+one coherent backend snapshot. TanStack structural sharing retains unchanged
+collection references, while the port-ID adapter retains unchanged status records
+across reordering. A new library generation has a separate cache even when values
+match. Accepted essential changes invalidate diagnostics; activity acceptance keeps
+its own request ordering. Cached presentation never authorizes an operation.
 
 `useOperationState` accepts one configuration object used by application and
 workspace composition. Its earlier refresh-function shorthand had no production
@@ -2226,10 +2210,12 @@ also fails.
 Each ready Desktop library generation also owns one persistent, connection-scoped SQLite
 `data_version` observer. Commits from a CLI or another process are checked with that same observing
 connection every second while work is running, every ten seconds while visible and idle, and every
-thirty seconds while hidden. A detected commit invalidates diagnostics and coalesces one essential
-workspace read. Foreground restoration always requests an essential read, and visible sessions run a
-sixty-second full fallback so non-database catalog or source-file observations also converge. Library
-replacement creates a new observer baseline; generation checks reject every old result. These are
+thirty seconds while hidden. Query owns these intervals and foreground triggers. A quiet hint
+reads activities without unconditionally retrieving a full snapshot. A detected commit remains
+pending until separate recovery settles and a fresh essential read follows. Visible sessions
+retrieve a full snapshot when the sixty-second fallback is due so non-database observations
+also converge. Library replacement creates a new observer baseline and query key; retired
+frontend continuations cannot publish into the replacement. These are
 readback hints only and never mutation authority.
 
 Visual operation events update React state immediately, while their durable activity readbacks share
@@ -3437,7 +3423,7 @@ after a successful change, and distinguishes a saved choice from a failed releas
 refresh. Changing channel does not install or activate a version. Current channel
 identity invalidates old install/update reviews and mismatched update snapshots.
 
-Lifecycle startup and explicit orphan discovery use the core journal under the existing source-dependent or per-port locks. The initial journal inventory identifies candidate IDs; recovery reloads each record after acquiring its lock and uses its current phase and durable fields. A removed record is not recreated, and a record whose kind, port owner, or creation identity changed is left for a later correctly locked pass. Unchanged failed retries retain the original cause and latest bounded retry diagnostic without rewriting the journal. Core read-only service construction leaves cancellation and lifecycle recovery untouched. Desktop startup and library-generation initialization recover pending work; ordinary status/workspace reads do not. When the desktop change observer sees an external library commit, or the visible periodic reconciliation is due, a separate generation-bound discovery call retries newly orphaned CLI work before refreshing the view. Live-worker locks still exclude recovery. CLI observation commands open without advancing recovery, while mutating commands retain startup recovery.
+Lifecycle startup and explicit orphan discovery use the core journal under the existing source-dependent or per-port locks. The initial journal inventory identifies candidate IDs; recovery reloads each record after acquiring its lock and uses its current phase and durable fields. A removed record is not recreated, and a record whose kind, port owner, or creation identity changed is left for a later correctly locked pass. Unchanged failed retries retain the original cause and latest bounded retry diagnostic without rewriting the journal. Core read-only service construction leaves cancellation and lifecycle recovery untouched. Desktop startup and library-generation initialization recover pending work; ordinary status/workspace reads do not. When the desktop change observer sees an external library commit or receives a library-change event, a separate generation-bound discovery call retries newly orphaned CLI work before refreshing the view. Quiet focus and periodic full reconciliation remain read-only. Live-worker locks still exclude recovery. CLI observation commands open without advancing recovery, while mutating commands retain startup recovery.
 
 Desktop install and adoption reviews are ephemeral, generation-bound presentation state. Port/channel changes invalidate install plans; adoption path, target, dialog closure and newer reviews invalidate copy previews. Late results and request errors cannot replace newer review intent, and an older adoption completion cannot close a reopened dialog. Core still revalidates the content-bound adoption plan before copying.
 
