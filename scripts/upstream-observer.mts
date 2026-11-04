@@ -56,6 +56,8 @@ interface CachedPage {
   link: string;
   body: unknown;
   sha256: string;
+  representation?: "observer-facts-v1";
+  facts_sha256?: string;
 }
 export interface ObserverRequestOptions {
   headers: Record<string, string>;
@@ -595,6 +597,141 @@ function validatedCache(cache: unknown, configHash: string): Record<string, unkn
   return cache.pages;
 }
 
+// This revision is the exact field contract consumed by repositoryFact,
+// releaseFact and assetFact. A changed fact schema requires a new revision;
+// old projections cannot establish newly requested fields.
+function observerPageFacts(
+  address: string,
+  body: unknown,
+  config: ObserverConfig,
+  pages: Record<string, unknown>,
+) {
+  const tail = new URL(address).pathname.slice(`/repos/${config.repository}`.length);
+  if (tail === "") return repositoryFact(body, config);
+  requireFact(
+    Array.isArray(body) && body.length <= 100,
+    "invalid-checkpoint",
+    "page collection differs",
+  );
+  if (tail === "/releases") return body.map(releaseFact);
+  requireFact(/^\/releases\/\d+\/assets$/u.test(tail), "invalid-checkpoint", "page kind differs");
+  const releaseId = Number(tail.split("/")[2]);
+  const tags = new Set<string>();
+  for (const [url, page] of Object.entries(pages)) {
+    if (new URL(url).pathname !== `/repos/${config.repository}/releases`) continue;
+    requireFact(
+      isRecord(page) && Array.isArray(page.body),
+      "invalid-checkpoint",
+      "release context missing",
+    );
+    for (const release of page.body) {
+      const fact = releaseFact(release);
+      if (fact.id === releaseId) tags.add(fact.tag_name);
+    }
+  }
+  requireFact(tags.size === 1, "invalid-checkpoint", "asset release context differs");
+  return body.map((asset: unknown) => assetFact(asset, config, [...tags][0]!));
+}
+
+function validatedPage(
+  page: unknown,
+  address: string,
+  config: ObserverConfig,
+  pages: Record<string, unknown>,
+): CachedPage {
+  const projected = isRecord(page) && Object.hasOwn(page, "representation");
+  keys(
+    page,
+    ["etag", "link", "body", "sha256", ...(projected ? ["representation", "facts_sha256"] : [])],
+    "cached response",
+  );
+  requireFact(
+    typeof page.etag === "string" &&
+      page.etag.length <= 512 &&
+      !/[\r\n]/u.test(page.etag) &&
+      typeof page.link === "string" &&
+      page.link.length <= 8192 &&
+      typeof page.sha256 === "string" &&
+      /^[a-f0-9]{64}$/u.test(page.sha256) &&
+      Buffer.byteLength(JSON.stringify(page.body)) <= config.budget.response_bytes,
+    "invalid-checkpoint",
+    "cached response fields differ",
+  );
+  if (projected) {
+    requireFact(
+      page.representation === "observer-facts-v1" &&
+        page.facts_sha256 === observationHash(page.body) &&
+        page.facts_sha256 === observationHash(observerPageFacts(address, page.body, config, pages)),
+      "invalid-checkpoint",
+      "projected page facts or schema differ",
+    );
+  } else
+    requireFact(
+      page.sha256 === observationHash(page.body),
+      "invalid-checkpoint",
+      "continued page digest differs",
+    );
+  return page as unknown as CachedPage;
+}
+
+function compactPage(
+  page: CachedPage,
+  address: string,
+  config: ObserverConfig,
+  pages: Record<string, unknown>,
+): CachedPage {
+  validatedPage(page, address, config, pages);
+  if (page.representation) return page;
+  const body = observerPageFacts(address, page.body, config, pages);
+  return {
+    ...page,
+    body,
+    representation: "observer-facts-v1",
+    facts_sha256: observationHash(body),
+  };
+}
+
+/** Explicit semantic projection, not recovery of the removed raw JSON. The
+ * original canonical parsed-body digest remains provenance; facts have their
+ * own independently checked digest. Raw input is validated before projection. */
+export function validateObserverCache(cache: unknown, config: ObserverConfig) {
+  if (cache === undefined) return undefined;
+  const pages = validatedCache(cache, observationHash(config));
+  const proof = validateObservationContinuation(
+    {
+      format: 1,
+      config_sha256: observationHash(config),
+      started_at: "1970-01-01T00:00:00Z",
+      phase: "collect",
+      pages,
+      validation_cursor: 0,
+      last_validated_at: null,
+      first_validated_at: null,
+      validation_order_sha256: null,
+      consumed: { requests: 0, response_bytes: 0, conditional_hits: 0 },
+    },
+    config,
+  )!;
+  return proof.pages;
+}
+
+export function compactObserverCache(cache: unknown, config: ObserverConfig) {
+  if (cache === null) return null;
+  requireFact(cache === undefined || isRecord(cache), "invalid-cache", "cache is not an object");
+  const pages = validateObserverCache(cache, config);
+  if (pages === undefined) return undefined;
+  return {
+    format: 1,
+    config_sha256: observationHash(config),
+    pages: Object.fromEntries(
+      Object.entries(pages).map(([address, page]) => [
+        address,
+        compactPage(page, address, config, pages),
+      ]),
+    ),
+  };
+}
+
 export function validateObservationContinuation(
   value: unknown,
   config: ObserverConfig,
@@ -704,18 +841,7 @@ export function validateObservationContinuation(
       "invalid-checkpoint",
       "continued page escaped its configured collection",
     );
-    keys(page, ["etag", "link", "body", "sha256"], "continued page");
-    requireFact(
-      typeof page.etag === "string" &&
-        page.etag.length <= 512 &&
-        !/[\r\n]/u.test(page.etag) &&
-        typeof page.link === "string" &&
-        page.link.length <= 8192 &&
-        Buffer.byteLength(JSON.stringify(page.body)) <= config.budget.response_bytes &&
-        page.sha256 === observationHash(page.body),
-      "invalid-checkpoint",
-      "continued page digest differs",
-    );
+    validatedPage(page, address, config, value.pages);
   }
   return value as unknown as ObservationContinuation;
 }
@@ -783,7 +909,9 @@ export function reusableProviderObservation(
       ([url, page]) =>
         !proof.pages[url] ||
         proof.pages[url].sha256 !== page.sha256 ||
-        proof.pages[url].link !== page.link,
+        proof.pages[url].link !== page.link ||
+        observationHash(observerPageFacts(url, proof.pages[url].body, config, proof.pages)) !==
+          observationHash(observerPageFacts(url, page.body, config, pending.pages)),
     )
   )
     return null;
@@ -990,29 +1118,11 @@ export async function observeUpstream(
     const candidate = cached ?? prior[url];
     let previous: CachedPage | undefined;
     if (candidate) {
-      keys(candidate, ["etag", "link", "body", "sha256"], "cached response");
-      requireFact(
-        typeof candidate.etag === "string" &&
-          candidate.etag.length <= 512 &&
-          !/[\r\n]/.test(candidate.etag) &&
-          typeof candidate.link === "string" &&
-          candidate.link.length <= 8192 &&
-          candidate.sha256 === observationHash(candidate.body),
-        "invalid-cache",
-        "cached response identity is invalid",
-      );
-      requireFact(typeof candidate.sha256 === "string", "invalid-cache", "invalid cached hash");
-      previous = {
-        etag: candidate.etag,
-        link: candidate.link,
-        body: candidate.body,
-        sha256: candidate.sha256,
-      };
-      requireFact(
-        Buffer.byteLength(JSON.stringify(candidate.body)) <= config.budget.response_bytes,
-        "invalid-cache",
-        "cached response exceeds the byte budget",
-      );
+      try {
+        previous = { ...validatedPage(candidate, url, config, cached ? pages : prior) };
+      } catch {
+        throw new ObservationFailure("invalid-cache", "cached response identity is invalid");
+      }
     }
     if (replay) {
       requireFact(previous, "invalid-checkpoint", "continued page is missing");
@@ -1169,6 +1279,7 @@ export async function observeUpstream(
     const replay = Object.hasOwn(pages, url);
     const result = await request(pathname, page, replay ? pages[url] : null, replay);
     normalize(result.value.body);
+    result.value = compactPage(result.value, result.url, config, pages);
     if (page !== null && nextPage(result.value.link, pathname, page, config))
       requireFact(
         Array.isArray(result.value.body) && result.value.body.length === 100,
@@ -1349,7 +1460,7 @@ export async function observeUpstream(
         "concurrent-change",
         `provider collection changed during observation: ${entry.pathname}`,
       );
-      pages[entry.url] = current.value;
+      pages[entry.url] = compactPage(current.value, current.url, config, pages);
       const validationClock = now();
       requireFact(
         validationClock >= started &&

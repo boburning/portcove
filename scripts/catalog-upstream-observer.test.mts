@@ -44,6 +44,7 @@ import {
   validateObserverSnapshot,
   encodeStreamingObserverSnapshot,
   readRecoverableObserverSnapshotArchive,
+  collectFactObserverSnapshot,
 } from "./observer-checkpoint-artifact.mts";
 import {
   decodeStoredObserverCheckpoint,
@@ -284,6 +285,30 @@ void test("a separate batch recovers accepted provider pages and fair turns afte
   );
 });
 
+// Construct the historical raw-page representation explicitly. New observations
+// deliberately retain only consumed facts, but legacy recovery remains lossless.
+function legacyNotes(states: Map<string, unknown>, notes: string, assets = false) {
+  for (const value of states.values()) {
+    assert.ok(isRecord(value));
+    const complete = isRecord(value.last_complete) ? value.last_complete : null;
+    const cache = complete && isRecord(complete.cache) ? complete.cache : null;
+    for (const holder of [cache, value.continuation]) {
+      if (!isRecord(holder) || !isRecord(holder.pages)) continue;
+      for (const [url, page] of Object.entries(holder.pages)) {
+        assert.ok(isRecord(page));
+        delete page.representation;
+        delete page.facts_sha256;
+        if (Array.isArray(page.body) && (assets || new URL(url).pathname.endsWith("/releases")))
+          page.body = page.body.map((item: unknown) => {
+            assert.ok(isRecord(item));
+            return { ...item, body: notes };
+          });
+        page.sha256 = observationHash(page.body);
+      }
+    }
+  }
+}
+
 void test("production-shaped retained provider pages fit the fixed artifact reserve through lossless encoding", async (t) => {
   const work = fileURLToPath(new URL("../work/", import.meta.url));
   await mkdir(work, { recursive: true });
@@ -328,6 +353,7 @@ void test("production-shaped retained provider pages fit the fixed artifact rese
     result = await advanceCatalogObservations(h.input, result.checkpoint, h.options);
     assert.ok(result.report.requests <= 6);
   }
+  legacyNotes(h.states, releaseNotes);
   const sourceTree = path.join(root, "work/upstream-observer");
   await mkdir(path.join(sourceTree, "catalog"), { recursive: true });
   await writeFile(
@@ -586,6 +612,7 @@ void test("419 source records stream globally when nested compressed snapshots e
     );
   };
   const result = await advanceCatalogObservations(h.input, null, h.options);
+  legacyNotes(h.states, notes, true);
   const progress = Object.values(result.checkpoint.sources).find(
     (p) => p.current_config && h.states.has(observationHash(p.current_config)),
   )!;
@@ -694,6 +721,184 @@ void test("419 source records stream globally when nested compressed snapshots e
       archive_bytes: archive.length,
     }),
   );
+});
+
+void test("fact-only recovery supports 1295 distinct pending sources plus retained configurations within unchanged limits", async (t) => {
+  const root = await mkdtemp(
+    path.join(fileURLToPath(new URL("../work/", import.meta.url)), "catalog-fact-growth-"),
+  );
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const h = harness(4);
+  const seeded = await advanceCatalogObservations(h.input, null, h.options);
+  const template = Object.values(seeded.checkpoint.sources).find(
+    (source) => source.current_config && h.states.has(observationHash(source.current_config)),
+  )!;
+  const templateConfig = template.current_config!,
+    templateHash = observationHash(templateConfig);
+  const templateSource = h.states.get(templateHash);
+  assert.ok(isRecord(templateSource) && isRecord(templateSource.continuation));
+  // Seed a second accepted collection page from the maintained provider fixture;
+  // this regression measures graph persistence, not request admission.
+  const releaseRows = [release(2, { tag_name: "rolling" }), release(1)];
+  objectRecord(templateSource.continuation.pages)[
+    `https://api.github.com/repos/${templateConfig.repository}/releases?per_page=100&page=1`
+  ] = {
+    etag: '"fixture-release-page"',
+    link: "",
+    body: releaseRows,
+    sha256: observationHash(releaseRows),
+  };
+  objectRecord(templateSource.continuation.consumed).requests = 2;
+  assert.ok(Object.keys(objectRecord(templateSource.continuation.pages)).length >= 2);
+  const controller = structuredClone(seeded.checkpoint);
+  controller.sources = {};
+  const tree = path.join(root, "work/upstream-observer");
+  await mkdir(path.join(tree, "catalog"), { recursive: true });
+  const retained = new Map<
+    string,
+    { hashes: Record<string, string>; position: unknown; rawHash: string }
+  >();
+  async function writeSource(config: typeof templateConfig, index: number) {
+    const hash = observationHash(config);
+    const source = JSON.parse(
+      JSON.stringify(templateSource)
+        .replaceAll(templateHash, hash)
+        .replaceAll(templateConfig.repository, config.repository),
+    ) as Record<string, unknown>;
+    if (isRecord(source.exception)) {
+      source.exception.repository_id = config.repository_id;
+      source.exception.key = observationHash({
+        port_id: config.port_id,
+        repository_id: config.repository_id,
+        operation: "observe",
+        rule: source.exception.rule,
+      });
+    }
+    const continuation = objectRecord(source.continuation),
+      pages = objectRecord(continuation.pages);
+    const notes =
+      Array.from({ length: 128 }, (_, block) => observationHash({ index, block })).join("") +
+      "unused release notes and author metadata. ".repeat(900);
+    for (const [url, value] of Object.entries(pages)) {
+      const page = objectRecord(value);
+      if (new URL(url).pathname === `/repos/${config.repository}`)
+        objectRecord(page.body).id = config.repository_id;
+      if (Array.isArray(page.body))
+        page.body = page.body.map((row: unknown) => ({
+          ...objectRecord(row),
+          body: notes,
+          author: { login: `author-${index}` },
+        }));
+      delete page.representation;
+      delete page.facts_sha256;
+      page.sha256 = observationHash(page.body);
+    }
+    validateObserverCheckpoint(source, config);
+    const { pages: _pages, ...position } = continuation;
+    const bytes = JSON.stringify(source),
+      name = `${hash}/checkpoint.json`;
+    retained.set(name, {
+      position,
+      hashes: Object.fromEntries(
+        Object.entries(pages).map(([url, page]) => [url, String(objectRecord(page).sha256)]),
+      ),
+      rawHash: observationHash(source),
+    });
+    await mkdir(path.join(tree, hash), { recursive: true });
+    await writeFile(path.join(tree, name), bytes);
+  }
+  async function snapshot(stage: string) {
+    await writeFile(path.join(tree, "catalog/checkpoint.json"), JSON.stringify(controller));
+    let metrics: Record<string, number> = {};
+    const value = await collectFactObserverSnapshot(
+      root,
+      "c".repeat(64),
+      { run: 120, attempt: 1, source: "a".repeat(40) },
+      Date.now(),
+      Date.now() + 60000,
+      (m) => {
+        metrics = { ...m };
+      },
+    );
+    const encoded = await encodeStreamingObserverSnapshot(value, Date.now() + 60000);
+    assert.ok(
+      encoded.bytes.length < observerSnapshotLimit / 2,
+      "full modeled catalog retains substantial headroom without increasing the cap",
+    );
+    const restored = await readRecoverableObserverSnapshotArchive(
+      createAuditZip([["checkpoint.json", encoded.bytes]]),
+      "c".repeat(64),
+      Date.now(),
+      Date.now() + 60000,
+    );
+    assert.deepEqual(restored.files["catalog/checkpoint.json"], controller);
+    for (const [name, expected] of retained) {
+      const source = objectRecord(decodeStoredObserverCheckpoint(restored.files[name]));
+      const { pages, ...position } = objectRecord(source.continuation);
+      assert.deepEqual(position, expected.position);
+      for (const [url, hash] of Object.entries(expected.hashes)) {
+        const page = objectRecord(objectRecord(pages)[url]);
+        assert.equal(page.sha256, hash);
+        assert.equal(page.representation, "observer-facts-v1");
+        assert.equal(page.facts_sha256, observationHash(page.body));
+      }
+      assert.equal(
+        observationHash(JSON.parse(await readFile(path.join(tree, name), "utf8"))),
+        expected.rawHash,
+        "export preserves original cache files",
+      );
+    }
+    console.log(
+      JSON.stringify({
+        fixture: "distinct-source-fact-growth",
+        stage,
+        ...metrics,
+        member_bytes: encoded.bytes.length,
+      }),
+    );
+  }
+  function objectRecord(value: unknown): Record<string, unknown> {
+    assert.ok(isRecord(value));
+    return value;
+  }
+  for (let index = 0; index < 1295; index++) {
+    const repository = `fixture/repository-${index}`;
+    const config = validateObserverConfig({
+      ...templateConfig,
+      repository,
+      repository_id: 10000 + index,
+    });
+    const progress = structuredClone(template);
+    progress.repository = repository;
+    progress.repository_id = config.repository_id;
+    progress.current_config = config;
+    progress.last_complete_config = null;
+    progress.retired_configs = [];
+    progress.selection_progress = null;
+    progress.policy_progress = null;
+    controller.sources[observationHash({ provider: "github", repository })] = progress;
+    await writeSource(config, index);
+    if (index === 558) await snapshot("560-files");
+    if (index >= 559 && index % 3 === 0) {
+      const historical = validateObserverConfig({
+        ...config,
+        budget: { ...config.budget, duration_ms: config.budget.duration_ms - 1 },
+      });
+      progress.retired_configs.push(historical);
+      await writeSource(historical, index);
+    }
+  }
+  await snapshot("1295-sources-plus-retained-configurations");
+  await assert.rejects(async () => {
+    const old = await collectCompactObserverSnapshot(
+      root,
+      "c".repeat(64),
+      { run: 121, attempt: 1, source: "b".repeat(40) },
+      Date.now(),
+      Date.now() + 60000,
+    );
+    await encodeStreamingObserverSnapshot(old, Date.now() + 60000);
+  }, /decoded snapshot exceeds checkpoint read envelope|compressed member exceeds reserved output envelope/);
 });
 
 void test("reviewed declarations share provider collection while keeping port-specific Core projections and unsupported holds", async () => {
@@ -1355,7 +1560,10 @@ void test("provider fact reuse refuses missing page coverage, corrupt facts and 
     reusableProviderObservation(config, complete.observation, complete.cache, undefined, now),
   );
   const brokenCache = structuredClone(complete.cache) as {
-    pages: Record<string, { body: unknown; sha256: string; link: string; etag: string }>;
+    pages: Record<
+      string,
+      { body: unknown; sha256: string; facts_sha256?: string; link: string; etag: string }
+    >;
   };
   const assetPage = Object.keys(brokenCache.pages).find((url) => url.includes("/assets"))!;
   delete brokenCache.pages[assetPage];
@@ -1399,13 +1607,17 @@ void test("known changed partial provider facts cannot be replaced by an older f
   const [, config, result] = h.exported.find(([source]) => source.repository === "owner/other")!;
   const state = structuredClone(result.checkpoint);
   const proof = state.last_complete!.cache as {
-    pages: Record<string, { body: unknown; sha256: string; link: string; etag: string }>;
+    pages: Record<
+      string,
+      { body: unknown; sha256: string; facts_sha256?: string; link: string; etag: string }
+    >;
   };
   const url = Object.keys(proof.pages).find((url) => /\/releases\?/.test(url))!;
   const page = structuredClone(proof.pages[url]!);
   const rows = page.body as { id: number; tag_name: string }[];
   rows.find((row) => row.id === 1)!.tag_name = "v1.1.0";
   page.sha256 = observationHash(rows);
+  page.facts_sha256 = observationHash(rows);
   state.continuation = {
     format: 1,
     config_sha256: observationHash(config),
