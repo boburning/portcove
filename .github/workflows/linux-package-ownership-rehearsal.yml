@@ -15,6 +15,7 @@ on:
       - scripts/install-linux-desktop-prerequisites.sh
       - scripts/package-ownership-selection.mts
       - scripts/qualify-dialog-gtk.mts
+      - scripts/dialog-gtk-observation.mts
       - vendor/rfd/**
       - vendor/rfd-provenance.json
       - apps/desktop/src-tauri/Cargo.toml
@@ -91,7 +92,15 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Verify actual GTK description formatting and the unpatched control
         if: hashFiles('vendor/rfd-provenance.json') != ''
-        run: node scripts/dev-storage.mts run -- xvfb-run -a node scripts/qualify-dialog-gtk.mts
+        shell: bash
+        run: |
+          if node scripts/dev-storage.mts run -- xvfb-run -a node scripts/qualify-dialog-gtk.mts; then
+            :
+          else
+            status=$?
+            echo "::error title=GTK qualification command failed::exit=$status"
+            exit "$status"
+          fi
       - name: Retain GTK constructor observations
         if: always() && hashFiles('vendor/rfd-provenance.json') != ''
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
