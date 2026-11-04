@@ -15,7 +15,7 @@ $branches = @($ast.FindAll({
 }, $true))
 if ($branches.Count -ne 2) { throw 'Expected both actual controlled-public clear sites' }
 $names = @('PORTCOVE_APPLICATION_UPDATE_BUNDLED_ROOT_FILE', 'PORTCOVE_APPLICATION_UPDATE_METADATA_URL', 'PORTCOVE_APPLICATION_UPDATE_TARGETS_URL', 'PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_PAYLOAD')
-$evidence = $null
+$evidence = [ordered]@{ controlled_public_transport = $null }
 $observations = @()
 foreach ($site in 0..1) {
     $branch = $branches[$site]
@@ -27,7 +27,11 @@ foreach ($site in 0..1) {
         foreach ($name in $names) { Remove-Item -LiteralPath ('Env:' + $name) -ErrorAction SilentlyContinue }
         $selected = if ($site -eq 0) { $names } else { @($names[-1]) }
         foreach ($name in $selected) { [Environment]::SetEnvironmentVariable($name, $seed, 'Process') }
+        $evidence.controlled_public_transport = $null
         & $clear
+        if ($site -eq 0 -and $evidence.controlled_public_transport -cne 'compiled HTTPS metadata and normal GitHub payload transport; no local repository or payload substitute') {
+            throw 'Actual controlled-public transport receipt was not recorded'
+        }
         foreach ($name in $names) {
             if ([Environment]::GetEnvironmentVariables('Process').Contains($name)) {
                 throw "Controlled-public override remains present at line $($branch.Extent.StartLineNumber): $name"
