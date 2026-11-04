@@ -7166,6 +7166,9 @@ mod tests {
 
     #[tokio::test]
     async fn tails_nativeportable_progression_rollback_backup_restore_recovery_1895() {
+        let clock = std::time::Instant::now();
+        let phase = |name: &str| println!("Tails1895 {name}: {:?}", clock.elapsed());
+        phase("start");
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         let server = Server::new();
@@ -7179,6 +7182,7 @@ mod tests {
             .install(TAILS_1895, None, None, None, true, |_| {})
             .await
             .unwrap();
+        phase("first install complete");
         let first_root = tails_1895_launch_root(&service, &first);
         let saved = b"main_volume 8\nslot_0_progress 1\n";
         let current = b"main_volume 6\nslot_0_progress 2\n";
@@ -7186,6 +7190,7 @@ mod tests {
         tails_1895_write_state(&first_root, saved, b"mod revision1");
         let backup = service.create_backup(TAILS_1895).unwrap();
         tails_1895_assert_state(&backup.path.join("data"), saved, b"mod revision1");
+        phase("backup complete");
         tails_1895_write_state(&first_root, current, b"mod revision2");
         *provider.0.lock().unwrap() = tails_1895_release(&server, "v0.3.3-1", 2);
         assert!(
@@ -7199,6 +7204,7 @@ mod tests {
             .update(TAILS_1895, None, None, true, |_| {})
             .await
             .unwrap();
+        phase("second install complete");
         assert_ne!(first.id, second.id);
         assert_ne!(first.artifact.sha256, second.artifact.sha256);
         let second_root = tails_1895_launch_root(&service, &second);
@@ -7210,6 +7216,7 @@ mod tests {
         tails_1895_write_state(&second_root, latest, b"mod revision3");
         let previous = service.rollback(TAILS_1895).unwrap();
         assert_eq!(previous.id, first.id);
+        phase("rollback complete");
         let previous_root = tails_1895_launch_root(&service, &previous);
         tails_1895_assert_state(&previous_root, latest, b"mod revision3");
         assert_eq!(
@@ -7238,6 +7245,8 @@ mod tests {
             b"mod revision3",
         );
 
+        phase("consented restore and safety backup complete");
+
         struct Interrupt;
         impl LifecycleFaultInjector for Interrupt {
             fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
@@ -7259,11 +7268,13 @@ mod tests {
                 .await
                 .is_err()
         );
+        phase("interrupted committed update observed");
         let committed = service.status(TAILS_1895).unwrap().active.unwrap();
         assert_eq!(committed.version, "v0.3.4-1");
         assert_ne!(committed.id, first.id);
         let recovered = PortcoveService::with_provider(library.clone(), provider).unwrap();
         recovered.recover_pending_operations().unwrap();
+        phase("pending recovery complete");
         assert_eq!(
             recovered.status(TAILS_1895).unwrap().active.unwrap().id,
             committed.id
@@ -7274,6 +7285,7 @@ mod tests {
             serde_json::to_value(recovered.catalog.port(TAILS_1895).unwrap()).unwrap(),
             definition
         );
+        phase("preservation and unchanged definition verified");
     }
 
     #[tokio::test]

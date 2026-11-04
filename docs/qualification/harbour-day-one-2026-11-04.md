@@ -61,6 +61,16 @@ retries remain unchanged; a later pass proves completion under that existing
 budget, not a product-speed repair. The first browser attempt was unexecuted
 because this new worktree lacked its pinned Chromium runtime.
 
+The first final-head Windows run (41934461132/1) retained seven passing
+partitions and two existing-fixture timeouts in partition 5. Curated activation
+recovery reached preservation at 29.042 seconds before the 30.059-second cutoff;
+that exact Windows fixture now allows 90 seconds. The three-version Tails
+backup/rollback/consented-restore/interruption fixture hit its existing
+90.350-second cutoff; that exact Windows case now allows 180 seconds with phase
+observations. Assertions, product/child deadlines, cleanup, worker settings and
+zero retries remain. These are finite harness calibrations, not causal product
+repairs; final-head results and all earlier failures stay separately attributed.
+
 No original was acquired, no upstream game/helper was executed and no desktop
 STOP was resumed. Ghostship's accepted native evidence is reused at its recorded
 scope; new Starship game execution, gameplay and populated-save observations remain
