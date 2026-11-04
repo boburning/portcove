@@ -250,16 +250,19 @@ export function mainPublicationJournals(entries: readonly Record<string, unknown
 }
 /** GitHub caps filtered Actions searches at 1,000 records. Split complete time
  * windows and deduplicate inclusive boundaries instead of trusting a prefix. */
-export function collectReplayWindows(
+export async function collectReplayWindows(
   since: string,
   until: string,
-  collect: (since: string, until: string) => Record<string, unknown>[],
-  deadline = Date.now() + 120000,
-): Record<string, unknown>[] {
-  if (Date.now() >= deadline)
+  collect: (
+    since: string,
+    until: string,
+  ) => Record<string, unknown>[] | Promise<Record<string, unknown>[]>,
+  deadline = performance.now() + 120000,
+): Promise<Record<string, unknown>[]> {
+  if (performance.now() >= deadline)
     throw new Error("Replay inventory deadline exhausted; retain the previous cursor");
   try {
-    return collect(since, until);
+    return await collect(since, until);
   } catch (error) {
     if (!(error instanceof ReplayWindowFull)) throw error;
     const start = Date.parse(since),
@@ -271,18 +274,20 @@ export function collectReplayWindows(
       );
     const boundary = new Date(middle).toISOString();
     const values = [
-      ...collectReplayWindows(since, boundary, collect, deadline),
-      ...collectReplayWindows(boundary, until, collect, deadline),
+      ...(await collectReplayWindows(since, boundary, collect, deadline)),
+      ...(await collectReplayWindows(boundary, until, collect, deadline)),
     ];
     return [...new Map(values.map((value) => [value.id, value])).values()];
   }
 }
 /** Bounded replay, independent of notification ordering or queued publisher identity. */
-export function replayRoadmapRuns(
+export async function replayRoadmapRuns(
   previous: RoadmapReportState,
   runs: readonly RoadmapReplayRun[],
   until: string,
-  read: (run: RoadmapReplayRun) => readonly RoadmapObservation[],
+  read: (
+    run: RoadmapReplayRun,
+  ) => readonly RoadmapObservation[] | Promise<readonly RoadmapObservation[]>,
   limit = 200,
 ) {
   let state = {
@@ -308,7 +313,7 @@ export function replayRoadmapRuns(
         throw new Error(
           "Retained results remain unpublished; next event or manual replay resumes without repeating checks",
         );
-      const observations = read(run);
+      const observations = await read(run);
       state = {
         ...mergeRoadmapObservations(state, observations),
         processed: state.processed,
