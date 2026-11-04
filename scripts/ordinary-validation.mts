@@ -1890,6 +1890,7 @@ for (const [file, tests] of [
   ["scripts/repository-issue-inventory.fixture.mts", roadmapContractTests],
   ...[
     "scripts/github-api.mts",
+    "scripts/github-operation.mts",
     "scripts/repository-issue-inventory.mts",
     "scripts/roadmap-inventory.mts",
     "scripts/roadmap-scoped.mts",
@@ -2147,6 +2148,18 @@ for (const file of [
     ...coordinatorStateContractTests,
   ]);
 }
+
+for (const file of [
+  "package.json",
+  "pnpm-lock.yaml",
+  "scripts/github-client.mts",
+  "scripts/github-client.test.mts",
+  "scripts/github-operation.mts",
+])
+  explicitNodeTests.set(file, [
+    ...(explicitNodeTests.get(file) ?? []),
+    "scripts/github-client.test.mts",
+  ]);
 
 for (const file of [
   "scripts/test-coverage-config.mts",

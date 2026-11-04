@@ -1142,6 +1142,13 @@
       ]
     },
     {
+      "file": "scripts/github-client.test.mts",
+      "memberships": [
+        ["catalog-full-2", 7801],
+        ["repository-tools-2", 3601]
+      ]
+    },
+    {
       "file": "scripts/github-body.test.mts",
       "memberships": [
         ["catalog-full-2", 1100],
