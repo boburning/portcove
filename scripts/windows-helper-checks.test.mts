@@ -1206,6 +1206,19 @@ $applied = Get-ExpectedBundledHash '${quote(input)}'
 $skipped = Get-ExpectedBundledHash '${quote(input)}' 'Skipped' '${raw}'
 if ($applied.raw_sha256 -cne '${raw}' -or $applied.bundled_sha256 -cne '${bundled}' -or -not $applied.bundle_slot_patched -or $applied.binary_patching -cne 'Applied') { throw 'Default marker patch changed' }
 if ($skipped.raw_sha256 -cne '${raw}' -or $skipped.bundled_sha256 -cne '${raw}' -or $skipped.bundle_slot_patched -or $skipped.binary_patching -cne 'Skipped') { throw 'Skipped mode changed bytes' }
+# Exercise the real renderer assignments against patched and byte-preserving inputs.
+$renderer = @($ast.FindAll({ param($node) $node -is [Management.Automation.Language.AssignmentStatementAst] -and $node.Left.Extent.Text -cin @('$rendererCandidate', '$candidateExecutableHash') }, $true))
+if ($renderer.Count -ne 2) { throw 'Renderer hash join is absent or ambiguous' }
+$ExpectedExecutablePath = '${quote(input)}'; $ExpectedBinaryPatching = 'Applied'; $expected = $applied
+foreach ($statement in $renderer) { Invoke-Expression $statement.Extent.Text }
+if ($candidateExecutableHash -cne '${bundled}') { throw 'Renderer expected raw rather than installed NSIS bytes' }
+$ExpectedBinaryPatching = 'Skipped'; $expected = $skipped
+foreach ($statement in $renderer) { Invoke-Expression $statement.Extent.Text }
+if ($candidateExecutableHash -cne '${raw}') { throw 'Renderer changed byte-preserving identity' }
+$expected = [pscustomobject]@{ raw_sha256 = '${"0".repeat(64)}' }
+$message = $null
+try { Invoke-Expression $renderer[0].Extent.Text } catch { $message = $_.Exception.Message }
+if ($message -notlike '*exact raw SHA-256 pin*') { throw 'Renderer accepted changed original bytes' }
 foreach ($pin in @('', '${"0".repeat(64)}', '${"A".repeat(64)}')) {
   $message = $null
   try { Get-ExpectedBundledHash '${quote(input)}' 'Skipped' $pin | Out-Null } catch { $message = $_.Exception.Message }

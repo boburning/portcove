@@ -3963,6 +3963,13 @@
       ]
     },
     {
+      "file": "scripts/upstream-release-rehearsal.test.mts",
+      "memberships": [
+        ["catalog-full-2", 11150],
+        ["release-check", 8550]
+      ]
+    },
+    {
       "file": "scripts/windows-helper-checks.test.mts",
       "memberships": [
         ["windows-helpers-2", 1200],

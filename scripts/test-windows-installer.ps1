@@ -1583,7 +1583,8 @@ try {
             }
             if ($preflightExitCode -ne 0) { throw "Installed predecessor WebDriver fixture-environment preflight failed" }
             if ($evidence) { $evidence.driver_preflight_fixture_env = "passed"; Write-InstallerEvidence "driver_preflight_fixture_env_passed" }
-            $candidateExecutableHash = (Get-FileHash -LiteralPath $ExpectedExecutablePath -Algorithm SHA256).Hash.ToLowerInvariant()
+            $rendererCandidate = Get-ExpectedBundledHash (Resolve-Path -LiteralPath $ExpectedExecutablePath).Path $ExpectedBinaryPatching $expected.raw_sha256
+            $candidateExecutableHash = $rendererCandidate.bundled_sha256
             $rendererArguments = @(
                 (Join-Path $PSScriptRoot "../apps/desktop/scripts/desktop-windows-update-test.mts"),
                 "--app", $application,

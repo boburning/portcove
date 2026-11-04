@@ -90,3 +90,25 @@ void test("wrong issuer/ref/workflow/source/attempt, missing timestamps and chan
     assert.throws(() => inspectReleaseSourceAttestation(raw, expected));
   }
 });
+void test("rehearsal scope authenticates only its fixed workflow and does not broaden release identity", () => {
+  const raw = fixture();
+  const rehearsal = { ...expected, ref: "refs/heads/main" };
+  const cert = raw[0]!.verificationResult.signature.certificate;
+  cert.sourceRepositoryRef = rehearsal.ref;
+  cert.buildSignerURI =
+    "https://github.com/boburning/portcove/.github/workflows/upstream-release-rehearsal.yml@refs/heads/main";
+  assert.equal(
+    inspectReleaseSourceAttestation(raw, rehearsal, "upstream-rehearsal").authority,
+    "none",
+  );
+  assert.throws(() => inspectReleaseSourceAttestation(raw, rehearsal), /differs/);
+  assert.throws(
+    () => inspectReleaseSourceAttestation(fixture(), expected, "upstream-rehearsal"),
+    /differs/,
+  );
+  cert.runInvocationURI = "https://github.com/boburning/portcove/actions/runs/12345/attempts/1";
+  assert.throws(
+    () => inspectReleaseSourceAttestation(raw, rehearsal, "upstream-rehearsal"),
+    /differs/,
+  );
+});
