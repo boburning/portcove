@@ -19,7 +19,7 @@ import {
 } from "./ci-workflow-fixture.mts";
 
 // Independently expected contract pin; Renovate updates it with the Action group.
-const reviewedInstallAction = "taiki-e/install-action@1919c4a95903d2c33e4a221102edca87309fc14b"; // v2.89.0
+const reviewedInstallAction = "taiki-e/install-action@b80e2bb2635f28eb98b9fce1e2f0887e1535c6b2"; // v2.90.0
 
 void test("candidate consumer selects only existing selected, compiled and history jobs", () => {
   const jobs = workflowJobs(nativeDesignCompatibilityWorkflow);
@@ -642,7 +642,7 @@ function assertOriginalControllerImportSetup(job: Record<string, unknown>) {
       isRecord(node.with),
   );
   assert.equal(node.with["node-version-file"], ".node-version");
-  assert.equal(manager.uses, "pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413");
+  assert.equal(manager.uses, "pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115");
   assert.equal(manager.with.package_json_file, "package.json");
   assert.equal(typeof installation.run, "string");
   assert.deepEqual(executableLines(String(installation.run)), [
