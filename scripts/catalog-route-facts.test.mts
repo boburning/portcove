@@ -14,6 +14,7 @@ import {
   registrationOwnership,
   managedOwnership,
   routeEnrollment,
+  renderRouteTests,
 } from "./catalog-route-facts.mts";
 import { isRecord } from "./runtime-values.mts";
 const catalogRoot = resolve("crates/portcove-core/catalog");
@@ -172,4 +173,34 @@ void test("literal argument presentation preserves empty vectors, boundaries and
       (step) => isRecord(step) && String(step.instruction).includes(JSON.stringify(arguments_)),
     ),
   );
+});
+
+void test("ordinary declarations generate distinct bounded title tests without authored Rust", () => {
+  const source = readCatalogSource(catalogRoot);
+  const rendered = renderRouteTests(source.records);
+  for (const kind of ["prepared", "managed"] as const) {
+    assert.equal(
+      readFileSync(
+        resolve(`crates/portcove-core/src/testdata/${kind}-route-tests.generated.rs`),
+        "utf8",
+      ),
+      rendered[kind],
+    );
+    const rows = routeEnrollment(source.records).cases.filter(
+      (row) => row.managed_native === (kind === "managed"),
+    );
+    assert.equal(rendered[kind].match(/#\[(?:tokio::)?test\]/gu)?.length ?? 0, rows.length);
+    for (const row of rows) assert.ok(rendered[kind].includes(`(${JSON.stringify(row.port_id)})`));
+  }
+  const fresh = structuredClone(input("mstan-tetrisgbrecomp"));
+  fresh.listing.id = "another-fitting-player";
+  const next = renderRouteTests([...source.records, fresh]);
+  assert.ok(next.prepared.includes("fn prepared_guide_adoption_declared_another_fitting_player()"));
+  assert.ok(
+    next.prepared.includes('assert_declarative_prepared_player_route("another-fitting-player");'),
+  );
+  assert.equal(next.managed, rendered.managed);
+  assert.throws(() => renderRouteTests([fresh, fresh]), /Duplicate/);
+  fresh.listing.id = 'unsafe");panic!("injected';
+  assert.throws(() => renderRouteTests([fresh]), /safe literals/);
 });

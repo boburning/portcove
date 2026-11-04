@@ -1,4 +1,4 @@
-import { routeEnrollment } from "./catalog-route-facts.mts";
+import { routeEnrollment, renderRouteTests } from "./catalog-route-facts.mts";
 import { coreProposalInspector } from "./catalog-authoring-inspector.mts";
 import type { ProposalReceipt } from "./catalog-authoring-inspector.mts";
 import {
@@ -38,6 +38,11 @@ const sourcePath = join(catalogRoot, catalogSourceNames.operational);
 const outputPath = join(catalogRoot, "catalog.json");
 const listingsPath = join(catalogRoot, catalogSourceNames.listings);
 const enrollmentPath = join(catalogRoot, "route-enrollment.generated.json");
+const routeTestRoot = join(root, "crates", "portcove-core", "src", "testdata");
+const routeTestPaths = {
+  prepared: join(routeTestRoot, "prepared-route-tests.generated.rs"),
+  managed: join(routeTestRoot, "managed-route-tests.generated.rs"),
+};
 const historicalPath = join(catalogRoot, "catalog-schema2-migration-fixture.json");
 
 function readJson(path: string): unknown {
@@ -625,8 +630,11 @@ if (preparing) {
   const output = serializeCurrentCatalog(current);
   const listingsOutput = `${JSON.stringify(authored.directory, null, 2)}\n`;
   const enrollmentOutput = `${JSON.stringify(routeEnrollment(authored.records), null, 2)}\n`;
+  const routeTests = renderRouteTests(authored.records);
   if (process.argv.includes("--check")) {
     if (
+      readFileSync(routeTestPaths.prepared, "utf8") !== routeTests.prepared ||
+      readFileSync(routeTestPaths.managed, "utf8") !== routeTests.managed ||
       readFileSync(enrollmentPath, "utf8") !== enrollmentOutput ||
       readFileSync(outputPath, "utf8") !== output ||
       readFileSync(sourcePath, "utf8") !== output ||
@@ -635,6 +643,9 @@ if (preparing) {
       throw new Error("embedded catalog is stale; run node scripts/generate-catalog.mts");
     }
   } else {
+    mkdirSync(routeTestRoot, { recursive: true });
+    writeFileSync(routeTestPaths.prepared, routeTests.prepared);
+    writeFileSync(routeTestPaths.managed, routeTests.managed);
     writeFileSync(enrollmentPath, enrollmentOutput);
     writeFileSync(sourcePath, output);
     writeFileSync(outputPath, output);

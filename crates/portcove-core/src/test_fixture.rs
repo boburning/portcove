@@ -782,5 +782,28 @@ pub(crate) fn route_enrollment() -> Vec<RouteEnrollment> {
         assert_eq!(case.prepared_player.working_directory, "executable-parent");
         assert!(!case.prepared_player.data_locations.is_empty());
     }
+    let expected: serde_json::Value =
+        serde_json::from_str(include_str!("testdata/route-enrollment-expectations.json")).unwrap();
+    assert_eq!(expected["format_version"], 1);
+    let mut expected_ids = std::collections::BTreeMap::new();
+    for row in expected["cases"].as_array().unwrap() {
+        assert!(
+            expected_ids
+                .insert(
+                    row["port_id"].as_str().unwrap(),
+                    row["managed_native"].as_bool().unwrap()
+                )
+                .is_none()
+        );
+    }
+    let actual = envelope
+        .cases
+        .iter()
+        .map(|case| (case.port_id.as_str(), case.managed_native))
+        .collect::<std::collections::BTreeMap<_, _>>();
+    assert_eq!(
+        actual, expected_ids,
+        "no missing, duplicate or unexpectedly skipped declared lifecycle coverage"
+    );
     envelope.cases
 }

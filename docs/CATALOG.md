@@ -1932,8 +1932,11 @@ paragraph or descriptive fact authorizes execution or data ownership.
 Generation expands those facts into the existing concrete versioned guides for
 Desktop, CLI and other consumers. Historical concrete guides remain exact; a new
 common explanation cannot reinterpret a retained installation. The same ordinary
-generation writes `route-enrollment.generated.json` for the existing lifecycle
-harnesses. They execute every declared representative once and emit distinct
+generation writes `route-enrollment.generated.json` and checked per-title Rust
+test includes for the existing lifecycle harnesses. Generated entrypoints keep
+each title independently bounded in nextest and call the same shared assertions.
+Independent inventory checks refuse missing or duplicate entrypoints. They
+execute every declared representative once and emit distinct
 per-title outcomes, checking independently reviewed expected launch vectors or
 accepted member observations. An ordinary fitting title needs no production Rust
 or per-title test wrapper. Independent observations and custom behavioral tests
