@@ -1,0 +1,46 @@
+{
+  "format_version": 1,
+  "cases": [
+    {
+      "port_id": "doom-3-classic-dhewm3",
+      "prepared_player": {
+        "executable": "dhewm3.exe",
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "Documents/My Games/dhewm3 with separate base and d3xp scopes",
+          "original game installation and any custom external profile"
+        ]
+      },
+      "managed_native": true
+    },
+    {
+      "port_id": "mstan-tetrisgbrecomp",
+      "prepared_player": {
+        "executable": "Tetris.exe",
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "rom.cfg, runtime_prefs.ini and keybinds.ini beside the executable",
+          "creating-runtime save/state/RTC, mods, captures and diagnostics",
+          "any separately selected or absolute output paths"
+        ]
+      },
+      "managed_native": false
+    },
+    {
+      "port_id": "n64hub-super-mario-64-recomp",
+      "prepared_player": {
+        "executable": "SuperMario64Recompiled.exe",
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "%LOCALAPPDATA%/SuperMario64Recompiled, or the existing portable.txt working-folder mode",
+          "whole creating profile including original/EEPROM data, JSON settings, controllers, mods and hires_font",
+          "custom or external paths"
+        ]
+      },
+      "managed_native": false
+    }
+  ]
+}

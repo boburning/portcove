@@ -1,3 +1,4 @@
+import { routeEnrollment } from "./catalog-route-facts.mts";
 import { coreProposalInspector } from "./catalog-authoring-inspector.mts";
 import type { ProposalReceipt } from "./catalog-authoring-inspector.mts";
 import {
@@ -36,6 +37,7 @@ const catalogRoot = join(root, "crates", "portcove-core", "catalog");
 const sourcePath = join(catalogRoot, catalogSourceNames.operational);
 const outputPath = join(catalogRoot, "catalog.json");
 const listingsPath = join(catalogRoot, catalogSourceNames.listings);
+const enrollmentPath = join(catalogRoot, "route-enrollment.generated.json");
 const historicalPath = join(catalogRoot, "catalog-schema2-migration-fixture.json");
 
 function readJson(path: string): unknown {
@@ -622,8 +624,10 @@ if (preparing) {
     );
   const output = serializeCurrentCatalog(current);
   const listingsOutput = `${JSON.stringify(authored.directory, null, 2)}\n`;
+  const enrollmentOutput = `${JSON.stringify(routeEnrollment(authored.records), null, 2)}\n`;
   if (process.argv.includes("--check")) {
     if (
+      readFileSync(enrollmentPath, "utf8") !== enrollmentOutput ||
       readFileSync(outputPath, "utf8") !== output ||
       readFileSync(sourcePath, "utf8") !== output ||
       readFileSync(listingsPath, "utf8") !== listingsOutput
@@ -631,6 +635,7 @@ if (preparing) {
       throw new Error("embedded catalog is stale; run node scripts/generate-catalog.mts");
     }
   } else {
+    writeFileSync(enrollmentPath, enrollmentOutput);
     writeFileSync(sourcePath, output);
     writeFileSync(outputPath, output);
     writeFileSync(listingsPath, listingsOutput);

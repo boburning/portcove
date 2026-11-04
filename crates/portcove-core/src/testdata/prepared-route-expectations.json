@@ -1,0 +1,16 @@
+{
+  "format_version": 1,
+  "provenance": "Preserved independently reviewed argument/executable expectations from PR4253, source f2f35b614a59d524df71860c46edcd7d276e7b24; owned-probe tests, not execution or authentication of upstream binaries.",
+  "cases": [
+    {
+      "port_id": "mstan-tetrisgbrecomp",
+      "executable": "Tetris.exe",
+      "arguments": []
+    },
+    {
+      "port_id": "n64hub-super-mario-64-recomp",
+      "executable": "SuperMario64Recompiled.exe",
+      "arguments": []
+    }
+  ]
+}

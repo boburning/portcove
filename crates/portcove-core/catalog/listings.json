@@ -17173,17 +17173,35 @@
           },
           {
             "title": "Keep an existing prepared copy",
-            "instruction": "Keep a working custom copy registered with dhewm3.exe, its actual runtime folder as working directory, and its own launch details. To read originals from another installation, use three separate argument lines: +set, fs_basepath, then the absolute folder containing base and any d3xp data. You and upstream retain replacement and data ownership for that external copy; removing its registration preserves its files. This alternative does not make Portcove manage or migrate its originals, saves or runtime."
+            "instruction": "For a separately prepared copy, read originals from another installation using three separate argument lines: +set, fs_basepath, then the absolute folder containing base and any d3xp data. This custom option retains the external route and does not make Portcove manage or migrate its originals, saves or runtime."
+          },
+          {
+            "title": "Select the prepared player",
+            "instruction": "Select dhewm3.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
           }
         ],
         "warnings": [
-          "Back up that external profile and your original game separately before changing engines or versions."
+          "Back up that external profile and your original game separately before changing engines or versions.",
+          "Use a short library path containing plain ASCII characters for this Windows build. Its external profile locations have their own upstream path limits. Older installations retain their original path contract.",
+          "Use the existing non-owning route for custom fs_basepath/fs_savepath/fs_configpath, custom mods, the separate dedicated server or another upstream workflow."
         ],
         "help_url": "https://dhewm3.org/#how-to-install",
         "references": [
           {
             "title": "Keep your saves and existing copy",
             "instruction": "Normal Windows saves, settings, screenshots, demos and logs are in your actual Documents/My Games/dhewm3 profile, with separate base and d3xp scopes. Back up that external profile and your original game separately before changing engines or versions. Existing customized copies keep their own launch details and runtime owner."
+          },
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          },
+          {
+            "title": "Player-data ownership",
+            "instruction": "You and upstream own the external copy's data: Documents/My Games/dhewm3 with separate base and d3xp scopes; original game installation and any custom external profile. Back up these locations separately; registration does not migrate or certify their compatibility."
+          },
+          {
+            "title": "Managed runtime ownership",
+            "instruction": "Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. Portcove preserves only these declared local inputs during replacement and backup: base/pak000.pk4, base/pak001.pk4, base/pak002.pk4, base/pak003.pk4, base/pak004.pk4, base/pak005.pk4, base/pak006.pk4, base/pak007.pk4, base/pak008.pk4. Its backup does not include external profiles."
           }
         ]
       },
@@ -31675,7 +31693,7 @@
     {
       "id": "mstan-tetrisgbrecomp",
       "name": "Tetris (TetrisGBRecomp)",
-      "summary": "A native Tetris Game Boy player using your own matching World v1.0 original. Upstream documents a corrected v0.0.3 Windows x64 package and a source-build route. You and upstream manage preparation, runtime replacement and player data; Portcove registers an independently permitted existing copy without certifying setup or gameplay.",
+      "summary": "A native Tetris Game Boy player for your own matching World v1.0 original. Includes a separate in-process launcher; the corrected upstream route and original requirements are described below.",
       "original_game_title": "Tetris",
       "project_url": "https://github.com/mstan/TetrisGBRecomp",
       "platforms": [],
@@ -31690,12 +31708,12 @@
             "instruction": "Use your independently permitted completed TetrisGBRecomp Windows copy. The reviewed upstream v0.0.3 route corrects the earlier v0.0.2 ROM-gate failure. Keep Tetris.exe, assets and its matching runtime DLLs together; SDL2 and the dynamically loaded EGL/GLES companions are not optional just because a dependency listing omits them. Finish upstream generation/build outside Portcove if using source. Portcove does not compile this game, redistribute originals or authenticate an arbitrary external package."
           },
           {
-            "title": "Select the player and keep the exact original",
-            "instruction": "Select Tetris.exe in its intended writable runtime folder and use that same folder as working directory. Leave arguments empty for the normal in-process launcher. At the separate Play step, use upstream's picker for your own 32,768-byte Tetris World V1.0 original: CRC32 63F9407D and documented SHA-1 3f2a6407c9900ad5817ee1cfb3609c5ee17400fc. V1.1 is a different program image. The upstream runtime checks its own CRC gate; Portcove registration does not import or authenticate that original."
+            "title": "Keep the exact original",
+            "instruction": "At the separate Play step, use upstream's picker for your own 32,768-byte Tetris World V1.0 original: CRC32 63F9407D and documented SHA-1 3f2a6407c9900ad5817ee1cfb3609c5ee17400fc. V1.1 is a different program image. The upstream runtime checks its own CRC gate; Portcove registration does not import or authenticate that original."
           },
           {
-            "title": "Review registration before choosing Play",
-            "instruction": "Portcove records your selected native executable, working folder and literal arguments after review; Play is separate. Only the selected process is supervised. Upstream or you own runtime replacement and updates; relink changed executable bytes after reviewing them. Removing the registration preserves all external files. Managed installation, generation, backup, rollback, migration and deletion are not offered for this copy."
+            "title": "Select the prepared player",
+            "instruction": "Select Tetris.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
           }
         ],
         "warnings": [
@@ -31706,6 +31724,14 @@
           {
             "title": "Preserve runtime settings and actual data locations",
             "instruction": "Keep the complete working copy and original location, including rom.cfg, runtime_prefs.ini, keybinds.ini, assets and any created save/state/RTC, mod, capture or diagnostic files. The reviewed Windows runtime anchors its ROM cache and runtime preferences beside the executable; keybinds.ini also uses the working folder. Save/state names come from the creating runtime, not a guessed generic save directory. Preserve separately selected or absolute output paths too. Moving the original may require correcting the upstream ROM selection; registration does not migrate paths or certify cross-version state compatibility."
+          },
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          },
+          {
+            "title": "Player-data ownership",
+            "instruction": "You and upstream own the external copy's data: rom.cfg, runtime_prefs.ini and keybinds.ini beside the executable; creating-runtime save/state/RTC, mods, captures and diagnostics; any separately selected or absolute output paths. Back up these locations separately; registration does not migrate or certify their compatibility."
           }
         ]
       }
@@ -32169,12 +32195,12 @@
             "instruction": "Use an independently permitted completed Windows copy of this specific implementation; the reviewed upstream route is v0.1.2. Keep SuperMario64Recompiled.exe, assets and all matching companions together. Finish any upstream source build outside Portcove. This is an existing-copy route, not managed package acquisition, source generation or a redistribution-rights grant."
           },
           {
-            "title": "Select the native player and matching original",
-            "instruction": "Select SuperMario64Recompiled.exe and use the completed runtime folder containing assets as working directory. Leave arguments empty for the normal launcher, then use Load ROM and Start Game at the separate Play step. Use your own Super Mario 64 USA, big-endian .z64; documented SHA-1 9bef1128717f958171a4afac3ed78ee2bb4e86ce. The upstream player performs its own original check; Portcove registration does not import, normalize or authenticate the original."
+            "title": "Keep the matching original",
+            "instruction": "At the separate Play step, use Load ROM and Start Game in the upstream launcher. Use your own Super Mario 64 USA, big-endian .z64; documented SHA-1 9bef1128717f958171a4afac3ed78ee2bb4e86ce. The upstream player performs its own original check; Portcove registration does not import, normalize or authenticate the original."
           },
           {
-            "title": "Review registration before choosing Play",
-            "instruction": "Portcove records your selected native executable, working folder and literal arguments after review; Play is separate. Only the selected process is supervised. You or upstream own updates and runtime replacement; relink changed executable bytes after reviewing them. Removing the registration preserves all external files. Managed installation, backup, rollback, migration, generation and deletion are not offered for this copy."
+            "title": "Select the prepared player",
+            "instruction": "Select SuperMario64Recompiled.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
           }
         ],
         "warnings": [
@@ -32187,6 +32213,14 @@
           {
             "title": "Keep the creating profile and portable mode",
             "instruction": "The reviewed Windows profile defaults to %LOCALAPPDATA%/SuperMario64Recompiled. An existing portable.txt in the working folder selects that folder instead. Keep the creating mode and actual locations; adding or removing the marker does not migrate existing data. Keep the whole profile, its original/EEPROM data, all JSON settings, controller profiles, mods and generated hires_font data. Preserve the complete runtime folder and any custom or external paths too. Edit settings only while the player is closed; registration does not move profiles or certify state compatibility between versions."
+          },
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          },
+          {
+            "title": "Player-data ownership",
+            "instruction": "You and upstream own the external copy's data: %LOCALAPPDATA%/SuperMario64Recompiled, or the existing portable.txt working-folder mode; whole creating profile including original/EEPROM data, JSON settings, controllers, mods and hires_font; custom or external paths. Back up these locations separately; registration does not migrate or certify their compatibility."
           }
         ]
       }

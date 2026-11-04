@@ -1919,6 +1919,26 @@ without an integration carries no managed operation or qualification claim.
 Shared source identities, contracts, validators, evidence and qualification stay
 in `catalog-shared.json`, preserving their existing order and scope.
 
+Optional authoring-only `route_facts_v1` supplies a bounded Windows prepared
+player basename, executable-parent working folder, literal argument vector and
+actual external data locations. An existing source-free NativePortable GitHub
+route may additionally supply one managed preparation action and exceptional
+warnings; its executable must agree with the operational declaration. Common
+registration/ownership/removal, declared managed preservation and rollback
+explanations come from `scripts/catalog-route-facts.mts`. Bespoke guide actions,
+source/edition requirements and immediate warnings remain explicit. No guide
+paragraph or descriptive fact authorizes execution or data ownership.
+
+Generation expands those facts into the existing concrete versioned guides for
+Desktop, CLI and other consumers. Historical concrete guides remain exact; a new
+common explanation cannot reinterpret a retained installation. The same ordinary
+generation writes `route-enrollment.generated.json` for the existing lifecycle
+harnesses. They execute every declared representative once and emit distinct
+per-title outcomes, checking independently reviewed expected launch vectors or
+accepted member observations. An ordinary fitting title needs no production Rust
+or per-title test wrapper. Independent observations and custom behavioral tests
+remain necessary where their scope differs from the shared route.
+
 Optional listing `original_game` is a version-1 descriptive identity: an explicitly
 reviewed stable `id`, one to eight public HTTPS `evidence_urls`, and up to sixteen
 `source_editions`. Each edition has its own stable `id`, descriptive `title`,

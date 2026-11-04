@@ -3284,8 +3284,42 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn native_engine_adoption_2567() {
-        assert_native_engine_adoption_lifecycle("doom-3-classic-dhewm3").await;
+    async fn managed_native_declarative_route_lifecycles() {
+        let corpus: serde_json::Value = serde_json::from_str(include_str!(
+            "../testdata/native-engine-adoption-2026-11-02.json"
+        ))
+        .unwrap();
+        let catalog = Catalog::embedded().unwrap();
+        let mut completed = std::collections::BTreeSet::new();
+        for case in crate::test_fixture::route_enrollment()
+            .into_iter()
+            .filter(|case| case.managed_native)
+        {
+            let observed = corpus["cases"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|row| row["port_id"] == case.port_id)
+                .expect("managed route needs independent accepted member observations");
+            assert_eq!(
+                observed["selected_executable"],
+                case.prepared_player.executable
+            );
+            assert_eq!(
+                catalog.port(&case.port_id).unwrap().launch_arguments,
+                case.prepared_player.arguments
+            );
+            assert_native_engine_adoption_lifecycle(&case.port_id).await;
+            assert!(completed.insert(case.port_id.clone()));
+            eprintln!(
+                "{}",
+                serde_json::json!({"kind":"controlled-managed-route-lifecycle","port_id":case.port_id,"outcome":"passed","upstream_game_executed":false})
+            );
+        }
+        assert!(
+            !completed.is_empty(),
+            "managed route enrollment must not disappear"
+        );
     }
 
     #[tokio::test]
