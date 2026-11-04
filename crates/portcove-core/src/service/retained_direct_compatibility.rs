@@ -114,7 +114,7 @@ impl PortcoveService {
             }
         }
         for install in installs {
-            let port = self.installed_port(&install)?;
+            let port = self.effective_archive_data_port(&install)?;
             if port.archive_data_compatibility_v1.is_some() {
                 if partitioned_policy != Some(crate::archive_data::policy_sha256(&port)?.as_str()) {
                     return Err(held(&port));
@@ -154,7 +154,9 @@ impl PortcoveService {
         artifact_sha256: &str,
         target: Option<&InstallRecord>,
     ) -> Result<()> {
-        let retained = self.installed_port(from)?;
+        let retained = self.effective_archive_data_port(from)?;
+        let effective_target = self.retained_archive_data_target(to, target)?;
+        let to = &effective_target;
         if retained.id != to.id {
             return Err(held(to));
         }
@@ -233,7 +235,7 @@ impl PortcoveService {
                 }
             }
             for install in installs {
-                let retained = self.installed_port(&install)?;
+                let retained = self.effective_archive_data_port(&install)?;
                 if retained.archive_data_compatibility_v1.is_none()
                     || crate::archive_data::policy_sha256(&retained)?
                         != crate::archive_data::policy_sha256(port)?
@@ -280,12 +282,15 @@ impl PortcoveService {
         if !requires_fresh_data_guard(port) {
             return Ok(());
         }
-        let retained = self.installed_port(install)?;
-        if serde_json::to_value(&retained)? != serde_json::to_value(port)? {
+        let creating = self.installed_port(install)?;
+        let retained = self.effective_archive_data_port(install)?;
+        if serde_json::to_value(&retained)? != serde_json::to_value(port)?
+            && serde_json::to_value(&creating)? != serde_json::to_value(port)?
+        {
             return Err(held(port));
         }
-        if port.archive_data_compatibility_v1.is_some() {
-            crate::archive_data::require_snapshot(port, snapshot)?;
+        if retained.archive_data_compatibility_v1.is_some() {
+            crate::archive_data::require_snapshot(&retained, snapshot)?;
         } else if !psx_mod_data::initialized(install)? {
             require_empty_player_data(port, snapshot)?;
         }

@@ -117,6 +117,10 @@
         "native_save_8.bin",
         "native_save_9.bin"
       ]
+    },
+    "archive_data_transition_v1": {
+      "predecessor_archive_sha256": "54c73309c7bda1d030e4e8d4f3ec2108763ed2c539e275688fcfa602b6ceec38",
+      "creating_contract_sha256": "622fd2271b421c4e4b1987983f8b4ed23315fcb731c496b142241e0bdab4a542"
     }
   }
 }

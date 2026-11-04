@@ -1797,6 +1797,17 @@ runtime or source authority. This route requires staged-source capability 27;
 see [definition delivery](DEFINITION-DELIVERY.md) for reader fencing and reusable
 source applicability.
 
+For a reviewed historical predecessor, `archive_data_transition_v1` declares
+its exact archive and creating-contract digest once. The existing explicit update
+review offers the data transition with a distinct eligible successor and reports
+extra temporary library capacity. It preserves the working predecessor and binds
+its build-specific objects to their producing archive. Every retained copy must
+match the reviewed predecessor; an unexpected older contract or changed data is
+a specific hold, not an inferred compatibility grant. This optional transition
+requires staged-source capability 28. Its separate data-only admission retains the
+original source/execution authority and fences older readers; ordinary subsequent
+releases use the stable policy without new predecessor records.
+
 If fresh acquisition publishes a staged copy before its final data-compatibility
 check refuses, the error includes `staged_install_id`: that copy and its files stay
 registered, the active copy stays active, and activation and stage-only retries

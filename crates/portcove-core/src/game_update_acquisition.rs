@@ -53,7 +53,9 @@ impl PortcoveService {
         &self,
         port_id: &str,
     ) -> Result<crate::GameUpdatePlan> {
-        let reviewed = self.plan_game_update_locked(port_id, false).await?;
+        let reviewed = self
+            .plan_game_update_with_data_locked(port_id, false, false)
+            .await?;
         self.require_acquisition_plan(&reviewed)?;
         Ok(reviewed)
     }
@@ -129,7 +131,7 @@ impl PortcoveService {
                 #[cfg(test)]
                 eprintln!("immutable acquisition phase: fresh review ({:?})", observed.elapsed());
                 let reviewed = operation
-                    .interruptible(self.plan_game_update_locked(port_id, false))
+                    .interruptible(self.plan_game_update_with_data_locked(port_id, false, false))
                     .await?;
                 #[cfg(test)]
                 eprintln!("immutable acquisition phase: current-runtime verification and authorization ({:?})", observed.elapsed());

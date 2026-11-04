@@ -75,6 +75,7 @@ mod ghostship_safety;
 mod shipwright_persistence_tests;
 mod user_selected;
 pub(crate) use backups::{BackupDeletionPhase, RestorePhase};
+mod archive_data_transition;
 #[cfg(any(test, feature = "qualification-fixtures"))]
 mod forbidden_memories_qualification;
 mod launch_preparation;
@@ -641,6 +642,15 @@ impl PortcoveService {
                     Err(error) if error.code == crate::ErrorCode::Conflict => continue,
                     Err(error) => return Err(error),
                 }
+            } else if candidate.kind == LifecycleOperationKind::ArchiveDataTransition {
+                match self
+                    .library
+                    .try_lock_port_for_archive_data_transition(&candidate.port_id, &candidate.id)
+                {
+                    Ok(guard) => vec![guard],
+                    Err(error) if error.code == crate::ErrorCode::Conflict => continue,
+                    Err(error) => return Err(error),
+                }
             } else if candidate.kind == LifecycleOperationKind::ImportSource {
                 match self.lock_source_dependents(&candidate.port_id, None) {
                     Ok(guards) => guards,
@@ -774,6 +784,9 @@ impl PortcoveService {
         operation: &mut LifecycleOperation,
     ) -> Result<Option<String>> {
         match operation.kind {
+            LifecycleOperationKind::ArchiveDataTransition => self
+                .recover_archive_data_transition(store, operation)
+                .map(|()| None),
             LifecycleOperationKind::SettingsChange => self
                 .recover_settings_change(store, operation)
                 .map(|()| None),
@@ -3406,7 +3419,7 @@ impl PortcoveService {
                 }
                 let policy = status.update_policy;
                 let needs_choice = if let Some(active) = &status.active {
-                    let retained = self.installed_port(active)?;
+                    let retained = self.effective_archive_data_port(active)?;
                     active.artifact.sha256 != release.release.asset.sha256
                         && crate::archive_data::progress_requires_choice(
                             &retained,
@@ -5863,7 +5876,7 @@ impl PortcoveService {
         if retained.adapter == AdapterKind::GeneratedCache {
             self.require_portable_runtime_unchanged(install)?;
         }
-        let port = self.installed_mutability_port(install)?;
+        let mut port = self.installed_mutability_port(install)?;
         if crate::persistence::requires_restore_receipt(&retained)
             && (retained_catalog.is_none()
                 || retained.persistent_paths != port.persistent_paths
@@ -5911,6 +5924,12 @@ impl PortcoveService {
         } else {
             writes_directly_to_user_root(&port)
         };
+        if let Some(admitted) = Installer::new(self.library.clone())?.archive_data_port(install)? {
+            self.library
+                .require_no_archive_data_transition(&install.port_id)?;
+            psx_mod_data::require_admitted_receipt(install)?;
+            port = admitted;
+        }
         Ok(PersistenceContract {
             port,
             writes_directly,

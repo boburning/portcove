@@ -170,6 +170,7 @@ mod tests {
             persistent_paths: vec![],
             persistent_file_patterns: vec![],
             archive_data_compatibility_v1: None,
+            archive_data_transition_v1: None,
             runtime_mutable_paths: vec![],
             runtime_mutable_file_patterns: vec![],
             windows_runtime_path_policy: None,

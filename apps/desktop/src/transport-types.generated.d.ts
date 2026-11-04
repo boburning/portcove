@@ -1731,6 +1731,7 @@ export interface CatalogDocument {
 export interface PortDefinition {
   adapter: AdapterKind;
   archive_data_compatibility_v1?: ArchiveDataCompatibilityV1 | null;
+  archive_data_transition_v1?: ArchiveDataTransitionV1 | null;
   automated_tested_platforms: Platform[];
   bios_source_profile: string | null;
   bundled_runtime: {
@@ -1827,6 +1828,14 @@ export interface ArchiveDataCompatibilityV1 {
   build_specific_progress_paths: string[];
   contract_id: string;
   shared_paths: string[];
+}
+/**
+ * One finite reviewed predecessor admission, separate from data layout identity.
+ * It never redefines that runtime's original source or execution contract.
+ */
+export interface ArchiveDataTransitionV1 {
+  creating_contract_sha256: string;
+  predecessor_archive_sha256: string;
 }
 export interface BundledRuntime {
   archive_root: string;
@@ -3226,6 +3235,7 @@ export interface OutputGameUpdatePlan {
   acquisition?: GameUpdateAcquisition | null;
   activate: boolean;
   assessment: PortActionAssessment3;
+  data_transition?: ArchiveDataTransitionReview | null;
   plan: InstallPlan;
   plan_sha256: string;
   [k: string]: unknown;
@@ -3241,6 +3251,13 @@ export interface PortActionAssessment3 {
    */
   definition?: DefinitionEligibility | null;
   reason: PortActionReason;
+  [k: string]: unknown;
+}
+export interface ArchiveDataTransitionReview {
+  preimage_sha256: string;
+  producing_archive_sha256: string;
+  retained_installations: number;
+  temporary_space: InstallSpaceRequirement;
   [k: string]: unknown;
 }
 export interface OutputGhostshipRecoveryPlan {
