@@ -148,6 +148,7 @@ void test("historical rehearsal attestations remain readable without allowing an
   for (const ref of [
     "refs/heads/main",
     "refs/tags/portcove-upstream-rehearsal-20261104r1",
+    "refs/tags/portcove-upstream-rehearsal-20261104r2",
     upstreamRehearsalExecutionRef,
   ]) {
     const directory = await mkdtemp(path.join(tmpdir(), "portcove-rehearsal-history-"));

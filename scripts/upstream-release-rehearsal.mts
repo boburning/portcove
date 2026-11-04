@@ -10,7 +10,7 @@ import { workspaceVersion, loadPackagePolicy } from "./release-package-policy.mt
 import { isRecord } from "./runtime-values.mts";
 import {
   rehearsalExecution,
-  rehearsalExecutionRef,
+  rehearsalOriginRef,
   rehearsalOrigin,
   rehearsalPublicBase,
 } from "./upstream-release-identity.mts";
@@ -211,7 +211,7 @@ async function verify(directory: string, phase = "verify") {
     path.resolve(directory, manifestName),
     {
       source_commit: m.source,
-      ref: rehearsalExecutionRef,
+      ref: rehearsalOriginRef,
       run_id: m.run_id,
       run_attempt: Number(attesterAttempt),
       subjects: [{ filename: manifestName, sha256: f.sha256 }],
@@ -648,7 +648,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   else if (phase === "inspect" && directory) {
     const m = await manifest(directory);
     process.stdout.write(
-      `${JSON.stringify({ ...identity(), version: m.version, ...rehearsalVersions(identity()), public_base: rehearsalPublicBase(identity()), executor_attempt: rehearsalExecution().run_attempt })}\n`,
+      `${JSON.stringify({ ...identity(), version: m.version, ...rehearsalVersions(identity()), public_base: rehearsalPublicBase(identity()), executor_attempt: rehearsalExecution().run_attempt, executor: rehearsalExecution() })}\n`,
     );
   } else if (phase === "prepare-predecessor" && directory) await preparePredecessor(directory);
   else if (phase === "prepare-public-predecessor" && directory)

@@ -9,7 +9,11 @@ import { crc32, inflateRawSync } from "node:zlib";
 import { inspectBoundedZip } from "./bounded-zip.mts";
 import { readGitHubArtifactArchive } from "./github-binary.mts";
 import { isRecord } from "./runtime-values.mts";
-import { rehearsalExecution, rehearsalOrigin } from "./upstream-release-identity.mts";
+import {
+  rehearsalExecution,
+  rehearsalOrigin,
+  retainedRehearsal,
+} from "./upstream-release-identity.mts";
 
 export type RehearsalTransfer =
   | "unsigned"
@@ -97,6 +101,17 @@ export async function receiveRehearsalArtifact(
 ) {
   const origin = rehearsalOrigin();
   const executor = rehearsalExecution();
+  if (kind !== "public-acceptance") {
+    const expectedId = {
+      unsigned: retainedRehearsal.unsigned_artifact,
+      signed: retainedRehearsal.signed_artifact,
+      acceptance: retainedRehearsal.acceptance_artifact,
+      "candidate-executable": retainedRehearsal.candidate_artifact,
+      "public-predecessor": retainedRehearsal.predecessor_artifact,
+    }[kind];
+    if (id !== expectedId || producerAttempt !== 1)
+      throw new Error("original artifact identity changed; no replacement cohort is admitted");
+  }
   if (producerAttempt > executor.run_attempt) throw new Error("artifact producer is in the future");
   const response: unknown = JSON.parse(
     execFileSync(
@@ -109,11 +124,12 @@ export async function receiveRehearsalArtifact(
       },
     ),
   );
+  const producer = kind === "public-acceptance" ? executor : origin;
   const observed = inspectRehearsalArtifact(response, {
     id,
     kind,
-    source: origin.source,
-    run_id: origin.run_id,
+    source: producer.source,
+    run_id: producer.run_id,
     producer_attempt: producerAttempt,
   });
   const archive = readGitHubArtifactArchive(

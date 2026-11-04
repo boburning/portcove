@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { inspectRetainedRecoveryHistory } from "./upstream-release-recovery.mts";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import { parse } from "yaml";
@@ -16,9 +17,10 @@ import {
   rehearsalExecutionRef,
   rehearsalOrigin,
   rehearsalPublicBase,
+  retainedRehearsal,
 } from "./upstream-release-identity.mts";
 import {
-  rehearsalJobMinutes,
+  recoveryJobMinutes,
   inspectRehearsalBudget,
   inspectRehearsalProtection,
 } from "./upstream-release-runtime.mts";
@@ -30,6 +32,87 @@ import {
 } from "./upstream-release-pages.mts";
 
 const expected = { source: "a".repeat(40), run_id: "12345", run_attempt: 2 };
+
+void test("native retry copies are charged once only with matching prior execution and attempt context", () => {
+  const at = (minutes: number) =>
+    new Date(Date.parse("2026-11-04T00:00:00Z") + minutes * 60000).toISOString();
+  const job = (
+    name: string,
+    start: number,
+    duration: number,
+    runner: number,
+    conclusion = "success",
+  ) => ({
+    id: runner,
+    run_id: 555,
+    run_attempt: 1,
+    name,
+    head_sha: expected.source,
+    head_branch: "fixture",
+    status: "completed",
+    conclusion,
+    runner_id: runner,
+    runner_name: `fixture ${runner}`,
+    runner_group_id: 0,
+    labels: ["fixture"],
+    workflow_name: "fixture /1",
+    started_at: at(start),
+    completed_at: at(start + duration),
+    steps: [
+      {
+        number: 1,
+        name: "fixture work",
+        status: "completed",
+        conclusion,
+        started_at: at(start),
+        completed_at: at(start + duration),
+      },
+    ],
+  });
+  const original = [job("package", 0, 30, 11), job("installed", 31, 35, 12)];
+  // Actual GitHub retry shape: new IDs/attempt/display metadata, same execution.
+  const copies = original.map((value) => ({
+    ...structuredClone(value),
+    id: value.id + 100,
+    run_attempt: 2,
+    workflow_name: "fixture /2",
+    runner_group_id: null,
+  }));
+  const first = { total_count: 3, jobs: [...original, job("feed", 67, 1, 13, "failure")] };
+  const second = {
+    total_count: 3,
+    jobs: [...copies, { ...job("feed", 80, 0.25, 14, "failure"), run_attempt: 2 }],
+  };
+  const contexts = [1, 2].map((attempt) => ({
+    id: 555,
+    run_attempt: attempt,
+    head_sha: expected.source,
+    run_started_at: at(attempt === 1 ? 0 : 80),
+    path: ".github/workflows/upstream-release-rehearsal.yml",
+    event: "workflow_dispatch",
+  }));
+  const result = inspectRehearsalBudget("feed", [first, second], contexts);
+  assert.equal(result.observed_milliseconds, 66.25 * 60000);
+  assert.equal(result.remaining_declared_minutes, 25);
+  assert.throws(() => inspectRehearsalBudget("feed", [first, second]), /application140/u);
+  for (const changed of [
+    copies.map((value) => ({ ...value, runner_id: value.runner_id + 200 })),
+    copies.map((value) => ({ ...value, steps: [{ ...value.steps[0]!, name: "different work" }] })),
+    original.map((value, index) => ({
+      ...job(value.name, 80 + index * 31, index ? 35 : 30, value.runner_id),
+      run_attempt: 2,
+    })),
+    copies.map((value) => ({ ...value, conclusion: "cancelled" })),
+  ])
+    assert.throws(() =>
+      inspectRehearsalBudget(
+        "feed",
+        [first, { ...second, jobs: [...changed, second.jobs[2]!] }],
+        contexts,
+      ),
+    );
+  assert.throws(() => inspectRehearsalBudget("feed", [first, second], [contexts[0]!]));
+});
 function fixture() {
   return {
     ...expected,
@@ -85,16 +168,16 @@ void test("native workflow preserves credential separation, exact producer ident
   assert.equal(workflow.permissions.contents, "read");
   assert.equal(workflow.concurrency.group, rehearsalConcurrency);
   assert.equal(workflow.concurrency["cancel-in-progress"], false);
-  assert.deepEqual(Object.keys(workflow.jobs), Object.keys(rehearsalJobMinutes));
+  assert.deepEqual(Object.keys(workflow.jobs), Object.keys(recoveryJobMinutes));
   for (const [name, job] of Object.entries(workflow.jobs)) {
     assert.equal(
       job["timeout-minutes"],
-      rehearsalJobMinutes[name as keyof typeof rehearsalJobMinutes],
+      recoveryJobMinutes[name as keyof typeof recoveryJobMinutes],
     );
     assert.ok(["windows-2025", "ubuntu-22.04"].includes(job["runs-on"]));
     assert.equal(job["continue-on-error"], undefined);
-    if (name !== "draft") assert.notEqual(job.permissions?.contents, "write");
-    if (["package", "installed", "public_installed"].includes(name)) {
+    assert.notEqual(job.permissions?.contents, "write");
+    if (name !== "feed" && name !== "readback") {
       assert.notEqual(job.permissions?.["id-token"], "write");
       assert.notEqual(job.permissions?.attestations, "write");
     }
@@ -108,38 +191,32 @@ void test("native workflow preserves credential separation, exact producer ident
         assert.equal(step.with!["package-manager-cache"], false);
     }
   }
-  assert.ok(Object.values(rehearsalJobMinutes).reduce((sum, minutes) => sum + minutes, 0) <= 140);
+  assert.equal(
+    Object.values(recoveryJobMinutes).reduce((sum, minutes) => sum + minutes, 0),
+    28,
+  );
   assert.ok(text.includes(rehearsalExecutionRef));
-  assert.doesNotMatch(text, /secrets\.|self-hosted|--clobber|continue-on-error/u);
-  const packageCommand = workflow.jobs.package!.steps.find((step) =>
-    step.run?.includes("tauri build"),
+  assert.doesNotMatch(
+    text,
+    /secrets\.|self-hosted|--clobber|continue-on-error|tauri build|prepare-candidate|prepare-predecessor|prepare-public-predecessor|publication.mts publish|Inject controlled/u,
   );
-  assert.ok(packageCommand?.run?.includes("--config $packageConfiguration"));
-  assert.doesNotMatch(text, /--config ['"]\{/u);
+  assert.deepEqual(workflow.jobs.feed!.needs, ["recovery"]);
+  assert.deepEqual(workflow.jobs.public_installed!.needs, ["recovery", "feed"]);
+  assert.deepEqual(workflow.jobs.readback!.needs, ["recovery", "feed", "public_installed"]);
+  assert.equal(workflow.jobs.feed!.permissions!.pages, "write");
+  for (const id of [
+    retainedRehearsal.signed_artifact,
+    retainedRehearsal.acceptance_artifact,
+    retainedRehearsal.candidate_artifact,
+    retainedRehearsal.predecessor_artifact,
+  ])
+    assert.ok(text.includes(String(id)));
   assert.ok(
-    workflow.jobs.feed!.needs!.includes("draft") && workflow.jobs.feed!.needs!.includes("baseline"),
-  );
-  assert.ok(workflow.jobs.public_installed!.needs!.includes("feed"));
-  assert.ok(workflow.jobs.acceptance!.needs!.includes("installed"));
-  assert.ok(
-    workflow.jobs.acceptance!.steps.every(
-      (step) => !/cargo build|pnpm install|\.exe\s/u.test(step.run ?? ""),
+    workflow.jobs.recovery!.steps.every(
+      (step) => !/cargo |pnpm install|\.exe\s/u.test(step.run ?? ""),
     ),
   );
-  assert.equal(workflow.jobs.feed!.permissions!.pages, "write");
-  for (const name of [
-    "baseline",
-    "installed",
-    "acceptance",
-    "draft",
-    "feed",
-    "public_installed",
-    "readback",
-  ])
-    assert.equal(
-      workflow.jobs[name]!.env!.PORTCOVE_REHEARSAL_SIGNER_ATTEMPT,
-      "${{ needs.sign.outputs.attempt }}",
-    );
+
   assert.deepEqual(rehearsalPackageConfiguration(), {
     bundle: { createUpdaterArtifacts: false, windows: { nsis: { installMode: "currentUser" } } },
   });
@@ -236,7 +313,7 @@ void test("manifest applies the actual2GiB aggregate without allocating payloads
   assert.throws(() => inspectRehearsalManifest(reordered, identity), /first exact asset/u);
 });
 
-void test("retry keeps original package version and rejects missing, future or unprotected identities", () => {
+void test("fixed control continuation retains the original product identity and refuses a new retry", () => {
   const environment = {
     GITHUB_REPOSITORY: "boburning/portcove",
     GITHUB_REPOSITORY_ID: "1354613114",
@@ -244,22 +321,28 @@ void test("retry keeps original package version and rejects missing, future or u
     GITHUB_REF: rehearsalExecutionRef,
     GITHUB_REF_PROTECTED: "true",
     GITHUB_EVENT_NAME: "workflow_dispatch",
-    GITHUB_RUN_ID: expected.run_id,
-    GITHUB_RUN_ATTEMPT: "3",
-    PORTCOVE_REHEARSAL_ORIGIN_ATTEMPT: "2",
+    GITHUB_RUN_ID: "66666",
+    GITHUB_RUN_ATTEMPT: "1",
+    PORTCOVE_REHEARSAL_ORIGIN_ATTEMPT: "1",
   };
-  assert.equal(rehearsalExecution(environment).run_attempt, 3);
-  assert.equal(rehearsalOrigin(environment).run_attempt, 2);
+  assert.equal(rehearsalExecution(environment).source, expected.source);
+  assert.deepEqual(rehearsalOrigin(environment), {
+    source: retainedRehearsal.source,
+    run_id: retainedRehearsal.run_id,
+    run_attempt: 1,
+  });
   assert.equal(
     rehearsalVersions(rehearsalOrigin(environment)).candidate,
-    "0.0.0-rehearsal.12345.2",
+    "0.0.0-rehearsal.41788540335.1",
   );
   for (const delta of [
     { GITHUB_REF_PROTECTED: "false" },
     { GITHUB_REF: "refs/heads/main" },
-    { GITHUB_REF: "refs/tags/portcove-upstream-rehearsal-20261104r1" },
-    { GITHUB_RUN_ATTEMPT: "4" },
-    { PORTCOVE_REHEARSAL_ORIGIN_ATTEMPT: "4" },
+    { GITHUB_REF: retainedRehearsal.ref },
+    { GITHUB_RUN_ATTEMPT: "2" },
+    { GITHUB_SHA: retainedRehearsal.source },
+    { GITHUB_RUN_ID: retainedRehearsal.run_id },
+    { PORTCOVE_REHEARSAL_ORIGIN_ATTEMPT: "2" },
     { PORTCOVE_REHEARSAL_ORIGIN_ATTEMPT: "" },
   ])
     assert.throws(() => rehearsalOrigin({ ...environment, ...delta }));
@@ -555,6 +638,44 @@ void test("native acceptance requires actual source/harness, settled children, r
       .authority,
     "none",
   );
+  const executor = { source: "9".repeat(40), run_id: "66666", run_attempt: 1 };
+  const publicInstalled = {
+    ...valid.installed,
+    observation_identity: {
+      ...valid.installed.observation_identity,
+      source_commit: executor.source,
+    },
+    controlled_public_transport:
+      "compiled HTTPS metadata and normal GitHub payload transport; no local repository or payload substitute",
+  };
+  const publicRenderer = { ...valid.renderer, source_commit: executor.source };
+  const publicSummary = {
+    ...valid.summary,
+    scope: "disposable-public-installed-fixture",
+    metadata_transport: "compiled-https-and-normal-github-payload",
+    attempt: 1,
+    executor,
+  };
+  const publicExpected = { ...valid.inputs, producer_attempt: 1, public_transport: true, executor };
+  assert.equal(
+    inspectRehearsalAcceptance(publicInstalled, publicRenderer, publicSummary, publicExpected)
+      .authority,
+    "none",
+  );
+  assert.throws(() =>
+    inspectRehearsalAcceptance(valid.installed, publicRenderer, publicSummary, publicExpected),
+  );
+  assert.throws(() =>
+    inspectRehearsalAcceptance(publicInstalled, valid.renderer, publicSummary, publicExpected),
+  );
+  assert.throws(() =>
+    inspectRehearsalAcceptance(
+      publicInstalled,
+      publicRenderer,
+      { ...publicSummary, executor: { ...executor, source: valid.inputs.source } },
+      publicExpected,
+    ),
+  );
   for (const mutate of [
     (f: ReturnType<typeof nativeFixture>) =>
       Object.assign(f.installed, { observation_identity: undefined }),
@@ -631,4 +752,107 @@ void test("immutable observation refuses missing immutability even with complete
     assert.throws(() =>
       inspectRehearsalReleaseReadback({ ...release, ...delta }, ref, assets, identity, "immutable"),
     );
+});
+
+void test("retained continuation requires the two exact failure boundaries and counts its third exposure", () => {
+  const at = (minute: number) =>
+    new Date(Date.parse("2026-11-04T00:00:00Z") + minute * 60000).toISOString();
+  const make = (name: string, index: number, attempt: number, conclusion: string) => ({
+    id: index + 100 * attempt,
+    run_id: Number(retainedRehearsal.run_id),
+    run_attempt: attempt,
+    head_sha: retainedRehearsal.source,
+    head_branch: retainedRehearsal.ref.slice(10),
+    name,
+    status: "completed",
+    conclusion,
+    runner_id: index + 1000,
+    runner_name: `fixture ${index}`,
+    labels: ["fixture"],
+    started_at: at(index),
+    completed_at: at(index + 1),
+    steps:
+      conclusion === "skipped"
+        ? []
+        : [
+            {
+              name: "fixture work",
+              conclusion,
+              status: "completed",
+              started_at: at(index),
+              completed_at: at(index + 1),
+            },
+          ],
+  });
+  const successes = [
+    "package",
+    "provenance",
+    "sign",
+    "baseline",
+    "installed",
+    "acceptance",
+    "draft",
+  ].map((name, i) => make(name, i, 1, "success"));
+  const failed = (attempt: number, step: string) => ({
+    ...make("feed", 7, attempt, "failure"),
+    runner_id: 2000 + attempt,
+    started_at: at(10 * attempt),
+    completed_at: at(10 * attempt + 1),
+    steps: [
+      {
+        name: step,
+        conclusion: "failure",
+        status: "completed",
+        started_at: at(10 * attempt),
+        completed_at: at(10 * attempt + 1),
+      },
+    ],
+  });
+  const first = {
+    total_count: 10,
+    jobs: [
+      ...successes,
+      failed(1, "Inject controlled post-publication interruption"),
+      make("public_installed", 8, 1, "skipped"),
+      make("readback", 9, 1, "skipped"),
+    ],
+  };
+  const second = {
+    total_count: 10,
+    jobs: [
+      ...successes.map((j) => ({ ...structuredClone(j), id: j.id + 100, run_attempt: 2 })),
+      failed(2, "Bound actual cumulative runtime and remaining native jobs"),
+      make("public_installed", 8, 2, "skipped"),
+      make("readback", 9, 2, "skipped"),
+    ],
+  };
+  const contexts = [1, 2].map((attempt) => ({
+    id: Number(retainedRehearsal.run_id),
+    run_attempt: attempt,
+    head_sha: retainedRehearsal.source,
+    head_branch: retainedRehearsal.ref.slice(10),
+    run_started_at: at((attempt - 1) * 15),
+    status: "completed",
+    conclusion: "failure",
+    event: "workflow_dispatch",
+    path: ".github/workflows/upstream-release-rehearsal.yml",
+  }));
+  const current = { ...contexts[0]!, id: 66666, head_sha: expected.source, run_started_at: at(30) };
+  const third = { total_count: 0, jobs: [] };
+  const admitted = inspectRetainedRecoveryHistory([first, second, third], [...contexts, current]);
+  assert.equal(admitted.observed_milliseconds, 9 * 60000);
+  assert.equal(admitted.copied_successful_observations, 7);
+  assert.equal(admitted.remaining_declared_minutes, 28);
+  assert.throws(() => inspectRetainedRecoveryHistory([first, second], contexts));
+  assert.throws(() =>
+    inspectRetainedRecoveryHistory(
+      [first, second, third],
+      [{ ...contexts[0], head_sha: expected.source }, contexts[1], current],
+    ),
+  );
+  const wrong = structuredClone(second);
+  wrong.jobs[7]!.steps[0]!.name = "unrelated failure";
+  assert.throws(() =>
+    inspectRetainedRecoveryHistory([first, wrong, third], [...contexts, current]),
+  );
 });

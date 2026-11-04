@@ -2,6 +2,24 @@
 import { upstreamRehearsalExecutionRef } from "./release-source-attestation.mts";
 export const rehearsalExecutionRef = upstreamRehearsalExecutionRef;
 export const rehearsalConcurrency = "application-update-production-controller";
+// One fixed continuation of an already signed and immutable public cohort.
+// These identities never come from dispatch input or the new executor.
+export const retainedRehearsal = Object.freeze({
+  source: "7a60432ab6c3773f744af156c0512cd1795b10c1",
+  run_id: "41788540335",
+  run_attempt: 1,
+  ref: "refs/tags/portcove-upstream-rehearsal-20261104r2",
+  unsigned_artifact: 13303098854,
+  release_id: 433642404,
+  signed_artifact: 13303950552,
+  acceptance_artifact: 13305366285,
+  candidate_artifact: 13303068945,
+  predecessor_artifact: 13305615469,
+  manifest_sha256: "b0c7ed2a50471325ded9385e57386080aa51f61a82ee2adead1042ce9aba6c9c",
+  original_deadline: "2026-11-04T09:18:43Z",
+  deadline: "2026-11-04T09:48:43Z",
+});
+export const rehearsalOriginRef = retainedRehearsal.ref;
 
 export function rehearsalExecution(environment: NodeJS.ProcessEnv = process.env) {
   const source = environment.GITHUB_SHA ?? "";
@@ -18,26 +36,25 @@ export function rehearsalExecution(environment: NodeJS.ProcessEnv = process.env)
     !Number.isSafeInteger(Number(run_id)) ||
     !Number.isSafeInteger(run_attempt) ||
     run_attempt < 1 ||
-    run_attempt > 3
+    run_attempt !== 1 ||
+    run_id === retainedRehearsal.run_id ||
+    source === retainedRehearsal.source
   )
     throw new Error("rehearsal requires its appointed protected dispatch ref and exact identity");
   return { source, run_id, run_attempt };
 }
 
-/** Native failed-only reruns retain successful producer outputs. Missing or
- * future origins refuse; an executor retry cannot allocate replacement bytes. */
-export function rehearsalOrigin(environment: NodeJS.ProcessEnv = process.env) {
-  const execution = rehearsalExecution(environment);
+/** The r3 control continuation cannot allocate a fresh payload cohort. */
+export function rehearsalOrigin(environment: NodeJS.ProcessEnv = process.env): {
+  source: string;
+  run_id: string;
+  run_attempt: number;
+} {
+  rehearsalExecution(environment);
   const raw = environment.PORTCOVE_REHEARSAL_ORIGIN_ATTEMPT;
-  const attempt = raw === undefined ? execution.run_attempt : Number(raw);
-  if (
-    (raw !== undefined && !/^[1-9][0-9]{0,5}$/u.test(raw)) ||
-    !Number.isSafeInteger(attempt) ||
-    attempt < 1 ||
-    attempt > execution.run_attempt
-  )
+  if (raw !== undefined && raw !== "1")
     throw new Error("original rehearsal producer attempt is unavailable or in the future");
-  return { ...execution, run_attempt: attempt };
+  return { source: retainedRehearsal.source, run_id: retainedRehearsal.run_id, run_attempt: 1 };
 }
 
 export function rehearsalPublicBase(origin: { run_id: string; run_attempt: number }) {

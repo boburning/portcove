@@ -9,6 +9,8 @@ import { isRecord } from "./runtime-values.mts";
 import {
   rehearsalExecution,
   rehearsalExecutionRef,
+  rehearsalOriginRef,
+  retainedRehearsal,
   rehearsalOrigin,
   rehearsalPublicBase,
 } from "./upstream-release-identity.mts";
@@ -156,12 +158,17 @@ async function assertExclusiveInitialSite() {
       isRecord(deployment) &&
         deployment.environment === "github-pages" &&
         typeof deployment.id === "number" &&
-        Number.isSafeInteger(deployment.id) &&
-        deployment.sha === execution.source &&
-        [rehearsalExecutionRef, rehearsalExecutionRef.slice("refs/tags/".length)].includes(
-          String(deployment.ref),
-        ),
+        Number.isSafeInteger(deployment.id),
     );
+    const owner = [
+      { ...origin, ref: rehearsalOriginRef },
+      { ...execution, ref: rehearsalExecutionRef },
+    ].find(
+      (value) =>
+        deployment.sha === value.source &&
+        [value.ref, value.ref.slice("refs/tags/".length)].includes(String(deployment.ref)),
+    );
+    assert.ok(owner, "foreign or mismatched Pages source/ref tuple");
     const statuses = api(`deployments/${deployment.id}/statuses?per_page=100`);
     assert.ok(
       Array.isArray(statuses) &&
@@ -170,7 +177,7 @@ async function assertExclusiveInitialSite() {
         isRecord(statuses[0]),
     );
     const log = statuses[0].log_url;
-    const prefix = `https://github.com/boburning/portcove/actions/runs/${execution.run_id}`;
+    const prefix = `https://github.com/boburning/portcove/actions/runs/${owner.run_id}`;
     assert.ok(
       typeof log === "string" && (log === prefix || log.startsWith(`${prefix}/`)),
       "foreign or unknown Pages generation; preserve the entire site",
@@ -235,9 +242,9 @@ export function hasPriorRehearsalInterruption(collections: unknown[]) {
 }
 
 async function priorInterruption() {
-  const execution = rehearsalExecution();
+  const execution = retainedRehearsal;
   const collections: unknown[] = [];
-  for (let attempt = 1; attempt < execution.run_attempt; attempt++) {
+  for (let attempt = 1; attempt <= 2; attempt++) {
     const run = api(`actions/runs/${execution.run_id}/attempts/${attempt}`);
     assert.ok(
       isRecord(run) &&
