@@ -6,7 +6,7 @@
     "summary": "Attach an independently permitted, prepared DinoTale Windows player for Yoshi’s Story using your own exact supported ROM. Upstream owns ROM preparation and replacement; preserve the actual dinotale configuration/save root and component notices.",
     "original_game_title": "Yoshi's Story",
     "project_url": "https://github.com/wootbeer/dinotale",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/wootbeer/dinotale",
     "artwork": {

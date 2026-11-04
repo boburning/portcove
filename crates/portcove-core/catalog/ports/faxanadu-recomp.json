@@ -23,11 +23,17 @@
         },
         {
           "title": "Select your executable",
-          "instruction": "After setup, choose the native game executable or upstream launcher and its working directory. Updates remain with you or the upstream launcher."
+          "instruction": "After setup, choose the native game executable or upstream launcher and its working directory."
         }
       ],
       "warnings": ["This project has not been verified for play through Portcove."],
-      "help_url": "https://github.com/mstan/FaxanaduRecomp/blob/v2.3.3/README.md"
+      "help_url": "https://github.com/mstan/FaxanaduRecomp/blob/v2.3.3/README.md",
+      "references": [
+        {
+          "title": "Keep Faxanadu updates with its existing owner",
+          "instruction": "Updates remain with you or the upstream launcher."
+        }
+      ]
     },
     "artwork": {
       "game_id": 1974,

@@ -51,6 +51,7 @@ export function OrganizationControls({
   children,
   trigger,
   triggerLabel,
+  triggerClassName,
   afterAll,
   allSelected,
 }: {
@@ -59,6 +60,7 @@ export function OrganizationControls({
   children?: ReactNode;
   trigger?: ReactNode;
   triggerLabel?: string;
+  triggerClassName?: string;
   organization: Organization;
   selected: string;
   onSelect: (id: string) => void;
@@ -214,7 +216,13 @@ export function OrganizationControls({
   return (
     <Popover.Root>
       <Popover.Trigger
-        render={<Button variant={selected === "all" ? "outline" : "selected"} size="sm" />}
+        render={
+          <Button
+            variant={selected === "all" ? "outline" : "selected"}
+            size="sm"
+            className={triggerClassName}
+          />
+        }
         aria-label={triggerLabel}
       >
         {trigger ?? (selected === "all" ? "Collections" : `Collections · ${current}`)}
@@ -248,6 +256,7 @@ export function SidebarCollections({
 }) {
   const snapshot = organization.snapshot;
   const collections = Object.entries(snapshot?.collections ?? {});
+  const knownEmpty = Boolean(snapshot && collections.length === 0);
   return (
     <section className="sidebar-collections" aria-label="Collections">
       <div className="sidebar-collections-heading">
@@ -257,8 +266,9 @@ export function SidebarCollections({
           selected={selected}
           onSelect={onSelect}
           discover={false}
-          trigger={<Plus aria-hidden="true" />}
-          triggerLabel="Manage collections"
+          trigger={knownEmpty ? "Create your first collection" : <Plus aria-hidden="true" />}
+          triggerLabel={knownEmpty ? "Create your first collection" : "Manage collections"}
+          triggerClassName={knownEmpty ? "sidebar-collections-create" : ""}
         >
           {children}
         </OrganizationControls>
@@ -279,11 +289,7 @@ export function SidebarCollections({
           <small>{collection.port_ids.length}</small>
         </Button>
       ))}
-      {collections.length === 0 && (
-        <p className="sidebar-collections-empty">
-          {snapshot ? "Keep your games in collections." : "Loading collections…"}
-        </p>
-      )}
+      {!snapshot && <p className="sidebar-collections-empty">Loading collections…</p>}
       {Boolean(snapshot?.hidden_port_ids.length) && (
         <Button
           data-focusable

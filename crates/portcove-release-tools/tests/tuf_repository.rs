@@ -273,6 +273,130 @@ async fn builds_separately_signed_repository_and_accepts_exact_retry() {
     assert!(!second.changed);
     assert_eq!(first.files, second.files);
 
+    // Metadata versions are independent of signature thresholds. Generation1
+    // masks a swapped delegate_role argument because both values happen to be1.
+    for generation in [2_u64, 3] {
+        let mut versioned = config.clone();
+        versioned["output"] = json!(format!("repository-v{generation}"));
+        for role in [
+            "targets",
+            "snapshot",
+            "timestamp",
+            "releases",
+            "preview",
+            "stable",
+        ] {
+            versioned["versions"][role] = json!(generation);
+        }
+        let versioned_path = directory.path().join(format!("config-v{generation}.json"));
+        fs::write(&versioned_path, serde_json::to_vec(&versioned).unwrap()).unwrap();
+        let built = build_tuf_repository(&versioned_path).await.unwrap();
+        let top: tough::schema::Signed<tough::schema::Targets> = serde_json::from_slice(
+            &fs::read(
+                built
+                    .output
+                    .join(format!("metadata/{generation}.targets.json")),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(top.signed.version.get(), generation);
+        for role in &top.signed.delegations.as_ref().unwrap().roles {
+            assert_eq!(role.threshold.get(), 1);
+            assert_eq!(role.keyids.len(), 1);
+            let child: tough::schema::Signed<tough::schema::Targets> = serde_json::from_slice(
+                &fs::read(
+                    built
+                        .output
+                        .join(format!("metadata/{generation}.{}.json", role.name)),
+                )
+                .unwrap(),
+            )
+            .unwrap();
+            assert_eq!(child.signed.version.get(), generation);
+        }
+        let reader = RepositoryLoader::new(
+            &fs::read(&root).unwrap(),
+            Url::from_directory_path(built.output.join("metadata")).unwrap(),
+            Url::from_directory_path(built.output.join("targets")).unwrap(),
+        )
+        .load()
+        .await
+        .unwrap();
+        for target in &target_paths {
+            let bytes = reader
+                .read_target(&TargetName::new(target).unwrap())
+                .await
+                .unwrap()
+                .unwrap()
+                .try_collect::<Vec<_>>()
+                .await
+                .unwrap()
+                .concat();
+            assert_eq!(bytes, fs::read(records_root.join(target)).unwrap());
+        }
+        assert!(!build_tuf_repository(&versioned_path).await.unwrap().changed);
+    }
+
+    // TUF permits a signed initial repository with no available releases. Keep
+    // its registry and all authenticated roles, and exercise the real reader.
+    let empty_records = directory.path().join("empty-records");
+    fs::create_dir(&empty_records).unwrap();
+    fs::write(
+        empty_records.join("reconstruction-manifest.json"),
+        br#"{"schema_version":1,"records":[]}"#,
+    )
+    .unwrap();
+    let mut empty_config = config.clone();
+    empty_config["reconstructed_records"] = json!("empty-records");
+    empty_config["output"] = json!("empty-repository");
+    let empty_path = directory.path().join("empty.json");
+    fs::write(&empty_path, serde_json::to_vec(&empty_config).unwrap()).unwrap();
+    let empty = build_tuf_repository(&empty_path).await.unwrap();
+    assert_eq!(empty.records, 0);
+    assert!(!build_tuf_repository(&empty_path).await.unwrap().changed);
+    let empty_reader = RepositoryLoader::new(
+        &fs::read(&root).unwrap(),
+        Url::from_directory_path(empty.output.join("metadata")).unwrap(),
+        Url::from_directory_path(empty.output.join("targets")).unwrap(),
+    )
+    .load()
+    .await
+    .unwrap();
+    assert!(
+        empty_reader
+            .read_target(&TargetName::new(&target_paths[0]).unwrap())
+            .await
+            .unwrap()
+            .is_none()
+    );
+    let registry = empty_reader
+        .read_target(&TargetName::new("keys/payload.json").unwrap())
+        .await
+        .unwrap()
+        .unwrap()
+        .try_collect::<Vec<_>>()
+        .await
+        .unwrap()
+        .concat();
+    assert_eq!(
+        registry,
+        fs::read(directory.path().join("payload.json")).unwrap()
+    );
+    for role in ["targets", "snapshot", "releases", "preview", "stable"] {
+        assert!(
+            empty
+                .output
+                .join(format!("metadata/1.{role}.json"))
+                .is_file()
+        );
+    }
+    assert!(empty.output.join("metadata/timestamp.json").is_file());
+    // Empty bootstrap is not permission to erase an existing immutable record.
+    empty_config["output"] = json!("repository");
+    fs::write(&empty_path, serde_json::to_vec(&empty_config).unwrap()).unwrap();
+    assert!(build_tuf_repository(&empty_path).await.is_err());
+
     // Provision the broad but bounded namespaces while the disposable offline
     // key exists, then physically remove it before any routine role operation.
     let mut bootstrap = config.clone();

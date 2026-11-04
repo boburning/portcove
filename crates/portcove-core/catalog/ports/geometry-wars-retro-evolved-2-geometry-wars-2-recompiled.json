@@ -31,16 +31,19 @@
         {
           "title": "Add the prepared native player",
           "instruction": "Choose geometry_wars_retro_evolved_2.exe with its containing package folder as the working folder and no arguments for ordinary Play. Its built-in launcher starts the game in the same native process. Finish setup and any update or setting that requires Restart before adding or starting a tracked session; Restart and the separate updater may replace the process. Saving launch details and Play are separate actions. Use the actual selected copy, not a guessed path."
-        },
+        }
+      ],
+      "warnings": [
+        "This guidance follows upstream source and release descriptions. Portcove has not inspected the package or tested launch, gameplay, saving or updates. Experimental Linux AppImages are a separate route.",
+        "Before the first upstream startup, back up the legacy Documents/geometry_wars_retro_evolved_2 profile and any portable user_data/ profile separately. When upstream migrates legacy data, it moves the legacy folder by rename, or uses a staged verified copy and then removes the legacy folder after activation; successful migration does not leave the old profile in place. A failed migration falls back to the legacy root for that run and retries on the next startup. If only legacy cleanup fails after activation, portable user_data/ stays active and the legacy folder may remain. An unwritable portable root can also fall back to the system root. --user_data_root=<folder> selects that root without migration; --cache_root can select a separate cache. Preserve every active root and the separate backups. Portcove does not own these external files or promise backup, rollback, save compatibility or deletion."
+      ],
+      "help_url": "https://github.com/saulob/geometry-wars-retro-evolved-2-recompiled#readme",
+      "references": [
         {
           "title": "Preserve original and player data",
           "instruction": "Upstream/player remains the only runtime-replacement owner. Preserve game/, user_data/, logs/, the executable TOML and any chosen custom roots before changing versions. Portable user_data/ contains the 584108FF profile/local scores, achievements, cache and launcher settings. Before the first upstream startup, back up the legacy Documents/geometry_wars_retro_evolved_2 profile and any portable user_data/ profile separately. When upstream migrates legacy data, it moves the legacy folder by rename, or uses a staged verified copy and then removes the legacy folder after activation; successful migration does not leave the old profile in place. A failed migration falls back to the legacy root for that run and retries on the next startup. If only legacy cleanup fails after activation, portable user_data/ stays active and the legacy folder may remain. An unwritable portable root can also fall back to the system root. --user_data_root=<folder> selects that root without migration; --cache_root can select a separate cache. Preserve every active root and the separate backups. Portcove does not own these external files or promise backup, rollback, save compatibility or deletion."
         }
-      ],
-      "warnings": [
-        "This guidance follows upstream source and release descriptions. Portcove has not inspected the package or tested launch, gameplay, saving or updates. Experimental Linux AppImages are a separate route."
-      ],
-      "help_url": "https://github.com/saulob/geometry-wars-retro-evolved-2-recompiled#readme"
+      ]
     },
     "download_block_reason": "New downloads are waiting for attributable distribution permission covering this title’s selected package and bundled TRG launcher. The title’s own documentation identifies TRG launcher revision b384a28c712c9320eea8f9d50639dec49981b6c1 and acknowledges that it has no explicit license; a different component’s or title’s license is not a grant for that bundled launcher. Reconsider on an attributable applicable grant or a separately reviewed supported package/preparation route that excludes the unresolved component."
   },

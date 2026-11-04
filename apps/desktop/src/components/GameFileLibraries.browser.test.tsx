@@ -1224,6 +1224,7 @@ it("offers only affected catalog ports after explicit source registration", asyn
     source.path,
     "use_current_location",
     plan.plan_sha256,
+    1,
   );
   expect(onAdded).toHaveBeenCalledOnce();
   const handoff = document.body.querySelector('[aria-label="Continue to a game"]');

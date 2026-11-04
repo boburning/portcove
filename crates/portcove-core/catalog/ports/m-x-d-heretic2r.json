@@ -27,10 +27,6 @@
           "instruction": "Use the Windows runtime ZIP in a separate folder. Copy your Heretic II version 1.06 base folder into it, excluding the original DLL files; keep the original installation untouched. Finish setup with Heretic2R.exe."
         },
         {
-          "title": "Keep saves and settings",
-          "instruction": "Heretic2R stores saves, settings, screenshots and logs in your Windows Saved Games/Heretic2R folder. Keep that folder when updating the upstream runtime."
-        },
-        {
           "title": "Optional CD music",
           "instruction": "For OGG music, place your own CD tracks named track02.ogg through track14.ogg in base/music inside the separate runtime folder."
         },
@@ -40,9 +36,16 @@
         }
       ],
       "warnings": [
-        "Heretic2R saves and runtime modules are incompatible with the original Heretic II versions. Use Heretic2R’s supplied modules and retain the original copy separately."
+        "Heretic2R saves and runtime modules are incompatible with the original Heretic II versions. Use Heretic2R’s supplied modules and retain the original copy separately.",
+        "Keep that folder when updating the upstream runtime."
       ],
-      "help_url": "https://github.com/m-x-d/Heretic2R#installation"
+      "help_url": "https://github.com/m-x-d/Heretic2R#installation",
+      "references": [
+        {
+          "title": "Keep saves and settings",
+          "instruction": "Heretic2R stores saves, settings, screenshots and logs in your Windows Saved Games/Heretic2R folder. Keep that folder when updating the upstream runtime."
+        }
+      ]
     },
     "original_game_title": "Heretic II"
   },

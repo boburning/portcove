@@ -479,6 +479,20 @@ export type DigestScope =
   | "file-set-member"
   | "disc-set-member";
 export type CompoundSourceFormat = "stfs-live";
+export type CatalogDownloadAssetId = number | CatalogForeignAssetId;
+export type CatalogForeignAssetId = {
+  file_id: number;
+  link_id: number;
+  project_id: number;
+  provider: "gitlab";
+  tag: string;
+};
+export type CatalogDownloadReleaseId = number | CatalogForeignReleaseId;
+export type CatalogForeignReleaseId = {
+  project_id: number;
+  provider: "gitlab";
+  tag: string;
+};
 export type ListingObservationStatus = "complete" | "incomplete" | "unavailable" | "failed";
 export type CatalogOrigin = "embedded" | "signed_active" | "signed_previous" | "definition_selected";
 export type CatalogUpdateSource =
@@ -808,6 +822,7 @@ export type SourceImportOutcome =
   "copied" | "moved" | "reused_existing" | "registered_current_location" | "copied_original_retained";
 export type SourceInboxResolutionState =
   "registered" | "exact_match" | "approval_required" | "unresolved" | "conflict" | "incomplete";
+export type SourceReuseCompatibility = "listed_identity" | "potential" | "incompatible" | "unavailable";
 export type OutputDesktopApplicationUpdateCheckPhase = "checking" | "acquiring-and-verifying" | "staged" | "complete";
 export type ApplicationChannel = "preview" | "stable";
 export type ApplicationUpdateCheckResultKind =
@@ -945,6 +960,8 @@ export interface TransportOutputs {
   listing_statuses: OutputListingStatuses;
   managed_route_change_preview: OutputManagedRouteChangePreview;
   managed_route_change_result: OutputManagedRouteChangeResult;
+  official_catalog_review: OfficialCatalogReview;
+  official_catalog_setup: OutputOfficialCatalogSetup;
   operation_event: OutputOperationEvent;
   output_destination_preview: OutputOutputDestinationPreview;
   output_relocation_plan: OutputOutputRelocationPlan;
@@ -987,6 +1004,7 @@ export interface TransportOutputs {
   source_intake_inspection: OutputSourceIntakeInspection;
   source_relink_plan: OutputSourceRelinkPlan;
   source_removal_preview: OutputSourceRemovalPreview;
+  source_reuse_review: OutputSourceReuseReview;
   source_verification: SourceVerification;
   status: PortStatus;
   storage: StorageSummary;
@@ -1025,6 +1043,7 @@ export interface TransportOutputs {
   desktop_preparation_cleanup_preview: OutputPreparationCleanupPreview;
   desktop_reconcile_outcome: OutputReconcileBatchOutcome;
   desktop_setup_launch_targets: OutputSetupLaunchTargets;
+  desktop_source_reuse_review: OutputSourceReuseReview;
   desktop_source_verification_outcome: OutputSourceBatchOutcome;
   desktop_steam_batch_review: OutputDesktopSteamBatchReview;
   desktop_steam_entry_apply_result: OutputDesktopSteamEntryApplyResult;
@@ -2194,18 +2213,18 @@ export interface OutputCatalogDownloadCandidates {
   port_id: string;
   reason: string | null;
   recommendation_reason: string;
-  recommended_asset_id: number | null;
+  recommended_asset_id: CatalogDownloadAssetId | null;
   releases: CatalogDownloadRelease[];
-  selected_release_id: number | null;
+  selected_release_id: CatalogDownloadReleaseId | null;
   upstream_url: string;
   [k: string]: unknown;
 }
 export interface CatalogDownloadCandidate {
-  asset_id: number;
+  asset_id: CatalogDownloadAssetId;
   can_extract: boolean;
   download_url: string;
   name: string;
-  release_id: number;
+  release_id: CatalogDownloadReleaseId;
   release_tag: string;
   release_url: string;
   sha256: string | null;
@@ -2219,6 +2238,10 @@ export interface CatalogDownloadCoverage {
    */
   candidates_complete: boolean;
   /**
+   * Files that could not enter this provider's qualified download route.
+   */
+  limitations?: string[];
+  /**
    * A short first page established the end of the visible release history.
    */
   release_history_complete: boolean;
@@ -2230,14 +2253,14 @@ export interface CatalogDownloadCoverage {
   [k: string]: unknown;
 }
 export interface CatalogPackageAssessment {
-  asset_id: number;
+  asset_id: CatalogDownloadAssetId;
   reason: string;
   suitability: string;
   [k: string]: unknown;
 }
 export interface CatalogDownloadRelease {
   assets_complete: boolean;
-  id: number;
+  id: CatalogDownloadReleaseId;
   preview: boolean;
   tag: string;
   [k: string]: unknown;
@@ -2250,11 +2273,11 @@ export interface OutputCatalogDownloadPreview {
   [k: string]: unknown;
 }
 export interface CatalogDownloadRequest {
-  asset_id: number;
+  asset_id: CatalogDownloadAssetId;
   destination_parent: string;
   extract_archive: boolean;
   port_id: string;
-  release_id: number;
+  release_id: CatalogDownloadReleaseId;
 }
 /**
  * Independently versioned directory projection. Format 2 can restrict fresh
@@ -3469,6 +3492,22 @@ export interface OutputManagedRouteChangeResult {
   previous_registration: ExternalRuntimeRecord;
   [k: string]: unknown;
 }
+export interface OfficialCatalogReview {
+  configured: boolean;
+  enabled: boolean;
+  expected_plan: string | null;
+  source: OfficialCatalogSource | null;
+  [k: string]: unknown;
+}
+export interface OfficialCatalogSource {
+  metadata_base_url: string;
+  targets_base_url: string;
+}
+export interface OutputOfficialCatalogSetup {
+  changed: boolean;
+  review: OfficialCatalogReview;
+  [k: string]: unknown;
+}
 export interface OperationTarget {
   id: string;
   kind: ActivityTargetKind;
@@ -3553,6 +3592,7 @@ export interface PendingSetupRecord {
   archive_sha256: string;
   artifact: CatalogDownloadCandidate;
   downloaded_at: string;
+  format_version?: number;
   id: string;
   listing: PortListing;
   path: string;
@@ -4010,6 +4050,28 @@ export interface OutputSourceRemovalPreview {
   preview_sha256: string;
   source: SourceRecord;
   [k: string]: unknown;
+}
+export interface OutputSourceReuseReview {
+  applications: SourceReuseApplication[];
+  inspection: SourceInspectionReport;
+  reference: SourceRegistrationReference;
+  registration: SourceRecord;
+  [k: string]: unknown;
+}
+export interface SourceReuseApplication {
+  additional_checks: string[];
+  can_review_setup: boolean;
+  compatibility: SourceReuseCompatibility;
+  contract_id: string;
+  port_id: string;
+  port_name: string;
+  role: PortSourceRole;
+  summary: string;
+  [k: string]: unknown;
+}
+export interface SourceRegistrationReference {
+  profile_id: string;
+  reference_sha256: string;
 }
 export interface OutputUpdateBatchOutcome {
   error: FailureReport | null;

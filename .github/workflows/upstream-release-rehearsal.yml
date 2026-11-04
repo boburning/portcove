@@ -1,0 +1,265 @@
+# Recovery only: original r2 payloads, keys, acceptance and immutable release are reused.
+name: Upstream Windows release rehearsal
+run-name: NONPRODUCTION retained r2 recovery ${{ github.run_id }}/${{ github.run_attempt }}
+on:
+  workflow_dispatch: null
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: application-update-production-controller
+  cancel-in-progress: false
+env:
+  PORTCOVE_REHEARSAL_ORIGIN_ATTEMPT: "1"
+  PORTCOVE_REHEARSAL_SIGNER_ATTEMPT: "1"
+  PORTCOVE_REHEARSAL_NATIVE_ATTEMPT: "1"
+  PORTCOVE_REHEARSAL_ACCEPTANCE_ATTESTER_ATTEMPT: "1"
+  PORTCOVE_REHEARSAL_RELEASE_ID: "433642404"
+jobs:
+  recovery:
+    if: ${{ github.repository == 'boburning/portcove' && github.ref == 'refs/tags/portcove-upstream-rehearsal-20261104r5' && github.ref_protected && github.run_attempt == 1 }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Fetch only the immutable original source for its retained harness binding
+        run: git fetch --no-tags --depth=1 origin 7a60432ab6c3773f744af156c0512cd1795b10c1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - name: Bound all five actual execution exposures without recounting copied history
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/upstream-release-runtime.mts budget recovery
+      - name: Install existing hash-pinned GitHub verifier
+        shell: bash
+        run: |-
+          set -euo pipefail
+          curl --fail --location --max-time 120 --max-filesize 16000000 --output "$RUNNER_TEMP/gh.tar.gz" https://github.com/cli/cli/releases/download/v2.102.0/gh_2.102.0_linux_amd64.tar.gz
+          echo "bb766f710eef8ede859c18578c72c327597cd4c8a85b06001b1f3843c6019386  $RUNNER_TEMP/gh.tar.gz" | sha256sum --check --strict
+          tar -xzf "$RUNNER_TEMP/gh.tar.gz" -C "$RUNNER_TEMP" gh_2.102.0_linux_amd64/bin/gh
+          echo "$RUNNER_TEMP/gh_2.102.0_linux_amd64/bin" >> "$GITHUB_PATH"
+      - name: Receive original signed artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/upstream-release-transfer.mts signed 13303950552 work/upstream-signed 1
+      - name: Receive original acceptance artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/upstream-release-transfer.mts acceptance 13305366285 work/upstream-acceptance 1
+      - name: Verify retained failures, immutable assets and the already published candidate feed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/upstream-release-recovery.mts
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: upstream-recovery-preflight-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |-
+            work/upstream-recovery-preflight.json
+            work/upstream-runtime/*.json
+            work/verified-*/*.json
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: false
+  public_installed:
+    needs:
+      - recovery
+    runs-on: windows-2025
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      artifact: ${{ steps.public_proof.outputs.artifact-id }}
+      attempt: ${{ steps.producer.outputs.attempt }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Fetch only the immutable original source for its retained harness binding
+        run: git fetch --no-tags --depth=1 origin 7a60432ab6c3773f744af156c0512cd1795b10c1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - name: Bound actual cumulative runtime and remaining native jobs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/upstream-release-runtime.mts budget public_installed
+      - id: producer
+        name: Retain this actual producer attempt
+        run: node -e "require('node:fs').appendFileSync(process.env.GITHUB_OUTPUT,'attempt='+process.env.GITHUB_RUN_ATTEMPT+String.fromCharCode(10))"
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          package_json_file: package.json
+      - uses: ./.github/actions/setup-rust
+      - name: Install the existing Windows GitHub verifier pin
+        shell: pwsh
+        run: |-
+          $archive = Join-Path $env:RUNNER_TEMP 'gh.zip'
+          & curl.exe --fail --location --max-time 120 --max-filesize 16000000 --output $archive https://github.com/cli/cli/releases/download/v2.102.0/gh_2.102.0_windows_amd64.zip
+          if ($LASTEXITCODE -ne 0) { throw 'Pinned GitHub verifier download failed' }
+          if ((Get-FileHash $archive -Algorithm SHA256).Hash -cne 'AE64E556ECC240B200F7EBA60D550E4BB60D78E860E69DD88C449405B86067F4') { throw 'Pinned GitHub verifier archive changed' }
+          $destination = Join-Path $env:RUNNER_TEMP 'gh'
+          Expand-Archive -LiteralPath $archive -DestinationPath $destination
+          $bin = Join-Path $destination 'bin'
+          if (-not (Test-Path (Join-Path $bin 'gh.exe'))) { throw 'Pinned GitHub verifier layout differs' }
+          $bin | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+      - run: pnpm install --frozen-lockfile
+      - name: Provision only the existing native driver profile
+        shell: pwsh
+        run: ./scripts/bootstrap-quality-tools.ps1 -Profile native-drivers
+      - name: Receive exact bounded signed artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PORTCOVE_INPUT_ARTIFACT: "13303950552"
+          PORTCOVE_INPUT_ATTEMPT: "1"
+        run: node scripts/upstream-release-transfer.mts signed $env:PORTCOVE_INPUT_ARTIFACT work/upstream-signed $env:PORTCOVE_INPUT_ATTEMPT
+      - name: Receive exact bounded acceptance artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PORTCOVE_INPUT_ARTIFACT: "13305366285"
+          PORTCOVE_INPUT_ATTEMPT: "1"
+        run: node scripts/upstream-release-transfer.mts acceptance $env:PORTCOVE_INPUT_ARTIFACT work/upstream-acceptance $env:PORTCOVE_INPUT_ATTEMPT
+      - name: Receive exact bounded candidate-executable artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PORTCOVE_INPUT_ARTIFACT: "13303068945"
+          PORTCOVE_INPUT_ATTEMPT: "1"
+        run: node scripts/upstream-release-transfer.mts candidate-executable $env:PORTCOVE_INPUT_ARTIFACT work/upstream-candidate-executable $env:PORTCOVE_INPUT_ATTEMPT
+      - name: Receive exact bounded public-predecessor artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PORTCOVE_INPUT_ARTIFACT: "13305615469"
+          PORTCOVE_INPUT_ATTEMPT: "1"
+        run: node scripts/upstream-release-transfer.mts public-predecessor $env:PORTCOVE_INPUT_ARTIFACT work/upstream-public-predecessor $env:PORTCOVE_INPUT_ATTEMPT
+      - name: Verify original immutable release and required acceptance
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/upstream-release-publication.mts verify-immutable work/upstream-signed
+      - name: Verify actual separately attested public predecessor
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PORTCOVE_NATIVE_ATTEMPT: "1"
+          PORTCOVE_ATTESTER_ATTEMPT: "1"
+        run: node scripts/upstream-release-acceptance.mts verify-public-predecessor work/upstream-public-predecessor work/upstream-signed $env:PORTCOVE_NATIVE_ATTEMPT $env:PORTCOVE_ATTESTER_ATTEMPT
+      - name: Verify actual controlled-public override removal on this PowerShell runtime
+        shell: pwsh
+        run: ./scripts/test-windows-installer-environment.ps1
+      - name: Exercise compiled HTTPS metadata and actual GitHub payload through installed UI
+        shell: pwsh
+        run: ./scripts/upstream-release-installed-rehearsal.ps1 -PublicConsumerOnly
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        id: public_proof
+        with:
+          name: upstream-public-acceptance-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |-
+            work/upstream-public-installed-evidence/installed.json
+            work/upstream-public-installed-evidence/renderer-update-evidence.json
+            work/upstream-public-installed-evidence/summary.json
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: false
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        # The installer copies renderer evidence to the top-level directory only
+        # after success. Retain the original capture on failure too.
+        with:
+          name: upstream-public-installed-proof-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |-
+            work/upstream-public-installed-evidence/*.json
+            work/upstream-public-installed-evidence/diagnostics/session-*/*.jsonl
+            work/upstream-public-installed-evidence/windows-renderer-evidence/*.json
+            work/upstream-public-installed-evidence/windows-renderer-evidence/*.png
+            work/upstream-public-installed-evidence/windows-renderer-evidence/*.log
+            work/upstream-public-installed-evidence/windows-renderer-evidence/*.html
+            work/upstream-public-installed-evidence/lifecycle/run-*/renderer-qualification/evidence/*.json
+            work/upstream-public-installed-evidence/lifecycle/run-*/renderer-qualification/evidence/*.png
+            work/upstream-public-installed-evidence/lifecycle/run-*/renderer-qualification/evidence/*.log
+            work/upstream-public-installed-evidence/lifecycle/run-*/renderer-qualification/evidence/*.html
+            work/upstream-public-installed-evidence/lifecycle/run-*/*.log
+            work/upstream-public-installed-evidence/lifecycle/run-*/driver-preflight-*/evidence.json
+            work/upstream-public-installed-evidence/lifecycle/run-*/driver-preflight-*/driver.log
+          if-no-files-found: warn
+          retention-days: 7
+          overwrite: false
+        if: always()
+  readback:
+    needs:
+      - recovery
+      - public_installed
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Fetch only the immutable original source for its retained harness binding
+        run: git fetch --no-tags --depth=1 origin 7a60432ab6c3773f744af156c0512cd1795b10c1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - name: Bound actual cumulative runtime and remaining native jobs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/upstream-release-runtime.mts budget readback
+      - name: Install existing hash-pinned GitHub verifier
+        shell: bash
+        run: |-
+          set -euo pipefail
+          curl --fail --location --max-time 120 --max-filesize 16000000 --output "$RUNNER_TEMP/gh.tar.gz" https://github.com/cli/cli/releases/download/v2.102.0/gh_2.102.0_linux_amd64.tar.gz
+          echo "bb766f710eef8ede859c18578c72c327597cd4c8a85b06001b1f3843c6019386  $RUNNER_TEMP/gh.tar.gz" | sha256sum --check --strict
+          tar -xzf "$RUNNER_TEMP/gh.tar.gz" -C "$RUNNER_TEMP" gh_2.102.0_linux_amd64/bin/gh
+          echo "$RUNNER_TEMP/gh_2.102.0_linux_amd64/bin" >> "$GITHUB_PATH"
+      - name: Receive exact bounded signed artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PORTCOVE_INPUT_ARTIFACT: "13303950552"
+          PORTCOVE_INPUT_ATTEMPT: "1"
+        run: node scripts/upstream-release-transfer.mts signed "$PORTCOVE_INPUT_ARTIFACT" work/upstream-signed "$PORTCOVE_INPUT_ATTEMPT"
+      - name: Receive exact bounded acceptance artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PORTCOVE_INPUT_ARTIFACT: "13305366285"
+          PORTCOVE_INPUT_ATTEMPT: "1"
+        run: node scripts/upstream-release-transfer.mts acceptance "$PORTCOVE_INPUT_ARTIFACT" work/upstream-acceptance "$PORTCOVE_INPUT_ATTEMPT"
+      - name: Receive exact bounded public-acceptance artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PORTCOVE_INPUT_ARTIFACT: ${{ needs.public_installed.outputs.artifact }}
+          PORTCOVE_INPUT_ATTEMPT: ${{ needs.public_installed.outputs.attempt }}
+        run: node scripts/upstream-release-transfer.mts public-acceptance "$PORTCOVE_INPUT_ARTIFACT" work/upstream-public-acceptance "$PORTCOVE_INPUT_ATTEMPT"
+      - name: Verify unchanged immutable release and original acceptance
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/upstream-release-publication.mts verify-immutable work/upstream-signed
+      - name: Inspect actual HTTPS installed outcome and positive cleanup
+        env:
+          PORTCOVE_NATIVE_ATTEMPT: ${{ needs.public_installed.outputs.attempt }}
+        run: node scripts/upstream-release-acceptance.mts check-public work/upstream-public-acceptance work/upstream-signed "$PORTCOVE_NATIVE_ATTEMPT"
+      - name: Recheck exact public feed after the installed journey
+        run: node scripts/upstream-release-pages.mts observe candidate
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: work/upstream-public-acceptance/summary.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: upstream-readback-proof-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |-
+            work/upstream-public-acceptance/*.json
+            work/upstream-site-result.json
+            work/upstream-runtime/*.json
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: false

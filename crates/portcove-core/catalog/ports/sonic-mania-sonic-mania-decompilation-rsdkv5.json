@@ -26,14 +26,19 @@
         {
           "title": "Register the prepared player",
           "instruction": "Choose the actual matching engine executable after upstream setup, with its prepared game folder as the working directory. Game.dll is a module, not a launch target. Read-only discovery and downloading do not run or combine modules/helpers. Upstream’s save-transfer guidance can bring over your own original PC save data; keep a separate original copy. Keep your actual save data, settings and mods with that prepared folder. Save launch details first, then choose Play separately."
-        },
+        }
+      ],
+      "warnings": [
+        "Follow both projects’ noncommercial-use, credit and license requirements; do not redistribute original game assets. Engine builds supplied to others must have DLC/Plus disabled by default. Registering a prepared player does not change its DLC settings.",
+        "Use upstream’s compatible engine/Game.dll pair and a separately prepared replacement folder when updating; keep the current folder and its saves recoverable until the replacement works. You or upstream provide runtime updates; Portcove does not back up or roll back this external copy. This download is a game module rather than a complete player, so finish pairing it through upstream before registering."
+      ],
+      "help_url": "https://github.com/RSDKModding/Sonic-Mania-Decompilation/blob/56cf1bbac45ebf9da5df781c2983317c3fbb6d5f/README.md",
+      "references": [
         {
           "title": "Keep runtime replacement with upstream",
           "instruction": "Use upstream’s compatible engine/Game.dll pair and a separately prepared replacement folder when updating; keep the current folder and its saves recoverable until the replacement works. You or upstream provide runtime updates; Portcove does not back up or roll back this external copy. This download is a game module rather than a complete player, so finish pairing it through upstream before registering."
         }
-      ],
-      "warnings": [],
-      "help_url": "https://github.com/RSDKModding/Sonic-Mania-Decompilation/blob/56cf1bbac45ebf9da5df781c2983317c3fbb6d5f/README.md"
+      ]
     },
     "original_game_title": "Sonic Mania",
     "release_url": "https://github.com/RSDKModding/Sonic-Mania-Decompilation/releases",

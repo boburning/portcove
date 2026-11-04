@@ -3,7 +3,7 @@
   "listing": {
     "id": "mario-kart-64-mariokart64recomp",
     "name": "Mario Kart 64 / MarioKart64Recomp",
-    "summary": "Explore Mario Kart 64 / MarioKart64Recomp and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Conditional existing-copy route for Mario Kart 64 / MarioKart64Recomp. Keep the complete permitted Windows runtime and its existing profile; downloads remain paused until the bundled Chiaro font grant is established. Registration does not grant acquisition or managed replacement.",
     "project_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp",
     "issue_number": 332,
     "platforms": ["windows-x86-64"],

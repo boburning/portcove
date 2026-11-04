@@ -9,7 +9,36 @@
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/n64hub/perfect-dark-recomp",
-    "issue_number": 2776
+    "issue_number": 2776,
+    "manual_setup": {
+      "help_url": "https://github.com/n64hub/perfect-dark-recomp/blob/cb7a2900cf2b216aa39f44daaece2cdb5599ba32/README.md",
+      "steps": [
+        {
+          "title": "Keep the complete permitted Windows player",
+          "instruction": "Use an independently permitted completed Windows copy of this specific implementation; the reviewed upstream route is v0.1.3. Keep PerfectDarkRecompiled.exe, assets and all matching companions together. Finish any upstream source build outside Portcove. This is an existing-copy route, not managed package acquisition, source generation or a redistribution-rights grant."
+        },
+        {
+          "title": "Select the native player and matching original",
+          "instruction": "Select PerfectDarkRecompiled.exe and use the completed runtime folder containing assets as working directory. Leave arguments empty for the normal launcher, then use Load ROM and Start Game at the separate Play step. Use your own Perfect Dark USA Rev 1, cartridge NPDE version 01, big-endian .z64 of 32 MiB; MD5 e03b088b6ac9e0080440efed07c1e40f and source-documented SHA-1 af8788ac4d1a57260eae9c53ffe851fcf2a3319b. The upstream player performs its own original check; Portcove registration does not import, normalize or authenticate the original."
+        },
+        {
+          "title": "Review registration before choosing Play",
+          "instruction": "Portcove records your selected native executable, working folder and literal arguments after review; Play is separate. Only the selected process is supervised. You or upstream own updates and runtime replacement; relink changed executable bytes after reviewing them. Removing the registration preserves all external files. Managed installation, backup, rollback, migration, generation and deletion are not offered for this copy."
+        }
+      ],
+      "warnings": [
+        "Upstream reports the Defection mission and only short Windows sessions. Windows hardware audio, long sessions and physical rumble were not established in the pinned report. The reported Linux/WSL GPU-device losses and host freeze remain unresolved; this Windows route does not qualify that path.",
+        "Use only software and original data you are permitted to use. Registration and owned-probe tests do not certify the upstream binary, full-game behavior or real save formats.",
+        "Keep the creating mode and actual locations; adding or removing the marker does not migrate existing data.",
+        "Edit settings only while the player is closed; registration does not move profiles or certify state compatibility between versions."
+      ],
+      "references": [
+        {
+          "title": "Keep the creating profile and portable mode",
+          "instruction": "The reviewed Windows profile defaults to %LOCALAPPDATA%/PerfectDarkRecompiled. An existing portable.txt in the working folder selects that folder instead. Keep the creating mode and actual locations; adding or removing the marker does not migrate existing data. Keep the whole profile, its selected original/EEPROM data, all JSON settings, controller profiles, mods and any separately chosen outputs. Preserve the complete runtime folder and any custom or external paths too. Edit settings only while the player is closed; registration does not move profiles or certify state compatibility between versions."
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

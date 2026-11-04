@@ -150,40 +150,46 @@ function LibraryChoicePrompt({
     <article
       className={`port-card port-card-library collection-entry collection-${layout === "rows" ? "row" : "cover"} min-w-0`}
     >
-      <div className="collection-identity">
-        <ArtworkFrame
-          element={element}
-          display={display}
-          identityArtwork
-          className="card-art collection-art"
-        />
-        <h2
-          className="collection-title font-semibold wrap-anywhere"
-          tabIndex={-1}
-          data-detail-game-id={first.id}
-        >
-          {gameTitle(first)}
-        </h2>
-        <p className="collection-project text-pc-muted-foreground">
-          {group.ports.length} independent implementations
-        </p>
-      </div>
-      <p className="collection-state text-xs text-pc-muted-foreground">
-        {choice.reason === "stale"
-          ? "Your chosen implementation is no longer in this game group. Choose deliberately; installed alternatives are preserved."
-          : choice.reason === "filtered"
-            ? "Your usual implementation is outside these filters. Matching implementations are listed below; your choice is unchanged."
-            : "Choose an implementation. Each keeps its own installation, original-file requirements and saved data."}
-      </p>
-      <div className="collection-actions flex flex-wrap gap-2">
-        {group.matchingPorts.map((port) => (
-          <ImplementationChoice
-            key={port.id}
-            port={port}
-            organization={organization}
-            onSelected={restore}
+      <div className="collection-main">
+        <div className="collection-identity">
+          <ArtworkFrame
+            element={element}
+            display={display}
+            identityArtwork
+            className="card-art collection-art"
           />
-        ))}
+          <div className="collection-caption">
+            <h2
+              className="collection-title font-semibold wrap-anywhere"
+              tabIndex={-1}
+              data-detail-game-id={first.id}
+            >
+              {gameTitle(first)}
+            </h2>
+            <p className="collection-project text-pc-muted-foreground">
+              {group.ports.length} independent implementations
+            </p>
+          </div>
+        </div>
+      </div>
+      <div className="library-entry-footer">
+        <p className="collection-state text-xs text-pc-muted-foreground">
+          {choice.reason === "stale"
+            ? "Your chosen implementation is no longer in this game group. Choose deliberately; installed alternatives are preserved."
+            : choice.reason === "filtered"
+              ? "Your usual implementation is outside these filters. Matching implementations are listed below; your choice is unchanged."
+              : "Choose an implementation. Each keeps its own installation, original-file requirements and saved data."}
+        </p>
+        <div className="collection-actions flex flex-wrap gap-2">
+          {group.matchingPorts.map((port) => (
+            <ImplementationChoice
+              key={port.id}
+              port={port}
+              organization={organization}
+              onSelected={restore}
+            />
+          ))}
+        </div>
       </div>
     </article>
   );

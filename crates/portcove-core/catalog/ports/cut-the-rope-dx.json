@@ -29,10 +29,6 @@
           "instruction": "Select the actual prepared desktop player with its established working directory and supported literal arguments, retaining the complete companion content and dependencies. Do not substitute the web/PWA edition or a build script. Upstream .NET/AOT/source-build requirements do not authorize a compiler or helper run here."
         },
         {
-          "title": "Keep every save location used by the creating copy",
-          "instruction": "Desktop preferences and save-slot files use CutTheRopeDX_SaveData next to the executable when writable, then Documents/CutTheRopeDX_SaveData, then LocalApplicationData/CutTheRopeDX_SaveData, with the creating current directory as the final failure fallback. Before the first start, preserve old loose saves: upstream can move existing preferences and recognized slot files from the executable directory into its new writable save directory when the destination file is absent. This is upstream migration, not Portcove-managed migration or a backup. Preserve ctr_preferences.json, all ctrsave_slot files and the whole actual save directory, plus custom levels, runtime/content and unknown files. A later permissions or installation change can select another root; retain every effective old and new location. Browser localStorage is separate and is not migrated by desktop attachment. Keep the complete old compatible copy before upstream replacement; actual gameplay, saves and cross-version compatibility remain unqualified."
-        },
-        {
           "title": "Review the completed player and intent",
           "instruction": "Complete upstream preparation and a normal start/quit with the intended permitted copy before attachment. Review its actual native executable, creating working directory and established supported literal arguments, consent to the selected intent, then choose Play separately. Attachment does not certify original data, gameplay or save compatibility."
         },
@@ -43,7 +39,15 @@
       ],
       "warnings": [
         "Use only components you are already permitted to use; public engine source or releases do not grant original-game, music, mod or middleware rights.",
-        "Keep the complete creating runtime and all actual effective data/profile roots before changes. Another executable can share the same player profile."
+        "Keep the complete creating runtime and all actual effective data/profile roots before changes. Another executable can share the same player profile.",
+        "Before the first start, preserve old loose saves: upstream can move existing preferences and recognized slot files from the executable directory into its new writable save directory when the destination file is absent. This is upstream migration, not Portcove-managed migration or a backup.",
+        "A later permissions or installation change can select another root; retain every effective old and new location. Browser localStorage is separate and is not migrated by desktop attachment. Keep the complete old compatible copy before upstream replacement; actual gameplay, saves and cross-version compatibility remain unqualified."
+      ],
+      "references": [
+        {
+          "title": "Keep every save location used by the creating copy",
+          "instruction": "Desktop preferences and save-slot files use CutTheRopeDX_SaveData next to the executable when writable, then Documents/CutTheRopeDX_SaveData, then LocalApplicationData/CutTheRopeDX_SaveData, with the creating current directory as the final failure fallback. Before the first start, preserve old loose saves: upstream can move existing preferences and recognized slot files from the executable directory into its new writable save directory when the destination file is absent. This is upstream migration, not Portcove-managed migration or a backup. Preserve ctr_preferences.json, all ctrsave_slot files and the whole actual save directory, plus custom levels, runtime/content and unknown files. A later permissions or installation change can select another root; retain every effective old and new location. Browser localStorage is separate and is not migrated by desktop attachment. Keep the complete old compatible copy before upstream replacement; actual gameplay, saves and cross-version compatibility remain unqualified."
+        }
       ]
     }
   }

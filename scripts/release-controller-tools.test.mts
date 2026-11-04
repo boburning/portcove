@@ -43,6 +43,7 @@ import {
   type ControllerToolArtifactExpected,
 } from "./release-controller-tool-admission.mts";
 import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
+import { readFixtureModuleClosure } from "./fixtures/module-closure.mts";
 import {
   assemblerIdentityFixture,
   expected as identityExpected,
@@ -305,25 +306,24 @@ void test("complete job composite has fixed worker syntax, exclusive key transpo
 void test("fixed source launcher loads without node_modules and rejects arbitrary entries or imported custody before acquisition", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "controller-tool-launch-"));
   t.after(() => rm(root, { recursive: true, force: true }));
-  const copied = new Set<string>();
-  const copy = async (relative: string): Promise<void> => {
-    if (copied.has(relative)) return;
-    copied.add(relative);
-    assert.ok(copied.size < 100);
-    const text = await readFile(path.join(sourceRoot, relative), "utf8");
-    await mkdir(path.dirname(path.join(root, relative)), { recursive: true });
-    await writeFile(path.join(root, relative), text);
-    for (const match of text.matchAll(/\bfrom\s+["']([^"']+)["']/gu)) {
-      const specifier = match[1]!;
-      if (specifier.startsWith("."))
-        await copy(path.posix.normalize(path.posix.join(path.posix.dirname(relative), specifier)));
-      else assert.ok(isBuiltin(specifier), `launcher dependency must be builtin: ${specifier}`);
-    }
-  };
-  await copy("scripts/release-controller-tool-launch.mts");
-  await copy("scripts/release-controller-job-bootstrap.mts");
-  await copy("scripts/release-controller-job-output.mts");
-  await copy("scripts/release-controller-diagnostics.mts");
+  const closure = readFixtureModuleClosure(
+    sourceRoot,
+    [
+      "scripts/release-controller-tool-launch.mts",
+      "scripts/release-controller-job-bootstrap.mts",
+      "scripts/release-controller-job-output.mts",
+      "scripts/release-controller-diagnostics.mts",
+    ],
+    { includeDynamicImports: false },
+  );
+  assert.ok(
+    closure.external.every(isBuiltin),
+    "launcher must need only builtin runtime dependencies",
+  );
+  for (const module of closure.modules) {
+    await mkdir(path.dirname(path.join(root, module.path)), { recursive: true });
+    await writeFile(path.join(root, module.path), module.bytes);
+  }
   const child = spawnSync(
     process.execPath,
     [path.join(root, "scripts/release-controller-tool-launch.mts")],
@@ -1302,25 +1302,20 @@ void test("Windows receiver binds its signed platform, producer, label, issuer a
 void test("the receiver dependency closure loads without npm packages before any role credential", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "controller-receiver-no-deps-"));
   t.after(() => rm(root, { recursive: true, force: true }));
-  const files = [
-    "release-controller-tool-admission",
-    "release-controller-tools",
-    "controller-node-runtime",
-    "release-compiler-source-closure",
-    "github-controller-attestation",
-    "assembler-job-identity",
-    "production-controller-admission",
-    "release-control-phases",
-    "github-api",
-    "release-readonly-child-environment",
-    "release-coordinator-deadline",
-    "github-binary",
-    "runtime-values",
-    "bounded-zip",
-  ];
-  for (const file of files)
-    await copyFile(path.join(sourceRoot, "scripts", `${file}.mts`), path.join(root, `${file}.mts`));
-  const code = `import {receiveControllerTools} from './release-controller-tool-admission.mts'; try { await receiveControllerTools('/unused',{},{}); process.exitCode=99; } catch { console.log('fixed input refused without dependencies'); }`;
+  const closure = readFixtureModuleClosure(
+    sourceRoot,
+    ["scripts/release-controller-tool-admission.mts"],
+    { includeDynamicImports: false },
+  );
+  assert.ok(
+    closure.external.every(isBuiltin),
+    "receiver must need only builtin runtime dependencies",
+  );
+  for (const module of closure.modules) {
+    await mkdir(path.dirname(path.join(root, module.path)), { recursive: true });
+    await writeFile(path.join(root, module.path), module.bytes);
+  }
+  const code = `import {receiveControllerTools} from './scripts/release-controller-tool-admission.mts'; try { await receiveControllerTools('/unused',{},{}); process.exitCode=99; } catch { console.log('fixed input refused without dependencies'); }`;
   const result = spawnSync(process.execPath, ["--input-type=module", "-e", code], {
     cwd: root,
     encoding: "utf8",
@@ -1389,13 +1384,19 @@ void test("installed bootstrap clears inherited GitHub credentials only for comp
   assert.equal(binding.length, 1);
   assert.ok(isRecord(binding[0]) && isRecord(binding[0].env));
   assert.equal(binding[0].env.GH_TOKEN, "${{ github.token }}");
-  assert.equal(document.getIn(["jobs", "tool_bootstrap", "timeout-minutes"]), 4);
+  assert.equal(
+    document.getIn(["jobs", "tool_bootstrap", "timeout-minutes"]),
+    "${{ inputs.publication_purpose == 'application' && 12 || 4 }}",
+  );
   const workflowSha = createHash("sha256").update(text).digest("hex");
   assert.equal(slice4CapacityResources.aggregate_workflow_sha256, workflowSha);
   assert.equal(slice4CapacityResources.input_workflow_sha256, workflowSha);
   assert.equal(
     await readFile(
-      new URL("../docs/qualification/application-update-production.complete.yml", import.meta.url),
+      new URL(
+        "../docs/qualification/application-update-production.windows-20261103.proposed.yml",
+        import.meta.url,
+      ),
       "utf8",
     ),
     text,
@@ -1582,7 +1583,7 @@ void test("held Windows producer joins the exact platform artifact to an isolate
   const profile = controllerToolBootstrapProfile("windows-x86_64");
   assert.equal(producer.name, profile.job);
   assert.deepEqual([producer["runs-on"]], profile.labels);
-  assert.equal(producer["timeout-minutes"], 4);
+  assert.equal(producer["timeout-minutes"], 22);
   assert.deepEqual(producer.permissions, {
     contents: "read",
     actions: "read",
@@ -1674,7 +1675,15 @@ void test("held Windows producer joins the exact platform artifact to an isolate
   );
   assert.equal(bundle.path, "${{ runner.temp }}/controller-tools-windows-attestation.json");
   assert.match(JSON.stringify(attesterSteps), /controller-tools-windows-attestation\.json/u);
-  assert.equal(jobs.native_windows, undefined);
+  const nativeWindows = record(jobs.native_windows);
+  assert.equal(nativeWindows.environment, "production-native-windows");
+  assert.equal(nativeWindows["timeout-minutes"], 35);
+  assert.ok(Array.isArray(nativeWindows.needs));
+  assert.ok(nativeWindows.needs.includes("tool_attest"));
+  assert.equal(
+    nativeWindows.if,
+    "${{ needs.admission.outputs.release_profile == 'initial-beta-windows-x86_64-v1' && needs.admission.outputs.publication_purpose == 'application' && needs.admission.outputs.classification_transport == 'fixed-job' && needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.signing_custody != 'reused' }}",
+  );
   assert.equal(jobs.tool_attest_windows, undefined);
   assert.equal(
     record(attester.outputs).windows_bundle_artifact_id,
@@ -2108,8 +2117,7 @@ void test("Windows runtime join permanently refuses changed identity, context an
 void test("shared supported-runtime byte fence preserves original identities and refuses drift before trusted Windows tool production", async (t) => {
   const { captureSupportedHostedWindowsRuntimeInput } =
       await import("./hosted-windows-runtime-input.mts"),
-    { readSupportedRuntimeMechanism, prepareAdmittedWindowsBootstrapRuntime } =
-      await import("./release-windows-bootstrap-runtime.mts"),
+    { readSupportedRuntimeMechanism } = await import("./release-windows-bootstrap-runtime.mts"),
     f = await windowsRuntimeInputFixture(t);
   const bytes = await f.write(f.receipt(true));
   let sourceLive = true;
@@ -2153,10 +2161,9 @@ void test("shared supported-runtime byte fence preserves original identities and
     Buffer.concat([helper, Buffer.from("\n# portcove-supported-runtime-effects-begin")]),
   ])
     assert.throws(() => readSupportedRuntimeMechanism(bad));
-  await assert.rejects(
-    prepareAdmittedWindowsBootstrapRuntime(),
-    /Protected Windows runtime preparation remains held/u,
-  );
+  // Both source-revocation refusals are exercised by the inert held-source loader
+  // in release-hosted-native-windows-bootstrap.test.mts; do not enter the
+  // protected runtime CLI/function from this receipt/mechanism contract test.
   const profile = controllerToolPlatformProfile("windows-x86_64");
   assert.ok(profile.paths.includes("windows-runtime-prerequisite.json"));
   assert.ok(new Set<string>(profile.assets).has("scripts/native-qualification-account-client.ps1"));

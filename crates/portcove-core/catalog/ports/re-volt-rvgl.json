@@ -21,7 +21,13 @@
     "release_url": "https://rvgl.org/#download",
     "manual_setup": {
       "help_url": "https://re-volt.gitlab.io/rvgl-launcher/installing.html",
-      "warnings": [],
+      "warnings": [
+        "Use only original data and additional packs you are permitted to use. The availability of a launcher preset does not grant original-game, soundtrack or third-party content rights.",
+        "Close the game before package updates.",
+        "Back up your actual game folder and profile, local content and launcher configuration separately before repair or changing copies. Portcove does not replace this externally managed runtime or provide managed Backup or Rollback. Removing the registration preserves all external files.",
+        "A different executable or preset does not establish isolated saves or compatible content.",
+        "Registering a Windows executable does not establish a supported Linux script or macOS bundle invocation."
+      ],
       "steps": [
         {
           "title": "Set up through RVGL Launcher",
@@ -32,8 +38,18 @@
           "instruction": "Select rvgl_launcher.exe from your completed launcher folder and save its launch details, then choose Play separately. In that launcher, select your preset and Launch RVGL. For an already complete manual Windows game folder, you may instead select its RVGL executable with that game folder as the working directory. Keep the upstream Windows installer when you need its registry, lobby or shortcut integration. Portcove does not run an installer during discovery."
         },
         {
+          "title": "Keep game launch and replacement under the selected owner",
+          "instruction": "The launcher normally minimizes while RVGL runs and returns when the game exits. Keep it open for that session. Portcove supervises the selected process; it does not certify a detached game after that process exits or stop an independently started copy. If you register the native game directly, retain the actual game folder and launch details; launcher-only preset parameters are not automatically transferred. Close both the game and launcher before manual runtime replacement, then review changed executable bytes in Portcove before choosing Play. Launcher Repair can reinstall content and Uninstall removes game data; keep an independent backup before those upstream actions. Portcove registration removal only removes the registration."
+        }
+      ],
+      "references": [
+        {
           "title": "Update and preserve data with upstream",
           "instruction": "Close the game before package updates. RVGL Launcher offers runtime-only updates and package review, plus its own Repair command for interrupted installs. Back up your actual game folder and profile, local content and launcher configuration separately before repair or changing copies. Portcove does not replace this externally managed runtime or provide managed Backup or Rollback. Removing the registration preserves all external files."
+        },
+        {
+          "title": "Preserve the selected profile and preset",
+          "instruction": "Keep the game data root and preferences root separately when your launch details use -basepath or -prefpath. Each flag and its path is a separate literal argument line. Without an explicit base path, the current game folder is normally used; with -prefpath and no value, Windows uses the system RVGL preferences folder, normally %APPDATA%/RVGL. Preserve rvgl.ini, complete profiles with profile.ini and progress, times, replays, screenshots and logs, plus custom content and the launcher’s configuration and presets. Use the launcher’s Open Data Folder and Open Config Folder actions to locate its actual roots. A different executable or preset does not establish isolated saves or compatible content."
         },
         {
           "title": "Use the platform-specific guide for other systems",

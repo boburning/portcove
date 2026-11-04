@@ -6,7 +6,7 @@
     "summary": "Attach an independently permitted, prepared Ninja Gaiden Black Windows player using your own supported original Xbox data. Preserve separate Local/Roaming roots and matching arcade companions; arcade handoffs and VM/Proton reports do not qualify a whole native Windows journey.",
     "original_game_title": "Ninja Gaiden Black",
     "project_url": "https://github.com/gamboozino/ngbrecomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/gamboozino/ngbrecomp",
     "artwork": {

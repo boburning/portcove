@@ -10,6 +10,7 @@ import {
 } from "./provider-release-observation.mts";
 import type { ProviderCapacity, ProviderProgress } from "./provider-release-observation.mts";
 import { isRecord } from "./runtime-values.mts";
+import { decodeStoredObserverCheckpoint } from "./observer-checkpoint-storage.mts";
 import {
   observationHash,
   ObservationFailure,
@@ -78,6 +79,15 @@ export interface CatalogObserverCheckpoint {
   sequence: number;
   provider_retry_at: string | null;
   provider_capacities?: Record<string, ProviderCapacity>;
+  /** Historical provenance only; never a successful observation/freshness clock. */
+  baseline?: {
+    id: string;
+    continuity: "lost";
+    initial_freshness: "unknown";
+    initialized_at: string;
+    producer: { run: number; attempt: number; source: string };
+    inputs: { config_sha256: string; catalog_sha256: string; listings_sha256: string };
+  };
   sources: Record<string, SourceProgress>;
 }
 export const newCatalogObserverCheckpoint = (): CatalogObserverCheckpoint => ({
@@ -246,6 +256,35 @@ export function validateCatalogObserverCheckpoint(
     Buffer.byteLength(JSON.stringify(value)) > 32 * 1024 * 1024
   )
     throw new Error("Invalid catalog observer checkpoint");
+  if (value.baseline !== undefined) {
+    const baseline = value.baseline;
+    if (
+      !isRecord(baseline) ||
+      Object.keys(baseline).sort().join(",") !==
+        "continuity,id,initial_freshness,initialized_at,inputs,producer" ||
+      typeof baseline.id !== "string" ||
+      !/^[a-z0-9-]{1,128}$/u.test(baseline.id) ||
+      baseline.continuity !== "lost" ||
+      baseline.initial_freshness !== "unknown" ||
+      typeof baseline.initialized_at !== "string" ||
+      !Number.isFinite(Date.parse(baseline.initialized_at)) ||
+      Date.parse(baseline.initialized_at) > now ||
+      !isRecord(baseline.producer) ||
+      Object.keys(baseline.producer).sort().join(",") !== "attempt,run,source" ||
+      ![baseline.producer.run, baseline.producer.attempt].every(
+        (n) => Number.isSafeInteger(n) && Number(n) > 0,
+      ) ||
+      typeof baseline.producer.source !== "string" ||
+      !/^[a-f0-9]{40}$/u.test(baseline.producer.source) ||
+      !isRecord(baseline.inputs) ||
+      Object.keys(baseline.inputs).sort().join(",") !==
+        "catalog_sha256,config_sha256,listings_sha256" ||
+      !Object.values(baseline.inputs).every(
+        (hash) => typeof hash === "string" && /^[a-f0-9]{64}$/u.test(hash),
+      )
+    )
+      throw new Error("Invalid observer baseline provenance");
+  }
   if (value.provider_capacities !== undefined) {
     if (!isRecord(value.provider_capacities)) throw new Error("Invalid provider capacity evidence");
     for (const [origin, rate] of Object.entries(value.provider_capacities)) {
@@ -949,7 +988,11 @@ export async function advanceCatalogObservations(
         Math.min(template.budget.requests, Math.floor(capacity() / (pending.length - index))),
       );
       const result = await options.withSourceLock(config, async () => {
-        const priorSource = await options.load(config);
+        const priorSource = decodeStoredObserverCheckpoint(
+          await options.load(config),
+          deadline,
+          now,
+        );
         const position = (continuation: unknown) => {
           if (!isRecord(continuation))
             return observationHash({ phase: "collect", cursor: 0, pages: [] });

@@ -28,15 +28,28 @@
         },
         {
           "title": "Select the player and keep your saves",
-          "instruction": "Finish setup with DoomIIRPG.exe and the same folder, then choose Play. Back up the original IPA and the Doom2rpg.app save/settings folder when applying upstream updates."
+          "instruction": "Finish setup with DoomIIRPG.exe and the same folder, then choose Play."
         },
         {
           "title": "Add the game and manage your files",
-          "instruction": "Register the real Windows player with its matching working directory and separate literal arguments; do not select a converter, installer or updater as the game player. Complete any original-data or prerequisite setup deliberately through upstream instructions. Registration does not perform or authenticate that preparation, and Play is a separate explicit action. You and upstream own this external runtime, original files, saves, settings and profiles. Preserve the complete working copy and every actual data/profile location with the game closed before upstream replacement. Registration-only removal preserves all external files; managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
+          "instruction": "Register the real Windows player with its matching working directory and separate literal arguments; do not select a converter, installer or updater as the game player. Complete any original-data or prerequisite setup deliberately through upstream instructions. Registration does not perform or authenticate that preparation, and Play is a separate explicit action."
         }
       ],
-      "warnings": [],
-      "help_url": "https://github.com/Erick194/DoomIIRPG-RE#readme"
+      "warnings": [
+        "Back up the original IPA and the Doom2rpg.app save/settings folder when applying upstream updates.",
+        "Preserve the complete working copy and every actual data/profile location with the game closed before upstream replacement."
+      ],
+      "help_url": "https://github.com/Erick194/DoomIIRPG-RE#readme",
+      "references": [
+        {
+          "title": "Preserve the Doom II RPG profile when updating",
+          "instruction": "Back up the original IPA and the Doom2rpg.app save/settings folder when applying upstream updates."
+        },
+        {
+          "title": "Keep external ownership and all player data",
+          "instruction": "You and upstream own this external runtime, original files, saves, settings and profiles. Preserve the complete working copy and every actual data/profile location with the game closed before upstream replacement. Registration-only removal preserves all external files; managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
+        }
+      ]
     },
     "release_url": "https://github.com/Erick194/DoomIIRPG-RE/releases",
     "download_asset_hints": {

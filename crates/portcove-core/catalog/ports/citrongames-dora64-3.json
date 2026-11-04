@@ -30,10 +30,6 @@
           "instruction": "Keep the entire creating writable Windows folder with matching DLLs, assets and notices. Place the supported .z64 beside Dora64-3.exe, choose that native executable and its containing directory, and use no arguments. Windows wmain rejects extra arguments and discovers the matching adjacent ROM; do not use the private ROM/run-directory diagnostic interface, research probes, Android package or Linux setup script. Review and consent to the exact executable/CWD/arguments, then request Play separately."
         },
         {
-          "title": "Preserve local saves and every settings file",
-          "instruction": "The Windows source registers the executable directory as its configuration root and names the game dora3.n64.jp with EEPROM16k storage. Preserve the complete saves/ tree, including any dora3.n64.jp.bin and temporary/backup variants, port_pc_settings.json, port_input_settings.json, legacy port-settings.json, other runtime config/mod metadata, assets, originals and existing logs/diagnostics. Upstream imports legacy settings only when new destinations are missing and leaves the legacy file. Keep all actual custom/external roots too; this Windows entry offers no new custom-root launch argument through this guide."
-        },
-        {
           "title": "Close the game before changing files",
           "instruction": "The native entry calls the pinned runtime in-process and waits for its game/event/saving threads before returning. The documented reset restarts the game in the same window; it is not a new Core orchestration path. Upstream/user owns preparation, replacement and recovery. Close the actual player normally, keep a separate working runtime/data backup, perform upstream maintenance, then review/relink changed selected bytes. Removing registration preserves external files; Portcove offers no external update, backup, rollback, migration, deletion or cross-version save guarantee."
         },
@@ -44,7 +40,14 @@
       ],
       "warnings": [
         "Selected live startup source explicitly calls itself a research frontend with no validated gameplay loop and retains a not-playable log label. The documented Windows build enables LIVE_RT64 and disables diagnostic logging by default, so that log label is compiled out; this does not establish that the underlying comment is stale or that the game is usable. dora3_pending still stops with code77 if reached; no actual reachability/failure or normal playable session was observed. Keep this source/README1.0 conflict open for exact per-port review; do not count the guide as stable/playable runtime qualification or bypass stop paths.",
-        "Source/tag and provider expected package digest only; no ZIP/PE bytes, package/source correspondence, native/game/real-save/installed-client/Supported/protected acceptance was inspected or executed."
+        "Source/tag and provider expected package digest only; no ZIP/PE bytes, package/source correspondence, native/game/real-save/installed-client/Supported/protected acceptance was inspected or executed.",
+        "Upstream imports legacy settings only when new destinations are missing and leaves the legacy file. Keep all actual custom/external roots too; this Windows entry offers no new custom-root launch argument through this guide."
+      ],
+      "references": [
+        {
+          "title": "Preserve local saves and every settings file",
+          "instruction": "The Windows source registers the executable directory as its configuration root and names the game dora3.n64.jp with EEPROM16k storage. Preserve the complete saves/ tree, including any dora3.n64.jp.bin and temporary/backup variants, port_pc_settings.json, port_input_settings.json, legacy port-settings.json, other runtime config/mod metadata, assets, originals and existing logs/diagnostics. Upstream imports legacy settings only when new destinations are missing and leaves the legacy file. Keep all actual custom/external roots too; this Windows entry offers no new custom-root launch argument through this guide."
+        }
       ]
     }
   },

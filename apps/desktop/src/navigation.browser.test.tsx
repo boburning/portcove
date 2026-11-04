@@ -60,6 +60,7 @@ function NavigationFixture() {
           {["Library", "Catalog"].map((name, index) => (
             <button
               key={name}
+              data-navigation-destination={name}
               data-x="0"
               data-y={index * 50}
               aria-current={section === name ? "page" : undefined}

@@ -3,7 +3,7 @@
   "listing": {
     "id": "star-wars-episode-iii-revenge-of-the-sith",
     "name": "Star Wars: Episode III - Revenge of the Sith (SWROTS-PC)",
-    "summary": "Register a completed SWROTS-PC Windows player with its matching core library, your own North American Xbox data and retained saves.",
+    "summary": "Attach the complete SWROTS-PC Windows player after your own Xbox USA disc setup. Keep swrots.exe with core.dll and all actual data; upstream reboot successors remain outside the selected session.",
     "project_url": "https://github.com/jedijosh920/SWROTS-PC",
     "issue_number": 1310,
     "platforms": [],
@@ -18,11 +18,11 @@
       "match_kind": "underlying-game"
     },
     "manual_setup": {
-      "help_url": "https://github.com/jedijosh920/SWROTS-PC",
+      "help_url": "https://github.com/jedijosh920/SWROTS-PC/blob/fbea4d817669106c70c0a349870774f28d5fdfeb/README.md",
       "steps": [
         {
           "title": "Complete the title’s preparation upstream",
-          "instruction": "Use a complete permitted SWROTS-PC copy with matching swrots.exe and core.dll. Complete its official own-disc setup upstream from your North American original-Xbox Revenge of the Sith ISO/XISO, keeping the resulting GameData tree and original separately. The runtime accepts default.xbe only with MD5 6460ef37862de3af364a0563a0a18c4e; that executable identity is not a whole-disc certificate. Portcove does not acquire, extract, import or authenticate originals through this registration. No console BIOS or downloaded original is supplied."
+          "instruction": "The inspected v0.5.0 Windows ZIP contains the paired 32-bit swrots.exe and core.dll. Keep the complete package, supplied documentation and notices; the documented host is 64-bit Windows 10 1803 or newer. Use a complete permitted SWROTS-PC copy with matching swrots.exe and core.dll. Complete its official own-disc setup upstream from your North American original-Xbox Revenge of the Sith ISO/XISO, keeping the resulting GameData tree and original separately. The runtime accepts default.xbe only with MD5 6460ef37862de3af364a0563a0a18c4e; that executable identity is not a whole-disc certificate. Portcove does not acquire, extract, import or authenticate originals through this registration. No console BIOS or downloaded original is supplied."
         },
         {
           "title": "Add the completed supported game program",
@@ -42,7 +42,7 @@
         }
       ],
       "warnings": [
-        "Use only an actual copy and components you are permitted to use. Preserve all originals, runtime companions, saves, settings, mods, caches, logs, backups and custom roots. Another executable may share them. Static source/metadata and reusable fixtures are not gameplay, real-save, installed-client, Supported or protected acceptance."
+        "Use only an actual copy and components you are permitted to use. Preserve originals, runtime companions, saves, settings, mods, caches, logs, backups and custom roots. Another executable may share them. Actual bounded archive/PE observations and owned probes do not establish source-to-binary reproduction, upstream execution, gameplay, real-save, installed-client, Supported or protected acceptance."
       ]
     }
   }

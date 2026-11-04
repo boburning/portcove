@@ -26,17 +26,20 @@
           "instruction": "Select rails.exe with its complete creating player folder as working directory and no extra arguments for normal play. Retain existing supported --data-dir or other literal options only when actually required by your working copy. The source enters its game/main SDL loop in-process until Quit; do not select dune/opam, an AppImage, or a tool instead. Review and consent to the exact executable, working directory and arguments, then request Play separately."
         },
         {
-          "title": "Preserve working-directory saves and all actual roots",
-          "instruction": "The inspected source writes save slots game0.sav through game9.sav relative to the working directory, with transient .tmp files during replacement. These are the remake’s serialized saves, not proven compatible with DOS originals. Preserve the complete creating copy, all saves/temp files/settings, original data, mods, shaders, audio, logs, backups and every custom root. Original-data search can use --data-dir/RAILS_DATA_DIR, working-directory/executable data/ or %APPDATA%/Rails/data; asset search also honors RAILS_ASSETS_DIR and component directories. Do not assume all assets or originals live beside rails.exe."
-        },
-        {
           "title": "Keep a working copy before updating",
           "instruction": "Upstream and you own preparation, runtime replacement, recovery and external files. Close the actual player before maintenance, retain the old runtime and all effective data, then review/relink changed selected bytes. Removing registration preserves external files. MIT applies to original project code separately from original-game assets and dependency notices; no title/source label supplies rights to DOS data. No external update, backup, rollback, migration, deletion, full simulation parity or actual gameplay/save qualification is offered."
         }
       ],
       "warnings": [
         "Use only originals, components and a completed copy you are independently permitted to use. Preserve every effective data root with its creating runtime.",
-        "Pinned source and public release metadata only; no archive/PE inspection, source-to-binary certificate, game/helper/native session, real-save, installed Desktop, Supported or protected acceptance. Upstream feature/parity claims remain distinct from Portcove evidence."
+        "Pinned source and public release metadata only; no archive/PE inspection, source-to-binary certificate, game/helper/native session, real-save, installed Desktop, Supported or protected acceptance. Upstream feature/parity claims remain distinct from Portcove evidence.",
+        "These are the remake’s serialized saves, not proven compatible with DOS originals. Preserve the complete creating copy, all saves/temp files/settings, original data, mods, shaders, audio, logs, backups and every custom root."
+      ],
+      "references": [
+        {
+          "title": "Preserve working-directory saves and all actual roots",
+          "instruction": "The inspected source writes save slots game0.sav through game9.sav relative to the working directory, with transient .tmp files during replacement. These are the remake’s serialized saves, not proven compatible with DOS originals. Preserve the complete creating copy, all saves/temp files/settings, original data, mods, shaders, audio, logs, backups and every custom root. Original-data search can use --data-dir/RAILS_DATA_DIR, working-directory/executable data/ or %APPDATA%/Rails/data; asset search also honors RAILS_ASSETS_DIR and component directories. Do not assume all assets or originals live beside rails.exe."
+        }
       ]
     }
   },

@@ -28,16 +28,19 @@
         {
           "title": "Review intent and choose Play separately",
           "instruction": "Review and consent to the exact executable, working directory and one original-path argument; registration does not prepare or start the game. Choose Play separately. Ordinary runtime is in the same apphost; upstream self-update stages/replaces/relaunches through successors outside Core’s selected-process observation. Its bounded wait is not proof the original exited or that successor arguments/custom profile are preserved. Let upstream finish and close all actual players before manual changes/relink. Upstream/player retains runtime replacement; Core does not compete with it."
-        },
-        {
-          "title": "Preserve the whole creating profile and custom cards",
-          "instruction": "Keep the full runtime, original and actual CWD-relative settings.json/interface.ini, carda.sav/cardb.sav, all .sav/backup/config files, disc and mods including shipped executable sources/.cache and player edits, diagnostics and all unknown/custom outputs. Preserve absolute CardAPath/CardBPath targets separately; relative cards follow actual CWD. Preserve any upstream-owned external updater/recovery evidence. No new managed mod merge, backup, state migration or cross-build compatibility is granted. Removing registration removes only Core metadata and preserves external bytes."
         }
       ],
       "warnings": [
         "The inspected upstream boot-identity checks are not full-disc cryptographic authentication. Earlier actual v0.5.1b Windows CHD/window/normal-close observations keep their exact scope; this batch adds no game execution or gameplay/save/load qualification and inherits nothing from another Castlevania port.",
         "The selected tag uses AutoUpdateEnabled in interface.ini; current-source updater options differ. No CLI/environment disable is established, and non-owning registration need not disable the upstream updater. Managed host provisioning, pre-check updater control, mod ownership/merge and actual lifecycle qualification remain unresolved stronger work.",
-        "No Core-managed acquisition/setup/Install/Update/Backup/Rollback/migration/external deletion, package/build/source authenticity, exclusive successor-session or sandbox guarantee is offered. Project/mod source and redistribution applicability remain distinct from an already permitted player copy; selection itself grants no rights or Supported/native/installed/protected acceptance."
+        "No Core-managed acquisition/setup/Install/Update/Backup/Rollback/migration/external deletion, package/build/source authenticity, exclusive successor-session or sandbox guarantee is offered. Project/mod source and redistribution applicability remain distinct from an already permitted player copy; selection itself grants no rights or Supported/native/installed/protected acceptance.",
+        "Preserve absolute CardAPath/CardBPath targets separately; relative cards follow actual CWD. Preserve any upstream-owned external updater/recovery evidence. No new managed mod merge, backup, state migration or cross-build compatibility is granted. Removing registration removes only Core metadata and preserves external bytes."
+      ],
+      "references": [
+        {
+          "title": "Preserve the whole creating profile and custom cards",
+          "instruction": "Keep the full runtime, original and actual CWD-relative settings.json/interface.ini, carda.sav/cardb.sav, all .sav/backup/config files, disc and mods including shipped executable sources/.cache and player edits, diagnostics and all unknown/custom outputs. Preserve absolute CardAPath/CardBPath targets separately; relative cards follow actual CWD. Preserve any upstream-owned external updater/recovery evidence. No new managed mod merge, backup, state migration or cross-build compatibility is granted. Removing registration removes only Core metadata and preserves external bytes."
+        }
       ]
     },
     "artwork": {

@@ -6,7 +6,7 @@
     "summary": "Attach an independently permitted, prepared Shadow of the Colossus PS4-remake Windows installation using its saved-settings play route. Upstream owns setup, runtime replacement and player data; original PS2/PS3 editions do not fit.",
     "original_game_title": "Shadow of the Colossus",
     "project_url": "https://github.com/AjncSystem/ShadowOfTheColossus-PC",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/AjncSystem/ShadowOfTheColossus-PC",
     "issue_number": 2840,

@@ -151,6 +151,19 @@ failure threshold. External profiles and arbitrary future save filenames are
 outside the immutable-package check. New and retained independent entries using
 this policy require Native4; Direct-only Native3 retains its meaning.
 
+Libultraship template version 2 consumes the same `relative-file-max-path`
+policy for archives with Windows support, including multi-platform definitions.
+The checks apply only on Windows and include every immutable package member:
+2Ship's extractor reads asset XML files whose paths can exceed MAX_PATH even
+when its executable path fits. Setup refuses those coordinates with the existing
+shorter-output guidance before publishing the installation. Retained contracts
+carry the same destination checks through launch, relocation and library import;
+adding a current policy does not rewrite older retained contracts. Linux and
+macOS behavior, source admission, persistence and upstream extraction ownership
+remain unchanged. Independent definitions declaring this policy must require
+`libultraship-portable` version 2; version 1 remains available for definitions
+without it. A fitting path does not prove successful extraction or rendering.
+
 Native5 additionally supports `windows_temp_directory` for Windows-only native
 archives using `relative-file-max-path`. Its value is one safe ASCII basename,
 at most 64 bytes, declared exactly once in `persistent_paths` and separate from
@@ -289,6 +302,11 @@ suitability check still rejects known foreign processors, platforms, supporting
 files and equally plausible variants. The existing channel and artifact-integrity
 rules remain in force. A missing digest can allow an explicitly unverified
 non-owning download, but cannot authenticate a managed installation.
+Generic downloaded setup offers optional checked ZIP, tar.gz/tgz and bounded
+7z extraction into a new user-owned folder. Supported 7z codecs and resource
+limits are owned by [the archive boundary](ARCHITECTURE.md#discovery-listings-and-user-owned-setup).
+This extraction support does not admit 7z to managed native package selection;
+that route still requires its own reader-capability and per-title fitting work.
 
 Review the actual linked or vendored components and their attributable grants,
 including packaged fonts. A parent's license, a published archive or resemblance
@@ -1403,6 +1421,11 @@ evidence, or have documented blockers while the application continues toward V1,
 provided the UI and documentation represent that state honestly.
 
 Legacy `support_tier` values remain compatibility metadata, separate from release-channel choices. Neither a channel label nor a tier name supplies artifact/platform/operation testing evidence or removes a concrete compatibility limitation.
+
+Source inspection ambiguity counts possible identity matches, not distinct game
+editions: multiple file representations can match the same edition. Player
+guidance must preserve that distinction and direct the player to check both the
+required edition and file format before choosing originals again.
 
 Schema 2 stores new source qualification in `source_catalog.qualification`.
 Each record binds the port, platform, release artifact SHA-256, upstream ref,

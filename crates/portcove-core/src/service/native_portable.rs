@@ -1364,7 +1364,16 @@ mod tests {
             embedded.source_profile(PROFILE).unwrap().accepted_sha1,
             ["1bb785082def3fe25f6b46be06d4eaf33c5bc772"]
         );
-        let port = embedded.port(ID).unwrap().clone();
+        let mut port = embedded.port(ID).unwrap().clone();
+        // Keep the private source authority at schema 1 while adapting current
+        // presentation through the same lossless legacy export as real readers.
+        if let Some(guide) = port
+            .presentation
+            .as_mut()
+            .and_then(|presentation| presentation.manual_setup.as_mut())
+        {
+            *guide = guide.legacy();
+        }
         Catalog::from_json(&serde_json::json!({
             "schema_version":1,
             "source_profiles":[{"id":PROFILE,"label":"Your USA retail raw Crash Team Racing BIN","kind":"file","accepted_extensions":["bin"],"accepted_sha256":[hex::encode(Sha256::digest(owned))]}],
@@ -3039,6 +3048,292 @@ mod tests {
             fs::read(library.user_dir("portable-fixture").join("shot_00001.png")).unwrap(),
             b"prelaunch capture"
         );
+    }
+
+    // Real catalog contracts and complete observed member coordinates, with
+    // inert package bytes and synthetic originals. No upstream player is run.
+    async fn assert_native_engine_adoption_lifecycle(id: &str) {
+        let corpus: serde_json::Value = serde_json::from_str(include_str!(
+            "../testdata/native-engine-adoption-2026-11-02.json"
+        ))
+        .unwrap();
+        let case = corpus["cases"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|case| case["port_id"] == id)
+            .unwrap();
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog.port(id).unwrap().clone();
+        assert_eq!(port.adapter, AdapterKind::NativePortable);
+        assert!(port.source_profile.is_none());
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = Server::new();
+        let folder = case["runtime_folder"].as_str().unwrap();
+        let executable = case["selected_executable"].as_str().unwrap();
+        let members = case["immutable_members"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|member| member.as_str().unwrap())
+            .collect::<Vec<_>>();
+        for path in &port.persistent_paths {
+            let path = path.to_ascii_lowercase();
+            for member in &members {
+                let member = member.to_ascii_lowercase();
+                assert!(
+                    path != member
+                        && !member.starts_with(&format!("{path}/"))
+                        && !path.starts_with(&format!("{member}/")),
+                    "{id}: persistent {path} overlaps observed immutable {member}"
+                );
+            }
+        }
+        let files = members
+            .iter()
+            .filter(|path| **path != executable)
+            .map(|path| (*path, b"inert immutable companion".as_slice()))
+            .collect::<Vec<_>>();
+        let release = |version, revision| {
+            server.release_with_files(version, revision, folder, executable, &files)
+        };
+        let provider = Arc::new(Provider(Mutex::new(release("fixture-N", 1))));
+        let mut service =
+            PortcoveService::with_provider(library.clone(), provider.clone()).unwrap();
+        service.replace_catalog_for_test(catalog.clone());
+        let channel = port.channels[0];
+        let first = service
+            .install(id, Some(channel), None, None, true, |_| {})
+            .await
+            .unwrap();
+        let first_root = first.path.join(folder);
+        let probes = if let Some(probes) = case["persistent_probes"].as_array() {
+            probes
+                .iter()
+                .map(|path| path.as_str().unwrap().to_owned())
+                .collect::<Vec<_>>()
+        } else {
+            port.persistent_paths
+                .iter()
+                .map(|path| {
+                    if path.ends_with(".pk4") || path.ends_with(".pk3") {
+                        path.clone()
+                    } else {
+                        format!("{path}/owned-original.pk3")
+                    }
+                })
+                .collect::<Vec<_>>()
+        };
+        let contents = |path: &str| {
+            case["persistent_contents"][path]
+                .as_str()
+                .map(str::as_bytes)
+                .unwrap_or(b"owned synthetic original before Play")
+        };
+        for path in &probes {
+            let destination = first_root.join(path);
+            assert!(
+                !destination.exists(),
+                "{id}: original must be absent from runtime package: {path}"
+            );
+            fs::create_dir_all(destination.parent().unwrap()).unwrap();
+            fs::write(destination, contents(path)).unwrap();
+        }
+        let spec = service
+            .prepare_launch_for_install(&port, &first, None, None)
+            .unwrap();
+        assert_eq!(spec.working_directory, first_root, "{id}");
+        assert_eq!(spec.executable, first_root.join(executable), "{id}");
+        assert_eq!(spec.arguments, port.launch_arguments, "{id}");
+        for path in &probes {
+            assert_eq!(
+                fs::read(library.user_dir(id).join(path)).unwrap(),
+                contents(path),
+                "{id}: {path}"
+            );
+        }
+        let backup = service.create_backup(id).unwrap();
+        for path in &probes {
+            assert_eq!(
+                fs::read(backup.path.join("data").join(path)).unwrap(),
+                contents(path),
+                "{id}: backup {path}"
+            );
+        }
+        if case["exercise_restore"] == true {
+            for path in &probes {
+                fs::write(first_root.join(path), b"later owned data").unwrap();
+            }
+            let preview = service
+                .preview_backup_action(id, &backup.id, BackupAction::Restore)
+                .unwrap();
+            assert!(preview.safety_backup_will_be_created, "{id}");
+            assert!(
+                service
+                    .restore_backup(id, &backup.id, "invalid consent")
+                    .is_err()
+            );
+            for path in &probes {
+                assert_eq!(
+                    fs::read(first_root.join(path)).unwrap(),
+                    b"later owned data"
+                );
+            }
+            let consent = service
+                .authorize_backup_action(
+                    id,
+                    &backup.id,
+                    BackupAction::Restore,
+                    &preview.preview_sha256,
+                )
+                .unwrap();
+            let restored = service
+                .restore_backup(id, &backup.id, &consent.token)
+                .unwrap();
+            let safety = restored.safety_backup.unwrap();
+            for path in &probes {
+                assert_eq!(
+                    fs::read(safety.path.join("data").join(path)).unwrap(),
+                    b"later owned data"
+                );
+                assert_eq!(fs::read(first_root.join(path)).unwrap(), contents(path));
+                assert_eq!(
+                    fs::read(library.user_dir(id).join(path)).unwrap(),
+                    contents(path)
+                );
+            }
+        }
+        *provider.0.lock().unwrap() = release("fixture-N+1", 2);
+        assert!(
+            service.check_update(id).await.unwrap().update_available,
+            "{id}"
+        );
+        let second = service.update(id, None, None, true, |_| {}).await.unwrap();
+        for path in &probes {
+            assert_eq!(
+                fs::read(second.path.join(folder).join(path)).unwrap(),
+                contents(path),
+                "{id}: update {path}"
+            );
+        }
+        // Rolling rebuilds also bind archive identity, not just a tag string.
+        *provider.0.lock().unwrap() = release("fixture-N+1", 3);
+        assert!(
+            service.check_update(id).await.unwrap().update_available,
+            "{id}"
+        );
+        let staged = service.update(id, None, None, false, |_| {}).await.unwrap();
+        assert!(staged.staged, "{id}");
+        service.activate_staged(id).unwrap();
+        let previous = service.rollback(id).unwrap();
+        assert_eq!(previous.id, second.id, "{id}");
+        drop(service);
+        let mut restarted = PortcoveService::with_provider(library.clone(), provider).unwrap();
+        restarted.replace_catalog_for_test(catalog);
+        let retained = restarted.installed_port(&previous).unwrap();
+        let spec = restarted
+            .prepare_launch_for_install(&retained, &previous, None, None)
+            .unwrap();
+        assert_eq!(spec.working_directory, previous.path.join(folder), "{id}");
+        // Unknown runtime additions remain review holds, never a wildcard data scope.
+        let unknown = spec.working_directory.join("unknown-player-addition");
+        fs::write(&unknown, b"keep for review").unwrap();
+        assert!(restarted.preview_removal(id).is_err(), "{id}");
+        assert_eq!(fs::read(&unknown).unwrap(), b"keep for review");
+        fs::rename(
+            &unknown,
+            temporary.path().join("retained-unknown-player-addition"),
+        )
+        .unwrap();
+        let preview = restarted.preview_removal(id).unwrap();
+        let consent = restarted
+            .authorize_removal(id, &preview.preview_sha256)
+            .unwrap();
+        restarted.remove(id, &consent.token).unwrap();
+        for path in &probes {
+            assert_eq!(
+                fs::read(library.user_dir(id).join(path)).unwrap(),
+                contents(path),
+                "{id}: removal {path}"
+            );
+        }
+        assert!(
+            backup.path.exists(),
+            "{id}: backup survives runtime removal"
+        );
+        assert_eq!(
+            fs::read(temporary.path().join("retained-unknown-player-addition")).unwrap(),
+            b"keep for review"
+        );
+    }
+
+    #[tokio::test]
+    async fn native_engine_adoption_1878() {
+        assert_native_engine_adoption_lifecycle("sdlpal-sdlpal").await;
+    }
+
+    #[tokio::test]
+    async fn native_engine_adoption_2567() {
+        assert_native_engine_adoption_lifecycle("doom-3-classic-dhewm3").await;
+    }
+
+    #[tokio::test]
+    async fn native_engine_adoption_2568() {
+        assert_native_engine_adoption_lifecycle("doom-3-resurrection-of-evil-classic-dhewm3").await;
+    }
+
+    #[tokio::test]
+    async fn native_engine_adoption_2565() {
+        assert_native_engine_adoption_lifecycle(
+            "doom-3-classic-dude-doom-3-unified-development-engine",
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn native_engine_adoption_2566() {
+        assert_native_engine_adoption_lifecycle(
+            "doom-3-resurrection-of-evil-classic-dude-doom-3-unified-development-engine",
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn native_engine_adoption_2592() {
+        assert_native_engine_adoption_lifecycle("medal-of-honor-allied-assault-openmohaa").await;
+    }
+
+    #[tokio::test]
+    async fn native_engine_adoption_2593() {
+        assert_native_engine_adoption_lifecycle(
+            "medal-of-honor-allied-assault-spearhead-openmohaa",
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn native_engine_adoption_2594() {
+        assert_native_engine_adoption_lifecycle(
+            "medal-of-honor-allied-assault-breakthrough-openmohaa",
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn native_engine_adoption_2611() {
+        assert_native_engine_adoption_lifecycle(
+            "star-wars-jedi-knight-ii-jedi-outcast-single-player-openjk-openjo",
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn native_engine_adoption_2612() {
+        assert_native_engine_adoption_lifecycle(
+            "star-wars-jedi-knight-jedi-academy-single-player-and-multiplayer-openjk-openjo",
+        )
+        .await;
     }
 
     #[tokio::test]

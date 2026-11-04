@@ -1,5 +1,115 @@
 # Releasing Portcove
 
+## Upstream-first release integration
+
+The November3 #534 reset retains Tauri NSIS packaging, detached payload verification,
+the authenticated TUF format and the installed updater. Native Actions jobs,
+concurrency, artifact identity, maintained attestations, draft-first immutable
+Releases and Pages handle execution and transfer. The parked storage-writer App
+expansion is unnecessary for this rehearsal; no App is created. Existing production
+custody, accounts, trust anchors, pause and journal remain preserved.
+
+The first connected [run41757452864/1](https://github.com/boburning/portcove/actions/runs/41757452864)
+passed package, provenance, disposable signing, local-feed installed updating and
+complete draft readback at sourceb9651dab. Its elevated Windows Server10.0.26100
+fixture demonstrated staging refusals, recovery, restart, preservation and uninstall
+cleanup. It did not establish ordinary-user/supported-client acceptance, immutable
+publication, public feed continuity or production readiness. Its retained screenshot
+also shows an interface-size confirmation warning. #52 and #246 remain separate.
+
+The first protected [run41778356884/1](https://github.com/boburning/portcove/actions/runs/41778356884)
+at source4d810380 passed package/provenance and the actual queued-duplicate refusal,
+then stopped before any baseline, release or installed execution. Its candidate
+repository exposed swapped Tough delegation arguments: generation2 was used as a
+signature threshold while metadata version stayed1. The corrected caller keeps
+one-key delegation thresholds independent from metadata versions, with actual
+version2/version3 repository consumption and immutable-retry coverage. Original
+failure, unsigned bytes, provenance and protectedr1 history remain retained.
+
+The protected r2 [run41788540335/1](https://github.com/boburning/portcove/actions/runs/41788540335)
+at source7a60432a passed package, provenance, signing, baseline, controlled installed
+updating, independent acceptance and immutable publication. Release433642404,
+`v0.0.0-rehearsal.41788540335.1`, has all15 verified immutable assets. The intended
+post-publication interruption preserved the authenticated empty HTTPS baseline.
+Its failed-only attempt2 stopped before transfer/feed effects: GitHub returned
+successful historical jobs with new IDs and attempt/display fields, but retained
+their original runner, timestamps and steps. Counting both observations duplicated
+about60minutes; actual executed time including the14-second refusal is about61.2.
+The original failures, certificates, signed bytes and baseline remain retained.
+
+The current `upstream-release-rehearsal.yml` is a **fixed public-only diagnostic
+continuation** at `refs/tags/portcove-upstream-rehearsal-20261104r5`. It cannot build
+payloads or predecessors, generate signing keys, write a release or deploy a feed.
+It reuses the exact original r2 artifacts, manifest, acceptance certificate, public
+predecessor, Root, immutable release and already published candidate at
+`rehearsal/41788540335-1/application/`. Original product source7a60432a/producer
+identity remains distinct from the new executor/harness/run/final attestation.
+Historical main/r1/r2/r3/r4 attestations remain readable; execution is protectedr5
+and first-attempt only.
+
+The three serial caps are preflight3/public-installed15/readback5minutes.
+Accounting retains both original native attempts, settled r3 run41806364323/1,
+settled r4 run41811038103/1 and this sole new execution: five fixed observations,
+with every actual failure,
+cancellation and repeat counted under the unchanged cumulative application140
+ceiling. A copied successful row is charged once only with exact prior
+run/source/runner/time/step evidence completed before its authenticated later
+attempt started. Mutable IDs/display names and omitted runner-group fields do
+not establish another execution. Missing or inconsistent evidence refuses.
+The prior three-exposure limit was temporary rehearsal scaffolding, not a new
+owner resource appointment. This finite diagnostic repair adds only one execution;
+it introduces no retry service or automatic redispatch.
+
+The historical observation deadlines09:18:43Z and calibrated09:48:43Z remain in
+receipts. They are harness observation bounds, separate from actual application140
+execution, trust freshness, product deadlines and the historical semantic-owner
+clock. Native job timeouts and a finite read-only observer bound this diagnostic
+run; source repair/review/CI time does not repeatedly patch a UTC literal. No
+reservation, known headroom or paid fallback is inferred from the owner-confirmed
+account$0 Stop usage boundary.
+
+The preflight verifies both original failure boundaries, the settled r3/r4
+recovery successes, r3 feed success, exact native UI failure steps and skipped readbacks. It
+rechecks original certificates, all15 immutable asset bytes and all15 already
+published candidate-feed files. There is no rollback to the old empty baseline
+and no Pages writer, permission or deployment environment in this continuation.
+Only the new executor's exact protected tag/no-bypass rule needs reconciliation;
+existing r3 Pages and catalog deployment policies stay unchanged. Production
+routes stay held. Current404 observations do not explain #246's earlier failure.
+
+The r3 UI check timed out waiting for its fresh Stable caption. Earlier malformed
+payload refusals reached authenticated candidate handling. Its cause was initially
+unproven: failure captures were saved under the disposable lifecycle directory,
+but only the success-copy directory was uploaded. The diagnostic upload now
+retains JSON, PNG, log and HTML from either path even on failure. Assertions,
+UI waits, product behavior, installer bytes and cleanup remain unchanged.
+
+The r4 capture identifies the refusal: an empty local-payload override remains
+present after PowerShell 7.5+ converts `SetEnvironmentVariable(..., $null, ...)`
+to an empty value. Rust correctly observes `Some("")` and refuses the unavailable
+fixture payload. The harness now removes `Env:` entries and asserts all four
+transport overrides absent before public startup and renderer execution. Absent
+preimages are restored by removal too. The inert Windows regression executes the
+actual two clearing blocks with empty/nonempty seeds; it fails before this repair
+and passes afterward without executing an installer or application. The repaired
+harness reuses all original public product bytes and changes no updater behavior.
+
+A fresh Windows job consumes the original attested public predecessor, compiled
+HTTPS metadata and actual immutable GitHub payload through the installed UI. It
+receives no signing/OIDC credential or local feed/payload substitution. A separate
+fresh job inspects its actual source/harness, retained OS handles, settled child
+processes, preservation and uninstall, rechecks the public feed, and attests the
+new summary. This remains a controlled elevated Server fixture. #52's shared and
+ordinary native mechanisms are already accepted through #4003; actual production
+installed-client continuity, default-feature/package/feed/role joins and qualified
+cutover remain unfinished. #246 keeps its separate frozen client and open outcome.
+
+Source review, local fixtures, a disposable recovery or an ordinary merge grants
+no production unpause, private credential import, new App/key custody, account/Task
+activation or announcement. Complete existing-key production joins and retire the
+superseded active machinery only through the qualified replacement and existing
+authority. Preserve old journals, immutable artifacts and failures.
+
 ## Release task order
 
 Use this route for the exact candidate and platforms being claimed. The current
@@ -1202,6 +1312,24 @@ headroom. Each operation must establish its own exact result; no successful
 operation grants availability for a subsequent effect. Source/configuration loss,
 revocation or boundary drift refuses, and unrelated admission holds remain holds.
 
+The selected `initial-beta-windows-x86_64-v1` controller graph declares a
+140-minute application ceiling and a separate 40-minute catalog alternative;
+these purposes are mutually exclusive. The workflow digest, complete allocation
+arrays and policy digest must match the exact appointed source. These ceilings
+are not measured runtime, free-provider headroom or a capacity reservation. The
+Windows owner retains its original 570,000 ms clock; a larger outer job ceiling
+never renews that clock, and late signing still refuses.
+
+Ordinary Windows source appointment covers twelve gates: the two runtime
+preparation entries, hosted bootstrap/runner/session/stage/proof, original
+PowerShell owner and recovery wrappers, the hosted-memory bridge, and the C#
+candidate launcher and candidate recovery helper. The owner verifies both launch
+and recovery availability before account effects. Diagnostic worker, owner,
+bridge, launcher and recovery guards remain separate, as do connected diagnostic
+launch and targeted access audit. A source appointment cannot supply the exact
+setup grant, configuration, producer identities, journal seed, protected job
+context or client trust binding; those are independently verified before effects.
+
 `release-capacity-operation.mts` is an inactive caller-owned library, with no CLI,
 credential discovery, dispatch, upload, signing or publication implementation.
 An already admitted caller provides one exact effect against an existing frozen
@@ -1775,7 +1903,12 @@ ordinary silent-install route performs these checks in a new isolated directory:
 
 Expected executable hashing reproduces Tauri's single fixed bundle-type marker
 substitution from `UNK` to `NSS` in memory; it compares the entire resulting file,
-and reports both raw and bundled hashes. Same-version build replacement is
+and reports both raw and bundled hashes. For a package deliberately produced with
+`tauri bundle --no-binary-patching`, select `-ExpectedBinaryPatching Skipped`
+and supply both `-ExpectedExecutablePath` and its lowercase raw
+`-ExpectedExecutableSha256`. That explicit mode compares the entire unchanged
+file and records the selected handling; the default remains `Applied`.
+Same-version build replacement is
 recorded separately from a future version-number upgrade, signed production
 validation, and interactive shell observations. The harness emits its structured
 result and can retain a phase journal at the explicit `-EvidencePath`; failed

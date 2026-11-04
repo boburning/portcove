@@ -1,5 +1,6 @@
 use crate::{
-    DesktopResult, DesktopState, blocking_async_service, blocking_service, confirm_destructive,
+    DesktopResult, DesktopState, blocking_async_service, blocking_async_service_at_generation,
+    blocking_service, blocking_service_at_generation, confirm_destructive,
 };
 use portcove_core::{
     CatalogStatus, CatalogTrustKey, CatalogUpdatePlan, CatalogUpdateSource, OperationEvent,
@@ -181,6 +182,78 @@ pub(crate) async fn get_listing_delivery_status(
             .listing_delivery_status()
             .map_err(Into::into)
     })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn get_official_catalog_review(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+) -> DesktopResult<portcove_core::OfficialCatalogReview> {
+    blocking_service_at_generation(state.inner().clone(), generation, |service| {
+        service
+            .library()
+            .review_official_catalog()
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn enable_official_catalog(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    expected_plan: String,
+) -> DesktopResult<portcove_core::OfficialCatalogSetup> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service
+            .library()
+            .enable_official_catalog(&expected_plan)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn refresh_official_catalog(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    on_event: tauri::ipc::Channel<OperationEvent>,
+) -> DesktopResult<portcove_core::ListingDeliveryStatus> {
+    blocking_async_service_at_generation(
+        state.inner().clone(),
+        generation,
+        move |service| async move {
+            service
+                .refresh_official_catalog(|event| {
+                    let _ = on_event.send(event);
+                })
+                .await
+                .map_err(Into::into)
+        },
+    )
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn refresh_official_definition(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    on_event: tauri::ipc::Channel<OperationEvent>,
+) -> DesktopResult<portcove_core::DefinitionRefresh> {
+    blocking_async_service_at_generation(
+        state.inner().clone(),
+        generation,
+        move |service| async move {
+            service
+                .refresh_official_definition(&port_id, |event| {
+                    let _ = on_event.send(event);
+                })
+                .await
+                .map_err(Into::into)
+        },
+    )
     .await
 }
 

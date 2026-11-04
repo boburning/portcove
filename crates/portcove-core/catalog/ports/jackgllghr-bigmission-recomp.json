@@ -6,7 +6,7 @@
     "summary": "An experimental PSP Saru Get You: Saru Saru Daisakusen port. Its game profile reports early macOS startup/audio, Linux ARM64 startup and a Windows cross-build. Later root documentation and releases claim broader support and contradict the profile’s no-release/Android-unavailable statements; neither proves Android installation or gameplay. The SaruSaru launcher builds locally from your own Japanese UCJS10060 v1.00 compatible ISO; exact ISO hashes are unconfirmed. Source preparation needs CMake, Ninja, Python and a compiler, and PSPRecomp does not supply decryption. An optional interpreter handles code outside translated coverage. macOS ARM64, Linux x86-64/ARM64, Windows x86-64 and Android ARM64 launcher/build routes are documented, with their evidence differences unresolved. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Saru Get You: Saru Saru Daisakusen",
     "project_url": "https://github.com/jackgllghr/bigmission-recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/jackgllghr/bigmission-recomp",
     "issue_number": 2805,

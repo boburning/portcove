@@ -1,8 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import {
   inspectReleaseSourceAttestation,
+  verifyReleaseSourceAttestation,
   releaseProcessPredicate,
+  upstreamRehearsalExecutionRef,
 } from "./release-source-attestation.mts";
 
 const expected = {
@@ -52,6 +57,32 @@ void test("source report parser binds complete exact subjects and workflow/sourc
     /ambiguous/,
   );
 });
+
+void test("rehearsal retries select one explicitly expected authenticated attempt without accepting duplicate identity", () => {
+  const identity = { ...expected, ref: upstreamRehearsalExecutionRef };
+  const wanted = fixture();
+  const cert = wanted[0]!.verificationResult.signature.certificate;
+  cert.sourceRepositoryRef = identity.ref;
+  cert.buildSignerURI = `https://github.com/boburning/portcove/.github/workflows/upstream-release-rehearsal.yml@${identity.ref}`;
+  const previous = structuredClone(wanted);
+  previous[0]!.verificationResult.signature.certificate.runInvocationURI =
+    "https://github.com/boburning/portcove/actions/runs/12345/attempts/1";
+  const selected = inspectReleaseSourceAttestation(
+    [...previous, ...wanted],
+    identity,
+    "upstream-rehearsal",
+  );
+  assert.equal(selected.certificate.runInvocationURI, cert.runInvocationURI);
+  assert.equal(selected.authority, "none");
+  assert.throws(
+    () => inspectReleaseSourceAttestation([...wanted, ...wanted], identity, "upstream-rehearsal"),
+    /ambiguous/u,
+  );
+  assert.throws(
+    () => inspectReleaseSourceAttestation([...previous, ...wanted], identity),
+    /ambiguous/u,
+  );
+});
 void test("wrong issuer/ref/workflow/source/attempt, missing timestamps and changed/extra/omitted subject refuse", () => {
   for (const [key, value] of [
     ["issuer", "https://wrong.invalid"],
@@ -89,4 +120,86 @@ void test("wrong issuer/ref/workflow/source/attempt, missing timestamps and chan
     change(raw);
     assert.throws(() => inspectReleaseSourceAttestation(raw, expected));
   }
+});
+void test("rehearsal scope authenticates only its fixed workflow and does not broaden release identity", () => {
+  const raw = fixture();
+  const rehearsal = { ...expected, ref: "refs/heads/main" };
+  const cert = raw[0]!.verificationResult.signature.certificate;
+  cert.sourceRepositoryRef = rehearsal.ref;
+  cert.buildSignerURI =
+    "https://github.com/boburning/portcove/.github/workflows/upstream-release-rehearsal.yml@refs/heads/main";
+  assert.equal(
+    inspectReleaseSourceAttestation(raw, rehearsal, "upstream-rehearsal").authority,
+    "none",
+  );
+  assert.throws(() => inspectReleaseSourceAttestation(raw, rehearsal), /differs/);
+  assert.throws(
+    () => inspectReleaseSourceAttestation(fixture(), expected, "upstream-rehearsal"),
+    /differs/,
+  );
+  cert.runInvocationURI = "https://github.com/boburning/portcove/actions/runs/12345/attempts/1";
+  assert.throws(
+    () => inspectReleaseSourceAttestation(raw, rehearsal, "upstream-rehearsal"),
+    /differs/,
+  );
+});
+
+void test("historical rehearsal attestations remain readable without allowing an arbitrary ref", async () => {
+  for (const ref of [
+    "refs/heads/main",
+    "refs/tags/portcove-upstream-rehearsal-20261104r1",
+    "refs/tags/portcove-upstream-rehearsal-20261104r2",
+    upstreamRehearsalExecutionRef,
+  ]) {
+    const directory = await mkdtemp(path.join(tmpdir(), "portcove-rehearsal-history-"));
+    try {
+      const identity = { ...expected, ref };
+      const raw = fixture();
+      raw[0]!.verificationResult.signature.certificate.sourceRepositoryRef = ref;
+      raw[0]!.verificationResult.signature.certificate.buildSignerURI = `https://github.com/boburning/portcove/.github/workflows/upstream-release-rehearsal.yml@${ref}`;
+      const result = await verifyReleaseSourceAttestation(
+        directory,
+        identity.subjects[0]!.filename,
+        identity,
+        {
+          scope: "upstream-rehearsal",
+          spawn: (command, args) => {
+            assert.equal(command, "gh");
+            assert.equal(args[args.indexOf("--source-ref") + 1], ref);
+            const stdout = JSON.stringify(raw);
+            return {
+              pid: 1,
+              output: [null, stdout, ""],
+              stdout,
+              stderr: "",
+              status: 0,
+              signal: null,
+            };
+          },
+        },
+      );
+      assert.equal(result.evidence_scope, "injected-provider");
+      assert.equal(result.authority, "none");
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  }
+  let called = false;
+  await assert.rejects(
+    () =>
+      verifyReleaseSourceAttestation(
+        ".",
+        "fixture.json",
+        { ...expected, ref: "refs/tags/portcove-upstream-rehearsal-20261104r999" },
+        {
+          scope: "upstream-rehearsal",
+          spawn: () => {
+            called = true;
+            throw new Error("unexpected provider invocation");
+          },
+        },
+      ),
+    /identities unavailable/u,
+  );
+  assert.equal(called, false);
 });

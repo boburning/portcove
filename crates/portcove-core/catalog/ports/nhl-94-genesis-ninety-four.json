@@ -6,7 +6,7 @@
     "summary": "Attach an independently permitted, prepared Ninety Four Windows player using your own retail NHL ’94 US/Europe Genesis ROM. Preserve its working-directory settings, cartridge saves, states and roster data; online sessions and modified rosters retain separate compatibility requirements.",
     "original_game_title": "NHL '94 (Genesis)",
     "project_url": "https://github.com/1nputs/ninety-four",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/1nputs/ninety-four",
     "artwork": {

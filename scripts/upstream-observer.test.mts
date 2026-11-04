@@ -10,8 +10,16 @@ import {
   githubDirectPin,
   observeUpstream,
   validateObserverConfig,
+  compactObserverCache,
+  reusableProviderObservation,
+  validateObservationContinuation,
 } from "./upstream-observer.mts";
-import { advanceObservation, withCheckpointLock } from "./observe-configured-upstream.mts";
+import {
+  advanceObservation,
+  withCheckpointLock,
+  compactObserverCheckpoint,
+  observerCheckpointByteLimit,
+} from "./observe-configured-upstream.mts";
 import { validateHealthAccountingPolicy } from "./check-catalog-repositories.mts";
 import {
   healthArtifactHash,
@@ -194,6 +202,236 @@ void test("records exact release and asset facts, conditional cache and changed 
   assert.notEqual(changed.observation.facts_sha256, replaced.observation.facts_sha256);
 });
 
+function legacyFixtureCheckpoint<T>(checkpoint: T, server: ReturnType<typeof fixture>): T {
+  const raw = structuredClone(checkpoint);
+  assert.ok(isRecord(raw));
+  const complete = isRecord(raw.last_complete) ? raw.last_complete : null;
+  for (const holder of [complete?.cache, raw.continuation]) {
+    if (!isRecord(holder) || !isRecord(holder.pages)) continue;
+    for (const [url, page] of Object.entries(holder.pages)) {
+      assert.ok(isRecord(page));
+      const body = structuredClone(server.replies.get(url).body);
+      assert.equal(page.sha256, observationHash(body));
+      page.body = body;
+      delete page.representation;
+      delete page.facts_sha256;
+    }
+  }
+  return raw;
+}
+
+void test("fact-page migration resumes mid-validation with original identities, ordering and clocks", async () => {
+  const server = fixture();
+  objectFixture(server.replies.get(root).body).description = "unused repository prose";
+  objectFixture(
+    arrayFixture(server.replies.get(`${root}/releases?per_page=100&page=1`).body)[0],
+  ).body = "unused release prose";
+  objectFixture(
+    arrayFixture(server.replies.get(`${root}/releases/1/assets?per_page=100&page=1`).body)[0],
+  ).uploader = { login: "unused" };
+  let requests = 0;
+  const partial = await advanceObservation(config, null, {
+    fetch: server.fetch,
+    project,
+    now: () => Date.parse(time),
+    admitRequest: () => {
+      if (++requests > 4) throw new ObservationFailure("budget", "bounded fixture batch");
+    },
+  });
+  const raw = legacyFixtureCheckpoint(partial.checkpoint, server);
+  assert.equal(raw.continuation?.phase, "validate");
+  assert.equal(raw.continuation?.validation_cursor, 1);
+  const before = structuredClone(raw);
+  const projected = compactObserverCheckpoint(raw, config)!;
+  assert.deepEqual(raw, before, "migration never mutates the retained input");
+  const { pages: oldPages, ...oldPosition } = raw.continuation;
+  const { pages: newPages, ...newPosition } = projected.continuation!;
+  assert.deepEqual(newPosition, oldPosition);
+  assert.deepEqual(Object.keys(newPages), Object.keys(oldPages));
+  for (const [url, page] of Object.entries(newPages)) {
+    assert.equal(page.sha256, oldPages[url]!.sha256);
+    assert.equal(page.etag, oldPages[url]!.etag);
+    assert.equal(page.link, oldPages[url]!.link);
+    assert.equal(page.facts_sha256, observationHash(page.body));
+  }
+  assert.ok(JSON.stringify(projected).length < JSON.stringify(raw).length + 512);
+  const next = await advanceObservation(config, projected, {
+    fetch: server.fetch,
+    project,
+    now: () => Date.parse(time) + 1000,
+  });
+  const legacyNext = await advanceObservation(config, raw, {
+    fetch: server.fetch,
+    project,
+    now: () => Date.parse(time) + 1000,
+  });
+  assert.equal(next.report.transition, "initial-baseline");
+  assert.equal(objectFixture(next.report.observation?.batch_consumed).requests, 2);
+  assert.equal(objectFixture(next.report.observation?.batch_consumed).conditional_hits, 2);
+  assert.deepEqual(next.checkpoint, legacyNext.checkpoint);
+  assert.equal(next.checkpoint.last_complete?.observation.started_at, raw.continuation.started_at);
+  assert.equal(
+    next.checkpoint.last_complete?.observation.validation_started_at,
+    raw.continuation.first_validated_at,
+  );
+});
+
+void test("mixed raw/projected proofs retain original hashes without granting them fact authority", async () => {
+  const server = fixture();
+  objectFixture(server.replies.get(root).body).description = "historical raw provenance";
+  const complete = await advanceObservation(config, null, {
+    fetch: server.fetch,
+    project,
+    now: () => Date.parse(time),
+  });
+  const raw = legacyFixtureCheckpoint(complete.checkpoint, server);
+  const projected = compactObserverCheckpoint(raw, config)!;
+  const cache = projected.last_complete!.cache;
+  assert.ok(isRecord(cache) && isRecord(cache.pages));
+  const pages = structuredClone(cache.pages);
+  const rootPage = objectFixture(pages[root]);
+  const pending = {
+    format: 1,
+    config_sha256: observationHash(config),
+    started_at: time,
+    phase: "collect",
+    pages,
+    validation_cursor: 0,
+    first_validated_at: null,
+    last_validated_at: null,
+    validation_order_sha256: null,
+    consumed: { requests: 0, response_bytes: 0, conditional_hits: 0 },
+  };
+  assert.ok(
+    reusableProviderObservation(
+      config,
+      projected.last_complete!.observation,
+      raw.last_complete!.cache,
+      pending,
+      Date.parse(time) + 1000,
+    ),
+  );
+  objectFixture(rootPage.body).archived = true;
+  rootPage.facts_sha256 = observationHash(rootPage.body);
+  validateObservationContinuation(pending, config);
+  assert.equal(
+    reusableProviderObservation(
+      config,
+      projected.last_complete!.observation,
+      cache,
+      pending,
+      Date.parse(time) + 1000,
+    ),
+    null,
+  );
+  assert.equal(
+    rootPage.sha256,
+    objectFixture(cache.pages[root]).sha256,
+    "historical hash intentionally unchanged",
+  );
+  const unchanged = await advanceObservation(config, projected, {
+    project,
+    now: () => Date.parse(time) + 1000,
+    reprojectFreshFacts: true,
+    fetch: async () => assert.fail("fresh complete projected proof should reuse original clocks"),
+  });
+  assert.equal(
+    unchanged.report.observation?.completed_at,
+    projected.last_complete!.observation.completed_at,
+  );
+});
+
+void test("null-cache migration preserves fresh-read fallback and never invents an empty proof", async () => {
+  const server = fixture();
+  const first = await advanceObservation(config, null, { fetch: server.fetch, project });
+  first.checkpoint.last_complete!.cache = null;
+  const migrated = compactObserverCheckpoint(first.checkpoint, config)!;
+  assert.equal(migrated.last_complete!.cache, null);
+  const requests = server.requests.length;
+  const next = await advanceObservation(config, migrated, {
+    fetch: server.fetch,
+    project,
+    reprojectFreshFacts: true,
+  });
+  assert.equal(next.report.transition, "unchanged");
+  assert.equal(server.requests.length - requests, 6);
+  assert.throws(() => compactObserverCache(false, config), /cache is not an object/);
+});
+
+void test("projected pages refuse altered facts, unsupported schemas and missing asset context", async () => {
+  const server = fixture();
+  const first = await advanceObservation(config, null, { fetch: server.fetch, project });
+  const cache = first.checkpoint.last_complete!.cache;
+  assert.ok(isRecord(cache) && isRecord(cache.pages));
+  for (const change of [
+    (page: Record<string, unknown>) => {
+      page.representation = "observer-facts-v2";
+    },
+    (page: Record<string, unknown>) => {
+      page.facts_sha256 = "0".repeat(64);
+    },
+    (page: Record<string, unknown>) => {
+      objectFixture(page.body).archived = true;
+    },
+    (page: Record<string, unknown>) => {
+      objectFixture(page.body).unused = "cannot extend the fixed fact schema";
+      page.facts_sha256 = observationHash(page.body);
+    },
+  ]) {
+    const corrupt = structuredClone(cache);
+    change(objectFixture(objectFixture(corrupt.pages)[root]));
+    assert.throws(
+      () => compactObserverCache(corrupt, config),
+      /projected page facts or schema differ/,
+    );
+  }
+  const missing = structuredClone(cache);
+  delete objectFixture(missing.pages)[`${root}/releases?per_page=100&page=1`];
+  assert.throws(() => compactObserverCache(missing, config), /asset release context differs/);
+  const raw = legacyFixtureCheckpoint(first.checkpoint, server);
+  const bad = objectFixture(objectFixture(raw.last_complete!.cache).pages);
+  objectFixture(bad[root]).sha256 = "0".repeat(64);
+  assert.throws(() => compactObserverCheckpoint(raw, config), /continued page digest differs/);
+});
+
+void test("tiny fact projections cannot admit oversized raw responses or source checkpoints", async () => {
+  const server = fixture();
+  objectFixture(server.replies.get(root).body).description = "x".repeat(5000);
+  let charged = 0;
+  await assert.rejects(
+    observeUpstream(
+      { ...config, budget: { ...config.budget, response_bytes: 1024 } },
+      {
+        fetch: server.fetch,
+        consumeResponseBytes: (bytes) => {
+          charged += bytes ?? 0;
+        },
+      },
+    ),
+    (error: unknown) => error instanceof ObservationFailure && error.rule === "budget",
+  );
+  assert.ok(charged > 1024);
+  const first = await advanceObservation(config, null, { fetch: server.fetch, project });
+  const raw = legacyFixtureCheckpoint(first.checkpoint, server);
+  raw.last_complete!.observation.unused = "x".repeat(observerCheckpointByteLimit);
+  assert.throws(() => compactObserverCheckpoint(raw, config), /raw source exceeds/);
+  const minimal = fixture();
+  const complete = await advanceObservation(config, null, { fetch: minimal.fetch, project });
+  const nearlyFull = legacyFixtureCheckpoint(complete.checkpoint, minimal);
+  nearlyFull.last_complete!.observation.padding = "";
+  nearlyFull.last_complete!.observation.padding = "x".repeat(
+    observerCheckpointByteLimit - Buffer.byteLength(JSON.stringify(nearlyFull)) - 16,
+  );
+  assert.ok(Buffer.byteLength(JSON.stringify(nearlyFull)) < observerCheckpointByteLimit);
+  await assert.rejects(
+    advanceObservation(config, nearlyFull, {
+      fetch: async () => assert.fail("unwritable migrated checkpoint reached the provider"),
+      project: async () => assert.fail("unwritable migrated checkpoint reached Core"),
+    }),
+    /projected source exceeds checkpoint write envelope/,
+  );
+});
+
 void test("traverses complete asset pagination and rejects partial, repeated or escaped pages", async () => {
   const server = fixture();
   const page = `${root}/releases/1/assets?per_page=100&page=1`;
@@ -270,7 +508,11 @@ void test("unrelated GitHub counters do not invalidate exact observed release fa
   });
   const result = await observeUpstream(config, { fetch: changing.fetch });
   assert.equal(result.observation.facts_sha256, baseline.observation.facts_sha256);
-  assert.equal(objectFixture(requiredFixture(result.cache.pages[root]).body).stargazers_count, 123);
+  const page = requiredFixture(result.cache.pages[root]);
+  assert.equal(objectFixture(page.body).stargazers_count, undefined);
+  assert.equal(page.representation, "observer-facts-v1");
+  assert.equal(page.sha256, observationHash(changing.replies.get(root).body));
+  assert.equal(page.facts_sha256, observationHash(page.body));
   const changedAsset = fixture({
     intercept: (_url, _options, count, replies) => {
       if (count === 4)
@@ -874,6 +1116,60 @@ void test("continued facts refuse changed input bindings, corrupted pages and ch
   });
   assert.equal(refused.report.observation, null);
   assert.equal(refused.report.exception?.rule, "repository-identity");
+});
+
+void test("a repaired restart can conditionally replace old complete assets after a release tag changes", async () => {
+  const server = fixture();
+  const assetFor = (releaseId: number, assetId = releaseId, tag = `v${releaseId}.0.0`) => {
+    const value = asset(assetId);
+    value.browser_download_url = value.browser_download_url.replace("v1.0.0", tag);
+    return value;
+  };
+  server.replies.get(`${root}/releases?per_page=100&page=1`).body = [
+    release(1),
+    release(2),
+    release(3),
+  ];
+  for (const id of [1, 2, 3])
+    server.replies.set(`${root}/releases/${id}/assets?per_page=100&page=1`, {
+      body: [assetFor(id)],
+    });
+  const baseline = await advanceObservation(config, null, { fetch: server.fetch, project });
+  server.replies.get(`${root}/releases?per_page=100&page=1`).body = [
+    release(1),
+    release(2),
+    release(3, { tag_name: "v3.1.0" }),
+  ];
+  server.replies.get(`${root}/releases/2/assets?per_page=100&page=1`).body = [assetFor(2, 1)];
+  server.replies.get(`${root}/releases/3/assets?per_page=100&page=1`).body = [
+    assetFor(3, 3, "v3.1.0"),
+  ];
+  const failed = await advanceObservation(config, baseline.checkpoint, {
+    fetch: server.fetch,
+    project,
+  });
+  assert.equal(failed.report.continuation?.phase, "restart");
+  assert.equal(failed.report.exception?.rule, "invalid-metadata");
+  server.replies.get(`${root}/releases/2/assets?per_page=100&page=1`).body = [assetFor(2)];
+  const before = server.requests.length;
+  const recovered = await advanceObservation(config, failed.checkpoint, {
+    fetch: server.fetch,
+    project,
+  });
+  assert.equal(recovered.report.transition, "changed");
+  assert.equal(recovered.report.exception, null);
+  assert.ok(
+    server.requests
+      .slice(before)
+      .some(
+        (request) =>
+          request.url.includes("/releases/3/assets?") && request.options.headers["If-None-Match"],
+      ),
+  );
+  assert.notEqual(
+    recovered.report.observation?.facts_sha256,
+    baseline.report.observation?.facts_sha256,
+  );
 });
 
 void test("global duplicate identities restart retained pages and can observe a provider repair", async () => {

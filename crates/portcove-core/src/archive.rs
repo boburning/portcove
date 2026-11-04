@@ -9,6 +9,8 @@ use flate2::read::GzDecoder;
 
 use crate::{PortcoveError, Result};
 
+pub(crate) mod sevenz;
+
 const MAX_COMPRESSED_BYTES: u64 = 8 * 1024 * 1024 * 1024;
 const MAX_EXPANDED_BYTES: u64 = 16 * 1024 * 1024 * 1024;
 const MAX_ENTRY_BYTES: u64 = 8 * 1024 * 1024 * 1024;
@@ -112,6 +114,30 @@ pub(crate) fn extract_archive_with_checkpoint(
         Err(PortcoveError::unsupported(format!(
             "unsupported archive format: {asset_name}"
         )))
+    }
+}
+
+/// Generic downloaded setup owns the additive format capability. Managed
+/// extraction retains its existing formats until catalog reader fencing exists.
+pub(crate) fn extract_download_archive_with_checkpoint(
+    source: &Path,
+    destination: &Path,
+    asset_name: &str,
+    expected_compressed_size: u64,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<()> {
+    if asset_name.to_ascii_lowercase().ends_with(".7z") {
+        checkpoint()?;
+        let compressed_size = validate_compressed_size(source, expected_compressed_size)?;
+        sevenz::extract(source, destination, compressed_size, checkpoint)
+    } else {
+        extract_archive_with_checkpoint(
+            source,
+            destination,
+            asset_name,
+            expected_compressed_size,
+            checkpoint,
+        )
     }
 }
 

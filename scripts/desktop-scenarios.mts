@@ -132,6 +132,17 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     },
   ),
   scenario(
+    "native-registered-source-reuse",
+    "Real original registration, alternative integration setup and same-content repair preserve saved identities.",
+    {
+      prerequisites: ["desktop", "owned-fixture", "native-dialog"],
+      host_resources: [...nativeResources, "native-dialog"],
+      source: "desktop-source-reuse-test.mts",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
     "native-real-prepared-runtime",
     "Two reviewed real prepared runtimes use normal Desktop registration, launch and registration-only removal.",
     {
@@ -864,6 +875,13 @@ export function resolveDesktopSelection({
     (uniqueRequested.length !== 1 || platform !== "win32")
   )
     throw new Error("native-real-prepared-runtime requires one exact standalone Windows scenario");
+  if (
+    uniqueRequested.includes("native-registered-source-reuse") &&
+    (uniqueRequested.length !== 1 || platform !== "win32")
+  )
+    throw new Error(
+      "native-registered-source-reuse requires one exact standalone Windows scenario",
+    );
   if (uniqueRequested.includes("native-external-runtime-review") && platform !== "win32")
     throw new Error("native-external-runtime-review requires Windows");
   if (
@@ -948,6 +966,11 @@ export type DesktopSelection = ReturnType<typeof resolveDesktopSelection>;
 export function desktopHarnessDeadlineMs(
   selection: Pick<DesktopSelection, "selected_scenarios" | "setup_scenarios">,
 ) {
+  // Real saved-folder checks plus three bounded input pickers, two library
+  // handoffs and positive custody. Product/cancellation deadlines are unchanged.
+  if (selection.selected_scenarios.includes("native-saved-folder-selected-setup")) return 600_000;
+  // Two ordinary downloads/setups, real launches, file repair and positive exit joins.
+  if (selection.selected_scenarios.includes("native-registered-source-reuse")) return 1_200_000;
   if (selection.selected_scenarios.includes("native-game-first-installed-mm"))
     return gameFirstMMHarnessDeadlineMs;
   // Picori generates thousands of retained assets. Allow two finite 30-minute

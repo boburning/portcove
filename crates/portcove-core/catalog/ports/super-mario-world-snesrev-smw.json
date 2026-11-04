@@ -28,19 +28,23 @@
           "instruction": "Use the upstream v0.1 Windows package in a separate writable folder with its matching smw_assets.bps, smw.ini and SDL2.dll; place only your matching original copy named smw.sfc beside smw.exe. Alternatively finish the upstream-supported source build and matching smw_assets.dat extraction. Finish normal upstream setup successfully before registration; do not select extract_assets.bat, run_with_tcc.bat or another compiler/helper as the player. Use the selected player’s containing folder as working directory and keep the already working literal arguments; do not invent shell commands."
         },
         {
-          "title": "Keep the game version and data you use",
-          "instruction": "Preserve the complete working player folder, smw.ini and saves tree, including title-specific SRAM, backup, snapshots, playthrough and mismatch evidence. Keep the creating runtime with every existing state. The upstream RAM comparison and replay features do not prove compatibility between builds or with another SNES runtime; do not transplant retained state."
-        },
-        {
           "title": "Register the existing player and use explicit Play",
           "instruction": "You manage this external game and all its original files and saved data. Portcove saves the executable, working folder and launch arguments you select; it does not authenticate the complete package or original game files. Choose Play explicitly when you are ready. Removing the registration leaves external files in place. Portcove does not offer updates, backups, rollback, data migration or external-file deletion for this copy. Finish setup with the project’s tools and add only a working game. These instructions do not confirm successful setup, gameplay or save-state compatibility."
         }
       ],
       "warnings": [
         "Add your prepared game to Portcove, then choose Play separately. These instructions do not establish Portcove-managed installation, the authenticity of original game files, gameplay or save-state compatibility.",
-        "New managed ROM extraction/build and retained state compatibility remain #136 scope. This guide offers the existing prepared player only, without admitting arbitrary ROMs or creating a per-title extraction substitute."
+        "New managed ROM extraction/build and retained state compatibility remain #136 scope. This guide offers the existing prepared player only, without admitting arbitrary ROMs or creating a per-title extraction substitute.",
+        "Preserve the complete working player folder, smw.ini and saves tree, including title-specific SRAM, backup, snapshots, playthrough and mismatch evidence. Keep the creating runtime with every existing state.",
+        "The upstream RAM comparison and replay features do not prove compatibility between builds or with another SNES runtime; do not transplant retained state."
       ],
-      "help_url": "https://github.com/snesrev/smw/releases/tag/v0.1"
+      "help_url": "https://github.com/snesrev/smw/releases/tag/v0.1",
+      "references": [
+        {
+          "title": "Keep the game version and data you use",
+          "instruction": "Preserve the complete working player folder, smw.ini and saves tree, including title-specific SRAM, backup, snapshots, playthrough and mismatch evidence. Keep the creating runtime with every existing state. The upstream RAM comparison and replay features do not prove compatibility between builds or with another SNES runtime; do not transplant retained state."
+        }
+      ]
     },
     "original_game_title": "Super Mario World"
   },

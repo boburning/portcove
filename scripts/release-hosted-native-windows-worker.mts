@@ -32,7 +32,7 @@ import {
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const digest = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
-export const hostedWindowsStageExecutionAuthorized = false;
+export const hostedWindowsStageExecutionAuthorized = true;
 export const hostedWindowsDiagnosticStageExecutionAuthorized = false;
 export function readHostedWindowsWorkerAbi() {
   return {

@@ -101,13 +101,17 @@ it.each(["dark", "light"])(
     await userEvent.keyboard("{Escape}");
     await userEvent.click(page.getByRole("button", { name: "Done", exact: true }));
     await expect
-      .element(page.getByRole("button", { name: "Remove Stable filter", exact: true }))
+      .element(
+        page.getByRole("button", { name: "Remove Update channels: Stable filter", exact: true }),
+      )
       .toBeVisible();
     await userEvent.click(page.getByRole("button", { name: "Filters (1)", exact: true }));
     await userEvent.click(page.getByRole("button", { name: "Clear filters", exact: true }));
     await userEvent.click(page.getByRole("button", { name: "Done", exact: true }));
     await expect
-      .element(page.getByRole("button", { name: "Remove Stable filter", exact: true }))
+      .element(
+        page.getByRole("button", { name: "Remove Update channels: Stable filter", exact: true }),
+      )
       .not.toBeInTheDocument();
     await expect
       .element(page.getByRole("button", { name: "Favorites (1)", exact: true }))

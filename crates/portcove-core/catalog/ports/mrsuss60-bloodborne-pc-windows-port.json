@@ -6,7 +6,7 @@
     "summary": "Explore Bloodborne / bloodborne_pc_windows_port (Mrsuss60) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/Mrsuss60/bloodborne_pc_windows_port",
     "issue_number": 1798,
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Mrsuss60/bloodborne_pc_windows_port",
     "artwork": {

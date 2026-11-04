@@ -735,8 +735,10 @@ void test("fixture module closure edits retain all independent policy and constr
     "scripts/precommit-check.test.mts",
     "scripts/production-aggregate-steps.test.mts",
     "scripts/release-control-inputs.test.mts",
+    "scripts/release-controller-tools.test.mts",
     "scripts/release-windows-webview-driver.test.mts",
     "scripts/renovate-engine-probe.test.mts",
+    "scripts/repository-settings.test.mts",
   ];
   const root = fileURLToPath(new URL("../", import.meta.url));
   const importers = readdirSync(path.join(root, "scripts"))
@@ -1486,6 +1488,23 @@ void test("native review presentation entrypoints select behavior and receipt co
       assert.ok(ids(plan).includes("rust-workspace-tests"));
       assert.ok(!plan.map(formatCommand).join("\n").includes("desktop-test"));
     }
+});
+
+void test("native input-boundary helper owns executed fixture and receipt validation", () => {
+  for (const status of ["A", "M", "D"]) {
+    const { selection, plan } = planFor([
+      { status, path: "apps/desktop/scripts/desktop-source-intake-boundaries-test.mts" },
+    ]);
+    for (const file of [
+      "scripts/desktop-execution-plan.test.mts",
+      "scripts/desktop-scenarios.test.mts",
+      "scripts/desktop-boundary-wiring.test.mts",
+      "scripts/fixture-module-closure.test.mts",
+    ])
+      assert.ok(selection.nodeTests.has(file));
+    assert.ok(ids(plan).includes("node-tests"));
+    assert.ok(!plan.map(formatCommand).join("\n").includes("desktop-test"));
+  }
 });
 
 void test("selected local resource scope follows actual commands and mixed or unknown work is conservative", () => {
@@ -4443,5 +4462,64 @@ void test("POSIX qualification identity module retains its public caller tests o
       1,
       variant,
     );
+  }
+});
+
+void test("GitHub dependency changes select actual SDK and REST integration contracts", () => {
+  for (const file of [
+    "package.json",
+    "pnpm-lock.yaml",
+    "scripts/github-client.mts",
+    "scripts/github-cli.mts",
+    "scripts/github-rest-inventory.mts",
+  ]) {
+    const selected = classifyChanges([{ status: "M", path: file }], { fileExists: () => false });
+    assert.ok(selected.nodeTests.has("scripts/github-client.test.mts"), file);
+    assert.ok(selected.nodeTests.has("scripts/roadmap-rest-intake.test.mts"), file);
+  }
+  for (const name of ["ci-health", "handoff-evidence", "postmerge-ci"]) {
+    const file = `scripts/${name}.mts`;
+    const selected = classifyChanges([{ status: "M", path: file }], { fileExists: () => false });
+    assert.ok(selected.nodeTests.has("scripts/github-client.test.mts"), file);
+    assert.ok(selected.nodeTests.has(`scripts/${name}.test.mts`), file);
+    assert.ok(existsSync(new URL(`../scripts/${name}.test.mts`, import.meta.url)));
+  }
+  const aqua = classifyChanges([{ status: "M", path: "scripts/aqua-integrity.mts" }], {
+    fileExists: () => false,
+  });
+  for (const file of ["scripts/quality-tools.test.mts", "scripts/recovery-tools.test.mts"]) {
+    assert.ok(aqua.nodeTests.has(file), file);
+    assert.ok(existsSync(new URL(`../${file}`, import.meta.url)));
+  }
+  assert.ok(!aqua.nodeTests.has("scripts/aqua-integrity.test.mts"));
+  const settings = classifyChanges(
+    [{ status: "M", path: "scripts/repository-settings-policy.mts" }],
+    { fileExists: () => false },
+  );
+  assert.ok(settings.nodeTests.has("scripts/repository-settings.test.mts"));
+  const settingsCommand = classifyChanges(
+    [{ status: "M", path: "scripts/repository-settings.mts" }],
+    { fileExists: () => false },
+  );
+  assert.ok(settingsCommand.nodeTests.has("scripts/repository-settings.test.mts"));
+  assert.ok(settingsCommand.nodeTests.has("scripts/github-client.test.mts"));
+});
+
+void test("retained GitHub CLI and attestation changes select their actual guarded consumers", () => {
+  const expected = [
+    "release-controller-tools",
+    "release-coordinator-checkpoint-authentication",
+    "release-signing-context-artifact",
+    "release-publication-result-artifact",
+    "release-tuf-role-artifact",
+    "release-hosted-native-acceptance",
+  ];
+  for (const file of ["scripts/github-cli.mts", "scripts/github-controller-attestation.mts"]) {
+    const selected = classifyChanges([{ status: "M", path: file }], { fileExists: () => false });
+    for (const name of expected) {
+      const test = `scripts/${name}.test.mts`;
+      assert.ok(existsSync(new URL(`../${test}`, import.meta.url)));
+      assert.ok(selected.nodeTests.has(test), `${file} -> ${test}`);
+    }
   }
 });

@@ -335,7 +335,12 @@ void test("execution planning preserves the independently reviewed pre-change or
         });
         assert.deepEqual(selection.selected_scenarios, row.options.scenarios);
         assert.deepEqual(selection.setup_scenarios, []);
-        assert.equal(desktopHarnessDeadlineMs(selection), 180_000);
+        // Saved-folder intake adds three picker reviews and two library handoffs.
+        // Keep the original oracle immutable and the ordinary completion budget intact.
+        assert.equal(
+          desktopHarnessDeadlineMs(selection),
+          row.options.scenarios[0] === "native-saved-folder-selected-setup" ? 600_000 : 180_000,
+        );
         const plan = planDesktopExecution(selection, { platform: baselinePlatform(row.platform) });
         assert.ok(plan.build.cliFeatures.includes("portcove-core/qualification-fixtures"));
         continue;
@@ -383,6 +388,7 @@ void test("execution planning preserves the independently reviewed pre-change or
             "native-late-listener-disposal",
             "native-host-publication-recovery",
             "native-real-prepared-runtime",
+            "native-registered-source-reuse",
             "native-linux-interrupted-preparation",
             "native-rejected-listener-registration",
             "native-interface-size",
@@ -401,6 +407,8 @@ void test("execution planning preserves the independently reviewed pre-change or
     assert.ok(selection.excluded_scenarios.includes("native-saved-folder-hash-resume"));
     assert.ok(!selection.selected_scenarios.includes("native-update-acquisition-lifecycle"));
     assert.ok(selection.excluded_scenarios.includes("native-update-acquisition-lifecycle"));
+    assert.ok(!selection.selected_scenarios.includes("native-registered-source-reuse"));
+    assert.ok(selection.excluded_scenarios.includes("native-registered-source-reuse"));
     assert.ok(!selection.selected_scenarios.includes("native-game-first-choice-and-restart"));
     assert.ok(selection.excluded_scenarios.includes("native-game-first-choice-and-restart"));
     // Keep the frozen oracle bytes. Local artwork now explicitly receives the
@@ -502,6 +510,15 @@ void test("execution planning preserves the independently reviewed pre-change or
       ) {
         expectedSession.identityBoundSession = true;
         expectedSession.cleanupName = "backup-review";
+      }
+      // Native input-boundary checks intentionally extend this Windows journey;
+      // keep its historical oracle and require the existing positive-exit owner.
+      if (
+        row.platform === "win32" &&
+        selection.selected_scenarios.includes("native-saved-folder-selected-setup")
+      ) {
+        expectedSession.identityBoundSession = true;
+        expectedSession.cleanupName = "saved-folder-selected-setup";
       }
       // The retained oracle stays immutable; #244 deliberately adds positive
       // owned exit proof to the completion journey through the existing owner.
@@ -689,8 +706,18 @@ void test("selected setup completion requires identity-bound positive exit evide
       scenarios: ["native-saved-folder-selected-setup"],
       platform: "win32",
     }),
+    { platform: "win32" },
   );
-  assert.equal(discovery.session.identityBoundSession, false);
+  assert.equal(discovery.session.identityBoundSession, true);
+  assert.equal(discovery.session.cleanupName, "saved-folder-selected-setup");
+  assert.equal(desktopHarnessDeadlineMs(discovery.selection), 600_000);
+  assert.ok(
+    discovery.receiptInputs.some(
+      (input) =>
+        input.kind === "file" &&
+        input.path === "apps/desktop/scripts/desktop-source-intake-boundaries-test.mts",
+    ),
+  );
 });
 
 void test("preliminary review is isolated and retains positive cleanup without setup execution", () => {
@@ -956,6 +983,7 @@ void test("coordinator consumes supplied order and obtains browser at each invoc
       browser = "replacement";
     },
     selectedSetup: async (c) => {
+      assert.equal(typeof c.confirmNative, "function");
       assert.equal(c.browser, "replacement");
       trace.push("selected-setup");
     },
@@ -981,7 +1009,7 @@ void test("coordinator consumes supplied order and obtains browser at each invoc
     ...baseline.dispatch.families,
     baseline.dispatch.after,
   ]);
-  assert.equal(confirmationCalls, 1);
+  assert.equal(confirmationCalls, 2);
   // A supplied order must be consumed verbatim, never recreated from selection.
   const reversed = { fixtureFamilies: [...plan.fixtureFamilies].reverse() };
   const reversedTrace: string[] = [];
@@ -1009,7 +1037,7 @@ void test("coordinator preserves gap position and leaves attempt attribution to 
     context: () => ({
       scenario: (id: string, action: () => unknown) => calls.push({ id, action }),
     }),
-    confirmNative: () => assert.fail("No preparation consent"),
+    confirmNative: () => () => assert.fail("No native interaction in this dispatch-only test"),
     recordKnownGap: (gap: KnownGap) => calls.push(gap),
   };
   const journeys: OwnedFixtureJourneys<

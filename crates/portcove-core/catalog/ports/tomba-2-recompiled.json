@@ -3,10 +3,10 @@
   "listing": {
     "id": "tomba-2-recompiled",
     "name": "Tomba! 2 Recompiled",
-    "summary": "Explore Tomba! 2 Recompiled and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Tomba! 2 native USA player using your own SCUS-94454 PlayStation disc. Complete upstream original selection and settings; OpenBIOS is provided and retail BIOS is optional. Italian PAL SCES-02686 needs separate mappings and is not qualified by the USA package. Preserve cards and the separate seamless-loading cache.",
     "project_url": "https://github.com/mstan/Tomba2Recomp",
     "issue_number": 169,
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/mstan/Tomba2Recomp",
     "artwork": {

@@ -102,6 +102,7 @@ mod source_import;
 mod source_inbox;
 mod source_inspection;
 mod source_report;
+mod source_reuse;
 mod source_zip;
 mod stfs;
 mod support_bundle;
@@ -178,7 +179,8 @@ pub use definition_repository::{
     publisher_policy::{
         AuthenticatedDefinitionLaunchAssessment, AuthenticatedDefinitionPublisherPolicy,
         DefinitionAuthorityProvisioning, DefinitionAuthorityReview, DefinitionRefresh,
-        DefinitionRefreshDisposition, acquire_definition_launch_assessment,
+        DefinitionRefreshDisposition, OfficialCatalogReview, OfficialCatalogSetup,
+        OfficialCatalogSource, acquire_definition_launch_assessment,
         acquire_definition_publisher_policy,
     },
 };
@@ -270,13 +272,14 @@ pub use retained_build::{
 };
 pub use service::{
     AdoptionCopyFile, AdoptionCopyPlan, AdoptionDestinationPreview, AdoptionPreview,
-    AdoptionSkippedEntry, BackupAction, BackupActionPreview, CatalogDownloadCandidate,
-    CatalogDownloadCandidates, CatalogDownloadCoverage, CatalogDownloadPreview,
-    CatalogDownloadRelease, CatalogDownloadRequest, CatalogPackageAssessment,
-    IdentifiedLaunchRequest, InstallOverrides, InstallationProtection, ManagedRouteChangePreview,
-    ManagedRouteChangeResult, PendingSetupRecord, PendingSetupState, PlayerDataProtection,
-    PortRemovalPreview, PortcoveService, ProtectionDeclaration, SetupLaunchTarget,
-    SetupLaunchTargets,
+    AdoptionSkippedEntry, BackupAction, BackupActionPreview, CatalogDownloadAssetId,
+    CatalogDownloadCandidate, CatalogDownloadCandidates, CatalogDownloadCoverage,
+    CatalogDownloadPreview, CatalogDownloadRelease, CatalogDownloadReleaseId,
+    CatalogDownloadRequest, CatalogForeignAssetId, CatalogForeignReleaseId,
+    CatalogPackageAssessment, IdentifiedLaunchRequest, InstallOverrides, InstallationProtection,
+    ManagedRouteChangePreview, ManagedRouteChangeResult, PendingSetupRecord, PendingSetupState,
+    PlayerDataProtection, PortRemovalPreview, PortcoveService, ProtectionDeclaration,
+    SetupLaunchTarget, SetupLaunchTargets,
 };
 pub use signed_catalog::{
     CatalogOrigin, CatalogProvenance, CatalogTrustKey, SignedCatalogEnvelope, SignedCatalogPayload,
@@ -308,6 +311,10 @@ pub use source_report::{
     SourceInspectionReport, SourceIntakeInspection, SourceLegacyCoverage,
     SourceQualificationCoverage, SourceReleaseApplicability,
 };
+pub use source_reuse::{
+    SourceRegistrationReference, SourceReuseApplication, SourceReuseCompatibility,
+    SourceReuseReview,
+};
 pub use support_bundle::SupportBundleData;
 pub use support_bundle_export::{
     SupportBundleExport, SupportBundleLimits, SupportBundleManifest, SupportBundleProvenance,
@@ -338,7 +345,12 @@ pub use types::*;
 // Public84 adds reviewed game key art/logos and edition applicability; listing format5 fences strict older readers.
 // Public85 separates setup actions from save/version references. Catalog schema3
 // and listing format6 fence strict readers; explicit legacy exports keep all text.
-pub const API_SCHEMA_VERSION: u32 = 85;
+// Public86 composes checked saved-source reuse references and per-integration
+// setup review with the delivered Public85 guide/reference contract. Events and
+// library schema versions are independent and unchanged.
+// Public87 adds explicit compiled official-catalog setup for normal clients.
+// Its source-bound confirmation is separate from the unchanged CLI authority plan.
+pub const API_SCHEMA_VERSION: u32 = 88;
 /// Oldest library schema this build can read and migrate.
 pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 /// Library schema this build writes after opening a library.

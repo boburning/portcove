@@ -6,7 +6,7 @@
     "summary": "Attach an independently permitted, prepared Point Blank PlayStation Windows player with your own USA SLUS-00481 CUE/BIN. The current package contains the native player; lightgun hardware, arcade originals and earlier builder packages retain separate scope.",
     "original_game_title": "Point Blank",
     "project_url": "https://github.com/TekRantGaming/point-blank-recompiled",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/TekRantGaming/point-blank-recompiled",
     "issue_number": 2839,

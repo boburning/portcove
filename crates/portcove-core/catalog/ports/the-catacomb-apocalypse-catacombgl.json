@@ -22,18 +22,22 @@
           "instruction": "Choose Preview for the official Windows 64-bit beta ZIP, extract it and keep CatacombGL.exe and SDL2.dll together. Register CatacombGL.exe with that folder as its working directory. Leave arguments empty for the game picker, or use the single documented argument --apocalypse after the original folder is recognized. Registration does not start it; choose Play deliberately. The Linux tar.xz needs upstream/system extraction and a prepared native player; the Windows recommendation does not promise managed tar.xz handling."
         },
         {
-          "title": "Preserve this engine’s profile",
-          "instruction": "Windows normally keeps CatacombGL.ini and game-specific data under the actual Roaming AppData/CatacombGL folder. A custom --ini or --log location stays external. Preserve the whole profile, existing game save folders and original data with all copies closed before updating. Controls are shared by all four games. Upstream v0.5.7 documents no controller support and no save compatibility with the original DOS games. ReflectionHLE is a separate implementation; do not move saves between them on the basis of a shared game title."
-        },
-        {
           "title": "Keep upstream update ownership",
           "instruction": "You manage this external game, its original files and its profile using the project’s tools. Add it to Portcove, choose Play separately and remove its registration when you no longer want it listed. Portcove does not take over its files or offer updates, backups, rollback or deletion for this copy. Keep a working copy and back up its data before updating. Other platforms need their own supported package and application instructions. These Windows instructions do not establish that the game runs on any platform."
         }
       ],
       "warnings": [
-        "The reviewed CatacombGL release is beta. Original DOS save compatibility and controller support are not offered by this version."
+        "The reviewed CatacombGL release is beta. Original DOS save compatibility and controller support are not offered by this version.",
+        "Preserve the whole profile, existing game save folders and original data with all copies closed before updating. Controls are shared by all four games.",
+        "ReflectionHLE is a separate implementation; do not move saves between them on the basis of a shared game title."
       ],
-      "help_url": "https://github.com/ArnoAnsems/CatacombGL/blob/1bd619a8449a2f88cb4b9af19c155f044982e5aa/README.md"
+      "help_url": "https://github.com/ArnoAnsems/CatacombGL/blob/1bd619a8449a2f88cb4b9af19c155f044982e5aa/README.md",
+      "references": [
+        {
+          "title": "Preserve this engine’s profile",
+          "instruction": "Windows normally keeps CatacombGL.ini and game-specific data under the actual Roaming AppData/CatacombGL folder. A custom --ini or --log location stays external. Preserve the whole profile, existing game save folders and original data with all copies closed before updating. Controls are shared by all four games. Upstream v0.5.7 documents no controller support and no save compatibility with the original DOS games. ReflectionHLE is a separate implementation; do not move saves between them on the basis of a shared game title."
+        }
+      ]
     },
     "download_asset_hints": {
       "windows-x86-64": ["CatacombGL-Windows-64bit-", ".zip"]

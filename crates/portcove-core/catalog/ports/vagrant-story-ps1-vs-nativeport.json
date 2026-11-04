@@ -6,7 +6,7 @@
     "summary": "A source-only Vagrant Story Windows x86-64 C++ port reaching the opening, prologue and selected combat systems. Audio, full abilities and equipment remain incomplete. No ready-made player release is established. Supply your own USA SLUS-01040 BIN/CUE and follow the conversion script instructions. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Vagrant Story (PS1)",
     "project_url": "https://github.com/JEschete/VS-NativePort",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/JEschete/VS-NativePort",
     "artwork": {

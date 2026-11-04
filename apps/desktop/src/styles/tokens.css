@@ -183,12 +183,14 @@
     --layout-detail: 32rem;
     --layout-content-max: 100rem;
 
+    --color-library-art-border: rgba(163, 184, 213, 0.15);
+
     /* Neutral foundation */
     --color-bg: #17191d;
     --color-bg-navigation: #131519;
-    --color-bg-elevated: #202329;
-    --color-bg-raised: #282c33;
-    --color-bg-hover: #2d323a;
+    --color-bg-elevated: #202328;
+    --color-bg-raised: #282c32;
+    --color-bg-hover: #30353c;
     --color-bg-active: var(--n64-gray-700);
     --color-bg-inset: var(--n64-gray-950);
     --color-bg-overlay: rgba(8, 9, 11, 0.8);
@@ -198,17 +200,17 @@
     --color-transparent: transparent;
     --color-brand-stage: var(--n64-gray-950);
 
-    --color-text: var(--n64-white);
-    --color-text-secondary: var(--n64-gray-300);
-    --color-text-muted: var(--n64-gray-400);
+    --color-text: #f2f1ee;
+    --color-text-secondary: #b1b5be;
+    --color-text-muted: #9a9fa9;
     --color-text-disabled: var(--n64-gray-500);
     --color-text-inverse: var(--n64-black);
     --color-text-on-dark: var(--n64-white);
     --color-text-on-highlight: var(--n64-black);
 
-    --color-border: #3b414b;
-    --color-border-subtle: #2c3139;
-    --color-border-strong: var(--n64-gray-500);
+    --color-border: #34383f;
+    --color-border-subtle: #34383f;
+    --color-border-strong: #535b67;
     --color-border-disabled: var(--n64-gray-700);
     --color-control-border: #606975;
 
@@ -216,9 +218,9 @@
     --color-interactive: var(--n64-blue-500);
     --color-interactive-hover: var(--n64-blue-600);
     --color-interactive-active: var(--n64-blue-700);
-    --color-interactive-text: var(--n64-blue-300);
-    --color-interactive-text-strong: var(--n64-blue-100);
-    --color-interactive-subtle: var(--n64-blue-900);
+    --color-interactive-text: #a8c7ff;
+    --color-interactive-text-strong: #a8c7ff;
+    --color-interactive-subtle: #293b56;
     --color-interactive-subtle-hover: var(--n64-blue-800);
     --color-interactive-muted: var(--n64-blue-900);
     --color-interactive-border: var(--n64-blue-300);
@@ -235,14 +237,14 @@
 
     /* Semantic status */
     --color-success: var(--n64-green-500);
-    --color-success-text: var(--n64-green-300);
-    --color-success-text-raised: var(--n64-green-300);
+    --color-success-text: #9bcfb3;
+    --color-success-text-raised: #9bcfb3;
     --color-success-strong: var(--n64-green-100);
     --color-success-subtle: var(--n64-green-950);
     --color-success-border: var(--n64-green-300);
     --color-warning: var(--n64-yellow-500);
     --color-highlight: var(--n64-yellow-500);
-    --color-warning-text: var(--n64-yellow-300);
+    --color-warning-text: #edcf88;
     --color-warning-strong: var(--n64-yellow-100);
     --color-warning-subtle: var(--n64-yellow-950);
     --color-warning-border: var(--n64-yellow-300);
@@ -284,11 +286,11 @@
     color-scheme: light;
 
     /* Warm controller-plastic surfaces with graphite typography. */
-    --color-bg: var(--n64-white);
+    --color-bg: #f5f4ef;
     --color-bg-navigation: #eae9e3;
     --color-bg-elevated: #fffefa;
-    --color-bg-raised: var(--n64-gray-200);
-    --color-bg-hover: var(--n64-gray-200);
+    --color-bg-raised: #eeede7;
+    --color-bg-hover: #e4e3dc;
     --color-bg-active: var(--n64-gray-300);
     --color-bg-inset: var(--n64-gray-50);
     --color-bg-overlay: rgba(25, 26, 29, 0.56);
@@ -296,24 +298,24 @@
     --color-bg-subtle: rgba(25, 26, 29, 0.04);
     --color-bg-subtle-hover: rgba(25, 26, 29, 0.08);
 
-    --color-text: var(--n64-black);
-    --color-text-secondary: var(--n64-gray-800);
-    --color-text-muted: var(--n64-gray-700);
+    --color-text: #262824;
+    --color-text-secondary: #555b58;
+    --color-text-muted: #626862;
     --color-text-disabled: var(--n64-gray-600);
     --color-text-inverse: var(--n64-white);
 
-    --color-border: var(--n64-gray-500);
-    --color-border-subtle: var(--n64-gray-300);
-    --color-border-strong: var(--n64-gray-600);
+    --color-border: #d8d9d0;
+    --color-border-subtle: #d8d9d0;
+    --color-border-strong: #8b9189;
     --color-border-disabled: var(--n64-gray-400);
-    --color-control-border: var(--n64-gray-700);
+    --color-control-border: #8b9189;
 
     --color-interactive: var(--n64-blue-500);
     --color-interactive-hover: var(--n64-blue-600);
     --color-interactive-active: var(--n64-blue-700);
-    --color-interactive-text: var(--n64-blue-700);
-    --color-interactive-text-strong: var(--n64-blue-800);
-    --color-interactive-subtle: var(--n64-blue-100);
+    --color-interactive-text: #285797;
+    --color-interactive-text-strong: #285797;
+    --color-interactive-subtle: #dce7f5;
     --color-interactive-subtle-hover: var(--n64-blue-200);
     --color-interactive-muted: var(--n64-blue-100);
     --color-interactive-border: var(--n64-blue-500);
@@ -328,14 +330,14 @@
     --color-primary-border: var(--n64-red-700);
 
     --color-success: var(--n64-green-700);
-    --color-success-text: var(--n64-green-700);
-    --color-success-text-raised: var(--n64-green-800);
+    --color-success-text: #326849;
+    --color-success-text-raised: #326849;
     --color-success-strong: var(--n64-green-100);
     --color-success-subtle: var(--n64-green-100);
     --color-success-border: var(--n64-green-700);
     --color-warning: var(--n64-yellow-800);
     --color-highlight: var(--n64-yellow-500);
-    --color-warning-text: var(--n64-yellow-900);
+    --color-warning-text: #775711;
     --color-warning-strong: var(--n64-yellow-100);
     --color-warning-subtle: var(--n64-yellow-100);
     --color-warning-border: var(--n64-yellow-800);

@@ -1,0 +1,1119 @@
+{
+  "format_version": 1,
+  "observed_at": "2026-11-02",
+  "cases": [
+    {
+      "port_id": "doom-3-classic-dhewm3",
+      "issue": 2567,
+      "repository": "dhewm/dhewm3",
+      "channel": "stable",
+      "release": {
+        "id": 335663571,
+        "tag_name": "1.5.5",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-06-08T13:46:34Z",
+        "assets": [
+          {
+            "id": 441716838,
+            "name": "dhewm3-1.5.5_Linux_amd64.tar.gz",
+            "size": 7534656,
+            "digest": "sha256:793f8dbfb523f8e065b99357f438d0f23f8524c85382098264c3278ac8219290",
+            "browser_download_url": "https://github.com/dhewm/dhewm3/releases/download/1.5.5/dhewm3-1.5.5_Linux_amd64.tar.gz"
+          },
+          {
+            "id": 443191405,
+            "name": "dhewm3-1.5.5_Linux_arm64.tar.gz",
+            "size": 7603628,
+            "digest": "sha256:bf1f62af3c18907a33b77fc261bbed99cc72f684665aab84051c5c5159a86b36",
+            "browser_download_url": "https://github.com/dhewm/dhewm3/releases/download/1.5.5/dhewm3-1.5.5_Linux_arm64.tar.gz"
+          },
+          {
+            "id": 441742605,
+            "name": "dhewm3-1.5.5_win32.zip",
+            "size": 11382039,
+            "digest": "sha256:7fb23ced41b902c2ca14fa0da37f30f7656a7087310bc70b367f3257ddb0a7f7",
+            "browser_download_url": "https://github.com/dhewm/dhewm3/releases/download/1.5.5/dhewm3-1.5.5_win32.zip"
+          },
+          {
+            "id": 441718209,
+            "name": "dhewm3-mods-1.5.5_Linux_amd64.tar.gz",
+            "size": 31430497,
+            "digest": "sha256:c477a59899afb29288042a1dedb92de990054872a5be94b518d9e53049267019",
+            "browser_download_url": "https://github.com/dhewm/dhewm3/releases/download/1.5.5/dhewm3-mods-1.5.5_Linux_amd64.tar.gz"
+          },
+          {
+            "id": 443191427,
+            "name": "dhewm3-mods-1.5.5_Linux_arm64.tar.gz",
+            "size": 30075210,
+            "digest": "sha256:f50ab2d232123c340d9b4e0291dce2f691de6b84b76cd11bd64eece2a6b1c4f1",
+            "browser_download_url": "https://github.com/dhewm/dhewm3/releases/download/1.5.5/dhewm3-mods-1.5.5_Linux_arm64.tar.gz"
+          },
+          {
+            "id": 441718346,
+            "name": "dhewm3-mods-1.5.5_win32.zip",
+            "size": 26349455,
+            "digest": "sha256:06b31ad92be6b32810005c96e38665c625d4d726cbfb58a29b6f54381c86a6c8",
+            "browser_download_url": "https://github.com/dhewm/dhewm3/releases/download/1.5.5/dhewm3-mods-1.5.5_win32.zip"
+          },
+          {
+            "id": 441743548,
+            "name": "dhewm3-wide-guis-v0.2.zip",
+            "size": 389619,
+            "digest": "sha256:e01a5834b0f2d4fb7fb1bcfbceea099db0871469d41faaba57fe19d395045322",
+            "browser_download_url": "https://github.com/dhewm/dhewm3/releases/download/1.5.5/dhewm3-wide-guis-v0.2.zip"
+          }
+        ]
+      },
+      "selected_asset": "dhewm3-1.5.5_win32.zip",
+      "runtime_folder": "dhewm3/",
+      "selected_executable": "dhewm3.exe",
+      "immutable_members": [
+        "base.dll",
+        "base/gamepad.cfg",
+        "base/WHAT_TO_DO.txt",
+        "Changelog.txt",
+        "Configuration.txt",
+        "COPYING.txt",
+        "d3xp.dll",
+        "d3xp/gamepad-d3xp.cfg",
+        "d3xp/WHAT_TO_DO.txt",
+        "dhewm3.exe",
+        "dhewm3_notools.exe",
+        "dhewm3ded.exe",
+        "libcurl-4.dll",
+        "LibLicenses.txt",
+        "OpenAL32.dll",
+        "README.txt",
+        "SDL2.dll"
+      ],
+      "archive_sha256": "7fb23ced41b902c2ca14fa0da37f30f7656a7087310bc70b367f3257ddb0a7f7",
+      "scope": "Observed public metadata and authenticated archive names/layout only; fixture member bytes, successor metadata and lifecycle probes are inert/synthetic, not original or upstream game execution"
+    },
+    {
+      "port_id": "doom-3-resurrection-of-evil-classic-dhewm3",
+      "issue": 2568,
+      "repository": "dhewm/dhewm3",
+      "channel": "stable",
+      "release": {
+        "id": 335663571,
+        "tag_name": "1.5.5",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-06-08T13:46:34Z",
+        "assets": [
+          {
+            "id": 441716838,
+            "name": "dhewm3-1.5.5_Linux_amd64.tar.gz",
+            "size": 7534656,
+            "digest": "sha256:793f8dbfb523f8e065b99357f438d0f23f8524c85382098264c3278ac8219290",
+            "browser_download_url": "https://github.com/dhewm/dhewm3/releases/download/1.5.5/dhewm3-1.5.5_Linux_amd64.tar.gz"
+          },
+          {
+            "id": 443191405,
+            "name": "dhewm3-1.5.5_Linux_arm64.tar.gz",
+            "size": 7603628,
+            "digest": "sha256:bf1f62af3c18907a33b77fc261bbed99cc72f684665aab84051c5c5159a86b36",
+            "browser_download_url": "https://github.com/dhewm/dhewm3/releases/download/1.5.5/dhewm3-1.5.5_Linux_arm64.tar.gz"
+          },
+          {
+            "id": 441742605,
+            "name": "dhewm3-1.5.5_win32.zip",
+            "size": 11382039,
+            "digest": "sha256:7fb23ced41b902c2ca14fa0da37f30f7656a7087310bc70b367f3257ddb0a7f7",
+            "browser_download_url": "https://github.com/dhewm/dhewm3/releases/download/1.5.5/dhewm3-1.5.5_win32.zip"
+          },
+          {
+            "id": 441718209,
+            "name": "dhewm3-mods-1.5.5_Linux_amd64.tar.gz",
+            "size": 31430497,
+            "digest": "sha256:c477a59899afb29288042a1dedb92de990054872a5be94b518d9e53049267019",
+            "browser_download_url": "https://github.com/dhewm/dhewm3/releases/download/1.5.5/dhewm3-mods-1.5.5_Linux_amd64.tar.gz"
+          },
+          {
+            "id": 443191427,
+            "name": "dhewm3-mods-1.5.5_Linux_arm64.tar.gz",
+            "size": 30075210,
+            "digest": "sha256:f50ab2d232123c340d9b4e0291dce2f691de6b84b76cd11bd64eece2a6b1c4f1",
+            "browser_download_url": "https://github.com/dhewm/dhewm3/releases/download/1.5.5/dhewm3-mods-1.5.5_Linux_arm64.tar.gz"
+          },
+          {
+            "id": 441718346,
+            "name": "dhewm3-mods-1.5.5_win32.zip",
+            "size": 26349455,
+            "digest": "sha256:06b31ad92be6b32810005c96e38665c625d4d726cbfb58a29b6f54381c86a6c8",
+            "browser_download_url": "https://github.com/dhewm/dhewm3/releases/download/1.5.5/dhewm3-mods-1.5.5_win32.zip"
+          },
+          {
+            "id": 441743548,
+            "name": "dhewm3-wide-guis-v0.2.zip",
+            "size": 389619,
+            "digest": "sha256:e01a5834b0f2d4fb7fb1bcfbceea099db0871469d41faaba57fe19d395045322",
+            "browser_download_url": "https://github.com/dhewm/dhewm3/releases/download/1.5.5/dhewm3-wide-guis-v0.2.zip"
+          }
+        ]
+      },
+      "selected_asset": "dhewm3-1.5.5_win32.zip",
+      "runtime_folder": "dhewm3/",
+      "selected_executable": "dhewm3.exe",
+      "immutable_members": [
+        "base.dll",
+        "base/gamepad.cfg",
+        "base/WHAT_TO_DO.txt",
+        "Changelog.txt",
+        "Configuration.txt",
+        "COPYING.txt",
+        "d3xp.dll",
+        "d3xp/gamepad-d3xp.cfg",
+        "d3xp/WHAT_TO_DO.txt",
+        "dhewm3.exe",
+        "dhewm3_notools.exe",
+        "dhewm3ded.exe",
+        "libcurl-4.dll",
+        "LibLicenses.txt",
+        "OpenAL32.dll",
+        "README.txt",
+        "SDL2.dll"
+      ],
+      "archive_sha256": "7fb23ced41b902c2ca14fa0da37f30f7656a7087310bc70b367f3257ddb0a7f7",
+      "scope": "Observed public metadata and authenticated archive names/layout only; fixture member bytes, successor metadata and lifecycle probes are inert/synthetic, not original or upstream game execution"
+    },
+    {
+      "port_id": "doom-3-classic-dude-doom-3-unified-development-engine",
+      "issue": 2565,
+      "repository": "Inkub0/dude",
+      "channel": "stable",
+      "release": {
+        "id": 427859119,
+        "tag_name": "v0.9.7",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-10-29T12:58:18Z",
+        "assets": [
+          {
+            "id": 688547370,
+            "name": "dude-0.9.7-baked-ao-lm.zip",
+            "size": 19561302,
+            "digest": "sha256:af456a1d6ef32b3944fae6a277f9fcf26630424635a137123db735d740cec782",
+            "browser_download_url": "https://github.com/Inkub0/dude/releases/download/v0.9.7/dude-0.9.7-baked-ao-lm.zip"
+          },
+          {
+            "id": 688547367,
+            "name": "dude-0.9.7-baked-ao-roe.zip",
+            "size": 47645769,
+            "digest": "sha256:789f0bf124f82db4e1d5fc4fd859edd28bde961e6913d1a1e55cd9fb5aa2dbe3",
+            "browser_download_url": "https://github.com/Inkub0/dude/releases/download/v0.9.7/dude-0.9.7-baked-ao-roe.zip"
+          },
+          {
+            "id": 688547369,
+            "name": "dude-0.9.7-baked-ao.zip",
+            "size": 116499986,
+            "digest": "sha256:136079f03d8e267549b3bb0d8011c5f9b1ccb405294e2ff304b4b0ddbc8576a1",
+            "browser_download_url": "https://github.com/Inkub0/dude/releases/download/v0.9.7/dude-0.9.7-baked-ao.zip"
+          },
+          {
+            "id": 688547366,
+            "name": "dude-0.9.7-linux-x86_64.tar.gz",
+            "size": 73992196,
+            "digest": "sha256:f44a0489c60217a1bbb6eb383348159812cd2ef7a344db92b10e06205e8efece",
+            "browser_download_url": "https://github.com/Inkub0/dude/releases/download/v0.9.7/dude-0.9.7-linux-x86_64.tar.gz"
+          },
+          {
+            "id": 688547368,
+            "name": "dude-0.9.7-win64.zip",
+            "size": 84217872,
+            "digest": "sha256:6c12ec45f9172dc5729e84a06afc44e7f41b71415fe98dd45b75886881f3bb7a",
+            "browser_download_url": "https://github.com/Inkub0/dude/releases/download/v0.9.7/dude-0.9.7-win64.zip"
+          }
+        ]
+      },
+      "selected_asset": "dude-0.9.7-win64.zip",
+      "runtime_folder": "dude-0.9.7-win64/",
+      "selected_executable": "dude.exe",
+      "immutable_members": [
+        "dude.exe",
+        "base.dll",
+        "d3xp.dll",
+        "d3le.dll",
+        "SDL2.dll",
+        "OpenAL32.dll",
+        "libgcc_s_seh-1.dll",
+        "libssp-0.dll",
+        "libstdc++-6.dll",
+        "libwinpthread-1.dll",
+        "base/gamepad.cfg",
+        "base/gamepad-d3xp.cfg",
+        "base/mods-cvar-translation.cfg",
+        "base/pbr/pbr_materials.cfg",
+        "base/pbr/pbr_overrides.cfg",
+        "base/def/monster_boss_guardian.def",
+        "base/def/monster_demon_mancubus.def",
+        "base/def/monster_demon_sentry.def",
+        "base/def/monster_flying_lostsoul.def",
+        "base/def/weapon_plasmagun.def",
+        "base/zz_dude_menu.pk4",
+        "d3le/def/d3le-monster_boss_guardian2.def",
+        "d3le/def/d3le-projectile.def",
+        "d3xp/def/monster_flying_lostsoul2.def",
+        "d3xp/zz_dude_roe_menu.pk4",
+        "COPYING.txt",
+        "README.md"
+      ],
+      "archive_sha256": "6c12ec45f9172dc5729e84a06afc44e7f41b71415fe98dd45b75886881f3bb7a",
+      "scope": "Observed public metadata and authenticated archive names/layout only; fixture member bytes, successor metadata and lifecycle probes are inert/synthetic, not original or upstream game execution"
+    },
+    {
+      "port_id": "doom-3-resurrection-of-evil-classic-dude-doom-3-unified-development-engine",
+      "issue": 2566,
+      "repository": "Inkub0/dude",
+      "channel": "stable",
+      "release": {
+        "id": 427859119,
+        "tag_name": "v0.9.7",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-10-29T12:58:18Z",
+        "assets": [
+          {
+            "id": 688547370,
+            "name": "dude-0.9.7-baked-ao-lm.zip",
+            "size": 19561302,
+            "digest": "sha256:af456a1d6ef32b3944fae6a277f9fcf26630424635a137123db735d740cec782",
+            "browser_download_url": "https://github.com/Inkub0/dude/releases/download/v0.9.7/dude-0.9.7-baked-ao-lm.zip"
+          },
+          {
+            "id": 688547367,
+            "name": "dude-0.9.7-baked-ao-roe.zip",
+            "size": 47645769,
+            "digest": "sha256:789f0bf124f82db4e1d5fc4fd859edd28bde961e6913d1a1e55cd9fb5aa2dbe3",
+            "browser_download_url": "https://github.com/Inkub0/dude/releases/download/v0.9.7/dude-0.9.7-baked-ao-roe.zip"
+          },
+          {
+            "id": 688547369,
+            "name": "dude-0.9.7-baked-ao.zip",
+            "size": 116499986,
+            "digest": "sha256:136079f03d8e267549b3bb0d8011c5f9b1ccb405294e2ff304b4b0ddbc8576a1",
+            "browser_download_url": "https://github.com/Inkub0/dude/releases/download/v0.9.7/dude-0.9.7-baked-ao.zip"
+          },
+          {
+            "id": 688547366,
+            "name": "dude-0.9.7-linux-x86_64.tar.gz",
+            "size": 73992196,
+            "digest": "sha256:f44a0489c60217a1bbb6eb383348159812cd2ef7a344db92b10e06205e8efece",
+            "browser_download_url": "https://github.com/Inkub0/dude/releases/download/v0.9.7/dude-0.9.7-linux-x86_64.tar.gz"
+          },
+          {
+            "id": 688547368,
+            "name": "dude-0.9.7-win64.zip",
+            "size": 84217872,
+            "digest": "sha256:6c12ec45f9172dc5729e84a06afc44e7f41b71415fe98dd45b75886881f3bb7a",
+            "browser_download_url": "https://github.com/Inkub0/dude/releases/download/v0.9.7/dude-0.9.7-win64.zip"
+          }
+        ]
+      },
+      "selected_asset": "dude-0.9.7-win64.zip",
+      "runtime_folder": "dude-0.9.7-win64/",
+      "selected_executable": "dude.exe",
+      "immutable_members": [
+        "dude.exe",
+        "base.dll",
+        "d3xp.dll",
+        "d3le.dll",
+        "SDL2.dll",
+        "OpenAL32.dll",
+        "libgcc_s_seh-1.dll",
+        "libssp-0.dll",
+        "libstdc++-6.dll",
+        "libwinpthread-1.dll",
+        "base/gamepad.cfg",
+        "base/gamepad-d3xp.cfg",
+        "base/mods-cvar-translation.cfg",
+        "base/pbr/pbr_materials.cfg",
+        "base/pbr/pbr_overrides.cfg",
+        "base/def/monster_boss_guardian.def",
+        "base/def/monster_demon_mancubus.def",
+        "base/def/monster_demon_sentry.def",
+        "base/def/monster_flying_lostsoul.def",
+        "base/def/weapon_plasmagun.def",
+        "base/zz_dude_menu.pk4",
+        "d3le/def/d3le-monster_boss_guardian2.def",
+        "d3le/def/d3le-projectile.def",
+        "d3xp/def/monster_flying_lostsoul2.def",
+        "d3xp/zz_dude_roe_menu.pk4",
+        "COPYING.txt",
+        "README.md"
+      ],
+      "archive_sha256": "6c12ec45f9172dc5729e84a06afc44e7f41b71415fe98dd45b75886881f3bb7a",
+      "scope": "Observed public metadata and authenticated archive names/layout only; fixture member bytes, successor metadata and lifecycle probes are inert/synthetic, not original or upstream game execution"
+    },
+    {
+      "port_id": "medal-of-honor-allied-assault-openmohaa",
+      "issue": 2592,
+      "repository": "openmoh/openmohaa",
+      "channel": "stable",
+      "release": {
+        "id": 237731158,
+        "tag_name": "v0.82.1",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2025-08-05T17:01:23Z",
+        "assets": [
+          {
+            "id": 279608993,
+            "name": "openmohaa-v0.82.1-linux-amd64.zip",
+            "size": 16999314,
+            "digest": "sha256:57692d057a684afb7f7e91a61fcd8c062b29ab1b639f27453830084a88cd653c",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-linux-amd64.zip"
+          },
+          {
+            "id": 279609017,
+            "name": "openmohaa-v0.82.1-linux-arm64.zip",
+            "size": 16582558,
+            "digest": "sha256:7963c0e493ffff3169f42a63ec5c15382e263605e9e60abc73c82716678fb180",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-linux-arm64.zip"
+          },
+          {
+            "id": 279609049,
+            "name": "openmohaa-v0.82.1-linux-armhf.zip",
+            "size": 16355364,
+            "digest": "sha256:4f31a9651086e8dc6c8a82f3e29c6126b56240f900d05d9c5abd28f25b8c78c1",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-linux-armhf.zip"
+          },
+          {
+            "id": 279609005,
+            "name": "openmohaa-v0.82.1-linux-i686.zip",
+            "size": 16563248,
+            "digest": "sha256:44a868633f7b11e85873a963dc8da2a2f0043707237a94e7a00f9a4066af40a4",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-linux-i686.zip"
+          },
+          {
+            "id": 279608991,
+            "name": "openmohaa-v0.82.1-linux-powerpc.zip",
+            "size": 17250820,
+            "digest": "sha256:711acd18cfb169e69409e697f2f48006d31b5b4f87bf2f065a2499f8145cf088",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-linux-powerpc.zip"
+          },
+          {
+            "id": 279608989,
+            "name": "openmohaa-v0.82.1-linux-ppc64.zip",
+            "size": 18040277,
+            "digest": "sha256:740e4953a8fbe88ba7d2d88810f5d01afb6702f0d400a044f7f4a84fe83d1c46",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-linux-ppc64.zip"
+          },
+          {
+            "id": 279609004,
+            "name": "openmohaa-v0.82.1-linux-ppc64el.zip",
+            "size": 17438588,
+            "digest": "sha256:5c5ccafd87d17fc4b337bd55f9842017fcb96918e8afada3c8e8e12a3351d207",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-linux-ppc64el.zip"
+          },
+          {
+            "id": 279608982,
+            "name": "openmohaa-v0.82.1-macos-multiarch-arm64-x86_64.zip",
+            "size": 10588420,
+            "digest": "sha256:dd590e887078912e0bd80ad3e9d414ef7611faada064e7e49b4c3eafa59e579a",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-macos-multiarch-arm64-x86_64.zip"
+          },
+          {
+            "id": 279608997,
+            "name": "openmohaa-v0.82.1-windows-arm64-pdb.zip",
+            "size": 16957637,
+            "digest": "sha256:7ba48b85edcb1582d8508b6f6c40e43e51cdd42f1a6a2da1e2fabe8025493803",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-windows-arm64-pdb.zip"
+          },
+          {
+            "id": 279608973,
+            "name": "openmohaa-v0.82.1-windows-arm64.msi",
+            "size": 7438336,
+            "digest": "sha256:b601dfa784920aabfcb91dd59f33ce6d3539a60be8458296e2fa5da97598b6d4",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-windows-arm64.msi"
+          },
+          {
+            "id": 279609008,
+            "name": "openmohaa-v0.82.1-windows-arm64.zip",
+            "size": 4941693,
+            "digest": "sha256:22c6c17b29b6daa1d6ee316a5249f113fc65d164812ee2a2ca36b9f8b57ec71b",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-windows-arm64.zip"
+          },
+          {
+            "id": 279608990,
+            "name": "openmohaa-v0.82.1-windows-x64-pdb.zip",
+            "size": 17599289,
+            "digest": "sha256:88a7c61df819284eaf6ba348964d7aa21f46835e311b88f9142232bfc8f10d24",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-windows-x64-pdb.zip"
+          },
+          {
+            "id": 279608972,
+            "name": "openmohaa-v0.82.1-windows-x64.msi",
+            "size": 7733248,
+            "digest": "sha256:1296471b5fdca5059704ff410165c9234ff8679f4ef079194b7b8c9ac89f2fee",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-windows-x64.msi"
+          },
+          {
+            "id": 279608996,
+            "name": "openmohaa-v0.82.1-windows-x64.zip",
+            "size": 5424647,
+            "digest": "sha256:dba183f9c666928b3925e6fdd1f2a780517ef283170d14d55b7650607ca7bb6d",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-windows-x64.zip"
+          },
+          {
+            "id": 279609007,
+            "name": "openmohaa-v0.82.1-windows-x86-pdb.zip",
+            "size": 17090133,
+            "digest": "sha256:88254acd4494faab911d0dd25a6bbd0e73a44c1b5177cc0e4fd1dd060a4a3e2e",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-windows-x86-pdb.zip"
+          },
+          {
+            "id": 279609014,
+            "name": "openmohaa-v0.82.1-windows-x86.msi",
+            "size": 6561792,
+            "digest": "sha256:407b45330ebe4d53d3d3d858e29704be61a226570b1491b3238ac80cb48bebe3",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-windows-x86.msi"
+          },
+          {
+            "id": 279609002,
+            "name": "openmohaa-v0.82.1-windows-x86.zip",
+            "size": 4657170,
+            "digest": "sha256:39c3c146e477b1ffaf99c6040f791be7a393af304e2efadbcaa7ab20ed5d7541",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-windows-x86.zip"
+          }
+        ]
+      },
+      "selected_asset": "openmohaa-v0.82.1-windows-x64.zip",
+      "runtime_folder": "",
+      "selected_executable": "launch_openmohaa_base.exe",
+      "immutable_members": [
+        "launch_openmohaa_breakthrough.exe",
+        "OpenAL64.dll",
+        "omohaaded.exe",
+        "openmohaa.exe",
+        "game.dll",
+        "cgame.dll",
+        "SDL2.dll",
+        "launch_openmohaa_spearhead.exe",
+        "libcurl.dll",
+        "launch_openmohaa_base.exe"
+      ],
+      "archive_sha256": "dba183f9c666928b3925e6fdd1f2a780517ef283170d14d55b7650607ca7bb6d",
+      "scope": "Observed public metadata and authenticated archive names/layout only; fixture member bytes, successor metadata and lifecycle probes are inert/synthetic, not original or upstream game execution"
+    },
+    {
+      "port_id": "medal-of-honor-allied-assault-spearhead-openmohaa",
+      "issue": 2593,
+      "repository": "openmoh/openmohaa",
+      "channel": "stable",
+      "release": {
+        "id": 237731158,
+        "tag_name": "v0.82.1",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2025-08-05T17:01:23Z",
+        "assets": [
+          {
+            "id": 279608993,
+            "name": "openmohaa-v0.82.1-linux-amd64.zip",
+            "size": 16999314,
+            "digest": "sha256:57692d057a684afb7f7e91a61fcd8c062b29ab1b639f27453830084a88cd653c",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-linux-amd64.zip"
+          },
+          {
+            "id": 279609017,
+            "name": "openmohaa-v0.82.1-linux-arm64.zip",
+            "size": 16582558,
+            "digest": "sha256:7963c0e493ffff3169f42a63ec5c15382e263605e9e60abc73c82716678fb180",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-linux-arm64.zip"
+          },
+          {
+            "id": 279609049,
+            "name": "openmohaa-v0.82.1-linux-armhf.zip",
+            "size": 16355364,
+            "digest": "sha256:4f31a9651086e8dc6c8a82f3e29c6126b56240f900d05d9c5abd28f25b8c78c1",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-linux-armhf.zip"
+          },
+          {
+            "id": 279609005,
+            "name": "openmohaa-v0.82.1-linux-i686.zip",
+            "size": 16563248,
+            "digest": "sha256:44a868633f7b11e85873a963dc8da2a2f0043707237a94e7a00f9a4066af40a4",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-linux-i686.zip"
+          },
+          {
+            "id": 279608991,
+            "name": "openmohaa-v0.82.1-linux-powerpc.zip",
+            "size": 17250820,
+            "digest": "sha256:711acd18cfb169e69409e697f2f48006d31b5b4f87bf2f065a2499f8145cf088",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-linux-powerpc.zip"
+          },
+          {
+            "id": 279608989,
+            "name": "openmohaa-v0.82.1-linux-ppc64.zip",
+            "size": 18040277,
+            "digest": "sha256:740e4953a8fbe88ba7d2d88810f5d01afb6702f0d400a044f7f4a84fe83d1c46",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-linux-ppc64.zip"
+          },
+          {
+            "id": 279609004,
+            "name": "openmohaa-v0.82.1-linux-ppc64el.zip",
+            "size": 17438588,
+            "digest": "sha256:5c5ccafd87d17fc4b337bd55f9842017fcb96918e8afada3c8e8e12a3351d207",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-linux-ppc64el.zip"
+          },
+          {
+            "id": 279608982,
+            "name": "openmohaa-v0.82.1-macos-multiarch-arm64-x86_64.zip",
+            "size": 10588420,
+            "digest": "sha256:dd590e887078912e0bd80ad3e9d414ef7611faada064e7e49b4c3eafa59e579a",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-macos-multiarch-arm64-x86_64.zip"
+          },
+          {
+            "id": 279608997,
+            "name": "openmohaa-v0.82.1-windows-arm64-pdb.zip",
+            "size": 16957637,
+            "digest": "sha256:7ba48b85edcb1582d8508b6f6c40e43e51cdd42f1a6a2da1e2fabe8025493803",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-windows-arm64-pdb.zip"
+          },
+          {
+            "id": 279608973,
+            "name": "openmohaa-v0.82.1-windows-arm64.msi",
+            "size": 7438336,
+            "digest": "sha256:b601dfa784920aabfcb91dd59f33ce6d3539a60be8458296e2fa5da97598b6d4",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-windows-arm64.msi"
+          },
+          {
+            "id": 279609008,
+            "name": "openmohaa-v0.82.1-windows-arm64.zip",
+            "size": 4941693,
+            "digest": "sha256:22c6c17b29b6daa1d6ee316a5249f113fc65d164812ee2a2ca36b9f8b57ec71b",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-windows-arm64.zip"
+          },
+          {
+            "id": 279608990,
+            "name": "openmohaa-v0.82.1-windows-x64-pdb.zip",
+            "size": 17599289,
+            "digest": "sha256:88a7c61df819284eaf6ba348964d7aa21f46835e311b88f9142232bfc8f10d24",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-windows-x64-pdb.zip"
+          },
+          {
+            "id": 279608972,
+            "name": "openmohaa-v0.82.1-windows-x64.msi",
+            "size": 7733248,
+            "digest": "sha256:1296471b5fdca5059704ff410165c9234ff8679f4ef079194b7b8c9ac89f2fee",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-windows-x64.msi"
+          },
+          {
+            "id": 279608996,
+            "name": "openmohaa-v0.82.1-windows-x64.zip",
+            "size": 5424647,
+            "digest": "sha256:dba183f9c666928b3925e6fdd1f2a780517ef283170d14d55b7650607ca7bb6d",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-windows-x64.zip"
+          },
+          {
+            "id": 279609007,
+            "name": "openmohaa-v0.82.1-windows-x86-pdb.zip",
+            "size": 17090133,
+            "digest": "sha256:88254acd4494faab911d0dd25a6bbd0e73a44c1b5177cc0e4fd1dd060a4a3e2e",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-windows-x86-pdb.zip"
+          },
+          {
+            "id": 279609014,
+            "name": "openmohaa-v0.82.1-windows-x86.msi",
+            "size": 6561792,
+            "digest": "sha256:407b45330ebe4d53d3d3d858e29704be61a226570b1491b3238ac80cb48bebe3",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-windows-x86.msi"
+          },
+          {
+            "id": 279609002,
+            "name": "openmohaa-v0.82.1-windows-x86.zip",
+            "size": 4657170,
+            "digest": "sha256:39c3c146e477b1ffaf99c6040f791be7a393af304e2efadbcaa7ab20ed5d7541",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-windows-x86.zip"
+          }
+        ]
+      },
+      "selected_asset": "openmohaa-v0.82.1-windows-x64.zip",
+      "runtime_folder": "",
+      "selected_executable": "launch_openmohaa_spearhead.exe",
+      "immutable_members": [
+        "launch_openmohaa_breakthrough.exe",
+        "OpenAL64.dll",
+        "omohaaded.exe",
+        "openmohaa.exe",
+        "game.dll",
+        "cgame.dll",
+        "SDL2.dll",
+        "launch_openmohaa_spearhead.exe",
+        "libcurl.dll",
+        "launch_openmohaa_base.exe"
+      ],
+      "archive_sha256": "dba183f9c666928b3925e6fdd1f2a780517ef283170d14d55b7650607ca7bb6d",
+      "scope": "Observed public metadata and authenticated archive names/layout only; fixture member bytes, successor metadata and lifecycle probes are inert/synthetic, not original or upstream game execution"
+    },
+    {
+      "port_id": "medal-of-honor-allied-assault-breakthrough-openmohaa",
+      "issue": 2594,
+      "repository": "openmoh/openmohaa",
+      "channel": "stable",
+      "release": {
+        "id": 237731158,
+        "tag_name": "v0.82.1",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2025-08-05T17:01:23Z",
+        "assets": [
+          {
+            "id": 279608993,
+            "name": "openmohaa-v0.82.1-linux-amd64.zip",
+            "size": 16999314,
+            "digest": "sha256:57692d057a684afb7f7e91a61fcd8c062b29ab1b639f27453830084a88cd653c",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-linux-amd64.zip"
+          },
+          {
+            "id": 279609017,
+            "name": "openmohaa-v0.82.1-linux-arm64.zip",
+            "size": 16582558,
+            "digest": "sha256:7963c0e493ffff3169f42a63ec5c15382e263605e9e60abc73c82716678fb180",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-linux-arm64.zip"
+          },
+          {
+            "id": 279609049,
+            "name": "openmohaa-v0.82.1-linux-armhf.zip",
+            "size": 16355364,
+            "digest": "sha256:4f31a9651086e8dc6c8a82f3e29c6126b56240f900d05d9c5abd28f25b8c78c1",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-linux-armhf.zip"
+          },
+          {
+            "id": 279609005,
+            "name": "openmohaa-v0.82.1-linux-i686.zip",
+            "size": 16563248,
+            "digest": "sha256:44a868633f7b11e85873a963dc8da2a2f0043707237a94e7a00f9a4066af40a4",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-linux-i686.zip"
+          },
+          {
+            "id": 279608991,
+            "name": "openmohaa-v0.82.1-linux-powerpc.zip",
+            "size": 17250820,
+            "digest": "sha256:711acd18cfb169e69409e697f2f48006d31b5b4f87bf2f065a2499f8145cf088",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-linux-powerpc.zip"
+          },
+          {
+            "id": 279608989,
+            "name": "openmohaa-v0.82.1-linux-ppc64.zip",
+            "size": 18040277,
+            "digest": "sha256:740e4953a8fbe88ba7d2d88810f5d01afb6702f0d400a044f7f4a84fe83d1c46",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-linux-ppc64.zip"
+          },
+          {
+            "id": 279609004,
+            "name": "openmohaa-v0.82.1-linux-ppc64el.zip",
+            "size": 17438588,
+            "digest": "sha256:5c5ccafd87d17fc4b337bd55f9842017fcb96918e8afada3c8e8e12a3351d207",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-linux-ppc64el.zip"
+          },
+          {
+            "id": 279608982,
+            "name": "openmohaa-v0.82.1-macos-multiarch-arm64-x86_64.zip",
+            "size": 10588420,
+            "digest": "sha256:dd590e887078912e0bd80ad3e9d414ef7611faada064e7e49b4c3eafa59e579a",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-macos-multiarch-arm64-x86_64.zip"
+          },
+          {
+            "id": 279608997,
+            "name": "openmohaa-v0.82.1-windows-arm64-pdb.zip",
+            "size": 16957637,
+            "digest": "sha256:7ba48b85edcb1582d8508b6f6c40e43e51cdd42f1a6a2da1e2fabe8025493803",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-windows-arm64-pdb.zip"
+          },
+          {
+            "id": 279608973,
+            "name": "openmohaa-v0.82.1-windows-arm64.msi",
+            "size": 7438336,
+            "digest": "sha256:b601dfa784920aabfcb91dd59f33ce6d3539a60be8458296e2fa5da97598b6d4",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-windows-arm64.msi"
+          },
+          {
+            "id": 279609008,
+            "name": "openmohaa-v0.82.1-windows-arm64.zip",
+            "size": 4941693,
+            "digest": "sha256:22c6c17b29b6daa1d6ee316a5249f113fc65d164812ee2a2ca36b9f8b57ec71b",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-windows-arm64.zip"
+          },
+          {
+            "id": 279608990,
+            "name": "openmohaa-v0.82.1-windows-x64-pdb.zip",
+            "size": 17599289,
+            "digest": "sha256:88a7c61df819284eaf6ba348964d7aa21f46835e311b88f9142232bfc8f10d24",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-windows-x64-pdb.zip"
+          },
+          {
+            "id": 279608972,
+            "name": "openmohaa-v0.82.1-windows-x64.msi",
+            "size": 7733248,
+            "digest": "sha256:1296471b5fdca5059704ff410165c9234ff8679f4ef079194b7b8c9ac89f2fee",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-windows-x64.msi"
+          },
+          {
+            "id": 279608996,
+            "name": "openmohaa-v0.82.1-windows-x64.zip",
+            "size": 5424647,
+            "digest": "sha256:dba183f9c666928b3925e6fdd1f2a780517ef283170d14d55b7650607ca7bb6d",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-windows-x64.zip"
+          },
+          {
+            "id": 279609007,
+            "name": "openmohaa-v0.82.1-windows-x86-pdb.zip",
+            "size": 17090133,
+            "digest": "sha256:88254acd4494faab911d0dd25a6bbd0e73a44c1b5177cc0e4fd1dd060a4a3e2e",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-windows-x86-pdb.zip"
+          },
+          {
+            "id": 279609014,
+            "name": "openmohaa-v0.82.1-windows-x86.msi",
+            "size": 6561792,
+            "digest": "sha256:407b45330ebe4d53d3d3d858e29704be61a226570b1491b3238ac80cb48bebe3",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-windows-x86.msi"
+          },
+          {
+            "id": 279609002,
+            "name": "openmohaa-v0.82.1-windows-x86.zip",
+            "size": 4657170,
+            "digest": "sha256:39c3c146e477b1ffaf99c6040f791be7a393af304e2efadbcaa7ab20ed5d7541",
+            "browser_download_url": "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-windows-x86.zip"
+          }
+        ]
+      },
+      "selected_asset": "openmohaa-v0.82.1-windows-x64.zip",
+      "runtime_folder": "",
+      "selected_executable": "launch_openmohaa_breakthrough.exe",
+      "immutable_members": [
+        "launch_openmohaa_breakthrough.exe",
+        "OpenAL64.dll",
+        "omohaaded.exe",
+        "openmohaa.exe",
+        "game.dll",
+        "cgame.dll",
+        "SDL2.dll",
+        "launch_openmohaa_spearhead.exe",
+        "libcurl.dll",
+        "launch_openmohaa_base.exe"
+      ],
+      "archive_sha256": "dba183f9c666928b3925e6fdd1f2a780517ef283170d14d55b7650607ca7bb6d",
+      "scope": "Observed public metadata and authenticated archive names/layout only; fixture member bytes, successor metadata and lifecycle probes are inert/synthetic, not original or upstream game execution"
+    },
+    {
+      "port_id": "star-wars-jedi-knight-ii-jedi-outcast-single-player-openjk-openjo",
+      "issue": 2611,
+      "repository": "JACoders/OpenJK",
+      "channel": "rolling",
+      "release": {
+        "id": 398990609,
+        "tag_name": "latest",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-29T09:22:50Z",
+        "assets": [
+          {
+            "id": 597802096,
+            "name": "OpenJK-linux-x86.tar.gz",
+            "size": 8322171,
+            "digest": "sha256:eab5537a8963b035c48cd4d3f93cb39b0df1eb948f60b23bae04a24f64f18796",
+            "browser_download_url": "https://github.com/JACoders/OpenJK/releases/download/latest/OpenJK-linux-x86.tar.gz"
+          },
+          {
+            "id": 597802113,
+            "name": "OpenJK-linux-x86_64.tar.gz",
+            "size": 7911522,
+            "digest": "sha256:8116857544cc8ca90713edae43db0b13108cb044af7ea7312c739a677464c297",
+            "browser_download_url": "https://github.com/JACoders/OpenJK/releases/download/latest/OpenJK-linux-x86_64.tar.gz"
+          },
+          {
+            "id": 597802131,
+            "name": "OpenJK-macos-arm64.tar.gz",
+            "size": 7882022,
+            "digest": "sha256:5e3a27ae044b184b80d23d1804ebaf07a078aced7d39895e061ff4d38a3eeaef",
+            "browser_download_url": "https://github.com/JACoders/OpenJK/releases/download/latest/OpenJK-macos-arm64.tar.gz"
+          },
+          {
+            "id": 597802160,
+            "name": "OpenJK-macos-x86_64.tar.gz",
+            "size": 8363775,
+            "digest": "sha256:b5e381243361436f9af2bcf55cc0f03d15110ed267816b9a373ae5b2e0483f30",
+            "browser_download_url": "https://github.com/JACoders/OpenJK/releases/download/latest/OpenJK-macos-x86_64.tar.gz"
+          },
+          {
+            "id": 597802004,
+            "name": "OpenJK-windows-x86.zip",
+            "size": 6070474,
+            "digest": "sha256:1479e81abbe9ef79f99620230deccd8374b07b797237a87b571e38b4666645df",
+            "browser_download_url": "https://github.com/JACoders/OpenJK/releases/download/latest/OpenJK-windows-x86.zip"
+          },
+          {
+            "id": 597802024,
+            "name": "OpenJK-windows-x86_64.zip",
+            "size": 7064516,
+            "digest": "sha256:a88727208476ac4b3f2f3f4d182cd63b9a77c33d33171a66feda8084a331e385",
+            "browser_download_url": "https://github.com/JACoders/OpenJK/releases/download/latest/OpenJK-windows-x86_64.zip"
+          },
+          {
+            "id": 597802183,
+            "name": "OpenJO-linux-x86.tar.gz",
+            "size": 1928063,
+            "digest": "sha256:0ce130c8e2b6def71218f38d5d8f74cd79c69748df88d56c9b09a7411ac704bd",
+            "browser_download_url": "https://github.com/JACoders/OpenJK/releases/download/latest/OpenJO-linux-x86.tar.gz"
+          },
+          {
+            "id": 597802201,
+            "name": "OpenJO-linux-x86_64.tar.gz",
+            "size": 1814038,
+            "digest": "sha256:1820cc3125db95b4cfbbc3294c413a778d02e3473856e27dc14f8ee9a75b5b4d",
+            "browser_download_url": "https://github.com/JACoders/OpenJK/releases/download/latest/OpenJO-linux-x86_64.tar.gz"
+          },
+          {
+            "id": 597802226,
+            "name": "OpenJO-macos-arm64.tar.gz",
+            "size": 2286685,
+            "digest": "sha256:1ba6426e55dbcd9de597bc4891d085519509bf84b95d9ed7c0a7786e6d98ccb0",
+            "browser_download_url": "https://github.com/JACoders/OpenJK/releases/download/latest/OpenJO-macos-arm64.tar.gz"
+          },
+          {
+            "id": 597802241,
+            "name": "OpenJO-macos-x86_64.tar.gz",
+            "size": 2385118,
+            "digest": "sha256:2d06987b9b68f43b0a516d3752168b48d4ca0731784f32de3abb1d727b7dc27d",
+            "browser_download_url": "https://github.com/JACoders/OpenJK/releases/download/latest/OpenJO-macos-x86_64.tar.gz"
+          },
+          {
+            "id": 597802045,
+            "name": "OpenJO-windows-x86.zip",
+            "size": 1991285,
+            "digest": "sha256:f30df5649c28f740fe55e2de0d514108b7c2c67b43ab39d3157582c7777fdb7e",
+            "browser_download_url": "https://github.com/JACoders/OpenJK/releases/download/latest/OpenJO-windows-x86.zip"
+          },
+          {
+            "id": 597802075,
+            "name": "OpenJO-windows-x86_64.zip",
+            "size": 2282795,
+            "digest": "sha256:ba4379dca68e4eecc2e7eea2c84b0821d04fe421b7418f2d64055ab2a6c4f7ad",
+            "browser_download_url": "https://github.com/JACoders/OpenJK/releases/download/latest/OpenJO-windows-x86_64.zip"
+          }
+        ]
+      },
+      "selected_asset": "OpenJO-windows-x86_64.zip",
+      "runtime_folder": "",
+      "selected_executable": "openjo_sp.x86_64.exe",
+      "immutable_members": [
+        "EaxMan.dll",
+        "OpenAL32.dll",
+        "OpenJK/jospgamex86_64.dll",
+        "SDL2.dll",
+        "openjo_sp.x86_64.exe",
+        "rdjosp-vanilla_x86_64.dll"
+      ],
+      "archive_sha256": "ba4379dca68e4eecc2e7eea2c84b0821d04fe421b7418f2d64055ab2a6c4f7ad",
+      "scope": "Observed public metadata and authenticated archive names/layout only; fixture member bytes, successor metadata and lifecycle probes are inert/synthetic, not original or upstream game execution"
+    },
+    {
+      "port_id": "star-wars-jedi-knight-jedi-academy-single-player-and-multiplayer-openjk-openjo",
+      "issue": 2612,
+      "repository": "JACoders/OpenJK",
+      "channel": "rolling",
+      "release": {
+        "id": 398990609,
+        "tag_name": "latest",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-09-29T09:22:50Z",
+        "assets": [
+          {
+            "id": 597802096,
+            "name": "OpenJK-linux-x86.tar.gz",
+            "size": 8322171,
+            "digest": "sha256:eab5537a8963b035c48cd4d3f93cb39b0df1eb948f60b23bae04a24f64f18796",
+            "browser_download_url": "https://github.com/JACoders/OpenJK/releases/download/latest/OpenJK-linux-x86.tar.gz"
+          },
+          {
+            "id": 597802113,
+            "name": "OpenJK-linux-x86_64.tar.gz",
+            "size": 7911522,
+            "digest": "sha256:8116857544cc8ca90713edae43db0b13108cb044af7ea7312c739a677464c297",
+            "browser_download_url": "https://github.com/JACoders/OpenJK/releases/download/latest/OpenJK-linux-x86_64.tar.gz"
+          },
+          {
+            "id": 597802131,
+            "name": "OpenJK-macos-arm64.tar.gz",
+            "size": 7882022,
+            "digest": "sha256:5e3a27ae044b184b80d23d1804ebaf07a078aced7d39895e061ff4d38a3eeaef",
+            "browser_download_url": "https://github.com/JACoders/OpenJK/releases/download/latest/OpenJK-macos-arm64.tar.gz"
+          },
+          {
+            "id": 597802160,
+            "name": "OpenJK-macos-x86_64.tar.gz",
+            "size": 8363775,
+            "digest": "sha256:b5e381243361436f9af2bcf55cc0f03d15110ed267816b9a373ae5b2e0483f30",
+            "browser_download_url": "https://github.com/JACoders/OpenJK/releases/download/latest/OpenJK-macos-x86_64.tar.gz"
+          },
+          {
+            "id": 597802004,
+            "name": "OpenJK-windows-x86.zip",
+            "size": 6070474,
+            "digest": "sha256:1479e81abbe9ef79f99620230deccd8374b07b797237a87b571e38b4666645df",
+            "browser_download_url": "https://github.com/JACoders/OpenJK/releases/download/latest/OpenJK-windows-x86.zip"
+          },
+          {
+            "id": 597802024,
+            "name": "OpenJK-windows-x86_64.zip",
+            "size": 7064516,
+            "digest": "sha256:a88727208476ac4b3f2f3f4d182cd63b9a77c33d33171a66feda8084a331e385",
+            "browser_download_url": "https://github.com/JACoders/OpenJK/releases/download/latest/OpenJK-windows-x86_64.zip"
+          },
+          {
+            "id": 597802183,
+            "name": "OpenJO-linux-x86.tar.gz",
+            "size": 1928063,
+            "digest": "sha256:0ce130c8e2b6def71218f38d5d8f74cd79c69748df88d56c9b09a7411ac704bd",
+            "browser_download_url": "https://github.com/JACoders/OpenJK/releases/download/latest/OpenJO-linux-x86.tar.gz"
+          },
+          {
+            "id": 597802201,
+            "name": "OpenJO-linux-x86_64.tar.gz",
+            "size": 1814038,
+            "digest": "sha256:1820cc3125db95b4cfbbc3294c413a778d02e3473856e27dc14f8ee9a75b5b4d",
+            "browser_download_url": "https://github.com/JACoders/OpenJK/releases/download/latest/OpenJO-linux-x86_64.tar.gz"
+          },
+          {
+            "id": 597802226,
+            "name": "OpenJO-macos-arm64.tar.gz",
+            "size": 2286685,
+            "digest": "sha256:1ba6426e55dbcd9de597bc4891d085519509bf84b95d9ed7c0a7786e6d98ccb0",
+            "browser_download_url": "https://github.com/JACoders/OpenJK/releases/download/latest/OpenJO-macos-arm64.tar.gz"
+          },
+          {
+            "id": 597802241,
+            "name": "OpenJO-macos-x86_64.tar.gz",
+            "size": 2385118,
+            "digest": "sha256:2d06987b9b68f43b0a516d3752168b48d4ca0731784f32de3abb1d727b7dc27d",
+            "browser_download_url": "https://github.com/JACoders/OpenJK/releases/download/latest/OpenJO-macos-x86_64.tar.gz"
+          },
+          {
+            "id": 597802045,
+            "name": "OpenJO-windows-x86.zip",
+            "size": 1991285,
+            "digest": "sha256:f30df5649c28f740fe55e2de0d514108b7c2c67b43ab39d3157582c7777fdb7e",
+            "browser_download_url": "https://github.com/JACoders/OpenJK/releases/download/latest/OpenJO-windows-x86.zip"
+          },
+          {
+            "id": 597802075,
+            "name": "OpenJO-windows-x86_64.zip",
+            "size": 2282795,
+            "digest": "sha256:ba4379dca68e4eecc2e7eea2c84b0821d04fe421b7418f2d64055ab2a6c4f7ad",
+            "browser_download_url": "https://github.com/JACoders/OpenJK/releases/download/latest/OpenJO-windows-x86_64.zip"
+          }
+        ]
+      },
+      "selected_asset": "OpenJK-windows-x86_64.zip",
+      "runtime_folder": "",
+      "selected_executable": "openjk_sp.x86_64.exe",
+      "immutable_members": [
+        "EaxMan.dll",
+        "OpenAL32.dll",
+        "OpenJK/cgamex86_64.dll",
+        "OpenJK/jagamex86_64.dll",
+        "OpenJK/jampgamex86_64.dll",
+        "OpenJK/uix86_64.dll",
+        "SDL2.dll",
+        "base/cgamex86_64.dll",
+        "base/jampgamex86_64.dll",
+        "base/uix86_64.dll",
+        "openjk.x86_64.exe",
+        "openjk_sp.x86_64.exe",
+        "openjkded.x86_64.exe",
+        "rd-rend2_x86_64.dll",
+        "rd-vanilla_x86_64.dll",
+        "rdsp-vanilla_x86_64.dll"
+      ],
+      "archive_sha256": "a88727208476ac4b3f2f3f4d182cd63b9a77c33d33171a66feda8084a331e385",
+      "scope": "Observed public metadata and authenticated archive names/layout only; fixture member bytes, successor metadata and lifecycle probes are inert/synthetic, not original or upstream game execution"
+    },
+    {
+      "port_id": "sdlpal-sdlpal",
+      "issue": 1878,
+      "repository": "sdlpal/sdlpal",
+      "channel": "stable",
+      "release": {
+        "id": 225417306,
+        "tag_name": "v3.0.2025.0616",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2025-06-15T20:16:16Z",
+        "assets": [
+          {
+            "id": 264188592,
+            "name": "SDLPal-366bc36-x86_64.AppImage",
+            "size": 10900672,
+            "digest": "sha256:089796f9eddc032da280505fd2a2aca5f9f4d823a84499eb7693064d123dc5fe",
+            "browser_download_url": "https://github.com/sdlpal/sdlpal/releases/download/v3.0.2025.0616/SDLPal-366bc36-x86_64.AppImage"
+          },
+          {
+            "id": 264188634,
+            "name": "sdlpal-emscripten.zip",
+            "size": 2958395,
+            "digest": "sha256:aeae550aabe13c8d6fe1386ec7b802ef1ecb3952ffaeb854690149a8e0c80814",
+            "browser_download_url": "https://github.com/sdlpal/sdlpal/releases/download/v3.0.2025.0616/sdlpal-emscripten.zip"
+          },
+          {
+            "id": 264188422,
+            "name": "sdlpal-macos.dmg",
+            "size": 7842359,
+            "digest": "sha256:fcb74fb5290a52a6291b3fc855cd44ae147a54dd1d679a0db90c55faddeaa268",
+            "browser_download_url": "https://github.com/sdlpal/sdlpal/releases/download/v3.0.2025.0616/sdlpal-macos.dmg"
+          },
+          {
+            "id": 264188435,
+            "name": "sdlpal-unsigned.ipa",
+            "size": 5288977,
+            "digest": "sha256:de3d3b2f777d4e181dae4c48b32c260a1c35a346fb8839973c16dd08d30f4eb6",
+            "browser_download_url": "https://github.com/sdlpal/sdlpal/releases/download/v3.0.2025.0616/sdlpal-unsigned.ipa"
+          },
+          {
+            "id": 264188556,
+            "name": "sdlpal-win32-mingw.zip",
+            "size": 2683645,
+            "digest": "sha256:375f04ebe1f3c68080dc3827254b41bc85d9475b4f3b38c3e913fcfaddabed0d",
+            "browser_download_url": "https://github.com/sdlpal/sdlpal/releases/download/v3.0.2025.0616/sdlpal-win32-mingw.zip"
+          },
+          {
+            "id": 264188672,
+            "name": "sdlpal-win32-msvc.zip",
+            "size": 2913960,
+            "digest": "sha256:736d4a1cf0cd6c0671f3635b98b56dca7ec739ea5cb5eb459f3646810b03c7ff",
+            "browser_download_url": "https://github.com/sdlpal/sdlpal/releases/download/v3.0.2025.0616/sdlpal-win32-msvc.zip"
+          },
+          {
+            "id": 264188786,
+            "name": "sdlpal.apk",
+            "size": 10974245,
+            "digest": "sha256:e231033c3de51c07e33c98c4cd15825a912487879f9a414857651afc3f1ec8b4",
+            "browser_download_url": "https://github.com/sdlpal/sdlpal/releases/download/v3.0.2025.0616/sdlpal.apk"
+          }
+        ]
+      },
+      "selected_asset": "sdlpal-win32-mingw.zip",
+      "runtime_folder": "",
+      "selected_executable": "sdlpal.exe",
+      "immutable_members": ["sdlpal.exe"],
+      "archive_sha256": "375f04ebe1f3c68080dc3827254b41bc85d9475b4f3b38c3e913fcfaddabed0d",
+      "persistent_probes": [
+        "sdlpal.cfg",
+        "data/word.dat",
+        "data/sdlpal.log",
+        "data/sdlpal.glslp",
+        "saves/1.rpg",
+        "saves/20261103000000000.bmp"
+      ],
+      "scope": "Publisher metadata refreshed for exact selected seven-asset release; archive member/PE observation reused from unchanged authenticated asset in classic-engine-managed-and-upstream-routes-2026-10-26.json. Test payloads are inert, originals synthetic; no upstream/game execution or populated-save compatibility.",
+      "persistent_contents": {
+        "sdlpal.cfg": "GamePath=./data/\nSavePath=./saves/\nLaunchSetting=0\nEnableGLSL=0\nLogFileName=sdlpal.log\n"
+      },
+      "exercise_restore": true
+    }
+  ]
+}

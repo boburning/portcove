@@ -287,10 +287,21 @@ pub(crate) fn verify_registered_with_checkpoint(
     registered: &SourceRecord,
     checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<()> {
+    verify_registered_assessment_with_checkpoint(catalog, registered, checkpoint).map(|_| ())
+}
+
+/// Return the assessment already computed by the unchanged baseline verifier.
+/// Setup can check a selected integration without another read or rebaseline.
+pub(crate) fn verify_registered_assessment_with_checkpoint(
+    catalog: &Catalog,
+    registered: &SourceRecord,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<SourceAssessment> {
     let profile_id = &registered.profile_id;
     checkpoint()?;
-    let actual = inspect_with_checkpoint(catalog, profile_id, &registered.path, checkpoint)?
-        .require_admitted_record()?;
+    let inspection = inspect_with_checkpoint(catalog, profile_id, &registered.path, checkpoint)?;
+    let assessment = inspection.assessment.clone();
+    let actual = inspection.require_admitted_record()?;
     checkpoint()?;
     if actual.sha256 != registered.sha256
         || actual.size != registered.size
@@ -312,7 +323,7 @@ pub(crate) fn verify_registered_with_checkpoint(
         .detail("recorded_storage_size", registered.storage_size.to_string())
         .detail("actual_storage_size", actual.storage_size.to_string()));
     }
-    Ok(())
+    Ok(assessment)
 }
 
 pub(crate) fn inspect_file(

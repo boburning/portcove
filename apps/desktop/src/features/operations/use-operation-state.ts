@@ -22,7 +22,8 @@ const noActivities: readonly ActivityRecord[] = [];
 
 export type OperationRefresh = "workspace" | "activities" | "none";
 export type PerformOptions = {
-  refresh?: OperationRefresh;
+  /** Explicit workspace readback may propagate failures unlike an ambient retry action. */
+  refresh?: OperationRefresh | (() => Promise<unknown>);
   invalidateDiagnostics?: boolean;
   /** Preserve the original task rejection after settlement for a current caller. */
   propagateFailure?: boolean;
@@ -254,7 +255,8 @@ export function useOperationState(configuration: {
             if (isCurrent()) {
               if (options.invalidateDiagnostics ?? true) invalidateDiagnostics?.();
               const effect = options.refresh ?? "workspace";
-              if (effect === "workspace") await refresh();
+              if (typeof effect === "function") await effect();
+              else if (effect === "workspace") await refresh();
               else if (effect === "activities") await refreshActivities();
             }
           } catch (value) {

@@ -2,7 +2,12 @@
  * This returns verified data; each owning consumer binds its own exact subject,
  * predicate and provider custody. No imported JSON can replace the gh execution. */
 import { spawnSync } from "node:child_process";
-import { createGitHubRunner } from "./github-api.mts";
+import { verifyGitHubAttestation } from "./github-cli.mts";
+import type { RetainedGitHubSpawn } from "./github-cli.mts";
+import {
+  coordinatorCommandTimeout,
+  checkCoordinatorDeadline,
+} from "./release-coordinator-deadline.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import { isRecord } from "./runtime-values.mts";
 import { performance } from "node:perf_hooks";
@@ -19,7 +24,7 @@ export function verifyControllerArtifactVerification(
   },
   predicateType: string,
   options: {
-    spawn?: NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"];
+    spawn?: RetainedGitHubSpawn | undefined;
     environment?: NodeJS.ProcessEnv;
     deadline?: number;
   } = {},
@@ -32,7 +37,7 @@ export function verifyControllerArtifactVerification(
     (options.deadline !== undefined && remaining > 600000)
   )
     throw new Error("controller attestation phase deadline exhausted");
-  const runner = createGitHubRunner({
+  const settings: Parameters<typeof verifyGitHubAttestation>[1] = {
     cwd: directory,
     spawn:
       options.spawn ??
@@ -41,35 +46,39 @@ export function verifyControllerArtifactVerification(
           ...settings,
           env: { ...(options.environment ?? process.env), GH_HOST: "github.com" },
         })),
-    maxBuffer: 1024 * 1024,
-    timeoutMs: Math.min(30000, remaining),
-  });
+    maxBytes: 1024 * 1024,
+    timeoutMs: coordinatorCommandTimeout(Math.min(30000, remaining)),
+  };
   const raw: unknown = JSON.parse(
-    runner([
-      "attestation",
-      "verify",
-      filename,
-      "--bundle",
-      bundlePath,
-      "--repo",
-      repository,
-      "--signer-workflow",
-      `${repository}/${productionControllerWorkflow}`,
-      "--signer-digest",
-      expected.controller_revision,
-      "--source-digest",
-      expected.controller_revision,
-      "--source-ref",
-      expected.controller_ref,
-      "--cert-oidc-issuer",
-      "https://token.actions.githubusercontent.com",
-      "--deny-self-hosted-runners",
-      "--predicate-type",
-      predicateType,
-      "--format",
-      "json",
-    ]),
+    verifyGitHubAttestation(
+      [
+        "attestation",
+        "verify",
+        filename,
+        "--bundle",
+        bundlePath,
+        "--repo",
+        repository,
+        "--signer-workflow",
+        `${repository}/${productionControllerWorkflow}`,
+        "--signer-digest",
+        expected.controller_revision,
+        "--source-digest",
+        expected.controller_revision,
+        "--source-ref",
+        expected.controller_ref,
+        "--cert-oidc-issuer",
+        "https://token.actions.githubusercontent.com",
+        "--deny-self-hosted-runners",
+        "--predicate-type",
+        predicateType,
+        "--format",
+        "json",
+      ],
+      settings,
+    ),
   );
+  checkCoordinatorDeadline();
   if (options.deadline !== undefined && performance.now() >= options.deadline)
     throw new Error("controller attestation phase deadline exhausted");
   if (

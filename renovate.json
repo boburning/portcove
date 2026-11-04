@@ -42,6 +42,14 @@
       "pinDigests": true
     },
     {
+      "description": "Keep strict install-action contract pins with their immutable workflow update",
+      "matchManagers": ["custom.regex"],
+      "matchPackageNames": ["taiki-e/install-action"],
+      "groupName": "github-actions",
+      "schedule": ["at any time"],
+      "pinDigests": true
+    },
+    {
       "description": "Propose npm development-tool maintenance continuously",
       "matchManagers": ["npm"],
       "matchDepTypes": ["devDependencies"],
@@ -182,6 +190,20 @@
     }
   ],
   "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^scripts\\/ci-release-workflow\\.test\\.mts$/",
+        "/^scripts\\/ci-rust-workflow\\.test\\.mts$/",
+        "/^scripts\\/ci-native-workflow\\.test\\.mts$/"
+      ],
+      "matchStrings": [
+        "const reviewedInstallAction\\s*=\\s*\"taiki-e/install-action@(?<currentDigest>[a-f0-9]{40})\";[ \\t]*//[ \\t]*(?<currentValue>v\\d+\\.\\d+\\.\\d+)\\b"
+      ],
+      "depNameTemplate": "taiki-e/install-action",
+      "datasourceTemplate": "github-tags",
+      "versioningTemplate": "github-actions"
+    },
     {
       "customType": "regex",
       "managerFilePatterns": ["/^\\.github\\/quality-tools\\.json$/"],

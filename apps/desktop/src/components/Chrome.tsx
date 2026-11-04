@@ -1,5 +1,6 @@
 import {
   SidebarCollections,
+  OrganizationControls,
   type Organization,
 } from "../features/organization/OrganizationControls";
 import { OperationProgress } from "./OperationProgress";
@@ -38,7 +39,7 @@ import {
   Monitor,
   Moon,
   Sun,
-  Menu as MenuIcon,
+  Folder,
   Settings,
   Search,
   Palette,
@@ -89,6 +90,7 @@ import { BrandAvatar, BrandMascot } from "./Brand";
 import { ExternalLink } from "./ExternalLink";
 import { LibraryRecovery } from "./LibraryRecovery";
 import { CatalogOrigin, CatalogSettings } from "./CatalogUpdates";
+import { OfficialCatalogUpdates } from "./OfficialCatalogUpdates";
 import { SourceDiscoveryButton } from "./SourceDiscovery";
 import { invocationFailure, type InvocationRecord } from "../features/operations/invocation-state";
 import { GameFileLibraries } from "./GameFileLibraries";
@@ -157,9 +159,14 @@ export function Sidebar({
     shortcut: string;
   }>;
   const renderNavigationItem = (item: (typeof items)[number], sheet: boolean) => (
-    <Tooltip label={`${item.label} · ${commandShortcut(item.shortcut)}`} disabled={sheet}>
+    <Tooltip
+      label={`${item.label} · ${commandShortcut(item.shortcut)}`}
+      disabled={sheet}
+      side="inline-end"
+    >
       <Button
         data-focusable
+        data-navigation-destination={item.view}
         aria-current={view === item.view ? "page" : undefined}
         variant={view === item.view ? "selected" : "ghost"}
         size="lg"
@@ -176,7 +183,10 @@ export function Sidebar({
         <span className="nav-label min-w-0 flex-1">{item.label}</span>
         {item.view === "library" && (
           <b
-            className="rounded-pc-sm border border-pc-border px-1 py-0.5 text-xs font-normal text-pc-muted-foreground"
+            className={cn(
+              "rounded-pc-sm border border-pc-border px-1 py-0.5 text-xs font-normal",
+              view === "library" ? "text-pc-selection-foreground" : "text-pc-muted-foreground",
+            )}
             aria-label={`${installedCount} in library`}
           >
             {installedCount}
@@ -199,13 +209,27 @@ export function Sidebar({
         <div key={item.view}>{renderNavigationItem(item, sheet)}</div>
       ))}
       {!sheet && organization && onSelectCollection && (
-        <SidebarCollections
-          organization={organization}
-          selected={view === "library" ? collectionView : ""}
-          onSelect={onSelectCollection}
-        >
-          {collectionActions}
-        </SidebarCollections>
+        <>
+          <SidebarCollections
+            organization={organization}
+            selected={view === "library" ? collectionView : ""}
+            onSelect={onSelectCollection}
+          >
+            {collectionActions}
+          </SidebarCollections>
+          <div className="sidebar-compact-collections">
+            <OrganizationControls
+              organization={organization}
+              selected={view === "library" ? collectionView : ""}
+              onSelect={onSelectCollection}
+              discover={false}
+              trigger={<Folder aria-hidden="true" />}
+              triggerLabel="Manage collections"
+            >
+              {collectionActions}
+            </OrganizationControls>
+          </div>
+        </>
       )}
       <div className={sheet ? undefined : "sidebar-bottom mt-auto"}>
         {!sheet && libraryRoot && (
@@ -233,16 +257,15 @@ export function Sidebar({
             data-focusable
             variant="ghost"
             size="icon"
-            className="shrink-0 text-pc-muted-foreground"
+            className="sidebar-navigation-trigger shrink-0 text-pc-muted-foreground"
             aria-label="Open navigation"
             aria-haspopup="dialog"
             aria-expanded={navigationOpen}
             onClick={() => setNavigationOpen(true)}
           >
-            <Icon glyph={MenuIcon} />
+            <BrandAvatar />
           </Button>
         </Tooltip>
-        <BrandAvatar />
         <span className="min-w-0 flex-1 truncate font-semibold">
           {items.find((item) => item.view === view)?.label}
         </span>
@@ -358,7 +381,7 @@ export function PageHeader({
       <div className="min-w-0 flex-1">
         <h1 tabIndex={-1}>{copy.title}</h1>
         {view === "library" && libraryCount !== undefined && (
-          <p className="mt-2 mb-0 text-sm text-pc-muted-foreground">
+          <p className="mt-2 mb-0 text-sm text-[var(--color-text-secondary)]">
             {libraryCount} library {libraryCount === 1 ? "entry" : "entries"}
           </p>
         )}
@@ -422,7 +445,7 @@ export function WorkspaceToolbar({
     settings: "Settings",
   }[view];
   return (
-    <div className="workspace-toolbar flex min-w-0 items-center justify-between gap-3 border-b border-pc-border text-xs text-pc-muted-foreground">
+    <div className="workspace-toolbar @container/workspace-header flex min-w-0 items-center justify-between gap-3 border-b border-pc-border text-xs text-pc-muted-foreground">
       <div className="flex min-w-0 items-center gap-3" role="group" aria-label="Current location">
         <span className="max-[42rem]:hidden">Portcove</span>
         <span className="max-[42rem]:hidden" aria-hidden="true">
@@ -1185,6 +1208,7 @@ function SourceHealth({
       />
       <div className="justify-self-start">
         <SourceDiscoveryButton
+          generation={generation}
           profiles={profiles}
           disabled={Boolean(busy) || requirementsState !== "available"}
           onAdded={onAdded}
@@ -1912,6 +1936,12 @@ export function SettingsView(props: SettingsViewProps) {
       }
     >
       {applicationUpdates}
+      <OfficialCatalogUpdates
+        key={generation}
+        generation={generation}
+        disabled={Boolean(busy)}
+        onChanged={onCatalogChanged}
+      />
       <SettingsRow>
         <h2>Game catalog</h2>
         <CatalogOrigin provenance={doctor?.catalog_provenance} />

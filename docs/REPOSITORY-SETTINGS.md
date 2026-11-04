@@ -48,6 +48,18 @@ node scripts/repository-settings.mts --apply
 node scripts/repository-settings.mts --check
 ```
 
+Live metadata and bounded ruleset pagination use the configured Octokit
+integration. The command selects an approved environment credential or, for
+eligible local tooling, resolves the existing CLI login once. `--validate` and
+`--help` remain offline and do not load SDK packages. Domain rules and migration
+planning live in `scripts/repository-settings-policy.mts`; command setup and
+output stay in `repository-settings.mts`.
+
+Each write has one transport attempt. An ambiguous write is followed by readback;
+matching authoritative state can complete the operation, while unavailable or
+mismatching evidence remains a typed unknown outcome without replaying the write.
+Changing this transport does not authorize applying protection changes.
+
 The live modes fail closed when the stable ruleset is absent or any
 out-of-scope rule, check, condition, or bypass actor differs from the checked-in
 contract. `--apply` updates the existing stable ruleset identity only for the

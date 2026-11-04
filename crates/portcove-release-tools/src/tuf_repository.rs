@@ -489,9 +489,10 @@ pub async fn build_tuf_repository(
                     &[key(keys[key_index].clone())],
                     PathSet::Paths(patterns),
                     true,
-                    versions[version_index],
-                    expirations[expiration_index],
+                    // One configured key per delegation; metadata version is independent.
                     NonZeroU64::MIN,
+                    expirations[expiration_index],
+                    versions[version_index],
                 )
                 .await?;
         }

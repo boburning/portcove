@@ -18,7 +18,9 @@
       "match_kind": "underlying-game"
     },
     "manual_setup": {
-      "warnings": [],
+      "warnings": [
+        "Before a rebuild or update, close KartPad and back up ~/Library/Application Support/KartPad, your chosen original-game files, and the whole enclosing Retro Rewind folder because it can hold saves beside the selected data. Keep ~/Library/Caches/KartPad and custom roots if needed, the current working app and your original disc. Changing player folders does not isolate the existing profile. Preserve the app and signing identity; do not uninstall or clear data to update."
+      ],
       "help_url": "https://github.com/chrissotraidis/kartpad/blob/5c9af806c02733f238520b405f886ae45b5aa37e/docs/INSTALL_MACOS.md",
       "steps": [
         {
@@ -30,12 +32,18 @@
           "instruction": "Move the completed KartPad app to Applications and open it using upstream macOS instructions. When it asks for game data, choose your existing matching extracted DATA folder, or copy PadMint's prepared disc folder to a location you will keep. Reuse valid remembered choices. Retro Rewind needs the exact version named by this app and its separate whole data folder; replacing mod data alone does not update translated game code. Keep upstream Data, controls, Mii and save tools."
         },
         {
+          "title": "Use the app or optionally register its native player",
+          "instruction": "Opening the finished app upstream is the simplest route. To keep an existing copy in Portcove, select KartPad.app/Contents/MacOS/KartPad, keep the complete app intact, and use its Contents/MacOS folder as the working directory. Save launch details without starting it, then choose Play explicitly."
+        }
+      ],
+      "references": [
+        {
           "title": "Keep your actual saves and profile recoverable",
           "instruction": "Before a rebuild or update, close KartPad and back up ~/Library/Application Support/KartPad, your chosen original-game files, and the whole enclosing Retro Rewind folder because it can hold saves beside the selected data. Keep ~/Library/Caches/KartPad and custom roots if needed, the current working app and your original disc. Changing player folders does not isolate the existing profile. Preserve the app and signing identity; do not uninstall or clear data to update."
         },
         {
-          "title": "Use the app or optionally register its native player",
-          "instruction": "Opening the finished app upstream is the simplest route. To keep an existing copy in Portcove, select KartPad.app/Contents/MacOS/KartPad, keep the complete app intact, and use its Contents/MacOS folder as the working directory. Save launch details without starting it, then choose Play explicitly. Upstream update notices do not replace the app: rebuild the compatible version, close the old app, preserve its profile and replace the app. You or upstream own updates and data backups; Portcove registration supplies no managed Update, Backup or Rollback, and removal leaves every external file untouched."
+          "title": "Keep KartPad updates and backups upstream-owned",
+          "instruction": "Upstream update notices do not replace the app: rebuild the compatible version, close the old app, preserve its profile and replace the app. You or upstream own updates and data backups; Portcove registration supplies no managed Update, Backup or Rollback, and removal leaves every external file untouched."
         }
       ]
     }

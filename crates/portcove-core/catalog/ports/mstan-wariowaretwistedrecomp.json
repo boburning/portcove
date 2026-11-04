@@ -28,20 +28,28 @@
           "instruction": "The complete Windows x64 beta ZIP contains the player, libraries, assets and compiler companions. Keep them together. After installation, choose Play to open the upstream launcher, then supply your own matching original GBA game and retail GBA BIOS as it requests. The launcher checks those inputs and remembers valid choices. Core does not run the compiler or discover and execute helpers during setup. This is first-Play setup; no separate installer is required."
         },
         {
+          "title": "Android uses its own app and storage",
+          "instruction": "For Android 9+ ARM64, choose this project’s separate experimental APK and select your own matching ROM and BIOS through its first-launch document picker. The app stores imported files in private app storage. Keep that app’s saves and data before uninstalling or clearing it; the debug-signed test build may need a different update path if signing changes. Rotate the phone for gyro input; Windows instead supports a compatible motion controller or left-mouse dragging. Android files and updates stay outside Portcove backup and runtime rollback."
+        }
+      ],
+      "warnings": [
+        "The upstream project’s own code uses PolyForm Noncommercial 1.0.0. Use must fit its noncommercial terms; keep the package’s component notices and their separate terms. This does not grant rights to the original game or retail BIOS, which you must supply yourself.",
+        "Normal cartridge saves (.sav) and optional state files (.stateN) follow your selected original game file, usually outside the installation. Back up that folder separately, including .tmp, .bak and .prev-size.bak recovery files.",
+        "External originals, BIOS and save folders remain outside that backup. Older builds may not read newer states or saves.",
+        "Runtime rollback carries current declared data and does not rewind saves.",
+        "This package also includes variants/warioware_twisted/game.toml. Only when the runtime is actually launched with that configuration does its cartridge save use installation-local saves/warioware_twisted_usa.sav; state files still follow the original game unless you override their directory. The launcher display does not relocate saves. Custom --save/--save-path or --state-dir choices can select other locations."
+      ],
+      "help_url": "https://github.com/mstan/WarioWareTwistedRecomp#readme",
+      "references": [
+        {
           "title": "Keep the saves you actually use",
           "instruction": "Normal cartridge saves (.sav) and optional state files (.stateN) follow your selected original game file, usually outside the installation. Back up that folder separately, including .tmp, .bak and .prev-size.bak recovery files. This package also includes variants/warioware_twisted/game.toml. Only when the runtime is actually launched with that configuration does its cartridge save use installation-local saves/warioware_twisted_usa.sav; state files still follow the original game unless you override their directory. The launcher display does not relocate saves. Custom --save/--save-path or --state-dir choices can select other locations. If Library identifies this copy as Portcove-managed, Portcove preserves declared installation-local config.ini, keybinds.ini, rom.cfg, bios.cfg, user game.toml and saves/ during compatible managed replacement and backup. External originals, BIOS and save folders remain outside that backup. Older builds may not read newer states or saves."
         },
         {
           "title": "Keep current data when updating",
           "instruction": "If Library identifies this Windows copy as Portcove-managed, use its offered compatible beta update. Portcove stages the replacement before activation and carries current declared local data, including before first Play. Each version keeps its own recomp_cache, diagnostics and compiler companions; the new runtime regenerates its native-code cache. Runtime rollback carries current declared data and does not rewind saves. For an existing copy you added yourself, you or upstream provide updates: prepare a separate folder, preserve the actual settings and save locations, and change the registered player when ready. These experimental releases do not establish full-game compatibility."
-        },
-        {
-          "title": "Android uses its own app and storage",
-          "instruction": "For Android 9+ ARM64, choose this project’s separate experimental APK and select your own matching ROM and BIOS through its first-launch document picker. The app stores imported files in private app storage. Keep that app’s saves and data before uninstalling or clearing it; the debug-signed test build may need a different update path if signing changes. Rotate the phone for gyro input; Windows instead supports a compatible motion controller or left-mouse dragging. Android files and updates stay outside Portcove backup and runtime rollback."
         }
-      ],
-      "warnings": [],
-      "help_url": "https://github.com/mstan/WarioWareTwistedRecomp#readme"
+      ]
     },
     "original_game_title": "WarioWare: Twisted!"
   },

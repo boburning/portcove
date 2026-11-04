@@ -37,6 +37,7 @@ schemars.workspace = true
 same-file.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+sevenz-turbo.workspace = true
 sha1.workspace = true
 sha2.workspace = true
 tar.workspace = true
@@ -58,8 +59,9 @@ rustix.workspace = true
 windows-sys.workspace = true
 
 [dev-dependencies]
+sevenz-turbo = { workspace = true, features = ["compress"] }
 aws-lc-rs = "1.19.0"
-jiff = "0.2.38"
+jiff = "0.2.39"
 proptest = { version = "=1.12.0", default-features = false, features = ["std"] }
 filetime.workspace = true
 tempfile.workspace = true

@@ -33,16 +33,20 @@
           "instruction": "The official Windows EXE is the upstream installer. Run setup deliberately, choose its data destination and complete the campaign/data layout, then register the installed OpenFodder.exe with its installation folder as working directory. Do not select the installer, bundled VC runtime setup or uninstaller as the player. The Campaigns data pack is required even when original retail data is present. Use the upstream campaign menu to select this game."
         },
         {
-          "title": "Keep the actual original and player data",
-          "instruction": "The installer can choose Documents/OpenFodder or an installation-local data layout. The complete root contains Data, Campaigns and Saves; openfodder.ini in the working directory can add other search paths. Preserve the actual chosen root, Saves, campaign/mod files and configuration with the player closed before upstream replacement. The original Amiga/DOS, demo and sequel data have separate preparation requirements."
-        },
-        {
           "title": "Add the game and manage your files",
           "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Other platforms need their own supported application and setup instructions."
         }
       ],
-      "warnings": [],
-      "help_url": "https://github.com/OpenFodder/openfodder/blob/5eb41362f72fcedf2b1dffed397a7a8edf9a6305/README.md"
+      "warnings": [
+        "Preserve the actual chosen root, Saves, campaign/mod files and configuration with the player closed before upstream replacement."
+      ],
+      "help_url": "https://github.com/OpenFodder/openfodder/blob/5eb41362f72fcedf2b1dffed397a7a8edf9a6305/README.md",
+      "references": [
+        {
+          "title": "Keep the actual original and player data",
+          "instruction": "The installer can choose Documents/OpenFodder or an installation-local data layout. The complete root contains Data, Campaigns and Saves; openfodder.ini in the working directory can add other search paths. Preserve the actual chosen root, Saves, campaign/mod files and configuration with the player closed before upstream replacement. The original Amiga/DOS, demo and sequel data have separate preparation requirements."
+        }
+      ]
     }
   },
   "upstream_lineage": {

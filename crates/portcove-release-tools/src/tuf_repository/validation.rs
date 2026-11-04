@@ -658,6 +658,8 @@ pub(super) async fn validate_existing_repository(
     let manifest: RepositoryManifest = serde_json::from_slice(&manifest_bytes)?;
     let mut files_without_manifest = report_files(output)?;
     files_without_manifest.retain(|file| file.path != "repository-manifest.json");
+    // Zero records is a valid offline initial repository. Existing-output
+    // identity and isolated production initial/prior-context guards still apply.
     if manifest.schema_version != 1
         || manifest.records != record_count
         || manifest.files != files_without_manifest
@@ -794,10 +796,7 @@ pub(super) fn load_records(
         "reconstruction manifest",
     )?;
     let manifest: ReconstructionManifest = serde_json::from_slice(&manifest_bytes)?;
-    if manifest.schema_version != 1
-        || manifest.records.is_empty()
-        || manifest.records.len() > MAX_RECORDS
-    {
+    if manifest.schema_version != 1 || manifest.records.len() > MAX_RECORDS {
         return Err(TufRepositoryError::Invalid(
             "reconstruction manifest has an invalid schema or record count".into(),
         ));

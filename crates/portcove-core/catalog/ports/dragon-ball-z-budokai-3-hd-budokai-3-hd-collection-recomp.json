@@ -35,16 +35,19 @@
         {
           "title": "Review Play and manage updates yourself",
           "instruction": "Review and consent to the selected executable, working directory and arguments, then choose Play separately. Portcove tracks the selected process; other game instances run separately and the game is not sandboxed. You and upstream manage preparation, repairs, profiles and updates. Close every game instance before changing files, keep the previous working runtime and current data, then relink and review the changed executable. Removing the registration leaves all external runtime, original and player files in place."
-        },
-        {
-          "title": "Keep creating saves, configuration and custom content",
-          "instruction": "Preserve the whole runtime/original/ISO/extracted-data copy, dbz3_user.toml and backups, dbz3.toml, user_data/dbz3 saves/content/xex_cache/iso caches, mods/player edits, logs, res/custom data and all unknown files. The application uses executable-side user_data/dbz3 when writable, otherwise its actual platform user-folder/dbz3 fallback; an existing executable-side dbz3_user.toml can retain legacy settings. Preserve the actual resolved fallback/custom roots separately; do not move data to force portability. Keep old state/mods with the creating runtime. Upstream normal close uses a hard process exit after its own session/log cleanup; no graceful save/load or cross-build compatibility guarantee follows."
         }
       ],
       "warnings": [
         "Portcove has not confirmed this package’s gameplay, saves, mods or installed behavior. Optional online, cross-game, character and HD-mod features have their own setup and data-rights requirements.",
         "Use upstream tools to check for updates, download mods and replace files. Portcove does not install, prepare, update, back up, roll back, migrate or delete this external copy. Keep a recoverable previous runtime and current player data before maintenance; replacing files may overwrite local changes.",
-        "Selecting original files can refresh the game’s private XEX and ISO caches. Portcove does not check or prepare those originals or manage this game’s installation."
+        "Selecting original files can refresh the game’s private XEX and ISO caches. Portcove does not check or prepare those originals or manage this game’s installation.",
+        "Preserve the actual resolved fallback/custom roots separately; do not move data to force portability. Keep old state/mods with the creating runtime. Upstream normal close uses a hard process exit after its own session/log cleanup; no graceful save/load or cross-build compatibility guarantee follows."
+      ],
+      "references": [
+        {
+          "title": "Keep creating saves, configuration and custom content",
+          "instruction": "Preserve the whole runtime/original/ISO/extracted-data copy, dbz3_user.toml and backups, dbz3.toml, user_data/dbz3 saves/content/xex_cache/iso caches, mods/player edits, logs, res/custom data and all unknown files. The application uses executable-side user_data/dbz3 when writable, otherwise its actual platform user-folder/dbz3 fallback; an existing executable-side dbz3_user.toml can retain legacy settings. Preserve the actual resolved fallback/custom roots separately; do not move data to force portability. Keep old state/mods with the creating runtime. Upstream normal close uses a hard process exit after its own session/log cleanup; no graceful save/load or cross-build compatibility guarantee follows."
+        }
       ]
     }
   }

@@ -20,16 +20,20 @@
           "instruction": "Use the upstream Windows DXX-Rebirth-Windows-x86_64 Actions artifact or a complete player prepared with upstream’s supported build instructions. The observed tagged releases do not provide a matching binary asset. Keep the package complete and select d2x-rebirth.exe, with its own player folder as the working directory. Put this game’s data beside that player, or use two argument lines, -hogdir then its full data-folder path. D1X and D2X are separate players; a source archive is not their native executable."
         },
         {
-          "title": "Keep the actual original and player data",
-          "instruction": "Keep separate player/profile copies for Descent and Descent II. Preserve the build’s actual writable directory, player profiles, saves, missions and configuration; custom D1X_REBIRTH_HOME/D2X_REBIRTH_HOME or build choices can change it. Preserve the complete working player folder as well. Upstream describes DOS-save compatibility; no Portcove save conversion or native observation is established."
-        },
-        {
           "title": "Add the game and manage your files",
           "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Other platforms need their own supported application and setup instructions."
         }
       ],
-      "warnings": [],
-      "help_url": "https://github.com/dxx-rebirth/dxx-rebirth/actions"
+      "warnings": [
+        "Keep separate player/profile copies for Descent and Descent II. Preserve the build’s actual writable directory, player profiles, saves, missions and configuration; custom D1X_REBIRTH_HOME/D2X_REBIRTH_HOME or build choices can change it. Preserve the complete working player folder as well."
+      ],
+      "help_url": "https://github.com/dxx-rebirth/dxx-rebirth/actions",
+      "references": [
+        {
+          "title": "Keep the actual original and player data",
+          "instruction": "Keep separate player/profile copies for Descent and Descent II. Preserve the build’s actual writable directory, player profiles, saves, missions and configuration; custom D1X_REBIRTH_HOME/D2X_REBIRTH_HOME or build choices can change it. Preserve the complete working player folder as well. Upstream describes DOS-save compatibility; no Portcove save conversion or native observation is established."
+        }
+      ]
     }
   },
   "upstream_lineage": {

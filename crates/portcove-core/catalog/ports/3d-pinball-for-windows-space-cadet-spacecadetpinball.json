@@ -16,8 +16,11 @@
     },
     "recommended_download_channel": "stable",
     "manual_setup": {
-      "help_url": "https://github.com/k4zmu2a/SpaceCadetPinball/blob/cb9b7b886244a27773f66b0b19fdc2998392565e/README.md",
-      "warnings": [],
+      "help_url": "https://github.com/k4zmu2a/SpaceCadetPinball/blob/Release_2.1.0/README.md",
+      "warnings": [
+        "Close the game and preserve your original/custom resources, any chosen external font, and the SpaceCadetPinball user profile before changing versions.",
+        "Verify your options and progress in the new copy before retiring the old one. Removing the Portcove registration leaves every external file untouched; it does not provide managed Update, Backup or Rollback."
+      ],
       "steps": [
         {
           "title": "Keep the player and your game resources together",
@@ -27,6 +30,12 @@
           "title": "Save the player, then choose Play",
           "instruction": "Select SpaceCadetPinball.exe with that folder as its working directory, save launch details, then choose Play separately. If the game reports missing resources, follow its folder search message and the upstream guide. macOS application packages and Linux distribution/Flatpak or source-build routes keep their own upstream installation instructions; a Windows ZIP does not establish their native qualification."
         },
+        {
+          "title": "Keep the intended table and its scores together",
+          "instruction": "For Release 2.1.0, use a separate working folder for the table data you intend to play. The player searches the working folder before its executable folder and user profile; it normally tries Full Tilt CADET.DAT before Windows PINBALL.DAT, then DEMO.DAT. Its Prefer 3D Pinball data option changes that file preference. Keep the matching resource set together rather than mixing editions. The same imgui_pb.ini stores options, controls and high-score names/scores; preserve it as a complete file with its verification value, not selected score lines. Other player copies can share that profile. Changing the runtime folder does not isolate it, and original Windows registry scores are not automatically imported."
+        }
+      ],
+      "references": [
         {
           "title": "Keep your profile and resources when updating",
           "instruction": "You or upstream provide updates to this external copy. Close the game and preserve your original/custom resources, any chosen external font, and the SpaceCadetPinball user profile before changing versions. On Windows the normal profile is %APPDATA%\\SpaceCadetPinball and includes imgui_pb.ini; it is separate from the downloaded player folder. Verify your options and progress in the new copy before retiring the old one. Removing the Portcove registration leaves every external file untouched; it does not provide managed Update, Backup or Rollback."

@@ -6,7 +6,6 @@
     "summary": "Play The Legend of Sword and Fairy with SDLPAL and a working copy of your original game data.",
     "project_url": "https://github.com/sdlpal/sdlpal",
     "issue_number": 1878,
-    "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/sdlpal/sdlpal/blob/master/docs/README.md",
     "artwork": {
@@ -25,21 +24,56 @@
           "instruction": "Keep your originals safe and make a separate working copy of the matching DOS or Windows game-data folder. Extract the Windows MinGW ZIP’s sdlpal.exe into that working copy."
         },
         {
-          "title": "Keep the player and save folder together",
-          "instruction": "Finish setup with that sdlpal.exe and the same folder as its working directory. On first Play, keep SDLPAL’s game folder pointed at this copy. This keeps the initial save folder and later launches at the same location."
+          "title": "Set the save path for a separate runtime",
+          "instruction": "For a separate runtime folder, explicitly configure an absolute SavePath before your first game session; changing GamePath alone in the Windows dialog does not change that session’s save location."
         },
         {
-          "title": "Preserve your saved games",
-          "instruction": "Back up that working folder, including its .rpg saves and sdlpal.cfg, when applying upstream updates. For a separate runtime folder, explicitly configure an absolute SavePath before your first game session; changing GamePath alone in the Windows dialog does not change that session’s save location."
+          "title": "Keep the player and save folder together",
+          "instruction": "Finish setup with that sdlpal.exe and the same folder as its working directory. On first Play, keep SDLPAL’s game folder pointed at this copy. This keeps the initial save folder and later launches at the same location."
         }
       ],
       "warnings": [
-        "Keep saves matched to the DOS or Windows data edition. Portcove does not update or back up this externally owned copy."
+        "Keep saves matched to the DOS or Windows data edition. Portcove does not update or back up this externally owned copy.",
+        "Back up that working folder, including its .rpg saves and sdlpal.cfg, when applying upstream updates.",
+        "For a separate runtime folder, explicitly configure an absolute SavePath before your first game session; changing GamePath alone in the Windows dialog does not change that session’s save location."
       ],
-      "help_url": "https://github.com/sdlpal/sdlpal/blob/master/docs/README.md"
+      "help_url": "https://github.com/sdlpal/sdlpal/blob/master/docs/README.md",
+      "references": [
+        {
+          "title": "Preserve your saved games",
+          "instruction": "Back up that working folder, including its .rpg saves and sdlpal.cfg, when applying upstream updates."
+        }
+      ]
     },
     "download_asset_hints": {
       "windows-x86-64": ["sdlpal-win32-mingw.zip"]
+    },
+    "original_game_title": "The Legend of Sword and Fairy"
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "release": {
+      "provider": "github",
+      "repository": "sdlpal/sdlpal",
+      "asset_hints": {
+        "windows-x86-64": ["sdlpal-win32-mingw.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["sdlpal.exe"]
+    },
+    "persistent_paths": ["sdlpal.cfg", "data", "saves"],
+    "windows_runtime_path_policy": "printable-ascii-max-path",
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "This installs the official 32-bit MinGW runtime for 64-bit Windows; manual original-data preparation is still required before Play. Open its runtime folder, create data and saves folders beside sdlpal.exe, and copy the resource files from your own licensed DOS or Windows 95 game into data. Keep one matching edition together, including its MKF/DAT resources and optional edition-specific audio/video directories; never replace the supplied executable with an original game executable. SDLPal detects the edition from those resources; do not mix DOS and Windows save formats. Create sdlpal.cfg beside sdlpal.exe with separate lines GamePath=./data/, SavePath=./saves/, LaunchSetting=0, and EnableGLSL=0. Both paths must be present before the first session and stay relative after changing settings. The working directory is the folder containing sdlpal.exe; no launch arguments are needed. Do not browse to an absolute data path in the Windows dialog. Saves and screenshots go in saves; configuration stays in sdlpal.cfg. Optional LogFileName=sdlpal.log writes inside data. Keep optional shader files and their generated sdlpal.glslp inside data, with relative paths. Portcove preserves these three declared locations through compatible runtime replacement, backup, restore and rollback, including files prepared before first Play. A runtime rollback carries current data; it does not rewind progress or establish backward-save compatibility. Keep original media separately and retain a recoverable backup before changing edition or engine. Use a short library path with plain ASCII characters. Installation does not verify your original files or certify readiness or gameplay. Portcove does not create the configuration or import originals automatically, and Play does not enforce a preparation marker. Custom absolute paths, external logs/shaders, mods or other layouts should keep the existing upstream-owned registration and their actual data backups. Existing external registrations retain their creating contract and files; this managed offer does not adopt or migrate them."
     }
   }
 }

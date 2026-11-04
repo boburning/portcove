@@ -18,6 +18,9 @@ import {
   desktopScripts,
 } from "./ci-workflow-fixture.mts";
 
+// Independently expected contract pin; Renovate updates it with the Action group.
+const reviewedInstallAction = "taiki-e/install-action@1919c4a95903d2c33e4a221102edca87309fc14b"; // v2.89.0
+
 void test("candidate consumer selects only existing selected, compiled and history jobs", () => {
   const jobs = workflowJobs(nativeDesignCompatibilityWorkflow);
   const consumers = Object.entries(jobs).filter(
@@ -136,14 +139,14 @@ void test("hosted backup focus is manual-only, pinned, isolated and retains real
   assert.doesNotMatch(requiredFixture(windows.split("    steps:")[0]), /\$\{\{ runner\./);
   assert.match(windows, /id: native-quality-pins/);
   assert.match(windows, /node scripts\/quality-tools.mts --github-output >> \$env:GITHUB_OUTPUT/);
-  assert.match(windows, /taiki-e\/install-action@68a389c788b2cd04016ce8c80ee23b80d2ab3d68/);
+  assert.match(windows, new RegExp(reviewedInstallAction, "u"));
   assert.match(windows, /tool: \$\{\{ steps.native-quality-pins.outputs.required_prebuilt \}\}/);
   const quality = workflowJob("backup_focus", source);
   assert.ok(Array.isArray(quality.steps));
   const qualitySteps = quality.steps.filter(isRecord);
   const provisioning = qualitySteps.findIndex(
     (step) =>
-      step.uses === "taiki-e/install-action@68a389c788b2cd04016ce8c80ee23b80d2ab3d68" &&
+      step.uses === reviewedInstallAction &&
       isRecord(step.with) &&
       step.with.tool === "${{ steps.native-quality-pins.outputs.required_prebuilt }}",
   );

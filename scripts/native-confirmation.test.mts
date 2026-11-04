@@ -976,3 +976,67 @@ function arrayField(record: Record<string, unknown>, key: string): unknown[] {
   assert(Array.isArray(value));
   return value;
 }
+
+void test(
+  "file picker receipt requires owned readback and fresh dismissal after one Open",
+  { skip: process.platform !== "win32" },
+  async (t) => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "pcv-file-picker-witness-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const fixture = path.join(root, "original.bin");
+    await writeFile(fixture, "owned");
+    const source = path
+      .resolve("apps/desktop/scripts/native-confirmation.ps1")
+      .replaceAll("'", "''");
+    const script = path.join(root, "witness.ps1");
+    await writeFile(
+      script,
+      `
+$ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName UIAutomationClient
+Add-Type -AssemblyName UIAutomationTypes
+$ast = [Management.Automation.Language.Parser]::ParseFile('${source}', [ref]$null, [ref]$null)
+function Block([string]$marker) {
+    $node = $ast.Find({ param($n) $n -is [Management.Automation.Language.IfStatementAst] -and $n.Extent.Text.StartsWith('if ($FilePath)') -and $n.Extent.Text.Contains($marker) }, $true)
+    if (-not $node) { throw 'Production file-picker inventory changed' }
+    return [scriptblock]::Create($node.Extent.Text)
+}
+$inputBody = Block 'SetValue($selected)'
+$readbackBody = Block "Write-ObservationProgress 'file-input-readback'"
+$closeBody = Block '$closeDeadline ='
+function Assert-ExactConfirmationWindow { param($w) if ($w.Current.NativeWindowHandle -ne 7) { throw 'changed window' } }
+function Assert-LiveApplication { if ($script:case -eq 'changed-app') { throw 'changed application' } }
+function Write-ObservationProgress { param($stage) }
+function Get-OwnedConfirmationWindows {
+    $script:polls++
+    if ($script:case -eq 'still-open' -or ($script:case -eq 'valid' -and $script:polls -eq 1)) { [pscustomobject]@{ handle = 7 } }
+}
+$FilePath = '${fixture.replaceAll("'", "''")}'; $DirectoryPath = $null; $Title = 'Choose game files'; $Button = 'Open'; $applicationId = 42
+$window = [pscustomobject]@{ Current = [pscustomobject]@{ NativeWindowHandle = 7 } }; $selectedWindowHandle = 7
+foreach ($script:case in @('valid', 'foreign-field', 'ignored-set', 'changed-field', 'still-open', 'changed-app')) {
+    $script:polls = 0; $failed = $false
+    $field = [pscustomobject]@{ Current = [pscustomobject]@{ Name = 'File name:'; ControlType = [System.Windows.Automation.ControlType]::Edit; ProcessId = $(if ($script:case -eq 'foreign-field') { 99 } else { 42 }); Value = '' } }
+    $field | Add-Member ScriptMethod GetCurrentPattern { param($pattern) $this }
+    $field | Add-Member ScriptMethod SetValue { param($value) if ($script:case -ne 'ignored-set') { $this.Current.Value = $value } }
+    $children = @($field)
+    try {
+        . $inputBody
+        if ($script:case -eq 'changed-field') { $field.Current.Value = 'other' }
+        . $readbackBody
+        . $closeBody
+    } catch { $failed = $true }
+    if ($failed -ne ($script:case -ne 'valid')) { throw "Wrong verdict for $script:case" }
+    if ($script:case -eq 'valid' -and (-not $fileSelection.closed -or -not $fileSelection.field_readback_matches -or $script:polls -ne 2)) { throw 'Missing fresh dismissal/readback witness' }
+}
+Write-Output 'file-picker-witness-passed'
+`,
+    );
+    const result = spawnSync("pwsh", ["-NoProfile", "-File", script], {
+      encoding: "utf8",
+      timeout: 30_000,
+      windowsHide: true,
+    });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.match(result.stdout, /file-picker-witness-passed/u);
+  },
+);

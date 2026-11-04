@@ -6,7 +6,7 @@
     "summary": "Attach an independently permitted, prepared MOTHER 3 Windows player with your own exact ROM, desktop GBA BIOS and any permitted translation already configured upstream. Preserve battery saves and patch derivatives; unknown patch outputs can use the compatibility interpreter and remain unqualified.",
     "original_game_title": "MOTHER 3",
     "project_url": "https://github.com/josiahg2502-glitch/Mother3Recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/josiahg2502-glitch/Mother3Recomp",
     "issue_number": 2596,

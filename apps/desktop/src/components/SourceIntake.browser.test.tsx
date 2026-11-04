@@ -3,7 +3,7 @@ import { controlledAct as act } from "../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
-import { page } from "vite-plus/test/browser";
+import { page, userEvent } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
 import * as picker from "../file-picker";
 import type {
@@ -81,6 +81,7 @@ const request = (
   purpose: SourceIntakeRequest["purpose"] = "game",
   selectedProfile: SourceProfile = profile,
 ): SourceIntakeRequest => ({
+  generation: 7,
   portId: "port",
   portName: "Example Port",
   profile: selectedProfile,
@@ -109,11 +110,72 @@ describe("source intake dialog", () => {
     host.remove();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+    await page.viewport(1280, 800);
   });
+  for (const label of ["The Legend of Zelda: Majora's Mask source", "Owned_source_".repeat(12)]) {
+    it(`keeps the picker and source label inside the narrow dialog: ${label.slice(0, 45)}`, async () => {
+      await page.viewport(320, 208);
+      await root.rerender(
+        <SourceIntakeDialog request={request([], "game", { ...profile, label })} close={vi.fn()} />,
+      );
+      const dialog = page.getByRole("dialog").element() as HTMLElement;
+      const sourceLabel = page.getByText(label, { exact: true }).element();
+      const pickerButton = page.getByRole("button", { name: "Choose game files to check" });
+      for (const width of [320, 240]) {
+        await page.viewport(width, 208);
+        await expect.element(pickerButton).toBeEnabled();
+        await expect.poll(() => dialog.scrollWidth - dialog.clientWidth).toBeLessThanOrEqual(1);
+        const bounds = dialog.getBoundingClientRect();
+        for (const element of [sourceLabel, pickerButton.element()]) {
+          const rectangle = element.getBoundingClientRect();
+          expect(rectangle.left).toBeGreaterThanOrEqual(bounds.left);
+          expect(rectangle.right).toBeLessThanOrEqual(bounds.right);
+        }
+      }
+    });
+  }
   const button = (label: string) =>
     [...document.body.querySelectorAll<HTMLButtonElement>("button")].find((item) =>
       item.textContent?.includes(label),
     );
+
+  it("reveals its restored caller when background scrolling changes while the review is open", async () => {
+    await page.viewport(320, 208);
+    function ScrolledCallerFixture() {
+      const [open, setOpen] = useState(false);
+      return (
+        <>
+          <div id="source-return-scroll" style={{ height: 120, overflow: "auto" }}>
+            <div style={{ height: 800 }} />
+            <button id="source-review-opener" onClick={() => setOpen(true)}>
+              Check files
+            </button>
+            <div style={{ height: 400 }} />
+          </div>
+          {open && <SourceIntakeDialog request={request([])} close={() => setOpen(false)} />}
+        </>
+      );
+    }
+    await root.rerender(<ScrolledCallerFixture />);
+    await page.getByRole("button", { name: "Check files", exact: true }).click();
+    await expect.element(page.getByRole("dialog")).toBeVisible();
+    const owner = document.getElementById("source-return-scroll")!;
+    const opener = document.getElementById("source-review-opener")!;
+    expect(owner.scrollTop).toBeGreaterThan(0);
+    // Native WebView zoom can reposition the background while the popup stays open.
+    owner.scrollTop = 0;
+    expect(opener.getBoundingClientRect().top).toBeGreaterThan(
+      owner.getBoundingClientRect().bottom,
+    );
+    await userEvent.keyboard("{Escape}");
+    await vi.waitFor(() => expect(document.activeElement).toBe(opener));
+    await expect
+      .poll(() => opener.getBoundingClientRect().bottom)
+      .toBeLessThanOrEqual(owner.getBoundingClientRect().bottom);
+    expect(opener.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+      owner.getBoundingClientRect().top,
+    );
+  });
 
   const prepareImport = () => {
     vi.spyOn(desktopApi, "inspectSourceIntake").mockResolvedValue(intake("D:/Game.z64"));
@@ -296,6 +358,40 @@ describe("source intake dialog", () => {
     expect(button("Use current location")).toBeUndefined();
   });
 
+  it("keeps an in-flight import bound to its original library and discards its completion after switching", async () => {
+    const apply = prepareImport();
+    const pending = deferred<SourceImportResult | null>();
+    apply.mockReturnValueOnce(pending.promise);
+    const added = vi.fn();
+    await openImportReview(added);
+    await act(async () => button("Copy into Portcove")!.click());
+    expect(apply).toHaveBeenCalledWith(profile.id, "D:/Game.z64", "copy", "c".repeat(64), 7);
+    await root.rerender(
+      <SourceIntakeDialog
+        request={{ ...request(["D:/Game.z64"]), generation: 8 }}
+        close={vi.fn()}
+        onAdded={added}
+      />,
+    );
+    await act(async () =>
+      pending.resolve({
+        import_id: "old-library-import",
+        profile_id: profile.id,
+        mode: "copy",
+        outcome: "copied",
+        registered: record("D:/Inbox/Game.z64"),
+        copied: true,
+        original_deleted: false,
+        original_retained: true,
+        retained_original_path: "D:/Game.z64",
+        recovered: false,
+      }),
+    );
+    expect(added).not.toHaveBeenCalled();
+    expect(document.body.textContent).not.toContain("File location saved");
+    expect(apply).toHaveBeenCalledOnce();
+  });
+
   it("returns focus to the current same-game action when saving replaces its opener", async () => {
     prepareImport();
     function RepairFixture() {
@@ -303,11 +399,15 @@ describe("source intake dialog", () => {
       const [ready, setReady] = useState(false);
       return (
         <>
-          {ready ? (
-            <button id="current-game-action">Play</button>
-          ) : (
-            <button onClick={() => setOpen(true)}>Select game files</button>
-          )}
+          <div id="source-save-scroll" style={{ height: 120, overflow: "auto" }}>
+            <div style={{ height: 800 }} />
+            {ready ? (
+              <button id="current-game-action">Play</button>
+            ) : (
+              <button onClick={() => setOpen(true)}>Select game files</button>
+            )}
+            <div style={{ height: 400 }} />
+          </div>
           {open && (
             <SourceIntakeDialog
               request={request(["D:/Game.z64"])}
@@ -324,9 +424,21 @@ describe("source intake dialog", () => {
     await act(async () => button("Copy into Portcove")!.click());
     await act(async () => button("Copy into Portcove")!.click());
     expect(button("Select game files")).toBeUndefined();
+    const owner = document.getElementById("source-save-scroll")!;
+    const current = document.getElementById("current-game-action")!;
+    owner.scrollTop = 0;
+    expect(current.getBoundingClientRect().top).toBeGreaterThan(
+      owner.getBoundingClientRect().bottom,
+    );
     await page.getByRole("button", { name: "Return to game" }).click();
     await vi.waitFor(() =>
       expect(document.activeElement).toBe(document.getElementById("current-game-action")),
+    );
+    await expect
+      .poll(() => current.getBoundingClientRect().bottom)
+      .toBeLessThanOrEqual(owner.getBoundingClientRect().bottom);
+    expect(current.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+      owner.getBoundingClientRect().top,
     );
   });
 

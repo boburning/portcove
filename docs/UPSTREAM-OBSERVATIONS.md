@@ -44,8 +44,25 @@ stay inside the exact collection, and asset URLs inside the configured
 repository and release. Duplicate IDs, malformed data and partial pagination
 fail the run. Every consumed page is revalidated after collection against its
 normalized observed facts and pagination links. Unrelated counters and prose
-cannot invalidate an otherwise unchanged release observation. The cache still
-binds each complete raw API response to its own digest and conditional header.
+cannot invalidate an otherwise unchanged release observation. New cached pages use
+the explicit `observer-facts-v1` representation: only the exact repository,
+release and asset fields consumed by these normalizers are retained. Release
+notes, author/uploader objects, unrelated counters and unused embedded assets are
+removed. This is a semantic projection, not lossless raw-response storage.
+The original `sha256` remains the canonical parsed-body identity and historical
+provenance; it cannot independently verify the removed raw body. The separate
+`facts_sha256` verifies the retained body, with its exact versioned field schema.
+ETags, Link headers, array order/count, accepted observation facts, cursors and
+clocks remain unchanged. Reuse compares normalized facts as well as original page
+identities and Link headers, including mixed raw/projected proofs. Asset pages
+remain bound to their matching release ID/tag. Historical conditional pages are checked under their original
+complete-cache or restart graph; replacement responses still match the current
+collected release headers. A changed fact schema needs a new
+projection revision and cannot silently gain evidence from an older projection.
+Legacy raw pages remain readable and their original body hashes and input bounds
+are checked before projection. Fresh responses are fully read, charged and
+validated before unused fields are removed. Independent declared-pin metadata
+checks, including embedded-asset completeness, retain their original raw inputs.
 GitHub offers
 no atomic repository snapshot: evidence therefore records the observation's
 start/end interval, and any detected change invalidates the entire attempt.
@@ -208,17 +225,68 @@ The hosted path reserves four MiB of that same sixteen-MiB output envelope for a
 complete inert recovery snapshot, in addition to the existing four-MiB summary
 reserve. Source handoffs use the remaining eight MiB across all batches. The
 snapshot contains the catalog scheduler and its referenced per-source checkpoints;
-it excludes reports, locks, temporary files and executables. Format 2 losslessly
-encodes the complete graph as a size- and SHA-256-bound gzip/base64 envelope. The
-four-MiB reserve applies to that entire encoded JSON payload, including base64 and
-metadata. The outer ZIP keeps its existing four-MiB compressed and expanded limits.
-Before decoding, the complete logical graph is limited to the existing
-thirty-two-MiB checkpoint reader bound; declared-size-limited inflation, canonical
-base64, decoded size/hash and all existing graph/scope checks are required. This
-adds an aggregate decoded bound without pruning any accepted checkpoint data.
-Legacy uncompressed format-1 artifacts keep their original four-MiB wire limit.
-Logs report controller, complete decoded and actual transferred sizes separately;
-the controller's size alone never proves the full graph fits.
+it excludes reports, locks, temporary files and executables. Production format 4
+streams source checkpoint JSON records through one Brotli compressor, preserving
+cross-file redundancy that nested source gzip/base64 cannot share. A fixed binary
+magic and closed header of at most 512 bytes bind record count, complete framed
+byte count and SHA-256. The entire member remains limited to four MiB, with sixteen
+KiB reserved inside that allowance for ZIP framing. Formats 1, 2 and 3 remain
+readable with their original bounds; outer ZIP bounds remain unchanged.
+
+Production snapshot collection projects every referenced GitHub source's legacy
+raw pages to the versioned fact representation before encoding. It validates
+the full original source and page bounds/digests first; a tiny resulting projection
+cannot admit an oversized original input. Each complete projected source must
+also fit the existing thirty-two-MiB write bound. Export leaves the original cache
+files untouched; ordinary observation migrates pages when saving its replacement
+checkpoint. All accepted observations, Core projections, source configurations,
+scheduler positions, validation cursors, page identities, counters and clocks are
+retained. Null caches keep their fresh-read fallback. There is no history reset.
+Collection metrics distinguish original logical bytes, projected `fact_json_bytes`
+and compressed stored bytes so metadata reduction is not reported as lost work.
+
+Each record has a closed name/length header of at most 512 bytes. Scope metadata
+comes first (at most four KiB), then the controller and only source paths appointed
+by its validated configuration graph. Names, counts and length bounds are admitted
+before allocating a body; duplicates, foreign paths, missing required sources,
+incomplete records and trailing compressed/decoded bytes refuse. Decompression
+uses backpressure and 64-KiB chunks, with one at-most-thirty-two-MiB record body.
+Each source passes ordinary complete checkpoint/configuration validation and is
+recompacted before retaining the next source. Exact reconstructed stored bytes,
+including scope metadata and paths, remain bounded to thirty-two MiB. The full
+logical transfer stream is never assembled in one buffer.
+
+The actual RFC7932 Brotli window header must request at most four MiB; nonstandard
+large-window mode is disabled. The one absolute collection deadline cancels both
+stream directions on timeout or any parser/budget refusal. Encoding uses quality
+six and a four-MiB window. Streaming codecs require a supported Node release
+containing the October 2026 decoder fix; the repository already pins Node24.22.2.
+No runtime pin, security credential or workflow permission is changed.
+
+The decoded **stored graph** remains bounded to thirty-two MiB. Large source
+checkpoints use lossless, tagged gzip/base64 storage wrappers inside that graph.
+Each wrapper has a closed schema, canonical encoding, declared decoded size and
+SHA-256; inflation cannot exceed the original thirty-two-MiB per-source reader
+limit. Nested wrappers and decoded non-source documents refuse. Normal complete
+checkpoint/configuration validation still follows decoding. Uncompressed legacy
+files remain valid; small or incompressible files need not be wrapped. A raw source
+larger than the original reader limit is refused even if it would compress well.
+
+The aggregate logical source JSON can exceed thirty-two MiB; it is never assembled
+as one expanded graph. Collection and validation decode one source at a time and
+retain only its stored representation. Atomic restoration writes those compact
+files, whose aggregate stored bytes remain within the graph bound. Runtime loads
+decode before continuation, progress-position and retired-cache ownership checks.
+Accepted provider facts and original page identities, clocks, Core cursors and
+configuration bindings remain unchanged. One absolute collection deadline covers
+codecs and graph validation. These codecs are lossless for the represented
+checkpoints; the explicit fact-page migration above removes unused raw metadata.
+Neither increases an existing physical input/output ceiling.
+
+Collection diagnostics distinguish actual input-file bytes, original logical JSON,
+projected fact JSON, stored JSON bytes, largest source and file count. Export logs separately report
+the complete stored graph, framed logical-transfer bytes and actual transferred bytes; controller size and
+compressed Actions-cache size alone cannot establish snapshot fit.
 
 If the lossless encoding cannot fit its reserve, publication fails visibly and
 the original checkpoints and cache remain retained. This is no increase to the
@@ -276,13 +344,56 @@ Recovery has one at-most-sixty-second collection opportunity inside the existing
 nine-minute job opportunity, with finite metadata, compressed and expanded bytes
 and no automatic retry. Snapshots have one-day retention and a twenty-four-hour
 recovery-age bound. The deployment cutover explicitly records a new baseline only
-when trusted predecessor source shows no matching snapshot publisher; an older
+when trusted predecessor source shows no snapshot publisher; an older
 publisher is inspected even after artifact expiry. Missing post-cutover history,
 invalid or unavailable advertised artifacts and incomplete inventories require
 explicit recovery rather than a silent new baseline. Interrupted snapshot export
 does not erase the earlier cache or original failures. A later real scheduled
 run must demonstrate continued source/page/Core progress separately from fixture
 tests and an individual batch's `made_progress` field.
+
+The November 2 checkpoint-history loss has one explicitly approved fresh-baseline
+opportunity, pinned in source to failed scheduled run `41476042003`, its original
+attempt/source/creation identity, main ancestry anchor `c66e450e`, and the unchanged
+configuration digest. Only its first natural scheduled successor, attempt one,
+may initialize an entirely absent checkpoint tree. Every intervening scheduled
+status consumes that opportunity, including queued, failed and cancelled runs;
+reruns and manual dispatch cannot use it. The known predecessor must still be
+inside the existing twenty-four-hour recovery window. Provider-verified current
+run identity, complete ordered history, retained main ancestry, and exact-current-
+source Contents metadata bind the config and both catalog/listing input files.
+Their paths, regular-file type, size and locally computed Git blob identity must
+match. A final provider/run-history readback precedes an exclusive local consumption
+receipt and atomic publication. A failed publication retains that receipt.
+
+Valid surviving checkpoints take precedence. Partial trees, invalid/expired
+artifacts, unavailable metadata, quota/deadline exhaustion and changed inputs
+remain refusals; none enter this terminal missing-history initializer. A config
+change cannot turn missing history from an already deployed publisher into an
+initial baseline. There is no reusable flag, dispatch input, credential, new
+permission, schedule change or automatic reset path.
+
+The new controller starts with sequence zero, no source observations, no successful
+clocks and no provider/Core cursors. Validated historical `baseline` provenance
+records lost prior continuity, unknown initial freshness, the actual initializer
+and SHA-256 identities of its inputs. Ordinary later progress and snapshots retain
+that provenance without treating it as current eligibility or refreshing its
+clocks. Existing artifacts and failures remain evidence; fresh bounded reads must
+recollect every missing fact. The one-time opportunity is spent even if its first
+job fails, so another whole-history loss still requires an explicit decision.
+
+Discovery reads scheduled history in ten-record pages through the relevant age
+boundary, retaining the existing hundred-record ceiling. Every fetched page must
+match its declared count; totals, unique identities and descending creation order
+must remain consistent across pages. A bounded prefix that cannot establish the
+required history stays unknown rather than initializing a clean baseline.
+Ancestry reads use the comparison endpoint's second page: GitHub's file patches
+occur only on page one, while global status and merge-base identity still describe
+the same exact source comparison. No commit or file inventory is inferred from
+that partial page. Metadata logs retain the controlled route, response bytes,
+cumulative charged bytes and request count before the aggregate limit is checked.
+This reduces unrelated data transfer without raising the four-MiB metadata budget,
+relaxing ancestry or permitting missing post-cutover checkpoints to be ignored.
 
 Only checkpoint/report files enter the observation cache, scoped by config and
 ref; interrupted locks and temporary files do not. Reports have seven-day

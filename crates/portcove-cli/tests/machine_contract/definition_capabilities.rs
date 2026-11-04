@@ -133,6 +133,7 @@ fn advertised_engine_templates_match_negotiation_and_exported_schemas() {
         assert!(expected.insert((adapter.as_str().unwrap(), 1)));
     }
     for capability in [
+        ("libultraship-portable", 2),
         ("n64-recomp-portable", 2),
         ("n64-recomp-portable", 3),
         ("n64-recomp-portable", 4),
@@ -254,7 +255,7 @@ fn advertised_engine_templates_match_negotiation_and_exported_schemas() {
 }
 
 #[test]
-fn fixed_definition_authority_is_advertised_reviewable_and_unconfigured() {
+fn fixed_definition_authority_is_advertised_reviewable_and_explicitly_applied() {
     let temporary = tempfile::tempdir().unwrap();
     let library = temporary.path().join("library");
     let core = portcove_core::Library::open(&library).unwrap();
@@ -289,7 +290,7 @@ fn fixed_definition_authority_is_advertised_reviewable_and_unconfigured() {
         assert_eq!(result["command"], "catalog.definition-authority");
         assert_eq!(result["data"], serde_json::to_value(&initial).unwrap());
         assert_eq!(result["data"]["provisioning_schema"], 1);
-        assert_eq!(result["data"]["configured"], false);
+        assert_eq!(result["data"]["configured"], true);
         assert_eq!(result["data"]["installed"], false);
         for field in schema["data"]["definition_authority_review"]["required"]
             .as_array()
@@ -307,21 +308,45 @@ fn fixed_definition_authority_is_advertised_reviewable_and_unconfigured() {
             "definition-authority",
             "--apply",
             "--expected-plan",
-            &initial.expected_plan,
+            &"0".repeat(64),
             "--yes",
         ],
     );
     assert!(!failed.status.success());
-    assert_eq!(json_stdout(&failed)["error"]["code"], "unsupported");
+    assert_eq!(json_stdout(&failed)["error"]["code"], "conflict");
     let final_review = portcove_core::Library::open(&library)
         .unwrap()
         .review_definition_authority()
         .unwrap();
     assert_eq!(final_review.expected_plan, initial.expected_plan);
+    assert!(!final_review.installed);
+    for changed in [true, false] {
+        let applied = portcove(
+            &library,
+            &[
+                "--json",
+                "--non-interactive",
+                "catalog",
+                "definition-authority",
+                "--apply",
+                "--expected-plan",
+                &initial.expected_plan,
+                "--yes",
+            ],
+        );
+        assert!(applied.status.success(), "{applied:?}");
+        let applied = json_stdout(&applied);
+        assert_eq!(applied["data"]["changed"], changed);
+        assert_eq!(applied["data"]["review"]["installed"], true);
+        assert_eq!(
+            applied["data"]["review"]["compiled_anchor_sha256"],
+            serde_json::to_value(&initial.compiled_anchor_sha256).unwrap()
+        );
+    }
 }
 
 #[test]
-fn ordinary_definition_refresh_advertises_contract_and_refuses_unconfigured_authority() {
+fn ordinary_definition_refresh_advertises_contract_and_refuses_unprovisioned_authority() {
     let temporary = tempfile::tempdir().unwrap();
     let library = temporary.path().join("library");
     let core = portcove_core::Library::open(&library).unwrap();
@@ -363,7 +388,7 @@ fn ordinary_definition_refresh_advertises_contract_and_refuses_unconfigured_auth
             portcove_core::API_SCHEMA_VERSION
         );
         assert_eq!(response["command"], "catalog.definition-refresh");
-        assert_eq!(response["error"]["code"], "unsupported");
+        assert_eq!(response["error"]["code"], "conflict");
     }
     let injected = portcove(
         &library,
@@ -425,7 +450,7 @@ fn listing_delivery_is_negotiable_and_cannot_provision_an_incoming_authority() {
         ],
     );
     assert!(!output.status.success());
-    assert_eq!(json_stdout(&output)["error"]["code"], "unsupported");
+    assert_eq!(json_stdout(&output)["error"]["code"], "conflict");
     let status = json_stdout(&portcove(
         &library,
         &["--json", "catalog", "listing-status"],

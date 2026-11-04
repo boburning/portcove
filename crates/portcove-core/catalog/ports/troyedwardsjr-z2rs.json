@@ -6,7 +6,7 @@
     "summary": "Explore Zelda II: The Adventure of Link / z2rs (troyedwardsjr) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/troyedwardsjr/z2rs",
     "issue_number": 1911,
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/troyedwardsjr/z2rs",
     "artwork": {

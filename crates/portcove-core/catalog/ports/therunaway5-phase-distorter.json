@@ -6,7 +6,7 @@
     "summary": "Explore EarthBound / Phase Distorter (TheRunaway5) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/TheRunaway5/Phase-Distorter",
     "issue_number": 1869,
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/TheRunaway5/Phase-Distorter",
     "artwork": {

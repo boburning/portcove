@@ -470,8 +470,8 @@ fn report_message(
     ) {
         return (
             "ambiguous_identity",
-            "These files may match more than one game edition.",
-            "Keep these files unchanged and check the possible editions before continuing.",
+            "These files have more than one possible match.",
+            "Keep these files unchanged. Check the required edition and file format, then choose the original files again.",
         );
     }
     if inspection
@@ -515,8 +515,8 @@ fn report_message(
             },
         ) => (
             "ambiguous_identity",
-            "These files may match more than one game edition.",
-            "Keep these files unchanged and check the possible editions before continuing.",
+            "These files have more than one possible match.",
+            "Keep these files unchanged. Check the required edition and file format, then choose the original files again.",
         ),
         (
             _,
@@ -790,13 +790,24 @@ mod tests {
             &catalog,
             &profile.id,
             SourceClassification::Ambiguous {
-                candidates: vec![candidate.clone(), candidate],
+                candidates: vec![
+                    candidate.clone(),
+                    SourceIdentity {
+                        representation_id: "another-format".into(),
+                        ..candidate
+                    },
+                ],
             },
             SourceAdmission::Rejected {
                 reason: SourceRejectionReason::AmbiguousIdentity,
             },
         );
         assert_eq!(ambiguous.state_code, "ambiguous_identity");
+        assert_eq!(
+            ambiguous.summary,
+            "These files have more than one possible match."
+        );
+        assert!(ambiguous.next_action.contains("edition and file format"));
 
         let informational_contract = source_catalog
             .contracts

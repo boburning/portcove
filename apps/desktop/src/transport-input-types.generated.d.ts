@@ -27,6 +27,20 @@ export type ApplicationChannel = "preview" | "stable";
 export type ApplicationUpdateMode = "automatic" | "notify-only" | "manual";
 export type InputDesktopApplicationUpdateProductionDecision = "use-stable" | "keep-preview";
 export type InputDesktopApplicationUpdateRecoveryArea = "schedule" | "staging" | "apply";
+export type CatalogDownloadAssetId = number | CatalogForeignAssetId;
+export type CatalogForeignAssetId = {
+  file_id: number;
+  link_id: number;
+  project_id: number;
+  provider: "gitlab";
+  tag: string;
+};
+export type CatalogDownloadReleaseId = number | CatalogForeignReleaseId;
+export type CatalogForeignReleaseId = {
+  project_id: number;
+  provider: "gitlab";
+  tag: string;
+};
 export type InputDesktopOrganizationChange =
   | {
       game_id: string;
@@ -190,11 +204,11 @@ export interface InputDesktopApplicationUpdateManualCheckRequest {
   channel?: ApplicationChannel | null;
 }
 export interface InputDesktopCatalogDownloadRequest {
-  asset_id: number;
+  asset_id: CatalogDownloadAssetId;
   destination_parent: string;
   extract_archive: boolean;
   port_id: string;
-  release_id: number;
+  release_id: CatalogDownloadReleaseId;
 }
 export interface InputDesktopGameComparisonRequest {
   edition_id?: string | null;
@@ -228,8 +242,12 @@ export interface InputDesktopInstallInput {
   channel?: ReleaseChannel | null;
   portId: string;
   source?: string | null;
+  sourceReference?: SourceRegistrationReference | null;
   stage: boolean;
-  [k: string]: unknown;
+}
+export interface SourceRegistrationReference {
+  profile_id: string;
+  reference_sha256: string;
 }
 export interface UpdateNoticeChoice {
   paused: boolean;

@@ -6,7 +6,7 @@
     "summary": "Attach an independently permitted, prepared The Last Guardian Windows installation through its waiting saved-settings play route. Upstream owns game preparation and runtime replacement; keep the actual configurable save root and separate launcher preferences.",
     "original_game_title": "The Last Guardian",
     "project_url": "https://github.com/HayatoG/tlg_pc",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/HayatoG/tlg_pc",
     "artwork": {

@@ -34,16 +34,19 @@
           "instruction": "Review and consent to the exact selected executable, working directory and empty argument list, then choose Play separately. You and upstream own preparation, Check for Updates, runtime replacement and recovery. Complete update/restart operations outside the attached session, close all players and companions, preserve the old working copy separately from the updater’s disposable .old file, then review and relink changed selected bytes. Removing registration preserves every external file. Portcove supplies no external update, backup, rollback, conversion, migration or deletion."
         },
         {
-          "title": "Preserve original, package and profile data separately",
-          "instruction": "Keep original disc images and the complete assets/ folder beside the executable, together with doa3_settings.ini, doa3_input.ini, doa3_log.txt when enabled, mods, caches, unknown files and every custom root. The USA save root defaults to %LOCALAPPDATA%/DeadOrAlive3, with TitleData/, UserData/ and Cache/; if the platform path is unavailable the inspected runtime falls back to SaveData/ in the current directory. Preserve all actual roots, backups and creating runtimes; the Japan build uses a separate DeadOrAlive3_JPN root, and no save conversion or compatibility is certified."
-        },
-        {
           "title": "Use permitted content and check feature limits",
           "instruction": "Preserve the project MIT and separate component notices. Their grants cover their own code, not Tecmo or Koei Tecmo original-game content; your original-disc and other component permissions remain separate. This guide offers local completed-copy launch. Online matches, router/firewall changes, account setup and cross-version save behavior are outside its evidence. Upstream claims of complete gameplay are not Portcove observations."
         }
       ],
       "warnings": [
-        "Use only a completed copy and components you are permitted to use. Preserve the whole creating runtime, originals, saves, settings, mods, caches, backups and every custom root. Static source/release metadata review is not an inspected package, native game run, real-save, installed-client, managed, Supported or protected acceptance."
+        "Use only a completed copy and components you are permitted to use. Preserve the whole creating runtime, originals, saves, settings, mods, caches, backups and every custom root. Static source/release metadata review is not an inspected package, native game run, real-save, installed-client, managed, Supported or protected acceptance.",
+        "Preserve all actual roots, backups and creating runtimes; the Japan build uses a separate DeadOrAlive3_JPN root, and no save conversion or compatibility is certified."
+      ],
+      "references": [
+        {
+          "title": "Preserve original, package and profile data separately",
+          "instruction": "Keep original disc images and the complete assets/ folder beside the executable, together with doa3_settings.ini, doa3_input.ini, doa3_log.txt when enabled, mods, caches, unknown files and every custom root. The USA save root defaults to %LOCALAPPDATA%/DeadOrAlive3, with TitleData/, UserData/ and Cache/; if the platform path is unavailable the inspected runtime falls back to SaveData/ in the current directory. Preserve all actual roots, backups and creating runtimes; the Japan build uses a separate DeadOrAlive3_JPN root, and no save conversion or compatibility is certified."
+        }
       ]
     }
   },

@@ -150,7 +150,7 @@ export function prepareReleaseResourceAmendmentProposal(
   const proposedMinutes = windowsOnly ? 140 : 165;
   assert.equal(observation.accounting.application, proposedMinutes);
   assert.equal(observation.accounting.catalog_alternative, 40);
-  assert.equal(observation.accounting.policy_envelope, 100);
+  assert.equal(observation.accounting.policy_envelope, slice4CapacityResources.total_job_minutes);
   assert.equal(observation.policy_matches_workflow, false);
   const inputs = (name: string) =>
     name.includes("protection_observation") || name === "classification_writer";
@@ -185,11 +185,11 @@ export function prepareReleaseResourceAmendmentProposal(
       proposed_resource_digest: capacityDigest(proposedResources),
       observation,
       execution:
-        "Explicit false Windows job plus unchanged protected source/account/worker/recovery/sign/publication gates",
-      owner_clock:
-        "Both native platforms retain the existing570000ms total original clock;600000ms full signer wait cannot fit; late signer refuses; outer25/35minute caps do not extend it",
-      application_only_bootstrap:
-        "Fixed application12/catalog4 expression; catalog remains independent40 under effective100",
+        "Generated Windows job remains explicitly false; source/account/worker/recovery/signing/publication authority requires separate exact reconciliation",
+      owner_clock: windowsOnly
+        ? "Windows retains the original570000ms clock;600000ms full signer wait cannot fit; late signer refuses; outer35minute cap does not extend it"
+        : "Both native platforms retain the existing570000ms total original clock;600000ms full signer wait cannot fit; late signer refuses; outer25/35minute caps do not extend it",
+      application_only_bootstrap: `Fixed application12/catalog4 expression; catalog remains independent40 under actual imported effective${slice4CapacityResources.total_job_minutes}; this proposal cannot ratify policy`,
       activation:
         "Requires independently reviewed exact final workflow/source/resource/configuration and explicit policy ratification; no publication or production execution authority inferred",
     },

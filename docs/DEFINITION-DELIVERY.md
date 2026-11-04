@@ -730,13 +730,15 @@ separate offline delegation signer rather than the timestamp/snapshot signer.
 
 `Library::review_definition_authority` reviews only the immutable public root
 compiled into the release from `crates/portcove-core/catalog/official-definition-root.json`.
-The checked-in value is `null`: ordinary builds report `configured: false` and
-refuse application. Selecting a production root, demonstrating its custody and
-shipping a configured release remain separate protected owner decisions. A valid
-root document alone does not prove offline custody or grant signing/publication
-permissions.
+The owner-appointed initial catalog Root v1 is the retained 2,144-byte public
+export with SHA-256 `748bf3e9ec10a585ea62beb6228379642de3b33d0f2d94272ce0bd42d6e35e7b`.
+Its November 3 source appointment authorizes this fixed client input and an
+isolated Windows baseline. It does not authorize new keys, signing, feed
+publication or Task activation. A valid public Root alone does not prove private
+custody, a public feed or configured native acceptance. Explicit null-input builds
+remain supported and report `configured: false` without applying authority.
 
-For a separately approved configured release, `catalog definition-authority`
+For a configured build, `catalog definition-authority`
 returns a `provisioning_schema: 1` review. `--apply --expected-plan <expected_plan>`
 requires explicit confirmation (`--yes` for noninteractive use) and delegates to
 Core. No file, URL, key, environment override or qualification option supplies
@@ -744,7 +746,7 @@ the anchor. The compiled root is bounded to 1 MiB and must self-verify against
 the initial-anchor profile appointed in reviewed source. The selected Slice 4
 profile is single-owner-one-of-one-v1: one Root key/signature, distinct Ed25519
 Root/Targets/Snapshot/Timestamp material, consistent snapshots and exactly four
-top-level roles. The compiled root remains null until its separate appointment.
+top-level roles. The compiled input is the exact separately appointed public Root.
 Legacy two-of-three validation remains available for existing anchors and
 qualification; downloaded metadata cannot select a lower profile. Existing TUF
 acquisition still authenticates rotation, expiry and fresh metadata. This new
@@ -762,9 +764,57 @@ select definitions or install games. Deleting all history or rolling back the
 entire database cannot be detected without an independent witness; this seam
 does not claim that protection.
 
-This is a CLI operator command with additive exported review/result schemas and
-capability advertisement. API result-envelope and operation-event versions stay
-unchanged; no event is emitted and no Tauri command/binding is introduced.
+The CLI operator command retains its explicit reviewed-plan confirmation.
+Normal Desktop setup uses the same Core transaction through its separate official
+catalog review and enablement bridge. API87 binds that confirmation to the existing
+library/Root/history plan and the exact compiled transport-source bytes. The CLI
+plan is unchanged. Neither review nor enablement emits a lifecycle event or selects
+a definition, policy or installation.
+
+**Normal official-catalog setup.**
+
+The compiled `crates/portcove-core/catalog/official-definition-source.json` contains
+only separately appointed credential-free HTTPS metadata and target locations.
+The appointed locations are `https://boburning.github.io/portcove/catalog/metadata/`
+and `https://boburning.github.io/portcove/catalog/targets/`. A source cannot supply
+trust, policy, a key or a publisher grant; unknown fields, unsafe addresses and inputs
+over 4,096 bytes refuse. There is no runtime, environment or caller override to
+these normal-client defaults. Explicit operator transport commands remain available.
+
+Desktop's ordinary update settings review this fixed pair and request one explicit
+enablement confirmation. Its generation-bound adapter accepts only the reviewed
+plan, never Root or source bytes. Core recomputes the source-bound plan and delegates
+to its existing provisioning transaction. Exact still-unadmitted lost-response
+retries remain idempotent; changed sources/libraries, conflicting anchors, corrupt
+history and advanced initialization preimages refuse without repair or floor reset.
+Opening a library or refreshing a directory never silently installs trust.
+
+Once enabled, the normal refresh action uses those compiled locations through
+the existing authenticated listing-delivery path and cancellation/lifecycle owner.
+The built-in catalog and installed games remain available when this optional
+source is unconfigured or its refresh fails. Enabling the source does not install
+a game, authorize a definition or replace executable/player data. The configured
+Windows/native baseline, authenticated feed and protected progression
+acceptance remain separate obligations after this source appointment. Neither
+compiled input nor a library enablement receipt establishes those outcomes.
+
+Selected Desktop details expose **Check setup availability** for the selected port.
+The generation-bound private command accepts only its known port ID and operation
+channel. Core resolves a retained definition's exact official namespace/stable ID,
+or the exact known listing/embedded port ID; it refuses unknown IDs and does not
+strip namespace prefixes, infer identities from titles or map related editions.
+It delegates to the existing definition-refresh pipeline using the compiled source
+and explicitly enabled authority. Catalog update settings remain the normal
+enablement route; checking cannot provision trust, install a game or replace files.
+
+The detail action supplies the maintained propagating mutation-readback callback
+to the existing application-lifetime operation owner. It reloads the current
+workspace after success or failure, including a lost response or a later failure after policy/launch-assessment
+admission. It retains the original Core phase/change details and any independent
+readback failure, without automatic replay or a claim that failure had no effects.
+An outgoing library cannot publish into or reload its replacement. Existing
+definition-refresh output and cancellation contracts are reused; this private
+Desktop command does not change API87, CLI commands or the operation-event window.
 
 **Ordinary refresh.** `PortcoveService::refresh_definition` and the thin
 `catalog definition-refresh` CLI use only the fixed installed compiled root.
@@ -1124,6 +1174,13 @@ missing, extra, changed, linked or unsupported content refuses. The bounds are
 16,385 files and 32 MiB in total, with 4 MiB indexed leaves and 64 KiB policy
 records. Its exact file/definition manifest grants no semantic or publisher
 acceptance. An empty index is bootstrap preparation, not a delivered definition.
+
+The maintained release inspector and its real-CLI build fixtures accept API84
+and API85 machine envelopes for this unchanged publication-schema-1 report.
+They retain exact envelope/report validation, byte binding and same-process
+inspection custody; unknown versions and reflected authority remain refused.
+This compatibility window changes no publisher, Root, signature or acceptance
+authority, and does not relabel earlier API84 observations.
 
 The release tool provides `sign-offline-definition-targets CONFIG`,
 `sign-definition-role ROLE CONFIG` and `assemble-definition-repository CONFIG`.

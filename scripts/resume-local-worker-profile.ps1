@@ -1,14 +1,51 @@
 #requires -Version 7.4
-# Exact continuation of the recorded October 22 disabled-account profile failure.
+# Exact continuation of either recorded disabled-account profile failure.
 # No account reset/removal, account-0 password/group replay, enable or retry.
 [CmdletBinding()]
-param([ValidateSet('Inspect','Complete','Readback')][string]$Operation='Inspect')
+param(
+    [ValidateSet('Inspect','Complete','Readback')][string]$Operation='Inspect',
+    [ValidateSet('20261022','20261102')][string]$RecordedCase='20261022'
+)
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
 
-function Open-ProfileResumeSource([byte[]]$Bytes,[string]$Sha256,[string]$Broker){
+function Get-ResumeCase([string]$RecordedCase='20261022'){
+    switch -CaseSensitive ($RecordedCase){
+        '20261022'{
+            $ownedSid='S-1-5-21-1007133822-4277289207-646028416-1008'
+            $sourceName='profile-resume.ps1'
+            $preimage=@{
+                'intent.json'=@(470,'e85e68d55f490ae3023666cfdb66359cccb6a57d2704f8d17c690f5b89f6d52e')
+                'account-0-intent.json'=@(135,'5e3506d07d7af8373d9be17c13744e302daa7d51e8e29981994130c5a0fc2d2f')
+                'account-0-created.json'=@(311,'59ad70147db00ed17d3418732f600f8bcd9ba479bdaca75775753e17279905ed')
+                'account-0-group-intent.json'=@(172,'cb2a7c18514a6de67102e092cd812adc0e72fe30c832b1b2c96d5c93debba5c0')
+                'account-0-group.json'=@(135,'89981af03c283b12f28f68487515e22a90c2bf2415bbd43e6641f8764377b37b')
+            }
+        }
+        '20261102'{
+            $ownedSid='S-1-5-21-1007133822-4277289207-646028416-1010'
+            $sourceName='profile-resume-20261102.ps1'
+            $preimage=@{
+                'intent.json'=@(470,'520a67b04ca85ceb1d275a22ef762e7671315124aa14ac420a89e0fcdf3d0236')
+                'account-0-intent.json'=@(135,'4e8c0191320ca7b6906e538b5b734b3c0b9d54ce913f8141cd5140d53b849251')
+                'account-0-created.json'=@(311,'b7a40db5566a4889c04e1559da8ff58fe13b6ee410711ca49cf67b885ee84c63')
+                'account-0-group-intent.json'=@(172,'89a6ee7a94059a64b5e00c7934394c4a86515d0e214caf9eb1e8d4a6ece2d124')
+                'account-0-group.json'=@(135,'e2feaf8dea62c09ea03f0433fa6d045056d9e7929205e6a8f43bba68634e32c3')
+            }
+        }
+        default{throw 'Unknown recorded profile continuation'}
+    }
+    return @{
+        sid=$ownedSid;preimage=$preimage
+        source_path=('C:\ProgramData\PortcoveSlice4Bootstrap\'+$sourceName)
+        intent_name=('profile-resume-intent-'+$RecordedCase+'.json')
+        complete_name=('profile-resume-complete-'+$RecordedCase+'.json')
+    }
+}
+
+function Open-ProfileResumeSource([byte[]]$Bytes,[string]$Sha256,[string]$Broker,[string]$RecordedCase='20261022'){
     if($Bytes.Length -lt 1 -or $Bytes.Length -gt 65536 -or [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($Bytes)).ToLowerInvariant() -cne $Sha256){throw 'Bounded reviewed source bytes differ'}
-    $path='C:\ProgramData\PortcoveSlice4Bootstrap\profile-resume.ps1'
+    $path=(Get-ResumeCase $RecordedCase).source_path
     Assert-RecoveryDirectory ([IO.Path]::GetDirectoryName($path)) $Broker
     $security=[Security.AccessControl.FileSecurity]::new();$security.SetOwner([Security.Principal.SecurityIdentifier]::new($Broker));$security.SetAccessRuleProtection($true,$false)
     foreach($sid in @($Broker,'S-1-5-18')){$security.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new([Security.Principal.SecurityIdentifier]::new($sid),'FullControl','Allow'))}
@@ -69,13 +106,14 @@ function Get-ResumePrograms([string]$Original){
     $keysProgram=$keysNode.Extent.Text.Replace($keyRead,'$(if($Value -is [Collections.IDictionary]){$Value.Keys}else{$Value.PSObject.Properties.Name})')
     return @{keys=$keysProgram;acl=$aclProgram;tree=$tree;body=$body;suffix=$body.Substring($body.IndexOf($marker,[StringComparison]::Ordinal));tail=$tail;interop=$interop.Replace('new StringBuilder(32768)','new StringBuilder(260)')}
 }
-function Assert-ResumeProvider {
+function Assert-ResumeProvider([string]$RecordedCase='20261022'){
+    $recordedBinding=Get-ResumeCase $RecordedCase
     $users=@(Get-LocalUser -ErrorAction Stop)
     if($users.Count -gt 1024){throw 'Account inventory exceeds bound'}
     $owned=@($users|Where-Object Name -EQ 'PortcoveNativeQual')
     if($owned.Count -ne 1 -or @($users|Where-Object Name -EQ 'PortcovePublicProof').Count){throw 'Fixed account inventory differs'}
     $user=$owned[0]
-    if($user.SID.Value -cne 'S-1-5-21-1007133822-4277289207-646028416-1008' -or $user.Description -cne 'PC534:67c28f511ddb23f6826d7025e8bc0127' -or $user.Enabled -or $user.UserMayChangePassword -or $null -ne $user.PasswordExpires -or $null -ne $user.AccountExpires){throw 'Recorded disabled account identity/policy differs'}
+    if($user.SID.Value -cne $recordedBinding.sid -or $user.Description -cne 'PC534:67c28f511ddb23f6826d7025e8bc0127' -or $user.Enabled -or $user.UserMayChangePassword -or $null -ne $user.PasswordExpires -or $null -ne $user.AccountExpires){throw 'Recorded disabled account identity/policy differs'}
     $memberships=@()
     foreach($group in @(Get-LocalGroup -ErrorAction Stop)){
         $members=@(Get-LocalGroupMember -SID $group.SID -ErrorAction Stop)
@@ -96,18 +134,11 @@ function Assert-ResumeProvider {
     }
     return $user
 }
-function Get-ResumePreimage {
-    $expected=@{
-        'intent.json'=@(470,'e85e68d55f490ae3023666cfdb66359cccb6a57d2704f8d17c690f5b89f6d52e')
-        'account-0-intent.json'=@(135,'5e3506d07d7af8373d9be17c13744e302daa7d51e8e29981994130c5a0fc2d2f')
-        'account-0-created.json'=@(311,'59ad70147db00ed17d3418732f600f8bcd9ba479bdaca75775753e17279905ed')
-        'account-0-group-intent.json'=@(172,'cb2a7c18514a6de67102e092cd812adc0e72fe30c832b1b2c96d5c93debba5c0')
-        'account-0-group.json'=@(135,'89981af03c283b12f28f68487515e22a90c2bf2415bbd43e6641f8764377b37b')
-    }
-    return $expected
+function Get-ResumePreimage([string]$RecordedCase='20261022'){
+    return (Get-ResumeCase $RecordedCase).preimage
 }
-function Assert-ResumePreimage([string]$Root,$Recorded=$null){
-    $expected=Get-ResumePreimage
+function Assert-ResumePreimage([string]$Root,$Recorded=$null,[string]$RecordedCase='20261022'){
+    $expected=Get-ResumePreimage $RecordedCase
     if($null -ne $Recorded){
         Assert-Keys $Recorded @($expected.Keys)
         foreach($name in $expected.Keys){if(@($Recorded.$name).Count -ne 2 -or $Recorded.$name[0] -ne $expected[$name][0] -or $Recorded.$name[1] -cne $expected[$name][1]){throw 'Recorded continuation preimage differs'}}
@@ -118,9 +149,9 @@ function Assert-ResumePreimage([string]$Root,$Recorded=$null){
         $null=Read-RecoveryFile $file $expected[$name][1] $expected[$name][0]
     }
 }
-function Assert-ResumeSnapshot([string]$Root,[string]$Broker,[IO.FileStream]$Lock){
+function Assert-ResumeSnapshot([string]$Root,[string]$Broker,[IO.FileStream]$Lock,[string]$RecordedCase='20261022'){
     Assert-RecoveryDirectory $Root $Broker
-    $expected=Get-ResumePreimage
+    $expected=Get-ResumePreimage $RecordedCase
     $entries=@(Get-ChildItem -LiteralPath $Root -Force)
     if($entries.Count -ne 6 -or (($entries.Name|Sort-Object)-join ',') -cne ((@($expected.Keys)+@('setup.lock')|Sort-Object)-join ',')){throw 'Partial setup namespace differs'}
     foreach($entry in $entries){
@@ -131,7 +162,7 @@ function Assert-ResumeSnapshot([string]$Root,[string]$Broker,[IO.FileStream]$Loc
     foreach($name in $expected.Keys){$null=Read-RecoveryFile (Join-Path $Root $name) $expected[$name][1] $expected[$name][0]}
     $intent=(Read-BoundedJson (Join-Path $Root 'intent.json')).value
     if((Get-Acl -LiteralPath $Root).Sddl -cne $intent.root_sddl){throw 'Original root ACL differs'}
-    $null=Assert-ResumeProvider
+    $null=Assert-ResumeProvider $RecordedCase
     return $expected
 }
 function Invoke-ResumePrograms($Programs,$ExistingUser,[string]$Root,[string]$Broker,[string]$PlanSha256,$Continuation){
@@ -145,10 +176,11 @@ function Invoke-ResumePrograms($Programs,$ExistingUser,[string]$Root,[string]$Br
     if($accounts.Count -ne 2 -or $accounts[0].sid -cne $ExistingUser.SID.Value -or $accounts[1].name -cne 'PortcovePublicProof'){throw 'Completed loop account identities differ'}
     . ([scriptblock]::Create($Programs.tail))
 }
-function Assert-ResumeCompletion([string]$Root,[string]$Bootstrap,[string]$ResumeSource){
+function Assert-ResumeCompletion([string]$Root,[string]$Bootstrap,[string]$ResumeSource,[string]$RecordedCase='20261022'){
+    $recordedBinding=Get-ResumeCase $RecordedCase
     Assert-SetupRoot $Root $broker
-    $intent=Read-BoundedJson (Join-Path $Bootstrap 'profile-resume-intent-20261022.json')
-    $complete=Read-BoundedJson (Join-Path $Bootstrap 'profile-resume-complete-20261022.json')
+    $intent=Read-BoundedJson (Join-Path $Bootstrap $recordedBinding.intent_name)
+    $complete=Read-BoundedJson (Join-Path $Bootstrap $recordedBinding.complete_name)
     $created=Read-BoundedJson (Join-Path $Root 'created.json')
     Assert-Keys $intent.value @('schema_version','continuation','preimage','automatic_retry')
     Assert-Keys $complete.value @('schema_version','actual_continuation_sha256','intent_sha256','created_sha256','automatic_retry','accounts_remain_disabled')
@@ -158,14 +190,14 @@ function Assert-ResumeCompletion([string]$Root,[string]$Bootstrap,[string]$Resum
     Assert-Keys $intent.value.continuation @('kind','actual_continuation_sha256','original_template_sha256','original_intent_sha256','owned_account_sid','profile_buffer_characters')
     foreach($key in $created.value.continuation.PSObject.Properties.Name){if($created.value.continuation.$key -cne $intent.value.continuation.$key){throw 'Intent/completion execution identity differs'}}
     if($created.value.continuation.kind -cne 'exact-recorded-profile-continuation-v1'){throw 'Unknown continuation kind'}
-    Assert-ResumePreimage $Root $intent.value.preimage
-    if($intent.value.continuation.actual_continuation_sha256 -cne $ResumeSource -or $complete.value.actual_continuation_sha256 -cne $ResumeSource -or $complete.value.intent_sha256 -cne $intent.sha256 -or $complete.value.created_sha256 -cne $created.sha256 -or $created.value.continuation.actual_continuation_sha256 -cne $ResumeSource -or $created.value.continuation.original_template_sha256 -cne $created.value.source_sha256 -or $created.value.source_sha256 -cne 'ef2f88896f33f49053c367aa1621234527b9ba1306681776287fb5d2ba532c10' -or $created.value.continuation.original_intent_sha256 -cne 'e85e68d55f490ae3023666cfdb66359cccb6a57d2704f8d17c690f5b89f6d52e' -or $created.value.continuation.owned_account_sid -cne 'S-1-5-21-1007133822-4277289207-646028416-1008' -or $created.value.continuation.profile_buffer_characters -ne 260){throw 'Composite setup completion differs'}
-    if(@($created.value.accounts).Count -ne 2 -or $created.value.accounts[0].sid -cne 'S-1-5-21-1007133822-4277289207-646028416-1008'){throw 'Completed account order/identity differs'}
+    Assert-ResumePreimage $Root $intent.value.preimage $RecordedCase
+    if($intent.value.continuation.actual_continuation_sha256 -cne $ResumeSource -or $complete.value.actual_continuation_sha256 -cne $ResumeSource -or $complete.value.intent_sha256 -cne $intent.sha256 -or $complete.value.created_sha256 -cne $created.sha256 -or $created.value.continuation.actual_continuation_sha256 -cne $ResumeSource -or $created.value.continuation.original_template_sha256 -cne $created.value.source_sha256 -or $created.value.source_sha256 -cne 'ef2f88896f33f49053c367aa1621234527b9ba1306681776287fb5d2ba532c10' -or $created.value.continuation.original_intent_sha256 -cne $recordedBinding.preimage['intent.json'][1] -or $created.value.continuation.owned_account_sid -cne $recordedBinding.sid -or $created.value.continuation.profile_buffer_characters -ne 260){throw 'Composite setup completion differs'}
+    if(@($created.value.accounts).Count -ne 2 -or $created.value.accounts[0].sid -cne $recordedBinding.sid){throw 'Completed account order/identity differs'}
     for($index=0;$index -lt 2;$index++){
         if($created.value.accounts[$index].name -cne @('PortcoveNativeQual','PortcovePublicProof')[$index] -or (Assert-Account $created.value.accounts[$index]).Enabled){throw 'Completed account is not exact and disabled'}
     }
     foreach($post in $created.value.acl_postimages){if((Get-Acl -LiteralPath $post.path).Sddl -cne $post.sddl){throw 'Completion ACL drifted'}}
-    return @{completed=$true;accounts_remain_disabled=$true;created_sha256=$created.sha256;actual_continuation_sha256=$ResumeSource;original_template_sha256=$created.value.source_sha256;automatic_retry=$false}
+    return @{recorded_case=$RecordedCase;completed=$true;accounts_remain_disabled=$true;created_sha256=$created.sha256;actual_continuation_sha256=$ResumeSource;original_template_sha256=$created.value.source_sha256;automatic_retry=$false}
 }
 function Read-RecoveryFile([string]$Path,[string]$Sha256,[long]$Length){
     $item=Get-Item -LiteralPath $Path -Force
@@ -228,7 +260,8 @@ $identity=[Security.Principal.WindowsIdentity]::GetCurrent();$broker='S-1-5-21-1
 if($identity.User.Value -cne $broker){throw 'Appointed same-owner broker required'}
 if($Operation -eq 'Complete' -and -not ([Security.Principal.WindowsPrincipal]::new($identity)).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)){throw 'One-time same-owner elevation required'}
 $bootstrap='C:\ProgramData\PortcoveSlice4Bootstrap';$root='C:\ProgramData\PortcoveNativeQualification'
-if($Operation -eq 'Complete' -and [IO.Path]::GetFullPath($PSCommandPath) -cne 'C:\ProgramData\PortcoveSlice4Bootstrap\profile-resume.ps1'){throw 'Complete requires the reviewed protected C: source'}
+$recordedBinding=Get-ResumeCase $RecordedCase
+if($Operation -eq 'Complete' -and [IO.Path]::GetFullPath($PSCommandPath) -cne $recordedBinding.source_path){throw 'Complete requires the reviewed protected C: source'}
 $PlanSha256='67c28f511ddb23f6826d7025e8bc012727608b8b7d3df9beaab3b0e282e3467b'
 Assert-RecoveryDirectory $bootstrap $broker
 $resumeSource=(Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -246,16 +279,16 @@ try{
     Assert-SetupRoot $root $broker
     Assert-Ancestry 'C:\Users' $broker
     $held=Open-SetupLock $root $broker $false ($Operation -ne 'Complete')
-    if($Operation -eq 'Readback'){Assert-ResumeCompletion $root $bootstrap $resumeSource|ConvertTo-Json -Depth 8;return}
-    foreach($leaf in @('profile-resume-intent-20261022.json','profile-resume-complete-20261022.json')){Assert-RecoveryAbsent (Join-Path $bootstrap $leaf)}
-    $snapshot=Assert-ResumeSnapshot $root $broker $held
-    $continuation=@{kind='exact-recorded-profile-continuation-v1';actual_continuation_sha256=$resumeSource;original_template_sha256='ef2f88896f33f49053c367aa1621234527b9ba1306681776287fb5d2ba532c10';original_intent_sha256='e85e68d55f490ae3023666cfdb66359cccb6a57d2704f8d17c690f5b89f6d52e';owned_account_sid='S-1-5-21-1007133822-4277289207-646028416-1008';profile_buffer_characters=260}
-    if($Operation -eq 'Inspect'){@{eligible_for_completion=$true;account0='recorded-disabled-password-unchanged';profile0='absent';account1='absent';mutations='none'}|ConvertTo-Json;return}
-    Write-NewJson (Join-Path $bootstrap 'profile-resume-intent-20261022.json') @{schema_version=1;continuation=$continuation;preimage=$snapshot;automatic_retry=$false}
-    Invoke-ResumePrograms $programs (Assert-ResumeProvider) $root $broker $PlanSha256 $continuation
-    Assert-ResumePreimage $root
+    if($Operation -eq 'Readback'){Assert-ResumeCompletion $root $bootstrap $resumeSource $RecordedCase|ConvertTo-Json -Depth 8;return}
+    foreach($leaf in @($recordedBinding.intent_name,$recordedBinding.complete_name)){Assert-RecoveryAbsent (Join-Path $bootstrap $leaf)}
+    $snapshot=Assert-ResumeSnapshot $root $broker $held $RecordedCase
+    $continuation=@{kind='exact-recorded-profile-continuation-v1';actual_continuation_sha256=$resumeSource;original_template_sha256='ef2f88896f33f49053c367aa1621234527b9ba1306681776287fb5d2ba532c10';original_intent_sha256=$recordedBinding.preimage['intent.json'][1];owned_account_sid=$recordedBinding.sid;profile_buffer_characters=260}
+    if($Operation -eq 'Inspect'){@{recorded_case=$RecordedCase;eligible_for_completion=$true;account0='recorded-disabled-password-unchanged';profile0='absent';account1='absent';mutations='none'}|ConvertTo-Json;return}
+    Write-NewJson (Join-Path $bootstrap $recordedBinding.intent_name) @{schema_version=1;continuation=$continuation;preimage=$snapshot;automatic_retry=$false}
+    Invoke-ResumePrograms $programs (Assert-ResumeProvider $RecordedCase) $root $broker $PlanSha256 $continuation
+    Assert-ResumePreimage $root $null $RecordedCase
     $created=Read-BoundedJson (Join-Path $root 'created.json')
-    $resumeIntent=Read-BoundedJson (Join-Path $bootstrap 'profile-resume-intent-20261022.json')
-    Write-NewJson (Join-Path $bootstrap 'profile-resume-complete-20261022.json') @{schema_version=1;actual_continuation_sha256=$resumeSource;intent_sha256=$resumeIntent.sha256;created_sha256=$created.sha256;automatic_retry=$false;accounts_remain_disabled=$true}
-    Assert-ResumeCompletion $root $bootstrap $resumeSource|ConvertTo-Json -Depth 8
+    $resumeIntent=Read-BoundedJson (Join-Path $bootstrap $recordedBinding.intent_name)
+    Write-NewJson (Join-Path $bootstrap $recordedBinding.complete_name) @{schema_version=1;actual_continuation_sha256=$resumeSource;intent_sha256=$resumeIntent.sha256;created_sha256=$created.sha256;automatic_retry=$false;accounts_remain_disabled=$true}
+    Assert-ResumeCompletion $root $bootstrap $resumeSource $RecordedCase|ConvertTo-Json -Depth 8
 }finally{if($held){$held.Dispose()};if($planLock){$planLock.Dispose()};$sourceLock.Dispose()}

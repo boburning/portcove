@@ -1,26 +1,68 @@
 import { createHash } from "node:crypto";
-import { GitHubApiClient, nextLink } from "./github-api.mts";
-import type { IncludedResponse } from "./github-api.mts";
+import { nextLink } from "./github-operation.mts";
+import type { GitHubMetadataResponse } from "./github-operation.mts";
+
+export type RestInventoryReader = (
+  endpoint: string,
+  headers: Readonly<Record<string, string>>,
+) => Promise<GitHubMetadataResponse>;
 import { isRecord } from "./runtime-values.mts";
+import type { Octokit } from "@octokit/core";
+import type { GitHubRequestPolicy } from "./github-client.mts";
 
 const hash = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 const version = { "X-GitHub-Api-Version": "2026-03-10" };
 /** Cache entries are usable only after a fresh authorized 304, never as offline evidence. */
 export class RestInventoryTransport {
-  private cache = new Map<string, { response: IncludedResponse; digest: string; etag: string }>();
+  private cache = new Map<
+    string,
+    { response: GitHubMetadataResponse; digest: string; etag: string }
+  >();
   private unconditional = new Set<string>();
-  readonly api: GitHubApiClient;
-  constructor(api: GitHubApiClient) {
-    this.api = api;
+  readonly read: RestInventoryReader;
+  private readonly now: () => number;
+  constructor(read: RestInventoryReader, now = () => performance.now()) {
+    this.read = read;
+    this.now = now;
   }
 
-  get(endpoint: string): IncludedResponse {
+  static fromSDK(client: Pick<Octokit, "request">) {
+    // Retain only failed logical reads within this inventory operation. Successful
+    // stability observations get a fresh allowance; recovery of a failed page
+    // cannot renew its consumed attempts or original deadline.
+    const failed = new Map<string, GitHubRequestPolicy>();
+    return new RestInventoryTransport(async (endpoint, headers) => {
+      const policy: GitHubRequestPolicy = failed.get(endpoint) ?? {
+        replay: "safe-read",
+        attempts: 0,
+      };
+      failed.set(endpoint, policy);
+      const response = await client.request({
+        method: "GET",
+        url: new URL(endpoint, "https://api.github.com/").href,
+        headers: { ...headers },
+        request: { portcove: policy },
+      });
+      failed.delete(endpoint);
+      return {
+        status: response.status,
+        body: response.data as unknown,
+        headers: new Map(
+          Object.entries(response.headers).filter(
+            (entry): entry is [string, string] => typeof entry[1] === "string",
+          ),
+        ),
+      };
+    });
+  }
+
+  async get(endpoint: string): Promise<GitHubMetadataResponse> {
     const old = this.cache.get(endpoint);
     // Refresh terminal pages unconditionally: a newly appended page can change Link
     // without changing the preceding page's representation/ETag.
     const conditional =
       old && !this.unconditional.has(endpoint) && nextLink(old.response.headers) !== null;
-    let response = this.api.request("GET", endpoint, null, {
+    let response = await this.read(endpoint, {
       ...version,
       ...(conditional ? { "If-None-Match": old.etag } : {}),
     });
@@ -31,7 +73,7 @@ export class RestInventoryTransport {
         // This endpoint cannot refresh pagination through 304. Avoid paying for
         // the same failed conditional request on every subsequent traversal.
         this.unconditional.add(endpoint);
-        response = this.api.request("GET", endpoint, null, version);
+        response = await this.read(endpoint, version);
       } else {
         response = { ...response, body: old.response.body };
       }
@@ -42,10 +84,6 @@ export class RestInventoryTransport {
     if (etag) this.cache.set(endpoint, { response, digest: hash(response.body), etag });
     else this.cache.delete(endpoint);
     return response;
-  }
-
-  write(method: "POST" | "PATCH", endpoint: string, body: unknown) {
-    return this.api.request(method, endpoint, body, version);
   }
 
   pages(endpoint: string, allowedPaths: readonly string[]) {
@@ -61,7 +99,7 @@ export class RestInventoryTransport {
     return this.collect(endpoint, allowedPaths, matches);
   }
 
-  private collect(
+  private async collect(
     endpoint: string,
     allowedPaths: readonly string[],
     matches?: (row: Record<string, unknown>) => boolean,
@@ -71,10 +109,10 @@ export class RestInventoryTransport {
     const visited = new Set<string>();
     const initial = new URL(endpoint, "https://api.github.com/");
     const pages: { endpoint_sha256: string; count: number; terminal: boolean }[] = [];
-    const started = Date.now();
+    const started = this.now();
     let current: string | null = endpoint;
     while (current !== null) {
-      if (Date.now() - started > 120_000)
+      if (this.now() - started > 120_000)
         throw new Error("REST inventory exceeded its finite collection budget");
       const url = new URL(current, "https://api.github.com/");
       url.searchParams.sort();
@@ -103,7 +141,7 @@ export class RestInventoryTransport {
           throw new Error("REST inventory pagination changed its filter scope");
       }
       visited.add(url.href);
-      const response = this.get(url.href);
+      const response = await this.get(url.href);
       if (!Array.isArray(response.body)) throw new Error("Malformed REST inventory page");
       const link = response.headers.get("link");
       if (link !== undefined) {

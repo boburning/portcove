@@ -32,18 +32,22 @@
           "instruction": "Select DoDonPachi SaiDaiOuJou.exe, use its complete containing package directory as working directory and leave arguments empty. Keep the successful game_data/ tree, matching runtime companions and settings together. Do not select extract-xiso or a setup/build script. The native app owns its ordinary window/game loop; saving launch details and Play are separate actions. First-run setup, extraction and any optional settings-restart successor remain outside this completed-player route; close actual successors before maintenance or another attachment."
         },
         {
-          "title": "Preserve all effective data and settings roots",
-          "instruction": "Back up the complete creating package, saidaioujou_recomp_tu1.toml, game_data/, user_data/ (including saves/content, caches and updater metadata) and logs before upstream startup, repair or replacement. Preserve custom game_data_root, user_data_root, update_data_root, cache_path and log_file choices independently; an existing configured external game-data root takes precedence. The title defaults user data beside the EXE and cache under user_data/cache. Upstream refuses incomplete or unsupported nonempty game_data rather than merging it; keep staged originals/recovery data outside disposable setup destinations. No cross-edition or cross-version save/mod compatibility is promised."
-        },
-        {
           "title": "Leave notifications and runtime replacement with upstream",
           "instruction": "The source update checker reads GitHub metadata and offers to open the release page; it does not establish managed automatic replacement. Upstream/user owns choosing a complete compatible package, preparation, updates and recovery. Close the actual player, extractor and any optional restart successors before backup, replacing files or removal, preserve old complete runtime/data independently, then review/relink changed selected bytes. Removing registration preserves external files; Portcove does not own automatic update, rollback, backups, save migration, external deletion or successor adoption."
         }
       ],
       "warnings": [
-        "Disc and Games-on-Demand use different original/TU checks; wrong or incomplete data is not an interchangeable source. Keep the complete chosen renderer variant and meet its upstream GPU/runtime requirements. Altered input/render-lag options require a restart; no actual gameplay, performance or save-compatibility assurance is supplied by this guide."
+        "Disc and Games-on-Demand use different original/TU checks; wrong or incomplete data is not an interchangeable source. Keep the complete chosen renderer variant and meet its upstream GPU/runtime requirements. Altered input/render-lag options require a restart; no actual gameplay, performance or save-compatibility assurance is supplied by this guide.",
+        "Back up the complete creating package, saidaioujou_recomp_tu1.toml, game_data/, user_data/ (including saves/content, caches and updater metadata) and logs before upstream startup, repair or replacement.",
+        "Upstream refuses incomplete or unsupported nonempty game_data rather than merging it; keep staged originals/recovery data outside disposable setup destinations. No cross-edition or cross-version save/mod compatibility is promised."
       ],
-      "help_url": "https://github.com/eandis/SDOJ-Recomp/blob/cf0afe107d02fa16980e8c8f90a5969aafac81a7/README.md"
+      "help_url": "https://github.com/eandis/SDOJ-Recomp/blob/cf0afe107d02fa16980e8c8f90a5969aafac81a7/README.md",
+      "references": [
+        {
+          "title": "Preserve all effective data and settings roots",
+          "instruction": "Back up the complete creating package, saidaioujou_recomp_tu1.toml, game_data/, user_data/ (including saves/content, caches and updater metadata) and logs before upstream startup, repair or replacement. Preserve custom game_data_root, user_data_root, update_data_root, cache_path and log_file choices independently; an existing configured external game-data root takes precedence. The title defaults user data beside the EXE and cache under user_data/cache. Upstream refuses incomplete or unsupported nonempty game_data rather than merging it; keep staged originals/recovery data outside disposable setup destinations. No cross-edition or cross-version save/mod compatibility is promised."
+        }
+      ]
     },
     "download_block_reason": "Fresh acquisition of the selected Windows SDOJ-Recomp player is held while an attributable permission or authorized-source basis for its bundled statically translated DoDonPachi SaiDaiOuJou game-code modules remains unresolved. The ReXGlue/Xenia runtime licence does not establish that separate component’s permission. Resume on an applicable reviewed basis or a supported route excluding the unresolved component; independently permitted existing copies remain distinct."
   }

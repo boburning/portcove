@@ -32,16 +32,19 @@
         {
           "title": "Load your original game on first Play",
           "instruction": "Choose Play, then Load ROM in the player and select your own supported USA Beetle Adventure Racing cartridge dump. The player checks its expected game identity and caches the selected game. The released player needs no downstream decompilation build or separate game-generation step."
-        },
+        }
+      ],
+      "warnings": [
+        "This alpha has upstream limitations; a published Windows package does not establish native/gameplay or Linux qualification.",
+        "portable.txt or an unavailable profile directory can move writes beside the executable. Preserve the location actually used and keep the current copy until ready. These external files are outside Portcove backup, runtime rollback and deletion."
+      ],
+      "help_url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/blob/974596dfa0493fe2c7c2446b3f5165dd11237020/README.md",
+      "references": [
         {
           "title": "Preserve the current copy and Controller Pak data",
           "instruction": "You or upstream provide updates. Back up the whole working folder and normally %LOCALAPPDATA%\\beetle-adventure-racing-recomp, including cached ROM, Controller Pak saves, settings and bindings. portable.txt or an unavailable profile directory can move writes beside the executable. Preserve the location actually used and keep the current copy until ready. These external files are outside Portcove backup, runtime rollback and deletion."
         }
-      ],
-      "warnings": [
-        "This alpha has upstream limitations; a published Windows package does not establish native/gameplay or Linux qualification."
-      ],
-      "help_url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/blob/974596dfa0493fe2c7c2446b3f5165dd11237020/README.md"
+      ]
     }
   }
 }

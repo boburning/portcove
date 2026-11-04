@@ -6,7 +6,7 @@
     "summary": "Attach a complete permitted YKnytt Windows installation, the Godot C# implementation of Knytt Stories. Preserve its actual user/world/save directories and freeware asset terms; community-level compatibility and optional network actions remain upstream-owned.",
     "original_game_title": "Knytt Stories",
     "project_url": "https://github.com/youkaicountry/yknytt",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/youkaicountry/yknytt",
     "artwork": {

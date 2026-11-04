@@ -19,16 +19,19 @@
         {
           "title": "Choose your original disc on Play",
           "instruction": "Use your own USA PlayStation Alien Resurrection disc, SLUS-00633. The game launcher accepts its .cue, a .bin track or the containing folder and checks the edition."
-        },
+        }
+      ],
+      "warnings": [
+        "Existing external copies and their profiles stay upstream/player-owned. Runtime rollback does not rewind saves or guarantee older-version compatibility.",
+        "Make an in-game memory-card save before updating, switching versions or rolling back. Quick saves are tied to the port version and have one slot. Keep the working runtime if your latest progress exists only in its quick save."
+      ],
+      "help_url": "https://github.com/DiegoDeDios/AlienReRecomp#quick-save",
+      "references": [
         {
           "title": "Preserve the profile before changing versions",
           "instruction": "Make an in-game memory-card save before updating, switching versions or rolling back. Quick saves are tied to the port version and have one slot. Keep the working runtime if your latest progress exists only in its quick save. Back up your actual profile: Windows normally uses AppData/Roaming/AlienResurrectionPort/AlienResurrection; Linux normally uses XDG_DATA_HOME/AlienResurrectionPort/AlienResurrection or ~/.local/share/AlienResurrectionPort/AlienResurrection. A custom --save-dir uses that chosen location."
         }
-      ],
-      "warnings": [
-        "Existing external copies and their profiles stay upstream/player-owned. Runtime rollback does not rewind saves or guarantee older-version compatibility."
-      ],
-      "help_url": "https://github.com/DiegoDeDios/AlienReRecomp#quick-save"
+      ]
     }
   },
   "integration": {

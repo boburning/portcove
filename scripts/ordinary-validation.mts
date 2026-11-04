@@ -366,6 +366,7 @@ for (const [file, tests] of [
       "scripts/desktop-boundary-wiring.test.mts",
       "scripts/desktop-execution-plan.test.mts",
       "scripts/desktop-real-runtime.test.mts",
+      "scripts/desktop-source-reuse.test.mts",
       "scripts/native-compatibility.test.mts",
       "apps/desktop/scripts/desktop-remainder-scenarios.native.test.mts",
       "apps/desktop/scripts/desktop-artwork-correction.native.test.mts",
@@ -1696,17 +1697,27 @@ for (const [file, tests] of [
     "apps/desktop/scripts/desktop-owned-native-session.mts",
     [
       "scripts/desktop-real-runtime.test.mts",
+      "scripts/desktop-source-reuse.test.mts",
       "scripts/desktop-boundary-wiring.test.mts",
       "apps/desktop/scripts/desktop-native-observations.native.test.mts",
     ],
   ],
   [
+    "apps/desktop/scripts/desktop-source-reuse-test.mts",
+    ["scripts/desktop-source-reuse.test.mts", "scripts/desktop-boundary-wiring.test.mts"],
+  ],
+  [
     "apps/desktop/scripts/desktop-real-runtime-test.mts",
-    ["scripts/desktop-real-runtime.test.mts", "scripts/desktop-boundary-wiring.test.mts"],
+    [
+      "scripts/desktop-real-runtime.test.mts",
+      "scripts/desktop-source-reuse.test.mts",
+      "scripts/desktop-boundary-wiring.test.mts",
+    ],
   ],
   [
     "apps/desktop/scripts/desktop-runtime-exit-observation.mts",
     [
+      "scripts/desktop-source-reuse.test.mts",
       "scripts/desktop-runtime-exit-observation.test.mts",
       "scripts/desktop-boundary-wiring.test.mts",
     ],
@@ -1741,6 +1752,7 @@ for (const [file, tests] of [
     [
       "apps/desktop/scripts/desktop-harness.native.test.mts",
       "scripts/desktop-real-runtime.test.mts",
+      "scripts/desktop-source-reuse.test.mts",
       "scripts/desktop-boundary-wiring.test.mts",
       "scripts/desktop-execution-plan.test.mts",
       "scripts/desktop-input-observation.test.mts",
@@ -1791,6 +1803,15 @@ for (const [file, tests] of [
   [
     "apps/desktop/scripts/desktop-source-dialog-test.mts",
     ["scripts/desktop-scenarios.test.mts", "scripts/desktop-boundary-wiring.test.mts"],
+  ],
+  [
+    "apps/desktop/scripts/desktop-source-intake-boundaries-test.mts",
+    [
+      "scripts/desktop-scenarios.test.mts",
+      "scripts/desktop-execution-plan.test.mts",
+      "scripts/desktop-boundary-wiring.test.mts",
+      "scripts/fixture-module-closure.test.mts",
+    ],
   ],
   ...[
     "apps/desktop/scripts/desktop-review-controls.mts",
@@ -1869,6 +1890,7 @@ for (const [file, tests] of [
   ["scripts/repository-issue-inventory.fixture.mts", roadmapContractTests],
   ...[
     "scripts/github-api.mts",
+    "scripts/github-operation.mts",
     "scripts/repository-issue-inventory.mts",
     "scripts/roadmap-inventory.mts",
     "scripts/roadmap-scoped.mts",
@@ -1990,6 +2012,8 @@ for (const file of [
   ]);
 explicitNodeTests.set("scripts/fixtures/module-closure.mts", [
   ...(explicitNodeTests.get("scripts/fixtures/module-closure.mts") ?? []),
+  "scripts/repository-settings.test.mts",
+  "scripts/release-controller-tools.test.mts",
   "scripts/release-windows-webview-driver.test.mts",
   "scripts/catalog-proposal-costs.test.mts",
   "scripts/production-aggregate-steps.test.mts",
@@ -2125,6 +2149,54 @@ for (const file of [
     ...(explicitNodeTests.get(file) ?? []),
     ...coordinatorStateContractTests,
   ]);
+}
+
+for (const file of ["scripts/repository-settings.mts", "scripts/repository-settings-policy.mts"])
+  explicitNodeTests.set(file, [
+    ...(explicitNodeTests.get(file) ?? []),
+    "scripts/repository-settings.test.mts",
+  ]);
+
+for (const file of [
+  "package.json",
+  "pnpm-lock.yaml",
+  "scripts/github-client.mts",
+  "scripts/github-client.test.mts",
+  "scripts/github-operation.mts",
+  "scripts/github-cli.mts",
+  "scripts/repository-settings.mts",
+  "scripts/github-rest-inventory.mts",
+  "scripts/roadmap-rest-intake.mts",
+  "scripts/aqua-integrity.mts",
+  "scripts/ci-health.mts",
+  "scripts/handoff-evidence.mts",
+  "scripts/postmerge-ci.mts",
+])
+  explicitNodeTests.set(file, [
+    ...(explicitNodeTests.get(file) ?? []),
+    "scripts/github-client.test.mts",
+    "scripts/roadmap-rest-intake.test.mts",
+  ]);
+
+explicitNodeTests.set("scripts/aqua-integrity.mts", [
+  ...(explicitNodeTests.get("scripts/aqua-integrity.mts") ?? []),
+  "scripts/quality-tools.test.mts",
+  "scripts/recovery-tools.test.mts",
+]);
+for (const file of ["scripts/github-cli.mts", "scripts/github-controller-attestation.mts"])
+  explicitNodeTests.set(file, [
+    ...(explicitNodeTests.get(file) ?? []),
+    "scripts/release-controller-tools.test.mts",
+    "scripts/release-coordinator-checkpoint-authentication.test.mts",
+    "scripts/release-signing-context-artifact.test.mts",
+    "scripts/release-publication-result-artifact.test.mts",
+    "scripts/release-tuf-role-artifact.test.mts",
+    "scripts/release-hosted-native-acceptance.test.mts",
+  ]);
+
+for (const name of ["ci-health", "handoff-evidence", "postmerge-ci"]) {
+  const file = `scripts/${name}.mts`;
+  explicitNodeTests.set(file, [...(explicitNodeTests.get(file) ?? []), `scripts/${name}.test.mts`]);
 }
 
 for (const file of [

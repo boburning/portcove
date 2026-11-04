@@ -29,20 +29,24 @@
           "instruction": "Select completed build/pspreco-sdl3.exe with its creating project root as working directory. Pass the absolute generated/image.bin and the absolute own ISO or complete extracted-game directory as its two literal arguments, exactly the documented native running route. Do not select the headless developer target, Python tools or a different game. Keep the matching SDL3/Vulkan dependencies and prepared tree."
         },
         {
-          "title": "Use the completed game player",
-          "instruction": "The player loads its generated image and your own disc data, then keeps running until shutdown. This guide is based on source inspection of the completed-copy route. Portcove has not inspected public RAR contents or observed the game running."
-        },
-        {
           "title": "Review launch details, then choose Play",
           "instruction": "Review and consent to the selected game executable, working folder and launch arguments, then choose Play separately. You and the project manage setup, version changes and recovery. Removing the registration leaves all external files in place. Portcove does not offer updates, backups, rollback, migration or deletion for this copy. Before changing versions, close the game and all companions and keep the complete working copy and every data location. Review and select the executable again if its files change."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and components you are permitted to use. Preserve originals, required player files, saves, settings, mods, caches, logs, backups and custom locations; another executable may share them. Source inspection and test fixtures do not confirm gameplay, real saves or behavior in the installed app, or establish Supported status or protected acceptance.",
+        "Portcove has not inspected public RAR contents or observed the game running.",
+        "The source calls its PPSSPP PGF fonts freely licensed; this is an upstream attribution, not a new grant for PSP firmware or the original game. No cross-game/save compatibility is assumed."
+      ],
+      "references": [
+        {
+          "title": "Use the completed game player",
+          "instruction": "The player loads its generated image and your own disc data, then keeps running until shutdown. This guide is based on source inspection of the completed-copy route. Portcove has not inspected public RAR contents or observed the game running."
         },
         {
           "title": "Keep the working game and every data location",
           "instruction": "Keep the entire creating project, generated image/native code, original UMD-derived files, extraction manifests, runtime libraries and permitted fonts. Default saves use memstick/PSP/SAVEDATA relative to the chosen CWD; PSPRECO_MEMSTICK overrides that root. Default pspreco.toml is CWD-relative; PSPRECO_SETTINGS overrides it. Keep textures/ULUS10176 and PSPRECO_TEXTURES, PSPRECO_FONTDIR and every other actual custom path, with mods/scripts, caches, logs and backups. Retain project GPL-2.0 and separate ImGui, ATRAC decoder, Basis/zstd and font notices. The source calls its PPSSPP PGF fonts freely licensed; this is an upstream attribution, not a new grant for PSP firmware or the original game. No cross-game/save compatibility is assumed."
         }
-      ],
-      "warnings": [
-        "Use only a copy and components you are permitted to use. Preserve originals, required player files, saves, settings, mods, caches, logs, backups and custom locations; another executable may share them. Source inspection and test fixtures do not confirm gameplay, real saves or behavior in the installed app, or establish Supported status or protected acceptance."
       ]
     }
   }

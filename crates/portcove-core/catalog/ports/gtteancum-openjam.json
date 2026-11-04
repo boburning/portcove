@@ -6,7 +6,7 @@
     "summary": "Attach an independently permitted, prepared OpenJam Windows player for your purchased NBA JAM: On Fire Edition XBLA copy. The published player already contains recompiled code; upstream setup prepares your game data, with separate per-mod save roots.",
     "original_game_title": "NBA JAM: On Fire Edition",
     "project_url": "https://github.com/GTTeancum/OpenJam",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/GTTeancum/OpenJam",
     "artwork": {

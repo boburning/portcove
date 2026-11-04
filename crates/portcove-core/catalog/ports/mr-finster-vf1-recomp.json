@@ -6,7 +6,7 @@
     "summary": "Attach a prepared Virtua Fighter Windows installation using your own exact arcade ROM set. Its V60 program recompiled dynamically from your ROM at startup; Model1 board/TGP devices remain implemented/emulated separately. Upstream owns ROM preparation, player data and runtime replacement.",
     "original_game_title": "Virtua Fighter",
     "project_url": "https://github.com/mr-finster/vf1-recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/mr-finster/vf1-recomp",
     "issue_number": 2863,

@@ -1,0 +1,33 @@
+{
+  "scope": "Actual inert coordinator seed Git object and GitHub REST metadata captured 2026-11-03; no state ref or production execution",
+  "record": {
+    "sha": "8e3f8e1b7d2ab2f9e7b199c5bca27d75cc1d5760",
+    "node_id": "MDY6Q29tbWl0MTM1NDYxMzExNDo4ZTNmOGUxYjdkMmFiMmY5ZTdiMTk5YzViY2EyN2Q3NWNjMWQ1NzYw",
+    "url": "https://api.github.com/repos/boburning/portcove/git/commits/8e3f8e1b7d2ab2f9e7b199c5bca27d75cc1d5760",
+    "html_url": "https://github.com/boburning/portcove/commit/8e3f8e1b7d2ab2f9e7b199c5bca27d75cc1d5760",
+    "author": {
+      "name": "Portcove release coordinator",
+      "email": "coordinator@portcove.invalid",
+      "date": "2000-01-01T00:00:00Z"
+    },
+    "committer": {
+      "name": "Portcove release coordinator",
+      "email": "coordinator@portcove.invalid",
+      "date": "2000-01-01T00:00:00Z"
+    },
+    "tree": {
+      "sha": "fa0e10a79c5928a9776ee91c7d8cad8ac1c83959",
+      "url": "https://api.github.com/repos/boburning/portcove/git/trees/fa0e10a79c5928a9776ee91c7d8cad8ac1c83959"
+    },
+    "message": "Portcove release coordinator checkpoint",
+    "parents": [],
+    "verification": {
+      "verified": false,
+      "reason": "unsigned",
+      "signature": null,
+      "payload": null,
+      "verified_at": null
+    }
+  },
+  "raw": "tree fa0e10a79c5928a9776ee91c7d8cad8ac1c83959\nauthor Portcove release coordinator <coordinator@portcove.invalid> 946684800 +0000\ncommitter Portcove release coordinator <coordinator@portcove.invalid> 946684800 +0000\n\nPortcove release coordinator checkpoint\n"
+}

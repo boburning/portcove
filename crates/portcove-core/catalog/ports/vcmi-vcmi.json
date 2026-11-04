@@ -23,14 +23,21 @@
         },
         {
           "title": "Use the game client for Play",
-          "instruction": "After setup, finish Portcove registration with VCMI_client.exe and its folder. Keep VCMI Launcher available for mod management and setup. Windows game data, saves and settings normally live in Documents/My Games/vcmi; keep that profile when updating the upstream runtime."
+          "instruction": "After setup, finish Portcove registration with VCMI_client.exe and its folder. Keep VCMI Launcher available for mod management and setup."
         }
       ],
       "warnings": [
         "Heroes III Restoration of Erathia and the HD Edition are not supported; use Complete or Shadow of Death game data.",
-        "VCMI saves from different major versions are usually incompatible. Finish ongoing games or keep your current runtime and a profile backup before changing major versions."
+        "VCMI saves from different major versions are usually incompatible. Finish ongoing games or keep your current runtime and a profile backup before changing major versions.",
+        "Windows game data, saves and settings normally live in Documents/My Games/vcmi; keep that profile when updating the upstream runtime."
       ],
-      "help_url": "https://github.com/vcmi/vcmi/blob/develop/docs/players/Installation_Windows.md"
+      "help_url": "https://github.com/vcmi/vcmi/blob/develop/docs/players/Installation_Windows.md",
+      "references": [
+        {
+          "title": "Preserve the actual VCMI profile during updates",
+          "instruction": "Windows game data, saves and settings normally live in Documents/My Games/vcmi; keep that profile when updating the upstream runtime."
+        }
+      ]
     },
     "artwork": {
       "game_id": 364,

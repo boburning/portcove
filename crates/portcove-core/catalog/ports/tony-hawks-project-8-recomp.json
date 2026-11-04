@@ -43,16 +43,18 @@
         {
           "title": "Keep upstream maintenance outside the attached session",
           "instruction": "Upstream preparation and the public supervisor retain child and cleanup ownership. Its normal launch waits for the game, preserves active-instance guards and performs upstream cleanup; Portcove does not create a wrapper or select an internal child. Close supervisor/game/companions before upstream replacement; retain old data and review changed selected bytes."
-        },
-        {
-          "title": "Keep your working game and every data folder it uses",
-          "instruction": "Preserve the complete creating player, original game/ tree, saves/, config/settings.toml, config/install.toml, logs/ and every effective external save, data, cache, profile, mod, backup or custom root. Retain all companion native files. Keep the supported frame cap and existing configuration; never infer save migration from the engine family."
         }
       ],
       "warnings": [
         "Use only a copy and components you are permitted to use. Before changing versions, keep a copy of the complete working game, original files and every profile, save, cache, mod, backup, temporary file and custom data location. Another executable may use the same data. Portcove does not offer updates, backups, rollback, data migration or deletion for these external files.",
         "BSD-3-Clause project code with NOTICE for dependencies; original-derived generated game units and original data are outside that grant. Only an independently permitted prepared copy is covered by this attachment guide.",
         "Windows is explicitly experimental upstream; publisher Proton observations are not native Windows qualification. Upstream warns uncapped cutscenes can run 3–5x speed; retain default cap. No execution performed."
+      ],
+      "references": [
+        {
+          "title": "Keep your working game and every data folder it uses",
+          "instruction": "Preserve the complete creating player, original game/ tree, saves/, config/settings.toml, config/install.toml, logs/ and every effective external save, data, cache, profile, mod, backup or custom root. Retain all companion native files. Keep the supported frame cap and existing configuration; never infer save migration from the engine family."
+        }
       ]
     },
     "download_block_reason": "Fresh acquisition of the compiled Project 8 recompilation remains held: the selected release contains generated game code that the upstream BSD project grant explicitly excludes. Resume with applicable permission for that exact derived component or a reviewed compatible package resolving it. Independently permitted existing-copy registration does not clear this acquisition hold."

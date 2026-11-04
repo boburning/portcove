@@ -364,3 +364,24 @@ void test("cover and catalog Native contracts execute without optional package i
   assert.match(result.stdout, /pass 9/u);
   assert.match(result.stdout, /fail 0/u);
 });
+
+void test("CI plan bootstrap loads without installed SDK packages", (context) => {
+  const source = fileURLToPath(new URL("../", import.meta.url));
+  const closure = readFixtureModuleClosure(source, ["scripts/select-ci-plan.mts"], {
+    includeDynamicImports: false,
+  });
+  assert.ok(!closure.external.includes("@octokit/core"));
+  const root = fixture(context);
+  for (const module of closure.modules) write(root, module.path, module.bytes);
+  const result = spawnSync(
+    process.execPath,
+    ["--input-type=module", "-e", 'await import("./scripts/select-ci-plan.mts")'],
+    {
+      cwd: root,
+      encoding: "utf8",
+      timeout: 15000,
+    },
+  );
+  assert.ifError(result.error);
+  assert.equal(result.status, 0, result.stderr);
+});

@@ -57,6 +57,21 @@
     margin-block: var(--space-4);
   }
 
+  .catalog-filter-panel[data-view="library"] {
+    margin-block-start: var(--space-3);
+    padding: var(--space-4);
+    border-radius: 10px;
+  }
+  .catalog-filter-panel[data-view="library"] > h2 {
+    margin: 0;
+    font-size: var(--text-sm);
+    font-weight: 580;
+  }
+  .catalog-filter-panel[data-view="library"] > .catalog-filter-groups {
+    gap: var(--space-3);
+    margin-block: var(--space-3);
+  }
+
   @container library-query (max-width: 48em) {
     .catalog-filter-groups {
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -77,6 +92,128 @@
     }
     .identity-chip-button[aria-pressed="true"] {
       outline: 2px solid Highlight;
+    }
+  }
+}
+
+@layer utilities {
+  .catalog-filter-heading {
+    display: contents;
+  }
+  .browse-active-filters {
+    display: contents;
+  }
+  .catalog-filter-count {
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: var(--color-interactive-subtle);
+    color: var(--color-interactive-text-strong);
+    font-size: 0.6875rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .catalog-filter-panel[data-view="library"] {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 12px;
+  }
+  .catalog-filter-panel[data-view="library"] > .catalog-filter-heading {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-block-size: 22px;
+  }
+  .catalog-filter-panel[data-view="library"] .catalog-filter-heading h2 {
+    margin: 0;
+    font-size: 0.8125rem;
+    line-height: 1.4;
+    font-weight: 500;
+  }
+  .catalog-filter-panel[data-view="library"] .catalog-filter-heading details {
+    margin: 0;
+    font-size: 0.75rem;
+  }
+  .catalog-filter-panel[data-view="library"] .catalog-filter-heading details[open] {
+    flex-basis: 100%;
+  }
+  .catalog-filter-panel[data-view="library"] .catalog-filter-heading summary {
+    padding-block: 2px;
+  }
+  .catalog-filter-panel[data-view="library"] > p,
+  .catalog-filter-panel[data-view="library"] > .catalog-filter-groups {
+    grid-column: 1 / -1;
+    margin: 0;
+  }
+  .catalog-filter-panel[data-view="library"] .compact-filter-field > span {
+    font-size: 0.75rem;
+    line-height: 1.4;
+    font-weight: 400;
+  }
+  .catalog-filter-panel[data-view="library"] .compact-filter-field > button {
+    font-size: 0.8125rem;
+    font-weight: 400;
+    border-radius: 7px;
+    border-color: var(--color-control-border);
+    background: var(--color-bg-elevated);
+    color: var(--color-text);
+  }
+  .catalog-filter-panel[data-view="library"] .catalog-filter-advanced > summary {
+    padding-block: 6px;
+    font-size: 0.75rem;
+    font-weight: 400;
+  }
+  .catalog-filter-panel[data-view="library"] .catalog-filter-advanced[open] {
+    grid-column: 1 / -1;
+  }
+  .catalog-filter-panel[data-view="library"] .catalog-filter-actions {
+    justify-self: end;
+  }
+  .catalog-filter-panel[data-view="library"] .catalog-filter-actions > button {
+    min-block-size: 32px;
+    padding: 5px 8px;
+    font-size: 0.75rem;
+    font-weight: 400;
+  }
+  .catalog-filter-panel[data-view="library"]
+    .catalog-filter-advanced[open]
+    + .catalog-filter-actions {
+    grid-column: 1 / -1;
+  }
+  .browse-filter-summary[data-view="library"] {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    margin-block-start: 14px;
+  }
+  .browse-filter-summary[data-view="library"] .browse-active-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+  .browse-filter-summary[data-view="library"] .browse-active-filters:empty {
+    display: none;
+  }
+  .browse-filter-summary[data-view="library"] .browse-active-filters > button {
+    font-weight: 400;
+  }
+  @container library-query (max-width: 16rem) {
+    .catalog-filter-panel[data-view="library"] {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .catalog-filter-panel[data-view="library"] .catalog-filter-actions {
+      grid-column: 1;
+    }
+  }
+}
+
+@layer utilities {
+  @media (width <= 22rem) {
+    .browse-filter-summary[data-view="library"] {
+      margin-block-start: 12px;
     }
   }
 }

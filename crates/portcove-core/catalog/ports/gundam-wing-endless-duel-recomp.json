@@ -8,6 +8,34 @@
     "project_url": "https://github.com/TechnicallyComputers/GundamWingEndlessDuelSNESRecomp",
     "original_game_title": "Shin Kidou Senki Gundam W: Endless Duel",
     "issue_number": 330,
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Finish the upstream build first",
+          "instruction": "The v0.1.12 release is a ROM-free setup pack, not the prepared game. Use upstream's Generate & Build flow separately with your own Japanese original: SHA-256 dd94308d822636c6ddf73c5e2644c84f2eb8fb4d9201150fc5f37d44d6f423f1, CRC32 c0aecdca. Upstream generates private C code and builds the game locally. Keep the original, generated code, source tree and build tools private and unchanged elsewhere. Portcove does not run that setup or authenticate your original."
+        },
+        {
+          "title": "Choose the prepared game",
+          "instruction": "Select the completed build's GundamWingEndlessDuelSNESRecomp.exe, normally under build, with the folder containing that executable as its working folder. Do not select the downloaded setup host just because it has the same name. For the documented v0.1.12 game, enter --no-launcher on the first argument line and the actual absolute path to your Japanese .sfc file on the second. Each line is one argument; do not add shell quotes. This route opens the prepared game without the Generate & Build launcher. Keep existing working registrations on their own supported arguments."
+        },
+        {
+          "title": "Add the game and choose Play separately",
+          "instruction": "Portcove records your selected native executable, working folder and literal arguments after review; Play is a separate action. You and upstream own the runtime, originals and player data. Removing the registration preserves those files. Portcove does not install, rebuild, update, back up, roll back, migrate or delete this external copy, and it does not adopt a replacement process launched by upstream. Older Portcove-built installations keep their retained installation, source, backup and recovery contracts."
+        }
+      ],
+      "warnings": [
+        "The setup host can compile and relaunch into another process. Finish that upstream preparation first and select the completed game for this route.",
+        "Keep the complete project and build tree, original, generated files, mods, settings, saves and save states with their creating runtime.",
+        "Preserve the parent project as well as the build folder, plus any separately configured upstream launcher/profile locations. Rebuilds, toolchain changes and updates belong upstream and must finish outside the selected Play session. Runtime replacement does not establish old-save, mod or save-state compatibility."
+      ],
+      "help_url": "https://github.com/TechnicallyComputers/GundamWingEndlessDuelSNESRecomp/blob/f2d774e05fbf6fc04642992f8d57a1305f077334/README.md",
+      "references": [
+        {
+          "title": "Preserve the complete working copy",
+          "instruction": "Keep the complete project and build tree, original, generated files, mods, settings, saves and save states with their creating runtime. The game uses config.ini in its working folder, falling back to ../config.ini; keybinds.ini is beside the executable. Preserve the parent project as well as the build folder, plus any separately configured upstream launcher/profile locations. Rebuilds, toolchain changes and updates belong upstream and must finish outside the selected Play session. Runtime replacement does not establish old-save, mod or save-state compatibility."
+        }
+      ]
+    },
     "artwork": {
       "game_id": 42464,
       "cover_id": 140284,
@@ -44,7 +72,7 @@
       "installation_method": "user-prepared-runtime",
       "source_requirements": [],
       "saves_and_settings": "external-user-owned",
-      "manual_preparation": "Use upstream’s ROM-free setup pack and your own Japanese original. Its supported launcher performs generation and compilation. Select that launcher or its prepared game executable; upstream or you manage replacement and player data. Portcove only registers and launches it. Existing Portcove-built installations retain their original contracts."
+      "manual_preparation": "For the documented upstream v0.1.12 route, finish Generate & Build outside Portcove using your own Japanese original (SHA-256 dd94308d822636c6ddf73c5e2644c84f2eb8fb4d9201150fc5f37d44d6f423f1; CRC32 c0aecdca). The downloaded setup host is not the prepared game. Select the completed build's GundamWingEndlessDuelSNESRecomp.exe, normally under build, with its containing folder as working directory. Supply two literal argument lines: --no-launcher, then the actual absolute path to your Japanese .sfc file, without shell quotes. Preserve the complete project/build tree, original, private generated code, mods, saves and save states, working-directory or parent config.ini, executable-adjacent keybinds.ini and separately configured upstream profiles with their creating runtime. Finish rebuilds and updates upstream outside the selected Play session. Portcove records reviewed execution intent and supervises only the selected process; Play is separate and registration removal preserves all external files. Managed installation, rebuild, update, backup, rollback, migration and deletion are not offered for this external copy. Existing registrations retain their supported arguments; older Portcove-built installations retain their original installation, source, backup and recovery contracts. No older-save, mod or save-state compatibility is inferred."
     }
   }
 }

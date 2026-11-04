@@ -35,14 +35,17 @@
         {
           "title": "Review launch details and manage updates",
           "instruction": "Review the selected game executable, working folder and launch arguments, then agree to use them. Choose Play separately when you are ready. You manage setup, game replacement and recovery. Removing the registration leaves external files in place. Before changing versions, close the game and its companion programs and keep the working copy and every data location it uses. Review and select the changed executable before playing again. Portcove does not offer updates, backups, rollback, conversion, data migration or deletion for these external files."
-        },
+        }
+      ],
+      "warnings": [
+        "Use only a copy and components you are permitted to use. Keep the complete working game, originals, saves, settings, mods, caches, backups and every custom data location before changing versions. Another executable may use those same locations. These instructions do not establish Portcove-managed installation, gameplay or save compatibility.",
+        "Upstream memory-card import copies into an empty slot and renames the source card .imported; do not use originals as disposable migration input. Emulator save states cannot be imported; native states have build/platform compatibility limits. Keep the creating runtime, original BIN, old saves, native/code mods, caches and backups before upstream updates. Upstream’s update notification is separate from Portcove management."
+      ],
+      "references": [
         {
           "title": "Preserve the whole creating copy and effective data",
           "instruction": "Preserve Documents/My Games/YFM Re-Decomp and all actual custom roots: settings, controls, memory cards, save states and mods live outside the package. Upstream memory-card import copies into an empty slot and renames the source card .imported; do not use originals as disposable migration input. Emulator save states cannot be imported; native states have build/platform compatibility limits. Keep the creating runtime, original BIN, old saves, native/code mods, caches and backups before upstream updates. Upstream’s update notification is separate from Portcove management."
         }
-      ],
-      "warnings": [
-        "Use only a copy and components you are permitted to use. Keep the complete working game, originals, saves, settings, mods, caches, backups and every custom data location before changing versions. Another executable may use those same locations. These instructions do not establish Portcove-managed installation, gameplay or save compatibility."
       ]
     },
     "download_block_reason": "Fresh bundled-package acquisition remains held for the explicitly excluded upstream decompilation and Konami game/data scope, including the bundled European translation texts. The MIT PC-layer grant does not settle those named components. Resume only with applicable permissions for the exact components or a reviewed compatible package resolving that scope. A conditional independently permitted existing-copy route does not clear this hold."

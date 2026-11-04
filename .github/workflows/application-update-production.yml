@@ -1,5 +1,3 @@
-# portcove-shared-application-observer-v1
-# Installed source only; remains held until separately approved exact configuration.
 name: Fixed application-update controller
 env:
   GH_TOKEN: ${{ github.token }}
@@ -41,32 +39,16 @@ jobs:
     steps:
       - name: Refuse wrong bootstrap identity before checkout
         shell: bash
-        run: >
+        run: |
           set -euo pipefail
-
           [[ "$PORTCOVE_CONTROLLER_REVISION" =~ ^[a-f0-9]{40}$ ]]
-
-          [[ "$PORTCOVE_CONTROLLER_REF" =~
-          ^refs/tags/portcove-production-controller-[A-Za-z0-9][A-Za-z0-9._-]{0,63}$ ]]
-
-          case "$PORTCOVE_EXECUTION_PURPOSE" in application) [[ -n "$PORTCOVE_CONTROLLER_ADMISSION"
-          ]];; catalog-publication) [[ -n "$PORTCOVE_CATALOG_CONTROLLER_ADMISSION" ]];; *) exit 1;;
-          esac
-
+          [[ "$PORTCOVE_CONTROLLER_REF" =~ ^refs/tags/portcove-production-controller-[A-Za-z0-9][A-Za-z0-9._-]{0,63}$ ]]
+          case "$PORTCOVE_EXECUTION_PURPOSE" in application) [[ -n "$PORTCOVE_CONTROLLER_ADMISSION" ]];; catalog-publication) [[ -n "$PORTCOVE_CATALOG_CONTROLLER_ADMISSION" ]];; *) exit 1;; esac
           [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]
-
           [[ "$GITHUB_REPOSITORY" == boburning/portcove && "$GITHUB_REPOSITORY_ID" == 1354613114 ]]
-
-          [[ "$GITHUB_REF" == "$PORTCOVE_CONTROLLER_REF" && "$GITHUB_REF_TYPE" == tag &&
-          "$GITHUB_REF_PROTECTED" == true ]]
-
-          [[ "$GITHUB_SHA" == "$PORTCOVE_CONTROLLER_REVISION" && "$GITHUB_WORKFLOW_SHA" ==
-          "$PORTCOVE_CONTROLLER_REVISION" ]]
-
-          [[ "$GITHUB_WORKFLOW_REF" ==
-          "boburning/portcove/.github/workflows/application-update-production.yml@$PORTCOVE_CONTROLLER_REF"
-          ]]
-
+          [[ "$GITHUB_REF" == "$PORTCOVE_CONTROLLER_REF" && "$GITHUB_REF_TYPE" == tag && "$GITHUB_REF_PROTECTED" == true ]]
+          [[ "$GITHUB_SHA" == "$PORTCOVE_CONTROLLER_REVISION" && "$GITHUB_WORKFLOW_SHA" == "$PORTCOVE_CONTROLLER_REVISION" ]]
+          [[ "$GITHUB_WORKFLOW_REF" == "boburning/portcove/.github/workflows/application-update-production.yml@$PORTCOVE_CONTROLLER_REF" ]]
           [[ "$GITHUB_RUN_ATTEMPT" == 1 ]]
       - &a1
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -89,11 +71,12 @@ jobs:
       classification_transport: ${{ steps.admit.outputs.classification_transport }}
       protection_app_id: ${{ steps.admit.outputs.protection_app_id }}
       protection_installation_id: ${{ steps.admit.outputs.protection_installation_id }}
+      release_profile: ${{ steps.admit.outputs.release_profile }}
   tool_bootstrap:
     needs: admission
     name: Prepare trusted application controller tools
     runs-on: ubuntu-22.04
-    timeout-minutes: 4
+    timeout-minutes: ${{ inputs.publication_purpose == 'application' && 12 || 4 }}
     permissions:
       contents: read
       actions: read
@@ -294,8 +277,8 @@ jobs:
           if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') throw Error('predicate
           shape');
 
-          await writeFile(path.join(process.env.RUNNER_TEMP, 'controller-tools-windows-predicate.json'),
-          raw, {flag:'wx', mode:0o600});
+          await writeFile(path.join(process.env.RUNNER_TEMP,
+          'controller-tools-windows-predicate.json'), raw, {flag:'wx', mode:0o600});
 
           NODE
       - id: attest_windows
@@ -356,7 +339,8 @@ jobs:
         if: ${{ always() && needs.admission.outputs.publication_purpose == 'application' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
-          name: trusted-controller-tools-windows-attestation-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          name: trusted-controller-tools-windows-attestation-evidence-${{ github.run_id }}-${{
+            github.run_attempt }}
           path: |
             ${{ runner.temp }}/controller-tools-windows-predicate.json
             ${{ runner.temp }}/controller-tool-binding-*/expected.json
@@ -371,7 +355,7 @@ jobs:
     if: ${{ needs.admission.outputs.publication_purpose == 'application' }}
     name: Prepare trusted Windows controller tools
     runs-on: windows-2022
-    timeout-minutes: 4
+    timeout-minutes: 22
     permissions:
       contents: read
       actions: read
@@ -393,8 +377,10 @@ jobs:
       - uses: ./.github/actions/setup-rust
       - name: Install only the fixed source lockfile before any role credential
         shell: pwsh
-        run: |
-          pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile --store-dir "$env:RUNNER_TEMP/controller-windows-pnpm"
+        run: >
+          pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile --store-dir
+          "$env:RUNNER_TEMP/controller-windows-pnpm"
+
           if ($LASTEXITCODE -ne 0) { throw 'Public build dependencies refused' }
       - name: Prepare supported Windows runtime through admitted source and actual signed producer identity
         env:
@@ -557,8 +543,7 @@ jobs:
     if: ${{ needs.admission.outputs.publication_purpose == 'application' }}
   coordinator:
     name: Coordinate application release
-    if:
-      ${{ always() && needs.admission.result == 'success' && needs.tool_bootstrap.result == 'success'
+    if: ${{ always() && needs.admission.result == 'success' && needs.tool_bootstrap.result == 'success'
       && needs.tool_attest.result == 'success' }}
     needs: &a3
       - admission
@@ -590,9 +575,9 @@ jobs:
       - *a1
       - *a2
       - name: Bind protected source and exact role before App or signing-key release
-        run: "node scripts/release-controller-job-credential-route.mts coordinator"
+        run: node scripts/release-controller-job-credential-route.mts coordinator
         id: authorities
-      - &a9
+      - &a7
         id: journal
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
         with:
@@ -607,7 +592,7 @@ jobs:
           repositories: portcove
           permission-contents: write
         if: ${{ steps.authorities.outputs.credential_transport == 'legacy-app' }}
-      - &a10
+      - &a8
         name: Bind actual coordinator_journal installation before credential use
         shell: bash
         env:
@@ -652,8 +637,7 @@ jobs:
           PORTCOVE_FIXED_NEEDS: ${{ toJSON(needs) }}
           PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.authorities.outputs.credential_transport ==
             'legacy-app' && steps.journal.outputs.token || '' }}
-          PORTCOVE_RELEASE_DISPATCH_TOKEN:
-            ${{ steps.authorities.outputs.credential_transport == 'fixed-job'
+          PORTCOVE_RELEASE_DISPATCH_TOKEN: ${{ steps.authorities.outputs.credential_transport == 'fixed-job'
             && needs.admission.outputs.publication_purpose == 'application' && github.token ||
             steps.dispatch.outputs.token }}
         with:
@@ -661,8 +645,7 @@ jobs:
           phase: coordinator
   coordinator_protection_observation:
     name: Observe application coordinator protections
-    if:
-      ${{ always() && needs.admission.result == 'success' && needs.tool_bootstrap.result == 'success'
+    if: ${{ always() && needs.admission.result == 'success' && needs.tool_bootstrap.result == 'success'
       && needs.tool_attest.result == 'success' }}
     needs: *a3
     runs-on: ubuntu-22.04
@@ -755,7 +738,10 @@ jobs:
           phase: admission
   protection_observation:
     name: Observe production release input protections
-    if: ${{ needs.admission.outputs.publication_purpose == 'application' && always() && needs.tool_attest.result == 'success' && needs.coordinator.result == 'success' && (needs.coordinator.outputs.mode == 'metadata' || (needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.publication_custody != 'reused')) }}
+    if: ${{ needs.admission.outputs.publication_purpose == 'application' && always() &&
+      needs.tool_attest.result == 'success' && needs.coordinator.result == 'success' &&
+      (needs.coordinator.outputs.mode == 'metadata' || (needs.coordinator.outputs.mode == 'release'
+      && needs.coordinator.outputs.publication_custody != 'reused')) }}
     needs:
       - admission
       - tool_bootstrap
@@ -773,7 +759,8 @@ jobs:
       - *a1
       - *a2
       - uses: ./.github/actions/release-control-observer
-        if: ${{ needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.publication_custody != 'reused' }}
+        if: ${{ needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.publication_custody
+          != 'reused' }}
         with:
           phase: admission
           rounds: "14"
@@ -782,7 +769,8 @@ jobs:
           private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
           installation_id: ${{ needs.admission.outputs.protection_installation_id }}
       - uses: ./.github/actions/release-control-observer
-        if: ${{ needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.signing_custody != 'reused' }}
+        if: ${{ needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.signing_custody !=
+          'reused' }}
         with:
           phase: payload
           rounds: "14"
@@ -791,7 +779,8 @@ jobs:
           private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
           installation_id: ${{ needs.admission.outputs.protection_installation_id }}
       - uses: ./.github/actions/release-control-observer
-        if: ${{ needs.coordinator.outputs.mode == 'metadata' || (needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.signing_custody != 'reused') }}
+        if: ${{ needs.coordinator.outputs.mode == 'metadata' || (needs.coordinator.outputs.mode == 'release'
+          && needs.coordinator.outputs.signing_custody != 'reused') }}
         with:
           phase: tuf-releases
           rounds: "3"
@@ -800,7 +789,8 @@ jobs:
           private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
           installation_id: ${{ needs.admission.outputs.protection_installation_id }}
       - uses: ./.github/actions/release-control-observer
-        if: ${{ needs.coordinator.outputs.mode == 'metadata' || (needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.signing_custody != 'reused') }}
+        if: ${{ needs.coordinator.outputs.mode == 'metadata' || (needs.coordinator.outputs.mode == 'release'
+          && needs.coordinator.outputs.signing_custody != 'reused') }}
         with:
           phase: tuf-preview
           rounds: "3"
@@ -809,7 +799,8 @@ jobs:
           private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
           installation_id: ${{ needs.admission.outputs.protection_installation_id }}
       - uses: ./.github/actions/release-control-observer
-        if: ${{ needs.coordinator.outputs.mode == 'metadata' || (needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.signing_custody != 'reused') }}
+        if: ${{ needs.coordinator.outputs.mode == 'metadata' || (needs.coordinator.outputs.mode == 'release'
+          && needs.coordinator.outputs.signing_custody != 'reused') }}
         with:
           phase: tuf-stable
           rounds: "3"
@@ -818,7 +809,8 @@ jobs:
           private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
           installation_id: ${{ needs.admission.outputs.protection_installation_id }}
       - uses: ./.github/actions/release-control-observer
-        if: ${{ needs.coordinator.outputs.mode == 'metadata' || (needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.signing_custody != 'reused') }}
+        if: ${{ needs.coordinator.outputs.mode == 'metadata' || (needs.coordinator.outputs.mode == 'release'
+          && needs.coordinator.outputs.signing_custody != 'reused') }}
         with:
           phase: tuf-snapshot
           rounds: "3"
@@ -827,7 +819,8 @@ jobs:
           private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
           installation_id: ${{ needs.admission.outputs.protection_installation_id }}
       - uses: ./.github/actions/release-control-observer
-        if: ${{ needs.coordinator.outputs.mode == 'metadata' || (needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.signing_custody != 'reused') }}
+        if: ${{ needs.coordinator.outputs.mode == 'metadata' || (needs.coordinator.outputs.mode == 'release'
+          && needs.coordinator.outputs.signing_custody != 'reused') }}
         with:
           phase: tuf-timestamp
           rounds: "3"
@@ -836,7 +829,8 @@ jobs:
           private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
           installation_id: ${{ needs.admission.outputs.protection_installation_id }}
       - uses: ./.github/actions/release-control-observer
-        if: ${{ needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.publication_custody != 'reused' }}
+        if: ${{ needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.publication_custody
+          != 'reused' }}
         with:
           phase: release-publication
           rounds: "14"
@@ -950,53 +944,6 @@ jobs:
     if: ${{ needs.admission.outputs.publication_purpose == 'application' &&
       (needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.publication_custody
       != 'reused') }}
-  native_linux:
-    name: Qualify hosted Linux installed continuity
-    if: ${{ needs.admission.outputs.publication_purpose == 'application' &&
-      needs.admission.outputs.classification_transport == 'fixed-job' &&
-      (needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.signing_custody !=
-      'reused') }}
-    needs:
-      - admission
-      - tool_bootstrap
-      - tool_attest
-      - coordinator
-      - independent_admission
-      - attest
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    environment: production-native-linux
-    permissions:
-      contents: read
-      actions: read
-      id-token: write
-      checks: read
-    env:
-      PORTCOVE_FIXED_NEEDS: ${{ toJSON(needs) }}
-    steps:
-      - *a1
-      - *a2
-      - name: Keep the original Linux worker through pre-sign upload and readback
-        uses: ./.github/actions/release-native-linux
-        with:
-          stage: pre-sign
-      - name: Wait for authenticated signers and complete post-sign proof on the same worker
-        uses: ./.github/actions/release-native-linux
-        with:
-          stage: post-sign
-      - name: Retain bounded public native lifecycle rows after success or refusal
-        if: ${{ always() }}
-        run: node scripts/release-controller-diagnostics.mts native-linux
-      - name: Preserve original native attempt without logs, candidate data or credentials
-        if: ${{ always() }}
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-        with:
-          name: trusted-native-diagnostics-linux-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/native-public-evidence-linux
-          if-no-files-found: error
-          overwrite: false
-          retention-days: 7
-          compression-level: 0
   payload_signing:
     name: Sign admitted updater payloads
     if: ${{ needs.admission.outputs.publication_purpose == 'application' &&
@@ -1296,7 +1243,8 @@ jobs:
       needs.coordinator.outputs.signing_custody == 'reused') &&
       (needs.coordinator.outputs.signing_custody == 'reused' ||
       needs.admission.outputs.classification_transport == 'legacy-app' ||
-      (needs.admission.outputs.classification_transport == 'fixed-job' && needs.native_linux.result == 'success'))) }}
+      (needs.admission.outputs.classification_transport == 'fixed-job' &&
+      needs.native_windows.result == 'success'))) }}
     needs:
       - admission
       - tool_bootstrap
@@ -1310,7 +1258,7 @@ jobs:
       - tuf_stable
       - tuf_snapshot
       - tuf_timestamp
-      - native_linux
+      - native_windows
     runs-on: ubuntu-22.04
     timeout-minutes: 6
     environment: production-release-publication
@@ -1408,10 +1356,10 @@ jobs:
       - *a1
       - *a2
       - name: Bind protected source and exact role before App or signing-key release
-        run: "node scripts/release-controller-job-credential-route.mts site-publication"
+        run: node scripts/release-controller-job-credential-route.mts site-publication
         id: authorities
-      - *a9
-      - *a10
+      - *a7
+      - *a8
       - id: job
         uses: ./.github/actions/release-controller-job
         env:
@@ -1498,7 +1446,7 @@ jobs:
       - name: Bind protected source and exact role before App or signing-key release
         run: node scripts/release-controller-job-credential-route.mts catalog-definitions
         id: authorities
-      - &a11
+      - &a9
         id: journal
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
         with:
@@ -1508,7 +1456,7 @@ jobs:
           repositories: portcove
           permission-contents: write
         if: ${{ steps.authorities.outputs.credential_transport == 'legacy-app' }}
-      - &a12
+      - &a10
         name: Bind actual coordinator_journal installation before credential use
         shell: bash
         env:
@@ -1560,8 +1508,8 @@ jobs:
       - name: Bind protected source and exact role before App or signing-key release
         run: node scripts/release-controller-job-credential-route.mts catalog-policy
         id: authorities
-      - *a11
-      - *a12
+      - *a9
+      - *a10
       - id: job
         uses: ./.github/actions/release-controller-job
         env:
@@ -1605,8 +1553,8 @@ jobs:
       - name: Bind protected source and exact role before App or signing-key release
         run: node scripts/release-controller-job-credential-route.mts catalog-snapshot
         id: authorities
-      - *a11
-      - *a12
+      - *a9
+      - *a10
       - id: job
         uses: ./.github/actions/release-controller-job
         env:
@@ -1651,8 +1599,8 @@ jobs:
       - name: Bind protected source and exact role before App or signing-key release
         run: node scripts/release-controller-job-credential-route.mts catalog-timestamp
         id: authorities
-      - *a11
-      - *a12
+      - *a9
+      - *a10
       - id: job
         uses: ./.github/actions/release-controller-job
         env:
@@ -1717,5 +1665,78 @@ jobs:
           app_id: ${{ needs.admission.outputs.protection_app_id }}
           private_key: ${{ secrets.PORTCOVE_CATALOG_PROTECTION_APP_PRIVATE_KEY }}
           installation_id: ${{ needs.admission.outputs.protection_installation_id }}
+  native_windows:
+    name: Qualify hosted Windows installed continuity
+    if: ${{ needs.admission.outputs.release_profile == 'initial-beta-windows-x86_64-v1' &&
+      needs.admission.outputs.publication_purpose == 'application' &&
+      needs.admission.outputs.classification_transport == 'fixed-job' &&
+      needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.signing_custody !=
+      'reused' }}
+    needs:
+      - admission
+      - tool_bootstrap
+      - tool_attest
+      - coordinator
+      - independent_admission
+      - attest
+      - tool_bootstrap_windows
+    runs-on: windows-2022
+    timeout-minutes: 35
+    environment: production-native-windows
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+      checks: read
+    env:
+      PORTCOVE_FIXED_NEEDS: ${{ toJSON(needs) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413
+        with:
+          package_json_file: package.json
+          run_install: false
+      - name: Install only the fixed source lockfile before any role credential
+        shell: pwsh
+        run: >
+          pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile --store-dir
+          "$env:RUNNER_TEMP/controller-windows-pnpm"
+
+          if ($LASTEXITCODE -ne 0) { throw 'Public build dependencies refused' }
+      - name: Prepare only the admitted fresh Windows runtime before original native ownership
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ""
+        run: node scripts/release-controller-tool-bootstrap.mts prepare-windows-native-runtime
+      - name: Keep the original Windows owner through pre-sign upload and readback
+        uses: ./.github/actions/release-native-windows
+        with:
+          stage: pre-sign
+      - name: Wait only inside the original owner deadline and complete post-sign proof
+        uses: ./.github/actions/release-native-windows
+        with:
+          stage: post-sign
+      - name: Retain bounded public native lifecycle rows after success or refusal
+        if: ${{ always() }}
+        shell: pwsh
+        run: node scripts/release-controller-diagnostics.mts native-windows
+      - name: Preserve the original Windows attempt without private logs or credentials
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: trusted-native-diagnostics-windows-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/native-public-evidence-windows
+          if-no-files-found: error
+          overwrite: false
+          retention-days: 7
+          compression-level: 0
 run-name: Portcove ${{ inputs.publication_purpose == 'catalog-publication' && 'catalog publication'
   || 'application release' }} wake ${{ inputs.wake_run_id }}

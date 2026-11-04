@@ -6,7 +6,7 @@
     "summary": "Attach an independently permitted, prepared JSRF Unleashed Windows installation for the standalone US Xbox disc. Its waiting native launcher owns setup and remembers the selected game; saves remain in that game folder’s UDATA.",
     "original_game_title": "Jet Set Radio Future",
     "project_url": "https://github.com/JuMatt/JetSetRadioFuture-Unleashed",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/JuMatt/JetSetRadioFuture-Unleashed",
     "artwork": {

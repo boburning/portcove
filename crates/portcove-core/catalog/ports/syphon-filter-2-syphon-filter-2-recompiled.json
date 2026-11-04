@@ -38,14 +38,21 @@
         {
           "title": "Add the finished player, then choose Play",
           "instruction": "After setup succeeds, select Syphon_Filter_2_Recompiled.exe in build-release on Windows, or the native Syphon_Filter_2_Recompiled in build-release on Linux or Mac. Keep the complete prepared kit and use the player’s folder as its working directory. Choose a different actual output location if you deliberately configured one. Saving launch details never starts the game; Play is a separate action. Keep the rich launcher. In the current version, Disc 2 can be changed through the F1 menu even when a CHD verification warning remains in the launcher. The game reads progress from memory-card slot 1."
-        },
+        }
+      ],
+      "warnings": [
+        "Close the player and preserve the complete working kit, actual saves/card paths, settings.toml, keybinds.ini, config.ini, mods with their installed packages and state, original discs/BIOS and any custom locations before changing versions.",
+        "Keep older kits separately: upstream says v0.1.x cards/settings are not carried over, without establishing a safe migration. Do not copy an old generated cache or whole mods tree over a new runtime.",
+        "Portcove does not back up, roll back, replace or delete these external files.",
+        "Let the first session finish preparing optimized code. If the release’s known intro freeze occurs after early closure, follow its cache-only recovery for build-release/cache with the player closed; preserve saves and the working copy."
+      ],
+      "help_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-2-recomp/releases/tag/v0.2.0",
+      "references": [
         {
           "title": "Keep your working copy and data before updating",
           "instruction": "You or upstream manage rebuilding and runtime updates. Close the player and preserve the complete working kit, actual saves/card paths, settings.toml, keybinds.ini, config.ini, mods with their installed packages and state, original discs/BIOS and any custom locations before changing versions. Current default cards, save states and game options live under build-release/saves; customized card or profile paths may be elsewhere. Keep older kits separately: upstream says v0.1.x cards/settings are not carried over, without establishing a safe migration. Do not copy an old generated cache or whole mods tree over a new runtime. Let the first session finish preparing optimized code. If the release’s known intro freeze occurs after early closure, follow its cache-only recovery for build-release/cache with the player closed; preserve saves and the working copy. Portcove does not back up, roll back, replace or delete these external files."
         }
-      ],
-      "warnings": [],
-      "help_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-2-recomp/releases/tag/v0.2.0"
+      ]
     }
   }
 }

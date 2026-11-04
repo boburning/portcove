@@ -29,16 +29,20 @@
         {
           "title": "Review launch details and manage updates yourself",
           "instruction": "Review and consent to the exact native executable, directory and literal arguments (empty for defaults, or the established --config and absolute path when required), then choose Play separately. Core observes only the selected process, not an exclusive family/sandbox or full-game qualification. No self-downloading game replacement path was established for this selected entry. Upstream/player owns the copy, repair and actual replacement; close every real instance before changing files and review a replacement through fresh relink."
-        },
-        {
-          "title": "Preserve the real profile, portable cards and custom paths",
-          "instruction": "Keep the whole copy and %APPDATA%/Rage Racer profile/state, actual bu00/bu10 card directories and BESCES-00650 RAGE000/001/002 slots, config files rage-port.ini/rage-input.cfg, disc-cue-path, force-feedback choices, car catalogs/player edits, mods/active.json/manifests/data/packages, diagnostics/logs/captures and every custom/unknown path. An existing nonempty executable-adjacent bu00 directory selects portable cards; an empty directory does not, and config/logs may still be per-user. Preserve explicit custom config, mods.directory, prebuilt developer cache, disc/log overrides and actual resolved paths. Do not create a marker or move state merely to register. Metadata removal preserves all external bytes."
         }
       ],
       "warnings": [
         "Upstream 0.6.13-alpha explicitly does NOT confirm the reported Windows second-race rendering issue fixed. Keep that scoped known report visible; per-action controller remapping remains INI-based. No gameplay/race stability pass or supported full-game claim is made, and the Windows archive is unsigned.",
         "Per-user config is checked before executable-adjacent config and CWD fallback. Existing --config/RAGE_CONFIG, RAGE_PORT_DISC_CUE and RAGE_PORT_LOG_PATH are upstream choices; Core intent does not capture per-entry environment. Preserve an already reproducible creating context rather than inventing new settings. Config and portable card storage need not share a root.",
-        "The existing download_block_reason and zero-provider refusal remain. No blanket OSS/source/component/redistribution grant, managed acquisition/setup/Install/Update/Backup/Rollback/migration/deletion, memory-card-image/state compatibility, actual game/installed/protected qualification or Supported promotion follows from this prepared-copy guide."
+        "The existing download_block_reason and zero-provider refusal remain. No blanket OSS/source/component/redistribution grant, managed acquisition/setup/Install/Update/Backup/Rollback/migration/deletion, memory-card-image/state compatibility, actual game/installed/protected qualification or Supported promotion follows from this prepared-copy guide.",
+        "An existing nonempty executable-adjacent bu00 directory selects portable cards; an empty directory does not, and config/logs may still be per-user.",
+        "Do not create a marker or move state merely to register. Metadata removal preserves all external bytes."
+      ],
+      "references": [
+        {
+          "title": "Preserve the real profile, portable cards and custom paths",
+          "instruction": "Keep the whole copy and %APPDATA%/Rage Racer profile/state, actual bu00/bu10 card directories and BESCES-00650 RAGE000/001/002 slots, config files rage-port.ini/rage-input.cfg, disc-cue-path, force-feedback choices, car catalogs/player edits, mods/active.json/manifests/data/packages, diagnostics/logs/captures and every custom/unknown path. An existing nonempty executable-adjacent bu00 directory selects portable cards; an empty directory does not, and config/logs may still be per-user. Preserve explicit custom config, mods.directory, prebuilt developer cache, disc/log overrides and actual resolved paths. Do not create a marker or move state merely to register. Metadata removal preserves all external bytes."
+        }
       ]
     },
     "artwork": {

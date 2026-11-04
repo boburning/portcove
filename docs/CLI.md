@@ -127,6 +127,24 @@ bounded native launch suggestions without executing files. Registration remains
 explicit and may select an executable outside the download folder after upstream
 setup; retain its working directory and literal arguments.
 
+GitLab listings use the same candidates, preview, download and pending workflow.
+Use the exact provider-qualified references returned by candidates:
+
+```sh
+portcove setup candidates PORT_ID --gitlab-project-id PROJECT_ID --release-tag TAG
+portcove setup preview PORT_ID --gitlab-project-id PROJECT_ID --release-tag TAG --gitlab-link-id LINK_ID --gitlab-file-id FILE_ID --destination-parent C:/Games --extract
+portcove setup download PORT_ID --gitlab-project-id PROJECT_ID --release-tag TAG --gitlab-link-id LINK_ID --gitlab-file-id FILE_ID --destination-parent C:/Games --extract --expected-preview PREVIEW_SHA256 --yes
+```
+
+GitLab acquisition requires a same-project registry file with independently
+published size and SHA-256. External file hosts, upload links and missing registry
+joins remain explicit limitations, even when upstream publishes other files.
+A reuploaded registry file requires a new selection and review. GitLab tags and
+links are never numeric GitHub release or asset IDs. Pending records retain the
+original listing and explicit provider identity; unsupported record formats are
+refused before recovery or mutation. Downloading a patcher or installer does not
+complete its upstream setup or establish a playable installation.
+
 Core re-reads the selected release/asset and binds the review to the destination.
 A supplied checksum must match. Without an upstream checksum the observed
 download hash is recorded with that limitation. Supported ZIP/tar.gz extraction
@@ -620,6 +638,28 @@ Automated frontends normally provide `PORTCOVE_GITHUB_TOKEN` in the child-proces
 Authentication does not bypass original game-file, artifact, source or operation checks.
 
 ## Find and relink game files
+
+`source reuse PROFILE_ID` reinspects one saved registration without replacing its
+baseline or changing originals. It reports each integration's actual source
+contract separately: a listed edition, a potential match, an incompatible edition
+or unavailable/changed files. A recognized identity is not complete setup or
+gameplay verification. Informational admission remains informational, with its
+legacy evidence gap and additional checks visible. For example, 2Ship lists
+Majora's Mask USA 1.0 and USA GameCube, while Zelda64 lists USA 1.0 only.
+One shared profile does not make the GameCube edition compatible with Zelda64.
+Fresh setup also checks known editions before accepting an explicit replacement,
+reusing a saved original or registering an inbox candidate. A known excluded
+edition leaves the saved registration unchanged and names the required edition.
+Unknown informational inputs retain their existing admission and additional checks.
+
+In Desktop Add games, **Use saved original files** checks the existing location
+and opens an eligible integration's ordinary setup review without another file
+picker. Core rechecks the exact registration and keeps its source lock through
+installation. **Repair moved file location** uses the existing same-content
+relink plan; changed or substituted bytes are refused and the saved identity is
+not silently replaced. Repair is a location change, not original-file movement
+or deletion. Other originals, installed runtimes and player data retain their
+own contracts. Original-game reuse and BIOS selection remain separate.
 
 Use `catalog show PORT_ID` to identify the applicable game-file or BIOS profile.
 A saved discovery folder, an inspected candidate and a registered source are
@@ -1564,7 +1604,7 @@ prepared registrations retain their non-owning contract. Local saves/settings
 remain managed; the resolved account-wide preferences file is never owned or
 included in backup/restore. The reference client accepts public API77 and requires
 explicit confirmation before transmitting acknowledgment. The current tested reference
-window extends through API85; unknown API86 and unknown consequential semantics are refused.
+window extends through API87; unknown API88 and unknown consequential semantics are refused.
 
 ### Retired custom source creation
 

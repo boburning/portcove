@@ -7,10 +7,12 @@ export function Tooltip({
   label,
   children,
   disabled = false,
+  side = "top",
 }: {
   label: ReactNode;
   children: ReactElement;
   disabled?: boolean;
+  side?: TooltipPrimitive.Positioner.Props["side"];
 }) {
   const id = useId();
   const [open, setOpen] = useState(false);
@@ -41,6 +43,7 @@ export function Tooltip({
         <TooltipPrimitive.Portal container={portalContainer}>
           <TooltipPrimitive.Positioner
             positionMethod="fixed"
+            side={side}
             sideOffset={6}
             className="z-(--layer-floating)"
           >

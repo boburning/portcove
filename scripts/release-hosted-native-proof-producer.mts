@@ -38,7 +38,7 @@ import { isRecord } from "./runtime-values.mts";
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const attempted = new WeakSet<object>();
 type Platform = "linux-x86_64" | "windows-x86_64";
-export const hostedWindowsProofExecutionAuthorized = false;
+export const hostedWindowsProofExecutionAuthorized = true;
 type Prepared = ReturnType<typeof prepareHostedNativeProofSubject>;
 type Retained = {
   platform: Platform;

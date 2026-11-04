@@ -3,7 +3,7 @@
   "listing": {
     "id": "kileak-the-dna-imperative-ktdir",
     "name": "Kileak: The DNA Imperative / KTDIR",
-    "summary": "Explore Kileak: The DNA Imperative / KTDIR and follow the upstream project for requirements, downloads and setup.",
+    "summary": "KTDIR owned-input Windows build kit for Kileak: The DNA Imperative using your own USA SCUS-94102 complete CUE/BIN disc. Upstream uses OpenBIOS and local Python/toolchain generation. Register the finished native product rather than the forwarding setup host; keep the kit, build and originals together.",
     "project_url": "https://github.com/NJH-1001/KTDIR",
     "issue_number": 324,
     "platforms": [],

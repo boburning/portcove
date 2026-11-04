@@ -359,7 +359,7 @@ type WindowsOperations = {
   runConfiguredHostedWindowsNativeJob: WindowsSettlement;
 };
 
-export const hostedWindowsBootstrapExecutionAuthorized = false;
+export const hostedWindowsBootstrapExecutionAuthorized = true;
 /** Fixed connected operation; the original source/job clock is never renewed. */
 export async function launchFixedHostedWindowsNativeJob(originalWorkflowDeadline?: bigint) {
   assert.ok(

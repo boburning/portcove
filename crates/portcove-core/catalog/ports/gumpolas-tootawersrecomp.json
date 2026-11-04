@@ -3,10 +3,10 @@
   "listing": {
     "id": "gumpolas-tootawersrecomp",
     "name": "The Lord of the Rings: The Two Towers — Original Xbox (Two Towers Recomp)",
-    "summary": "Attach an independently permitted, prepared Two Towers Windows native player directly with your own Xbox USA game files. Preserve its saves, launcher settings and mod data; do not use the separate setup/texture builder as the attached game.",
+    "summary": "Use the independently maintained Gumpolas Two Towers Windows player with your own Xbox USA game files. Its direct entry, settings and saves remain separate from Athelas’s embedded port.",
     "original_game_title": "The Lord of the Rings: The Two Towers",
     "project_url": "https://github.com/Gumpolas/TooTawersRecomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Gumpolas/TooTawersRecomp",
     "issue_number": 2796,
@@ -31,7 +31,7 @@
         },
         {
           "title": "Separate ancestry, optional packs and notices",
-          "instruction": "Keep the project license, CONTRIBUTION_NOTICES, The128ReBits notice, XboxRecomp/MCPX and all font/component notices. Source credits and independently maintained package identity do not establish another port’s qualification. Grants for port/runtime code do not license original game material, optional GameCube HD packs, music or mods. Use only components you are independently permitted to use. Texture generation, optional Ultra content and co-op/mod changes remain upstream work; no separate pack is downloaded or executed here."
+          "instruction": "The selected Gumpolas 1.9.9 route uses sp00nz/xboxrecomp and separately licensed The128ReBits contributions; the compared Athelas 1.8.0 Two Towers component credits Shagg and TGP482/XboxXBE-Recomp. They are independently maintained packages and launch/data contracts for the same Xbox title, not interchangeable binaries or profiles. Gumpolas uses direct twotowers_recomp.exe with twotowers_recomp.ini, game_files and saves; Athelas selects TT-Xbox/TwoTowers.exe through its own launcher and supplied config/save paths. Shared game/toolkit ancestry does not establish source independence, compatible saves or transferred qualification. Keep the project license, CONTRIBUTION_NOTICES, The128ReBits notice, XboxRecomp/MCPX and all font/component notices. Source credits and independently maintained package identity do not establish another port’s qualification. Grants for port/runtime code do not license original game material, optional GameCube HD packs, music or mods. Use only components you are independently permitted to use. Texture generation, optional Ultra content and co-op/mod changes remain upstream work; no separate pack is downloaded or executed here."
         },
         {
           "title": "Maintain the external player",
@@ -39,7 +39,7 @@
         }
       ],
       "warnings": [
-        "Attach twotowers_recomp.exe after setup. Preserve saves, old settings and originals; optional HD/co-op content and another implementation’s acceptance do not transfer."
+        "Attach twotowers_recomp.exe after upstream setup. Keep this creating player, saves, old settings and originals separate from Athelas TT-Xbox; no cross-implementation save migration or acceptance is inherited. Optional HD/co-op content remains separate."
       ]
     }
   },

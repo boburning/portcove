@@ -1,9 +1,12 @@
 //! Non-owning upstream acquisition and the durable handoff into manual setup.
 //! A receipt proves publication of this attempt; it never grants update/delete
 //! ownership of the destination or attests the user's subsequent installation.
+use super::catalog_download_provider::{CatalogDownloadProvider, CatalogDownloadRepository};
 use super::user_selected::managed_overlap_key;
 use super::*;
-use crate::{GithubReleaseProvider, PortListing};
+#[cfg(test)]
+use crate::GithubReleaseProvider;
+use crate::PortListing;
 use rusqlite::{TransactionBehavior, params};
 
 const RECORD_LIMIT: usize = 64 * 1024;
@@ -19,16 +22,16 @@ mod tests;
 #[serde(deny_unknown_fields)]
 pub struct CatalogDownloadRequest {
     pub port_id: String,
-    pub release_id: u64,
-    pub asset_id: u64,
+    pub release_id: CatalogDownloadReleaseId,
+    pub asset_id: CatalogDownloadAssetId,
     pub destination_parent: PathBuf,
     pub extract_archive: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct CatalogDownloadCandidate {
-    pub release_id: u64,
-    pub asset_id: u64,
+    pub release_id: CatalogDownloadReleaseId,
+    pub asset_id: CatalogDownloadAssetId,
     pub release_tag: String,
     pub release_url: String,
     pub name: String,
@@ -48,10 +51,36 @@ pub struct CatalogDownloadCoverage {
     pub release_history_complete: bool,
     /// All assets from the returned published releases are represented.
     pub candidates_complete: bool,
+    /// Files that could not enter this provider's qualified download route.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub limitations: Vec<String>,
 }
 
 impl CatalogDownloadCoverage {
     fn reason(&self, empty: bool) -> Option<String> {
+        if !self.limitations.is_empty() {
+            let shown = self
+                .limitations
+                .iter()
+                .take(3)
+                .cloned()
+                .collect::<Vec<_>>()
+                .join(" ");
+            let remaining = self.limitations.len().saturating_sub(3);
+            let more = if remaining == 0 {
+                String::new()
+            } else {
+                format!(" {remaining} more files have download limitations.")
+            };
+            let history = if self.release_history_complete {
+                ""
+            } else {
+                " Older releases may also be available upstream."
+            };
+            return Some(format!(
+                "Some upstream files are unavailable through Portcove. {shown}{more}{history} Open upstream setup for those files."
+            ));
+        }
         if empty && !self.release_history_complete {
             return Some(format!(
                 "No release assets were found in the recent releases checked here (up to {}). Older downloads may be available upstream; open the releases page or attach an existing executable.",
@@ -90,8 +119,8 @@ pub struct CatalogDownloadCandidates {
     pub default_destination_parent: Option<PathBuf>,
     pub upstream_url: String,
     pub releases: Vec<crate::CatalogDownloadRelease>,
-    pub selected_release_id: Option<u64>,
-    pub recommended_asset_id: Option<u64>,
+    pub selected_release_id: Option<CatalogDownloadReleaseId>,
+    pub recommended_asset_id: Option<CatalogDownloadAssetId>,
     pub packages: Vec<crate::CatalogPackageAssessment>,
     pub recommendation_reason: String,
 }
@@ -114,6 +143,11 @@ pub enum PendingSetupState {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PendingSetupRecord {
+    #[serde(
+        default = "legacy_record_format",
+        skip_serializing_if = "is_legacy_record_format"
+    )]
+    pub format_version: u8,
     pub id: String,
     pub port_id: String,
     pub listing: PortListing,
@@ -124,6 +158,14 @@ pub struct PendingSetupRecord {
     pub archive_sha256: String,
     pub downloaded_at: String,
     pub reason: Option<String>,
+}
+
+fn legacy_record_format() -> u8 {
+    1
+}
+
+fn is_legacy_record_format(version: &u8) -> bool {
+    *version == 1
 }
 
 #[derive(Debug)]
@@ -152,11 +194,36 @@ fn is_digest(value: &str) -> bool {
 
 fn validate_record(record: &PendingSetupRecord) -> Result<()> {
     record.listing.validate()?;
+    record
+        .artifact
+        .asset_id
+        .validate_for(&record.artifact.release_id)?;
+    record
+        .artifact
+        .release_id
+        .require_tag(&record.artifact.release_tag)?;
+    let expected_format = if record.artifact.release_id.github_id().is_some() {
+        1
+    } else {
+        2
+    };
+    if record.format_version != expected_format {
+        return Err(PortcoveError::unsupported(
+            "pending setup record format does not match its provider",
+        ));
+    }
+    if let CatalogDownloadAssetId::Foreign(CatalogForeignAssetId::Gitlab {
+        project_id,
+        tag,
+        file_id,
+        ..
+    }) = &record.artifact.asset_id
+    {
+        validate_retained_gitlab_source(record, *project_id, tag, *file_id)?;
+    }
     if record.port_id != record.listing.id
         || Uuid::parse_str(&record.id).is_err()
         || !record.path.is_absolute()
-        || record.artifact.release_id == 0
-        || record.artifact.asset_id == 0
         || record.artifact.name.len() > 255
         || record.artifact.name.contains(['/', '\\'])
         || record.artifact.release_tag.len() > 512
@@ -182,6 +249,85 @@ fn validate_record(record: &PendingSetupRecord) -> Result<()> {
     crate::path::unicode(&record.path, "pending setup")?;
     crate::archive::validate_relative_path(&record.artifact.name, false)?;
     crate::archive::validate_download_progress(0, record.artifact.size)?;
+    Ok(())
+}
+
+// Recovery uses the retained listing, never a newly edited catalog entry. This
+// validates the original provider boundary without refreshing or downloading it.
+fn validate_retained_gitlab_source(
+    record: &PendingSetupRecord,
+    project_id: u64,
+    tag: &str,
+    file_id: u64,
+) -> Result<()> {
+    let source = record
+        .listing
+        .release_url
+        .as_deref()
+        .unwrap_or(&record.listing.project_url);
+    let CatalogDownloadRepository::Gitlab(repository) = CatalogDownloadRepository::parse(source)?
+    else {
+        return Err(PortcoveError::verification(
+            "GitLab pending setup has a different retained upstream provider",
+        ));
+    };
+    let mut release_url =
+        reqwest::Url::parse(&format!("https://gitlab.com/{repository}/-/releases/"))
+            .map_err(|_| PortcoveError::verification("invalid retained GitLab repository"))?;
+    release_url
+        .path_segments_mut()
+        .map_err(|_| PortcoveError::verification("invalid retained GitLab release"))?
+        .pop_if_empty()
+        .push(tag);
+    let download = reqwest::Url::parse(&record.artifact.download_url)
+        .map_err(|_| PortcoveError::verification("invalid retained GitLab download URL"))?;
+    let mut project_url = reqwest::Url::parse("https://gitlab.com/api/v4/projects/")
+        .map_err(|_| PortcoveError::state("invalid GitLab API origin"))?;
+    project_url
+        .path_segments_mut()
+        .map_err(|_| PortcoveError::state("invalid GitLab API path"))?
+        .pop_if_empty()
+        .push(&repository);
+    let immutable = format!("/{repository}/-/package_files/{file_id}/download");
+    let registry_url = crate::gitlab::generic_package_url(
+        project_url.as_str(),
+        "https://gitlab.com/api/v4",
+        project_id,
+        &record.artifact.download_url,
+    )?;
+    let generic_file_matches = registry_url.as_ref().is_some_and(|url| {
+        [tag, tag.strip_prefix('v').unwrap_or(tag)]
+            .into_iter()
+            .any(|version| {
+                let mut expected = release_url.clone();
+                if let Ok(mut segments) = expected.path_segments_mut() {
+                    segments.clear().extend([version, &record.artifact.name]);
+                } else {
+                    return false;
+                }
+                url.path().ends_with(expected.path())
+            })
+    });
+    if record.artifact.release_url != release_url.as_str()
+        || download.origin() != release_url.origin()
+        || !download.username().is_empty()
+        || download.password().is_some()
+        || download.query().is_some()
+        || download.fragment().is_some()
+        || (download.path() != immutable && !generic_file_matches)
+        || record.artifact.size == 0
+        || !record.artifact.sha256.as_deref().is_some_and(is_digest)
+        || (!record.archive_sha256.is_empty()
+            && !record
+                .artifact
+                .sha256
+                .as_ref()
+                .is_some_and(|expected| expected.eq_ignore_ascii_case(&record.archive_sha256)))
+    {
+        return Err(PortcoveError::verification(
+            "GitLab pending setup lost its retained source, registry identity or integrity metadata",
+        ));
+    }
     Ok(())
 }
 
@@ -375,10 +521,11 @@ impl PortcoveService {
                 "download parent must be an existing folder",
             ));
         }
-        let destination = parent.join(format!(
-            "{}-{}-{}",
-            request.port_id, request.release_id, request.asset_id
-        ));
+        let identity = super::catalog_download_identity::destination_identity(
+            &request.release_id,
+            &request.asset_id,
+        )?;
+        let destination = parent.join(format!("{}-{identity}", request.port_id));
         self.require_download_destination(&destination)?;
         match fs::symlink_metadata(&destination) {
             Ok(_) => Err(PortcoveError::conflict(
@@ -393,7 +540,7 @@ impl PortcoveService {
         &self,
         port_id: &str,
     ) -> Result<CatalogDownloadCandidates> {
-        self.catalog_download_options_with_provider(port_id, None, None, None)
+        self.catalog_download_options_inner(port_id, None, None, None)
             .await
     }
 
@@ -408,24 +555,37 @@ impl PortcoveService {
     pub async fn catalog_download_options(
         &self,
         port_id: &str,
-        selected_release_id: Option<u64>,
+        selected_release_id: Option<CatalogDownloadReleaseId>,
         channel: ReleaseChannel,
     ) -> Result<CatalogDownloadCandidates> {
-        self.catalog_download_options_with_provider(
-            port_id,
-            selected_release_id,
-            Some(channel),
-            None,
-        )
-        .await
+        self.catalog_download_options_inner(port_id, selected_release_id, Some(channel), None)
+            .await
     }
 
+    #[cfg(test)]
     async fn catalog_download_options_with_provider(
         &self,
         port_id: &str,
         selected_release_id: Option<u64>,
         channel: Option<ReleaseChannel>,
         provider: Option<&GithubReleaseProvider>,
+    ) -> Result<CatalogDownloadCandidates> {
+        let provider = provider.map(|provider| CatalogDownloadProvider::Github(provider.clone()));
+        self.catalog_download_options_inner(
+            port_id,
+            selected_release_id.map(Into::into),
+            channel,
+            provider.as_ref(),
+        )
+        .await
+    }
+
+    async fn catalog_download_options_inner(
+        &self,
+        port_id: &str,
+        selected_release_id: Option<CatalogDownloadReleaseId>,
+        channel: Option<ReleaseChannel>,
+        provider: Option<&CatalogDownloadProvider>,
     ) -> Result<CatalogDownloadCandidates> {
         let channel = channel.unwrap_or(self.catalog_download_channel(port_id)?);
         let listing = self.catalog.listing(port_id)?;
@@ -452,7 +612,7 @@ impl PortcoveService {
             result.reason = Some(error.message);
             return Ok(result);
         }
-        let repository = match crate::release::catalog_download_repository(&upstream_url) {
+        let repository = match CatalogDownloadRepository::parse(&upstream_url) {
             Ok(repository) => repository,
             Err(error) => {
                 result.reason = Some(error.message);
@@ -463,21 +623,28 @@ impl PortcoveService {
         let provider = match provider {
             Some(provider) => provider,
             None => {
-                default_provider = GithubReleaseProvider::for_library(&self.library)?;
+                default_provider =
+                    CatalogDownloadProvider::for_repository(&self.library, &repository)?;
                 &default_provider
             }
         };
-        let definition = self
-            .catalog
-            .port(port_id)
-            .ok()
-            .filter(|port| port.release.repository.eq_ignore_ascii_case(&repository));
+        provider.require_repository(&repository)?;
+        let definition = self.catalog.port(port_id).ok().filter(|port| {
+            port.release
+                .repository
+                .eq_ignore_ascii_case(repository.name())
+        });
         let rolling_tag = definition.and_then(|port| port.release.rolling_tag.as_deref());
         let (candidates, coverage, releases, selected) = provider
-            .catalog_download_options(&repository, selected_release_id, channel, rolling_tag)
+            .options(
+                repository.name(),
+                selected_release_id.as_ref(),
+                channel,
+                rolling_tag,
+            )
             .await?;
         result.releases = releases;
-        result.selected_release_id = selected;
+        result.selected_release_id = selected.clone();
         let platform = Platform::current()?;
         let hints = definition
             .and_then(|port| port.release.asset_hints.get(&platform))
@@ -491,12 +658,14 @@ impl PortcoveService {
             coverage.candidates_complete,
         );
         result.packages = packages;
-        result.recommended_asset_id = recommended;
+        result.recommended_asset_id = recommended.clone();
         result.recommendation_reason = if selected.is_none() {
             "No release for this channel was found in the recent history. Choose a release or open upstream releases.".into()
         } else if recommended.is_some() {
             "Recommended for this host. Suitability is not authenticity or gameplay verification."
                 .into()
+        } else if !coverage.candidates_complete {
+            "Some upstream files could not be assessed. Review the available downloads or open upstream setup.".into()
         } else if result
             .packages
             .iter()
@@ -529,28 +698,49 @@ impl PortcoveService {
         &self,
         request: &CatalogDownloadRequest,
     ) -> Result<CatalogDownloadPreview> {
-        let provider = GithubReleaseProvider::for_library(&self.library)?;
-        self.catalog_download_preview_with_provider(request, &provider)
-            .await
+        self.catalog_download_preview_inner(request, None).await
     }
 
+    #[cfg(test)]
     async fn catalog_download_preview_with_provider(
         &self,
         request: &CatalogDownloadRequest,
         provider: &GithubReleaseProvider,
     ) -> Result<CatalogDownloadPreview> {
+        self.catalog_download_preview_inner(
+            request,
+            Some(&CatalogDownloadProvider::Github(provider.clone())),
+        )
+        .await
+    }
+
+    async fn catalog_download_preview_inner(
+        &self,
+        request: &CatalogDownloadRequest,
+        provider: Option<&CatalogDownloadProvider>,
+    ) -> Result<CatalogDownloadPreview> {
         let listing = self.catalog.listing(&request.port_id)?;
         listing.validate()?;
         self.require_download_available(&request.port_id)?;
         let destination_path = self.download_destination(request)?;
-        let repository = crate::release::catalog_download_repository(
+        let repository = CatalogDownloadRepository::parse(
             listing
                 .release_url
                 .as_deref()
                 .unwrap_or(&listing.project_url),
         )?;
+        let default_provider;
+        let provider = match provider {
+            Some(provider) => provider,
+            None => {
+                default_provider =
+                    CatalogDownloadProvider::for_repository(&self.library, &repository)?;
+                &default_provider
+            }
+        };
+        provider.require_repository(&repository)?;
         let artifact = provider
-            .catalog_release_candidate(&repository, request.release_id, request.asset_id)
+            .candidate(repository.name(), &request.release_id, &request.asset_id)
             .await?;
         if request.extract_archive && !artifact.can_extract {
             return Err(PortcoveError::unsupported(
@@ -596,15 +786,25 @@ impl PortcoveService {
         candidate: &CatalogDownloadCandidate,
     ) -> Result<Option<String>> {
         let mut hashes = Vec::new();
-        if let Some((repository_id, sha256)) = crate::curated_acquisition::known_download_identity(
-            connection,
-            candidate.asset_id,
-            candidate.release_id,
-            &candidate.download_url,
-            candidate.size,
-        )? {
+        let known_github = match (
+            candidate.release_id.github_id(),
+            candidate.asset_id.github_id(),
+        ) {
+            (Some(release_id), Some(asset_id)) => {
+                crate::curated_acquisition::known_download_identity(
+                    connection,
+                    asset_id,
+                    release_id,
+                    &candidate.download_url,
+                    candidate.size,
+                )?
+                .map(|known| (asset_id, known))
+            }
+            _ => None,
+        };
+        if let Some((asset_id, (repository_id, sha256))) = known_github {
             let assessment = crate::definition_repository::publisher_policy::assess_known_artifact_operation(
-                connection, repository_id, candidate.asset_id, &sha256,
+                connection, repository_id, asset_id, &sha256,
                 crate::definition_repository::publisher_policy::CuratedArtifactOperation::Acquisition)?;
             if assessment.outcome != crate::DefinitionEligibilityOutcome::Eligible {
                 return Err(PortcoveError::conflict("this exact artifact has a retained acquisition hold; self-service cannot bypass its revocation or withdrawn distribution")
@@ -651,22 +851,36 @@ impl PortcoveService {
     where
         F: FnMut(OperationEvent),
     {
-        let provider = GithubReleaseProvider::for_library(&self.library)?;
-        self.download_catalog_package_with_provider(
-            request,
-            expected_preview_sha256,
-            on_event,
-            &provider,
-        )
-        .await
+        self.download_catalog_package_inner(request, expected_preview_sha256, on_event, None)
+            .await
     }
 
+    #[cfg(test)]
     async fn download_catalog_package_with_provider<F>(
         &self,
         request: &CatalogDownloadRequest,
         expected_preview_sha256: &str,
-        mut on_event: F,
+        on_event: F,
         provider: &GithubReleaseProvider,
+    ) -> Result<PendingSetupRecord>
+    where
+        F: FnMut(OperationEvent),
+    {
+        self.download_catalog_package_inner(
+            request,
+            expected_preview_sha256,
+            on_event,
+            Some(&CatalogDownloadProvider::Github(provider.clone())),
+        )
+        .await
+    }
+
+    async fn download_catalog_package_inner<F>(
+        &self,
+        request: &CatalogDownloadRequest,
+        expected_preview_sha256: &str,
+        mut on_event: F,
+        provider: Option<&CatalogDownloadProvider>,
     ) -> Result<PendingSetupRecord>
     where
         F: FnMut(OperationEvent),
@@ -681,8 +895,26 @@ impl PortcoveService {
             let _lock = self
                 .library
                 .try_lock_port(&request.port_id, "download-package")?;
+            self.require_download_available(&request.port_id)?;
+            let listing = self.catalog.listing(&request.port_id)?;
+            let repository = CatalogDownloadRepository::parse(
+                listing
+                    .release_url
+                    .as_deref()
+                    .unwrap_or(&listing.project_url),
+            )?;
+            let default_provider;
+            let provider = match provider {
+                Some(provider) => provider,
+                None => {
+                    default_provider =
+                        CatalogDownloadProvider::for_repository(&self.library, &repository)?;
+                    &default_provider
+                }
+            };
+            provider.require_repository(&repository)?;
             let preview = operation
-                .interruptible(self.catalog_download_preview_with_provider(request, provider))
+                .interruptible(self.catalog_download_preview_inner(request, Some(provider)))
                 .await?;
             if preview.preview_sha256 != expected_preview_sha256 {
                 return Err(PortcoveError::conflict(
@@ -703,6 +935,11 @@ impl PortcoveService {
             }
             self.require_download_destination(stage.path())?;
             let mut record = PendingSetupRecord {
+                format_version: if preview.artifact.release_id.github_id().is_some() {
+                    1
+                } else {
+                    2
+                },
                 id: Uuid::new_v4().to_string(),
                 port_id: request.port_id.clone(),
                 listing: self.catalog.listing(&request.port_id)?.clone(),
@@ -728,7 +965,7 @@ impl PortcoveService {
                 };
                 let source = stage.path().join("artifact.download");
                 Installer::download_with_client(
-                    &provider.catalog_download_client()?,
+                    &provider.client(repository.name(), &record.artifact)?,
                     &artifact,
                     &source,
                     &operation,
@@ -765,7 +1002,7 @@ impl PortcoveService {
                     let expected_size = artifact.size;
                     let worker_payload = payload.clone();
                     let (returned_stage, extracted) = tokio::task::spawn_blocking(move || {
-                        let result = crate::archive::extract_archive_with_checkpoint(
+                        let result = crate::archive::extract_download_archive_with_checkpoint(
                             &source,
                             &worker_payload,
                             &name,

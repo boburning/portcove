@@ -77,13 +77,15 @@ pub(crate) struct CliCommandContext {
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(crate) struct InstallInput {
     pub(crate) port_id: String,
     pub(crate) channel: Option<ReleaseChannel>,
     pub(crate) source: Option<PathBuf>,
     pub(crate) bios: Option<PathBuf>,
     pub(crate) stage: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) source_reference: Option<portcove_core::SourceRegistrationReference>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -443,6 +445,7 @@ pub fn export_transport_schemas() -> Value {
             "application_update_notice": output::<ApplicationUpdateNoticeSnapshot>(),
             "workspace_snapshot": output::<DesktopWorkspaceSnapshot>(),
             "game_file_roots": output::<Vec<portcove_core::GameFileRoot>>(),
+            "source_reuse_review": output::<portcove_core::SourceReuseReview>(),
             "game_file_scan_snapshot": output::<Option<portcove_core::GameFileScanSnapshot>>(),
             "game_file_query_snapshot": output::<portcove_core::GameFileQuerySnapshot>(),
             "preparation_cleanup_preview": output::<portcove_core::PreparationCleanupPreview>(),

@@ -6,7 +6,7 @@
     "summary": "Explore The Legend of Zelda: The Wind Waker / BlueWake (chrissotraidis) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/chrissotraidis/bluewake",
     "issue_number": 1803,
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/chrissotraidis/bluewake",
     "artwork": {

@@ -133,7 +133,9 @@ export function SourceIdentityPanel({
         </div>
         <div className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-2">
           <dt className="m-0 text-xs tracking-[0.04em] text-[var(--color-text-muted)] uppercase">
-            Edition
+            {report.inspection?.assessment.classification.state === "ambiguous"
+              ? "Matches"
+              : "Edition"}
           </dt>
           <dd className="m-0 mt-[2px] [overflow-wrap:anywhere]">
             {variant ? variantLabel(variant) : classificationLabel(report)}
@@ -626,7 +628,7 @@ function sourceDisplayState(report: SourceInspectionReport) {
       icon: ShieldAlert,
     },
     ambiguous_identity: {
-      label: "More checks needed · edition unclear",
+      label: "More checks needed · match unclear",
       tone: "warning",
       icon: HelpCircle,
     },
@@ -669,7 +671,7 @@ function classificationLabel(report: SourceInspectionReport) {
       : "Couldn't check";
   if (classification.state === "recognized") return classification.identity.variant_id;
   if (classification.state === "ambiguous")
-    return `${classification.candidates.length} possible editions`;
+    return `${classification.candidates.length} possible matches`;
   if (classification.state === "unrecognized") return "Unidentified edition";
   return "Not evaluated";
 }
@@ -856,7 +858,7 @@ function rejectionReason(reason: string) {
     unreadable: "file couldn't be read",
     changed: "file changed since it was added",
     known_mismatch: "file does not match the required edition",
-    ambiguous_identity: "edition could not be identified",
+    ambiguous_identity: "files have more than one possible match",
     missing_tool: "required checking tool is unavailable",
     check_failed: "required file check failed",
     consent_required: "review and consent required",

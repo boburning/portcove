@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import {
   observeDesktopScenario,
   recordDesktopCheck,
@@ -2580,6 +2581,11 @@ void test("native resource release requires current positive exit after any laun
         snapshot: "current.json",
       };
     if (state === "replacement") session.beginLaunch();
+    if (state === "pristine")
+      assert.deepEqual(session.cleanupDisposition(), { kind: "not-started" });
+    else if (state === "positive")
+      assert.deepEqual(session.cleanupDisposition(), { kind: "quiescent", proof: session.cleanup });
+    else assert.throws(() => session.cleanupDisposition(), /Current owned|Positive current owned/);
     const release = session.releaseResources({
       closeFixtures: async () => {
         calls.push("close");
@@ -2596,6 +2602,47 @@ void test("native resource release requires current positive exit after any laun
       assert.deepEqual(calls, [], state);
     }
   }
+});
+
+void test("prelaunch admission refusal stays pristine but a synchronous failed spawn requires exit proof", async () => {
+  const session = new OwnedNativeSession();
+  const refusal = new Error("admission refused");
+  assert.throws(
+    () =>
+      session.startLaunch({
+        admit: () => {
+          throw refusal;
+        },
+        create: () => assert.fail("Refused admission must not attempt a launch"),
+      }),
+    (error) => error === refusal,
+  );
+  assert.deepEqual(session.cleanupDisposition(), { kind: "not-started" });
+  const failedSpawn = new Error("spawn failed synchronously");
+  assert.throws(
+    () =>
+      session.startLaunch({
+        admit: () => {},
+        create: () => {
+          throw failedSpawn;
+        },
+      }),
+    (error) => error === failedSpawn,
+  );
+  assert.throws(() => session.cleanupDisposition(), /Current owned launch identity/);
+  const calls: string[] = [];
+  await assert.rejects(
+    session.releaseResources({
+      closeFixtures: async () => {
+        calls.push("close");
+      },
+      releaseLock: async () => {
+        calls.push("release");
+      },
+    }),
+    /Current owned launch identity/,
+  );
+  assert.deepEqual(calls, []);
 });
 
 void test("native resource release waits for fixture teardown and preserves teardown failures", async () => {
@@ -2964,7 +3011,7 @@ void test("saved-folder selected setup stays standalone and opt-in", () => {
   assert.deepEqual(selection.selected_scenarios, [id]);
   assert.deepEqual(selection.setup_scenarios, []);
   assert.deepEqual(selection.prerequisites, ["desktop", "install-fixture", "owned-fixture"]);
-  assert.equal(desktopHarnessDeadlineMs(selection), 180_000);
+  assert.equal(desktopHarnessDeadlineMs(selection), 600_000);
   for (const profile of ["smoke", "full"])
     assert.ok(
       !resolveDesktopSelection({ profile, platform: "win32" }).selected_scenarios.includes(id),
@@ -3102,7 +3149,7 @@ void test("selected setup identities admit both replacements only in the opt-in 
     .filter((item) => owned.profiles.includes(text(item.id)));
   assert.deepEqual(
     identities.map((item) => values(item.variants).length),
-    [2, 1],
+    [3, 1],
   );
   const expectedHashes = await Promise.all(
     [owned.gameBefore, owned.gameReplacement].map(
@@ -3110,11 +3157,30 @@ void test("selected setup identities admit both replacements only in the opt-in 
     ),
   );
   assert.deepEqual(
-    values(required(identities[0]).variants).map(
-      (item) =>
-        object(values(object(values(object(item).representations)[0]).identities)[0]).sha256,
-    ),
+    values(required(identities[0]).variants)
+      .slice(0, 2)
+      .map(
+        (item) =>
+          object(values(object(values(object(item).representations)[0]).identities)[0]).sha256,
+      ),
     expectedHashes,
+  );
+  const ambiguous = object(values(required(identities[0]).variants)[2]);
+  assert.equal(ambiguous.id, "ambiguous-inspection-only");
+  const ambiguousBytes = await readFile(owned.ambiguousPath);
+  assert.deepEqual(
+    values(ambiguous.representations),
+    ["sha1", "sha256"].map((algorithm) => ({
+      id: `ambiguous-${algorithm}`,
+      extensions: [path.extname(owned.ambiguousPath).slice(1)],
+      kind: "raw-file",
+      identities: [
+        {
+          scope: "original-file",
+          [algorithm]: createHash(algorithm).update(ambiguousBytes).digest("hex"),
+        },
+      ],
+    })),
   );
   for (const port of [fixture.port, fixture.refreshPort]) {
     const contract = required(

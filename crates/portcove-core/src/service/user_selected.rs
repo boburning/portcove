@@ -608,9 +608,18 @@ mod tests {
         executable: &Path,
         working: &Path,
     ) -> ExternalRuntimeRecord {
-        let arguments = vec!["--help".into()];
+        register_with_arguments(service, id, executable, working, &["--help".into()])
+    }
+
+    fn register_with_arguments(
+        service: &PortcoveService,
+        id: &str,
+        executable: &Path,
+        working: &Path,
+        arguments: &[String],
+    ) -> ExternalRuntimeRecord {
         let preview = service
-            .preview_user_selected_runtime(id, executable, working, &arguments)
+            .preview_user_selected_runtime(id, executable, working, arguments)
             .unwrap();
         assert!(preview.archive_sha256.is_empty());
         assert!(preview.immutable_tree_sha256.is_empty());
@@ -620,7 +629,7 @@ mod tests {
                 id,
                 executable,
                 working,
-                &arguments,
+                arguments,
                 &preview.preview_sha256,
             )
             .unwrap();
@@ -629,7 +638,7 @@ mod tests {
                 id,
                 executable,
                 working,
-                &arguments,
+                arguments,
                 &authorization.token,
             )
             .unwrap()
@@ -650,7 +659,9 @@ mod tests {
     // The listing-based contract retains its acquisition restriction without
     // promoting the descriptive identity into a strict managed definition.
     fn assert_listing_only_player_route(id: &str, embedded_download_hold: Option<bool>) {
+        let started = std::time::Instant::now();
         let (temporary, mut service, executable, working) = fixture(id);
+        eprintln!("listing route {id}: fixture ready {:?}", started.elapsed());
         if let Some(download_hold) = embedded_download_hold {
             service.catalog = Catalog::embedded().unwrap();
             let listing = service.catalog.listing(id).unwrap();
@@ -660,6 +671,10 @@ mod tests {
             listing_only(&mut service);
         }
         assert!(service.catalog.port(id).is_err());
+        eprintln!(
+            "listing route {id}: embedded contract ready {:?}",
+            started.elapsed()
+        );
         assert_selected_listing_lifecycle(temporary, service, executable, working, id);
     }
 
@@ -670,19 +685,52 @@ mod tests {
         working: PathBuf,
         id: &str,
     ) {
+        assert_selected_listing_lifecycle_with_arguments(
+            temporary,
+            service,
+            executable,
+            working,
+            id,
+            vec!["--help".into()],
+            None,
+        );
+    }
+
+    fn assert_selected_listing_lifecycle_with_arguments(
+        temporary: tempfile::TempDir,
+        service: PortcoveService,
+        executable: PathBuf,
+        working: PathBuf,
+        id: &str,
+        arguments: Vec<String>,
+        recorded_arguments: Option<String>,
+    ) {
+        let started = std::time::Instant::now();
         let expected_listing = service.catalog.listing(id).unwrap().clone();
         let expected_definition = service
             .catalog
             .port(id)
             .ok()
             .map(|port| serde_json::to_value(port).unwrap());
+        let expected_creating_definition = service
+            .current_user_selected_definition(id)
+            .unwrap()
+            .map(|port| serde_json::to_value(port).unwrap());
+        // Strict retained catalogs project their listing from the creating
+        // definition, without directory-only metadata such as issue_number.
+        let expected_retained_listing = service
+            .current_user_selected_definition(id)
+            .unwrap()
+            .map(crate::PortListing::from)
+            .unwrap_or_else(|| expected_listing.clone());
         let initial = service.listing_status(id).unwrap();
         assert!(
             initial.actions.iter().any(|action| action.action
                 == crate::ListingAction::AttachExisting
                 && action.allowed)
         );
-        let record = register(&service, id, &executable, &working);
+        let record = register_with_arguments(&service, id, &executable, &working, &arguments);
+        eprintln!("listing route {id}: registered {:?}", started.elapsed());
         assert_eq!(
             service
                 .catalog
@@ -701,7 +749,8 @@ mod tests {
         fs::create_dir(&replacement).unwrap();
         let replacement_executable = replacement.join(executable.file_name().unwrap());
         fs::copy(&executable, &replacement_executable).unwrap();
-        let arguments = vec!["--help".into()];
+        let replacement_before = fs::read(&replacement_executable).unwrap();
+
         let preview = service
             .preview_user_selected_runtime_relink(
                 id,
@@ -742,6 +791,7 @@ mod tests {
                 &authorization.token,
             )
             .unwrap();
+        eprintln!("listing route {id}: relinked {:?}", started.elapsed());
         assert_eq!(relinked.id, record.id);
         assert_eq!(relinked.registered_at, record.registered_at);
         assert_eq!(
@@ -776,10 +826,22 @@ mod tests {
             .external_runtime_with_port(id)
             .unwrap()
             .unwrap();
-        assert!(retained.is_user_selected_listing(id));
+        if let Some(expected) = expected_creating_definition {
+            assert!(!retained.is_user_selected_listing(id));
+            assert_eq!(
+                serde_json::to_value(retained.port(id).unwrap()).unwrap(),
+                expected
+            );
+        } else {
+            assert!(retained.is_user_selected_listing(id));
+        }
         assert_eq!(
             serde_json::to_value(retained.listing(id).unwrap()).unwrap(),
-            serde_json::to_value(&expected_listing).unwrap()
+            serde_json::to_value(&expected_retained_listing).unwrap()
+        );
+        eprintln!(
+            "listing route {id}: reopened retained contract {:?}",
+            started.elapsed()
         );
         let workspace = service.workspace_snapshot(10).unwrap();
         assert!(
@@ -803,12 +865,36 @@ mod tests {
                 .unwrap()
                 .successful
         );
+        eprintln!(
+            "listing route {id}: owned probe returned {:?}",
+            started.elapsed()
+        );
+        if let Some(expected) = &recorded_arguments {
+            assert_eq!(
+                fs::read_to_string(replacement.join("route-binding")).unwrap(),
+                *expected
+            );
+        }
         let removal = service.preview_external_removal(id).unwrap();
         let consent = service
             .authorize_external_removal(id, &removal.preview_sha256)
             .unwrap();
         service.remove_external_runtime(id, &consent.token).unwrap();
+        eprintln!(
+            "listing route {id}: registration removed {:?}",
+            started.elapsed()
+        );
         assert!(replacement_executable.is_file());
+        assert_eq!(
+            fs::read(&replacement_executable).unwrap(),
+            replacement_before
+        );
+        if let Some(expected) = &recorded_arguments {
+            assert_eq!(
+                fs::read_to_string(replacement.join("route-binding")).unwrap(),
+                *expected
+            );
+        }
         assert_eq!(
             fs::read(working.join("player-save.dat")).unwrap(),
             b"player save"
@@ -826,6 +912,245 @@ mod tests {
     #[test]
     fn listing_only_registration_relink_restart_and_launch_preserve_user_ownership() {
         assert_listing_only_player_route("listing-only", None);
+    }
+
+    fn assert_bound_listing_player_route(id: &str, player_name: &str, literal_arguments: &[&str]) {
+        let (temporary, mut service, probe, working) = fixture(id);
+        let executable = working.join(player_name);
+        fs::rename(probe, &executable).unwrap();
+        service.catalog = Catalog::embedded().unwrap();
+        let listing = service.catalog.listing(id).unwrap();
+        assert!(listing.manual_setup.is_some());
+        assert!(listing.download_block_reason.is_none());
+        assert!(service.catalog.port(id).is_err());
+        // The prefix is the owned probe's recording ABI. The suffix is the
+        // individually reviewed player argument vector, never a shell command.
+        let arguments: Vec<String> = ["--record".into(), "route-binding".into()]
+            .into_iter()
+            .chain(
+                literal_arguments
+                    .iter()
+                    .map(|argument| (*argument).to_owned()),
+            )
+            .collect();
+        let preview = service
+            .preview_user_selected_runtime(id, &executable, &working, &arguments)
+            .unwrap();
+        assert!(
+            service
+                .register_user_selected_runtime(id, &executable, &working, &arguments, "")
+                .is_err()
+        );
+        assert!(
+            service
+                .authorize_user_selected_runtime(
+                    id,
+                    &executable,
+                    &working,
+                    &[],
+                    &preview.preview_sha256,
+                )
+                .is_err()
+        );
+        assert!(
+            service
+                .library
+                .external_runtime_with_port(id)
+                .unwrap()
+                .is_none()
+        );
+        assert_selected_listing_lifecycle_with_arguments(
+            temporary,
+            service,
+            executable,
+            working,
+            id,
+            arguments,
+            Some(literal_arguments.join("\n")),
+        );
+    }
+
+    #[test]
+    fn inspected_player_adoption_1866_dabs_mod() {
+        assert_bound_listing_player_route("dabdavis-perfect-dark-dabs-mod", "pd.x86_64.exe", &[]);
+    }
+
+    #[test]
+    fn inspected_player_adoption_1310_swrots() {
+        assert_bound_listing_player_route(
+            "star-wars-episode-iii-revenge-of-the-sith",
+            "swrots.exe",
+            &[],
+        );
+    }
+
+    #[test]
+    fn inspected_launcher_adoption_2798_two_towers() {
+        assert_bound_listing_player_route("athelas-the-two-towers-xbox", "Athelas.exe", &[]);
+    }
+
+    #[test]
+    fn inspected_launcher_adoption_2799_rotk_xbox() {
+        assert_bound_listing_player_route(
+            "athelas-the-return-of-the-king-xbox",
+            "Athelas.exe",
+            &[],
+        );
+    }
+
+    #[test]
+    fn inspected_launcher_adoption_2800_fellowship() {
+        assert_bound_listing_player_route(
+            "athelas-the-fellowship-of-the-ring-xbox",
+            "Athelas.exe",
+            &[],
+        );
+    }
+
+    #[test]
+    fn inspected_launcher_adoption_2801_pc_enhancement() {
+        assert_bound_listing_player_route("athelas-return-of-the-king-pc-fix", "Athelas.exe", &[]);
+    }
+
+    #[test]
+    fn inspected_player_adoption_2806_nvdemu_fork() {
+        assert_bound_listing_player_route(
+            "nvdemu-apeescaperecomp-macwindowslinux",
+            "ApeEscapeRecomp.exe",
+            &[],
+        );
+    }
+
+    #[test]
+    fn inspected_player_adoption_2806_custom_disc_config_and_card_paths() {
+        assert_bound_listing_player_route(
+            "nvdemu-apeescaperecomp-macwindowslinux",
+            "ApeEscapeRecomp.exe",
+            &[
+                "--disc",
+                r"C:\Owned Discs\Ape Escape.cue",
+                "--game",
+                r"C:\Player Data\Ape Escape\game.toml",
+                "--memcard-dir",
+                r"C:\Player Data\Ape Escape Cards",
+            ],
+        );
+    }
+
+    #[test]
+    fn inspected_player_adoption_2796_gumpolas_two_towers() {
+        assert_bound_listing_player_route("gumpolas-tootawersrecomp", "twotowers_recomp.exe", &[]);
+    }
+
+    // Per-title acceptance of an existing listing-only route. These controls
+    // execute the owned probe, not the upstream game or original-data setup.
+    #[test]
+    fn prepared_guide_adoption_2553() {
+        assert_bound_listing_player_route(
+            "3d-pinball-for-windows-space-cadet-spacecadetpinball",
+            "SpaceCadetPinball.exe",
+            &[],
+        );
+    }
+
+    #[test]
+    fn prepared_guide_adoption_1904() {
+        assert_bound_listing_player_route("wargus-wargus", "wargus.exe", &[]);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_1905() {
+        assert_bound_listing_player_route("wargus-war1gus", "war1gus.exe", &[]);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_1849() {
+        assert_bound_listing_player_route("opencommunityedition-opence", "halo.exe", &[]);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_1813() {
+        assert_bound_listing_player_route(
+            "doukutsu-rs-doukutsu-rs",
+            "doukutsu-rs_windows_1.0.0.x86_64.exe",
+            &[],
+        );
+    }
+
+    #[test]
+    fn prepared_guide_adoption_1833() {
+        assert_bound_listing_player_route("dkfans-keeperfx", "keeperfx-launcher.exe", &[]);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_1857() {
+        assert_bound_listing_player_route("gizcesi-opentricky", "OpenTricky.exe", &[]);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_1912() {
+        assert_bound_listing_player_route("xander-haj-z3r", "zelda3.exe", &[]);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_1852_red_alert() {
+        assert_bound_listing_player_route("openra-openra", "RedAlert.exe", &[]);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_1852_tiberian_dawn() {
+        assert_bound_listing_player_route("openra-openra", "TiberianDawn.exe", &[]);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_1852_dune_2000() {
+        assert_bound_listing_player_route("openra-openra", "Dune2000.exe", &[]);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_1791() {
+        assert_bound_listing_player_route("derrickgold-ar-recomp", "ActRaiserRecomp.exe", &[]);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_2447() {
+        assert_bound_listing_player_route("burnout-2-timftw21", "b2.exe", &[]);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_2751() {
+        assert_bound_listing_player_route(
+            "inliner495-bblit-remaster",
+            "bugs.exe",
+            &["/opengl", "/win", "/b0", "/x800", "/y600"],
+        );
+    }
+
+    #[test]
+    fn prepared_guide_adoption_345() {
+        assert_bound_listing_player_route(
+            "syphon-filter-2-syphon-filter-2-recompiled",
+            "Syphon_Filter_2_Recompiled.exe",
+            &[],
+        );
+    }
+
+    #[test]
+    fn prepared_guide_adoption_384_v5() {
+        assert_bound_listing_player_route(
+            "sonic-mania-sonic-mania-decompilation-rsdkv5",
+            "RSDKv5.exe",
+            &[],
+        );
+    }
+
+    #[test]
+    fn prepared_guide_adoption_384_v5u() {
+        assert_bound_listing_player_route(
+            "sonic-mania-sonic-mania-decompilation-rsdkv5",
+            "RSDKv5U.exe",
+            &[],
+        );
     }
 
     #[test]
@@ -1015,6 +1340,200 @@ mod tests {
     }
 
     #[test]
+    fn prepared_guide_adoption_2705_launcher() {
+        assert_bound_listing_player_route("re-volt-rvgl", "rvgl_launcher.exe", &[]);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_2738_tetris_player() {
+        assert_bound_listing_player_route("mstan-tetrisgbrecomp", "Tetris.exe", &[]);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_2725_n64_player() {
+        assert_bound_listing_player_route(
+            "n64hub-super-mario-64-recomp",
+            "SuperMario64Recompiled.exe",
+            &[],
+        );
+    }
+
+    #[test]
+    fn prepared_guide_adoption_2776_windows_player() {
+        assert_bound_listing_player_route(
+            "n64hub-perfect-dark-recomp",
+            "PerfectDarkRecompiled.exe",
+            &[],
+        );
+    }
+
+    #[test]
+    fn prepared_guide_adoption_2838_controller_pak_player() {
+        assert_bound_listing_player_route("n64hub-rush-2049-recomp", "Rush2049Recompiled.exe", &[]);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_2851_enhanced_portable_player() {
+        assert_bound_listing_player_route("kandowontu2-urbanrecomp", "UrbanRecomp.exe", &[]);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_2624_compiled_product_player() {
+        assert_bound_listing_player_route("wild-9-wild9recomp", "Wild9_Recompiled.exe", &[]);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_2759_same_process_player() {
+        assert_bound_listing_player_route("previouslevelgames-recharged", "recharged.exe", &[]);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_1871_existing_ntsc_player() {
+        assert_bound_listing_player_route("theclub654-projectcane", "Sly1-Release.exe", &[]);
+    }
+
+    #[test]
+    fn prepared_guide_adoption_2811_waiting_portable_launcher() {
+        assert_bound_listing_player_route(
+            "linkssy2-urbanchaosriotresponseburneredition",
+            "Play Burner Edition.exe",
+            &[],
+        );
+    }
+
+    #[test]
+    fn prepared_guide_adoption_2812_direct_tu2_player() {
+        assert_bound_listing_player_route(
+            "shaneomac1337-wwe-allstars-recomp",
+            "wweallstars.exe",
+            &[],
+        );
+    }
+
+    #[test]
+    fn prepared_guide_adoption_2772_waiting_configured_launcher() {
+        assert_bound_listing_player_route(
+            "josiahg2502-glitch-newsuperpaperbros",
+            "New Super Paper Bros.exe",
+            &[],
+        );
+    }
+
+    #[test]
+    fn prepared_guide_adoption_2610_literal_disc_path_player() {
+        assert_bound_listing_player_route(
+            "star-fox-adventures-foxhollow",
+            "foxhollow.exe",
+            &[r"C:\Owned Games\Star Fox Adventures.iso"],
+        );
+    }
+
+    #[test]
+    fn prepared_guide_adoption_1878_external_copy_preserves_managed_offer() {
+        let id = "sdlpal-sdlpal";
+        let (temporary, mut service, probe, working) = fixture(id);
+        let executable = working.join("sdlpal.exe");
+        fs::rename(probe, &executable).unwrap();
+        service.catalog = Catalog::embedded().unwrap();
+        assert_eq!(
+            service.catalog.port(id).unwrap().adapter,
+            crate::AdapterKind::NativePortable
+        );
+        assert!(
+            service
+                .current_user_selected_definition(id)
+                .unwrap()
+                .is_none()
+        );
+        // An owned probe exercises registration, consent, relink, restart,
+        // supervision and preserving removal. No upstream program is run.
+        assert_selected_listing_lifecycle_with_arguments(
+            temporary,
+            service,
+            executable,
+            working,
+            id,
+            vec!["--record".to_owned(), "route-binding".to_owned()],
+            Some(String::new()),
+        );
+    }
+
+    #[test]
+    fn prepared_guide_adoption_2612_multiplayer_preserves_managed_sp() {
+        let id = "star-wars-jedi-knight-jedi-academy-single-player-and-multiplayer-openjk-openjo";
+        let (temporary, mut service, probe, working) = fixture(id);
+        let executable = working.join("openjk.x86_64.exe");
+        fs::rename(probe, &executable).unwrap();
+        service.catalog = Catalog::embedded().unwrap();
+        let declared = service.catalog.port(id).unwrap();
+        assert_eq!(declared.adapter, crate::AdapterKind::NativePortable);
+        assert_eq!(declared.release.provider, ReleaseSource::Github);
+        assert!(
+            service
+                .current_user_selected_definition(id)
+                .unwrap()
+                .is_none()
+        );
+        // The owned probe records the documented MP vector; it never runs
+        // OpenJK, an original, a server, or a downloaded mod. The shared
+        // lifecycle control also preserves the full current SP definition.
+        let selected = ["+set", "s_UseOpenAL", "0"];
+        let arguments = ["--record", "route-binding"]
+            .into_iter()
+            .chain(selected)
+            .map(str::to_owned)
+            .collect();
+        assert_selected_listing_lifecycle_with_arguments(
+            temporary,
+            service,
+            executable,
+            working,
+            id,
+            arguments,
+            Some(selected.join("\n")),
+        );
+    }
+
+    #[test]
+    fn prepared_guide_adoption_173_project_working_directory() {
+        let id = "earthbound-recomp";
+        let (temporary, mut service, probe, working) = fixture(id);
+        let build = working.join("build");
+        fs::create_dir(&build).unwrap();
+        let executable = build.join("EarthBoundRecomp.exe");
+        fs::rename(probe, &executable).unwrap();
+        service.catalog = Catalog::embedded().unwrap();
+        assert_eq!(
+            service.catalog.port(id).unwrap().release.provider,
+            ReleaseSource::UserPrepared
+        );
+        #[cfg(windows)]
+        assert!(
+            service
+                .current_user_selected_definition(id)
+                .unwrap()
+                .is_some()
+        );
+        // This path is a literal owned-probe argument, never an original to
+        // open. The probe binds the project CWD independently of build/exe.
+        let selected = ["C:\\Owned originals\\EarthBound USA.sfc"];
+        let arguments = ["--record", "route-binding"]
+            .into_iter()
+            .chain(selected)
+            .map(str::to_owned)
+            .collect();
+        assert_selected_listing_lifecycle_with_arguments(
+            temporary,
+            service,
+            executable,
+            working,
+            id,
+            arguments,
+            Some(selected.join("\n")),
+        );
+    }
+
+    #[test]
     fn redriver2_prepared_player_route_317() {
         assert_listing_only_player_route("driver-2-redriver2", Some(false));
     }
@@ -1034,6 +1553,7 @@ mod tests {
             include_str!("../testdata/crispy-final-doom-retained-selected-2026-10-29.json"),
             include_str!("../testdata/bstone-retained-selected-2026-10-29.json"),
             include_str!("../testdata/devilution-retained-selected-2026-10-29.json"),
+            include_str!("../testdata/native-engine-retained-selected-2026-11-02.json"),
         ]
         .into_iter()
         .find(|fixture| Catalog::from_json(fixture).unwrap().port(id).is_ok());
@@ -1236,6 +1756,15 @@ mod tests {
             }
         };
     }
+
+    prepared_player_case!(
+        prepared_guide_adoption_330_completed_game,
+        "gundam-wing-endless-duel-recomp",
+        [
+            "--no-launcher",
+            "C:\\Owned originals\\Endless Duel Japan.sfc"
+        ]
+    );
 
     prepared_player_case!(
         cps_route_2769,
@@ -2306,6 +2835,16 @@ mod tests {
     #[test]
     fn gothic_ii_night_of_the_raven_opengothic_prepared_player_route_2578() {
         assert_listing_only_player_route("gothic-ii-night-of-the-raven-opengothic", Some(false));
+    }
+
+    #[test]
+    fn gsrecomp_collection_player_route_1619() {
+        assert_bound_listing_player_route("gsrecomp", "GoldenSunLauncher.exe", &[]);
+    }
+
+    #[test]
+    fn medievil_recomp_upstream_player_route_1844() {
+        assert_bound_listing_player_route("blacklabelhq-medievilrecomp", "medievil.exe", &[]);
     }
 
     #[test]

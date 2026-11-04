@@ -1,0 +1,58 @@
+{
+  "signatures": [
+    {
+      "keyid": "fb5255c89b90cded62621172d8ee53ecf14df21f13f03ab011e761de2310ece0",
+      "sig": "e5aca85fc5fd57cd42f9010693f14ae7150a1955efeb2c71058eaa5b8efbadf0fdfb3d4998cd604717c5d9ba656a59149595125dc260bb855d9c126ee004260e"
+    }
+  ],
+  "signed": {
+    "_type": "targets",
+    "delegations": {
+      "keys": {
+        "25328e801f6eb90c1dd78b646a60978c3f8bc25da0509fd0c970f8c6b82cc059": {
+          "keytype": "ed25519",
+          "keyval": {
+            "public": "61c102b49d692161a8b0f14ea457456eafbd4f35519d15e1e587c6fd6c07f4c8"
+          },
+          "scheme": "ed25519"
+        },
+        "5972f173654769c9fe2cad7258c9fb4b777e4c66d864b318bbb56616650031f5": {
+          "keytype": "ed25519",
+          "keyval": {
+            "public": "8cc15dcd7e8983b5cd7033ac4724fd8a5377423a386a1b248e47cdc6d51bc3b9"
+          },
+          "scheme": "ed25519"
+        }
+      },
+      "roles": [
+        {
+          "keyids": [
+            "25328e801f6eb90c1dd78b646a60978c3f8bc25da0509fd0c970f8c6b82cc059"
+          ],
+          "name": "official-definitions",
+          "paths": [
+            "definitions/index.json",
+            "sha256/*.json"
+          ],
+          "terminating": true,
+          "threshold": 1
+        },
+        {
+          "keyids": [
+            "5972f173654769c9fe2cad7258c9fb4b777e4c66d864b318bbb56616650031f5"
+          ],
+          "name": "official-policy",
+          "paths": [
+            "policy/official/*.json"
+          ],
+          "terminating": true,
+          "threshold": 1
+        }
+      ]
+    },
+    "expires": "2027-01-30T15:03:08Z",
+    "spec_version": "1.0.0",
+    "targets": {},
+    "version": 1
+  }
+}

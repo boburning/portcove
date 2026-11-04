@@ -6,7 +6,7 @@
     "summary": "Attach an independently permitted, already prepared Darkwatch: Darker Edition native Windows runtime. Resolve its actual active version and keep the complete upstream installation; Play Darkwatch.exe only checks startup and does not wait for the game.",
     "original_game_title": "Darkwatch",
     "project_url": "https://github.com/linkssy2/DarkwatchDarkerEdition",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/linkssy2/DarkwatchDarkerEdition",
     "issue_number": 2736,

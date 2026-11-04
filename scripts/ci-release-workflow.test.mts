@@ -19,6 +19,9 @@ import {
   catalog,
 } from "./ci-workflow-fixture.mts";
 
+// Independently expected contract pin; Renovate updates it with the Action group.
+const reviewedInstallAction = "taiki-e/install-action@1919c4a95903d2c33e4a221102edca87309fc14b"; // v2.89.0
+
 void test("ordinary Linux package operation is fixed and isolated from fixture builds and broader dispatch", async () => {
   const sections = nativeDesignCompatibilityWorkflow.split(/^  (?=[a-z_]+:)/mu);
   const block = sections.find((section) => section.startsWith("linux_package_boundary:\n"));
@@ -112,7 +115,7 @@ void test("Windows updater rehearsal adopts manifest-pinned prebuilt tools befor
   assert.equal(reader.id, "windows-quality-pins");
   assert.equal(reader.shell, "pwsh");
   assert.equal(reader.run, "node scripts/quality-tools.mts --github-output >> $env:GITHUB_OUTPUT");
-  assert.equal(prebuilt.uses, "taiki-e/install-action@68a389c788b2cd04016ce8c80ee23b80d2ab3d68");
+  assert.equal(prebuilt.uses, reviewedInstallAction);
   assert.equal(prebuilt.with.tool, "${{ steps.windows-quality-pins.outputs.required_prebuilt }}");
   assert.equal(prebuilt.with.checksum, undefined);
   assert.equal(prebuilt.with.fallback, undefined);

@@ -11,6 +11,10 @@ use tough::schema::{RoleType, Root, Signed};
 
 use crate::{Library, PortcoveError, Result};
 
+#[path = "official_catalog_setup.rs"]
+pub(crate) mod official_catalog;
+pub use official_catalog::{OfficialCatalogReview, OfficialCatalogSetup, OfficialCatalogSource};
+
 const COMPILED_ROOT: &[u8] = include_bytes!("../catalog/official-definition-root.json");
 // This appointment belongs to reviewed source, never a downloaded Root or API argument.
 const COMPILED_INITIAL_ROOT_PROFILE: &str = "single-owner-one-of-one-v1";

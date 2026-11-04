@@ -6,9 +6,11 @@ import rootPackage from "../package.json" with { type: "json" };
 import qualityManifest from "../.github/quality-tools.json" with { type: "json" };
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { spawnSync } from "node:child_process";
 import { readFile, readdir, lstat } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
+import { runInNewContext } from "node:vm";
 import { fileURLToPath } from "node:url";
 import { parseDocument, parseAllDocuments } from "yaml";
 
@@ -40,6 +42,27 @@ void test("root lock maintenance retains provider-owned pnpm platform integrity"
   assert.ok(result.artifacts > 1);
 });
 const read = (name: string) => readFile(path.join(root, name), "utf8");
+
+void test("actual signing-cache glob consumer bounds pattern expansion and stops canceled traversal", () => {
+  const result = spawnSync(
+    process.execPath,
+    ["scripts/fixtures/dependency-glob-security.mts", "--consumer", "signing-cache"],
+    {
+      cwd: root,
+      encoding: "utf8",
+      timeout: 30_000,
+      maxBuffer: 64 * 1024,
+    },
+  );
+  assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+  const report = record(JSON.parse(result.stdout));
+  assert.ok(Array.isArray(report.observations));
+  assert.deepEqual(
+    report.observations.map((value) => record(value).consumer),
+    ["signing-cache"],
+  );
+  console.log(`Development glob security observation: ${result.stdout.trim()}`);
+});
 
 void test("fixed native pnpm consumers match the root pin and publisher integrity", async () => {
   assert.equal(rootPackage.packageManager, `pnpm@${nativePnpmVersion}`);
@@ -139,6 +162,8 @@ void test("the root owns the only pnpm workspace lock and repository tool depend
   assert.ok(Object.keys(repositoryPackage.devDependencies).length > 0);
   assert.ok(Object.keys(desktopPackage.devDependencies).length > 0);
   assert.deepEqual(Object.keys(repositoryPackage.devDependencies).sort(), [
+    "@octokit/core",
+    "@octokit/plugin-paginate-rest",
     "@resvg/resvg-js",
     "@sigstore/bundle",
     "@sigstore/sign",
@@ -510,6 +535,7 @@ void test("every Renovate custom manager matches its committed authority", async
     ".config/powershell-resources.psd1",
     ".github/workflows/release.yml",
     "tools/containers/build/Dockerfile",
+    "scripts/ci-native-workflow.test.mts",
   ];
 
   for (const [index, manager] of renovate.customManagers.entries()) {
@@ -825,4 +851,108 @@ void test("RFD backport retains the publisher closure and only the reviewed form
   assert.match(rfd, /^version = "0\.17\.2"$/mu);
   assert.doesNotMatch(rfd, /^(?:source|checksum) =/mu);
   assert.match(await read("vendor/rfd/LICENSE"), /Permission is hereby granted/u);
+});
+
+void test("install-action updates keep all independent contract pins with their immutable workflow group", async () => {
+  const managers = renovateConfig.customManagers.filter(
+    (manager) => manager.depNameTemplate === "taiki-e/install-action",
+  );
+  assert.equal(managers.length, 1);
+  const manager = required(managers[0]);
+  assert.equal(manager.datasourceTemplate, "github-tags");
+  assert.equal(manager.versioningTemplate, "github-actions");
+  const rule = required(
+    renovateConfig.packageRules.find(
+      (candidate) =>
+        candidate.matchManagers?.includes("custom.regex") &&
+        candidate.matchPackageNames?.includes("taiki-e/install-action"),
+    ),
+  );
+  assert.deepEqual(rule.matchManagers, ["custom.regex"]);
+  assert.equal(rule.groupName, "github-actions");
+  assert.equal(rule.pinDigests, true);
+  const files = [
+    "scripts/ci-release-workflow.test.mts",
+    "scripts/ci-rust-workflow.test.mts",
+    "scripts/ci-native-workflow.test.mts",
+  ];
+  const owns = (file: string) =>
+    manager.managerFilePatterns.some((pattern) => new RegExp(pattern.slice(1, -1), "u").test(file));
+  for (const file of ["scripts/unrelated.test.mts", ...files.map((name) => `${name}.bak`)])
+    assert.equal(owns(file), false, file);
+  const pattern = required(manager.matchStrings[0]);
+  let guards = 0;
+  const pins = new Set<string>();
+  for (const filename of files) {
+    assert.equal(owns(filename), true);
+    const source = await read(filename);
+    for (const newline of ["\n", "\r\n"]) {
+      const text = source.replace(/\r?\n/gu, newline);
+      const matches = [...text.matchAll(new RegExp(pattern, "gu"))];
+      assert.equal(matches.length, 1, filename);
+      const match = required(matches[0]);
+      const { currentDigest, currentValue } = required(match.groups);
+      assert.match(required(currentDigest), /^[a-f0-9]{40}$/u);
+      assert.match(required(currentValue), /^v\d+\.\d+\.\d+$/u);
+      pins.add(`${currentValue}:${currentDigest}`);
+      const nextDigest = "1".repeat(40);
+      const replacement = match[0]
+        .replace(required(currentDigest), nextDigest)
+        .replace(required(currentValue), "v2.89.0");
+      const updated = text.replace(match[0], replacement);
+      const result = [...updated.matchAll(new RegExp(pattern, "gu"))];
+      assert.equal(result.length, 1);
+      assert.equal(required(result[0]?.groups).currentDigest, nextDigest);
+      assert.equal(required(result[0]?.groups).currentValue, "v2.89.0");
+      assert.equal(
+        new RegExp(pattern, "u").test(
+          text.replace("const reviewedInstallAction", "const unrelatedAction"),
+        ),
+        false,
+      );
+      assert.equal(
+        new RegExp(pattern, "u").test(text.replace(required(currentDigest), "g".repeat(40))),
+        false,
+      );
+    }
+    const match = required(new RegExp(pattern, "u").exec(source));
+    const pin = `taiki-e/install-action@${required(match.groups).currentDigest}`;
+    const wrong = `taiki-e/install-action@${"0".repeat(40)}`;
+    // Execute the actual committed guard expressions, rather than another copy
+    // of their implementation, against a matching and a changed workflow SHA.
+    for (const guard of source.matchAll(
+      /assert\.equal\((prebuilt|installer)\.uses, reviewedInstallAction\);/gu,
+    )) {
+      const name = required(guard[1]);
+      runInNewContext(guard[0], { assert, reviewedInstallAction: pin, [name]: { uses: pin } });
+      assert.throws(() =>
+        runInNewContext(guard[0], { assert, reviewedInstallAction: pin, [name]: { uses: wrong } }),
+      );
+      guards++;
+    }
+    const guard = source.match(
+      /assert\.match\(windows,\s*new RegExp\(reviewedInstallAction, "u"\)\);/u,
+    );
+    if (guard) {
+      runInNewContext(guard[0], { assert, reviewedInstallAction: pin, windows: pin });
+      assert.throws(() =>
+        runInNewContext(guard[0], { assert, reviewedInstallAction: pin, windows: wrong }),
+      );
+      guards++;
+    }
+    const comparison = source.match(/step\.uses === reviewedInstallAction/u);
+    if (comparison) {
+      assert.equal(
+        runInNewContext(comparison[0], { reviewedInstallAction: pin, step: { uses: pin } }),
+        true,
+      );
+      assert.equal(
+        runInNewContext(comparison[0], { reviewedInstallAction: pin, step: { uses: wrong } }),
+        false,
+      );
+      guards++;
+    }
+  }
+  assert.equal(pins.size, 1, "all contract consumers keep the same reviewed version and digest");
+  assert.equal(guards, 4, "retain every existing immutable workflow-pin refusal");
 });

@@ -27,7 +27,7 @@
         },
         {
           "title": "Retain the creating data and save paths",
-          "instruction": "Keep the actual prepared runtime directory as working directory. Retain opendune.ini and its [opendune] datadir and savedir choices. On Windows, upstream looks for the INI first in the actual AppData/OpenDUNE location, then the working directory, then data/. savedir overrides the personal path; otherwise Windows uses the current account’s roaming AppData/OpenDUNE, with a working-directory fallback if that lookup fails. Preserve the actual personal directory, OPTIONS.CFG, all saves, originals and custom/unknown files."
+          "instruction": "Keep the actual prepared runtime directory as working directory. Retain opendune.ini and its [opendune] datadir and savedir choices."
         },
         {
           "title": "Check the working copy before registration",
@@ -40,7 +40,14 @@
       ],
       "warnings": [
         "Use only a copy and content you are already permitted to use. Engine licensing does not grant rights to original game assets, music, mods or bundled components.",
-        "Before updating the game, keep a copy of its working files and every location containing saved data. Choosing a different executable does not give it a separate profile."
+        "Before updating the game, keep a copy of its working files and every location containing saved data. Choosing a different executable does not give it a separate profile.",
+        "Preserve the actual personal directory, OPTIONS.CFG, all saves, originals and custom/unknown files."
+      ],
+      "references": [
+        {
+          "title": "OpenDUNE configuration and save locations",
+          "instruction": "On Windows, upstream looks for the INI first in the actual AppData/OpenDUNE location, then the working directory, then data/. savedir overrides the personal path; otherwise Windows uses the current account’s roaming AppData/OpenDUNE, with a working-directory fallback if that lookup fails. Preserve the actual personal directory, OPTIONS.CFG, all saves, originals and custom/unknown files."
+        }
       ]
     }
   },

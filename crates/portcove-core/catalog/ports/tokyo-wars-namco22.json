@@ -3,7 +3,7 @@
   "listing": {
     "id": "tokyo-wars-namco22",
     "name": "Tokyo Wars Native (Namco22)",
-    "summary": "Explore Tokyo Wars's native arcade port and register an existing copy you are permitted to use.",
+    "summary": "Conditional existing-copy route for Tokyo Wars using your own World TW2 Ver.A tokyowar.zip. The Japanese program revision is a different input. Permission for the bundled original C71 BIOS and Namco-derived program remains unresolved; the project MIT terms do not settle it.",
     "project_url": "https://github.com/spacestate1/namco22-decompile",
     "issue_number": 1567,
     "platforms": ["windows-x86-64", "linux-x86-64"],
@@ -31,7 +31,7 @@
         },
         {
           "title": "Use the Windows player",
-          "instruction": "Select TokyoWars.exe inside your existing windows-release folder, with that folder as its working directory. Keep mesa beside the player. Preserve the whole copy, including roms, extracted, controls, arcade records, log, screenshots and recordings, before any permitted upstream update. Portcove registers the copy without owning or replacing its files."
+          "instruction": "Select TokyoWars.exe inside your existing windows-release folder, with that folder as its working directory. Keep mesa beside the player."
         },
         {
           "title": "Use the upstream Linux AppImage",
@@ -42,7 +42,13 @@
         "Permission for the bundled original C71 BIOS and Namco-derived program is still unresolved. The project’s MIT grant covers its own work and excludes the game code. Review that condition before obtaining or building a copy.",
         "External files stay owned by you or upstream. Preserve the whole Windows copy or Linux tokyowar profile, including any existing namco22 or portable data folder. Portcove does not manage its updates, backup, rollback or removal. Replays may need their creating runtime."
       ],
-      "help_url": "https://github.com/spacestate1/namco22-decompile/blob/d7331fba68c57f914565f7fc5186081129a23805/README.md"
+      "help_url": "https://github.com/spacestate1/namco22-decompile/blob/d7331fba68c57f914565f7fc5186081129a23805/README.md",
+      "references": [
+        {
+          "title": "Preserve the complete Windows runtime and arcade data",
+          "instruction": "Preserve the whole copy, including roms, extracted, controls, arcade records, log, screenshots and recordings, before any permitted upstream update. Portcove registers the copy without owning or replacing its files."
+        }
+      ]
     },
     "download_block_reason": "Portcove cannot offer this download while permission for the bundled original C71 DSP BIOS and Namco-derived program code remains unresolved. The upstream MIT grant excludes Namco game code. Reconsider after an attributable grant or an upstream package/preparation route that removes the ungranted content. Existing permitted copies can still be registered without adopting their files."
   }

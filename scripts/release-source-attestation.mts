@@ -4,6 +4,7 @@ import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { createGitHubRunner } from "./github-api.mts";
 import { isRecord } from "./runtime-values.mts";
+export const upstreamRehearsalExecutionRef = "refs/tags/portcove-upstream-rehearsal-20261104r5";
 
 export interface ReleaseSourceAttestationExpectation {
   source_commit: string;
@@ -14,6 +15,12 @@ export interface ReleaseSourceAttestationExpectation {
 }
 const repository = "boburning/portcove";
 const workflow = ".github/workflows/release.yml";
+type AttestationScope = "release" | "upstream-rehearsal";
+function attestationWorkflow(scope: AttestationScope) {
+  if (scope === "release") return workflow;
+  if (scope === "upstream-rehearsal") return ".github/workflows/upstream-release-rehearsal.yml";
+  throw new Error("unknown source attestation scope");
+}
 export const releaseProcessPredicate = "https://slsa.dev/provenance/v1";
 
 /** Pure interpretation has no authentication authority. Only the direct gh
@@ -22,7 +29,24 @@ export const releaseProcessPredicate = "https://slsa.dev/provenance/v1";
 export function inspectReleaseSourceAttestation(
   raw: unknown,
   expected: ReleaseSourceAttestationExpectation,
+  scope: AttestationScope = "release",
 ) {
+  // Native failed-only reruns can legitimately attest the same original bytes
+  // in another attempt. Select the explicitly expected authenticated attempt;
+  // duplicate attestations for that exact identity still refuse as ambiguous.
+  if (scope === "upstream-rehearsal" && Array.isArray(raw) && raw.length > 1) {
+    const uri = `https://github.com/${repository}/actions/runs/${expected.run_id}/attempts/${expected.run_attempt}`;
+    raw = raw.filter((value: unknown) => {
+      if (
+        !isRecord(value) ||
+        !isRecord(value.verificationResult) ||
+        !isRecord(value.verificationResult.signature) ||
+        !isRecord(value.verificationResult.signature.certificate)
+      )
+        return false;
+      return value.verificationResult.signature.certificate.runInvocationURI === uri;
+    });
+  }
   if (
     !Array.isArray(raw) ||
     raw.length !== 1 ||
@@ -44,7 +68,8 @@ export function inspectReleaseSourceAttestation(
     certificate.issuer !== "https://token.actions.githubusercontent.com" ||
     certificate.sourceRepositoryIdentifier !== "1354613114" ||
     certificate.sourceRepositoryURI !== `https://github.com/${repository}` ||
-    certificate.buildSignerURI !== `https://github.com/${repository}/${workflow}@${expected.ref}` ||
+    certificate.buildSignerURI !==
+      `https://github.com/${repository}/${attestationWorkflow(scope)}@${expected.ref}` ||
     certificate.buildSignerDigest !== expected.source_commit ||
     certificate.sourceRepositoryDigest !== expected.source_commit ||
     certificate.sourceRepositoryRef !== expected.ref ||
@@ -88,14 +113,26 @@ export async function verifyReleaseSourceAttestation(
   directory: string,
   filename: string,
   expected: ReleaseSourceAttestationExpectation,
-  options: { spawn?: NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"] } = {},
+  options: {
+    spawn?: NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"];
+    scope?: AttestationScope;
+  } = {},
 ) {
   if (
     !/^[a-f0-9]{40}$/u.test(expected.source_commit) ||
     !/^[1-9][0-9]{0,15}$/u.test(expected.run_id) ||
     !Number.isSafeInteger(expected.run_attempt) ||
     expected.run_attempt < 1 ||
-    !/^refs\/tags\/[A-Za-z0-9._/-]{1,192}$/u.test(expected.ref) ||
+    !(options.scope === "upstream-rehearsal"
+      ? [
+          "refs/heads/main",
+          "refs/tags/portcove-upstream-rehearsal-20261104r1",
+          "refs/tags/portcove-upstream-rehearsal-20261104r2",
+          "refs/tags/portcove-upstream-rehearsal-20261104r3",
+          "refs/tags/portcove-upstream-rehearsal-20261104r4",
+          upstreamRehearsalExecutionRef,
+        ].includes(expected.ref)
+      : /^refs\/tags\/[A-Za-z0-9._/-]{1,192}$/u.test(expected.ref)) ||
     expected.subjects.length < 1 ||
     expected.subjects.length > 8
   )
@@ -126,7 +163,7 @@ export async function verifyReleaseSourceAttestation(
       "--repo",
       repository,
       "--signer-workflow",
-      `${repository}/${workflow}`,
+      `${repository}/${attestationWorkflow(options.scope ?? "release")}`,
       "--signer-digest",
       expected.source_commit,
       "--source-digest",
@@ -147,7 +184,7 @@ export async function verifyReleaseSourceAttestation(
   const verificationPath = path.join(directory, "source-attestation-verification.json");
   await writeFile(verificationPath, `${JSON.stringify(raw)}\n`, { flag: "wx", mode: 0o600 });
   return {
-    ...inspectReleaseSourceAttestation(raw, expected),
+    ...inspectReleaseSourceAttestation(raw, expected, options.scope),
     evidence_scope: options.spawn ? "injected-provider" : "github.com",
     verification_path: verificationPath,
   };

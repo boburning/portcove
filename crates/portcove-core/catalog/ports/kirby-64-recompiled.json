@@ -3,7 +3,7 @@
   "listing": {
     "id": "kirby-64-recompiled",
     "name": "Kirby 64 Recompiled",
-    "summary": "Explore Kirby 64 Recompiled and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Kirby 64 source-build route using your own supported NK4E.z64 original in the player's working directory. The documented project is under construction and needs upstream toolchain/build preparation before native registration. Select the finished game output rather than compiler tools.",
     "project_url": "https://github.com/Kirby64Ret/Kirby64Recomp",
     "issue_number": 1574,
     "platforms": [],

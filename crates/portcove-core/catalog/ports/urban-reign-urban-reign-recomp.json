@@ -6,7 +6,7 @@
     "summary": "Attach an independently permitted, prepared Urban Reign Windows native game with its exact USA disc executable and explicit ISO path. Preserve executable-side settings, memory cards and states; the browser launcher, optional HD packs and multiplayer claims retain separate scope.",
     "original_game_title": "Urban Reign",
     "project_url": "https://github.com/thiagordsfx/urban-reign-recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/thiagordsfx/urban-reign-recomp",
     "artwork": {

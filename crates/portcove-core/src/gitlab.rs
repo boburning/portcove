@@ -10,6 +10,8 @@ use reqwest::{StatusCode, header};
 use serde::{Deserialize, de::DeserializeOwned};
 use tokio::sync::RwLock;
 
+mod catalog_download;
+
 use crate::{
     Library, Platform, PortDefinition, PortcoveError, ReleaseAsset, ReleaseChannel,
     ReleaseProvider, ReleaseSource, ResolvedRelease, Result,
@@ -24,6 +26,7 @@ use crate::{
 pub struct GitlabReleaseProvider {
     client: reqwest::Client,
     api_root: String,
+    network_bounds: ProviderNetworkBounds,
     library: Option<Library>,
     cache: Arc<RwLock<HashMap<ReleaseSelectionCacheKey, CachedRelease>>>,
 }
@@ -69,6 +72,7 @@ impl GitlabReleaseProvider {
         Ok(Self {
             client,
             api_root: api_root.trim_end_matches('/').into(),
+            network_bounds: bounds,
             library,
             cache: Arc::new(RwLock::new(HashMap::new())),
         })
@@ -194,6 +198,11 @@ impl GitlabReleaseProvider {
         for page in 1..=GITLAB_MAX_RELEASE_PAGES {
             let url = paginated_url(project_url, "releases", page, PROVIDER_PAGE_SIZE)?;
             let mut current: Vec<GitlabRelease> = self.get_json(&url).await?;
+            if current.len() > PROVIDER_PAGE_SIZE {
+                return Err(PortcoveError::verification(
+                    "GitLab release page exceeds its bound",
+                ));
+            }
             let has_more = current.len() == PROVIDER_PAGE_SIZE;
             releases.append(&mut current);
             if !has_more {
@@ -217,6 +226,11 @@ impl GitlabReleaseProvider {
                 .append_pair("order_by", "created_at")
                 .append_pair("sort", "desc");
             let mut current: Vec<GitlabPackage> = self.get_json(url.as_str()).await?;
+            if current.len() > PROVIDER_PAGE_SIZE {
+                return Err(PortcoveError::verification(
+                    "GitLab package page exceeds its bound",
+                ));
+            }
             let has_more = current.len() == PROVIDER_PAGE_SIZE;
             packages.append(&mut current);
             if !has_more {
@@ -578,6 +592,8 @@ impl ReleaseProvider for GitlabReleaseProvider {
 struct GitlabProject {
     id: u64,
     #[serde(default)]
+    path_with_namespace: Option<String>,
+    #[serde(default)]
     archived: Option<bool>,
 }
 
@@ -601,6 +617,8 @@ struct GitlabReleaseAssets {
 
 #[derive(Debug, Deserialize)]
 struct GitlabReleaseLink {
+    #[serde(default)]
+    id: Option<u64>,
     name: String,
     url: String,
     #[serde(default)]
@@ -752,7 +770,7 @@ fn package_file_id(url: &str) -> Option<u64> {
         .and_then(|parts| parts[1].parse().ok())
 }
 
-fn generic_package_url(
+pub(crate) fn generic_package_url(
     project_url: &str,
     api_root: &str,
     project_id: u64,
@@ -2108,12 +2126,14 @@ mod tests {
         let port = catalog.port("extreme-g-recompiled").unwrap();
         let links = [
             GitlabReleaseLink {
+                id: None,
                 name: "ExtremeG-Windows-RelWithDebInfo-one.zip".into(),
                 url: "https://example.invalid/one.zip".into(),
                 direct_asset_url: None,
                 link_type: "package".into(),
             },
             GitlabReleaseLink {
+                id: None,
                 name: "ExtremeG-Windows-RelWithDebInfo-two.zip".into(),
                 url: "https://example.invalid/two.zip".into(),
                 direct_asset_url: None,
@@ -2134,6 +2154,7 @@ mod tests {
             .asset_hints
             .insert(Platform::WindowsX86_64, vec!["win64".into()]);
         let link = |name: &str| GitlabReleaseLink {
+            id: None,
             name: name.into(),
             url: "https://example.invalid/package.zip".into(),
             direct_asset_url: None,
@@ -2246,6 +2267,7 @@ mod tests {
             assets: GitlabReleaseAssets { links: vec![] },
         };
         let link = GitlabReleaseLink {
+            id: None,
             name: "ExtremeG-Windows-RelWithDebInfo.zip".into(),
             url: format!("{server_root}/group/project/-/package_files/77/download"),
             direct_asset_url: None,
@@ -2352,6 +2374,7 @@ mod tests {
             assets: GitlabReleaseAssets { links: vec![] },
         };
         let link = GitlabReleaseLink {
+            id: None,
             name: "game.zip".into(),
             url: format!("{server_root}/group/project/-/package_files/77/download"),
             direct_asset_url: None,

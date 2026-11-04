@@ -49,6 +49,7 @@ import { GameFileScanProvider } from "./features/game-file-discovery/use-game-fi
 import {
   SetupReviewSelectionProvider,
   useSetupReviewSelection,
+  usePendingSetupReview,
 } from "./features/game-file-discovery/setup-review-selection";
 import { useSetupSource } from "./features/app-shell/use-setup-source";
 import { focusApplicationUpdateRoute } from "./features/application-update/focus-application-update-route";
@@ -86,6 +87,7 @@ import {
 } from "./features/browsing/use-game-file-filter-context";
 import { ArtworkProvider } from "./artwork";
 import { SourceIntakeDialog } from "./components/SourceIntake";
+import { OfficialDefinitionUpdates } from "./components/OfficialDefinitionUpdates";
 import { UpdateCenter } from "./components/UpdateCenter";
 import { FailureDetails } from "./components/FailureDetails";
 import { SupportBundleExport } from "./components/SupportBundleExport";
@@ -422,7 +424,7 @@ function useWorkspace(props: WorkspaceProps) {
     request: sourceIntake,
     open: openSourceIntake,
     close: closeSourceIntake,
-  } = useSourceIntakeState(data.catalog);
+  } = useSourceIntakeState(data.catalog, bootstrap.generation);
   const nativeSourceDrag = useNativeSourceDrop((drop) =>
     openSourceIntake(drop.portId, drop.profileId, drop.paths),
   );
@@ -468,6 +470,8 @@ function useWorkspace(props: WorkspaceProps) {
           "library",
         )
       : undefined,
+    model.source,
+    ui.sourcePath,
   );
   const setupReviews = useSetupReviewSelection();
   usePendingSetupReview(
@@ -476,7 +480,9 @@ function useWorkspace(props: WorkspaceProps) {
     model.port?.id,
     model.status,
     data.refreshFailure,
-    installPlanning.review,
+    installPlanning.reviewSource,
+    ui.sourcePath,
+    ui.setSourcePath,
   );
   const backupRefreshIdentity = useMemo(
     () => [data.catalog, model.status, data.activityFeed],
@@ -684,15 +690,30 @@ function useWorkspace(props: WorkspaceProps) {
       </Notice>
     );
   const implementationControl = model.entry && (
-    <GameAlternatives
-      port={model.entry}
-      ports={model.entries.filter(
-        (candidate) => gameGroupId(candidate) === gameGroupId(model.entry!),
-      )}
-      statuses={model.statusMap}
-      organization={organization}
-      onSelect={(portId) => switchPortDetails(portId)}
-    />
+    <>
+      <GameAlternatives
+        port={model.entry}
+        ports={model.entries.filter(
+          (candidate) => gameGroupId(candidate) === gameGroupId(model.entry!),
+        )}
+        statuses={model.statusMap}
+        organization={organization}
+        onSelect={(portId) => switchPortDetails(portId)}
+      />
+      <OfficialDefinitionUpdates
+        portId={model.entry.id}
+        portName={model.entry.name}
+        generation={bootstrap.generation}
+        busy={Boolean(operations.busy)}
+        perform={operations.perform}
+        onChanged={data.refreshAfterMutation}
+        openSettings={() => {
+          ui.setSettingsCategory("updates");
+          setPrimaryView("settings");
+          window.requestAnimationFrame(() => focusRegion("workspace"));
+        }}
+      />
+    </>
   );
   const renderWorkspaceView = () =>
     model.entry && usesSelfServiceDetail(model.entry, model.status) ? (
@@ -1037,6 +1058,7 @@ function WorkspaceView({ workspace, ...model }: ReturnType<typeof useWorkspace>)
                   statuses={model.model.statusMap}
                   sources={model.data.sources}
                   refreshFailed={Boolean(model.data.refreshFailure)}
+                  perform={model.operations.perform}
                   onAdded={model.data.refreshAfterMutation}
                   onOpenPort={model.openPortDetails}
                   onCheckFiles={model.openSourceIntake}
@@ -1675,11 +1697,15 @@ function SelectedPortPanel({
 }) {
   if (!model.port) return null;
   const favoritePortId = model.port.id;
+  const setSourcePath = (path: string) => {
+    ui.setSourcePath(path);
+    installPlanning.invalidate();
+  };
   const pickSource = model.sourceProfile
     ? () => {
         return applyPathChoice(
           pickSourcePath(model.sourceProfile!, ui.sourcePath),
-          ui.setSourcePath,
+          setSourcePath,
           operations.setError,
         );
       }
@@ -1689,7 +1715,7 @@ function SelectedPortPanel({
       ? () => {
           void applyPathChoice(
             pickSourceArchivePath(ui.sourcePath),
-            ui.setSourcePath,
+            setSourcePath,
             operations.setError,
           );
         }
@@ -1760,7 +1786,7 @@ function SelectedPortPanel({
       }
       sourceProfile={model.sourceProfile}
       sourcePath={ui.sourcePath}
-      setSourcePath={ui.setSourcePath}
+      setSourcePath={setSourcePath}
       cancellableActivities={activities.filter(
         (activity) => activity.target_id === model.port?.id && activity.cancellation,
       )}
@@ -1805,6 +1831,7 @@ function SelectedPortPanel({
         port: model.port,
         status: model.status,
         sourcePath: ui.sourcePath,
+        sourceReference: installPlanning.sourceReference,
         biosPath: ui.biosPath,
         perform: operations.perform,
         close: close,
@@ -1935,33 +1962,6 @@ function useWorkspaceApplicationUpdates(reportError: OperationState["setError"])
     reportError: reportError,
   });
   return { applicationUpdate, applicationUpdateChoice, applicationUpdateProductionTransition };
-}
-
-function usePendingSetupReview(
-  selection: ReturnType<typeof useSetupReviewSelection>,
-  selectedId: string | undefined,
-  portId: string | undefined,
-  status: ReturnType<typeof useAppModel>["status"],
-  refreshFailure: unknown,
-  reviewInstallation: ReturnType<typeof useInstallPlanning>["review"],
-) {
-  const { pendingReview, takeReview } = selection;
-  useEffect(() => {
-    const request = pendingReview;
-    if (!request) return;
-    // Consume once, including StrictMode replay, and never plan a different detail.
-    const matches =
-      selectedId === request.portId &&
-      portId === request.portId &&
-      status?.channel === request.channel &&
-      !refreshFailure &&
-      !status.active &&
-      !status.external_runtime &&
-      status.port_actions?.some(
-        (action) => action.action === "install" && action.availability === "allowed",
-      );
-    if (takeReview(request) && matches) void reviewInstallation();
-  }, [pendingReview, takeReview, selectedId, portId, status, refreshFailure, reviewInstallation]);
 }
 
 function useWorkspaceLibrary({

@@ -31,6 +31,9 @@ import {
   rustQuality,
 } from "./ci-workflow-fixture.mts";
 
+// Independently expected contract pin; Renovate updates it with the Action group.
+const reviewedInstallAction = "taiki-e/install-action@1919c4a95903d2c33e4a221102edca87309fc14b"; // v2.89.0
+
 void test("standalone Linux environment tests retain native selection and bounded outcomes", () => {
   const step: Record<string, unknown> & { run: string } = workflowStep(
     "fast_rust_quality",
@@ -149,7 +152,7 @@ void test("runtime diagnostics retain complete Windows and Linux typed fixture e
   );
   assert.ok(isRecord(installer));
   assert.equal(installer.if, linuxFixture.if);
-  assert.equal(installer.uses, "taiki-e/install-action@68a389c788b2cd04016ce8c80ee23b80d2ab3d68");
+  assert.equal(installer.uses, reviewedInstallAction);
   assert.deepEqual(installer.with, {
     tool: "${{ steps.linux-diagnostic-test-runner.outputs.spec }}",
   });
@@ -232,6 +235,7 @@ void test("Windows diagnostics serialize file workers without changing coverage 
     "scripts/desktop-staged-layout.test.mts",
     "scripts/desktop-execution-baseline.test.mts",
     "scripts/desktop-real-runtime.test.mts",
+    "scripts/desktop-source-reuse.test.mts",
     "scripts/desktop-linux-native-session.test.mts",
     "scripts/desktop-linux-stop.test.mts",
     "scripts/desktop-listener-probe.test.mts",

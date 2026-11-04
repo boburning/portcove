@@ -80,7 +80,7 @@ const routes={
  './heavy-rust-test-lock.mts':{readProcessIdentity:'birth'},
 };
 globalThis.fixture.birth=pid=>{assert.equal(pid,process.pid);return 'inert-worker-birth'};globalThis.fixture.performance={now:()=>clock};globalThis.fixture.linuxPaths=['never-linux'];globalThis.fixture.profile=platform=>{assert.equal(platform,'windows-x86_64');return {paths:['runner.mjs']}};
-registerHooks({resolve(s,c,next){if(c.parentURL===${JSON.stringify(entry)}&&routes[s])return {url:'win-bootstrap:'+s,shortCircuit:true};return next(s,c)},load(u,c,next){if(u===${JSON.stringify(entry)}){const source=readFileSync(new URL(u),'utf8');assert.ok(source.includes('export const hostedWindowsBootstrapExecutionAuthorized = false;'));return {format:'module-typescript',source:source.replace('export const hostedWindowsBootstrapExecutionAuthorized = false;','export const hostedWindowsBootstrapExecutionAuthorized = true;'),shortCircuit:true}}if(u.startsWith('win-bootstrap:'))return {format:'module',source:Object.entries(routes[u.slice('win-bootstrap:'.length)]).map(([name,key])=>'export const '+name+'=globalThis.fixture.'+key+';').join('\n'),shortCircuit:true};return next(u,c)}});
+registerHooks({resolve(s,c,next){if(c.parentURL===${JSON.stringify(entry)}&&routes[s])return {url:'win-bootstrap:'+s,shortCircuit:true};return next(s,c)},load(u,c,next){if(u===${JSON.stringify(entry)}){const source=readFileSync(new URL(u),'utf8');assert.ok(source.includes('export const hostedWindowsBootstrapExecutionAuthorized = true;'));return {format:'module-typescript',source:source.replace('export const hostedWindowsBootstrapExecutionAuthorized = false;','export const hostedWindowsBootstrapExecutionAuthorized = true;'),shortCircuit:true}}if(u.startsWith('win-bootstrap:'))return {format:'module',source:Object.entries(routes[u.slice('win-bootstrap:'.length)]).map(([name,key])=>'export const '+name+'=globalThis.fixture.'+key+';').join('\n'),shortCircuit:true};return next(u,c)}});
 const api=await import(${JSON.stringify(entry)});
 for(const name of ['','source','windows-missing','windows-failed','bundle-missing','role','custody','tools','late','node','platform','environment','changed-custody','late-final','role-final','issuer-final']){
  fault=name;receives=0;imports=0;prepared=0;pathReads=0;clock=1000;home=path.join(root,name||'valid');await mkdir(home);
@@ -193,6 +193,15 @@ void test("Windows connected execution and proof holds refuse before preparation
     String.raw`
 import assert from 'node:assert/strict';
 import {readdir} from 'node:fs/promises';
+import {readFileSync} from 'node:fs';import {registerHooks} from 'node:module';
+const heldFlags=new Map([
+ ['release-windows-bootstrap-runtime.mts',['protectedWindowsRuntimePreparationExecutionAuthorized','protectedWindowsNativeRuntimePreparationExecutionAuthorized']],
+ ['release-hosted-native-bootstrap.mts',['hostedWindowsBootstrapExecutionAuthorized']],
+ ['release-hosted-native-runner.mts',['hostedWindowsNativeJobExecutionAuthorized']],
+ ['release-hosted-native-windows-session.mts',['hostedWindowsSessionExecutionAuthorized']],
+ ['release-hosted-native-proof-producer.mts',['hostedWindowsProofExecutionAuthorized']],
+]);
+registerHooks({load(url,context,next){const leaf=url.split('/').at(-1),flags=heldFlags.get(leaf);if(!flags)return next(url,context);let source=readFileSync(new URL(url),'utf8');for(const name of flags){const appointed='export const '+name+' = true;';assert.equal(source.split(appointed).length,2);source=source.replace(appointed,'export const '+name+' = false;');}return {format:'module-typescript',source,shortCircuit:true};}});
 let requests=0;globalThis.fetch=()=>{requests++;throw Error('provider request forbidden')};
 const bootstrap=await import(${JSON.stringify(new URL("./release-hosted-native-bootstrap.mts", import.meta.url).href)});
 assert.equal(bootstrap.hostedWindowsBootstrapExecutionAuthorized,false);
@@ -207,6 +216,10 @@ await assert.rejects(session.refuseActualHostedWindowsSession({},Error('foreign'
 const proof=await import(${JSON.stringify(new URL("./release-hosted-native-proof-producer.mts", import.meta.url).href)});
 assert.equal(proof.hostedWindowsProofExecutionAuthorized,false);
 await assert.rejects(proof.signActualHostedWindowsNativeProof({}),/awaits separate owner authority/);
+const runtime=await import(${JSON.stringify(new URL("./release-windows-bootstrap-runtime.mts", import.meta.url).href)});
+assert.equal(runtime.protectedWindowsRuntimePreparationExecutionAuthorized,false);assert.equal(runtime.protectedWindowsNativeRuntimePreparationExecutionAuthorized,false);
+await assert.rejects(runtime.prepareAdmittedWindowsBootstrapRuntime(),/Protected Windows runtime preparation remains held/);
+await assert.rejects(runtime.prepareAdmittedWindowsNativeRuntime(),/Protected Windows runtime preparation remains held/);
 assert.equal(requests,0);assert.deepEqual(await readdir(process.argv[1]),[]);
 console.log('controlled Windows preparation passed; held connection refused before effects');
 `,

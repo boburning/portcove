@@ -347,7 +347,7 @@ test("optional startup observation is best effort for unsupported inspector meth
   assert.equal(report.url, "about:blank");
 });
 
-test("the actual harness enables startup targets only for its initial exact A1 failure", () => {
+test("the actual harness enables startup targets only for its initial exact A1 or saved-folder failure", () => {
   const source = stripTypeScriptTypes(
     readFileSync(new URL("./desktop-test.mts", import.meta.url), "utf8"),
     { mode: "strip" },
@@ -379,10 +379,11 @@ test("the actual harness enables startup targets only for its initial exact A1 f
   const expression = source.slice(option.value.start, option.value.end);
   const evaluate = (selected_scenarios: string[], connectedLaunches: number): unknown =>
     vm.runInNewContext(`(${expression})`, { selection: { selected_scenarios }, connectedLaunches });
-  const id = "native-game-first-choice-and-restart";
-  assert.equal(evaluate([id], 0), true);
-  assert.equal(evaluate([id], 1), false);
-  assert.equal(evaluate([id, "empty-library"], 0), false);
+  for (const id of ["native-game-first-choice-and-restart", "native-saved-folder-selected-setup"]) {
+    assert.equal(evaluate([id], 0), true);
+    assert.equal(evaluate([id], 1), false);
+    assert.equal(evaluate([id, "empty-library"], 0), false);
+  }
   assert.equal(evaluate(["native-reviewed-existing-install-copy"], 0), false);
   assert.equal(evaluate([], 0), false);
 });

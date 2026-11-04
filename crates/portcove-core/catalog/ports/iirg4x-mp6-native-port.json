@@ -6,7 +6,7 @@
     "summary": "Attach an independently permitted, prepared Starlit Party Windows player for your own Mario Party 6 USA disc. Preserve its actual working-directory saves and content root; limited minigame coverage and title-specific launcher/font permission scope remain explicit.",
     "original_game_title": "Mario Party 6",
     "project_url": "https://github.com/iirg4x/mp6-native-port",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/iirg4x/mp6-native-port",
     "artwork": {

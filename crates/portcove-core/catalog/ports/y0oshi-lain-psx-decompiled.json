@@ -6,7 +6,7 @@
     "summary": "Attach an independently permitted, prepared Serial Experiments Lain Windows client with both owned Japanese discs already imported. Its native client runs the game in process; preserve the separate imported-disc, memory-card and mod data tree.",
     "original_game_title": "Serial Experiments Lain",
     "project_url": "https://github.com/Y0oshi/lain-psx-decompiled",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Y0oshi/lain-psx-decompiled",
     "artwork": {

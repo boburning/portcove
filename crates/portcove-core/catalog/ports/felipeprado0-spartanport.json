@@ -6,7 +6,7 @@
     "summary": "Attach a prepared SpartanPort Windows installation for your independently permitted God of War III Remastered PS4 dump. The current Rust launcher owns upstream preparation; keep its saved settings, user data and legacy gow3 migration roots.",
     "original_game_title": "God of War III Remastered",
     "project_url": "https://github.com/FelipePrado0/SpartanPort",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/FelipePrado0/SpartanPort",
     "artwork": {

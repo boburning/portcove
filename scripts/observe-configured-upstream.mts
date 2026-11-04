@@ -12,16 +12,22 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 import {
+  decodeStoredObserverCheckpoint,
+  observerSourceCheckpointLimit,
+} from "./observer-checkpoint-storage.mts";
+import {
   ObservationFailure,
   observationHash,
   observeUpstream,
   validateObserverConfig,
   validateObservationContinuation,
   reusableProviderObservation,
+  compactObserverCache,
+  validateObserverCache,
 } from "./upstream-observer.mts";
 
 const repositoryRoot = fileURLToPath(new URL("../", import.meta.url));
-const checkpointLimit = 32 * 1024 * 1024;
+const checkpointLimit = observerSourceCheckpointLimit;
 export { checkpointLimit as observerCheckpointByteLimit };
 
 type Observation = Awaited<ReturnType<typeof observeUpstream>>["observation"];
@@ -129,6 +135,7 @@ function validateCheckpoint(
       "invalid-checkpoint",
       "checkpoint observation and core projection do not match",
     );
+  if (prior?.cache !== undefined) validateObserverCache(prior.cache, config);
   if (
     typeof checkpoint.completed_runs !== "number" ||
     !Number.isSafeInteger(checkpoint.completed_runs) ||
@@ -167,6 +174,51 @@ function validateCheckpoint(
 }
 
 export { validateCheckpoint as validateObserverCheckpoint };
+
+/** Migrate only inert GitHub response pages. Accepted observations, projections,
+ * raw page identities, configuration, counters, cursors and clocks are retained. */
+export function compactObserverCheckpoint(checkpoint: unknown, config: ObserverConfig) {
+  validateCheckpoint(checkpoint, config);
+  if (checkpoint == null) return checkpoint;
+  if (Buffer.byteLength(JSON.stringify(checkpoint)) > checkpointLimit)
+    throw new ObservationFailure(
+      "invalid-checkpoint",
+      "raw source exceeds checkpoint read envelope",
+    );
+  const complete = checkpoint.last_complete;
+  const continuation = checkpoint.continuation;
+  const result = {
+    ...checkpoint,
+    ...(complete
+      ? {
+          last_complete: {
+            ...complete,
+            ...(complete.cache === undefined
+              ? {}
+              : { cache: compactObserverCache(complete.cache, config) }),
+          },
+        }
+      : {}),
+    ...(continuation
+      ? {
+          continuation: {
+            ...continuation,
+            pages: compactObserverCache(
+              { format: 1, config_sha256: observationHash(config), pages: continuation.pages },
+              config,
+            )!.pages,
+          },
+        }
+      : {}),
+  };
+  validateCheckpoint(result, config);
+  if (Buffer.byteLength(JSON.stringify(result)) > checkpointLimit)
+    throw new ObservationFailure(
+      "invalid-checkpoint",
+      "projected source exceeds checkpoint write envelope",
+    );
+  return result;
+}
 
 function exceptionFor(
   error: unknown,
@@ -210,8 +262,10 @@ export async function advanceObservation(
   options: AdvanceOptions,
 ) {
   const config = validateObserverConfig(input);
-  validateCheckpoint(checkpoint, config);
   const now = options.now ?? Date.now;
+  checkpoint = decodeStoredObserverCheckpoint(checkpoint, options.deadline ?? Infinity, now);
+  checkpoint = compactObserverCheckpoint(checkpoint, config);
+  validateCheckpoint(checkpoint, config);
   const next: Checkpoint = structuredClone(
     checkpoint ?? {
       format: 1,
@@ -665,7 +719,9 @@ async function main(args: string[]) {
   if (new Set(destinations).size !== destinations.length)
     throw new Error("observer configuration, checkpoint, lock and report must have distinct paths");
   await withCheckpointLock(statePath, async () => {
-    const checkpoint = await boundedJson(statePath, checkpointLimit, true);
+    const checkpoint = decodeStoredObserverCheckpoint(
+      await boundedJson(statePath, checkpointLimit, true),
+    );
     const priorReport = await boundedJson(reportPath, checkpointLimit, true);
     if (
       priorReport &&

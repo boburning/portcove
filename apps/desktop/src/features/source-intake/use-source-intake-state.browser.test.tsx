@@ -18,8 +18,14 @@ const catalog = { ports: [port], source_profiles: [gameProfile, biosProfile] } a
 let root: Root;
 let state: ReturnType<typeof useSourceIntakeState>;
 
-function Fixture({ value = catalog }: { value?: CatalogDocument }) {
-  state = useSourceIntakeState(value);
+function Fixture({
+  value = catalog,
+  generation = 7,
+}: {
+  value?: CatalogDocument;
+  generation?: number;
+}) {
+  state = useSourceIntakeState(value, generation);
   return null;
 }
 
@@ -51,12 +57,25 @@ describe("source intake state", () => {
     await act(async () => state.open(port.id, profileId, paths));
 
     expect(state.request).toMatchObject({
+      generation: 7,
       portId: port.id,
       portName: port.name,
       profile: { id: profileId },
       purpose,
       paths,
     });
+  });
+
+  it("discards outgoing drafts and never relabels an old open callback with the new generation", async () => {
+    const oldOpen = state.open;
+    await act(async () => oldOpen(port.id, gameProfile.id));
+    expect(state.request?.generation).toBe(7);
+    await act(async () => root.render(createElement(Fixture, { generation: 8 })));
+    expect(state.request).toBeUndefined();
+    await act(async () => oldOpen(port.id, gameProfile.id));
+    expect(state.request).toBeUndefined();
+    await act(async () => state.open(port.id, gameProfile.id));
+    expect(state.request?.generation).toBe(8);
   });
 
   it("closes the current request", async () => {

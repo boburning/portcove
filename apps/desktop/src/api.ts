@@ -309,6 +309,21 @@ export const desktopApi = {
       generation,
     }),
   listingDeliveryStatus: () => invoke<ListingDeliveryStatus>("get_listing_delivery_status"),
+  officialCatalogReview: (generation: number) =>
+    invoke<import("./types").OfficialCatalogReview>("get_official_catalog_review", { generation }),
+  enableOfficialCatalog: (expectedPlan: string, generation: number) =>
+    invoke<import("./types").OfficialCatalogSetup>("enable_official_catalog", {
+      expectedPlan,
+      generation,
+    }),
+  refreshOfficialCatalog: (generation: number, onEvent: (event: OperationEvent) => void) => {
+    const channel = new Channel<OperationEvent>();
+    channel.onmessage = onEvent;
+    return invoke<ListingDeliveryStatus>("refresh_official_catalog", {
+      generation,
+      onEvent: channel,
+    });
+  },
   refreshCatalogListings: (
     metadataBaseUrl: string,
     targetsBaseUrl: string,
@@ -319,6 +334,19 @@ export const desktopApi = {
     return invoke<ListingDeliveryStatus>("refresh_catalog_listings", {
       metadataBaseUrl,
       targetsBaseUrl,
+      onEvent: channel,
+    });
+  },
+  refreshOfficialDefinition: (
+    portId: string,
+    generation: number,
+    onEvent: (event: OperationEvent) => void,
+  ) => {
+    const channel = new Channel<OperationEvent>();
+    channel.onmessage = onEvent;
+    return invoke<import("./types").DefinitionRefresh>("refresh_official_definition", {
+      portId,
+      generation,
       onEvent: channel,
     });
   },
@@ -371,7 +399,7 @@ export const desktopApi = {
   catalogDownloadCandidates: (
     portId: string,
     generation: number,
-    selectedReleaseId?: number,
+    selectedReleaseId?: NonNullable<CatalogDownloadCandidates["selected_release_id"]>,
     channel = "stable",
   ) =>
     invoke<CatalogDownloadCandidates>("catalog_download_candidates", {
@@ -555,6 +583,8 @@ export const desktopApi = {
     }),
   addSource: (profileId: string, path: string, expectedSha256?: string) =>
     invoke<SourceRecord>("add_source", { profileId, path, expectedSha256 }),
+  reviewSourceReuse: (profileId: string, generation: number) =>
+    invoke<import("./types").SourceReuseReview>("review_source_reuse", { profileId, generation }),
   gameFileRoots: (generation: number) =>
     invoke<GameFileRoot[]>("get_game_file_roots", { generation }),
   addGameFileRoot: (path: string, generation: number) =>
@@ -623,6 +653,7 @@ export const desktopApi = {
     path: string,
     mode: SourceImportMode,
     expectedPlan: string,
+    generation: number,
     onEvent?: (event: OperationEvent) => void,
   ) => {
     const channel = new Channel<OperationEvent>();
@@ -632,13 +663,23 @@ export const desktopApi = {
       path,
       mode,
       expectedPlan,
+      generation,
       onEvent: channel,
     });
   },
-  planSourceRelink: (profileId: string, path: string) =>
-    invoke<SourceRelinkPlan>("plan_source_relink", { profileId, path }),
-  relinkSource: (profileId: string, path: string, previewSha256: string) =>
-    invoke<SourceRecord>("relink_source", { profileId, path, previewSha256 }),
+  planSourceRelink: (profileId: string, path: string, generation?: number) =>
+    invoke<SourceRelinkPlan>("plan_source_relink", {
+      profileId,
+      path,
+      ...(generation === undefined ? {} : { generation }),
+    }),
+  relinkSource: (profileId: string, path: string, previewSha256: string, generation?: number) =>
+    invoke<SourceRecord>("relink_source", {
+      profileId,
+      path,
+      previewSha256,
+      ...(generation === undefined ? {} : { generation }),
+    }),
   previewSourceRemoval: (profileId: string, generation: number) =>
     invoke<SourceRemovalPreview>("preview_source_removal", {
       profileId,
@@ -725,6 +766,7 @@ export const desktopApi = {
     stage: boolean,
     generation: number,
     onEvent?: (event: OperationEvent) => void,
+    sourceReference?: import("./types").SourceRegistrationReference,
   ) => {
     const eventChannel = new Channel<OperationEvent>();
     eventChannel.onmessage = (event) => onEvent?.(event);
@@ -737,6 +779,7 @@ export const desktopApi = {
         source: source || null,
         bios: bios || null,
         stage,
+        ...(sourceReference ? { sourceReference } : {}),
       } satisfies InstallInput,
     });
   },

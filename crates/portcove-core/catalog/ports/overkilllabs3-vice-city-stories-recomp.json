@@ -6,7 +6,7 @@
     "summary": "Attach an independently permitted, prepared VCSNative Windows player using your own supported PSP Vice City Stories data. Select the native player with the existing PSP_DATA layout; preserve its configuration, saves and optional-content boundaries.",
     "original_game_title": "Grand Theft Auto: Vice City Stories",
     "project_url": "https://github.com/OverkillLabs3/vice-city-stories-recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/OverkillLabs3/vice-city-stories-recomp",
     "artwork": {

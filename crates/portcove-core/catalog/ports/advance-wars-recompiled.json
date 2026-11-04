@@ -3,7 +3,7 @@
   "listing": {
     "id": "advance-wars-recompiled",
     "name": "Advance Wars Recompiled",
-    "summary": "Explore Advance Wars Recompiled and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Experimental Advance Wars source-build route using your own USA Rev 1 GBA original. The documented Windows alpha needs local setup/build and has no audio. Register the finished native player, retaining the prepared project and its game input.",
     "project_url": "https://github.com/sp00nznet/advancewars",
     "issue_number": 166,
     "platforms": [],

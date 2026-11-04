@@ -35,7 +35,14 @@
         {
           "title": "Review launch details, then choose Play",
           "instruction": "Review the selected game executable, working folder and launch arguments, then agree to use them. Choose Play separately when you are ready. Adding this copy does not prepare, update or replace its external files. Removing its registration leaves all external files in place. Before changing versions, close the game and its companion programs and keep the working copy and all data. Review and select the changed executable before playing again."
-        },
+        }
+      ],
+      "warnings": [
+        "Use only a copy and components you are permitted to use. Before changing versions, keep a copy of the complete working game, original files and every profile, save, cache, mod, backup, temporary file and custom data location. Another executable may use the same data. Portcove does not offer updates, backups, rollback, data migration or deletion for these external files.",
+        "No root project LICENSE was found in the reviewed source. That absence does not establish permission or a prohibition, and another engine’s licence does not apply automatically. Use only components and original data you are independently permitted to use.",
+        "Upstream documents occasional song-transition and audio issues. Portcove has not tested XINPUT instruments or physical controllers."
+      ],
+      "references": [
         {
           "title": "Keep upstream maintenance outside the attached session",
           "instruction": "Upstream and the user retain preparation and runtime replacement. Close the actual game and companions before deliberate replacement; preserve the creating copy and all data and review changed selected bytes before Play."
@@ -44,11 +51,6 @@
           "title": "Preserve the creating copy and every effective data root",
           "instruction": "Keep the complete creating folder, assets tree and every actual SDK user, save, profile, configuration, mod, cache, log, backup and custom root. The inspected title does not override every SDK persistence default; the working directory alone does not establish complete save coverage. Keep existing effective paths and do not migrate another title or version’s saves."
         }
-      ],
-      "warnings": [
-        "Use only a copy and components you are permitted to use. Before changing versions, keep a copy of the complete working game, original files and every profile, save, cache, mod, backup, temporary file and custom data location. Another executable may use the same data. Portcove does not offer updates, backups, rollback, data migration or deletion for these external files.",
-        "No root project LICENSE was found in the reviewed source. That absence does not establish permission or a prohibition, and another engine’s licence does not apply automatically. Use only components and original data you are independently permitted to use.",
-        "Upstream documents occasional song-transition and audio issues. Portcove has not tested XINPUT instruments or physical controllers."
       ]
     }
   }

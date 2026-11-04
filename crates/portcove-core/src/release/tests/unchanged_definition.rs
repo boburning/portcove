@@ -1918,3 +1918,221 @@ async fn power_dozer_unchanged_definition_selects_windows_runtime_and_refuses_un
     }
     assert_eq!(serde_json::to_value(port).unwrap(), definition);
 }
+
+// Observed complete release metadata; all successors/refusals are controlled
+// provider fixtures and do not inherit original, native or save qualification.
+async fn assert_native_engine_adoption_selection(id: &str) {
+    let corpus: serde_json::Value = serde_json::from_str(include_str!(
+        "../../testdata/native-engine-adoption-2026-11-02.json"
+    ))
+    .unwrap();
+    let case = corpus["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|case| case["port_id"] == id)
+        .unwrap();
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port(id).unwrap();
+    let definition = serde_json::to_value(port).unwrap();
+    let channel = if case["channel"] == "rolling" {
+        ReleaseChannel::Rolling
+    } else {
+        ReleaseChannel::Stable
+    };
+    assert!(port.channels.contains(&channel), "{id}");
+    let observed = &case["release"];
+    let name = case["selected_asset"].as_str().unwrap();
+    let selected = observed["assets"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|asset| asset["name"] == name)
+        .unwrap();
+    let mut successor = observed.clone();
+    let original_tag = observed["tag_name"].as_str().unwrap();
+    let next_tag = match original_tag {
+        "1.5.5" => "1.5.6",
+        "v0.9.7" => "v0.9.8",
+        "v0.82.1" => "v0.82.2",
+        "v3.0.2025.0616" => "v3.0.2025.0617",
+        "latest" => "latest",
+        _ => panic!("unreviewed source case"),
+    };
+    successor["tag_name"] = serde_json::json!(next_tag);
+    for asset in successor["assets"].as_array_mut().unwrap() {
+        let next = asset["name"].as_str().unwrap().replace(
+            original_tag.trim_start_matches('v'),
+            next_tag.trim_start_matches('v'),
+        );
+        asset["name"] = serde_json::json!(next);
+        asset["browser_download_url"] =
+            serde_json::json!(format!("https://downloads.example.invalid/{next}"));
+        asset["digest"] = serde_json::json!(format!("sha256:{}", "b".repeat(64)));
+    }
+    let (root, requests, server) = serve_http(vec![
+        metadata(),
+        releases(std::slice::from_ref(observed)),
+        metadata(),
+        releases(&[successor]),
+    ]);
+    let baseline = GithubReleaseProvider::with_api_root(root.clone())
+        .unwrap()
+        .resolve(port, channel, Platform::WindowsX86_64)
+        .await
+        .unwrap();
+    assert_eq!(baseline.version, original_tag, "{id}");
+    assert_eq!(baseline.asset.name, name, "{id}");
+    assert_eq!(
+        baseline.asset.size,
+        selected["size"].as_u64().unwrap(),
+        "{id}"
+    );
+    assert_eq!(
+        baseline.asset.sha256,
+        case["archive_sha256"].as_str().unwrap(),
+        "{id}"
+    );
+    let next = GithubReleaseProvider::with_api_root(root)
+        .unwrap()
+        .resolve(port, channel, Platform::WindowsX86_64)
+        .await
+        .unwrap();
+    assert_eq!(next.version, next_tag, "{id}");
+    assert_eq!(
+        next.asset.name,
+        name.replace(
+            original_tag.trim_start_matches('v'),
+            next_tag.trim_start_matches('v')
+        ),
+        "{id}"
+    );
+    assert_eq!(next.asset.sha256, "b".repeat(64), "{id}");
+    assert_ne!(
+        next.asset.sha256, baseline.asset.sha256,
+        "{id}: rebuilt tags bind changed bytes"
+    );
+    server.join().unwrap();
+    assert_eq!(requests.try_iter().count(), 4, "{id}");
+    for mutation in [
+        "wrong-cpu",
+        "wrong-platform",
+        "ambiguous",
+        "missing-integrity",
+    ] {
+        let mut player = selected.clone();
+        let original_name = player["name"].as_str().unwrap().to_owned();
+        let mutated = match mutation {
+            "wrong-cpu" => original_name
+                .replace("win32", "arm64")
+                .replace("win64", "arm64")
+                .replace("x86_64", "arm64")
+                .replace("windows-x64", "windows-arm64"),
+            "wrong-platform" => original_name
+                .replace("win32", "linux")
+                .replace("win64", "linux")
+                .replace("windows", "linux"),
+            _ => original_name.clone(),
+        };
+        player["name"] = serde_json::json!(mutated);
+        if mutation == "missing-integrity" {
+            player["digest"] = serde_json::Value::Null;
+        }
+        let mut assets = vec![player.clone()];
+        if mutation == "ambiguous" {
+            player["id"] = serde_json::json!(999_999_999);
+            player["name"] = serde_json::json!(original_name.to_uppercase());
+            player["browser_download_url"] = serde_json::json!(format!(
+                "https://downloads.example.invalid/{}",
+                original_name.to_uppercase()
+            ));
+            assets.push(player);
+        }
+        let (root, _, server) =
+            serve_http(vec![metadata(), releases(&[release(original_tag, assets)])]);
+        let failure = GithubReleaseProvider::with_api_root(root)
+            .unwrap()
+            .resolve(port, channel, Platform::WindowsX86_64)
+            .await
+            .unwrap_err();
+        assert_eq!(
+            failure.code,
+            match mutation {
+                "ambiguous" => crate::ErrorCode::Conflict,
+                "missing-integrity" => crate::ErrorCode::Verification,
+                _ => crate::ErrorCode::NotFound,
+            },
+            "{id}: {mutation}"
+        );
+        server.join().unwrap();
+    }
+    assert_eq!(
+        serde_json::to_value(port).unwrap(),
+        definition,
+        "{id}: provider observations grant no qualification"
+    );
+}
+
+#[tokio::test]
+async fn native_engine_selection_1878() {
+    assert_native_engine_adoption_selection("sdlpal-sdlpal").await;
+}
+
+#[tokio::test]
+async fn native_engine_selection_2567() {
+    assert_native_engine_adoption_selection("doom-3-classic-dhewm3").await;
+}
+
+#[tokio::test]
+async fn native_engine_selection_2568() {
+    assert_native_engine_adoption_selection("doom-3-resurrection-of-evil-classic-dhewm3").await;
+}
+
+#[tokio::test]
+async fn native_engine_selection_2565() {
+    assert_native_engine_adoption_selection(
+        "doom-3-classic-dude-doom-3-unified-development-engine",
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn native_engine_selection_2566() {
+    assert_native_engine_adoption_selection(
+        "doom-3-resurrection-of-evil-classic-dude-doom-3-unified-development-engine",
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn native_engine_selection_2592() {
+    assert_native_engine_adoption_selection("medal-of-honor-allied-assault-openmohaa").await;
+}
+
+#[tokio::test]
+async fn native_engine_selection_2593() {
+    assert_native_engine_adoption_selection("medal-of-honor-allied-assault-spearhead-openmohaa")
+        .await;
+}
+
+#[tokio::test]
+async fn native_engine_selection_2594() {
+    assert_native_engine_adoption_selection("medal-of-honor-allied-assault-breakthrough-openmohaa")
+        .await;
+}
+
+#[tokio::test]
+async fn native_engine_selection_2611() {
+    assert_native_engine_adoption_selection(
+        "star-wars-jedi-knight-ii-jedi-outcast-single-player-openjk-openjo",
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn native_engine_selection_2612() {
+    assert_native_engine_adoption_selection(
+        "star-wars-jedi-knight-jedi-academy-single-player-and-multiplayer-openjk-openjo",
+    )
+    .await;
+}

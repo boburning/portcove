@@ -17,7 +17,7 @@ entrypoints carry the same patch; successful registration and native unlisten
 retain upstream behavior. The maintained adapter regression uses the actual API
 package with an emulated transport. Review the patch and regression when updating
 that dependency; remove the patch only after equivalent upstream cleanup is proven.
-The version-bound `i18next-cli@1.81.0` patch makes both published ESM and
+The version-bound `i18next-cli@1.82.0` patch makes both published ESM and
 CommonJS primary-translation loaders try the configured string `extract.defaultNS`
 before their existing namespace fallbacks. Upstream 1.81.0 otherwise misses
 Portcove's `settings.json`, so its nested-resource interpolation check can accept
@@ -1008,19 +1008,49 @@ console.log('Literal `roadmap` and $(text)');
 
 For update/scan harness engineering, read [native IPC probes](reference/desktop-ipc-probes.md).
 
-## Bounded GitHub subprocess collection
+## Bounded GitHub metadata and retained CLI execution
 
-The shared GitHub API runner limits each ordinary `gh` subprocess to 15 seconds
-and 16 MiB of collected output. Timeout terminates that owned subprocess with
-`SIGKILL` and refuses its output, even if it contains complete JSON. It reports a
-sanitized failure without retrying. These are per-subprocess limits, not a deadline
-for an entire paginated inventory. The CI watcher's existing 60-second observation
-budget and retained execution deadline remain separate.
+The configured Octokit integration in `scripts/github-client.mts` collects each
+metadata body under a byte cap before SDK parsing, defaults to 16 MiB and a
+15-second request deadline, and retains an original monotonic operation deadline.
+The production `capture-port` path uses asynchronous REST inventory and intake;
+Aqua, handoff evidence, postmerge metadata, repository settings and CI-health
+metadata use the same factory. Ordinary pagination uses the SDK iterator while
+preserving raw response/count evidence and refusing synthetic empty results for
+HTTP 409. API-version headers remain owned by each caller. Existing unmigrated
+callers still use the bounded legacy runner during #4319.
+
+Eligible reads have at most three total attempts; writes run once and require
+authoritative reconciliation after ambiguity. Reusing a logical request policy
+preserves exhausted allowances across recovery. Intentional inventory stability
+observations remain separate reads charged to the operation budget. Secondary
+limits defer across REST and GraphQL, using provider waits or increasing
+60/120-second fallback waits, subject to the original deadline.
+
+Explicit credentials never fall back to another source. Anonymous clients never
+inherit credentials. Eligible local tooling selects `GH_TOKEN`, then
+`GITHUB_TOKEN`, then resolves an existing `gh` login once per command; workflows
+must supply their credential. Retained attestation verification has its own
+bounded subprocess helper and cannot invoke `gh api`. Artifact-byte acquisition
+retains its existing bounded helper until its caller family migrates.
+
+Transport evidence is scoped to the command and distinguishes dispatched
+attempts. REST inventory owns cache validation and completeness. GraphQL callers
+needing headers use the raw configured SDK request path, without another request
+or a global last-response slot. Unsafe numeric JSON identifiers are refused
+before persisted JSON/hash boundaries rather than silently rounded.
 
 A timed-out mutation may already have reached GitHub. Delivery still requires
-remote state readback before any retry; unavailable readback remains an unknown
-outcome. A local timeout is neither rollback nor proof of server-side failure.
-No global GitHub CLI configuration or additional execution authority is required.
+remote state readback before any retry; unavailable readback remains unknown.
+
+Public operation errors retain the existing `code` and `message` fields. The
+shared sanitizer reads those fields without serializing thrown objects, SDK
+requests/responses or nested causes. It removes complete authorization values,
+supported GitHub token forms (including variable-length stateless installation
+tokens), URL credentials and sensitive query values. Credential-scoped callers
+can additionally supply known secret values for prefixless/encoded redaction.
+Safe provider explanations remain available; structured status, request and
+quota evidence stays with the owning operation's existing evidence contract.
 
 ## Hosted Cargo dependency validation
 
@@ -1181,6 +1211,13 @@ checking the existing checkout state, archive receipt and reported version. A
 stale machine `aqua.exe` cannot bypass the checkout's batch shim through native
 process lookup. Missing or mismatched cached inputs fail with the bootstrap
 repair command; commands do not install tools or change the persistent `PATH`.
+
+Aqua integrity reads bounded YAML through the existing `yaml` parser, so comments,
+quoting, key order and whitespace do not appoint tool authority. The semantic
+allowlist still requires one standard registry, exact known package versions and
+both checksum switches enabled. Duplicate keys, multiple documents, aliases,
+unknown tags and additional authority fields are refused; publisher-digest and
+checksum inventory verification remain separate and unchanged.
 
 When an Aqua-managed package version changes in `aqua.yaml`, run
 `just aqua-integrity-update` before validation. The fixed-purpose updater invokes
@@ -1960,6 +1997,34 @@ cancellation, shutdown, lock and network deadlines remain unchanged. The separat
 Core import Published observer runs only in the fifth case. These are
 instrumented fixture process-loss observations, not OS shutdown, installed-release
 or Linux qualification; preserve failed or incomplete captures separately.
+
+`--scenario native-registered-source-reuse` is an opt-in standalone Windows
+journey using the normal catalog and ordinary managed releases for
+`2ship2harkinian` and `zelda64-recomp`. Set `PORTCOVE_SOURCE_REUSE_ORIGINAL` to an
+absolute Majora's Mask USA 1.0 ZIP. The existing Core preview checks identity
+before Desktop registers the owned copy once, reviews the alternative without
+another original picker, and exercises same-content moved-file repair and
+substituted-input refusal. Existing owned-session observations bind each actual
+managed launch and positive exit. These process observations do not establish
+runtime rendering, gameplay, unsupported-edition native acceptance or assistive
+technology behavior; retain those observations separately on the owning issue.
+Raw original and runtime files are private inputs, excluded from public artifacts.
+For actual runtime observation, optionally set
+`PORTCOVE_SOURCE_REUSE_RUNTIME_OBSERVATION=operator`. The same owned harness
+then waits at most 300 seconds for each exact game to exit while the operator
+observes and closes its window. It records identity-bound exit observations;
+operator close intent and usable rendering require separately retained UI
+observations. It does not fabricate an automatic close request or turn a failed
+Core outcome into success. Without this option, ordinary automatic close remains.
+Later independent observations can continue after a known nonzero game exit only
+after positive game/supervisor quiescence and unchanged registration/storage
+bytes. Such a Play failure still forces the final aggregate case to fail; source,
+security, cancellation and collection errors abort immediately.
+The real-input CLI preview and reinspection calls have a finite 60-second harness
+budget; ordinary metadata reads retain their 15-second default. A preparation
+failure before any driver/App launch records a separate prelaunch diagnostic,
+without claiming process-exit proof. Every attempted launch still requires the
+existing identity-bound positive cleanup before resource release.
 
 `--scenario native-real-prepared-runtime` is an opt-in standalone Windows journey
 for the two selected real user-prepared definitions, `dkc3-recomp` and

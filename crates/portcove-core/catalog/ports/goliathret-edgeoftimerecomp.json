@@ -37,10 +37,6 @@
           "instruction": "Review and consent to the exact selected native executable, established working directory and literal arguments, then request Play separately. Portcove saves only the selected launch details and registration. Upstream and you retain preparation, runtime replacement/recovery, originals, settings and external files. Removing registration preserves external files; no external update, backup, rollback, migration, conversion or deletion is offered."
         },
         {
-          "title": "Preserve the actual installation and every profile",
-          "instruction": "Keep the complete actual EdgeOfTimeRecompiled installation, game/ with Default.xex and Data/GameLogic.dll, separate DLC packages and all profiles/. The source selects profiles/<name>/ for user data, cache/ and reeot.toml; preserve every effective profile and any established custom game_data_root/profile argument, not only default. Retain saves, settings, achievement data, mods, backups, caches, logs beside the program and all custom/external roots with the creating runtime. Upstream may adopt earlier user data from its legacy reeot location and publish DLC into a profile; preserve both locations before maintenance. Windows HKCU/Software/reeot/Install records the selected installation; Portcove neither rewrites nor removes it."
-        },
-        {
           "title": "Retain source, dependency and original-data limits",
           "instruction": "Keep the project’s BSD3 licence and all dependency notices. They apply separately from rights to the original game, title update, DLC and bundled upscaled textures. SDK version labels do not confirm which SDK built the published executable. Use only components you are independently permitted to use; a framework licence does not grant rights to every package component. Portcove has not confirmed upstream renderer, performance, controller or platform claims."
         },
@@ -51,7 +47,14 @@
       ],
       "warnings": [
         "Upstream specifies AVX, Direct3D 12/SM6 or Vulkan, and a complete installation prepared from your own game files. Portcove has not inspected the package or checked the executable, original files or SDK correspondence.",
-        "Portcove has not run the setup tools or game, or tested saves, controllers or installed Desktop behavior."
+        "Portcove has not run the setup tools or game, or tested saves, controllers or installed Desktop behavior.",
+        "Upstream may adopt earlier user data from its legacy reeot location and publish DLC into a profile; preserve both locations before maintenance."
+      ],
+      "references": [
+        {
+          "title": "Preserve the actual installation and every profile",
+          "instruction": "Keep the complete actual EdgeOfTimeRecompiled installation, game/ with Default.xex and Data/GameLogic.dll, separate DLC packages and all profiles/. The source selects profiles/<name>/ for user data, cache/ and reeot.toml; preserve every effective profile and any established custom game_data_root/profile argument, not only default. Retain saves, settings, achievement data, mods, backups, caches, logs beside the program and all custom/external roots with the creating runtime. Upstream may adopt earlier user data from its legacy reeot location and publish DLC into a profile; preserve both locations before maintenance. Windows HKCU/Software/reeot/Install records the selected installation; Portcove neither rewrites nor removes it."
+        }
       ]
     }
   }

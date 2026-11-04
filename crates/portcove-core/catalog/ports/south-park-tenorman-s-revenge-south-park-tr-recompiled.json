@@ -6,7 +6,7 @@
     "summary": "Attach an independently permitted, prepared South Park: Tenorman’s Revenge Windows player with its exact owned XBLA data and upstream startup settings already saved. Normal direct play stays in process; preserve separate game, settings and Documents save roots, and finish update/restart changes upstream.",
     "original_game_title": "South Park: Tenorman's Revenge",
     "project_url": "https://github.com/TekRantGaming/south-park-tenormans-revenge-recompiled",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/TekRantGaming/south-park-tenormans-revenge-recompiled",
     "artwork": {

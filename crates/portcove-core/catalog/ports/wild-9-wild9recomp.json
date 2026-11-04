@@ -17,7 +17,34 @@
       "game_slug": "wild-9",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2624
+    "issue_number": 2624,
+    "manual_setup": {
+      "help_url": "https://github.com/plinkr/Wild9Recomp/blob/b0c37ccaa382beeaefd8c81dc99c7a72ec11f391/packaging/release/README-WINDOWS.txt",
+      "steps": [
+        {
+          "title": "Keep the complete Windows player",
+          "instruction": "Use your independently permitted completed Wild 9 Windows player. The reviewed v0.1.9 product route uses Wild9_Recompiled.exe with assets, bios, mods, saves, game.toml and its companion files in one writable folder. Published product packages already contain compiled game code and do not require a compiler or Generate & rebuild wizard. Source/setup-host builds are a separate upstream route; finish their preparation outside Portcove."
+        },
+        {
+          "title": "Select the player and your matching disc",
+          "instruction": "Select Wild9_Recompiled.exe, use its complete runtime folder as working directory and leave arguments empty for the normal launcher. At the separate Play step, use upstream’s disc picker for your own NTSC-U/USA SLUS-00425 original. Keep the CUE beside every referenced BIN track; upstream also documents CHD and raw BIN input, with its own revision checks. The published raw-image SHA-1 is 8603e46a1f8f69a0962fdb83f45d11b1e86ca9e3; it is not a hash for a CUE text file or every compressed representation. OpenBIOS is included; a retail Sony BIOS is not mandatory. Registration does not import or authenticate the disc."
+        },
+        {
+          "title": "Review registration before choosing Play",
+          "instruction": "Portcove records the selected native executable, working folder and literal arguments after review. Play is separate and supervises only the selected process. The reviewed product launcher continues into the runtime in that process. Removing the registration preserves external files. Managed installation, disc preparation, runtime replacement, backup, rollback, migration and deletion are not offered for this copy."
+        }
+      ],
+      "warnings": [
+        "Use only software, originals and included content you are permitted to use. The project’s MIT notice does not replace the PSX runtime’s PolyForm Noncommercial terms or grant rights to original game assets. This guide and automated registration controls do not establish gameplay, multiplayer, save compatibility or Supported acceptance.",
+        "Upstream or you own updates; preserve your actual files and review changed executable bytes before relinking. Portcove does not certify save compatibility between builds."
+      ],
+      "references": [
+        {
+          "title": "Preserve the creating runtime and its data",
+          "instruction": "Keep the complete player folder and original disc location, including saves, memory cards, save states, mods, game.toml, game_options.toml, input.ini, keybinds.ini and any other created settings or diagnostics. The reviewed Windows ZIP route keeps data beside the player; user-selected memory-card folders and individual card paths may point elsewhere and must be preserved too. Linux AppImage data locations do not define the Windows layout. Upstream or you own updates; preserve your actual files and review changed executable bytes before relinking. Portcove does not certify save compatibility between builds."
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

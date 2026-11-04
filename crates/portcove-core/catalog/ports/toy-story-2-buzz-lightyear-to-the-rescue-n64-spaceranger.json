@@ -6,7 +6,7 @@
     "summary": "Attach an independently permitted, prepared SpaceRanger Windows player for your own Toy Story 2 N64 USA Rev0 ROM. Keep the complete portable spaceranger-config tree; byte-order normalization, title-specific frontend patches and unqualified save/gameplay behavior remain explicit.",
     "original_game_title": "Toy Story 2: Buzz Lightyear to the Rescue! (N64)",
     "project_url": "https://github.com/Capridog/SpaceRanger",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Capridog/SpaceRanger",
     "issue_number": 2618,

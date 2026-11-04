@@ -140,7 +140,7 @@ void test("legacy, invalid references and changed expected source fail closed", 
   }
 });
 
-void test("selected remote readback supersedes draft history and rejects changed/incomplete identities", () => {
+void test("selected remote readback supersedes draft history and rejects changed/incomplete identities", async () => {
   const selected = { repository: "boburning/portcove", number: 1388, head: revision };
   const pr = {
     number: 1388,
@@ -151,22 +151,25 @@ void test("selected remote readback supersedes draft history and rejects changed
     merge_commit_sha: "b".repeat(40),
     merged_at: captured_at,
   };
-  const run =
-    (value: unknown): NonNullable<Parameters<typeof readSelectedPullRequest>[1]> =>
-    (_command, _args, options) => {
-      assert.equal(options.timeout, 15000);
-      return { status: 0, stdout: JSON.stringify(value) };
-    };
-  assert.equal(readSelectedPullRequest(selected, run(pr)).state, "merged");
+  const read = (value: unknown) => async () => value;
+  assert.equal((await readSelectedPullRequest(selected, read(pr))).state, "merged");
   assert.equal(
-    readSelectedPullRequest(selected, run({ ...pr, head: { sha: "c".repeat(40) } })).status,
+    (await readSelectedPullRequest(selected, read({ ...pr, head: { sha: "c".repeat(40) } })))
+      .status,
     "changed",
   );
   assert.equal(
-    readSelectedPullRequest(selected, run({ ...pr, merged_at: null })).status,
+    (await readSelectedPullRequest(selected, read({ ...pr, merged_at: null }))).status,
     "unknown",
   );
-  assert.equal(readSelectedPullRequest(selected, () => ({ status: 1 })).status, "unknown");
+  assert.equal(
+    (
+      await readSelectedPullRequest(selected, async () => {
+        throw new Error("unavailable");
+      })
+    ).status,
+    "unknown",
+  );
 });
 
 void test("Unicode summaries remain byte bounded while preserving a failed verdict and totals", async (t) => {

@@ -34,20 +34,24 @@
           "instruction": "Select root ReKHCoM.exe with the complete package root as working directory and no arguments. Its supported Play path starts the selected 32-bit game or compatible bin64 runtime, supplies the shared data root and selected ROM, hides and waits until that game exits. Automatic 64-bit mode requires the matching host, guest image, SDL3 and SSE4.1; it can fall back to 32-bit. Retain upstream architecture choices instead of bypassing the launcher."
         },
         {
-          "title": "Keep optional successor sessions separate",
-          "instruction": "Upstream and you own runtime replacement and architecture preference changes. After replacement, close actual games and launcher, retain the old complete copy and every data root, then review and relink changed selected bytes. This guide neither invokes an updater nor claims tracking of an independently relaunched or replaced program. The packaged README retains older version/32-bit-only text; use the inspected v2.3 root launcher and matching complete package rather than that stale architecture description."
-        },
-        {
           "title": "Review Play and retain external ownership",
           "instruction": "Review and consent to the exact selected executable, established working directory and literal arguments, then choose Play separately. Removing registration preserves external files. Upstream and you retain one runtime-replacement owner; Portcove provides no external update, backup, rollback, migration or deletion. Close actual players and companions before deliberate maintenance, keep the old working copy and all effective data, then review/relink changed selected bytes."
+        }
+      ],
+      "warnings": [
+        "Use only a copy and components you are independently permitted to use. Portcove has not confirmed that the installed player matches the source, or tested gameplay, saving or installed behavior. Preserve every original, runtime, save, setting, mod, cache, backup and custom location; another executable can share the same data.",
+        "Upstream and you own runtime replacement and architecture preference changes. After replacement, close actual games and launcher, retain the old complete copy and every data root, then review and relink changed selected bytes.",
+        "Save states are build-specific and do not contain cartridge SRAM. Upstream can adopt files from a neighboring older install and move HD scenes during startup; preserve both locations before maintenance. Keep account/token-bearing configuration private."
+      ],
+      "references": [
+        {
+          "title": "Keep optional successor sessions separate",
+          "instruction": "Upstream and you own runtime replacement and architecture preference changes. After replacement, close actual games and launcher, retain the old complete copy and every data root, then review and relink changed selected bytes. This guide neither invokes an updater nor claims tracking of an independently relaunched or replaced program. The packaged README retains older version/32-bit-only text; use the inspected v2.3 root launcher and matching complete package rather than that stale architecture description."
         },
         {
           "title": "Preserve the whole copy and effective data",
           "instruction": "Preserve the whole package and effective custom data roots: roms, kh_com*.sav and all save banks, kh_com*.ini, decompui.ini, states, backups, kh_com.log, retroachievements.ini, achievements*.dat, netlink.cfg, mods and optional hd assets/import journals. Save states are build-specific and do not contain cartridge SRAM. Upstream can adopt files from a neighboring older install and move HD scenes during startup; preserve both locations before maintenance. Keep account/token-bearing configuration private. CC0 source/decompilation and SDL3/ImGui/rcheevos notices remain separate from Square Enix/Disney artwork and game content."
         }
-      ],
-      "warnings": [
-        "Use only a copy and components you are independently permitted to use. Portcove has not confirmed that the installed player matches the source, or tested gameplay, saving or installed behavior. Preserve every original, runtime, save, setting, mod, cache, backup and custom location; another executable can share the same data."
       ]
     },
     "download_block_reason": "Fresh bundled-package acquisition remains held for the separately excluded launcher artwork scope in assets/NOTICE.md: boxart.jpg, logo.png and rekhcom.ico belong to Square Enix/Disney and the source-code licence explicitly does not apply. Use only an independently permitted existing copy. Resume fresh acquisition with applicable permission for these exact components or a reviewed compatible package resolving that scope; CC0 source terms do not clear them."

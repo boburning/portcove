@@ -40,16 +40,20 @@
           "instruction": "For the inspected 1.7 Windows package, add bigodao_1.7_win.exe through the existing-copy route, use the bigodao_1.7_win folder containing it as the working directory, and leave arguments empty. For a separately completed source build, select its wario_land_port.exe with that executable's parent folder and no arguments. The source runs its picker and normal game loop in one process; Portcove has not tested launch with this package. Do not select Android files, packaging tools, or a compiler helper."
         },
         {
-          "title": "Preserve saves, preferences and mods",
-          "instruction": "Preserve the complete saves/ folder, legacy save copies, preferences, mods/ including 3d_marcas.txt, captures and custom packs. The selected runtime uses wario_land_sm3_dx_v12 for saves; upstream owns save-slot replacement/deletion and all compatibility decisions. Save or mod compatibility across other ports, builds or editions is not established."
-        },
-        {
           "title": "Keep replacement ownership upstream",
           "instruction": "Quit the game completely before maintenance, relinking or removal. Upstream and the user own preparation, runtime replacement and updates; Portcove only links the selected executable and does not install, update, roll back, move or delete this external copy or its player data."
         }
       ],
-      "warnings": [],
-      "help_url": "https://github.com/GABRIELNNK/Bigodao/blob/c4fecfe7dafaff5f2e5cd5f425a46fd172b7a424/README.md"
+      "warnings": [
+        "The selected runtime uses wario_land_sm3_dx_v12 for saves; upstream owns save-slot replacement/deletion and all compatibility decisions. Save or mod compatibility across other ports, builds or editions is not established."
+      ],
+      "help_url": "https://github.com/GABRIELNNK/Bigodao/blob/c4fecfe7dafaff5f2e5cd5f425a46fd172b7a424/README.md",
+      "references": [
+        {
+          "title": "Preserve saves, preferences and mods",
+          "instruction": "Preserve the complete saves/ folder, legacy save copies, preferences, mods/ including 3d_marcas.txt, captures and custom packs. The selected runtime uses wario_land_sm3_dx_v12 for saves; upstream owns save-slot replacement/deletion and all compatibility decisions. Save or mod compatibility across other ports, builds or editions is not established."
+        }
+      ]
     }
   }
 }

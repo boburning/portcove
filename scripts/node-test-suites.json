@@ -808,6 +808,14 @@
       ]
     },
     {
+      "file": "scripts/desktop-source-reuse.test.mts",
+      "memberships": [
+        ["windows-storage-4", 510],
+        ["frontend-full-4", 510],
+        ["development-tools", 2310]
+      ]
+    },
+    {
       "file": "scripts/desktop-real-runtime.test.mts",
       "memberships": [
         ["windows-storage-4", 500],
@@ -1134,6 +1142,13 @@
       ]
     },
     {
+      "file": "scripts/github-client.test.mts",
+      "memberships": [
+        ["catalog-full-2", 7801],
+        ["repository-tools-2", 3601]
+      ]
+    },
+    {
       "file": "scripts/github-body.test.mts",
       "memberships": [
         ["catalog-full-2", 1100],
@@ -1241,6 +1256,7 @@
             "actual library picker input paths refuse foreign controls and changed process/window identities",
             "actual observation field projection uses its explicit window and title without input",
             "failed confirmation retains a redacted helper receipt before its original assertion",
+            "file picker receipt requires owned readback and fresh dismissal after one Open",
             "library picker discovery excludes unrelated providers and refuses changed identities",
             "malformed, oversized and private diagnostic fields cannot leak through receipts",
             "owned observation picker preflight binds exact fixture directories to their title",
@@ -2410,6 +2426,7 @@
           "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
           "intended_route": ".github/workflows/ci.yml; complete Node suite windows-storage-3",
           "cases": [
+            "registration creates only a missing folder for mapped and COM file-not-found errors",
             "actual XML parser reads both fixed triggers/actions and PowerShell parses proposal commands without running COM"
           ]
         }
@@ -3953,6 +3970,13 @@
       ]
     },
     {
+      "file": "scripts/upstream-release-rehearsal.test.mts",
+      "memberships": [
+        ["catalog-full-2", 11150],
+        ["release-check", 8550]
+      ]
+    },
+    {
       "file": "scripts/windows-helper-checks.test.mts",
       "memberships": [
         ["windows-helpers-2", 1200],
@@ -3970,6 +3994,7 @@
           "cases": [
             "completion and incomplete recovery share one exclusive operator boundary before attach",
             "installer responsive-window refusal retains evidence and the forced-cleanup failure state",
+            "installer byte-preserving mode requires a raw pin and retains default bundle hashing",
             "next observation preserves marker bytes, partial effects and exclusive handoff",
             "packaging refusals name containment and a complete single forbidden entry while preserving prior output",
             "release PowerShell help is inert and preserves the required installer input",

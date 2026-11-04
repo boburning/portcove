@@ -6,7 +6,7 @@
     "summary": "Attach the complete Moon Child FE Windows package. Its code and bundled assets have separate MIT and noncommercial CC BY-NC4.0 terms; upstream owns runtime replacement, and player progress remains in its actual per-user or portable data folder.",
     "original_game_title": "Moon Child",
     "project_url": "https://github.com/MorsGames/MoonChildFE",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/MorsGames/MoonChildFE",
     "artwork": {

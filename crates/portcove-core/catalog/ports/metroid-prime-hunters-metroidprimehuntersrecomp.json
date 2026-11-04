@@ -3,10 +3,10 @@
   "listing": {
     "id": "metroid-prime-hunters-metroidprimehuntersrecomp",
     "name": "Metroid Prime Hunters / MetroidPrimeHuntersRecomp",
-    "summary": "Explore Metroid Prime Hunters / MetroidPrimeHuntersRecomp and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Native Metroid Prime Hunters frontend using your own USA/Australia revision-0 Nintendo DS image, AMHE. Europe Rev 1 and other builds are different inputs. Complete upstream ROM, firmware and settings preparation; built-in FreeBIOS and optional owned retail firmware remain separate choices. The game process can continue after the frontend ends.",
     "project_url": "https://github.com/mstan/MetroidPrimeHuntersRecomp",
     "issue_number": 341,
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/mstan/MetroidPrimeHuntersRecomp",
     "artwork": {

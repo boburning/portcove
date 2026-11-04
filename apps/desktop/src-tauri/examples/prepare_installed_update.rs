@@ -207,6 +207,70 @@ async fn prepare(arguments: &[String]) -> Result<PreparedUpdate, String> {
     })
 }
 
+// Read-only bootstrap observation through the actual host/Tough consumer. This
+// fixed-context fixture does not claim a registered or ordinary-user install.
+async fn check_empty_https(arguments: &[String]) -> Result<String, String> {
+    let [current_version, root, metadata, targets, state] = arguments else {
+        return Err(
+            "expected check-empty-https CURRENT_VERSION ROOT METADATA TARGETS NEW_STATE".into(),
+        );
+    };
+    let metadata_url = Url::parse(metadata).map_err(|error| error.to_string())?;
+    let targets_url = Url::parse(targets).map_err(|error| error.to_string())?;
+    for url in [&metadata_url, &targets_url] {
+        if url.scheme() != "https"
+            || url.host_str() != Some("boburning.github.io")
+            || !url.username().is_empty()
+            || url.password().is_some()
+            || url.port().is_some()
+            || url.query().is_some()
+            || url.fragment().is_some()
+            || !url.path().starts_with("/portcove/rehearsal/")
+        {
+            return Err("empty HTTPS check requires the isolated public rehearsal origin".into());
+        }
+    }
+    if metadata_url.path().strip_suffix("metadata/") != targets_url.path().strip_suffix("targets/")
+        || !metadata_url.path().ends_with("/application/metadata/")
+    {
+        return Err("empty HTTPS metadata/targets namespace differs".into());
+    }
+    let state = PathBuf::from(state);
+    if !state.is_absolute() || state.exists() {
+        return Err("empty HTTPS check needs a new absolute trust-state path".into());
+    }
+    let repository = ApplicationUpdateRepositoryConfiguration::new(
+        std::fs::read(root).map_err(|error| error.to_string())?,
+        metadata_url,
+        targets_url,
+        state,
+    )
+    .map_err(|error| error.to_string())?;
+    let provider = ApplicationUpdateHostProvider::new(
+        repository,
+        Arc::new(FixedInstalledContext(installed_context(current_version)?)),
+    );
+    let choice = ApplicationUpdateChoice {
+        channel: ApplicationChannel::Preview,
+        mode: ApplicationUpdateMode::Manual,
+        paused: false,
+    };
+    let selected = provider
+        .select(&choice)
+        .await
+        .map_err(|error| error.to_string())?;
+    if selected.authenticated.selection.state != CandidateState::NoCandidate
+        || selected.authenticated.selection.candidate.is_some()
+    {
+        return Err("authenticated empty bootstrap unexpectedly offers a candidate".into());
+    }
+    serde_json::to_string(&serde_json::json!({
+        "scope":"controlled-empty-https-feed", "state":"no-candidate", "metadata_url":metadata,
+        "targets_url":targets, "authenticated_metadata":true, "production":false,
+    }))
+    .map_err(|error| error.to_string())
+}
+
 /// Prepare only the apply intent after the installed AppImage has selected and
 /// staged the authenticated payload itself. This fixture never selects a
 /// repository candidate or supplies payload bytes.
@@ -270,6 +334,7 @@ async fn main() {
         [command, rest @ ..] if command == "prepare" => prepare(rest).await.and_then(|prepared| {
             serde_json::to_string(&prepared).map_err(|error| error.to_string())
         }),
+        [command, rest @ ..] if command == "check-empty-https" => check_empty_https(rest).await,
         [command, rest @ ..] if command == "prepare-staged" => {
             prepare_staged(rest).await.and_then(|prepared| {
                 serde_json::to_string(&prepared).map_err(|error| error.to_string())

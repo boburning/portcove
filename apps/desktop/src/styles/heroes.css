@@ -202,6 +202,7 @@
       min-block-size: 0;
     }
     .game-hero-continue .game-hero-foreground {
+      display: none;
       flex: 0 0 3rem;
       inline-size: 3rem;
       block-size: 4.5rem;

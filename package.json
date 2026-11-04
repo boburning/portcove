@@ -27,6 +27,8 @@
     "verify:frontend": "vp run frontend:verify"
   },
   "devDependencies": {
+    "@octokit/core": "7.0.8",
+    "@octokit/plugin-paginate-rest": "16.0.0",
     "@resvg/resvg-js": "2.6.2",
     "@sigstore/bundle": "5.0.0",
     "@sigstore/sign": "5.0.0",

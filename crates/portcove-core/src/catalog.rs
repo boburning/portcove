@@ -2889,6 +2889,14 @@ mod tests {
         two_ship.runtime_mutable_paths = std::iter::once("logs/2 Ship 2 Harkinian.log".into())
             .chain((1..=10).map(|index| format!("logs/2 Ship 2 Harkinian.{index}.log")))
             .collect();
+        let starship = expected_ports
+            .iter_mut()
+            .find(|port| port.id == "starship")
+            .unwrap();
+        // Keep the historical reader's original paths; only the reviewed current
+        // definition adds the settings filename used by upstream v2.0.0.
+        assert_eq!(starship.persistent_paths, ["mods", "saves", "config.json"]);
+        starship.persistent_paths.push("starship.cfg.json".into());
         let ygofm = expected_ports
             .iter_mut()
             .find(|port| port.id == "yu-gi-oh-forbidden-memories-recompiled")
@@ -2979,6 +2987,11 @@ mod tests {
             .unwrap();
         two_ship.project_url = "https://github.com/2ship2harkinian/2ship2harkinian".into();
         two_ship.release.repository = "2ship2harkinian/2ship2harkinian".into();
+        // Preserve the historical input while expecting the reviewed Windows
+        // package path policy in the current Libultraship v2 definition.
+        assert!(two_ship.windows_runtime_path_policy.is_none());
+        two_ship.windows_runtime_path_policy =
+            Some(crate::WindowsRuntimePathPolicy::RelativeFileMaxPath);
         // Same repository and retained release; see the 2026-10-21 ReCut relocation record.
         let paper_mario = expected_ports
             .iter_mut()
