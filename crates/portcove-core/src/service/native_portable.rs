@@ -66,7 +66,11 @@ impl PortcoveService {
         to: &PortDefinition,
         retained_rollback: Option<&InstallRecord>,
     ) -> Result<()> {
-        let retained = self.installed_port(from)?;
+        let retained = self.effective_archive_data_port(from)?;
+        let rollback_data = retained_rollback
+            .map(|install| self.effective_archive_data_port(install))
+            .transpose()?;
+        let to = rollback_data.as_ref().unwrap_or(to);
         if retained.adapter != AdapterKind::NativePortable
             && to.adapter != AdapterKind::NativePortable
             && !crate::persistence::ready_staged_archive(&retained)
@@ -156,7 +160,7 @@ impl PortcoveService {
         from: &InstallRecord,
         target: &InstallRecord,
     ) -> Result<()> {
-        let to = self.installed_port(target)?;
+        let to = self.effective_archive_data_port(target)?;
         self.require_portable_transition(from, &to)?;
         self.require_direct_artifact_transition(from, &to, &target.artifact.sha256, Some(target))?;
         let retained = self.installed_port(from)?;
@@ -335,6 +339,8 @@ mod tests {
         thread,
         time::Duration,
     };
+
+    include!("native_portable_transition_tests.rs");
 
     struct Provider(Mutex<ResolvedRelease>);
     #[async_trait::async_trait]

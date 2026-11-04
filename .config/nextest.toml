@@ -40,6 +40,18 @@ filter = 'package(portcove-core) & test(/^service::native_portable::tests::compa
 slow-timeout = { period = "5s", terminate-after = 180, grace-period = "0s" }
 success-output = "immediate"
 
+# The complete compatible-runtime fixture in41893774776/a1 Windows2 took
+# 183.584s for MMX2 and122.389s/113.682s for the other two consumers.
+# These explicit predecessor-transition cases include the same populated
+# two-runtime path plus one journal interruption/recovery per case. Give this
+# exact Windows family finite300s; preserve all assertions, production deadlines,
+# cleanup, workers and zero retries. This is harness calibration, not a speedup.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::native_portable::tests::reviewed_archive_transition_/)'
+slow-timeout = { period = "5s", terminate-after = 60, grace-period = "0s" }
+success-output = "immediate"
+
 # R64 CI 41786426031/a1 Windows 7 retained a 30.039s cutoff after signed
 # admission/install/baseline progress through 17.652s. This unchanged fixture
 # passed 14.635s/21.384s in the preceding two deliveries. Allow only this Windows

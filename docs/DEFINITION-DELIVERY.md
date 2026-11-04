@@ -196,6 +196,27 @@ runtime. Data-only restore can preserve that opaque layout across catalog change
 but cannot authorize a fresh runtime to consume it. Historical unpartitioned
 contracts retain their own interpretation and do not inherit version 27's policy.
 
+Staged-source version 28 adds optional `archive_data_transition_v1` for a
+reviewed one-time transition from an exact historical Direct creating contract
+and archive. This declaration is separate from the stable data policy, so adding
+it does not change an established version-27 namespace. The existing game-update
+review binds the complete retained-installation set, active selection, original,
+manifest and restore receipts, player-data preimage and temporary capacity. The
+player explicitly chooses the first update; automatic maintenance cannot admit
+an old installation into this policy.
+
+The existing lifecycle journal stages the new data layout, then fences every
+reviewed retained copy before publishing canonical data. A format-8 installation
+manifest preserves the creating contract, provider, artifact, executable and
+member identities, and adds only the separately reviewed data admission. Its new
+hash is conditionally recorded in the existing installation row. A strict
+version-2 restore receipt binds that hash. Older readers refuse these envelopes;
+missing or downgraded receipts do not grant data access. Recovery uses its frozen
+mapping authority even after catalog changes and holds unexpected data, active
+selection, retained-copy or metadata changes. Current conventional data is mirrored
+from the initialized active runtime, including deletions; its build-specific data
+stays bound to the original archive. Runtime rollback still does not rewind saves.
+
 The corresponding source contract may explicitly declare
 `release_policy: integration-contract-v1` once. It requires enforced original
 identities, existing evidence, a matching source profile and the provider-bound

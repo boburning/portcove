@@ -3910,6 +3910,23 @@
         ],
         "type": "object"
       },
+      "ArchiveDataTransitionV1": {
+        "additionalProperties": false,
+        "description": "One finite reviewed predecessor admission, separate from data layout identity.\nIt never redefines that runtime's original source or execution contract.",
+        "properties": {
+          "creating_contract_sha256": {
+            "type": "string"
+          },
+          "predecessor_archive_sha256": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "predecessor_archive_sha256",
+          "creating_contract_sha256"
+        ],
+        "type": "object"
+      },
       "BundledRuntime": {
         "properties": {
           "archive_root": {
@@ -4915,6 +4932,16 @@
             "anyOf": [
               {
                 "$ref": "#/$defs/ArchiveDataCompatibilityV1"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "archive_data_transition_v1": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ArchiveDataTransitionV1"
               },
               {
                 "type": "null"
@@ -15040,6 +15067,31 @@
         ],
         "type": "object"
       },
+      "ArchiveDataTransitionReview": {
+        "properties": {
+          "preimage_sha256": {
+            "type": "string"
+          },
+          "producing_archive_sha256": {
+            "type": "string"
+          },
+          "retained_installations": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "temporary_space": {
+            "$ref": "#/$defs/InstallSpaceRequirement"
+          }
+        },
+        "required": [
+          "preimage_sha256",
+          "producing_archive_sha256",
+          "retained_installations",
+          "temporary_space"
+        ],
+        "type": "object"
+      },
       "BundledRuntime": {
         "properties": {
           "archive_root": {
@@ -15614,6 +15666,16 @@
       "assessment": {
         "$ref": "#/$defs/PortActionAssessment",
         "description": "Read-only decision for this exact reviewed candidate, not authorization."
+      },
+      "data_transition": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ArchiveDataTransitionReview"
+          },
+          {
+            "type": "null"
+          }
+        ]
       },
       "plan": {
         "$ref": "#/$defs/InstallPlan"
@@ -25520,6 +25582,23 @@
         ],
         "type": "object"
       },
+      "ArchiveDataTransitionV1": {
+        "additionalProperties": false,
+        "description": "One finite reviewed predecessor admission, separate from data layout identity.\nIt never redefines that runtime's original source or execution contract.",
+        "properties": {
+          "creating_contract_sha256": {
+            "type": "string"
+          },
+          "predecessor_archive_sha256": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "predecessor_archive_sha256",
+          "creating_contract_sha256"
+        ],
+        "type": "object"
+      },
       "BundledRuntime": {
         "properties": {
           "archive_root": {
@@ -26880,6 +26959,16 @@
         "anyOf": [
           {
             "$ref": "#/$defs/ArchiveDataCompatibilityV1"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "archive_data_transition_v1": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ArchiveDataTransitionV1"
           },
           {
             "type": "null"
@@ -32955,6 +33044,23 @@
         ],
         "type": "object"
       },
+      "ArchiveDataTransitionV1": {
+        "additionalProperties": false,
+        "description": "One finite reviewed predecessor admission, separate from data layout identity.\nIt never redefines that runtime's original source or execution contract.",
+        "properties": {
+          "creating_contract_sha256": {
+            "type": "string"
+          },
+          "predecessor_archive_sha256": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "predecessor_archive_sha256",
+          "creating_contract_sha256"
+        ],
+        "type": "object"
+      },
       "BundledRuntime": {
         "properties": {
           "archive_root": {
@@ -33997,6 +34103,16 @@
             "anyOf": [
               {
                 "$ref": "#/$defs/ArchiveDataCompatibilityV1"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "archive_data_transition_v1": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ArchiveDataTransitionV1"
               },
               {
                 "type": "null"
