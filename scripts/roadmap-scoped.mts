@@ -223,7 +223,7 @@ export async function runScopedDoctor(
     retainedNumbers.add(number);
   };
   const hash = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
-  const revisionOf = (observed: ReturnType<RoadmapClient["executionIssue"]>) =>
+  const revisionOf = (observed: Awaited<ReturnType<RoadmapClient["executionIssue"]>>) =>
     hash([
       observed.item.id,
       executionSnapshot(config, observed.item, observed.relationships),
@@ -277,7 +277,7 @@ export async function runScopedDoctor(
     }
   } else {
     const selected = new Set(requested);
-    const observations = new Map<number, ReturnType<RoadmapClient["executionIssue"]>>();
+    const observations = new Map<number, Awaited<ReturnType<RoadmapClient["executionIssue"]>>>();
     for (const number of requested) {
       const observed = await client.executionIssue(number);
       retain(number, observed);

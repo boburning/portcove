@@ -377,7 +377,11 @@ export class PullRequestDeliveryClient {
   }
 
   /** Delivery inventories retain stable totals and unique provider identities. */
-  private async collect(endpoint: string, identityKey: string, collectionKey?: string) {
+  private async collect(
+    endpoint: string,
+    identityKey: "id" | "number" | "filename" | "sha",
+    collectionKey?: string,
+  ) {
     const records: unknown[] = [],
       identities = new Set<string | number>();
     let expected: number | undefined;
@@ -397,10 +401,14 @@ export class PullRequestDeliveryClient {
       }
       for (const value of values as readonly unknown[]) {
         const id = isRecord(value) ? value[identityKey] : null;
+        if (typeof id !== "string" && typeof id !== "number")
+          throw new Error("Delivery collection contains a missing or duplicate ID");
         if (
-          (typeof id !== "string" && typeof id !== "number") ||
-          !id ||
-          (typeof id === "number" && (!Number.isSafeInteger(id) || id < 1)) ||
+          (identityKey === "id" || identityKey === "number"
+            ? typeof id !== "number" || !Number.isSafeInteger(id) || id < 1
+            : typeof id !== "string" ||
+              !id ||
+              (identityKey === "sha" && !/^[0-9a-f]{40}$/u.test(id))) ||
           identities.has(id)
         )
           throw new Error("Delivery collection contains a missing or duplicate ID");
@@ -438,14 +446,11 @@ export class PullRequestDeliveryClient {
     );
   }
 
-  private async paginatedConnection(endpoint: string, key: string) {
-    return await this.collect(endpoint, "id", key);
-  }
-
   async checkRuns(sha: string) {
     return (
-      await this.paginatedConnection(
+      await this.collect(
         `repos/${repository}/commits/${sha}/check-runs?filter=all&per_page=100`,
+        "id",
         "check_runs",
       )
     ).map(checkMetadata);
@@ -453,10 +458,7 @@ export class PullRequestDeliveryClient {
 
   async commitStatuses(sha: string) {
     return (
-      await this.paginatedConnection(
-        `repos/${repository}/commits/${sha}/status?per_page=100`,
-        "statuses",
-      )
+      await this.collect(`repos/${repository}/commits/${sha}/status?per_page=100`, "id", "statuses")
     ).map(statusMetadata);
   }
 
@@ -539,8 +541,9 @@ export class PullRequestDeliveryClient {
 
   async sourceWorkflowRuns(sha: string) {
     const runs = (
-      await this.paginatedConnection(
+      await this.collect(
         `repos/${repository}/actions/runs?head_sha=${sha}&per_page=100`,
+        "id",
         "workflow_runs",
       )
     ).map((run) => {
@@ -554,8 +557,9 @@ export class PullRequestDeliveryClient {
 
   async workflowJobs(run: number, _attempt: number) {
     return (
-      await this.paginatedConnection(
+      await this.collect(
         `repos/${repository}/actions/runs/${run}/jobs?filter=all&per_page=100`,
+        "id",
         "jobs",
       )
     ).map((job) => {
