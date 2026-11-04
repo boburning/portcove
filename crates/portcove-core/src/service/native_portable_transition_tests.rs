@@ -21,7 +21,7 @@ fn transition_fixture_catalogs(
     // The injected provider supplies loopback bytes; the authoring fixture keeps
     // the ordinary production HTTPS Direct contract rather than a fixture grant.
     direct.url = "https://example.invalid/controlled-predecessor.zip".into();
-    let mut contract = v26_diagnostic_contract(id);
+    let mut contract = crate::test_fixture::v26_diagnostic_contract(id);
     contract
         .applicability
         .push(crate::SourceContractApplicability {
