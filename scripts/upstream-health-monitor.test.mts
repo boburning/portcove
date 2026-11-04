@@ -706,7 +706,7 @@ void test("missing planner scope emits CLI failure artifacts without network wor
     await mkdir(path.dirname(destination), { recursive: true });
     await symlink(await realpath(path.join(root, "node_modules", name)), destination, "junction");
   }
-  for (const name of ["package.json", "pnpm-lock.yaml"])
+  for (const name of ["package.json", "pnpm-lock.yaml", ".github/upstream-health-accounting.json"])
     await copyFile(path.join(root, name), path.join(directory, name));
   const denyNetwork = path.join(directory, "deny-network.mjs");
   await writeFile(
