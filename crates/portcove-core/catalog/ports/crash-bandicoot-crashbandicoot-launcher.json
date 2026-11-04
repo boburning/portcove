@@ -28,16 +28,19 @@
         {
           "title": "Review intent and keep replacement upstream-owned",
           "instruction": "Review and consent to the exact native executable, directory and empty arguments; choose Play separately. Core observes the selected process, not an exclusive family or sandbox. Upstream/player owns preparation, repair and actual replacement. Preserve the current creating version and review a changed executable through fresh relink. The selected Windows path has no evidenced self-downloading replacement/relaunch; opening external links is not a managed update."
-        },
-        {
-          "title": "Preserve all creating runtime and player files",
-          "instruction": "Keep the whole actual copy and original: settings.json/CdPath, interface.ini, save/carda.sav and cardb.sav, save/states/slotN.state and companions, game/<fingerprint> source/DLL/manifest, mods/.cache/custom assets, examples, catalog, captures, logs and every unknown/custom path. Windows roots data beside the real executable, not its single-file extraction TEMP directory; changing initial CWD is not a profile redirect. Upstream may move legacy root cards into save when destination is absent and seed/refresh stock mods; this is not Core migration. Keep old state with its creating runtime. Removing registration removes only metadata and preserves all external bytes."
         }
       ],
       "warnings": [
         "Current source and selected 2.3.1 are distinct revisions; this handoff uses the tagged interface. Prior 1.9.1 local package-integrity evidence is not qualification of 2.3.1. Source/publisher metadata and an inert Core probe do not authenticate this game, original, generated code or package.",
         "No Portcove-managed acquisition/setup/Install/Update/Backup/Rollback/migration/external deletion is supplied. Existing source-fingerprint/private-stage/atomic-generation and stronger managed conditions are not marked solved by registration. No emulator, old-port or cross-build state compatibility is promised.",
-        "Actual game/native/gameplay/save-load/state/mod compatibility, other-platform, installed-app and protected observations remain unqualified here; no Supported promotion."
+        "Actual game/native/gameplay/save-load/state/mod compatibility, other-platform, installed-app and protected observations remain unqualified here; no Supported promotion.",
+        "Upstream may move legacy root cards into save when destination is absent and seed/refresh stock mods; this is not Core migration. Keep old state with its creating runtime. Removing registration removes only metadata and preserves all external bytes."
+      ],
+      "references": [
+        {
+          "title": "Preserve all creating runtime and player files",
+          "instruction": "Keep the whole actual copy and original: settings.json/CdPath, interface.ini, save/carda.sav and cardb.sav, save/states/slotN.state and companions, game/<fingerprint> source/DLL/manifest, mods/.cache/custom assets, examples, catalog, captures, logs and every unknown/custom path. Windows roots data beside the real executable, not its single-file extraction TEMP directory; changing initial CWD is not a profile redirect. Upstream may move legacy root cards into save when destination is absent and seed/refresh stock mods; this is not Core migration. Keep old state with its creating runtime. Removing registration removes only metadata and preserves all external bytes."
+        }
       ]
     },
     "artwork": {

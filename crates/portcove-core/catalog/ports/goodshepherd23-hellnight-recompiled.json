@@ -32,18 +32,21 @@
           "instruction": "Select the finished build-release/Hellnight_Recompiled.exe and use that complete build-release directory as working directory; leave arguments empty. Upstream stages runtime configs for direct build launches. The completed player runs its normal launcher and game in the selected process, while the setup program starts another process and exits. Keep the same supported disc selected if the player asks. Saving launch details and Play are separate actions. Setup, Generate & rebuild, PGO optimize or optional relaunch/restart actions remain outside this tracked initial-player route; close any actual successors before another attachment or maintenance."
         },
         {
-          "title": "Back up active settings, cards and all custom roots before startup",
-          "instruction": "Preserve the complete creating runtime and upstream kit, executable-adjacent settings.toml, disc/BIOS .cfg sidecars, saves/ (including cards, game options and save states), mods/, reports/logs/caches/captures and original discs. The default game config uses saves/ and card1.mcd/card2.mcd; established explicit card files or --memcard-dir and PSX_OVERLAY_CAPTURE_ROOT overrides are separate roots. Do not merge profiles or infer save compatibility between disc variants. Startup can remove an older settings.toml.bad and rename malformed settings.toml there; back up both outside the runtime beforehand. Before startup, also preserve the loose legacy state_*.pst files, their openbios/ and scph1001/ destination subfolders and .pst_bios_isolated marker in a separate backup: upstream can move those legacy states into BIOS-scoped subfolders during its first migration. This does not establish cross-BIOS or cross-build save-state compatibility."
-        },
-        {
           "title": "Keep runtime and mod replacement with upstream",
           "instruction": "Upstream/player owns generation, rebuilding, updates and recovery. This title’s CMake notes that the framework clears mods/packages during builds before copying title packages back; preserve custom packages and the old complete runtime outside all build/output paths before rebuilding. Close all actual player/setup/rebuild processes first, then review/relink changed executable bytes after preparation. Portcove does not adopt optional rebuild successors. Removing registration preserves external files; no managed update, rollback, backup, save migration or external deletion is offered."
         }
       ],
       "warnings": [
-        "The release is a setup kit; use the completed private build product. Upstream Redump/Undub testing stops at the intro and complete playthrough is unverified. Preserve cards and mods before generation or PGO, and respect the pinned framework’s noncommercial-use terms."
+        "The release is a setup kit; use the completed private build product. Upstream Redump/Undub testing stops at the intro and complete playthrough is unverified. Preserve cards and mods before generation or PGO, and respect the pinned framework’s noncommercial-use terms.",
+        "Do not merge profiles or infer save compatibility between disc variants. Startup can remove an older settings.toml.bad and rename malformed settings.toml there; back up both outside the runtime beforehand. Before startup, also preserve the loose legacy state_*.pst files, their openbios/ and scph1001/ destination subfolders and .pst_bios_isolated marker in a separate backup: upstream can move those legacy states into BIOS-scoped subfolders during its first migration. This does not establish cross-BIOS or cross-build save-state compatibility."
       ],
-      "help_url": "https://github.com/goodshepherd23/Hellnight-Recompiled/blob/910251a71b14bd0df3b3474f22eecfe820641954/README.md"
+      "help_url": "https://github.com/goodshepherd23/Hellnight-Recompiled/blob/910251a71b14bd0df3b3474f22eecfe820641954/README.md",
+      "references": [
+        {
+          "title": "Back up active settings, cards and all custom roots before startup",
+          "instruction": "Preserve the complete creating runtime and upstream kit, executable-adjacent settings.toml, disc/BIOS .cfg sidecars, saves/ (including cards, game options and save states), mods/, reports/logs/caches/captures and original discs. The default game config uses saves/ and card1.mcd/card2.mcd; established explicit card files or --memcard-dir and PSX_OVERLAY_CAPTURE_ROOT overrides are separate roots. Do not merge profiles or infer save compatibility between disc variants. Startup can remove an older settings.toml.bad and rename malformed settings.toml there; back up both outside the runtime beforehand. Before startup, also preserve the loose legacy state_*.pst files, their openbios/ and scph1001/ destination subfolders and .pst_bios_isolated marker in a separate backup: upstream can move those legacy states into BIOS-scoped subfolders during its first migration. This does not establish cross-BIOS or cross-build save-state compatibility."
+        }
+      ]
     }
   }
 }

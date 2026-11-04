@@ -29,7 +29,7 @@
         },
         {
           "title": "Keep your originals and game data",
-          "instruction": "Choose a dedicated empty private CachePath for this game: GemRB clears that directory, so it must never be your originals, saves or profile root. SavePath is the parent containing save/, not save/ itself. Keep a separate SavePath per game. GemRB can also write gem-*.ini into GamePath before trying SavePath, so preserve and use a working data copy; SavePath alone does not isolate original installation writes. Preserve that working copy, actual save/config locations and mods with GemRB closed before updates. Do not move saves between different games or editions."
+          "instruction": "Choose a dedicated empty private CachePath for this game: GemRB clears that directory, so it must never be your originals, saves or profile root. SavePath is the parent containing save/, not save/ itself. Keep a separate SavePath per game."
         },
         {
           "title": "Add the game and manage your files",
@@ -37,9 +37,16 @@
         }
       ],
       "warnings": [
-        "GemRB clears its cache directory. Use a dedicated private CachePath, separate from original files, saves and profile roots."
+        "GemRB clears its cache directory. Use a dedicated private CachePath, separate from original files, saves and profile roots.",
+        "GemRB can also write gem-*.ini into GamePath before trying SavePath, so preserve and use a working data copy; SavePath alone does not isolate original installation writes. Preserve that working copy, actual save/config locations and mods with GemRB closed before updates. Do not move saves between different games or editions."
       ],
-      "help_url": "https://gemrb.org/Install.html"
+      "help_url": "https://gemrb.org/Install.html",
+      "references": [
+        {
+          "title": "Preserve working data across updates",
+          "instruction": "GemRB can also write gem-*.ini into GamePath before trying SavePath, so preserve and use a working data copy; SavePath alone does not isolate original installation writes. Preserve that working copy, actual save/config locations and mods with GemRB closed before updates. Do not move saves between different games or editions."
+        }
+      ]
     }
   },
   "upstream_lineage": {

@@ -24,18 +24,26 @@
           "instruction": "Keep your originals safe and make a separate working copy of the matching DOS or Windows game-data folder. Extract the Windows MinGW ZIP’s sdlpal.exe into that working copy."
         },
         {
-          "title": "Keep the player and save folder together",
-          "instruction": "Finish setup with that sdlpal.exe and the same folder as its working directory. On first Play, keep SDLPAL’s game folder pointed at this copy. This keeps the initial save folder and later launches at the same location."
+          "title": "Set the save path for a separate runtime",
+          "instruction": "For a separate runtime folder, explicitly configure an absolute SavePath before your first game session; changing GamePath alone in the Windows dialog does not change that session’s save location."
         },
         {
-          "title": "Preserve your saved games",
-          "instruction": "Back up that working folder, including its .rpg saves and sdlpal.cfg, when applying upstream updates. For a separate runtime folder, explicitly configure an absolute SavePath before your first game session; changing GamePath alone in the Windows dialog does not change that session’s save location."
+          "title": "Keep the player and save folder together",
+          "instruction": "Finish setup with that sdlpal.exe and the same folder as its working directory. On first Play, keep SDLPAL’s game folder pointed at this copy. This keeps the initial save folder and later launches at the same location."
         }
       ],
       "warnings": [
-        "Keep saves matched to the DOS or Windows data edition. Portcove does not update or back up this externally owned copy."
+        "Keep saves matched to the DOS or Windows data edition. Portcove does not update or back up this externally owned copy.",
+        "Back up that working folder, including its .rpg saves and sdlpal.cfg, when applying upstream updates.",
+        "For a separate runtime folder, explicitly configure an absolute SavePath before your first game session; changing GamePath alone in the Windows dialog does not change that session’s save location."
       ],
-      "help_url": "https://github.com/sdlpal/sdlpal/blob/master/docs/README.md"
+      "help_url": "https://github.com/sdlpal/sdlpal/blob/master/docs/README.md",
+      "references": [
+        {
+          "title": "Preserve your saved games",
+          "instruction": "Back up that working folder, including its .rpg saves and sdlpal.cfg, when applying upstream updates."
+        }
+      ]
     },
     "download_asset_hints": {
       "windows-x86-64": ["sdlpal-win32-mingw.zip"]

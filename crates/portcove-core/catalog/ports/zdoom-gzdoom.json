@@ -19,14 +19,18 @@
         {
           "title": "Choose your original game",
           "instruction": "On first Play, choose a compatible game IWAD detected by GZDoom. Follow upstream’s IWAD instructions if your game is not detected; the engine and original game files are separate."
-        },
+        }
+      ],
+      "warnings": [
+        "Keep the locations you use, original files and mods backed up when updating the upstream runtime."
+      ],
+      "help_url": "https://github.com/ZDoom/gzdoom#readme",
+      "references": [
         {
           "title": "Keep your profile and saved games",
           "instruction": "GZDoom normally keeps Windows settings in Documents/My Games/GZDoom and saved games in Saved Games/GZDoom. Portable mode uses gzdoom_portable.ini and Save beside the player instead. Keep the locations you use, original files and mods backed up when updating the upstream runtime."
         }
-      ],
-      "warnings": [],
-      "help_url": "https://github.com/ZDoom/gzdoom#readme"
+      ]
     },
     "download_asset_hints": {
       "windows-x86-64": ["gzdoom-", "-windows.zip"]

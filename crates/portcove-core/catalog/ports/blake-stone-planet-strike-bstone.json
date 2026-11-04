@@ -34,16 +34,20 @@
           "instruction": "Extract the official Windows 64-bit BStone ZIP into a separate player folder, keeping its companions. The .sig beside the ZIP is a separate signature file. GOG/Steam installations may be detected; otherwise set --data_dir and your complete original-data folder as two separate argument lines. Register bstone.exe inside its wrapper with that folder as the working directory. Add --ps as a separate argument to choose this game."
         },
         {
-          "title": "Keep the actual original and player data",
-          "instruction": "Windows normally uses %APPDATA%/bibendovsky/bstone for settings, saves and screenshots. Aliens of Gold shareware/full and Planet Strike have distinct aog_sw/aog_full/ps data names but can share a profile. --profile_dir plus a directory redirects the profile without migrating it. Preserve the actual profile, original data and separate mod folders with the player closed before replacing upstream files."
-        },
-        {
           "title": "Add the game and manage your files",
           "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Other platforms need their own supported application and setup instructions."
         }
       ],
-      "warnings": [],
-      "help_url": "https://github.com/bibendovsky/bstone/blob/e65a6b40b960a409d7ea840580c2431f56fb6fd4/README.md"
+      "warnings": [
+        "Aliens of Gold shareware/full and Planet Strike have distinct aog_sw/aog_full/ps data names but can share a profile. --profile_dir plus a directory redirects the profile without migrating it. Preserve the actual profile, original data and separate mod folders with the player closed before replacing upstream files."
+      ],
+      "help_url": "https://github.com/bibendovsky/bstone/blob/e65a6b40b960a409d7ea840580c2431f56fb6fd4/README.md",
+      "references": [
+        {
+          "title": "Keep the actual original and player data",
+          "instruction": "Windows normally uses %APPDATA%/bibendovsky/bstone for settings, saves and screenshots. Aliens of Gold shareware/full and Planet Strike have distinct aog_sw/aog_full/ps data names but can share a profile. --profile_dir plus a directory redirects the profile without migrating it. Preserve the actual profile, original data and separate mod folders with the player closed before replacing upstream files."
+        }
+      ]
     }
   },
   "upstream_lineage": {

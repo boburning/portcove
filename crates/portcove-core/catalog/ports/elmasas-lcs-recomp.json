@@ -33,10 +33,6 @@
           "instruction": "The upstream source also supports literal --game <actual prepared directory> or --elf <actual ELF> input paths. This guide’s default remains the completed release layout. A source-build PLAY_LCS.bat sets PSPRECOMP_CONFIG to the source lcs/config/LCSNative.ini; that wrapper’s environment is not automatically reproduced by selecting its EXE. Do not silently substitute that configuration with a different file. Use only the actual upstream-established completed copy and settings, without a new per-title shell/environment wrapper."
         },
         {
-          "title": "Preserve game-side saves and all effective settings",
-          "instruction": "Preserve the entire prepared game directory, including PSP/SAVEDATA/ and every actual per-save file, auxiliary file and original PSP_GAME data. The inspected title profile writes saves under its selected game root; upstream in-game save/delete operations remain upstream-owned. Runtime settings default to LCSNative.ini beside the executable, while an established PSPRECOMP_CONFIG overrides that exact file. Preserve it, every source-tree config used by your existing setup, complete executable folder, mods/caches and actual logs/custom/external roots. Do not infer save compatibility or migration from another PSP port."
-        },
-        {
           "title": "Leave replacement and recovery with upstream",
           "instruction": "Close the actual player and all helpers before preparation, replacement, another attachment or backups. Keep separate complete known-working runtime, input and save/config backups outside any upstream generated build/staging directories; upstream source-build tools and player own generation and runtime replacement. Review/relink changed selected bytes afterward. Removing Portcove registration preserves every external file; it offers no managed update, rollback, backup/restore, save import/migration or deletion."
         },
@@ -46,7 +42,15 @@
         }
       ],
       "warnings": [
-        "An existing source-build batch file can establish a different settings environment; selecting its EXE directly does not reproduce that environment."
+        "An existing source-build batch file can establish a different settings environment; selecting its EXE directly does not reproduce that environment.",
+        "Preserve the entire prepared game directory, including PSP/SAVEDATA/ and every actual per-save file, auxiliary file and original PSP_GAME data. The inspected title profile writes saves under its selected game root; upstream in-game save/delete operations remain upstream-owned.",
+        "Do not infer save compatibility or migration from another PSP port."
+      ],
+      "references": [
+        {
+          "title": "Preserve game-side saves and all effective settings",
+          "instruction": "Preserve the entire prepared game directory, including PSP/SAVEDATA/ and every actual per-save file, auxiliary file and original PSP_GAME data. The inspected title profile writes saves under its selected game root; upstream in-game save/delete operations remain upstream-owned. Runtime settings default to LCSNative.ini beside the executable, while an established PSPRECOMP_CONFIG overrides that exact file. Preserve it, every source-tree config used by your existing setup, complete executable folder, mods/caches and actual logs/custom/external roots. Do not infer save compatibility or migration from another PSP port."
+        }
       ]
     },
     "download_block_reason": "Fresh acquisition of the selected LCSNative Windows player is held while an attributable permission or authorized-source basis for its statically linked, original-derived Liberty City Stories generated game-code component remains unresolved. The PSPRecomp runtime MIT licence and possession of the required EBOOT.ELF do not establish that separate component’s permission. Resume on an applicable reviewed basis or a supported route excluding it; independently permitted existing completed copies remain distinct."

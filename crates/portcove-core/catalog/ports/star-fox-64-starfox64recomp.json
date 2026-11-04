@@ -22,7 +22,9 @@
     "manual_setup": {
       "help_url": "https://gitlab.com/sonicdcer/Starfox64Recomp/-/blob/061d4c8050c07bcac09a4074657ec4e49a1504b9/README.md",
       "warnings": [
-        "Portcove downloads are paused until the applicable grant for the included Chiaro fonts is established. The font notices identify Fontworks Japan; the project code license does not settle that separate grant. Keep an existing permitted copy. Reconsider when upstream provides the applicable grant or an appropriately licensed replacement package."
+        "Portcove downloads are paused until the applicable grant for the included Chiaro fonts is established. The font notices identify Fontworks Japan; the project code license does not settle that separate grant. Keep an existing permitted copy. Reconsider when upstream provides the applicable grant or an appropriately licensed replacement package.",
+        "Close the game and preserve its original, saves, settings and mods at the actual current profile location.",
+        "Keep the old working copy until the successor can read your data. Removing registration preserves every external file. External registration does not provide managed Update, Backup or Rollback."
       ],
       "steps": [
         {
@@ -32,7 +34,9 @@
         {
           "title": "Supply your original when you choose Play",
           "instruction": "Save the reviewed launch details, then choose Play explicitly. The upstream player selects and validates your own matching North American revision 1.1 Star Fox 64 original; keep it available and follow its edition checks. No local compiler or separate installer is needed for the reviewed Windows package."
-        },
+        }
+      ],
+      "references": [
         {
           "title": "Preserve the actual profile before updating",
           "instruction": "You or upstream replace this external runtime. Close the game and preserve its original, saves, settings and mods at the actual current profile location. Windows normally uses %LOCALAPPDATA%/Starfox64Recompiled/; portable.txt mode instead uses the working folder beside the runtime. Keep the old working copy until the successor can read your data. Removing registration preserves every external file. External registration does not provide managed Update, Backup or Rollback."
