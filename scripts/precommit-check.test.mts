@@ -158,6 +158,7 @@ void test("hook fixture runtime dependencies match the independently reviewed mo
       "scripts/node-test-inventory.mts",
       "scripts/node-test-suites.json",
       "scripts/node-test-suites.mts",
+      "scripts/package-player-observation.mts",
       "scripts/precommit.mts",
       "scripts/qualification-coverage.mts",
       "scripts/qualification-nextest.mts",
