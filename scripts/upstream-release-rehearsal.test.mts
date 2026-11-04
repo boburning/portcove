@@ -18,6 +18,7 @@ import {
   rehearsalOrigin,
   rehearsalPublicBase,
   retainedRehearsal,
+  retainedRecovery,
 } from "./upstream-release-identity.mts";
 import {
   recoveryJobMinutes,
@@ -177,7 +178,8 @@ void test("native workflow preserves credential separation, exact producer ident
     assert.ok(["windows-2025", "ubuntu-22.04"].includes(job["runs-on"]));
     assert.equal(job["continue-on-error"], undefined);
     assert.notEqual(job.permissions?.contents, "write");
-    if (name !== "feed" && name !== "readback") {
+    assert.notEqual(job.permissions?.pages, "write");
+    if (name !== "readback") {
       assert.notEqual(job.permissions?.["id-token"], "write");
       assert.notEqual(job.permissions?.attestations, "write");
     }
@@ -193,17 +195,28 @@ void test("native workflow preserves credential separation, exact producer ident
   }
   assert.equal(
     Object.values(recoveryJobMinutes).reduce((sum, minutes) => sum + minutes, 0),
-    28,
+    23,
   );
   assert.ok(text.includes(rehearsalExecutionRef));
   assert.doesNotMatch(
     text,
     /secrets\.|self-hosted|--clobber|continue-on-error|tauri build|prepare-candidate|prepare-predecessor|prepare-public-predecessor|publication.mts publish|Inject controlled/u,
   );
-  assert.deepEqual(workflow.jobs.feed!.needs, ["recovery"]);
-  assert.deepEqual(workflow.jobs.public_installed!.needs, ["recovery", "feed"]);
-  assert.deepEqual(workflow.jobs.readback!.needs, ["recovery", "feed", "public_installed"]);
-  assert.equal(workflow.jobs.feed!.permissions!.pages, "write");
+  assert.deepEqual(workflow.jobs.public_installed!.needs, ["recovery"]);
+  assert.deepEqual(workflow.jobs.readback!.needs, ["recovery", "public_installed"]);
+  assert.equal(workflow.jobs.feed, undefined);
+  const diagnostics = workflow.jobs.public_installed!.steps.find(
+    (step) =>
+      typeof step.with?.name === "string" &&
+      step.with.name.startsWith("upstream-public-installed-proof-"),
+  );
+  assert.ok(diagnostics && diagnostics.with);
+  for (const extension of ["json", "png", "log", "html"])
+    assert.ok(
+      String(diagnostics.with.path).includes(
+        `work/upstream-public-installed-evidence/lifecycle/run-*/renderer-qualification/evidence/*.${extension}`,
+      ),
+    );
   for (const id of [
     retainedRehearsal.signed_artifact,
     retainedRehearsal.acceptance_artifact,
@@ -754,7 +767,7 @@ void test("immutable observation refuses missing immutability even with complete
     );
 });
 
-void test("retained continuation requires the two exact failure boundaries and counts its third exposure", () => {
+void test("diagnostic continuation retains all three failed exposures and counts actual execution", () => {
   const at = (minute: number) =>
     new Date(Date.parse("2026-11-04T00:00:00Z") + minute * 60000).toISOString();
   const make = (name: string, index: number, attempt: number, conclusion: string) => ({
@@ -837,22 +850,59 @@ void test("retained continuation requires the two exact failure boundaries and c
     event: "workflow_dispatch",
     path: ".github/workflows/upstream-release-rehearsal.yml",
   }));
-  const current = { ...contexts[0]!, id: 66666, head_sha: expected.source, run_started_at: at(30) };
-  const third = { total_count: 0, jobs: [] };
-  const admitted = inspectRetainedRecoveryHistory([first, second, third], [...contexts, current]);
-  assert.equal(admitted.observed_milliseconds, 9 * 60000);
+  const previous = {
+    ...contexts[0]!,
+    id: Number(retainedRecovery.run_id),
+    head_sha: retainedRecovery.source,
+    head_branch: retainedRecovery.ref.slice(10),
+    run_started_at: at(30),
+  };
+  const third = {
+    total_count: 4,
+    jobs: ["recovery", "feed", "public_installed", "readback"].map((name, index) => {
+      const conclusion = index < 2 ? "success" : index === 2 ? "failure" : "skipped";
+      const row = make(name, 31 + index, 1, conclusion);
+      return {
+        ...row,
+        run_id: previous.id,
+        head_sha: previous.head_sha,
+        head_branch: previous.head_branch,
+        steps: row.steps.map((step) => ({
+          ...step,
+          name:
+            index === 2
+              ? "Exercise compiled HTTPS metadata and actual GitHub payload through installed UI"
+              : step.name,
+        })),
+      };
+    }),
+  };
+  const current = { ...contexts[0]!, id: 66666, head_sha: expected.source, run_started_at: at(40) };
+  const fourth = { total_count: 0, jobs: [] };
+  const attempts = [first, second, third, fourth];
+  const allContexts = [...contexts, previous, current];
+  const admitted = inspectRetainedRecoveryHistory(attempts, allContexts);
+  assert.equal(admitted.observed_milliseconds, 12 * 60000);
   assert.equal(admitted.copied_successful_observations, 7);
-  assert.equal(admitted.remaining_declared_minutes, 28);
-  assert.throws(() => inspectRetainedRecoveryHistory([first, second], contexts));
+  assert.equal(admitted.remaining_declared_minutes, 23);
   assert.throws(() =>
-    inspectRetainedRecoveryHistory(
-      [first, second, third],
-      [{ ...contexts[0], head_sha: expected.source }, contexts[1], current],
-    ),
+    inspectRetainedRecoveryHistory([first, second, fourth], [...contexts, current]),
+  );
+  assert.throws(() =>
+    inspectRetainedRecoveryHistory(attempts, [
+      { ...contexts[0], head_sha: expected.source },
+      contexts[1],
+      previous,
+      current,
+    ]),
   );
   const wrong = structuredClone(second);
   wrong.jobs[7]!.steps[0]!.name = "unrelated failure";
+  assert.throws(() => inspectRetainedRecoveryHistory([first, wrong, third, fourth], allContexts));
+  const changedPrevious = structuredClone(third);
+  changedPrevious.jobs[2]!.steps[0]!.name = "unrelated failure";
   assert.throws(() =>
-    inspectRetainedRecoveryHistory([first, wrong, third], [...contexts, current]),
+    inspectRetainedRecoveryHistory([first, second, changedPrevious, fourth], allContexts),
   );
+  assert.throws(() => inspectRehearsalBudget("recovery", [...attempts, fourth]));
 });

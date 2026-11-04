@@ -19,6 +19,13 @@ export const retainedRehearsal = Object.freeze({
   original_deadline: "2026-11-04T09:18:43Z",
   deadline: "2026-11-04T09:48:43Z",
 });
+// Preserve the settled diagnostic execution separately from the product producer.
+export const retainedRecovery = Object.freeze({
+  source: "4aba7f0beeea4befdd4595bdbb052b8908d340af",
+  run_id: "41806364323",
+  run_attempt: 1,
+  ref: "refs/tags/portcove-upstream-rehearsal-20261104r3",
+});
 export const rehearsalOriginRef = retainedRehearsal.ref;
 
 export function rehearsalExecution(environment: NodeJS.ProcessEnv = process.env) {
@@ -38,13 +45,15 @@ export function rehearsalExecution(environment: NodeJS.ProcessEnv = process.env)
     run_attempt < 1 ||
     run_attempt !== 1 ||
     run_id === retainedRehearsal.run_id ||
+    run_id === retainedRecovery.run_id ||
+    source === retainedRecovery.source ||
     source === retainedRehearsal.source
   )
     throw new Error("rehearsal requires its appointed protected dispatch ref and exact identity");
   return { source, run_id, run_attempt };
 }
 
-/** The r3 control continuation cannot allocate a fresh payload cohort. */
+/** The r4 diagnostic continuation cannot allocate a fresh payload cohort. */
 export function rehearsalOrigin(environment: NodeJS.ProcessEnv = process.env): {
   source: string;
   run_id: string;

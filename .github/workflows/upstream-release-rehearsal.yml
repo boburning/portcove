@@ -17,7 +17,7 @@ env:
   PORTCOVE_REHEARSAL_RELEASE_ID: "433642404"
 jobs:
   recovery:
-    if: ${{ github.repository == 'boburning/portcove' && github.ref == 'refs/tags/portcove-upstream-rehearsal-20261104r3' && github.ref_protected && github.run_attempt == 1 }}
+    if: ${{ github.repository == 'boburning/portcove' && github.ref == 'refs/tags/portcove-upstream-rehearsal-20261104r4' && github.ref_protected && github.run_attempt == 1 }}
     runs-on: ubuntu-22.04
     timeout-minutes: 3
     steps:
@@ -31,7 +31,7 @@ jobs:
         with:
           node-version-file: .node-version
           package-manager-cache: false
-      - name: Bound all three actual execution exposures without recounting copied history
+      - name: Bound all four actual execution exposures without recounting copied history
         env:
           GH_TOKEN: ${{ github.token }}
         run: node scripts/upstream-release-runtime.mts budget recovery
@@ -51,7 +51,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: node scripts/upstream-release-transfer.mts acceptance 13305366285 work/upstream-acceptance 1
-      - name: Verify exact original failure, immutable assets, baseline and original deadline
+      - name: Verify retained failures, immutable assets and the already published candidate feed
         env:
           GH_TOKEN: ${{ github.token }}
         run: node scripts/upstream-release-recovery.mts
@@ -65,91 +65,9 @@ jobs:
           if-no-files-found: error
           retention-days: 7
           overwrite: false
-  feed:
-    needs:
-      - recovery
-    runs-on: ubuntu-22.04
-    timeout-minutes: 5
-    permissions:
-      contents: read
-      actions: read
-      attestations: read
-      pages: write
-      id-token: write
-    environment: github-pages
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.sha }}
-          persist-credentials: false
-      - name: Fetch only the immutable original source for its retained harness binding
-        run: git fetch --no-tags --depth=1 origin 7a60432ab6c3773f744af156c0512cd1795b10c1
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version-file: .node-version
-          package-manager-cache: false
-      - name: Bound actual cumulative runtime and remaining native jobs
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: node scripts/upstream-release-runtime.mts budget feed
-      - name: Install existing hash-pinned GitHub verifier
-        shell: bash
-        run: |-
-          set -euo pipefail
-          curl --fail --location --max-time 120 --max-filesize 16000000 --output "$RUNNER_TEMP/gh.tar.gz" https://github.com/cli/cli/releases/download/v2.102.0/gh_2.102.0_linux_amd64.tar.gz
-          echo "bb766f710eef8ede859c18578c72c327597cd4c8a85b06001b1f3843c6019386  $RUNNER_TEMP/gh.tar.gz" | sha256sum --check --strict
-          tar -xzf "$RUNNER_TEMP/gh.tar.gz" -C "$RUNNER_TEMP" gh_2.102.0_linux_amd64/bin/gh
-          echo "$RUNNER_TEMP/gh_2.102.0_linux_amd64/bin" >> "$GITHUB_PATH"
-      - name: Receive exact bounded signed artifact
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PORTCOVE_INPUT_ARTIFACT: "13303950552"
-          PORTCOVE_INPUT_ATTEMPT: "1"
-        run: node scripts/upstream-release-transfer.mts signed "$PORTCOVE_INPUT_ARTIFACT" work/upstream-signed "$PORTCOVE_INPUT_ATTEMPT"
-      - name: Receive exact bounded acceptance artifact
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PORTCOVE_INPUT_ARTIFACT: "13305366285"
-          PORTCOVE_INPUT_ATTEMPT: "1"
-        run: node scripts/upstream-release-transfer.mts acceptance "$PORTCOVE_INPUT_ARTIFACT" work/upstream-acceptance "$PORTCOVE_INPUT_ATTEMPT"
-      - id: site
-        name: Verify immutable release and preserve baseline before advancing its feed
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: node scripts/upstream-release-pages.mts prepare candidate
-      - name: Require the already observed original interruption
-        run: test '${{ steps.site.outputs.interrupt }}' = 'false'
-      - name: Upload complete candidate rehearsal site
-        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
-        if: ${{ steps.site.outputs.deploy == 'true' && steps.site.outputs.interrupt != 'true' }}
-        with:
-          name: upstream-pages-candidate-${{ github.run_id }}-${{ github.run_attempt }}
-          path: work/upstream-site
-          include-hidden-files: true
-          retention-days: 1
-      - name: Deploy candidate rehearsal feed
-        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
-        if: ${{ steps.site.outputs.deploy == 'true' && steps.site.outputs.interrupt != 'true' }}
-        with:
-          artifact_name: upstream-pages-candidate-${{ github.run_id }}-${{ github.run_attempt }}
-          timeout: "120000"
-          error_count: "3"
-      - name: Verify exact advanced public metadata and immutable target bytes
-        run: node scripts/upstream-release-pages.mts observe candidate
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: upstream-feed-proof-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |-
-            work/upstream-site-*.json
-            work/verified-*/*.json
-            work/upstream-runtime/*.json
-          if-no-files-found: error
-          retention-days: 7
-          overwrite: false
   public_installed:
     needs:
       - recovery
-      - feed
     runs-on: windows-2025
     timeout-minutes: 15
     permissions:
@@ -245,6 +163,8 @@ jobs:
           retention-days: 7
           overwrite: false
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        # The installer copies renderer evidence to the top-level directory only
+        # after success. Retain the original capture on failure too.
         with:
           name: upstream-public-installed-proof-${{ github.run_id }}-${{ github.run_attempt }}
           path: |-
@@ -253,6 +173,11 @@ jobs:
             work/upstream-public-installed-evidence/windows-renderer-evidence/*.json
             work/upstream-public-installed-evidence/windows-renderer-evidence/*.png
             work/upstream-public-installed-evidence/windows-renderer-evidence/*.log
+            work/upstream-public-installed-evidence/windows-renderer-evidence/*.html
+            work/upstream-public-installed-evidence/lifecycle/run-*/renderer-qualification/evidence/*.json
+            work/upstream-public-installed-evidence/lifecycle/run-*/renderer-qualification/evidence/*.png
+            work/upstream-public-installed-evidence/lifecycle/run-*/renderer-qualification/evidence/*.log
+            work/upstream-public-installed-evidence/lifecycle/run-*/renderer-qualification/evidence/*.html
             work/upstream-public-installed-evidence/lifecycle/run-*/*.log
             work/upstream-public-installed-evidence/lifecycle/run-*/driver-preflight-*/evidence.json
             work/upstream-public-installed-evidence/lifecycle/run-*/driver-preflight-*/driver.log
@@ -263,7 +188,6 @@ jobs:
   readback:
     needs:
       - recovery
-      - feed
       - public_installed
     runs-on: ubuntu-22.04
     timeout-minutes: 5
