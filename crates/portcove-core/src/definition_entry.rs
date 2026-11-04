@@ -210,16 +210,16 @@ impl DefinitionContentIndex {
                 "manual native setup progress requires capability version 2",
             ));
         }
-        if !retained
-            && crate::persistence::requires_fresh_direct_data_guard(&port)
+        if let Some(version) = crate::persistence::fresh_direct_data_guard_capability(&port)
+            && !retained
             && !document.required_capabilities.iter().any(|requirement| {
                 requirement.template == "staged-source-portable"
-                    && requirement.minimum_version >= 25
+                    && requirement.minimum_version >= version
             })
         {
-            return Err(PortcoveError::verification(
-                "fresh Direct reader data isolation requires staged-source capability version 25",
-            ));
+            return Err(PortcoveError::verification(format!(
+                "fresh Direct reader data isolation requires staged-source capability version {version}",
+            )));
         }
         if !retained
             && crate::persistence::ready_staged_archive(&port)

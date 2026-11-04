@@ -372,12 +372,17 @@ Consumers still validate the plan, digest and source bindings; compression is
 only transport. Local legacy `PORTCOVE_PLAN_JSON` input remains supported, while
 ambiguous transports, corrupt data and excessive inflation are rejected.
 
+Stylelint 18 loads the typed configuration directly through Node's native type
+stripping. `lint:style` selects `scripts/stylelint-config.mts` explicitly and then
+checks semantic-color, important-declaration, gradient and invalid-value refusal
+controls with the same configuration. The recommended selector/value rules stay
+enabled; no JavaScript configuration bridge is needed.
+
 The compatibility inventory is exactly:
 
-| File                                     | Consumer requirement                                                                                                                      | Checking and validation                                                                           |
-| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `apps/desktop/public/theme-bootstrap.js` | Static HTML loads this public script before the application; Vite copies public files without transforming TypeScript.                    | Its public-directory project enables `checkJs`; theme bootstrap tests exercise the actual script. |
-| `apps/desktop/stylelint.config.mjs`      | Installed Cosmiconfig 9 rejects `.mts` configuration files. This one-line bridge loads the TypeScript implementation through native Node. | Root `checkJs`, the typed Stylelint configuration and actual `lint:style` execution.              |
+| File                                     | Consumer requirement                                                                                                   | Checking and validation                                                                           |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `apps/desktop/public/theme-bootstrap.js` | Static HTML loads this public script before the application; Vite copies public files without transforming TypeScript. | Its public-directory project enables `checkJs`; theme bootstrap tests exercise the actual script. |
 
 The existing CI workflow contract checks this exact tracked JavaScript inventory.
 An additional compatibility file requires a concrete consumer reason and an
