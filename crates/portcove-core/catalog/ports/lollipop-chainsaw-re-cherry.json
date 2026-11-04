@@ -3,7 +3,7 @@
   "listing": {
     "id": "lollipop-chainsaw-re-cherry",
     "name": "Lollipop Chainsaw / Re-Cherry",
-    "summary": "Explore Lollipop Chainsaw / Re-Cherry and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Conditional existing-copy route for Re-Cherry, the Lollipop Chainsaw port, using your own extracted Xbox 360 game. Component permissions and exact source/runtime/configuration requirements remain unresolved. Only an independently permitted, complete prepared runtime can be registered; registration does not resolve those conditions.",
     "project_url": "https://github.com/MaxDeadBear/Re-Cherry",
     "issue_number": 162,
     "platforms": [],

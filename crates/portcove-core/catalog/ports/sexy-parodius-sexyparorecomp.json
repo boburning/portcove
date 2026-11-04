@@ -3,7 +3,7 @@
   "listing": {
     "id": "sexy-parodius-sexyparorecomp",
     "name": "Sexy Parodius / SexyParoRecomp",
-    "summary": "Explore Sexy Parodius / SexyParoRecomp and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Sexy Parodius Windows owned-input build kit for your own Japanese SLPM-86009 complete CUE/BIN disc. Upstream Generate/Rebuild uses its supported Python/toolchain and OpenBIOS. Register the completed native product; the root setup host forwards and exits, and a downloaded kit alone is not a finished game.",
     "project_url": "https://github.com/NJH-1001/SexyParoRecomp",
     "issue_number": 325,
     "platforms": [],

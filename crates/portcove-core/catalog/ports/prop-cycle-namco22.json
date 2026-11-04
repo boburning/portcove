@@ -3,7 +3,7 @@
   "listing": {
     "id": "prop-cycle-namco22",
     "name": "Prop Cycle Native (Namco22)",
-    "summary": "Explore Prop Cycle's native arcade port and register an existing copy you are permitted to use.",
+    "summary": "Conditional existing-copy route for Prop Cycle using your own supported arcade chip set. The documented Windows player accepts propcycl.zip and unpacks it on first Play. Permission for the bundled original C71 BIOS and Namco-derived program remains unresolved; the project MIT terms do not settle it.",
     "project_url": "https://github.com/spacestate1/namco22-decompile",
     "issue_number": 1565,
     "platforms": ["windows-x86-64", "linux-x86-64"],

@@ -3546,7 +3546,7 @@
     {
       "id": "advance-wars-recompiled",
       "name": "Advance Wars Recompiled",
-      "summary": "Explore Advance Wars Recompiled and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Experimental Advance Wars source-build route using your own USA Rev 1 GBA original. The documented Windows alpha needs local setup/build and has no audio. Register the finished native player, retaining the prepared project and its game input.",
       "project_url": "https://github.com/sp00nznet/advancewars",
       "issue_number": 166,
       "platforms": [],
@@ -11968,7 +11968,7 @@
     {
       "id": "call-of-duty-modern-warfare-2-xbox-360-recompiled",
       "name": "Call of Duty: Modern Warfare 2 (Xbox 360) Recompiled",
-      "summary": "Explore Call of Duty: Modern Warfare 2 (Xbox 360) Recompiled and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Native Modern Warfare 2 (2009) route for your own USA/Europe Xbox 360 disc version 1.0.557 plus required Title Update 6. Complete upstream setup first; the PC release, remaster and other Call of Duty titles are different inputs. The prepared player's build-specific source-hash checks remain required.",
       "project_url": "https://github.com/PaulCombal/mw2-recompiled",
       "issue_number": 1397,
       "platforms": [],
@@ -15782,7 +15782,7 @@
     {
       "id": "deadly-premonition-dprecomp",
       "name": "Deadly Premonition / DPRecomp",
-      "summary": "Explore Deadly Premonition / DPRecomp and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Conditional Windows prepared-copy route for Deadly Premonition using your own supported PAL or USA Xbox 360 disc. Fresh acquisition still needs applicable permission for bundled disc-derived shaders or an asset-clean/owned-input route. Complete upstream import first and keep upstream shader sharing off.",
       "project_url": "https://github.com/LittleBitUA/DPRecomp",
       "issue_number": 812,
       "platforms": [],
@@ -15829,7 +15829,7 @@
     {
       "id": "deep-fear-saturn-pc",
       "name": "Deep Fear (Saturn PC)",
-      "summary": "Explore Deep Fear (Saturn PC) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Experimental Deep Fear native source build using your own complete Europe MK-81804 V1.001 two-disc CUE/BIN sets, including audio. Upstream compiler/SDL3 preparation is required. The documented milestone reaches the first room and walking; it is not a packaged full-game release.",
       "project_url": "https://github.com/vs-sr-dev/pc-deepfear",
       "issue_number": 1578,
       "platforms": [],
@@ -16484,7 +16484,7 @@
     {
       "id": "digimon-world-psx-recomp-port",
       "name": "Digimon World / psx-recomp-port",
-      "summary": "Explore Digimon World / psx-recomp-port and follow the upstream project for requirements, downloads and setup.",
+      "summary": "The documented Windows Digimon World route is a setup kit for your own USA SLUS-01032 CUE/BIN disc. It generates the native player locally with Python and build tools. OpenBIOS can be generated upstream, so a retail BIOS is optional; register only the completed prepared game.",
       "project_url": "https://gitlab.com/ethan4love/psx-recomp-port",
       "issue_number": 357,
       "platforms": [
@@ -16641,7 +16641,7 @@
     {
       "id": "dirt-dash-namco22",
       "name": "Dirt Dash Native (Namco22)",
-      "summary": "Explore Dirt Dash's native arcade port and register an existing copy you are permitted to use.",
+      "summary": "Conditional existing-copy route for Dirt Dash using your own World DT2 Ver.A dirtdash.zip, plus dirtdasha.zip for a split MAME set. Japanese DT1 is a different revision. Permission for the bundled original C71 BIOS and Namco-derived program remains unresolved.",
       "project_url": "https://github.com/spacestate1/namco22-decompile",
       "issue_number": 1568,
       "platforms": [
@@ -22062,7 +22062,7 @@
     {
       "id": "god-of-war-kiexster",
       "name": "God of War Recomp (KIexster)",
-      "summary": "Explore God of War Recomp (KIexster) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "God of War native source route using your own NTSC-U SCUS-97399 files from both DVD layers. Upstream preparation also needs the required IRX/.disc_layout files beside the ELF and the prepared launch context. The documented save/load and full-completion work remains unfinished.",
       "project_url": "https://github.com/KIexster/god-of-war-recomp",
       "issue_number": 1671,
       "platforms": [],
@@ -26801,7 +26801,7 @@
     {
       "id": "kileak-the-dna-imperative-ktdir",
       "name": "Kileak: The DNA Imperative / KTDIR",
-      "summary": "Explore Kileak: The DNA Imperative / KTDIR and follow the upstream project for requirements, downloads and setup.",
+      "summary": "KTDIR owned-input Windows build kit for Kileak: The DNA Imperative using your own USA SCUS-94102 complete CUE/BIN disc. Upstream uses OpenBIOS and local Python/toolchain generation. Register the finished native product rather than the forwarding setup host; keep the kit, build and originals together.",
       "project_url": "https://github.com/NJH-1001/KTDIR",
       "issue_number": 324,
       "platforms": [],
@@ -27099,7 +27099,7 @@
     {
       "id": "king-kong-xbox-360-recompiled",
       "name": "Peter Jackson's King Kong Recompiled",
-      "summary": "Explore Peter Jackson's King Kong Recompiled and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Native King Kong route for your own Xbox 360 USA/Europe multilingual disc, title 555307D3, game version 0.0.0.1. The 2005 PC release and other-platform editions are different inputs. Complete upstream game import and shader/runtime preparation before registering the working player.",
       "project_url": "https://github.com/TekRantGaming/king-kong-recompiled",
       "issue_number": 1577,
       "platforms": [],
@@ -27203,7 +27203,7 @@
     {
       "id": "kirby-64-recompiled",
       "name": "Kirby 64 Recompiled",
-      "summary": "Explore Kirby 64 Recompiled and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Kirby 64 source-build route using your own supported NK4E.z64 original in the player's working directory. The documented project is under construction and needs upstream toolchain/build preparation before native registration. Select the finished game output rather than compiler tools.",
       "project_url": "https://github.com/Kirby64Ret/Kirby64Recomp",
       "issue_number": 1574,
       "platforms": [],
@@ -28224,7 +28224,7 @@
     {
       "id": "lollipop-chainsaw-re-cherry",
       "name": "Lollipop Chainsaw / Re-Cherry",
-      "summary": "Explore Lollipop Chainsaw / Re-Cherry and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Conditional existing-copy route for Re-Cherry, the Lollipop Chainsaw port, using your own extracted Xbox 360 game. Component permissions and exact source/runtime/configuration requirements remain unresolved. Only an independently permitted, complete prepared runtime can be registered; registration does not resolve those conditions.",
       "project_url": "https://github.com/MaxDeadBear/Re-Cherry",
       "issue_number": 162,
       "platforms": [],
@@ -28760,7 +28760,7 @@
     {
       "id": "mario-kart-64-mariokart64recomp",
       "name": "Mario Kart 64 / MarioKart64Recomp",
-      "summary": "Explore Mario Kart 64 / MarioKart64Recomp and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Conditional existing-copy route for Mario Kart 64 / MarioKart64Recomp. Keep the complete permitted Windows runtime and its existing profile; downloads remain paused until the bundled Chiaro font grant is established. Registration does not grant acquisition or managed replacement.",
       "project_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp",
       "issue_number": 332,
       "platforms": [
@@ -29594,7 +29594,7 @@
     {
       "id": "mega-man-x4-recompiled",
       "name": "Mega Man X4 Recompiled",
-      "summary": "Explore Mega Man X4 Recompiled and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Native Mega Man X4 port for your own unmodified USA SLUS-00561 PlayStation CUE and complete BIN set. Finish upstream setup before registering the prepared player; another region, patched disc or bare filename is not the documented input contract.",
       "project_url": "https://github.com/mstan/MegaManX4Recomp",
       "issue_number": 144,
       "platforms": [],
@@ -29908,7 +29908,7 @@
     {
       "id": "metal-slug-xx-rexglue",
       "name": "Metal Slug XX / ReXGlue",
-      "summary": "Explore Metal Slug XX / ReXGlue and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Native Metal Slug XX source build using your own extracted game data. The title-specific player needs its matching runtime DLL and configured game-data root; a ReXGlue SDK archive or code generator alone is not a prepared game. Complete upstream preparation before registration.",
       "project_url": "https://github.com/FluffyQuack/rexglue-MetalSlugXX",
       "issue_number": 813,
       "platforms": [],
@@ -30036,7 +30036,7 @@
     {
       "id": "metroid-prime-hunters-metroidprimehuntersrecomp",
       "name": "Metroid Prime Hunters / MetroidPrimeHuntersRecomp",
-      "summary": "Explore Metroid Prime Hunters / MetroidPrimeHuntersRecomp and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Native Metroid Prime Hunters frontend using your own USA/Australia revision-0 Nintendo DS image, AMHE. Europe Rev 1 and other builds are different inputs. Complete upstream ROM, firmware and settings preparation; built-in FreeBIOS and optional owned retail firmware remain separate choices. The game process can continue after the frontend ends.",
       "project_url": "https://github.com/mstan/MetroidPrimeHuntersRecomp",
       "issue_number": 341,
       "platforms": [
@@ -30852,7 +30852,7 @@
     {
       "id": "mortal-kombat-shaolin-monks-recomp-ogmidway",
       "name": "Mortal Kombat: Shaolin Monks Recompiled (OGmidway)",
-      "summary": "Explore Mortal Kombat: Shaolin Monks Recompiled (OGmidway) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Experimental Mortal Kombat: Shaolin Monks native source project using your own NTSC-U SLUS-210.87 files. The documented developer build has badly corrupted first-stage graphics and is not a playable release yet. Any prepared experimental runtime retains that limitation.",
       "project_url": "https://github.com/OGmidway/mksm-recomp",
       "issue_number": 1714,
       "platforms": [],
@@ -32430,7 +32430,7 @@
     {
       "id": "naughty-bear-gold-edition-restuff",
       "name": "Naughty Bear Gold Edition / ReStuff",
-      "summary": "Explore Naughty Bear Gold Edition / ReStuff and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Existing permitted standalone Naughty Bear: Gold Edition player using your own Xbox 360 disc data. The documented Windows setup keeps complete extracted disc contents directly in assets beside restuff.exe. Completed standalone copies need not use the separate Goopie launcher; upstream owns preparation and replacement.",
       "project_url": "https://github.com/MaxDeadBear/NaughtyBear_ReStuff",
       "issue_number": 160,
       "platforms": [],
@@ -33801,7 +33801,7 @@
     {
       "id": "ogre-battle-64-person-of-lordly-caliber",
       "name": "Ogre Battle 64: Person of Lordly Caliber (ogre-battle-64-recomp)",
-      "summary": "Explore Ogre Battle 64: Person of Lordly Caliber (ogre-battle-64-recomp) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Ogre Battle 64 native player using your own USA Rev A 40 MiB cartridge dump. The documented .z64/.n64 representations are of that exact original; another region/revision is not interchangeable. Finish upstream ROM selection and preserve the prepared player's stored ROM and battery progress. Attachment does not establish source/redistribution permission.",
       "project_url": "https://github.com/lfarroco/ogre-battle-64-recomp",
       "issue_number": 1356,
       "platforms": [],
@@ -35213,7 +35213,7 @@
     {
       "id": "panzer-dragoon-saga-azel",
       "name": "Panzer Dragoon Saga / Azel",
-      "summary": "Explore Panzer Dragoon Saga / Azel and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Experimental Panzer Dragoon Saga / Azel source build for Windows. Upstream preparation uses your own CD1 contents and Visual Studio 2022/CMake; the documented build is buggy and semi-playable through Arachnoth. A checkout alone is not a prepared native game.",
       "project_url": "https://github.com/yaz0r/Azel",
       "issue_number": 376,
       "platforms": [],
@@ -37975,7 +37975,7 @@
     {
       "id": "projectr-san-francisco-rush-2049",
       "name": "ProjectR / San Francisco Rush 2049",
-      "summary": "Explore ProjectR / San Francisco Rush 2049 and follow the upstream project for requirements, downloads and setup.",
+      "summary": "San Francisco Rush 2049 arcade route through an independently permitted Windows ProjectR installation. It needs your own Special/Tournament Edition CHD or raw disk; N64 and Dreamcast copies are different inputs. Upstream owns setup and the shared runtime/profile. Ordinary keyboard driving is unsupported.",
       "project_url": "https://t3hd0gg.com/project-r/",
       "issue_number": 121,
       "platforms": [],
@@ -38026,7 +38026,7 @@
     {
       "id": "projectr-san-francisco-rush-the-rock",
       "name": "ProjectR / San Francisco Rush: The Rock",
-      "summary": "Explore ProjectR / San Francisco Rush: The Rock and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Arcade Rush: The Rock route using your own sfrushrk CHD/raw disk and four required audio ROMs. It uses an independently permitted Windows ProjectR installation and upstream import; Rush 2049 and console copies are different inputs. Ordinary keyboard driving is unsupported. The shared runtime/profile stays upstream-owned.",
       "project_url": "https://t3hd0gg.com/project-r/",
       "issue_number": 132,
       "platforms": [],
@@ -38118,7 +38118,7 @@
     {
       "id": "prop-cycle-namco22",
       "name": "Prop Cycle Native (Namco22)",
-      "summary": "Explore Prop Cycle's native arcade port and register an existing copy you are permitted to use.",
+      "summary": "Conditional existing-copy route for Prop Cycle using your own supported arcade chip set. The documented Windows player accepts propcycl.zip and unpacks it on first Play. Permission for the bundled original C71 BIOS and Namco-derived program remains unresolved; the project MIT terms do not settle it.",
       "project_url": "https://github.com/spacestate1/namco22-decompile",
       "issue_number": 1565,
       "platforms": [
@@ -39302,7 +39302,7 @@
     {
       "id": "rave-racer-namco22",
       "name": "Rave Racer Native (Namco22)",
-      "summary": "Explore Rave Racer's native arcade port and register an existing copy you are permitted to use.",
+      "summary": "Conditional existing-copy route for Rave Racer using your own World RV2 Ver.B raverace.zip plus namcoc74.zip. Japanese program revisions are different inputs. Permission for the bundled original C71 BIOS and Namco-derived program remains unresolved; the project MIT terms do not settle it.",
       "project_url": "https://github.com/spacestate1/namco22-decompile",
       "issue_number": 1566,
       "platforms": [
@@ -41670,7 +41670,7 @@
     {
       "id": "sexy-parodius-sexyparorecomp",
       "name": "Sexy Parodius / SexyParoRecomp",
-      "summary": "Explore Sexy Parodius / SexyParoRecomp and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Sexy Parodius Windows owned-input build kit for your own Japanese SLPM-86009 complete CUE/BIN disc. Upstream Generate/Rebuild uses its supported Python/toolchain and OpenBIOS. Register the completed native product; the root setup host forwards and exits, and a downloaded kit alone is not a finished game.",
       "project_url": "https://github.com/NJH-1001/SexyParoRecomp",
       "issue_number": 325,
       "platforms": [],
@@ -42087,7 +42087,7 @@
     {
       "id": "sin-punishment-recompiled",
       "name": "Sin & Punishment Recompiled",
-      "summary": "Explore Sin & Punishment Recompiled and follow the upstream project for requirements, downloads and setup.",
+      "summary": "An unfinished Sin and Punishment native project. The documented milestone reaches the title screen; its required patched-ROM pipeline is unpublished, so a clean Japanese ROM and checkout alone do not establish a reproducible player. Existing prepared development copies retain their limitations.",
       "project_url": "https://github.com/maximilianoide/sin-punishment-recompiled",
       "issue_number": 167,
       "platforms": [],
@@ -42211,7 +42211,7 @@
     {
       "id": "skate-3-recomp",
       "name": "Skate 3 Recomp",
-      "summary": "Explore Skate 3 Recomp and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Conditional existing-copy route for the Windows Skate 3 Recomp player. It needs your own Xbox 360 base game and Title Update 3 prepared upstream; fresh package/component permission remains unresolved. Registration does not extract originals or generate the game.",
       "project_url": "https://github.com/mchughalex/skate3recomp",
       "issue_number": 150,
       "platforms": [],
@@ -42641,7 +42641,7 @@
     {
       "id": "sonic-advance-2-sat-r-sa2-repository",
       "name": "Sonic Advance 2 / SAT-R sa2 repository",
-      "summary": "Explore Sonic Advance 2 / SAT-R sa2 repository and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Sonic Advance 2 SDL native build using your own supported ROM. Upstream documents separate Windows and Linux/macOS SDL outputs; its alternative Windows OpenGL target is documented as nonfunctional. Complete the title-specific SDL build before registering the prepared player.",
       "project_url": "https://github.com/SAT-R/sa2",
       "issue_number": 381,
       "platforms": [],
@@ -42673,7 +42673,7 @@
     {
       "id": "sonic-advance-sat-r-sa2-repository",
       "name": "Sonic Advance / SAT-R sa2 repository",
-      "summary": "Explore Sonic Advance / SAT-R sa2 repository and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Sonic Advance 1 source project sharing a repository with Sonic Advance 2. Its documented sa1.gba output is a GBA ROM; the sa2 SDL commands do not establish this title's native player. Native registration requires a separately prepared native Sonic Advance 1 copy.",
       "project_url": "https://github.com/SAT-R/sa2",
       "issue_number": 380,
       "platforms": [],
@@ -43060,7 +43060,7 @@
     {
       "id": "sonic-unleashed-recompiled",
       "name": "Sonic Unleashed Recompiled",
-      "summary": "Explore Sonic Unleashed Recompiled and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Prepared-copy Sonic Unleashed native route using your own US/EU Xbox 360 base game and matching-region required Title Update. Japanese, PS3 and Wii editions are different inputs; DLC is optional. Complete the upstream installer before registering the existing player; this route does not authenticate a fresh managed download.",
       "project_url": "https://github.com/hedge-dev/UnleashedRecomp",
       "issue_number": 126,
       "platforms": [],
@@ -44074,7 +44074,7 @@
     {
       "id": "star-fox-64-starfox64recomp",
       "name": "Star Fox 64 / Starfox64Recomp",
-      "summary": "Explore Star Fox 64 / Starfox64Recomp and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Conditional existing-copy route for Star Fox 64 / Starfox64Recomp. Keep the complete permitted Windows runtime and its existing profile; downloads remain paused until the bundled Chiaro font grant is established. Registration does not grant acquisition or managed replacement.",
       "project_url": "https://gitlab.com/sonicdcer/Starfox64Recomp",
       "issue_number": 333,
       "platforms": [
@@ -44317,7 +44317,7 @@
     {
       "id": "star-wars-rogue-squadron-64-recompiled",
       "name": "Star Wars: Rogue Squadron 64 Recompiled",
-      "summary": "Explore Star Wars: Rogue Squadron 64 Recompiled and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Native Rogue Squadron 64 source build for your own USA v1.0 original. Complete upstream RT64/toolchain preparation and keep the original in the launch working folder. The documented Windows game output is RogueSquadron64Recomp.exe; optional Steam relay has separate SDK/runtime prerequisites.",
       "project_url": "https://github.com/MikeSemicolonD/RogueSquadron64Recomp",
       "issue_number": 1576,
       "platforms": [],
@@ -45435,7 +45435,7 @@
     {
       "id": "super-mario-strikers-aurorastrikers",
       "name": "Super Mario Strikers / AuroraStrikers",
-      "summary": "Explore Super Mario Strikers / AuroraStrikers and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Conditional AuroraStrikers source route for your own USA G4QE01 Super Mario Strikers disc. Reconstructed-code/component permission remains unsettled, and upstream prohibits redistribution of the game-derived executable. Local build/use still requires an established applicable permission basis; this listing grants none.",
       "project_url": "https://github.com/Saffsanity/AuroraStrikers",
       "issue_number": 818,
       "platforms": [],
@@ -48184,7 +48184,7 @@
     {
       "id": "the-wind-waker-recomp",
       "name": "The Wind Waker Recomp",
-      "summary": "Explore The Wind Waker Recomp and follow the upstream project for requirements, downloads and setup.",
+      "summary": "An experimental Wind Waker renderer and framework, not a playable game port. The documented Windows launcher runs the development renderer; playable game support still needs upstream runtime completion.",
       "project_url": "https://github.com/sp00nznet/ww",
       "issue_number": 170,
       "platforms": [],
@@ -48432,7 +48432,7 @@
     {
       "id": "time-crisis-namco22",
       "name": "Time Crisis Native (Namco22)",
-      "summary": "Explore Time Crisis's native arcade port and register an existing copy you are permitted to use.",
+      "summary": "Conditional existing-copy route for Time Crisis using your own World TS2 Ver.B timecris.zip. Ver.A and Japanese program revisions are different inputs. Permission for the bundled original C71 BIOS and Namco-derived program remains unresolved; the project MIT terms do not settle it.",
       "project_url": "https://github.com/spacestate1/namco22-decompile",
       "issue_number": 1569,
       "platforms": [
@@ -48771,7 +48771,7 @@
     {
       "id": "tokyo-wars-namco22",
       "name": "Tokyo Wars Native (Namco22)",
-      "summary": "Explore Tokyo Wars's native arcade port and register an existing copy you are permitted to use.",
+      "summary": "Conditional existing-copy route for Tokyo Wars using your own World TW2 Ver.A tokyowar.zip. The Japanese program revision is a different input. Permission for the bundled original C71 BIOS and Namco-derived program remains unresolved; the project MIT terms do not settle it.",
       "project_url": "https://github.com/spacestate1/namco22-decompile",
       "issue_number": 1567,
       "platforms": [
@@ -48902,7 +48902,7 @@
     {
       "id": "tomba-2-recompiled",
       "name": "Tomba! 2 Recompiled",
-      "summary": "Explore Tomba! 2 Recompiled and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Tomba! 2 native USA player using your own SCUS-94454 PlayStation disc. Complete upstream original selection and settings; OpenBIOS is provided and retail BIOS is optional. Italian PAL SCES-02686 needs separate mappings and is not qualified by the USA package. Preserve cards and the separate seamless-loading cache.",
       "project_url": "https://github.com/mstan/Tomba2Recomp",
       "issue_number": 169,
       "platforms": [
@@ -51577,7 +51577,7 @@
     {
       "id": "valkyrie-profile-valkyrierecomp",
       "name": "Valkyrie Profile / ValkyrieRecomp",
-      "summary": "Explore Valkyrie Profile / ValkyrieRecomp and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Locally prepared Valkyrie Profile player using your own USA two-disc CUE/BIN set: SLUS-01156 and SLUS-01179. Complete generation, firmware choice and settings upstream, then select the finished native product rather than its forwarding setup host. Between-run disc selection does not establish mid-session swapping.",
       "project_url": "https://github.com/Ed1z19/ValkyrieRecomp",
       "issue_number": 326,
       "platforms": [],
@@ -52020,7 +52020,7 @@
     {
       "id": "virtual-hydlide-saturn-pc",
       "name": "Virtual Hydlide (Saturn PC)",
-      "summary": "Explore Virtual Hydlide (Saturn PC) and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Experimental Virtual Hydlide native source route for your own complete Europe MK-81380 V1.000 CUE/BIN track set. It needs upstream compiler/SDL3 preparation and the extracted game data plus audio. Register only a prepared native game output with its creating working directory.",
       "project_url": "https://github.com/vs-sr-dev/pc-virtualhydlide",
       "issue_number": 1579,
       "platforms": [],
@@ -52191,7 +52191,7 @@
     {
       "id": "viva-pinata-trouble-in-paradise-retip",
       "name": "Viva Piñata: Trouble in Paradise / ReTiP",
-      "summary": "Explore Viva Piñata: Trouble in Paradise / ReTiP and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Existing prepared ReTiP player for Viva Piñata: Trouble in Paradise using your own retail Xbox 360 disc ISO under the documented world-region contract. Complete upstream ISO import first; another game or disc revision is not automatically compatible. The standalone GitHub build omits GameJolt integration.",
       "project_url": "https://github.com/SolarCookies/TiP-Recomp",
       "issue_number": 158,
       "platforms": [],
@@ -52611,7 +52611,7 @@
     {
       "id": "wave-race-blue-storm-recompiled",
       "name": "Wave Race: Blue Storm Recompiled",
-      "summary": "Explore Wave Race: Blue Storm Recompiled and follow the upstream project for requirements, downloads and setup.",
+      "summary": "Source-built Wave Race: Blue Storm player for your own USA GWRE01 GameCube disc. Complete upstream build/runtime preparation; game-derived output must not be redistributed. Retain the required image and memory-card data when registering the prepared copy. No complete game package is offered for Portcove to replace.",
       "project_url": "https://github.com/ethannicholas/bluestorm-recomp",
       "issue_number": 1572,
       "platforms": [],

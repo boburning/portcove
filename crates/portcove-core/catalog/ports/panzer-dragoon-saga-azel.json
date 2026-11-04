@@ -3,7 +3,7 @@
   "listing": {
     "id": "panzer-dragoon-saga-azel",
     "name": "Panzer Dragoon Saga / Azel",
-    "summary": "Explore Panzer Dragoon Saga / Azel and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Experimental Panzer Dragoon Saga / Azel source build for Windows. Upstream preparation uses your own CD1 contents and Visual Studio 2022/CMake; the documented build is buggy and semi-playable through Arachnoth. A checkout alone is not a prepared native game.",
     "project_url": "https://github.com/yaz0r/Azel",
     "issue_number": 376,
     "platforms": [],

@@ -3,7 +3,7 @@
   "listing": {
     "id": "deadly-premonition-dprecomp",
     "name": "Deadly Premonition / DPRecomp",
-    "summary": "Explore Deadly Premonition / DPRecomp and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Conditional Windows prepared-copy route for Deadly Premonition using your own supported PAL or USA Xbox 360 disc. Fresh acquisition still needs applicable permission for bundled disc-derived shaders or an asset-clean/owned-input route. Complete upstream import first and keep upstream shader sharing off.",
     "project_url": "https://github.com/LittleBitUA/DPRecomp",
     "issue_number": 812,
     "platforms": [],
