@@ -3,7 +3,7 @@
   "listing": {
     "id": "god-of-war-kiexster",
     "name": "God of War Recomp (KIexster)",
-    "summary": "Explore God of War Recomp (KIexster) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "God of War native source route using your own NTSC-U SCUS-97399 files from both DVD layers. Upstream preparation also needs the required IRX/.disc_layout files beside the ELF and the prepared launch context. The documented save/load and full-completion work remains unfinished.",
     "project_url": "https://github.com/KIexster/god-of-war-recomp",
     "issue_number": 1671,
     "platforms": [],

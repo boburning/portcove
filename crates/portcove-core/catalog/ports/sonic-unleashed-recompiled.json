@@ -3,7 +3,7 @@
   "listing": {
     "id": "sonic-unleashed-recompiled",
     "name": "Sonic Unleashed Recompiled",
-    "summary": "Explore Sonic Unleashed Recompiled and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Prepared-copy Sonic Unleashed native route using your own US/EU Xbox 360 base game and matching-region required Title Update. Japanese, PS3 and Wii editions are different inputs; DLC is optional. Complete the upstream installer before registering the existing player; this route does not authenticate a fresh managed download.",
     "project_url": "https://github.com/hedge-dev/UnleashedRecomp",
     "issue_number": 126,
     "platforms": [],

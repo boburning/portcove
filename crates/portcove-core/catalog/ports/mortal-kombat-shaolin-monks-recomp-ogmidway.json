@@ -3,7 +3,7 @@
   "listing": {
     "id": "mortal-kombat-shaolin-monks-recomp-ogmidway",
     "name": "Mortal Kombat: Shaolin Monks Recompiled (OGmidway)",
-    "summary": "Explore Mortal Kombat: Shaolin Monks Recompiled (OGmidway) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Experimental Mortal Kombat: Shaolin Monks native source project using your own NTSC-U SLUS-210.87 files. The documented developer build has badly corrupted first-stage graphics and is not a playable release yet. Any prepared experimental runtime retains that limitation.",
     "project_url": "https://github.com/OGmidway/mksm-recomp",
     "issue_number": 1714,
     "platforms": [],

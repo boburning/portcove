@@ -3,7 +3,7 @@
   "listing": {
     "id": "deep-fear-saturn-pc",
     "name": "Deep Fear (Saturn PC)",
-    "summary": "Explore Deep Fear (Saturn PC) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Experimental Deep Fear native source build using your own complete Europe MK-81804 V1.001 two-disc CUE/BIN sets, including audio. Upstream compiler/SDL3 preparation is required. The documented milestone reaches the first room and walking; it is not a packaged full-game release.",
     "project_url": "https://github.com/vs-sr-dev/pc-deepfear",
     "issue_number": 1578,
     "platforms": [],

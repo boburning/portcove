@@ -3,7 +3,7 @@
   "listing": {
     "id": "king-kong-xbox-360-recompiled",
     "name": "Peter Jackson's King Kong Recompiled",
-    "summary": "Explore Peter Jackson's King Kong Recompiled and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Native King Kong route for your own Xbox 360 USA/Europe multilingual disc, title 555307D3, game version 0.0.0.1. The 2005 PC release and other-platform editions are different inputs. Complete upstream game import and shader/runtime preparation before registering the working player.",
     "project_url": "https://github.com/TekRantGaming/king-kong-recompiled",
     "issue_number": 1577,
     "platforms": [],

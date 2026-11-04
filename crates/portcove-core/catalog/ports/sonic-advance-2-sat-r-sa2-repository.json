@@ -3,7 +3,7 @@
   "listing": {
     "id": "sonic-advance-2-sat-r-sa2-repository",
     "name": "Sonic Advance 2 / SAT-R sa2 repository",
-    "summary": "Explore Sonic Advance 2 / SAT-R sa2 repository and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Sonic Advance 2 SDL native build using your own supported ROM. Upstream documents separate Windows and Linux/macOS SDL outputs; its alternative Windows OpenGL target is documented as nonfunctional. Complete the title-specific SDL build before registering the prepared player.",
     "project_url": "https://github.com/SAT-R/sa2",
     "issue_number": 381,
     "platforms": [],

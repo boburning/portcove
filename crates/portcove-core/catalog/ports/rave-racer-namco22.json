@@ -3,7 +3,7 @@
   "listing": {
     "id": "rave-racer-namco22",
     "name": "Rave Racer Native (Namco22)",
-    "summary": "Explore Rave Racer's native arcade port and register an existing copy you are permitted to use.",
+    "summary": "Conditional existing-copy route for Rave Racer using your own World RV2 Ver.B raverace.zip plus namcoc74.zip. Japanese program revisions are different inputs. Permission for the bundled original C71 BIOS and Namco-derived program remains unresolved; the project MIT terms do not settle it.",
     "project_url": "https://github.com/spacestate1/namco22-decompile",
     "issue_number": 1566,
     "platforms": ["windows-x86-64", "linux-x86-64"],

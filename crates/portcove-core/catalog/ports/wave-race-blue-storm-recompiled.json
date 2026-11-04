@@ -3,7 +3,7 @@
   "listing": {
     "id": "wave-race-blue-storm-recompiled",
     "name": "Wave Race: Blue Storm Recompiled",
-    "summary": "Explore Wave Race: Blue Storm Recompiled and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Source-built Wave Race: Blue Storm player for your own USA GWRE01 GameCube disc. Complete upstream build/runtime preparation; game-derived output must not be redistributed. Retain the required image and memory-card data when registering the prepared copy. No complete game package is offered for Portcove to replace.",
     "project_url": "https://github.com/ethannicholas/bluestorm-recomp",
     "issue_number": 1572,
     "platforms": [],

@@ -3,7 +3,7 @@
   "listing": {
     "id": "dirt-dash-namco22",
     "name": "Dirt Dash Native (Namco22)",
-    "summary": "Explore Dirt Dash's native arcade port and register an existing copy you are permitted to use.",
+    "summary": "Conditional existing-copy route for Dirt Dash using your own World DT2 Ver.A dirtdash.zip, plus dirtdasha.zip for a split MAME set. Japanese DT1 is a different revision. Permission for the bundled original C71 BIOS and Namco-derived program remains unresolved.",
     "project_url": "https://github.com/spacestate1/namco22-decompile",
     "issue_number": 1568,
     "platforms": ["windows-x86-64", "linux-x86-64"],

@@ -3,7 +3,7 @@
   "listing": {
     "id": "star-wars-rogue-squadron-64-recompiled",
     "name": "Star Wars: Rogue Squadron 64 Recompiled",
-    "summary": "Explore Star Wars: Rogue Squadron 64 Recompiled and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Native Rogue Squadron 64 source build for your own USA v1.0 original. Complete upstream RT64/toolchain preparation and keep the original in the launch working folder. The documented Windows game output is RogueSquadron64Recomp.exe; optional Steam relay has separate SDK/runtime prerequisites.",
     "project_url": "https://github.com/MikeSemicolonD/RogueSquadron64Recomp",
     "issue_number": 1576,
     "platforms": [],

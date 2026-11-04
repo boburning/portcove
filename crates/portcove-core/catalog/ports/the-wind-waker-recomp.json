@@ -3,7 +3,7 @@
   "listing": {
     "id": "the-wind-waker-recomp",
     "name": "The Wind Waker Recomp",
-    "summary": "Explore The Wind Waker Recomp and follow the upstream project for requirements, downloads and setup.",
+    "summary": "An experimental Wind Waker renderer and framework, not a playable game port. The documented Windows launcher runs the development renderer; playable game support still needs upstream runtime completion.",
     "project_url": "https://github.com/sp00nznet/ww",
     "issue_number": 170,
     "platforms": [],

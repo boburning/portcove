@@ -3,7 +3,7 @@
   "listing": {
     "id": "time-crisis-namco22",
     "name": "Time Crisis Native (Namco22)",
-    "summary": "Explore Time Crisis's native arcade port and register an existing copy you are permitted to use.",
+    "summary": "Conditional existing-copy route for Time Crisis using your own World TS2 Ver.B timecris.zip. Ver.A and Japanese program revisions are different inputs. Permission for the bundled original C71 BIOS and Namco-derived program remains unresolved; the project MIT terms do not settle it.",
     "project_url": "https://github.com/spacestate1/namco22-decompile",
     "issue_number": 1569,
     "platforms": ["windows-x86-64", "linux-x86-64"],

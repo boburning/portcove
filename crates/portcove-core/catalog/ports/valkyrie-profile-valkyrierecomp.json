@@ -3,7 +3,7 @@
   "listing": {
     "id": "valkyrie-profile-valkyrierecomp",
     "name": "Valkyrie Profile / ValkyrieRecomp",
-    "summary": "Explore Valkyrie Profile / ValkyrieRecomp and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Locally prepared Valkyrie Profile player using your own USA two-disc CUE/BIN set: SLUS-01156 and SLUS-01179. Complete generation, firmware choice and settings upstream, then select the finished native product rather than its forwarding setup host. Between-run disc selection does not establish mid-session swapping.",
     "project_url": "https://github.com/Ed1z19/ValkyrieRecomp",
     "issue_number": 326,
     "platforms": [],
