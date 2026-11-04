@@ -584,6 +584,111 @@ void test("operation envelopes share one stable schema and redact credential-sha
   );
 });
 
+void test("public errors redact entire supported tokens and authorization schemes", () => {
+  for (const token of [
+    "ghp_SYNTHETIC_ONLY",
+    "github_pat_SYNTHETIC_ONLY",
+    "gho_SYNTHETIC_ONLY",
+    "ghu_SYNTHETIC_ONLY",
+    "ghr_SYNTHETIC_ONLY",
+    "ghs_SYNTHETIC_ONLY",
+    `ghs_123_${"a".repeat(90)}.${"b".repeat(130)}.signature-SYNTHETIC_ONLY`,
+  ]) {
+    for (const message of [token, `Authorization: Bearer ${token}`, `token=${token}`]) {
+      const output = JSON.stringify(sanitizeOperationError(new Error(message)));
+      assert(!output.includes(token));
+      assert(!output.includes("SYNTHETIC_ONLY"));
+    }
+  }
+  assert.equal(
+    sanitizeOperationError(new Error("Authorization: Bearer opaque-value\nHTTP 403; reset pending"))
+      .message,
+    "Authorization=[REDACTED]\nHTTP 403; reset pending",
+  );
+  assert.equal(
+    sanitizeOperationError("Authorization: Basic dXNlcjpwYXNz").message,
+    "Authorization=[REDACTED]",
+  );
+});
+
+void test("public error messages remove URL credentials while retaining provider identity", () => {
+  const result = sanitizeOperationError(
+    new Error(
+      "GET https://user:password@example.com/repos/x?access_token=opaque-secret&state=open#private-fragment",
+    ),
+  );
+  for (const secret of ["user", "password", "opaque-secret", "private-fragment"])
+    assert(!result.message.includes(secret));
+  assert.match(result.message, /example.com\/repos\/x/u);
+  assert.match(result.message, /state=open/u);
+});
+
+void test("folded authorization values and equivalent percent escapes are fully redacted", () => {
+  for (const newline of ["\n", "\r\n"]) {
+    const result = sanitizeOperationError(
+      `Authorization: Bearer${newline}  opaque-secret${newline}HTTP 403`,
+    );
+    assert.equal(result.message, `Authorization=[REDACTED]${newline}HTTP 403`);
+  }
+  const secret = "synthetic/opaque+credential";
+  for (const encoded of ["synthetic%2fopaque%2bcredential", "synthetic%2Fopaque%2bcredential"]) {
+    const result = sanitizeOperationError(`https://example.com/?value=${encoded}`, {
+      secrets: [secret],
+    });
+    assert(!decodeURIComponent(result.message).includes(secret));
+    assert.match(result.message, /example.com/u);
+  }
+});
+
+void test("public errors never serialize SDK objects, causes or arbitrary coercion", () => {
+  const cause = { message: "gho_SYNTHETIC_ONLY", cause: null as unknown };
+  cause.cause = cause;
+  const error = Object.assign(new Error("HTTP 503; request unavailable", { cause }), {
+    code: "service_unavailable",
+    request: { headers: { authorization: "Bearer opaque-secret" } },
+    response: { body: "private response" },
+  });
+  assert.deepEqual(sanitizeOperationError(error), {
+    code: "service_unavailable",
+    message: "HTTP 503; request unavailable",
+  });
+  assert.deepEqual(
+    sanitizeOperationError({
+      cause,
+      toString() {
+        throw new Error("arbitrary coercion must not run");
+      },
+    }),
+    { code: "operation_failed", message: "unknown error" },
+  );
+  assert.deepEqual(
+    Object.keys(
+      githubOperationEnvelope({
+        operation: "read",
+        status: "failed",
+        summary: "Unavailable",
+        error,
+      }).error!,
+    ),
+    ["code", "message"],
+  );
+});
+
+void test("request-scoped prefixless credentials are removed from messages and codes", () => {
+  const secret = "synthetic/opaque+credential";
+  const result = sanitizeOperationError(
+    {
+      code: secret,
+      message: `${secret} https://example.com/?value=${encodeURIComponent(secret)}`,
+    },
+    { secrets: [secret] },
+  );
+  assert.equal(result.code, "operation_failed");
+  assert(!result.message.includes(secret));
+  assert(!result.message.includes(encodeURIComponent(secret)));
+  assert.equal(sanitizeOperationError("x".repeat(3000)).message.length, 2000);
+});
+
 void test("repository GitHub callers do not spawn gh outside the shared transport", async () => {
   for (const file of [
     "roadmap.mts",

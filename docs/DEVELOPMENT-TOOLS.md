@@ -1022,6 +1022,15 @@ remote state readback before any retry; unavailable readback remains an unknown
 outcome. A local timeout is neither rollback nor proof of server-side failure.
 No global GitHub CLI configuration or additional execution authority is required.
 
+Public operation errors retain the existing `code` and `message` fields. The
+shared sanitizer reads those fields without serializing thrown objects, SDK
+requests/responses or nested causes. It removes complete authorization values,
+supported GitHub token forms (including variable-length stateless installation
+tokens), URL credentials and sensitive query values. Credential-scoped callers
+can additionally supply known secret values for prefixless/encoded redaction.
+Safe provider explanations remain available; structured status, request and
+quota evidence stays with the owning operation's existing evidence contract.
+
 ## Hosted Cargo dependency validation
 
 The existing Deep audit workflow's `local-check` operation accepts an optional
