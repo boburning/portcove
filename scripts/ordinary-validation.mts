@@ -2185,6 +2185,9 @@ for (const file of [
     "scripts/discovery-github.test.mts",
     "scripts/discovery-primary-progress.test.mts",
     "scripts/roadmap-provider-inventory.test.mts",
+    "scripts/upstream-observer.test.mts",
+    "scripts/catalog-upstream-observer.test.mts",
+    "scripts/observer-checkpoint-artifact.test.mts",
   ]);
 
 explicitNodeTests.set("scripts/aqua-integrity.mts", [

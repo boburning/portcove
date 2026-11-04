@@ -112,7 +112,7 @@ export async function runCatalogUpstreams(
   runtime: {
     root?: string;
     now?: () => number;
-    observer?: Pick<ObserveOptions, "fetch" | "sleep" | "signal">;
+    observer?: Pick<ObserveOptions, "fetch" | "sleep" | "signal" | "githubScope">;
     project?: typeof projectObservation;
     projectProvider?: typeof projectProviderObservation;
     providerFetch?: typeof fetch;
@@ -548,6 +548,11 @@ export async function runCatalogOpportunity(
   const config = validateObserverConfig(
     await boundedJson(path.join(root, "release/upstream-observer.json"), 16384),
   );
+  const githubScope = runtime.observer?.githubScope ?? {
+    deadline: performance.now() + Math.max(0, runtime.deadline - now()),
+    failedReads: new Map<string, import("./github-client.mts").GitHubRequestPolicy>(),
+    deferral: { primary: new Map<string, number>(), secondary: 0 },
+  };
   const handoff = {
     directory: path.join(root, "work/upstream-observer-handoff", randomUUID()),
     sizes: new Map<string, number>(),
@@ -564,6 +569,7 @@ export async function runCatalogOpportunity(
         await assertInputs();
         const batch = await runCatalogUpstreams(fixedArgs, {
           ...runtime,
+          observer: { ...runtime.observer, githubScope },
           handoff,
           excludedSources: excluded,
           log: () => {},

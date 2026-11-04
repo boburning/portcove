@@ -988,3 +988,50 @@ void test("a caller collection deadline cannot lengthen the request budget or re
   assert.equal(policy.deadline, 1100);
   assert.equal(requests, 1);
 });
+
+void test("actual SDK honors smaller caller attempt bounds and refuses invalid bounds before dispatch", async () => {
+  for (const maximum of [1, 2, 3, 0, 4]) {
+    let sends = 0;
+    const sdk = await createGitHubClient({
+      credential: { kind: "anonymous" },
+      deadline: performance.now() + 5000,
+      random: () => 0,
+      sleep: async () => {},
+      fetch: async () => {
+        sends++;
+        return Response.json({ message: "transient fixture" }, { status: 503 });
+      },
+    });
+    await assert.rejects(
+      sdk.request("GET /rate_limit", {
+        request: { portcove: { replay: "safe-read", attempts: 0, maxAttempts: maximum } },
+      }),
+    );
+    assert.equal(sends, maximum >= 1 && maximum <= 3 ? maximum : 0);
+  }
+});
+
+void test("actual SDK refuses malformed UTF-8 before parsing without retry or replacement characters", async () => {
+  for (const status of [200, 503]) {
+    let sends = 0;
+    const sdk = await createGitHubClient({
+      credential: { kind: "anonymous" },
+      deadline: performance.now() + 5000,
+      fetch: async () => {
+        sends++;
+        return new Response(Uint8Array.from([123, 34, 120, 34, 58, 34, 255, 34, 125]), {
+          status,
+          headers: { "content-type": "application/json" },
+        });
+      },
+    });
+    await assert.rejects(
+      sdk.request("GET /rate_limit", { request: { portcove: read() } }),
+      (error: unknown) =>
+        error instanceof GitHubApiError &&
+        error.code === "invalid_response" &&
+        /UTF-8/u.test(error.message),
+    );
+    assert.equal(sends, 1);
+  }
+});

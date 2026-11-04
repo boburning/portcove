@@ -18,6 +18,8 @@ export type GitHubCredential =
 export interface GitHubRequestPolicy {
   replay: "safe-read" | "pure-query" | "once";
   attempts: number;
+  /** A caller may reduce the shared three-attempt allowance. */
+  maxAttempts?: number;
   deadline?: number;
   secondaryFailures?: number;
   /** An aborted admission may still own cleanup; command owners join this before terminal evidence. */
@@ -228,7 +230,14 @@ export async function createGitHubClient(options: GitHubClientOptions) {
           parameters.method === "POST" &&
           new URL(parameters.url, base).pathname === "/graphql") ||
         (policy.replay === "safe-read" && ["GET", "HEAD"].includes(parameters.method));
-      const maximum = replayable ? 3 : 1;
+      if (
+        policy.maxAttempts !== undefined &&
+        (!Number.isSafeInteger(policy.maxAttempts) ||
+          policy.maxAttempts < 1 ||
+          policy.maxAttempts > 3)
+      )
+        throw new GitHubApiError("invalid_configuration", "Invalid GitHub request attempt bound");
+      const maximum = replayable ? (policy.maxAttempts ?? 3) : 1;
       while (policy.attempts < maximum) {
         signal.throwIfAborted();
         if (now() >= deadline)
@@ -335,8 +344,14 @@ export async function createGitHubClient(options: GitHubClientOptions) {
               await reader?.cancel().catch(() => {});
             }
             signal.throwIfAborted();
+            const bodyBytes = Buffer.concat(chunks);
+            try {
+              new TextDecoder("utf-8", { fatal: true }).decode(bodyBytes);
+            } catch {
+              throw new GitHubApiError("invalid_response", "GitHub metadata is not valid UTF-8");
+            }
             const collected = new Response(
-              [204, 205, 304].includes(response.status) ? null : Buffer.concat(chunks),
+              [204, 205, 304].includes(response.status) ? null : bodyBytes,
               {
                 status: response.status,
                 statusText: response.statusText,

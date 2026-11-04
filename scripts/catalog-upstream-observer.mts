@@ -16,7 +16,12 @@ import {
   ObservationFailure,
   validateObserverConfig,
 } from "./upstream-observer.mts";
-import type { ObserverConfig, ObserveOptions, ProviderObservation } from "./upstream-observer.mts";
+import type {
+  ObserverConfig,
+  ObserveOptions,
+  ProviderObservation,
+  ObserverGitHubScope,
+} from "./upstream-observer.mts";
 import { advanceObservation } from "./observe-configured-upstream.mts";
 
 export interface ObservablePort {
@@ -418,7 +423,7 @@ export function validateCatalogObserverCheckpoint(
 type SourceResult = Awaited<ReturnType<typeof advanceObservation>>;
 export interface CatalogObservationOptions extends Pick<
   ObserveOptions,
-  "fetch" | "signal" | "sleep" | "token"
+  "fetch" | "signal" | "sleep" | "token" | "githubScope"
 > {
   now?: () => number;
   deadline?: number;
@@ -485,6 +490,11 @@ export async function advanceCatalogObservations(
       "Normalized current Core definition or descriptive declaration identities are required",
     );
   const deadline = Math.min(now() + template.budget.duration_ms, options.deadline ?? Infinity);
+  const githubScope: ObserverGitHubScope = options.githubScope ?? {
+    deadline: performance.now() + Math.max(0, deadline - now()),
+    failedReads: new Map(),
+    deferral: { primary: new Map(), secondary: 0 },
+  };
   if (!Number.isFinite(deadline) || deadline <= now())
     throw new ObservationFailure("budget", "Collector deadline unavailable");
   const scopeBinding = (source: ObservableSource) =>
@@ -1011,6 +1021,7 @@ export async function advanceCatalogObservations(
         const result = await advanceObservation(config, priorSource, {
           deadline,
           ...(options.fetch ? { fetch: options.fetch } : {}),
+          githubScope,
           ...(options.token ? { token: options.token } : {}),
           ...(options.signal ? { signal: options.signal } : {}),
           ...(options.sleep ? { sleep: options.sleep } : {}),

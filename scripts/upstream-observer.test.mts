@@ -168,8 +168,8 @@ void test("records exact release and asset facts, conditional cache and changed 
   assert.ok(
     server.requests.every(
       (request) =>
-        request.options.redirect === "error" &&
-        request.options.headers.Authorization === "Bearer fixture-token",
+        request.options.redirect === "manual" &&
+        new Headers(request.options.headers).get("authorization")?.endsWith(" fixture-token"),
     ),
   );
   const second = await observeUpstream(config, {
@@ -547,7 +547,7 @@ void test("rate limits defer to provider clocks and transport retries stay bound
   const delays: number[] = [];
   const broken = fixture({
     intercept: () => {
-      throw new Error("untrusted transport detail");
+      throw new TypeError("untrusted transport detail", { cause: { code: "ECONNRESET" } });
     },
   });
   await assert.rejects(
@@ -561,7 +561,8 @@ void test("rate limits defer to provider clocks and transport retries stay bound
       !error.message.includes("untrusted"),
   );
   assert.equal(broken.requests.length, 3);
-  assert.deepEqual(delays, [250, 500]);
+  assert.equal(delays.length, 2);
+  assert.ok(delays[0]! >= 0 && delays[0]! <= 500 && delays[1]! >= 0 && delays[1]! <= 1000);
 });
 
 void test("budgets, malformed metadata, cache corruption and repository drift fail closed", async () => {
@@ -1164,7 +1165,8 @@ void test("a repaired restart can conditionally replace old complete assets afte
       .slice(before)
       .some(
         (request) =>
-          request.url.includes("/releases/3/assets?") && request.options.headers["If-None-Match"],
+          request.url.includes("/releases/3/assets?") &&
+          new Headers(request.options.headers).get("if-none-match"),
       ),
   );
   assert.notEqual(
@@ -1485,7 +1487,7 @@ void test("caller opportunity clamps GitHub fetch and refuses late retry without
   const server = fixture();
   let clock = Date.now(),
     calls = 0;
-  const deadline = clock + 1;
+  const deadline = clock + 1000;
   await assert.rejects(
     observeUpstream(config, {
       now: () => clock,
@@ -1507,4 +1509,30 @@ void test("caller opportunity clamps GitHub fetch and refuses late retry without
     observeUpstream(config, { deadline: NaN, fetch: server.fetch }),
     /opportunity is unknown/,
   );
+});
+
+void test("continued command cannot renew an exhausted SDK read allowance", async () => {
+  const githubScope = {
+    deadline: performance.now() + 5000,
+    failedReads: new Map<string, import("./github-client.mts").GitHubRequestPolicy>(),
+    deferral: { primary: new Map<string, number>(), secondary: 0 },
+  };
+  let calls = 0;
+  const options = {
+    githubScope,
+    sleep: async () => {},
+    fetch: async () => {
+      calls++;
+      throw new TypeError("controlled transport", { cause: { code: "ECONNRESET" } });
+    },
+  };
+  await assert.rejects(observeUpstream(config, options), /transport failed/u);
+  assert.equal(calls, 3);
+  await assert.rejects(observeUpstream(config, options), /transport failed/u);
+  assert.equal(
+    calls,
+    3,
+    "collection recovery retains the exhausted policy instead of dispatching again",
+  );
+  assert.equal(githubScope.failedReads.get(root)?.attempts, 3);
 });
