@@ -1363,17 +1363,12 @@ mod tests {
         assert_eq!(DECLARED_PREPARED_ROUTE_TEST_IDS.len(), declared.len());
     }
     fn assert_declarative_prepared_player_route(id: &str) {
-        let expectations: serde_json::Value = serde_json::from_str(include_str!(
-            "../testdata/route-enrollment-expectations.json"
-        ))
-        .unwrap();
+        let expectations = crate::test_fixture::route_expectations();
         let case = crate::test_fixture::route_enrollment()
             .into_iter()
             .find(|case| case.port_id == id && !case.managed_native)
             .unwrap();
-        let observed = expectations["cases"]
-            .as_array()
-            .unwrap()
+        let observed = expectations
             .iter()
             .find(|row| row["port_id"] == id)
             .expect("new route needs independent reviewed expected facts");

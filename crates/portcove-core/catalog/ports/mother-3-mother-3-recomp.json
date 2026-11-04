@@ -6,7 +6,6 @@
     "summary": "Attach an independently permitted, prepared MOTHER 3 Windows player with your own exact ROM, desktop GBA BIOS and any permitted translation already configured upstream. Preserve battery saves and patch derivatives; unknown patch outputs can use the compatibility interpreter and remain unqualified.",
     "original_game_title": "MOTHER 3",
     "project_url": "https://github.com/josiahg2502-glitch/Mother3Recomp",
-    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/josiahg2502-glitch/Mother3Recomp",
     "issue_number": 2596,
@@ -22,12 +21,12 @@
           "instruction": "The inspected official 1.0.8 Windows ZIP contains AMD64 Mother3Recomp.exe, matching libraries/assets and separate component license files. Keep its complete extracted folder. The game runs through the linked GBA framework: translated dispatch and runtime/interpreter fallback are distinct, and the source can force interpreter fallback when no dispatch table is present. A Windows PE is not proof every game instruction is statically native. A source build, Android APK and another GBA game are separate routes."
         },
         {
-          "title": "Add the project’s normal player",
-          "instruction": "Finish the upstream ROM/BIOS picker, any independently permitted translation and settings first; keep independent originals. Select Mother3Recomp.exe, set its complete extracted Windows directory as working directory and leave arguments empty. Review the exact intent and request Play separately, then use the upstream Play UI for the already configured game. The selected native entry runs its setup UI and linked game in process. Complete missing input, patch application, imports or maintenance outside the attached attempt. This guide obtains or executes no BIOS, ROM, patch, compiler, helper or game."
+          "title": "Finish upstream setup before Play",
+          "instruction": "Finish the upstream ROM/BIOS picker, any independently permitted translation and settings first; keep independent originals. Request Play separately, then use the upstream Play UI for the already configured game. The selected native entry runs its setup UI and linked game in process. Complete missing input, patch application, imports or maintenance outside the attached attempt. This guide obtains or executes no BIOS, ROM, patch, compiler, helper or game."
         },
         {
           "title": "Preserve battery saves, derivatives and old paths",
-          "instruction": "Keep saves/mother3_en_v13.sav, its .sav.bak retained by upstream battery-save import, all state/settings data, config.ini, keybinds.ini, game.toml, rom.cfg, bios.cfg, mods/rom-patches and existing external original/patch/save paths. Legacy cfg paths can be relative to their own folder; do not silently reinterpret them under a new CWD. Upstream import accepts battery .sav/.srm, not emulator save states; this is not observed compatibility acceptance. This guide performs no patching, import, migration, restore, backup or deletion."
+          "instruction": "Legacy cfg paths can be relative to their own folder; do not silently reinterpret them under a new CWD. Upstream import accepts battery .sav/.srm, not emulator save states; this is not observed compatibility acceptance. This guide performs no patching, import, migration, restore, backup or deletion."
         },
         {
           "title": "Retain individual component and content terms",
@@ -35,7 +34,7 @@
         },
         {
           "title": "Maintain the external copy and its limits",
-          "instruction": "Quit the actual game normally before upstream replacement, ROM/patch changes or save imports. Preserve independent recovery copies and review/relink changed executable bytes. Forced termination is not a save-flush guarantee. Upstream HQ audio, smoothing, translation and save-import reports remain upstream claims; patch-dependent interpreter behavior, performance and compatibility are not generalized. No native/installed, campaign, save/reload or Supported acceptance is asserted. Removing registration preserves external files; managed lifecycle operations remain unavailable."
+          "instruction": "Quit the actual game normally before upstream replacement, ROM/patch changes or save imports. Preserve independent recovery copies. Forced termination is not a save-flush guarantee. Upstream HQ audio, smoothing, translation and save-import reports remain upstream claims; patch-dependent interpreter behavior, performance and compatibility are not generalized. No native/installed, campaign, save/reload or Supported acceptance is asserted."
         }
       ],
       "warnings": [
@@ -54,5 +53,44 @@
       }
     },
     "decisions": []
+  },
+  "route_facts_v1": {
+    "format_version": 1,
+    "prepared_player": {
+      "executable": "Mother3Recomp.exe",
+      "working_directory": "executable-parent",
+      "arguments": [],
+      "data_locations": [
+        "saves/mother3_en_v13.sav and its .sav.bak retained by upstream battery-save import",
+        "state/settings data, config.ini, keybinds.ini, game.toml, rom.cfg and bios.cfg",
+        "mods/rom-patches and existing external original/patch/save paths"
+      ]
+    }
+  },
+  "package_observation_v1": {
+    "format_version": 1,
+    "port_id": "mother-3-mother-3-recomp",
+    "repository": "josiahg2502-glitch/Mother3Recomp",
+    "source_revision": "d50215580540f08d093c8decc478838f26b7e9ae",
+    "selection_sha256": "8e148d7f9a08b2e7854a900d605737f8d8a7fbb9f9615dec106e916a92cb7539",
+    "artifact": {
+      "id": 685948202,
+      "name": "Mother3Recomp-v1.0.8-windows-x64.zip",
+      "url": "https://github.com/josiahg2502-glitch/Mother3Recomp/releases/download/v1.0.8/Mother3Recomp-v1.0.8-windows-x64.zip",
+      "bytes": 36758584,
+      "sha256": "8f27d1ab97a66b1a6d5201c56eaf89832a699c711f0555d56e1d84f3ddf03d9d"
+    },
+    "player": {
+      "path": "Mother3Recomp-v1.0.8-windows-x64/Mother3Recomp.exe",
+      "bytes": 84812534,
+      "sha256": "347210ae76b140cca86e6a56984d16276798b8d675120495f05c907fc8ed8655",
+      "machine": "0x8664",
+      "header_bytes": 65560
+    },
+    "provenance": {
+      "receipt_sha256": "8f3c0c625ac75af11a8397f0b6dcb3ae97e9c2badd21ee44bfa7413b41fb2618",
+      "reference": "docs/qualification/prepared-player-cohort-r40-2026-11-01.json"
+    },
+    "scope_sha256": "111033e4012b570f5b4ee6ff453d31c38574c9ced21e8b818bd3c2fd6cb8b2ee"
   }
 }

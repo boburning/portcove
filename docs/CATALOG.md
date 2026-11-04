@@ -1942,6 +1942,39 @@ accepted member observations. An ordinary fitting title needs no production Rust
 or per-title test wrapper. Independent observations and custom behavioral tests
 remain necessary where their scope differs from the shared route.
 
+Optional authoring-only `package_observation_v1` retains an exact previously
+accepted package/player inspection. Ordinary `prepare-port` consumes its receipt
+with paired `--package-observation <json>` and
+`--package-observation-reference <repository-relative-path>` options. The title,
+upstream, independently expected archive digest, complete member CRC and bounded
+header must identify the unique declared prepared player. Installer headers do
+not substitute for an unobserved child; incomplete or ambiguous coverage refuses.
+This consumes existing accepted evidence and does not authenticate an unsigned
+report, download or execute a player, or grant publication authority.
+
+For listing-only prepared routes the selected AMD64 PE header derives descriptive
+Windows x86-64 metadata. The authored record must not also repeat `platforms`.
+Other header architectures remain unknown; managed platform authority stays in
+the integration. A changed selected executable, working folder, literal arguments
+or upstream makes the retained observation inapplicable, without blocking an
+otherwise eligible runtime. Accepted bytes changing under a retained package or
+member identity refuse even when an explicit replacement record omits or replaces
+the old observation. A distinct upstream artifact gets its own binding.
+
+The existing private preparation checkpoint reuses an unchanged projection bound
+to the artifact, member, selected-player contract and actual validator module
+bytes. Relevant changes invalidate that result; unrelated prose, data-location
+narration or receipt notes do not require another package inspection. Receipts
+retain their original evidence provenance and scope. Ordinary generation also
+writes `accepted-route-expectations.generated.json` from applicable accepted
+member observations and their bound launch vectors, feeding the same lifecycle
+harness without a second per-title expectations edit. Unknown header architecture
+still enrolls its applicable prepared-player contract. A changed selection contract
+needs a correspondingly accepted observation before authoring generation; it
+cannot accidentally disappear from the lifecycle inventory. Probe execution remains
+separate from upstream binary execution, dependency/gameplay and Supported
+qualification. Historical concrete definitions and prior receipts remain intact.
+
 Optional listing `original_game` is a version-1 descriptive identity: an explicitly
 reviewed stable `id`, one to eight public HTTPS `evidence_urls`, and up to sixteen
 `source_editions`. Each edition has its own stable `id`, descriptive `title`,
