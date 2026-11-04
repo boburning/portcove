@@ -1,3 +1,4 @@
+import { acceptedPlayerRouteExpectations } from "./package-player-observation.mts";
 import { routeEnrollment, renderRouteTests } from "./catalog-route-facts.mts";
 import { coreProposalInspector } from "./catalog-authoring-inspector.mts";
 import type { ProposalReceipt } from "./catalog-authoring-inspector.mts";
@@ -43,6 +44,10 @@ const routeTestPaths = {
   prepared: join(routeTestRoot, "prepared-route-tests.generated.rs"),
   managed: join(routeTestRoot, "managed-route-tests.generated.rs"),
 };
+const acceptedRouteExpectationsPath = join(
+  routeTestRoot,
+  "accepted-route-expectations.generated.json",
+);
 const historicalPath = join(catalogRoot, "catalog-schema2-migration-fixture.json");
 
 function readJson(path: string): unknown {
@@ -631,8 +636,10 @@ if (preparing) {
   const listingsOutput = `${JSON.stringify(authored.directory, null, 2)}\n`;
   const enrollmentOutput = `${JSON.stringify(routeEnrollment(authored.records), null, 2)}\n`;
   const routeTests = renderRouteTests(authored.records);
+  const acceptedRouteExpectationsOutput = `${JSON.stringify(acceptedPlayerRouteExpectations(authored.records), null, 2)}\n`;
   if (process.argv.includes("--check")) {
     if (
+      readFileSync(acceptedRouteExpectationsPath, "utf8") !== acceptedRouteExpectationsOutput ||
       readFileSync(routeTestPaths.prepared, "utf8") !== routeTests.prepared ||
       readFileSync(routeTestPaths.managed, "utf8") !== routeTests.managed ||
       readFileSync(enrollmentPath, "utf8") !== enrollmentOutput ||
@@ -644,6 +651,7 @@ if (preparing) {
     }
   } else {
     mkdirSync(routeTestRoot, { recursive: true });
+    writeFileSync(acceptedRouteExpectationsPath, acceptedRouteExpectationsOutput);
     writeFileSync(routeTestPaths.prepared, routeTests.prepared);
     writeFileSync(routeTestPaths.managed, routeTests.managed);
     writeFileSync(enrollmentPath, enrollmentOutput);

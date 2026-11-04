@@ -4,12 +4,22 @@ import { spawnSync, execFileSync } from "node:child_process";
 import { lstatSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import path from "node:path";
 import { isRecord } from "./runtime-values.mts";
+import { gtkQualificationObservation } from "./dialog-gtk-observation.mts";
+
+let phase = "source";
+// Monitor leaves Node's original uncaught exception behavior and exit intact.
+process.on("uncaughtExceptionMonitor", () => {
+  console.error(
+    `::error title=GTK qualification refused::${JSON.stringify(gtkQualificationObservation(phase))}`,
+  );
+});
 
 assert.equal(process.platform, "linux", "GTK qualification requires actual Linux");
 const root = process.cwd();
 const source = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
 execFileSync("git", ["diff", "--quiet", "HEAD", "--"], { cwd: root });
 if (process.env.PORTCOVE_SOURCE_COMMIT) assert.equal(source, process.env.PORTCOVE_SOURCE_COMMIT);
+phase = "output";
 const outputRoot = path.join(root, "work", "dialog-gtk");
 mkdirSync(outputRoot, { recursive: true });
 const output = mkdtempSync(path.join(outputRoot, "run-"));
@@ -22,6 +32,7 @@ const identity = {
 writeFileSync(path.join(output, "intent.json"), JSON.stringify(identity) + "\n", { flag: "wx" });
 console.log(JSON.stringify({ ...identity, status: "started" }));
 const control = mkdtempSync(path.join(output, "unpatched-"));
+phase = "provenance";
 const provenance: unknown = JSON.parse(
   readFileSync(path.join(root, "vendor/rfd-provenance.json"), "utf8"),
 );
@@ -70,6 +81,7 @@ for (const [name, original] of entries) {
   mkdirSync(path.dirname(destination), { recursive: true });
   writeFileSync(destination, data, { flag: "wx" });
 }
+phase = "control";
 const filename = path.join(control, "src/backend/gtk3/message_dialog.rs");
 const fixed = `            gtk_sys::gtk_message_dialog_format_secondary_text(
                 ptr as *mut _,
@@ -95,6 +107,7 @@ for (const [label, directory] of [
   ["patched", path.join(root, "vendor/rfd")],
   ["unpatched", control],
 ] as const) {
+  phase = `${label}-execution`;
   const result = spawnSync(
     process.execPath,
     [
@@ -126,6 +139,10 @@ for (const [label, directory] of [
   writeFileSync(path.join(output, `${label}.stdout.txt`), result.stdout ?? "");
   writeFileSync(path.join(output, `${label}.stderr.txt`), result.stderr ?? "");
   const combined = (result.stdout ?? "") + (result.stderr ?? "");
+  phase = `${label}-observation`;
+  console.log(
+    `::notice title=GTK constructor observation::${JSON.stringify(gtkQualificationObservation(phase, { status: result.status, signal: result.signal, output: combined }))}`,
+  );
   assert.equal(result.error, undefined, `${label} execution failed`);
   assert.match(combined, /PORTCOVE_RFD_TEXT_PROBE/u, "actual constructor must execute");
   if (label === "patched") {
@@ -138,6 +155,7 @@ for (const [label, directory] of [
   }
   observations.push({ label, status: result.status, actual_constructor: true });
 }
+phase = "result";
 writeFileSync(
   path.join(output, "result.json"),
   JSON.stringify(
@@ -153,4 +171,5 @@ writeFileSync(
   { flag: "wx" },
 );
 rmSync(control, { recursive: true });
+phase = "complete";
 console.log(JSON.stringify({ source, status: "passed", observations }));

@@ -782,15 +782,12 @@ pub(crate) fn route_enrollment() -> Vec<RouteEnrollment> {
         assert_eq!(case.prepared_player.working_directory, "executable-parent");
         assert!(!case.prepared_player.data_locations.is_empty());
     }
-    let expected: serde_json::Value =
-        serde_json::from_str(include_str!("testdata/route-enrollment-expectations.json")).unwrap();
-    assert_eq!(expected["format_version"], 1);
     let mut expected_ids = std::collections::BTreeMap::new();
-    for row in expected["cases"].as_array().unwrap() {
+    for row in route_expectations() {
         assert!(
             expected_ids
                 .insert(
-                    row["port_id"].as_str().unwrap(),
+                    row["port_id"].as_str().unwrap().to_owned(),
                     row["managed_native"].as_bool().unwrap()
                 )
                 .is_none()
@@ -799,11 +796,26 @@ pub(crate) fn route_enrollment() -> Vec<RouteEnrollment> {
     let actual = envelope
         .cases
         .iter()
-        .map(|case| (case.port_id.as_str(), case.managed_native))
+        .map(|case| (case.port_id.clone(), case.managed_native))
         .collect::<std::collections::BTreeMap<_, _>>();
     assert_eq!(
         actual, expected_ids,
         "no missing, duplicate or unexpectedly skipped declared lifecycle coverage"
     );
     envelope.cases
+}
+
+/// Retained independent legacy expectations plus accepted package/member observations.
+pub(crate) fn route_expectations() -> Vec<serde_json::Value> {
+    let mut rows = Vec::new();
+    for document in [
+        include_str!("testdata/route-enrollment-expectations.json"),
+        include_str!("testdata/accepted-route-expectations.generated.json"),
+    ] {
+        let envelope: serde_json::Value = serde_json::from_str(document).unwrap();
+        assert_eq!(envelope["format_version"], 1);
+        rows.extend(envelope["cases"].as_array().unwrap().iter().cloned());
+    }
+    assert!(rows.len() <= 256);
+    rows
 }
