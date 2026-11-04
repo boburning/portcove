@@ -1,3 +1,4 @@
+import { controllerFixtureFailureAnnotation } from "./qualify-controller-tool-build.mts";
 import assert from "node:assert/strict";
 import { runInNewContext } from "node:vm";
 import { parseDocument } from "yaml";
@@ -1454,7 +1455,7 @@ void test("installed bootstrap clears inherited GitHub credentials only for comp
       literalPins.push(`${name}/${index}`);
       assert.equal(step.uses, "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1");
       assert.equal(step.with["node-version"], "24.22.2");
-      const currentJob = raw.jobs[name];
+      const currentJob: unknown = raw.jobs[name];
       assert.ok(isRecord(currentJob) && Array.isArray(currentJob.steps));
       const currentStep: unknown = currentJob.steps[index];
       assert.ok(isRecord(currentStep) && isRecord(currentStep.with));
@@ -2270,4 +2271,51 @@ void test("protected Windows runtime sequential budget preserves original provid
     { minutes: Infinity },
   ])
     assert.throws(() => remaining({ ...original, ...changed }));
+});
+
+void test("controller failure annotations expose bounded stage metadata while excluding private error contents", () => {
+  const error = Object.assign(new Error("PRIVATE credential and path"), {
+    code: "ERR_ASSERTION",
+    stack:
+      "Error: PRIVATE\n at build (file:///private/source/scripts/release-controller-tool-build.mts:417:9)",
+  });
+  const annotation = controllerFixtureFailureAnnotation("actual-fixed-build", error, 123);
+  const prefix = "::error title=Controller fixture refused::";
+  assert.ok(annotation.startsWith(prefix));
+  assert.deepEqual(JSON.parse(annotation.slice(prefix.length)), {
+    phase: "actual-fixed-build",
+    code: "ERR_ASSERTION",
+    site: { file: "release-controller-tool-build.mts", line: 417, column: 9 },
+    build_milliseconds: 123,
+  });
+  assert.doesNotMatch(annotation, /PRIVATE|credential|\/private/u);
+  assert.ok(Buffer.byteLength(annotation) < 512);
+  let codeReads = 0;
+  const changing = Object.defineProperty(new Error("PRIVATE"), "code", {
+    get() {
+      codeReads++;
+      return codeReads === 1 ? "ERR_ASSERTION" : "PRIVATE";
+    },
+  });
+  const stable = controllerFixtureFailureAnnotation("source", changing, 0);
+  assert.equal(codeReads, 1);
+  assert.doesNotMatch(stable, /PRIVATE/u);
+
+  const hostile = Object.defineProperty(new Error("PRIVATE"), "code", {
+    get() {
+      throw new Error("PRIVATE");
+    },
+  });
+  const refused = controllerFixtureFailureAnnotation(
+    "PRIVATE\n::error::injected",
+    hostile,
+    Number.NaN,
+  );
+  assert.deepEqual(JSON.parse(refused.slice(prefix.length)), {
+    phase: "unknown",
+    code: "unclassified",
+    site: null,
+    build_milliseconds: null,
+  });
+  assert.doesNotMatch(refused, /PRIVATE|injected/u);
 });

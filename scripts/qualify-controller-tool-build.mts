@@ -1,3 +1,4 @@
+import { isRecord } from "./runtime-values.mts";
 /** Ordinary credential-free hosted build fixture. Never a production tool route. */
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -219,6 +220,77 @@ export async function qualifyNativeChildren(
     orphan_closure: keyless ? "not-exercised" : "quiescent",
     native_acceptance: "not-established",
   };
+}
+
+/** Public failure metadata only. Never emit error text, paths, stdout or credentials. */
+export function controllerFixtureFailureAnnotation(
+  phase: string,
+  error: unknown,
+  buildMilliseconds: number | null,
+) {
+  const phases = new Set([
+    "source",
+    "fixed-node-runtime",
+    "actual-fixed-build",
+    "opaque-tool-readback",
+    "actual-compiler-source-closure",
+    "actual-node-runtime",
+    "actual-native-package-manager",
+    "actual-frozen-native-dependencies",
+    "actual-native-webdriver",
+    "actual-tauri-addon-help",
+    "actual-bundle-refusal-smoke",
+    "actual-fixed-native-worker-source-refusal",
+    "actual-fixed-native-child-refusal",
+    "actual-native-runtime-chain",
+    "actual-rust-refusal-smoke",
+    "actual-core-cli-inert-inspection",
+    "actual-connected-disposable-release",
+    "cold-build-budget",
+    "complete",
+  ]);
+  const codes = new Set([
+    "ERR_ASSERTION",
+    "ENOENT",
+    "EACCES",
+    "EROFS",
+    "ENOSPC",
+    "EIO",
+    "ENOMEM",
+    "ETIMEDOUT",
+    "ERR_MODULE_NOT_FOUND",
+    "ERR_UNKNOWN_BUILTIN_MODULE",
+  ]);
+  let code = "unclassified";
+  let site: { file: string; line: number; column: number } | null = null;
+  try {
+    const observedCode: unknown = isRecord(error) ? error.code : undefined;
+    if (typeof observedCode === "string" && codes.has(observedCode)) code = observedCode;
+    const stack: unknown = error instanceof Error ? error.stack : undefined;
+    if (typeof stack === "string") {
+      const match = stack
+        .slice(0, 16384)
+        .match(
+          /\/(qualify-controller-tool-build|release-controller-tool-build|release-controller-tools)\.mts:([0-9]{1,6}):([0-9]{1,4})/u,
+        );
+      if (match && Number(match[2]) > 0 && Number(match[3]) > 0)
+        site = { file: `${match[1]}.mts`, line: Number(match[2]), column: Number(match[3]) };
+    }
+  } catch {
+    // A hostile error getter must not replace the original producer failure.
+  }
+  return `::error title=Controller fixture refused::${JSON.stringify({
+    phase: phases.has(phase) ? phase : "unknown",
+    code,
+    site,
+    build_milliseconds:
+      typeof buildMilliseconds === "number" &&
+      Number.isSafeInteger(buildMilliseconds) &&
+      buildMilliseconds >= 0 &&
+      buildMilliseconds <= 3600000
+        ? buildMilliseconds
+        : null,
+  })}`;
 }
 
 async function main() {
@@ -704,6 +776,7 @@ async function main() {
       authority: "none",
     });
   } catch (error: unknown) {
+    console.error(controllerFixtureFailureAnnotation(phase, error, buildMilliseconds));
     await record("result.json", {
       schema_version: 1,
       status: "fail",

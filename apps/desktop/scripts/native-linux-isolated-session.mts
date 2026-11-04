@@ -1,3 +1,4 @@
+import { controllerNodeMaximumBytes } from "../../../scripts/controller-node-runtime.mts";
 /** Owned namespace lifecycle and private WebDriver FDs. This is a native harness
  * adapter, never a scheduler grant, issuer or installed-platform acceptance. */
 import assert from "node:assert/strict";
@@ -768,7 +769,7 @@ async function recheckLinuxSession(
     assert.equal(
       await hash(
         await realpath(value.path),
-        name === "node" ? 128 * 1024 * 1024 : 64 * 1024 * 1024,
+        name === "node" ? controllerNodeMaximumBytes : 64 * 1024 * 1024,
       ),
       value.sha256,
     );
