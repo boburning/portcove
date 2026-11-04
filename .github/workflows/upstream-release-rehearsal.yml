@@ -1,7 +1,6 @@
-# Disposable protected-source rehearsal only. Production remains paused.
-# Serial native caps total116minutes; observed retry admission remains within140.
+# Recovery only: original r2 payloads, keys, acceptance and immutable release are reused.
 name: Upstream Windows release rehearsal
-run-name: Nonproduction Windows delivery ${{ github.run_id }}/${{ github.run_attempt }}
+run-name: NONPRODUCTION retained r2 recovery ${{ github.run_id }}/${{ github.run_attempt }}
 on:
   workflow_dispatch: null
 permissions:
@@ -10,140 +9,32 @@ permissions:
 concurrency:
   group: application-update-production-controller
   cancel-in-progress: false
+env:
+  PORTCOVE_REHEARSAL_ORIGIN_ATTEMPT: "1"
+  PORTCOVE_REHEARSAL_SIGNER_ATTEMPT: "1"
+  PORTCOVE_REHEARSAL_NATIVE_ATTEMPT: "1"
+  PORTCOVE_REHEARSAL_ACCEPTANCE_ATTESTER_ATTEMPT: "1"
+  PORTCOVE_REHEARSAL_RELEASE_ID: "433642404"
 jobs:
-  package:
-    if: ${{ github.repository == 'boburning/portcove' && github.ref == 'refs/tags/portcove-upstream-rehearsal-20261104r2' && github.ref_protected }}
-    runs-on: windows-2025
-    timeout-minutes: 30
-    outputs:
-      artifact: ${{ steps.upload.outputs.artifact-id }}
-      desktop_artifact: ${{ steps.desktop.outputs.artifact-id }}
-      attempt: ${{ steps.producer.outputs.attempt }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.sha }}
-          persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version-file: .node-version
-          package-manager-cache: false
-      - name: Bound actual cumulative runtime and remaining native jobs
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: node scripts/upstream-release-runtime.mts budget package
-      - id: producer
-        name: Retain this actual producer attempt
-        run: node -e "require('node:fs').appendFileSync(process.env.GITHUB_OUTPUT,'attempt='+process.env.GITHUB_RUN_ATTEMPT+String.fromCharCode(10))"
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-        with:
-          package_json_file: package.json
-      - uses: ./.github/actions/setup-rust
-      - run: pnpm install --frozen-lockfile
-      - name: Build one unsigned current-user NSIS and CLI candidate
-        shell: pwsh
-        run: |-
-          if ($env:TAURI_SIGNING_PRIVATE_KEY -or $env:TAURI_SIGNING_PRIVATE_KEY_PATH -or $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD) { throw 'Builder must have no signing material' }
-          & node scripts/upstream-release-rehearsal.mts prepare-candidate
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $packageConfiguration = Join-Path $PWD 'work/upstream-preparation/package.conf.json'
-          & pnpm --dir apps/desktop tauri build --ci --features application-update-qualification --bundles nsis --config $packageConfiguration
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          & cargo build --locked --release -p portcove-cli
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          & ./scripts/package-cli.ps1 -PlatformLabel windows-x86_64
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          & node scripts/upstream-release-rehearsal.mts stage
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        id: upload
-        with:
-          name: upstream-unsigned-${{ github.run_id }}-${{ github.run_attempt }}
-          path: work/upstream-unsigned/*
-          if-no-files-found: error
-          retention-days: 1
-          overwrite: false
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        id: desktop
-        with:
-          name: upstream-candidate-executable-${{ github.run_id }}-${{ github.run_attempt }}
-          path: target/release/portcove-desktop.exe
-          if-no-files-found: error
-          retention-days: 1
-          overwrite: false
-  provenance:
-    needs:
-      - package
+  recovery:
+    if: ${{ github.repository == 'boburning/portcove' && github.ref == 'refs/tags/portcove-upstream-rehearsal-20261104r3' && github.ref_protected && github.run_attempt == 1 }}
     runs-on: ubuntu-22.04
     timeout-minutes: 3
-    permissions:
-      contents: read
-      actions: read
-      id-token: write
-      attestations: write
-    env:
-      PORTCOVE_REHEARSAL_ORIGIN_ATTEMPT: ${{ needs.package.outputs.attempt }}
-    outputs:
-      attempt: ${{ steps.producer.outputs.attempt }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
+      - name: Fetch only the immutable original source for its retained harness binding
+        run: git fetch --no-tags --depth=1 origin 7a60432ab6c3773f744af156c0512cd1795b10c1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
           package-manager-cache: false
-      - name: Bound actual cumulative runtime and remaining native jobs
+      - name: Bound all three actual execution exposures without recounting copied history
         env:
           GH_TOKEN: ${{ github.token }}
-        run: node scripts/upstream-release-runtime.mts budget provenance
-      - id: producer
-        name: Retain this actual producer attempt
-        run: node -e "require('node:fs').appendFileSync(process.env.GITHUB_OUTPUT,'attempt='+process.env.GITHUB_RUN_ATTEMPT+String.fromCharCode(10))"
-      - name: Receive exact bounded unsigned artifact
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PORTCOVE_INPUT_ARTIFACT: ${{ needs.package.outputs.artifact }}
-          PORTCOVE_INPUT_ATTEMPT: ${{ needs.package.outputs.attempt }}
-        run: node scripts/upstream-release-transfer.mts unsigned "$PORTCOVE_INPUT_ARTIFACT" work/upstream-unsigned "$PORTCOVE_INPUT_ATTEMPT"
-      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
-        with:
-          subject-path: work/upstream-unsigned/rehearsal.json
-  sign:
-    needs:
-      - package
-      - provenance
-    runs-on: ubuntu-22.04
-    timeout-minutes: 10
-    permissions:
-      contents: read
-      actions: read
-      id-token: write
-      attestations: write
-    env:
-      PORTCOVE_REHEARSAL_ORIGIN_ATTEMPT: ${{ needs.package.outputs.attempt }}
-      PORTCOVE_REHEARSAL_PACKAGE_ATTESTER_ATTEMPT: ${{ needs.provenance.outputs.attempt }}
-    outputs:
-      artifact: ${{ steps.upload.outputs.artifact-id }}
-      attempt: ${{ steps.producer.outputs.attempt }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.sha }}
-          persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version-file: .node-version
-          package-manager-cache: false
-      - name: Bound actual cumulative runtime and remaining native jobs
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: node scripts/upstream-release-runtime.mts budget sign
-      - id: producer
-        name: Retain this actual producer attempt
-        run: node -e "require('node:fs').appendFileSync(process.env.GITHUB_OUTPUT,'attempt='+process.env.GITHUB_RUN_ATTEMPT+String.fromCharCode(10))"
-      - uses: ./.github/actions/setup-rust
+        run: node scripts/upstream-release-runtime.mts budget recovery
       - name: Install existing hash-pinned GitHub verifier
         shell: bash
         run: |-
@@ -152,348 +43,31 @@ jobs:
           echo "bb766f710eef8ede859c18578c72c327597cd4c8a85b06001b1f3843c6019386  $RUNNER_TEMP/gh.tar.gz" | sha256sum --check --strict
           tar -xzf "$RUNNER_TEMP/gh.tar.gz" -C "$RUNNER_TEMP" gh_2.102.0_linux_amd64/bin/gh
           echo "$RUNNER_TEMP/gh_2.102.0_linux_amd64/bin" >> "$GITHUB_PATH"
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-        with:
-          package_json_file: package.json
-      - name: Install reviewed lockfile without hooks or candidate caches
-        run: pnpm install --frozen-lockfile --ignore-scripts
-      - name: Build existing trusted verifier and disposable repository generator
-        run: cargo build --locked --release -p portcove-release-tools --bin portcove-release-tools --example generate_test_updater_repository
-      - name: Receive exact bounded unsigned artifact
+      - name: Receive original signed artifact
         env:
           GH_TOKEN: ${{ github.token }}
-          PORTCOVE_INPUT_ARTIFACT: ${{ needs.package.outputs.artifact }}
-          PORTCOVE_INPUT_ATTEMPT: ${{ needs.package.outputs.attempt }}
-        run: node scripts/upstream-release-transfer.mts unsigned "$PORTCOVE_INPUT_ARTIFACT" work/upstream-unsigned "$PORTCOVE_INPUT_ATTEMPT"
-      - name: Verify provenance, sign and verify with disposable keys, then remove keys
+        run: node scripts/upstream-release-transfer.mts signed 13303950552 work/upstream-signed 1
+      - name: Receive original acceptance artifact
         env:
           GH_TOKEN: ${{ github.token }}
-        run: node scripts/upstream-release-rehearsal.mts sign work/upstream-unsigned
-      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
-        with:
-          subject-path: work/upstream-signed/rehearsal.json
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        id: upload
-        with:
-          name: upstream-signed-${{ github.run_id }}-${{ github.run_attempt }}
-          path: work/upstream-signed/*
-          if-no-files-found: error
-          retention-days: 1
-          overwrite: false
-  baseline:
-    needs:
-      - package
-      - sign
-    runs-on: ubuntu-22.04
-    timeout-minutes: 5
-    permissions:
-      contents: read
-      actions: read
-      attestations: read
-      pages: write
-      id-token: write
-    environment: github-pages
-    env:
-      PORTCOVE_REHEARSAL_ORIGIN_ATTEMPT: ${{ needs.package.outputs.attempt }}
-      PORTCOVE_REHEARSAL_SIGNER_ATTEMPT: ${{ needs.sign.outputs.attempt }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.sha }}
-          persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version-file: .node-version
-          package-manager-cache: false
-      - name: Bound actual cumulative runtime and remaining native jobs
+        run: node scripts/upstream-release-transfer.mts acceptance 13305366285 work/upstream-acceptance 1
+      - name: Verify exact original failure, immutable assets, baseline and original deadline
         env:
           GH_TOKEN: ${{ github.token }}
-        run: node scripts/upstream-release-runtime.mts budget baseline
-      - name: Install existing hash-pinned GitHub verifier
-        shell: bash
-        run: |-
-          set -euo pipefail
-          curl --fail --location --max-time 120 --max-filesize 16000000 --output "$RUNNER_TEMP/gh.tar.gz" https://github.com/cli/cli/releases/download/v2.102.0/gh_2.102.0_linux_amd64.tar.gz
-          echo "bb766f710eef8ede859c18578c72c327597cd4c8a85b06001b1f3843c6019386  $RUNNER_TEMP/gh.tar.gz" | sha256sum --check --strict
-          tar -xzf "$RUNNER_TEMP/gh.tar.gz" -C "$RUNNER_TEMP" gh_2.102.0_linux_amd64/bin/gh
-          echo "$RUNNER_TEMP/gh_2.102.0_linux_amd64/bin" >> "$GITHUB_PATH"
-      - name: Receive exact bounded signed artifact
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PORTCOVE_INPUT_ARTIFACT: ${{ needs.sign.outputs.artifact }}
-          PORTCOVE_INPUT_ATTEMPT: ${{ needs.sign.outputs.attempt }}
-        run: node scripts/upstream-release-transfer.mts signed "$PORTCOVE_INPUT_ARTIFACT" work/upstream-signed "$PORTCOVE_INPUT_ATTEMPT"
-      - id: site
-        name: Prepare only the isolated initial empty feed and preserve prior site
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: node scripts/upstream-release-pages.mts prepare baseline
-      - name: Upload complete baseline rehearsal site
-        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
-        if: ${{ steps.site.outputs.deploy == 'true' && steps.site.outputs.interrupt != 'true' }}
-        with:
-          name: upstream-pages-baseline-${{ github.run_id }}-${{ github.run_attempt }}
-          path: work/upstream-site
-          include-hidden-files: true
-          retention-days: 1
-      - name: Deploy baseline rehearsal feed
-        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
-        if: ${{ steps.site.outputs.deploy == 'true' && steps.site.outputs.interrupt != 'true' }}
-        with:
-          artifact_name: upstream-pages-baseline-${{ github.run_id }}-${{ github.run_attempt }}
-          timeout: "120000"
-          error_count: "3"
-      - name: Verify exact public baseline bytes
-        run: node scripts/upstream-release-pages.mts observe baseline
+        run: node scripts/upstream-release-recovery.mts
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: upstream-baseline-proof-${{ github.run_id }}-${{ github.run_attempt }}
+          name: upstream-recovery-preflight-${{ github.run_id }}-${{ github.run_attempt }}
           path: |-
-            work/upstream-site-*.json
+            work/upstream-recovery-preflight.json
             work/upstream-runtime/*.json
-          if-no-files-found: error
-          retention-days: 7
-          overwrite: false
-  installed:
-    needs:
-      - package
-      - sign
-      - baseline
-    runs-on: windows-2025
-    timeout-minutes: 35
-    permissions:
-      contents: read
-      actions: read
-    env:
-      PORTCOVE_REHEARSAL_ORIGIN_ATTEMPT: ${{ needs.package.outputs.attempt }}
-      PORTCOVE_REHEARSAL_SIGNER_ATTEMPT: ${{ needs.sign.outputs.attempt }}
-    outputs:
-      acceptance: ${{ steps.acceptance.outputs.artifact-id }}
-      predecessor: ${{ steps.predecessor.outputs.artifact-id }}
-      attempt: ${{ steps.producer.outputs.attempt }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.sha }}
-          persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version-file: .node-version
-          package-manager-cache: false
-      - name: Bound actual cumulative runtime and remaining native jobs
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: node scripts/upstream-release-runtime.mts budget installed
-      - id: producer
-        name: Retain this actual producer attempt
-        run: node -e "require('node:fs').appendFileSync(process.env.GITHUB_OUTPUT,'attempt='+process.env.GITHUB_RUN_ATTEMPT+String.fromCharCode(10))"
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-        with:
-          package_json_file: package.json
-      - uses: ./.github/actions/setup-rust
-      - run: pnpm install --frozen-lockfile
-      - name: Provision only the existing native driver profile
-        shell: pwsh
-        run: ./scripts/bootstrap-quality-tools.ps1 -Profile native-drivers
-      - name: Receive exact bounded signed artifact
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PORTCOVE_INPUT_ARTIFACT: ${{ needs.sign.outputs.artifact }}
-          PORTCOVE_INPUT_ATTEMPT: ${{ needs.sign.outputs.attempt }}
-        run: node scripts/upstream-release-transfer.mts signed $env:PORTCOVE_INPUT_ARTIFACT work/upstream-signed $env:PORTCOVE_INPUT_ATTEMPT
-      - name: Receive exact bounded candidate-executable artifact
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PORTCOVE_INPUT_ARTIFACT: ${{ needs.package.outputs.desktop_artifact }}
-          PORTCOVE_INPUT_ATTEMPT: ${{ needs.package.outputs.attempt }}
-        run: node scripts/upstream-release-transfer.mts candidate-executable $env:PORTCOVE_INPUT_ARTIFACT work/upstream-candidate-executable $env:PORTCOVE_INPUT_ATTEMPT
-      - name: Exercise local installed update, build public predecessor and authenticate empty HTTPS feed
-        shell: pwsh
-        run: ./scripts/upstream-release-installed-rehearsal.ps1
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        id: acceptance
-        with:
-          name: upstream-acceptance-${{ github.run_id }}-${{ github.run_attempt }}
-          path: work/upstream-acceptance/*
-          if-no-files-found: error
-          retention-days: 7
-          overwrite: false
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        id: predecessor
-        with:
-          name: upstream-public-predecessor-${{ github.run_id }}-${{ github.run_attempt }}
-          path: work/upstream-public-predecessor/*
-          if-no-files-found: error
-          retention-days: 7
-          overwrite: false
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: upstream-installed-proof-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |-
-            work/upstream-installed-evidence/*.json
-            work/upstream-installed-evidence/diagnostics/session-*/*.jsonl
-            work/upstream-installed-evidence/windows-renderer-evidence/*.json
-            work/upstream-installed-evidence/windows-renderer-evidence/*.png
-            work/upstream-installed-evidence/windows-renderer-evidence/*.log
-            work/upstream-installed-evidence/lifecycle/run-*/*.log
-            work/upstream-installed-evidence/lifecycle/run-*/driver-preflight-*/evidence.json
-            work/upstream-installed-evidence/lifecycle/run-*/driver-preflight-*/driver.log
-          if-no-files-found: warn
-          retention-days: 7
-          overwrite: false
-        if: always()
-  acceptance:
-    needs:
-      - package
-      - sign
-      - installed
-    runs-on: ubuntu-22.04
-    timeout-minutes: 3
-    permissions:
-      contents: read
-      actions: read
-      id-token: write
-      attestations: write
-    env:
-      PORTCOVE_REHEARSAL_ORIGIN_ATTEMPT: ${{ needs.package.outputs.attempt }}
-      PORTCOVE_REHEARSAL_SIGNER_ATTEMPT: ${{ needs.sign.outputs.attempt }}
-    outputs:
-      attempt: ${{ steps.producer.outputs.attempt }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.sha }}
-          persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version-file: .node-version
-          package-manager-cache: false
-      - name: Bound actual cumulative runtime and remaining native jobs
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: node scripts/upstream-release-runtime.mts budget acceptance
-      - id: producer
-        name: Retain this actual producer attempt
-        run: node -e "require('node:fs').appendFileSync(process.env.GITHUB_OUTPUT,'attempt='+process.env.GITHUB_RUN_ATTEMPT+String.fromCharCode(10))"
-      - name: Receive exact bounded signed artifact
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PORTCOVE_INPUT_ARTIFACT: ${{ needs.sign.outputs.artifact }}
-          PORTCOVE_INPUT_ATTEMPT: ${{ needs.sign.outputs.attempt }}
-        run: node scripts/upstream-release-transfer.mts signed "$PORTCOVE_INPUT_ARTIFACT" work/upstream-signed "$PORTCOVE_INPUT_ATTEMPT"
-      - name: Receive exact bounded acceptance artifact
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PORTCOVE_INPUT_ARTIFACT: ${{ needs.installed.outputs.acceptance }}
-          PORTCOVE_INPUT_ATTEMPT: ${{ needs.installed.outputs.attempt }}
-        run: node scripts/upstream-release-transfer.mts acceptance "$PORTCOVE_INPUT_ARTIFACT" work/upstream-acceptance "$PORTCOVE_INPUT_ATTEMPT"
-      - name: Receive exact bounded public-predecessor artifact
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PORTCOVE_INPUT_ARTIFACT: ${{ needs.installed.outputs.predecessor }}
-          PORTCOVE_INPUT_ATTEMPT: ${{ needs.installed.outputs.attempt }}
-        run: node scripts/upstream-release-transfer.mts public-predecessor "$PORTCOVE_INPUT_ARTIFACT" work/upstream-public-predecessor "$PORTCOVE_INPUT_ATTEMPT"
-      - name: Inspect exact native and public predecessor bytes without running them
-        env:
-          PORTCOVE_NATIVE_ATTEMPT: ${{ needs.installed.outputs.attempt }}
-        run: |-
-          node scripts/upstream-release-acceptance.mts check work/upstream-acceptance work/upstream-signed "$PORTCOVE_NATIVE_ATTEMPT"
-          node scripts/upstream-release-acceptance.mts check-public-predecessor work/upstream-public-predecessor work/upstream-signed "$PORTCOVE_NATIVE_ATTEMPT"
-      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
-        with:
-          subject-path: work/upstream-acceptance/acceptance.json
-      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
-        with:
-          subject-path: work/upstream-public-predecessor/public-predecessor.json
-  draft:
-    needs:
-      - package
-      - sign
-      - installed
-      - acceptance
-    runs-on: ubuntu-22.04
-    timeout-minutes: 5
-    permissions:
-      contents: write
-      actions: read
-      attestations: read
-    env:
-      PORTCOVE_REHEARSAL_ORIGIN_ATTEMPT: ${{ needs.package.outputs.attempt }}
-      PORTCOVE_REHEARSAL_SIGNER_ATTEMPT: ${{ needs.sign.outputs.attempt }}
-      PORTCOVE_REHEARSAL_NATIVE_ATTEMPT: ${{ needs.installed.outputs.attempt }}
-      PORTCOVE_REHEARSAL_ACCEPTANCE_ATTESTER_ATTEMPT: ${{ needs.acceptance.outputs.attempt }}
-    outputs:
-      release_id: ${{ steps.publish.outputs.release_id }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.sha }}
-          persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version-file: .node-version
-          package-manager-cache: false
-      - name: Bound actual cumulative runtime and remaining native jobs
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: node scripts/upstream-release-runtime.mts budget draft
-      - name: Install existing hash-pinned GitHub verifier
-        shell: bash
-        run: |-
-          set -euo pipefail
-          curl --fail --location --max-time 120 --max-filesize 16000000 --output "$RUNNER_TEMP/gh.tar.gz" https://github.com/cli/cli/releases/download/v2.102.0/gh_2.102.0_linux_amd64.tar.gz
-          echo "bb766f710eef8ede859c18578c72c327597cd4c8a85b06001b1f3843c6019386  $RUNNER_TEMP/gh.tar.gz" | sha256sum --check --strict
-          tar -xzf "$RUNNER_TEMP/gh.tar.gz" -C "$RUNNER_TEMP" gh_2.102.0_linux_amd64/bin/gh
-          echo "$RUNNER_TEMP/gh_2.102.0_linux_amd64/bin" >> "$GITHUB_PATH"
-      - name: Receive exact bounded signed artifact
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PORTCOVE_INPUT_ARTIFACT: ${{ needs.sign.outputs.artifact }}
-          PORTCOVE_INPUT_ATTEMPT: ${{ needs.sign.outputs.attempt }}
-        run: node scripts/upstream-release-transfer.mts signed "$PORTCOVE_INPUT_ARTIFACT" work/upstream-signed "$PORTCOVE_INPUT_ATTEMPT"
-      - name: Receive exact bounded acceptance artifact
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PORTCOVE_INPUT_ARTIFACT: ${{ needs.installed.outputs.acceptance }}
-          PORTCOVE_INPUT_ATTEMPT: ${{ needs.installed.outputs.attempt }}
-        run: node scripts/upstream-release-transfer.mts acceptance "$PORTCOVE_INPUT_ARTIFACT" work/upstream-acceptance "$PORTCOVE_INPUT_ATTEMPT"
-      - name: Complete and download-verify the draft or reconcile its immutable result
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: node scripts/upstream-release-publication.mts draft work/upstream-signed
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: upstream-draft-proof-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |-
-            work/upstream-draft-result.json
             work/verified-*/*.json
-            work/upstream-runtime/*.json
-          if-no-files-found: error
-          retention-days: 7
-          overwrite: false
-      - id: publish
-        name: Publish once, independently hash every asset and verify immutable release attestation
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: node scripts/upstream-release-publication.mts publish work/upstream-signed
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: upstream-immutable-proof-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |-
-            work/upstream-immutable-result.json
-            work/verified-*/*.json
-            work/upstream-runtime/*.json
           if-no-files-found: error
           retention-days: 7
           overwrite: false
   feed:
     needs:
-      - package
-      - sign
-      - installed
-      - acceptance
-      - draft
-      - baseline
+      - recovery
     runs-on: ubuntu-22.04
     timeout-minutes: 5
     permissions:
@@ -503,17 +77,13 @@ jobs:
       pages: write
       id-token: write
     environment: github-pages
-    env:
-      PORTCOVE_REHEARSAL_ORIGIN_ATTEMPT: ${{ needs.package.outputs.attempt }}
-      PORTCOVE_REHEARSAL_SIGNER_ATTEMPT: ${{ needs.sign.outputs.attempt }}
-      PORTCOVE_REHEARSAL_NATIVE_ATTEMPT: ${{ needs.installed.outputs.attempt }}
-      PORTCOVE_REHEARSAL_ACCEPTANCE_ATTESTER_ATTEMPT: ${{ needs.acceptance.outputs.attempt }}
-      PORTCOVE_REHEARSAL_RELEASE_ID: ${{ needs.draft.outputs.release_id }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
+      - name: Fetch only the immutable original source for its retained harness binding
+        run: git fetch --no-tags --depth=1 origin 7a60432ab6c3773f744af156c0512cd1795b10c1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
@@ -533,31 +103,22 @@ jobs:
       - name: Receive exact bounded signed artifact
         env:
           GH_TOKEN: ${{ github.token }}
-          PORTCOVE_INPUT_ARTIFACT: ${{ needs.sign.outputs.artifact }}
-          PORTCOVE_INPUT_ATTEMPT: ${{ needs.sign.outputs.attempt }}
+          PORTCOVE_INPUT_ARTIFACT: "13303950552"
+          PORTCOVE_INPUT_ATTEMPT: "1"
         run: node scripts/upstream-release-transfer.mts signed "$PORTCOVE_INPUT_ARTIFACT" work/upstream-signed "$PORTCOVE_INPUT_ATTEMPT"
       - name: Receive exact bounded acceptance artifact
         env:
           GH_TOKEN: ${{ github.token }}
-          PORTCOVE_INPUT_ARTIFACT: ${{ needs.installed.outputs.acceptance }}
-          PORTCOVE_INPUT_ATTEMPT: ${{ needs.installed.outputs.attempt }}
+          PORTCOVE_INPUT_ARTIFACT: "13305366285"
+          PORTCOVE_INPUT_ATTEMPT: "1"
         run: node scripts/upstream-release-transfer.mts acceptance "$PORTCOVE_INPUT_ARTIFACT" work/upstream-acceptance "$PORTCOVE_INPUT_ATTEMPT"
       - id: site
         name: Verify immutable release and preserve baseline before advancing its feed
         env:
           GH_TOKEN: ${{ github.token }}
         run: node scripts/upstream-release-pages.mts prepare candidate
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: upstream-interruption-${{ github.run_id }}-${{ github.run_attempt }}
-          path: work/upstream-interruption.json
-          if-no-files-found: error
-          retention-days: 7
-          overwrite: false
-        if: ${{ steps.site.outputs.interrupt == 'true' }}
-      - name: Inject controlled post-publication interruption
-        if: ${{ steps.site.outputs.interrupt == 'true' }}
-        run: 'node -e "throw new Error(''CONTROLLED_POST_PUBLICATION_INTERRUPTION: immutable assets retained; verified baseline feed unchanged; rerun failed jobs only'')"'
+      - name: Require the already observed original interruption
+        run: test '${{ steps.site.outputs.interrupt }}' = 'false'
       - name: Upload complete candidate rehearsal site
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         if: ${{ steps.site.outputs.deploy == 'true' && steps.site.outputs.interrupt != 'true' }}
@@ -587,23 +148,13 @@ jobs:
           overwrite: false
   public_installed:
     needs:
-      - package
-      - sign
-      - installed
-      - acceptance
-      - draft
+      - recovery
       - feed
     runs-on: windows-2025
     timeout-minutes: 15
     permissions:
       contents: read
       actions: read
-    env:
-      PORTCOVE_REHEARSAL_ORIGIN_ATTEMPT: ${{ needs.package.outputs.attempt }}
-      PORTCOVE_REHEARSAL_SIGNER_ATTEMPT: ${{ needs.sign.outputs.attempt }}
-      PORTCOVE_REHEARSAL_NATIVE_ATTEMPT: ${{ needs.installed.outputs.attempt }}
-      PORTCOVE_REHEARSAL_ACCEPTANCE_ATTESTER_ATTEMPT: ${{ needs.acceptance.outputs.attempt }}
-      PORTCOVE_REHEARSAL_RELEASE_ID: ${{ needs.draft.outputs.release_id }}
     outputs:
       artifact: ${{ steps.public_proof.outputs.artifact-id }}
       attempt: ${{ steps.producer.outputs.attempt }}
@@ -612,6 +163,8 @@ jobs:
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
+      - name: Fetch only the immutable original source for its retained harness binding
+        run: git fetch --no-tags --depth=1 origin 7a60432ab6c3773f744af156c0512cd1795b10c1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
@@ -646,26 +199,26 @@ jobs:
       - name: Receive exact bounded signed artifact
         env:
           GH_TOKEN: ${{ github.token }}
-          PORTCOVE_INPUT_ARTIFACT: ${{ needs.sign.outputs.artifact }}
-          PORTCOVE_INPUT_ATTEMPT: ${{ needs.sign.outputs.attempt }}
+          PORTCOVE_INPUT_ARTIFACT: "13303950552"
+          PORTCOVE_INPUT_ATTEMPT: "1"
         run: node scripts/upstream-release-transfer.mts signed $env:PORTCOVE_INPUT_ARTIFACT work/upstream-signed $env:PORTCOVE_INPUT_ATTEMPT
       - name: Receive exact bounded acceptance artifact
         env:
           GH_TOKEN: ${{ github.token }}
-          PORTCOVE_INPUT_ARTIFACT: ${{ needs.installed.outputs.acceptance }}
-          PORTCOVE_INPUT_ATTEMPT: ${{ needs.installed.outputs.attempt }}
+          PORTCOVE_INPUT_ARTIFACT: "13305366285"
+          PORTCOVE_INPUT_ATTEMPT: "1"
         run: node scripts/upstream-release-transfer.mts acceptance $env:PORTCOVE_INPUT_ARTIFACT work/upstream-acceptance $env:PORTCOVE_INPUT_ATTEMPT
       - name: Receive exact bounded candidate-executable artifact
         env:
           GH_TOKEN: ${{ github.token }}
-          PORTCOVE_INPUT_ARTIFACT: ${{ needs.package.outputs.desktop_artifact }}
-          PORTCOVE_INPUT_ATTEMPT: ${{ needs.package.outputs.attempt }}
+          PORTCOVE_INPUT_ARTIFACT: "13303068945"
+          PORTCOVE_INPUT_ATTEMPT: "1"
         run: node scripts/upstream-release-transfer.mts candidate-executable $env:PORTCOVE_INPUT_ARTIFACT work/upstream-candidate-executable $env:PORTCOVE_INPUT_ATTEMPT
       - name: Receive exact bounded public-predecessor artifact
         env:
           GH_TOKEN: ${{ github.token }}
-          PORTCOVE_INPUT_ARTIFACT: ${{ needs.installed.outputs.predecessor }}
-          PORTCOVE_INPUT_ATTEMPT: ${{ needs.installed.outputs.attempt }}
+          PORTCOVE_INPUT_ARTIFACT: "13305615469"
+          PORTCOVE_INPUT_ATTEMPT: "1"
         run: node scripts/upstream-release-transfer.mts public-predecessor $env:PORTCOVE_INPUT_ARTIFACT work/upstream-public-predecessor $env:PORTCOVE_INPUT_ATTEMPT
       - name: Verify original immutable release and required acceptance
         env:
@@ -674,8 +227,8 @@ jobs:
       - name: Verify actual separately attested public predecessor
         env:
           GH_TOKEN: ${{ github.token }}
-          PORTCOVE_NATIVE_ATTEMPT: ${{ needs.installed.outputs.attempt }}
-          PORTCOVE_ATTESTER_ATTEMPT: ${{ needs.acceptance.outputs.attempt }}
+          PORTCOVE_NATIVE_ATTEMPT: "1"
+          PORTCOVE_ATTESTER_ATTEMPT: "1"
         run: node scripts/upstream-release-acceptance.mts verify-public-predecessor work/upstream-public-predecessor work/upstream-signed $env:PORTCOVE_NATIVE_ATTEMPT $env:PORTCOVE_ATTESTER_ATTEMPT
       - name: Exercise compiled HTTPS metadata and actual GitHub payload through installed UI
         shell: pwsh
@@ -709,11 +262,7 @@ jobs:
         if: always()
   readback:
     needs:
-      - package
-      - sign
-      - installed
-      - acceptance
-      - draft
+      - recovery
       - feed
       - public_installed
     runs-on: ubuntu-22.04
@@ -723,17 +272,13 @@ jobs:
       actions: read
       id-token: write
       attestations: write
-    env:
-      PORTCOVE_REHEARSAL_ORIGIN_ATTEMPT: ${{ needs.package.outputs.attempt }}
-      PORTCOVE_REHEARSAL_SIGNER_ATTEMPT: ${{ needs.sign.outputs.attempt }}
-      PORTCOVE_REHEARSAL_NATIVE_ATTEMPT: ${{ needs.installed.outputs.attempt }}
-      PORTCOVE_REHEARSAL_ACCEPTANCE_ATTESTER_ATTEMPT: ${{ needs.acceptance.outputs.attempt }}
-      PORTCOVE_REHEARSAL_RELEASE_ID: ${{ needs.draft.outputs.release_id }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
+      - name: Fetch only the immutable original source for its retained harness binding
+        run: git fetch --no-tags --depth=1 origin 7a60432ab6c3773f744af156c0512cd1795b10c1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
@@ -753,14 +298,14 @@ jobs:
       - name: Receive exact bounded signed artifact
         env:
           GH_TOKEN: ${{ github.token }}
-          PORTCOVE_INPUT_ARTIFACT: ${{ needs.sign.outputs.artifact }}
-          PORTCOVE_INPUT_ATTEMPT: ${{ needs.sign.outputs.attempt }}
+          PORTCOVE_INPUT_ARTIFACT: "13303950552"
+          PORTCOVE_INPUT_ATTEMPT: "1"
         run: node scripts/upstream-release-transfer.mts signed "$PORTCOVE_INPUT_ARTIFACT" work/upstream-signed "$PORTCOVE_INPUT_ATTEMPT"
       - name: Receive exact bounded acceptance artifact
         env:
           GH_TOKEN: ${{ github.token }}
-          PORTCOVE_INPUT_ARTIFACT: ${{ needs.installed.outputs.acceptance }}
-          PORTCOVE_INPUT_ATTEMPT: ${{ needs.installed.outputs.attempt }}
+          PORTCOVE_INPUT_ARTIFACT: "13305366285"
+          PORTCOVE_INPUT_ATTEMPT: "1"
         run: node scripts/upstream-release-transfer.mts acceptance "$PORTCOVE_INPUT_ARTIFACT" work/upstream-acceptance "$PORTCOVE_INPUT_ATTEMPT"
       - name: Receive exact bounded public-acceptance artifact
         env:

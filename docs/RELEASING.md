@@ -26,59 +26,67 @@ one-key delegation thresholds independent from metadata versions, with actual
 version2/version3 repository consumption and immutable-retry coverage. Original
 failure, unsigned bytes, provenance and protectedr1 history remain retained.
 
-The extended `upstream-release-rehearsal.yml` is a **manual, disposable-authority**
-integration, confined to `refs/tags/portcove-upstream-rehearsal-20261104r2`. It remains
-inert until the exact reviewed source/ref, protection and scoped Pages configuration
-are legitimately appointed and independently read back. Checking out a tag inside
-a main-ref job cannot satisfy a tag-only environment policy. Preserve the existing
-catalog deployment policy; never widen it to mutable main or a wildcard.
+The protected r2 [run41788540335/1](https://github.com/boburning/portcove/actions/runs/41788540335)
+at source7a60432a passed package, provenance, signing, baseline, controlled installed
+updating, independent acceptance and immutable publication. Release433642404,
+`v0.0.0-rehearsal.41788540335.1`, has all15 verified immutable assets. The intended
+post-publication interruption preserved the authenticated empty HTTPS baseline.
+Its failed-only attempt2 stopped before transfer/feed effects: GitHub returned
+successful historical jobs with new IDs and attempt/display fields, but retained
+their original runner, timestamps and steps. Counting both observations duplicated
+about60minutes; actual executed time including the14-second refusal is about61.2.
+The original failures, certificates, signed bytes and baseline remain retained.
 
-The path builds one unique `0.0.0-rehearsal.<run>.<original-attempt>` current-user
-NSIS and CLI, verifies maintained provenance, and signs in a fresh trusted runner
-with disposable keys. An authenticated empty initial TUF feed is deployed under
-`rehearsal/<run>-<original-attempt>/application/`, then the existing host consumer
-checks it over HTTPS. The controlled local installed journey and a separately built
-HTTPS predecessor supply exact native receipts. A separate fresh job checks and
-attests those bytes; the native test runner has no OIDC/attestation credential.
+The current `upstream-release-rehearsal.yml` is a **fixed public-only recovery** at
+`refs/tags/portcove-upstream-rehearsal-20261104r3`. It cannot build a new payload,
+generate signing keys, build another predecessor or write a release. It reuses the
+exact original r2 artifacts, manifest, acceptance certificate, public predecessor,
+Root, immutable release and `rehearsal/41788540335-1/application/` namespace. The
+original product/producer source7a60432a/ref/runs remain distinct from the new
+executor, harness source/run and final attestation. Historical main/r1/r2
+attestations remain readable; execution is confined to protectedr3.
 
-Only the release writer has Contents write. It verifies original package and native
-acceptance identities, completes the draft, downloads/hashes every bounded asset,
-publishes once, then verifies immutable release identity and GitHub's release
-attestation. The feed job deliberately fails **after** publication while retaining
-the usable empty feed. A native failed-only rerun consults the authenticated prior
-job/step result, rechecks the same immutable release and public baseline, then
-advances only the missing feed effect. No signed fault-control adapter, new registry,
-coordinator or private state branch is introduced. A fresh Windows runner finally
-uses compiled HTTPS metadata and the ordinary GitHub payload transport through the
-installed UI; it uses no local metadata repository or substituted payload. This remains
-a controlled Server fixture, not production or supported-client acceptance.
+The four serial caps are recovery3/feed5/public-installed15/readback5minutes.
+Accounting reads both original native attempts and the sole new execution, with
+at most three total exposures and the unchanged cumulative application140 bound.
+Only a successful row completed before the authenticated later attempt began,
+with exactly matching prior run/source/runner/time/step evidence, is a carried
+observation. Mutable job IDs, attempt display names and runner-group omissions do
+not establish a new execution. Real failures, cancellations and repeats still
+count. Missing or inconsistent provider evidence refuses. Original observation deadline2026-11-04T09:18:43Z remains retained in history.
+The demonstrated native-accounting repair, required source review/checks and provider
+queue consume wall-clock time without consuming equivalent runner execution. Under
+the standing harness-calibration rule, the fixed continuation observation bound is
+2026-11-04T09:48:43Z (+30minutes); the execution ceiling, job caps, three exposures,
+product deadlines and historical semantic-owner clock are unchanged. No reservation,
+known headroom or paid fallback
+is inferred from the owner-confirmed account$0 Stop usage boundary.
 
-Package, provenance attester, signer, native producer, acceptance attester and retry
-executor attempts remain distinct. Missing original outputs refuse. Do not rerun all
-jobs to rebuild an existing package or overwrite an existing draft/published asset.
-At most three attempts are admitted; observed completed runtime plus the full
-remaining native job ceilings must still fit application140. The serial job ceilings
-total116minutes. The installed job allows35minutes for its two predecessor builds,
-driver provisioning and native/empty-HTTPS checks; the earlier single cold predecessor
-build took about14minutes. The shared application/catalog concurrency group preserves their
-mutual exclusion; account$0 Stop usage, unknown headroom and no paid fallback remain.
-Archives are bounded and structurally checked before extraction; assembly is capped
-at2GiB with the existing tighter256MiB file limit. Candidate-controlled caches/hooks
-never enter credentialed consumers. Private fixture keys are removed before upload.
+The recovery preflight verifies the two actual failure boundaries, original
+certificates, all15 immutable asset bytes and all8 usable baseline files before
+admitting advancement. The Pages writer permits only exact original and current
+source/ref/run deployment tuples, preserving the existing catalog policy and
+historical initial-site pin. It refuses unknown site ownership or production
+components. Reconcile the exact deliveredr3 tag/no-bypass rule and rotate only the
+existing rehearsal deployment-policy slot before dispatch. No mutable-main or
+wildcard allowance is added. Root, application and catalog production routes stay
+held; current404 observations do not explain the earlier #246 HTTP failure.
 
-Pages bootstrap reuses the appointed historical initial-site preimage and fresh
-provider/public observations. The finite rehearsal refuses foreign/unknown existing
-site ownership or production components instead of replacing a partial site tree.
-Runtime job tokens do not acquire Administration merely to inspect ruleset bypass
-actors: an omitted field remains **unknown**, with actual no-bypass setup observation
-retained separately. This does not satisfy or weaken production observer admission.
+A fresh Windows job consumes the original attested public predecessor, compiled
+HTTPS metadata and actual immutable GitHub payload through the installed UI. It
+receives no signing/OIDC credential or local feed/payload substitution. A separate
+fresh job inspects its actual source/harness, retained OS handles, settled child
+processes, preservation and uninstall, rechecks the public feed, and attests the
+new summary. This remains a controlled elevated Server fixture. #52's shared and
+ordinary native mechanisms are already accepted through #4003; actual production
+installed-client continuity, default-feature/package/feed/role joins and qualified
+cutover remain unfinished. #246 keeps its separate frozen client and open outcome.
 
-This extension still needs actual immutable/public-feed/interruption/retry readback
-on its delivered source. Transfer artifacts expire after one day; diagnostic/native
-proofs after seven. Full production classification, existing-key custody/role joins,
-appropriate ordinary Windows client acceptance, unattended activation and retirement
-of the superseded active path remain #534 work. A rehearsal or ordinary source merge
-grants no blanket unpause, credential import, new signing authority or announcement.
+Source review, local fixtures, a disposable recovery or an ordinary merge grants
+no production unpause, private credential import, new App/key custody, account/Task
+activation or announcement. Complete existing-key production joins and retire the
+superseded active machinery only through the qualified replacement and existing
+authority. Preserve old journals, immutable artifacts and failures.
 
 ## Release task order
 

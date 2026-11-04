@@ -65,6 +65,7 @@ Copy-Item (Join-Path $evidence 'windows-renderer-evidence/renderer-update-eviden
 [ordered]@{
     scope = $(if ($PublicConsumerOnly) { 'disposable-public-installed-fixture' } else { 'disposable-installed-fixture' })
     source = $origin.source; run_id = $origin.run_id; original_attempt = $origin.run_attempt; attempt = $origin.executor_attempt
+    executor = $origin.executor
     candidate_version = $manifest.version; predecessor_version = $previous
     signed_manifest_sha256 = (Get-FileHash (Join-Path $public 'rehearsal.json') -Algorithm SHA256).Hash.ToLowerInvariant()
     private_authority_transferred = $false

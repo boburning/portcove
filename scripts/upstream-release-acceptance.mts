@@ -9,7 +9,7 @@ import { isDeepStrictEqual } from "node:util";
 import { isRecord } from "./runtime-values.mts";
 import {
   rehearsalExecution,
-  rehearsalExecutionRef,
+  rehearsalOriginRef,
   rehearsalOrigin,
   rehearsalPublicBase,
 } from "./upstream-release-identity.mts";
@@ -47,6 +47,7 @@ export function inspectRehearsalAcceptance(
     source_tree: string;
     harness_sha256: string;
     public_transport?: boolean;
+    executor?: { source: string; run_id: string; run_attempt: number };
   },
 ) {
   assert.ok(isRecord(installed) && installed.phase === "complete" && installed.failure === null);
@@ -54,7 +55,7 @@ export function inspectRehearsalAcceptance(
   assert.ok(
     isRecord(observation) &&
       observation.schema_version === 1 &&
-      observation.source_commit === expected.source &&
+      observation.source_commit === (expected.executor?.source ?? expected.source) &&
       observation.source_tree === expected.source_tree &&
       observation.harness === "scripts/test-windows-installer.ps1" &&
       observation.harness_sha256 === expected.harness_sha256,
@@ -182,7 +183,7 @@ export function inspectRehearsalAcceptance(
     isRecord(renderer) &&
       renderer.phase === "complete" &&
       renderer.failure === null &&
-      renderer.source_commit === expected.source &&
+      renderer.source_commit === (expected.executor?.source ?? expected.source) &&
       renderer.candidate_version === expected.version &&
       renderer.candidate_installer_sha256 === expected.installer_sha256 &&
       renderer.candidate_executable_sha256 === details.installed_executable_sha256,
@@ -253,6 +254,7 @@ export function inspectRehearsalAcceptance(
           : "local-public-fixture") &&
       summary.production === false,
   );
+  if (expected.executor) assert.deepEqual(summary.executor, expected.executor);
   if (expected.public_transport) {
     assert.equal(
       installed.controlled_public_transport,
@@ -284,6 +286,7 @@ async function inspectFiles(
   publicTransport = false,
 ) {
   const m = await readRehearsalManifest(signedDirectory);
+  const observationSource = publicTransport ? rehearsalExecution().source : m.source;
   const manifestEntry = await rehearsalEntry(signedDirectory, "rehearsal.json");
   const values = await Promise.all(receiptFiles.map((name) => jsonFile(directory, name)));
   inspectRehearsalAcceptance(values[0]!.value, values[1]!.value, values[2]!.value, {
@@ -294,20 +297,21 @@ async function inspectFiles(
     version: m.version,
     manifest_sha256: manifestEntry.sha256,
     installer_sha256: m.files[0]!.sha256,
-    source_tree: execFileSync("git", ["rev-parse", `${m.source}^{tree}`], {
+    source_tree: execFileSync("git", ["rev-parse", `${observationSource}^{tree}`], {
       encoding: "utf8",
       timeout: 30000,
       maxBuffer: 4096,
     }).trim(),
     harness_sha256: createHash("sha256")
       .update(
-        execFileSync("git", ["show", `${m.source}:scripts/test-windows-installer.ps1`], {
+        execFileSync("git", ["show", `${observationSource}:scripts/test-windows-installer.ps1`], {
           timeout: 30000,
           maxBuffer: 2 * 1024 ** 2,
         }),
       )
       .digest("hex"),
     public_transport: publicTransport,
+    ...(publicTransport ? { executor: rehearsalExecution() } : {}),
   });
   return { m, manifestEntry, values };
 }
@@ -398,7 +402,7 @@ export async function verifyRehearsalAcceptance(
     path.resolve(directory, "acceptance.json"),
     {
       source_commit: origin.source,
-      ref: rehearsalExecutionRef,
+      ref: rehearsalOriginRef,
       run_id: origin.run_id,
       run_attempt: attesterAttempt,
       subjects: [
@@ -496,7 +500,7 @@ async function verifyPublicPredecessor(
     path.resolve(directory, "public-predecessor.json"),
     {
       source_commit: origin.source,
-      ref: rehearsalExecutionRef,
+      ref: rehearsalOriginRef,
       run_id: origin.run_id,
       run_attempt: attesterAttempt,
       subjects: [
