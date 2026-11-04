@@ -2548,3 +2548,117 @@ void test("failed refresh invalidates only derived platform labels after authore
   assert.equal(candidate.upstream_observation.fresh_until, fact.fresh_until);
   assert.equal(candidate.upstream_observation.facts_sha256, fact.facts_sha256);
 });
+
+void test(
+  "repository identity lookup aborts the actual SDK fetch with its command",
+  { timeout: 30000 },
+  async (t) => {
+    for (const [name, run] of [
+      ["batch", runCatalogUpstreams],
+      ["opportunity", runCatalogOpportunity],
+    ] as const)
+      await t.test(name, async (t) => {
+        const work = fileURLToPath(new URL("../work/", import.meta.url));
+        await mkdir(work, { recursive: true });
+        const root = await mkdtemp(path.join(work, "catalog-identity-cancel-"));
+        t.after(() => rm(root, { recursive: true, force: true }));
+        const originalGh = process.env.GH_TOKEN,
+          originalGitHub = process.env.GITHUB_TOKEN;
+        process.env.GH_TOKEN = process.env.GITHUB_TOKEN = "synthetic-cancelled-identity";
+        t.after(() => {
+          if (originalGh === undefined) delete process.env.GH_TOKEN;
+          else process.env.GH_TOKEN = originalGh;
+          if (originalGitHub === undefined) delete process.env.GITHUB_TOKEN;
+          else process.env.GITHUB_TOKEN = originalGitHub;
+        });
+        const h = harness();
+        await mkdir(path.join(root, "release"), { recursive: true });
+        await mkdir(path.join(root, "crates/portcove-core/catalog"), { recursive: true });
+        await writeFile(
+          path.join(root, "release/upstream-observer.json"),
+          JSON.stringify(h.options.config),
+        );
+        await writeFile(
+          path.join(root, "crates/portcove-core/catalog/catalog.json"),
+          JSON.stringify({ ports: h.input.ports.slice(0, 1) }),
+        );
+        await writeFile(
+          path.join(root, "crates/portcove-core/catalog/listings.json"),
+          JSON.stringify({ format_version: 1, listings: [] }),
+        );
+        const cli = path.join(root, "inspector");
+        await writeFile(cli, "inert controlled inspector");
+        const controller = new AbortController();
+        let dispatched!: () => void,
+          drain!: () => void,
+          aborted = false,
+          calls = 0,
+          projections = 0;
+        const entered = new Promise<void>((resolve) => {
+          dispatched = resolve;
+        });
+        t.mock.method(
+          globalThis,
+          "fetch",
+          async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+            calls++;
+            const url =
+              input instanceof Request ? input.url : input instanceof URL ? input.href : input;
+            assert.equal(url, "https://api.github.com/repos/owner/shared");
+            assert.ok(init?.signal);
+            return await new Promise<Response>((_resolve, reject) => {
+              drain = () => reject(new Error("controlled fixture cleanup"));
+              init.signal!.addEventListener(
+                "abort",
+                () => {
+                  aborted = true;
+                  reject(init.signal!.reason);
+                },
+                { once: true },
+              );
+              dispatched();
+            });
+          },
+        );
+        const completed = run(["--cli", cli], {
+          root,
+          deadline: h.options.now!() + 60000,
+          now: h.options.now!,
+          observer: { signal: controller.signal },
+          inspectCatalog: async () =>
+            new Map(h.input.ports.map((port) => [port.id, observationHash(port)])),
+          project: async () => {
+            projections++;
+            assert.fail("cancelled identity cannot project facts");
+          },
+          log: () => {},
+        }).then(
+          (value) => ({ status: "resolved" as const, value }),
+          (error: unknown) => ({ status: "rejected" as const, error }),
+        );
+        try {
+          await Promise.race([
+            entered,
+            completed.then(() => assert.fail("identity did not reach the configured SDK")),
+          ]);
+          controller.abort();
+          assert.equal(aborted, true, "command cancellation must reach the pending SDK fetch");
+          const result = await completed;
+          assert.equal(calls, 1);
+          assert.equal(projections, 0);
+          if (result.status === "resolved")
+            assert.equal(result.value.report.failures[0]?.rule, "cancelled");
+          else
+            assert.ok(
+              result.error instanceof Error &&
+                "rule" in result.error &&
+                result.error.rule === "cancelled",
+            );
+        } finally {
+          controller.abort();
+          drain?.();
+          await completed;
+        }
+      });
+  },
+);

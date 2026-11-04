@@ -48,6 +48,7 @@ function repositoryMetadataReader(
   maxBytes: number,
   scope: NonNullable<ObserveOptions["githubScope"]>,
   token: string | undefined,
+  signal?: AbortSignal,
 ) {
   let sdk: ReturnType<typeof createGitHubClient> | undefined;
   const failed = new Map<string, GitHubRequestPolicy>();
@@ -56,6 +57,7 @@ function repositoryMetadataReader(
       const credential = localDeveloperCredential({ deadline: scope.deadline });
       sdk = createGitHubClient({
         credential,
+        ...(signal ? { signal } : {}),
         deadline: scope.deadline,
         maxBytes,
         ...(credential.kind === "explicit" && credential.token === token
@@ -204,7 +206,12 @@ export async function runCatalogUpstreams(
   await mkdir(path.dirname(statePath), { recursive: true });
   const repositoryMetadata =
     runtime.repositoryMetadata ??
-    repositoryMetadataReader(config.budget.response_bytes, githubScope, observationToken);
+    repositoryMetadataReader(
+      config.budget.response_bytes,
+      githubScope,
+      observationToken,
+      runtime.observer?.signal,
+    );
   let health: unknown = null;
   try {
     health = await boundedJson(
@@ -328,6 +335,14 @@ export async function runCatalogUpstreams(
           return Number(response.body.id);
         } catch (error) {
           if (error instanceof GitHubApiError) transport.consumeResponseBytes(error.responseBytes);
+          if (
+            runtime.observer?.signal?.aborted ||
+            (error instanceof GitHubApiError && error.code === "cancelled")
+          )
+            throw new ObservationFailure(
+              "cancelled",
+              "Repository identity lookup cancelled; retain existing observations",
+            );
           if (error instanceof GitHubApiError && error.code === "rate_limited")
             throw new ObservationFailure(
               "rate-limit",
@@ -594,7 +609,12 @@ export async function runCatalogOpportunity(
   const observationToken = runtime.observer?.token ?? process.env.GITHUB_TOKEN;
   const repositoryMetadata =
     runtime.repositoryMetadata ??
-    repositoryMetadataReader(config.budget.response_bytes, githubScope, observationToken);
+    repositoryMetadataReader(
+      config.budget.response_bytes,
+      githubScope,
+      observationToken,
+      runtime.observer?.signal,
+    );
   const handoff = {
     directory: path.join(root, "work/upstream-observer-handoff", randomUUID()),
     sizes: new Map<string, number>(),
