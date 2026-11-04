@@ -1403,7 +1403,18 @@ export async function observeUpstream(
       );
       return selected as readonly number[];
     }
-    if (config.format === 2) selectedAssets = new Set(await selectAssets());
+    if (config.format === 2) {
+      // Resume at the retained collection/selection frontier. Repeating the
+      // empty-assets probe would replace the catalog coordinator's separately
+      // bound post-assets Core cursor on every finite invocation.
+      const selected = previousSelection ?? (await selectAssets());
+      requireFact(
+        selected.every((id) => headers.some((header) => header.id === id)),
+        "core-selection",
+        "Retained Core selection names an unavailable release",
+      );
+      selectedAssets = new Set(selected);
+    }
     // Core can only skip an explicit other-platform stream after its complete
     // assets are observed. Ask again after each collection, until every current
     // candidate is covered. Each turn adds a release from the bounded headers;
@@ -1462,6 +1473,19 @@ export async function observeUpstream(
     }
     // GitHub provides no atomic repository snapshot. Revalidate every consumed
     // page and preserve the observation interval; any detected change aborts.
+    if (selectedAssets) {
+      // Adaptive rounds may collect [newest, rolling, preceding-stable], while
+      // resume reconstructs the frontier in header order. Bind validation to a
+      // canonical order, keeping repository/header pages ahead of their assets.
+      const positions = new Map(headers.map((header, index) => [header.id, index]));
+      const position = (entry: (typeof requestOrder)[number]) => {
+        const id = entry.pathname.match(/\/releases\/(\d+)\/assets$/u)?.[1];
+        return id ? positions.get(Number(id))! : -1;
+      };
+      requestOrder.sort(
+        (left, right) => position(left) - position(right) || (left.page ?? 0) - (right.page ?? 0),
+      );
+    }
     if (continuation.phase === "collect") {
       continuation.phase = "validate";
       continuation.validation_order_sha256 = observationHash(

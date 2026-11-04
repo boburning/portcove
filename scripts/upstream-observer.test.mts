@@ -1389,6 +1389,48 @@ void test("platform-stream discovery collects preceding candidates and resumes w
   );
 });
 
+void test("adaptive multichannel validation resumes in the same canonical page order", async () => {
+  const scoped = validateObserverConfig({
+    ...config,
+    format: 2,
+    asset_scope: "core-channel-candidates",
+    policy_input_sha256: "a".repeat(64),
+    budget: { ...config.budget, requests: 6 },
+  });
+  const server = fixture();
+  server.replies.get(`${root}/releases?per_page=100&page=1`).body = [
+    release(3),
+    release(2),
+    release(1),
+  ];
+  for (const id of [3, 2]) {
+    const value = asset(id * 10);
+    value.browser_download_url = value.browser_download_url.replace("v1.0.0", `v${id}.0.0`);
+    server.replies.set(`${root}/releases/${id}/assets?per_page=100&page=1`, { body: [value] });
+  }
+  const selectAssetReleases = async (observation: ProviderObservation) =>
+    observation.coverage!.asset_release_ids.includes(3) ? [2, 1] : [3, 1];
+  const first = await advanceObservation(scoped, null, {
+    fetch: server.fetch,
+    project,
+    selectAssetReleases,
+  });
+  assert.equal(first.checkpoint.continuation?.phase, "validate");
+  assert.equal(first.checkpoint.continuation?.validation_cursor, 1);
+  assert.deepEqual(first.checkpoint.continuation?.selected_asset_release_ids, [1, 2, 3]);
+  const resumed = await advanceObservation(scoped, first.checkpoint, {
+    fetch: server.fetch,
+    project,
+    selectAssetReleases,
+  });
+  assert.equal(resumed.report.transition, "initial-baseline");
+  assert.equal(resumed.report.exception, null);
+  assert.deepEqual(
+    objectFixture(resumed.report.observation?.coverage).asset_release_ids,
+    [1, 2, 3],
+  );
+});
+
 void test("scoped asset selection resumes bounded batches and automatically rechecks changed Core choices", async () => {
   const scoped = validateObserverConfig({
     ...config,
@@ -1420,7 +1462,10 @@ void test("scoped asset selection resumes bounded batches and automatically rech
     assert.ok(server.requests.length - before <= 2);
     checkpoint = result.checkpoint;
     if (result.report.transition === "initial-baseline") {
-      assert.deepEqual(objectFixture(result.report.observation?.coverage).asset_release_ids, [2]);
+      assert.deepEqual(
+        objectFixture(result.report.observation?.coverage).asset_release_ids,
+        [1, 2],
+      );
       completed = true;
       break;
     }
