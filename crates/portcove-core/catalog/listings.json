@@ -3675,7 +3675,9 @@
       "summary": "Attach an independently permitted, prepared Shadow of the Colossus PS4-remake Windows installation using its saved-settings play route. Upstream owns setup, runtime replacement and player data; original PS2/PS3 editions do not fit.",
       "original_game_title": "Shadow of the Colossus",
       "project_url": "https://github.com/AjncSystem/ShadowOfTheColossus-PC",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/AjncSystem/ShadowOfTheColossus-PC",
       "issue_number": 2840,
@@ -9606,7 +9608,9 @@
       "summary": "Attach an independently permitted, prepared Windows Nathan Drake Collection installation starting Uncharted: Drake’s Fortune. The BilalReloaded launcher keeps title-specific settings; upstream owns preparation, runtime replacement and external player data.",
       "original_game_title": "Uncharted: Drakes Fortune",
       "project_url": "https://github.com/bc160201983/Uncharted-The-Nathan-Drake-Collection-PC-port",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/bc160201983/Uncharted-The-Nathan-Drake-Collection-PC-port",
       "issue_number": 2773,
@@ -9649,7 +9653,9 @@
       "summary": "Attach an independently permitted, prepared Windows Nathan Drake Collection installation starting Uncharted: Among Thieves. The BilalReloaded launcher keeps title-specific settings; upstream owns preparation, runtime replacement and external player data.",
       "original_game_title": "Uncharted2: Among Thieves",
       "project_url": "https://github.com/bc160201983/Uncharted-The-Nathan-Drake-Collection-PC-port",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/bc160201983/Uncharted-The-Nathan-Drake-Collection-PC-port",
       "issue_number": 2774,
@@ -9692,7 +9698,9 @@
       "summary": "Attach an independently permitted, prepared Windows Nathan Drake Collection installation starting Uncharted: Drake’s Deception. The BilalReloaded launcher keeps title-specific settings; upstream owns preparation, runtime replacement and external player data.",
       "original_game_title": "Uncharted3: Drakes Deception",
       "project_url": "https://github.com/bc160201983/Uncharted-The-Nathan-Drake-Collection-PC-port",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/bc160201983/Uncharted-The-Nathan-Drake-Collection-PC-port",
       "issue_number": 2783,
@@ -10631,7 +10639,9 @@
       "summary": "Explore Bloodborne (Supermedo / bloodborne_pc) and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/Supermedo/bloodborne_pc",
       "issue_number": 1653,
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/Supermedo/bloodborne_pc",
       "artwork": {
@@ -12722,7 +12732,9 @@
       "summary": "Explore The Legend of Zelda: The Wind Waker / BlueWake (chrissotraidis) and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/chrissotraidis/bluewake",
       "issue_number": 1803,
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/chrissotraidis/bluewake",
       "artwork": {
@@ -15500,7 +15512,9 @@
       "summary": "Explore Bloodborne / bbport (deadinside28) and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/deadinside28/bloodborne_pc",
       "issue_number": 1797,
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/deadinside28/bloodborne_pc",
       "artwork": {
@@ -17648,7 +17662,9 @@
       "summary": "Attach an independently permitted, prepared Dragon’s Crown Pro Windows installation in its same-process mode. This title-specific PS4 x86-64 compatibility layer owns upstream PKG preparation; overlay handoff, online services and updates retain separate boundaries.",
       "original_game_title": "Dragon's Crown Pro (PS4)",
       "project_url": "https://github.com/saulob/dragons-crown-pro-pc",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/saulob/dragons-crown-pro-pc",
       "artwork": {
@@ -19783,7 +19799,9 @@
       "summary": "Attach a prepared SpartanPort Windows installation for your independently permitted God of War III Remastered PS4 dump. The current Rust launcher owns upstream preparation; keep its saved settings, user data and legacy gow3 migration roots.",
       "original_game_title": "God of War III Remastered",
       "project_url": "https://github.com/FelipePrado0/SpartanPort",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/FelipePrado0/SpartanPort",
       "artwork": {
@@ -20635,7 +20653,9 @@
       "summary": "Attach an independently permitted, prepared Forza Motorsport3 Ultimate Collection USA Windows installation. Upstream’s native player reads its saved launcher profile and data paths; preserve the actual XUID-separated saves, content and retained deleted profiles.",
       "original_game_title": "Forza Motorsport 3: Ultimate Collection (USA, Xbox 360)",
       "project_url": "https://github.com/0herculabs/hl360-forza3",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/0herculabs/hl360-forza3",
       "issue_number": 2675,
@@ -21347,7 +21367,9 @@
       "summary": "Attach an independently permitted, prepared GetLostIn CTR Nitro-Fueled Windows installation. Its native settings launcher waits for the game runner; upstream owns PS4-data preparation, runtime replacement and the external save/cache roots.",
       "original_game_title": "Crash Team Racing: Nitro-Fueled",
       "project_url": "https://github.com/GetLostIn/CTR-NitroFueled-PC",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/GetLostIn/CTR-NitroFueled-PC",
       "issue_number": 2822,
@@ -22723,7 +22745,9 @@
       "summary": "Attach an independently permitted, prepared OpenJam Windows player for your purchased NBA JAM: On Fire Edition XBLA copy. The published player already contains recompiled code; upstream setup prepares your game data, with separate per-mod save roots.",
       "original_game_title": "NBA JAM: On Fire Edition",
       "project_url": "https://github.com/GTTeancum/OpenJam",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/GTTeancum/OpenJam",
       "artwork": {
@@ -22945,7 +22969,9 @@
       "summary": "Use the independently maintained Gumpolas Two Towers Windows player with your own Xbox USA game files. Its direct entry, settings and saves remain separate from Athelas’s embedded port.",
       "original_game_title": "The Lord of the Rings: The Two Towers",
       "project_url": "https://github.com/Gumpolas/TooTawersRecomp",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/Gumpolas/TooTawersRecomp",
       "issue_number": 2796,
@@ -23446,7 +23472,9 @@
       "summary": "Attach an independently permitted, prepared inFAMOUS Second Son Windows installation through its waiting saved-settings play route. Upstream owns game preparation and runtime replacement; keep the actual configurable save root and separate launcher preferences.",
       "original_game_title": "inFAMOUS Second Son",
       "project_url": "https://github.com/HayatoG/iss_pc",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/HayatoG/iss_pc",
       "issue_number": 2788,
@@ -23489,7 +23517,9 @@
       "summary": "Attach an independently permitted, prepared The Last Guardian Windows installation through its waiting saved-settings play route. Upstream owns game preparation and runtime replacement; keep the actual configurable save root and separate launcher preferences.",
       "original_game_title": "The Last Guardian",
       "project_url": "https://github.com/HayatoG/tlg_pc",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/HayatoG/tlg_pc",
       "artwork": {
@@ -24346,7 +24376,9 @@
       "summary": "Attach an independently permitted, prepared Starlit Party Windows player for your own Mario Party 6 USA disc. Preserve its actual working-directory saves and content root; limited minigame coverage and title-specific launcher/font permission scope remain explicit.",
       "original_game_title": "Mario Party 6",
       "project_url": "https://github.com/iirg4x/mp6-native-port",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/iirg4x/mp6-native-port",
       "artwork": {
@@ -24640,7 +24672,9 @@
       "summary": "Explore Initial D Arcade Stage 3 / Native SH-4 recompilation WIP and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/distilledorion-sketch/Initial-D-Arcade-Stage-3-Native-SH-4-Recompilation-WIP-",
       "issue_number": 372,
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/distilledorion-sketch/Initial-D-Arcade-Stage-3-Native-SH-4-Recompilation-WIP-",
       "artwork": {
@@ -24982,7 +25016,9 @@
       "summary": "Attach an independently permitted, prepared WWE 2K14 Windows base-game player directly, with matching upstream settings and your own extracted Xbox 360 data. Preserve userdata, mods and originals; title-update switching, logos, music and DLC remain upstream-managed.",
       "original_game_title": "WWE 2K14",
       "project_url": "https://github.com/itsbybanshee/wwe2k14-pc",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/itsbybanshee/wwe2k14-pc",
       "artwork": {
@@ -25856,7 +25892,9 @@
       "summary": "Attach an independently permitted, prepared JSRF Unleashed Windows installation for the standalone US Xbox disc. Its waiting native launcher owns setup and remembers the selected game; saves remain in that game folder’s UDATA.",
       "original_game_title": "Jet Set Radio Future",
       "project_url": "https://github.com/JuMatt/JetSetRadioFuture-Unleashed",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/JuMatt/JetSetRadioFuture-Unleashed",
       "artwork": {
@@ -26271,7 +26309,9 @@
       "summary": "Attach a prepared HERCULAN Windows installation for your independently permitted Earthsiege2 files. The self-contained engine owns upstream setup; retail-install saves and separate engine settings remain external player data.",
       "original_game_title": "Earthsiege 2",
       "project_url": "https://github.com/kevinfoley/Herculan",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/kevinfoley/Herculan",
       "artwork": {
@@ -27131,7 +27171,9 @@
       "summary": "Attach an independently permitted, prepared Tony Hawk’s Pro Skater Windows installation using the LANCommander port. Keep its extracted game data and separate Saved Games tree; upstream owns preparation, restarts and runtime replacement.",
       "original_game_title": "Tony Hawk's Pro Skater",
       "project_url": "https://github.com/LANCommander/TonyWasAProSkater",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/LANCommander/TonyWasAProSkater",
       "issue_number": 2831,
@@ -28747,7 +28789,9 @@
       "summary": "Attach an independently permitted, prepared The Bigs 2 ReXGlue Windows player with your own Xbox 360 disc data already extracted upstream. Preserve its writable-package or existing per-user data layout; the published Windows package was only Wine-tested upstream.",
       "original_game_title": "The Bigs 2",
       "project_url": "https://github.com/mdomangue26/thebigs2",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/mdomangue26/thebigs2",
       "issue_number": 2802,
@@ -29528,7 +29572,9 @@
       "summary": "Explore Metroid Prime Hunters / MetroidPrimeHuntersRecomp and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/mstan/MetroidPrimeHuntersRecomp",
       "issue_number": 341,
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/mstan/MetroidPrimeHuntersRecomp",
       "artwork": {
@@ -30293,7 +30339,9 @@
       "summary": "Attach the complete Moon Child FE Windows package. Its code and bundled assets have separate MIT and noncommercial CC BY-NC4.0 terms; upstream owns runtime replacement, and player progress remains in its actual per-user or portable data folder.",
       "original_game_title": "Moon Child",
       "project_url": "https://github.com/MorsGames/MoonChildFE",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/MorsGames/MoonChildFE",
       "artwork": {
@@ -30533,7 +30581,9 @@
       "summary": "Attach a prepared Virtua Fighter Windows installation using your own exact arcade ROM set. Its V60 program recompiled dynamically from your ROM at startup; Model1 board/TGP devices remain implemented/emulated separately. Upstream owns ROM preparation, player data and runtime replacement.",
       "original_game_title": "Virtua Fighter",
       "project_url": "https://github.com/mr-finster/vf1-recomp",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/mr-finster/vf1-recomp",
       "issue_number": 2863,
@@ -30576,7 +30626,9 @@
       "summary": "Attach a prepared Virtua Fighter 2 Windows installation using your own exact arcade ROM set. Its Intel i960 program recompiled from your ROM at each startup; the Model2A board, TGP/renderer and sound devices still use separate MAME-derived implementation. Upstream owns ROM preparation, player data and runtime replacement.",
       "original_game_title": "Virtua Fighter 2",
       "project_url": "https://github.com/mr-finster/vf2-recomp",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/mr-finster/vf2-recomp",
       "issue_number": 2834,
@@ -30619,7 +30671,9 @@
       "summary": "Attach a prepared Virtua Fighter 3 Windows installation using your own exact arcade ROM set. Its PowerPC603e program translated at launch, with separate Model3 board/Real3D implementation and MAME-derived sound; this is not a static-only pipeline. Upstream owns ROM preparation, player data and runtime replacement.",
       "original_game_title": "Virtua Fighter 3",
       "project_url": "https://github.com/mr-finster/vf3-recomp",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/mr-finster/vf3-recomp",
       "artwork": {
@@ -30670,7 +30724,9 @@
       "summary": "Explore Bloodborne / bloodborne_pc_windows_port (Mrsuss60) and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/Mrsuss60/bloodborne_pc_windows_port",
       "issue_number": 1798,
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/Mrsuss60/bloodborne_pc_windows_port",
       "artwork": {
@@ -30960,7 +31016,9 @@
       "summary": "Explore Mario's Tennis / MarioTennisVirtualBoyRecomp (mstan) and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/mstan/MarioTennisVirtualBoyRecomp",
       "issue_number": 1842,
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/mstan/MarioTennisVirtualBoyRecomp",
       "artwork": {
@@ -31298,7 +31356,9 @@
       "summary": "Explore Zero Racers / ZeroRacersVirtualBoyRecomp (mstan) and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/mstan/ZeroRacersVirtualBoyRecomp",
       "issue_number": 1916,
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/mstan/ZeroRacersVirtualBoyRecomp",
       "artwork": {
@@ -33026,7 +33086,9 @@
       "summary": "Attach an independently permitted, prepared Hercules Recompiled Windows folder using your own exact PAL PlayStation disc and language. Its native UI waits for the selected language’s game child; preserve separate language data, cards, settings and optional texture-pack boundaries.",
       "original_game_title": "Disney's Hercules",
       "project_url": "https://github.com/obaidr1/hercules-recompiled",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/obaidr1/hercules-recompiled",
       "issue_number": 2823,
@@ -33313,7 +33375,9 @@
       "summary": "Explore Kirby's Pinball Land / Kirby's Pinball Land: Recomp (omegakatana92) and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/omegakatana92/Kirby-Pinball-Land-Recomp",
       "issue_number": 1837,
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/omegakatana92/Kirby-Pinball-Land-Recomp",
       "artwork": {
@@ -33363,7 +33427,9 @@
       "summary": "Explore Super Mario Land 3: Wario Land Recomp / Super Mario Land 3: Wario Land — Recomp (omegakatana92) and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/omegakatana92/Super-Mario-Land-3-Wario-Land-Recomp-",
       "issue_number": 1893,
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/omegakatana92/Super-Mario-Land-3-Wario-Land-Recomp-",
       "artwork": {
@@ -34168,7 +34234,9 @@
       "summary": "Attach an independently permitted, already prepared Dead Cells: Return to Castlevania Edition Windows copy through its waiting upstream launcher. Your own exact PS5 data and generated game remain upstream-managed; preserve _sd and the complete prepared folder.",
       "original_game_title": "Dead Cells",
       "project_url": "https://github.com/OverkillLabs3/DC-PS5",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/OverkillLabs3/DC-PS5",
       "artwork": {
@@ -34219,7 +34287,9 @@
       "summary": "An experimental PS4 DriveClub port for Windows 10/11 x64, requiring a Haswell/Excavator/Ryzen-class CPU and Vulkan 1.3. Use your own CUSA00093 or CUSA00003 v1.28 dump; the European edition has less testing. Online features do not work, and other patches or repacked dumps are untested. The Recomp name does not imply PowerPC translation. Other OS routes, exact accepted hashes and BIOS/firmware needs are unconfirmed. You and the project manage setup and updates; Portcove has not qualified a release package or confirmed gameplay.",
       "original_game_title": "DriveClub",
       "project_url": "https://github.com/OverkillLabs3/driveclub-recomp",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/OverkillLabs3/driveclub-recomp",
       "artwork": {
@@ -34270,7 +34340,9 @@
       "summary": "An early Gears of War: Judgment port with project-reported startup and play near the beginning of the single-player campaign. Broader campaign coverage remains incomplete. The Windows x64 ReXGlue player uses native CPU code with Xenia-derived graphics/system emulation; other native hosts are unconfirmed. Supply your own retail Xbox 360 default.xex and complete game data. Exact title ID, accepted revision/hashes and BIOS/firmware requirements are unconfirmed here. You and the project manage setup and updates; Portcove has not qualified a release package or confirmed setup or gameplay.",
       "original_game_title": "Gears of War: Judgment",
       "project_url": "https://github.com/OverkillLabs3/gears-judgement-recomp",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/OverkillLabs3/gears-judgement-recomp",
       "artwork": {
@@ -34321,7 +34393,9 @@
       "summary": "Attach an independently permitted, already prepared God of War: Sons of Sparta Windows copy through its waiting upstream launcher. Your own exact PS5 data and generated game remain upstream-managed; preserve _sd and the complete prepared folder.",
       "original_game_title": "God of War: Sons of Sparta",
       "project_url": "https://github.com/OverkillLabs3/SoS-PS5",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/OverkillLabs3/SoS-PS5",
       "issue_number": 2848,
@@ -34364,7 +34438,9 @@
       "summary": "Attach an independently permitted, prepared VCSNative Windows player using your own supported PSP Vice City Stories data. Select the native player with the existing PSP_DATA layout; preserve its configuration, saves and optional-content boundaries.",
       "original_game_title": "Grand Theft Auto: Vice City Stories",
       "project_url": "https://github.com/OverkillLabs3/vice-city-stories-recomp",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/OverkillLabs3/vice-city-stories-recomp",
       "artwork": {
@@ -37860,7 +37936,9 @@
       "summary": "Explore P.T. (pt-pc / LoreanXavier) and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/LoreanXavier/pt-pc",
       "issue_number": 1639,
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/LoreanXavier/pt-pc",
       "artwork": {
@@ -39363,7 +39441,9 @@
       "summary": "An unfinished Resident Evil CODE: Veronica X PS2 engine with source-only preparation from your own ISO, including extraction and movie setup. Development is documented for Apple Silicon macOS, Windows x86-64 and native Windows ARM64; general validated desktop releases remain planned. It is not a complete playable game. Portcove has not confirmed setup or gameplay.",
       "original_game_title": "Resident Evil CODE: Veronica X (PS2)",
       "project_url": "https://github.com/Patt92/recvx-native",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/Patt92/recvx-native",
       "artwork": {
@@ -39440,7 +39520,9 @@
       "summary": "Explore Legendary Wings / Legendary Wings NES to PC (retroreplay82) and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/retroreplay82/Legendary-Wings-NES-to-PC",
       "issue_number": 1839,
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/retroreplay82/Legendary-Wings-NES-to-PC",
       "artwork": {
@@ -40490,7 +40572,9 @@
       "summary": "An online Crash Team Racing Nitro-Fueled fork derived from GetLostIn’s Windows fork of SacredFire. The project reports menus, races, audio, controllers, saves and community online; complete campaign, online and GPU coverage remain unconfirmed. Its inherited and maintained online changes do not automatically establish a separate canonical implementation. Windows 10/11 ZIP and Linux AppImage routes use a PS4 compatibility layer with direct x86-64 execution. Supply your own PS4 CUSA13795 v1.21 dump. Exact accepted hashes and BIOS/firmware needs are unconfirmed. You and the project manage setup and updates; Portcove has not qualified a release package or confirmed gameplay.",
       "original_game_title": "Crash Team Racing Nitro-Fueled",
       "project_url": "https://github.com/Ryu7w7/OCTR-NitroFueled-PC",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/Ryu7w7/OCTR-NitroFueled-PC",
       "artwork": {
@@ -43828,7 +43912,9 @@
       "summary": "Attach an independently permitted, prepared NHL 3-on-3 Arcade native Windows player directly after upstream game-package setup. Preserve its game folder, settings and actual runtime save root; roster and online compatibility remain separate.",
       "original_game_title": "3 on 3 NHL Arcade",
       "project_url": "https://github.com/startupandhold/3on3ArcadeRecomp",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/startupandhold/3on3ArcadeRecomp",
       "artwork": {
@@ -44679,7 +44765,9 @@
       "summary": "An experimental Super Mario RPG preview dominated by interpreter execution, with only two checked ahead-of-time variants and emulated SA-1 hardware. The Recomp name does not establish a completely native game or complete human playthrough. The project offers a Windows preview; a prior release also had a Linux AppImage using an x86-64 packaging script. Exact Windows package architecture is unconfirmed and no macOS build is established. Use your own matching 4 MiB headerless SNES ROM and the documented exact SHA-256; preparation strips a copier header. Portcove has not confirmed setup or gameplay.",
       "original_game_title": "Super Mario RPG: Legend of the Seven Stars",
       "project_url": "https://github.com/mstan/SuperMarioRPGRecomp",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/mstan/SuperMarioRPGRecomp",
       "artwork": {
@@ -45185,7 +45273,9 @@
       "summary": "Attach the prepared SuperMedo Windows collection launcher and explicitly choose Uncharted: Drake’s Fortune before its Play action. These three title records share a mutable upstream launcher selection, not independent fixed command-line game selectors.",
       "original_game_title": "Uncharted: Drakes Fortune",
       "project_url": "https://github.com/Supermedo/uncharted_pc",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/Supermedo/uncharted_pc",
       "issue_number": 2816,
@@ -45228,7 +45318,9 @@
       "summary": "Attach the prepared SuperMedo Windows collection launcher and explicitly choose Uncharted: Among Thieves before its Play action. These three title records share a mutable upstream launcher selection, not independent fixed command-line game selectors.",
       "original_game_title": "Uncharted2: Among Thieves",
       "project_url": "https://github.com/Supermedo/uncharted_pc",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/Supermedo/uncharted_pc",
       "issue_number": 2817,
@@ -45271,7 +45363,9 @@
       "summary": "Attach the prepared SuperMedo Windows collection launcher and explicitly choose Uncharted: Drake’s Deception before its Play action. These three title records share a mutable upstream launcher selection, not independent fixed command-line game selectors.",
       "original_game_title": "Uncharted3: Drakes Deception",
       "project_url": "https://github.com/Supermedo/uncharted_pc",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/Supermedo/uncharted_pc",
       "issue_number": 2818,
@@ -46337,7 +46431,9 @@
       "summary": "An original-Xbox Splinter Cell: Double Agent port, separate from the PC and Xbox 360 editions. The Windows 64-bit Direct3D 12/XAudio2 ZIP includes SCDA.exe, which compiles game code locally from your own Xbox files on first start and reuses that build later. The build.bat/Visual Studio source route is separate. Native Linux/macOS, exact accepted revision/hashes and BIOS/firmware needs are unconfirmed. Gameplay and networking are project claims; multiplayer hosting requires port forwarding, with controller/save coverage unconfirmed here. The project manages setup, replacement and networking; Portcove has not qualified a release package or confirmed setup or gameplay.",
       "original_game_title": "Tom Clancy's Splinter Cell: Double Agent",
       "project_url": "https://github.com/TGP482/SCDA-XBERecomp",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/TGP482/SCDA-XBERecomp",
       "issue_number": 2832,
@@ -47652,7 +47748,9 @@
       "summary": "Explore EarthBound / Phase Distorter (TheRunaway5) and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/TheRunaway5/Phase-Distorter",
       "issue_number": 1869,
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/TheRunaway5/Phase-Distorter",
       "artwork": {
@@ -48904,7 +49002,9 @@
       "summary": "Explore Zelda II: The Adventure of Link / z2rs (troyedwardsjr) and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/troyedwardsjr/z2rs",
       "issue_number": 1911,
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/troyedwardsjr/z2rs",
       "artwork": {
@@ -50777,7 +50877,9 @@
       "summary": "A source-only Vagrant Story Windows x86-64 C++ port reaching the opening, prologue and selected combat systems. Audio, full abilities and equipment remain incomplete. No ready-made player release is established. Supply your own USA SLUS-01040 BIN/CUE and follow the conversion script instructions. Portcove has not confirmed setup or gameplay.",
       "original_game_title": "Vagrant Story (PS1)",
       "project_url": "https://github.com/JEschete/VS-NativePort",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/JEschete/VS-NativePort",
       "artwork": {
@@ -52410,7 +52512,9 @@
       "summary": "Explore New Super Mario Bros. Wii / NSMB Wii Multiplayer Decompilation (WitherBlitz) and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/WitherBlitz/NSMB-Wii-Multiplayer-Recompilation",
       "issue_number": 1847,
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/WitherBlitz/NSMB-Wii-Multiplayer-Recompilation",
       "artwork": {
@@ -52667,7 +52771,9 @@
       "summary": "Attach an independently permitted, prepared BattleTanx Global Assault Recompiled Windows player for BattleTanx: Global Assault using your own exact supported ROM. Upstream owns ROM preparation and replacement; preserve the actual btgarecomp configuration/save root and component notices.",
       "original_game_title": "BattleTanx: Global Assault",
       "project_url": "https://github.com/wootbeer/btgarecomp",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/wootbeer/btgarecomp",
       "artwork": {
@@ -52718,7 +52824,9 @@
       "summary": "Attach an independently permitted, prepared BattleTanx Recompiled Windows player for BattleTanx using your own exact supported ROM. Upstream owns ROM preparation and replacement; preserve the actual btrecomp configuration/save root and component notices.",
       "original_game_title": "BattleTanx",
       "project_url": "https://github.com/wootbeer/btrecomp",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/wootbeer/btrecomp",
       "issue_number": 2793,
@@ -52810,7 +52918,9 @@
       "summary": "Attach an independently permitted, prepared DinoTale Windows player for Yoshi’s Story using your own exact supported ROM. Upstream owns ROM preparation and replacement; preserve the actual dinotale configuration/save root and component notices.",
       "original_game_title": "Yoshi's Story",
       "project_url": "https://github.com/wootbeer/dinotale",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/wootbeer/dinotale",
       "artwork": {
@@ -52894,7 +53004,9 @@
       "summary": "Attach an independently permitted, prepared PaxDino Windows player for Turok: Rage Wars using your own exact supported ROM. Upstream owns ROM preparation and replacement; preserve the actual trwrecomp configuration/save root and component notices.",
       "original_game_title": "Turok: Rage Wars",
       "project_url": "https://github.com/wootbeer/PaxDino",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/wootbeer/PaxDino",
       "issue_number": 2790,
@@ -53873,7 +53985,9 @@
       "summary": "Attach an independently permitted, prepared Serial Experiments Lain Windows client with both owned Japanese discs already imported. Its native client runs the game in process; preserve the separate imported-disc, memory-card and mod data tree.",
       "original_game_title": "Serial Experiments Lain",
       "project_url": "https://github.com/Y0oshi/lain-psx-decompiled",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/Y0oshi/lain-psx-decompiled",
       "artwork": {
@@ -54064,7 +54178,9 @@
       "summary": "Attach a complete permitted YKnytt Windows installation, the Godot C# implementation of Knytt Stories. Preserve its actual user/world/save directories and freeware asset terms; community-level compatibility and optional network actions remain upstream-owned.",
       "original_game_title": "Knytt Stories",
       "project_url": "https://github.com/youkaicountry/yknytt",
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/youkaicountry/yknytt",
       "artwork": {
@@ -54151,7 +54267,9 @@
       "summary": "Explore Dragon Ball Z: Budokai Tenkaichi 3 / Tenkaichi3Decomp (z3xox) and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/z3xox/Tenkaichi3Decomp",
       "issue_number": 1897,
-      "platforms": [],
+      "platforms": [
+        "windows-x86-64"
+      ],
       "availability": "unknown",
       "setup_url": "https://github.com/z3xox/Tenkaichi3Decomp",
       "artwork": {

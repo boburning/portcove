@@ -6,7 +6,7 @@
     "summary": "Use the independently maintained Gumpolas Two Towers Windows player with your own Xbox USA game files. Its direct entry, settings and saves remain separate from Athelas’s embedded port.",
     "original_game_title": "The Lord of the Rings: The Two Towers",
     "project_url": "https://github.com/Gumpolas/TooTawersRecomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Gumpolas/TooTawersRecomp",
     "issue_number": 2796,

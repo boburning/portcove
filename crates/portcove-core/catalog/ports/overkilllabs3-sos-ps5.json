@@ -6,7 +6,7 @@
     "summary": "Attach an independently permitted, already prepared God of War: Sons of Sparta Windows copy through its waiting upstream launcher. Your own exact PS5 data and generated game remain upstream-managed; preserve _sd and the complete prepared folder.",
     "original_game_title": "God of War: Sons of Sparta",
     "project_url": "https://github.com/OverkillLabs3/SoS-PS5",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/OverkillLabs3/SoS-PS5",
     "issue_number": 2848,

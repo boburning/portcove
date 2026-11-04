@@ -6,7 +6,7 @@
     "summary": "Attach an independently permitted, prepared Hercules Recompiled Windows folder using your own exact PAL PlayStation disc and language. Its native UI waits for the selected language’s game child; preserve separate language data, cards, settings and optional texture-pack boundaries.",
     "original_game_title": "Disney's Hercules",
     "project_url": "https://github.com/obaidr1/hercules-recompiled",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/obaidr1/hercules-recompiled",
     "issue_number": 2823,

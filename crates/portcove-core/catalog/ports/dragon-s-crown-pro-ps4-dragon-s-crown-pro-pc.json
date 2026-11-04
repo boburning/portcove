@@ -6,7 +6,7 @@
     "summary": "Attach an independently permitted, prepared Dragon’s Crown Pro Windows installation in its same-process mode. This title-specific PS4 x86-64 compatibility layer owns upstream PKG preparation; overlay handoff, online services and updates retain separate boundaries.",
     "original_game_title": "Dragon's Crown Pro (PS4)",
     "project_url": "https://github.com/saulob/dragons-crown-pro-pc",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/saulob/dragons-crown-pro-pc",
     "artwork": {

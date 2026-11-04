@@ -6,7 +6,7 @@
     "summary": "Explore Mario's Tennis / MarioTennisVirtualBoyRecomp (mstan) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/mstan/MarioTennisVirtualBoyRecomp",
     "issue_number": 1842,
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/mstan/MarioTennisVirtualBoyRecomp",
     "artwork": {

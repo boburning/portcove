@@ -6,7 +6,7 @@
     "summary": "Attach a prepared HERCULAN Windows installation for your independently permitted Earthsiege2 files. The self-contained engine owns upstream setup; retail-install saves and separate engine settings remain external player data.",
     "original_game_title": "Earthsiege 2",
     "project_url": "https://github.com/kevinfoley/Herculan",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/kevinfoley/Herculan",
     "artwork": {

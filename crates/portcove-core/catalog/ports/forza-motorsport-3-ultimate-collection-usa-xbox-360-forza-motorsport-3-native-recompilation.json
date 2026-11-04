@@ -6,7 +6,7 @@
     "summary": "Attach an independently permitted, prepared Forza Motorsport3 Ultimate Collection USA Windows installation. Upstream’s native player reads its saved launcher profile and data paths; preserve the actual XUID-separated saves, content and retained deleted profiles.",
     "original_game_title": "Forza Motorsport 3: Ultimate Collection (USA, Xbox 360)",
     "project_url": "https://github.com/0herculabs/hl360-forza3",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/0herculabs/hl360-forza3",
     "issue_number": 2675,

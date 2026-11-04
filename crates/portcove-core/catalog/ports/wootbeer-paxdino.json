@@ -6,7 +6,7 @@
     "summary": "Attach an independently permitted, prepared PaxDino Windows player for Turok: Rage Wars using your own exact supported ROM. Upstream owns ROM preparation and replacement; preserve the actual trwrecomp configuration/save root and component notices.",
     "original_game_title": "Turok: Rage Wars",
     "project_url": "https://github.com/wootbeer/PaxDino",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/wootbeer/PaxDino",
     "issue_number": 2790,

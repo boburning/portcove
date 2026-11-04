@@ -6,7 +6,7 @@
     "summary": "An early Gears of War: Judgment port with project-reported startup and play near the beginning of the single-player campaign. Broader campaign coverage remains incomplete. The Windows x64 ReXGlue player uses native CPU code with Xenia-derived graphics/system emulation; other native hosts are unconfirmed. Supply your own retail Xbox 360 default.xex and complete game data. Exact title ID, accepted revision/hashes and BIOS/firmware requirements are unconfirmed here. You and the project manage setup and updates; Portcove has not qualified a release package or confirmed setup or gameplay.",
     "original_game_title": "Gears of War: Judgment",
     "project_url": "https://github.com/OverkillLabs3/gears-judgement-recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/OverkillLabs3/gears-judgement-recomp",
     "artwork": {

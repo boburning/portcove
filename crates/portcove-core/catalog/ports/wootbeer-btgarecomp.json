@@ -6,7 +6,7 @@
     "summary": "Attach an independently permitted, prepared BattleTanx Global Assault Recompiled Windows player for BattleTanx: Global Assault using your own exact supported ROM. Upstream owns ROM preparation and replacement; preserve the actual btgarecomp configuration/save root and component notices.",
     "original_game_title": "BattleTanx: Global Assault",
     "project_url": "https://github.com/wootbeer/btgarecomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/wootbeer/btgarecomp",
     "artwork": {
