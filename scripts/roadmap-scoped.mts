@@ -14,7 +14,7 @@ import {
   inventoryFailureKind,
   inventoryFailureSource,
 } from "./repository-issue-inventory.mts";
-import { GitHubApiError, sanitizeOperationError } from "./github-api.mts";
+import { GitHubApiError, sanitizeOperationError } from "./github-operation.mts";
 import { isRecord } from "./runtime-values.mts";
 
 export function roadmapCheckScope(

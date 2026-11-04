@@ -4,7 +4,7 @@ import {
 } from "./repository-issue-inventory.mts";
 import { isRecord } from "./runtime-values.mts";
 import { observationHash } from "./upstream-observer.mts";
-import { GitHubApiError } from "./github-api.mts";
+import { GitHubApiError } from "./github-operation.mts";
 import type { RoadmapClient } from "./roadmap.mts";
 
 export type RoadmapInventoryClient = Pick<
