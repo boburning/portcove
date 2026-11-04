@@ -126,6 +126,14 @@ impl PortcoveService {
                 }
             }
         }
+        if let Some(previous) = retained_rollback {
+            self.require_direct_artifact_transition(
+                from,
+                to,
+                &previous.artifact.sha256,
+                Some(previous),
+            )?;
+        }
         if retained.persistent_paths != to.persistent_paths {
             if let Some(previous) = retained_rollback
                 && to
@@ -149,6 +157,7 @@ impl PortcoveService {
     ) -> Result<()> {
         let to = self.installed_port(target)?;
         self.require_portable_transition(from, &to)?;
+        self.require_direct_artifact_transition(from, &to, &target.artifact.sha256, Some(target))?;
         let retained = self.installed_port(from)?;
         if crate::preparation::source::native(&retained)
             && Installer::new(self.library.clone())?.retained_preparation_mode(from)?
@@ -3836,7 +3845,7 @@ mod tests {
     fn diagnostic_scope_fixture(id: &str, current: bool, original: &[u8]) -> Catalog {
         // Retain exact historical definitions independently of the evolving catalog.
         // Only source authority is substituted with inert first-party bytes.
-        let mut port: PortDefinition = if current {
+        let port: PortDefinition = if current {
             Catalog::embedded().unwrap().port(id).unwrap().clone()
         } else {
             serde_json::from_str(match id {
@@ -3853,7 +3862,26 @@ mod tests {
             })
             .unwrap()
         };
+        diagnostic_port_fixture(port, original)
+    }
+
+    fn diagnostic_port_fixture(mut port: PortDefinition, original: &[u8]) -> Catalog {
+        // Match the actual presentation label; only the private source bytes
+        // change. Schema-1 fixtures use the existing legacy guide projection.
+        if let Some(guide) = port
+            .presentation
+            .as_mut()
+            .and_then(|p| p.manual_setup.as_mut())
+        {
+            *guide = guide.legacy();
+        }
         let profile = port.source_profile.clone().unwrap();
+        let label = Catalog::embedded()
+            .unwrap()
+            .source_profile(&profile)
+            .unwrap()
+            .label
+            .clone();
         let hash = hex::encode(Sha256::digest(original));
         let source_name = port.runtime_source_filename.clone().unwrap();
         let extension = Path::new(&source_name)
@@ -3866,7 +3894,7 @@ mod tests {
         Catalog::from_json(
             &serde_json::json!({
                 "schema_version": 1,
-                "source_profiles": [{"id": profile, "label": "Inert diagnostic-scope source fixture",
+                "source_profiles": [{"id": profile, "label": label,
                     "kind": "file", "accepted_extensions": [extension], "accepted_sha256": [hash]}],
                 "ports": [port]
             })
@@ -3996,6 +4024,248 @@ mod tests {
                     manifest
                 );
                 assert_eq!(fs::read(old.path.join(PSX_DATA_RECEIPT)).unwrap(), retained);
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn same_scope_direct_archives_refuse_populated_rollback_reuse_recovery_and_backup_restore()
+     {
+        const ID: &str = "mega-man-x2-snes-recomp";
+        let original = b"inert first-party source, never retail game data";
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let source = temporary.path().join("fixture.sfc");
+        fs::write(&source, original).unwrap();
+        let server = Server::new();
+        let provider = Arc::new(Provider(Mutex::new(server.release_in_folder(
+            "v0.2.1",
+            1,
+            "",
+            "MegaManX2SNESRecomp.exe",
+        ))));
+        let mut service = build_service(library.clone(), provider.clone());
+        let prior: PortDefinition = serde_json::from_str(include_str!(
+            "../../tests/fixtures/mmx2-021-historical.json"
+        ))
+        .unwrap();
+        service.replace_catalog_for_test(diagnostic_port_fixture(prior, original));
+        service
+            .register_source("mega-man-x2-snes-usa", &source)
+            .unwrap();
+        let old = service
+            .install(ID, None, None, None, true, |_| {})
+            .await
+            .unwrap();
+        service.prepare_launch(ID, None).unwrap();
+        let old_port = service.installed_port(&old).unwrap();
+        service.replace_catalog_for_test(diagnostic_scope_fixture(ID, true, original));
+        assert_eq!(
+            old_port.persistent_paths,
+            service.catalog.port(ID).unwrap().persistent_paths
+        );
+        *provider.0.lock().unwrap() =
+            server.release_in_folder("v0.2.2", 2, "", "MegaManX2SNESRecomp.exe");
+        let next = service.update(ID, None, None, true, |_| {}).await.unwrap();
+        service.prepare_launch(ID, None).unwrap();
+        assert_ne!(old.artifact.sha256, next.artifact.sha256);
+        let old_receipt = fs::read(old.path.join(PSX_DATA_RECEIPT)).unwrap();
+        let next_receipt = fs::read(next.path.join(PSX_DATA_RECEIPT)).unwrap();
+        fs::create_dir_all(next.path.join("logs")).unwrap();
+        fs::write(next.path.join("logs/session.replay"), b"build B state").unwrap();
+        let canonical = library.user_dir(ID).join("logs/session.replay");
+        assert!(!canonical.exists());
+        assert!(service.rollback(ID).is_err());
+        assert_eq!(service.status(ID).unwrap().active.unwrap().id, next.id);
+        assert!(!canonical.exists(), "refusal must precede collection");
+        assert!(!old.path.join("logs/session.replay").exists());
+        let backup = service.create_backup(ID).unwrap();
+        let manifest: serde_json::Value =
+            serde_json::from_slice(&fs::read(backup.path.join("backup.json")).unwrap()).unwrap();
+        assert_eq!(manifest["guarded_archive_v1"], next.artifact.sha256);
+        let preview = service
+            .preview_backup_action(ID, &backup.id, crate::BackupAction::Restore)
+            .unwrap();
+        let consent = service
+            .authorize_backup_action(
+                ID,
+                &backup.id,
+                crate::BackupAction::Restore,
+                &preview.preview_sha256,
+            )
+            .unwrap();
+        assert!(
+            service
+                .restore_backup(ID, &backup.id, &consent.token)
+                .is_err()
+        );
+        assert!(!old.path.join("logs/session.replay").exists());
+        assert_eq!(fs::read(&canonical).unwrap(), b"build B state");
+        // Model an already retained historical active selection. Neither an
+        // initialized target nor recovery may waive the build boundary.
+        library.rollback(ID).unwrap();
+        fs::create_dir_all(old.path.join("logs")).unwrap();
+        fs::write(old.path.join("logs/session.replay"), b"build A state").unwrap();
+        fs::write(&canonical, b"canonical A state").unwrap();
+        assert!(service.update(ID, None, None, true, |_| {}).await.is_err());
+        assert!(service.prepare_retained_install_data(&next).is_err());
+        let mut operation = LifecycleOperation::new(
+            Uuid::new_v4().to_string(),
+            LifecycleOperationKind::Activate,
+            ID,
+        );
+        operation.install = Some(next.clone());
+        let store = OperationStore::new(library.clone());
+        store.put(&mut operation).unwrap();
+        assert!(crate::recovery::recover_activation(&service, &store, &mut operation).is_err());
+        assert!(!store.all().unwrap().is_empty());
+        assert_eq!(service.status(ID).unwrap().active.unwrap().id, old.id);
+        for (path, bytes) in [
+            (
+                old.path.join("logs/session.replay"),
+                b"build A state".as_slice(),
+            ),
+            (
+                next.path.join("logs/session.replay"),
+                b"build B state".as_slice(),
+            ),
+            (canonical, b"canonical A state".as_slice()),
+            (old.path.join(PSX_DATA_RECEIPT), old_receipt.as_slice()),
+            (next.path.join(PSX_DATA_RECEIPT), next_receipt.as_slice()),
+        ] {
+            assert_eq!(fs::read(path).unwrap(), bytes);
+        }
+    }
+
+    #[tokio::test]
+    async fn guarded_restore_recovery_revalidates_phase_owned_snapshot_and_manifest() {
+        const ID: &str = "mega-man-x2-snes-recomp";
+        struct Interrupt(LifecycleFaultPoint);
+        impl LifecycleFaultInjector for Interrupt {
+            fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
+                if point == self.0 {
+                    Err(PortcoveError::state("fixture restore interruption"))
+                } else {
+                    Ok(())
+                }
+            }
+        }
+        for point in [
+            LifecycleFaultPoint::RestorePrepared,
+            LifecycleFaultPoint::RestorePublished,
+        ] {
+            for tamper in ["none", "manifest", "snapshot", "missing-proof"] {
+                let original = b"inert first-party source, never retail game data";
+                let temporary = tempfile::tempdir().unwrap();
+                let library = Library::open(temporary.path().join("library")).unwrap();
+                let source = temporary.path().join("fixture.sfc");
+                fs::write(&source, original).unwrap();
+                let server = Server::new();
+                let provider = Arc::new(Provider(Mutex::new(server.release_in_folder(
+                    "v0.2.2",
+                    2,
+                    "",
+                    "MegaManX2SNESRecomp.exe",
+                ))));
+                let mut service = build_service(library.clone(), provider.clone());
+                service.replace_catalog_for_test(diagnostic_scope_fixture(ID, true, original));
+                service
+                    .register_source("mega-man-x2-snes-usa", &source)
+                    .unwrap();
+                let install = service
+                    .install(ID, None, None, None, true, |_| {})
+                    .await
+                    .unwrap();
+                service.prepare_launch(ID, None).unwrap();
+                fs::create_dir_all(install.path.join("logs")).unwrap();
+                fs::write(install.path.join("logs/session.replay"), b"backup state").unwrap();
+                let backup = service.create_backup(ID).unwrap();
+                fs::write(install.path.join("logs/session.replay"), b"current state").unwrap();
+                let preview = service
+                    .preview_backup_action(ID, &backup.id, crate::BackupAction::Restore)
+                    .unwrap();
+                let consent = service
+                    .authorize_backup_action(
+                        ID,
+                        &backup.id,
+                        crate::BackupAction::Restore,
+                        &preview.preview_sha256,
+                    )
+                    .unwrap();
+                service.faults = Arc::new(Interrupt(point));
+                assert!(
+                    service
+                        .restore_backup(ID, &backup.id, &consent.token)
+                        .is_err()
+                );
+                let store = OperationStore::new(library.clone());
+                let mut operation = store
+                    .all()
+                    .unwrap()
+                    .into_iter()
+                    .find(|op| op.kind == LifecycleOperationKind::Restore)
+                    .unwrap();
+                assert_eq!(
+                    operation.original_paths.len(),
+                    1,
+                    "older restore readers reject this envelope"
+                );
+                let snapshot = if point == LifecycleFaultPoint::RestorePrepared {
+                    operation
+                        .paths
+                        .staging
+                        .as_ref()
+                        .unwrap()
+                        .join("staged-data")
+                } else {
+                    library.user_dir(ID)
+                };
+                match tamper {
+                    "manifest" => {
+                        fs::write(&operation.original_paths[0], b"{}").unwrap();
+                    }
+                    "snapshot" => {
+                        fs::write(snapshot.join("logs/session.replay"), b"tampered snapshot")
+                            .unwrap();
+                    }
+                    "missing-proof" => {
+                        operation.original_paths.clear();
+                        store.put(&mut operation).unwrap();
+                    }
+                    _ => {}
+                }
+                // Reopen with a different current recipe. The retained actual
+                // installation, not the current pin, supplies the destination.
+                drop(service);
+                let mut reopened =
+                    build_service(Library::open(library.root()).unwrap(), provider.clone());
+                let prior: PortDefinition = serde_json::from_str(include_str!(
+                    "../../tests/fixtures/mmx2-021-historical.json"
+                ))
+                .unwrap();
+                reopened.replace_catalog_for_test(diagnostic_port_fixture(prior, original));
+                let result = crate::recovery::recover_restore(&reopened, &store, &mut operation);
+                if tamper == "none" {
+                    result.unwrap();
+                    assert_eq!(
+                        fs::read(install.path.join("logs/session.replay")).unwrap(),
+                        b"backup state"
+                    );
+                    assert!(store.all().unwrap().is_empty());
+                } else {
+                    assert!(result.is_err(), "{point:?} {tamper}");
+                    assert_eq!(
+                        fs::read(install.path.join("logs/session.replay")).unwrap(),
+                        b"current state"
+                    );
+                    assert!(snapshot.exists());
+                    assert!(!store.all().unwrap().is_empty());
+                }
+                assert_eq!(
+                    fs::read(backup.path.join("data/logs/session.replay")).unwrap(),
+                    b"backup state"
+                );
+                assert_eq!(fs::read(&source).unwrap(), original);
             }
         }
     }

@@ -172,7 +172,7 @@ fn ready_staged_archive_entries_require_prelaunch_preservation_reader() {
 }
 
 #[test]
-fn fresh_direct_entries_require_v25_without_reinterpreting_retained_or_exact_old_readers() {
+fn fresh_direct_entries_require_v26_without_reinterpreting_retained_or_exact_old_readers() {
     let catalog = crate::Catalog::embedded().unwrap();
     let packet: Value = serde_json::from_str(include_str!(
         "../../../docs/qualification/retained-direct-decisions-2026-10-27.json"
@@ -189,11 +189,11 @@ fn fresh_direct_entries_require_v25_without_reinterpreting_retained_or_exact_old
         port.release.repository = "fixture/guarded-reader".into();
         port.release.direct.clear();
         let mut entry = entry_for_port(&port);
-        for minimum in [1, 23, 24] {
+        for minimum in [1, 23, 24, 25] {
             entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
-            entry["required_capabilities"][0]["maximum_version"] = json!(25);
+            entry["required_capabilities"][0]["maximum_version"] = json!(26);
             assert!(
-                inspect(&entry).unwrap_err().message.contains("version 25"),
+                inspect(&entry).unwrap_err().message.contains("version 26"),
                 "{id}"
             );
         }
@@ -207,8 +207,8 @@ fn fresh_direct_entries_require_v25_without_reinterpreting_retained_or_exact_old
             serde_json::to_value(retained.port()).unwrap(),
             entry["port"]
         );
-        entry["required_capabilities"][0]["minimum_version"] = json!(25);
-        entry["required_capabilities"][0]["maximum_version"] = json!(25);
+        entry["required_capabilities"][0]["minimum_version"] = json!(26);
+        entry["required_capabilities"][0]["maximum_version"] = json!(26);
         assert!(inspect(&entry).unwrap().capabilities().compatible);
         entry["required_capabilities"][0]["minimum_version"] = json!(27);
         entry["required_capabilities"][0]["maximum_version"] = json!(27);

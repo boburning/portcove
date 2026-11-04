@@ -105,11 +105,7 @@ pub(crate) fn legacy_direct_reader(port_id: &str) -> Option<(&'static str, &'sta
 }
 
 pub(crate) fn fresh_direct_data_guard_capability(port: &crate::PortDefinition) -> Option<u32> {
-    requires_fresh_direct_data_guard(port).then_some(if port.id == "super-metroid-recomp" {
-        26
-    } else {
-        25
-    })
+    requires_fresh_direct_data_guard(port).then_some(26)
 }
 
 pub(crate) fn requires_fresh_direct_data_guard(port: &crate::PortDefinition) -> bool {

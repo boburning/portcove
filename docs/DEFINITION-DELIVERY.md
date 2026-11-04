@@ -150,29 +150,32 @@ restore preflights complete package conflicts across all retained runtimes befor
 publishing canonical data. This reuses the PS1 coexistence algorithm and grants
 no new publisher, executable, original-file or external-data authority.
 
-Version 25 supplies the bounded fresh-data isolation required by newer managed
-Sonic 3K, Sonic 1 and Mega Man X2 recipes. New indexed entries for these ready
-staged routes must declare `staged-source-portable` with `minimum_version: 25`
-and an inclusive `maximum_version` of at least 25. An interval starting at 24
-is insufficient: it would let a reader without the hold accept the recipe.
-The normal capability resolver therefore refuses these new entries on a
-version-24 inventory. Authors and publishers must emit that requirement; Core
-rejects underdeclared fresh entries rather than treating a guide as enforcement.
-The exact historical Direct package readers and retained entry projections keep
-their existing versions and bytes. Current Core applies its runtime compatibility
-checks independently of the retained envelope version. This is neither state ABI
-proof nor old flat-catalog, protected publication or #534 unchanged-client
-qualification. It introduces no new recipe field or console-family primitive.
+Version 25 introduced bounded fresh-data isolation for managed Sonic 3K,
+Sonic 1 and Mega Man X2 recipes. Retained entries and exact historical Direct
+package readers keep their creating versions and bytes. Current Core applies
+its runtime compatibility checks independently of the retained envelope version.
 
-Version 26 extends that same isolation boundary to fresh Super Metroid recipes.
-The exact accepted Direct v0.3.12 package reader keeps its creating contract;
-new SM entries must start their staged-source interval at 26 or later. Reader 25
-semantics remain unchanged and cannot enforce this new title boundary, so its
-inventory refuses a minimum 26 entry. Core rejects lower-bound underclaims and
-applies the existing collection, restore, backup, transition and recovery guards
-to the new recipe. Retained exact historical definitions and administrative
-restore keep their meanings. This grants no populated-data migration, legacy
-state readability, native-game or protected-publication acceptance.
+Version 26 extends isolation to fresh Super Metroid recipes and enforces the
+archive boundary for all four families, including transitions with identical
+persistence scopes. New indexed entries for these ready staged routes must
+start their `staged-source-portable` interval at 26 or later; current Core
+rejects lower-bound underclaims. Reader 25 cannot enforce this boundary and its
+inventory refuses the new requirement. A different verified archive may replace
+or reuse a runtime only with original-only data in the active, canonical and
+retained target roots. An initialized restore receipt does not prove that shared
+player data came from that build.
+
+New guarded backups bind the verified producing archive into their content
+integrity stream; older raw-byte verifiers refuse them. Restore checks every
+actual retained destination before publication or synchronization. Unknown or
+mismatched producing builds cannot restore populated snapshots into a fresh
+guarded runtime. Restore journals retain one operation-owned, content-addressed
+copy of the reviewed manifest in `original_paths`; older restore readers refuse
+that nonempty envelope. Recovery rechecks that input and the phase-owned staged
+or published snapshot before mutation. Existing unbound backups keep their
+original hashes and exact historical administrative behavior, including SM
+v0.3.12. This grants no populated-data migration, state ABI proof, legacy state
+readability, native-game or protected-publication acceptance.
 
 The N64 portable template also advertises version 2, which implements the
 catalog-declared fresh Windows D3D12 default. Inventory identities are unique

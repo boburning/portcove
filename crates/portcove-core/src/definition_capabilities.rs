@@ -607,10 +607,10 @@ mod tests {
     }
 
     #[test]
-    fn fresh_direct_entries_require_their_v25_or_v26_reader_inventory() {
+    fn fresh_direct_entries_require_their_v26_reader_inventory() {
         let catalog = crate::Catalog::embedded().unwrap();
         for (id, minimum) in [
-            ("sonic-3-and-knuckles-recomp", 25),
+            ("sonic-3-and-knuckles-recomp", 26),
             ("super-metroid-recomp", 26),
         ] {
             let bundle = crate::test_fixture::indexed_catalog_bundle(&catalog, id);
