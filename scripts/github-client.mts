@@ -1,4 +1,5 @@
 import { Octokit } from "@octokit/core";
+import { composePaginateRest } from "@octokit/plugin-paginate-rest";
 import {
   GitHubApiError,
   sanitizeOperationError,
@@ -96,9 +97,10 @@ export async function createGitHubClient(options: GitHubClientOptions) {
   const credentialRemaining = Math.ceil(options.deadline - now());
   if (credentialRemaining < 1)
     throw new GitHubApiError("deadline_exceeded", "GitHub credential deadline exhausted");
+  const credentialTimeout = AbortSignal.timeout(Math.min(2_147_483_647, credentialRemaining));
   const credentialSignal = AbortSignal.any([
     ...(options.signal ? [options.signal] : []),
-    AbortSignal.timeout(Math.min(2_147_483_647, credentialRemaining)),
+    credentialTimeout,
   ]);
   let token: string | undefined;
   try {
@@ -119,10 +121,12 @@ export async function createGitHubClient(options: GitHubClientOptions) {
     credentialSignal.throwIfAborted();
   } catch {
     throw new GitHubApiError(
-      now() >= options.deadline
-        ? "deadline_exceeded"
-        : credentialSignal.aborted
-          ? "cancelled"
+      credentialSignal.aborted
+        ? credentialTimeout.aborted && credentialSignal.reason === credentialTimeout.reason
+          ? "deadline_exceeded"
+          : "cancelled"
+        : now() >= options.deadline
+          ? "deadline_exceeded"
           : "credential_unavailable",
       "GitHub credential resolution did not complete",
     );
@@ -157,6 +161,8 @@ export async function createGitHubClient(options: GitHubClientOptions) {
     log: { debug() {}, info() {}, warn() {}, error() {} },
   });
   client.hook.wrap("request", async (request, parameters) => {
+    let requestTimedOut = () => false;
+    let deadline = options.deadline;
     try {
       const rawPolicy: unknown = parameters.request?.portcove;
       const policy =
@@ -167,15 +173,17 @@ export async function createGitHubClient(options: GitHubClientOptions) {
           ? (rawPolicy as unknown as GitHubRequestPolicy)
           : { replay: "once" as const, attempts: 0 };
       policy.deadline ??= Math.min(options.deadline, now() + requestTimeoutMs);
-      const deadline = Math.min(options.deadline, policy.deadline);
+      deadline = Math.min(options.deadline, policy.deadline);
       if (deadline <= now())
         throw new GitHubApiError("deadline_exceeded", "GitHub logical request deadline exhausted");
       const requestSignal: unknown = parameters.request?.signal;
+      const timeout = AbortSignal.timeout(Math.min(2_147_483_647, Math.ceil(deadline - now())));
       const signal = AbortSignal.any([
         ...(options.signal ? [options.signal] : []),
-        AbortSignal.timeout(Math.min(2_147_483_647, Math.ceil(deadline - now()))),
+        timeout,
         ...(requestSignal instanceof AbortSignal ? [requestSignal] : []),
       ]);
+      requestTimedOut = () => timeout.aborted && signal.reason === timeout.reason;
       const path = new URL(parameters.url, base).pathname;
       const resource =
         path === "/graphql" ? "graphql" : path.startsWith("/search/") ? "search" : "core";
@@ -334,6 +342,12 @@ export async function createGitHubClient(options: GitHubClientOptions) {
                 response: result,
               },
             );
+          if (now() >= deadline)
+            throw new GitHubApiError(
+              "deadline_exceeded",
+              "GitHub response processing exceeded the original deadline",
+            );
+          signal.throwIfAborted();
           return result;
         } catch (error) {
           if (localFailure || signal.aborted) {
@@ -341,7 +355,7 @@ export async function createGitHubClient(options: GitHubClientOptions) {
               secrets: token ? [token] : [],
             });
             throw new GitHubApiError(
-              signal.aborted ? (now() >= deadline ? "deadline_exceeded" : "cancelled") : safe.code,
+              signal.aborted ? (requestTimedOut() ? "deadline_exceeded" : "cancelled") : safe.code,
               safe.message,
             );
           }
@@ -479,15 +493,98 @@ export async function createGitHubClient(options: GitHubClientOptions) {
       throw new GitHubApiError(
         error instanceof GitHubApiError
           ? safe.code
-          : now() >= options.deadline
+          : requestTimedOut()
             ? "deadline_exceeded"
             : aborted
               ? "cancelled"
-              : "invalid_response",
+              : now() >= deadline
+                ? "deadline_exceeded"
+                : "invalid_response",
         safe.message,
         details,
       );
     }
   });
   return client;
+}
+
+/** SDK-owned ordinary pagination with original response envelopes. Inventory
+ * eligibility, stability and completeness remain with each domain owner. */
+export async function* iterateGitHubPages(
+  client: Octokit,
+  options: {
+    url: string;
+    headers?: Record<string, string>;
+    signal?: AbortSignal;
+    deadline?: number;
+    reserve?: GitHubClientOptions["reserve"];
+  },
+) {
+  type Response = Awaited<ReturnType<Octokit["request"]>>;
+  const originals = new WeakMap<object, Response>();
+  const seen = new Set<string>();
+  let failure: Error | undefined;
+  const request = Object.assign(
+    async (parameters: { method: "GET"; url: string; headers: Record<string, string> }) => {
+      try {
+        if (seen.has(parameters.url))
+          throw new GitHubApiError("invalid_response", "GitHub pagination did not advance");
+        seen.add(parameters.url);
+        const response = await client.request({
+          ...parameters,
+          request: {
+            ...(options.signal ? { signal: options.signal } : {}),
+            portcove: {
+              replay: "safe-read",
+              attempts: 0,
+              ...(options.deadline === undefined ? {} : { deadline: options.deadline }),
+              ...(options.reserve ? { reserve: options.reserve } : {}),
+            },
+          },
+        });
+        // The SDK mutates list envelopes during normalization. Retain the
+        // original bounded JSON representation for consumed count/shape checks.
+        originals.set(response, { ...response, data: structuredClone(response.data as unknown) });
+        return response;
+      } catch (error) {
+        failure =
+          error instanceof Error
+            ? error
+            : new GitHubApiError("request_failed", "GitHub pagination request failed");
+        throw failure;
+      }
+    },
+    { endpoint: client.request.endpoint, defaults: client.request.defaults },
+  ) as Octokit["request"] &
+    ((parameters: {
+      method: "GET";
+      url: string;
+      headers?: Record<string, string>;
+    }) => Promise<Response>);
+  const pages: AsyncIterable<unknown> = composePaginateRest.iterator(client, request, {
+    method: "GET",
+    url: options.url,
+    ...(options.headers ? { headers: options.headers } : {}),
+  });
+  try {
+    for await (const page of pages) {
+      // paginate-rest synthesizes an empty 200 for409. No provider failure may
+      // become a successful empty collection at Portcove's boundary.
+      if (failure !== undefined) throw failure;
+      const original = isRecord(page) ? originals.get(page) : undefined;
+      if (!original)
+        throw new GitHubApiError(
+          "invalid_response",
+          "GitHub pagination lost its response evidence",
+        );
+      yield original;
+    }
+  } catch (error) {
+    if (failure !== undefined) throw failure;
+    if (error instanceof GitHubApiError) throw error;
+    throw new GitHubApiError(
+      "invalid_response",
+      "GitHub pagination could not normalize its response",
+    );
+  }
 }

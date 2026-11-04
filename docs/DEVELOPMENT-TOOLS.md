@@ -1014,8 +1014,10 @@ The configured Octokit integration in `scripts/github-client.mts` collects each
 metadata body under a byte cap before SDK parsing, defaults to 16 MiB and a
 15-second request deadline, and retains an original monotonic operation deadline.
 The production `capture-port` path uses asynchronous REST inventory and intake;
-Aqua, handoff evidence, postmerge metadata and CI-health metadata use the same
-factory. API-version headers remain owned by each caller. Existing unmigrated
+Aqua, handoff evidence, postmerge metadata, repository settings and CI-health
+metadata use the same factory. Ordinary pagination uses the SDK iterator while
+preserving raw response/count evidence and refusing synthetic empty results for
+HTTP 409. API-version headers remain owned by each caller. Existing unmigrated
 callers still use the bounded legacy runner during #4319.
 
 Eligible reads have at most three total attempts; writes run once and require
