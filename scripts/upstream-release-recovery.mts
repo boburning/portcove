@@ -7,6 +7,7 @@ import { isRecord } from "./runtime-values.mts";
 import {
   retainedRehearsal,
   retainedRecovery,
+  retainedDiagnostic,
   rehearsalExecution,
   rehearsalOrigin,
   rehearsalExecutionRef,
@@ -24,8 +25,8 @@ import {
 import { verifyImmutableRehearsal } from "./upstream-release-publication.mts";
 
 export function inspectRetainedRecoveryHistory(attempts: unknown[], contexts: unknown[]) {
-  assert.equal(attempts.length, 4);
-  assert.equal(contexts.length, 4);
+  assert.equal(attempts.length, 5);
+  assert.equal(contexts.length, 5);
   for (const [index, expectedStep] of [
     "Inject controlled post-publication interruption",
     "Bound actual cumulative runtime and remaining native jobs",
@@ -90,39 +91,56 @@ export function inspectRetainedRecoveryHistory(attempts: unknown[], contexts: un
         1,
       );
   }
-  const previous = contexts[2];
-  assert.ok(isRecord(previous));
-  assert.equal(previous.id, Number(retainedRecovery.run_id));
-  assert.equal(previous.head_sha, retainedRecovery.source);
-  assert.equal(previous.head_branch, retainedRecovery.ref.slice("refs/tags/".length));
-  assert.equal(previous.run_attempt, 1);
-  assert.equal(previous.status, "completed");
-  assert.equal(previous.conclusion, "failure");
-  const rows = attempts[2];
-  assert.ok(isRecord(rows) && Array.isArray(rows.jobs));
-  assert.equal(rows.total_count, 4);
-  assert.equal(rows.jobs.length, 4);
-  const jobs: unknown[] = rows.jobs;
-  for (const [name, conclusion] of [
-    ["recovery", "success"],
-    ["feed", "success"],
-    ["public_installed", "failure"],
-    ["readback", "skipped"],
+  for (const history of [
+    {
+      index: 2,
+      origin: retainedRecovery,
+      expected: [
+        ["recovery", "success"],
+        ["feed", "success"],
+        ["public_installed", "failure"],
+        ["readback", "skipped"],
+      ],
+    },
+    {
+      index: 3,
+      origin: retainedDiagnostic,
+      expected: [
+        ["recovery", "success"],
+        ["public_installed", "failure"],
+        ["readback", "skipped"],
+      ],
+    },
   ]) {
-    const matching = jobs.filter((row) => isRecord(row) && row.name === name);
-    assert.equal(matching.length, 1);
-    const row = matching[0];
-    assert.ok(isRecord(row) && Array.isArray(row.steps));
-    assert.equal(row.status, "completed");
-    assert.equal(row.conclusion, conclusion);
-    if (name === "readback") assert.deepEqual(row.steps, []);
-    if (name === "public_installed")
-      assert.deepEqual(
-        row.steps
-          .filter((step) => isRecord(step) && step.conclusion === "failure")
-          .map((step) => (isRecord(step) ? step.name : null)),
-        ["Exercise compiled HTTPS metadata and actual GitHub payload through installed UI"],
-      );
+    const previous = contexts[history.index];
+    assert.ok(isRecord(previous));
+    assert.equal(previous.id, Number(history.origin.run_id));
+    assert.equal(previous.head_sha, history.origin.source);
+    assert.equal(previous.head_branch, history.origin.ref.slice("refs/tags/".length));
+    assert.equal(previous.run_attempt, 1);
+    assert.equal(previous.status, "completed");
+    assert.equal(previous.conclusion, "failure");
+    const rows = attempts[history.index];
+    assert.ok(isRecord(rows) && Array.isArray(rows.jobs));
+    assert.equal(rows.total_count, history.expected.length);
+    assert.equal(rows.jobs.length, history.expected.length);
+    const jobs: unknown[] = rows.jobs;
+    for (const [name, conclusion] of history.expected) {
+      const matching = jobs.filter((row) => isRecord(row) && row.name === name);
+      assert.equal(matching.length, 1);
+      const row = matching[0];
+      assert.ok(isRecord(row) && Array.isArray(row.steps));
+      assert.equal(row.status, "completed");
+      assert.equal(row.conclusion, conclusion);
+      if (name === "readback") assert.deepEqual(row.steps, []);
+      if (name === "public_installed")
+        assert.deepEqual(
+          row.steps
+            .filter((step) => isRecord(step) && step.conclusion === "failure")
+            .map((step) => (isRecord(step) ? step.name : null)),
+          ["Exercise compiled HTTPS metadata and actual GitHub payload through installed UI"],
+        );
+    }
   }
   return inspectRehearsalBudget("recovery", attempts, contexts);
 }

@@ -26,6 +26,12 @@ export const retainedRecovery = Object.freeze({
   run_attempt: 1,
   ref: "refs/tags/portcove-upstream-rehearsal-20261104r3",
 });
+export const retainedDiagnostic = Object.freeze({
+  source: "22cfaab1ffd6548e1f85dff1b012d20dc1b80d78",
+  run_id: "41811038103",
+  run_attempt: 1,
+  ref: "refs/tags/portcove-upstream-rehearsal-20261104r4",
+});
 export const rehearsalOriginRef = retainedRehearsal.ref;
 
 export function rehearsalExecution(environment: NodeJS.ProcessEnv = process.env) {
@@ -46,6 +52,8 @@ export function rehearsalExecution(environment: NodeJS.ProcessEnv = process.env)
     run_attempt !== 1 ||
     run_id === retainedRehearsal.run_id ||
     run_id === retainedRecovery.run_id ||
+    run_id === retainedDiagnostic.run_id ||
+    source === retainedDiagnostic.source ||
     source === retainedRecovery.source ||
     source === retainedRehearsal.source
   )
@@ -53,7 +61,7 @@ export function rehearsalExecution(environment: NodeJS.ProcessEnv = process.env)
   return { source, run_id, run_attempt };
 }
 
-/** The r4 diagnostic continuation cannot allocate a fresh payload cohort. */
+/** The r5 repaired-harness continuation cannot allocate a fresh payload cohort. */
 export function rehearsalOrigin(environment: NodeJS.ProcessEnv = process.env): {
   source: string;
   run_id: string;

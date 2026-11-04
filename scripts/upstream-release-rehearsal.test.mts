@@ -19,6 +19,7 @@ import {
   rehearsalPublicBase,
   retainedRehearsal,
   retainedRecovery,
+  retainedDiagnostic,
 } from "./upstream-release-identity.mts";
 import {
   recoveryJobMinutes,
@@ -767,7 +768,7 @@ void test("immutable observation refuses missing immutability even with complete
     );
 });
 
-void test("diagnostic continuation retains all three failed exposures and counts actual execution", () => {
+void test("diagnostic continuation retains all four failed exposures and counts actual execution", () => {
   const at = (minute: number) =>
     new Date(Date.parse("2026-11-04T00:00:00Z") + minute * 60000).toISOString();
   const make = (name: string, index: number, attempt: number, conclusion: string) => ({
@@ -878,11 +879,31 @@ void test("diagnostic continuation retains all three failed exposures and counts
     }),
   };
   const current = { ...contexts[0]!, id: 66666, head_sha: expected.source, run_started_at: at(40) };
-  const fourth = { total_count: 0, jobs: [] };
-  const attempts = [first, second, third, fourth];
-  const allContexts = [...contexts, previous, current];
+  const fourthContext = {
+    ...previous,
+    id: Number(retainedDiagnostic.run_id),
+    head_sha: retainedDiagnostic.source,
+    head_branch: retainedDiagnostic.ref.slice(10),
+    run_started_at: at(40),
+  };
+  const fourth = {
+    total_count: 3,
+    jobs: third.jobs
+      .filter((row) => row.name !== "feed")
+      .map((row) => ({
+        ...row,
+        run_id: fourthContext.id,
+        head_sha: fourthContext.head_sha,
+        head_branch: fourthContext.head_branch,
+        started_at: at(41),
+        completed_at: at(42),
+      })),
+  };
+  const fifth = { total_count: 0, jobs: [] };
+  const attempts = [first, second, third, fourth, fifth];
+  const allContexts = [...contexts, previous, fourthContext, current];
   const admitted = inspectRetainedRecoveryHistory(attempts, allContexts);
-  assert.equal(admitted.observed_milliseconds, 12 * 60000);
+  assert.equal(admitted.observed_milliseconds, 14 * 60000);
   assert.equal(admitted.copied_successful_observations, 7);
   assert.equal(admitted.remaining_declared_minutes, 23);
   assert.throws(() =>
@@ -898,11 +919,13 @@ void test("diagnostic continuation retains all three failed exposures and counts
   );
   const wrong = structuredClone(second);
   wrong.jobs[7]!.steps[0]!.name = "unrelated failure";
-  assert.throws(() => inspectRetainedRecoveryHistory([first, wrong, third, fourth], allContexts));
+  assert.throws(() =>
+    inspectRetainedRecoveryHistory([first, wrong, third, fourth, fifth], allContexts),
+  );
   const changedPrevious = structuredClone(third);
   changedPrevious.jobs[2]!.steps[0]!.name = "unrelated failure";
   assert.throws(() =>
-    inspectRetainedRecoveryHistory([first, second, changedPrevious, fourth], allContexts),
+    inspectRetainedRecoveryHistory([first, second, changedPrevious, fourth, fifth], allContexts),
   );
   assert.throws(() => inspectRehearsalBudget("recovery", [...attempts, fourth]));
 });

@@ -1414,7 +1414,10 @@ try {
         $candidate = (Resolve-Path -LiteralPath $InstalledUpdateCandidatePath).Path
         if ($ControlledPublicUpdate) {
             foreach ($name in @('PORTCOVE_APPLICATION_UPDATE_BUNDLED_ROOT_FILE', 'PORTCOVE_APPLICATION_UPDATE_METADATA_URL', 'PORTCOVE_APPLICATION_UPDATE_TARGETS_URL', 'PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_PAYLOAD')) {
-                [Environment]::SetEnvironmentVariable($name, $null, 'Process')
+                # PowerShell 7.5+ converts $null to an empty environment value.
+                # Rust var_os still observes it, selecting the fixture provider.
+                Remove-Item -LiteralPath ('Env:' + $name) -ErrorAction SilentlyContinue
+                if ([Environment]::GetEnvironmentVariables('Process').Contains($name)) { throw "Controlled-public transport override remains present: $name" }
             }
             if ($evidence) { $evidence.controlled_public_transport = 'compiled HTTPS metadata and normal GitHub payload transport; no local repository or payload substitute' }
         } else {
@@ -1427,7 +1430,7 @@ try {
         $env:PORTCOVE_APPLICATION_UPDATE_STAGING = $updateRoot
         $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE = $qualificationStage
         if ($RendererUpdate) {
-            [Environment]::SetEnvironmentVariable("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT", $null, "Process")
+            Remove-Item -LiteralPath 'Env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT' -ErrorAction SilentlyContinue
             $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_EXIT = "1"
         } else {
             $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT = "after-reconciliation"
@@ -1551,7 +1554,12 @@ try {
             [IO.Directory]::CreateDirectory($rendererRoot) | Out-Null
             $helperMarker = Join-Path $rendererRoot "helper-process.json"
             $relaunchMarker = Join-Path $rendererRoot "relaunch-process.json"
-            if ($ControlledPublicUpdate) { [Environment]::SetEnvironmentVariable('PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_PAYLOAD', $null, 'Process') }
+            if ($ControlledPublicUpdate) {
+                Remove-Item -LiteralPath 'Env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_PAYLOAD' -ErrorAction SilentlyContinue
+                foreach ($name in @('PORTCOVE_APPLICATION_UPDATE_BUNDLED_ROOT_FILE', 'PORTCOVE_APPLICATION_UPDATE_METADATA_URL', 'PORTCOVE_APPLICATION_UPDATE_TARGETS_URL', 'PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_PAYLOAD')) {
+                    if ([Environment]::GetEnvironmentVariables('Process').Contains($name)) { throw "Controlled-public renderer override remains present: $name" }
+                }
+            }
             else { $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_PAYLOAD = $candidate }
             $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_HELPER_PROCESS = $helperMarker
             $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_PROCESS = $relaunchMarker
@@ -1828,8 +1836,8 @@ try {
         # The next smoke is an ordinary interactive candidate launch. Keep the
         # saved values for the outer finally, but do not let the qualification
         # relaunch's immediate-exit mode suppress its window and close checks.
-        [Environment]::SetEnvironmentVariable("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT", $null, "Process")
-        [Environment]::SetEnvironmentVariable("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE", $null, "Process")
+        Remove-Item -LiteralPath 'Env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT' -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath 'Env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE' -ErrorAction SilentlyContinue
     } else {
         $installFlag = if ($InstallMode -eq "Passive") { "/P" } else { "/S" }
         # A predecessor establishes the registered destination. /UPDATE must
@@ -2171,13 +2179,15 @@ catch {
 }
 finally {
     foreach ($name in $updateEnvironmentNames) {
-        [Environment]::SetEnvironmentVariable($name, $previousUpdateEnvironment[$name], "Process")
+        if ($null -eq $previousUpdateEnvironment[$name]) { Remove-Item -LiteralPath ('Env:' + $name) -ErrorAction SilentlyContinue }
+        else { [Environment]::SetEnvironmentVariable($name, $previousUpdateEnvironment[$name], "Process") }
     }
     foreach ($name in $previousTemp.Keys) {
         if ($null -eq $previousTemp[$name]) { Remove-Item -LiteralPath "Env:$name" -ErrorAction SilentlyContinue }
         else { [System.Environment]::SetEnvironmentVariable($name, $previousTemp[$name], "Process") }
     }
-    [System.Environment]::SetEnvironmentVariable("PORTCOVE_LIBRARY", $previousLibrary, "Process")
+    if ($null -eq $previousLibrary) { Remove-Item -LiteralPath 'Env:PORTCOVE_LIBRARY' -ErrorAction SilentlyContinue }
+    else { [System.Environment]::SetEnvironmentVariable("PORTCOVE_LIBRARY", $previousLibrary, "Process") }
     if ($completed -and -not $nativeAccount -and [System.IO.Directory]::Exists($runRoot)) {
         $resolvedRunRoot = (Resolve-Path -LiteralPath $runRoot).Path
         if (-not $resolvedRunRoot.StartsWith($expectedPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
