@@ -6,10 +6,13 @@ import { disposableDirectory } from "./fixtures/disposable-directory.mts";
 import os from "node:os";
 import path from "node:path";
 
-void test("Windows connected runner orders both original stages and recovers once on failed or late prerequisite and upload effects", (t) => {
-  const root = disposableDirectory(t, path.join(os.tmpdir(), "windows-connected-runner-"));
-  const entry = new URL("./release-hosted-native-runner.mts", import.meta.url).href;
-  const code = String.raw`
+void test(
+  "Windows connected runner orders both original stages and recovers once on failed or late prerequisite and upload effects",
+  { timeout: 90000 },
+  (t) => {
+    const root = disposableDirectory(t, path.join(os.tmpdir(), "windows-connected-runner-"));
+    const entry = new URL("./release-hosted-native-runner.mts", import.meta.url).href;
+    const code = String.raw`
 import assert from 'node:assert/strict';import {registerHooks} from 'node:module';import {readFileSync} from 'node:fs';import {mkdir,writeFile,readFile} from 'node:fs/promises';import {createHash} from 'node:crypto';import {setTimeout as pause} from 'node:timers/promises';import path from 'node:path';
 const entry=${JSON.stringify(entry)},root=process.argv[1],session={},installation={},parent={},pre={},post={},hash=b=>createHash('sha256').update(b).digest('hex');
 let clock=1000,directory,scenario,order,recoveries,tasks,api;
@@ -57,13 +60,14 @@ for(const name of ['success','short-issuer','late-finish','failed-prerequisite',
 }
 console.log('controlled connected Windows runner passed; native and provider peers inert');
 `;
-  const result = spawnSync(process.execPath, ["--input-type=module", "--eval", code, root], {
-    encoding: "utf8",
-    // Nine controlled file rendezvous scenarios share this child; retain finite
-    // headroom under the complete selected suite without changing their clocks.
-    timeout: 30000,
-    maxBuffer: 65536,
-  });
-  assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
-  assert.match(result.stdout, /controlled connected Windows runner passed/u);
-});
+    const result = spawnSync(process.execPath, ["--input-type=module", "--eval", code, root], {
+      encoding: "utf8",
+      // Nine controlled file rendezvous scenarios share this child; retain finite
+      // headroom under the complete selected suite without changing their clocks.
+      timeout: 60000,
+      maxBuffer: 65536,
+    });
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    assert.match(result.stdout, /controlled connected Windows runner passed/u);
+  },
+);

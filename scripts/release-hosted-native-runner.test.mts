@@ -1067,10 +1067,12 @@ const run=(directory,deadline)=>{if(fault==='configured')return (post?api.runCon
 const read=post?api.readHostedNativePostSignUploadRequest:api.readHostedNativeUploadRequest,ack=post?api.acknowledgeHostedNativePostSignUpload:api.acknowledgeHostedNativeUpload;
 for(const name of ['valid','configured','wrong-request','corrupt-ack','provider','timeout']){
  fault=name;const directory=path.join(root,name);await mkdir(directory,{mode:0o700});
- const running=run(directory,performance.now()+(name==='timeout'?1500:20000));
- // Attach rejection immediately while waiting for the other process's routing view.
- const outcome=running.then(value=>({value}),error=>({error}));
- let request;for(let i=0;i<400;i++){try{request=await read(directory);break}catch(error){if(error.code!=='ENOENT')throw error;await delay(5)}}
+ const originalDeadline=performance.now()+(name==='timeout'?1500:20000);
+ const running=run(directory,originalDeadline);
+ // Wait only within the original caller lifetime and stop after producer refusal.
+ let settled=false;
+ const outcome=running.then(value=>({value}),error=>({error})).finally(()=>{settled=true});
+ let request;while(!settled&&performance.now()<originalDeadline){try{request=await read(directory);break}catch(error){if(error.code!=='ENOENT')throw error;await delay(5)}}
  assert.ok(request, "routing view missing for controlled scenario: "+name);assert.equal(request.files.length,4);assert.equal(request.authority,'none');
  await assert.rejects((post?api.readHostedNativeUploadRequest:api.readHostedNativePostSignUploadRequest)(directory));
  await assert.rejects((post?api.acknowledgeHostedNativeUpload:api.acknowledgeHostedNativePostSignUpload)(directory,request.request_sha256,123,'a'.repeat(64)));
@@ -1094,12 +1096,13 @@ for(const name of ['valid','configured','wrong-request','corrupt-ack','provider'
 assert.equal(readbacks,4);assert.equal(received,2); // A retained attempt can re-read tools, never re-prepare a proof.
 for(const name of ['delayed-read','late-settlement','late-ack']){
  fault=name;const directory=path.join(root,name);await mkdir(directory,{mode:0o700});
- const outcome=run(directory,performance.now()+20000).then(value=>({value}),error=>({error}));
+ const originalDeadline=performance.now()+20000;let settled=false;
+ const outcome=run(directory,originalDeadline).then(value=>({value}),error=>({error})).finally(()=>{settled=true});
  if(name==='delayed-read'){
    const result=await outcome;assert.match(result.error.message,/retain/);
    await assert.rejects(readFile(path.join(directory,'native-job-upload-request.json')),{code:'ENOENT'});
  }else{
-   let request;for(let i=0;i<400;i++){try{request=await read(directory);break}catch(error){if(error.code!=='ENOENT')throw error;await delay(5)}}
+   let request;while(!settled&&performance.now()<originalDeadline){try{request=await read(directory);break}catch(error){if(error.code!=='ENOENT')throw error;await delay(5)}}
    assert.ok(request, "routing view missing for controlled scenario: "+name);
    if(name==='late-ack')await assert.rejects(ack(directory,request.request_sha256,123,'a'.repeat(64)),/exhausted/);
    else await ack(directory,request.request_sha256,123,'a'.repeat(64));
