@@ -3,7 +3,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
-import { withCheckpointLock } from "./observe-configured-upstream.mts";
+import { withCheckpointLock } from "./observer-checkpoint-storage.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 import { selectDiscoveryProfile, discoveryProfiles } from "./discovery-budget.mts";
 import { errorCode, errorMessage } from "./runtime-values.mts";
@@ -23,10 +23,8 @@ export const discoveryBootstrapModules = Object.freeze([
   "discovery-cache.mts",
   "github-operation.mts",
   "json-values.mts",
-  "observe-configured-upstream.mts",
   "observer-checkpoint-storage.mts",
   "release-path-safety.mts",
-  "upstream-observer.mts",
   "runtime-values.mts",
 ]);
 

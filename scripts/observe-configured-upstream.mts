@@ -13,6 +13,7 @@ import { fileURLToPath } from "node:url";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 import {
   decodeStoredObserverCheckpoint,
+  withCheckpointLock,
   observerSourceCheckpointLimit,
 } from "./observer-checkpoint-storage.mts";
 import {
@@ -24,6 +25,7 @@ import {
   reusableProviderObservation,
   compactObserverCache,
   validateObserverCache,
+  checksumSourcesFromProjections,
 } from "./upstream-observer.mts";
 
 const repositoryRoot = fileURLToPath(new URL("../", import.meta.url));
@@ -303,6 +305,13 @@ export async function advanceObservation(
             const known = new Set(retained.coverage!.asset_release_ids);
             covered = selected.every((id) => known.has(id));
           }
+          if (covered && options.selectChecksumSources)
+            covered = (await options.selectChecksumSources(retained)).every((source) =>
+              retained.facts.checksum_sidecars?.some(
+                (text) =>
+                  text.asset_id === source.asset_id && text.release_id === source.release_id,
+              ),
+            );
           if (covered)
             result = {
               observation: retained,
@@ -500,31 +509,7 @@ export async function atomicJson(filename: string, value: unknown) {
   }
 }
 
-/** Never steal an interrupted coordinator's lock; preserve its checkpoint for recovery. */
-export async function withCheckpointLock<T>(
-  statePath: string,
-  operation: () => T | Promise<T>,
-): Promise<T> {
-  const lockPath = await assertOwnedUnlinkedPath(
-    path.join(repositoryRoot, "work"),
-    `${statePath}.lock`,
-    "observer coordinator lock",
-  );
-  await mkdir(path.dirname(lockPath), { recursive: true });
-  const handle = await open(lockPath, "wx");
-  try {
-    await handle.writeFile(
-      JSON.stringify({
-        pid: process.pid,
-        started_at: new Date().toISOString(),
-      }),
-    );
-    return await operation();
-  } finally {
-    await handle.close();
-    await rm(lockPath);
-  }
-}
+export { withCheckpointLock } from "./observer-checkpoint-storage.mts";
 
 interface InspectionBounds {
   deadline: number;
@@ -749,6 +734,12 @@ async function main(args: string[]) {
     const result = await advanceObservation(config, checkpoint, {
       ...(process.env.GITHUB_TOKEN ? { token: process.env.GITHUB_TOKEN } : {}),
       project,
+      selectChecksumSources: async (observation: Observation) => {
+        const projection = await project(observation);
+        if (!isRecord(projection) || !Array.isArray(projection.projections))
+          throw new ObservationFailure("core-binding", "Core checksum selection is unavailable");
+        return checksumSourcesFromProjections(projection.projections);
+      },
       ...(config.format === 2
         ? {
             selectAssetReleases: async (headers: Observation) => {

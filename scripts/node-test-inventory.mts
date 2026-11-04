@@ -33,7 +33,7 @@ function qualificationPlatform(runner: unknown) {
     return "linux-x86_64";
   return runner === "windows-latest"
     ? "windows-x86_64"
-    : runner === "macos-26"
+    : runner === "macos-26" || runner === "macos-15"
       ? "macos-arm64"
       : null;
 }

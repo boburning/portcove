@@ -39,7 +39,7 @@ separately attributed and does not prove scheduled execution.
 pages and each release's complete asset collection. It preserves provider
 release order, draft/prerelease flags, numeric identities, tags, publication
 clocks, asset names, URLs, sizes and provider digest claims. It discards prose
-and recommendations. GitHub API redirects are refused; pagination links must
+and recommendations. Metadata API redirects are refused; pagination links must
 stay inside the exact collection, and asset URLs inside the configured
 repository and release. Duplicate IDs, malformed data and partial pagination
 fail the run. Every consumed page is revalidated after collection against its
@@ -110,6 +110,27 @@ prerelease flag is false; Preview (`beta`) retains its existing stable fallback,
 Rolling requires the catalog's explicit rolling tag. A held newest applicable candidate
 does not fall through to an older release and call it current. Missing or
 ambiguous platform assets and absent provider SHA-256 claims remain held.
+When the runtime's supported checksum policy can supply the missing digest,
+Core returns exact release/asset dependencies rather than a manual task. The
+collector fetches those asset texts through GitHub's asset API, retains bounded
+UTF-8 facts and revalidates every used text. Both inspector and runtime share
+exact `<asset>.sha256` precedence, aggregate filename matching, all-source
+agreement, eight-source and one-MiB-per-source limits. Incomplete or conflicting
+text cannot produce an eligible asset.
+
+Checksum transport alone permits at most three redirects to the fixed GitHub
+asset delivery hosts. Each physical request consumes existing admission and
+each hop uses the remaining deadline. Operation-owned redirect progress resumes
+even with a one-request source quantum; API credentials never reach the CDN.
+The same checkpoint/cache preserves text and metadata. Changed dependencies reset
+validation order; unchanged fresh facts can be reprojected without changing their
+observation clock. Checksum metadata does not establish artifact-byte verification
+or protected acquisition/publication authority.
+
+These provider and text facts remain observations, never admitted artifact bytes.
+Actual acquisition retains exact installed artifact/provider identity and refuses
+changed bytes under that binding. A new rolling asset ID identifies distinct bytes;
+this observer does not rewrite the old installed identity or supply publication.
 The observed host archive flag is retained in the digested facts as maintenance
 information; it is not a hold by itself.
 The output includes the adapter capability and exact catalog-definition hash.

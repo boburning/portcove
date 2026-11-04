@@ -1,3 +1,5 @@
+import { checkRouteFacts, projectRouteFacts } from "./catalog-route-facts.mts";
+import type { RouteFactsV1 } from "./catalog-route-facts.mts";
 import { platforms } from "../apps/desktop/src/catalog-values.generated.ts";
 import { createHash } from "node:crypto";
 import { lstatSync, readFileSync, readdirSync } from "node:fs";
@@ -44,6 +46,7 @@ export interface AuthoredListing extends NamedRecord {
 export interface AuthoredPort extends Record<string, unknown> {
   format_version: 1;
   listing: AuthoredListing;
+  route_facts_v1?: RouteFactsV1;
   /** Strict operational fields; common descriptive fields have one authority above. */
   integration?: Record<string, unknown>;
   /** Retained only to preserve the established operational ordering at migration. */
@@ -291,6 +294,8 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
       throw new Error("Shared presentation fields belong to the listing.");
   }
   const record = value as AuthoredPort;
+  if (record.route_facts_v1 !== undefined)
+    checkRouteFacts(record.route_facts_v1, record.integration);
   assessUpstreamLineage(record);
   return record;
 }
@@ -317,7 +322,8 @@ export function authoringRecordFromPort(port: CatalogPort, order?: number): Auth
   });
 }
 
-export function projectAuthoredPort(record: AuthoredPort): CatalogPort | undefined {
+export function projectAuthoredPort(input: AuthoredPort): CatalogPort | undefined {
+  const record = projectRouteFacts(input);
   if (!record.integration) return undefined;
   const integration = structuredClone(record.integration);
   const common: Record<string, unknown> = {};
@@ -363,7 +369,7 @@ export function assembleCatalogRecords(shared: unknown, inputs: readonly unknown
     ...(hasReferences ? { schema_version: 3 } : {}),
     ports,
   });
-  const listings = records.map((record) => ({
+  const listings = records.map(projectRouteFacts).map((record) => ({
     ...structuredClone(record.listing),
     platforms: structuredClone(record.integration?.platforms ?? record.listing.platforms ?? []),
     availability: record.listing.availability ?? "unknown",

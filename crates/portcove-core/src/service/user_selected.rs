@@ -1344,17 +1344,54 @@ mod tests {
         assert_bound_listing_player_route("re-volt-rvgl", "rvgl_launcher.exe", &[]);
     }
 
-    #[test]
-    fn prepared_guide_adoption_2738_tetris_player() {
-        assert_bound_listing_player_route("mstan-tetrisgbrecomp", "Tetris.exe", &[]);
-    }
+    include!("../testdata/prepared-route-tests.generated.rs");
 
     #[test]
-    fn prepared_guide_adoption_2725_n64_player() {
-        assert_bound_listing_player_route(
-            "n64hub-super-mario-64-recomp",
-            "SuperMario64Recompiled.exe",
-            &[],
+    fn prepared_guide_adoption_declaration_inventory() {
+        let declared = crate::test_fixture::route_enrollment()
+            .into_iter()
+            .filter(|case| !case.managed_native)
+            .map(|case| case.port_id)
+            .collect::<std::collections::BTreeSet<_>>();
+        assert_eq!(
+            declared,
+            DECLARED_PREPARED_ROUTE_TEST_IDS
+                .iter()
+                .map(|id| (*id).to_owned())
+                .collect::<std::collections::BTreeSet<_>>()
+        );
+        assert_eq!(DECLARED_PREPARED_ROUTE_TEST_IDS.len(), declared.len());
+    }
+    fn assert_declarative_prepared_player_route(id: &str) {
+        let expectations: serde_json::Value = serde_json::from_str(include_str!(
+            "../testdata/route-enrollment-expectations.json"
+        ))
+        .unwrap();
+        let case = crate::test_fixture::route_enrollment()
+            .into_iter()
+            .find(|case| case.port_id == id && !case.managed_native)
+            .unwrap();
+        let observed = expectations["cases"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|row| row["port_id"] == id)
+            .expect("new route needs independent reviewed expected facts");
+        assert_eq!(observed["executable"], case.prepared_player.executable);
+        assert_eq!(
+            observed["arguments"],
+            serde_json::to_value(&case.prepared_player.arguments).unwrap()
+        );
+        let args = case
+            .prepared_player
+            .arguments
+            .iter()
+            .map(String::as_str)
+            .collect::<Vec<_>>();
+        assert_bound_listing_player_route(id, &case.prepared_player.executable, &args);
+        eprintln!(
+            "{}",
+            serde_json::json!({"kind":"owned-probe-prepared-route-lifecycle","port_id":id,"outcome":"passed","upstream_game_executed":false})
         );
     }
 

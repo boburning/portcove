@@ -3283,9 +3283,56 @@ mod tests {
         assert_native_engine_adoption_lifecycle("sdlpal-sdlpal").await;
     }
 
-    #[tokio::test]
-    async fn native_engine_adoption_2567() {
-        assert_native_engine_adoption_lifecycle("doom-3-classic-dhewm3").await;
+    include!("../testdata/managed-route-tests.generated.rs");
+
+    #[test]
+    fn managed_native_declaration_inventory() {
+        let declared = crate::test_fixture::route_enrollment()
+            .into_iter()
+            .filter(|case| case.managed_native)
+            .map(|case| case.port_id)
+            .collect::<std::collections::BTreeSet<_>>();
+        assert_eq!(
+            declared,
+            DECLARED_MANAGED_ROUTE_TEST_IDS
+                .iter()
+                .map(|id| (*id).to_owned())
+                .collect::<std::collections::BTreeSet<_>>()
+        );
+        assert_eq!(DECLARED_MANAGED_ROUTE_TEST_IDS.len(), declared.len());
+    }
+    async fn assert_declarative_managed_native_route(id: &str) {
+        let corpus: serde_json::Value = serde_json::from_str(include_str!(
+            "../testdata/native-engine-adoption-2026-11-02.json"
+        ))
+        .unwrap();
+        let case = crate::test_fixture::route_enrollment()
+            .into_iter()
+            .find(|case| case.port_id == id && case.managed_native)
+            .unwrap();
+        let observed = corpus["cases"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|row| row["port_id"] == id)
+            .expect("managed route needs independent accepted member observations");
+        assert_eq!(
+            observed["selected_executable"],
+            case.prepared_player.executable
+        );
+        assert_eq!(
+            Catalog::embedded()
+                .unwrap()
+                .port(id)
+                .unwrap()
+                .launch_arguments,
+            case.prepared_player.arguments
+        );
+        assert_native_engine_adoption_lifecycle(id).await;
+        eprintln!(
+            "{}",
+            serde_json::json!({"kind":"controlled-managed-route-lifecycle","port_id":id,"outcome":"passed","upstream_game_executed":false})
+        );
     }
 
     #[tokio::test]

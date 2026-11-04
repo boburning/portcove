@@ -4124,6 +4124,10 @@ export interface ObservationEvidence {
 export interface ChannelObservation {
   channel: ReleaseChannel;
   channel_candidate: ObservedReleaseIdentity | null;
+  /**
+   * Exact provider assets required for automatic integrity continuation.
+   */
+  checksum_sources?: ObservedChecksumSource[];
   hold_reasons: string[];
   latest_eligible: ObservedResolution | null;
   latest_observed: ObservedReleaseIdentity | null;
@@ -4135,6 +4139,11 @@ export interface ObservedReleaseIdentity {
   provider_prerelease: boolean;
   published_at: string | null;
   tag: string;
+  [k: string]: unknown;
+}
+export interface ObservedChecksumSource {
+  asset_id: number;
+  release_id: number;
   [k: string]: unknown;
 }
 export interface ObservedResolution {
