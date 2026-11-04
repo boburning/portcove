@@ -4492,4 +4492,34 @@ void test("GitHub dependency changes select actual SDK and REST integration cont
     assert.ok(existsSync(new URL(`../${file}`, import.meta.url)));
   }
   assert.ok(!aqua.nodeTests.has("scripts/aqua-integrity.test.mts"));
+  const settings = classifyChanges(
+    [{ status: "M", path: "scripts/repository-settings-policy.mts" }],
+    { fileExists: () => false },
+  );
+  assert.ok(settings.nodeTests.has("scripts/repository-settings.test.mts"));
+  const settingsCommand = classifyChanges(
+    [{ status: "M", path: "scripts/repository-settings.mts" }],
+    { fileExists: () => false },
+  );
+  assert.ok(settingsCommand.nodeTests.has("scripts/repository-settings.test.mts"));
+  assert.ok(settingsCommand.nodeTests.has("scripts/github-client.test.mts"));
+});
+
+void test("retained GitHub CLI and attestation changes select their actual guarded consumers", () => {
+  const expected = [
+    "release-controller-tools",
+    "release-coordinator-checkpoint-authentication",
+    "release-signing-context-artifact",
+    "release-publication-result-artifact",
+    "release-tuf-role-artifact",
+    "release-hosted-native-acceptance",
+  ];
+  for (const file of ["scripts/github-cli.mts", "scripts/github-controller-attestation.mts"]) {
+    const selected = classifyChanges([{ status: "M", path: file }], { fileExists: () => false });
+    for (const name of expected) {
+      const test = `scripts/${name}.test.mts`;
+      assert.ok(existsSync(new URL(`../${test}`, import.meta.url)));
+      assert.ok(selected.nodeTests.has(test), `${file} -> ${test}`);
+    }
+  }
 });
