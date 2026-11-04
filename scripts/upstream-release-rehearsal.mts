@@ -8,10 +8,17 @@ import { fileURLToPath } from "node:url";
 import { verifyReleaseSourceAttestation } from "./release-source-attestation.mts";
 import { workspaceVersion, loadPackagePolicy } from "./release-package-policy.mts";
 import { isRecord } from "./runtime-values.mts";
+import {
+  rehearsalExecution,
+  rehearsalExecutionRef,
+  rehearsalOrigin,
+  rehearsalPublicBase,
+} from "./upstream-release-identity.mts";
 
 export function rehearsalVersions(run: { run_id: string; run_attempt: number }) {
   return {
     predecessor: "0.0.0-rehearsal.0",
+    public_predecessor: `0.0.0-rehearsal.${run.run_id}.0`,
     candidate: `0.0.0-rehearsal.${run.run_id}.${run.run_attempt}`,
   };
 }
@@ -30,25 +37,11 @@ type Manifest = {
   version: string;
   run_id: string;
   run_attempt: number;
+  signer_attempt?: number;
   files: Entry[];
 };
 function identity() {
-  const source = process.env.GITHUB_SHA ?? "";
-  const run_id = process.env.GITHUB_RUN_ID ?? "";
-  const run_attempt = Number(process.env.GITHUB_RUN_ATTEMPT);
-  if (
-    process.env.GITHUB_REPOSITORY !== repository ||
-    process.env.GITHUB_REPOSITORY_ID !== "1354613114" ||
-    process.env.GITHUB_REF !== "refs/heads/main" ||
-    process.env.GITHUB_EVENT_NAME !== "workflow_dispatch" ||
-    !/^[a-f0-9]{40}$/u.test(source) ||
-    !/^[1-9][0-9]{0,19}$/u.test(run_id) ||
-    !Number.isSafeInteger(Number(run_id)) ||
-    !Number.isSafeInteger(run_attempt) ||
-    run_attempt < 1
-  )
-    throw new Error("rehearsal requires this repository's main dispatch and exact run identity");
-  return { source, run_id, run_attempt };
+  return rehearsalOrigin();
 }
 function gh(args: string[], input?: unknown) {
   return execFileSync("gh", args, {
@@ -92,11 +85,14 @@ async function entry(directory: string, name: string): Promise<Entry> {
 }
 export function inspectRehearsalManifest(
   value: unknown,
-  expected: ReturnType<typeof identity>,
+  expected: ReturnType<typeof identity> & { signer_attempt?: number },
 ): Manifest {
   if (
     !isRecord(value) ||
-    Object.keys(value).sort().join(",") !== "files,run_attempt,run_id,scope,source,version" ||
+    Object.keys(value).sort().join(",") !==
+      (Array.isArray(value.files) && value.files.length === 10
+        ? "files,run_attempt,run_id,scope,signer_attempt,source,version"
+        : "files,run_attempt,run_id,scope,source,version") ||
     value.scope !== "disposable-nonproduction" ||
     value.source !== expected.source ||
     value.run_id !== expected.run_id ||
@@ -105,9 +101,16 @@ export function inspectRehearsalManifest(
     typeof value.version !== "string" ||
     !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u.test(value.version) ||
     !Array.isArray(value.files) ||
-    ![4, 9].includes(value.files.length)
+    ![4, 10].includes(value.files.length)
   )
     throw new Error("rehearsal manifest source/run/attempt/scope differs");
+  if (
+    value.files.length === 10 &&
+    (!Number.isSafeInteger(expected.signer_attempt) ||
+      Number(expected.signer_attempt) < expected.run_attempt ||
+      value.signer_attempt !== expected.signer_attempt)
+  )
+    throw new Error("signed rehearsal manifest has a different signing producer attempt");
   const files = value.files.map((f: unknown) => {
     if (
       !isRecord(f) ||
@@ -123,7 +126,11 @@ export function inspectRehearsalManifest(
       throw new Error("invalid rehearsal asset");
     return { name: f.name, bytes: Number(f.bytes), sha256: f.sha256 };
   });
+  if (files.reduce((bytes, file) => bytes + file.bytes, 0) > 2 * 1024 ** 3)
+    throw new Error("rehearsal assembly exceeds the appointed2GiB aggregate limit");
   const payload = `Portcove_${value.version}_x64-setup.exe`;
+  if (files[0]?.name !== payload)
+    throw new Error("rehearsal payload must be the first exact asset");
   const publicInputs = [
     "fixture.patch",
     "windows-compatibility.json",
@@ -139,20 +146,32 @@ export function inspectRehearsalManifest(
           "updater-inventory.json",
           "trusted-root.json",
           "feed.json",
+          "baseline-feed.json",
           ...publicInputs,
         ];
   if (JSON.stringify(files.map((f) => f.name).sort()) !== JSON.stringify(wanted.sort()))
     throw new Error("rehearsal asset set differs");
-  return { scope: "disposable-nonproduction", ...expected, version: value.version, files };
+  return {
+    scope: "disposable-nonproduction",
+    source: expected.source,
+    run_id: expected.run_id,
+    run_attempt: expected.run_attempt,
+    ...(value.files.length === 10 ? { signer_attempt: expected.signer_attempt } : {}),
+    version: value.version,
+    files,
+  };
 }
 async function manifest(directory: string) {
   const s = await lstat(path.join(directory, manifestName));
   if (!s.isFile() || s.isSymbolicLink() || s.size > 16384)
     throw new Error("invalid manifest size/type");
-  const m = inspectRehearsalManifest(
-    JSON.parse(await readFile(path.join(directory, manifestName), "utf8")),
-    identity(),
-  );
+  const value: unknown = JSON.parse(await readFile(path.join(directory, manifestName), "utf8"));
+  const m = inspectRehearsalManifest(value, {
+    ...identity(),
+    ...(isRecord(value) && Array.isArray(value.files) && value.files.length === 10
+      ? { signer_attempt: Number(process.env.PORTCOVE_REHEARSAL_SIGNER_ATTEMPT) }
+      : {}),
+  });
   const names = (await readdir(directory)).sort();
   if (
     JSON.stringify(names) !== JSON.stringify([...m.files.map((f) => f.name), manifestName].sort())
@@ -169,21 +188,32 @@ async function writeManifest(directory: string, value: Manifest) {
     flag: "wx",
   });
 }
-async function verify(directory: string) {
+async function verify(directory: string, phase = "verify") {
   const m = await manifest(directory);
+  const attesterAttempt =
+    m.files.length === 4
+      ? Number(process.env.PORTCOVE_REHEARSAL_PACKAGE_ATTESTER_ATTEMPT)
+      : m.signer_attempt;
+  if (
+    !Number.isSafeInteger(attesterAttempt) ||
+    Number(attesterAttempt) < m.run_attempt ||
+    Number(attesterAttempt) > rehearsalExecution().run_attempt
+  )
+    throw new Error("actual package/signer attester attempt is unavailable");
   // Authenticate one aggregate manifest. Its exact entries bind every payload byte.
   // Re-attesting the unchanged payload in two jobs would make lookup ambiguous.
   const f = await entry(directory, manifestName);
-  const evidence = path.join("work", "verified-manifest");
+  if (!/^[a-z-]{1,32}$/u.test(phase)) throw new Error("unknown verification phase");
+  const evidence = path.join("work", `verified-manifest-${phase}`);
   await mkdir(evidence, { recursive: true });
   await verifyReleaseSourceAttestation(
     evidence,
     path.resolve(directory, manifestName),
     {
       source_commit: m.source,
-      ref: "refs/heads/main",
+      ref: rehearsalExecutionRef,
       run_id: m.run_id,
-      run_attempt: m.run_attempt,
+      run_attempt: Number(attesterAttempt),
       subjects: [{ filename: manifestName, sha256: f.sha256 }],
     },
     { scope: "upstream-rehearsal" },
@@ -315,6 +345,7 @@ async function sign(directory: string) {
     await disposableFeed(output, privateRoot, m);
     await writeManifest(output, {
       ...m,
+      signer_attempt: rehearsalExecution().run_attempt,
       files: await Promise.all(
         [
           m.files[0]!.name,
@@ -326,6 +357,7 @@ async function sign(directory: string) {
           "updater-inventory.json",
           "trusted-root.json",
           "feed.json",
+          "baseline-feed.json",
         ].map((name) => entry(output, name)),
       ),
     });
@@ -416,29 +448,84 @@ async function disposableFeed(output: string, privateRoot: string, m: Manifest) 
     },
   );
   await writeApplicationUpdateReconstruction(path.join(fixture, "records"), reconstruction);
-  execFileSync(tool, ["build-tuf", path.join(fixture, "build-tuf.json")], {
+  await writeApplicationUpdateReconstruction(path.join(fixture, "baseline-records"), {
+    files: new Map([
+      ["reconstruction-manifest.json", Buffer.from('{"schema_version":1,"records":[]}\n')],
+    ]),
+  });
+  const configuration: unknown = JSON.parse(
+    await readFile(path.join(fixture, "build-tuf.json"), "utf8"),
+  );
+  if (!isRecord(configuration) || !isRecord(configuration.versions))
+    throw new Error("generated TUF build configuration is malformed");
+  const baselineConfiguration = path.join(fixture, "baseline-build-tuf.json");
+  await writeFile(
+    baselineConfiguration,
+    JSON.stringify({
+      ...configuration,
+      reconstructed_records: "baseline-records",
+      output: "baseline-repository",
+    }),
+    { flag: "wx" },
+  );
+  execFileSync(tool, ["build-tuf", baselineConfiguration], {
+    timeout: 120000,
+    maxBuffer: 65536,
+    stdio: "pipe",
+  });
+  const candidateConfiguration = path.join(fixture, "candidate-build-tuf.json");
+  await writeFile(
+    candidateConfiguration,
+    JSON.stringify({
+      ...configuration,
+      versions: Object.fromEntries(Object.keys(configuration.versions).map((role) => [role, 2])),
+    }),
+    { flag: "wx" },
+  );
+  execFileSync(tool, ["build-tuf", candidateConfiguration], {
     timeout: 120000,
     maxBuffer: 65536,
     stdio: "pipe",
   });
   await copyFile(path.join(fixture, "trusted-root.json"), path.join(output, "trusted-root.json"));
   // Public JSON only; no private directory or executable can cross this fixture boundary.
-  const publicFiles: { path: string; text: string }[] = [];
-  async function collect(relative: string) {
-    const directory = path.join(fixture, "repository", relative);
+  async function collect(
+    repositoryDirectory: string,
+    relative: string,
+    publicFiles: { path: string; text: string }[],
+  ) {
+    const directory = path.join(fixture, repositoryDirectory, relative);
     for (const item of await readdir(directory, { withFileTypes: true })) {
       const name = `${relative}/${item.name}`;
-      if (item.isDirectory()) await collect(name);
+      if (item.isDirectory()) await collect(repositoryDirectory, name, publicFiles);
       else if (item.isFile())
         publicFiles.push({
           path: name,
-          text: await readFile(path.join(fixture, "repository", name), "utf8"),
+          text: await readFile(path.join(fixture, repositoryDirectory, name), "utf8"),
         });
       else throw new Error("nonregular public fixture metadata");
     }
   }
-  await collect("metadata");
-  await collect("targets");
+  const baseline: { path: string; text: string }[] = [];
+  const candidate: { path: string; text: string }[] = [];
+  for (const relative of ["metadata", "targets"]) {
+    await collect("baseline-repository", relative, baseline);
+    await collect("repository", relative, candidate);
+  }
+  inspectRehearsalFeed(baseline);
+  const combined = new Map(baseline.map((file) => [file.path, file]));
+  for (const file of candidate) {
+    const previous = combined.get(file.path);
+    if (previous && file.path !== "metadata/timestamp.json" && previous.text !== file.text)
+      throw new Error("candidate feed changed an immutable baseline file");
+    combined.set(file.path, file);
+  }
+  const publicFiles = inspectRehearsalFeed(
+    [...combined.values()].sort((a, b) => a.path.localeCompare(b.path)),
+  );
+  await writeFile(path.join(output, "baseline-feed.json"), `${JSON.stringify(baseline)}\n`, {
+    flag: "wx",
+  });
   await writeFile(path.join(output, "feed.json"), `${JSON.stringify(publicFiles)}\n`, {
     flag: "wx",
   });
@@ -465,42 +552,51 @@ export function inspectRehearsalFeed(value: unknown) {
     return { path: f.path, text: f.text };
   });
 }
-async function preparePredecessor(directory: string) {
+async function preparePredecessor(directory: string, publicTransport = false) {
   const { reproducePreparedReleaseVersionFiles } =
     await import("../apps/desktop/scripts/prepare-release-version.mts");
   const m = await manifest(directory);
-  if (m.files.length !== 9)
+  if (m.files.length !== 10)
     throw new Error("predecessor requires the complete signed public fixture");
   const feed = path.join(directory, "feed.json");
   if ((await lstat(feed)).size > 2 * 1024 ** 2)
     throw new Error("public fixture feed exceeds bound");
   const files = inspectRehearsalFeed(JSON.parse(await readFile(feed, "utf8")));
-  const output = "work/upstream-public-feed";
-  await mkdir(output);
-  for (const file of files) {
-    const target = path.join(output, file.path);
-    await mkdir(path.dirname(target), { recursive: true });
-    await writeFile(target, file.text, { flag: "wx" });
+  if (!publicTransport) {
+    const output = "work/upstream-public-feed";
+    await mkdir(output);
+    for (const file of files) {
+      const target = path.join(output, file.path);
+      await mkdir(path.dirname(target), { recursive: true });
+      await writeFile(target, file.text, { flag: "wx" });
+    }
   }
   const base = await workspaceVersion();
   const prepared = reproducePreparedReleaseVersionFiles((name) => readFileSync(name, "utf8"), {
     base_version: base,
-    version: rehearsalVersions(identity()).predecessor,
+    version: publicTransport
+      ? rehearsalVersions(identity()).public_predecessor
+      : rehearsalVersions(identity()).predecessor,
   });
   for (const [name, contents] of prepared) await writeFile(name, contents);
 }
-export function inspectRehearsalDraftReadback(
+export function inspectRehearsalReleaseReadback(
   release: unknown,
   ref: unknown,
   assets: unknown,
   expected: { id: number; tag: string; source: string; files: Entry[] },
+  state: "draft" | "immutable",
 ) {
   if (
     !isRecord(release) ||
     release.id !== expected.id ||
     release.tag_name !== expected.tag ||
     release.target_commitish !== expected.source ||
-    release.draft !== true ||
+    release.draft !== (state === "draft") ||
+    release.immutable !== (state === "immutable") ||
+    (state === "immutable" &&
+      (typeof release.published_at !== "string" ||
+        !Number.isFinite(Date.parse(release.published_at)))) ||
     release.prerelease !== true ||
     !isRecord(ref) ||
     ref.ref !== `refs/tags/${expected.tag}` ||
@@ -530,107 +626,47 @@ export function inspectRehearsalDraftReadback(
     tag: expected.tag,
     source: expected.source,
     draft: release.draft,
+    immutable: release.immutable,
     prerelease: release.prerelease,
     files: expected.files,
     observed_at: new Date().toISOString(),
   };
 }
-async function draft(directory: string) {
-  const m = await verify(directory);
-  if (m.files.length !== 9) throw new Error("draft requires the complete signed package");
-  const tag = `v${m.version}`;
-  const all = [...m.files, await entry(directory, manifestName)];
-  const ref = `refs/tags/${tag}`;
-  const refs = api(`git/matching-refs/tags/${tag}`);
-  if (!Array.isArray(refs)) throw new Error("incomplete rehearsal tag observation");
-  const exact = refs.filter((r) => isRecord(r) && r.ref === ref);
-  if (exact.length > 1) throw new Error("ambiguous rehearsal tag");
-  if (exact.length === 0) api("git/refs", "POST", { ref, sha: m.source });
-  const observedTag = api(`git/ref/tags/${tag}`);
-  if (
-    !isRecord(observedTag) ||
-    observedTag.ref !== ref ||
-    !isRecord(observedTag.object) ||
-    observedTag.object.type !== "commit" ||
-    observedTag.object.sha !== m.source
-  )
-    throw new Error("rehearsal tag has a different source; it is never replaced");
-
-  // List-by-tag 404 is not used as a reason to create: only an observed complete list is.
-  const releases = api("releases?per_page=100");
-  if (!Array.isArray(releases) || releases.length === 100)
-    throw new Error("incomplete release discovery");
-  const matches = releases.filter((r) => isRecord(r) && r.tag_name === tag);
-  if (matches.length > 1) throw new Error("ambiguous rehearsal release");
-  let release: unknown = matches[0];
-  if (!release)
-    release = api("releases", "POST", {
-      tag_name: tag,
-      target_commitish: m.source,
-      name: `NONPRODUCTION #534 rehearsal ${m.run_id}/${m.run_attempt}`,
-      draft: true,
-      prerelease: true,
-      make_latest: "false",
-      body: "Disposable signing/transfer rehearsal. Not an eligible Portcove release. Never use these keys or packages for production.",
-    });
-  if (
-    !isRecord(release) ||
-    release.draft !== true ||
-    release.target_commitish !== m.source ||
-    typeof release.id !== "number" ||
-    !Number.isSafeInteger(release.id)
-  )
-    throw new Error("draft identity differs; published releases are never modified");
-  const assets = api(`releases/${release.id}/assets?per_page=100`);
-  if (!Array.isArray(assets) || assets.length > all.length)
-    throw new Error("draft asset inventory differs");
-  for (const a of assets) {
-    if (
-      !isRecord(a) ||
-      !all.some((f) => f.name === a.name && f.bytes === a.size && `sha256:${f.sha256}` === a.digest)
-    )
-      throw new Error("existing draft asset differs; no overwrite permitted");
-  }
-  for (const f of all)
-    if (!assets.some((a) => isRecord(a) && a.name === f.name))
-      gh(["release", "upload", tag, path.join(directory, f.name), "--repo", repository]);
-  const downloaded = "work/upstream-draft-readback";
-  await mkdir(downloaded);
-  gh(["release", "download", tag, "--repo", repository, "--dir", downloaded]);
-  if (
-    JSON.stringify((await readdir(downloaded)).sort()) !==
-    JSON.stringify(all.map((f) => f.name).sort())
-  )
-    throw new Error("draft readback set differs");
-  for (const f of all)
-    if (JSON.stringify(await entry(downloaded, f.name)) !== JSON.stringify(f))
-      throw new Error("draft readback bytes differ");
-  const observed = inspectRehearsalDraftReadback(
-    api(`releases/${release.id}`),
-    api(`git/ref/tags/${tag}`),
-    api(`releases/${release.id}/assets?per_page=100`),
-    { id: release.id, tag, source: m.source, files: all },
-  );
-  // Deliberately draft-only until installed/feed integration is qualified in this same slice.
-  await writeFile(
-    "work/upstream-draft-result.json",
-    `${JSON.stringify({
-      scope: m.scope,
-      ...observed,
-      production: false,
-    })}\n`,
-    { flag: "wx" },
-  );
+export function inspectRehearsalDraftReadback(
+  release: unknown,
+  ref: unknown,
+  assets: unknown,
+  expected: { id: number; tag: string; source: string; files: Entry[] },
+) {
+  return inspectRehearsalReleaseReadback(release, ref, assets, expected, "draft");
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const phase = process.argv[2],
     directory = process.argv[3];
   identity();
   if (phase === "prepare-candidate") await prepareCandidate();
-  else if (phase === "prepare-predecessor" && directory) await preparePredecessor(directory);
+  else if (phase === "inspect" && directory) {
+    const m = await manifest(directory);
+    process.stdout.write(
+      `${JSON.stringify({ ...identity(), version: m.version, ...rehearsalVersions(identity()), public_base: rehearsalPublicBase(identity()), executor_attempt: rehearsalExecution().run_attempt })}\n`,
+    );
+  } else if (phase === "prepare-predecessor" && directory) await preparePredecessor(directory);
+  else if (phase === "prepare-public-predecessor" && directory)
+    await preparePredecessor(directory, true);
   else if (phase === "stage") await stage();
   else if (phase === "sign" && directory) await sign(directory);
-  else if (phase === "draft" && directory) await draft(directory);
   else if (phase === "verify" && directory) await verify(directory);
-  else throw new Error("expected stage, verify DIRECTORY, sign DIRECTORY or draft DIRECTORY");
+  else
+    throw new Error(
+      "expected prepare-candidate, stage, inspect|verify|sign|prepare-predecessor|prepare-public-predecessor DIRECTORY",
+    );
 }
+
+export {
+  entry as rehearsalEntry,
+  verify as verifyRehearsalPackage,
+  manifest as readRehearsalManifest,
+  api as rehearsalApi,
+  gh as rehearsalGh,
+};
+export type { Entry as RehearsalEntry, Manifest as RehearsalManifest };

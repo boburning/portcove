@@ -273,6 +273,65 @@ async fn builds_separately_signed_repository_and_accepts_exact_retry() {
     assert!(!second.changed);
     assert_eq!(first.files, second.files);
 
+    // TUF permits a signed initial repository with no available releases. Keep
+    // its registry and all authenticated roles, and exercise the real reader.
+    let empty_records = directory.path().join("empty-records");
+    fs::create_dir(&empty_records).unwrap();
+    fs::write(
+        empty_records.join("reconstruction-manifest.json"),
+        br#"{"schema_version":1,"records":[]}"#,
+    )
+    .unwrap();
+    let mut empty_config = config.clone();
+    empty_config["reconstructed_records"] = json!("empty-records");
+    empty_config["output"] = json!("empty-repository");
+    let empty_path = directory.path().join("empty.json");
+    fs::write(&empty_path, serde_json::to_vec(&empty_config).unwrap()).unwrap();
+    let empty = build_tuf_repository(&empty_path).await.unwrap();
+    assert_eq!(empty.records, 0);
+    assert!(!build_tuf_repository(&empty_path).await.unwrap().changed);
+    let empty_reader = RepositoryLoader::new(
+        &fs::read(&root).unwrap(),
+        Url::from_directory_path(empty.output.join("metadata")).unwrap(),
+        Url::from_directory_path(empty.output.join("targets")).unwrap(),
+    )
+    .load()
+    .await
+    .unwrap();
+    assert!(
+        empty_reader
+            .read_target(&TargetName::new(&target_paths[0]).unwrap())
+            .await
+            .unwrap()
+            .is_none()
+    );
+    let registry = empty_reader
+        .read_target(&TargetName::new("keys/payload.json").unwrap())
+        .await
+        .unwrap()
+        .unwrap()
+        .try_collect::<Vec<_>>()
+        .await
+        .unwrap()
+        .concat();
+    assert_eq!(
+        registry,
+        fs::read(directory.path().join("payload.json")).unwrap()
+    );
+    for role in ["targets", "snapshot", "releases", "preview", "stable"] {
+        assert!(
+            empty
+                .output
+                .join(format!("metadata/1.{role}.json"))
+                .is_file()
+        );
+    }
+    assert!(empty.output.join("metadata/timestamp.json").is_file());
+    // Empty bootstrap is not permission to erase an existing immutable record.
+    empty_config["output"] = json!("repository");
+    fs::write(&empty_path, serde_json::to_vec(&empty_config).unwrap()).unwrap();
+    assert!(build_tuf_repository(&empty_path).await.is_err());
+
     // Provision the broad but bounded namespaces while the disposable offline
     // key exists, then physically remove it before any routine role operation.
     let mut bootstrap = config.clone();

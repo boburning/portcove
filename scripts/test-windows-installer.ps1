@@ -62,6 +62,7 @@ param(
     [Parameter(Position = 25)]
     [string]$InstalledUpdatePredecessorVersion,
     [switch]$RendererUpdate,
+    [switch]$ControlledPublicUpdate,
     [switch]$VerifyStableWaiting,
     [string]$HistoricalBootstrapManifestPath,
     [string]$InstalledGameDataConfigurationPath,
@@ -129,6 +130,8 @@ Qualification modes (use their documented admitted parent commands):
     -InstalledUpdateTargetsPath DIRECTORY, -InstalledUpdateCandidatePath FILE,
     -InstalledUpdatePredecessorVersion VERSION
   -RendererUpdate, -RendererTransport official|embedded
+  -ControlledPublicUpdate (separate controlled HTTPS fixture only; no local metadata
+    or payload substitute, protected account, or ordinary-public route)
   -VerifyStableWaiting (opt-in disposable renderer fixture; no eligible Stable candidate)
   -TestFault post-spawn-verification  Isolated fault fixture only.
   -Help, --help  Show this help before storage, Registry, or process operations.
@@ -648,8 +651,16 @@ if ($VerifyStableWaiting -and -not $RendererUpdate) { throw "Stable waiting veri
 if ($RendererUpdate -and -not $installedUpdate) {
     throw "Renderer update qualification requires an installed application update"
 }
-if ($installedUpdate -and (-not $predecessor -or -not $InstalledUpdateMetadataPath -or
-        -not $InstalledUpdateTargetsPath -or -not $InstalledUpdateCandidatePath -or
+if ($ControlledPublicUpdate -and (-not $installedUpdate -or -not $RendererUpdate -or
+        $InstalledUpdateMetadataPath -or $InstalledUpdateTargetsPath -or $ordinaryPublicMode -or
+        $NativeAccountBindingPath -or $NativeParentOwnsFinish -or $NormalPackageManifestPath -or
+        $NormalPackageAdmissionPath -or $HistoricalBootstrapManifestPath -or
+        $InstalledGameDataConfigurationPath -or $InstalledLibraryBusyHelperPath)) {
+    throw 'Controlled HTTPS fixture requires its separate renderer mode without local metadata, payload substitution, protected account or ordinary-public authority'
+}
+if ($installedUpdate -and (-not $predecessor -or
+        (-not $ControlledPublicUpdate -and (-not $InstalledUpdateMetadataPath -or -not $InstalledUpdateTargetsPath)) -or
+        -not $InstalledUpdateCandidatePath -or
         -not $InstalledUpdatePredecessorVersion -or -not $ExpectedVersion -or -not $RequireSigningAuthorityAbsent)) {
     throw "Installed update qualification requires a predecessor, complete signed repository paths, and absent signing authority"
 }
@@ -1398,12 +1409,19 @@ try {
         $updatePreferences = Join-Path $runRoot "application-update-preferences.json"
         $qualificationStage = Join-Path $runRoot "application-update-qualification-stage.json"
         $trustedRoot = (Resolve-Path -LiteralPath $InstalledUpdateTrustedRootPath).Path
-        $metadata = (Resolve-Path -LiteralPath $InstalledUpdateMetadataPath).Path
-        $targets = (Resolve-Path -LiteralPath $InstalledUpdateTargetsPath).Path
+        $metadata = if ($ControlledPublicUpdate) { $null } else { (Resolve-Path -LiteralPath $InstalledUpdateMetadataPath).Path }
+        $targets = if ($ControlledPublicUpdate) { $null } else { (Resolve-Path -LiteralPath $InstalledUpdateTargetsPath).Path }
         $candidate = (Resolve-Path -LiteralPath $InstalledUpdateCandidatePath).Path
-        $env:PORTCOVE_APPLICATION_UPDATE_BUNDLED_ROOT_FILE = $trustedRoot
-        $env:PORTCOVE_APPLICATION_UPDATE_METADATA_URL = ([Uri]::new($metadata.TrimEnd('\', '/') + '/')).AbsoluteUri
-        $env:PORTCOVE_APPLICATION_UPDATE_TARGETS_URL = ([Uri]::new($targets.TrimEnd('\', '/') + '/')).AbsoluteUri
+        if ($ControlledPublicUpdate) {
+            foreach ($name in @('PORTCOVE_APPLICATION_UPDATE_BUNDLED_ROOT_FILE', 'PORTCOVE_APPLICATION_UPDATE_METADATA_URL', 'PORTCOVE_APPLICATION_UPDATE_TARGETS_URL', 'PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_PAYLOAD')) {
+                [Environment]::SetEnvironmentVariable($name, $null, 'Process')
+            }
+            if ($evidence) { $evidence.controlled_public_transport = 'compiled HTTPS metadata and normal GitHub payload transport; no local repository or payload substitute' }
+        } else {
+            $env:PORTCOVE_APPLICATION_UPDATE_BUNDLED_ROOT_FILE = $trustedRoot
+            $env:PORTCOVE_APPLICATION_UPDATE_METADATA_URL = ([Uri]::new($metadata.TrimEnd('\', '/') + '/')).AbsoluteUri
+            $env:PORTCOVE_APPLICATION_UPDATE_TARGETS_URL = ([Uri]::new($targets.TrimEnd('\', '/') + '/')).AbsoluteUri
+        }
         $env:PORTCOVE_APPLICATION_UPDATE_PREFERENCES = $updatePreferences
         $env:PORTCOVE_APPLICATION_UPDATE_SCHEDULE = Join-Path $runRoot "application-update-schedule.json"
         $env:PORTCOVE_APPLICATION_UPDATE_STAGING = $updateRoot
@@ -1533,7 +1551,8 @@ try {
             [IO.Directory]::CreateDirectory($rendererRoot) | Out-Null
             $helperMarker = Join-Path $rendererRoot "helper-process.json"
             $relaunchMarker = Join-Path $rendererRoot "relaunch-process.json"
-            $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_PAYLOAD = $candidate
+            if ($ControlledPublicUpdate) { [Environment]::SetEnvironmentVariable('PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_PAYLOAD', $null, 'Process') }
+            else { $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_PAYLOAD = $candidate }
             $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_HELPER_PROCESS = $helperMarker
             $env:PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_PROCESS = $relaunchMarker
             $driverPreflight = Join-Path $runRoot "driver-preflight-fixture-env"

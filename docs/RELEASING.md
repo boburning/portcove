@@ -2,37 +2,72 @@
 
 ## Upstream-first release integration
 
-The owner’s November 3 #534 reset replaces implementation-only requirements to
-extend bespoke orchestration. Keep the existing Tauri NSIS builder, detached
-Minisign payload verification, authenticated TUF format and installed updater.
-Use native Actions job dependencies, fresh hosted runners, immutable artifacts,
-maintained attestation verification and draft-first Releases. The existing
-production path remains paused until the replacement is qualified; do not create
-the previously proposed storage-writer App merely to finish its parked draft.
-Live state and completed custody/backup/account evidence must remain preserved.
+The November3 #534 reset retains Tauri NSIS packaging, detached payload verification,
+the authenticated TUF format and the installed updater. Native Actions jobs,
+concurrency, artifact identity, maintained attestations, draft-first immutable
+Releases and Pages handle execution and transfer. The parked storage-writer App
+expansion is unnecessary for this rehearsal; no App is created. Existing production
+custody, accounts, trust anchors, pause and journal remain preserved.
 
-`upstream-release-rehearsal.yml` is a manual, main-only, **nonproduction** proof.
-A secret-free Windows runner builds a unique `0.0.0-rehearsal.<run>.<attempt>` current-user NSIS fixture and matching CLI. Its exact version-only derivation is retained. Separate
-fresh Linux runners attest the exact transfer manifest, verify source/workflow/
-run/attempt and every payload byte, sign with a new disposable key, independently
-verify with the existing Rust verifier, and assemble/read back a complete draft.
-Only the draft job has Contents write. No candidate build hooks, executable
-artifacts or caches enter that writer. The signer uses the reviewed dispatch
-revision, pinned Tauri 2.12.2 and GitHub CLI 2.102.0; no production secret is read.
-The key is removed before the public artifact is uploaded. Transfer artifacts
-expire after one day; public proof is retained for seven days. The five serial
-job limits total 140 minutes within the appointed application140 limit, with
-standard hosted labels and no paid fallback. Headroom remains unknown; no
-reservation is implied.
+The first connected [run41757452864/1](https://github.com/boburning/portcove/actions/runs/41757452864)
+passed package, provenance, disposable signing, local-feed installed updating and
+complete draft readback at sourceb9651dab. Its elevated Windows Server10.0.26100
+fixture demonstrated staging refusals, recovery, restart, preservation and uninstall
+cleanup. It did not establish ordinary-user/supported-client acceptance, immutable
+publication, public feed continuity or production readiness. Its retained screenshot
+also shows an interface-size confirmation warning. #52 and #246 remain separate.
 
-The complete draft is named `v0.0.0-rehearsal.<run>.<attempt>`, cannot become latest,
-and is not published by this initial integration. The public signer output also supplies a compatible disposable TUF feed and public Root to a fresh Windows installed-updater fixture, whose predecessor is `0.0.0-rehearsal.0`. Private keys never cross to that runner. Existing tags and draft assets
-must match exactly; they are never moved or overwritten. A verified draft is not
-installed-update, compatible-feed or production proof. The same candidate still
-needs real publish/feed interruption/retry and installed Windows continuity
-before cutover; #52 and #246 retain their own acceptance. Routine production
-operation must be unattended after approved one-time setup. Do not interpret
-this rehearsal or the upstream-first reset as blanket activation authority.
+The extended `upstream-release-rehearsal.yml` is a **manual, disposable-authority**
+integration, confined to `refs/tags/portcove-upstream-rehearsal-20261104r1`. It remains
+inert until the exact reviewed source/ref, protection and scoped Pages configuration
+are legitimately appointed and independently read back. Checking out a tag inside
+a main-ref job cannot satisfy a tag-only environment policy. Preserve the existing
+catalog deployment policy; never widen it to mutable main or a wildcard.
+
+The path builds one unique `0.0.0-rehearsal.<run>.<original-attempt>` current-user
+NSIS and CLI, verifies maintained provenance, and signs in a fresh trusted runner
+with disposable keys. An authenticated empty initial TUF feed is deployed under
+`rehearsal/<run>-<original-attempt>/application/`, then the existing host consumer
+checks it over HTTPS. The controlled local installed journey and a separately built
+HTTPS predecessor supply exact native receipts. A separate fresh job checks and
+attests those bytes; the native test runner has no OIDC/attestation credential.
+
+Only the release writer has Contents write. It verifies original package and native
+acceptance identities, completes the draft, downloads/hashes every bounded asset,
+publishes once, then verifies immutable release identity and GitHub's release
+attestation. The feed job deliberately fails **after** publication while retaining
+the usable empty feed. A native failed-only rerun consults the authenticated prior
+job/step result, rechecks the same immutable release and public baseline, then
+advances only the missing feed effect. No signed fault-control adapter, new registry,
+coordinator or private state branch is introduced. A fresh Windows runner finally
+uses compiled HTTPS metadata and the ordinary GitHub payload transport through the
+installed UI; it uses no local metadata repository or substituted payload. This remains
+a controlled Server fixture, not production or supported-client acceptance.
+
+Package, provenance attester, signer, native producer, acceptance attester and retry
+executor attempts remain distinct. Missing original outputs refuse. Do not rerun all
+jobs to rebuild an existing package or overwrite an existing draft/published asset.
+At most three attempts are admitted; observed completed runtime plus the full
+remaining native job ceilings must still fit application140. The serial job ceilings
+total106minutes. The shared application/catalog concurrency group preserves their
+mutual exclusion; account$0 Stop usage, unknown headroom and no paid fallback remain.
+Archives are bounded and structurally checked before extraction; assembly is capped
+at2GiB with the existing tighter256MiB file limit. Candidate-controlled caches/hooks
+never enter credentialed consumers. Private fixture keys are removed before upload.
+
+Pages bootstrap reuses the appointed historical initial-site preimage and fresh
+provider/public observations. The finite rehearsal refuses foreign/unknown existing
+site ownership or production components instead of replacing a partial site tree.
+Runtime job tokens do not acquire Administration merely to inspect ruleset bypass
+actors: an omitted field remains **unknown**, with actual no-bypass setup observation
+retained separately. This does not satisfy or weaken production observer admission.
+
+This extension still needs actual immutable/public-feed/interruption/retry readback
+on its delivered source. Transfer artifacts expire after one day; diagnostic/native
+proofs after seven. Full production classification, existing-key custody/role joins,
+appropriate ordinary Windows client acceptance, unattended activation and retirement
+of the superseded active path remain #534 work. A rehearsal or ordinary source merge
+grants no blanket unpause, credential import, new signing authority or announcement.
 
 ## Release task order
 

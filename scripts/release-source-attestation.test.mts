@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   inspectReleaseSourceAttestation,
   releaseProcessPredicate,
+  upstreamRehearsalExecutionRef,
 } from "./release-source-attestation.mts";
 
 const expected = {
@@ -50,6 +51,32 @@ void test("source report parser binds complete exact subjects and workflow/sourc
   assert.throws(
     () => inspectReleaseSourceAttestation([...fixture(), ...fixture()], expected),
     /ambiguous/,
+  );
+});
+
+void test("rehearsal retries select one explicitly expected authenticated attempt without accepting duplicate identity", () => {
+  const identity = { ...expected, ref: upstreamRehearsalExecutionRef };
+  const wanted = fixture();
+  const cert = wanted[0]!.verificationResult.signature.certificate;
+  cert.sourceRepositoryRef = identity.ref;
+  cert.buildSignerURI = `https://github.com/boburning/portcove/.github/workflows/upstream-release-rehearsal.yml@${identity.ref}`;
+  const previous = structuredClone(wanted);
+  previous[0]!.verificationResult.signature.certificate.runInvocationURI =
+    "https://github.com/boburning/portcove/actions/runs/12345/attempts/1";
+  const selected = inspectReleaseSourceAttestation(
+    [...previous, ...wanted],
+    identity,
+    "upstream-rehearsal",
+  );
+  assert.equal(selected.certificate.runInvocationURI, cert.runInvocationURI);
+  assert.equal(selected.authority, "none");
+  assert.throws(
+    () => inspectReleaseSourceAttestation([...wanted, ...wanted], identity, "upstream-rehearsal"),
+    /ambiguous/u,
+  );
+  assert.throws(
+    () => inspectReleaseSourceAttestation([...previous, ...wanted], identity),
+    /ambiguous/u,
   );
 });
 void test("wrong issuer/ref/workflow/source/attempt, missing timestamps and changed/extra/omitted subject refuse", () => {
