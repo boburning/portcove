@@ -2012,6 +2012,7 @@ for (const file of [
   ]);
 explicitNodeTests.set("scripts/fixtures/module-closure.mts", [
   ...(explicitNodeTests.get("scripts/fixtures/module-closure.mts") ?? []),
+  "scripts/release-controller-tools.test.mts",
   "scripts/release-windows-webview-driver.test.mts",
   "scripts/catalog-proposal-costs.test.mts",
   "scripts/production-aggregate-steps.test.mts",
@@ -2166,7 +2167,18 @@ for (const file of [
   explicitNodeTests.set(file, [
     ...(explicitNodeTests.get(file) ?? []),
     "scripts/github-client.test.mts",
+    "scripts/roadmap-rest-intake.test.mts",
   ]);
+
+explicitNodeTests.set("scripts/aqua-integrity.mts", [
+  ...(explicitNodeTests.get("scripts/aqua-integrity.mts") ?? []),
+  "scripts/quality-tools.test.mts",
+  "scripts/recovery-tools.test.mts",
+]);
+for (const name of ["ci-health", "handoff-evidence", "postmerge-ci"]) {
+  const file = `scripts/${name}.mts`;
+  explicitNodeTests.set(file, [...(explicitNodeTests.get(file) ?? []), `scripts/${name}.test.mts`]);
+}
 
 for (const file of [
   "scripts/test-coverage-config.mts",
