@@ -189,7 +189,7 @@ overrides:
 patchedDependencies:
   '@sigstore/sign@5.0.0': fd8ea358e3f80a2ef13d3d332afcc77740c12a4f328d39d370cefaede2f14713
   '@tauri-apps/api@2.12.4': a3d8fac0475d7cd95ac99b94014545bbd4a9e24155c5077fa018c6ccc5f7978a
-  i18next-cli@1.82.0: 8da9a1602bbf568841eb21285181683a4b930a72af20469cf43d1ccd8698c77f
+  i18next-cli@1.82.4: 8da9a1602bbf568841eb21285181683a4b930a72af20469cf43d1ccd8698c77f
 
 importers:
 
@@ -308,8 +308,8 @@ importers:
         specifier: 4.14.0
         version: 4.14.0
       i18next-cli:
-        specifier: 1.82.0
-        version: 1.82.0(patch_hash=8da9a1602bbf568841eb21285181683a4b930a72af20469cf43d1ccd8698c77f)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2)
+        specifier: 1.82.4
+        version: 1.82.4(patch_hash=8da9a1602bbf568841eb21285181683a4b930a72af20469cf43d1ccd8698c77f)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2)
       json-schema-to-typescript:
         specifier: 16.0.0
         version: 16.0.0
@@ -1997,8 +1997,8 @@ packages:
     resolution: {integrity: sha512-ag87y7cJJ9/3+GxFr8Oy4O5faDsGRGnBGsJj/YjOSsSx/5eadKLYTMPlzuR6obgoCDDm0abAAZitXXQkMOPSpA==}
     engines: {node: '>= 20'}
 
-  i18next-cli@1.82.0:
-    resolution: {integrity: sha512-wTwv1ELNi/zmN1InYUHOEyj5ehsVacE3Ytek4l/3KCFoRjw+7O+xOr/3ZPVVA16eQ4KrOmb2baIARB32GYZ31g==}
+  i18next-cli@1.82.4:
+    resolution: {integrity: sha512-6etrx4jpQFE2fHadWDoYealI5mTiOsMBYDFpv10PIIvZRQ+rw2F/ObRKc5lrBh8Kbssj3EtUNCeVch9MuBfoVg==}
     engines: {node: '>=22'}
     hasBin: true
 
@@ -3919,7 +3919,7 @@ snapshots:
       - kerberos
       - supports-color
 
-  i18next-cli@1.82.0(patch_hash=8da9a1602bbf568841eb21285181683a4b930a72af20469cf43d1ccd8698c77f)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2):
+  i18next-cli@1.82.4(patch_hash=8da9a1602bbf568841eb21285181683a4b930a72af20469cf43d1ccd8698c77f)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2):
     dependencies:
       '@croct/json5-parser': 0.2.2
       '@formatjs/icu-messageformat-parser': 3.5.22
