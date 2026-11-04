@@ -12,6 +12,7 @@ import {
   rehearsalExecutionRef,
   retainedRehearsal,
   retainedRecovery,
+  retainedDiagnostic,
 } from "./upstream-release-identity.mts";
 import { rehearsalApi } from "./upstream-release-rehearsal.mts";
 
@@ -44,7 +45,7 @@ export function inspectRehearsalBudget(
 ) {
   const names = Object.keys(rehearsalJobMinutes);
   const index = names.indexOf(job);
-  assert.ok((index >= 0 || job === "recovery") && completedAttempts.length <= 4);
+  assert.ok((index >= 0 || job === "recovery") && completedAttempts.length <= 5);
   if (contexts) assert.equal(contexts.length, completedAttempts.length);
   let observedMilliseconds = 0;
   let copiedSuccessfulObservations = 0;
@@ -177,6 +178,7 @@ export function readRehearsalAttemptObservations() {
     { ...retainedRehearsal, run_attempt: 1 },
     { ...retainedRehearsal, run_attempt: 2 },
     retainedRecovery,
+    retainedDiagnostic,
     { ...execution, ref: rehearsalExecutionRef },
   ]) {
     const actual = rehearsalApi(`actions/runs/${selected.run_id}/attempts/${selected.run_attempt}`);
@@ -204,7 +206,7 @@ export function readRehearsalAttemptObservations() {
 export async function assertRehearsalBudget(job: string) {
   const execution = rehearsalExecution();
   const { attempts, contexts } = readRehearsalAttemptObservations();
-  const current = attempts[3];
+  const current = attempts[4];
   assert.ok(isRecord(current) && Array.isArray(current.jobs));
   const order = Object.keys(recoveryJobMinutes);
   const position = order.indexOf(job);
@@ -309,7 +311,7 @@ export async function assertRehearsalProtection(phase = "protection") {
   const all = rehearsalApi("rulesets?per_page=100");
   assert.ok(Array.isArray(all) && all.length < 100);
   const named = all.filter(
-    (value) => isRecord(value) && value.name === "Portcove upstream rehearsal 20261104r4 immutable",
+    (value) => isRecord(value) && value.name === "Portcove upstream rehearsal 20261104r5 immutable",
   );
   assert.equal(named.length, 1);
   const rule: unknown = named[0];

@@ -38,18 +38,19 @@ about60minutes; actual executed time including the14-second refusal is about61.2
 The original failures, certificates, signed bytes and baseline remain retained.
 
 The current `upstream-release-rehearsal.yml` is a **fixed public-only diagnostic
-continuation** at `refs/tags/portcove-upstream-rehearsal-20261104r4`. It cannot build
+continuation** at `refs/tags/portcove-upstream-rehearsal-20261104r5`. It cannot build
 payloads or predecessors, generate signing keys, write a release or deploy a feed.
 It reuses the exact original r2 artifacts, manifest, acceptance certificate, public
 predecessor, Root, immutable release and already published candidate at
 `rehearsal/41788540335-1/application/`. Original product source7a60432a/producer
 identity remains distinct from the new executor/harness/run/final attestation.
-Historical main/r1/r2/r3 attestations remain readable; execution is protectedr4
+Historical main/r1/r2/r3/r4 attestations remain readable; execution is protectedr5
 and first-attempt only.
 
 The three serial caps are preflight3/public-installed15/readback5minutes.
-Accounting retains both original native attempts, settled r3 run41806364323/1
-and this sole new execution: four fixed observations, with every actual failure,
+Accounting retains both original native attempts, settled r3 run41806364323/1,
+settled r4 run41811038103/1 and this sole new execution: five fixed observations,
+with every actual failure,
 cancellation and repeat counted under the unchanged cumulative application140
 ceiling. A copied successful row is charged once only with exact prior
 run/source/runner/time/step evidence completed before its authenticated later
@@ -67,8 +68,8 @@ run; source repair/review/CI time does not repeatedly patch a UTC literal. No
 reservation, known headroom or paid fallback is inferred from the owner-confirmed
 account$0 Stop usage boundary.
 
-The preflight verifies both original failure boundaries and the settled r3
-recovery/feed successes, exact native UI failure step and skipped readback. It
+The preflight verifies both original failure boundaries, the settled r3/r4
+recovery successes, r3 feed success, exact native UI failure steps and skipped readbacks. It
 rechecks original certificates, all15 immutable asset bytes and all15 already
 published candidate-feed files. There is no rollback to the old empty baseline
 and no Pages writer, permission or deployment environment in this continuation.
@@ -77,11 +78,21 @@ existing r3 Pages and catalog deployment policies stay unchanged. Production
 routes stay held. Current404 observations do not explain #246's earlier failure.
 
 The r3 UI check timed out waiting for its fresh Stable caption. Earlier malformed
-payload refusals reached authenticated candidate handling. Its cause remains
+payload refusals reached authenticated candidate handling. Its cause was initially
 unproven: failure captures were saved under the disposable lifecycle directory,
 but only the success-copy directory was uploaded. The diagnostic upload now
 retains JSON, PNG, log and HTML from either path even on failure. Assertions,
 UI waits, product behavior, installer bytes and cleanup remain unchanged.
+
+The r4 capture identifies the refusal: an empty local-payload override remains
+present after PowerShell 7.5+ converts `SetEnvironmentVariable(..., $null, ...)`
+to an empty value. Rust correctly observes `Some("")` and refuses the unavailable
+fixture payload. The harness now removes `Env:` entries and asserts all four
+transport overrides absent before public startup and renderer execution. Absent
+preimages are restored by removal too. The inert Windows regression executes the
+actual two clearing blocks with empty/nonempty seeds; it fails before this repair
+and passes afterward without executing an installer or application. The repaired
+harness reuses all original public product bytes and changes no updater behavior.
 
 A fresh Windows job consumes the original attested public predecessor, compiled
 HTTPS metadata and actual immutable GitHub payload through the installed UI. It

@@ -17,7 +17,7 @@ env:
   PORTCOVE_REHEARSAL_RELEASE_ID: "433642404"
 jobs:
   recovery:
-    if: ${{ github.repository == 'boburning/portcove' && github.ref == 'refs/tags/portcove-upstream-rehearsal-20261104r4' && github.ref_protected && github.run_attempt == 1 }}
+    if: ${{ github.repository == 'boburning/portcove' && github.ref == 'refs/tags/portcove-upstream-rehearsal-20261104r5' && github.ref_protected && github.run_attempt == 1 }}
     runs-on: ubuntu-22.04
     timeout-minutes: 3
     steps:
@@ -31,7 +31,7 @@ jobs:
         with:
           node-version-file: .node-version
           package-manager-cache: false
-      - name: Bound all four actual execution exposures without recounting copied history
+      - name: Bound all five actual execution exposures without recounting copied history
         env:
           GH_TOKEN: ${{ github.token }}
         run: node scripts/upstream-release-runtime.mts budget recovery
@@ -148,6 +148,9 @@ jobs:
           PORTCOVE_NATIVE_ATTEMPT: "1"
           PORTCOVE_ATTESTER_ATTEMPT: "1"
         run: node scripts/upstream-release-acceptance.mts verify-public-predecessor work/upstream-public-predecessor work/upstream-signed $env:PORTCOVE_NATIVE_ATTEMPT $env:PORTCOVE_ATTESTER_ATTEMPT
+      - name: Verify actual controlled-public override removal on this PowerShell runtime
+        shell: pwsh
+        run: ./scripts/test-windows-installer-environment.ps1
       - name: Exercise compiled HTTPS metadata and actual GitHub payload through installed UI
         shell: pwsh
         run: ./scripts/upstream-release-installed-rehearsal.ps1 -PublicConsumerOnly
