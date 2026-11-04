@@ -1494,6 +1494,52 @@ void test("inspection observes pending, failure, success, changed head and confi
   assert.equal(paginated.calls.length, 7);
 });
 
+void test("actual inspect CLI accepts its documented arguments and completes SDK reads without a watch deadline", (t) => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "sdk-inspect-cli-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const preload = path.join(root, "fetch.mjs");
+  const observed = pull({ base: { sha: base, ref: "main" } });
+  writeFileSync(
+    preload,
+    `import assert from "node:assert/strict";
+    const pull=${JSON.stringify(observed)},checks=${JSON.stringify(successfulRuns())};
+    globalThis.fetch=async(input,init)=>{
+      const url=new URL(input instanceof Request?input.url:String(input));
+      assert.equal(url.origin,"https://api.github.com");assert.equal(init.method,"GET");
+      if(url.pathname.endsWith("/pulls/7"))return Response.json(pull);
+      if(url.pathname.endsWith("/branches/main"))return Response.json({commit:{sha:${JSON.stringify(base)}}});
+      if(url.pathname.endsWith("/check-runs"))return Response.json({total_count:checks.length,check_runs:checks});
+      if(url.pathname.endsWith("/status"))return Response.json({total_count:0,statuses:[]});
+      throw Error("Unexpected controlled inspector read");
+    };`,
+  );
+  const result = spawnHelp(
+    process.execPath,
+    [
+      "--import",
+      preload,
+      fileURLToPath(new URL("./pr-delivery.mts", import.meta.url)),
+      "inspect",
+      "--pr",
+      "7",
+      "--head",
+      head,
+      "--json",
+    ],
+    {
+      encoding: "utf8",
+      timeout: 10000,
+      env: { ...process.env, GH_TOKEN: "synthetic-inspect-only", GITHUB_TOKEN: "", CI: "true" },
+    },
+  );
+  assert.ifError(result.error);
+  assert.equal(result.status, 0, result.stderr);
+  const report = record(JSON.parse(result.stdout));
+  assert.equal(report.observation, "complete");
+  assert.equal(record(report.source).matches, true);
+  assert.equal(record(report.review).state, "unknown");
+});
+
 void test("inspection refuses incomplete pagination, contradictory PR fields and source/target changes during collection", async () => {
   for (const options of [
     { incomplete: true },

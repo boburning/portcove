@@ -3,15 +3,14 @@ import { RoadmapClient, roadmapLockPath, validateConfig } from "./roadmap.mts";
 import { acquireOwnedProcessLock } from "./process-lock.mts";
 import {
   continueRoadmapCapacity,
+  createRoadmapRequestScope,
   roadmapQuotaDeferred,
   retainRoadmapQuotaDeferral,
 } from "./roadmap-capacity-continuation.mts";
 import { runScopedDoctor } from "./roadmap-scoped.mts";
 import { captureCheckoutContext, checkContextualDoctor } from "./checkout-context.mts";
 import type { GitHubRateLimit, GitHubApiObservation } from "./github-operation.mts";
-import { GitHubApiError } from "./github-operation.mts";
 import { createGitHubClient } from "./github-client.mts";
-import { localDeveloperCredential } from "./github-cli.mts";
 import { RoadmapBodyJournal, bodyOperationHash } from "./roadmap-body-progress.mts";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
@@ -280,7 +279,7 @@ function inputIdentity(edits: readonly BodyWriteOptions[]) {
     })),
   });
 }
-async function runBodyEdits(specPath: string) {
+async function runBodyEdits(specPath: string, scope: ReturnType<typeof createRoadmapRequestScope>) {
   const lockPath = roadmapLockPath(root);
   const key = bodyOperationHash(path.resolve(specPath));
   const directory = path.join(path.dirname(lockPath), "body-edits", key);
@@ -305,27 +304,6 @@ async function runBodyEdits(specPath: string) {
       identity,
       edits.length,
     );
-    const deadline = performance.now() + 30 * 60000;
-    let received = 0;
-    const scope = {
-      credential: localDeveloperCredential({ deadline }),
-      deadline,
-      allowMutations: true,
-      failedReads: new Map(),
-      deferral: { primary: new Map<string, number>(), secondary: 0 },
-      headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
-      reserve: () => ({
-        consumeBytes(bytes: number) {
-          received += bytes;
-          if (received > 64 * 1024 * 1024)
-            throw new GitHubApiError(
-              "budget_exhausted",
-              "Roadmap body metadata allowance exhausted",
-            );
-        },
-        settle() {},
-      }),
-    };
     const client = await RoadmapClient.connect(validateConfig(config), scope);
     observations = client.observations;
     const api = await createGitHubClient({
@@ -490,7 +468,10 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         "Usage: roadmap-edit.mts --spec-file FILE (JSON array of {target, body_file, previous_body_file})",
       );
     const spec = path.resolve(root, process.argv[3]!);
-    await continueRoadmapCapacity(() => runBodyEdits(spec), {
+    const scope = createRoadmapRequestScope({ allowMutations: true });
+    await continueRoadmapCapacity(() => runBodyEdits(spec, scope), {
+      deadline: scope.deadline,
+      monotonicNow: scope.now,
       identity: () =>
         bodyOperationHash({
           input: inputIdentity(loadBodyEdits(spec, path.join(root, "work/roadmap-edit"))),

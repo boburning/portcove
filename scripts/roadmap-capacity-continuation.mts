@@ -3,6 +3,65 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { isRecord } from "./runtime-values.mts";
 
+import { GitHubApiError } from "./github-operation.mts";
+import { localDeveloperCredential } from "./github-cli.mts";
+import type { GitHubCredential, GitHubRequestPolicy } from "./github-client.mts";
+import type { RoadmapRequestScope } from "./roadmap.mts";
+
+/** One command owns this scope across quota windows and recreated SDK clients. */
+export function createRoadmapRequestScope({
+  allowMutations,
+  milliseconds = 30 * 60000,
+  maximumMetadataBytes = 64 * 1024 * 1024,
+  credential,
+  ghCommand,
+  now = () => performance.now(),
+}: {
+  allowMutations: boolean;
+  milliseconds?: number;
+  maximumMetadataBytes?: number;
+  credential?: GitHubCredential;
+  ghCommand?: string | undefined;
+  now?: () => number;
+}) {
+  if (
+    !Number.isFinite(milliseconds) ||
+    milliseconds <= 0 ||
+    !Number.isSafeInteger(maximumMetadataBytes) ||
+    maximumMetadataBytes < 1
+  )
+    throw new GitHubApiError("invalid_configuration", "Invalid Roadmap command bounds");
+  const deadline = now() + milliseconds;
+  let received = 0;
+  return {
+    credential: credential ?? localDeveloperCredential({ deadline, command: ghCommand }),
+    deadline,
+    now,
+    allowMutations,
+    failedReads: new Map<string, GitHubRequestPolicy>(),
+    deferral: { primary: new Map<string, number>(), secondary: 0 },
+    headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
+    reserve: () => {
+      if (received >= maximumMetadataBytes)
+        throw new GitHubApiError(
+          "budget_exhausted",
+          "Roadmap command metadata allowance exhausted",
+        );
+      return {
+        consumeBytes(bytes: number) {
+          received += bytes;
+          if (received > maximumMetadataBytes)
+            throw new GitHubApiError(
+              "budget_exhausted",
+              "Roadmap command metadata allowance exhausted",
+            );
+        },
+        settle() {},
+      };
+    },
+  } satisfies RoadmapRequestScope;
+}
+
 export function roadmapQuotaDeferred(
   phase: string,
   evidence: Record<string, unknown>,
@@ -27,20 +86,33 @@ export async function continueRoadmapCapacity<T>(
   {
     now = Date.now,
     wait = async (until: number) => {
-      while (Date.now() < until)
-        await new Promise((resolve) => setTimeout(resolve, Math.min(60000, until - Date.now())));
+      while (now() < until) {
+        const remaining = deadline === undefined ? Infinity : deadline - monotonicNow();
+        if (remaining <= 0) return;
+        await new Promise((resolve) =>
+          setTimeout(resolve, Math.ceil(Math.min(60000, until - now(), remaining))),
+        );
+      }
     },
     observe = () => {},
     identity,
+    deadline,
+    monotonicNow = () => performance.now(),
   }: {
     now?: () => number;
     wait?: (until: number) => Promise<void>;
     observe?: (error: unknown) => void;
     identity?: () => string;
+    deadline?: number;
+    monotonicNow?: () => number;
   } = {},
 ) {
+  if (deadline !== undefined && !Number.isFinite(deadline))
+    throw new GitHubApiError("invalid_configuration", "Invalid Roadmap continuation deadline");
   const inputIdentity = identity?.();
   for (;;) {
+    if (deadline !== undefined && monotonicNow() >= deadline)
+      throw new GitHubApiError("deadline_exceeded", "Original Roadmap command deadline exhausted");
     if (identity && identity() !== inputIdentity)
       throw new Error(
         "Roadmap specification or configuration changed while waiting; no further operation",
@@ -60,7 +132,9 @@ export async function continueRoadmapCapacity<T>(
       if (!Number.isFinite(until) || until <= now()) throw error;
       // The caller's operation has already released its per-operation lock.
       observe(error);
+      if (deadline !== undefined && until - now() >= deadline - monotonicNow()) throw error;
       await wait(until);
+      if (deadline !== undefined && monotonicNow() >= deadline) throw error;
     }
   }
 }

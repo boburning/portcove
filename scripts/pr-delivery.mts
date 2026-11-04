@@ -1744,7 +1744,10 @@ async function main(argv: string[]) {
   const client =
     command === "watch" || command === "inspect"
       ? await createWatchClient({
-          deadline: performance.now() + Date.parse(optionText(options, "--deadline")) - Date.now(),
+          deadline:
+            command === "watch"
+              ? performance.now() + Date.parse(optionText(options, "--deadline")) - Date.now()
+              : performance.now() + 60000,
         })
       : await PullRequestDeliveryClient.connect();
   if (command === "inspect") {
