@@ -3202,6 +3202,7 @@ impl PortcoveService {
         }
         if let Some(active) = &status.active {
             self.require_portable_transition(active, port)?;
+            self.require_direct_artifact_transition(active, port, &release.asset.sha256, None)?;
         }
         if status.active.is_none() && status.staged.is_none() {
             self.require_direct_fresh_data(port)?;

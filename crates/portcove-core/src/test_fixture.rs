@@ -228,8 +228,8 @@ impl<'a> IndexedCatalogFixture<'a> {
             20
         } else if crate::preparation::has_manual_marker(port) {
             2
-        } else if crate::persistence::requires_fresh_direct_data_guard(port) {
-            25
+        } else if let Some(version) = crate::persistence::fresh_direct_data_guard_capability(port) {
+            version
         } else if port.mod_package_policy.is_some() {
             24
         } else if crate::persistence::ready_staged_archive(port) {

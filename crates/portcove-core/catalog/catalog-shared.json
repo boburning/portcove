@@ -1031,6 +1031,36 @@
         "reviewed_at": "2026-10-30",
         "claim": "Tagged v0.2.1 requires the exact USA headerless 1572864-byte original, CRC947B0355 and SHA256f3246755f608a1e1dc9c848b61da3b824c7853b29b3be40df6fc7f2793a887ed. Official Windows package SHA256334474edf3c575062eeabc0f8f2ac9e74d9bed304c18a521e0709294fdfcfc09 matched actual archive observation. Default logs are retained separately; no native gameplay or retained-state compatibility is inferred.",
         "immutable_url": "https://github.com/mstan/MegaManX2Recomp/blob/68caca6fe6d96ff423fd26266aedae2132ffb680/rom_identity.txt"
+      },
+      {
+        "id": "sonic-the-hedgehog-recomp-0-8-3-source-contract",
+        "role": "upstream_support",
+        "authority": "mstan/SonicTheHedgehogRecomp",
+        "authority_ref": "5cfa5f92341459b28e3bcf66df068fe425bc1354",
+        "reviewed_at": "2026-11-04",
+        "claim": "Tagged v0.8.3 game/sonic1_spec.c requires 512KiB and CRCF9394E97 JUE REV00. Existing independent exact-stock SHA256 remains enforced. Selected publisher Windows SHA25654c73309c7bda1d030e4e8d4f3ec2108763ed2c539e275688fcfa602b6ceec38. Package build-info binds the same title commit, engine755e7f6b740a0c0ab19af7d1d21e85061f8e622d and UIff71584e47facd1cb8e468340d2d71c2b4c1b91b. Source/package inspection does not establish gameplay, usable states or retained-state compatibility.",
+        "immutable_url": "https://github.com/mstan/SonicTheHedgehogRecomp/blob/5cfa5f92341459b28e3bcf66df068fe425bc1354/game/sonic1_spec.c",
+        "live_url": "https://github.com/mstan/SonicTheHedgehogRecomp/blob/main/game/sonic1_spec.c"
+      },
+      {
+        "id": "mega-man-x2-snes-recomp-0-2-2-source-contract",
+        "role": "upstream_support",
+        "authority": "mstan/MegaManX2Recomp",
+        "authority_ref": "f1a975512b2d86f88c6805b05095a782860741d1",
+        "reviewed_at": "2026-11-04",
+        "claim": "Tagged v0.2.2 retains the exact original required by this existing source contract. Publisher Windows SHA256f54bf04ea2975c338d62db5b4647082d8d1342f0378a861e15e42ddeb6d0e95a. Package/source observation does not establish gameplay, native execution or retained-state compatibility.",
+        "immutable_url": "https://github.com/mstan/MegaManX2Recomp/blob/f1a975512b2d86f88c6805b05095a782860741d1/src/main.c",
+        "live_url": "https://github.com/mstan/MegaManX2Recomp/blob/main/src/main.c"
+      },
+      {
+        "id": "super-metroid-recomp-0-4-2-source-contract",
+        "role": "upstream_support",
+        "authority": "mstan/SuperMetroidRecomp",
+        "authority_ref": "a1457dc339cae7ab8f9f1795177c464b499f6ab7",
+        "reviewed_at": "2026-11-04",
+        "claim": "Tagged v0.4.2 retains the exact original required by this existing source contract. Publisher Windows SHA25672b7c179b855fba9404eec07abdbacefaffa4c67898f5c5232f0b1444b73d531. Package/source observation does not establish gameplay, native execution or retained-state compatibility.",
+        "immutable_url": "https://github.com/mstan/SuperMetroidRecomp/blob/a1457dc339cae7ab8f9f1795177c464b499f6ab7/rom_identity.txt",
+        "live_url": "https://github.com/mstan/SuperMetroidRecomp/blob/main/rom_identity.txt"
       }
     ],
     "identities": [
@@ -11314,7 +11344,8 @@
           "sonic-the-hedgehog-recomp-0-6-0-source-contract",
           "sonic-genesis-jue-rev00-no-intro-byte-identity",
           "sonic-the-hedgehog-recomp-0-7-3-source-contract",
-          "sonic-the-hedgehog-recomp-0-7-3-framework-input-contract"
+          "sonic-the-hedgehog-recomp-0-7-3-framework-input-contract",
+          "sonic-the-hedgehog-recomp-0-8-3-source-contract"
         ],
         "authority_ref": "5c165f6195a88b17d8da4ae619aec2b8f640d84f",
         "reviewed_at": "2026-10-29",
@@ -11329,6 +11360,10 @@
           {
             "upstream_ref": "v0.7.3",
             "artifact_sha256": "082cfb48e1d35a5ae05f054ad663e4eee46b21e5d920ec7e7d6628bce32a3fc8"
+          },
+          {
+            "upstream_ref": "v0.8.3",
+            "artifact_sha256": "54c73309c7bda1d030e4e8d4f3ec2108763ed2c539e275688fcfa602b6ceec38"
           }
         ],
         "aliases": [],
@@ -11492,7 +11527,8 @@
         "validator_contract_id": null,
         "evidence_ids": [
           "super-metroid-recomp-0-3-12-source-contract",
-          "super-metroid-snes-japan-usa-no-intro-byte-identity"
+          "super-metroid-snes-japan-usa-no-intro-byte-identity",
+          "super-metroid-recomp-0-4-2-source-contract"
         ],
         "authority_ref": "494df8541eb4dbd4bacf7eba08c53b52d9fba5ac",
         "reviewed_at": "2026-10-19",
@@ -11503,6 +11539,10 @@
           {
             "upstream_ref": "v0.3.12",
             "artifact_sha256": "2b864f287e971f4ed8fa4205b69927ab43ecce5b1a4e79d08a8bd7530c3d87c9"
+          },
+          {
+            "upstream_ref": "v0.4.2",
+            "artifact_sha256": "72b7c179b855fba9404eec07abdbacefaffa4c67898f5c5232f0b1444b73d531"
           }
         ],
         "aliases": [],
@@ -11522,7 +11562,8 @@
           "mega-man-x2-snes-recomp-0-1-4-source-contract",
           "mega-man-x2-snes-usa-no-intro-byte-identity",
           "mega-man-x2-snes-recomp-0-1-5-source-contract",
-          "mega-man-x2-snes-recomp-0-2-1-source-contract"
+          "mega-man-x2-snes-recomp-0-2-1-source-contract",
+          "mega-man-x2-snes-recomp-0-2-2-source-contract"
         ],
         "authority_ref": "68caca6fe6d96ff423fd26266aedae2132ffb680",
         "reviewed_at": "2026-10-30",
@@ -11541,6 +11582,10 @@
           {
             "upstream_ref": "v0.2.1",
             "artifact_sha256": "334474edf3c575062eeabc0f8f2ac9e74d9bed304c18a521e0709294fdfcfc09"
+          },
+          {
+            "upstream_ref": "v0.2.2",
+            "artifact_sha256": "f54bf04ea2975c338d62db5b4647082d8d1342f0378a861e15e42ddeb6d0e95a"
           }
         ],
         "aliases": [],
