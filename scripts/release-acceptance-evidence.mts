@@ -14,6 +14,7 @@ import type { collectReleaseRunEvidence } from "./release-run-evidence.mts";
 import { isRecord } from "./runtime-values.mts";
 import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.mts";
 
+const reviewedSyftProducer = "Tool: syft-1.56.0";
 const repository = "boburning/portcove";
 const workflow = ".github/workflows/release.yml";
 export const releaseSpdxPredicateType = "https://spdx.dev/Document/v2.3";
@@ -87,7 +88,10 @@ export function inspectReleaseSpdx(value: unknown) {
     value.creationInfo.creators.length > 32 ||
     // Retain previously admitted evidence alongside the current workflow producer.
     !value.creationInfo.creators.some(
-      (creator) => creator === "Tool: syft-1.54.1" || creator === "Tool: syft-1.55.0",
+      (creator) =>
+        creator === "Tool: syft-1.54.1" ||
+        creator === "Tool: syft-1.55.0" ||
+        creator === reviewedSyftProducer,
     ) ||
     !Array.isArray(value.packages) ||
     value.packages.length < 1 ||
