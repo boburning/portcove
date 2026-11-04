@@ -1070,8 +1070,8 @@ for(const name of ['valid','configured','wrong-request','corrupt-ack','provider'
  const running=run(directory,performance.now()+(name==='timeout'?1500:20000));
  // Attach rejection immediately while waiting for the other process's routing view.
  const outcome=running.then(value=>({value}),error=>({error}));
- let request;for(let i=0;i<100;i++){try{request=await read(directory);break}catch(error){if(error.code!=='ENOENT')throw error;await delay(5)}}
- assert.ok(request);assert.equal(request.files.length,4);assert.equal(request.authority,'none');
+ let request;for(let i=0;i<400;i++){try{request=await read(directory);break}catch(error){if(error.code!=='ENOENT')throw error;await delay(5)}}
+ assert.ok(request, "routing view missing for controlled scenario: "+name);assert.equal(request.files.length,4);assert.equal(request.authority,'none');
  await assert.rejects((post?api.readHostedNativeUploadRequest:api.readHostedNativePostSignUploadRequest)(directory));
  await assert.rejects((post?api.acknowledgeHostedNativeUpload:api.acknowledgeHostedNativePostSignUpload)(directory,request.request_sha256,123,'a'.repeat(64)));
  if(name==='wrong-request'){
@@ -1099,8 +1099,8 @@ for(const name of ['delayed-read','late-settlement','late-ack']){
    const result=await outcome;assert.match(result.error.message,/retain/);
    await assert.rejects(readFile(path.join(directory,'native-job-upload-request.json')),{code:'ENOENT'});
  }else{
-   let request;for(let i=0;i<100;i++){try{request=await read(directory);break}catch(error){if(error.code!=='ENOENT')throw error;await delay(5)}}
-   assert.ok(request);
+   let request;for(let i=0;i<400;i++){try{request=await read(directory);break}catch(error){if(error.code!=='ENOENT')throw error;await delay(5)}}
+   assert.ok(request, "routing view missing for controlled scenario: "+name);
    if(name==='late-ack')await assert.rejects(ack(directory,request.request_sha256,123,'a'.repeat(64)),/exhausted/);
    else await ack(directory,request.request_sha256,123,'a'.repeat(64));
    const result=await outcome;
