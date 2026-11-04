@@ -82,7 +82,7 @@ export function ownedFixtureCommand(
         },
       );
     }
-    assert.equal(result.status, 0, result.stderr || result.stdout || undefined);
+    assert.equal(result.status, 0, result.stderr || result.stdout || "");
     assert.equal(typeof result.stdout, "string", "Owned CLI response must contain JSON text");
     assert(typeof result.stdout === "string");
     const response: unknown = JSON.parse(result.stdout);

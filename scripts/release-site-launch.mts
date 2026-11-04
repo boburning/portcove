@@ -1,3 +1,4 @@
+import { readControllerNodeFile } from "./release-controller-tools.mts";
 /** Builtins-only entry into the fixed attested whole-site controller. */
 import path from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
@@ -53,8 +54,8 @@ export async function launchFixedSiteController(
   );
   const tools = await verifiedControllerToolPaths(receipt);
   if (
-    hash(await readControllerToolFile(process.execPath)) !==
-    hash(await readControllerToolFile(tools.node))
+    hash(await readControllerNodeFile(process.execPath)) !==
+    hash(await readControllerNodeFile(tools.node))
   )
     throw new Error("running Node differs from authenticated site controller");
   const entry = tools.entries["release-site-controller"];

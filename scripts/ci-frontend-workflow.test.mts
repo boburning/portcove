@@ -732,7 +732,7 @@ const frontendToolInputs = [
 function assertFrontendToolInputs(tasks: unknown) {
   assert.ok(isRecord(tasks));
   for (const [name, input] of frontendToolInputs) {
-    const task = tasks[name];
+    const task: unknown = tasks[name];
     assert.ok(isRecord(task));
     const commands: unknown[] = Array.isArray(task.command) ? task.command : [task.command];
     const invocations = commands.flatMap((command) => {
@@ -771,7 +771,7 @@ void test("actual frontend task inputs tolerate declaration layout and reject mi
   const copyTasks = (): Record<string, unknown> =>
     Object.fromEntries(
       [...new Set(frontendToolInputs.map(([name]) => name))].map((name) => {
-        const task = tasks[name];
+        const task: unknown = tasks[name];
         assert.ok(isRecord(task));
         return [
           name,

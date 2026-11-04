@@ -55,7 +55,7 @@ export async function inspectWindowsNativeDependencyInputs(
         : manifest.packageManager === `pnpm@${nativePnpmVersion}`,
     );
     for (const kind of ["dependencies", "devDependencies", "optionalDependencies"]) {
-      const dependencies = manifest[kind] ?? {};
+      const dependencies: unknown = manifest[kind] ?? {};
       assert.ok(isRecord(dependencies) && Object.keys(dependencies).length <= 4096);
       for (const [name, version] of Object.entries(dependencies)) {
         assert.ok(name.length <= 256 && typeof version === "string" && version.length <= 4096);

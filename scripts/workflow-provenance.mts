@@ -9,7 +9,6 @@ import { parseArgs } from "node:util";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { errorCode, errorMessage, isRecord } from "./runtime-values.mts";
-import type { BinaryLike } from "node:crypto";
 import type { SpawnSyncOptions } from "node:child_process";
 
 export interface SelectedObligationCommand {
@@ -138,7 +137,7 @@ export interface ProvenanceBuildOptions {
   callerWorkflow?: string;
   mode: string;
   desiredRunner: string;
-  workflowContents: BinaryLike;
+  workflowContents: string | NodeJS.ArrayBufferView;
   desired: ProvenanceDesired;
   observed: ProvenanceObserved;
   environment: NodeJS.ProcessEnv;
@@ -174,7 +173,8 @@ function parsedJustPin(contents: string): string | undefined {
   return just.version;
 }
 const root = fileURLToPath(new URL("..", import.meta.url));
-const sha256 = (value: BinaryLike) => createHash("sha256").update(value).digest("hex");
+const sha256 = (value: string | NodeJS.ArrayBufferView) =>
+  createHash("sha256").update(value).digest("hex");
 const exactSha = (value: unknown): value is string =>
   typeof value === "string" && /^[a-f0-9]{40}$/u.test(value);
 const exactPositiveInteger = (value: unknown): value is string =>

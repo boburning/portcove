@@ -31,6 +31,7 @@ import {
   controllerNativeDriverVersion,
   controllerToolSourceAssetMaximumBytes,
   controllerToolPlatformProfile,
+  controllerToolFileMaximumBytes,
   type ControllerToolPlatform,
 } from "./release-controller-tools.mts";
 /** Installed package API is the repository-pinned Vite+ Pack, not a downloaded
@@ -454,10 +455,14 @@ export async function buildControllerTools(
         path.join(driverRoot, "bin", `tauri-driver${profile.suffix}`),
       ],
     ])
-      await writeFile(path.join(tools, "bin", name!), await readControllerToolFile(filename!), {
-        flag: "wx",
-        mode: 0o700,
-      });
+      await writeFile(
+        path.join(tools, "bin", name!),
+        await readControllerToolFile(filename!, controllerToolFileMaximumBytes(`bin/${name}`)),
+        {
+          flag: "wx",
+          mode: 0o700,
+        },
+      );
     for (const name of profile.assets) {
       await mkdir(path.dirname(path.join(tools, name)), { recursive: true, mode: 0o700 });
       await writeFile(
@@ -476,7 +481,10 @@ export async function buildControllerTools(
     guard();
     const files = [];
     for (const name of profile.paths) {
-      const bytes = await readControllerToolFile(path.join(tools, name));
+      const bytes = await readControllerToolFile(
+        path.join(tools, name),
+        controllerToolFileMaximumBytes(name),
+      );
       files.push({ path: name, bytes: bytes.length, sha256: hash(bytes) });
     }
     const manifest = inspectControllerToolManifest(

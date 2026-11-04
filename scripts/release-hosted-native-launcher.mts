@@ -1,3 +1,4 @@
+import { readControllerNodeFile } from "./release-controller-tools.mts";
 /** Source-bound private runtime preparation only. No process, candidate, key,
  * privilege, provider mutation or native acceptance is created by a plan. */
 import assert from "node:assert/strict";
@@ -103,14 +104,14 @@ export async function prepareFixedHostedLinuxLaunch(operation: unknown) {
       path.join(tools.root, "manifest.json"),
     ];
     const toolCustody = inspectNativeRuntimeCustody(files);
-    const bytes = await readControllerToolFile(tools.node);
+    const bytes = await readControllerNodeFile(tools.node);
     await verifiedControllerToolPaths(receipt);
     recheckNativeRuntimeCustody(files, toolCustody);
     active();
     await writeFile(node, bytes, { flag: "wx", mode: 0o600 });
     await chmod(node, 0o700);
     const custody = inspectNativeRuntimeCustody([node]);
-    assert.equal(hash(await readControllerToolFile(node)), hash(bytes));
+    assert.equal(hash(await readControllerNodeFile(node)), hash(bytes));
     recheckNativeRuntimeCustody([node], custody);
     active();
     const bindingBytes = Buffer.from(
@@ -164,7 +165,7 @@ export async function prepareFixedHostedLinuxLaunch(operation: unknown) {
     originalCustody.set(entry[0], entry[1]);
   }
   recheckNativeRuntimeCustody([node], originalCustody);
-  const current = await readControllerToolFile(node);
+  const current = await readControllerNodeFile(node);
   assert.equal(current.length, retained.node.bytes);
   assert.equal(hash(current), retained.node.sha256);
   recheckNativeRuntimeCustody([node, bindingFile], custody);

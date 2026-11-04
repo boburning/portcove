@@ -72,7 +72,7 @@ function baselineCase(raw: unknown) {
       "indexBlob",
       "gitBlob",
     ] as const) {
-      const value = file[key];
+      const value: unknown = file[key];
       assert(value === undefined || value === null || typeof value === "string");
       if (value !== undefined) identities[key] = value;
     }

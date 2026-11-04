@@ -399,7 +399,7 @@ void test(
         },
       ),
     );
-    assert.equal(setup.status, 0, setup.stderr || setup.error?.message);
+    assert.equal(setup.status, 0, setup.stderr || setup.error?.message || "");
     const core = git(cwd, "--exec-path").trim();
     const gitPath =
       process.platform === "win32" ? path.resolve(core, "../../bin/git.exe") : "/usr/bin/git";
@@ -429,7 +429,11 @@ void test(
         }),
       );
     const success = commit();
-    assert.equal(success.status, 0, success.stderr || success.stdout || success.error?.message);
+    assert.equal(
+      success.status,
+      0,
+      success.stderr || success.stdout || success.error?.message || "",
+    );
     git(cwd, "config", "extensions.worktreeConfig", "true");
     const sibling = `${cwd}-linked`;
     git(cwd, "worktree", "add", "-qb", "runtime-linked", sibling);
@@ -439,7 +443,7 @@ void test(
     writeFileSync(path.join(sibling, "sample.js"), "export const linked = true;\n");
     git(sibling, "add", "sample.js");
     const linked = commit(sibling);
-    assert.equal(linked.status, 0, linked.stderr || linked.stdout || linked.error?.message);
+    assert.equal(linked.status, 0, linked.stderr || linked.stdout || linked.error?.message || "");
     writeFileSync(path.join(cwd, ".node-version"), "0.0.0\n");
     const stale = commit();
     assert.notEqual(stale.status, 0);
@@ -461,7 +465,7 @@ void test(
     assert.equal(
       refreshed.status,
       0,
-      refreshed.stderr || refreshed.stdout || refreshed.error?.message,
+      refreshed.stderr || refreshed.stdout || refreshed.error?.message || "",
     );
     assert.equal(git(cwd, "show", "HEAD:sample.js"), "export const refreshed = true;\n");
     unlinkSync(path.join(cwd, ".vite-hooks/_/portcove-node"));

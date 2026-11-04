@@ -2133,7 +2133,7 @@ void test("native provider allocation comes only from the original branded workf
     program = stripTypeScriptTypes(
       functions.replace(/^export /gmu, "") +
         "\ncurrentNativeJobDeadline(selectedPlatform,identity,'fixed',processDeadline,receipt,workflowBytes)",
-      { mode: "transform" },
+      { mode: "strip" },
     );
   for (const platform of ["linux-x86_64", "windows-x86_64"] as const) {
     const job = productionHostedNativeJob(platform, "payload-signing");

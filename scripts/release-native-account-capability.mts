@@ -526,7 +526,7 @@ function sync(
     maxBuffer: 128 * 1024,
     env: closedEnvironment(temp),
   });
-  assert.equal(value.error, undefined, value.error?.message);
+  assert.equal(value.error, undefined, String(value.error?.message ?? ""));
   assert.equal(value.status, 0, value.stderr);
   active(deadline);
   return String(value.stdout);

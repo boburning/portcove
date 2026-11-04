@@ -996,7 +996,7 @@ async function assertSecondaryCreationRefusal({
   // Keep every post-attempt observation even when creation unexpectedly succeeds,
   // its reply fails, or another observation fails. Existing IPC bounds still apply.
   record.after = await captureSecondaryContext({ browser, invoke, library });
-  assert.equal(record.invocationFailure, undefined, record.invocationFailure);
+  assert.equal(record.invocationFailure, undefined, String(record.invocationFailure ?? ""));
   assert.ok(record.result);
   assert.equal(record.result.ok, false, "Unauthorized secondary creation must be refused");
   assert.equal(record.result.error, `Command ${command} not allowed by ACL`);

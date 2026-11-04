@@ -1069,7 +1069,7 @@ void test("same-job derivation binds the maintained producer, actual commands an
         assert.deepEqual(
           JSON.parse(JSON.stringify(actual)) as unknown,
           JSON.parse(JSON.stringify(expected)) as unknown,
-          message,
+          message ?? "",
         ),
     },
     JSON,
@@ -1200,7 +1200,7 @@ void test("shared original A/B stage mechanics reject altered worker generations
         assert.deepEqual(
           JSON.parse(JSON.stringify(actual)) as unknown,
           JSON.parse(JSON.stringify(expected)) as unknown,
-          message,
+          message ?? "",
         ),
     };
     const common = runInNewContext(
@@ -1436,7 +1436,7 @@ void test("actual diagnostic first-stage failure preserves recovery success or U
   const body = source.slice(start, end).trimEnd();
   assert.ok(body.endsWith("}"));
   const program = stripTypeScriptTypes("(async () => {\n" + body.slice(0, -1) + "\n})()", {
-    mode: "transform",
+    mode: "strip",
   });
   for (const recoveryFails of [false, true]) {
     const nativeFailure = new Error("controlled first-stage failure"),
@@ -1850,7 +1850,7 @@ void test("actual preparation completion publishes identical durable create-only
     ending = implementation.slice(start).trimEnd();
   assert.ok(start > 0 && ending.endsWith("}"), "Actual producer completion boundary required");
   const program = stripTypeScriptTypes("(async () => {\n" + ending.slice(0, -1) + "\n})()", {
-    mode: "transform",
+    mode: "strip",
   });
   const temporary = await mkdtemp(path.join(os.tmpdir(), "pc-preparation-persistence-"));
   t.after(() => rm(temporary, { recursive: true, force: true }));

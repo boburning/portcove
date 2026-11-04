@@ -193,7 +193,7 @@ export class NativeAccountClient {
           },
         },
       );
-      assert.equal(result.error, undefined, result.error?.message);
+      assert.equal(result.error, undefined, String(result.error?.message ?? ""));
       assert.equal(result.status, 0, String(result.stderr));
       const reply = object(JSON.parse(String(result.stdout)));
       assert.equal(reply.schema_version, 1);

@@ -272,7 +272,7 @@ void test("health collection stays read-only beside owner-gated intake; publishe
         "github.event_name == 'workflow_dispatch' && inputs.hosted_intake != 'none' && inputs.hosted_intake != '' && github.actor == 'boburning' && github.ref != format('refs/heads/{0}', github.event.repository.default_branch)",
       );
     } else {
-      const permissions = job.permissions ?? health.permissions;
+      const permissions: unknown = job.permissions ?? health.permissions;
       assert.ok(isRecord(permissions));
       for (const value of Object.values(permissions))
         assert.ok(value === "read" || value === "none", `${name} must stay read-only`);

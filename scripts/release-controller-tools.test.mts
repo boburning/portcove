@@ -52,7 +52,7 @@ import {
   controllerToolBootstrapProfile,
 } from "./assembler-job-identity.mts";
 import { launchFixedPayloadController } from "./release-controller-tool-launch.mts";
-import { controllerNodeVersion } from "./controller-node-runtime.mts";
+import { controllerNodeVersion, controllerNodeMaximumBytes } from "./controller-node-runtime.mts";
 
 const sourceRoot = fileURLToPath(new URL("..", import.meta.url));
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
@@ -711,7 +711,7 @@ void test("ordinary Linux tool build fixture uses actual source and fresh public
   assert.match(source, /production_tool_acceptance: "not-established"/u);
   assert.ok(isRecord(parsed.on));
   for (const event of ["pull_request", "push"]) {
-    const trigger = parsed.on[event];
+    const trigger: unknown = parsed.on[event];
     assert.ok(isRecord(trigger) && Array.isArray(trigger.paths));
     for (const scope of ["crates/portcove-cli/**", "crates/portcove-core/**"])
       assert.ok(trigger.paths.includes(scope));
@@ -1086,6 +1086,44 @@ void test("opaque fixture tool archive requires exact complete inventory and ref
     assert.throws(
       () => inspectControllerToolArchive(wrong.archive, wrong.manifest),
       /compiler source/u,
+    );
+  }
+});
+void test("only closed Node inventory entries receive the larger finite runtime bound", () => {
+  for (const platform of ["linux-x86_64", "windows-x86_64"] as const) {
+    const original = fixture({}, platform).manifest;
+    const nodePath = platform === "linux-x86_64" ? "bin/node" : "bin/node.exe";
+    const sized = (selectedPath: string, bytes: number) => ({
+      ...original,
+      files: original.files.map((file) => (file.path === selectedPath ? { ...file, bytes } : file)),
+    });
+    assert.equal(controllerNodeMaximumBytes, 160 * 1024 ** 2);
+    assert.equal(
+      inspectControllerToolManifest(sized(nodePath, 150319296), platform).files.find(
+        (file) => file.path === nodePath,
+      )?.bytes,
+      150319296,
+    );
+    assert.throws(
+      () =>
+        inspectControllerToolManifest(sized(nodePath, controllerNodeMaximumBytes + 1), platform),
+      /inventory differs/u,
+    );
+    const otherPath = original.files.find((file) => file.path !== nodePath)!.path;
+    assert.throws(
+      () => inspectControllerToolManifest(sized(otherPath, 128 * 1024 ** 2 + 1), platform),
+      /inventory differs/u,
+    );
+    const overAggregate = {
+      ...original,
+      files: original.files.map((file) => ({
+        ...file,
+        bytes: file.path === nodePath ? controllerNodeMaximumBytes : 128 * 1024 ** 2,
+      })),
+    };
+    assert.throws(
+      () => inspectControllerToolManifest(overAggregate, platform),
+      /expanded bytes exceed bound/u,
     );
   }
 });

@@ -912,7 +912,7 @@ void test(
     assert.ok(completionStart > 0 && completionEnding.endsWith("}"));
     const completionProgram = stripTypeScriptTypes(
       "(async () => {\n" + completionEnding.slice(0, -1) + "\n})()",
-      { mode: "transform" },
+      { mode: "strip" },
     );
     const continuity = parseYaml(
       readFileSync(
@@ -1317,7 +1317,7 @@ void test(
           env: fixtureEnvironment,
         },
       );
-      assert.equal(result.error, undefined, result.error?.message);
+      assert.equal(result.error, undefined, String(result.error?.message ?? ""));
       assert.equal(result.status, 1, result.stderr);
       assert.equal(
         existsSync(poisonMarker),

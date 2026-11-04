@@ -159,7 +159,7 @@ export async function qualifyNativeChildren(
       assert.ok(registered, "fixed prepared reaper registration missing");
       await writeFile(gate, "go", { flag: "wx", mode: 0o600 });
       const result = await finished;
-      assert.equal(result.error, undefined, result.error?.message);
+      assert.equal(result.error, undefined, String(result.error?.message ?? ""));
       assert.equal(result.code, 0, stderr);
       assert.equal(expired, false);
       assert.ok(outputBytes <= 65536);

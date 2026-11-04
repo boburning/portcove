@@ -2187,7 +2187,7 @@ async function startDriver(childEnvironment: NodeJS.ProcessEnv = {}) {
   const spawnedDriver = required(driver);
   let spawnError: Error | undefined;
   if (!(spawnedDriver instanceof AccountDriverView)) {
-    spawnedDriver.on("error", (error) => {
+    spawnedDriver.on("error", (error: Error) => {
       spawnError = error;
     });
   }
