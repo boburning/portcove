@@ -5,6 +5,7 @@ import {
 } from "./roadmap-issue.mts";
 import {
   continueRoadmapCapacity,
+  createRoadmapRequestScope,
   roadmapQuotaDeferred,
   retainRoadmapQuotaDeferral,
 } from "./roadmap-capacity-continuation.mts";
@@ -4355,7 +4356,7 @@ export function roadmapCommandHelp(command: string, config?: RoadmapConfig) {
     .join("\n");
 }
 
-async function main(argv: readonly string[]) {
+async function main(argv: readonly string[], commandScope?: RoadmapRequestScope) {
   const parsed = parseArguments(argv);
   if (parsed.options["--help"]) {
     const helpConfig = ["set", "capture-feature"].includes(parsed.command)
@@ -4380,29 +4381,18 @@ async function main(argv: readonly string[]) {
       : await loadConfig({
           requireProjectNumber: parsed.command !== "bootstrap",
         });
-  const { localDeveloperCredential } = await import("./github-cli.mts");
-  const deadline = performance.now() + (parsed.command === "capture-port" ? 120_000 : 30 * 60_000);
-  let metadataBytes = 0;
-  const scope: RoadmapRequestScope = {
-    credential: localDeveloperCredential({ deadline, command: process.env.PORTCOVE_ROADMAP_GH }),
-    deadline,
-    deferral: { primary: new Map(), secondary: 0 },
-    failedReads: new Map(),
-    allowMutations:
-      ["bootstrap", "normalize-port", "capture-feature", "promote", "set", "move"].includes(
-        parsed.command,
-      ) ||
-      (["set-many", "rename-commitment"].includes(parsed.command) &&
-        parsed.options["--apply"] === true),
-    reserve: () => ({
-      consumeBytes(bytes) {
-        metadataBytes += bytes;
-        if (metadataBytes > 64 * 1024 * 1024)
-          throw new GitHubApiError("budget_exhausted", "Roadmap command metadata budget exhausted");
-      },
-      settle() {},
-    }),
-  };
+  const scope =
+    commandScope ??
+    createRoadmapRequestScope({
+      milliseconds: parsed.command === "capture-port" ? 120000 : 30 * 60000,
+      ghCommand: process.env.PORTCOVE_ROADMAP_GH,
+      allowMutations:
+        ["bootstrap", "normalize-port", "capture-feature", "promote", "set", "move"].includes(
+          parsed.command,
+        ) ||
+        (["set-many", "rename-commitment"].includes(parsed.command) &&
+          parsed.options["--apply"] === true),
+    });
   const client = config ? await RoadmapClient.connect(config, scope) : null;
   const lock = await acquireOwnedProcessLock(
     roadmapLockPath(),
@@ -5043,7 +5033,13 @@ if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
     if (args[0] === "set-many" && !args.includes("--help") && !args.includes("-h")) {
       const parsed = parseArguments(args);
       const spec = path.resolve(projectRoot, requiredOption(parsed.options, "--spec-file"));
-      await continueRoadmapCapacity(() => main(args), {
+      const scope = createRoadmapRequestScope({
+        allowMutations: parsed.options["--apply"] === true,
+        ghCommand: process.env.PORTCOVE_ROADMAP_GH,
+      });
+      await continueRoadmapCapacity(() => main(args, scope), {
+        deadline: scope.deadline,
+        monotonicNow: scope.now,
         identity: () =>
           createHash("sha256")
             .update(readSetManyInput(spec))

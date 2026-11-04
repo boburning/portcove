@@ -4,10 +4,10 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { sanitizeOperationError, GitHubApiError } from "./github-operation.mts";
+import { sanitizeOperationError } from "./github-operation.mts";
 import { createGitHubClient } from "./github-client.mts";
 import type { GitHubRequestPolicy } from "./github-client.mts";
-import { localDeveloperCredential } from "./github-cli.mts";
+import { createRoadmapRequestScope } from "./roadmap-capacity-continuation.mts";
 import { checkClosureIntent, readClosingRelationships } from "./closure-intent.mts";
 import { isRecord } from "./runtime-values.mts";
 import config from "../.github/roadmap.json" with { type: "json" };
@@ -76,29 +76,28 @@ function targetNumber(target: unknown, type: "pr" | "issue") {
   throw new Error("Target must identify an issue/PR in the configured repository");
 }
 
-export async function createBodyClient() {
-  const deadline = performance.now() + 120000;
-  let bytes = 0;
-  return await createGitHubClient({
-    credential: localDeveloperCredential({ deadline }),
-    deadline,
-    headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
-    reserve: () => ({
-      consumeBytes(received) {
-        bytes += received;
-        if (bytes > 32 * 1024 * 1024)
-          throw new GitHubApiError(
-            "budget_exhausted",
-            "Body operation metadata allowance exhausted",
-          );
-      },
-      settle() {},
-    }),
+export async function createBodyClient(): Promise<BodyApi> {
+  const scope = createRoadmapRequestScope({
+    allowMutations: false,
+    milliseconds: 120000,
+    maximumMetadataBytes: 32 * 1024 * 1024,
+  });
+  const sdk = await createGitHubClient({
+    ...scope,
     allowRequest: (method, url) =>
       (method === "POST" && url.pathname === "/graphql") ||
       (["GET", "POST", "PATCH"].includes(method) &&
         url.pathname.startsWith(`/repos/${repository}/`)),
   });
+  let validation: Promise<import("./roadmap.mts").RoadmapClient> | undefined;
+  return {
+    request: sdk.request,
+    async validateRoadmapReplacement(number, previous, body) {
+      const { RoadmapClient, validateConfig } = await import("./roadmap.mts");
+      validation ??= RoadmapClient.connect(validateConfig(config), scope);
+      return await validateLiveRoadmapReplacement(number, previous, body, await validation);
+    },
+  };
 }
 
 export async function writeGitHubBody(options: BodyWriteOptions, api?: BodyApi) {

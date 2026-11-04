@@ -498,3 +498,49 @@ void test("asynchronous Roadmap validation settles before a body mutation or ref
     assert.deepEqual(methods, rejectValidation ? ["GET"] : ["GET", "PATCH", "GET"]);
   }
 });
+
+void test("body validation reuses its original command credential and deadline", async (t) => {
+  const { createBodyClient } = await import("./github-body.mts");
+  const { RoadmapClient } = await import("./roadmap.mts");
+  const previous = process.env.GH_TOKEN;
+  t.after(() => {
+    if (previous === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = previous;
+  });
+  process.env.GH_TOKEN = "synthetic-original-body-role";
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (_input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      assert.equal(
+        new Headers(init?.headers).get("authorization"),
+        "token synthetic-original-body-role",
+      );
+      return Response.json({ id: 1 });
+    },
+  );
+  const api = await createBodyClient();
+  const constructed = performance.now();
+  await api.request({
+    method: "GET",
+    url: "https://api.github.com/repos/boburning/portcove/issues/1",
+  });
+  process.env.GH_TOKEN = "synthetic-substitute-must-not-be-used";
+  t.mock.method(
+    RoadmapClient,
+    "connect",
+    async (
+      _config: Parameters<typeof RoadmapClient.connect>[0],
+      scope: Parameters<typeof RoadmapClient.connect>[1],
+    ) => {
+      assert.equal(scope.credential.kind, "explicit");
+      if (scope.credential.kind === "explicit")
+        assert.equal(scope.credential.token, "synthetic-original-body-role");
+      assert.ok(scope.deadline <= constructed + 120000);
+      throw new Error("Validation boundary reached");
+    },
+  );
+  const validate = api.validateRoadmapReplacement;
+  assert.ok(validate);
+  await assert.rejects(async () => validate(1, "old", "new"), /Validation boundary reached/u);
+});

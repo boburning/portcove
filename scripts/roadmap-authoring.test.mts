@@ -446,3 +446,129 @@ void test("an exact desired body reached after staged preflight resumes without 
   assert.equal(h.writes.has(1), false);
   assert.equal(h.writes.size, 2);
 });
+
+void test("command scope refuses an overlong or overrun quota wait without renewed credentials or requests", async (t) => {
+  const { createRoadmapRequestScope } = await import("./roadmap-capacity-continuation.mts");
+  const { localDeveloperCredential } = await import("./github-cli.mts");
+  const { createGitHubClient } = await import("./github-client.mts");
+  for (const overrun of [false, true])
+    await t.test(overrun ? "admitted wait overruns" : "required wait cannot fit", async () => {
+      let monotonic = 1000,
+        wall = Date.parse("2026-11-04T00:00:00Z"),
+        resolutions = 0,
+        requests = 0,
+        waits = 0;
+      const credential = localDeveloperCredential({
+        environment: {},
+        deadline: 101000,
+        resolve: async () => {
+          resolutions++;
+          return "synthetic-command-scope";
+        },
+      });
+      const scope = createRoadmapRequestScope({
+        allowMutations: true,
+        milliseconds: 100000,
+        credential,
+        now: () => monotonic,
+      });
+      const failure = roadmapQuotaDeferred(
+        "preflight",
+        {},
+        { remaining: 0, resetAt: new Date(wall + (overrun ? 1000 : 200000)).toISOString() },
+      );
+      await assert.rejects(
+        continueRoadmapCapacity(
+          async () => {
+            const client = await createGitHubClient({
+              ...scope,
+              wallNow: () => wall,
+              fetch: async (_url, init) => {
+                requests++;
+                assert.equal(init?.method, "GET");
+                return Response.json({ id: 1 });
+              },
+            });
+            await client.request("GET /rate_limit");
+            throw failure;
+          },
+          {
+            now: () => wall,
+            deadline: scope.deadline,
+            monotonicNow: scope.now,
+            wait: async (until) => {
+              waits++;
+              wall = until;
+              monotonic = scope.deadline + 1;
+            },
+          },
+        ),
+        (error) => error === failure,
+      );
+      assert.equal(waits, overrun ? 1 : 0);
+      assert.equal(requests, 1);
+      assert.equal(resolutions, 1);
+    });
+});
+
+void test("command scope retains cumulative bytes and recovery state across admitted quota windows", async () => {
+  const { createRoadmapRequestScope } = await import("./roadmap-capacity-continuation.mts");
+  const { localDeveloperCredential } = await import("./github-cli.mts");
+  const { createGitHubClient } = await import("./github-client.mts");
+  let monotonic = 1000,
+    wall = Date.parse("2026-11-04T00:00:00Z"),
+    resolutions = 0,
+    requests = 0,
+    windows = 0;
+  const scope = createRoadmapRequestScope({
+    allowMutations: true,
+    milliseconds: 100000,
+    maximumMetadataBytes: 12,
+    now: () => monotonic,
+    credential: localDeveloperCredential({
+      environment: {},
+      deadline: 101000,
+      resolve: async () => {
+        resolutions++;
+        return "synthetic-command-scope";
+      },
+    }),
+  });
+  const prior = { replay: "safe-read" as const, attempts: 3 };
+  scope.failedReads.set("earlier-exhausted-read", prior);
+  await assert.rejects(
+    continueRoadmapCapacity(
+      async () => {
+        windows++;
+        assert.equal(scope.failedReads.get("earlier-exhausted-read"), prior);
+        const client = await createGitHubClient({
+          ...scope,
+          wallNow: () => wall,
+          fetch: async () => {
+            requests++;
+            return Response.json({ id: 1 });
+          },
+        });
+        await client.request("GET /rate_limit");
+        throw roadmapQuotaDeferred(
+          "preflight",
+          {},
+          { remaining: 0, resetAt: new Date(wall + 1000).toISOString() },
+        );
+      },
+      {
+        now: () => wall,
+        deadline: scope.deadline,
+        monotonicNow: scope.now,
+        wait: async (until) => {
+          monotonic += until - wall;
+          wall = until;
+        },
+      },
+    ),
+    { code: "budget_exhausted" },
+  );
+  assert.equal(windows, 2);
+  assert.equal(requests, 2);
+  assert.equal(resolutions, 1);
+});
