@@ -1,7 +1,7 @@
 import type { ProviderObservation } from "./upstream-observer.mts";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { GitHubApiError } from "./github-api.mts";
+import { GitHubApiError } from "./github-operation.mts";
 import { mkdtemp, mkdir, writeFile, readFile, readdir, rm } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -525,7 +525,7 @@ void test("production-shaped retained provider pages fit the fixed artifact rese
     current: { run: 103, attempt: 1, source: "d".repeat(40) },
     deadline: Date.now() + 60000,
     api: {
-      request: (_method, route) => {
+      read: async (route) => {
         assert.equal(
           route,
           "repos/boburning/portcove",
@@ -1231,21 +1231,18 @@ void test("operational coordinator isolates handoff files, preserves failure not
       _directory: string,
       observation: Parameters<typeof h.options.project>[2],
     ) => h.options.project(config.port_id, config.repository_id, observation),
-    api: {
-      request: (_method: string, endpoint: string) => {
-        const repository = endpoint.replace("/repos/", "");
-        const body = {
-          id: repository === "owner/shared" ? 7 : 8,
-          full_name: repository,
-          archived: false,
-        };
-        return {
-          status: 200,
-          headers: new Map<string, string>(),
-          body,
-          bodyBytes: Buffer.byteLength(JSON.stringify(body)),
-        };
-      },
+    repositoryMetadata: async (repository: string) => {
+      const body = {
+        id: repository === "owner/shared" ? 7 : 8,
+        full_name: repository,
+        archived: false,
+      };
+      return {
+        status: 200,
+        headers: new Map<string, string>(),
+        body,
+        bodyBytes: Buffer.byteLength(JSON.stringify(body)),
+      };
     },
     log: () => {},
   };
@@ -1305,7 +1302,7 @@ void test("operational coordinator isolates handoff files, preserves failure not
     release: { repository: "owner/unavailable" },
   });
   await writeFile(catalog, JSON.stringify(h.input));
-  runtime.api.request = () => {
+  runtime.repositoryMetadata = async () => {
     throw new GitHubApiError(
       "command_failed",
       "private transport detail must stay out of proposal evidence",
@@ -1435,9 +1432,8 @@ void test("legacy artifact retains its original report shape while shared ports 
     now: h.options.now!,
     observer: { fetch: h.options.fetch! },
     log: () => {},
-    api: {
-      request: () => assert.fail("Reviewed legacy numeric identity needs no new baseline lookup"),
-    },
+    repositoryMetadata: async () =>
+      assert.fail("Reviewed legacy numeric identity needs no new baseline lookup"),
     project: async (_cli, source, _directory, observation) =>
       h.options.project(source.port_id, source.repository_id, observation),
   });
@@ -1738,7 +1734,7 @@ void test("a Core executable changed during projection cannot publish a complete
     now: h.options.now!,
     observer: { fetch: h.options.fetch! },
     log: () => {},
-    api: { request: () => assert.fail("Legacy exact source identity needs no lookup") },
+    repositoryMetadata: async () => assert.fail("Legacy exact source identity needs no lookup"),
     project: async (_cli, source, _directory, observation) => {
       await writeFile(cli, "changed mock Core identity");
       return h.options.project(source.port_id, source.repository_id, observation);
@@ -2231,21 +2227,18 @@ void test("hosted opportunity preserves one aggregate handoff and refuses change
       _directory: string,
       observation: Parameters<typeof h.options.project>[2],
     ) => h.options.project(config.port_id, config.repository_id, observation),
-    api: {
-      request: (_method: string, endpoint: string) => {
-        const repository = endpoint.replace("/repos/", ""),
-          body = {
-            id: repository === "owner/shared" ? 7 : 8,
-            full_name: repository,
-            archived: false,
-          };
-        return {
-          status: 200,
-          headers: new Map<string, string>(),
-          body,
-          bodyBytes: Buffer.byteLength(JSON.stringify(body)),
-        };
-      },
+    repositoryMetadata: async (repository: string) => {
+      const body = {
+        id: repository === "owner/shared" ? 7 : 8,
+        full_name: repository,
+        archived: false,
+      };
+      return {
+        status: 200,
+        headers: new Map<string, string>(),
+        body,
+        bodyBytes: Buffer.byteLength(JSON.stringify(body)),
+      };
     },
     log: () => {},
   };

@@ -1,9 +1,56 @@
 import { createGitHubClient } from "./github-client.mts";
-import type { GitHubRequestPolicy, GitHubDeferralState } from "./github-client.mts";
+import type {
+  GitHubRequestPolicy,
+  GitHubDeferralState,
+  GitHubAttemptObservation,
+} from "./github-client.mts";
 import { GitHubApiError } from "./github-operation.mts";
 import { orderedJsonValue as canonical } from "./json-values.mts";
 import { isRecord } from "./runtime-values.mts";
 import { createHash } from "node:crypto";
+
+/** Existing observer metadata contracts retain exact received bytes through the SDK. */
+export async function readObserverMetadata(
+  sdk: Awaited<ReturnType<typeof createGitHubClient>>,
+  endpoint: string,
+  policy: GitHubRequestPolicy = { replay: "once", attempts: 0 },
+) {
+  const evidence: { attempt?: GitHubAttemptObservation } = {};
+  const previousObserve = policy.observe;
+  policy.observe = (attempt) => {
+    evidence.attempt = attempt;
+    previousObserve?.(attempt);
+  };
+  try {
+    const response = await sdk.request({
+      method: "GET",
+      url: new URL(endpoint, "https://api.github.com/").href,
+      request: { portcove: policy },
+    });
+    if (!evidence.attempt)
+      throw new GitHubApiError("invalid_response", "Observer response evidence is unavailable");
+    return {
+      status: response.status,
+      headers: new Map(Object.entries(evidence.attempt.headers)),
+      body: response.data as unknown,
+      bodyBytes: evidence.attempt.bytes,
+    };
+  } catch (error) {
+    if (error instanceof GitHubApiError)
+      throw new GitHubApiError(error.code, error.message, {
+        status: evidence.attempt?.status ?? error.status,
+        responseBytes: evidence.attempt?.bytes ?? error.responseBytes,
+        rateLimit: error.rateLimit,
+        retryAfter: error.retryAfter,
+        requestId: error.requestId,
+        responseDate: error.responseDate,
+      });
+    throw error;
+  } finally {
+    if (previousObserve) policy.observe = previousObserve;
+    else delete policy.observe;
+  }
+}
 
 export const observationHash = (value: unknown): string => {
   const serialized = JSON.stringify(canonical(value));

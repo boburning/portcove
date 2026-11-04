@@ -20,6 +20,8 @@ export interface GitHubRequestPolicy {
   attempts: number;
   /** A caller may reduce the shared three-attempt allowance. */
   maxAttempts?: number;
+  /** Request-owned evidence; no mutable client-wide last response. */
+  observe?: (observation: GitHubAttemptObservation) => void;
   deadline?: number;
   secondaryFailures?: number;
   /** An aborted admission may still own cleanup; command owners join this before terminal evidence. */
@@ -271,7 +273,11 @@ export async function createGitHubClient(options: GitHubClientOptions) {
               void policy.admissionSettled.catch(() => {});
             }
           } finally {
-            options.observe?.(observation);
+            try {
+              policy.observe?.(observation);
+            } finally {
+              options.observe?.(observation);
+            }
           }
         };
         const boundedFetch: typeof globalThis.fetch = async (input, init) => {

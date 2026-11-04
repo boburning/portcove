@@ -10,6 +10,7 @@ import {
   observationHash,
   githubDirectPin,
   observeUpstream,
+  readObserverMetadata,
   validateObserverConfig,
   compactObserverCache,
   reusableProviderObservation,
@@ -1535,4 +1536,51 @@ void test("continued command cannot renew an exhausted SDK read allowance", asyn
     "collection recovery retains the exhausted policy instead of dispatching again",
   );
   assert.equal(githubScope.failedReads.get(root)?.attempts, 3);
+});
+
+void test("observer metadata preserves actual SDK success and failed-stream evidence per request", async () => {
+  const { createGitHubClient } = await import("./github-client.mts");
+  const text = ' { "id": 17 }\n';
+  let globalObservations = 0;
+  const sdk = await createGitHubClient({
+    credential: { kind: "anonymous" },
+    deadline: performance.now() + 5000,
+    observe: () => {
+      globalObservations++;
+    },
+    fetch: async () =>
+      new Response(text, {
+        headers: { "content-type": "application/json", "x-github-request-id": "owned-response" },
+      }),
+  });
+  const response = await readObserverMetadata(sdk, "/repos/owner/repo");
+  assert.deepEqual(response.body, { id: 17 });
+  assert.equal(response.bodyBytes, Buffer.byteLength(text));
+  assert.equal(response.headers.get("x-github-request-id"), "owned-response");
+  assert.equal(globalObservations, 1);
+  let calls = 0;
+  const broken = await createGitHubClient({
+    credential: { kind: "anonymous" },
+    deadline: performance.now() + 5000,
+    fetch: async () => {
+      calls++;
+      return new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(new TextEncoder().encode("prefix"));
+          },
+          pull(controller) {
+            controller.error(new Error("controlled failed body"));
+          },
+        }),
+        { headers: { "content-type": "application/json" } },
+      );
+    },
+  });
+  await assert.rejects(
+    readObserverMetadata(broken, "/repos/owner/repo"),
+    (error: unknown) =>
+      error instanceof Error && "responseBytes" in error && error.responseBytes === 6,
+  );
+  assert.equal(calls, 1);
 });

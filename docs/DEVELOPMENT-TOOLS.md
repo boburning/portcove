@@ -1025,9 +1025,11 @@ Aqua, handoff evidence, postmerge metadata, repository settings, CI-health,
 Roadmap inventories and mutations, body edits, delivery checks, source provenance,
 discovery and upstream preparation use the same factory. Ordinary pagination uses the SDK iterator while
 preserving raw response/count evidence and refusing synthetic empty results for
-HTTP 409. API-version headers remain owned by each caller. Existing unmigrated
-callers, including catalog observer recovery and remaining release acquisition
-families, still use the bounded legacy runner during #4319. The maintained report
+HTTP 409. API-version headers remain owned by each caller. Configured upstream
+observation, fresh repository identity and checkpoint recovery also use the SDK,
+retaining their existing cache and completeness owners. Catalog-health acquisition
+and release caller families retain their existing bounded transports during #4319.
+The maintained report
 publisher now uses SDK metadata operations and awaited replay/readback. Its trusted
 main checkout installs frozen dependencies before the credentialed steps. Existing
 artifact-byte downloads remain staged acquisition work under the same owner.
