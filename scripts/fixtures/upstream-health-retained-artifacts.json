@@ -409,6 +409,18 @@
         "sha256": "78fc4b14de5f232d345ad54bbf2561ece68e4353eb9f3161d4846d829285be40",
         "published_at": "2026-06-17T05:17:11Z"
       }
+    },
+    {
+      "port_id": "super-metroid-recomp",
+      "platform": "windows-x86-64",
+      "provider": "direct-manifest",
+      "artifact": {
+        "version": "v0.3.12",
+        "url": "https://github.com/mstan/SuperMetroidRecomp/releases/download/v0.3.12/supermetroid-0.3.12-windows-x64.zip",
+        "size": 13802349,
+        "sha256": "2b864f287e971f4ed8fa4205b69927ab43ecce5b1a4e79d08a8bd7530c3d87c9",
+        "published_at": "2026-10-17T22:09:41Z"
+      }
     }
   ]
 }
