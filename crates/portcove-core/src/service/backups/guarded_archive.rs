@@ -118,6 +118,99 @@ mod tests {
     }
 
     #[test]
+    fn opaque_partitioned_restore_retains_proof_before_publication() {
+        opaque_partitioned_restore_at(LifecycleFaultPoint::RestorePrepared);
+    }
+
+    #[test]
+    fn opaque_partitioned_restore_retains_proof_after_publication() {
+        opaque_partitioned_restore_at(LifecycleFaultPoint::RestorePublished);
+    }
+
+    fn opaque_partitioned_restore_at(point: LifecycleFaultPoint) {
+        use std::sync::Arc;
+        struct Interrupt(LifecycleFaultPoint);
+        impl crate::operation::LifecycleFaultInjector for Interrupt {
+            fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
+                if point == self.0 {
+                    Err(PortcoveError::state("opaque restore fixture interruption"))
+                } else {
+                    Ok(())
+                }
+            }
+        }
+        let started = std::time::Instant::now();
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let id = "super-metroid-recomp";
+        let mut service = PortcoveService::new(library.clone()).unwrap();
+        let port = service.catalog.port(id).unwrap();
+        let user = library.user_dir(id);
+        crate::archive_data::initialize(port, &user).unwrap();
+        let bound = crate::archive_data::namespace(port, &user)
+            .unwrap()
+            .join("a".repeat(64));
+        fs::create_dir_all(&bound).unwrap();
+        fs::write(bound.join("snapshot.sav"), b"opaque preserved snapshot").unwrap();
+        fs::write(user.join("config.ini"), b"reviewed conventional data").unwrap();
+        let backup = service.create_backup(id).unwrap();
+        eprintln!("opaque {point:?}: backup at {:?}", started.elapsed());
+        let manifest: BackupManifest =
+            serde_json::from_slice(&fs::read(backup.path.join("backup.json")).unwrap()).unwrap();
+        assert!(manifest.guarded_archive_v1.is_none());
+        assert!(manifest.partitioned_data_v1.is_some());
+        fs::write(user.join("config.ini"), b"current data before restore").unwrap();
+        let preview = service
+            .preview_backup_action(id, &backup.id, BackupAction::Restore)
+            .unwrap();
+        let consent = service
+            .authorize_backup_action(
+                id,
+                &backup.id,
+                BackupAction::Restore,
+                &preview.preview_sha256,
+            )
+            .unwrap();
+        service.faults = Arc::new(Interrupt(point));
+        assert!(
+            service
+                .restore_backup(id, &backup.id, &consent.token)
+                .is_err()
+        );
+        let store = OperationStore::new(library.clone());
+        let mut operations = store.all().unwrap();
+        assert_eq!(operations.len(), 1);
+        let operation = &mut operations[0];
+        assert_eq!(
+            operation.original_paths.len(),
+            1,
+            "opaque data still requires phase-owned restore proof"
+        );
+        let restore = service.validate_restore_operation(operation).unwrap();
+        let snapshot = if point == LifecycleFaultPoint::RestorePrepared {
+            restore.staged_data
+        } else {
+            user.clone()
+        };
+        fs::rename(snapshot.join("config.ini"), snapshot.join("config.changed")).unwrap();
+        assert!(crate::recovery::recover_restore(&service, &store, operation).is_err());
+        assert!(operation.original_paths[0].is_file());
+        assert!(store.all().unwrap().len() == 1);
+        fs::rename(snapshot.join("config.changed"), snapshot.join("config.ini")).unwrap();
+        crate::recovery::recover_restore(&service, &store, operation).unwrap();
+        assert_eq!(
+            fs::read(user.join("config.ini")).unwrap(),
+            b"reviewed conventional data"
+        );
+        assert_eq!(
+            crate::archive_data::snapshot_policy(&user).unwrap(),
+            manifest.partitioned_data_v1
+        );
+        assert!(store.all().unwrap().is_empty());
+        eprintln!("opaque {point:?}: recovered at {:?}", started.elapsed());
+    }
+
+    #[test]
     fn guarded_snapshot_read_only_integrity_matches_published_copy_and_detects_tamper() {
         let temporary = tempfile::tempdir().unwrap();
         let source = temporary.path().join("source");
@@ -205,6 +298,7 @@ impl PortcoveService {
         let restore = self.validate_restore_operation(operation)?;
         let manifest: BackupManifest = serde_json::from_slice(bytes)?;
         let guarded = manifest.guarded_archive_v1.is_some()
+            || manifest.partitioned_data_v1.is_some()
             || self
                 .library
                 .all_installs()?
