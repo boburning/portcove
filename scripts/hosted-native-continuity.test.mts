@@ -594,7 +594,7 @@ void test("Windows tool fixture prepares the ordinary supported runtime before i
   const workflow: unknown = parseDocument(raw).toJS();
   assert.ok(isRecord(workflow) && isRecord(workflow.on) && isRecord(workflow.jobs));
   for (const event of ["push", "pull_request"]) {
-    const value = workflow.on[event];
+    const value: unknown = workflow.on[event];
     assert.ok(isRecord(value) && Array.isArray(value.paths));
     for (const file of [
       "scripts/prepare-hosted-windows-runtime.ps1",
@@ -1336,7 +1336,7 @@ try{Copy-FixedPublicDiagnosticRecords}catch{$secondRefused=$true}
           },
         },
       );
-      assert.equal(result.error, undefined, result.error?.message);
+      assert.equal(result.error, undefined, String(result.error?.message ?? ""));
       assert.equal(result.status, 0, result.stderr);
       const refused = scenario === "forged-ready" || scenario === "conflicting-startup";
       assert.deepEqual(JSON.parse(result.stdout), { refused, second_refused: refused });

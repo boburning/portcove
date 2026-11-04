@@ -596,6 +596,12 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
+      - name: Provision pinned package manager for repository contracts
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: package.json
+      - name: Install frozen root dependencies for repository contracts
+        run: pnpm install --filter portcove-repository --frozen-lockfile --ignore-scripts
       - uses: ./.github/actions/setup-rust
         if: needs.classify.outputs.native_tools == 'true'
       - name: Test affected native compiler and shell integrations
@@ -613,12 +619,6 @@ jobs:
         run: |
           # node-suite: windows-helpers-2
           node --test --test-concurrency=1 --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/resource-capacity.test.mts scripts/resource-command.test.mts scripts/heavy-rust-test-lock.test.mts scripts/run-rust-tests.test.mts scripts/rust-test-tree-supervisor.test.mts scripts/native-confirmation.test.mts scripts/native-session.test.mts scripts/native-session-lock.test.mts scripts/native-helper-dependencies.test.mts scripts/frontend-command-preflight.test.mts scripts/desktop-verify.test.mts scripts/windows-helper-checks.test.mts scripts/windows-historical-bootstrap.test.mts
-      - name: Provision pinned package manager for repository contracts
-        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
-        with:
-          package_json_file: package.json
-      - name: Install frozen root dependencies for repository contracts
-        run: pnpm install --filter portcove-repository --frozen-lockfile --ignore-scripts
       - name: Test inert fixed-account setup and capability contracts on Windows
         run: |
           # node-suite: windows-helpers-3

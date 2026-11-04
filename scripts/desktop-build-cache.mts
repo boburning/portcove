@@ -1,5 +1,4 @@
 import { errorCode } from "./runtime-values.mts";
-import type { BinaryLike } from "node:crypto";
 import type { FileIdentity } from "./development-evidence.mts";
 type InventoryFile = Pick<FileIdentity, "path" | "bytes" | "sha256">;
 type InventoryEntry = InventoryFile | { path: string; missing: true };
@@ -57,7 +56,8 @@ const FRONTEND_OPTIONAL_INPUTS = [
 ];
 
 const portable = (value: string) => value.split(path.sep).join("/");
-const sha256 = (value: BinaryLike) => createHash("sha256").update(value).digest("hex");
+const sha256 = (value: string | NodeJS.ArrayBufferView) =>
+  createHash("sha256").update(value).digest("hex");
 
 async function inventoryEntry(absolute: string, relative: string, entries: InventoryEntry[]) {
   const details = await lstat(absolute, { bigint: false });

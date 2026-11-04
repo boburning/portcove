@@ -60,10 +60,23 @@ struct DataRestored {
 
 /// Completion of a Core data restore, never launch, source or mod qualification.
 pub(super) fn initialized(install: &InstallRecord) -> Result<bool> {
+    Ok(initialized_version(install)?.is_some())
+}
+
+pub(super) fn require_admitted_receipt(install: &InstallRecord) -> Result<()> {
+    if initialized_version(install)? != Some(2) {
+        return Err(PortcoveError::conflict(
+            "the admitted data transition needs its exact version-2 completion receipt; preserve its journal and restart recovery",
+        ));
+    }
+    Ok(())
+}
+
+fn initialized_version(install: &InstallRecord) -> Result<Option<u32>> {
     let path = install.path.join(PSX_DATA_RECEIPT);
     if !path.try_exists()? {
         refuse_symlink_ancestors(&path)?;
-        return Ok(false);
+        return Ok(None);
     }
     let mut bytes = Vec::new();
     crate::external_runtime::open_single_link_file(&path)?
@@ -78,12 +91,31 @@ pub(super) fn initialized(install: &InstallRecord) -> Result<bool> {
     }
     let receipt: DataRestored = serde_json::from_slice(&bytes)
         .map_err(|_| conflict(&path, &path, "the Core data-restore receipt is invalid"))?;
-    if receipt.schema_version != 1 {
+    if !matches!(receipt.schema_version, 1 | 2)
+        || (receipt.schema_version == 2 && !crate::install::has_archive_data_admission(install)?)
+    {
         return Err(PortcoveError::unsupported("PS1 data-restore receipt needs a compatible Portcove version; preserve it before retrying").detail("path", path.display().to_string()));
     }
-    Ok(receipt.port_id == install.port_id
+    let matches = receipt.port_id == install.port_id
         && receipt.install_id == install.id
-        && receipt.manifest_sha256 == install.manifest_sha256)
+        && receipt.manifest_sha256 == install.manifest_sha256;
+    if receipt.schema_version == 2 && !matches {
+        return Err(PortcoveError::conflict(
+            "the admitted data receipt differs from its exact installation manifest",
+        ));
+    }
+    Ok(matches.then_some(receipt.schema_version))
+}
+
+pub(super) fn admitted_receipt(install: &InstallRecord) -> Result<Vec<u8>> {
+    let mut bytes = serde_json::to_vec(&DataRestored {
+        schema_version: 2,
+        port_id: install.port_id.clone(),
+        install_id: install.id.clone(),
+        manifest_sha256: install.manifest_sha256.clone(),
+    })?;
+    bytes.push(b'\n');
+    Ok(bytes)
 }
 
 pub(crate) fn metadata_name(relative: &str) -> bool {

@@ -5,7 +5,7 @@ import { crc32, inflateRawSync } from "node:zlib";
 import { inspectBoundedZip } from "./bounded-zip.mts";
 import { isRecord } from "./runtime-values.mts";
 import { inspectReleaseCompilerSourceClosure } from "./release-compiler-source-closure.mts";
-import { controllerNodeVersion } from "./controller-node-runtime.mts";
+import { controllerNodeVersion, controllerNodeMaximumBytes } from "./controller-node-runtime.mts";
 export const controllerCompilerSourceAsset = "compiler-source-closure.json";
 export const controllerToolSourceAssetMaximumBytes = 128 * 1024;
 /** Same reviewed dependency as the maintained desktop bootstrap. */
@@ -127,6 +127,15 @@ export function controllerToolPlatformProfile(platform: ControllerToolPlatform) 
   });
 }
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
+/** Closed inventory identity, never a basename inferred from an untrusted path. */
+export function controllerToolFileMaximumBytes(name: string) {
+  return name === "bin/node" || name === "bin/node.exe"
+    ? controllerNodeMaximumBytes
+    : 128 * 1024 ** 2;
+}
+export async function readControllerNodeFile(filename: string) {
+  return readControllerToolFile(filename, controllerNodeMaximumBytes);
+}
 export async function readControllerToolFile(
   filename: string,
   maximum = 128 * 1024 ** 2,
@@ -224,7 +233,7 @@ export function inspectControllerToolManifest(
       typeof file.bytes !== "number" ||
       !Number.isSafeInteger(file.bytes) ||
       file.bytes < 1 ||
-      file.bytes > 128 * 1024 ** 2 ||
+      file.bytes > controllerToolFileMaximumBytes(profile.paths[index]!) ||
       typeof file.sha256 !== "string" ||
       !/^[a-f0-9]{64}$/.test(file.sha256)
     )

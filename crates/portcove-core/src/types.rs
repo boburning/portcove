@@ -665,6 +665,15 @@ pub struct ArchiveDataCompatibilityV1 {
     pub build_specific_progress_paths: Vec<String>,
 }
 
+/// One finite reviewed predecessor admission, separate from data layout identity.
+/// It never redefines that runtime's original source or execution contract.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ArchiveDataTransitionV1 {
+    pub predecessor_archive_sha256: String,
+    pub creating_contract_sha256: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct PortDefinition {
     pub id: String,
@@ -694,6 +703,8 @@ pub struct PortDefinition {
     pub persistent_file_patterns: Vec<PersistentFilePattern>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub archive_data_compatibility_v1: Option<ArchiveDataCompatibilityV1>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub archive_data_transition_v1: Option<ArchiveDataTransitionV1>,
     #[serde(default)]
     pub runtime_mutable_paths: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -1752,11 +1763,21 @@ pub struct GameUpdatePlan {
     /// Exact retained archive selected by this review; never authorization.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub acquisition: Option<GameUpdateAcquisition>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub data_transition: Option<ArchiveDataTransitionReview>,
     pub plan: InstallPlan,
     /// Read-only decision for this exact reviewed candidate, not authorization.
     pub assessment: crate::PortActionAssessment,
     pub activate: bool,
     pub plan_sha256: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ArchiveDataTransitionReview {
+    pub preimage_sha256: String,
+    pub producing_archive_sha256: String,
+    pub retained_installations: u32,
+    pub temporary_space: InstallSpaceRequirement,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]

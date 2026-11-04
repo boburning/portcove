@@ -392,7 +392,7 @@ void test("live upstream health has bounded independent triggers while catalog s
   const settings: unknown = parseDocument(health).toJS();
   assert.ok(isRecord(settings) && isRecord(settings.on));
   for (const trigger of ["pull_request", "push"]) {
-    const section = settings.on[trigger];
+    const section: unknown = settings.on[trigger];
     assert.ok(isRecord(section) && Array.isArray(section.paths));
     for (const path of [
       "crates/portcove-core/catalog/**",
@@ -539,7 +539,7 @@ void test("ordinary controller tool rebuilds cover Windows driver acquisition an
   const settings: unknown = parseDocument(workflow).toJS();
   assert.ok(isRecord(settings) && isRecord(settings.on));
   for (const trigger of ["pull_request", "push"]) {
-    const section = settings.on[trigger];
+    const section: unknown = settings.on[trigger];
     assert.ok(isRecord(section) && Array.isArray(section.paths));
     for (const file of [
       "scripts/release-windows-webview-driver.mts",

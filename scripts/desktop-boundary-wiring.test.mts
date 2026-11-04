@@ -883,7 +883,7 @@ void test("installed update entrypoints consume their imported observation owner
             "label",
             "restartStarted",
           ]) {
-            const property = options.properties
+            const property: Record<string, unknown> | undefined = options.properties
               .filter(isRecord)
               .find((node) => identifier(node.key) === field);
             assert.ok(property);

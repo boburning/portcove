@@ -543,11 +543,11 @@ void test("changed account, stop, budget, visibility, runner or resource policy 
 void test("complete held controller policy replaces historical pins without appointing capacity authority", async () => {
   for (const [file, expected] of [
     [
-      "docs/qualification/application-update-production.windows-20261103.proposed.yml",
+      ".github/workflows/application-update-production.yml",
       slice4CapacityResources.aggregate_workflow_sha256,
     ],
     [
-      "docs/qualification/application-update-production.windows-20261103.proposed.yml",
+      ".github/workflows/application-update-production.yml",
       slice4CapacityResources.input_workflow_sha256,
     ],
     [

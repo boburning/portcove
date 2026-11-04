@@ -1,3 +1,4 @@
+import { controllerNodeMaximumBytes } from "./controller-node-runtime.mts";
 import { selectedHostedNativePlatform } from "./release-authority-configuration-contract.mts";
 /** Original hosted parent only. JSON installation records grant no execution,
  * issuer, candidate or acceptance authority. Existing partial state never retries. */
@@ -215,7 +216,10 @@ export async function prepareActualHostedLinuxInstallation(
   active();
   const identities = await Promise.all(
     [tools.node, tools.nativeDriver, tools.pnpm].map(async (filename) => {
-      const bytes = await readControllerToolFile(filename);
+      const bytes = await readControllerToolFile(
+        filename,
+        filename === tools.node ? controllerNodeMaximumBytes : 128 * 1024 ** 2,
+      );
       active();
       return { path: filename, bytes: bytes.length, sha256: hash(bytes) };
     }),

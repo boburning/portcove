@@ -4,6 +4,33 @@ import path from "node:path";
 import { isRecord } from "./runtime-values.mts";
 import { spawnSync } from "node:child_process";
 
+/** Existing exact-byte formatter exclusions shared with the staged route. */
+export const exactByteFormatInputs = Object.freeze([
+  "release/bootstrap-public-inputs/**",
+  ".github/workflows/application-update-production.yml",
+  "docs/qualification/application-update-production.windows-20261103.proposed.yml",
+  "scripts/fixtures/release-resource-baseline-20261103/**",
+  "vendor/rfd/**",
+]);
+
+export function stagedVitePlusChecks(files: readonly string[], cwd = process.cwd()) {
+  const preserved = (file: string) => {
+    const relative = path.relative(cwd, path.resolve(cwd, file)).replaceAll("\\", "/");
+    return exactByteFormatInputs.some((pattern) =>
+      pattern.endsWith("/**") ? relative.startsWith(pattern.slice(0, -2)) : relative === pattern,
+    );
+  };
+  return [false, true].flatMap((keepBytes) =>
+    stagedFileBatches(files.filter((file) => preserved(file) === keepBytes)).map((batch) => [
+      "check",
+      "--fix",
+      ...(keepBytes ? ["--no-fmt"] : []),
+      "--",
+      ...batch,
+    ]),
+  );
+}
+
 /** Bound native argv too; never send filenames through a command-shell shim. */
 export function stagedFileBatches(files: readonly string[], limit = 6000): string[][] {
   const batches: string[][] = [];
@@ -26,8 +53,8 @@ export function stagedFileBatches(files: readonly string[], limit = 6000): strin
 
 export function checkStagedFiles(files: readonly string[], cwd = process.cwd()) {
   const cli = vitePlusCommand(cwd);
-  for (const batch of stagedFileBatches(files)) {
-    const result = spawnSync(cli.command, [...cli.args, "check", "--fix", "--", ...batch], {
+  for (const args of stagedVitePlusChecks(files, cwd)) {
+    const result = spawnSync(cli.command, [...cli.args, ...args], {
       cwd,
       stdio: "inherit",
       windowsHide: true,

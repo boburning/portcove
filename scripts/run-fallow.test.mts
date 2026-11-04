@@ -41,6 +41,11 @@ void test("native parser degradation cannot establish whole-Desktop qualificatio
     const spawn: FallowSpawn = (command, args, options) => {
       const nativeArgs = [...args];
       nativeArgs[nativeArgs.indexOf("--root") + 1] = directory;
+      const configIndex = nativeArgs.indexOf("--config");
+      if (configIndex !== -1) nativeArgs[configIndex + 1] = path.join(directory, ".fallowrc.json");
+      assert.ok(nativeArgs.includes("--no-production"));
+      assert.ok(nativeArgs.includes("--no-type-aware"));
+      assert.ok(!nativeArgs.includes("--cloud"));
       const source = readFileSync(path.join(directory, "entry.ts"), "utf8");
       if (source.includes("broken") || source.includes("nested")) {
         const unarmed = spawnSync(
@@ -61,7 +66,32 @@ void test("native parser degradation cannot establish whole-Desktop qualificatio
           /not enforced/,
         );
       }
-      return spawnSync(command, nativeArgs, { ...options, cwd: directory, timeout: 30_000 });
+      const result = spawnSync(command, nativeArgs, {
+        ...options,
+        cwd: directory,
+        timeout: 30_000,
+      });
+      if (nativeArgs[1] === "health" || nativeArgs[1] === "review") {
+        assert.ifError(result.error);
+        assert.equal(result.status, 0, result.stderr);
+        const actual: unknown = JSON.parse(result.stdout);
+        assert.ok(isRecord(actual));
+        assert.equal(actual.version, reviewedFallowVersion);
+        assert.equal(actual.kind, nativeArgs[1] === "health" ? "health" : "audit-brief");
+        assert.equal(actual.schema_version, nativeArgs[1] === "health" ? 13 : 14);
+        if (nativeArgs[1] === "health") {
+          assert.ok(isRecord(actual.css_analytics) && isRecord(actual.css_analytics.summary));
+          assert.ok(typeof actual.css_analytics.summary.files_analyzed === "number");
+          assert.ok(
+            actual.css_analytics.summary.files_analyzed > 0,
+            "CSS must actually be analyzed",
+          );
+        } else {
+          assert.ok(typeof actual.changed_files_count === "number");
+          assert.ok(actual.changed_files_count > 0, "review must observe the real tracked edit");
+        }
+      }
+      return result;
     };
     for (const state of ["parse-degraded", "nesting-too-deep", "unreadable", "valid"]) {
       writeFileSync(
@@ -86,6 +116,39 @@ void test("native parser degradation cannot establish whole-Desktop qualificatio
       } else if (state === "unreadable")
         assert.match(result.text, /required source analysis incomplete: source-read-failure/);
       else assert.match(result.text, /gate passed/);
+    }
+    writeFileSync(path.join(directory, "entry.css"), "body { color: currentColor; }\n");
+    for (const args of [
+      ["add", "--", "package.json", ".fallowrc.json", "entry.ts", "entry.css"],
+      [
+        "-c",
+        "user.name=Portcove test fixture",
+        "-c",
+        "user.email=fixture@example.invalid",
+        "commit",
+        "-m",
+        "Record inert Fallow report fixture",
+      ],
+    ]) {
+      const committed = spawnSync("git", args, {
+        cwd: directory,
+        encoding: "utf8",
+        timeout: 5000,
+      });
+      assert.ifError(committed.error);
+      assert.equal(committed.status, 0, committed.stderr);
+    }
+    writeFileSync(path.join(directory, "entry.ts"), 'console.log("reviewed fixture edit");\n');
+    for (const mode of ["css", "review"] as const) {
+      const result = await runFallow({
+        mode,
+        base: "HEAD",
+        spawn,
+        identity: () => fixtureIdentity(),
+        evidenceDirectory: path.join(directory, mode),
+      });
+      assert.equal(result.exitCode, 0, result.text);
+      assert.match(result.text, /advisory findings, not acceptance/);
     }
   } finally {
     rmSync(directory, { recursive: true, force: true });
@@ -192,6 +255,13 @@ void test("selective routes preserve explicit full-branch review and bounded par
   assert.equal(args[args.indexOf("--gate") + 1], "new-only");
   assert.ok(!args.includes("--changed-since"));
   assert.ok(fallowArguments("css").includes("--report-only"));
+  for (const mode of ["desktop", "tooling", "css", "review"]) {
+    const selected = fallowArguments(mode, "origin/main");
+    assert.ok(selected.includes("--no-production"));
+    assert.ok(selected.includes("--no-type-aware"));
+    assert.ok(!selected.includes("--cloud"));
+    assert.ok(!selected.includes("mcp"));
+  }
 });
 
 void test("successful high duplication retains actionable results and supports exact-input reuse", async () => {
@@ -284,7 +354,7 @@ void test("analyzer status and advisory review verdict never become a quality pa
         stderr: "",
         stdout: JSON.stringify({
           kind: "audit-brief",
-          schema_version: 13,
+          schema_version: 14,
           version: reviewedFallowVersion,
           verdict: "fail",
           changed_files_count: 3,
@@ -309,14 +379,14 @@ void test("CSS and review routes accept only their reviewed report contracts", a
         mode === "css"
           ? {
               kind: "health",
-              schema_version: 12,
+              schema_version: 13,
               version: reviewedFallowVersion,
               summary: {},
               findings: [],
             }
           : {
               kind: "audit-brief",
-              schema_version: 13,
+              schema_version: 14,
               version: reviewedFallowVersion,
               verdict: "warn",
               changed_files_count: 1,
