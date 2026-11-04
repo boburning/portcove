@@ -1,0 +1,224 @@
+name: Upstream Windows release rehearsal
+run-name: Nonproduction Windows release path ${{ github.run_id }}/${{ github.run_attempt }}
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Repository-wide shared channel, never a per-tag lock. No active run is cancelled.
+# A replaced pending run has no effects and can be dispatched again.
+concurrency:
+  group: portcove-upstream-release-rehearsal
+  cancel-in-progress: false
+
+jobs:
+  package:
+    if: github.repository == 'boburning/portcove' && github.ref == 'refs/heads/main'
+    runs-on: windows-2025
+    timeout-minutes: 55
+    outputs:
+      artifact: ${{ steps.upload.outputs.artifact-id }}
+      desktop_artifact: ${{ steps.desktop.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          package_json_file: package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - uses: ./.github/actions/setup-rust
+      - run: pnpm install --frozen-lockfile
+      - name: Build unsigned current-user NSIS with the existing Tauri CLI
+        shell: pwsh
+        run: |
+          if ($env:TAURI_SIGNING_PRIVATE_KEY -or $env:TAURI_SIGNING_PRIVATE_KEY_PATH -or $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD) { throw 'Builder must have no signing material' }
+          & node scripts/upstream-release-rehearsal.mts prepare-candidate
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & pnpm --dir apps/desktop tauri build --ci --features application-update-qualification --bundles nsis --config '{"bundle":{"createUpdaterArtifacts":false,"windows":{"nsis":{"installMode":"currentUser"}}}}'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & cargo build --locked --release -p portcove-cli
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & ./scripts/package-cli.ps1 -PlatformLabel windows-x86_64
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & node scripts/upstream-release-rehearsal.mts stage
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        id: upload
+        with:
+          name: upstream-unsigned-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/upstream-unsigned/*
+          if-no-files-found: error
+          retention-days: 1
+          overwrite: false
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        id: desktop
+        with:
+          name: upstream-candidate-executable-${{ github.run_id }}-${{ github.run_attempt }}
+          path: target/release/portcove-desktop.exe
+          if-no-files-found: error
+          retention-days: 1
+          overwrite: false
+
+  provenance:
+    needs: package
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.package.outputs.artifact }}
+          merge-multiple: true
+          path: unsigned
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: unsigned/rehearsal.json
+
+  sign:
+    needs: [package, provenance]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+      attestations: write
+    outputs:
+      artifact: ${{ steps.upload.outputs.artifact-id }}
+    steps:
+      # Only this reviewed dispatch revision supplies code/tools; incoming files are data.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - uses: ./.github/actions/setup-rust
+      - &github-cli
+        name: Install the existing hash-pinned GitHub verifier
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --max-time 120 --max-filesize 16000000 --output "$RUNNER_TEMP/gh.tar.gz" https://github.com/cli/cli/releases/download/v2.102.0/gh_2.102.0_linux_amd64.tar.gz
+          echo "bb766f710eef8ede859c18578c72c327597cd4c8a85b06001b1f3843c6019386  $RUNNER_TEMP/gh.tar.gz" | sha256sum --check --strict
+          tar -xzf "$RUNNER_TEMP/gh.tar.gz" -C "$RUNNER_TEMP" gh_2.102.0_linux_amd64/bin/gh
+          echo "$RUNNER_TEMP/gh_2.102.0_linux_amd64/bin" >> "$GITHUB_PATH"
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          package_json_file: package.json
+      - name: Install reviewed lockfile dependencies without hooks or executable caches
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Build the existing independent Rust verifier from reviewed source
+        run: cargo build --locked --release -p portcove-release-tools --bin portcove-release-tools --example generate_test_updater_repository
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.package.outputs.artifact }}
+          merge-multiple: true
+          path: work/upstream-unsigned
+      - name: Verify actual provenance, sign with a fresh disposable key, verify payload and remove key
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/upstream-release-rehearsal.mts sign work/upstream-unsigned
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: work/upstream-signed/rehearsal.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        id: upload
+        with:
+          name: upstream-signed-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/upstream-signed/*
+          if-no-files-found: error
+          retention-days: 1
+          overwrite: false
+
+  installed:
+    needs: [package, sign]
+    runs-on: windows-2025
+    timeout-minutes: 50
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          package_json_file: package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - uses: ./.github/actions/setup-rust
+      - run: pnpm install --frozen-lockfile
+      - name: Provision the existing pinned Windows native driver
+        shell: pwsh
+        run: ./scripts/bootstrap-quality-tools.ps1 -Desktop
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.sign.outputs.artifact }}
+          merge-multiple: true
+          path: work/upstream-signed
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.package.outputs.desktop_artifact }}
+          merge-multiple: true
+          path: work/upstream-candidate-executable
+      - name: Build public-trust predecessor and exercise the installed updater and preserved data
+        shell: pwsh
+        run: ./scripts/upstream-release-installed-rehearsal.ps1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: upstream-installed-proof-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/upstream-installed-evidence/**
+          if-no-files-found: warn
+          retention-days: 7
+          overwrite: false
+
+  draft:
+    needs: [sign, installed]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      actions: read
+      attestations: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.sign.outputs.artifact }}
+          merge-multiple: true
+          path: work/upstream-signed
+      - *github-cli
+      - name: Verify signatures/provenance and complete draft asset readback without publishing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/upstream-release-rehearsal.mts draft work/upstream-signed
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: upstream-draft-proof-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            work/upstream-draft-result.json
+            work/verified-*/*.json
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: false

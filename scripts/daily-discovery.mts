@@ -26,6 +26,7 @@ export const discoveryBootstrapModules = Object.freeze([
   "release-readonly-child-environment.mts",
   "json-values.mts",
   "observe-configured-upstream.mts",
+  "observer-checkpoint-storage.mts",
   "release-path-safety.mts",
   "upstream-observer.mts",
   "runtime-values.mts",

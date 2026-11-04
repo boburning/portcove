@@ -1,5 +1,39 @@
 # Releasing Portcove
 
+## Upstream-first release integration
+
+The owner’s November 3 #534 reset replaces implementation-only requirements to
+extend bespoke orchestration. Keep the existing Tauri NSIS builder, detached
+Minisign payload verification, authenticated TUF format and installed updater.
+Use native Actions job dependencies, fresh hosted runners, immutable artifacts,
+maintained attestation verification and draft-first Releases. The existing
+production path remains paused until the replacement is qualified; do not create
+the previously proposed storage-writer App merely to finish its parked draft.
+Live state and completed custody/backup/account evidence must remain preserved.
+
+`upstream-release-rehearsal.yml` is a manual, main-only, **nonproduction** proof.
+A secret-free Windows runner builds a unique `0.0.0-rehearsal.<run>.<attempt>` current-user NSIS fixture and matching CLI. Its exact version-only derivation is retained. Separate
+fresh Linux runners attest the exact transfer manifest, verify source/workflow/
+run/attempt and every payload byte, sign with a new disposable key, independently
+verify with the existing Rust verifier, and assemble/read back a complete draft.
+Only the draft job has Contents write. No candidate build hooks, executable
+artifacts or caches enter that writer. The signer uses the reviewed dispatch
+revision, pinned Tauri 2.12.2 and GitHub CLI 2.102.0; no production secret is read.
+The key is removed before the public artifact is uploaded. Transfer artifacts
+expire after one day; public proof is retained for seven days. The five serial
+job limits total 140 minutes within the appointed application140 limit, with
+standard hosted labels and no paid fallback. Headroom remains unknown; no
+reservation is implied.
+
+The complete draft is named `v0.0.0-rehearsal.<run>.<attempt>`, cannot become latest,
+and is not published by this initial integration. The public signer output also supplies a compatible disposable TUF feed and public Root to a fresh Windows installed-updater fixture, whose predecessor is `0.0.0-rehearsal.0`. Private keys never cross to that runner. Existing tags and draft assets
+must match exactly; they are never moved or overwritten. A verified draft is not
+installed-update, compatible-feed or production proof. The same candidate still
+needs real publish/feed interruption/retry and installed Windows continuity
+before cutover; #52 and #246 retain their own acceptance. Routine production
+operation must be unattended after approved one-time setup. Do not interpret
+this rehearsal or the upstream-first reset as blanket activation authority.
+
 ## Release task order
 
 Use this route for the exact candidate and platforms being claimed. The current
