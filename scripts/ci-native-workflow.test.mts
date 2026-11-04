@@ -493,7 +493,7 @@ void test("native design compatibility remains explicit, isolated, and non-publi
   );
   assert.equal(
     desktopScripts["lint:style"],
-    'stylelint --config stylelint.config.mjs --max-warnings 0 "src/**/*.css"',
+    'stylelint --config scripts/stylelint-config.mts --max-warnings 0 "src/**/*.css" && node scripts/check-stylelint-config.mts',
   );
 });
 
