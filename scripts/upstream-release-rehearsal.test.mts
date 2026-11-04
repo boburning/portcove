@@ -7,6 +7,7 @@ import {
   inspectRehearsalFeed,
   inspectRehearsalManifest,
   rehearsalVersions,
+  rehearsalPackageConfiguration,
 } from "./upstream-release-rehearsal.mts";
 
 const expected = { source: "a".repeat(40), run_id: "12345", run_attempt: 2 };
@@ -90,6 +91,11 @@ void test("workflow separates builder, attester, disposable signer and draft wri
   }
   assert.ok(total <= 140);
   assert.doesNotMatch(text, /secrets\.|self-hosted|release edit|--clobber/);
+  assert.match(text, /--config \$packageConfiguration/u);
+  assert.doesNotMatch(text, /--config ['"]\{/u);
+  assert.deepEqual(rehearsalPackageConfiguration(), {
+    bundle: { createUpdaterArtifacts: false, windows: { nsis: { installMode: "currentUser" } } },
+  });
   assert.equal(
     workflow.jobs.provenance!.steps.at(-1)!.with!["subject-path"],
     "unsigned/rehearsal.json",

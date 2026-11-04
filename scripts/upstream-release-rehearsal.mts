@@ -15,6 +15,11 @@ export function rehearsalVersions(run: { run_id: string; run_attempt: number }) 
     candidate: `0.0.0-rehearsal.${run.run_id}.${run.run_attempt}`,
   };
 }
+export function rehearsalPackageConfiguration() {
+  return {
+    bundle: { createUpdaterArtifacts: false, windows: { nsis: { installMode: "currentUser" } } },
+  };
+}
 
 const repository = "boburning/portcove";
 const manifestName = "rehearsal.json";
@@ -200,6 +205,11 @@ async function prepareCandidate() {
     maxBuffer: 1024 * 1024,
   });
   await writeFile("work/upstream-preparation/fixture.patch", patch, { flag: "wx" });
+  await writeFile(
+    "work/upstream-preparation/package.conf.json",
+    `${JSON.stringify(rehearsalPackageConfiguration())}\n`,
+    { flag: "wx" },
+  );
 }
 async function stage() {
   const version = await workspaceVersion(process.cwd());

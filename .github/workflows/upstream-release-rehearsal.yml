@@ -40,7 +40,8 @@ jobs:
           if ($env:TAURI_SIGNING_PRIVATE_KEY -or $env:TAURI_SIGNING_PRIVATE_KEY_PATH -or $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD) { throw 'Builder must have no signing material' }
           & node scripts/upstream-release-rehearsal.mts prepare-candidate
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          & pnpm --dir apps/desktop tauri build --ci --features application-update-qualification --bundles nsis --config '{"bundle":{"createUpdaterArtifacts":false,"windows":{"nsis":{"installMode":"currentUser"}}}}'
+          $packageConfiguration = Join-Path $PWD 'work/upstream-preparation/package.conf.json'
+          & pnpm --dir apps/desktop tauri build --ci --features application-update-qualification --bundles nsis --config $packageConfiguration
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           & cargo build --locked --release -p portcove-cli
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
