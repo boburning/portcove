@@ -7,6 +7,17 @@ test-threads = 2
 status-level = "pass"
 final-status-level = "slow"
 
+# R64 CI 41786426031/a1 Windows 7 retained a 30.039s cutoff after signed
+# admission/install/baseline progress through 17.652s. This unchanged fixture
+# passed 14.635s/21.384s in the preceding two deliveries. Allow only this Windows
+# case finite 60s harness completion; preserve assertions, product deadlines,
+# two workers, cleanup and zero retries. No performance improvement is claimed.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_status_revocation_holds_exact_current_and_retained_operations$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
 # November 3 Linux feedback retained a 30.013s cutoff in this unchanged
 # two-variant signed-snapshot admission/companion-failure/recovery fixture.
 # Allow finite 60s fixture completion; keep product deadlines, assertions,
@@ -60,7 +71,7 @@ slow-timeout = { period = "5s", terminate-after = 24, grace-period = "0s" }
 success-output = "immediate"
 
 # CI 41262750948/a1 retained a30.193s cutoff in this Windows prepared-
-# receipt preservation fixture. Allow finite60s for complete setup and cleanup;
+# receipt preservation fixture. Allow finite 60s for complete setup and cleanup;
 # retain every receipt/launch refusal assertion, four hosted/two local slots
 # and zero retries. This is harness headroom, not a causal product-speed fix.
 [[profile.default.overrides]]
@@ -128,7 +139,7 @@ success-output = "immediate"
 # 12 at29.270s and8 at29.443s. The same child code passed CI40981868944.
 # Retained query verified/refused platforms by27.324s; published/resume/resume
 # completed observation9 at29.802s and began10. Keep the failures, assertions,
-# phase diagnostics, two workers, cleanup and zero retries; allow finite60s
+# phase diagnostics, two workers, cleanup and zero retries; allow finite 60s
 # harness completion. No application or inner-operation deadline changes.
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
@@ -205,10 +216,10 @@ success-output = "immediate"
 # storage/recovery fixtures. Copying/resume/abort reached observation16 at
 # 29.599s, completed it at30.049s and printed success just after the cap.
 # Preserve both complete assertions/cleanup, four hosted workers and zero
-# retries; use finite60s harness headroom and relocation phase diagnostics.
+# retries; use finite 60s harness headroom and relocation phase diagnostics.
 # CI40872863375/a1 Windows1 also cut the complete two-relocation cleanup
 # recovery fixture at30.036s without phase output. Keep that failure and all
-# assertions/cleanup; give only this observed Windows case the same finite60s
+# assertions/cleanup; give only this observed Windows case the same finite 60s
 # diagnostic room. No cause or performance improvement is inferred.
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
@@ -354,7 +365,7 @@ success-output = "immediate"
 # CI40724635626/a1 Windows partitions1/4 reached the30s outer safeguard in
 # the complete catalog maintenance matrix and indexed retention lifecycle.
 # Keep all246+ definitions, statuses, durable operations and assertions;
-# only these progressing fixture safeguards gain finite60s headroom.
+# only these progressing fixture safeguards gain finite 60s headroom.
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
 filter = 'package(portcove-core) & (test(/^catalog::tests::upstream_maintenance_status_does_not_reinterpret_existing_port_contracts$/) | test(/^service::tests::successor_staged_and_rollback_versions_keep_exact_contracts$/))'
@@ -377,7 +388,7 @@ success-output = "immediate"
 # CI41139302954/a1 Windows partition5 retained this exact fixture's 30.148s
 # whole-test cutoff without an assertion failure. Its authenticated setup,
 # interrupted transfer and resumed authority checks now emit phase diagnostics.
-# Allow finite60s harness headroom; keep assertions, cleanup, two workers,
+# Allow finite 60s harness headroom; keep assertions, cleanup, two workers,
 # product deadlines and zero retries. This is not a causal performance repair.
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
@@ -458,7 +469,7 @@ success-output = "immediate"
 
 # Qualification40895809838/a1 Linux native retained seven of eight publication
 # recovery phases before the30.012s watchdog; final Adopt/CleanupPending began
-# at25.964s. Preserve every conflict/refusal/retry assertion and finite60s
+# at25.964s. Preserve every conflict/refusal/retry assertion and finite 60s
 # harness room for this exact Linux case, with no product or resource change.
 [[profile.default.overrides]]
 platform = 'x86_64-unknown-linux-gnu'
@@ -484,7 +495,7 @@ success-output = "immediate"
 # CI41076336853/a1 Windows3 retained a30.126s whole-case timeout for
 # move_previews_check_retained_policy_before_creating_destinations.
 # Identical assertions passed21.846s in41069532772/a1 Windows3. Preserve
-# both retained-policy cases and add phase diagnostics with finite60s room;
+# both retained-policy cases and add phase diagnostics with finite 60s room;
 # no product deadline, assertions, worker slots, cleanup or retry changes.
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
@@ -543,11 +554,11 @@ success-output = "immediate"
 [[profile.default.overrides]]
 # Qualification40618013765/a1 retained original_paths at30.020s after its
 # final Adopt/CleanupPending phase began at27.674s; relocation passed34.948s.
-# Extend the same finite60s Intel harness allowance to that exact full fixture.
+# Extend the same finite 60s Intel harness allowance to that exact full fixture.
 # Preserve all publication phases, assertions, slots, cleanup and zero retries.
 # Schedule40679645916/a1 cut source_import at30.019s after its final
 # Adopt/CleanupPending phase began at25.561s. Retain this exact sibling's
-# finite60s allowance, original failed receipt and all eight phases.
+# finite 60s allowance, original failed receipt and all eight phases.
 platform = 'x86_64-apple-darwin'
 filter = 'package(portcove-core) & (test(/^catalog_update::tests::refused_artwork_only_commit_reopens_prior_mapping_and_local_choice_then_retries$/) | test(/^service::tests::publication_recovery_retains_conflicting_(quarantine|relocation|source_import|original_paths)_intent$/))'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
@@ -564,7 +575,7 @@ success-output = "immediate"
 # rollback-action projection for curated_activation_withdrawal at22.513s
 # before its30.024s cutoff. The exhaustive current-port projection case also
 # exceeded30.059s; retain every port/graph assertion and expose bounded phase
-# progress before allowing the same finite60s safeguard for these exact cases.
+# progress before allowing the same finite 60s safeguard for these exact cases.
 # Full qualification40722778038/a1 Intel hash1/2 job122942829026 stopped
 # restore_remains_authoritative_after_launch_rollback_and_staged_activation
 # at30.019s after publishing restore at25.440s and completing initial launch.
@@ -611,7 +622,7 @@ slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
 
 # CI40395600118/a1 also cut the full restored-version lifecycle off at30.099s.
-# Keep its exact Windows case in the same finite60s backup allowance.
+# Keep its exact Windows case in the same finite 60s backup allowance.
 # The preserved metadata batch completed131/133 cases; these existing full
 # recovery fixtures reached the Windows30.083s/30.050s harness cap. Keep their
 # staged/publication recovery, all data assertions, cleanup, two workers and
@@ -1118,7 +1129,7 @@ success-output = "immediate"
 # Genuine scheduled41194833826/a1 Linux retained a30.014s cutoff after
 # backup creation0.320s, versions prepared4.235s and restore publication19.868s.
 # Keep all subsequent launch/rollback/staged-activation/data assertions and
-# existing phase diagnostics; only this Linux fixture gains finite60s room.
+# existing phase diagnostics; only this Linux fixture gains finite 60s room.
 # Two workers, cleanup, zero retries and product deadlines remain unchanged.
 # A pass within this budget establishes completion, not a causal speedup.
 [[profile.default.overrides]]
@@ -1146,7 +1157,7 @@ success-output = "immediate"
 # v58 Core expanded4 (/tmp/portcove-v58-core-expanded4.log) retained exact
 # 30.013–33.270s ordinary cutoffs and 10s HTTP-arrival synchronization failures.
 # Only these observed cases, plus the cancellation control sharing that helper,
-# receive90s. Arrival is finite60s and observes/joins early worker failure.
+# receive90s. Arrival is finite 60s and observes/joins early worker failure.
 [[profile.default.overrides]]
 filter = 'package(portcove-core) & (test(/^service::game_update_acquisition::tests::live_and_completed_acquisitions_block_library_move_with_exact_discard_resume$/) | test(/^service::game_update_acquisition::tests::orphan_archive_remains_visible_after_install_and_catalog_removal_until_exact_discard$/) | test(/^service::game_update_acquisition::tests::removing_managed_runtime_during_transfer_preserves_archive_and_never_resurrects_it$/) | test(/^service::game_update_acquisition::tests::cancellation_retains_bounded_attention_and_exact_discard_allows_retry$/) | test(/^service::game_update_review::tests::activity_apply_refuses_other_handle_file_work_before_consuming_review_or_mutating$/) | test(/^service::game_update_review::tests::an_unverified_retained_plan_cannot_authorize_execution$/) | test(/^service::game_update_review::tests::cancellation_and_invalid_retained_bytes_preserve_the_active_version$/) | test(/^service::game_update_review::tests::reviewed_stage_and_activation_are_explicit_and_ignore_saved_automatic_policy$/))'
 slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
@@ -1202,25 +1213,25 @@ success-output = "immediate"
 
 # CI40734477018/a1 retained30.127s/30.088s cutoffs in these two complete
 # move-recovery command-pair fixtures, without internal phase output. Give only
-# those Windows identities finite60s diagnostic room; do not infer the cause.
+# those Windows identities finite 60s diagnostic room; do not infer the cause.
 # Preserve the full command sequence, each intermediate ownership observation,
 # assertions, worker slots, cleanup and zero retries.
 # CI40793603321/a1 job123186674413 also reached observation16 at29.730s
 # in verified_resume_abort before its30.055s cutoff. Include that exact case
-# in the same finite60s allowance; this records progress, not a causal repair.
+# in the same finite 60s allowance; this records progress, not a causal repair.
 # CI40903721571/a1 Windows6 cut activated_resume_abort at30.110s after
 # command3 completed29.354s and observation13 completed29.859s. Keep its
 # complete ownership sequence and exact intermediate assertions in this60s group.
 # CI41042715945/a1 Windows6 job124021832587 cut verified_abort_resume
 # at30.127s after observation13 completed29.662s and observation15 began.
 # The unchanged fixture passed12.154s in41036617330/a1. Include only this
-# exact progressing case in the existing finite60s Windows sibling allowance.
+# exact progressing case in the existing finite 60s Windows sibling allowance.
 # Preserve every intermediate observation/assertion, cleanup, resources, two
 # workers, zero retries and product/child deadlines; no speedup claim.
 # CI41092148480/a1 Windows7 job124192415441 cut activated_abort_resume
 # at30.070s after observation14 completed29.859s and observation15 began.
 # The unchanged fixture passed16.279s in41082618949/a1. Continue #4061's
-# exact Windows sibling calibration with finite60s room for this case only.
+# exact Windows sibling calibration with finite 60s room for this case only.
 # Keep every sequence/assertion, product deadline, cleanup, reservation,
 # worker count and zero retries; completion is not a speedup or causal claim.
 # 2026-10-30 CI41094268282/a1 Windows1 job124199786823 cut
@@ -1257,7 +1268,7 @@ success-output = "immediate"
 # CI40751890477/a1 Windows partitions3/4 retained30.075/30.024s cutoffs
 # in complete generated-output and all-port projection matrices. The same
 # cases passed at29.733/28.959s in40748328568/a1. Keep every route/port and
-# assertion, add phase evidence, and allow only these exact cases finite60s
+# assertion, add phase evidence, and allow only these exact cases finite 60s
 # diagnostic headroom. No product deadline, worker count or retry changes.
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
