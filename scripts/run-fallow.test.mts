@@ -192,6 +192,13 @@ void test("selective routes preserve explicit full-branch review and bounded par
   assert.equal(args[args.indexOf("--gate") + 1], "new-only");
   assert.ok(!args.includes("--changed-since"));
   assert.ok(fallowArguments("css").includes("--report-only"));
+  for (const mode of ["desktop", "tooling", "css", "review"]) {
+    const selected = fallowArguments(mode, "origin/main");
+    assert.ok(selected.includes("--no-production"));
+    assert.ok(selected.includes("--no-type-aware"));
+    assert.ok(!selected.includes("--cloud"));
+    assert.ok(!selected.includes("mcp"));
+  }
 });
 
 void test("successful high duplication retains actionable results and supports exact-input reuse", async () => {
@@ -284,7 +291,7 @@ void test("analyzer status and advisory review verdict never become a quality pa
         stderr: "",
         stdout: JSON.stringify({
           kind: "audit-brief",
-          schema_version: 13,
+          schema_version: 14,
           version: reviewedFallowVersion,
           verdict: "fail",
           changed_files_count: 3,
@@ -309,14 +316,14 @@ void test("CSS and review routes accept only their reviewed report contracts", a
         mode === "css"
           ? {
               kind: "health",
-              schema_version: 12,
+              schema_version: 13,
               version: reviewedFallowVersion,
               summary: {},
               findings: [],
             }
           : {
               kind: "audit-brief",
-              schema_version: 13,
+              schema_version: 14,
               version: reviewedFallowVersion,
               verdict: "warn",
               changed_files_count: 1,
