@@ -759,13 +759,15 @@ mod tests {
                 &arguments,
             )
             .unwrap();
+        let mut changed_arguments = arguments.clone();
+        changed_arguments.push("--unreviewed-argument".into());
         assert!(
             service
                 .authorize_user_selected_runtime_relink(
                     id,
                     &replacement_executable,
                     &replacement,
-                    &[],
+                    &changed_arguments,
                     &preview.preview_sha256,
                 )
                 .is_err()
