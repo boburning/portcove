@@ -407,9 +407,11 @@ function assessedLineage(catalog: HealthCatalog, records: unknown[]) {
 const scriptPath = fileURLToPath(import.meta.url);
 class HealthFailure extends Error {
   reason: keyof typeof resume;
-  constructor(reason: keyof typeof resume) {
+  httpStatus: number | null;
+  constructor(reason: keyof typeof resume, httpStatus: number | null = null) {
     super(reason);
     this.reason = reason;
+    this.httpStatus = httpStatus;
   }
 }
 const HARD_REQUEST_CEILING: number = 320;
@@ -1579,11 +1581,13 @@ export async function collectRepositoryHealth(
     } catch (error) {
       if (abortSignal?.aborted) throw abortSignal.reason;
       if (error instanceof HealthFailure) throw error;
+      const httpStatus = evidence.attempt?.status ?? null;
       if (error instanceof GitHubApiError) {
         if (["response_limit", "budget_exhausted"].includes(error.code))
-          throw new HealthFailure("budget");
-        if (error.code === "deadline_exceeded") throw new HealthFailure("timeout");
-        if (error.code === "invalid_response") throw new HealthFailure("invalid-metadata");
+          throw new HealthFailure("budget", httpStatus);
+        if (error.code === "deadline_exceeded") throw new HealthFailure("timeout", httpStatus);
+        if (error.code === "invalid_response")
+          throw new HealthFailure("invalid-metadata", httpStatus);
         if (
           evidence.attempt?.status !== null &&
           evidence.attempt?.status !== undefined &&
@@ -1596,9 +1600,9 @@ export async function collectRepositoryHealth(
             data: null,
             body: null,
           };
-        if (error.code === "rate_limited") throw new HealthFailure("rate-limit");
+        if (error.code === "rate_limited") throw new HealthFailure("rate-limit", httpStatus);
       }
-      throw new HealthFailure("transport");
+      throw new HealthFailure("transport", httpStatus);
     } finally {
       await policy.admissionSettled;
     }
@@ -1717,11 +1721,12 @@ export async function collectRepositoryHealth(
         retained &&
         retained.observation_contract_sha256 === contract &&
         sessionStartedAt !== undefined &&
-        retained.reason !== "budget" &&
+        (retained.reason !== "budget" || retained.http_status !== null) &&
         !collected(retained) &&
         Date.parse(retained.observed_at) >= sessionStartedAt
       ) {
-        // A failed read is retained for this job; another independent run may retry it.
+        // A received response is a spent read, including a capped body. Only
+        // unattempted budget tails can resume; a new job may observe again.
         observations.push({
           ...structuredClone(retained),
           ...record,
@@ -2169,6 +2174,8 @@ export async function collectRepositoryHealth(
         result.observed_repository_id = facts.id;
       } catch (error) {
         abortSignal?.throwIfAborted();
+        if (error instanceof HealthFailure && error.httpStatus !== null)
+          result.http_status = error.httpStatus;
         fail(
           error instanceof HealthFailure ? error.reason : signal.aborted ? "timeout" : "transport",
         );

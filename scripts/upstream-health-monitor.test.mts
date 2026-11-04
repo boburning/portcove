@@ -1278,3 +1278,39 @@ void test("a shared repository retains more than 4096 catalog identities through
   assert.equal(resumed.report.inventory.fresh_complete_port_ids.length, 4097);
   assert.equal(resumed.checkpoint!.observations[0]!.port_ids.length, 4097);
 });
+
+void test("a capped SDK response spends its read across same-operation recovery batches", async () => {
+  let sends = 0,
+    clock = epoch;
+  const fetch: HealthFetch = async () => {
+    sends++;
+    clock += 1000;
+    return new Response(JSON.stringify({ padding: "x".repeat(1024 * 1024) }), {
+      headers: { "content-type": "application/json" },
+    });
+  };
+  const first = await drainHealthMonitor(catalog(), null, {
+    ...options({ fetch, now: () => clock }),
+    sessionDeadline: epoch + 10000,
+  });
+  assert.equal(sends, 1);
+  assert.equal(first.report.collection.observations[0]?.reason, "budget");
+  assert.equal(first.report.collection.observations[0]?.http_status, 200);
+  assert.equal(first.report.collection.outcome, "incomplete");
+  assert.equal(first.report.session?.requests, 1);
+  // Even after a zero-request reused record, the original received status
+  // prevents a later same-session batch from renewing its transport allowance.
+  const third = await advanceHealthMonitor(
+    catalog(),
+    first.checkpoint,
+    options({ fetch, now: () => clock, sessionStartedAt: epoch, continueDueOnly: true }),
+  );
+  assert.equal(third.report.collection.consumed.requests, 0);
+  assert.equal(sends, 1);
+  clock = epoch + 60000;
+  await drainHealthMonitor(catalog(), third.checkpoint, {
+    ...options({ fetch, now: () => clock }),
+    sessionDeadline: clock + 10000,
+  });
+  assert.equal(sends, 2, "A new independent health observation may read again");
+});
