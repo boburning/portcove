@@ -19944,7 +19944,10 @@
         "original_game_title": "Road Rash 64",
         "manual_setup": {
           "help_url": "https://github.com/linkssy2/RoadRash64Recompiled/blob/a789926d38f17c9a683a7826d74536a1ff2200b5/docs/PLAYER_PACKAGE.md",
-          "warnings": [],
+          "warnings": [
+            "Close the game and importer before replacing a runtime. Preserve the complete local race-packs folder, including import jobs and previous-pack backups; custom external course-pack folders require a separate backup.",
+            "A historical managed v1.4.3 copy retains its accepted definition and data locations. Keep it usable while a supported transition is unavailable."
+          ],
           "steps": [
             {
               "title": "Use the complete Windows package",
@@ -19952,11 +19955,25 @@
             },
             {
               "title": "Keep optional setup with the game",
-              "instruction": "Optional texture, character and Mario Kart 64 course imports remain deliberate upstream features. Follow the included guide and supply an extra original only if you choose that feature. Portcove does not discover and run the DirectStart or importer helpers automatically. Close the game and importer before replacing a runtime. Preserve the complete local race-packs folder, including import jobs and previous-pack backups; custom external course-pack folders require a separate backup."
+              "instruction": "Optional texture, character and Mario Kart 64 course imports remain deliberate upstream features. Follow the included guide and supply an extra original only if you choose that feature. Portcove does not discover and run the DirectStart or importer helpers automatically."
+            },
+            {
+              "title": "Register a separately prepared Road Rash player",
+              "instruction": "For a separately prepared or customized upstream copy, select the completed player in its own stable folder, save launch details, then choose Play separately."
+            }
+          ],
+          "references": [
+            {
+              "title": "Preserve optional Road Rash imports before replacement",
+              "instruction": "Close the game and importer before replacing a runtime. Preserve the complete local race-packs folder, including import jobs and previous-pack backups; custom external course-pack folders require a separate backup."
             },
             {
               "title": "Keep your current copy while changing routes",
-              "instruction": "A historical managed v1.4.3 copy retains its accepted definition and data locations. Keep it usable while a supported transition is unavailable. For a separately prepared or customized upstream copy, select the completed player in its own stable folder, save launch details, then choose Play separately. Upstream or you provide that external copy’s runtime updates; Portcove registration removal leaves every external file untouched and does not grant managed Backup or Rollback."
+              "instruction": "A historical managed v1.4.3 copy retains its accepted definition and data locations. Keep it usable while a supported transition is unavailable."
+            },
+            {
+              "title": "Keep external Road Rash replacement and data ownership",
+              "instruction": "Upstream or you provide that external copy’s runtime updates; Portcove registration removal leaves every external file untouched and does not grant managed Backup or Rollback."
             }
           ]
         },
@@ -27780,15 +27797,28 @@
             },
             {
               "title": "Select the player and keep your saves",
-              "instruction": "Finish setup with DoomIIRPG.exe and the same folder, then choose Play. Back up the original IPA and the Doom2rpg.app save/settings folder when applying upstream updates."
+              "instruction": "Finish setup with DoomIIRPG.exe and the same folder, then choose Play."
             },
             {
               "title": "Add the game and manage your files",
-              "instruction": "Register the real Windows player with its matching working directory and separate literal arguments; do not select a converter, installer or updater as the game player. Complete any original-data or prerequisite setup deliberately through upstream instructions. Registration does not perform or authenticate that preparation, and Play is a separate explicit action. You and upstream own this external runtime, original files, saves, settings and profiles. Preserve the complete working copy and every actual data/profile location with the game closed before upstream replacement. Registration-only removal preserves all external files; managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
+              "instruction": "Register the real Windows player with its matching working directory and separate literal arguments; do not select a converter, installer or updater as the game player. Complete any original-data or prerequisite setup deliberately through upstream instructions. Registration does not perform or authenticate that preparation, and Play is a separate explicit action."
             }
           ],
-          "warnings": [],
-          "help_url": "https://github.com/Erick194/DoomIIRPG-RE#readme"
+          "warnings": [
+            "Back up the original IPA and the Doom2rpg.app save/settings folder when applying upstream updates.",
+            "Preserve the complete working copy and every actual data/profile location with the game closed before upstream replacement."
+          ],
+          "help_url": "https://github.com/Erick194/DoomIIRPG-RE#readme",
+          "references": [
+            {
+              "title": "Preserve the Doom II RPG profile when updating",
+              "instruction": "Back up the original IPA and the Doom2rpg.app save/settings folder when applying upstream updates."
+            },
+            {
+              "title": "Keep external ownership and all player data",
+              "instruction": "You and upstream own this external runtime, original files, saves, settings and profiles. Preserve the complete working copy and every actual data/profile location with the game closed before upstream replacement. Registration-only removal preserves all external files; managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
+            }
+          ]
         },
         "artwork": {
           "game_id": 101031,
@@ -31674,16 +31704,33 @@
               "instruction": "Extract the complete Windows player package and choose openjkdf2-64.exe with its containing folder as the working directory. On first Play, follow OpenJKDF2’s picker to import your own supported Jedi Knight: Dark Forces II installation. Upstream recommends GOG and also supports Steam/original game layouts. Soundtrack disc extraction is separate; the player does not supply original game data. The published player is a debug build and includes an upstream runtime updater."
             },
             {
-              "title": "Keep updates and data with the working copy",
-              "instruction": "You or upstream manage runtime updates, original files, saves and settings. Keep the current working copy until another version is ready. Save launch details in Portcove, then choose Play separately. Registration does not adopt the files or grant managed Backup, Rollback or removal of the external folder. Before changing versions, preserve the actual imported game-data folder and player profiles/saves, resource, episode, MUSIC, expansions and custom mods, plus local cvars/binds/registry JSON, screenshots and any selected custom paths. Setup may use the user AppData location or an existing working-folder resource/jk_.cd layout; copying just the executable is not a data backup."
+              "title": "Save launch details before Play",
+              "instruction": "Save launch details in Portcove, then choose Play separately. Registration does not adopt the files or grant managed Backup, Rollback or removal of the external folder."
             },
             {
               "title": "Add the game and manage your files",
-              "instruction": "Register the real Windows player with its matching working directory and separate literal arguments; do not select a converter, installer or updater as the game player. Complete any original-data or prerequisite setup deliberately through upstream instructions. Registration does not perform or authenticate that preparation, and Play is a separate explicit action. You and upstream own this external runtime, original files, saves, settings and profiles. Preserve the complete working copy and every actual data/profile location with the game closed before upstream replacement. Registration-only removal preserves all external files; managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
+              "instruction": "Register the real Windows player with its matching working directory and separate literal arguments; do not select a converter, installer or updater as the game player. Complete any original-data or prerequisite setup deliberately through upstream instructions. Registration does not perform or authenticate that preparation, and Play is a separate explicit action."
             }
           ],
-          "warnings": [],
-          "help_url": "https://github.com/shinyquagsire23/OpenJKDF2/blob/814b684c0d06bbfc6e1121941fc8a9e88e3aede7/README.md"
+          "warnings": [
+            "Before changing versions, preserve the actual imported game-data folder and player profiles/saves, resource, episode, MUSIC, expansions and custom mods, plus local cvars/binds/registry JSON, screenshots and any selected custom paths. Setup may use the user AppData location or an existing working-folder resource/jk_.cd layout; copying just the executable is not a data backup.",
+            "Preserve the complete working copy and every actual data/profile location with the game closed before upstream replacement."
+          ],
+          "help_url": "https://github.com/shinyquagsire23/OpenJKDF2/blob/814b684c0d06bbfc6e1121941fc8a9e88e3aede7/README.md",
+          "references": [
+            {
+              "title": "Keep updates and data with the working copy",
+              "instruction": "You or upstream manage runtime updates, original files, saves and settings. Keep the current working copy until another version is ready."
+            },
+            {
+              "title": "Preserve imported Jedi Knight data and profiles",
+              "instruction": "Before changing versions, preserve the actual imported game-data folder and player profiles/saves, resource, episode, MUSIC, expansions and custom mods, plus local cvars/binds/registry JSON, screenshots and any selected custom paths. Setup may use the user AppData location or an existing working-folder resource/jk_.cd layout; copying just the executable is not a data backup."
+            },
+            {
+              "title": "Keep external ownership and all player data",
+              "instruction": "You and upstream own this external runtime, original files, saves, settings and profiles. Preserve the complete working copy and every actual data/profile location with the game closed before upstream replacement. Registration-only removal preserves all external files; managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
+            }
+          ]
         },
         "artwork": {
           "game_id": 150,
@@ -34542,17 +34589,29 @@
             },
             {
               "title": "Keep the correct player and profile",
-              "instruction": "The managed player follows the Rolling latest build; this channel does not establish gameplay qualification. The managed copy selects openjo_sp.x86_64.exe for single player. OpenJO multiplayer is outside this upstream player; upstream describes Outcast single player as working but still needing attention. This selected Windows package contains the non-portable home-directory branch: normal saves, configuration and logs use the actual Documents/My Games/OpenJO profile. Back it up separately with your originals and creating runtime before changing versions. Portable builds, unavailable Documents folders and explicit home-path overrides can change the write location; those configurations need their own preserved external registration. A runtime rollback does not rewind external saves or establish older-runtime, mod or recorded-demo compatibility."
+              "instruction": "The managed player follows the Rolling latest build; this channel does not establish gameplay qualification. The managed copy selects openjo_sp.x86_64.exe for single player. OpenJO multiplayer is outside this upstream player; upstream describes Outcast single player as working but still needing attention. This selected Windows package contains the non-portable home-directory branch: normal saves, configuration and logs use the actual Documents/My Games/OpenJO profile."
             },
             {
               "title": "Keep an existing prepared copy",
-              "instruction": "Use this route only for an already prepared, working upstream OpenJO installation with your own matching Outcast data. The inspected official OpenJO-windows-x86_64.zip contains openjo_sp.x86_64.exe; keep its companions. Register the existing player and its already working directory/arguments. Do not apply the Academy setup recipe to Outcast or treat this package inspection as original-data acceptance. Existing registrations keep their selected player/mode, arguments, files and user/upstream runtime owner. Removing their registration preserves those files; this catalog change does not adopt or migrate them."
+              "instruction": "Use this route only for an already prepared, working upstream OpenJO installation with your own matching Outcast data. The inspected official OpenJO-windows-x86_64.zip contains openjo_sp.x86_64.exe; keep its companions. Register the existing player and its already working directory/arguments. Do not apply the Academy setup recipe to Outcast or treat this package inspection as original-data acceptance."
             }
           ],
           "warnings": [
-            "New Outcast setup remains held until upstream establishes the exact original-data/patch/layout contract. Upstream labels Outcast single player as needing attention and does not support Outcast multiplayer here."
+            "New Outcast setup remains held until upstream establishes the exact original-data/patch/layout contract. Upstream labels Outcast single player as needing attention and does not support Outcast multiplayer here.",
+            "Back it up separately with your originals and creating runtime before changing versions.",
+            "A runtime rollback does not rewind external saves or establish older-runtime, mod or recorded-demo compatibility."
           ],
-          "help_url": "https://github.com/JACoders/OpenJK/blob/260c59c2907187af555a676fe0cc798893bf7757/README.md"
+          "help_url": "https://github.com/JACoders/OpenJK/blob/260c59c2907187af555a676fe0cc798893bf7757/README.md",
+          "references": [
+            {
+              "title": "Preserve the actual OpenJO profile and compatibility boundary",
+              "instruction": "Back it up separately with your originals and creating runtime before changing versions. Portable builds, unavailable Documents folders and explicit home-path overrides can change the write location; those configurations need their own preserved external registration. A runtime rollback does not rewind external saves or establish older-runtime, mod or recorded-demo compatibility."
+            },
+            {
+              "title": "Preserve existing OpenJO registration ownership",
+              "instruction": "Existing registrations keep their selected player/mode, arguments, files and user/upstream runtime owner. Removing their registration preserves those files; this catalog change does not adopt or migrate them."
+            }
+          ]
         }
       },
       "executable_hints": {

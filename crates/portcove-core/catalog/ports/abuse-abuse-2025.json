@@ -14,7 +14,14 @@
         {
           "title": "Keep the permitted working player and data together",
           "instruction": "For an existing copy you are permitted to use, select abuse.exe on Windows or abuse on Linux with its game folder as the working directory. Keep its compatible data and libraries together; ABUSE_PATH overrides the asset root. The current release offers Windows and macOS packages; Linux here describes an already prepared native copy, not an offered Linux archive or a Portcove build. macOS uses the upstream application through the OS, not a private bundle binary."
-        },
+        }
+      ],
+      "warnings": [
+        "Preserve that actual location, custom levels/mods and the working data folder with the game closed. The local_save flag alone is not proof that saves are beside the executable.",
+        "Although the project mentions a public-domain data subset, this guide does not identify a complete compatible subset. Keep your working assets together; do not assume the code license also permits use of music, soundfonts or every bundled asset."
+      ],
+      "help_url": "https://github.com/apancik/Abuse_2025/blob/244543fcae4b140771ec6a7f4c5e619851d4711f/README.md",
+      "references": [
         {
           "title": "Back up the actual save directory",
           "instruction": "The reviewed SDL code normally uses SDL_GetPrefPath(\"abuse\", \"data\") for saves/settings: %APPDATA%/abuse/data on Windows, or $XDG_DATA_HOME/abuse/data (normally ~/.local/share/abuse/data) on Linux. ABUSE_SAVE_PATH overrides it; if preference-path creation fails upstream falls back to the current working directory. Preserve that actual location, custom levels/mods and the working data folder with the game closed. The local_save flag alone is not proof that saves are beside the executable."
@@ -23,9 +30,7 @@
           "title": "Keep a working copy before updating",
           "instruction": "Removing the registration leaves the external files in place. You and the project manage updates and backups; Portcove does not back up or roll back this copy. Although the project mentions a public-domain data subset, this guide does not identify a complete compatible subset. Keep your working assets together; do not assume the code license also permits use of music, soundfonts or every bundled asset."
         }
-      ],
-      "warnings": [],
-      "help_url": "https://github.com/apancik/Abuse_2025/blob/244543fcae4b140771ec6a7f4c5e619851d4711f/README.md"
+      ]
     },
     "platforms": ["windows-x86-64", "linux-x86-64"],
     "download_block_reason": "Fresh bundled-package acquisition remains held for the documented mixed/uncertain game-data, music and soundfont permissions. Reconsider after exact component grants or a compatible clean official data/package route is accepted. A conditional permitted-existing-copy route does not clear those assets.",

@@ -18,7 +18,10 @@
       "match_kind": "underlying-game"
     },
     "manual_setup": {
-      "warnings": [],
+      "warnings": [
+        "Close SunPad before backing up ~/Library/Application Support/SunPad, including saves, extracted data, configuration, controller profiles and logs. Keep your original image, personal generated module and previous working app recoverable.",
+        "For iPhone/iPad or Apple TV use their separate save/export instructions; TV storage can be purged and an app reinstall is not a save restore."
+      ],
       "help_url": "https://github.com/chrissotraidis/sunpad/blob/d40a0674afa7189c14bfd6ce6f099dd275b46397/docs/MACOS.md",
       "steps": [
         {
@@ -30,12 +33,18 @@
           "instruction": "Move the completed SunPad.app to Applications and open it through upstream macOS instructions. If the launcher asks for your own matching image, choose it and follow Extract and Play. Keep valid prepared game data and remembered choices; do not remove or reimport it unnecessarily. Keep the complete app and its launcher, controller and configuration defaults together."
         },
         {
+          "title": "Keep using the supported Mac app",
+          "instruction": "Use the finished SunPad app from Applications. Its launcher initializes the SunPad profile and missing defaults before starting the game, and Portcove cannot run that launcher yet. Do not select SunPadFrontend in its place or change the app environment to bypass setup."
+        }
+      ],
+      "references": [
+        {
           "title": "Preserve the live SunPad profile before replacement",
           "instruction": "Close SunPad before backing up ~/Library/Application Support/SunPad, including saves, extracted data, configuration, controller profiles and logs. Keep your original image, personal generated module and previous working app recoverable. Update using a compatible personal build while preserving app and signing identity. For iPhone/iPad or Apple TV use their separate save/export instructions; TV storage can be purged and an app reinstall is not a save restore."
         },
         {
-          "title": "Keep using the supported Mac app",
-          "instruction": "Use the finished SunPad app from Applications. Its launcher initializes the SunPad profile and missing defaults before starting the game, and Portcove cannot run that launcher yet. Do not select SunPadFrontend in its place or change the app environment to bypass setup. Keep the complete upstream app and your saved data recoverable. You or upstream own updates and backups; Portcove does not provide managed Update, Backup or Rollback for this route."
+          "title": "Keep SunPad recovery and updates upstream-owned",
+          "instruction": "Keep the complete upstream app and your saved data recoverable. You or upstream own updates and backups; Portcove does not provide managed Update, Backup or Rollback for this route."
         }
       ]
     }

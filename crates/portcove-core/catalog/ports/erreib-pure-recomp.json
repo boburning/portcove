@@ -35,16 +35,24 @@
         },
         {
           "title": "Review Play and preserve the whole data folder",
-          "instruction": "Review and consent to this exact executable, working directory and literal arguments, then request Play separately. The documented Windows profile is %APPDATA%/pure-recomp/PureNative; preserve the actual effective root and existing PURE_DATA_DIR/custom locations too. Keep EBOOT.ELF, copied disc.iso or its in-place original path, settings.ini, ms0/PSP/SAVEDATA/, DLC, texture packs, pipeline_cache.bin, logs/screenshots, backups and temporary files with the creating runtime. Do not assume deleting the player folder removes all state, or infer Portcove PSP/PPSSPP or cross-version save compatibility from upstream claims."
+          "instruction": "Review and consent to this exact executable, working directory and literal arguments, then request Play separately."
+        }
+      ],
+      "warnings": [
+        "Release v0.2.0 uses different source from later development versions. Portcove has not inspected its package or confirmed that the executable matches those sources, and has not tested startup, gameplay, saves or installed behavior.",
+        "Upstream reports first-track shader stutter on Windows Vulkan, aspect-ratio, movie and HUD limitations, and unavailable ad hoc and browser functions. Use only a copy, original and components you are independently permitted to use. Portcove has not confirmed performance.",
+        "The documented Windows profile is %APPDATA%/pure-recomp/PureNative; preserve the actual effective root and existing PURE_DATA_DIR/custom locations too.",
+        "Do not assume deleting the player folder removes all state, or infer Portcove PSP/PPSSPP or cross-version save compatibility from upstream claims."
+      ],
+      "references": [
+        {
+          "title": "Preserve the complete PureNative profile",
+          "instruction": "The documented Windows profile is %APPDATA%/pure-recomp/PureNative; preserve the actual effective root and existing PURE_DATA_DIR/custom locations too. Keep EBOOT.ELF, copied disc.iso or its in-place original path, settings.ini, ms0/PSP/SAVEDATA/, DLC, texture packs, pipeline_cache.bin, logs/screenshots, backups and temporary files with the creating runtime. Do not assume deleting the player folder removes all state, or infer Portcove PSP/PPSSPP or cross-version save compatibility from upstream claims."
         },
         {
           "title": "Retain optional-content and runtime ownership",
           "instruction": "Original US DLC packs and optional external HD texture packs are separate player-supplied material, not a prerequisite or a grant supplied by this registration. Preserve their actual original/mod/profile roots; do not convert European/Japanese packs or fetch the third-party HD pack through this guide. Project GPL2-or-later, PortableKit MIT, FFmpeg LGPL and other component notices apply separately from Sony/game/art rights. Upstream/user owns all preparation, runtime replacement and recovery. Close actual sessions, keep the old working copy and data, then review/relink changed selected bytes. Removing registration preserves all external files; no external update, backup, rollback, migration or deletion is offered."
         }
-      ],
-      "warnings": [
-        "Release v0.2.0 uses different source from later development versions. Portcove has not inspected its package or confirmed that the executable matches those sources, and has not tested startup, gameplay, saves or installed behavior.",
-        "Upstream reports first-track shader stutter on Windows Vulkan, aspect-ratio, movie and HUD limitations, and unavailable ad hoc and browser functions. Use only a copy, original and components you are independently permitted to use. Portcove has not confirmed performance."
       ]
     }
   },

@@ -26,12 +26,19 @@
           "instruction": "After successful installation, select clayfighter64.exe in the complete portable package root, set that root as working directory and use literal arguments --rom probe-output/base.z64 --sc-assets local/sc_roster/asset-image-roster.z64. These are the same native arguments used by the upstream Play wrapper. Do not select VBS/CMD/Python installers or unfinished data. The native player owns the game window and normal game loop. Saving launch details and requesting Play require separate consent."
         },
         {
-          "title": "Preserve imported files and settings",
-          "instruction": "Before first prepared startup, moves or updates, close the game and keep a separate complete recovery copy of local/, probe-output/, config and all original ROMs. Imported files include probe-output/base.z64, local/sc_roster/asset-image-roster.z64, local/sc_bios/bios.bin and local/import-manifest.json. Upstream installation replaces its generated outputs; reinstallation requires both originals. Keep current player settings separate from an older runtime backup."
-        },
-        {
           "title": "Keep portable custom profiles inside the game",
           "instruction": "Display, native game options, P1/P2 controls and training settings live in local/settings/ by default; graphics caches live under local/cache/. The executable locates its installation from its own directory/config and changes CWD to it. Optional --data-dir or --user-data selects a profile only inside that installation; outside paths and escaping symlinks are rejected. --controls imports a profile but subsequent edits save inside the installation. Preserve every selected in-root profile, temporary/recovery copies and any custom source controls before maintenance."
+        }
+      ],
+      "warnings": [
+        "Fresh acquisition of packaged branding/title media remains conditional on its own applicable permission; original-game rights are separate.",
+        "Only an already prepared independently permitted complete copy is offered; extraction, updates and recovery remain upstream-owned.",
+        "Before first prepared startup, moves or updates, close the game and keep a separate complete recovery copy of local/, probe-output/, config and all original ROMs."
+      ],
+      "references": [
+        {
+          "title": "Preserve imported files and settings",
+          "instruction": "Before first prepared startup, moves or updates, close the game and keep a separate complete recovery copy of local/, probe-output/, config and all original ROMs. Imported files include probe-output/base.z64, local/sc_roster/asset-image-roster.z64, local/sc_bios/bios.bin and local/import-manifest.json. Upstream installation replaces its generated outputs; reinstallation requires both originals. Keep current player settings separate from an older runtime backup."
         },
         {
           "title": "Keep maintenance upstream-owned",
@@ -41,10 +48,6 @@
           "title": "Respect component and edition boundaries",
           "instruction": "Retain the GPL authored-code licence and individual SDK/RT64/SDL/Python/Microsoft notices. NOTICE explicitly excludes the branding and supplied replacement announcement from the code licence; obtaining another full package needs an applicable independent grant for those components. The optional title announcement falls back to the original ROM audio when absent, but this guide does not prescribe modifying a package or bypassing its grants. Both-ROM fusion identity and upstream claims do not establish full gameplay or save compatibility."
         }
-      ],
-      "warnings": [
-        "Fresh acquisition of packaged branding/title media remains conditional on its own applicable permission; original-game rights are separate.",
-        "Only an already prepared independently permitted complete copy is offered; extraction, updates and recovery remain upstream-owned."
       ]
     },
     "download_block_reason": "Fresh acquisition of the selected ClayFighter64 package is held while the applicable permission or authorized-source basis for its named bundled character-branding images and replacement title-announcement media remains unresolved. NOTICE places those media outside the port-code licence; publisher attribution is not a grant of all underlying depicted-character or media rights. Resume on an attributable applicable inclusion/use basis or a reviewed supported replacement/exclusion package; independently permitted completed copies remain separate."

@@ -21,17 +21,29 @@
         },
         {
           "title": "Keep the correct player and profile",
-          "instruction": "The managed player follows the Rolling latest build; this channel does not establish gameplay qualification. The managed copy selects openjo_sp.x86_64.exe for single player. OpenJO multiplayer is outside this upstream player; upstream describes Outcast single player as working but still needing attention. This selected Windows package contains the non-portable home-directory branch: normal saves, configuration and logs use the actual Documents/My Games/OpenJO profile. Back it up separately with your originals and creating runtime before changing versions. Portable builds, unavailable Documents folders and explicit home-path overrides can change the write location; those configurations need their own preserved external registration. A runtime rollback does not rewind external saves or establish older-runtime, mod or recorded-demo compatibility."
+          "instruction": "The managed player follows the Rolling latest build; this channel does not establish gameplay qualification. The managed copy selects openjo_sp.x86_64.exe for single player. OpenJO multiplayer is outside this upstream player; upstream describes Outcast single player as working but still needing attention. This selected Windows package contains the non-portable home-directory branch: normal saves, configuration and logs use the actual Documents/My Games/OpenJO profile."
         },
         {
           "title": "Keep an existing prepared copy",
-          "instruction": "Use this route only for an already prepared, working upstream OpenJO installation with your own matching Outcast data. The inspected official OpenJO-windows-x86_64.zip contains openjo_sp.x86_64.exe; keep its companions. Register the existing player and its already working directory/arguments. Do not apply the Academy setup recipe to Outcast or treat this package inspection as original-data acceptance. Existing registrations keep their selected player/mode, arguments, files and user/upstream runtime owner. Removing their registration preserves those files; this catalog change does not adopt or migrate them."
+          "instruction": "Use this route only for an already prepared, working upstream OpenJO installation with your own matching Outcast data. The inspected official OpenJO-windows-x86_64.zip contains openjo_sp.x86_64.exe; keep its companions. Register the existing player and its already working directory/arguments. Do not apply the Academy setup recipe to Outcast or treat this package inspection as original-data acceptance."
         }
       ],
       "warnings": [
-        "New Outcast setup remains held until upstream establishes the exact original-data/patch/layout contract. Upstream labels Outcast single player as needing attention and does not support Outcast multiplayer here."
+        "New Outcast setup remains held until upstream establishes the exact original-data/patch/layout contract. Upstream labels Outcast single player as needing attention and does not support Outcast multiplayer here.",
+        "Back it up separately with your originals and creating runtime before changing versions.",
+        "A runtime rollback does not rewind external saves or establish older-runtime, mod or recorded-demo compatibility."
       ],
-      "help_url": "https://github.com/JACoders/OpenJK/blob/260c59c2907187af555a676fe0cc798893bf7757/README.md"
+      "help_url": "https://github.com/JACoders/OpenJK/blob/260c59c2907187af555a676fe0cc798893bf7757/README.md",
+      "references": [
+        {
+          "title": "Preserve the actual OpenJO profile and compatibility boundary",
+          "instruction": "Back it up separately with your originals and creating runtime before changing versions. Portable builds, unavailable Documents folders and explicit home-path overrides can change the write location; those configurations need their own preserved external registration. A runtime rollback does not rewind external saves or establish older-runtime, mod or recorded-demo compatibility."
+        },
+        {
+          "title": "Preserve existing OpenJO registration ownership",
+          "instruction": "Existing registrations keep their selected player/mode, arguments, files and user/upstream runtime owner. Removing their registration preserves those files; this catalog change does not adopt or migrate them."
+        }
+      ]
     }
   },
   "upstream_lineage": {

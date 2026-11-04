@@ -31,7 +31,7 @@
         },
         {
           "title": "Use the Windows player",
-          "instruction": "Select RaveRacer.exe inside your existing windows-release folder, with that folder as its working directory. Keep mesa beside the player. Preserve the whole copy, including roms, extracted, controls, arcade records, log, screenshots and recordings, before any permitted upstream update. Portcove registers the copy without owning or replacing its files."
+          "instruction": "Select RaveRacer.exe inside your existing windows-release folder, with that folder as its working directory. Keep mesa beside the player."
         },
         {
           "title": "Use the upstream Linux AppImage",
@@ -42,7 +42,13 @@
         "Permission for the bundled original C71 BIOS and Namco-derived program is still unresolved. The project’s MIT grant covers its own work and excludes the game code. Review that condition before obtaining or building a copy.",
         "External files stay owned by you or upstream. Preserve the whole Windows copy or Linux raverace profile, including any existing namco22 or portable data folder. Portcove does not manage its updates, backup, rollback or removal. Replays may need their creating runtime."
       ],
-      "help_url": "https://github.com/spacestate1/namco22-decompile/blob/d7331fba68c57f914565f7fc5186081129a23805/README.md"
+      "help_url": "https://github.com/spacestate1/namco22-decompile/blob/d7331fba68c57f914565f7fc5186081129a23805/README.md",
+      "references": [
+        {
+          "title": "Preserve the complete Windows runtime and arcade data",
+          "instruction": "Preserve the whole copy, including roms, extracted, controls, arcade records, log, screenshots and recordings, before any permitted upstream update. Portcove registers the copy without owning or replacing its files."
+        }
+      ]
     },
     "download_block_reason": "Portcove cannot offer this download while permission for the bundled original C71 DSP BIOS and Namco-derived program code remains unresolved. The upstream MIT grant excludes Namco game code. Reconsider after an attributable grant or an upstream package/preparation route that removes the ungranted content. Existing permitted copies can still be registered without adopting their files."
   }
