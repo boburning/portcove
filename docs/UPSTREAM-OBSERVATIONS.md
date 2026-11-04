@@ -208,13 +208,31 @@ The hosted path reserves four MiB of that same sixteen-MiB output envelope for a
 complete inert recovery snapshot, in addition to the existing four-MiB summary
 reserve. Source handoffs use the remaining eight MiB across all batches. The
 snapshot contains the catalog scheduler and its referenced per-source checkpoints;
-it excludes reports, locks, temporary files and executables. Production format 3
-uses a fixed binary magic, a closed size/hash-bound header of at most 512 bytes,
-and gzip payload. The entire member, including that header, remains limited to
-four MiB. Binary members reserve sixteen KiB within that allowance for ZIP headers
-and worst-case deflate framing of already-compressed bytes. The outer ZIP retains
-its four-MiB compressed and expanded limits.
-Formats 1 and 2 remain readable with their original bounds.
+it excludes reports, locks, temporary files and executables. Production format 4
+streams original source JSON records through one Brotli compressor, preserving
+cross-file redundancy that nested source gzip/base64 cannot share. A fixed binary
+magic and closed header of at most 512 bytes bind record count, complete framed
+byte count and SHA-256. The entire member remains limited to four MiB, with sixteen
+KiB reserved inside that allowance for ZIP framing. Formats 1, 2 and 3 remain
+readable with their original bounds; outer ZIP bounds remain unchanged.
+
+Each record has a closed name/length header of at most 512 bytes. Scope metadata
+comes first (at most four KiB), then the controller and only source paths appointed
+by its validated configuration graph. Names, counts and length bounds are admitted
+before allocating a body; duplicates, foreign paths, missing required sources,
+incomplete records and trailing compressed/decoded bytes refuse. Decompression
+uses backpressure and 64-KiB chunks, with one at-most-thirty-two-MiB record body.
+Each source passes ordinary complete checkpoint/configuration validation and is
+recompacted before retaining the next source. Exact reconstructed stored bytes,
+including scope metadata and paths, remain bounded to thirty-two MiB. The full
+logical transfer stream is never assembled in one buffer.
+
+The actual RFC7932 Brotli window header must request at most four MiB; nonstandard
+large-window mode is disabled. The one absolute collection deadline cancels both
+stream directions on timeout or any parser/budget refusal. Encoding uses quality
+six and a four-MiB window. Streaming codecs require a supported Node release
+containing the October 2026 decoder fix; the repository already pins Node24.22.2.
+No runtime pin, security credential or workflow permission is changed.
 
 The decoded **stored graph** remains bounded to thirty-two MiB. Large source
 checkpoints use lossless, tagged gzip/base64 storage wrappers inside that graph.
@@ -237,7 +255,7 @@ without discarding data or increasing any existing physical input/output ceiling
 
 Collection diagnostics distinguish actual input-file bytes, logical JSON bytes,
 stored JSON bytes, largest source and file count. Export logs separately report
-the complete stored graph and actual transferred bytes; controller size and
+the complete stored graph, framed logical-transfer bytes and actual transferred bytes; controller size and
 compressed Actions-cache size alone cannot establish snapshot fit.
 
 If the lossless encoding cannot fit its reserve, publication fails visibly and

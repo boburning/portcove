@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createHash } from "node:crypto";
-import { gzipSync } from "node:zlib";
+import { gzipSync, brotliCompressSync, constants } from "node:zlib";
 import { mkdir, mkdtemp, writeFile, readFile, rm, symlink } from "node:fs/promises";
 import { writeFileSync } from "node:fs";
 import path from "node:path";
@@ -22,7 +22,15 @@ import {
   encodeObserverSnapshot,
   observerBaselinePermit,
   encodeCompactObserverSnapshot,
+  encodeStreamingObserverSnapshot,
+  readRecoverableObserverSnapshotArchive,
 } from "./observer-checkpoint-artifact.mts";
+import {
+  encodeObserverRecords,
+  decodeObserverRecords,
+  observerRecordMagic,
+  assertObserverRecordRuntime,
+} from "./observer-snapshot-records.mts";
 import {
   decodeStoredObserverCheckpoint,
   encodeStoredObserverCheckpoint,
@@ -1002,6 +1010,189 @@ void test("encoded snapshots retain strict transfer, expansion, digest and envel
   ])
     assert.throws(() => read({ ...wire, ...change }));
   assert.throws(() => encodeObserverSnapshot(good, Date.now() - 1), /deadline exhausted/);
+});
+
+void test("format four recovery retains its exact artifact producer and sequence before cache continuation", async (t) => {
+  const root = await directory(t),
+    f = transport();
+  f.value.files["catalog/checkpoint.json"].sequence = 361;
+  const encoded = await encodeStreamingObserverSnapshot(
+    validateObserverSnapshot(f.value, config, Date.now()),
+    Date.now() + 60000,
+  );
+  const archive = createAuditZip([["checkpoint.json", encoded.bytes]]);
+  f.artifact.size_in_bytes = archive.length;
+  f.artifact.digest = `sha256:${digest(archive)}`;
+  let downloads = 0;
+  const restored = await recoverObserverCheckpoint({
+    root,
+    config,
+    current,
+    deadline: Date.now() + 60000,
+    api: f.api,
+    download: () => {
+      downloads++;
+      return archive;
+    },
+  });
+  assert.deepEqual(restored, { origin: "artifact", producer: source, artifact: 7, sequence: 361 });
+  assert.equal(downloads, 1);
+  assert.deepEqual(
+    await recoverObserverCheckpoint({
+      root,
+      config,
+      current,
+      deadline: Date.now() + 60000,
+      api: f.api,
+      download: () => assert.fail("Validated restored cache requires no download"),
+    }),
+    { origin: "cache", sequence: 361 },
+  );
+});
+
+void test("framed transfer enforces runtime, window, integrity, framing, budget and cancellation guards", async () => {
+  const limits = {
+    member: observerSnapshotLimit - 16384,
+    record: observerCheckpointByteLimit,
+    records: 1000,
+    deadline: Date.now() + 60000,
+  };
+  for (const version of ["24.19.0", "22.23.3", "26.12.0", "25.9.0"])
+    assert.throws(() => assertObserverRecordRuntime(version), /patched/);
+  for (const version of ["24.22.2", "22.23.4", "26.12.1"]) assertObserverRecordRuntime(version);
+  async function* input() {
+    yield { name: "first", bytes: Buffer.from("original") };
+    yield { name: "second", bytes: Buffer.from("retained") };
+  }
+  const encoded = await encodeObserverRecords(input(), limits);
+  const values: string[] = [];
+  await decodeObserverRecords(encoded.bytes, limits, (name, bytes) =>
+    values.push(`${name}:${bytes.toString()}`),
+  );
+  assert.deepEqual(values, ["first:original", "second:retained"]);
+  const start = observerRecordMagic.length,
+    end = encoded.bytes.indexOf(10, start);
+  const header: unknown = JSON.parse(encoded.bytes.subarray(start, end).toString());
+  assert.ok(isRecord(header));
+  const altered = (change: Record<string, unknown>) =>
+    Buffer.concat([
+      observerRecordMagic,
+      Buffer.from(JSON.stringify({ ...header, ...change }) + "\n"),
+      encoded.bytes.subarray(end + 1),
+    ]);
+  for (const bytes of [
+    altered({ sha256: "0".repeat(64) }),
+    altered({ records: 1 }),
+    altered({ logical_bytes: 1 }),
+    altered({ foreign: true }),
+    encoded.bytes.subarray(0, encoded.bytes.length - 1),
+    Buffer.concat([encoded.bytes, Buffer.from("garbage")]),
+    Buffer.concat([encoded.bytes, encoded.bytes.subarray(end + 1)]),
+  ])
+    await assert.rejects(decodeObserverRecords(bytes, limits, () => {}));
+  const window = Buffer.from(encoded.bytes);
+  window[end + 1] = (window[end + 1]! & 240) | 15;
+  await assert.rejects(
+    decodeObserverRecords(window, limits, () => {}),
+    /window/,
+  );
+  await assert.rejects(
+    decodeObserverRecords(encoded.bytes, { ...limits, deadline: Date.now() - 1 }, () => {}),
+    /deadline/,
+  );
+  await assert.rejects(
+    decodeObserverRecords(encoded.bytes, limits, () => {
+      throw new Error("consumer refusal");
+    }),
+    /consumer refusal/,
+  );
+  let closed = false;
+  async function* noisy() {
+    try {
+      for (let i = 0; i < 100; i++)
+        yield {
+          name: "noise",
+          bytes: Buffer.from(Array.from({ length: 10000 }, (_, n) => digest(`${n}:${i}`)).join("")),
+        };
+    } finally {
+      closed = true;
+    }
+  }
+  await assert.rejects(encodeObserverRecords(noisy(), { ...limits, member: 1024 }));
+  assert.equal(closed, true);
+  await assert.rejects(
+    encodeObserverRecords(input(), { ...limits, deadline: Date.now() - 1 }),
+    /deadline/,
+  );
+});
+
+void test("stream snapshot scope and paths refuse before source allocation and legacy formats remain readable", async () => {
+  const good = validateObserverSnapshot(snapshot(), config, Date.now());
+  const { files, ...metadata } = good;
+  const frame = (name: string, value: unknown) => {
+    const body = JSON.stringify(value);
+    return JSON.stringify({ name, bytes: Buffer.byteLength(body) }) + "\n" + body;
+  };
+  const wire = (raw: string, records: number) => {
+    const bytes = Buffer.from(raw),
+      compressed = brotliCompressSync(bytes, {
+        params: { [constants.BROTLI_PARAM_QUALITY]: 6, [constants.BROTLI_PARAM_LGWIN]: 22 },
+      });
+    return Buffer.concat([
+      observerRecordMagic,
+      Buffer.from(
+        JSON.stringify({
+          format: 4,
+          encoding: "brotli-records",
+          records,
+          logical_bytes: bytes.length,
+          sha256: digest(bytes),
+        }) + "\n",
+      ),
+      compressed,
+    ]);
+  };
+  const read = (bytes: Buffer) =>
+    readRecoverableObserverSnapshotArchive(
+      createAuditZip([["checkpoint.json", bytes]]),
+      config,
+      Date.now(),
+      Date.now() + 60000,
+    );
+  const encoded = await encodeStreamingObserverSnapshot(good, Date.now() + 60000);
+  assert.deepEqual(await read(encoded.bytes), good);
+  assert.deepEqual(await read(encodeObserverSnapshot(good).bytes), good);
+  assert.deepEqual(await read(encodeCompactObserverSnapshot(good).bytes), good);
+  assert.deepEqual(await read(Buffer.from(JSON.stringify(good))), good);
+  await assert.rejects(
+    read(
+      wire(
+        frame("$snapshot", { ...metadata, repository: "foreign" }) +
+          frame("catalog/checkpoint.json", files["catalog/checkpoint.json"]),
+        2,
+      ),
+    ),
+    /scope differs/,
+  );
+  await assert.rejects(
+    read(
+      wire(
+        frame("$snapshot", metadata) +
+          frame("catalog/checkpoint.json", files["catalog/checkpoint.json"]) +
+          JSON.stringify({
+            name: `${"f".repeat(64)}/checkpoint.json`,
+            bytes: observerCheckpointByteLimit,
+          }) +
+          "\n",
+        3,
+      ),
+    ),
+    /source inventory differs/,
+  );
+  await assert.rejects(
+    read(wire(frame("$snapshot", metadata) + frame("$snapshot", metadata), 2)),
+    /duplicate/,
+  );
 });
 
 void test("source storage is lossless, bounded, one level only and never admits malformed encodings", () => {

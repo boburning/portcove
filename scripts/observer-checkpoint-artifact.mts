@@ -24,6 +24,11 @@ import {
 } from "./observe-configured-upstream.mts";
 import { observationHash } from "./upstream-observer.mts";
 import {
+  observerRecordMagic,
+  encodeObserverRecords,
+  decodeObserverRecords,
+} from "./observer-snapshot-records.mts";
+import {
   decodeStoredObserverCheckpoint,
   encodeStoredObserverCheckpoint,
 } from "./observer-checkpoint-storage.mts";
@@ -355,6 +360,127 @@ export function encodeCompactObserverSnapshot(snapshot: Snapshot, deadline = Inf
   };
 }
 
+const maximumSnapshotRecords = 2 + Math.floor(observerCheckpointByteLimit / 80);
+export async function encodeStreamingObserverSnapshot(snapshot: Snapshot, deadline: number) {
+  validateObserverSnapshot(snapshot, snapshot.config_sha256, Date.now(), deadline);
+  const { files, ...metadata } = snapshot;
+  async function* records() {
+    yield { name: "$snapshot", bytes: Buffer.from(JSON.stringify(metadata)) };
+    yield {
+      name: "catalog/checkpoint.json",
+      bytes: Buffer.from(JSON.stringify(files["catalog/checkpoint.json"])),
+    };
+    for (const [name, stored] of Object.entries(files)) {
+      if (name === "catalog/checkpoint.json") continue;
+      requireValue(Date.now() < deadline, "stream encoding deadline exhausted");
+      const logical = decodeStoredObserverCheckpoint(stored, deadline);
+      yield { name, bytes: Buffer.from(JSON.stringify(logical)) };
+    }
+  }
+  const encoded = await encodeObserverRecords(records(), {
+    member: binaryMemberLimit,
+    record: observerCheckpointByteLimit,
+    records: maximumSnapshotRecords,
+    deadline,
+  });
+  return {
+    bytes: encoded.bytes,
+    decoded_bytes: Buffer.byteLength(JSON.stringify(snapshot)),
+    logical_transfer_bytes: encoded.logical_bytes,
+    checkpoint_files: Object.keys(files).length,
+  };
+}
+
+async function decodeStreamingObserverSnapshot(
+  bytes: Buffer,
+  config: string,
+  now: number,
+  deadline: number,
+) {
+  let snapshot: Snapshot | null = null,
+    storedBytes = 0,
+    fileCount = 0;
+  const configs = new Map<string, Parameters<typeof validateObserverCheckpoint>[1]>();
+  const seen = new Set<string>();
+  await decodeObserverRecords(
+    bytes,
+    {
+      member: binaryMemberLimit,
+      record: observerCheckpointByteLimit,
+      records: maximumSnapshotRecords,
+      deadline,
+    },
+    (name, value, index) => {
+      const parsed: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(value));
+      if (index === 0) {
+        requireValue(isRecord(parsed), "stream metadata missing");
+        exactKeys(
+          parsed,
+          "format,authority,repository,repository_id,workflow,ref,config_sha256,created_at,producer",
+        );
+        const scoped = validateObserverSnapshot(
+          { ...parsed, files: { "catalog/checkpoint.json": newCatalogObserverCheckpoint() } },
+          config,
+          now,
+          deadline,
+        );
+        snapshot = { ...scoped, files: {} };
+        storedBytes = Buffer.byteLength(JSON.stringify(snapshot));
+        return;
+      }
+      requireValue(snapshot, "stream scope missing");
+      let stored: unknown;
+      if (index === 1) {
+        const controller = validateCatalogObserverCheckpoint(parsed, now);
+        for (const progress of Object.values(controller.sources))
+          for (const source of [
+            progress.current_config,
+            progress.last_complete_config,
+            ...progress.retired_configs,
+          ])
+            if (source) configs.set(`${observationHash(source)}/checkpoint.json`, source);
+        stored = controller;
+      } else {
+        const source = configs.get(name);
+        requireValue(source && parsed !== null, "foreign stream source");
+        validateObserverCheckpoint(parsed, source);
+        stored = encodeStoredObserverCheckpoint(parsed, deadline);
+      }
+      storedBytes +=
+        Buffer.byteLength(JSON.stringify(name)) +
+        1 +
+        Buffer.byteLength(JSON.stringify(stored)) +
+        (fileCount++ ? 1 : 0);
+      requireValue(
+        storedBytes <= observerCheckpointByteLimit,
+        "stream stored graph exceeds checkpoint envelope",
+      );
+      snapshot.files[name] = stored;
+    },
+    (name, length, index, total) => {
+      requireValue(!seen.has(name), "duplicate stream record");
+      if (index === 0)
+        requireValue(
+          name === "$snapshot" && length <= 4096 && total >= 2,
+          "stream metadata envelope differs",
+        );
+      else if (index === 1)
+        requireValue(
+          snapshot && name === "catalog/checkpoint.json",
+          "stream controller order differs",
+        );
+      else
+        requireValue(
+          snapshot && configs.has(name) && total <= configs.size + 2,
+          "stream source inventory differs",
+        );
+      seen.add(name);
+    },
+  );
+  requireValue(snapshot, "stream snapshot absent");
+  return validateObserverSnapshot(snapshot, config, now, deadline);
+}
+
 function decodeObserverSnapshot(bytes: Buffer, config: string, now: number, deadline: number) {
   requireValue(
     bytes.length <= observerSnapshotLimit && Date.now() < deadline,
@@ -434,12 +560,7 @@ function decodeObserverSnapshot(bytes: Buffer, config: string, now: number, dead
   );
 }
 
-export function readObserverSnapshotArchive(
-  archive: Buffer,
-  config: string,
-  now: number,
-  deadline: number,
-) {
+function readObserverSnapshotMember(archive: Buffer, deadline: number) {
   const { entries } = inspectBoundedZip(
     archive,
     {
@@ -462,7 +583,31 @@ export function readObserverSnapshotArchive(
     Date.now() < deadline && bytes.length === entry.bytes && crc32(bytes) === entry.crc,
     "snapshot archive integrity differs",
   );
-  return decodeObserverSnapshot(bytes, config, now, deadline);
+  return bytes;
+}
+export function readObserverSnapshotArchive(
+  archive: Buffer,
+  config: string,
+  now: number,
+  deadline: number,
+) {
+  return decodeObserverSnapshot(
+    readObserverSnapshotMember(archive, deadline),
+    config,
+    now,
+    deadline,
+  );
+}
+export async function readRecoverableObserverSnapshotArchive(
+  archive: Buffer,
+  config: string,
+  now: number,
+  deadline: number,
+) {
+  const bytes = readObserverSnapshotMember(archive, deadline);
+  return bytes.subarray(0, observerRecordMagic.length).equals(observerRecordMagic)
+    ? decodeStreamingObserverSnapshot(bytes, config, now, deadline)
+    : decodeObserverSnapshot(bytes, config, now, deadline);
 }
 
 /** Publish an entirely absent tree in one rename. Never blend partial cache data. */
@@ -975,7 +1120,7 @@ export async function recoverObserverCheckpoint(options: RecoveryOptions) {
       archive.length === artifact.size_in_bytes && sha256(archive) === artifact.digest.slice(7),
       "checkpoint artifact digest differs",
     );
-    const snapshot = readObserverSnapshotArchive(archive, config, now(), deadline);
+    const snapshot = await readRecoverableObserverSnapshotArchive(archive, config, now(), deadline);
     requireValue(
       snapshot.producer.run === source.run &&
         snapshot.producer.attempt === source.attempt &&
@@ -1110,7 +1255,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
           artifact_byte_limit: observerSnapshotLimit,
         }),
       );
-      const encoded = encodeCompactObserverSnapshot(snapshot, deadline);
+      const encoded = await encodeStreamingObserverSnapshot(snapshot, deadline);
       const output = await assertOwnedUnlinkedPath(
         root,
         path.join(root, "work/upstream-observer-snapshot/checkpoint.json"),
@@ -1126,6 +1271,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
           decoded_byte_limit: observerCheckpointByteLimit,
           artifact_bytes: encoded.bytes.length,
           artifact_byte_limit: observerSnapshotLimit,
+          logical_transfer_bytes: encoded.logical_transfer_bytes,
         }),
       );
       requireValue(process.env.GITHUB_OUTPUT, "artifact output channel unavailable");
