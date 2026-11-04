@@ -6,6 +6,7 @@ import {
   rateLimitFromResponse,
 } from "./github-operation.mts";
 import { isRecord } from "./runtime-values.mts";
+import type { GitHubRateLimit } from "./github-operation.mts";
 
 export type GitHubCredential =
   | { kind: "anonymous" }
@@ -19,6 +20,8 @@ export interface GitHubRequestPolicy {
   attempts: number;
   deadline?: number;
   secondaryFailures?: number;
+  /** An aborted admission may still own cleanup; command owners join this before terminal evidence. */
+  admissionSettled?: Promise<void>;
   reserve?: GitHubClientOptions["reserve"];
 }
 export interface GitHubAttemptObservation {
@@ -29,6 +32,7 @@ export interface GitHubAttemptObservation {
   status: number | null;
   headers: Readonly<Record<string, string>>;
   logicalRequest: GitHubRequestPolicy;
+  rate?: GitHubRateLimit;
 }
 export interface GitHubDeferralState {
   primary: Map<string, number>;
@@ -40,6 +44,7 @@ export interface GitHubClientOptions {
   deadline: number;
   signal?: AbortSignal;
   maxBytes?: number;
+  headers?: Readonly<Record<string, string>>;
   baseUrl?: string;
   fetch?: typeof globalThis.fetch;
   now?: () => number;
@@ -51,11 +56,18 @@ export interface GitHubClientOptions {
   allowRequest?: (method: string, url: URL) => boolean;
   /** Existing domain accounting reserves before dispatch and settles every
    * outcome, including local refusal and cancellation after send. */
-  reserve?: () => {
-    consumeBytes: (bytes: number) => void;
-    settle: (observation: GitHubAttemptObservation) => void;
-  };
+  reserve?: (request: {
+    method: string;
+    url: URL;
+    replay: GitHubRequestPolicy["replay"];
+    signal: AbortSignal;
+  }) => GitHubReservation | Promise<GitHubReservation>;
   observe?: (observation: GitHubAttemptObservation) => void;
+}
+
+export interface GitHubReservation {
+  consumeBytes: (bytes: number) => void;
+  settle: (observation: GitHubAttemptObservation) => void;
 }
 
 const transientStatuses = new Set([408, 500, 502, 503, 504]);
@@ -160,6 +172,10 @@ export async function createGitHubClient(options: GitHubClientOptions) {
     userAgent: "Portcove/repository",
     log: { debug() {}, info() {}, warn() {}, error() {} },
   });
+  if (options.headers) {
+    client.request = client.request.defaults({ headers: { ...options.headers } });
+    client.graphql = client.graphql.defaults({ headers: { ...options.headers } });
+  }
   client.hook.wrap("request", async (request, parameters) => {
     let requestTimedOut = () => false;
     let deadline = options.deadline;
@@ -218,6 +234,7 @@ export async function createGitHubClient(options: GitHubClientOptions) {
         const started = now();
         let localFailure: unknown;
         let transportFailure: unknown;
+        let requestFailed = false;
         let retryAt = 0;
         let retryDetails: ConstructorParameters<typeof GitHubApiError>[2] = {};
         const observation: GitHubAttemptObservation = {
@@ -229,7 +246,21 @@ export async function createGitHubClient(options: GitHubClientOptions) {
           headers: {},
           logicalRequest: policy,
         };
-        const reservation = (policy.reserve ?? options.reserve)?.();
+        let reservation: GitHubReservation | undefined;
+        const settleAttempt = () => {
+          try {
+            try {
+              reservation?.settle(observation);
+            } catch (error) {
+              if (!requestFailed || !signal.aborted) throw error;
+              const safe = sanitizeOperationError(error, { secrets: token ? [token] : [] });
+              policy.admissionSettled = Promise.reject(new GitHubApiError(safe.code, safe.message));
+              void policy.admissionSettled.catch(() => {});
+            }
+          } finally {
+            options.observe?.(observation);
+          }
+        };
         const boundedFetch: typeof globalThis.fetch = async (input, init) => {
           try {
             const url = new URL(
@@ -316,12 +347,63 @@ export async function createGitHubClient(options: GitHubClientOptions) {
           }
         };
         try {
+          const reserve = policy.reserve ?? options.reserve;
+          if (reserve) {
+            const pending = Promise.resolve().then(() =>
+              reserve({
+                method: parameters.method,
+                url: new URL(parameters.url, base),
+                replay: policy.replay,
+                signal,
+              }),
+            );
+            reservation = await new Promise<GitHubReservation>((resolve, reject) => {
+              let abandoned = false;
+              const abort = () => {
+                abandoned = true;
+                policy.admissionSettled = pending
+                  .then((unused) => {
+                    unused.settle({ ...observation, elapsedMs: now() - started });
+                  })
+                  .catch((error) => {
+                    const safe = sanitizeOperationError(error, { secrets: token ? [token] : [] });
+                    throw new GitHubApiError(safe.code, safe.message);
+                  });
+                // Keep the rejection available to the owning operation's join,
+                // including when it has not observed this attempt yet.
+                void policy.admissionSettled.catch(() => {});
+                reject(signal.reason);
+              };
+              if (signal.aborted) {
+                abort();
+                return;
+              }
+              signal.addEventListener("abort", abort, { once: true });
+              void pending.then(
+                (value) => {
+                  if (abandoned) return;
+                  signal.removeEventListener("abort", abort);
+                  resolve(value);
+                },
+                (error) => {
+                  if (abandoned) return;
+                  signal.removeEventListener("abort", abort);
+                  reject(error);
+                },
+              );
+            });
+          }
+          signal.throwIfAborted();
           // Earlier hooks (notably token auth) bind this original options object.
           // Replacing it here would let that hook discard the bounded fetch.
           parameters.request = { ...parameters.request, fetch: boundedFetch, signal };
           const result = await request(parameters);
           requireJsonValues(result.data as unknown);
           const body: unknown = result.data;
+          observation.rate = rateLimitFromResponse({
+            headers: new Map(Object.entries(observation.headers)),
+            body,
+          });
           if (
             path === "/graphql" &&
             isRecord(body) &&
@@ -350,6 +432,7 @@ export async function createGitHubClient(options: GitHubClientOptions) {
           signal.throwIfAborted();
           return result;
         } catch (error) {
+          requestFailed = true;
           if (localFailure || signal.aborted) {
             const safe = sanitizeOperationError(localFailure ?? signal.reason, {
               secrets: token ? [token] : [],
@@ -365,6 +448,7 @@ export async function createGitHubClient(options: GitHubClientOptions) {
             headers: new Map(Object.entries(observation.headers)),
             body,
           });
+          observation.rate = rate;
           const errors: unknown[] =
             path === "/graphql" && isRecord(body) && Array.isArray(body.errors) ? body.errors : [];
           const rateErrors = errors.some(
@@ -454,8 +538,11 @@ export async function createGitHubClient(options: GitHubClientOptions) {
           }
         } finally {
           observation.elapsedMs = now() - started;
-          reservation?.settle(observation);
-          options.observe?.(observation);
+          observation.rate ??= rateLimitFromResponse({
+            headers: new Map(Object.entries(observation.headers)),
+            body: null,
+          });
+          settleAttempt();
         }
         if (retryAt) {
           await waitUntil(retryAt, retryDetails);
