@@ -24,6 +24,7 @@ import {
   reusableProviderObservation,
   compactObserverCache,
   validateObserverCache,
+  checksumSourcesFromProjections,
 } from "./upstream-observer.mts";
 
 const repositoryRoot = fileURLToPath(new URL("../", import.meta.url));
@@ -303,6 +304,13 @@ export async function advanceObservation(
             const known = new Set(retained.coverage!.asset_release_ids);
             covered = selected.every((id) => known.has(id));
           }
+          if (covered && options.selectChecksumSources)
+            covered = (await options.selectChecksumSources(retained)).every((source) =>
+              retained.facts.checksum_sidecars?.some(
+                (text) =>
+                  text.asset_id === source.asset_id && text.release_id === source.release_id,
+              ),
+            );
           if (covered)
             result = {
               observation: retained,
@@ -749,6 +757,12 @@ async function main(args: string[]) {
     const result = await advanceObservation(config, checkpoint, {
       ...(process.env.GITHUB_TOKEN ? { token: process.env.GITHUB_TOKEN } : {}),
       project,
+      selectChecksumSources: async (observation: Observation) => {
+        const projection = await project(observation);
+        if (!isRecord(projection) || !Array.isArray(projection.projections))
+          throw new ObservationFailure("core-binding", "Core checksum selection is unavailable");
+        return checksumSourcesFromProjections(projection.projections);
+      },
       ...(config.format === 2
         ? {
             selectAssetReleases: async (headers: Observation) => {

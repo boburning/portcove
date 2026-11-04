@@ -743,3 +743,67 @@ pub(crate) fn library_file_snapshot(library: &crate::Library) -> Vec<(PathBuf, S
     files.sort_by(|left, right| left.0.cmp(&right.0));
     files
 }
+
+/// Generated enrollment is checked independently by retained observations and
+/// expectations in each existing lifecycle harness. No title-specific Rust entry.
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct RouteEnrollment {
+    pub port_id: String,
+    pub prepared_player: PreparedRouteFacts,
+    pub managed_native: bool,
+}
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct PreparedRouteFacts {
+    pub executable: String,
+    pub working_directory: String,
+    pub arguments: Vec<String>,
+    pub data_locations: Vec<String>,
+}
+pub(crate) fn route_enrollment() -> Vec<RouteEnrollment> {
+    #[derive(serde::Deserialize)]
+    #[serde(deny_unknown_fields)]
+    struct Envelope {
+        format_version: u32,
+        cases: Vec<RouteEnrollment>,
+    }
+    let envelope: Envelope =
+        serde_json::from_str(include_str!("../catalog/route-enrollment.generated.json")).unwrap();
+    assert_eq!(envelope.format_version, 1);
+    assert!(!envelope.cases.is_empty() && envelope.cases.len() <= 256);
+    let mut ids = std::collections::BTreeSet::new();
+    for case in &envelope.cases {
+        assert!(
+            ids.insert(&case.port_id),
+            "duplicate route enrollment: {}",
+            case.port_id
+        );
+        assert_eq!(case.prepared_player.working_directory, "executable-parent");
+        assert!(!case.prepared_player.data_locations.is_empty());
+    }
+    let expected: serde_json::Value =
+        serde_json::from_str(include_str!("testdata/route-enrollment-expectations.json")).unwrap();
+    assert_eq!(expected["format_version"], 1);
+    let mut expected_ids = std::collections::BTreeMap::new();
+    for row in expected["cases"].as_array().unwrap() {
+        assert!(
+            expected_ids
+                .insert(
+                    row["port_id"].as_str().unwrap(),
+                    row["managed_native"].as_bool().unwrap()
+                )
+                .is_none()
+        );
+    }
+    let actual = envelope
+        .cases
+        .iter()
+        .map(|case| (case.port_id.as_str(), case.managed_native))
+        .collect::<std::collections::BTreeMap<_, _>>();
+    assert_eq!(
+        actual, expected_ids,
+        "no missing, duplicate or unexpectedly skipped declared lifecycle coverage"
+    );
+    envelope.cases
+}
