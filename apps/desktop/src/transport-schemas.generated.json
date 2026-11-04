@@ -52173,6 +52173,13 @@
               }
             ]
           },
+          "checksum_sources": {
+            "description": "Exact provider assets required for automatic integrity continuation.",
+            "items": {
+              "$ref": "#/$defs/ObservedChecksumSource"
+            },
+            "type": "array"
+          },
           "hold_reasons": {
             "items": {
               "type": "string"
@@ -52229,6 +52236,25 @@
           "provider_authenticated",
           "artifact_bytes_verified",
           "catalog_admission_assessed"
+        ],
+        "type": "object"
+      },
+      "ObservedChecksumSource": {
+        "properties": {
+          "asset_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "release_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "release_id",
+          "asset_id"
         ],
         "type": "object"
       },
