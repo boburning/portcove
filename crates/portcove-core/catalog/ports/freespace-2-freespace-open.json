@@ -30,10 +30,6 @@
           "instruction": "Prepare a complete official Windows FreeSpace Open player copy compatible with your CPU and data, keeping its DLLs. The reviewed release_26_2_0-RC3 is a release candidate; choose that channel deliberately. The inspected x64 SSE2 package’s normal player is fs2_open_26_2_0_RC3_x64_SSE2.exe; select the actual compatible fs2_open player executable from your prepared copy, not FRED, a dedicated server, installer or mod manager. Keep the retail root as working directory and the established literal -mod and other supported arguments. Launcher-only setup is not reproduced by selecting an engine executable."
         },
         {
-          "title": "Retain all creating data and preference roots",
-          "instruction": "Keep the complete game root, data, mods, launcher settings and all actual player/pilot/campaign files. Current FreeSpace Open normally uses the current account’s AppData/HardLightProductions/FreeSpaceOpen preferences on Windows. FSO_PREFERENCES_PATH can redirect it; -portable_mode uses local paths, and legacy settings or failed profile lookup can change the effective location. Retain the effective preferences root, cmdline_fso.cfg, logs, captures, custom and unknown files. Preserve any launcher-provided environment; attaching a standalone player does not reconstruct it."
-        },
-        {
           "title": "Check the prepared copy before registration",
           "instruction": "Finish setup with the project’s tools, then start and quit the copy you intend to add. Keep its game executable, working folder and supported launch arguments. Review those details in Portcove and agree to launch them, then choose Play separately. Adding a copy does not confirm its original game files, gameplay or save compatibility."
         },
@@ -44,7 +40,14 @@
       ],
       "warnings": [
         "Use only a copy and content you are already permitted to use. Engine licensing does not grant rights to original game assets, music, mods or bundled components.",
-        "Before updating the game, keep a copy of its working files and every location containing saved data. Choosing a different executable does not give it a separate profile."
+        "Before updating the game, keep a copy of its working files and every location containing saved data. Choosing a different executable does not give it a separate profile.",
+        "Retain the effective preferences root, cmdline_fso.cfg, logs, captures, custom and unknown files. Preserve any launcher-provided environment; attaching a standalone player does not reconstruct it."
+      ],
+      "references": [
+        {
+          "title": "Retain all creating data and preference roots",
+          "instruction": "Keep the complete game root, data, mods, launcher settings and all actual player/pilot/campaign files. Current FreeSpace Open normally uses the current account’s AppData/HardLightProductions/FreeSpaceOpen preferences on Windows. FSO_PREFERENCES_PATH can redirect it; -portable_mode uses local paths, and legacy settings or failed profile lookup can change the effective location. Retain the effective preferences root, cmdline_fso.cfg, logs, captures, custom and unknown files. Preserve any launcher-provided environment; attaching a standalone player does not reconstruct it."
+        }
       ]
     }
   },

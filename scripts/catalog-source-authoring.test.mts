@@ -109,6 +109,28 @@ void test("shared upstream family facts stay consistent while game and permissio
   const families = source.records.filter((entry) =>
     [razeUrl, namcoUrl].includes(entry.listing.project_url),
   );
+  const profileTitle = "Keep the shared profile this game uses";
+  const ownershipTitle = "Keep upstream update ownership and platform handoffs";
+  const sharedGuideParts = (listing: AuthoredPort["listing"]) => {
+    const guide = fixtureRecord(listing.manual_setup);
+    const steps = fixtureRecords(guide.steps);
+    const references = fixtureRecords(guide.references ?? []);
+    const profile = references.filter((step) => step.title === profileTitle);
+    const ownership = steps.filter((step) => step.title === ownershipTitle);
+    assert.equal(profile.length, 1, `${listing.id}: shared profile reference`);
+    assert.equal(ownership.length, 1, `${listing.id}: shared ownership action`);
+    assert.equal(
+      steps.some((step) => step.title === profileTitle),
+      false,
+      `${listing.id}: shared profile belongs in references`,
+    );
+    assert.equal(
+      references.some((step) => step.title === ownershipTitle),
+      false,
+      `${listing.id}: shared ownership remains actionable`,
+    );
+    return { profile: requiredFixture(profile[0]), ownership: requiredFixture(ownership[0]) };
+  };
   const check = (records: readonly AuthoredPort[]) => {
     for (const [url, count] of [
       [razeUrl, 7],
@@ -123,12 +145,9 @@ void test("shared upstream family facts stay consistent while game and permissio
         if (url === razeUrl) {
           for (const field of ["download_asset_hints", "recommended_download_channel"] as const)
             assert.deepEqual(listing[field], first[field], `${listing.id}: shared ${field}`);
-          const steps = fixtureRecords(fixtureRecord(listing.manual_setup).steps);
-          const expected = fixtureRecords(fixtureRecord(first.manual_setup).steps);
-          assert.equal(steps.length, 4);
           assert.deepEqual(
-            steps.slice(2),
-            expected.slice(2),
+            sharedGuideParts(listing),
+            sharedGuideParts(first),
             `${listing.id}: shared profile and update ownership`,
           );
         }
@@ -144,6 +163,9 @@ void test("shared upstream family facts stay consistent while game and permissio
     "download_asset_hints",
     "recommended_download_channel",
     "profile",
+    "ownership",
+    "profile-role",
+    "ownership-role",
   ] as const) {
     const changed = structuredClone(families);
     const listing = requiredFixture(
@@ -154,10 +176,24 @@ void test("shared upstream family facts stay consistent while game and permissio
     else if (field === "download_asset_hints") listing.download_asset_hints = {};
     else if (field === "recommended_download_channel")
       listing.recommended_download_channel = "beta";
-    else if (field === "profile")
-      requiredFixture(fixtureRecords(fixtureRecord(listing.manual_setup).steps)[2]).instruction =
-        "Wrong profile.";
-    else listing[field] = "https://example.invalid/unrelated";
+    else if (field === "profile" || field === "ownership")
+      sharedGuideParts(listing)[field].instruction = `Wrong ${field}.`;
+    else if (field === "profile-role" || field === "ownership-role") {
+      const guide = fixtureRecord(listing.manual_setup);
+      const from = fixtureRecords(field === "profile-role" ? guide.references : guide.steps);
+      const to = fixtureRecords(field === "profile-role" ? guide.steps : guide.references);
+      const title = field === "profile-role" ? profileTitle : ownershipTitle;
+      const index = from.findIndex((step) => step.title === title);
+      assert.notEqual(index, -1);
+      to.push(requiredFixture(from.splice(index, 1)[0]));
+      if (field === "profile-role") {
+        guide.references = from;
+        guide.steps = to;
+      } else {
+        guide.steps = from;
+        guide.references = to;
+      }
+    } else listing[field] = "https://example.invalid/unrelated";
     assert.throws(() => check(changed), /shared/, field);
   }
   const independent = structuredClone(families);
@@ -165,8 +201,14 @@ void test("shared upstream family facts stay consistent while game and permissio
     listing.name += listing.id;
     listing.issue_number = (listing.issue_number ?? 1) + 10000;
     listing.download_block_reason = `An independently reviewed condition for ${listing.id}.`;
-    const steps = fixtureRecords(fixtureRecord(listing.manual_setup).steps);
+    const guide = fixtureRecord(listing.manual_setup);
+    const steps = fixtureRecords(guide.steps);
     requiredFixture(steps[0]).instruction = `Original-file requirements for ${listing.id}.`;
+    steps.splice(1, 0, {
+      title: `Variant setup for ${listing.id}`,
+      instruction: `An independent original-data choice for ${listing.id}.`,
+    });
+    guide.steps = steps;
   }
   check(independent);
 });

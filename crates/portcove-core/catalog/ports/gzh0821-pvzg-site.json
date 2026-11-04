@@ -17,12 +17,22 @@
     "download_block_reason": "Portcove downloads remain paused while the desktop package's separately owned EA/PopCap and other game-resource permissions are unresolved. The website license and upstream personal-use terms do not establish a grant for those resources. Keep a permitted copy; reconsider when the needed grants or a resource-free package are established.",
     "manual_setup": {
       "help_url": "https://pvzge.com/en/guide/FAQ.html",
-      "warnings": [],
+      "warnings": [
+        "Keep the old player and export recoverable; a different platform, package or edition may not inherit progress automatically. Use the matching upstream import route and verify your progress in the new player before removing the old package.",
+        "Close the game, then copy the whole directory, including mod configuration, mod-data, patches, __gpn_edits and save-backups, plus any custom locations. Native exports and cloud saves do not automatically include mod-owned progress. Keep the original working package too; never assume Standard and Lite share or isolate the same profile.",
+        "Recovery snapshots capture the current failure state and are not guaranteed healthy saves; save rollback does not restore mod-owned files. Failed backups block upstream reset or restore. Check the player and backup date, restore needed mods, and never manually replace saves while the game is running."
+      ],
       "steps": [
         {
           "title": "Keep your chosen permitted edition",
           "instruction": "Keep the complete Windows Standard or Lite package and its own player together; use the Standard package's own player or pvzge-lite.exe for Lite. Register that player with its folder as the working directory, save launch details, then choose Play separately. Standard and Lite are meaningful choices and can use different data folders. For an upstream macOS edition, follow its separate platform instructions and keep its complete app; do not use the Windows executable."
         },
+        {
+          "title": "Use upstream recovery with a separate backup",
+          "instruction": "If GP-Next opens recovery, keep the separate copy and use its suggested action. Recovery snapshots capture the current failure state and are not guaranteed healthy saves; save rollback does not restore mod-owned files. Failed backups block upstream reset or restore. Check the player and backup date, restore needed mods, and never manually replace saves while the game is running. You or upstream own updates and data backups; Portcove registration promises no managed Update, Backup or Rollback, and its removal preserves every external file."
+        }
+      ],
+      "references": [
         {
           "title": "Export saves before changing a version or package",
           "instruction": "Select your player name in the game main menu to export a save. Keep the old player and export recoverable; a different platform, package or edition may not inherit progress automatically. Use the matching upstream import route and verify your progress in the new player before removing the old package."
@@ -30,10 +40,6 @@
         {
           "title": "Back up this edition's actual data folder",
           "instruction": "Choose Mods then Open Folder to find the data directory actually used by this edition. Close the game, then copy the whole directory, including mod configuration, mod-data, patches, __gpn_edits and save-backups, plus any custom locations. Native exports and cloud saves do not automatically include mod-owned progress. Keep the original working package too; never assume Standard and Lite share or isolate the same profile."
-        },
-        {
-          "title": "Use upstream recovery with a separate backup",
-          "instruction": "If GP-Next opens recovery, keep the separate copy and use its suggested action. Recovery snapshots capture the current failure state and are not guaranteed healthy saves; save rollback does not restore mod-owned files. Failed backups block upstream reset or restore. Check the player and backup date, restore needed mods, and never manually replace saves while the game is running. You or upstream own updates and data backups; Portcove registration promises no managed Update, Backup or Rollback, and its removal preserves every external file."
         }
       ]
     }

@@ -34,10 +34,6 @@
           "instruction": "Select the successful build-release/Galerians_Recompiled.exe product, use its complete build-release directory as working directory and leave arguments empty. Keep matching bios/, mods/, assets, game.toml and runtime companions and the selected own disc paths. The completed player runs its normal launcher and game in the selected process. Do not register the root setup host, scripts, toolchain or unfinished output: a Windows setup host can forward to another process and exit. Saving launch details and requesting Play are separate actions requiring your consent."
         },
         {
-          "title": "Preserve all effective settings, cards and original roots",
-          "instruction": "Before startup, back up the complete kit and creating player directory, settings.toml, disc/BIOS sidecars, saves/ with card1.mcd/card2.mcd, game options/save states, mods/, logs/reports/cache/captures and every actual custom/external root. Existing explicit card paths, --memcard-dir or PSX_OVERLAY_CAPTURE_ROOT remain separate choices; do not merge them. Startup can remove an older settings.toml.bad and rename malformed settings.toml there, so preserve both outside the installation before launching. No cross-disc-variant, BIOS, build or mod save compatibility is promised."
-        },
-        {
           "title": "Keep legacy state migration and disc selection explicit",
           "instruction": "Upstream’s first legacy-state migration can move loose state_*.pst files into openbios/ or scph1001/ subfolders and writes .pst_bios_isolated even when some files are skipped. Preserve the old and new save folders and marker together in separate pre-start backups; no automatic retry or cross-BIOS compatibility is promised. Use the native player’s own Disc Selection/Change disc controls for later owned CUEs and retain every source disc; Portcove does not import saves, switch discs or migrate profiles."
         },
@@ -51,7 +47,15 @@
         }
       ],
       "warnings": [
-        "The release is a setup kit; attach the completed private native product. Keep all three owned discs and separate backups before legacy-state migration or rebuilding. Saving/loading and mid-game disc changes remain upstream-unverified beyond the reported early test scope."
+        "The release is a setup kit; attach the completed private native product. Keep all three owned discs and separate backups before legacy-state migration or rebuilding. Saving/loading and mid-game disc changes remain upstream-unverified beyond the reported early test scope.",
+        "Before startup, back up the complete kit and creating player directory, settings.toml, disc/BIOS sidecars, saves/ with card1.mcd/card2.mcd, game options/save states, mods/, logs/reports/cache/captures and every actual custom/external root. Existing explicit card paths, --memcard-dir or PSX_OVERLAY_CAPTURE_ROOT remain separate choices; do not merge them. Startup can remove an older settings.toml.bad and rename malformed settings.toml there, so preserve both outside the installation before launching. No cross-disc-variant, BIOS, build or mod save compatibility is promised.",
+        "Upstream’s first legacy-state migration can move loose state_*.pst files into openbios/ or scph1001/ subfolders and writes .pst_bios_isolated even when some files are skipped. Preserve the old and new save folders and marker together in separate pre-start backups; no automatic retry or cross-BIOS compatibility is promised."
+      ],
+      "references": [
+        {
+          "title": "Preserve all effective settings, cards and original roots",
+          "instruction": "Before startup, back up the complete kit and creating player directory, settings.toml, disc/BIOS sidecars, saves/ with card1.mcd/card2.mcd, game options/save states, mods/, logs/reports/cache/captures and every actual custom/external root. Existing explicit card paths, --memcard-dir or PSX_OVERLAY_CAPTURE_ROOT remain separate choices; do not merge them. Startup can remove an older settings.toml.bad and rename malformed settings.toml there, so preserve both outside the installation before launching. No cross-disc-variant, BIOS, build or mod save compatibility is promised."
+        }
       ]
     }
   },

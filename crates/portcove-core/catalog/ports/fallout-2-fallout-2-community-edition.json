@@ -34,10 +34,6 @@
           "instruction": "Use the actual prepared game folder as working directory and preserve its supported literal arguments. Windows entry does not chdir for you. fallout2.cfg is located from the executable path while actual DAT/patch/music paths can be relative or absolute. Keep those real paths and selected mod setup; do not rewrite a host root or force a fresh profile. Review exact consent and choose Play separately."
         },
         {
-          "title": "Preserve every actual player-data root",
-          "instruction": "Keep the complete runtime/original data, fallout2.cfg, actual configured master-patches root (normally data) and its SAVEGAME/SLOT contents, music, mods, logs and unknowns, including configured external/legacy roots. Preserve the old creating copy before upstream replacement. Another runtime folder is not a save/instance isolation or cross-version state-compatibility guarantee."
-        },
-        {
           "title": "Retain the engine license and original rights separately",
           "instruction": "The selected engine uses Sustainable Use License 1.0, not GPL/MIT. Personal/noncommercial/internal-business scope, free noncommercial distribution conditions and notices remain applicable. This guide adds no general commercial, original/mod asset, repackaging or redistribution grant; attach only a copy you are already permitted to use."
         },
@@ -49,7 +45,14 @@
       "warnings": [
         "Use only a copy and content you are already permitted to use. These instructions do not establish permission for the original game or other components, or confirm the resulting game files.",
         "These instructions do not confirm gameplay, saving, mods, network play, physical controls or behavior on other platforms.",
-        "Before updating the game, keep a recoverable copy of its working files and every location containing saved data. Another game folder may use the same profile."
+        "Before updating the game, keep a recoverable copy of its working files and every location containing saved data. Another game folder may use the same profile.",
+        "Preserve the old creating copy before upstream replacement. Another runtime folder is not a save/instance isolation or cross-version state-compatibility guarantee."
+      ],
+      "references": [
+        {
+          "title": "Preserve every actual player-data root",
+          "instruction": "Keep the complete runtime/original data, fallout2.cfg, actual configured master-patches root (normally data) and its SAVEGAME/SLOT contents, music, mods, logs and unknowns, including configured external/legacy roots. Preserve the old creating copy before upstream replacement. Another runtime folder is not a save/instance isolation or cross-version state-compatibility guarantee."
+        }
       ]
     }
   },

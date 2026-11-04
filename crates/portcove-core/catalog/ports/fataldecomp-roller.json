@@ -23,16 +23,19 @@
         {
           "title": "Add the prepared native player",
           "instruction": "After upstream preparation, choose roller.exe with its containing folder as working folder and no arguments for the ordinary portable layout. Its main function runs the native game loop in that process. The supported --whiplash-root <folder> override selects an existing alternate root and changes the game data/working directory; retain the exact override if you use it. --midi-root <folder> is a separate MIDI location. Do not substitute a DOS executable, matching-decomp build, browser bundle or setup tool. Saving launch details and Play are separate actions."
-        },
+        }
+      ],
+      "warnings": [
+        "The recorded evidence includes the provider’s file hashes and a specific source revision. Portcove has not inspected the package contents or checked dependency loading, native import, gameplay, equivalence to the original game or saving. Results from other platforms and the browser freeware demo do not establish that this Windows version works.",
+        "Preserve that whole root, custom MIDI location and any logs/crash data before changing a daily build. Portcove does not own original assets, external saves, update compatibility, backups, rollback or deletion."
+      ],
+      "help_url": "https://github.com/FatalDecomp/ROLLER#readme",
+      "references": [
         {
           "title": "Preserve the whole active data root",
           "instruction": "Upstream/player owns runtime replacement. The native source enters FATDATA/fatdata under the executable or --whiplash-root root; original extracted data and mutable FATAL.INI, ROLLER.INI, records and save slots live there. REPLAYS/ and TRACKS/ are created under the root. Preserve that whole root, custom MIDI location and any logs/crash data before changing a daily build. Portcove does not own original assets, external saves, update compatibility, backups, rollback or deletion."
         }
-      ],
-      "warnings": [
-        "The recorded evidence includes the provider’s file hashes and a specific source revision. Portcove has not inspected the package contents or checked dependency loading, native import, gameplay, equivalence to the original game or saving. Results from other platforms and the browser freeware demo do not establish that this Windows version works."
-      ],
-      "help_url": "https://github.com/FatalDecomp/ROLLER#readme"
+      ]
     }
   },
   "upstream_lineage": {

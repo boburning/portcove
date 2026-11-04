@@ -34,10 +34,6 @@
           "instruction": "Select the actual game folder as working directory and preserve supported existing literal arguments. Windows entry does not change directory for you. fallout.cfg is located using the executable path; actual master/critter DAT, patch and music locations can be relative or custom absolute paths. Keep the exact established paths rather than rewriting a host root or forcing a new portable profile. Review consent and choose Play separately."
         },
         {
-          "title": "Keep all actual save and data roots",
-          "instruction": "Preserve the complete external runtime/original data, fallout.cfg, actual master_patches/data root including SAVEGAME and slot contents, music, mods, screenshots/logs and unknown files. Retain every configured external root and old creating copy; another executable directory alone does not prove save or instance isolation. No arbitrary Fallout mod or cross-version save compatibility is established."
-        },
-        {
           "title": "Keep the separate license and asset boundaries",
           "instruction": "The selected engine uses Sustainable Use License 1.0, not GPL/MIT. Its personal/noncommercial/internal-business scope, free noncommercial distribution conditions and notices remain applicable. This guide adds no general commercial, original-asset, mod, repackaging or redistribution grant; attach only a copy you are already permitted to use."
         },
@@ -49,7 +45,14 @@
       "warnings": [
         "Use only a copy and content you are already permitted to use. These instructions do not establish permission for the original game or other components, or confirm the resulting game files.",
         "These instructions do not confirm gameplay, saving, mods, network play, physical controls or behavior on other platforms.",
-        "Before updating the game, keep a recoverable copy of its working files and every location containing saved data. Another game folder may use the same profile."
+        "Before updating the game, keep a recoverable copy of its working files and every location containing saved data. Another game folder may use the same profile.",
+        "Retain every configured external root and old creating copy; another executable directory alone does not prove save or instance isolation. No arbitrary Fallout mod or cross-version save compatibility is established."
+      ],
+      "references": [
+        {
+          "title": "Keep all actual save and data roots",
+          "instruction": "Preserve the complete external runtime/original data, fallout.cfg, actual master_patches/data root including SAVEGAME and slot contents, music, mods, screenshots/logs and unknown files. Retain every configured external root and old creating copy; another executable directory alone does not prove save or instance isolation. No arbitrary Fallout mod or cross-version save compatibility is established."
+        }
       ]
     }
   },
