@@ -698,7 +698,7 @@ export async function acquireReleaseAdmission(
     const qualificationRecords = (suffix: string, key: string) =>
       GitHubApiClient.prototype.paginateRest.call(
         checkApi,
-        `repos/boburning/portcove/commits/${active.prepared_commit}/${suffix}${suffix === "check-runs" ? "?filter=all&per_page=100" : "?per_page=100"}`,
+        `repos/boburning/portcove/commits/${active.prepared_commit}/${suffix}${suffix === "check-runs" ? "?filter=latest&per_page=100" : "?per_page=100"}`,
         {
           select: (body) => record(body)[key],
           totalCount: (body) => {

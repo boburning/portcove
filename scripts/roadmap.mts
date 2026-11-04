@@ -1303,7 +1303,7 @@ brackets. Use <command> --help for its purpose, options and an example. --json
 preserves the command's machine-readable output. Live commands require the locked
 Node dependencies and a credential with repository and Project access. Eligible
 local tooling may use an existing gh login; explicit credentials never fall back.
-Unavailable or incomplete reads do not establish an empty or accepted Project state.
+Unavailable or incomplete reads fail and do not establish an empty or accepted Project state.
 
 Use capture-port for direct maintainer intake. Use normalize-port for a public
 New Port form submission; it preserves form content, reconciles canonical
