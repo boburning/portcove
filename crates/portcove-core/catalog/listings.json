@@ -2563,13 +2563,13 @@
         "windows-x86-64"
       ],
       "release_maintenance": {
-        "reason": "The accepted managed build is retained for build-specific quickstates and its accepted original, launch and persistence contracts. Newer external Preview instructions describe a separately owned route.",
-        "reconsider_when": "Reassess a newly observed Windows package only after exact original/arguments, package companions, SRAM/quickstate preservation, developer options and full process lifetime have a bounded compatible transition.",
+        "reason": "The exact fresh v0.4.2 recipe is isolated from legacy and unknown-creator data. Accepted v0.3.12 installations retain their creating contract and runtime; unchanged original bytes or paths do not qualify state compatibility.",
+        "reconsider_when": "Reassess a newer exact Windows package only with source, companions, process lifetime, all data writers and safe fresh/retained boundaries. Populated transitions and legacy state readability remain held; protected-client delivery stays with #246/#534.",
         "pinned_releases": [
           {
             "platform": "windows-x86-64",
-            "version": "v0.3.12",
-            "published_at": "2026-10-17T22:09:41Z"
+            "version": "v0.4.2",
+            "published_at": "2026-11-04T01:36:27Z"
           }
         ]
       }

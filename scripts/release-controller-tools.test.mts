@@ -359,6 +359,17 @@ void test("actual pinned pack bundles fixed CLIs including semver; isolated exec
   const root = await mkdtemp(path.join(os.tmpdir(), "controller-tools-pack-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   await bundleControllerEntries(sourceRoot, root);
+  const bundles = [
+    ...controllerToolEntries.map((name) => `scripts/${name}.bundle.mjs`),
+    ...controllerToolChildren,
+  ];
+  const bundleBytes = await Promise.all(
+    bundles.map(async (name) => (await readControllerToolFile(path.join(root, name))).length),
+  );
+  assert.ok(
+    bundleBytes.reduce((total, bytes) => total + bytes, 0) <= 24 * 1024 ** 2,
+    "fixed JavaScript closures must leave headroom for native tools within the expanded inventory bound",
+  );
   for (const name of controllerToolAssets) {
     await mkdir(path.dirname(path.join(root, name)), { recursive: true });
     await copyFile(path.join(sourceRoot, name), path.join(root, name));
@@ -1086,6 +1097,33 @@ void test("opaque fixture tool archive requires exact complete inventory and ref
     assert.throws(
       () => inspectControllerToolArchive(wrong.archive, wrong.manifest),
       /compiler source/u,
+    );
+  }
+});
+void test("tool manifest retains the aggregate and per-file byte limits on both platforms", () => {
+  for (const platform of ["linux-x86_64", "windows-x86_64"] as const) {
+    const manifest = fixture({}, platform).manifest;
+    // Describe a boundary inventory without allocating large payload buffers.
+    const files = manifest.files.map((file) => ({ ...file, bytes: 1 }));
+    files[0]!.bytes = 128 * 1024 ** 2;
+    files[1]!.bytes = 128 * 1024 ** 2;
+    files[2]!.bytes = 64 * 1024 ** 2 - (files.length - 3);
+    assert.equal(
+      inspectControllerToolManifest({ ...manifest, files }, platform).files.reduce(
+        (total, file) => total + file.bytes,
+        0,
+      ),
+      320 * 1024 ** 2,
+    );
+    files[2]!.bytes++;
+    assert.throws(
+      () => inspectControllerToolManifest({ ...manifest, files }, platform),
+      /expanded bytes exceed bound/u,
+    );
+    files[0]!.bytes++;
+    assert.throws(
+      () => inspectControllerToolManifest({ ...manifest, files }, platform),
+      /inventory differs/u,
     );
   }
 });

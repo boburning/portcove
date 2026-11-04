@@ -79,7 +79,7 @@ unicode-normalization = "0.1.26"
 uuid = { version = "1.29.0", features = ["v4", "serde"] }
 url = "2.5.8"
 # Keep Cargo resolution on the reviewed ZIP release instead of a younger compatible version.
-zip = { version = "=9.2.2", default-features = false, features = ["deflate"] }
+zip = { version = "=9.3.0", default-features = false, features = ["deflate"] }
 windows-sys = { version = "0.61.2", features = [
   "Win32_Foundation",
   "Win32_Globalization",

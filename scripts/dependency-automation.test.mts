@@ -163,6 +163,7 @@ void test("the root owns the only pnpm workspace lock and repository tool depend
   assert.ok(Object.keys(desktopPackage.devDependencies).length > 0);
   assert.deepEqual(Object.keys(repositoryPackage.devDependencies).sort(), [
     "@octokit/core",
+    "@octokit/plugin-paginate-rest",
     "@resvg/resvg-js",
     "@sigstore/bundle",
     "@sigstore/sign",

@@ -28,6 +28,8 @@ function parameters(value: unknown, type: string) {
 }
 
 import test from "node:test";
+import type { RepositorySettingsOperations } from "./repository-settings-policy.mts";
+import { GitHubApiError } from "./github-operation.mts";
 
 import {
   projectRuleset,
@@ -35,7 +37,8 @@ import {
   repositorySettingsMigration,
   rulesetMigration,
   validateRepositorySettings,
-} from "./repository-settings.mts";
+  reconcileRepositorySettings,
+} from "./repository-settings-policy.mts";
 
 void test("repository-settings help does not read artifacts or contact GitHub", (t) => {
   const root = mkdtempSync(path.join(os.tmpdir(), "portcove-repository-help-"));
@@ -79,6 +82,21 @@ void test("repository-settings help does not read artifacts or contact GitHub", 
   assert.equal(invalid.status, 1);
   assert.match(invalid.stderr, /Usage:/u);
   assert.doesNotMatch(invalid.stderr, /ENOENT/u);
+  mkdirSync(path.join(root, ".github"));
+  writeFileSync(path.join(root, ".github/repository-ruleset.json"), JSON.stringify(ruleset));
+  writeFileSync(path.join(root, ".github/repository-security.json"), JSON.stringify(security));
+  const local = spawnSync(
+    process.execPath,
+    [path.join(root, "scripts/repository-settings.mts"), "--validate"],
+    {
+      encoding: "utf8",
+      timeout: 5000,
+      env: { ...process.env, PATH: "" },
+      cwd: root,
+    },
+  );
+  assert.equal(local.status, 0, local.stderr);
+  assert.match(local.stdout, /artifacts are valid/u);
 });
 
 void test("checked-in repository settings enforce the exact main contract", () => {
@@ -312,3 +330,179 @@ void test("ruleset validation rejects malformed exclusion collections", () => {
     );
   }
 });
+
+function settingsOperations(
+  options: {
+    outcome?: "applied-error" | "unapplied-error" | "lost-readback";
+    oldRuleset?: boolean;
+  } = {},
+) {
+  const calls: string[] = [];
+  let writes = 0;
+  let current = {
+    allow_auto_merge: false,
+    merge_commit_title: "MERGE_MESSAGE",
+    merge_commit_message: "PR_TITLE",
+  };
+  const desired = {
+    allow_auto_merge: security.allow_auto_merge,
+    merge_commit_title: security.merge_commit_title,
+    merge_commit_message: security.merge_commit_message,
+  };
+  const actualRuleset = structuredClone(ruleset);
+  if (options.oldRuleset)
+    parameters(actualRuleset, "required_status_checks").strict_required_status_checks_policy = true;
+  const api: RepositorySettingsOperations = {
+    async readRulesets() {
+      calls.push("rulesets");
+      if (writes && options.outcome === "lost-readback") throw new Error("readback unavailable");
+      return [{ id: 99, name: ruleset.name, target: ruleset.target }];
+    },
+    async readPrivateReporting() {
+      calls.push("security");
+      return { enabled: true };
+    },
+    async readRepository() {
+      calls.push("repository");
+      return { ...current };
+    },
+    async readRuleset(id) {
+      calls.push(`ruleset:${id}`);
+      return { ...structuredClone(actualRuleset), id };
+    },
+    async updateRuleset(id, payload) {
+      calls.push(`write-ruleset:${id}`);
+      writes++;
+      Object.assign(actualRuleset, payload);
+    },
+    async updateRepository(payload) {
+      calls.push("write-repository");
+      writes++;
+      if (options.outcome !== "unapplied-error") current = { ...current, ...record(payload) };
+      if (options.outcome)
+        throw new GitHubApiError("request_failed", "Ambiguous fixture write", {
+          status: 500,
+          requestId: "settings-write",
+        });
+    },
+    async enablePrivateReporting() {
+      calls.push("enable-private");
+      writes++;
+    },
+  };
+  return {
+    api,
+    calls,
+    desired,
+    get writes() {
+      return writes;
+    },
+  };
+}
+
+void test("settings plan and check use awaited operations and preserve JSON/guard contracts", async () => {
+  const f = settingsOperations();
+  const plan = await reconcileRepositorySettings(ruleset, security, "--plan", f.api);
+  assert.equal(plan.kind, "plan");
+  assert.deepEqual(f.calls, ["rulesets", "security", "repository", "ruleset:99"]);
+  assert.equal(f.writes, 0);
+  if (plan.kind === "plan")
+    assert.deepEqual(plan.output, {
+      ruleset: [],
+      repository: [
+        { path: "allow_auto_merge", from: false, to: security.allow_auto_merge },
+        { path: "merge_commit_title", from: "MERGE_MESSAGE", to: security.merge_commit_title },
+        { path: "merge_commit_message", from: "PR_TITLE", to: security.merge_commit_message },
+      ],
+      privateVulnerabilityReporting: [],
+    });
+  await assert.rejects(
+    reconcileRepositorySettings(ruleset, security, "--check", f.api),
+    /repository settings differ/u,
+  );
+  assert.equal(f.writes, 0);
+});
+
+void test("settings apply awaits writes and readback, reconciles once, and refuses unknown outcomes", async () => {
+  for (const outcome of [undefined, "applied-error", "unapplied-error", "lost-readback"] as const) {
+    const f = settingsOperations(outcome ? { outcome } : {});
+    const work = reconcileRepositorySettings(ruleset, security, "--apply", f.api);
+    if (outcome === "unapplied-error" || outcome === "lost-readback")
+      await assert.rejects(
+        work,
+        (error: unknown) =>
+          error instanceof GitHubApiError &&
+          error.code === "mutation_unknown" &&
+          error.status === 500 &&
+          error.requestId === "settings-write",
+      );
+    else assert.deepEqual(await work, { kind: "checked", repository: security.repository });
+    assert.equal(f.writes, 1);
+    assert.deepEqual(f.calls.slice(0, 5), [
+      "rulesets",
+      "security",
+      "repository",
+      "ruleset:99",
+      "write-repository",
+    ]);
+    assert.equal(f.calls[5], "rulesets");
+  }
+});
+
+void test("settings apply preserves protected identity and mutation sequencing", async () => {
+  const f = settingsOperations({ oldRuleset: true });
+  await reconcileRepositorySettings(ruleset, security, "--apply", f.api);
+  assert.deepEqual(f.calls, [
+    "rulesets",
+    "security",
+    "repository",
+    "ruleset:99",
+    "write-ruleset:99",
+    "write-repository",
+    "rulesets",
+    "security",
+    "repository",
+    "ruleset:99",
+  ]);
+  const invalid = settingsOperations();
+  invalid.api.readRulesets = async () => [
+    { id: 99, name: ruleset.name, target: ruleset.target },
+    { id: 100, name: ruleset.name, target: ruleset.target },
+  ];
+  await assert.rejects(
+    reconcileRepositorySettings(ruleset, security, "--apply", invalid.api),
+    /ambiguous/u,
+  );
+  assert.equal(invalid.writes, 0);
+});
+
+void test(
+  "settings readback waits for the actual asynchronous write to settle",
+  { timeout: 5000 },
+  async () => {
+    const f = settingsOperations();
+    const gate = Promise.withResolvers<void>(),
+      began = Promise.withResolvers<void>();
+    const update = f.api.updateRepository;
+    f.api.updateRepository = async (payload) => {
+      began.resolve();
+      await gate.promise;
+      return update(payload);
+    };
+    const work = reconcileRepositorySettings(ruleset, security, "--apply", f.api);
+    await began.promise;
+    let assertion: unknown;
+    try {
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      assert.deepEqual(f.calls, ["rulesets", "security", "repository", "ruleset:99"]);
+    } catch (error) {
+      assertion = error;
+    } finally {
+      gate.resolve();
+    }
+    const result = await work;
+    if (assertion instanceof Error) throw assertion;
+    assert.deepEqual(result, { kind: "checked", repository: security.repository });
+    assert.equal(f.writes, 1);
+  },
+);

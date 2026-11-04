@@ -169,9 +169,9 @@ function pagedItems<T>(
   if (items.length !== expected) throw new Error(incomplete);
   return items;
 }
-import { createGitHubClient } from "./github-client.mts";
+import { createGitHubClient, iterateGitHubPages } from "./github-client.mts";
 import { localDeveloperCredential } from "./github-cli.mts";
-import { nextLink, GitHubApiError } from "./github-operation.mts";
+import { GitHubApiError } from "./github-operation.mts";
 import { readGitHubArtifactArchive } from "./github-binary.mts";
 import { createHash } from "node:crypto";
 import { parseArgs } from "node:util";
@@ -822,7 +822,6 @@ async function main() {
       });
     const requestDeadline = Math.min(deadline, performance.now() + 30_000);
     const pages: unknown[] = [];
-    const seen = new Set<string>();
     let received = 0;
     const reserve = () => ({
       consumeBytes: (bytes: number) => {
@@ -835,29 +834,27 @@ async function main() {
       },
       settle() {},
     });
-    let current: string | null = route;
-    while (current) {
-      if (seen.has(current)) throw new Error("CI metadata pagination did not advance");
-      seen.add(current);
-      const response: Awaited<ReturnType<typeof client.request>> = await client.request({
-        method: "GET",
-        url: new URL(current, "https://api.github.com/").href,
-        request: {
-          portcove: { replay: "safe-read", attempts: 0, reserve, deadline: requestDeadline },
-        },
-      });
+    const url = new URL(route, "https://api.github.com/").href;
+    const headers = { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" };
+    if (!paginate)
+      return (
+        await client.request({
+          method: "GET",
+          url,
+          headers,
+          request: {
+            portcove: { replay: "safe-read", attempts: 0, reserve, deadline: requestDeadline },
+          },
+        })
+      ).data as unknown;
+    for await (const response of iterateGitHubPages(client, {
+      url,
+      headers,
+      reserve,
+      deadline: requestDeadline,
+    }))
       pages.push(response.data as unknown);
-      current = paginate
-        ? nextLink(
-            new Map(
-              Object.entries(response.headers).filter(
-                (entry): entry is [string, string] => typeof entry[1] === "string",
-              ),
-            ),
-          )
-        : null;
-    }
-    return paginate ? pages : pages[0];
+    return pages;
   };
   const report = await collectHistory(request, {
     repository,

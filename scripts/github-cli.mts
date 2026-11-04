@@ -78,6 +78,7 @@ export function localDeveloperCredential(options: {
         {
           env: { ...environment, GH_HOST: "github.com", GH_PROMPT_DISABLED: "1" },
           timeout: Math.min(15_000, remaining),
+          killSignal: "SIGKILL",
           maxBuffer: 16384,
           encoding: "utf8",
           windowsHide: true,

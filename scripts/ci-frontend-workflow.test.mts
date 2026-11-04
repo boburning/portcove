@@ -356,7 +356,6 @@ void test("maintained first-party sources default to checked TypeScript", () => 
   assert.equal(inventory.status, 0, inventory.stderr);
   assert.deepEqual(inventory.stdout.split("\0").filter(Boolean).sort(), [
     "apps/desktop/public/theme-bootstrap.js",
-    "apps/desktop/stylelint.config.mjs",
   ]);
 });
 

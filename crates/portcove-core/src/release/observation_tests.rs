@@ -432,6 +432,93 @@ fn observations_reject_changed_bytes_scope_identity_and_invalid_clocks() -> Resu
 }
 
 #[test]
+fn native_observer_and_runtime_share_platform_stream_selection() -> Result<()> {
+    let mut port = crate::Catalog::embedded()?.port("shipwright")?.clone();
+    port.adapter = AdapterKind::NativePortable;
+    port.platforms = vec![Platform::WindowsX86_64];
+    port.release
+        .asset_hints
+        .insert(Platform::WindowsX86_64, vec!["windows".into()]);
+    let mut linux = release(2, "2.0.0");
+    linux["assets"][0]["name"] = json!("game-linux.zip");
+    linux["assets"][0]["browser_download_url"] = json!(
+        "https://github.com/HarbourMasters/Shipwright/releases/download/2.0.0/game-linux.zip"
+    );
+    let document = envelope(vec![linux, release(1, "1.0.0")])?;
+    let runtime: Vec<super::super::GithubRelease> =
+        serde_json::from_value(document["facts"]["releases"].clone())?;
+    let selected = select_channel_candidate(
+        &runtime,
+        ReleaseChannel::Stable,
+        None,
+        |r| {
+            !r.draft
+                && super::super::native_release_applies_to_platform(
+                    &port,
+                    Platform::WindowsX86_64,
+                    r,
+                )
+        },
+        is_beta_release,
+        |r| r.tag_name.as_str(),
+    )
+    .unwrap();
+    assert_eq!(selected.tag_name, "1.0.0");
+    let report = inspect(&port, &document)?;
+    assert_eq!(
+        report.projections[0].latest_observed.as_ref().unwrap().id,
+        2
+    );
+    assert_eq!(
+        report.projections[0].channel_candidate.as_ref().unwrap().id,
+        1
+    );
+    assert_eq!(
+        report.projections[0]
+            .latest_eligible
+            .as_ref()
+            .unwrap()
+            .release_id,
+        1
+    );
+
+    // Covered Linux-only bytes let selection advance to the preceding header,
+    // but that header's uncollected assets remain UNKNOWN, never eligible.
+    let mut scoped = document.clone();
+    scoped["format"] = json!(2);
+    scoped["coverage"] = json!({"kind":"channel-candidate-assets", "complete_release_headers":true, "asset_release_ids":[2]});
+    scoped["facts"]["releases"][1]["assets"] = json!([]);
+    scoped["facts_sha256"] = json!(json_digest(&scoped["facts"])?);
+    let report = inspect(&port, &scoped)?;
+    assert_eq!(
+        report.projections[0].channel_candidate.as_ref().unwrap().id,
+        1
+    );
+    assert_eq!(
+        report.projections[0].hold_reasons,
+        ["release-asset-observation-incomplete"]
+    );
+    assert!(report.projections[0].latest_eligible.is_none());
+
+    // An uncollected newest release must not be skipped in favor of known old
+    // assets. Empty coverage is different from a collected empty asset list.
+    scoped["coverage"]["asset_release_ids"] = json!([1]);
+    scoped["facts"]["releases"][0]["assets"] = json!([]);
+    scoped["facts"]["releases"][1] = release(1, "1.0.0");
+    scoped["facts_sha256"] = json!(json_digest(&scoped["facts"])?);
+    let report = inspect(&port, &scoped)?;
+    assert_eq!(
+        report.projections[0].channel_candidate.as_ref().unwrap().id,
+        2
+    );
+    assert_eq!(
+        report.projections[0].hold_reasons,
+        ["release-asset-observation-incomplete"]
+    );
+    Ok(())
+}
+
+#[test]
 fn scoped_observations_keep_core_channel_selection_and_require_asset_coverage() -> Result<()> {
     let mut port = crate::Catalog::embedded()?.port("shipwright")?.clone();
     port.platforms = vec![Platform::WindowsX86_64];
