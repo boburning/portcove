@@ -296,7 +296,10 @@ function main() {
         },
       });
     } finally {
-      if (annotateLint) console.log("::remove-matcher owner=portcove-viteplus-rule::");
+      if (annotateLint) {
+        console.log("::remove-matcher owner=portcove-viteplus-rule::");
+        console.log("::remove-matcher owner=portcove-viteplus-graphic-rule::");
+      }
     }
   } else throw new Error("Expected bootstrap, frontend, lint or contracts");
 }

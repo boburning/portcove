@@ -12,6 +12,22 @@
           "message": 5
         }
       ]
+    },
+    {
+      "owner": "portcove-viteplus-graphic-rule",
+      "severity": "error",
+      "pattern": [
+        {
+          "regexp": "^\\s*× ([a-z][a-z0-9-]{0,60}\\((?:TS[0-9]{4,5}|[a-z][a-z0-9-]{0,70})\\)):",
+          "message": 1
+        },
+        {
+          "regexp": "^\\s*╭─\\[(?:/home/runner/work/portcove/portcove/)?((?:(?:scripts|apps/desktop/(?:scripts|src))/(?:[A-Za-z0-9_-][A-Za-z0-9_.-]{0,119}/){0,10}[A-Za-z0-9_-][A-Za-z0-9_.-]{0,119}\\.[cm]?[jt]sx?|vite\\.config\\.ts)):(\\d{1,6}):(\\d{1,4})\\]",
+          "file": 1,
+          "line": 2,
+          "column": 3
+        }
+      ]
     }
   ]
 }

@@ -51,6 +51,35 @@ void test("Vite+ matcher exposes source locations and rule identities without pr
     assert.equal(expression.test(privateLine), false);
 });
 
+// Official Vite+1.4 check_lint_fail_typecheck snapshot uses this two-line format;
+// standalone `vp lint` uses the separate Unix format above.
+void test("integrated Vite+ graphical diagnostics expose only a bounded rule and source location", () => {
+  const matcher = vitePlusMatcher.problemMatcher[1];
+  assert.ok(matcher);
+  const first = matcher.pattern[0],
+    second = matcher.pattern[1];
+  assert.ok(first && second);
+  assert.equal(first.message, 1);
+  const rule = new RegExp(first.regexp, "u"),
+    source = new RegExp(second.regexp, "u");
+  assert.deepEqual(rule.exec("× typescript(TS2322): PRIVATE /secret/token")?.slice(1), [
+    "typescript(TS2322)",
+  ]);
+  for (const prefix of ["", "/home/runner/work/portcove/portcove/"])
+    assert.deepEqual(source.exec(`   ╭─[${prefix}scripts/check.mts:123:9]`)?.slice(1), [
+      "scripts/check.mts",
+      "123",
+      "9",
+    ]);
+  for (const line of [
+    "   ╭─[/private/source/scripts/check.mts:123:9]",
+    "   ╭─[scripts/../../private.mts:123:9]",
+    "   ╭─[scripts/check.mts:1234567:9]",
+  ])
+    assert.equal(source.test(line), false);
+  assert.equal(rule.test("× typescript(PRIVATE_DATA): secret"), false);
+});
+
 void test("workflow Python provisioning follows its actual relocated consumer and declared renames", () => {
   const consumer = "scripts/nextest-equivalence.test.mts";
   for (const input of [
