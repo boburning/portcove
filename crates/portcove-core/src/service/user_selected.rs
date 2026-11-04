@@ -2838,6 +2838,16 @@ mod tests {
     }
 
     #[test]
+    fn gsrecomp_collection_player_route_1619() {
+        assert_bound_listing_player_route("gsrecomp", "GoldenSunLauncher.exe", &[]);
+    }
+
+    #[test]
+    fn medievil_recomp_upstream_player_route_1844() {
+        assert_bound_listing_player_route("blacklabelhq-medievilrecomp", "medievil.exe", &[]);
+    }
+
+    #[test]
     fn jazz_jackrabbit_2_jazz2_resurrection_prepared_player_route_2682() {
         assert_listing_only_player_route("jazz-jackrabbit-2-jazz2-resurrection", Some(false));
     }
