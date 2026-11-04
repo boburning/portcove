@@ -1365,14 +1365,16 @@ export async function observeUpstream(
     );
     const headers = (await collection(`${repositoryPath}/releases`, releaseFact)).map(releaseFact);
     let selectedAssets: Set<number> | null = null;
-    if (config.format === 2) {
-      requireFact(
-        options.selectAssetReleases,
-        "invalid-config",
-        "scoped observation requires the maintained Core channel selector",
-      );
-      const facts = { repository, releases: headers.map((header) => ({ ...header, assets: [] })) };
-      const selected = await options.selectAssetReleases({
+    const releases: ProviderObservation["facts"]["releases"] = headers.map((header) => ({
+      ...header,
+      assets: [],
+    }));
+    const collected = new Set<number>();
+    const assetIds = new Set();
+    const previousSelection = continuation.selected_asset_release_ids;
+    async function selectAssets(): Promise<readonly number[]> {
+      const facts = { repository, releases };
+      const selected = await options.selectAssetReleases!({
         format: 2,
         config_sha256: configHash,
         port_id: config.port_id,
@@ -1384,7 +1386,7 @@ export async function observeUpstream(
         coverage: {
           kind: "channel-candidate-assets",
           complete_release_headers: true,
-          asset_release_ids: [],
+          asset_release_ids: [...collected].sort((a, b) => a - b),
         },
         interval_semantics:
           "Inert Core channel-selection probe; not a completed provider observation",
@@ -1399,12 +1401,48 @@ export async function observeUpstream(
         "core-selection",
         "Core requested an unknown or duplicate release identity",
       );
-      selectedAssets = new Set(selected);
+      return selected as readonly number[];
+    }
+    if (config.format === 2) selectedAssets = new Set(await selectAssets());
+    // Core can only skip an explicit other-platform stream after its complete
+    // assets are observed. Ask again after each collection, until every current
+    // candidate is covered. Each turn adds a release from the bounded headers;
+    // provider requests, bytes and continuation keep their existing budgets.
+    for (;;) {
+      if (selectedAssets && continuation.phase === "collect") {
+        continuation.selected_asset_release_ids = [...selectedAssets].sort((a, b) => a - b);
+        await retain();
+      }
+      for (const release of releases) {
+        if (collected.has(release.id) || (selectedAssets && !selectedAssets.has(release.id)))
+          continue;
+        const normalizeAsset = (asset: unknown) => assetFact(asset, config, release.tag_name);
+        const assets = (
+          await collection(`${repositoryPath}/releases/${release.id}/assets`, normalizeAsset)
+        ).map(normalizeAsset);
+        for (const asset of assets) {
+          if (assetIds.has(asset.id)) {
+            const failure = new ObservationFailure(
+              "invalid-metadata",
+              "asset identity appears in multiple releases",
+            );
+            failure.restartContinuation = true;
+            throw failure;
+          }
+          assetIds.add(asset.id);
+        }
+        release.assets = assets;
+        collected.add(release.id);
+      }
+      if (!selectedAssets) break;
+      const requested = await selectAssets();
+      const added = requested.filter((id) => !selectedAssets.has(id));
+      if (added.length === 0) break;
+      for (const id of added) selectedAssets.add(id);
+    }
+    if (selectedAssets) {
       const ordered = [...selectedAssets].sort((a, b) => a - b);
-      if (
-        continuation.selected_asset_release_ids &&
-        observationHash(continuation.selected_asset_release_ids) !== observationHash(ordered)
-      ) {
+      if (previousSelection && observationHash(previousSelection) !== observationHash(ordered)) {
         continuation.phase = "collect";
         continuation.validation_cursor = 0;
         continuation.first_validated_at = null;
@@ -1421,29 +1459,6 @@ export async function observeUpstream(
         }
       }
       await retain();
-    }
-    const releases: ProviderObservation["facts"]["releases"] = [];
-    const assetIds = new Set();
-    for (const release of headers) {
-      const normalizeAsset = (asset: unknown) => assetFact(asset, config, release.tag_name);
-      const assets =
-        selectedAssets && !selectedAssets.has(release.id)
-          ? []
-          : (
-              await collection(`${repositoryPath}/releases/${release.id}/assets`, normalizeAsset)
-            ).map(normalizeAsset);
-      for (const asset of assets) {
-        if (assetIds.has(asset.id)) {
-          const failure = new ObservationFailure(
-            "invalid-metadata",
-            "asset identity appears in multiple releases",
-          );
-          failure.restartContinuation = true;
-          throw failure;
-        }
-        assetIds.add(asset.id);
-      }
-      releases.push({ ...release, assets });
     }
     // GitHub provides no atomic repository snapshot. Revalidate every consumed
     // page and preserve the observation interval; any detected change aborts.
