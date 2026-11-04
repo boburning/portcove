@@ -11367,7 +11367,8 @@
           }
         ],
         "aliases": [],
-        "tombstones": []
+        "tombstones": [],
+        "release_policy": "integration-contract-v1"
       },
       {
         "id": "the-force-engine-dark-forces-managed-data",
@@ -11546,7 +11547,8 @@
           }
         ],
         "aliases": [],
-        "tombstones": []
+        "tombstones": [],
+        "release_policy": "integration-contract-v1"
       },
       {
         "id": "mega-man-x2-snes-recomp-game-source",
@@ -11589,7 +11591,8 @@
           }
         ],
         "aliases": [],
-        "tombstones": []
+        "tombstones": [],
+        "release_policy": "integration-contract-v1"
       },
       {
         "id": "resident-evil-gaiden-recomp-game-source",
@@ -21732,15 +21735,13 @@
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v0.8.3",
-            "url": "https://github.com/mstan/SonicTheHedgehogRecomp/releases/download/v0.8.3/SonicTheHedgehogRecomp-windows-x64-v0.8.3.zip",
-            "size": 5334148,
-            "sha256": "54c73309c7bda1d030e4e8d4f3ec2108763ed2c539e275688fcfa602b6ceec38",
-            "published_at": "2026-11-03T23:08:16Z"
-          }
+        "provider": "github",
+        "repository": "mstan/SonicTheHedgehogRecomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "SonicTheHedgehogRecomp-windows-x64-",
+            ".zip"
+          ]
         }
       },
       "source_profile": "sonic-the-hedgehog-genesis-jue-rev00",
@@ -21760,7 +21761,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Select your own Sonic the Hedgehog (Japan/USA/Europe) raw big-endian Genesis original. This fresh managed route uses the checked official Windows v0.8.3 package and starts the base game directly. Use a separate empty library when retaining an older installation or player data; Portcove holds incompatible active transitions and fresh adoption of preserved canonical data. Existing installations keep their creating version and files. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Raw .bin or .md files and ZIPs containing the matching original are accepted; headered or byte-swapped images are not converted. Default settings, local state filenames and thumbnails stay in the declared managed scope. Gameplay, usable quickstates and in-game save/load remain unqualified; runtime replacement does not establish save compatibility or rewind progress. Default diagnostic recording is enabled. The managed logs directory contains input history, machine snapshots, original/build identities, settings and mod sidecars; these can contain private game memory and local paths. Nothing uploads automatically. Share these files only deliberately. Keep each replay and its sidecars together. Upstream retains the current capture and two previous captures, with 64 MiB input-history and 32 MiB state-attachment limits per capture and a 16 MiB background queue; recording stops on its bounds or storage failure. GENESIS_REPLAY_RECORD=0 is an optional user opt-out. Keep developer/debug, replay-playback and custom path overrides disabled. Backups include the checked private original copy and these diagnostics. Keep packaged libraries, assets and PolyForm Noncommercial/dependency notices together. No game original is included. Experimental fresh Widescreen/Fit is upstream default; saved choices stay in their creating installation.",
+        "manual_preparation": "Select your own Sonic the Hedgehog (Japan/USA/Europe) raw big-endian Genesis original. The managed route selects compatible official Windows packages and starts the base game directly. Historical installations without the partitioned-data contract retain their creating rules and remain held for a separate reviewed transition. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Raw .bin or .md files and ZIPs containing the matching original are accepted; headered or byte-swapped images are not converted. Default settings, local state filenames and thumbnails stay in the declared managed scope. Gameplay, usable quickstates and in-game save/load remain unqualified; runtime replacement does not establish save compatibility or rewind progress. Default diagnostic recording is enabled. The managed logs directory contains input history, machine snapshots, original/build identities, settings and mod sidecars; these can contain private game memory and local paths. Nothing uploads automatically. Share these files only deliberately. Keep each replay and its sidecars together. Upstream retains the current capture and two previous captures, with 64 MiB input-history and 32 MiB state-attachment limits per capture and a 16 MiB background queue; recording stops on its bounds or storage failure. GENESIS_REPLAY_RECORD=0 is an optional user opt-out. Keep developer/debug, replay-playback and custom path overrides disabled. Backups include the checked private original copy and these diagnostics. Keep packaged libraries, assets and PolyForm Noncommercial/dependency notices together. No game original is included. Experimental fresh Widescreen/Fit is upstream default; saved choices stay in their creating installation.",
         "original_game_title": "Sonic the Hedgehog",
         "artwork": {
           "game_id": 3192,
@@ -21828,7 +21829,26 @@
         "floor_unsafe.toml",
         "floor_unsafe.toml.tmp",
         "floor_unsafe.prev.toml"
-      ]
+      ],
+      "archive_data_compatibility_v1": {
+        "contract_id": "sonic-the-hedgehog-recomp-conventional-v1",
+        "shared_paths": [
+          "game.bin",
+          "settings.ini",
+          "rom-Sonic1.cfg"
+        ],
+        "build_specific_progress_paths": [
+          "native_save_1.bin",
+          "native_save_2.bin",
+          "native_save_3.bin",
+          "native_save_4.bin",
+          "native_save_5.bin",
+          "native_save_6.bin",
+          "native_save_7.bin",
+          "native_save_8.bin",
+          "native_save_9.bin"
+        ]
+      }
     },
     {
       "id": "the-force-engine-dark-forces",
@@ -22668,15 +22688,13 @@
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v0.4.2",
-            "url": "https://github.com/mstan/SuperMetroidRecomp/releases/download/v0.4.2/supermetroid-0.4.2-windows-x64.zip",
-            "size": 14907383,
-            "sha256": "72b7c179b855fba9404eec07abdbacefaffa4c67898f5c5232f0b1444b73d531",
-            "published_at": "2026-11-04T01:36:27Z"
-          }
+        "provider": "github",
+        "repository": "mstan/SuperMetroidRecomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "supermetroid-",
+            "-windows-x64.zip"
+          ]
         }
       },
       "source_profile": "super-metroid-snes-japan-usa",
@@ -22735,7 +22753,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide your own exact unchanged headerless Super Metroid (Japan, USA) original. This fresh managed route uses official Windows v0.4.2, a SHA256-checked game.sfc copy beside the executable, and direct --rom game.sfc with the startup launcher disabled. Backups include that private original copy. Use a separate empty library when keeping any older runtime or player data; incompatible active transitions and preserved canonical-data adoption stay held. Existing installations keep their creating runtime and exact contract. Host snapshots are build-specific; this route proves no old/new state compatibility or gameplay. The installation folder needs basic Latin characters and a short path. Keep config.local.ini absent and developer, oracle, replay-playback and custom path modes disabled. Default settings, keybindings, SRAM, states, screenshots, sm-video.ini and its temporary companion, selected mod state and logs are managed; packaged mod manifests, assets, libraries and notices stay immutable. Fresh upstream Widescreen/Fit and experimental optional enhancements are not full-game fidelity acceptance. The optional Zero Mission map-art route requires separately owned donor input and is unused here; extra mods and donor assets need separate qualification. Default diagnostic recording stays enabled: logs contain game memory, inputs, build/original identities, settings and possibly private local paths. No automatic upload occurs; share only deliberately and keep replay sidecars together. Each session retains at most one hour/360 segments and 256 MiB of checkpoint bytes; old sessions accumulate. SM_REPLAY_RECORD=0 is an optional user opt-out. A read-only installation can fall back to %TEMP%/SuperMetroidSNESRecomp/logs outside managed backup/removal. Preserve upstream PolyForm Noncommercial and dependency notices; game originals and donor artwork are not included.",
+        "manual_preparation": "Provide your own exact unchanged headerless Super Metroid (Japan, USA) original. The managed route selects compatible official Windows packages, a SHA256-checked game.sfc copy beside the executable, and direct --rom game.sfc with the startup launcher disabled. Backups include that private original copy. Historical installations without the partitioned-data contract retain their creating rules and remain held for a separate reviewed transition. Existing installations keep their creating runtime and exact contract. Host snapshots are build-specific; this route proves no old/new state compatibility or gameplay. The installation folder needs basic Latin characters and a short path. Keep config.local.ini absent and developer, oracle, replay-playback and custom path modes disabled. Default settings, keybindings, SRAM, states, screenshots, sm-video.ini and its temporary companion, selected mod state and logs are managed; packaged mod manifests, assets, libraries and notices stay immutable. Fresh upstream Widescreen/Fit and experimental optional enhancements are not full-game fidelity acceptance. The optional Zero Mission map-art route requires separately owned donor input and is unused here; extra mods and donor assets need separate qualification. Default diagnostic recording stays enabled: logs contain game memory, inputs, build/original identities, settings and possibly private local paths. No automatic upload occurs; share only deliberately and keep replay sidecars together. Each session retains at most one hour/360 segments and 256 MiB of checkpoint bytes; old sessions accumulate. SM_REPLAY_RECORD=0 is an optional user opt-out. A read-only installation can fall back to %TEMP%/SuperMetroidSNESRecomp/logs outside managed backup/removal. Preserve upstream PolyForm Noncommercial and dependency notices; game originals and donor artwork are not included.",
         "original_game_title": "Super Metroid",
         "manual_setup": {
           "steps": [
@@ -22775,12 +22793,27 @@
           "match_kind": "underlying-game"
         }
       },
-      "windows_runtime_path_policy": "printable-ascii-max-path"
+      "windows_runtime_path_policy": "printable-ascii-max-path",
+      "archive_data_compatibility_v1": {
+        "contract_id": "super-metroid-recomp-conventional-v1",
+        "shared_paths": [
+          "game.sfc",
+          "config.ini",
+          "keybinds.ini",
+          "rom.cfg",
+          "saves/save.srm",
+          "sm-video.ini",
+          "sm-video.ini.tmp"
+        ],
+        "build_specific_progress_paths": [
+          "saves"
+        ]
+      }
     },
     {
       "id": "mega-man-x2-snes-recomp",
       "name": "Mega Man X2 Recompiled",
-      "summary": "Native Mega Man X2 recompilation with an exact original and pinned Windows runtime.",
+      "summary": "Native Mega Man X2 recompilation.",
       "project_url": "https://github.com/mstan/MegaManX2Recomp",
       "support_tier": "beta",
       "channels": [
@@ -22793,15 +22826,13 @@
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "direct-manifest",
-        "direct": {
-          "windows-x86-64": {
-            "version": "v0.2.2",
-            "url": "https://github.com/mstan/MegaManX2Recomp/releases/download/v0.2.2/MegaManX2SNESRecomp-windows-x64-v0.2.2.zip",
-            "size": 13139689,
-            "sha256": "f54bf04ea2975c338d62db5b4647082d8d1342f0378a861e15e42ddeb6d0e95a",
-            "published_at": "2026-11-01T03:48:20Z"
-          }
+        "provider": "github",
+        "repository": "mstan/MegaManX2Recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "MegaManX2SNESRecomp-windows-x64-",
+            ".zip"
+          ]
         }
       },
       "source_profile": "mega-man-x2-snes-usa",
@@ -22858,7 +22889,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Select your own headerless Mega Man X2 (USA) original. This fresh managed route uses the checked official Windows v0.2.2 package and starts the game directly. Use a separate empty library when retaining an older installation or player data; Portcove holds incompatible active transitions and fresh adoption of preserved canonical data. Existing installations keep their creating version and files. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Default configuration, saves, screenshots and selected mod-state files and the default logs directory remain in the declared managed scope; packaged mod files stay immutable. Gameplay and in-game save/load remain unqualified. Quickstates require their creating runtime; a new runtime or unchanged original does not establish state compatibility or rewind progress. Backups include the checked private game.sfc original copy. Default diagnostic recording stays enabled. The logs directory contains session output, game memory, inputs, build/original identities, settings and mod options, which may include private local paths. No upload happens automatically; share diagnostics only with your consent. Each launch retains at most one hour of ten-second segments and 256 MiB of checkpoint bytes; older sessions accumulate until you remove them. Keep replay files and their save/config/mod sidecars together. A read-only installation can fall back to %TEMP%/MegaManX2SNESRecomp/logs, outside managed backup and removal scope. MMX_REPLAY_RECORD=0 is an optional user opt-out. Keep config.local.ini absent and separate developer trace, oracle and custom path overrides disabled. Keep packaged executables, libraries, assets, built-in mod manifests and notices unchanged; extra mods and donor assets require separate qualification. Preserve upstream PolyForm Noncommercial and dependency notices; original game data is not included in the runtime package.",
+        "manual_preparation": "Select your own headerless Mega Man X2 (USA) original. The managed route selects compatible official Windows packages and starts the game directly. Historical installations without the partitioned-data contract retain their creating rules and remain held for a separate reviewed transition. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Default configuration, saves, screenshots and selected mod-state files and the default logs directory remain in the declared managed scope; packaged mod files stay immutable. Gameplay and in-game save/load remain unqualified. Quickstates require their creating runtime; a new runtime or unchanged original does not establish state compatibility or rewind progress. Backups include the checked private game.sfc original copy. Default diagnostic recording stays enabled. The logs directory contains session output, game memory, inputs, build/original identities, settings and mod options, which may include private local paths. No upload happens automatically; share diagnostics only with your consent. Each launch retains at most one hour of ten-second segments and 256 MiB of checkpoint bytes; older sessions accumulate until you remove them. Keep replay files and their save/config/mod sidecars together. A read-only installation can fall back to %TEMP%/MegaManX2SNESRecomp/logs, outside managed backup and removal scope. MMX_REPLAY_RECORD=0 is an optional user opt-out. Keep config.local.ini absent and separate developer trace, oracle and custom path overrides disabled. Keep packaged executables, libraries, assets, built-in mod manifests and notices unchanged; extra mods and donor assets require separate qualification. Preserve upstream PolyForm Noncommercial and dependency notices; original game data is not included in the runtime package.",
         "original_game_title": "Mega Man X2",
         "artwork": {
           "game_id": 1742,
@@ -22869,7 +22900,19 @@
           "match_kind": "underlying-game"
         }
       },
-      "windows_runtime_path_policy": "printable-ascii-max-path"
+      "windows_runtime_path_policy": "printable-ascii-max-path",
+      "archive_data_compatibility_v1": {
+        "contract_id": "mega-man-x2-snes-recomp-conventional-v1",
+        "shared_paths": [
+          "game.sfc",
+          "config.ini",
+          "keybinds.ini",
+          "rom.cfg"
+        ],
+        "build_specific_progress_paths": [
+          "saves"
+        ]
+      }
     },
     {
       "id": "resident-evil-gaiden-recomp",

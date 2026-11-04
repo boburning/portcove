@@ -83,8 +83,11 @@ impl PortcoveService {
         port_id: &str,
         snapshot: &Path,
         producing_archive: Option<&str>,
+        partitioned_policy: Option<&str>,
     ) -> Result<()> {
-        if crate::persistence::legacy_direct_reader(port_id).is_none() {
+        if crate::persistence::legacy_direct_reader(port_id).is_none()
+            && partitioned_policy.is_none()
+        {
             if producing_archive.is_some() {
                 return Err(PortcoveError::verification(
                     "backup runtime binding belongs to an unrelated identity",
@@ -92,11 +95,38 @@ impl PortcoveService {
             }
             return Ok(());
         }
-        for install in self.library.all_installs()? {
-            if install.port_id != port_id {
+        let installs = self
+            .library
+            .all_installs()?
+            .into_iter()
+            .filter(|install| install.port_id == port_id)
+            .collect::<Vec<_>>();
+        if let Some(policy) = partitioned_policy {
+            if crate::archive_data::snapshot_policy(snapshot)?.as_deref() != Some(policy) {
+                return Err(PortcoveError::verification(
+                    "partitioned backup framing differs from its preserved coordinates",
+                ));
+            }
+            // With no runtime, preserve this consented snapshot as opaque data.
+            // It grants no fresh-install compatibility or acquisition authority.
+            if installs.is_empty() {
+                return Ok(());
+            }
+        }
+        for install in installs {
+            let port = self.installed_port(&install)?;
+            if port.archive_data_compatibility_v1.is_some() {
+                if partitioned_policy != Some(crate::archive_data::policy_sha256(&port)?.as_str()) {
+                    return Err(held(&port));
+                }
+                self.require_portable_runtime_unchanged(&install)?;
+                crate::archive_data::require_snapshot(&port, snapshot)?;
                 continue;
             }
-            let port = self.installed_port(&install)?;
+            if partitioned_policy.is_some() {
+                return Err(held(&port));
+            }
+            crate::archive_data::refuse_unpartitioned_snapshot(snapshot)?;
             if producing_archive.is_none() && !requires_fresh_data_guard(&port) {
                 // Exact historical readers keep their byte-only administrative
                 // restore contract. New bound snapshots cannot borrow it.
@@ -128,6 +158,35 @@ impl PortcoveService {
         if retained.id != to.id {
             return Err(held(to));
         }
+        if retained.archive_data_compatibility_v1.is_some()
+            || to.archive_data_compatibility_v1.is_some()
+        {
+            if retained.archive_data_compatibility_v1.is_none()
+                || to.archive_data_compatibility_v1.is_none()
+                || crate::archive_data::policy_sha256(&retained)?
+                    != crate::archive_data::policy_sha256(to)?
+            {
+                return Err(held(to));
+            }
+            self.require_portable_runtime_unchanged(from)?;
+            let user = self.library.user_dir(&to.id);
+            crate::archive_data::entries(
+                &retained,
+                Some(&from.artifact.sha256),
+                &self.persistence_root(&retained, &from.path)?,
+                &user,
+            )?;
+            if let Some(target) = target {
+                self.require_portable_runtime_unchanged(target)?;
+                crate::archive_data::entries(
+                    to,
+                    Some(&target.artifact.sha256),
+                    &self.persistence_root(to, &target.path)?,
+                    &user,
+                )?;
+            }
+            return Ok(());
+        }
         if !(requires_fresh_data_guard(&retained) || requires_fresh_data_guard(to)) {
             return Ok(());
         }
@@ -157,7 +216,33 @@ impl PortcoveService {
     /// Preserve the exact legacy reader, while refusing unproven canonical data
     /// before a new route is created. Retained imports carry their own receipts.
     pub(super) fn require_direct_fresh_data(&self, port: &PortDefinition) -> Result<()> {
-        if requires_fresh_data_guard(port) {
+        if port.archive_data_compatibility_v1.is_some() {
+            let installs = self
+                .library
+                .all_installs()?
+                .into_iter()
+                .filter(|i| i.port_id == port.id)
+                .collect::<Vec<_>>();
+            let user = self.library.user_dir(&port.id);
+            if installs.is_empty() {
+                // Namespace names and a self-consistent backup are not historical
+                // admission. Reusing populated data needs its retained creator.
+                require_empty_player_data(port, &user)?;
+                if crate::archive_data::has_bound_objects(&user)? {
+                    return Err(held(port));
+                }
+            }
+            for install in installs {
+                let retained = self.installed_port(&install)?;
+                if retained.archive_data_compatibility_v1.is_none()
+                    || crate::archive_data::policy_sha256(&retained)?
+                        != crate::archive_data::policy_sha256(port)?
+                {
+                    return Err(held(port));
+                }
+            }
+            crate::archive_data::require_snapshot(port, &user)?;
+        } else if requires_fresh_data_guard(port) {
             require_empty_player_data(port, &self.library.user_dir(&port.id))?;
         }
         Ok(())
@@ -199,7 +284,9 @@ impl PortcoveService {
         if serde_json::to_value(&retained)? != serde_json::to_value(port)? {
             return Err(held(port));
         }
-        if !psx_mod_data::initialized(install)? {
+        if port.archive_data_compatibility_v1.is_some() {
+            crate::archive_data::require_snapshot(port, snapshot)?;
+        } else if !psx_mod_data::initialized(install)? {
             require_empty_player_data(port, snapshot)?;
         }
         Ok(())
@@ -211,6 +298,11 @@ impl PortcoveService {
         to: &PortDefinition,
         roots: &[PathBuf],
     ) -> Result<()> {
+        if retained.archive_data_compatibility_v1.is_some()
+            || to.archive_data_compatibility_v1.is_some()
+        {
+            return Err(held(to)); // A new layout is a contract migration, never an additive path grant.
+        }
         if retained.id == to.id
             && (requires_fresh_data_guard(retained) || requires_fresh_data_guard(to))
         {
@@ -318,6 +410,39 @@ mod tests {
     }
 
     #[test]
+    fn fresh_partitioned_route_allows_empty_kept_namespace_but_not_populated_data() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let service = PortcoveService::new(library.clone()).unwrap();
+        let port = Catalog::embedded()
+            .unwrap()
+            .port("super-metroid-recomp")
+            .unwrap()
+            .clone();
+        let user = library.user_dir(&port.id);
+        crate::archive_data::initialize(&port, &user).unwrap();
+        service.require_direct_fresh_data(&port).unwrap();
+        let bound = crate::archive_data::namespace(&port, &user)
+            .unwrap()
+            .join("a".repeat(64));
+        fs::create_dir_all(&bound).unwrap();
+        service.require_direct_fresh_data(&port).unwrap();
+        fs::write(bound.join("snapshot.sav"), b"preserved progress").unwrap();
+        assert!(service.require_direct_fresh_data(&port).is_err());
+        assert_eq!(
+            fs::read(bound.join("snapshot.sav")).unwrap(),
+            b"preserved progress"
+        );
+        fs::remove_file(bound.join("snapshot.sav")).unwrap();
+        fs::write(user.join("config.ini"), b"preserved conventional data").unwrap();
+        assert!(service.require_direct_fresh_data(&port).is_err());
+        assert_eq!(
+            fs::read(user.join("config.ini")).unwrap(),
+            b"preserved conventional data"
+        );
+    }
+
+    #[test]
     fn fresh_sonic1_and_mmx2_routes_refuse_canonical_legacy_data() {
         let library_root = tempfile::tempdir().unwrap();
         let library = Library::open(library_root.path().join("library")).unwrap();
@@ -327,7 +452,7 @@ mod tests {
             "mega-man-x2-snes-recomp",
             "super-metroid-recomp",
         ] {
-            let mut port = Catalog::embedded().unwrap().port(id).unwrap().clone();
+            let mut port = crate::test_fixture::v26_diagnostic_port(id);
             let (version, hash) = legacy_reader(id).unwrap();
             port.release.provider = crate::ReleaseSource::DirectManifest;
             let release = port

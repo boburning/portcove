@@ -177,6 +177,35 @@ original hashes and exact historical administrative behavior, including SM
 v0.3.12. This grants no populated-data migration, state ABI proof, legacy state
 readability, native-game or protected-publication acceptance.
 
+Staged-source version 27 adds the explicit `archive_data_compatibility_v1`
+contract for ready runtime-local GitHub archives. New installations retain a
+format-10 installed envelope that older readers refuse, including embedded and
+unscoped contracts. Its bounded `shared_paths`
+identify reviewed conventional data that can reach compatible successor runtimes;
+all other declared persistent objects remain bound to their producing archive.
+`build_specific_progress_paths` identify progress requiring player review before
+activation. Automatic maintenance stages such an update and preserves the saved
+update preference. Runtime rollback carries current shared data; it does not rewind
+saves or establish an older reader's compatibility.
+
+The concrete data policy, original identity and persistent coordinates are hashed
+into the canonical namespace; the actual retained archive hash supplies each
+build-specific coordinate. New backup content framing authenticates that layout
+and refuses readers that would ignore it, including snapshots without an active
+runtime. Data-only restore can preserve that opaque layout across catalog changes,
+but cannot authorize a fresh runtime to consume it. Historical unpartitioned
+contracts retain their own interpretation and do not inherit version 27's policy.
+
+The corresponding source contract may explicitly declare
+`release_policy: integration-contract-v1` once. It requires enforced original
+identities, existing evidence, a matching source profile and the provider-bound
+version-27 route. Exact historical applicability/evidence remains unchanged;
+ordinary future tag/archive identities use the reviewed integration policy.
+GitHub resolution retains repository, release and asset IDs in its acquisition
+proof and installation manifest. Changed bytes under a retained asset identity
+or replacement of its repository identity refuse; a rolling reference with a new
+asset identity remains a distinct artifact.
+
 The N64 portable template also advertises version 2, which implements the
 catalog-declared fresh Windows D3D12 default. Inventory identities are unique
 `(template, contract_version)` pairs; a template may implement several versions.

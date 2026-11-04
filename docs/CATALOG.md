@@ -1777,6 +1777,26 @@ version. If either runtime later creates a changed path, or a path is populated,
 aliased, linked or otherwise uncertain, the switch stays held with the files and
 active copy preserved. Populated scope migration is not supplied by this exception.
 
+A ready runtime-local GitHub archive may explicitly declare
+`archive_data_compatibility_v1` with a stable `contract_id`, disjoint bounded
+`shared_paths`, and `build_specific_progress_paths`. These are reviewed data
+semantics, not inferred from filenames or an unchanged original ROM. Shared
+conventional paths remain in canonical user data. Other persistent objects are
+stored under `.portcove-archive-data-v1/<policy-sha256>/<producing-archive-sha256>`
+and restored only to that archive under its retained contract. Mixed directories
+can keep conventional SRAM shared while isolating host snapshots and unknown
+sidecars. Changing the policy, source identity or persistence coordinates holds
+replacement; historical installed definitions do not acquire the new policy.
+
+Common installation notices explain preservation, retained Versions and rollback.
+When build-specific progress exists, automatic maintenance stages the candidate
+for the player's activation decision without changing their update preference.
+Backups retain producing archive identity independently of the partitioned data
+policy. No-runtime backup/restore preserves opaque data without granting future
+runtime or source authority. This route requires staged-source capability 27;
+see [definition delivery](DEFINITION-DELIVERY.md) for reader fencing and reusable
+source applicability.
+
 If fresh acquisition publishes a staged copy before its final data-compatibility
 check refuses, the error includes `staged_install_id`: that copy and its files stay
 registered, the active copy stays active, and activation and stage-only retries

@@ -519,6 +519,75 @@ fn native_observer_and_runtime_share_platform_stream_selection() -> Result<()> {
 }
 
 #[test]
+fn opted_in_archive_consumers_share_the_platform_stream_policy() -> Result<()> {
+    let catalog = crate::Catalog::embedded()?;
+    for (id, windows_name, linux_name) in [
+        (
+            "mega-man-x2-snes-recomp",
+            "MegaManX2SNESRecomp-windows-x64-fixture-1.zip",
+            "MegaManX2SNESRecomp-linux-x64-fixture-2.zip",
+        ),
+        (
+            "sonic-the-hedgehog-recomp",
+            "SonicTheHedgehogRecomp-windows-x64-fixture-1.zip",
+            "SonicTheHedgehogRecomp-linux-x64-fixture-2.zip",
+        ),
+        (
+            "super-metroid-recomp",
+            "supermetroid-fixture-1-windows-x64.zip",
+            "supermetroid-fixture-2-linux-x64.zip",
+        ),
+    ] {
+        let port = catalog.port(id)?;
+        let mut document = envelope(vec![release(2, "fixture-2"), release(1, "fixture-1")])?;
+        document["port_id"] = json!(id);
+        document["facts"]["repository"]["full_name"] = json!(port.release.repository);
+        for (index, tag, name) in [(0, "fixture-2", linux_name), (1, "fixture-1", windows_name)] {
+            document["facts"]["releases"][index]["assets"][0]["name"] = json!(name);
+            document["facts"]["releases"][index]["assets"][0]["browser_download_url"] =
+                json!(format!(
+                    "https://github.com/{}/releases/download/{tag}/{name}",
+                    port.release.repository
+                ));
+        }
+        document["facts_sha256"] = json!(json_digest(&document["facts"])?);
+        let observed = inspect(port, &document)?;
+        assert_eq!(
+            observed.projections[0]
+                .channel_candidate
+                .as_ref()
+                .unwrap()
+                .id,
+            1,
+            "{id}"
+        );
+        assert_eq!(
+            observed.projections[0]
+                .latest_eligible
+                .as_ref()
+                .unwrap()
+                .release
+                .asset
+                .name,
+            windows_name
+        );
+        let releases: Vec<super::super::GithubRelease> =
+            serde_json::from_value(document["facts"]["releases"].clone())?;
+        assert!(!super::super::native_release_applies_to_platform(
+            port,
+            Platform::WindowsX86_64,
+            &releases[0]
+        ));
+        assert!(super::super::native_release_applies_to_platform(
+            port,
+            Platform::WindowsX86_64,
+            &releases[1]
+        ));
+    }
+    Ok(())
+}
+
+#[test]
 fn scoped_observations_keep_core_channel_selection_and_require_asset_coverage() -> Result<()> {
     let mut port = crate::Catalog::embedded()?.port("shipwright")?.clone();
     port.platforms = vec![Platform::WindowsX86_64];
