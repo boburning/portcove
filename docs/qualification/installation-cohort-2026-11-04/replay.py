@@ -107,13 +107,31 @@ for cohort, members in cohorts:
             provider = integration.get('release', {}).get('provider', 'github') if integration else None
             route = 'authored-managed-package-policy' if integration else 'listing-only'
             replacement = 'Core managed policy; operation qualification is separate' if integration else 'No runtime replacement operation declared'
+            trust_policies = {}
             if provider == 'user-prepared':
-                route = 'authored-exact-user-prepared-inspection'
-                replacement = 'Player/upstream; Core inspects retained exact package/tree'
+                for platform, policy in integration['release']['user_prepared'].items():
+                    trust = policy.get('trust', 'official-package')
+                    assert trust in ('user-selected', 'official-package')
+                    trust_policies[platform] = trust
+                    if trust == 'user-selected':
+                        assert policy['archive_name'] == policy['archive_sha256'] == policy['immutable_tree_sha256'] == policy['executable'] == ''
+                        assert policy['archive_size'] == 0
+                    else:
+                        assert len(policy['archive_sha256']) == len(policy['immutable_tree_sha256']) == 64
+                assert trust_policies
+                if set(trust_policies.values()) == {'user-selected'}:
+                    route = 'authored-user-selected-executable-registration'
+                    replacement = 'Player/upstream; Core records selected executable/CWD/arguments and execution intent, without package/tree certification'
+                elif set(trust_policies.values()) == {'official-package'}:
+                    route = 'authored-exact-user-prepared-inspection'
+                    replacement = 'Player/upstream; Core inspects retained exact package/tree'
+                else:
+                    route = 'authored-mixed-user-prepared-policies-by-platform'
+                    replacement = 'Player/upstream; Core inspection follows each declared platform trust policy'
             if guide and not integration:
                 route = 'prepared-copy-presentation; conditional admission facts remain canonical'
                 replacement = 'Player/upstream for any independently permitted external copy'
-            row.update({'record_path': path, 'record_sha256': sha(raw), 'source_url': f'https://github.com/boburning/portcove/blob/{base}/{path}', 'project_url': listing['project_url'], 'authored_route': route, 'provider': provider, 'adapter': integration.get('adapter') if integration else None, 'runtime_replacement_owner': replacement, 'declared_platforms': integration.get('platforms', []) if integration else listing.get('platforms', []), 'setup_guide_sha256': sha(json.dumps(guide, ensure_ascii=False, separators=(',', ':')).encode()) if guide else None, 'source_profile': integration.get('source_profile') if integration else None, 'bios_source_profile': integration.get('bios_source_profile') if integration else None, 'declared_source_requirements': integration.get('presentation', {}).get('source_requirements', []) if integration else [], 'remaining_acceptance': 'Canonical acceptance unchanged; not reassessed'})
+            row.update({'record_path': path, 'record_sha256': sha(raw), 'source_url': f'https://github.com/boburning/portcove/blob/{base}/{path}', 'project_url': listing['project_url'], 'authored_route': route, 'provider': provider, 'user_prepared_trust_by_platform': trust_policies, 'adapter': integration.get('adapter') if integration else None, 'runtime_replacement_owner': replacement, 'declared_platforms': integration.get('platforms', []) if integration else listing.get('platforms', []), 'setup_guide_sha256': sha(json.dumps(guide, ensure_ascii=False, separators=(',', ':')).encode()) if guide else None, 'source_profile': integration.get('source_profile') if integration else None, 'bios_source_profile': integration.get('bios_source_profile') if integration else None, 'declared_source_requirements': integration.get('presentation', {}).get('source_requirements', []) if integration else [], 'remaining_acceptance': 'Canonical acceptance unchanged; not reassessed'})
         else:
             assert number in unlisted and cohort == 'roadmap22'
             row.update({'authored_route': 'source-absent; retained canonical hold', 'runtime_replacement_owner': 'No new runtime replacement admitted', 'remaining_acceptance': unlisted[number]})
@@ -121,6 +139,8 @@ for cohort, members in cohorts:
 assert len(rows) == len({r['issue'] for r in rows}) == 858
 assert sum(r['authored_id'] is not None for r in rows) == 853
 assert {r['issue'] for r in rows if r['authored_id'] is None} == set(unlisted)
+assert sum(r['authored_route'] == 'authored-user-selected-executable-registration' for r in rows) == 80
+assert {r['authored_id'] for r in rows if r['authored_route'] == 'authored-exact-user-prepared-inspection'} == {'dkc2-recomp', 'super-mario-bros-remastered', 'wave-race-64-recomp'}
 assert boundary['duplicate_mappings'] == [{'from': 554, 'to': 356}, {'from': 1786, 'to': 322}]
 for mapping in boundary['duplicate_mappings']:
     assert mapping['from'] in issue_by_number and mapping['to'] in issue_by_number
@@ -147,7 +167,7 @@ lines = [
     '- The successful collection used `collectRoadmapInventory` and `requireRoadmapInventory` in the same process, with complete stable repository pagination, independent active/archived Project coverage, opaque identities, counts, body reads and revision/freshness guards. It observed 2,059 issues and 2,058 active plus one archived Project item. The archived item is #1730; it is outside this frozen cohort. GitHub defaults Project item reads to non-archived items; see the [Projects schema](https://docs.github.com/en/graphql/reference/projects#projectv2).',
     '- An earlier collection was inconclusive because the Project revision changed despite an unchanged item count. Its failure is retained in observation provenance; it supplies no completeness claim. The later successful capture is separate evidence. The reduced replay input preserves all issue/Project opaque joins, cohort body hashes, observation times and observed fields. The full original capture hash is retained; replay does not recreate a live API traversal or revalidate current planning.',
     '- `body_observation_sha256` follows the maintained collector convention, hashing `JSON.stringify(body)`. `body_utf8_sha256` hashes UTF-8 body bytes. These conventions are distinct. The replay retains the observed hashes; canonical issue bodies can subsequently change.',
-    '- Provider and replacement-owner labels describe authored policy only. Shared source-profile IDs, setup-guide hashes and exact source links preserve where the source/setup declarations can be reviewed. They do not certify a particular package, original, runtime, permission grant or operation. Every canonical acceptance and known failure remains binding.',
+    '- Provider and replacement-owner labels describe authored policy only. The 80 `trust: user-selected` definitions retain executable-intent registration, without package/tree certification; only DKC2, SMBRemastered and Wave Race retain exact package/tree inspection. These policies remain distinct even though both use the `user-prepared` provider. Shared source-profile IDs, setup-guide hashes and exact source links preserve where the source/setup declarations can be reviewed. They do not certify a particular package, original, runtime, permission grant or operation. Every canonical acceptance and known failure remains binding.',
     '',
     '## Reproduction',
     '',
@@ -169,7 +189,7 @@ lines = [
 for row in rows:
     identity = row['authored_id'] or '/'.join(row['frozen_identity']['portKeys'])
     port = f'[{cell(identity)} #{row["issue"]}]({row["issue_url"]})'
-    route = row.get('adapter') or row['authored_route']
+    route = row['authored_route'] if row.get('provider') == 'user-prepared' else row.get('adapter') or row['authored_route']
     if row.get('provider'):
         route += ' / ' + row['provider']
     evidence = f'[Exact record]({row["source_url"]})' if row.get('source_url') else 'No authored record; retained canonical hold'
