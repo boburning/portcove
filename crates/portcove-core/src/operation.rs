@@ -849,6 +849,7 @@ pub(crate) enum LifecycleFaultPoint {
     ArchiveDataCanonicalQuarantined,
     ArchiveDataCanonicalPublished,
     ArchiveDataTransitionCommitted,
+    ArchiveDataCleanupStarted,
     #[cfg(windows)]
     SettingsBoundary(SettingsFaultPoint),
     #[cfg(test)]

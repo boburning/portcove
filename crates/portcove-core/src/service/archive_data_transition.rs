@@ -6,6 +6,7 @@ use std::io::Write;
 
 const MAX_INSTALLS: usize = 16;
 const MANIFEST_LIMIT: u64 = 16 * 1024 * 1024;
+type FrozenCanonical = std::collections::BTreeMap<PathBuf, serde_json::Value>;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -18,6 +19,7 @@ pub(crate) struct TransitionReview {
     pub policy_sha256: String,
     pub required_bytes: u64,
     pub canonical_existed: bool,
+    pub canonical_preimage: FrozenCanonical,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -102,15 +104,41 @@ fn tree_bytes(
     })
 }
 
+fn frozen_tree(
+    tree: &std::collections::BTreeMap<PathBuf, crate::runtime_data_policy::ReviewedEntry>,
+) -> Result<FrozenCanonical> {
+    tree.iter()
+        .map(|(path, entry)| Ok((path.clone(), serde_json::to_value(entry)?)))
+        .collect()
+}
+
+fn require_cleanup_survivors(previous: &Path, original: &FrozenCanonical) -> Result<()> {
+    refuse_symlink_ancestors(previous)?;
+    if !previous.try_exists()? {
+        return Ok(());
+    }
+    let remaining =
+        frozen_tree(&crate::runtime_data_policy::DataReview::default().canonical(previous)?)?;
+    for (path, entry) in remaining {
+        if original.get(&path) != Some(&entry) {
+            return Err(held(
+                "original canonical data has a new or changed surviving entry during transition cleanup; preserve both data trees",
+            ));
+        }
+    }
+    Ok(())
+}
+
 impl PortcoveService {
     fn transition_data_image(
         &self,
         target: &PortDefinition,
         installs: &[InstallRecord],
         canonical_root: &Path,
-    ) -> Result<(String, u64)> {
+    ) -> Result<(String, u64, FrozenCanonical)> {
         let mut review = crate::runtime_data_policy::DataReview::default();
         let canonical = review.canonical(canonical_root)?;
+        let canonical_preimage = frozen_tree(&canonical)?;
         let mut required = tree_bytes(&canonical)?;
         let mut frames = Vec::new();
         for install in installs {
@@ -128,6 +156,7 @@ impl PortcoveService {
         Ok((
             crate::signed_catalog::digest(&serde_json::to_vec(&(canonical, frames))?),
             required,
+            canonical_preimage,
         ))
     }
     /// Data-only interpretation. Launch/source/executable consumers keep using
@@ -185,7 +214,8 @@ impl PortcoveService {
         let installer = Installer::new(self.library.clone())?;
         let user = self.library.user_dir(port_id);
         crate::archive_data::refuse_unpartitioned_snapshot(&user)?;
-        let (data_sha256, mut required) = self.transition_data_image(target, &installs, &user)?;
+        let (data_sha256, mut required, canonical_preimage) =
+            self.transition_data_image(target, &installs, &user)?;
         let mut frames = Vec::new();
         for install in &installs {
             self.managed_install_root(port_id, &install.path)?;
@@ -239,6 +269,7 @@ impl PortcoveService {
             &policy,
             &target.archive_data_transition_v1,
             &data_sha256,
+            &canonical_preimage,
             user.exists(),
             frames,
         ))?);
@@ -251,6 +282,7 @@ impl PortcoveService {
             policy_sha256: policy,
             required_bytes: required,
             canonical_existed: user.exists(),
+            canonical_preimage,
         }))
     }
 
@@ -413,6 +445,18 @@ impl PortcoveService {
         {
             return Err(held(
                 "data transition phase differs from its staged content identity",
+            ));
+        }
+        let expected_root = serde_json::to_value(if intent.review.canonical_existed {
+            crate::runtime_data_policy::ReviewedEntry::Directory
+        } else {
+            crate::runtime_data_policy::ReviewedEntry::Missing
+        })?;
+        if intent.review.canonical_preimage.len() > 65_536
+            || intent.review.canonical_preimage.get(Path::new("")) != Some(&expected_root)
+        {
+            return Err(held(
+                "data transition canonical preimage is outside its reviewed bounds",
             ));
         }
         let authority = intent.authority.catalog(&operation.port_id)?;
@@ -804,26 +848,31 @@ impl PortcoveService {
                 self.faults
                     .check(LifecycleFaultPoint::ArchiveDataTransitionCommitted)?;
             }
-            // Until cleanup has begun, preserve and revalidate the exact old
-            // canonical data. A partially completed cleanup may already have
-            // removed it, but never deletes a changed surviving preimage.
-            if previous.exists() {
-                if self
-                    .transition_data_image(port, &intent.review.installs, &previous)?
-                    .0
-                    != intent.review.data_sha256
-                {
+            if operation.phase == LifecyclePhase::CleanupPending {
+                // The durable cleanup seam permits only already-deleted original
+                // entries. New or changed survivors are never cleanup authority.
+                require_cleanup_survivors(&previous, &intent.review.canonical_preimage)?;
+            } else {
+                if previous.exists() {
+                    if self
+                        .transition_data_image(port, &intent.review.installs, &previous)?
+                        .0
+                        != intent.review.data_sha256
+                    {
+                        return Err(held(
+                            "original canonical data changed before transition cleanup; preserve both data trees",
+                        ));
+                    }
+                } else if operation.activate {
                     return Err(held(
-                        "original canonical data changed before transition cleanup; preserve both data trees",
+                        "original canonical data disappeared before transition cleanup",
                     ));
                 }
-            } else if operation.activate && operation.phase != LifecyclePhase::CleanupPending {
-                return Err(held(
-                    "original canonical data disappeared before transition cleanup",
-                ));
+                operation.phase = LifecyclePhase::CleanupPending;
+                store.put(operation)?;
+                self.faults
+                    .check(LifecycleFaultPoint::ArchiveDataCleanupStarted)?;
             }
-            operation.phase = LifecyclePhase::CleanupPending;
-            store.put(operation)?;
             if previous.exists() {
                 fs::remove_dir_all(&previous)?;
             }
@@ -844,4 +893,33 @@ fn canonical_digest(root: &Path) -> Result<String> {
     Ok(crate::signed_catalog::digest(&serde_json::to_vec(
         &crate::runtime_data_policy::DataReview::default().canonical(root)?,
     )?))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn cleanup_accepts_only_exact_surviving_original_entries() {
+        let temp = tempfile::tempdir().unwrap();
+        let old = temp.path().join("previous");
+        fs::create_dir_all(old.join("nested")).unwrap();
+        fs::write(old.join("removed"), b"old").unwrap();
+        fs::write(old.join("nested/keep"), b"kept").unwrap();
+        let frozen = frozen_tree(
+            &crate::runtime_data_policy::DataReview::default()
+                .canonical(&old)
+                .unwrap(),
+        )
+        .unwrap();
+        fs::remove_file(old.join("removed")).unwrap();
+        require_cleanup_survivors(&old, &frozen).unwrap();
+        fs::write(old.join("foreign"), b"new player data").unwrap();
+        assert!(require_cleanup_survivors(&old, &frozen).is_err());
+        assert_eq!(fs::read(old.join("foreign")).unwrap(), b"new player data");
+        fs::remove_file(old.join("foreign")).unwrap();
+        fs::write(old.join("nested/keep"), b"changed").unwrap();
+        assert!(require_cleanup_survivors(&old, &frozen).is_err());
+        fs::remove_dir_all(&old).unwrap();
+        require_cleanup_survivors(&old, &frozen).unwrap();
+    }
 }

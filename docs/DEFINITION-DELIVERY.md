@@ -213,7 +213,10 @@ hash is conditionally recorded in the existing installation row. A strict
 version-2 restore receipt binds that hash. Older readers refuse these envelopes;
 missing or downgraded receipts do not grant data access. Recovery uses its frozen
 mapping authority even after catalog changes and holds unexpected data, active
-selection, retained-copy or metadata changes. Current conventional data is mirrored
+selection, retained-copy or metadata changes. Once cleanup has durably begun,
+recovery accepts only unchanged surviving entries from its frozen old-data tree,
+so partial deletion can resume while new or modified files remain preserved.
+Current conventional data is mirrored
 from the initialized active runtime, including deletions; its build-specific data
 stays bound to the original archive. Runtime rollback still does not rewind saves.
 

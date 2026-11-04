@@ -59,6 +59,7 @@ async fn assert_reviewed_archive_transition(
     id: &str,
     fault: Option<LifecycleFaultPoint>,
     tamper_previous: bool,
+    partial_cleanup: bool,
 ) {
     let started = std::time::Instant::now();
     let temporary = tempfile::tempdir().unwrap();
@@ -215,6 +216,17 @@ async fn assert_reviewed_archive_transition(
             serde_json::json!("unrelated-future-policy");
         service.replace_catalog_for_test(Catalog::from_json(&drift.to_string()).unwrap());
         service.faults = Arc::new(NoLifecycleFaults);
+        if partial_cleanup {
+            let journal = OperationStore::new(library.clone())
+                .all()
+                .unwrap()
+                .remove(0);
+            assert_eq!(journal.phase, LifecyclePhase::CleanupPending);
+            let previous = journal.paths.quarantine.as_ref().unwrap();
+            // Simulate interruption after recursive deletion of one legitimate
+            // leaf, with its original siblings still present.
+            fs::remove_file(previous.join(deleted)).unwrap();
+        }
         if tamper_previous {
             let journal = OperationStore::new(library.clone())
                 .all()
@@ -365,15 +377,15 @@ async fn assert_reviewed_archive_transition(
 
 #[tokio::test]
 async fn reviewed_archive_transition_mmx2_populated_install() {
-    assert_reviewed_archive_transition("mega-man-x2-snes-recomp", None, false).await;
+    assert_reviewed_archive_transition("mega-man-x2-snes-recomp", None, false, false).await;
 }
 #[tokio::test]
 async fn reviewed_archive_transition_sonic_populated_install() {
-    assert_reviewed_archive_transition("sonic-the-hedgehog-recomp", None, false).await;
+    assert_reviewed_archive_transition("sonic-the-hedgehog-recomp", None, false, false).await;
 }
 #[tokio::test]
 async fn reviewed_archive_transition_super_metroid_populated_install() {
-    assert_reviewed_archive_transition("super-metroid-recomp", None, false).await;
+    assert_reviewed_archive_transition("super-metroid-recomp", None, false, false).await;
 }
 
 macro_rules! archive_transition_fault_case {
@@ -383,6 +395,7 @@ macro_rules! archive_transition_fault_case {
             assert_reviewed_archive_transition(
                 "mega-man-x2-snes-recomp",
                 Some(LifecycleFaultPoint::$point),
+                false,
                 false,
             )
             .await;
@@ -423,6 +436,28 @@ async fn reviewed_archive_transition_preserves_changed_quarantined_data() {
     assert_reviewed_archive_transition(
         "mega-man-x2-snes-recomp",
         Some(LifecycleFaultPoint::ArchiveDataCanonicalPublished),
+        true,
+        false,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn reviewed_archive_transition_resumes_partial_cleanup() {
+    assert_reviewed_archive_transition(
+        "mega-man-x2-snes-recomp",
+        Some(LifecycleFaultPoint::ArchiveDataCleanupStarted),
+        false,
+        true,
+    )
+    .await;
+}
+#[tokio::test]
+async fn reviewed_archive_transition_preserves_changed_cleanup_survivor() {
+    assert_reviewed_archive_transition(
+        "mega-man-x2-snes-recomp",
+        Some(LifecycleFaultPoint::ArchiveDataCleanupStarted),
+        true,
         true,
     )
     .await;
