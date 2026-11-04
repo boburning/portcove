@@ -6,7 +6,7 @@
     "summary": "Attach an independently permitted, prepared NHL 3-on-3 Arcade native Windows player directly after upstream game-package setup. Preserve its game folder, settings and actual runtime save root; roster and online compatibility remain separate.",
     "original_game_title": "3 on 3 NHL Arcade",
     "project_url": "https://github.com/startupandhold/3on3ArcadeRecomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/startupandhold/3on3ArcadeRecomp",
     "artwork": {

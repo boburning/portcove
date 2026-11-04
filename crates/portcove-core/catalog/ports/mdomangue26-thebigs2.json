@@ -6,7 +6,7 @@
     "summary": "Attach an independently permitted, prepared The Bigs 2 ReXGlue Windows player with your own Xbox 360 disc data already extracted upstream. Preserve its writable-package or existing per-user data layout; the published Windows package was only Wine-tested upstream.",
     "original_game_title": "The Bigs 2",
     "project_url": "https://github.com/mdomangue26/thebigs2",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/mdomangue26/thebigs2",
     "issue_number": 2802,

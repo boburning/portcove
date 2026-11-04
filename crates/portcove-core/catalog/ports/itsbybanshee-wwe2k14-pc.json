@@ -6,7 +6,7 @@
     "summary": "Attach an independently permitted, prepared WWE 2K14 Windows base-game player directly, with matching upstream settings and your own extracted Xbox 360 data. Preserve userdata, mods and originals; title-update switching, logos, music and DLC remain upstream-managed.",
     "original_game_title": "WWE 2K14",
     "project_url": "https://github.com/itsbybanshee/wwe2k14-pc",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/itsbybanshee/wwe2k14-pc",
     "artwork": {

@@ -6,7 +6,7 @@
     "summary": "Explore Zero Racers / ZeroRacersVirtualBoyRecomp (mstan) and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/mstan/ZeroRacersVirtualBoyRecomp",
     "issue_number": 1916,
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/mstan/ZeroRacersVirtualBoyRecomp",
     "artwork": {

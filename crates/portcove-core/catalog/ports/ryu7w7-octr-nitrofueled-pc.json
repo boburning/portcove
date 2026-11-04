@@ -6,7 +6,7 @@
     "summary": "An online Crash Team Racing Nitro-Fueled fork derived from GetLostIn’s Windows fork of SacredFire. The project reports menus, races, audio, controllers, saves and community online; complete campaign, online and GPU coverage remain unconfirmed. Its inherited and maintained online changes do not automatically establish a separate canonical implementation. Windows 10/11 ZIP and Linux AppImage routes use a PS4 compatibility layer with direct x86-64 execution. Supply your own PS4 CUSA13795 v1.21 dump. Exact accepted hashes and BIOS/firmware needs are unconfirmed. You and the project manage setup and updates; Portcove has not qualified a release package or confirmed gameplay.",
     "original_game_title": "Crash Team Racing Nitro-Fueled",
     "project_url": "https://github.com/Ryu7w7/OCTR-NitroFueled-PC",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Ryu7w7/OCTR-NitroFueled-PC",
     "artwork": {

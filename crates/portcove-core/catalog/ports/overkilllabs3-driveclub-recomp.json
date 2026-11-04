@@ -6,7 +6,7 @@
     "summary": "An experimental PS4 DriveClub port for Windows 10/11 x64, requiring a Haswell/Excavator/Ryzen-class CPU and Vulkan 1.3. Use your own CUSA00093 or CUSA00003 v1.28 dump; the European edition has less testing. Online features do not work, and other patches or repacked dumps are untested. The Recomp name does not imply PowerPC translation. Other OS routes, exact accepted hashes and BIOS/firmware needs are unconfirmed. You and the project manage setup and updates; Portcove has not qualified a release package or confirmed gameplay.",
     "original_game_title": "DriveClub",
     "project_url": "https://github.com/OverkillLabs3/driveclub-recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/OverkillLabs3/driveclub-recomp",
     "artwork": {

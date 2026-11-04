@@ -6,7 +6,7 @@
     "summary": "Attach a prepared Virtua Fighter 3 Windows installation using your own exact arcade ROM set. Its PowerPC603e program translated at launch, with separate Model3 board/Real3D implementation and MAME-derived sound; this is not a static-only pipeline. Upstream owns ROM preparation, player data and runtime replacement.",
     "original_game_title": "Virtua Fighter 3",
     "project_url": "https://github.com/mr-finster/vf3-recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/mr-finster/vf3-recomp",
     "artwork": {

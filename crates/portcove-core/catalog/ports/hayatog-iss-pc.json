@@ -6,7 +6,7 @@
     "summary": "Attach an independently permitted, prepared inFAMOUS Second Son Windows installation through its waiting saved-settings play route. Upstream owns game preparation and runtime replacement; keep the actual configurable save root and separate launcher preferences.",
     "original_game_title": "inFAMOUS Second Son",
     "project_url": "https://github.com/HayatoG/iss_pc",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/HayatoG/iss_pc",
     "issue_number": 2788,

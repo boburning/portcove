@@ -6,7 +6,7 @@
     "summary": "Attach an independently permitted, prepared GetLostIn CTR Nitro-Fueled Windows installation. Its native settings launcher waits for the game runner; upstream owns PS4-data preparation, runtime replacement and the external save/cache roots.",
     "original_game_title": "Crash Team Racing: Nitro-Fueled",
     "project_url": "https://github.com/GetLostIn/CTR-NitroFueled-PC",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/GetLostIn/CTR-NitroFueled-PC",
     "issue_number": 2822,

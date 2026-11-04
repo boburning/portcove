@@ -6,7 +6,7 @@
     "summary": "Attach the prepared SuperMedo Windows collection launcher and explicitly choose Uncharted: Drake’s Deception before its Play action. These three title records share a mutable upstream launcher selection, not independent fixed command-line game selectors.",
     "original_game_title": "Uncharted3: Drakes Deception",
     "project_url": "https://github.com/Supermedo/uncharted_pc",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Supermedo/uncharted_pc",
     "issue_number": 2818,

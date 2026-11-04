@@ -6,7 +6,7 @@
     "summary": "Attach an independently permitted, prepared Windows Nathan Drake Collection installation starting Uncharted: Drake’s Deception. The BilalReloaded launcher keeps title-specific settings; upstream owns preparation, runtime replacement and external player data.",
     "original_game_title": "Uncharted3: Drakes Deception",
     "project_url": "https://github.com/bc160201983/Uncharted-The-Nathan-Drake-Collection-PC-port",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/bc160201983/Uncharted-The-Nathan-Drake-Collection-PC-port",
     "issue_number": 2783,

@@ -6,7 +6,7 @@
     "summary": "An original-Xbox Splinter Cell: Double Agent port, separate from the PC and Xbox 360 editions. The Windows 64-bit Direct3D 12/XAudio2 ZIP includes SCDA.exe, which compiles game code locally from your own Xbox files on first start and reuses that build later. The build.bat/Visual Studio source route is separate. Native Linux/macOS, exact accepted revision/hashes and BIOS/firmware needs are unconfirmed. Gameplay and networking are project claims; multiplayer hosting requires port forwarding, with controller/save coverage unconfirmed here. The project manages setup, replacement and networking; Portcove has not qualified a release package or confirmed setup or gameplay.",
     "original_game_title": "Tom Clancy's Splinter Cell: Double Agent",
     "project_url": "https://github.com/TGP482/SCDA-XBERecomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/TGP482/SCDA-XBERecomp",
     "issue_number": 2832,
