@@ -727,6 +727,12 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
   const windowsObservedRecoveryBudgets = [
     {
       filter:
+        "package(portcove-core) & test(/^service::native_portable::tests::tails_nativeportable_progression_rollback_backup_restore_recovery_1895$/)",
+      periods: 36,
+      beforeFilter: "package(portcove-core) & test(/^service::native_portable::tests::/)",
+    },
+    {
+      filter:
         "package(portcove-core) & test(/^service::tests::backups::recovers_restore_published$/)",
       periods: 24,
       beforeFilter:
@@ -752,6 +758,14 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
         "package(portcove-core) & (test(/^service::tests::backups::recovers_restore_prepared$/) | test(/^service::tests::backups::recovers_restore_published$/))",
     },
   ];
+  const windowsCuratedActivationRecoveryFilter =
+    "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_activation_recovery_withdrawal_permits_local_commit$/)";
+  assert.deepEqual(overrideFor(windowsCuratedActivationRecoveryFilter, "x86_64-pc-windows-msvc"), {
+    platform: "x86_64-pc-windows-msvc",
+    filter: windowsCuratedActivationRecoveryFilter,
+    "slow-timeout": { period: "5s", "terminate-after": 18, "grace-period": "0s" },
+    "success-output": "immediate",
+  });
   const windowsTrackedCancellationFilter =
     "package(portcove-core) & test(/^game_file_query::tests::tracked_refresh_settles_cancellation_only_after_worker_exit$/)";
   const outputIdentity = (value: Readonly<Record<string, unknown>>) =>
@@ -781,6 +795,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       { platform: "x86_64-pc-windows-msvc", filter: windowsSelectedPlayerDiagnosticFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsCopyingResumeFilter },
       ...currentFullBaselineBudgets.map(({ platform, filter }) => ({ platform, filter })),
+      { platform: "x86_64-pc-windows-msvc", filter: windowsCuratedActivationRecoveryFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsTrackedCancellationFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsPublishedMoveFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsSuccessorMoveFilter },
