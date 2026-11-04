@@ -368,12 +368,14 @@ success-output = "immediate"
 # uses main's separately delivered exact-case calibration and phase output.
 # CI40803822488/a1 cut cases2685/2688 off at60.318/60.265s after
 # reviewed restore completed59.148/54.937s and preserving removal began.
-# Give this existing progression family finite90s; retain every assertion, phase
-# observations, worker slots and zero retries; no product deadline changes.
+# CI41920113994/a1 later cut case2689 at90.310s after reviewed restore
+# completed and preserving removal began85.318s. Give this same closed nine-case
+# progression family finite180s; retain every assertion, phase observation,
+# worker slot and zero retries. No product deadline or speedup claim changes.
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
 filter = 'package(portcove-core) & test(/^service::runtime_tests::reflectionhle_progression::reflectionhle_progression_(2683|2684|2685|2686|2687|2688|2689|2690|2692)$/)'
-slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
+slow-timeout = { period = "5s", terminate-after = 36, grace-period = "0s" }
 success-output = "immediate"
 
 # CI41001466846/a1 source09eba Windows1 retained three harness failures.
