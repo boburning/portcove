@@ -217,12 +217,12 @@ void test("ordinary preparation reuses accepted evidence and fences omitted or r
       facts: {
         fetcher: (async () => {
           requests++;
-          return new Response(
-            JSON.stringify({
+          return Response.json(
+            {
               id: 1414469189,
               full_name: "josiahg2502-glitch/Mother3Recomp",
               name: "Mother3Recomp",
-            }),
+            },
             { status: 200 },
           );
         }) as typeof fetch,

@@ -69,6 +69,58 @@ void test("maintenance registry and TOML sources retain explicit focused owners"
 
 const allFilesExist = () => true;
 
+void test("SDK and preparation changes retain accepted-observation and lineage consumers", async () => {
+  const { baselineContractTests } = await import("./ci-baseline.mts");
+  const consumers = [
+    "scripts/prepare-port.test.mts",
+    "scripts/package-player-observation.test.mts",
+    "scripts/upstream-lineage.test.mts",
+  ];
+  for (const file of [
+    "scripts/prepare-port.mts",
+    "scripts/port-upstream-facts.mts",
+    "scripts/github-client.mts",
+    "scripts/github-operation.mts",
+    "package.json",
+    "pnpm-lock.yaml",
+  ]) {
+    for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
+      const change = {
+        status: variant.startsWith("R") ? "R100" : variant,
+        oldPath: variant === "R-new" ? "docs/moved.md" : file,
+        newPath: variant === "R-old" ? "docs/moved.md" : file,
+        oldMode: variant === "A" ? "000000" : "100644",
+        newMode: variant === "D" ? "000000" : "100644",
+      };
+      const local = classifyChanges(
+        [{ status: change.status, path: change.newPath, previousPath: change.oldPath }],
+        { fileExists: () => false },
+      );
+      const hosted = baselineContractTests(
+        buildValidationPlan({
+          changes: [change],
+          eventName: "pull_request",
+          base: "a".repeat(40),
+          mergeBase: "a".repeat(40),
+          head: "b".repeat(40),
+          checkout: "b".repeat(40),
+        }),
+        { fileExists: () => false },
+      );
+      for (const consumer of consumers) {
+        assert.ok(local.nodeTests.has(consumer), `${variant} ${file}: local ${consumer}`);
+        assert.equal(
+          hosted.filter((selected) => selected === consumer).length,
+          1,
+          `${variant} ${file}: hosted ${consumer}`,
+        );
+      }
+    }
+  }
+  const inert = classifyChanges([{ status: "M", path: "docs/README.md" }]);
+  for (const consumer of consumers) assert.ok(!inert.nodeTests.has(consumer));
+});
+
 void test("native helper consumers survive shared custody registration across lifecycle changes", async () => {
   const { baselineContractTests } = await import("./ci-baseline.mts");
   const consumers: [string, string[]][] = [

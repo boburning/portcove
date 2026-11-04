@@ -18,11 +18,26 @@ fn held(message: &str) -> PortcoveError {
 }
 
 pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
+    crate::archive_data_transition::validate_declaration(port)?;
+    if port.archive_data_compatibility_v1.is_none() {
+        return Ok(());
+    }
+    if port.release.provider != crate::ReleaseSource::Github {
+        return Err(PortcoveError::usage(
+            "new archive data policies require a provider-bound GitHub archive",
+        ));
+    }
+    crate::managed_runtime_policy::validate_release_rules(port)?;
+    validate_layout(port)
+}
+
+/// A receipt-admitted predecessor retains its Direct acquisition contract.
+/// Layout validation never supplies that predecessor admission itself.
+pub(crate) fn validate_layout(port: &PortDefinition) -> Result<()> {
     let Some(policy) = &port.archive_data_compatibility_v1 else {
         return Ok(());
     };
     if !crate::persistence::ready_staged_archive(port)
-        || port.release.provider != crate::ReleaseSource::Github
         || !port.persistent_file_patterns.is_empty()
         || policy.contract_id.is_empty()
         || policy.contract_id.len() > 128
@@ -58,7 +73,6 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
             ));
         }
     }
-    crate::managed_runtime_policy::validate_release_rules(port)?;
     for path in port.persistent_paths.iter().chain(&policy.shared_paths) {
         crate::archive::validate_relative_path(path, false)?;
         if path
@@ -385,7 +399,7 @@ pub(crate) fn entries(
             })
             .collect());
     };
-    validate(port)?;
+    validate_layout(port)?;
     let archive = archive.filter(|sha| digest(sha)).ok_or_else(|| {
         held("partitioned data requires its actual retained installation and archive identity")
     })?;

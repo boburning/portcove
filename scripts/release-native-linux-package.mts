@@ -124,7 +124,11 @@ export async function replaceNativeLinuxPackage(options: {
       hash.update(buffer.subarray(0, bytesRead));
       let offset = 0;
       while (offset < bytesRead) {
-        const result = await output.write(buffer, offset, bytesRead - offset);
+        const result: { bytesWritten: number } = await output.write(
+          buffer,
+          offset,
+          bytesRead - offset,
+        );
         assert.ok(result.bytesWritten > 0);
         offset += result.bytesWritten;
       }

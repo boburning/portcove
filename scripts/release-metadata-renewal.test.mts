@@ -31,8 +31,12 @@ async function fixture(t: test.TestContext) {
   await writeFile(path.join(prior, "metadata/timestamp.json"), bytes);
   const trusted = path.join(root, "root.json");
   await writeFile(trusted, bytes);
+  // This negative preparation fixture never executes a verifier. Do not use
+  // a large Node executable as a stand-in for the independently bounded Rust tool.
+  const verifier = path.join(root, "inert-renewal-verifier");
+  await writeFile(verifier, "inert verifier fixture\n", { flag: "wx", mode: 0o700 });
   const request = {
-    verifier: process.execPath,
+    verifier,
     verifier_sha256: "0".repeat(64),
     trusted_root: trusted,
     trusted_root_sha256: sha(bytes),

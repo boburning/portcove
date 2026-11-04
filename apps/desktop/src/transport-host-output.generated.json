@@ -12552,6 +12552,23 @@
         ],
         "type": "object"
       },
+      "ArchiveDataTransitionV1": {
+        "additionalProperties": false,
+        "description": "One finite reviewed predecessor admission, separate from data layout identity.\nIt never redefines that runtime's original source or execution contract.",
+        "properties": {
+          "creating_contract_sha256": {
+            "type": "string"
+          },
+          "predecessor_archive_sha256": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "predecessor_archive_sha256",
+          "creating_contract_sha256"
+        ],
+        "type": "object"
+      },
       "ArtifactIdentity": {
         "properties": {
           "asset_name": {
@@ -15118,6 +15135,16 @@
             "anyOf": [
               {
                 "$ref": "#/$defs/ArchiveDataCompatibilityV1"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "archive_data_transition_v1": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ArchiveDataTransitionV1"
               },
               {
                 "type": "null"

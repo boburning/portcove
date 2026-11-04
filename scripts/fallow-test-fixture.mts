@@ -3,7 +3,7 @@ import { reviewedFallowVersion } from "./check-fallow-report.mts";
 export function report({ issues = 0, duplication = 0, critical = 0 } = {}) {
   return {
     kind: "combined",
-    schema_version: 14,
+    schema_version: 15,
     version: reviewedFallowVersion,
     gate_outcomes: {
       "parse-error": { status: "pass", enforced: true },

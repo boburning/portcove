@@ -1,3 +1,5 @@
+import { controllerFixtureFailureAnnotation } from "./qualify-controller-tool-build.mts";
+import { controllerWorkflowAtCurrentNode } from "./fixtures/release-capacity-fixture.mts";
 import assert from "node:assert/strict";
 import { runInNewContext } from "node:vm";
 import { parseDocument } from "yaml";
@@ -53,7 +55,33 @@ import {
   controllerToolBootstrapProfile,
 } from "./assembler-job-identity.mts";
 import { launchFixedPayloadController } from "./release-controller-tool-launch.mts";
-import { controllerNodeVersion } from "./controller-node-runtime.mts";
+import { controllerNodeVersion, controllerNodeMaximumBytes } from "./controller-node-runtime.mts";
+
+void test("reviewed workflow runtime projection refuses every other byte change", async () => {
+  const historical = await readFile(
+    new URL(
+      "../docs/qualification/application-update-production.windows-20261103.proposed.yml",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const projected = controllerWorkflowAtCurrentNode(historical);
+  assert.equal(
+    projected.replace(
+      `          node-version: ${controllerNodeVersion}\n`,
+      "          node-version: 24.22.2\n",
+    ),
+    historical,
+  );
+  for (const changed of [
+    historical + "\n",
+    historical.replace("timeout-minutes: 22", "timeout-minutes: 23"),
+    historical.replace("package-manager-cache: false", "package-manager-cache: true"),
+  ]) {
+    assert.notEqual(changed, historical);
+    assert.throws(() => controllerWorkflowAtCurrentNode(changed));
+  }
+});
 
 const sourceRoot = fileURLToPath(new URL("..", import.meta.url));
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
@@ -722,7 +750,7 @@ void test("ordinary Linux tool build fixture uses actual source and fresh public
   assert.match(source, /production_tool_acceptance: "not-established"/u);
   assert.ok(isRecord(parsed.on));
   for (const event of ["pull_request", "push"]) {
-    const trigger = parsed.on[event];
+    const trigger: unknown = parsed.on[event];
     assert.ok(isRecord(trigger) && Array.isArray(trigger.paths));
     for (const scope of ["crates/portcove-cli/**", "crates/portcove-core/**"])
       assert.ok(trigger.paths.includes(scope));
@@ -1100,6 +1128,44 @@ void test("opaque fixture tool archive requires exact complete inventory and ref
     );
   }
 });
+void test("only closed Node inventory entries receive the larger finite runtime bound", () => {
+  for (const platform of ["linux-x86_64", "windows-x86_64"] as const) {
+    const original = fixture({}, platform).manifest;
+    const nodePath = platform === "linux-x86_64" ? "bin/node" : "bin/node.exe";
+    const sized = (selectedPath: string, bytes: number) => ({
+      ...original,
+      files: original.files.map((file) => (file.path === selectedPath ? { ...file, bytes } : file)),
+    });
+    assert.equal(controllerNodeMaximumBytes, 160 * 1024 ** 2);
+    assert.equal(
+      inspectControllerToolManifest(sized(nodePath, 150319296), platform).files.find(
+        (file) => file.path === nodePath,
+      )?.bytes,
+      150319296,
+    );
+    assert.throws(
+      () =>
+        inspectControllerToolManifest(sized(nodePath, controllerNodeMaximumBytes + 1), platform),
+      /inventory differs/u,
+    );
+    const otherPath = original.files.find((file) => file.path !== nodePath)!.path;
+    assert.throws(
+      () => inspectControllerToolManifest(sized(otherPath, 128 * 1024 ** 2 + 1), platform),
+      /inventory differs/u,
+    );
+    const overAggregate = {
+      ...original,
+      files: original.files.map((file) => ({
+        ...file,
+        bytes: file.path === nodePath ? controllerNodeMaximumBytes : 128 * 1024 ** 2,
+      })),
+    };
+    assert.throws(
+      () => inspectControllerToolManifest(overAggregate, platform),
+      /expanded bytes exceed bound/u,
+    );
+  }
+});
 void test("tool manifest retains the aggregate and per-file byte limits on both platforms", () => {
   for (const platform of ["linux-x86_64", "windows-x86_64"] as const) {
     const manifest = fixture({}, platform).manifest;
@@ -1120,7 +1186,7 @@ void test("tool manifest retains the aggregate and per-file byte limits on both 
       () => inspectControllerToolManifest({ ...manifest, files }, platform),
       /expanded bytes exceed bound/u,
     );
-    files[0]!.bytes++;
+    files[1]!.bytes++;
     assert.throws(
       () => inspectControllerToolManifest({ ...manifest, files }, platform),
       /inventory differs/u,
@@ -1391,16 +1457,43 @@ void test("installed bootstrap clears inherited GitHub credentials only for comp
   const workflowSha = createHash("sha256").update(text).digest("hex");
   assert.equal(slice4CapacityResources.aggregate_workflow_sha256, workflowSha);
   assert.equal(slice4CapacityResources.input_workflow_sha256, workflowSha);
-  assert.equal(
-    await readFile(
-      new URL(
-        "../docs/qualification/application-update-production.windows-20261103.proposed.yml",
-        import.meta.url,
-      ),
-      "utf8",
+  const historicalText = await readFile(
+    new URL(
+      "../docs/qualification/application-update-production.windows-20261103.proposed.yml",
+      import.meta.url,
     ),
-    text,
+    "utf8",
   );
+  assert.equal(text, controllerWorkflowAtCurrentNode(historicalText));
+  const historicalDocument = parseDocument(historicalText, { uniqueKeys: true });
+  assert.deepEqual(historicalDocument.errors, []);
+  const historical: unknown = historicalDocument.toJS({ maxAliasCount: 100 });
+  assert.ok(isRecord(historical) && isRecord(historical.jobs));
+  // Preserve the dated proposal bytes. Only its two isolated setup-node pins
+  // project to today's separately validated runtime; every other field must match.
+  const literalPins = [];
+  const projectedPins: Record<string, unknown>[] = [];
+  for (const [name, historicalJob] of Object.entries(historical.jobs)) {
+    assert.ok(isRecord(historicalJob) && Array.isArray(historicalJob.steps));
+    const historicalSteps: unknown[] = historicalJob.steps;
+    for (const [index, step] of historicalSteps.entries()) {
+      if (!isRecord(step) || !isRecord(step.with) || !("node-version" in step.with)) continue;
+      literalPins.push(`${name}/${index}`);
+      assert.equal(step.uses, "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1");
+      assert.equal(step.with["node-version"], "24.22.2");
+      const currentJob: unknown = raw.jobs[name];
+      assert.ok(isRecord(currentJob) && Array.isArray(currentJob.steps));
+      const currentStep: unknown = currentJob.steps[index];
+      assert.ok(isRecord(currentStep) && isRecord(currentStep.with));
+      assert.equal(currentStep.uses, step.uses);
+      assert.equal(currentStep.with["node-version"], controllerNodeVersion);
+      projectedPins.push(step.with);
+    }
+  }
+  assert.deepEqual(literalPins.sort(), ["attest/0", "tool_attest/0"]);
+  // Check every original value before mutation: YAML aliases may share a map.
+  for (const pin of projectedPins) pin["node-version"] = controllerNodeVersion;
+  assert.deepEqual(historical, raw);
 });
 
 void test("fixed source asset preflight bounds real inventory and refuses before dependency or build work", async (t) => {
@@ -2204,4 +2297,74 @@ void test("protected Windows runtime sequential budget preserves original provid
     { minutes: Infinity },
   ])
     assert.throws(() => remaining({ ...original, ...changed }));
+});
+
+void test("controller failure annotations expose bounded stage metadata while excluding private error contents", () => {
+  const error = Object.assign(new Error("PRIVATE credential and path"), {
+    code: "ERR_ASSERTION",
+    stack:
+      "Error: PRIVATE\n at build (file:///private/source/scripts/release-controller-tool-build.mts:417:9)",
+  });
+  const annotation = controllerFixtureFailureAnnotation("actual-fixed-build", error, 123);
+  const prefix = "::error title=Controller fixture refused::";
+  assert.ok(annotation.startsWith(prefix));
+  assert.deepEqual(JSON.parse(annotation.slice(prefix.length)), {
+    phase: "actual-fixed-build",
+    bootstrap_phase: null,
+    code: "ERR_ASSERTION",
+    site: { file: "release-controller-tool-build.mts", line: 417, column: 9 },
+    build_milliseconds: 123,
+  });
+  assert.doesNotMatch(annotation, /PRIVATE|credential|\/private/u);
+  assert.ok(Buffer.byteLength(annotation) < 512);
+  let codeReads = 0;
+  const changing = Object.defineProperty(new Error("PRIVATE"), "code", {
+    get() {
+      codeReads++;
+      return codeReads === 1 ? "ERR_ASSERTION" : "PRIVATE";
+    },
+  });
+  const stable = controllerFixtureFailureAnnotation("source", changing, 0);
+  assert.equal(codeReads, 1);
+  assert.doesNotMatch(stable, /PRIVATE/u);
+
+  const hostile = Object.defineProperty(new Error("PRIVATE"), "code", {
+    get() {
+      throw new Error("PRIVATE");
+    },
+  });
+  const refused = controllerFixtureFailureAnnotation(
+    "PRIVATE\n::error::injected",
+    hostile,
+    Number.NaN,
+  );
+  assert.deepEqual(JSON.parse(refused.slice(prefix.length)), {
+    phase: "unknown",
+    bootstrap_phase: null,
+    code: "unclassified",
+    site: null,
+    build_milliseconds: null,
+  });
+  assert.doesNotMatch(refused, /PRIVATE|injected/u);
+  const inner = Object.assign(new Error("PRIVATE compiler error"), {
+    code: "ENOSPC",
+    stack:
+      "Error: PRIVATE\n at read (file:///private/source/scripts/release-controller-tools.mts:123:4)",
+  });
+  const outer = Object.assign(new Error("PRIVATE wrapper", { cause: inner }), {
+    controllerBootstrapPhase: "fixed-node-bundles",
+  });
+  const nested = controllerFixtureFailureAnnotation("actual-fixed-build", outer, null);
+  const observation: unknown = JSON.parse(nested.slice(prefix.length));
+  assert.deepEqual(observation, {
+    phase: "actual-fixed-build",
+    bootstrap_phase: "fixed-node-bundles",
+    code: "ENOSPC",
+    site: { file: "release-controller-tools.mts", line: 123, column: 4 },
+    build_milliseconds: null,
+  });
+  assert.doesNotMatch(nested, /PRIVATE|compiler error|\/private/u);
+  assert.ok(Buffer.byteLength(nested) < 512);
+  Object.assign(inner, { cause: outer, controllerBootstrapPhase: "PRIVATE" });
+  assert.equal(controllerFixtureFailureAnnotation("source", outer, 0).includes("PRIVATE"), false);
 });

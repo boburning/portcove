@@ -84,6 +84,10 @@
       "contract_id": "mega-man-x2-snes-recomp-conventional-v1",
       "shared_paths": ["game.sfc", "config.ini", "keybinds.ini", "rom.cfg"],
       "build_specific_progress_paths": ["saves"]
+    },
+    "archive_data_transition_v1": {
+      "predecessor_archive_sha256": "f54bf04ea2975c338d62db5b4647082d8d1342f0378a861e15e42ddeb6d0e95a",
+      "creating_contract_sha256": "8d1aef60c763a9ccb3ee83e0f14434e22364d8a7ebf9b12b4b557ba8ea88167f"
     }
   }
 }

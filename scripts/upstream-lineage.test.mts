@@ -382,8 +382,8 @@ function preparationFixture(record: AuthoredPort) {
 }
 function metadataFetcher(id: number, name = "fixture/moved"): typeof fetch {
   return async () =>
-    new Response(
-      JSON.stringify({ id, full_name: name, name: "Fixture", description: "A fixture." }),
+    Response.json(
+      { id, full_name: name, name: "Fixture", description: "A fixture." },
       { status: 200 },
     );
 }

@@ -1,3 +1,4 @@
+import { readControllerNodeFile } from "./release-controller-tools.mts";
 /** Fixed source bootstrap into the attested native runner. Public locators and
  * clock records do not grant admission, proof custody or execution authority. */
 import assert from "node:assert/strict";
@@ -300,8 +301,8 @@ async function materializeBootstrapRunner(
   ];
   const custody = inspectNativeRuntimeCustody(custodyFiles);
   assert.equal(
-    digest(await readControllerToolFile(process.execPath)),
-    digest(await readControllerToolFile(tools.node)),
+    digest(await readControllerNodeFile(process.execPath)),
+    digest(await readControllerNodeFile(tools.node)),
     "actual native bootstrap Node differs from attested runtime",
   );
   const entry = tools.entries["release-hosted-native-runner"];

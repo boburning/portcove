@@ -435,9 +435,9 @@ export function inspectNativeRuntimeCustody(files: readonly string[]): NativeRun
         regular ? info.isFile() && info.nlink === 1n : info.isDirectory(),
         "native runtime requires regular single-link files and directory ancestry",
       );
-      const identity = [info.dev, info.ino, info.uid, info.gid, info.mode];
+      const identity: bigint[] = [info.dev, info.ino, info.uid, info.gid, info.mode];
       if (regular) identity.push(info.nlink, info.size, info.mtimeNs, info.ctimeNs);
-      const serialized = identity.join(":");
+      const serialized: string = identity.join(":");
       const previous = observed.get(cursor);
       assert.ok(previous === undefined || previous === serialized, "native custody changed");
       observed.set(cursor, serialized);

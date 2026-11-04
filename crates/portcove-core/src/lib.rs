@@ -3,6 +3,7 @@ mod adapter;
 mod application_runtime;
 mod archive;
 mod archive_data;
+mod archive_data_transition;
 mod artwork;
 mod artwork_image;
 mod artwork_ingestion;

@@ -117,7 +117,7 @@ void test("resource observations reconcile current purposes and keep provider, b
     { strategy: { matrix: { platform: ["a", "b"] } } },
     { uses: "./.github/workflows/extra.yml" },
   ]) {
-    const variant = structuredClone(original);
+    const variant: Record<string, unknown> = structuredClone(original);
     assert.ok(isRecord(variant.jobs) && isRecord(variant.jobs.native_windows));
     variant.jobs.native_windows = { ...variant.jobs.native_windows, ...replacement };
     const unknown = observeReleaseResources(Buffer.from(stringify(variant)), wake, candidate);

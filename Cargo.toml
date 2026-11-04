@@ -116,6 +116,12 @@ inherits = "release"
 opt-level = 0
 strip = "symbols"
 
+# Node 26's larger official executable leaves less room in the unchanged fixed
+# tool inventory. Optimize only our shared core in this non-shipping profile;
+# keep dependency compilation and shipping/test profiles unchanged.
+[profile.controller-tools.package.portcove-core]
+opt-level = 1
+
 # Preserve the GTK format fix until a compatible fixed RFD release is available.
 [patch.crates-io]
 rfd = { path = "vendor/rfd" }

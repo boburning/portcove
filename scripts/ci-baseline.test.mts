@@ -1,4 +1,5 @@
 import { isRecord } from "./runtime-values.mts";
+import vitePlusMatcher from "../.github/viteplus-problem-matcher.json" with { type: "json" };
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
@@ -21,6 +22,78 @@ import {
   baselineRequiresRust,
   baselineRequiresDesktopDependencies,
 } from "./ci-baseline.mts";
+
+void test("Vite+ matcher exposes source locations and rule identities without private diagnostic text", () => {
+  const matcher = vitePlusMatcher.problemMatcher[0]?.pattern[0];
+  assert.ok(matcher);
+  assert.equal(matcher.message, 5);
+  const expression = new RegExp(matcher.regexp, "u");
+  const line =
+    "scripts/release-controller-tools.test.mts:2332:9: error typescript(no-unsafe-assignment): PRIVATE /secret/token";
+  assert.deepEqual(expression.exec(line)?.slice(1), [
+    "scripts/release-controller-tools.test.mts",
+    "2332",
+    "9",
+    "error",
+    "typescript(no-unsafe-assignment)",
+  ]);
+  assert.ok(
+    expression.test(
+      "apps/desktop/scripts/desktop-test.mts:123:4: error typescript(TS7022): PRIVATE",
+    ),
+  );
+  for (const privateLine of [
+    "/private/source/scripts/test.mts:123:4: error typescript(TS7022): PRIVATE",
+    "scripts/../../private.mts:123:4: error typescript(TS7022): PRIVATE",
+    "scripts/test.mts:123:4: error PRIVATE: secret",
+    "scripts/test.mts:123:4: error typescript(PRIVATE_DATA): secret",
+  ])
+    assert.equal(expression.test(privateLine), false);
+});
+
+// Official Vite+1.4 check_lint_fail_typecheck snapshot uses this two-line format;
+// standalone `vp lint` uses the separate Unix format above.
+void test("integrated Vite+ graphical diagnostics expose only a bounded rule and source location", () => {
+  const matcher = vitePlusMatcher.problemMatcher[1];
+  assert.ok(matcher);
+  const first = matcher.pattern[0],
+    second = matcher.pattern[1];
+  assert.ok(first && second);
+  assert.equal(first.message, 1);
+  const rule = new RegExp(first.regexp, "u"),
+    source = new RegExp(second.regexp, "u");
+  assert.deepEqual(rule.exec("× typescript(TS2322): PRIVATE /secret/token")?.slice(1), [
+    "typescript(TS2322)",
+  ]);
+  for (const prefix of ["", "/home/runner/work/portcove/portcove/"])
+    assert.deepEqual(source.exec(`   ╭─[${prefix}scripts/check.mts:123:9]`)?.slice(1), [
+      "scripts/check.mts",
+      "123",
+      "9",
+    ]);
+  for (const line of [
+    "   ╭─[/private/source/scripts/check.mts:123:9]",
+    "   ╭─[scripts/../../private.mts:123:9]",
+    "   ╭─[scripts/check.mts:1234567:9]",
+  ])
+    assert.equal(source.test(line), false);
+  // Captured from the pinned checker through the normal staged entry point.
+  // Vite Task's command-scoped FORCE_COLOR produces SGR even on CI pipes.
+  const red = "\u001b[38;2;225;80;80;1m",
+    reset = "\u001b[0m",
+    blue = "\u001b[38;2;92;157;255;1m";
+  assert.deepEqual(
+    rule.exec(`${red}×${reset} ${red}typescript(TS2322): PRIVATE${reset}`)?.slice(1),
+    ["typescript(TS2322)"],
+  );
+  assert.deepEqual(
+    source.exec(`      ╭─[${blue}scripts/ci-baseline.test.mts${reset}:1045:7]`)?.slice(1),
+    ["scripts/ci-baseline.test.mts", "1045", "7"],
+  );
+  assert.equal(source.test(`      ╭─[${blue}/private/scripts/check.mts${reset}:1045:7]`), false);
+  assert.equal(rule.test(`\u001b[${"1".repeat(33)}m× typescript(TS2322): PRIVATE`), false);
+  assert.equal(rule.test("× typescript(PRIVATE_DATA): secret"), false);
+});
 
 void test("workflow Python provisioning follows its actual relocated consumer and declared renames", () => {
   const consumer = "scripts/nextest-equivalence.test.mts";

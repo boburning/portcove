@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { controllerWorkflowAtCurrentNode } from "./fixtures/release-capacity-fixture.mts";
 import test from "node:test";
 import {
   readFile,
@@ -492,12 +493,14 @@ void test("installed two-purpose workflow remains mutually exclusive under uncha
   assert.equal(hash(bytes), slice4CapacityResources.aggregate_workflow_sha256);
   assert.equal(hash(bytes), slice4CapacityResources.input_workflow_sha256);
   assert.equal(
-    await readFile(
-      new URL(
-        "../docs/qualification/application-update-production.windows-20261103.proposed.yml",
-        import.meta.url,
+    controllerWorkflowAtCurrentNode(
+      await readFile(
+        new URL(
+          "../docs/qualification/application-update-production.windows-20261103.proposed.yml",
+          import.meta.url,
+        ),
+        "utf8",
       ),
-      "utf8",
     ),
     bytes.toString(),
   );

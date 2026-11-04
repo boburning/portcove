@@ -75,12 +75,32 @@ pub(crate) fn serve_routed_http(
     request_limit: usize,
     response: impl Fn(&str) -> String + Send + 'static,
 ) -> (String, Receiver<String>, HttpServer) {
-    serve_requests(request_limit, None, response)
+    serve_routed_http_with_budget(request_limit, Duration::from_secs(30), response)
+}
+
+/// Long lifecycle fixtures may keep their listener alive within their declared
+/// finite owner budget; every individual exchange retains the two-second bound.
+pub(crate) fn serve_routed_http_with_budget(
+    request_limit: usize,
+    accept_budget: Duration,
+    response: impl Fn(&str) -> String + Send + 'static,
+) -> (String, Receiver<String>, HttpServer) {
+    assert!(!accept_budget.is_zero() && accept_budget <= Duration::from_secs(900));
+    serve_requests_with_budget(request_limit, None, accept_budget, response)
 }
 
 fn serve_requests<R: AsRef<[u8]>>(
     limit: usize,
     expected: Option<usize>,
+    response: impl FnMut(&str) -> R + Send + 'static,
+) -> (String, Receiver<String>, HttpServer) {
+    serve_requests_with_budget(limit, expected, Duration::from_secs(30), response)
+}
+
+fn serve_requests_with_budget<R: AsRef<[u8]>>(
+    limit: usize,
+    expected: Option<usize>,
+    accept_budget: Duration,
     mut response: impl FnMut(&str) -> R + Send + 'static,
 ) -> (String, Receiver<String>, HttpServer) {
     // Bound ephemeral listener is ready before the address is published.
@@ -93,7 +113,7 @@ fn serve_requests<R: AsRef<[u8]>>(
     let worker_stop = Arc::clone(&stop);
     let worker = thread::spawn(move || {
         // Provider construction and trust/proxy setup precede request I/O.
-        let accept_deadline = Instant::now() + Duration::from_secs(30);
+        let accept_deadline = Instant::now() + accept_budget;
         let mut handled = 0;
         while handled < limit && !worker_stop.finish.load(Ordering::SeqCst) {
             if Instant::now() >= accept_deadline {
@@ -589,4 +609,21 @@ mod tests {
             "peer made insufficient response progress: {chunks}"
         );
     }
+}
+
+#[test]
+fn explicit_listener_budget_still_terminates_idle_acceptance() {
+    let (_origin, _requests, server) =
+        serve_routed_http_with_budget(1, Duration::from_millis(10), |_| {
+            panic!("no request expected")
+        });
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while !server.thread.as_ref().unwrap().is_finished() {
+        assert!(
+            Instant::now() < deadline,
+            "finite listener budget was not enforced"
+        );
+        thread::sleep(Duration::from_millis(1));
+    }
+    assert_eq!(server.join().unwrap_err().kind(), io::ErrorKind::TimedOut);
 }
