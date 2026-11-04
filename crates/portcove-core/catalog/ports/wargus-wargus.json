@@ -37,16 +37,20 @@
           "instruction": "Finish extraction with upstream before registration. Keep wargus.exe, its matching Stratagus engine, DLLs, scripts, campaigns and extraction tools together; the portable setup includes these components. Select wargus.exe with its installed folder as working directory and leave arguments empty for the normal game. Do not select the downloaded setup program, wartool.exe, a converter, the MIDI helper or uninstaller. The documented Windows launcher waits for its engine; Portcove supervises the selected launcher rather than adopting arbitrary replacement processes."
         },
         {
-          "title": "Preserve converted data and player settings",
-          "instruction": "Keep your original DOS or Battle.net/GOG inputs and the complete actual converted-data directory. A portable-install marker can keep data in the application folder; otherwise the launcher can use Documents/Stratagus/data.Wargus. An existing local data set can also be reused. Engine preferences, logs and saves can use the application/data folder or Documents/Stratagus, and a deliberate -u option changes the user directory. Preserve the complete actual locations with the creating runtime. Upstream version checks can trigger in-place extraction or migration; back up before changing versions and do not infer older-save, mod or expansion compatibility."
-        },
-        {
           "title": "Keep installation and updates upstream-owned",
           "instruction": "Portcove records your reviewed executable, working folder and literal arguments; choose Play separately. You and upstream own setup, extraction, generated data and runtime replacement. Registration removal preserves all external files. Managed installation, updates, backups, rollback, migration and file deletion are not offered for this copy. Complete any upstream repair, extraction or replacement outside the selected Play session, then review and relink changed execution intent when needed."
         }
       ],
-      "warnings": [],
-      "help_url": "https://wargus.github.io/"
+      "warnings": [
+        "Preserve the complete actual locations with the creating runtime. Upstream version checks can trigger in-place extraction or migration; back up before changing versions and do not infer older-save, mod or expansion compatibility."
+      ],
+      "help_url": "https://wargus.github.io/",
+      "references": [
+        {
+          "title": "Preserve converted data and player settings",
+          "instruction": "Keep your original DOS or Battle.net/GOG inputs and the complete actual converted-data directory. A portable-install marker can keep data in the application folder; otherwise the launcher can use Documents/Stratagus/data.Wargus. An existing local data set can also be reused. Engine preferences, logs and saves can use the application/data folder or Documents/Stratagus, and a deliberate -u option changes the user directory. Preserve the complete actual locations with the creating runtime. Upstream version checks can trigger in-place extraction or migration; back up before changing versions and do not infer older-save, mod or expansion compatibility."
+        }
+      ]
     },
     "download_asset_hints": {
       "windows-x86-64": ["Wargus-portable-", ".exe"]

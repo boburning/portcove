@@ -28,16 +28,19 @@
         {
           "title": "Review launch details, then choose Play",
           "instruction": "Review and consent to the selected executable, working folder and launch arguments, then choose Play separately. You and the project manage setup, version changes, recovery and all external files. Removing the registration leaves those files in place. Before changing versions, close every game process and keep the complete working player and all its data. Review and select the executable again if its files change. Portcove does not offer updates, backups, rollback, migration or deletion for this external copy."
-        },
-        {
-          "title": "Keep the complete profile with its game version",
-          "instruction": "The inspected SDK places settings.toml, logs/ and hdd/ beside the executable; numbered upstream instances can use separately numbered hdd roots. Its virtual hard-disk partitions E, C, X, Y and Z live under that effective root; preserve the whole tree, including saves, caches and data another executable can share. Keep assets/originals, config, mods, shader caches, diagnostics, captures, backups and all custom/external roots with the creating runtime. No cross-title or cross-version save compatibility is inferred. Preserve the exact project/SDK/dependency notices; code grants do not license EA/Maxis originals or arbitrary components."
         }
       ],
       "warnings": [
         "Use only a completed copy, components and original data you are permitted to use. Source inspection and published download hashes do not confirm every package file or that a package matches its source and SDK. Portcove has not confirmed native play, real saves or behavior in the installed app; this guide does not establish Supported status or protected acceptance.",
         "Project reports do not establish complete playthroughs, controller support, frame rate, rendering or successor-process behavior in Portcove.",
-        "The project’s headline reports Windows and Linux gameplay, but its status table describes the cross-built Windows check as Wine-only. Neither report confirms gameplay on a real Windows system through Portcove."
+        "The project’s headline reports Windows and Linux gameplay, but its status table describes the cross-built Windows check as Wine-only. Neither report confirms gameplay on a real Windows system through Portcove.",
+        "Its virtual hard-disk partitions E, C, X, Y and Z live under that effective root; preserve the whole tree, including saves, caches and data another executable can share. Keep assets/originals, config, mods, shader caches, diagnostics, captures, backups and all custom/external roots with the creating runtime. No cross-title or cross-version save compatibility is inferred. Preserve the exact project/SDK/dependency notices; code grants do not license EA/Maxis originals or arbitrary components."
+      ],
+      "references": [
+        {
+          "title": "Keep the complete profile with its game version",
+          "instruction": "The inspected SDK places settings.toml, logs/ and hdd/ beside the executable; numbered upstream instances can use separately numbered hdd roots. Its virtual hard-disk partitions E, C, X, Y and Z live under that effective root; preserve the whole tree, including saves, caches and data another executable can share. Keep assets/originals, config, mods, shader caches, diagnostics, captures, backups and all custom/external roots with the creating runtime. No cross-title or cross-version save compatibility is inferred. Preserve the exact project/SDK/dependency notices; code grants do not license EA/Maxis originals or arbitrary components."
+        }
       ]
     }
   },

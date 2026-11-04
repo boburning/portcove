@@ -27,20 +27,25 @@
           "instruction": "Portcove supervises only the selected Athelas process. Athelas starts and observes a separate game process; registration does not adopt that child or make a closed launcher proof that every game stopped. The same Athelas folder can serve several titles: close all launcher instances and actual games before updates, backup, restore, relinking or file changes. Multiple title registrations do not create independent copies or separate data."
         },
         {
+          "title": "Leave setup and replacement upstream",
+          "instruction": "Review and consent to the selected executable, working folder and literal arguments, then choose Play separately. You and upstream own preparation, runtime replacement, recovery and all external files. Close every actual player and companion before maintenance, retain independent complete working copies and data, then review/relink changed executable bytes. Removing registration preserves external files; Portcove does not offer external update, backup, rollback, migration, conversion or deletion. Athelas owns its setup, self-update and component replacement. Finish these outside the attached session; do not treat launcher backup/restore or cache controls as Portcove-managed operations."
+        }
+      ],
+      "warnings": [
+        "Use only the actual copy, components and original data you are permitted to use. Only the selected launcher is supervised. Keep complete independent runtime/data backups with all shared games closed; no native/gameplay, real-save, installed-client or Supported acceptance is established.",
+        "Preserve both old and current locations independently before first startup or changing copies. Athelas can make or restore its own save ZIPs and set aside caches. Those upstream actions are separate from Portcove registration and do not qualify restore, save conversion or backup here.",
+        "Before the Xbox page’s first settings lookup, also retain the older PC game folder’s ROTKFix.ini: this component can import the previously shared PC/Xbox settings into its own settings.toml and mark ROTKSettingsImported in Athelas.ini. That startup helper/migration remains upstream-owned, with no cross-game save compatibility inferred.",
+        "These are not a certificate for original disc bytes, source-to-binary reproduction, controller/gameplay behavior or save compatibility. First-version, rendering and other upstream limitations remain version-specific. No original game rights or another title’s acceptance are inherited."
+      ],
+      "references": [
+        {
           "title": "Preserve this game’s actual data",
           "instruction": "Preserve ROTK-Xbox/ with saves/, settings.toml, shadercache, textures, logs and unknown files, plus Athelas.ini, Screenshots, originals, all selected game directories and external/custom paths. The launcher can copy older ROTKFix/ROTKXbox settings/data when the current settings file is missing, and migrate a prior beside-player hdd into saves/. Preserve both old and current locations independently before first startup or changing copies. Athelas can make or restore its own save ZIPs and set aside caches. Those upstream actions are separate from Portcove registration and do not qualify restore, save conversion or backup here. Before the Xbox page’s first settings lookup, also retain the older PC game folder’s ROTKFix.ini: this component can import the previously shared PC/Xbox settings into its own settings.toml and mark ROTKSettingsImported in Athelas.ini. That startup helper/migration remains upstream-owned, with no cross-game save compatibility inferred."
         },
         {
           "title": "Keep versions, components and restrictions together",
           "instruction": "The selected package includes generated-HLSL shader warm-up seeds and pipeline records for this title, plus separately licensed components; keep their creating runtime and notices together. These are not a certificate for original disc bytes, source-to-binary reproduction, controller/gameplay behavior or save compatibility. First-version, rendering and other upstream limitations remain version-specific. No original game rights or another title’s acceptance are inherited."
-        },
-        {
-          "title": "Leave setup and replacement upstream",
-          "instruction": "Review and consent to the selected executable, working folder and literal arguments, then choose Play separately. You and upstream own preparation, runtime replacement, recovery and all external files. Close every actual player and companion before maintenance, retain independent complete working copies and data, then review/relink changed executable bytes. Removing registration preserves external files; Portcove does not offer external update, backup, rollback, migration, conversion or deletion. Athelas owns its setup, self-update and component replacement. Finish these outside the attached session; do not treat launcher backup/restore or cache controls as Portcove-managed operations."
         }
-      ],
-      "warnings": [
-        "Use only the actual copy, components and original data you are permitted to use. Only the selected launcher is supervised. Keep complete independent runtime/data backups with all shared games closed; no native/gameplay, real-save, installed-client or Supported acceptance is established."
       ]
     }
   },

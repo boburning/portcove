@@ -22,17 +22,21 @@
           "instruction": "Select Rush2049Recompiled.exe and use the completed runtime folder containing assets as working directory. Leave arguments empty for the normal launcher, then use Load ROM and Start Game at the separate Play step. Use your own San Francisco Rush 2049 N64 USA, big-endian .z64; documented SHA-1 3f99351d7bb61656614bdb2aa1a90cfe55d1922c. Arcade and Dreamcast editions are different inputs. The upstream player performs its own original check; Portcove registration does not import, normalize or authenticate the original."
         },
         {
-          "title": "Keep the creating profile and portable mode",
-          "instruction": "The reviewed Windows profile defaults to %LOCALAPPDATA%/Rush2049Recompiled. An existing portable.txt in the working folder selects that folder instead. Keep the creating mode and actual locations; adding or removing the marker does not migrate existing data. Keep the whole profile, cached original, all JSON settings, controller profiles, mods, generated textures and logs. Controller Pak files are saves/controllerpak_<port>.mpk under that profile. Preserve any actual linked save targets and their adjacent temporary files too; these remain external data. The normal log is rush2049.log with rush2049.old.log beside the settings. Preserve the complete runtime folder and any custom or external paths too. Edit settings only while the player is closed; registration does not move profiles or certify state compatibility between versions."
-        },
-        {
           "title": "Review registration before choosing Play",
           "instruction": "Portcove records your selected native executable, working folder and literal arguments after review; Play is separate. Only the selected process is supervised. You or upstream own updates and runtime replacement; relink changed executable bytes after reviewing them. Removing the registration preserves all external files. Managed installation, backup, rollback, migration, generation and deletion are not offered for this copy."
         }
       ],
       "warnings": [
         "Upstream Windows/multi-mode observations do not establish Portcove gameplay or physical multiplayer acceptance. The Linux software-driver crash and untested Linux GPU/Steam Deck conditions remain separate; no other-platform qualification is added.",
-        "Use only software and original data you are permitted to use. Registration and owned-probe tests do not certify the upstream binary, full-game behavior or real save formats."
+        "Use only software and original data you are permitted to use. Registration and owned-probe tests do not certify the upstream binary, full-game behavior or real save formats.",
+        "Keep the creating mode and actual locations; adding or removing the marker does not migrate existing data.",
+        "Edit settings only while the player is closed; registration does not move profiles or certify state compatibility between versions."
+      ],
+      "references": [
+        {
+          "title": "Keep the creating profile and portable mode",
+          "instruction": "The reviewed Windows profile defaults to %LOCALAPPDATA%/Rush2049Recompiled. An existing portable.txt in the working folder selects that folder instead. Keep the creating mode and actual locations; adding or removing the marker does not migrate existing data. Keep the whole profile, cached original, all JSON settings, controller profiles, mods, generated textures and logs. Controller Pak files are saves/controllerpak_<port>.mpk under that profile. Preserve any actual linked save targets and their adjacent temporary files too; these remain external data. The normal log is rush2049.log with rush2049.old.log beside the settings. Preserve the complete runtime folder and any custom or external paths too. Edit settings only while the player is closed; registration does not move profiles or certify state compatibility between versions."
+        }
       ]
     }
   },

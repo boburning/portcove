@@ -32,7 +32,14 @@
         {
           "title": "Retain one runtime replacement owner",
           "instruction": "Review and consent to the exact selected executable, working directory and empty argument list, then choose Play separately. You and upstream own preparation, deliberate replacement and recovery. Close the actual player and companions before replacing files, retain the prior working copy and all effective data, then review and relink changed selected bytes. Registration removal preserves every external file; Portcove offers no external update, backup, rollback, conversion, migration or deletion."
-        },
+        }
+      ],
+      "warnings": [
+        "Use only a completed copy and components you are permitted to use. Preserve originals, the whole creating runtime, saves, settings, mods, caches, backups, unknown files and every custom root. Static source/release metadata review is not a package-byte certificate, native gameplay, real-save, installed-client or Supported acceptance.",
+        "Another executable may use the same locations. Preserve the creating runtime with saves before upstream updates; cross-version or cross-platform card compatibility is not certified.",
+        "Retain the project and engine MIT notices plus each bundled component’s separate notices. Their grants cover their own code, not Electronic Arts game code or assets; original-game rights and any third-party texture or music permissions remain separate."
+      ],
+      "references": [
         {
           "title": "Preserve the creating copy and all effective player data",
           "instruction": "Keep pc_settings.ini, which stores settings and the remembered disc path; memcard/ for game saves; texture pack/; custom_songs/; burnout3.log; captures/; the original ISO; backups, mods, caches, unknown files and every effective custom root. Another executable may use the same locations. Preserve the creating runtime with saves before upstream updates; cross-version or cross-platform card compatibility is not certified."
@@ -41,9 +48,6 @@
           "title": "Use permitted content and check this release’s limits",
           "instruction": "Retain the project and engine MIT notices plus each bundled component’s separate notices. Their grants cover their own code, not Electronic Arts game code or assets; original-game rights and any third-party texture or music permissions remain separate. This alpha’s upstream gameplay and device claims are not Portcove observations. This guide offers local existing-copy launch; it does not qualify LAN, VPN, online accounts, network setup, managed preparation or protected publication."
         }
-      ],
-      "warnings": [
-        "Use only a completed copy and components you are permitted to use. Preserve originals, the whole creating runtime, saves, settings, mods, caches, backups, unknown files and every custom root. Static source/release metadata review is not a package-byte certificate, native gameplay, real-save, installed-client or Supported acceptance."
       ]
     }
   },
