@@ -67,7 +67,7 @@ void test("verified admission reads the exact tree with the appointed reader and
   const receipt = {};
   const order: string[] = [];
   let changed = false;
-  let stalled = false;
+  let stalled: "preparation" | "tree" | undefined;
   let enableProxyAfterPreparation = false;
   let cancelled = false;
   t.mock.module("./release-controller-tool-admission.mts", {
@@ -83,8 +83,12 @@ void test("verified admission reads the exact tree with the appointed reader and
   t.mock.module("./release-compiler-source.mts", {
     exports: {
       ...compiler,
-      inspectPreparedCompilerSource() {
-        order.push("preparation");
+      async inspectPreparedCompilerSourceAsync(
+        read: Parameters<typeof compiler.inspectPreparedCompilerSourceAsync>[0],
+        _candidate: unknown,
+        deadline: number,
+      ) {
+        await read(`repos/boburning/portcove/git/commits/${candidate.prepared_commit}`, deadline);
         if (enableProxyAfterPreparation) process.env.NODE_USE_ENV_PROXY = "1";
         return { authority: "none" };
       },
@@ -105,13 +109,18 @@ void test("verified admission reads the exact tree with the appointed reader and
     async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
       const request = new Request(input, init);
       assert.equal(request.method, "GET");
-      assert.equal(
-        request.url,
-        `https://api.github.com/repos/boburning/portcove/git/trees/${tree}`,
-      );
       assert.equal(request.headers.get("authorization"), "token appointed-compiler-token");
-      order.push("tree");
-      if (stalled) {
+      const preparation =
+        request.url ===
+        `https://api.github.com/repos/boburning/portcove/git/commits/${candidate.prepared_commit}`;
+      if (!preparation)
+        assert.equal(
+          request.url,
+          `https://api.github.com/repos/boburning/portcove/git/trees/${tree}`,
+        );
+      const stage = preparation ? "preparation" : "tree";
+      order.push(stage);
+      if (stalled === stage) {
         return new Response(
           new ReadableStream({
             cancel() {
@@ -120,6 +129,7 @@ void test("verified admission reads the exact tree with the appointed reader and
           }),
         );
       }
+      if (preparation) return Response.json({});
       return Response.json({
         sha: tree,
         truncated: false,
@@ -160,20 +170,26 @@ void test("verified admission reads the exact tree with the appointed reader and
     /manifest changed/,
   );
   assert.deepEqual(order, ["receipt", "preparation", "tree", "receipt"]);
-  order.length = 0;
   changed = false;
-  stalled = true;
-  const keepAlive = setTimeout(() => {}, 1000);
-  try {
-    await assert.rejects(
-      withCoordinatorDeadline(performance.now() + 100, () =>
-        compare(receipt, candidate, controller, "appointed-compiler-token"),
-      ),
-      { code: "deadline_exceeded" },
-    );
-    assert.equal(cancelled, true);
-    assert.deepEqual(order, ["receipt", "preparation", "tree"]);
-  } finally {
-    clearTimeout(keepAlive);
+  for (const stage of ["preparation", "tree"] as const) {
+    order.length = 0;
+    stalled = stage;
+    cancelled = false;
+    const keepAlive = setTimeout(() => {}, 1000);
+    try {
+      await assert.rejects(
+        withCoordinatorDeadline(performance.now() + 100, () =>
+          compare(receipt, candidate, controller, "appointed-compiler-token"),
+        ),
+        { code: "deadline_exceeded" },
+      );
+      assert.equal(cancelled, true);
+      assert.deepEqual(
+        order,
+        stage === "tree" ? ["receipt", "preparation", "tree"] : ["receipt", "preparation"],
+      );
+    } finally {
+      clearTimeout(keepAlive);
+    }
   }
 });

@@ -1,7 +1,4 @@
-import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import path from "node:path";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import { localDeveloperCredential } from "./github-cli.mts";
 import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
 import {
@@ -12,7 +9,8 @@ import { verifiedControllerToolPaths } from "./release-controller-tool-admission
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import {
   inspectReleaseCompilerSourceClosure,
-  inspectPreparedCompilerSource,
+  inspectPreparedCompilerSourceAsync,
+  createCompilerSourceReader,
   compareCompilerClosure,
 } from "./release-compiler-source.mts";
 import type { PreparedCompilerSource } from "./release-compiler-source.mts";
@@ -52,54 +50,11 @@ export async function compareVerifiedReleaseCompilerSource(
     closure.source_tree !== controller.source_tree
   )
     throw new Error("compiler closure belongs to a different fixed controller source/tree");
-  const directory = path.dirname(tools.compiler_source_closure);
   const fixedReader = readToken !== undefined || scopedEnvironment !== undefined;
   const treeToken = readToken ?? scopedEnvironment?.GH_TOKEN;
   if (fixedReader && (!treeToken || treeToken.length > 16384 || /\s/u.test(treeToken)))
     throw new Error("fixed compiler source job-reader token malformed");
-  const readEnvironment: NodeJS.ProcessEnv = {};
-  for (const key of [
-    "PATH",
-    "Path",
-    "SystemRoot",
-    "SYSTEMROOT",
-    "WINDIR",
-    "COMSPEC",
-    "PATHEXT",
-    "TMP",
-    "TEMP",
-  ])
-    if (environment[key] !== undefined) readEnvironment[key] = environment[key];
-  Object.assign(readEnvironment, {
-    GH_TOKEN: readToken,
-    GH_HOST: "github.com",
-    GH_CONFIG_DIR: directory,
-    HOME: directory,
-    USERPROFILE: directory,
-    XDG_CONFIG_HOME: directory,
-    GH_PROMPT_DISABLED: "1",
-    GIT_TERMINAL_PROMPT: "0",
-  });
-  const runner = createGitHubRunner({
-    cwd: directory,
-    ...(readToken === undefined
-      ? {}
-      : {
-          spawn: (command, args, options) =>
-            spawnSync(command, args, {
-              ...options,
-              env: readEnvironment,
-            }),
-        }),
-    timeoutMs: 15000,
-    maxBuffer: 4 * 1024 * 1024,
-  });
-  const api = new GitHubApiClient((args, input) =>
-    runner([...args, "--hostname", "github.com"], input),
-  );
-  const preparation = inspectPreparedCompilerSource(api, candidate);
-  checkCoordinatorDeadline();
-  const source = await compareCompilerClosure(closure, candidate.source_tree, {
+  const read = await createCompilerSourceReader({
     credential:
       treeToken === undefined
         ? localDeveloperCredential({ deadline, environment })
@@ -107,6 +62,12 @@ export async function compareVerifiedReleaseCompilerSource(
     fixedReader,
     deadline,
     maxBytes: 4 * 1024 * 1024,
+  });
+  const preparation = await inspectPreparedCompilerSourceAsync(read, candidate, deadline);
+  checkCoordinatorDeadline();
+  const source = await compareCompilerClosure(closure, candidate.source_tree, {
+    readTree: async (sha) =>
+      (await read(`repos/boburning/portcove/git/trees/${sha}`, deadline)).body,
   });
   const result = Object.freeze({
     ...source,

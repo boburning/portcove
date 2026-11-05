@@ -2,14 +2,17 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { execFileSync } from "node:child_process";
-import type { GitHubRestReader } from "./github-api.mts";
+import type { GitHubMetadataResponse, GitHubRestReader } from "./github-operation.mts";
 import type { GitHubCredential, GitHubRequestPolicy } from "./github-client.mts";
 import { localDeveloperCredential } from "./github-cli.mts";
 import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
 import { isRecord } from "./runtime-values.mts";
-import { collectReleaseSourceChanges } from "./release-source-changes.mts";
-import { reproducePreparedReleaseVersionFiles } from "../apps/desktop/scripts/prepare-release-version.mts";
+import { releaseSourceChangeRequests, type ReleaseSourceRead } from "./release-source-changes.mts";
+import {
+  preparationSourcePaths,
+  reproducePreparedReleaseVersionFiles,
+} from "../apps/desktop/scripts/prepare-release-version.mts";
 import { parseWorkspacePackage } from "./check-release-metadata.mts";
 import { inspectRemoteGitObject } from "./release-coordinator-recovery.mts";
 
@@ -88,6 +91,60 @@ type CompilerTreeReader = (sha: string) => Promise<unknown>;
 const compilerTreeRequestLimit = 32;
 const compilerTreeTimeoutMs = 15_000;
 
+/** Sequential reader for the compiler's validated exact endpoints. */
+export async function createCompilerSourceReader(options: {
+  credential: GitHubCredential;
+  deadline: number;
+  maxBytes: number;
+  fixedReader?: boolean;
+}) {
+  const { createGitHubClient } = await import("./github-client.mts");
+  let allowed: string | undefined;
+  const client = await createGitHubClient({
+    credential: options.credential,
+    deadline: options.deadline,
+    maxBytes: options.maxBytes,
+    requestTimeoutMs: compilerTreeTimeoutMs,
+    allowRequest(method, url) {
+      if (options.fixedReader) assertTrustedDirectNode("Fixed compiler source reader");
+      return method === "GET" && url.pathname + url.search === allowed;
+    },
+  });
+  return async (endpoint: string, deadline: number): Promise<GitHubMetadataResponse> => {
+    const origin = "https://api.github.com";
+    const url = URL.parse(endpoint, origin);
+    if (
+      allowed !== undefined ||
+      !url ||
+      url.origin !== origin ||
+      url.username ||
+      url.password ||
+      url.hash ||
+      !/^\/(?:repos\/boburning\/portcove\/(?:git\/(?:commits|trees)|contents|compare)|repositories\/1354613114\/compare)\//u.test(
+        url.pathname,
+      )
+    )
+      throw new Error("compiler source reader escaped its admitted route");
+    allowed = url.pathname + url.search;
+    const policy: GitHubRequestPolicy = { replay: "once", attempts: 0, deadline };
+    try {
+      const response = await client.request(`GET ${allowed}`, { request: { portcove: policy } });
+      const link = response.headers.link;
+      return {
+        status: response.status,
+        body: response.data as unknown,
+        headers: typeof link === "string" ? new Map([["link", link]]) : new Map(),
+      };
+    } finally {
+      try {
+        await policy.admissionSettled;
+      } finally {
+        allowed = undefined;
+      }
+    }
+  };
+}
+
 /** Authenticated source equality is one necessary compiler condition. This
  * does not authenticate execution, outputs, compatibility or native behavior.
  * The fixed controller chooses this inventory; candidate files are never run. */
@@ -131,56 +188,27 @@ export async function compareReleaseCompilerSource(
 export async function compareCompilerClosure(
   closure: CompilerSourceClosure,
   candidateTree: string,
-  options: {
-    readTree?: CompilerTreeReader;
-    credential?: GitHubCredential;
-    fixedReader?: boolean;
-    deadline?: number;
-    maxBytes?: number;
-  },
+  options: { readTree?: CompilerTreeReader },
 ) {
   if (!/^[a-f0-9]{40}$/u.test(candidateTree))
     throw new Error("compiler candidate tree unavailable");
   const controllerCommit = closure.source_commit;
   const local = new Map(closure.paths.map((entry) => [entry.path, entry.entry]));
-  const deadline = Math.min(
-    options.deadline ?? Infinity,
-    coordinatorCommandDeadline() ?? Infinity,
-    performance.now() + compilerTreeRequestLimit * compilerTreeTimeoutMs,
-  );
-  let provider = options.readTree;
-  if (!provider) {
-    const { createGitHubClient } = await import("./github-client.mts");
-    const client = await createGitHubClient({
-      credential: options.credential ?? localDeveloperCredential({ deadline }),
+  let fetchTree = options.readTree;
+  if (!fetchTree) {
+    const deadline = Math.min(
+      coordinatorCommandDeadline() ?? Infinity,
+      performance.now() + compilerTreeRequestLimit * compilerTreeTimeoutMs,
+    );
+    const read = await createCompilerSourceReader({
+      credential: localDeveloperCredential({ deadline }),
       deadline,
-      maxBytes: options.maxBytes ?? 2 * 1024 * 1024,
-      requestTimeoutMs: compilerTreeTimeoutMs,
-      allowRequest(method, url) {
-        if (options.fixedReader) assertTrustedDirectNode("Fixed compiler source reader");
-        return (
-          method === "GET" &&
-          !url.search &&
-          /^\/repos\/boburning\/portcove\/git\/trees\/[a-f0-9]{40}$/u.test(url.pathname)
-        );
-      },
+      maxBytes: 2 * 1024 * 1024,
     });
-    provider = async (sha) => {
-      const policy: GitHubRequestPolicy = { replay: "once", attempts: 0 };
-      try {
-        const response = await client.request("GET /repos/boburning/portcove/git/trees/{sha}", {
-          sha,
-          request: { portcove: policy },
-        });
-        if (response.status !== 200)
-          throw new Error("complete authenticated compiler source tree unavailable");
-        return response.data as unknown;
-      } finally {
-        await policy.admissionSettled;
-      }
-    };
+    fetchTree = async (sha) =>
+      (await read(`repos/boburning/portcove/git/trees/${sha}`, deadline)).body;
   }
-  const fetchTree = provider;
+  const provider = fetchTree;
   const trees = new Map<string, Map<string, { mode: string; type: string; sha: string }>>();
   let requests = 0;
   const readTree = async (sha: string) => {
@@ -188,7 +216,7 @@ export async function compareCompilerClosure(
     if (cached) return cached;
     if (++requests > compilerTreeRequestLimit)
       throw new Error("compiler source tree request bound exhausted");
-    const body = await fetchTree(sha);
+    const body = await provider(sha);
     if (
       !isRecord(body) ||
       body.sha !== sha ||
@@ -290,6 +318,29 @@ export function inspectPreparedCompilerSource(
   reader: GitHubRestReader,
   candidate: PreparedCompilerSource,
 ) {
+  const collection = preparedCompilerSourceRequests(candidate);
+  let step = collection.next();
+  while (!step.done) step = collection.next(reader.request("GET", step.value.endpoint));
+  return step.value;
+}
+
+/** The admitted SDK path shares the exact same source and transform checks. */
+export async function inspectPreparedCompilerSourceAsync(
+  read: (endpoint: string, deadline: number) => Promise<GitHubMetadataResponse>,
+  candidate: PreparedCompilerSource,
+  deadline: number,
+) {
+  const collection = preparedCompilerSourceRequests(candidate, deadline);
+  let step = collection.next();
+  while (!step.done) step = collection.next(await read(step.value.endpoint, step.value.deadline));
+  return step.value;
+}
+
+function* preparedCompilerSourceRequests(
+  rawCandidate: PreparedCompilerSource,
+  deadline = Infinity,
+) {
+  const candidate = structuredClone(rawCandidate);
   for (const oid of [
     candidate.source_commit,
     candidate.source_tree,
@@ -298,11 +349,14 @@ export function inspectPreparedCompilerSource(
   ])
     if (!/^[a-f0-9]{40}$/u.test(oid))
       throw new Error("exact compiler preparation source identities unavailable");
-  const delta = collectReleaseSourceChanges(reader, {
-    base_commit: candidate.source_commit,
-    source_commit: candidate.prepared_commit,
-    source_tree: candidate.prepared_tree,
-  });
+  const delta = yield* releaseSourceChangeRequests(
+    {
+      base_commit: candidate.source_commit,
+      source_commit: candidate.prepared_commit,
+      source_tree: candidate.prepared_tree,
+    },
+    { deadline },
+  );
   if (
     delta.base_tree !== candidate.source_tree ||
     delta.commits.length !== 1 ||
@@ -334,7 +388,9 @@ export function inspectPreparedCompilerSource(
     throw new Error("prepared source changes more than exact existing version authorities");
   let requests = 0;
   const blobs = new Map<string, string>();
-  const read = (filename: string) => {
+  const read = function* (
+    filename: string,
+  ): Generator<ReleaseSourceRead, string, GitHubMetadataResponse> {
     const cached = blobs.get(filename);
     if (cached !== undefined) return cached;
     if (
@@ -343,10 +399,14 @@ export function inspectPreparedCompilerSource(
       ++requests > 32
     )
       throw new Error("prepared compiler source reader escaped its bound");
-    const response = reader.request(
-      "GET",
-      `repos/boburning/portcove/contents/${filename}?ref=${candidate.source_commit}`,
-    );
+    if (performance.now() >= deadline)
+      throw new Error("prepared compiler source deadline exhausted");
+    const response = yield {
+      endpoint: `repos/boburning/portcove/contents/${filename}?ref=${candidate.source_commit}`,
+      deadline,
+    };
+    if (performance.now() >= deadline)
+      throw new Error("prepared compiler source deadline exhausted");
     const body = response.body;
     if (
       response.status !== 200 ||
@@ -377,12 +437,23 @@ export function inspectPreparedCompilerSource(
     blobs.set(filename, bytes.toString("utf8"));
     return bytes.toString("utf8");
   };
-  const baseVersion = parseWorkspacePackage(read("Cargo.toml")).version;
+  const cargo = yield* read("Cargo.toml");
+  const baseVersion = parseWorkspacePackage(cargo).version;
   if (typeof baseVersion !== "string") throw new Error("original source base version unavailable");
-  const expected = reproducePreparedReleaseVersionFiles(read, {
-    base_version: baseVersion,
-    version: candidate.version,
-  });
+  const [, lock, packageJson, tauri, ...members] = preparationSourcePaths(cargo);
+  for (const filename of [...members, lock!, packageJson!, tauri!]) yield* read(filename);
+  const expected = reproducePreparedReleaseVersionFiles(
+    (filename) => {
+      const content = blobs.get(filename);
+      if (content === undefined)
+        throw new Error("prepared compiler source input was not collected");
+      return content;
+    },
+    {
+      base_version: baseVersion,
+      version: candidate.version,
+    },
+  );
   for (const [filename, content] of expected) {
     const bytes = Buffer.from(content);
     const oid = createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex");

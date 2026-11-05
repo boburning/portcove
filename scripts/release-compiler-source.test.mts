@@ -9,6 +9,8 @@ import {
   prepareReleaseCompilerSourceClosure,
   inspectReleaseCompilerSourceClosure,
   inspectPreparedCompilerSource,
+  inspectPreparedCompilerSourceAsync,
+  createCompilerSourceReader,
 } from "./release-compiler-source.mts";
 import { reproducePreparedReleaseVersionFiles } from "../apps/desktop/scripts/prepare-release-version.mts";
 import { sourceFixtureCommit } from "./fixtures/release-source-fixture.mts";
@@ -230,7 +232,20 @@ void test("actual deterministic four version edits pass while dependencies and e
     { base_version: "0.1.0", version: "0.2.0" },
   );
   const response = (body: unknown) => ({ status: 200, body, headers: new Map<string, string>() });
-  const run = (preparedTree: string) => {
+  const requests: string[] = [];
+  let sdkReply: ((method: string, endpoint: string) => { body: unknown }) | undefined;
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const request = new Request(input, init);
+      assert.equal(request.headers.get("authorization"), "token pinned-compiler-fixture");
+      assert.ok(sdkReply);
+      requests.push(new URL(request.url).pathname);
+      return Response.json(sdkReply(request.method, request.url).body);
+    },
+  );
+  const run = async (preparedTree: string, compareLegacy = false) => {
     const prepared = sourceFixtureCommit(preparedTree, [source.sha], "prepared\n");
     const api = {
       request(method: string, endpoint: string) {
@@ -283,24 +298,44 @@ void test("actual deterministic four version edits pass while dependencies and e
         throw new Error(`unexpected route ${route}`);
       },
     };
-    return inspectPreparedCompilerSource(api, {
+    const candidate = {
       source_commit: source.sha,
       source_tree: sourceTree,
       prepared_commit: prepared.sha,
       prepared_tree: preparedTree,
       version: "0.2.0",
+    };
+    const deadline = performance.now() + 5_000;
+    const read = await createCompilerSourceReader({
+      credential: { kind: "explicit", token: "pinned-compiler-fixture" },
+      deadline,
+      maxBytes: 4 * 1024 * 1024,
     });
+    sdkReply = api.request;
+    const result = await inspectPreparedCompilerSourceAsync(read, candidate, deadline);
+    if (compareLegacy) assert.deepEqual(result, inspectPreparedCompilerSource(api, candidate));
+    return result;
   };
   for (const [filename, content] of expected) await writeFile(path.join(f.root, filename), content);
   f.commit();
-  assert.equal(run(f.git(["rev-parse", "HEAD^{tree}"])).authority, "none");
+  assert.equal((await run(f.git(["rev-parse", "HEAD^{tree}"]), true)).authority, "none");
+  assert.deepEqual(
+    requests.filter((route) => route.includes("/contents/")),
+    [
+      "/repos/boburning/portcove/contents/Cargo.toml",
+      "/repos/boburning/portcove/contents/crates/example/Cargo.toml",
+      "/repos/boburning/portcove/contents/Cargo.lock",
+      "/repos/boburning/portcove/contents/apps/desktop/package.json",
+      "/repos/boburning/portcove/contents/apps/desktop/src-tauri/tauri.conf.json",
+    ],
+  );
   await writeFile(
     path.join(f.root, "apps/desktop/package.json"),
     expected.get("apps/desktop/package.json")!.replace('"fixed"', '"changed"'),
   );
   f.commit();
-  assert.throws(() => run(f.git(["rev-parse", "HEAD^{tree}"])), /version bytes differ/);
+  await assert.rejects(() => run(f.git(["rev-parse", "HEAD^{tree}"])), /version bytes differ/);
   await writeFile(path.join(f.root, "extra-source.rs"), "unapproved preparation change\n");
   f.commit();
-  assert.throws(() => run(f.git(["rev-parse", "HEAD^{tree}"])), /more than exact/);
+  await assert.rejects(() => run(f.git(["rev-parse", "HEAD^{tree}"])), /more than exact/);
 });
