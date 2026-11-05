@@ -104,13 +104,16 @@ export async function signCoordinatorCheckpointEvidence(
   const injected = Boolean(
     selected.environment || selected.fetcher || selected.identity || selected.createStore,
   );
+  const identityTransport = selected.identity?.transport;
   if (
     injected &&
     (!selected.fetcher ||
       !selected.environment ||
       !selected.createStore ||
       !selected.identity?.readKeys ||
-      !selected.identity.transport?.spawn)
+      !identityTransport ||
+      !("cwd" in identityTransport) ||
+      !identityTransport.spawn)
   )
     throw new Error("complete injected signing transport, identity and custody required");
   const capture = path.join(directory, `checkpoint-signing-${checkpoint.checkpoint}`);

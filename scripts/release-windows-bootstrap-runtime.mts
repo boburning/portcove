@@ -234,11 +234,11 @@ async function prepareAdmittedWindowsSourceRuntime(role: "bootstrap" | "native")
         ? await verifyControllerToolBootstrapJobIdentity(
             token,
             expected,
-            { transport: { cwd: project, deadline: identityDeadline } },
+            { transport: { sdkToken: environment.GH_TOKEN ?? "", deadline: identityDeadline } },
             "windows-x86_64",
           )
         : await verifyHostedNativeJobIdentity("windows-x86_64", token, expected, {
-            transport: { cwd: project, deadline: identityDeadline },
+            transport: { sdkToken: environment.GH_TOKEN ?? "", deadline: identityDeadline },
           });
   assert.equal(identity.evidence_scope, "github.com");
   assert.ok(Date.now() < Date.parse(identity.expires_at));

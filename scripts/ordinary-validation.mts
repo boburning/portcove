@@ -998,8 +998,19 @@ for (const [file, tests] of [
     ],
   ],
   [
+    "scripts/assembler-job-identity.mts",
+    [
+      "scripts/assembler-job-identity.test.mts",
+      "scripts/release-controller-tools.test.mts",
+      "scripts/release-hosted-native-windows-bootstrap.test.mts",
+    ],
+  ],
+  [
     "scripts/release-windows-bootstrap-runtime.mts",
-    ["scripts/release-hosted-native-windows-bootstrap.test.mts"],
+    [
+      "scripts/release-hosted-native-windows-bootstrap.test.mts",
+      "scripts/assembler-job-identity.test.mts",
+    ],
   ],
   [
     "scripts/release-hosted-native-bootstrap.mts",
@@ -2316,6 +2327,7 @@ for (const file of [
     "scripts/release-metadata-context-recovery.test.mts",
     "scripts/production-controller-admission.test.mts",
     "scripts/release-hosted-native-windows-bootstrap.test.mts",
+    "scripts/assembler-job-identity.test.mts",
     "scripts/release-bootstrap-preparation.test.mts",
     "scripts/application-release-budget.test.mts",
     "scripts/application-release-native.test.mts",

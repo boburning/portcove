@@ -1,6 +1,8 @@
 import { createPublicKey, verify } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
+import type { GitHubRequestPolicy } from "./github-client.mts";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
 import {
   productionControllerWorkflow,
   admittedProductionObserverProfile,
@@ -92,6 +94,13 @@ const protectionProfile = {
   environment: "production-release-protection-observer",
 } satisfies JobIdentityProfile;
 type Spawn = NonNullable<NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"]>;
+type IdentityTransport =
+  | { cwd: string; spawn?: Spawn; deadline?: number }
+  | {
+      sdkToken: string;
+      deadline: number;
+      read?: (route: string, deadline: number) => Promise<unknown>;
+    };
 
 export interface AssemblerIdentityExpectation {
   audience: string;
@@ -186,18 +195,21 @@ async function verifyJobIdentity(
   token: string,
   rawExpected: unknown,
   options: {
-    transport?: { cwd: string; spawn?: Spawn; deadline?: number };
+    transport?: IdentityTransport;
     readKeys?: () => Promise<unknown>;
   } = {},
 ) {
   const expected = inspectAssemblerIdentityExpectation(rawExpected);
   if (expected.subject !== controllerOidcSubject(expected.controller_ref, profile.environment))
     throw new Error("independently expected OIDC subject differs from the fixed role");
-  if (!options.transport) throw new Error("assembler identity transport is unconfigured");
+  const transport = options.transport && { ...options.transport };
+  if (!transport) throw new Error("assembler identity transport is unconfigured");
+  const phaseDeadline = transport.deadline;
+  const readKeys = options.readKeys;
   const remaining = () => {
-    if (options.transport?.deadline === undefined) return 15000;
-    const value = Math.ceil(options.transport.deadline - performance.now());
-    if (!Number.isFinite(options.transport.deadline) || value < 1 || value > 600000)
+    if (phaseDeadline === undefined) return 15000;
+    const value = Math.ceil(phaseDeadline - performance.now());
+    if (!Number.isFinite(phaseDeadline) || value < 1 || value > 600000)
       throw new Error("assembler identity total phase deadline exhausted");
     return Math.min(15000, value);
   };
@@ -219,7 +231,7 @@ async function verifyJobIdentity(
   )
     throw new Error("OIDC header or key selection is unsupported");
   const started = performance.now();
-  const keys = await (options.readKeys ?? (() => providerKeys(remaining())))();
+  const keys = await (readKeys ?? (() => providerKeys(remaining())))();
   remaining();
   if (!isRecord(keys) || !Array.isArray(keys.keys) || keys.keys.length < 1 || keys.keys.length > 16)
     throw new Error("OIDC provider key inventory is incomplete or oversized");
@@ -295,31 +307,104 @@ async function verifyJobIdentity(
     throw new Error("signed OIDC claims differ from the expected direct controller job");
   const expires = claims.exp;
   const checkRunId = claims.check_run_id;
-  const transport = options.transport;
-  const api = new GitHubApiClient((args, input) =>
-    createGitHubRunner({
-      cwd: transport.cwd,
-      ...(transport.spawn ? { spawn: transport.spawn } : {}),
-      maxBuffer: 2 * 1024 * 1024,
-      timeoutMs: remaining(),
-    })([...args, "--hostname", "github.com"], input),
+  const runPath = `/actions/runs/${expected.run_id}`;
+  const jobsPath = `${runPath}/attempts/${expected.run_attempt}/jobs`;
+  const sdkTransport = "sdkToken" in transport ? transport : undefined;
+  const sdkDeadline = Math.min(
+    started + 120_000,
+    phaseDeadline ?? Infinity,
+    coordinatorCommandDeadline() ?? Infinity,
+    performance.now() + (expires * 1000 - Date.now()),
   );
   let requests = 0;
-  const get = (suffix: string) => {
+  const checkBudget = () => {
     remaining();
-    if (++requests > 20 || performance.now() - started > 120_000 || Date.now() / 1000 >= expires)
+    if (requests >= 20 || performance.now() - started >= 120_000 || Date.now() / 1000 >= expires)
       throw new Error("assembler identity collection deadline exhausted");
-    const reply = api.request("GET", `repos/${repository}${suffix}`);
+  };
+  const read = await (async () => {
+    if ("cwd" in transport) {
+      const api = new GitHubApiClient((args, input) =>
+        createGitHubRunner({
+          cwd: transport.cwd,
+          ...(transport.spawn ? { spawn: transport.spawn } : {}),
+          maxBuffer: 2 * 1024 * 1024,
+          timeoutMs: remaining(),
+        })([...args, "--hostname", "github.com"], input),
+      );
+      return (suffix: string) => {
+        requests++;
+        const reply = api.request("GET", `repos/${repository}${suffix}`);
+        if (reply.status !== 200)
+          throw new Error("assembler identity response unavailable, expired or late");
+        return reply.body;
+      };
+    }
+    if (transport.read) {
+      const fixtureRead = transport.read;
+      return (suffix: string) => {
+        requests++;
+        return fixtureRead(suffix, sdkDeadline);
+      };
+    }
+    const { createGitHubClient } = await import("./github-client.mts");
+    const client = await createGitHubClient({
+      credential: { kind: "explicit", token: transport.sdkToken },
+      deadline: sdkDeadline,
+      maxBytes: 2 * 1024 * 1024,
+      allowRequest: (method, url) => {
+        if (method !== "GET") return false;
+        if (url.pathname === `/repos/${repository}${jobsPath}`)
+          return (
+            url.searchParams.size === 2 &&
+            url.searchParams.get("per_page") === "100" &&
+            /^(?:[1-9]|1[0-6])$/u.test(url.searchParams.get("page") ?? "")
+          );
+        return (
+          !url.search &&
+          (url.pathname === `/repos/${repository}${runPath}` ||
+            /^\/repos\/boburning\/portcove\/actions\/jobs\/[1-9][0-9]{0,15}$/u.test(url.pathname))
+        );
+      },
+      reserve() {
+        checkBudget();
+        requests++;
+        return {
+          consumeBytes() {},
+          settle(observation) {
+            if (!observation.dispatched) requests--;
+          },
+        };
+      },
+    });
+    return async (suffix: string) => {
+      const policy: GitHubRequestPolicy = { replay: "once", attempts: 0 };
+      try {
+        const reply = await client.request(`GET /repos/${repository}${suffix}`, {
+          request: { portcove: policy },
+        });
+        if (reply.status !== 200)
+          throw new Error("assembler identity response unavailable, expired or late");
+        return reply.data as unknown;
+      } finally {
+        await policy.admissionSettled;
+      }
+    };
+  })();
+  const get = async (suffix: string) => {
+    checkBudget();
+    if (sdkTransport && performance.now() >= sdkDeadline)
+      throw new Error("assembler identity collection deadline exhausted");
+    const body = await read(suffix);
     remaining();
     if (
-      reply.status !== 200 ||
-      performance.now() - started > 120_000 ||
-      Date.now() / 1000 >= expires
+      performance.now() - started >= 120_000 ||
+      Date.now() / 1000 >= expires ||
+      (sdkTransport && performance.now() >= sdkDeadline)
     )
       throw new Error("assembler identity response unavailable, expired or late");
-    return reply.body;
+    return body;
   };
-  const runPath = `/actions/runs/${expected.run_id}`;
   const runIdentity = (value: unknown) => {
     if (
       !isRecord(value) ||
@@ -348,11 +433,11 @@ async function verifyJobIdentity(
       status: value.status,
     };
   };
-  const before = runIdentity(get(runPath));
+  const before = runIdentity(await get(runPath));
   const jobs: Record<string, unknown>[] = [];
   let total: number | null = null;
   for (let page = 1; page <= 16; page++) {
-    const value = get(`${runPath}/attempts/${expected.run_attempt}/jobs?per_page=100&page=${page}`);
+    const value = await get(`${jobsPath}?per_page=100&page=${page}`);
     if (
       !isRecord(value) ||
       typeof value.total_count !== "number" ||
@@ -404,7 +489,7 @@ async function verifyJobIdentity(
     !labelsMatch(job)
   )
     throw new Error("signed check-run identity does not identify one active trusted assembly job");
-  const refreshed = get(`/actions/jobs/${job.id}`);
+  const refreshed = await get(`/actions/jobs/${job.id}`);
   if (
     !isRecord(refreshed) ||
     refreshed.id !== job.id ||
@@ -417,14 +502,16 @@ async function verifyJobIdentity(
     !labelsMatch(refreshed)
   )
     throw new Error("selected assembler job changed during collection");
-  const after = runIdentity(get(runPath));
+  const after = runIdentity(await get(runPath));
   if (JSON.stringify(before) !== JSON.stringify(after))
     throw new Error("assembler run changed during collection");
   const result = {
     schema_version: 1,
     kind: "oidc-job-identity-only",
     evidence_scope:
-      options.readKeys || options.transport.spawn ? "injected-provider" : "github.com",
+      readKeys || ("cwd" in transport ? transport.spawn : transport.read)
+        ? "injected-provider"
+        : "github.com",
     repository_id: repositoryId,
     repository,
     workflow: profile.workflow,
