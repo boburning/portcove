@@ -54,7 +54,7 @@ import { requireReservedAggregate } from "./production-aggregate-steps.mts";
 import { receiveIsolatedRoleKey } from "./release-role-key-channel.mts";
 import { handoffSigningOutput } from "./release-signing-handoff.mts";
 import { isRecord } from "./runtime-values.mts";
-import { currentTufJobDeadline } from "./release-signing-job-budget.mts";
+import { currentControllerJobDeadline } from "./release-signing-job-budget.mts";
 import {
   inspectMetadataSigningBinding,
   inspectMetadataSigningReservation,
@@ -506,10 +506,9 @@ export async function runFixedTufRoleConfiguration(
     dependencies = tufRoleDependencies(role);
   if (value.dependencies.length !== dependencies.length)
     throw new Error("exact role dependency locators required");
-  const deadline = currentTufJobDeadline(
-    role,
+  const deadline = await currentControllerJobDeadline(
+    `tuf-${role}`,
     inspectAssemblerIdentityExpectation(value.identity),
-    parent,
     processDeadline,
   );
   const toolsReceipt = await receiveControllerTools(

@@ -39,7 +39,7 @@ import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { readRemoteCoordinatorSnapshot } from "./release-coordinator-recovery.mts";
 import { requireReservedAggregate } from "./production-aggregate-steps.mts";
 import { isRecord } from "./runtime-values.mts";
-import { currentPayloadJobDeadline } from "./release-signing-job-budget.mts";
+import { currentControllerJobDeadline } from "./release-signing-job-budget.mts";
 
 export async function runPayloadSigningAndContextController(
   configuration: unknown,
@@ -202,6 +202,7 @@ export async function runFixedPayloadContextConfiguration(
   deadline: number,
 ) {
   tightenPayloadSigningPhaseDeadline(deadline);
+  raw = structuredClone(raw);
   if (
     !isRecord(raw) ||
     Object.keys(raw).sort().join(",") !== "configuration,native_locators,signer_identity,tools" ||
@@ -213,9 +214,9 @@ export async function runFixedPayloadContextConfiguration(
   )
     throw new Error("fixed payload/context caller fields differ");
   tightenPayloadSigningPhaseDeadline(
-    currentPayloadJobDeadline(
+    await currentControllerJobDeadline(
+      "payload",
       inspectAssemblerIdentityExpectation(raw.signer_identity),
-      parent,
       payloadSigningPhaseDeadline(),
     ),
   );

@@ -8,7 +8,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { isRecord } from "./runtime-values.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
-import { currentSiteJobDeadline } from "./release-site-job-budget.mts";
+import { currentControllerJobDeadline } from "./release-signing-job-budget.mts";
 import { inspectAssemblerIdentityExpectation } from "./assembler-job-identity.mts";
 import {
   receiveControllerTools,
@@ -162,9 +162,9 @@ export async function runFixedCatalogSiteConfiguration(
     identity.controller_ref !== process.env.GITHUB_REF
   )
     throw new Error("catalog site invocation is not its original fixed job");
-  const deadline = currentSiteJobDeadline(
+  const deadline = await currentControllerJobDeadline(
+    "site-publication",
     identity,
-    parent,
     Math.min(started + 290000, phaseDeadline ?? Infinity),
   );
   return withCoordinatorDeadline(deadline, async () => {

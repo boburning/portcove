@@ -797,7 +797,13 @@ void test("fixed controller clocks use bounded one-shot SDK jobs reads and the s
     }
   });
   let next = false;
-  let role: "coordinator" | "catalog-definitions" = "coordinator";
+  let role:
+    | "coordinator"
+    | "catalog-definitions"
+    | "building"
+    | "payload"
+    | "tuf-releases"
+    | "site-publication" = "coordinator";
   let requests = 0;
   const started = new Date(Date.now() - 1000).toISOString();
   t.mock.method(globalThis, "fetch", async (input: string | URL | Request, init?: RequestInit) => {
@@ -819,7 +825,10 @@ void test("fixed controller clocks use bounded one-shot SDK jobs reads and the s
             head_sha: identity.controller_revision,
             status: "in_progress",
             started_at: started,
-            name: releaseControlPhaseProfile(role).reader_name,
+            name:
+              role === "building"
+                ? "Authenticate release control inputs"
+                : releaseControlPhaseProfile(role).reader_name,
           },
         ],
       },
@@ -840,8 +849,12 @@ void test("fixed controller clocks use bounded one-shot SDK jobs reads and the s
   await withReadOnlyReleaseChildren(scoped, async () => {
     process.env.GH_TOKEN = "inert-ambient-replacement";
     assert.equal(await currentCatalogJobDeadline(role, identity, deadline), deadline);
+    for (const operation of ["building", "payload", "tuf-releases", "site-publication"] as const) {
+      role = operation;
+      assert.equal(await currentControllerJobDeadline(operation, identity, deadline), deadline);
+    }
   });
   delete process.env.GH_TOKEN;
   await assert.rejects(currentControllerJobDeadline("coordinator", identity, deadline));
-  assert.equal(requests, 3);
+  assert.equal(requests, 7);
 });
