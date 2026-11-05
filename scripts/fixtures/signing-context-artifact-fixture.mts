@@ -290,14 +290,8 @@ export function signingContextArtifactFixture(
 export function signingContextRetainedSpawn(f: ReturnType<typeof signingContextArtifactFixture>) {
   return (command: unknown, args: readonly string[]) => {
     assert.equal(command, "gh");
-    let stdout: string | Buffer;
-    if (args[0] === "attestation") stdout = f.options.spawn("gh", args).stdout;
-    else {
-      const endpoint = args.find((value) => value.startsWith("repos/boburning/portcove/"));
-      assert.ok(endpoint);
-      assert.ok(endpoint.endsWith("/zip"));
-      stdout = f.options.download(endpoint);
-    }
+    assert.equal(args[0], "attestation");
+    const stdout = f.options.spawn("gh", args).stdout;
     return {
       pid: 1,
       output: [],
@@ -313,14 +307,34 @@ export const signingContextFixtureToken = "ghs_SYNTHETIC_CONTEXT_READER";
 
 export function signingContextProviderFetch(
   f: ReturnType<typeof signingContextArtifactFixture>,
+  getArchive = f.options.download,
 ): typeof globalThis.fetch {
   return async (input, init) => {
     const request = new Request(input, init);
     const url = new URL(request.url);
     assert.equal(request.method, "GET");
+    assert.equal(request.redirect, "manual");
+    if (url.origin === "https://productionresultssa1.blob.core.windows.net") {
+      assert.equal(request.credentials, "omit");
+      assert.equal(request.headers.has("authorization"), false);
+      const id = /^\/actions-results\/(101|202)$/u.exec(url.pathname)?.[1];
+      assert.ok(id);
+      assert.equal(url.search, "?sig=context-fixture");
+      return new Response(getArchive(`repos/boburning/portcove/actions/artifacts/${id}/zip`));
+    }
     assert.equal(url.origin, "https://api.github.com");
     assert.equal(url.search, "");
     assert.equal(request.headers.get("authorization"), `token ${signingContextFixtureToken}`);
+    const archiveId = /^\/repos\/boburning\/portcove\/actions\/artifacts\/(101|202)\/zip$/u.exec(
+      url.pathname,
+    )?.[1];
+    if (archiveId)
+      return new Response(null, {
+        status: 302,
+        headers: {
+          location: `https://productionresultssa1.blob.core.windows.net/actions-results/${archiveId}?sig=context-fixture`,
+        },
+      });
     assert.equal(request.headers.get("x-github-api-version"), "2022-11-28");
     assert.equal(request.headers.get("accept"), "application/vnd.github+json");
     const route = url.pathname,

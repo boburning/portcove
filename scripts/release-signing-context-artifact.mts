@@ -3,12 +3,11 @@ import { inspectPublicBuildInputBinding } from "./release-public-build-binding-c
  * eligibility: only the existing controller attestation/provider join may admit
  * a transferred context, and each role still needs its own fresh controls. */
 import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { crc32, inflateRawSync } from "node:zlib";
 import { performance } from "node:perf_hooks";
 import { setTimeout as delay } from "node:timers/promises";
-import { spawnSync } from "node:child_process";
 import { inspectBoundedZip } from "./bounded-zip.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import {
@@ -30,7 +29,10 @@ import {
 } from "./release-custody-provider.mts";
 import type { RetainedGitHubSpawn } from "./github-cli.mts";
 import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
-import { readGitHubArtifactArchive } from "./github-binary.mts";
+import { downloadGitHubArtifactArchiveFile } from "./github-artifact-download.mts";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
+import type { SigningArchiveDownload } from "./release-signing-handoff.mts";
 import {
   inspectAssemblerIdentityExpectation,
   requestAssemblerToken,
@@ -607,6 +609,72 @@ export async function handoffSigningContextArtifact(
   }
 }
 
+export async function acquireSigningContextArchive(
+  directory: string,
+  item: { id: number; bytes: number; sha256: string },
+  options: {
+    token: string;
+    deadline: number;
+    fetch?: typeof globalThis.fetch | undefined;
+    charge?: (() => () => void) | undefined;
+    download?: SigningArchiveDownload | undefined;
+  },
+) {
+  const { token, fetch, charge, download } = options;
+  const deadline = Math.min(
+    options.deadline,
+    performance.now() + 30000,
+    coordinatorCommandDeadline() ?? Infinity,
+  );
+  const endpoint = `repos/boburning/portcove/actions/artifacts/${item.id}/zip`;
+  let bytes;
+  if (download) {
+    bytes = await download(endpoint, {
+      cwd: directory,
+      maxBytes: item.bytes,
+      timeoutMs: signingContextRemaining(deadline, 30000),
+    });
+  } else {
+    signingContextRemaining(deadline, 30000);
+    const scratch = path.join(directory, `context-download-${item.id}.zip`);
+    await downloadGitHubArtifactArchiveFile(endpoint, scratch, {
+      credential: { kind: "explicit", token },
+      deadline,
+      maxBytes: item.bytes,
+      fetch(input, init) {
+        assertTrustedDirectNode("signing context archive");
+        return (fetch ?? globalThis.fetch)(input, init);
+      },
+      ...(charge
+        ? {
+            lookup: {
+              reserve() {
+                const release = charge();
+                return {
+                  consumeBytes() {},
+                  settle(observation) {
+                    if (!observation.dispatched) release();
+                  },
+                };
+              },
+            },
+          }
+        : {}),
+    });
+    try {
+      signingContextRemaining(deadline, 30000);
+      bytes = await readControllerToolFile(scratch, item.bytes);
+    } finally {
+      await unlink(scratch);
+    }
+  }
+  signingContextRemaining(deadline, 30000);
+  if (bytes.length !== item.bytes || hash(bytes) !== item.sha256)
+    throw new Error("context opaque archive byte identity differs");
+  signingContextRemaining(deadline, 30000);
+  return Buffer.from(bytes);
+}
+
 /** Only the fixed payload producer may describe the actual uploaded context.
  * The returned predicate is still unsigned data until actions/attest signs it. */
 export async function prepareSigningContextPredicate(
@@ -665,17 +733,10 @@ export async function prepareSigningContextPredicate(
     return { id: raw.id, bytes: raw.size_in_bytes, sha256: uploaded.sha256 };
   };
   const before = await read();
-  const archive = readGitHubArtifactArchive(
-    `repos/boburning/portcove/actions/artifacts/${before.id}/zip`,
-    {
-      cwd: owned.directory,
-      maxBytes: before.bytes,
-      timeoutMs: signingContextRemaining(deadline, 30000),
-    },
-  );
-  signingContextRemaining(deadline, 15000);
-  if (archive.length !== before.bytes || hash(archive) !== before.sha256)
-    throw new Error("context uploaded archive bytes differ");
+  const archive = await acquireSigningContextArchive(owned.directory, before, {
+    token: readerToken,
+    deadline,
+  });
   const inspected = inspectSigningContextArchive(archive);
   if (
     inspected.manifest_sha256 !== owned.manifest_sha256 ||
@@ -802,7 +863,7 @@ const received = new WeakMap<object, Received>();
 type ContextReceiverOptions = {
   metadata?: ReleaseArtifactMetadataProvider;
   fetch?: typeof globalThis.fetch;
-  download?: typeof readGitHubArtifactArchive;
+  download?: SigningArchiveDownload;
   spawn?: RetainedGitHubSpawn;
 };
 export function receiveSigningContextArtifact(
@@ -838,12 +899,7 @@ async function receiveContextArtifact(
 ) {
   const expected = expectedInput(rawExpected);
   signingContextRemaining(deadline, 15000);
-  const {
-    metadata: injectedMetadata,
-    download = readGitHubArtifactArchive,
-    spawn: verifierSpawn,
-    fetch,
-  } = options;
+  const { metadata: injectedMetadata, download, spawn: verifierSpawn, fetch } = options;
   const injected = !!(injectedMetadata || options.download || verifierSpawn || fetch);
   const metadataOption = injectedMetadata && {
     commit: injectedMetadata.commit.bind(injectedMetadata),
@@ -878,12 +934,18 @@ async function receiveContextArtifact(
         currentDeadline: () => deadline,
         ...(fetch ? { fetch } : {}),
       }));
-    const get = async (read: () => Promise<unknown>) => {
+    const charge = () => {
       signingContextRemaining(deadline, 15000);
-      // One original phase only: initial12 + at most62 six-GET refreshes. The
-      // fixed five-role/assembly/native/Release graph requires more than48;
-      // neither later getters nor retained-proof reads reset this counter.
-      if (++requests > 384) throw new Error("context complete provider readback budget exceeded");
+      // Both archive lookups and later getters share the original phase.
+      // Retained-proof reads do not reset this counter.
+      if (requests >= 384) throw new Error("context complete provider readback budget exceeded");
+      requests++;
+      return () => {
+        requests--;
+      };
+    };
+    const get = async (read: () => Promise<unknown>) => {
+      charge();
       const raw = await read();
       signingContextRemaining(deadline, 15000);
       return raw;
@@ -971,22 +1033,17 @@ async function receiveContextArtifact(
       flag: "wx",
       mode: 0o600,
     });
-    const acquire = (item: { id: number; bytes: number; sha256: string }) => {
-      const bytes = download(`repos/boburning/portcove/actions/artifacts/${item.id}/zip`, {
-        cwd: directory,
-        maxBytes: item.bytes,
-        timeoutMs: signingContextRemaining(deadline, 30000),
-        spawn: (command, argv, settings) =>
-          spawnSync(command, argv, { ...settings, env: environment }),
-      });
-      signingContextRemaining(deadline, 15000);
-      if (bytes.length !== item.bytes || hash(bytes) !== item.sha256)
-        throw new Error("context opaque archive byte identity differs");
-      return Buffer.from(bytes);
-    };
     phase = "opaque-download";
-    const archive = acquire(before.artifact),
-      bundleArchive = acquire(before.bundle);
+    const acquire = (item: { id: number; bytes: number; sha256: string }) =>
+      acquireSigningContextArchive(directory, item, {
+        token: GH_TOKEN ?? "",
+        deadline,
+        fetch,
+        charge,
+        download,
+      });
+    const archive = await acquire(before.artifact),
+      bundleArchive = await acquire(before.bundle);
     await writeFile(path.join(directory, "context.zip"), archive, { flag: "wx", mode: 0o600 });
     await writeFile(path.join(directory, "bundle.zip"), bundleArchive, { flag: "wx", mode: 0o600 });
     const inspected = inspectSigningContextArchive(archive);

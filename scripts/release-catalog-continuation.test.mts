@@ -441,7 +441,11 @@ async function catalogContinuationBehavior(
         return { checkpoint, input };
       },
       refreshCapacityExecutor: async () => ({}),
-      readGitHubArtifactArchive: () => archive,
+      acquireSigningContextArchive: async (_directory: string, item: unknown, options: unknown) => {
+        assert.ok(isRecord(item) && item.bytes === archive.length && item.sha256 === hash(archive));
+        assert.ok(isRecord(options) && options.token === executionEnvironment.GH_TOKEN);
+        return archive;
+      },
       inspectSigningContextArchive: () => ({ manifest, manifest_sha256: "6".repeat(64) }),
       inspectCatalogSigningBinding: () => ({ facts: { descriptor } }),
       receiveCatalogSigningContextArtifact: async () => {
@@ -547,7 +551,6 @@ async function catalogContinuationBehavior(
     const moduleOwners: Record<string, string[]> = {
       "release-controller-tool-admission.mts": ["verifiedControllerToolPaths"],
       "github-api.mts": ["GitHubApiClient", "createGitHubRunner"],
-      "github-binary.mts": ["readGitHubArtifactArchive"],
       "release-coordinator-recovery.mts": [
         "recoverRemoteCoordinator",
         "readRemoteCoordinatorSnapshot",
@@ -581,6 +584,7 @@ async function catalogContinuationBehavior(
       "release-control-handshake.mts": ["prepareControlReadiness", "waitForControlArtifact"],
       "release-control-step-bridge.mts": ["retainControlStepLocator"],
       "release-signing-context-artifact.mts": [
+        "acquireSigningContextArchive",
         "inspectSigningContextArchive",
         "receiveCatalogSigningContextArtifact",
         "requireReceivedCatalogSigningContext",

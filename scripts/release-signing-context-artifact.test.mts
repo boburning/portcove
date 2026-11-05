@@ -16,6 +16,7 @@ import {
 } from "./fixtures/signing-context-artifact-fixture.mts";
 import { syncBuiltinESMExports } from "node:module";
 import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
+import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 
 void test("Windows native identities survive the signing-context carrier only with the explicit bound Windows assembly", () => {
   const f = fixture();
@@ -350,10 +351,10 @@ void test("the fixed default transport shares one finite context read budget acr
       performance.now() + 15000,
     );
     assert.equal(receipt.evidence_scope, "github.com");
-    for (let round = 0; round < 62; round++) await requireReceivedSigningContext(receipt);
-    assert.deepEqual(f.counts(), { requests: 384, downloads: 2 });
+    for (let round = 0; round < 61; round++) await requireReceivedSigningContext(receipt);
+    assert.deepEqual(f.counts(), { requests: 378, downloads: 2 });
     await assert.rejects(requireReceivedSigningContext(receipt), /readback budget exceeded/);
-    assert.deepEqual(f.counts(), { requests: 384, downloads: 2 });
+    assert.deepEqual(f.counts(), { requests: 382, downloads: 2 });
   } finally {
     mocked.mock.restore();
     fetchMock.mock.restore();
@@ -362,6 +363,55 @@ void test("the fixed default transport shares one finite context read budget acr
     syncBuiltinESMExports();
   }
 });
+void test("the inherited deadline aborts signed context body delivery and joins private scratch cleanup", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "context-inherited-archive-deadline-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const f = fixture();
+  const previousToken = process.env.GH_TOKEN;
+  process.env.GH_TOKEN = signingContextFixtureToken;
+  t.after(() => {
+    if (previousToken === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = previousToken;
+  });
+  const provider = signingContextProviderFetch(f);
+  const keepAlive = setInterval(() => {}, 1000);
+  t.after(() => clearInterval(keepAlive));
+  let deliveries = 0;
+  let cancelled = false;
+  const original = performance.now() + 5000;
+  await assert.rejects(
+    withCoordinatorDeadline(performance.now() + 500, () =>
+      receiveSigningContextArtifact(root, f.expected, original, {
+        metadata: f.options.metadata,
+        spawn: () => assert.fail("partial archive must not reach attestation"),
+        async fetch(input, init) {
+          const url = new URL(input instanceof Request ? input.url : input);
+          if (url.hostname === "api.github.com") return provider(input, init);
+          deliveries++;
+          return new Response(
+            new ReadableStream({
+              start(stream) {
+                stream.enqueue(f.archive.subarray(0, 22));
+              },
+              cancel() {
+                cancelled = true;
+              },
+            }),
+          );
+        },
+      }),
+    ),
+    /retain/u,
+  );
+  assert.equal(deliveries, 1);
+  assert.ok(cancelled);
+  const [directory] = await readdir(root);
+  assert.ok(directory);
+  const files = await readdir(path.join(root, directory));
+  assert.ok(files.includes("provider-before.json"));
+  assert.ok(!files.some((name) => name.endsWith(".zip")));
+});
+
 void test("missing private producer receipt and exhausted receiver budget refuse before effects", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "signing-context-refusal-"));
   t.after(() => rm(root, { recursive: true, force: true }));
