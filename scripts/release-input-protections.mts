@@ -1,6 +1,5 @@
 import { createHash } from "node:crypto";
 import { performance } from "node:perf_hooks";
-import type { GitHubRestReader } from "./github-api.mts";
 import { isRecord } from "./runtime-values.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import {
@@ -11,6 +10,10 @@ import { requireFixedClassificationPrincipal } from "./release-classification-pr
 import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-namespace.mts";
 
 type StorageJournalPolicy = { namespace: string; writer_app_id: number };
+type ProtectionReader = (
+  endpoint: string,
+  deadline: number,
+) => { status?: number; body: unknown } | Promise<{ status?: number; body: unknown }>;
 type ProtectionObservationOptions = {
   releasePublication?: boolean;
   journalNamespace?: string | undefined;
@@ -96,19 +99,19 @@ function id(value: unknown): asserts value is number {
  * Bootstrap protection and exact policy interpretation remain separate gates.
  */
 export function observeReleaseInputProtections(
-  api: GitHubRestReader,
+  request: ProtectionReader,
   options: ProtectionObservationOptions = {},
 ) {
-  return observeProtections(api, options, "application");
+  return observeProtections(request, options, "application");
 }
 export function observeCatalogMaintenanceProtections(
-  api: GitHubRestReader,
+  request: ProtectionReader,
   options: ProtectionObservationOptions = {},
 ) {
-  return observeProtections(api, options, "catalog-publication");
+  return observeProtections(request, options, "catalog-publication");
 }
-function observeProtections(
-  api: GitHubRestReader,
+async function observeProtections(
+  request: ProtectionReader,
   options: ProtectionObservationOptions,
   purpose: "application" | "catalog-publication",
 ) {
@@ -121,31 +124,31 @@ function observeProtections(
     ...(journalBranch === undefined ? [] : [journalBranch]),
   ];
   let requests = 0;
-  const started = performance.now();
-  const get = (suffix: string) => {
-    if (++requests > 80 || performance.now() - started > 120_000)
+  const deadline = performance.now() + 120_000;
+  const get = async (suffix: string) => {
+    if (++requests > 80 || performance.now() >= deadline)
       throw new Error("protection observation bound exhausted");
-    const result = api.request("GET", `${prefix}${suffix}`);
+    const result = await request(`${prefix}${suffix}`, deadline);
     if (
       result.status !== 200 ||
-      performance.now() - started > 120_000 ||
+      performance.now() >= deadline ||
       Buffer.byteLength(JSON.stringify(result.body)) > 2 * 1024 * 1024
     )
       throw new Error("protection response unavailable, oversized or late");
     return structuredClone(result.body);
   };
-  const identity = get("");
+  const identity = await get("");
   if (
     !isRecord(identity) ||
     identity.id !== 1354613114 ||
     identity.full_name !== "boburning/portcove"
   )
     throw new Error("protection repository identity differs");
-  const read = () => {
+  const read = async () => {
     const rulesets: Record<string, unknown>[] = [];
     let complete = false;
     for (let page = 1; page <= 8; page++) {
-      const values = get(`/rulesets?includes_parents=true&per_page=100&page=${page}`);
+      const values = await get(`/rulesets?includes_parents=true&per_page=100&page=${page}`);
       if (!Array.isArray(values) || values.length > 100)
         throw new Error("protection inventory is incomplete");
       for (const value of values) {
@@ -155,7 +158,7 @@ function observeProtections(
         // endpoint. Until that route is configured, never call coverage complete.
         if (value.source_type !== "Repository" || value.source !== "boburning/portcove")
           throw new Error("inherited protection detail requires separately scoped read access");
-        const detail = get(`/rulesets/${value.id}?includes_parents=true`);
+        const detail = await get(`/rulesets/${value.id}?includes_parents=true`);
         if (
           !isRecord(detail) ||
           detail.id !== value.id ||
@@ -184,8 +187,9 @@ function observeProtections(
     }
     if (!complete || new Set(rulesets.map((rule) => rule.id)).size !== rulesets.length)
       throw new Error("protection inventory pages incomplete or duplicated");
-    const branches = selectedBranches.map((branch) => {
-      const ref = get(`/git/ref/heads/${branch}`);
+    const branches = [];
+    for (const branch of selectedBranches) {
+      const ref = await get(`/git/ref/heads/${branch}`);
       if (
         !isRecord(ref) ||
         ref.ref !== `refs/heads/${branch}` ||
@@ -198,7 +202,7 @@ function observeProtections(
       const effective: unknown[] = [];
       let covered = false;
       for (let page = 1; page <= 8; page++) {
-        const values = get(`/rules/branches/${branch}?per_page=100&page=${page}`);
+        const values = await get(`/rules/branches/${branch}?per_page=100&page=${page}`);
         if (!Array.isArray(values) || values.length > 100)
           throw new Error("effective protection rules unavailable");
         for (const value of values as unknown[]) effective.push(value);
@@ -211,71 +215,75 @@ function observeProtections(
       // Classic protection can add restrictions but cannot bypass a ruleset.
       // This assertion concerns exact writers/ref immutability in active rulesets;
       // it does not assert that a future operation will be available.
-      return { branch, ref, effective_rules: effective };
-    });
-    const environments =
-      purpose === "catalog-publication"
-        ? catalogProtectionEnvironments.map((name) => {
-            const environment = get(`/environments/${encodeURIComponent(name)}`);
-            if (!isRecord(environment) || environment.name !== name) {
-              throw new Error("catalog environment identity unavailable");
-            }
-            id(environment.id);
-            const policies: Record<string, unknown>[] = [];
-            let total: number | undefined;
-            let complete = false;
-            for (let page = 1; page <= 8; page++) {
-              const response = get(
-                `/environments/${encodeURIComponent(name)}/deployment-branch-policies?per_page=100&page=${page}`,
-              );
-              if (
-                !isRecord(response) ||
-                !Number.isSafeInteger(response.total_count) ||
-                Number(response.total_count) < 0 ||
-                Number(response.total_count) > 800 ||
-                !Array.isArray(response.branch_policies) ||
-                response.branch_policies.length > 100 ||
-                (total !== undefined && total !== response.total_count)
-              ) {
-                throw new Error("catalog deployment policy pagination unavailable or changed");
-              }
-              total = Number(response.total_count);
-              for (const policy of response.branch_policies) {
-                if (
-                  !isRecord(policy) ||
-                  typeof policy.name !== "string" ||
-                  !["branch", "tag"].includes(String(policy.type))
-                ) {
-                  throw new Error("catalog deployment policy identity incomplete");
-                }
-                id(policy.id);
-                policies.push(policy);
-              }
-              if (response.branch_policies.length < 100) {
-                complete = policies.length === total;
-                break;
-              }
-            }
+      branches.push({ branch, ref, effective_rules: effective });
+    }
+    let environments:
+      | {
+          name: string;
+          environment: Record<string, unknown>;
+          policies: Record<string, unknown>[];
+        }[]
+      | undefined;
+    if (purpose === "catalog-publication") {
+      environments = [];
+      for (const name of catalogProtectionEnvironments) {
+        const environment = await get(`/environments/${encodeURIComponent(name)}`);
+        if (!isRecord(environment) || environment.name !== name) {
+          throw new Error("catalog environment identity unavailable");
+        }
+        id(environment.id);
+        const policies: Record<string, unknown>[] = [];
+        let total: number | undefined;
+        let complete = false;
+        for (let page = 1; page <= 8; page++) {
+          const response = await get(
+            `/environments/${encodeURIComponent(name)}/deployment-branch-policies?per_page=100&page=${page}`,
+          );
+          if (
+            !isRecord(response) ||
+            !Number.isSafeInteger(response.total_count) ||
+            Number(response.total_count) < 0 ||
+            Number(response.total_count) > 800 ||
+            !Array.isArray(response.branch_policies) ||
+            response.branch_policies.length > 100 ||
+            (total !== undefined && total !== response.total_count)
+          ) {
+            throw new Error("catalog deployment policy pagination unavailable or changed");
+          }
+          total = Number(response.total_count);
+          for (const policy of response.branch_policies) {
             if (
-              !complete ||
-              new Set(policies.map((policy) => policy.id)).size !== policies.length
+              !isRecord(policy) ||
+              typeof policy.name !== "string" ||
+              !["branch", "tag"].includes(String(policy.type))
             ) {
-              throw new Error("catalog deployment policy inventory incomplete or duplicated");
+              throw new Error("catalog deployment policy identity incomplete");
             }
-            return {
-              name,
-              environment,
-              policies: policies.sort((a, b) => Number(a.id) - Number(b.id)),
-            };
-          })
-        : undefined;
+            id(policy.id);
+            policies.push(policy);
+          }
+          if (response.branch_policies.length < 100) {
+            complete = policies.length === total;
+            break;
+          }
+        }
+        if (!complete || new Set(policies.map((policy) => policy.id)).size !== policies.length) {
+          throw new Error("catalog deployment policy inventory incomplete or duplicated");
+        }
+        environments.push({
+          name,
+          environment,
+          policies: policies.sort((a, b) => Number(a.id) - Number(b.id)),
+        });
+      }
+    }
     if (
       environments &&
       new Set(environments.map((row) => row.environment.id)).size !== environments.length
     ) {
       throw new Error("catalog environment identities duplicated");
     }
-    const immutable = options.releasePublication ? get("/immutable-releases") : undefined;
+    const immutable = options.releasePublication ? await get("/immutable-releases") : undefined;
     if (
       options.releasePublication &&
       (!isRecord(immutable) ||
@@ -291,8 +299,8 @@ function observeProtections(
       ...(options.releasePublication ? { immutable_releases: immutable } : {}),
     };
   };
-  const before = read();
-  const after = read();
+  const before = await read();
+  const after = await read();
   if (canonical(before) !== canonical(after))
     throw new Error("protection or input refs changed during observation");
   return {

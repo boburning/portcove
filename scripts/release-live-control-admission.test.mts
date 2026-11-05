@@ -140,7 +140,7 @@ void test("observer output transport refuses expiry after every awaited write an
   }
 });
 
-void test("production protection observer entry uses the captured job credential for the scoped SDK lookup", async () => {
+void test("production protection observer entry uses separate captured job and protection App credentials through the SDK", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "portcove-protection-observer-entry-"));
   try {
     const phase = "coordinator";
@@ -182,14 +182,20 @@ void test("production protection observer entry uses the captured job credential
           assert.equal(request.headers.get("authorization"), null);
           return Response.json({ keys: [jwk] });
         }
-        dispatches.push([request.method, url.href, request.headers.get("authorization")]);
+        const authorization = request.headers.get("authorization");
+        dispatches.push([request.method, url.href, authorization]);
+        if (authorization === "token original-job-token")
+          return Response.json(provider.metadata(url.pathname + url.search));
+        assert.equal(authorization, "token different-protection-app-token");
+        assert.equal(url.href, "https://api.github.com/repos/boburning/portcove");
         return Response.json({}, { status: 503 });
       };
       process.on("beforeExit", () => {
-        assert.deepEqual(dispatches, [[
-          "GET", "https://api.github.com/repos/boburning/portcove/actions/runs/9988",
-          "token original-job-token",
-        ]]);
+        assert.deepEqual(dispatches.map(row => row[2]), [
+          ...Array(5).fill("token original-job-token"),
+          "token different-protection-app-token",
+        ]);
+        assert.ok(dispatches.every(row => row[0] === "GET"));
       });
       process.argv = [process.execPath, fileURLToPath(${JSON.stringify(command.href)}), "observe-production-coordinator"];
       await import(${JSON.stringify(command.href)});
@@ -212,6 +218,7 @@ void test("production protection observer entry uses the captured job credential
           PORTCOVE_RELEASE_AUTHORITIES: JSON.stringify(configuration),
           PORTCOVE_EXPECTED_PROTECTION_APP_ID: String(observer.app_id),
           PORTCOVE_EXPECTED_INSTALLATION_ID: String(observer.installation_id),
+          PORTCOVE_OBSERVED_INSTALLATION_ID: String(observer.installation_id),
           PORTCOVE_CONTROL_APP_TOKEN: "different-protection-app-token",
           PORTCOVE_STORAGE_APP_TOKEN: undefined,
           NODE_OPTIONS: undefined,

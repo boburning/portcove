@@ -40,6 +40,7 @@ import {
 
 import {
   coordinatorCommandTimeout,
+  coordinatorCommandDeadline,
   checkCoordinatorDeadline,
   withCoordinatorDeadline,
 } from "./release-coordinator-deadline.mts";
@@ -492,11 +493,45 @@ async function runOperation(
       );
     } else if (observing) {
       requireObserver();
+      let readProtection: Parameters<typeof observeReleaseInputProtections>[0] = (endpoint) =>
+        api.request("GET", endpoint);
+      if (productionObservation) {
+        if (
+          !appToken ||
+          !isRecord(observerIdentity) ||
+          typeof observerIdentity.expires_at !== "string"
+        )
+          throw new Error("fixed protection credential or lifetime unavailable");
+        const deadline = Math.min(
+          originalDeadline ?? Infinity,
+          coordinatorCommandDeadline() ?? Infinity,
+          performance.now() + Date.parse(observerIdentity.expires_at) - Date.now(),
+        );
+        const { createGitHubClient } = await import("./github-client.mts");
+        const client = await createGitHubClient({
+          credential: { kind: "explicit", token: appToken },
+          deadline,
+          maxBytes: 2 * 1024 ** 2,
+          allowRequest(method, url) {
+            if (method !== "GET" || !/^\/repos\/boburning\/portcove(?:\/|$)/u.test(url.pathname))
+              return false;
+            requireObserver();
+            return true;
+          },
+        });
+        readProtection = async (endpoint, observationDeadline) => {
+          const response = await client.request(`GET /${endpoint}`, {
+            request: { portcove: { replay: "once", attempts: 0, deadline: observationDeadline } },
+          });
+          requireObserver();
+          return { status: response.status, body: response.data as unknown };
+        };
+      }
       result = catalogPurpose
-        ? observeCatalogMaintenanceProtections(api, {
+        ? await observeCatalogMaintenanceProtections(readProtection, {
             journalNamespace: observerRoles?.storage_journal?.namespace,
           })
-        : observeReleaseInputProtections(api, {
+        : await observeReleaseInputProtections(readProtection, {
             releasePublication: phase === "release-publication",
             journalNamespace: observerRoles?.storage_journal?.namespace,
           });
