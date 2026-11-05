@@ -1,5 +1,5 @@
-import { createGitHubClient } from "./github-client.mts";
 import type {
+  createGitHubClient,
   GitHubRequestPolicy,
   GitHubDeferralState,
   GitHubAttemptObservation,
@@ -1308,6 +1308,7 @@ export async function observeUpstream(
       "Observation cancelled; retain the exact continuation",
     );
   const failedReads = options.githubScope?.failedReads ?? new Map<string, GitHubRequestPolicy>();
+  const { createGitHubClient } = await import("./github-client.mts");
   const sdk = await createGitHubClient({
     credential:
       options.token === undefined
