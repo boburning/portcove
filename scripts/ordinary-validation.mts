@@ -2258,6 +2258,7 @@ for (const file of [
   "scripts/discovery-budget.mts",
   "scripts/discovery-primary-progress.mts",
   "scripts/daily-discovery-sources.mts",
+  "scripts/postmerge-ci.test.mts",
   "scripts/github-client.test.mts",
   "scripts/github-operation.mts",
   "scripts/github-cli.mts",
@@ -2356,6 +2357,11 @@ for (const file of ["scripts/github-cli.mts", "scripts/github-controller-attesta
     "scripts/release-tuf-role-artifact.test.mts",
     "scripts/release-hosted-native-acceptance.test.mts",
   ]);
+
+explicitNodeTests.set("scripts/github-artifact-download.mts", [
+  "scripts/audit-reuse.test.mts",
+  "scripts/postmerge-ci.test.mts",
+]);
 
 for (const name of ["ci-health", "handoff-evidence", "postmerge-ci"]) {
   const file = `scripts/${name}.mts`;

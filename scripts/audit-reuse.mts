@@ -1,6 +1,5 @@
 import { errorCode, isRecord } from "./runtime-values.mts";
 import { createHash, randomUUID } from "node:crypto";
-import { readGitHubArtifactArchive } from "./github-binary.mts";
 import {
   existsSync,
   linkSync,
@@ -477,10 +476,8 @@ export function importAuditReceipts(
   return { imported, misses, provenance };
 }
 
-/** One audit-command metadata scope. Artifact bytes remain on the identified
- * bounded acquisition path until the release byte-reader cohort migrates. */
+/** One audit-command credential shared by metadata and bounded archive acquisition. */
 export async function createAuditOperations(options: {
-  root: string;
   deadline: number;
   environment?: NodeJS.ProcessEnv;
   fetch?: typeof globalThis.fetch;
@@ -490,11 +487,12 @@ export async function createAuditOperations(options: {
   const prefix = `/repos/${repositoryName}`;
   let requests = 0,
     received = 0;
+  const credential = localDeveloperCredential({
+    deadline: options.deadline,
+    ...(options.environment ? { environment: options.environment } : {}),
+  });
   const sdk = await createGitHubClient({
-    credential: localDeveloperCredential({
-      deadline: options.deadline,
-      ...(options.environment ? { environment: options.environment } : {}),
-    }),
+    credential,
     deadline: options.deadline,
     maxBytes: 2 * 1024 * 1024,
     ...(options.fetch ? { fetch: options.fetch } : {}),
@@ -539,10 +537,20 @@ export async function createAuditOperations(options: {
       ).data as unknown;
     },
     async archive(endpoint, timeoutMs) {
-      return readGitHubArtifactArchive(endpoint, {
-        cwd: options.root,
-        timeoutMs,
+      requireValid(
+        endpoint.startsWith(`${route}/actions/artifacts/`),
+        "provider-identity-unavailable",
+      );
+      requireValid(
+        Number.isSafeInteger(timeoutMs) && timeoutMs > 0 && timeoutMs <= 15000,
+        "collection-deadline",
+      );
+      const { downloadGitHubArtifactArchive } = await import("./github-artifact-download.mts");
+      return downloadGitHubArtifactArchive(endpoint, {
+        credential,
+        deadline: Math.min(options.deadline, performance.now() + timeoutMs),
         maxBytes: AUDIT_BUNDLE_LIMITS.compressedBytes,
+        ...(options.fetch ? { fetch: options.fetch } : {}),
       });
     },
   };
@@ -573,7 +581,6 @@ export async function discoverAuditReceipts(
     operations ??= options.operations
       ? Promise.resolve(options.operations)
       : createAuditOperations({
-          root: options.root ?? process.cwd(),
           deadline: performance.now() + Math.max(0, deadline - clock()),
         });
     const provider = await operations;
