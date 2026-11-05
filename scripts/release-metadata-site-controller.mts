@@ -271,6 +271,12 @@ export async function runMetadataSitePublicationController(
         return source;
       };
       let controls = await fresh();
+      const checkpointControls = async () => {
+        const observed = controls.readMaintenance(api);
+        if (observed.pause.publication_paused || !observed.resource_policy_matches_controller)
+          throw new Error("metadata publication held by current maintenance controls");
+        remaining(deadline);
+      };
       const boundary = async () => {
         const state = await readRemoteCoordinatorSnapshot(directory, remote, {
           transport: { cwd: directory, deadline },
@@ -351,6 +357,7 @@ export async function runMetadataSitePublicationController(
             evidence_sha256: digest(upload),
           };
         },
+        checkpointControls,
       );
       checkpoint = uploaded.checkpoint;
       const settled = await readRemoteCoordinatorSnapshot(directory, remote, {

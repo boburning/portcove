@@ -727,6 +727,9 @@ export async function runReleasePublicationController(
                 evidence_sha256: digest(handoff),
               };
             },
+            async () => {
+              await boundary();
+            },
           );
           if (!handoff) throw new Error("actual publication result artifact missing");
           result = Object.freeze({

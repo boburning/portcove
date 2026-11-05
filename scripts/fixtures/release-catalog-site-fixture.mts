@@ -194,6 +194,19 @@ try {
   });
   install("release-capacity-executor", {
     ...executors,
+    // This retained fixture exercises the historical explicit legacy route.
+    // Selected history/signature acceptance is covered by its own fixtures.
+    ensureOwnedCheckpointJournalHistory: async (
+      actual: object,
+      _repository: string,
+      checkpoint: string,
+      controls: () => Promise<void>,
+    ) => {
+      assert.equal(actual, executor);
+      assert.equal(checkpoint, "settled");
+      await controls();
+      return false;
+    },
     capacityExecutorIdentity: (value: object) => {
       assert.equal(value, executor);
       return identity;

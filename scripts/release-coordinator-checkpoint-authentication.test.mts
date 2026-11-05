@@ -635,6 +635,24 @@ void test("selected empty seed requires exact setup bytes, modern capacity contr
     api,
   );
   assert.equal(result.kind, "ratified-initial-seed");
+  const storageAuthorities = {
+    ...authorities,
+    kind: "three-app-fixed-jobs-v1",
+    storage_setup_plan_sha256: "7".repeat(64),
+    apps: { ...authorities.apps, storage_writer: { app_id: 90001, installation_id: 90002 } },
+  };
+  const upgraded = await authenticateFixedJobCoordinatorHistory(
+    directory,
+    checkpoint,
+    storageAuthorities,
+    source,
+    performance.now() + 60000,
+    api,
+  );
+  assert.equal(upgraded.kind, "ratified-initial-seed");
+  assert.equal(upgraded.checkpoint, result.checkpoint);
+  assert.deepEqual(storageAuthorities.journal_seed, authorities.journal_seed);
+  assert.equal(storageAuthorities.setup_plan_sha256, authorities.setup_plan_sha256);
   const changed = [
     { ...checkpoint, previous: "a".repeat(40) },
     { ...checkpoint, blob: { ...checkpoint.blob, contents: checkpoint.blob.contents + " " } },

@@ -278,6 +278,16 @@ export async function runCatalogSitePublicationController(
         return controls;
       };
       let controls = await fresh();
+      const checkpointControls = async () => {
+        remaining(deadline);
+        const facts = controls.readMaintenance(api);
+        if (
+          facts.purpose !== "catalog-site-publication-controls" ||
+          facts.pause.publication_paused ||
+          !facts.resource_policy_matches_controller
+        )
+          throw new Error("fresh catalog site controls hold this attempt");
+      };
       const boundary: Parameters<typeof executeOwnedCapacityEffect>[2] = async (pendingReceipt) => {
         remaining(deadline);
         const snapshot = await readRemoteCoordinatorSnapshot(directory, remote, {
@@ -373,6 +383,7 @@ export async function runCatalogSitePublicationController(
             evidence_sha256: digest(readback),
           };
         },
+        checkpointControls,
       );
       checkpoint = uploaded.checkpoint;
       await boundary();

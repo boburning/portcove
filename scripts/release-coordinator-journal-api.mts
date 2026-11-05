@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { requireStorageAppToken } from "./release-storage-credential.mts";
 import { lstatSync, mkdtempSync, realpathSync } from "node:fs";
 import path from "node:path";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
@@ -33,6 +34,32 @@ export function createCoordinatorJournalApi(
   return isolatedJournalClient(directory, token, remaining, remaining);
 }
 
+/** Inert prepared-source Git object custody only. Source/object identities
+ * remain checked by publishPreparedCoordinatorCheckpoint; this client cannot
+ * mutate refs. Selected journal publication uses its separate signed exchange. */
+export function createPreparedCheckpointObjectApi(
+  directory: string,
+  deadline: number,
+  storageWriter?: { app_id: number; installation_id: number },
+): CoordinatorRemoteApi {
+  const remaining = () => {
+    const left = Math.floor(Math.min(15000, deadline - performance.now()));
+    if (!Number.isFinite(deadline) || left < 1)
+      throw new Error("prepared storage original deadline exhausted");
+    return left;
+  };
+  remaining();
+  const token =
+    storageWriter === undefined ? process.env.GH_TOKEN : requireStorageAppToken(storageWriter);
+  const api = isolatedJournalClient(directory, token, remaining, remaining);
+  return {
+    request: api.request.bind(api),
+    graphql() {
+      throw new Error("prepared source object transport cannot mutate or query refs");
+    },
+  };
+}
+
 /** Transport preparation for the selected fixed-job path. This grants no job,
  * history, protection or setup authority; the owning private executor must
  * establish those before calling the existing signing exchange. Never falls
@@ -42,11 +69,13 @@ export function createCheckpointJobTokenApi(
   checkpoint: Awaited<ReturnType<typeof exportCoordinatorCheckpoint>>,
   configuration: unknown,
   deadline: number,
+  storageWriter?: { app_id: number; installation_id: number },
 ): CoordinatorRemoteApi {
   const started = performance.now();
   if (!Number.isFinite(deadline) || deadline <= started || deadline - started > 120000)
     throw new Error("job journal requires the original bounded deadline");
-  const token = process.env.GH_TOKEN;
+  const token =
+    storageWriter === undefined ? process.env.GH_TOKEN : requireStorageAppToken(storageWriter);
   if (
     typeof token !== "string" ||
     token.length < 1 ||

@@ -875,6 +875,9 @@ export async function runPayloadSigningController(
             evidence_sha256: hash(JSON.stringify(orderedJsonValue(handoff))),
           };
         },
+        async () => {
+          await freshControls();
+        },
       );
       if (!handoff) throw new Error("actual immutable payload output custody missing");
       currentCheckpoint = settlement.checkpoint;

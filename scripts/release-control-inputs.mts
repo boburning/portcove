@@ -26,6 +26,9 @@ const maximumBytes = 128 * 1024;
 export const releaseControlRefQuery =
   "query($id:ID!,$ref:String!){node(id:$id){__typename ... on Repository{id databaseId nameWithOwner ref(qualifiedName:$ref){id name prefix target{__typename oid}}}}}";
 
+export const releaseClassificationCommitMutation =
+  "mutation($input:CreateCommitOnBranchInput!){createCommitOnBranch(input:$input){commit{oid}}}";
+
 function exact(value: unknown, keys: string): asserts value is Record<string, unknown> {
   if (!isRecord(value) || Object.keys(value).sort().join(",") !== keys)
     throw new Error("release control input schema differs");
@@ -426,7 +429,7 @@ export function persistReviewedClassification(
   // expectedHeadOid is GitHub's single-branch exact-preimage CAS. Never retry.
   try {
     const response = api.graphql(
-      "mutation($input:CreateCommitOnBranchInput!){createCommitOnBranch(input:$input){commit{oid}}}",
+      releaseClassificationCommitMutation,
       {
         input: {
           branch: { id: io.refId(classificationBranch) },

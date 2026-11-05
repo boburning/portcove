@@ -439,6 +439,9 @@ async function runRole(
           evidence_sha256: digest(handoff),
         };
       },
+      async () => {
+        await fresh();
+      },
     );
     if (!envelope || !handoff || !ownedPending)
       throw new Error("actual catalog role output missing");

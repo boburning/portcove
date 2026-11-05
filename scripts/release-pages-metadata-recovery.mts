@@ -22,6 +22,7 @@ import { readControllerToolFile } from "./release-controller-tools.mts";
 import {
   refreshCapacityExecutor,
   recoverOwnedPublishedMetadata,
+  ensureOwnedCheckpointJournalHistory,
 } from "./release-capacity-executor.mts";
 import { recoverReleaseOpportunity } from "./release-coordinator-state.mts";
 import {
@@ -164,6 +165,17 @@ export async function recoverPublishedPagesMetadata(
   const directory = await mkdtemp(path.join(privateParent, "pages-metadata-readback-"));
   try {
     await freshBoundary();
+    const checkpointControls = async () => {
+      if (!beforeMutation)
+        throw new Error("selected Pages recovery requires original live mutation controls");
+      beforeMutation();
+    };
+    const signedJournal = await ensureOwnedCheckpointJournalHistory(
+      executor,
+      raw.repository,
+      raw.checkpoint,
+      checkpointControls,
+    );
     const result = await withCoordinatorDeadline(phaseDeadline, () =>
       recoverOwnedPublishedMetadata(
         executor,
@@ -272,7 +284,8 @@ export async function recoverPublishedPagesMetadata(
           check();
           return published;
         },
-        beforeMutation,
+        signedJournal ? undefined : beforeMutation,
+        signedJournal ? checkpointControls : undefined,
       ),
     );
     check();

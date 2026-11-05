@@ -3,6 +3,10 @@ import { generateKeyPairSync } from "node:crypto";
 import childProcess from "node:child_process";
 import { syncBuiltinESMExports } from "node:module";
 import test from "node:test";
+import { mkdtemp, rm } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
 import { performance } from "node:perf_hooks";
 import {
   verifyAssemblerJobIdentity,
@@ -903,4 +907,34 @@ void test("classification signed identity cannot outlive its original job deadli
     /deadline/,
   );
   assert.equal(good.counts().requests, 0);
+});
+
+void test("fixed identity provider receives only the reader token when the worker holds a storage token", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "controller-identity-reader-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  for (const [key, value] of Object.entries({
+    GH_TOKEN: "inert-reader",
+    PORTCOVE_STORAGE_APP_TOKEN: "inert-storage-writer",
+  })) {
+    const before = process.env[key];
+    process.env[key] = value;
+    t.after(() => {
+      if (before === undefined) delete process.env[key];
+      else process.env[key] = before;
+    });
+  }
+  const f = fixture();
+  const transport = {
+    ...f.transport,
+    spawn: (...args: Parameters<typeof f.transport.spawn>) => {
+      assert.equal(args[2]?.env?.GH_TOKEN, "inert-reader");
+      assert.equal(args[2]?.env?.PORTCOVE_STORAGE_APP_TOKEN, undefined);
+      return f.transport.spawn(...args);
+    },
+  };
+  const result = await withReadOnlyReleaseChildren(root, () =>
+    verifyAssemblerJobIdentity(f.token, expected, { ...f, transport }),
+  );
+  assert.equal(result.job_id, 501);
+  assert.ok(f.counts().requests > 0);
 });

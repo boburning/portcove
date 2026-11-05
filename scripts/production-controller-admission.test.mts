@@ -2300,3 +2300,58 @@ void test("native provider allocation comes only from the original branded workf
     );
   }
 });
+
+void test("dedicated storage profile binds three distinct Apps and an additional grant without replacing its exact seed or base setup", () => {
+  const legacy = selectedPublicationAuthoritiesFixture("application");
+  const storage = { app_id: 90001, installation_id: 90002 };
+  const journal = {
+    ...legacy.journal,
+    kind: "three-app-fixed-jobs-v1",
+    storage_setup_plan_sha256: "7".repeat(64),
+    apps: { ...legacy.journal.apps, storage_writer: storage },
+  };
+  const raw = { ...legacy, kind: "three-app-fixed-jobs-v1", journal };
+  const parsed = inspectSelectedPublicationAuthorityConfiguration(raw);
+  assert.deepEqual(parsed.journal.journal_seed, legacy.journal.journal_seed);
+  assert.equal(parsed.journal.setup_plan_sha256, legacy.journal.setup_plan_sha256);
+  assert.equal(parsed.journal.storage_setup_plan_sha256, "7".repeat(64));
+  assert.deepEqual(parsed.journal.apps.storage_writer, storage);
+  assert.notEqual(releaseCanonicalDigest(parsed), releaseCanonicalDigest(legacy));
+  for (const changed of [
+    { ...raw, kind: legacy.kind },
+    { ...raw, journal: legacy.journal },
+    { ...raw, journal: { ...journal, storage_setup_plan_sha256: undefined } },
+    { ...raw, journal: { ...journal, storage_setup_plan_sha256: "bad" } },
+    { ...raw, journal: { ...journal, storage_setup_plan_sha256: journal.setup_plan_sha256 } },
+    { ...raw, journal: { ...journal, apps: legacy.journal.apps } },
+    {
+      ...raw,
+      journal: {
+        ...journal,
+        apps: { ...journal.apps, storage_writer: { ...storage, app_id: 15368 } },
+      },
+    },
+    {
+      ...raw,
+      journal: {
+        ...journal,
+        apps: {
+          ...journal.apps,
+          storage_writer: {
+            ...storage,
+            installation_id: legacy.journal.apps.semantic.installation_id,
+          },
+        },
+      },
+    },
+    {
+      ...raw,
+      journal: {
+        ...journal,
+        apps: { ...journal.apps, storage_writer: legacy.journal.apps.protection_observer },
+      },
+    },
+  ])
+    assert.throws(() => inspectSelectedPublicationAuthorityConfiguration(changed));
+  assert.deepEqual(inspectSelectedPublicationAuthorityConfiguration(legacy), legacy);
+});

@@ -1,4 +1,10 @@
 import {
+  authenticateCapacityExecutor,
+  ensureOwnedCheckpointJournalHistory,
+  publishOwnedSignedCoordinatorCheckpoint,
+} from "./release-capacity-executor.mts";
+import { controllerOidcSubject } from "./assembler-job-identity.mts";
+import {
   inspectCatalogReviewDisposition,
   advanceCatalogReviewRecovery,
   receiveActualCatalogReviewDisposition,
@@ -622,35 +628,71 @@ export async function runFixedCatalogCoordinatorConfiguration(
           throw new Error("catalog maintenance changed before neutral request mutation");
         check();
       };
-      const journal = createCoordinatorJournalApi(directory, deadline),
-        guarded = {
-          request: (...args: Parameters<typeof journal.request>) => {
-            check();
-            if (args[0] !== "GET") beforeMutation();
-            const result = journal.request(...args);
-            check();
-            return result;
-          },
-          graphql: (...args: Parameters<typeof journal.graphql>) => {
-            check();
-            if (/^\s*mutation\b/u.test(args[0])) beforeMutation();
-            const result = journal.graphql(...args);
-            check();
-            return result;
-          },
-        };
+      const checkpointControls = async () => {
+        beforeMutation();
+      };
+      const executor = await authenticateCapacityExecutor(
+        "coordinator",
+        {
+          audience: "portcove-capacity-executor",
+          subject: controllerOidcSubject(
+            reader.admitted.execution_ref,
+            "production-release-coordinator",
+          ),
+          controller_revision: reader.admitted.revision,
+          controller_ref: reader.admitted.execution_ref,
+          actor_id: reader.admitted.actor_id,
+          run_id: reader.admitted.run_id,
+          run_attempt: reader.admitted.run_attempt,
+        },
+        directory,
+        deadline,
+      );
+      const signedJournal = await ensureOwnedCheckpointJournalHistory(
+        executor,
+        recovered.repository,
+        recovered.checkpoint,
+        checkpointControls,
+      );
+      const publishLegacy = async (checkpoint: string) => {
+        const journal = createCoordinatorJournalApi(directory, deadline),
+          guarded = {
+            request: (...args: Parameters<typeof journal.request>) => {
+              check();
+              if (args[0] !== "GET") beforeMutation();
+              const result = journal.request(...args);
+              check();
+              return result;
+            },
+            graphql: (...args: Parameters<typeof journal.graphql>) => {
+              check();
+              if (/^\s*mutation\b/u.test(args[0])) beforeMutation();
+              const result = journal.graphql(...args);
+              check();
+              return result;
+            },
+          };
+        return publishCoordinatorCheckpoint(
+          recovered.repository,
+          checkpoint,
+          selected.remote_configuration,
+          { api: guarded },
+        );
+      };
       if (negativeReceipt) await requireActualCatalogReviewDisposition(negativeReceipt, deadline);
       const persisted = await checkpointReleaseOpportunity(
         recovered.repository,
         recovered.checkpoint,
         next,
       );
-      await publishCoordinatorCheckpoint(
-        recovered.repository,
-        persisted.checkpoint,
-        selected.remote_configuration,
-        { api: guarded },
-      );
+      if (signedJournal)
+        await publishOwnedSignedCoordinatorCheckpoint(
+          executor,
+          recovered.repository,
+          persisted.checkpoint,
+          checkpointControls,
+        );
+      else await publishLegacy(persisted.checkpoint);
       const readback = await readRemoteCoordinatorSnapshot(
         directory,
         selected.remote_configuration,

@@ -1252,6 +1252,49 @@ recovery remains required for the retained broader profile and subsequent Linux
 release. The existing canonical owner packet binds the final reviewed
 controller, configuration and exact protected grant before use.
 
+### Dedicated fixed-job storage credential
+
+The selected `three-app-fixed-jobs-v1` authority kind retains full schema4 and
+journal schema3, with exactly three distinct App/installation pairs. It adds
+`journal.apps.storage_writer` and `journal.storage_setup_plan_sha256`; the latter
+binds the separately approved storage amendment. The original
+`journal.setup_plan_sha256` and exact empty seed remain unchanged. Full and
+journal kinds must agree. Historical two-App and legacy profiles retain their
+existing closed contracts; missing fields cannot select a weaker fallback.
+
+The storage App has Contents write/Metadata read for this repository only. Its
+provider token is repository-wide, not branch-scoped. Exact UPDATE bypass rules
+appoint it only on the input-store and namespace coordinator-state branches;
+creation, deletion and non-fast-forward retention have no bypass. Fresh isolated
+observer collection must prove the actual journal policy as well as the existing
+input/pause policy. Retention protection alone cannot satisfy this path.
+
+Each fixed writer obtains its token only after original source/job/phase
+admission and binds the actual App and installation outputs. The token remains
+separate from job/read/effect credentials. The maintained checkpoint adapter
+retains exact object/OID/CAS/deadline limits, including its auxiliary intent and
+proof refs; classification Check reads use the job token. Private keys stay in
+the fixed mint Action. Candidate, native, signing and reviewer children receive
+no storage credential. Missing or mixed credentials refuse without ambient or
+legacy fallback. Minted tokens use the Action's positive post-job cleanup.
+
+The setup-only `storage_writer` role requests only Contents write/Metadata read
+and uses its appointed loopback callback. It retains one operational RSA key in
+a distinct create-only private staging slot; filtered response receipts omit the
+PEM, unused OAuth/webhook secrets and callback code. Seal the key into the
+existing encrypted vault and ciphertext backup, verify only its new-key restore,
+and positively clean its private staging before activation. Full installation
+observation mints an unfiltered Metadata-read token solely to prove the complete
+repository selection. The new role omits that token from retention and requires
+acknowledged revocation, with a90-second observation/30-second cleanup reserve
+inside the original120-second setup bound. Existing two-role ceremonies remain
+consumed; no old key/account setup is repeated.
+
+Source installation supplies no provider enforcement, credential, signing or
+execution acceptance. Complete credential-free inner/outer setup probing before
+private registration/import, preserve the live journal and completed custody
+ceremonies, and retain the original production pause/activation prerequisites.
+
 ### Durable local coordinator checkpoints
 
 The [coordinator and initial empty-feed implementation receipt](qualification/slice4-534-coordinator-and-initial-feed-2026-10-20.md)

@@ -1,3 +1,5 @@
+import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
+import { requireStorageAppToken } from "./release-storage-credential.mts";
 import { spawnSync } from "node:child_process";
 import { open, writeFile, readFile } from "node:fs/promises";
 import path from "node:path";
@@ -266,8 +268,22 @@ async function runOperation(
       observing || (persisting && !selectedWriter)
         ? environment.PORTCOVE_CONTROL_APP_TOKEN
         : undefined;
-    const jobToken = selectedWriter ? environment.GH_TOKEN : undefined;
-    if (selectedWriter && (!jobToken || jobToken.length > 16384))
+    const storageWriter = selectedWriter
+      ? classification.selected!.configuration.journal.apps.storage_writer
+      : undefined;
+    const jobToken = selectedWriter
+      ? storageWriter === undefined
+        ? environment.GH_TOKEN
+        : requireStorageAppToken(storageWriter, environment)
+      : undefined;
+    if (
+      selectedWriter &&
+      (!jobToken ||
+        jobToken.length > 16384 ||
+        !environment.GH_TOKEN ||
+        environment.GH_TOKEN.length > 16384 ||
+        /[\r\n\0]/u.test(environment.GH_TOKEN))
+    )
       throw new Error("isolated fixed classification job token unavailable");
     if ((observing || (persisting && !selectedWriter)) && (!appToken || appToken.length > 16384))
       throw new Error("isolated App installation token unavailable");
@@ -284,6 +300,7 @@ async function runOperation(
               GH_TOKEN: appToken ?? jobToken ?? environment.GH_TOKEN,
               GITHUB_TOKEN: undefined,
               PORTCOVE_CONTROL_APP_TOKEN: undefined,
+              PORTCOVE_STORAGE_APP_TOKEN: undefined,
               ...(selectedWriter || observing
                 ? {
                     ACTIONS_ID_TOKEN_REQUEST_TOKEN: undefined,
@@ -309,32 +326,48 @@ async function runOperation(
               GH_TOKEN: environment.GH_TOKEN,
               GITHUB_TOKEN: undefined,
               PORTCOVE_CONTROL_APP_TOKEN: undefined,
+              PORTCOVE_STORAGE_APP_TOKEN: undefined,
               ACTIONS_ID_TOKEN_REQUEST_TOKEN: undefined,
               ACTIONS_ID_TOKEN_REQUEST_URL: undefined,
             },
           }),
       })(args, input);
-    const readApi = selectedWriter
-      ? appApi
-      : new GitHubApiClient((args, input) =>
-          readRunner([...args, "--hostname", "github.com"], input),
-        );
+    const readApi =
+      selectedWriter && storageWriter === undefined
+        ? appApi
+        : new GitHubApiClient((args, input) =>
+            readRunner([...args, "--hostname", "github.com"], input),
+          );
+    const { releaseClassificationCommitMutation, releaseControlRefQuery } =
+      await import("./release-control-inputs.mts");
     const api = {
       request: (method: string, endpoint: string, body?: unknown) => {
         if (observing && method !== "GET")
           throw new Error("isolated protection observer is GET-only");
+        if (storageWriter !== undefined) {
+          if (method !== "GET") throw new Error("classification storage forbids REST writes");
+          return readApi.request(method, endpoint, body);
+        }
         return (
           /\/(?:check-runs|check-suites)(?:\/|\?)/u.test(endpoint) ? readApi : appApi
         ).request(method, endpoint, body);
       },
       graphql: (query: string, variables: Readonly<Record<string, unknown>>) => {
         if (observing) throw new Error("isolated protection observer cannot use GraphQL");
+        if (storageWriter !== undefined) {
+          if (query === releaseControlRefQuery) return readApi.graphql(query, variables);
+          if (query !== releaseClassificationCommitMutation)
+            throw new Error("classification storage permits only its fixed CAS mutation");
+        }
         return appApi.graphql(query, variables);
       },
     };
     let observerIdentity: unknown = null;
     let writerPrincipal: ReturnType<typeof establishFixedClassificationPrincipal> | null = null;
-    if (observing || persisting) {
+    const storageWriterProbe =
+      mode === "probe-production-request" &&
+      classification?.selected?.configuration.kind === "three-app-fixed-jobs-v1";
+    if (observing || persisting || storageWriterProbe) {
       // Config is separately ratified environment data, never an input file or
       // dispatch-provided expected identity. No self-expectation from JWT claims.
       if (environment.GITHUB_RUN_ATTEMPT !== "1")
@@ -371,7 +404,7 @@ async function runOperation(
       );
       const verify = classificationObserver
         ? verifyProductionClassificationObserverJobIdentity
-        : mode === "persist-production-request"
+        : mode === "persist-production-request" || storageWriterProbe
           ? verifyProductionClassificationWriterJobIdentity
           : productionObservation
             ? verifyProductionProtectionObserverJobIdentity
@@ -447,14 +480,20 @@ async function runOperation(
         throw new Error("fixed classification routing channel unavailable");
       await appendFile(
         environment.GITHUB_OUTPUT,
-        `eligible=${result.eligible === true ? "true" : "false"}\n`,
+        `eligible=${result.eligible === true ? "true" : "false"}\n` +
+          (classification.selected?.configuration.journal.apps.storage_writer === undefined
+            ? ""
+            : `storage_app_id=${classification.selected.configuration.journal.apps.storage_writer.app_id}\nstorage_installation_id=${classification.selected.configuration.journal.apps.storage_writer.installation_id}\n`),
       );
     } else if (observing) {
       requireObserver();
       result = catalogPurpose
-        ? observeCatalogMaintenanceProtections(api)
+        ? observeCatalogMaintenanceProtections(api, {
+            journalNamespace: observerRoles?.storage_journal?.namespace,
+          })
         : observeReleaseInputProtections(api, {
             releasePublication: phase === "release-publication",
+            journalNamespace: observerRoles?.storage_journal?.namespace,
           });
       requireObserver();
       if (productionObservation)
@@ -742,7 +781,14 @@ async function main() {
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  main().catch(() => {
+  const run = async () => {
+    if (!process.env.PORTCOVE_STORAGE_APP_TOKEN) return main();
+    const directory = process.env.RUNNER_TEMP;
+    if (!directory || !path.isAbsolute(directory))
+      throw new Error("private runner temporary directory unavailable");
+    return withReadOnlyReleaseChildren(directory, main);
+  };
+  run().catch(() => {
     console.error("reviewed input operation refused");
     process.exitCode = 1;
   });

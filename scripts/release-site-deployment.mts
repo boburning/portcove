@@ -46,6 +46,8 @@ import { publishCoordinatorCheckpoint } from "./release-coordinator-remote.mts";
 import {
   capacityExecutorIdentity,
   executeOwnedCapacityEffect,
+  ensureOwnedCheckpointJournalHistory,
+  publishOwnedSignedCoordinatorCheckpoint,
   refreshCapacityExecutor,
   recoverOwnedPublishedMetadata,
   recoverOwnedPublishedCatalogMetadata,
@@ -925,6 +927,15 @@ export async function recoverPublishedCatalogSiteHandoff(
   )
     throw new Error("catalog recovery requires current control mutation guards");
   await guards.refresh();
+  const checkpointControls = async () => {
+    guards.beforeMutation();
+  };
+  const signedJournal = await ensureOwnedCheckpointJournalHistory(
+    executor,
+    raw.repository,
+    raw.checkpoint,
+    checkpointControls,
+  );
   return recoverOwnedPublishedCatalogMetadata(
     executor,
     raw,
@@ -988,7 +999,8 @@ export async function recoverPublishedCatalogSiteHandoff(
         },
       };
     },
-    guards.beforeMutation,
+    signedJournal ? undefined : guards.beforeMutation,
+    signedJournal ? checkpointControls : undefined,
   );
 }
 
@@ -1477,6 +1489,9 @@ export async function publishPreparedSiteDeployment(
         throw new Error(`site publication stopped; preserve and reconcile ${attempt}`);
       }
     },
+    async () => {
+      await readBoundary();
+    },
   );
   // Provider completion and journal settlement are already retained. A later
   // state-handoff failure cannot authorize another deployment; the coordinator
@@ -1484,12 +1499,35 @@ export async function publishPreparedSiteDeployment(
   await refreshCapacityExecutor(executor);
   await renewControls();
   await readBoundary();
-  await publishCoordinatorCheckpoint(
+  const checkpointControls = async () => {
+    await readBoundary();
+  };
+  const signedJournal = await ensureOwnedCheckpointJournalHistory(
+    executor,
     input.repository,
     result.checkpoint,
-    input.remote_configuration,
-    { api },
+    checkpointControls,
   );
+  const journalRemote = signedJournal
+    ? {
+        publish: async (checkpoint: string) => {
+          return publishOwnedSignedCoordinatorCheckpoint(
+            executor,
+            input.repository,
+            checkpoint,
+            checkpointControls,
+          );
+        },
+      }
+    : { configuration: input.remote_configuration, api };
+  if ("publish" in journalRemote) await journalRemote.publish(result.checkpoint);
+  else
+    await publishCoordinatorCheckpoint(
+      input.repository,
+      result.checkpoint,
+      input.remote_configuration,
+      { api },
+    );
   remaining(prepared.deadline, 15000);
   const settled = await recoverReleaseOpportunity(input.repository, result.checkpoint);
   const controller = settled.input.controller;
@@ -1543,7 +1581,7 @@ export async function publishPreparedSiteDeployment(
             remote_identity: effect.remote_identity,
           },
         },
-        { remote: { configuration: input.remote_configuration, api } },
+        { remote: journalRemote },
       )
     : await recordPublishedApplicationSiteMetadata(
         input.repository,
@@ -1553,7 +1591,7 @@ export async function publishPreparedSiteDeployment(
           operation_id: result.operation_id,
           publication,
         },
-        { remote: { configuration: input.remote_configuration, api } },
+        { remote: journalRemote },
       );
   remaining(prepared.deadline, 15000);
   if (!("durable_checkpoint" in advanced) || advanced.durable_checkpoint !== advanced.checkpoint)

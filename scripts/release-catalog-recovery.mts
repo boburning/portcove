@@ -50,6 +50,7 @@ import {
 import { controllerOidcSubject } from "./assembler-job-identity.mts";
 import {
   authenticateCapacityExecutor,
+  ensureOwnedCheckpointJournalHistory,
   refreshCapacityExecutor,
   recoverOwnedCapacityEffect,
 } from "./release-capacity-executor.mts";
@@ -488,6 +489,15 @@ export async function continueActualCatalogPublication(
         signingContextRemaining(originalDeadline, 15000);
       };
       await guard();
+      const checkpointControls = async () => {
+        beforeMutation();
+      };
+      const signedJournal = await ensureOwnedCheckpointJournalHistory(
+        executor,
+        state.repository,
+        checkpoint,
+        checkpointControls,
+      );
       phase = "original-attested-context-and-four-roles";
       const operations = await readCatalogContinuationOperations(
         state.repository,
@@ -671,7 +681,8 @@ export async function continueActualCatalogPublication(
               throw new Error("different original Pages intent");
             return readback();
           },
-          beforeMutation,
+          signedJournal ? undefined : beforeMutation,
+          signedJournal ? checkpointControls : undefined,
         );
         checkpoint = recovered.checkpoint;
       }

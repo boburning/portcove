@@ -525,6 +525,81 @@ void test("selected fixed writer joins original source/OIDC objects and preserve
     "none",
   );
   assert.throws(() => requireReleaseInputWriterPolicy(observation, 15368));
+  // The original job verifier is unchanged; the new independently ratified
+  // profile selects a distinct App and requires actual journal coverage too.
+  const storageConfig = {
+    ...configuration,
+    kind: "three-app-fixed-jobs-v1",
+    journal: {
+      ...configuration.journal,
+      kind: "three-app-fixed-jobs-v1",
+      storage_setup_plan_sha256: "7".repeat(64),
+      apps: {
+        ...configuration.journal.apps,
+        storage_writer: { app_id: 90001, installation_id: 90002 },
+      },
+    },
+  };
+  const storageSource = admitProductionClassificationWriter(
+    JSON.stringify({ ...policy, authority_configuration_sha256: capacityDigest(storageConfig) }),
+    environment,
+    runtime.workflow,
+  );
+  const storagePrincipal = establishFixedClassificationPrincipal(
+    storageConfig,
+    storageSource,
+    identity,
+    "classification-writer",
+  );
+  assert.throws(() => requireFixedClassificationStoragePolicy(observation, storagePrincipal));
+  const protectedStorage = structuredClone(observation);
+  protectedStorage.inventory.rulesets[0]!.bypass_actors[0]!.actor_id = 90001;
+  const branch = `${configuration.journal.namespace}-coordinator-state`;
+  for (const [index, rule] of protectedStorage.inventory.rulesets.slice(0, 2).entries()) {
+    const next = structuredClone(rule);
+    next.id = index + 5;
+    next.conditions.ref_name.include = [`refs/heads/${branch}`];
+    protectedStorage.inventory.rulesets.push(next);
+  }
+  const journalBranch = structuredClone(protectedStorage.inventory.branches[0]!);
+  journalBranch.branch = branch;
+  journalBranch.ref.ref = `refs/heads/${branch}`;
+  journalBranch.effective_rules.forEach((rule) => {
+    rule.ruleset_id += 4;
+  });
+  protectedStorage.inventory.branches.push(journalBranch);
+  protectedStorage.inventory_sha256 = capacityDigest(protectedStorage.inventory);
+  assert.equal(
+    requireFixedClassificationStoragePolicy(protectedStorage, storagePrincipal).provider_writer,
+    "dedicated-storage-app-not-workflow-specific",
+  );
+  const advancedStorage = structuredClone(protectedStorage);
+  advancedStorage.inventory.branches.at(-1)!.ref.object.sha = "f".repeat(40);
+  advancedStorage.inventory_sha256 = capacityDigest(advancedStorage.inventory);
+  const oldPolicy = requireFixedClassificationStoragePolicy(protectedStorage, storagePrincipal);
+  const newPolicy = requireFixedClassificationStoragePolicy(advancedStorage, storagePrincipal);
+  assert.notEqual(oldPolicy.inventory_sha256, newPolicy.inventory_sha256);
+  assert.equal(oldPolicy.journal_policy_sha256, newPolicy.journal_policy_sha256);
+  for (const mutation of [
+    (raw: typeof protectedStorage) => {
+      raw.inventory.branches.pop();
+    },
+    (raw: typeof protectedStorage) => {
+      raw.inventory.rulesets[4]!.bypass_actors[0]!.actor_id = 15368;
+    },
+    (raw: typeof protectedStorage) => {
+      raw.inventory.rulesets[5]!.bypass_actors.push({
+        actor_type: "User",
+        actor_id: 43177418,
+        bypass_mode: "always",
+      });
+    },
+  ]) {
+    const changed = structuredClone(protectedStorage);
+    mutation(changed);
+    changed.inventory_sha256 = capacityDigest(changed.inventory);
+    assert.throws(() => requireFixedClassificationStoragePolicy(changed, storagePrincipal));
+  }
   for (const copy of [{ ...principal }, producer, 15368, {}])
     assert.throws(() => requireFixedClassificationStoragePolicy(observation, copy));
   assert.throws(() =>

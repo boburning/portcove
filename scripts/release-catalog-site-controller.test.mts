@@ -352,6 +352,15 @@ void test("named catalog recovery requires both actual caller guard functions be
           },
         ],
       ]),
+      ensureOwnedCheckpointJournalHistory: async (
+        _executor: object,
+        _repository: string,
+        _checkpoint: string,
+        controls: () => Promise<void>,
+      ) => {
+        await controls();
+        return false; // This case retains the original explicit legacy route.
+      },
       recoverOwnedPublishedCatalogMetadata: async (
         _executor: object,
         _raw: unknown,

@@ -38,7 +38,7 @@ export function inspectAppRegistrationCallback(
   const url = new URL(request.url, "http://127.0.0.1:1456");
   const fields = [...url.searchParams.keys()].sort().join(",");
   if (
-    url.pathname !== `/portcove-app-setup/${role}` ||
+    url.pathname !== new URL(prepareHostedReleaseAppManifest(role).redirect_url).pathname ||
     url.hash ||
     fields !== "code,state" ||
     url.searchParams.get("state") !== state ||
@@ -128,13 +128,39 @@ export function createAppRegistrationCapture(options: {
         /* Original partial body remains. */
       }
       const body = Buffer.concat(chunks);
+      let retained = body;
+      if (role === "storage_writer") {
+        // The approved extension retains its sole operational RSA key
+        // separately in private custody, never unused OAuth/webhook credentials.
+        // This is an explicitly filtered capture, not original response bytes.
+        let projection: Record<string, unknown> = { unparsed: true };
+        try {
+          const raw: unknown = JSON.parse(body.toString("utf8"));
+          if (isRecord(raw))
+            projection = Object.fromEntries(
+              ["id", "slug", "name", "owner", "permissions", "events"]
+                .filter((key) => Object.hasOwn(raw, key))
+                .map((key) => [key, raw[key]]),
+            );
+        } catch {
+          /* No partial secret-bearing response is retained. */
+        }
+        retained = Buffer.from(JSON.stringify(projection));
+      }
       try {
-        await store.write(`${kind}.body`, body);
+        await store.write(`${kind}.body`, retained);
         await record(`${kind}-response.json`, {
           status: response.status,
           complete,
-          retained_bytes: body.length,
-          retained_sha256: sha(body),
+          retained_bytes: retained.length,
+          retained_sha256: sha(retained),
+          ...(role === "storage_writer"
+            ? {
+                encoding: "storage-app-allowlist",
+                observed_bytes: body.length,
+                observed_sha256: sha(body),
+              }
+            : {}),
         });
       } catch {
         retentionFailed = true;
@@ -156,7 +182,7 @@ export function createAppRegistrationCapture(options: {
     consumed = true;
     await record("conversion-intent.json", {
       role,
-      code,
+      ...(role === "storage_writer" ? { code_sha256: sha(Buffer.from(code)) } : { code }),
       deadline,
       phase: "pending",
       effect: "unresolved",

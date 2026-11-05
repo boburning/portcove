@@ -21,7 +21,10 @@ export async function publishPreparedCoordinatorCheckpoint(
   repository: string,
   expected: string,
   configuration: unknown,
-  options: { api?: CoordinatorRemoteApi } = {},
+  options: {
+    api?: CoordinatorRemoteApi;
+    publishCheckpoint?: (checkpoint: string) => Promise<unknown>;
+  } = {},
 ) {
   const config = structuredClone(configuration);
   inspectCoordinatorRemoteNamespace(config);
@@ -55,7 +58,9 @@ export async function publishPreparedCoordinatorCheckpoint(
     // Revalidate current local state and both immutable receipts before the
     // existing transport performs its own remote preimage/atomic CAS/readback.
     await exportCoordinatorCheckpoint(repository, expected);
-    const published = await publishCoordinatorCheckpoint(repository, expected, config, { api });
+    const published = options.publishCheckpoint
+      ? await options.publishCheckpoint(expected)
+      : await publishCoordinatorCheckpoint(repository, expected, config, { api });
     return {
       checkpoint: expected,
       prepared_commit: prepared.prepared_commit,

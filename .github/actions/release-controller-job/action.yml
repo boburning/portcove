@@ -13,6 +13,15 @@ inputs:
   role_password:
     description: Sole signing-role password
     default: ""
+  storage_token:
+    description: Dedicated storage token for the fixed worker only
+    default: ""
+  storage_app_id:
+    description: App identity for the fixed worker
+    default: ""
+  storage_installation_id:
+    description: App installation identity for the fixed worker
+    default: ""
 outputs:
   mode:
     description: Inert coordinator route
@@ -82,6 +91,9 @@ runs:
       env:
         PORTCOVE_JOB_OPERATION: ${{ inputs.operation }}
         PORTCOVE_JOB_PHASE: ${{ inputs.phase }}
+        PORTCOVE_STORAGE_APP_TOKEN: ${{ inputs.storage_token }}
+        PORTCOVE_STORAGE_APP_ID: ${{ inputs.storage_app_id }}
+        PORTCOVE_STORAGE_INSTALLATION_ID: ${{ inputs.storage_installation_id }}
       run: |
         node --input-type=module <<'NODE'
         import { spawn } from 'node:child_process';

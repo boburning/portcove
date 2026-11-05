@@ -518,9 +518,9 @@ void test("actual coordinator journal wrapper rechecks controls at every REST an
   assert.equal(observed.at(-1), "GET");
   // Run the actual producer callback too: a synchronous Check GET may consume
   // the remaining control lifetime while the enclosing job is still live.
-  const callbackCall = source.indexOf("api: guardedCoordinatorJournal(directory, budget, () => {"),
+  const callbackCall = source.indexOf("const beforeMutation = () => {"),
     callbackStart = source.indexOf("() => {", callbackCall),
-    callbackEnd = source.indexOf("\n            }),", callbackStart);
+    callbackEnd = source.indexOf("\n        };", callbackStart);
   assert.ok(callbackCall > 0 && callbackEnd > callbackStart);
   let clock = 59;
   const order: string[] = [],

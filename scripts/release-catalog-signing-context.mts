@@ -528,7 +528,21 @@ export async function requireActualCatalogSigningContext(receipt: object, phaseD
   }
   return withCoordinatorDeadline(owned.deadline, () => readContext(receipt));
 }
-async function readContext(receipt: object) {
+/** Fresh controls and retained private-receipt inputs only. The owned signed
+ * journal checks mutable head/pending state during its checkpoint exchange. */
+export async function requireActualCatalogSigningCheckpointControls(
+  receipt: object,
+  phaseDeadline?: number,
+) {
+  const owned = contexts.get(receipt);
+  if (!owned) throw new Error("actual same-process catalog context required");
+  if (phaseDeadline !== undefined) {
+    remaining({ deadline: phaseDeadline });
+    owned.deadline = Math.min(owned.deadline, phaseDeadline);
+  }
+  await withCoordinatorDeadline(owned.deadline, () => readContext(receipt, false));
+}
+async function readContext(receipt: object, verifyCheckpointState = true) {
   const owned = contexts.get(receipt);
   if (!owned) throw new Error("actual same-process catalog context required");
   remaining(owned);
@@ -550,7 +564,7 @@ async function readContext(receipt: object) {
     inspection.bundle_sha256 !== owned.facts.descriptor.bundle_sha256
   )
     throw new Error("catalog actual inspection/semantic proof changed");
-  await verifyState(owned);
+  if (verifyCheckpointState) await verifyState(owned);
   if (owned.site)
     await (owned.site_component === "catalog"
       ? requirePublishedCatalogCompleteSite(owned.site)
@@ -659,6 +673,9 @@ export async function completeCoordinatorCatalogSigningContext(
               remote_identity: `github-actions:boburning/portcove:artifact:${handoff.artifact_id}`,
               evidence_sha256: handoff.predicate_sha256,
             };
+          },
+          async () => {
+            await requireActualCatalogSigningCheckpointControls(receipt, deadline);
           },
         );
       if (!handoff) throw new Error("catalog context upload has no independently read back output");
