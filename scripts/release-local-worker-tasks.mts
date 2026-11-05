@@ -89,11 +89,18 @@ if( [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes)).ToL
 $xml=[Text.UTF8Encoding]::new($false,$true).GetString($bytes)
 [xml]$parsed=$xml
 $service=New-Object -ComObject Schedule.Service;$service.Connect()
+# Scheduler can return a resolved account name for a submitted SID.
+function Test-FixedTaskBroker([string]$value){
+ if($value -ceq ${ps(task.broker)}){return $true}
+ if([string]::IsNullOrWhiteSpace($value)){return $false}
+ try{return [Security.Principal.NTAccount]::new($value).Translate([Security.Principal.SecurityIdentifier]).Value -ceq ${ps(task.broker)}}
+ catch [Security.Principal.IdentityNotMappedException]{return $false}
+}
 function Inspect-FixedTask($task,[bool]$expectedEnabled){
  $d=$task.Definition;$a=@($d.Actions)
- if($a.Count -ne 1 -or $a[0].Type -ne 0 -or $a[0].Path -cne ${ps(task.action.path)} -or $a[0].Arguments -cne ${ps(task.action.arguments)} -or $a[0].WorkingDirectory -cne ${ps(task.action.working_directory)} -or $d.Principal.UserId -cne ${ps(task.broker)} -or $d.Principal.LogonType -ne 3 -or $d.Principal.RunLevel -ne 0 -or $d.Settings.MultipleInstances -ne 2 -or $d.Settings.ExecutionTimeLimit -cne ${ps(task.ceiling)}){throw 'Task action/principal/limits differ'}
+ if($a.Count -ne 1 -or $a[0].Type -ne 0 -or $a[0].Path -cne ${ps(task.action.path)} -or $a[0].Arguments -cne ${ps(task.action.arguments)} -or $a[0].WorkingDirectory -cne ${ps(task.action.working_directory)} -or -not (Test-FixedTaskBroker $d.Principal.UserId) -or $d.Principal.LogonType -ne 3 -or $d.Principal.RunLevel -ne 0 -or $d.Settings.MultipleInstances -ne 2 -or $d.Settings.ExecutionTimeLimit -cne ${ps(task.ceiling)}){throw 'Task action/principal/limits differ'}
  $triggers=@($d.Triggers)
- if($triggers.Count -ne 2 -or $triggers[0].Type -ne 9 -or $triggers[0].UserId -cne ${ps(task.broker)} -or $triggers[0].Delay -cne 'PT30S' -or -not $triggers[0].Enabled -or $triggers[1].Type -ne 2 -or $triggers[1].DaysInterval -ne 1 -or $triggers[1].Repetition.Interval -cne 'PT5M' -or $triggers[1].Repetition.Duration -ne '' -or $triggers[1].Repetition.StopAtDurationEnd -or -not $triggers[1].Enabled -or [DateTimeOffset]::Parse($triggers[1].StartBoundary) -ne [DateTimeOffset]::Parse(${ps(task.start)})){throw 'Fixed automatic triggers differ'}
+ if($triggers.Count -ne 2 -or $triggers[0].Type -ne 9 -or -not (Test-FixedTaskBroker $triggers[0].UserId) -or $triggers[0].Delay -cne 'PT30S' -or -not $triggers[0].Enabled -or $triggers[1].Type -ne 2 -or $triggers[1].DaysInterval -ne 1 -or $triggers[1].Repetition.Interval -cne 'PT5M' -or [string]$triggers[1].Repetition.Duration -cne '' -or $triggers[1].Repetition.StopAtDurationEnd -or -not $triggers[1].Enabled -or [DateTimeOffset]::Parse($triggers[1].StartBoundary) -ne [DateTimeOffset]::Parse(${ps(task.start)})){throw 'Fixed automatic triggers differ'}
  if($task.Enabled -ne $expectedEnabled -or -not $d.Settings.StartWhenAvailable -or -not $d.Settings.AllowHardTerminate -or $d.Settings.RunOnlyIfIdle -or $d.Settings.RunOnlyIfNetworkAvailable -or $d.Settings.WakeToRun){throw 'Fixed automatic settings differ'}
  $security=[string]$task.GetSecurityDescriptor(7)
  $sd=[Security.AccessControl.RawSecurityDescriptor]::new($security)
