@@ -192,7 +192,9 @@ export function OrganizationControls({
       {organization.failure && (
         <p role="alert" className="basis-full text-sm text-pc-warning-foreground">
           {organization.failure === "read"
-            ? "Organization choices could not be read. Games are shown without hidden or collection choices."
+            ? snapshot
+              ? "Saved choices could not be refreshed. Showing your last confirmed choices."
+              : "Saved choices could not be read. Games are shown without hidden or collection choices."
             : "Portcove couldn’t confirm the changes. Showing your last confirmed choices."}
           <Button
             variant="link"

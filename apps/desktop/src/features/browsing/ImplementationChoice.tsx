@@ -23,7 +23,7 @@ export function ImplementationChoice({
   organization: Organization | undefined;
   onSelected: (trigger: HTMLButtonElement) => void;
 }) {
-  const [failed, setFailed] = useState(false);
+  const [failedSnapshot, setFailedSnapshot] = useState<Organization["snapshot"]>();
   const mounted = useRef(false);
   const pending = useRef(false);
   useEffect(() => {
@@ -34,7 +34,9 @@ export function ImplementationChoice({
   }, []);
   const game = originalGame(port);
   if (!game) return null;
-  const selected = organization?.snapshot?.preferred_port_by_game?.[game.id] === port.id;
+  const snapshot = organization?.snapshot;
+  const selected = snapshot?.preferred_port_by_game?.[game.id] === port.id;
+  const failed = failedSnapshot !== undefined && failedSnapshot === snapshot;
   return (
     <div className="grid justify-items-start gap-2">
       <Button
@@ -49,7 +51,7 @@ export function ImplementationChoice({
           if (pending.current || organization?.busy) return;
           const trigger = event.currentTarget;
           pending.current = true;
-          setFailed(false);
+          setFailedSnapshot(undefined);
           void (async () => {
             try {
               const accepted = await organization?.commit({
@@ -58,7 +60,7 @@ export function ImplementationChoice({
                 port_id: port.id,
               });
               if (accepted) onSelected(trigger);
-              else if (mounted.current) setFailed(true);
+              else if (mounted.current) setFailedSnapshot(snapshot);
             } finally {
               pending.current = false;
             }
@@ -80,7 +82,7 @@ export function ImplementationChoice({
           data-focusable
           onClick={() => {
             void organization.refresh().then((refreshed) => {
-              if (refreshed && mounted.current) setFailed(false);
+              if (refreshed && mounted.current) setFailedSnapshot(undefined);
             });
           }}
         >

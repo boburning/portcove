@@ -4,7 +4,7 @@ import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
 import { portDefinition, portStatus } from "../../test-fixtures";
 import type { LibraryOrganization, OrganizationChange } from "../../types";
-import type { Organization } from "../organization/OrganizationControls";
+import { OrganizationControls, type Organization } from "../organization/OrganizationControls";
 import { GroupedLibrary } from "./GroupedLibrary";
 import { GroupedDiscover } from "./GroupedDiscover";
 import { desktopApi } from "../../api";
@@ -280,6 +280,55 @@ it("reads back a committed port choice after its acknowledgement is lost", async
   await page.getByRole("button", { name: "Refresh choices" }).click();
   await expect.element(page.getByRole("button", { name: "Play Second project" })).toBeVisible();
   expect(read).toHaveBeenCalledTimes(2);
+  expect(write).toHaveBeenCalledTimes(1);
+});
+
+it("re-enables an unsaved choice after a shared reload confirms the same revision", async () => {
+  vi.spyOn(desktopApi, "organizationPreferences")
+    .mockResolvedValueOnce(empty)
+    .mockRejectedValueOnce(new Error("Choices could not be read"))
+    .mockResolvedValue({ ...empty });
+  const write = vi
+    .spyOn(desktopApi, "changeOrganization")
+    .mockRejectedValue(new Error("Choice was not stored"));
+  function Fixture() {
+    const organization = useOrganization(1);
+    return (
+      <>
+        <OrganizationControls
+          organization={organization}
+          selected="all"
+          onSelect={vi.fn()}
+          discover={false}
+        />
+        <GroupedLibrary
+          all={[first, second]}
+          matching={[first, second]}
+          statuses={new Map()}
+          organization={organization}
+          onSelect={vi.fn()}
+          renderPort={(port) => <button>Play {port.name}</button>}
+        />
+      </>
+    );
+  }
+  await render(<Fixture />);
+  const choice = page.getByRole("button", { name: /^(Choose|Use) Second project$/ }).first();
+  await choice.click();
+  await expect.element(choice).toBeDisabled();
+  await page.getByRole("button", { name: "Reload choices", exact: true }).click();
+  await expect
+    .element(page.getByRole("group", { name: "Library collections" }).getByRole("alert"))
+    .toHaveTextContent(
+      "Saved choices could not be refreshed. Showing your last confirmed choices.",
+    );
+  await expect.element(choice).toBeDisabled();
+  await page.getByRole("button", { name: "Reload choices", exact: true }).click();
+  await expect.element(choice).toBeEnabled();
+  await expect.element(page.getByText(/couldn’t confirm that your choice/)).not.toBeInTheDocument();
+  await expect
+    .element(page.getByRole("button", { name: "Play Second project" }))
+    .not.toBeInTheDocument();
   expect(write).toHaveBeenCalledTimes(1);
 });
 
