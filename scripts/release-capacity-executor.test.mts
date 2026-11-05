@@ -455,88 +455,53 @@ void test("bootstrap and renewal route distinct explicit subjects through only t
   );
 });
 
-async function recoveryProviderControl() {
-  const { mock } = await import("node:test");
+void test("capacity recovery exact Jobs reader preserves the captured token and aborts a stalled inherited body", async (t) => {
+  const { capacityRecoveryJobReader } = await import("./release-capacity-executor.mts");
+  const { withCoordinatorDeadline } = await import("./release-coordinator-deadline.mts");
   const { performance } = await import("node:perf_hooks");
-  const assert: typeof import("node:assert/strict") = (await import("node:assert/strict")).default;
-  const githubUrl = new URL("./github-api.mts", process.argv[1]).href;
-  const github = (await import(githubUrl)) as typeof import("./github-api.mts");
-  let now = 10,
-    delay = 0,
-    gets = 0;
-  const timeouts: number[] = [];
-  mock.module(githubUrl, {
-    exports: {
-      ...github,
-      createGitHubRunner(settings: { timeoutMs: number }) {
-        timeouts.push(settings.timeoutMs);
-        return (args: readonly string[]) => {
-          assert.ok(args.includes("github.com"));
-          gets++;
-          now += delay;
-          return 'HTTP/2.0 200 OK\r\ncontent-type: application/json\r\n\r\n{"original":true}';
-        };
-      },
-    },
+  const previous = process.env.GH_TOKEN;
+  process.env.GH_TOKEN = "ghs_recovery_reader_fixture";
+  t.after(() => {
+    if (previous === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = previous;
   });
-  mock.method(performance, "now", () => now);
-  const executor = (await import(
-    process.argv[1] + "?owned-timeout-control"
-  )) as typeof import("./release-capacity-executor.mts");
-  const api = executor.capacityRecoveryProviderApi({ directory: "private", deadline: 100 });
-  const read = () => api.request("GET", "repos/boburning/portcove/actions/runs/123");
-  assert.deepEqual(read().body, { original: true });
-  now = 50;
-  read();
-  assert.deepEqual(timeouts, [90, 50]);
-  now = 100;
-  assert.throws(read, /deadline exhausted/);
-  assert.equal(gets, 2);
-  now = 95;
-  delay = 6;
-  assert.throws(read, /deadline exhausted/);
-  assert.equal(gets, 3);
-  assert.deepEqual(timeouts, [90, 50, 5]);
-  assert.throws(
-    () =>
-      executor
-        .capacityRecoveryProviderApi({ directory: "private", deadline: NaN })
-        .request("GET", "unused"),
-    /invalid/,
-  );
-  assert.equal(gets, 3);
-  now = 1;
-  delay = 0;
-  executor.capacityRecoveryProviderApi({ directory: "private" }).request("GET", "unused");
-  assert.equal(timeouts.at(-1), 15000);
-}
-
-void test("actual recovery provider transport caps each read to original session remaining and refuses late replies", async () => {
-  const { readFile } = await import("node:fs/promises");
-  const source = await readFile(
-    new URL("./release-capacity-executor.mts", import.meta.url),
-    "utf8",
-  );
-  // The two private recovery paths must retain this deadline-bounded provider.
-  assert.equal(source.split("const api = capacityRecoveryProviderApi(value);").length - 1, 2);
-
-  const result = spawnSync(
-    process.execPath,
-    [
-      "--experimental-test-module-mocks",
-      "--input-type=module",
-      "-e",
-      `await (${recoveryProviderControl.toString()})();`,
-      new URL("./release-capacity-executor.mts", import.meta.url).href,
-    ],
-    {
-      encoding: "utf8",
-      timeout: 15000,
-      maxBuffer: 128 * 1024,
-    },
-  );
-  assert.equal(result.error, undefined);
-  assert.equal(result.status, 0, result.stderr + result.stdout);
+  const read = capacityRecoveryJobReader({ deadline: performance.now() + 5000 });
+  process.env.GH_TOKEN = "ghs_unrelated_reader_fixture";
+  let signal: AbortSignal | null | undefined;
+  let calls = 0;
+  t.mock.method(globalThis, "fetch", async (input: string | URL | Request, init?: RequestInit) => {
+    const url = new URL(input instanceof Request ? input.url : input);
+    assert.equal(url.href, "https://api.github.com/repos/boburning/portcove/actions/jobs/501");
+    assert.equal(init?.method, "GET");
+    assert.equal(
+      new Headers(init.headers).get("authorization"),
+      "token ghs_recovery_reader_fixture",
+    );
+    calls++;
+    signal = init.signal;
+    if (calls === 1) return Response.json({ id: 501 });
+    return new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode('{"id":'));
+        },
+      }),
+    );
+  });
+  assert.deepEqual(await read(501), { id: 501 });
+  assert.throws(() => capacityRecoveryJobReader({ deadline: NaN }), /deadline invalid/);
+  await assert.rejects(read(0), /exact capacity recovery job required/);
+  const keepAlive = setTimeout(() => {}, 2000);
+  try {
+    await assert.rejects(
+      withCoordinatorDeadline(performance.now() + 250, () => read(501)),
+      { code: "deadline_exceeded" },
+    );
+  } finally {
+    clearTimeout(keepAlive);
+  }
+  assert.equal(calls, 2);
+  assert.equal(signal?.aborted, true);
 });
 
 void test("actual executor applies the selected journal refusal before authentication", () => {
