@@ -1,4 +1,5 @@
 import { releaseKey } from "../features/browsing/download-identity";
+import { upstreamUpdatesDestination } from "../features/browsing/upstream-links";
 import { ArrowRight, FolderOpen, Save } from "lucide-react";
 import type { ReactNode } from "react";
 import { SaveGameButton } from "../features/organization/OrganizationControls";
@@ -136,6 +137,7 @@ export function ListingDetailPanel({
   organization?: DetailOrganization | undefined;
 }) {
   const listing = entry.listing;
+  const updates = listing && upstreamUpdatesDestination(listing.project_url, listing.release_url);
   const registered = status?.external_runtime;
   const launch = listingActionAssessment(entry.listingStatus, "launch");
   const readinessUnknown =
@@ -144,9 +146,7 @@ export function ListingDetailPanel({
   const links = listing && (
     <div className="flex flex-wrap gap-4 text-sm">
       <ExternalLink href={listing.project_url}>Project website</ExternalLink>
-      {listing.release_url && (
-        <ExternalLink href={listing.release_url}>Upstream releases</ExternalLink>
-      )}
+      {updates?.releases && <ExternalLink href={updates.url}>Upstream releases</ExternalLink>}
       {listing.setup_url && (
         <ExternalLink href={listing.setup_url}>Setup instructions</ExternalLink>
       )}

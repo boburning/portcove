@@ -1328,6 +1328,44 @@ it("keeps authored save warnings visible before reviewing a download", async () 
   expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
 });
 
+it("separates stable update navigation, selected-package notes and historical setup evidence", async () => {
+  const historical = `${listing.project_url}/blob/v0.9/README.md`;
+  vi.mocked(desktopApi.catalogDownloadCandidates).mockResolvedValue({
+    ...candidates,
+    upstream_url: `${listing.project_url}/releases/tag/v0.9`,
+  });
+  await root.rerender(
+    <ListingDetailPanel
+      entry={{
+        ...entry,
+        listing: {
+          ...listing,
+          release_url: `${listing.project_url}/releases/tag/v0.9`,
+          setup_url: historical,
+        },
+      }}
+      status={status}
+      generation={9}
+      perform={perform}
+      onChanged={changed}
+      close={vi.fn()}
+    />,
+  );
+  await expect
+    .element(page.getByRole("link", { name: "Upstream releases", exact: true }))
+    .toHaveAttribute("href", `${listing.project_url}/releases`);
+  await expect
+    .element(page.getByRole("link", { name: "Setup instructions", exact: true }))
+    .toHaveAttribute("href", historical);
+  await expect
+    .element(page.getByRole("link", { name: "View upstream releases", exact: true }))
+    .toHaveAttribute("href", `${listing.project_url}/releases`);
+  await click("Change download options");
+  await expect
+    .element(page.getByRole("link", { name: "Release notes and requirements", exact: true }))
+    .toHaveAttribute("href", artifact.release_url);
+});
+
 it("renders accepted GitLab listing observations through the shared descriptive detail", async () => {
   const observedAt = new Date().toISOString();
   const observedListing: PortListing = {
@@ -1377,13 +1415,20 @@ it("renders accepted GitLab listing observations through the shared descriptive 
       close={vi.fn()}
     />,
   );
+  const evidence = page.getByRole("region", {
+    name: "Project information and checks",
+    exact: true,
+  });
+  await evidence
+    .getByText("Project status and compatibility qualifications", { exact: true })
+    .click();
   await expect
-    .element(page.getByText("Package candidates observed", { exact: true }))
+    .element(evidence.getByText("Package candidates observed", { exact: true }))
     .toBeVisible();
-  await page.getByText("Release window and package candidates", { exact: true }).click();
+  await evidence.getByText("Release window and package candidates", { exact: true }).click();
   await expect
-    .element(page.getByRole("link", { name: "v1", exact: true }))
+    .element(evidence.getByRole("link", { name: "v1", exact: true }))
     .toHaveAttribute("href", "https://gitlab.com/example/subgroup/game/-/releases/v1");
-  await expect.element(page.getByText("game-windows-x64.zip", { exact: false })).toBeVisible();
+  await expect.element(evidence.getByText("game-windows-x64.zip", { exact: false })).toBeVisible();
   expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
 });

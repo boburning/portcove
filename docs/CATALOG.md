@@ -1936,6 +1936,14 @@ without an integration carries no managed operation or qualification claim.
 Shared source identities, contracts, validators, evidence and qualification stay
 in `catalog-shared.json`, preserving their existing order and scope.
 
+General versions/update navigation derives the stable GitHub or GitLab releases
+page from the existing upstream URL. A selected package's notes use that
+candidate's exact observed release URL; no selected package means no claim of
+selected-release notes. `setup_url`, manual setup help and historical qualification
+links retain their deliberate version pins. Other providers fall back to a
+clearly labeled project page rather than treating a historical release as current.
+Do not edit release-specific evidence merely to refresh general navigation.
+
 Optional authoring-only `route_facts_v1` supplies a bounded Windows prepared
 player basename, executable-parent working folder, literal argument vector and
 actual external data locations. An existing NativePortable GitHub integration
