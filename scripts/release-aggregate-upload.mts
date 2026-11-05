@@ -1,4 +1,4 @@
-import { readCompleteRunArtifactInventory } from "./release-run-artifact-inventory.mts";
+import { readCompleteRunArtifactInventoryAsync } from "./release-run-artifact-inventory.mts";
 import { createHash } from "node:crypto";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -10,7 +10,10 @@ import { inspectCapacityExecutorIdentity, capacityDigest } from "./release-capac
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import { readGitHubArtifactArchive } from "./github-binary.mts";
 import { verifyAggregateUploadBytes } from "./trusted-aggregate-attestation.mts";
-import type { GitHubRestReader } from "./github-api.mts";
+import type {
+  HistoricalJobProvider,
+  RunArtifactInventoryProvider,
+} from "./release-custody-provider.mts";
 import { retainControllerUpload } from "./release-controller-transport.mts";
 import { releaseControlPhaseProfile } from "./release-control-phases.mts";
 
@@ -22,19 +25,17 @@ function active(deadline: number) {
     throw new Error("original aggregate upload budget exhausted");
   return Math.max(1, Math.floor(Math.min(120000, left)));
 }
-export function readTerminalAggregateProducer(
-  api: GitHubRestReader,
+export async function readTerminalAggregateProducer(
+  metadata: Pick<HistoricalJobProvider, "job">,
   rawProducer: unknown,
   deadline: number,
 ) {
   const producer = inspectCapacityExecutorIdentity(rawProducer);
   active(deadline);
-  const response = api.request("GET", `${base}/actions/jobs/${String(producer.job_id)}`);
+  const job = await metadata.job(Number(producer.job_id));
   active(deadline);
-  const job = response.body;
   if (
     producer.role !== "aggregate-assembly" ||
-    response.status !== 200 ||
     !isRecord(job) ||
     job.id !== producer.job_id ||
     String(job.run_id) !== producer.run_id ||
@@ -53,7 +54,7 @@ export function readTerminalAggregateProducer(
 /** GET-only provider/full-byte observation. Callers still need independent
  * current controls, exact journal ownership, and terminal original-job proof. */
 export async function readAdmittedAggregateUpload(
-  api: GitHubRestReader,
+  metadata: RunArtifactInventoryProvider,
   rawProducer: unknown,
   rawExpectation: unknown,
   assembly: unknown,
@@ -62,6 +63,9 @@ export async function readAdmittedAggregateUpload(
   locator?: { artifact_id: number; sha256: string },
   download: typeof readGitHubArtifactArchive = readGitHubArtifactArchive,
 ) {
+  assembly = structuredClone(assembly);
+  locator = locator === undefined ? undefined : structuredClone(locator);
+  const readPage = metadata.runArtifacts.bind(metadata);
   const producer = inspectCapacityExecutorIdentity(rawProducer);
   const expectation = inspectAggregateUploadExpectation(rawExpectation);
   if (
@@ -70,17 +74,12 @@ export async function readAdmittedAggregateUpload(
   )
     throw new Error("admitted aggregate source differs from durable upload preimage");
   const name = `trusted-release-final-${String(producer.run_id)}-${String(producer.run_attempt)}`;
-  const inventory = () => {
-    const complete = readCompleteRunArtifactInventory((page) => {
+  const inventory = async () => {
+    const complete = await readCompleteRunArtifactInventoryAsync(async (page) => {
       active(deadline);
-      const response = api.request(
-        "GET",
-        `${base}/actions/runs/${String(producer.run_id)}/artifacts?per_page=100&page=${page}`,
-      );
+      const raw = await readPage(String(producer.run_id), page);
       active(deadline);
-      if (response.status !== 200)
-        throw new Error("complete aggregate artifact inventory unavailable");
-      return response.body;
+      return raw;
     });
     const found = complete.artifacts.filter((item) => item.name === name);
     if (found.length !== 1)
@@ -107,7 +106,7 @@ export async function readAdmittedAggregateUpload(
       throw new Error("aggregate artifact provider source/bytes differ");
     return { id: Number(raw.id), sha256: raw.digest.slice(7), bytes: raw.size_in_bytes, name };
   };
-  const before = inventory();
+  const before = await inventory();
   const archive = download(`${base}/actions/artifacts/${before.id}/zip`, {
     cwd: directory,
     maxBytes: before.bytes,
@@ -122,7 +121,7 @@ export async function readAdmittedAggregateUpload(
     capacityDigest(expectation.files)
   )
     throw new Error("aggregate upload differs from journal member preimage");
-  const after = inventory();
+  const after = await inventory();
   active(deadline);
   if (capacityDigest(before) !== capacityDigest(after))
     throw new Error("aggregate inventory changed during readback");

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import { stripTypeScriptTypes } from "node:module";
 import { runInNewContext } from "node:vm";
 import path from "node:path";
@@ -298,48 +299,53 @@ void test("actual bounded archive member readback brackets complete inventory an
       head_repository_id: 1354613114,
     },
   };
-  const exercise = (fault: string) => {
+  const exercise = async (fault: string) => {
     let reads = 0;
-    const api = {
-      request(method: string, endpoint: string) {
-        assert.equal(method, "GET");
-        assert.match(
-          endpoint,
-          /^repos\/boburning\/portcove\/actions\/runs\/9988\/artifacts\?per_page=100&page=[1-4]$/u,
-        );
-        reads++;
-        const value =
-          fault === "drift" && reads > 1
-            ? { ...metadata, digest: `sha256:${"0".repeat(64)}` }
-            : fault === "source"
-              ? {
-                  ...metadata,
-                  workflow_run: { ...metadata.workflow_run, head_sha: "0".repeat(40) },
-                }
-              : metadata;
-        const artifacts =
-          fault === "missing"
-            ? []
-            : fault === "duplicate"
-              ? [value, { ...value, id: 100 }]
-              : [value];
-        return {
-          status: 200,
-          body: {
-            total_count: fault === "over-cap" ? 401 : fault === "partial" ? 2 : artifacts.length,
-            artifacts: fault === "partial" && reads > 1 ? [] : artifacts,
-          },
-          headers: new Map<string, string>(),
-        };
-      },
+    const readPage = async (run: string, page: number) => {
+      assert.equal(run, "9988");
+      assert.ok(page >= 1 && page <= 4);
+      reads++;
+      const value =
+        fault === "drift" && reads > 1
+          ? { ...metadata, digest: `sha256:${"0".repeat(64)}` }
+          : fault === "source"
+            ? {
+                ...metadata,
+                workflow_run: { ...metadata.workflow_run, head_sha: "0".repeat(40) },
+              }
+            : metadata;
+      const artifacts =
+        fault === "missing" ? [] : fault === "duplicate" ? [value, { ...value, id: 100 }] : [value];
+      return {
+        total_count: fault === "over-cap" ? 401 : fault === "partial" ? 2 : artifacts.length,
+        artifacts: fault === "partial" && reads > 1 ? [] : artifacts,
+      };
     };
+    const deadline = performance.now() + 10000;
+    const provider =
+      fault === ""
+        ? await createReleaseCustodyProvider({
+            token: "inert-aggregate-reader",
+            deadline,
+            fetch: async (input, init) => {
+              const request = new Request(input, init);
+              const url = new URL(request.url);
+              assert.equal(url.origin, "https://api.github.com");
+              assert.equal(url.pathname, "/repos/boburning/portcove/actions/runs/9988/artifacts");
+              assert.equal(url.searchParams.get("per_page"), "100");
+              assert.equal(request.headers.get("authorization"), "token inert-aggregate-reader");
+              assert.equal(request.method, "GET");
+              return Response.json(await readPage("9988", Number(url.searchParams.get("page"))));
+            },
+          })
+        : { runArtifacts: readPage };
     return readAdmittedAggregateUpload(
-      api,
+      provider,
       producer,
       wanted,
       f.request,
       f.root,
-      performance.now() + 10000,
+      deadline,
       undefined,
       () => (fault === "bytes" ? Buffer.alloc(archive.length) : archive),
     );

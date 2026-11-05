@@ -1,5 +1,9 @@
 import { applicationReleaseProfile } from "./release-authority-configuration-contract.mts";
-import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
+import {
+  readOnlyReleaseChildEnvironment,
+  withReadOnlyReleaseChildren,
+} from "./release-readonly-child-environment.mts";
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import path from "node:path";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { performance } from "node:perf_hooks";
@@ -327,6 +331,10 @@ export async function runFixedAdmittedAggregateConfiguration(
           old = attempts[0]!;
         }
       }
+      const metadata = await createReleaseCustodyProvider({
+        token: readOnlyReleaseChildEnvironment()?.GH_TOKEN ?? "",
+        deadline,
+      });
       let observed: Awaited<ReturnType<typeof readAdmittedAggregateUpload>> | undefined;
       let settlement: { checkpoint: string; operation_id: unknown };
       const finishBinding = async (
@@ -350,8 +358,8 @@ export async function runFixedAdmittedAggregateConfiguration(
           throw new Error("selected aggregate requires its original durable native carrier");
         active();
         if (original)
-          readTerminalAggregateProducer(
-            api,
+          await readTerminalAggregateProducer(
+            metadata,
             {
               actor_id: original.actor_id,
               check_run_id: original.check_run_id,
@@ -388,8 +396,8 @@ export async function runFixedAdmittedAggregateConfiguration(
           ? await prepareRecoveredAdmittedAggregateAttestation(original, ...args)
           : await prepareAdmittedAggregateAttestation(...args);
         if (original)
-          readTerminalAggregateProducer(
-            api,
+          await readTerminalAggregateProducer(
+            metadata,
             {
               actor_id: original.actor_id,
               check_run_id: original.check_run_id,
@@ -439,7 +447,7 @@ export async function runFixedAdmittedAggregateConfiguration(
             async (operation) => {
               await fresh();
               observed = await readAdmittedAggregateUpload(
-                api,
+                metadata,
                 operation.executor_identity,
                 operation.aggregate_expectation,
                 admitted.facts.assembly,
@@ -470,7 +478,7 @@ export async function runFixedAdmittedAggregateConfiguration(
           )
             throw new Error("retained aggregate has no exact completed upload receipt");
           observed = await readAdmittedAggregateUpload(
-            api,
+            metadata,
             old.executor_identity,
             old.aggregate_expectation,
             admitted.facts.assembly,
@@ -538,7 +546,7 @@ export async function runFixedAdmittedAggregateConfiguration(
             deadline,
           );
           observed = await readAdmittedAggregateUpload(
-            api,
+            metadata,
             producer,
             expectation,
             descriptor.assembly,
