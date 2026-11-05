@@ -4,8 +4,8 @@ import { performance } from "node:perf_hooks";
 import { crc32, inflateRawSync } from "node:zlib";
 import { inspectBoundedZip } from "./bounded-zip.mts";
 import { readGitHubArtifactArchive } from "./github-binary.mts";
-import type { GitHubRestReader } from "./github-api.mts";
-import { readCompleteRunArtifactInventory } from "./release-run-artifact-inventory.mts";
+import type { RunArtifactInventoryProvider } from "./release-custody-provider.mts";
+import { readCompleteRunArtifactInventoryAsync } from "./release-run-artifact-inventory.mts";
 import { hostedNativeProofLimits } from "./release-hosted-native-proof-contract.mts";
 import type { HostedNativeProofFiles } from "./release-hosted-native-proof-contract.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -81,15 +81,15 @@ export function readHostedNativeProofArchive(raw: Buffer, deadline: number) {
 /** Caller supplies independently admitted run/source/slot. Untrusted subject
  * IDs locate the original job only; the actual receiver verifies its issuer,
  * source, full configuration, grant, package, signature and runtime capture. */
-export function readHostedNativeProofArtifact(
-  api: GitHubRestReader,
+export async function readHostedNativeProofArtifact(
+  metadata: RunArtifactInventoryProvider,
   rawSlot: Slot,
   directory: string,
   deadline: number,
   download: typeof readGitHubArtifactArchive = readGitHubArtifactArchive,
 ) {
   const expected = slot(rawSlot),
-    request = api.request.bind(api);
+    readPage = metadata.runArtifacts.bind(metadata);
   const remaining = () => {
     const left = deadline - performance.now();
     if (!Number.isFinite(left) || left <= 0 || left > 120000)
@@ -97,16 +97,12 @@ export function readHostedNativeProofArtifact(
     return Math.max(1, Math.floor(left));
   };
   const name = hostedNativeArtifactName(expected);
-  const inventory = () => {
-    const complete = readCompleteRunArtifactInventory((page) => {
+  const inventory = async () => {
+    const complete = await readCompleteRunArtifactInventoryAsync(async (page) => {
       remaining();
-      const response = request(
-        "GET",
-        `repos/boburning/portcove/actions/runs/${expected.run_id}/artifacts?per_page=100&page=${page}`,
-      );
+      const raw = await readPage(expected.run_id, page);
       remaining();
-      if (response.status !== 200) throw new Error("native artifact inventory unavailable");
-      return response.body;
+      return raw;
     });
     const matches = complete.artifacts.filter((row) => row.name === name);
     if (matches.length !== 1) throw new Error("unique original native artifact unavailable");
@@ -128,7 +124,7 @@ export function readHostedNativeProofArtifact(
       throw new Error("native artifact original provider identity differs");
     return { id: Number(row.id), sha256: row.digest.slice(7), bytes: row.size_in_bytes, name };
   };
-  const before = inventory();
+  const before = await inventory();
   const archive = download(`repos/boburning/portcove/actions/artifacts/${before.id}/zip`, {
     cwd: directory,
     maxBytes: before.bytes,
@@ -161,7 +157,7 @@ export function readHostedNativeProofArtifact(
     !/^[1-9][0-9]{0,15}$/u.test(subject.producer.check_run_id)
   )
     throw new Error("native artifact subject locator differs from original slot");
-  const after = inventory();
+  const after = await inventory();
   remaining();
   if (JSON.stringify(before) !== JSON.stringify(after))
     throw new Error("native artifact inventory changed during readback");
