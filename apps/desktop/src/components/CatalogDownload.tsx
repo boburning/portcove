@@ -1,3 +1,4 @@
+import { upstreamUpdatesDestination } from "../features/browsing/upstream-links";
 import {
   assetKey,
   releaseKey,
@@ -196,6 +197,7 @@ function useDownloadChoices({
     busy,
     perform,
     choiceWarning,
+    updates: upstreamUpdatesDestination(upstream, result?.upstream_url),
     extractionId,
     optionsId,
     downloadRegion,
@@ -260,7 +262,9 @@ function DownloadChoicesView({
               : "Check upstream downloads"}
         </Button>
         {model.result && (
-          <ExternalLink href={model.result.upstream_url}>View upstream releases</ExternalLink>
+          <ExternalLink href={model.updates.url}>
+            {model.updates.releases ? "View upstream releases" : "Project website"}
+          </ExternalLink>
         )}
       </ActionRow>
       <ActionReviewFailure error={model.error} />
