@@ -11,6 +11,7 @@ import {
   readFileSync,
   writeFileSync,
   rmdirSync,
+  readdirSync,
   existsSync,
 } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -28,7 +29,6 @@ import { coreProposalInspector } from "./catalog-authoring-inspector.mts";
 import { collectPortFacts, githubRepository } from "./port-upstream-facts.mts";
 import type { PortFactsOptions } from "./port-upstream-facts.mts";
 import {
-  prepareCatalogArtwork,
   createIgdbInspector,
   createCoreImageValidator,
   readArtworkJson,
@@ -376,11 +376,20 @@ type ArtworkOptions = Pick<
   "catalogRoot" | "outputDirectory" | "identities" | "validatorCli" | "credentialsFile" | "artwork"
 >;
 
-function artworkInspector(options: ArtworkOptions & { signal?: AbortSignal }, root: string) {
+function artworkInspector(
+  options: ArtworkOptions & { signal?: AbortSignal },
+  root: string,
+  validatorIdentity: string | null,
+) {
   let imageValidator: ImageValidator | undefined;
   const validateImage: ImageValidator = (bytes) => {
-    if (!options.validatorCli) throw new Error("Core image validation requires a compatible CLI.");
-    imageValidator ??= createCoreImageValidator(options.validatorCli, join(root, "images"));
+    if (!options.validatorCli || !validatorIdentity)
+      throw new Error("Core image validation requires a compatible CLI.");
+    imageValidator ??= createCoreImageValidator(
+      options.validatorCli,
+      join(root, "images"),
+      validatorIdentity,
+    );
     return imageValidator(bytes);
   };
   return (
@@ -432,8 +441,8 @@ function preparedRecordOutputs(
   const shared: Record<string, unknown> = structuredClone(authored.catalog);
   delete shared.ports;
   const assembled = assembleCatalogRecords(shared, proposed);
-  const operationalChanged =
-    observationHash(authored.catalog) !== observationHash(assembled.catalog);
+  const acceptedCatalogHash = observationHash(authored.catalog);
+  const operationalChanged = acceptedCatalogHash !== observationHash(assembled.catalog);
   let inspector: ReturnType<typeof coreProposalInspector> | undefined;
   const inspect = (kind: "core" | "listings-core", document: unknown) => {
     if (!options.validatorCli)
@@ -482,13 +491,15 @@ function preparedRecordOutputs(
     readArtworkJson(join(options.catalogRoot, "catalog-schema1-fixture.json")),
     readFileSync(join(options.catalogRoot, "catalog-legacy-additions-fixture.json")),
   );
-  const changed = assembled.records.filter(
-    (entry) =>
-      observationHash(entry) !==
-      observationHash(authored.records.find((old) => old.listing.id === entry.listing.id) ?? null),
-  );
+  const acceptedRecords = new Map(authored.records.map((record) => [record.listing.id, record]));
+  const changed = assembled.records.flatMap((entry) => {
+    const before = acceptedRecords.get(entry.listing.id);
+    const beforeHash = before ? observationHash(before) : null;
+    const afterHash = observationHash(entry);
+    return beforeHash === afterHash ? [] : [{ entry, before, beforeHash, afterHash }];
+  });
   const files = {
-    records: changed.map((entry) => ({
+    records: changed.map(({ entry }) => ({
       id: entry.listing.id,
       path: immutableJson(root, entry.listing.id, entry),
     })),
@@ -497,16 +508,15 @@ function preparedRecordOutputs(
     artwork: immutableJson(root, "artwork-evidence", artworkResult),
   };
   return {
-    accepted_catalog_sha256: observationHash(authored.catalog),
+    accepted_catalog_sha256: acceptedCatalogHash,
     accepted_listings_sha256: observationHash(authored.directory),
-    changed_records: changed.map((entry) => entry.listing.id),
-    record_changes: changed.map((entry) => {
-      const before = authored.records.find((old) => old.listing.id === entry.listing.id);
+    changed_records: changed.map(({ entry }) => entry.listing.id),
+    record_changes: changed.map(({ entry, before, beforeHash, afterHash }) => {
       return {
         id: entry.listing.id,
         action: before ? "modified" : "added",
-        before_sha256: before ? observationHash(before) : null,
-        after_sha256: observationHash(entry),
+        before_sha256: beforeHash,
+        after_sha256: afterHash,
         listing_fields: [
           ...new Set([...Object.keys(before?.listing ?? {}), ...Object.keys(entry.listing)]),
         ]
@@ -681,47 +691,25 @@ export async function preparePort(options: PrepareOptions) {
       };
     }
     const records = authored.records.filter((entry) => entry.listing.id !== id).concat(record);
-    const acceptedArtwork = artworkCatalog(authored.records);
-    const proposalArtwork = artworkCatalog(records);
-    const identities = options.identities ?? {};
-    const artworkKey = observationHash({
-      acceptedArtwork,
-      proposalArtwork,
-      identities,
+    const inspector = artworkInspector(options, root, validatorIdentity);
+    const artwork = await prepareArtworkWorkset(artworkCatalog(records), {
+      root,
+      acceptedCatalog: artworkCatalog(authored.records),
+      inspector,
+      identities: options.identities ?? {},
       validatorIdentity,
+      selectedPortIds: [id],
     });
-    let artworkResult = cachedValue(root, "artwork", artworkKey);
-    let artworkReused = artworkResult !== undefined;
-    // Reuse successful preparation; a fallback remains independently retryable.
-    if (
-      isRecord(artworkResult) &&
-      isRecord(artworkResult.metrics) &&
-      Number(artworkResult.metrics.fallback) > 0
-    ) {
-      artworkResult = undefined;
-      artworkReused = false;
-    }
-    if (artworkResult === undefined) {
-      artworkResult = await prepareCatalogArtwork(proposalArtwork, {
-        acceptedCatalog: acceptedArtwork,
-        selectedPortIds: [id],
-        identities,
-        ...artworkInspector(options, root),
-      });
-      if (
-        isRecord(artworkResult) &&
-        isRecord(artworkResult.metrics) &&
-        Number(artworkResult.metrics.fallback) === 0
-      )
-        retainValue(root, "artwork", artworkKey, artworkResult);
-    }
     const prepared = preparedRecordOutputs(
       options,
       root,
       authored,
       records,
-      artworkResult,
-      artworkReused,
+      {
+        ...artwork,
+        ...("providerMetrics" in inspector ? { provider_metrics: inspector.providerMetrics } : {}),
+      },
+      artwork.reused,
       validatorIdentity,
     );
     const report = {
@@ -890,20 +878,24 @@ export async function prepareArtworkBatch(
     : null;
   const acceptedArtwork = artworkCatalog(authored.records);
   const identities = options.identities ?? {};
-  const artworkKey = observationHash({
-    acceptedArtwork,
-    identities,
-    validatorIdentity,
-    selectedPortIds: [...selected],
-    refreshPortIds,
-  });
   openCheckpoint(root);
   try {
-    // Accepted whole-batch receipts remain readable until this checkpoint has per-ID progress.
-    let artworkResult =
-      !options.maintenance && !existsSync(join(root, "artwork-gone.json"))
-        ? cachedValue(root, "artwork-batch", artworkKey)
-        : undefined;
+    // Read exact pre-workset batch receipts only in checkpoints that still carry them.
+    let artworkResult;
+    if (
+      !options.maintenance &&
+      !existsSync(join(root, "artwork-gone.json")) &&
+      readdirSync(root).some((name) => /^artwork-batch-[a-f0-9]{64}\.json$/u.test(name))
+    ) {
+      const legacyKey = observationHash({
+        acceptedArtwork,
+        identities,
+        validatorIdentity,
+        selectedPortIds: [...selected],
+        refreshPortIds,
+      });
+      artworkResult = cachedValue(root, "artwork-batch", legacyKey);
+    }
     let artworkReused = artworkResult !== undefined;
     if (
       isRecord(artworkResult) &&
@@ -918,7 +910,7 @@ export async function prepareArtworkBatch(
       artworkReused = false;
     }
     if (artworkResult === undefined) {
-      const inspector = artworkInspector(options, root);
+      const inspector = artworkInspector(options, root, validatorIdentity);
       const result = await prepareArtworkWorkset(acceptedArtwork, {
         root,
         inspector,

@@ -885,7 +885,11 @@ requests and image bytes. Completed identities are atomically checkpointed after
 each result under the existing preparation lock. Reinvoke the same full workset
 after interruption or provider recovery: unchanged successful IDs are reused;
 changed per-ID identity, relevant accepted-original mappings or validator bytes
-invalidate the affected result. Earlier attempt receipts remain available.
+invalidate the affected result. Ordinary preparation and explicit or due refresh
+retain separate per-ID results so an ordinary run preserves the last live
+refresh observation. Earlier attempt receipts remain available.
+The exact old whole-batch reader serves pre-#3766 checkpoints with no per-ID
+progress. It can retire when those checkpoints no longer need to resume.
 A provider-blocked operation leaves its IDs pending while later unrelated or
 offline work continues. A fully deferred operation is never blindly retried.
 Provider Retry-After dates remain durable, and incomplete work never claims
@@ -2261,8 +2265,15 @@ default; no IGDB game, slug or platform IDs are guessed. `--credentials-file` an
 the established maintainer configuration supply provider credentials. Missing
 credentials, ambiguity or provider failure produce an independently retryable
 generated fallback. Unchanged accepted mappings remain reusable before lookup.
-Successful artwork receipts are reused only for the same input and accepted
-baseline. Operational changes require `--validator-cli`; captured Core
+Single-port and selected artwork batches share per-title checkpoints. The selected
+declaration, applicable accepted mappings, identity inputs, artwork tools and
+validator determine reuse. A resumed proposal assembles and checks the current
+full catalog. Reused artwork evidence identifies previously checked bytes.
+Use a fresh checkpoint with the existing artwork refresh route, or use due
+maintenance, to check current provider bytes for an accepted title. Earlier whole-catalog single-port receipts remain historical
+evidence. The first run on the new cache can require a lookup for a cover that
+has yet to be accepted. Existing accepted covers and upstream observation
+checkpoints are still usable offline. Operational changes require `--validator-cli`; captured Core
 `inspect-proposal` checks their exact assembled bytes. Whenever that CLI is
 supplied, `catalog inspect-listings --path` also validates the generated listing
 document, and its returned document must match the exact input semantics.

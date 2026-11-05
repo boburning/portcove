@@ -1045,6 +1045,87 @@ function clearFixtureArtwork(directory: string, ids: string[]) {
   }
 }
 
+void test("single-port preparation reuses selected artwork and rebuilds the current composition", async () => {
+  const f = fixture();
+  try {
+    const source = copiedCatalog(join(f.root, "source"));
+    const unrelatedPath = join(source, "ports", "2xtreme-recomp-catsandsoup-2xtreme.json");
+    const unrelated = JSON.parse(readFileSync(unrelatedPath, "utf8")) as AuthoredPort;
+    assert.ok(unrelated.listing.artwork);
+    const id = "prepare-fixture";
+    writeFileSync(
+      join(source, "ports", `${id}.json`),
+      JSON.stringify({
+        format_version: 1,
+        listing: { id, name: "Selected port", project_url: project, summary: "Selected fixture." },
+      }),
+    );
+    let queries = 0;
+    let images = 0;
+    const options = {
+      catalogRoot: source,
+      outputDirectory: join(f.root, "output"),
+      projectUrl: project,
+      id: "prepare-fixture",
+      name: "Selected port",
+      identities: {
+        [unrelated.listing.id]: {
+          underlying_game: { game_id: 99999, slug: "unrelated-override" },
+        },
+      },
+      facts: { fetcher: f.fetcher(() => json(metadata)) },
+      artwork: {
+        inspectGame: (identity: { names: string[]; project_url: string | null }) => {
+          queries++;
+          return [
+            {
+              id: 70,
+              slug: "fixture-port",
+              name: identity.names[0],
+              websites: [{ url: identity.project_url }],
+              cover: { id: 71, image_id: "onboardingfixture" },
+            },
+          ];
+        },
+        inspectImage: () => {
+          images++;
+          return { ...batchImage(), sha256: (images === 1 ? "d" : "e").repeat(64) };
+        },
+      },
+    };
+    const first = await preparePort(options);
+    const warm = await preparePort(options);
+    const batch = await prepareArtworkBatch({ ...options, selectedPortIds: [id] });
+    assert.equal(batch.report.artwork_reused, true);
+    assert.deepEqual(batch.report.files.records, first.report.files.records);
+    assert.equal(batch.report.files.listings, first.report.files.listings);
+    unrelated.listing.name = "Unrelated title renamed";
+    delete unrelated.listing.artwork;
+    writeFileSync(unrelatedPath, JSON.stringify(unrelated));
+    const unrelatedChange = await preparePort(options);
+    const relevantChange = await preparePort({ ...options, name: "Selected port revised" });
+    assert.equal(first.report.artwork_reused, false);
+    assert.equal(warm.report.artwork_reused, true);
+    assert.equal(unrelatedChange.report.artwork_reused, true);
+    assert.equal(relevantChange.report.artwork_reused, false);
+    assert.equal(queries, 2);
+    assert.equal(images, 2);
+    assert.deepEqual(first.report.files.records, unrelatedChange.report.files.records);
+    const listings = JSON.parse(readFileSync(unrelatedChange.report.files.listings, "utf8")) as {
+      listings: AuthoredPort["listing"][];
+    };
+    const current = listings.listings.find((listing) => listing.id === unrelated.listing.id);
+    assert.equal(current?.name, unrelated.listing.name);
+    assert.equal(current?.artwork, undefined);
+    const updated = JSON.parse(
+      readFileSync(relevantChange.report.files.records[0]!.path, "utf8"),
+    ) as { listing: { artwork: { image_sha256: string } } };
+    assert.equal(updated.listing.artwork.image_sha256, "e".repeat(64));
+  } finally {
+    f.clean();
+  }
+});
+
 void test("preparation preserves authored acquisition restrictions despite replacement records and provider facts", async () => {
   const f = fixture();
   try {
