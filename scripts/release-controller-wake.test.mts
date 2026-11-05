@@ -266,9 +266,29 @@ void test("wake retains its original command identity across asynchronous reads"
   assert.ok(f.calls.some((call) => call.endpoint.endsWith("/42/attempts/1/jobs?per_page=100")));
   assert.equal(f.calls.filter((call) => call.method === "POST").length, 0);
 });
-function fixture(jobToken = false) {
-  const bytes = Buffer.from("fixed inert controller workflow\n"),
-    wakeBytes = Buffer.from("fixed inert wake workflow\n");
+void test("job-token wake accepts the full fixed controller and refuses bytes beyond admission", async () => {
+  const production = await readFile(
+    new URL("../.github/workflows/application-update-production.yml", import.meta.url),
+  );
+  assert.ok(production.length > 64 * 1024);
+  const supported = fixture(true, production);
+  const result = await wakeRatifiedController(
+    supported.config,
+    supported.env,
+    supported.api,
+    supported.record,
+    { mode: "prepare" },
+  );
+  assert.ok("intent" in result);
+  assert.equal(supported.calls.filter((call) => call.method === "POST").length, 0);
+
+  const oversized = fixture(true, Buffer.alloc(96 * 1024 + 1, 0x20));
+  await assert.rejects(oversized.prepare(), /wake-up controller source unavailable or oversized/);
+  assert.equal(oversized.calls.filter((call) => call.method === "POST").length, 0);
+});
+
+function fixture(jobToken = false, bytes = Buffer.from("fixed inert controller workflow\n")) {
+  const wakeBytes = Buffer.from("fixed inert wake workflow\n");
   const created = new Date().toISOString().replace(/\.\d{3}Z$/u, "Z");
   const config = {
     schema_version: jobToken ? 4 : 2,
