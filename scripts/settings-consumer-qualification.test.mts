@@ -15,7 +15,57 @@ import {
   assertRetainedSettingsConfiguration,
   writeSettingsProbeConfiguration,
   readSettingsProbeConfiguration,
+  waitForSettingsProbeSave,
 } from "./settings-consumer-qualification.mts";
+
+void test("active Save polling waits past torn JSON and requires the new engine nonce", async () => {
+  const nonce = 195;
+  const expected = { CVars: { portcoveQualificationSentinel: nonce }, setting: 100 };
+  const reads = [
+    Buffer.from('{"CVars":'),
+    Buffer.from(JSON.stringify({ CVars: { portcoveQualificationSentinel: 12 } })),
+    Buffer.from(JSON.stringify(expected)),
+  ];
+  const torn = reads[0]!;
+  const saved = await waitForSettingsProbeSave(
+    async () => reads.shift() ?? Buffer.from(""),
+    nonce,
+    performance.now() + 5000,
+    () => {},
+  );
+  assert.deepEqual(saved, {
+    document: expected,
+    incomplete: 1,
+    lastIncomplete: {
+      size: torn.length,
+      sha256: createHash("sha256").update(torn).digest("hex"),
+    },
+  });
+  assert.equal(reads.length, 0);
+});
+
+void test("persistently incomplete Save reaches its deadline and read failures remain fatal", async () => {
+  await assert.rejects(
+    waitForSettingsProbeSave(
+      async () => Buffer.from(""),
+      195,
+      performance.now() + 300,
+      () => {},
+    ),
+    /deadline.*Incomplete runtime JSON reads: [1-9]\d*; last size 0, SHA-256 e3b0c442/u,
+  );
+  await assert.rejects(
+    waitForSettingsProbeSave(
+      async () => {
+        throw new Error("Mutable file no longer has one link.");
+      },
+      195,
+      performance.now() + 5000,
+      () => {},
+    ),
+    /one link/u,
+  );
+});
 
 void test("native settings verification requires positive exact-install evidence", () => {
   const report = { install_id: "retained-install", checked_files: 183, valid: true, failures: [] };

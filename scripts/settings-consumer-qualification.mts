@@ -115,6 +115,38 @@ export async function readSettingsProbeConfiguration(file: string) {
   return bounded(file);
 }
 
+/** Only the active engine Save may expose an incomplete direct-truncate write. */
+export async function waitForSettingsProbeSave(
+  read: () => Promise<Buffer>,
+  nonce: number,
+  deadline: number,
+  checkListener: () => void,
+) {
+  let incomplete = 0;
+  let lastIncomplete: { size: number; sha256: string } | undefined;
+  while (performance.now() < deadline) {
+    checkListener();
+    const bytes = await read();
+    let document: unknown;
+    try {
+      document = JSON.parse(bytes.toString("utf8"));
+    } catch (error) {
+      if (!(error instanceof SyntaxError)) throw error;
+      incomplete++;
+      lastIncomplete = { size: bytes.length, sha256: hash(bytes) };
+    }
+    if (at(document, ["CVars", "portcoveQualificationSentinel"]) === nonce)
+      return { document, incomplete, lastIncomplete };
+    await wait(50);
+  }
+  throw new Error(
+    "Actual consumer did not publish its loaded value before the deadline." +
+      (lastIncomplete
+        ? ` Incomplete runtime JSON reads: ${incomplete}; last size ${lastIncomplete.size}, SHA-256 ${lastIncomplete.sha256}.`
+        : ""),
+  );
+}
+
 export async function writeSettingsProbeConfiguration(file: string, bytes: Buffer | string) {
   if (Buffer.byteLength(bytes) > 1024 * 1024)
     throw new Error("Settings probe document exceeds its bound.");
@@ -668,26 +700,24 @@ export async function qualifySettingsConsumer(options: {
             command: "set portcoveQualificationSentinel " + nonce,
           }) + "\0",
         );
-        let consumed = false;
-        while (performance.now() < deadline) {
-          listener.check();
-          const disk: unknown = JSON.parse(
-            (await readSettingsProbeConfiguration(mutable.runtime)).toString("utf8"),
-          );
-          if (at(disk, ["CVars", "portcoveQualificationSentinel"]) === nonce) {
-            if (at(disk, selected.key) !== requested)
-              throw new Error("Actual packaged consumer did not retain the requested setting.");
-            if (!isDeepStrictEqual(at(disk, [preservationKey]), preservationValue))
-              throw new Error("Actual packaged consumer changed unrelated JSON evidence.");
-            if (witness && !isDeepStrictEqual(at(disk, [witness.marker_key]), preservationValue))
-              throw new Error("The updated engine did not preserve the baseline JSON marker.");
-            consumed = true;
-            break;
-          }
-          await wait(50);
-        }
-        if (!consumed)
-          throw new Error("Actual consumer did not publish its loaded value before the deadline.");
+        const saved = await waitForSettingsProbeSave(
+          () => readSettingsProbeConfiguration(mutable.runtime),
+          nonce,
+          deadline,
+          () => listener.check(),
+        );
+        const disk = saved.document;
+        if (at(disk, selected.key) !== requested)
+          throw new Error("Actual packaged consumer did not retain the requested setting.");
+        if (!isDeepStrictEqual(at(disk, [preservationKey]), preservationValue))
+          throw new Error("Actual packaged consumer changed unrelated JSON evidence.");
+        if (witness && !isDeepStrictEqual(at(disk, [witness.marker_key]), preservationValue))
+          throw new Error("The updated engine did not preserve the baseline JSON marker.");
+        if (saved.lastIncomplete)
+          evidence.push({
+            incomplete_runtime_reads: saved.incomplete,
+            last_incomplete_runtime: saved.lastIncomplete,
+          });
         if (!preserved) observedValues.push(requested);
         socket.write(JSON.stringify({ id: nonce + 1, type: "command", command: "quit" }) + "\0");
         const outcome = await within(terminal, deadline - performance.now());
