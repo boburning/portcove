@@ -759,6 +759,18 @@ for (const [file, tests] of [
   ["scripts/release-publication-inventory.mts", ["scripts/acquire-release-admission.test.mts"]],
   ["scripts/release-site-composer.mts", ["scripts/release-site-composer.test.mts"]],
   ["scripts/release-pages-provider.mts", ["scripts/release-pages-provider.test.mts"]],
+  [
+    "scripts/release-wake-provider.mts",
+    [
+      "scripts/github-client.test.mts",
+      "scripts/release-controller-wake.test.mts",
+      "scripts/release-production-dag.test.mts",
+    ],
+  ],
+  [
+    "scripts/qualify-job-token-dispatch.mts",
+    ["scripts/release-controller-wake.test.mts", "scripts/release-production-dag.test.mts"],
+  ],
   ["scripts/release-pages-recovery.mts", ["scripts/release-pages-recovery.test.mts"]],
   [
     "scripts/release-pages-metadata-recovery.mts",
@@ -2173,6 +2185,7 @@ for (const file of [
     "scripts/release-publication-source.test.mts",
     "scripts/release-native-check-discovery.test.mts",
     "scripts/release-pages-provider.test.mts",
+    "scripts/release-controller-wake.test.mts",
     "scripts/audit-reuse.test.mts",
     "scripts/roadmap-rest-intake.test.mts",
     "scripts/roadmap-sdk.test.mts",

@@ -2,7 +2,8 @@
  * it can target only this fixture on the same main source. No production route. */
 import { open, mkdir } from "node:fs/promises";
 import path from "node:path";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
+import { createWakeProvider } from "./release-wake-provider.mts";
+import type { WakeResponse } from "./release-wake-provider.mts";
 import {
   inspectJobTokenDispatchRun,
   observeJobTokenDispatchRun,
@@ -54,46 +55,70 @@ const retain = async (phase: string, value: unknown) => {
   );
   await receipt.sync();
 };
-let requests = 0;
-const started = performance.now(),
-  api = new GitHubApiClient(
-    createGitHubRunner({
-      cwd: process.cwd(),
-      timeoutMs: 10000,
-      maxBuffer: 1024 * 1024,
-    }),
-  );
-const request = (method: "GET" | "POST", endpoint: string, body?: unknown) => {
-  if (++requests > 8 || performance.now() - started > 55000)
-    throw new Error("inert dispatch fixed request/time budget exhausted");
-  return api.request(method, endpoint, body);
-};
-const get = (endpoint: string) => {
-  const response = request("GET", endpoint);
-  if (response.status !== 200) throw new Error("inert dispatch provider readback unavailable");
-  return response.body;
-};
-const readRun = (id: string, source: string) => {
-  const raw = get(`${prefix}/actions/runs/${id}`);
-  if (
-    !isRecord(raw) ||
-    String(raw.id) !== id ||
-    raw.path !== workflow ||
-    raw.head_sha !== source ||
-    raw.head_branch !== "main" ||
-    raw.event !== "workflow_dispatch" ||
-    raw.run_attempt !== 1 ||
-    !isRecord(raw.repository) ||
-    raw.repository.id !== 1354613114 ||
-    raw.repository.full_name !== repository ||
-    !isRecord(raw.head_repository) ||
-    raw.head_repository.id !== 1354613114
-  )
-    throw new Error("inert dispatch workflow/source identity differs");
-  return raw;
-};
 try {
-  const current = readRun(env.GITHUB_RUN_ID!, env.GITHUB_SHA!);
+  const started = performance.now();
+  let deadline = started + 10000;
+  const token = env.GH_TOKEN ?? "";
+  const api = await createWakeProvider({
+    token,
+    deadline: started + 55000,
+    remainingDeadline: () => deadline,
+    maxBytes: 1024 * 1024,
+    maxRequests: 8,
+    apiVersion: "2022-11-28",
+  });
+  const readRun = async (id: string, source: string) => {
+    const raw = await api.run(id);
+    if (
+      !isRecord(raw) ||
+      String(raw.id) !== id ||
+      raw.path !== workflow ||
+      raw.head_sha !== source ||
+      raw.head_branch !== "main" ||
+      raw.event !== "workflow_dispatch" ||
+      raw.run_attempt !== 1 ||
+      !isRecord(raw.repository) ||
+      raw.repository.id !== 1354613114 ||
+      raw.repository.full_name !== repository ||
+      !isRecord(raw.head_repository) ||
+      raw.head_repository.id !== 1354613114
+    )
+      throw new Error("inert dispatch workflow/source identity differs");
+    return raw;
+  };
+  const jobs = await api.jobs(env.GITHUB_RUN_ID!);
+  if (
+    !isRecord(jobs) ||
+    !Number.isSafeInteger(jobs.total_count) ||
+    Number(jobs.total_count) < 1 ||
+    Number(jobs.total_count) > 2 ||
+    !Array.isArray(jobs.jobs) ||
+    jobs.jobs.length !== jobs.total_count
+  )
+    throw new Error("inert dispatch original job inventory unavailable");
+  const expectedName =
+    mode === "send" ? "Send inert job-token dispatch" : "Observe inert job-token dispatch";
+  const matches = (jobs.jobs as unknown[]).filter(
+    (job) => isRecord(job) && job.name === expectedName,
+  );
+  const job = matches[0];
+  if (
+    matches.length !== 1 ||
+    !isRecord(job) ||
+    !Number.isSafeInteger(job.id) ||
+    Number(job.id) < 1 ||
+    String(job.run_id) !== env.GITHUB_RUN_ID ||
+    job.run_attempt !== 1 ||
+    job.head_sha !== env.GITHUB_SHA ||
+    job.status !== "in_progress" ||
+    typeof job.started_at !== "string"
+  )
+    throw new Error("inert dispatch actual original job unavailable");
+  const remaining = Date.parse(job.started_at) + 55000 - Date.now();
+  if (!Number.isFinite(remaining) || remaining <= 0 || remaining > 55000)
+    throw new Error("inert dispatch original job budget exhausted or future-dated");
+  deadline = Math.min(started + 55000, performance.now() + remaining);
+  const current = await readRun(env.GITHUB_RUN_ID, env.GITHUB_SHA!);
   await retain("actual-job-run", {
     id: current.id,
     actor: current.actor,
@@ -113,15 +138,16 @@ try {
       },
     };
     await retain("dispatch-intent", { endpoint, body, automatic_retry: false });
-    let response: ReturnType<typeof request>;
+    let response: WakeResponse;
     try {
-      response = request("POST", endpoint, body);
+      response = await api.dispatch("job-token-dispatch-fixture.yml", body, async (received) => {
+        await retain("dispatch-response", received);
+      });
     } catch {
       await retain("dispatch-ambiguous", { automatic_retry: false });
       throw new Error("retain original dispatch; readback before any later attempt");
     }
     // Persist even a refusal or malformed response; it may follow a remote effect.
-    await retain("dispatch-response", { status: response.status, body: response.body });
     const raw = response.body;
     if (
       response.status !== 200 ||
@@ -140,7 +166,7 @@ try {
       workflow,
       display_title: `Portcove job-token fixture receive ${env.GITHUB_RUN_ID}`,
     };
-    const run = await observeJobTokenDispatchRun({ request }, expected, retain, started + 55000);
+    const run = await observeJobTokenDispatchRun(api, expected, retain, deadline);
     const observed = inspectJobTokenDispatchRun(run, expected);
     await retain("dispatch-run-observed", observed);
   } else {
@@ -153,12 +179,12 @@ try {
     )
       throw new Error("inert receiver requires exact independent parent run/source");
     const observed = inspectJobTokenDispatchRun(current, {
-      run_id: env.GITHUB_RUN_ID!,
+      run_id: env.GITHUB_RUN_ID,
       revision: env.GITHUB_SHA!,
       workflow,
       display_title: `Portcove job-token fixture receive ${parent}`,
     });
-    const original = readRun(parent, source!);
+    const original = await readRun(parent, source!);
     if (original.display_title !== "Portcove job-token fixture send initial")
       throw new Error("inert receiver parent is not the initial sender");
     await retain("receiver-executed", { ...observed, parent_run_id: parent });
