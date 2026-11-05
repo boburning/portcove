@@ -316,14 +316,19 @@ it("re-enables an unsaved choice after a shared reload confirms the same revisio
   const choice = page.getByRole("button", { name: /^(Choose|Use) Second project$/ }).first();
   await choice.click();
   await expect.element(choice).toBeDisabled();
-  await page.getByRole("button", { name: "Reload choices", exact: true }).click();
+  await page.getByRole("button", { name: "Collections", exact: true }).click();
+  const collections = page.getByRole("group", { name: "Library collections" });
+  const reload = collections.getByRole("button", { name: "Reload choices", exact: true });
+  await reload.click();
   await expect
-    .element(page.getByRole("group", { name: "Library collections" }).getByRole("alert"))
+    .element(collections.getByRole("alert"))
     .toHaveTextContent(
       "Saved choices could not be refreshed. Showing your last confirmed choices.",
     );
   await expect.element(choice).toBeDisabled();
-  await page.getByRole("button", { name: "Reload choices", exact: true }).click();
+  await reload.click();
+  await expect.element(collections.getByRole("alert")).not.toBeInTheDocument();
+  await userEvent.keyboard("{Escape}");
   await expect.element(choice).toBeEnabled();
   await expect.element(page.getByText(/couldn’t confirm that your choice/)).not.toBeInTheDocument();
   await expect
