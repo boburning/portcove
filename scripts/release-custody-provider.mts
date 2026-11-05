@@ -1,5 +1,6 @@
 import { createGitHubClient } from "./github-client.mts";
 import { nextLink } from "./github-operation.mts";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
 
 export interface HistoricalJobProvider {
   attempt(run: string, attempt: number): Promise<unknown>;
@@ -21,7 +22,7 @@ export type SigningOutputMetadataProvider = Pick<
   ReleaseCustodyProvider,
   "attempt" | "job" | "artifact"
 >;
-export type PublicationResultMetadataProvider = Pick<
+export type ReleaseArtifactMetadataProvider = Pick<
   ReleaseCustodyProvider,
   "commit" | "run" | "attempt" | "job" | "artifact"
 >;
@@ -39,12 +40,13 @@ export async function createReleaseCustodyProvider(options: {
 }): Promise<ReleaseCustodyProvider> {
   const {
     token,
-    deadline,
+    deadline: phaseDeadline,
     requestTimeoutMs = 15000,
     maxBytes = 2 * 1024 ** 2,
     currentDeadline,
     fetch,
   } = options;
+  const deadline = Math.min(phaseDeadline, coordinatorCommandDeadline() ?? Infinity);
   const client = await createGitHubClient({
     credential: { kind: "explicit", token },
     deadline,
@@ -62,7 +64,10 @@ export async function createReleaseCustodyProvider(options: {
         portcove: {
           replay: "once",
           attempts: 0,
-          deadline: currentDeadline?.() ?? deadline,
+          deadline: Math.min(
+            currentDeadline?.() ?? deadline,
+            coordinatorCommandDeadline() ?? Infinity,
+          ),
         },
       },
     });

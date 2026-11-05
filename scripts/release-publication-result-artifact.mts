@@ -11,7 +11,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { inspectBoundedZip } from "./bounded-zip.mts";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
-import type { PublicationResultMetadataProvider } from "./release-custody-provider.mts";
+import type { ReleaseArtifactMetadataProvider } from "./release-custody-provider.mts";
 import type { RetainedGitHubSpawn } from "./github-cli.mts";
 import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
 import { readGitHubArtifactArchive } from "./github-binary.mts";
@@ -228,7 +228,7 @@ function predicate(
   };
 }
 function provider(
-  metadata: PublicationResultMetadataProvider,
+  metadata: ReleaseArtifactMetadataProvider,
   controller: Controller,
   deadline: () => number,
 ) {
@@ -389,7 +389,7 @@ export async function receivePublicationResultArtifact(
   contextReceipt: object,
   deadline: number,
   options: {
-    metadata?: PublicationResultMetadataProvider;
+    metadata?: ReleaseArtifactMetadataProvider;
     download?: typeof readGitHubArtifactArchive;
     spawn?: RetainedGitHubSpawn;
   } = {},
