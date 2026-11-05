@@ -526,18 +526,29 @@ function fixture(jobToken = false, bytes = Buffer.from("fixed inert controller w
         ["controller-wake-intent.json", Buffer.from(JSON.stringify(result.intent) + "\n")],
       ]);
     },
-    dispatch() {
-      return wakeRatifiedController(config, env, api, record, {
-        mode: "dispatch",
-        artifact: { id: 1, sha256: hash(archive) },
-        directory: process.cwd(),
-        download: (endpoint) => {
-          downloadCalls++;
-          return endpoint.includes("/artifacts/2/") ? priorArchive : archive;
+    dispatch(intentArchive?: NonNullable<WakeProvider["intentArchive"]>) {
+      return wakeRatifiedController(
+        config,
+        env,
+        intentArchive ? { ...api, intentArchive } : api,
+        record,
+        {
+          mode: "dispatch",
+          artifact: { id: 1, sha256: hash(archive) },
+          directory: process.cwd(),
+          ...(intentArchive
+            ? {}
+            : {
+                download: (endpoint: string) => {
+                  downloadCalls++;
+                  return endpoint.includes("/artifacts/2/") ? priorArchive : archive;
+                },
+              }),
         },
-      });
+      );
     },
     downloads: () => downloadCalls,
+    intentBytes: () => archive,
     tamperIntent: () => {
       archive = createAuditZip([["controller-wake-intent.json", "{}\n"]]);
     },
@@ -1609,4 +1620,49 @@ void test("native wake leaves no intent during publication pause and refuses a p
     retained.calls.some(({ method }) => method === "POST"),
     false,
   );
+});
+
+void test("actual wake intent acquisition uses one locked SDK lookup and credential-free delivery before dispatch", async () => {
+  const f = fixture();
+  await f.prepare();
+  const traffic: string[] = [];
+  const deadline = performance.now() + 10000;
+  const credential = { kind: "explicit" as const, token: "wake-archive-test" };
+  const providerOptions: Parameters<typeof createWakeProvider>[0] = {
+    credential,
+    deadline,
+    remainingDeadline: () => deadline,
+    apiVersion: "2026-03-10",
+    maxBytes: 1024 ** 2,
+    maxRequests: 1,
+    async fetch(input, init) {
+      const url = new URL(input instanceof Request ? input.url : input);
+      traffic.push(url.hostname);
+      assert.equal(init?.redirect, "manual");
+      if (url.hostname === "api.github.com") {
+        assert.equal(url.pathname, "/repos/boburning/portcove/actions/artifacts/1/zip");
+        assert.equal(new Headers(init?.headers).get("authorization"), "token wake-archive-test");
+        return new Response(null, {
+          status: 302,
+          headers: {
+            location:
+              "https://productionresultssa1.blob.core.windows.net/actions-results/intent?sig=fixture",
+          },
+        });
+      }
+      assert.equal(init?.credentials, "omit");
+      assert.equal(new Headers(init?.headers).has("authorization"), false);
+      assert.equal(f.calls.filter(({ method }) => method === "POST").length, 0);
+      return new Response(f.intentBytes());
+    },
+  };
+  const provider = await createWakeProvider(providerOptions);
+  credential.token = "mutated-original-token";
+  providerOptions.credential = { kind: "explicit", token: "replaced-token" };
+  assert.equal((await f.dispatch(provider.intentArchive)).decision, "dispatch-acknowledged-only");
+  assert.deepEqual(traffic, ["api.github.com", "productionresultssa1.blob.core.windows.net"]);
+  assert.equal(f.downloads(), 0);
+  assert.equal(f.calls.filter(({ method }) => method === "POST").length, 1);
+  await assert.rejects(provider.artifact(1), /request budget exhausted/u);
+  assert.equal(traffic.length, 2);
 });

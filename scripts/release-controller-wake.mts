@@ -23,7 +23,7 @@ import {
   productionControllerWorkflow,
 } from "./production-controller-admission.mts";
 import { inspectBoundedZip } from "./bounded-zip.mts";
-import { readGitHubArtifactArchive } from "./github-binary.mts";
+import type { readGitHubArtifactArchive } from "./github-binary.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import timers from "node:timers/promises";
 
@@ -315,15 +315,22 @@ async function verifyWakeIntentUpload(
     return { id: item.id, bytes: raw.size_in_bytes, sha256: item.sha256 };
   };
   const before = await read();
-  const timeoutMs = Math.floor(
-    Math.min(10000, options.deadline === undefined ? 10000 : options.deadline - performance.now()),
-  );
+  const now = performance.now();
+  const transferDeadline = Math.min(now + 10000, options.deadline ?? Infinity);
+  const timeoutMs = Math.floor(transferDeadline - now);
   if (!Number.isFinite(timeoutMs) || timeoutMs < 1)
     throw new Error("wake artifact phase deadline exhausted");
-  const archive = (options.download ?? readGitHubArtifactArchive)(
-    `${prefix}/actions/artifacts/${item.id}/zip`,
-    { cwd: options.directory, maxBytes: before.bytes, timeoutMs },
-  );
+  if (!options.download && !api.intentArchive)
+    throw new Error("wake intent archive reader unavailable");
+  const archive = options.download
+    ? options.download(`${prefix}/actions/artifacts/${item.id}/zip`, {
+        cwd: options.directory,
+        maxBytes: before.bytes,
+        timeoutMs,
+      })
+    : await api.intentArchive!(item.id, before.bytes, transferDeadline);
+  if (performance.now() >= transferDeadline)
+    throw new Error("wake artifact phase deadline exhausted");
   if (archive.length !== before.bytes || hash(archive) !== before.sha256)
     throw new Error("wake intent opaque archive differs");
   const entries = inspectBoundedZip(archive, {
@@ -751,7 +758,7 @@ export async function wakeRatifiedController(
       throw new Error("wake phase deadline exhausted; retain actual effects");
   };
   const provider = api;
-  const read = async (operation: () => Promise<unknown>, retaining = false) => {
+  const read = async <T,>(operation: () => Promise<T>, retaining = false) => {
     active();
     const result = await operation();
     if (!retaining) active();
@@ -766,6 +773,12 @@ export async function wakeRatifiedController(
     runs: (workflow, filters, page) => read(() => provider.runs(workflow, filters, page)),
     artifacts: (id) => read(() => provider.artifacts(id)),
     artifact: (id) => read(() => provider.artifact(id)),
+    ...(provider.intentArchive
+      ? {
+          intentArchive: (id, bytes, deadline) =>
+            read(() => provider.intentArchive!(id, bytes, deadline)),
+        }
+      : {}),
     dispatch: (workflow, body, retain) => {
       active();
       return provider.dispatch(workflow, body, retain);

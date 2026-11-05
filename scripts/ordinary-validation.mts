@@ -2403,6 +2403,7 @@ explicitNodeTests.set("scripts/release-direct-node-transport.mts", [
 explicitNodeTests.set("scripts/github-artifact-download.mts", [
   "scripts/release-artifact-archive.test.mts",
   "scripts/release-public-build-provenance.test.mts",
+  "scripts/release-controller-wake.test.mts",
   "scripts/audit-reuse.test.mts",
   "scripts/postmerge-ci.test.mts",
   "scripts/release-publication-result-artifact.test.mts",
