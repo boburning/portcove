@@ -20,7 +20,7 @@ import { receiveControllerTools } from "./release-controller-tool-admission.mts"
 import type { ControllerToolArtifactExpected } from "./release-controller-tool-admission.mts";
 import { receiveTufRoleArtifact } from "./release-tuf-role-artifact.mts";
 import { inspectAssemblerIdentityExpectation } from "./assembler-job-identity.mts";
-import { currentSiteJobDeadline } from "./release-site-job-budget.mts";
+import { currentControllerJobDeadline } from "./release-signing-job-budget.mts";
 import { requireControllerApplicationJobPublicationAuthorities } from "./release-authority-configuration.mts";
 import {
   recoverRemoteCoordinator,
@@ -117,7 +117,7 @@ export async function runFixedMetadataSiteConfiguration(
   )
     throw new Error("metadata site invocation is not its original fixed job");
   remaining(phaseDeadline);
-  const deadline = currentSiteJobDeadline(identity, parent, phaseDeadline);
+  const deadline = await currentControllerJobDeadline("site-publication", identity, phaseDeadline);
   const toolsInput = input.tools,
     roleInputs: unknown[] = input.roles;
   return withCoordinatorDeadline(deadline, async () => {
@@ -166,7 +166,7 @@ export async function runMetadataSitePublicationController(
     !["renewal", "bootstrap"].includes(String(tuf.context.manifest.facts.mode))
   )
     throw new Error("metadata site actual context/current tools differ");
-  const deadline = currentSiteJobDeadline(identity, outputParent, phaseDeadline);
+  const deadline = await currentControllerJobDeadline("site-publication", identity, phaseDeadline);
   return withCoordinatorDeadline(deadline, async () => {
     const authorities =
         await requireControllerApplicationJobPublicationAuthorities("site-publication"),

@@ -71,6 +71,7 @@ import { isRecord } from "./runtime-values.mts";
 import { candidateProgressIdentity } from "./release-candidate-progress-contract.mts";
 
 import { currentSiteJobDeadline } from "./release-site-job-budget.mts";
+import { currentControllerJobDeadline } from "./release-signing-job-budget.mts";
 const started = performance.now();
 function remaining(deadline: number, maximum = 15000) {
   const left = Math.floor(Math.min(maximum, deadline - performance.now()));
@@ -116,7 +117,7 @@ export async function runFixedSiteConfiguration(
     throw new Error("site invocation is not its original fixed job");
   const provisional = Math.min(started + 290000, phaseDeadline ?? Infinity);
   remaining(provisional);
-  const deadline = currentSiteJobDeadline(identity, parent, provisional);
+  const deadline = await currentControllerJobDeadline("site-publication", identity, provisional);
   return withCoordinatorDeadline(deadline, async () => {
     const directory = await mkdtemp(path.join(parent, "site-controller-bootstrap-"));
     const tools = await receiveControllerTools(
