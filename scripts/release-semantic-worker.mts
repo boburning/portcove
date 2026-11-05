@@ -414,7 +414,7 @@ async function runInitialSemanticSetupProbe(
   });
   try {
     await requirePrivateOwnerPath(directory, false);
-    const qualification = { ...config.runtime, output_parent: directory };
+    const qualification = { schema_version: 1, ...config.runtime, output_parent: directory };
     await retainProbeJson(directory, "qualification.json", qualification);
     const status = await runResourceCommand(
       "analysis",
