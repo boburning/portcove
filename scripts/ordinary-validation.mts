@@ -772,6 +772,7 @@ for (const [file, tests] of [
   [
     "scripts/release-custody-provider.mts",
     [
+      "scripts/production-controller-admission.test.mts",
       "scripts/release-bootstrap-preparation.test.mts",
       "scripts/application-release-native.test.mts",
       "scripts/release-publication-result-artifact.test.mts",
@@ -839,6 +840,10 @@ for (const [file, tests] of [
   [
     "apps/desktop/scripts/native-linux-driver-http.mts",
     ["scripts/native-linux-driver-http.test.mts"],
+  ],
+  [
+    "scripts/release-hosted-native-candidate.mts",
+    ["scripts/production-controller-admission.test.mts"],
   ],
   [
     "scripts/release-native-candidate.mts",
@@ -2242,6 +2247,7 @@ for (const file of [
   explicitNodeTests.set(file, [
     ...(explicitNodeTests.get(file) ?? []),
     "scripts/github-client.test.mts",
+    "scripts/production-controller-admission.test.mts",
     "scripts/release-bootstrap-preparation.test.mts",
     "scripts/application-release-budget.test.mts",
     "scripts/application-release-native.test.mts",

@@ -147,12 +147,30 @@ async function hostedNativeSourceTransport(parentReceipt: object, directory: str
     remaining(1);
     return current;
   });
-  const declarationProvider = () =>
-    createReleaseCustodyProvider({
-      token: childEnvironment.GH_TOKEN ?? "",
-      deadline,
-      currentDeadline: () => performance.now() + remaining(15000),
-    });
+  const declarationProvider = async () => {
+    const scoped = (maxBytes: number) =>
+      createReleaseCustodyProvider({
+        token: childEnvironment.GH_TOKEN ?? "",
+        deadline,
+        maxBytes,
+        currentDeadline: () => performance.now() + remaining(15000),
+      });
+    const contents = await scoped(2 * 1024 ** 2);
+    let blobs: ReturnType<typeof scoped> | undefined;
+    return {
+      async file(pathname: string, revision: string) {
+        const body = await contents.file(pathname, revision);
+        remaining(1);
+        return body;
+      },
+      async blob(sha: string) {
+        blobs ??= scoped(8 * 1024 ** 2);
+        const body = await (await blobs).blob(sha);
+        remaining(1);
+        return body;
+      },
+    };
+  };
   return {
     parent,
     deadline,
@@ -288,14 +306,8 @@ export async function acquireActualHostedNativeCandidate(parentReceipt: object) 
             const provider = await declarationProvider();
             const declaration = await retainNativeSourceDeclarations(
               directory,
-              async (pathname) => {
-                const body = await provider.file(
-                  pathname,
-                  selection.identity.candidate.source_commit,
-                );
-                remaining(1);
-                return body;
-              },
+              (pathname) => provider.file(pathname, selection.identity.candidate.source_commit),
+              (sha) => provider.blob(sha),
             );
             await requireActualHostedNativeParentSource(parentReceipt);
             remaining(1);
@@ -1162,11 +1174,8 @@ export async function readActualHostedNativePostSignSourceDeclarations(packageRe
     const provider = await original.source.declarationProvider();
     const declaration = await retainNativeSourceDeclarations(
       selected.directory,
-      async (pathname) => {
-        const body = await provider.file(pathname, selected.candidate.source_commit);
-        original.source.remaining(1);
-        return body;
-      },
+      (pathname) => provider.file(pathname, selected.candidate.source_commit),
+      (sha) => provider.blob(sha),
     );
     await requireActualHostedNativePostSignPackage(packageReceipt);
     return Object.freeze({
