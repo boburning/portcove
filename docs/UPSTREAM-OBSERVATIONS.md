@@ -468,6 +468,16 @@ under [QUALITY](QUALITY.md#required-hosted-baseline).
 The workflow's format-1 monitor report embeds the format-3 collection alongside
 batch selection and inventory history.
 
+GitHub metadata uses the configured Octokit integration, preserving this collector's
+single-attempt reads, explicit API/media headers and command-wide request, byte and
+monotonic time limits. A bounded redirect response can supply the existing reviewed
+repository-identity diagnostic; its Location is never followed. Failed body reads,
+resource refusal and command cancellation remain failures. A cancelled unfinished
+read does not publish a fresh provider observation. GitLab metadata and credential-free
+artifact HEAD requests retain their separate owner. Domain tests can provide narrow
+asynchronous metadata operations with explicit byte evidence; transport tests exercise
+the actual locked SDK.
+
 The inventory includes declared GitHub/GitLab repositories, current project
 locations, DirectManifest artifact locations and locatable historical
 qualification identities. Project and acquisition roles are explicit, so changing

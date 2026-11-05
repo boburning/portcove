@@ -1,6 +1,86 @@
 # Releasing Portcove
 
+Start with [Release task order](#release-task-order) for reusable instructions.
+The [upstream-first integration record](#upstream-first-release-integration)
+retains dated rehearsal inputs, failures and limits; it does not grant a new run
+or publication. Live scope and remaining acceptance belong to the owning issues.
+
+## Release task order
+
+Use this route for the exact candidate and platforms being claimed. The current
+[Slice 4 producer, activation and storage holds](#inactive-slice-4-input-integration)
+and [protected tag/publication boundaries](#roadmap-readiness-snapshot) remain
+effective. Preparation, a successful rehearsal and an ordinary merge each retain
+their own scope; publication requires its existing explicit authority.
+
+The first public beta application release is Windows x86-64 only at the existing
+supported Windows/WebView2 baseline. Follow the
+[Windows/shared release boundary](DELIVERY.md#first-public-beta-host-boundary).
+Linux remains planned for a subsequent beta; retain its implementation, metadata
+and completed/unfinished evidence without requiring an unshipped Linux or macOS
+application artifact for this launch. Shared checks keep their appropriate hosts.
+The implemented `initial-beta-windows-x86_64-v1` reusable qualification profile
+has [explicit producer and consumer requirements](QUALITY.md#staged-audit-receipts).
+Its selection does not qualify actual candidate bytes or authorize publication.
+The `full` and historical `initial-beta-win-linux` paths retain their broader
+obligations.
+
+### Preflight
+
+Establish the [frozen source and input identities](#frozen-source-consistency)
+and the applicable [readiness record](#roadmap-readiness-snapshot). For Windows,
+follow [Windows preflight](#windows-preflight); the
+[isolated installer checks](#isolated-windows-installer-checks) explain its
+expected lifecycle evidence. Retain a failed command's output and owned evidence
+before diagnosing or repeating that step.
+
+### Build matrix
+
+Use the [declared package matrix](#declared-package-policy) for the required
+Desktop and standalone CLI outputs by operating system and processor.
+[Tagged build](#tagged-build) explains the actual producers, native Intel
+verification, checksum reconciliation, SBOM and draft assembly. The separate
+[release rehearsal](#release-rehearsal) exercises packaging without creating a
+tag, attestation or release. Each claimed platform keeps its own
+[upgrade acceptance](#upgrade-acceptance-and-technical-previews) and
+[signing/trust requirements](UPDATER-TRUST.md#owners-and-independent-trust-claims).
+Linux packages retain their [package-manager or AppImage ownership](UPGRADING.md#linux-package-choice).
+
+### Publish
+
+Follow the [frozen candidate's authorization boundaries](#roadmap-readiness-snapshot)
+and [draft review steps](#release-rehearsal). Review the tag build's exact assets,
+notes, checksums, channel and evidence before separately authorized publication;
+rehearsal bytes do not certify a later build. Then complete
+[public asset and attestation verification](#post-publication-verification-and-release-channels).
+Existing published releases and historical manifests remain unchanged.
+
+### Retain evidence
+
+Keep the linked [pre-publication snapshot and execution record](#roadmap-readiness-snapshot):
+exact source, run and attempt, package digests, selected platform observations,
+required check results, failures and limitations. Installer/session receipts
+retain their [process and preservation observations](#isolated-windows-installer-checks).
+Follow the existing [attempt-artifact retention and custody rules](#tagged-build);
+expiry is not proof of successor custody or free capacity. For retained native
+inputs, use the [verification evidence store](DEVELOPMENT-STORAGE.md#retained-verification-evidence).
+
+The existing [installed Windows update and staging-recovery guide](media/application-update/README.md)
+contains authentic test-build media and its exact receipt. The
+[first-launch guide](media/first-play/README.md) records a separate Windows
+development-build game journey. Their build, environment, input and observation
+limits remain attached to those guides; neither is qualification of a new
+release or a production update feed.
+
 ## Upstream-first release integration
+
+### November 4, 2026 rehearsal record
+
+The following records the rehearsal state and instructions at the inspected
+revision. Retain its exact sources, run identities, failures and constraints.
+Consult [#534](https://github.com/boburning/portcove/issues/534) for current
+production ownership and authorized continuation; this dated record does not
+schedule or authorize another execution.
 
 The November3 #534 reset retains Tauri NSIS packaging, detached payload verification,
 the authenticated TUF format and the installed updater. Native Actions jobs,
@@ -109,72 +189,6 @@ no production unpause, private credential import, new App/key custody, account/T
 activation or announcement. Complete existing-key production joins and retire the
 superseded active machinery only through the qualified replacement and existing
 authority. Preserve old journals, immutable artifacts and failures.
-
-## Release task order
-
-Use this route for the exact candidate and platforms being claimed. The current
-[Slice 4 producer, activation and storage holds](#inactive-slice-4-input-integration)
-and [protected tag/publication boundaries](#roadmap-readiness-snapshot) remain
-effective. Preparation, a successful rehearsal and an ordinary merge each retain
-their own scope; publication requires its existing explicit authority.
-
-The first public beta application release is Windows x86-64 only at the existing
-supported Windows/WebView2 baseline. Follow the
-[Windows/shared release boundary](DELIVERY.md#first-public-beta-host-boundary).
-Linux remains planned for a subsequent beta; retain its implementation, metadata
-and completed/unfinished evidence without requiring an unshipped Linux or macOS
-application artifact for this launch. Shared checks keep their appropriate hosts.
-The additive `initial-beta-windows-x86_64-v1` profile must be delivered through
-the existing machinery and qualified on actual candidate bytes before use; this
-document does not claim it is implemented or authorize publication. The `full`
-and historical `initial-beta-win-linux` paths remain explicit broader profiles.
-
-### Preflight
-
-Establish the [frozen source and input identities](#frozen-source-consistency)
-and the applicable [readiness record](#roadmap-readiness-snapshot). For Windows,
-follow [Windows preflight](#windows-preflight); the
-[isolated installer checks](#isolated-windows-installer-checks) explain its
-expected lifecycle evidence. Retain a failed command's output and owned evidence
-before diagnosing or repeating that step.
-
-### Build matrix
-
-Use the [declared package matrix](#declared-package-policy) for the required
-Desktop and standalone CLI outputs by operating system and processor.
-[Tagged build](#tagged-build) explains the actual producers, native Intel
-verification, checksum reconciliation, SBOM and draft assembly. The separate
-[release rehearsal](#release-rehearsal) exercises packaging without creating a
-tag, attestation or release. Each claimed platform keeps its own
-[upgrade acceptance](#upgrade-acceptance-and-technical-previews) and
-[signing/trust requirements](UPDATER-TRUST.md#owners-and-independent-trust-claims).
-Linux packages retain their [package-manager or AppImage ownership](UPGRADING.md#linux-package-choice).
-
-### Publish
-
-Follow the [frozen candidate's authorization boundaries](#roadmap-readiness-snapshot)
-and [draft review steps](#release-rehearsal). Review the tag build's exact assets,
-notes, checksums, channel and evidence before separately authorized publication;
-rehearsal bytes do not certify a later build. Then complete
-[public asset and attestation verification](#post-publication-verification-and-release-channels).
-Existing published releases and historical manifests remain unchanged.
-
-### Retain evidence
-
-Keep the linked [pre-publication snapshot and execution record](#roadmap-readiness-snapshot):
-exact source, run and attempt, package digests, selected platform observations,
-required check results, failures and limitations. Installer/session receipts
-retain their [process and preservation observations](#isolated-windows-installer-checks).
-Follow the existing [attempt-artifact retention and custody rules](#tagged-build);
-expiry is not proof of successor custody or free capacity. For retained native
-inputs, use the [verification evidence store](DEVELOPMENT-STORAGE.md#retained-verification-evidence).
-
-The existing [installed Windows update and staging-recovery guide](media/application-update/README.md)
-contains authentic test-build media and its exact receipt. The
-[first-launch guide](media/first-play/README.md) records a separate Windows
-development-build game journey. Their build, environment, input and observation
-limits remain attached to those guides; neither is qualification of a new
-release or a production update feed.
 
 ## Inactive Slice 4 input integration
 

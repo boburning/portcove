@@ -2203,6 +2203,8 @@ for (const file of [
     "scripts/upstream-observer.test.mts",
     "scripts/catalog-upstream-observer.test.mts",
     "scripts/observer-checkpoint-artifact.test.mts",
+    "scripts/check-catalog-repositories.test.mts",
+    ...upstreamHealthContractTests,
   ]);
 
 // Preparation's accepted-observation reuse and lineage refusals also consume
