@@ -1055,7 +1055,12 @@ Explicit credentials never fall back to another source. Anonymous clients never
 inherit credentials. Eligible local tooling selects `GH_TOKEN`, then
 `GITHUB_TOKEN`, then resolves an existing `gh` login once per command; workflows
 must supply their credential. Retained attestation verification has its own
-bounded subprocess helper and cannot invoke `gh api`. Artifact-byte acquisition
+bounded subprocess helper and cannot invoke `gh api`. Intel artifact cleanup is
+an explicit-credential workflow client: it completes each scoped SDK inventory
+before deletion, rereads identity and sends one DELETE followed by authoritative
+readback. Its trusted main workflow installs the locked packages before the token
+step. Existing cleanup eligibility and workflow permissions remain authoritative.
+Artifact-byte acquisition
 retains its existing bounded helper until its caller family migrates. The discovery
 worker now admits GitHub only for its original artifact ZIP byte route; external
 GET/HEAD provider reads remain separate from GitHub metadata.
