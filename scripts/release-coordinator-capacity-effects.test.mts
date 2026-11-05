@@ -270,18 +270,39 @@ for (const lost of [false, true])
           else process.env[key] = value;
         }
       });
-      const http = t.mock.method(globalThis, "fetch", async (raw: Parameters<typeof fetch>[0]) => {
-        if (typeof raw !== "string" && !(raw instanceof URL))
-          throw new Error("fixture expects a fixed URL");
-        const url = typeof raw === "string" ? raw : raw.href;
-        if (url === "https://token.actions.githubusercontent.com/.well-known/jwks")
-          return new Response(JSON.stringify({ keys: [identityJwk] }));
-        assert.equal(
-          url,
-          "https://fixture.actions.githubusercontent.com/oidc?audience=portcove-capacity-executor",
-        );
-        return new Response(JSON.stringify({ value: activeIdentity.token }));
-      });
+      const http = t.mock.method(
+        globalThis,
+        "fetch",
+        async (raw: Parameters<typeof fetch>[0], init?: RequestInit) => {
+          const url = new URL(raw instanceof Request ? raw.url : raw);
+          if (url.origin === "https://api.github.com") {
+            assert.equal(
+              new Headers(init?.headers).get("authorization"),
+              "token inert-dedicated-journal-token",
+            );
+            const body: unknown =
+              typeof init?.body === "string" ? JSON.parse(init.body) : undefined;
+            if (url.pathname === "/graphql") {
+              assert.equal(init?.method, "POST");
+              assert.ok(
+                isRecord(body) && typeof body.query === "string" && isRecord(body.variables),
+              );
+              return Response.json(f.api.graphql(body.query, body.variables));
+            }
+            assert.ok(init?.method === "GET" || init?.method === "POST");
+            const response = f.api.request(init.method, url.pathname.slice(1), body);
+            assert.ok(typeof response.status === "number");
+            return Response.json(response.body, { status: response.status });
+          }
+          if (url.href === "https://token.actions.githubusercontent.com/.well-known/jwks")
+            return new Response(JSON.stringify({ keys: [identityJwk] }));
+          assert.equal(
+            url.href,
+            "https://fixture.actions.githubusercontent.com/oidc?audience=portcove-capacity-executor",
+          );
+          return new Response(JSON.stringify({ value: activeIdentity.token }));
+        },
+      );
       const original = childProcess.spawnSync;
       const command = t.mock.method(
         childProcess,
@@ -305,37 +326,7 @@ for (const lost of [false, true])
             };
           if (args[2]?.includes("/actions/") || args[2]?.includes("/check-runs/"))
             return activeIdentity.transport.spawn(name, args, options);
-          assert.equal(options.env?.GH_TOKEN, "inert-dedicated-journal-token");
-          assert.equal(options.env?.ACTIONS_ID_TOKEN_REQUEST_TOKEN, undefined);
-          assert.equal(options.env?.PORTCOVE_COORDINATOR_JOURNAL_TOKEN, undefined);
-          let body: unknown;
-          let status: number;
-          if (args[1] === "graphql") {
-            assert.ok(typeof options.input === "string");
-            const request: unknown = JSON.parse(options.input);
-            assert.ok(
-              isRecord(request) && typeof request.query === "string" && isRecord(request.variables),
-            );
-            body = f.api.graphql(request.query, request.variables);
-            status = 200;
-          } else {
-            assert.equal(args[0], "api");
-            const method = args[args.indexOf("--method") + 1];
-            assert.ok(method === "GET" || method === "POST");
-            assert.ok(options.input === undefined || typeof options.input === "string");
-            const response = f.api.request(
-              method,
-              args[2]!,
-              options.input === undefined ? undefined : JSON.parse(options.input),
-            );
-            body = response.body;
-            status = response.status!;
-          }
-          return {
-            status: 0,
-            stdout: `HTTP/2 ${status}\r\n\r\n${JSON.stringify(body)}`,
-            stderr: "",
-          };
+          throw new Error("dedicated journal API should use the configured SDK");
         },
       );
       syncBuiltinESMExports();

@@ -657,17 +657,17 @@ export async function runFixedCatalogCoordinatorConfiguration(
       const publishLegacy = async (checkpoint: string) => {
         const journal = createCoordinatorJournalApi(directory, deadline),
           guarded = {
-            request: (...args: Parameters<typeof journal.request>) => {
+            request: async (...args: Parameters<typeof journal.request>) => {
               check();
               if (args[0] !== "GET") beforeMutation();
-              const result = journal.request(...args);
+              const result = await journal.request(...args);
               check();
               return result;
             },
-            graphql: (...args: Parameters<typeof journal.graphql>) => {
+            graphql: async (...args: Parameters<typeof journal.graphql>) => {
               check();
               if (/^\s*mutation\b/u.test(args[0])) beforeMutation();
-              const result = journal.graphql(...args);
+              const result = await journal.graphql(...args);
               check();
               return result;
             },

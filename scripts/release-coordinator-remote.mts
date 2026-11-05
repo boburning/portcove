@@ -19,6 +19,17 @@ export interface CoordinatorRemoteApi {
   request(method: string, endpoint: string, body?: unknown): IncludedResponse;
   graphql(query: string, variables: Readonly<Record<string, unknown>>): { data: unknown };
 }
+export interface CoordinatorCheckpointApi {
+  request(
+    method: string,
+    endpoint: string,
+    body?: unknown,
+  ): Pick<IncludedResponse, "status" | "body"> | Promise<Pick<IncludedResponse, "status" | "body">>;
+  graphql(
+    query: string,
+    variables: Readonly<Record<string, unknown>>,
+  ): { data: unknown } | Promise<{ data: unknown }>;
+}
 const repository = "boburning/portcove";
 const repositoryId = 1354613114;
 const zero = "0".repeat(40);
@@ -38,7 +49,7 @@ export async function publishCoordinatorCheckpoint(
   expected: string,
   rawConfiguration: unknown,
   options: {
-    api?: CoordinatorRemoteApi;
+    api?: CoordinatorCheckpointApi;
     evidence?: CoordinatorCheckpointEvidence;
     authenticatedEvidence?: AuthenticatedCheckpointEvidence;
   } = {},
@@ -74,9 +85,9 @@ export async function publishCoordinatorCheckpoint(
     )
       throw new Error("remote coordinator request or duration bound exhausted");
   };
-  const rest = (method: "GET" | "POST", endpoint: string, body?: unknown) => {
+  const rest = async (method: "GET" | "POST", endpoint: string, body?: unknown) => {
     budget();
-    const response = api.request(method, endpoint, body);
+    const response = await api.request(method, endpoint, body);
     if (
       response.status !== (method === "GET" ? 200 : 201) ||
       performance.now() - started > executionMilliseconds
@@ -84,7 +95,7 @@ export async function publishCoordinatorCheckpoint(
       throw new Error("remote coordinator object request was unavailable or late");
     return response.body;
   };
-  const identity = rest("GET", `repos/${repository}`);
+  const identity = await rest("GET", `repos/${repository}`);
   if (
     !isRecord(identity) ||
     identity.id !== repositoryId ||
@@ -95,7 +106,7 @@ export async function publishCoordinatorCheckpoint(
   )
     throw new Error("remote coordinator repository identity differs");
   const nodeId = identity.node_id;
-  const snapshot = (collecting = false) => {
+  const snapshot = async (collecting = false) => {
     budget(collecting);
     const declarations = updates.map((_, index) => `$r${index}:String!`).join(",");
     const fields = updates
@@ -104,7 +115,7 @@ export async function publishCoordinatorCheckpoint(
       )
       .join(" ");
     const variables = Object.fromEntries(updates.map((ref, index) => [`r${index}`, ref.name]));
-    const response = api.graphql(
+    const response = await api.graphql(
       `query($id:ID!,${declarations}){node(id:$id){__typename ... on Repository{id databaseId nameWithOwner ${fields}}}}`,
       { id: nodeId, ...variables },
     );
@@ -143,7 +154,7 @@ export async function publishCoordinatorCheckpoint(
   const matches = (observed: readonly string[], field: "beforeOid" | "afterOid") =>
     observed.length === updates.length &&
     updates.every((ref, index) => observed[index] === ref[field]);
-  const before = snapshot();
+  const before = await snapshot();
   if (!matches(before, "beforeOid") && !matches(before, "afterOid"))
     throw new CoordinatorRemoteError(
       "remote coordinator preimage conflicts; retain the local candidate",
@@ -153,7 +164,7 @@ export async function publishCoordinatorCheckpoint(
   // These application commits are not inert checkpoint objects. Require their
   // exact remote availability; never transport or execute candidate code here.
   for (const required of checkpoint.required_commits) {
-    const commit = rest("GET", `repos/${repository}/git/commits/${required.oid}`);
+    const commit = await rest("GET", `repos/${repository}/git/commits/${required.oid}`);
     if (
       !isRecord(commit) ||
       commit.sha !== required.oid ||
@@ -190,11 +201,11 @@ export async function publishCoordinatorCheckpoint(
       );
     }
   };
-  const upload = (kind: string, body: unknown, oid: string) => {
+  const upload = async (kind: string, body: unknown, oid: string) => {
     revalidateEvidence(`before-POST-${kind}`);
     let result: unknown;
     try {
-      result = rest("POST", `repos/${repository}/git/${kind}`, body);
+      result = await rest("POST", `repos/${repository}/git/${kind}`, body);
     } catch (error) {
       throw new CoordinatorRemoteError(
         "checkpoint object outcome is unknown; no ref mutation attempted",
@@ -220,7 +231,7 @@ export async function publishCoordinatorCheckpoint(
         { checkpoint: expected, updates, before, objects },
       );
   };
-  upload(
+  await upload(
     "blobs",
     {
       content: Buffer.from(checkpoint.blob.contents, "utf8").toString("base64"),
@@ -228,16 +239,16 @@ export async function publishCoordinatorCheckpoint(
     },
     checkpoint.blob.oid,
   );
-  upload("trees", { tree: checkpoint.tree.entries }, checkpoint.tree.oid);
+  await upload("trees", { tree: checkpoint.tree.entries }, checkpoint.tree.oid);
   const { oid: _oid, ...commit } = checkpoint.commit;
-  upload("commits", commit, checkpoint.commit.oid);
-  for (const object of evidence?.objects ?? []) upload(object.kind, object.body, object.oid);
+  await upload("commits", commit, checkpoint.commit.oid);
+  for (const object of evidence?.objects ?? []) await upload(object.kind, object.body, object.oid);
   const mutationId = createHash("sha256").update(JSON.stringify({ nodeId, updates })).digest("hex");
   let mutationError: ReturnType<typeof sanitizeOperationError> | null = null;
   revalidateEvidence("before-ref-CAS");
   budget();
   try {
-    const response = api.graphql(
+    const response = await api.graphql(
       "mutation($input:UpdateRefsInput!){updateRefs(input:$input){clientMutationId}}",
       { input: { repositoryId: nodeId, clientMutationId: mutationId, refUpdates: updates } },
     );
@@ -250,7 +261,7 @@ export async function publishCoordinatorCheckpoint(
   }
   let after: string[];
   try {
-    after = snapshot(true);
+    after = await snapshot(true);
   } catch (error) {
     throw new CoordinatorRemoteError(
       "remote coordinator outcome is unknown; do not retry automatically",

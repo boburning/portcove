@@ -1,9 +1,13 @@
+import { GitHubApiError } from "./github-operation.mts";
 import { spawnSync } from "node:child_process";
 import { requireStorageAppToken } from "./release-storage-credential.mts";
 import { lstatSync, mkdtempSync, realpathSync } from "node:fs";
 import path from "node:path";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
-import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
+import type {
+  CoordinatorCheckpointApi,
+  CoordinatorRemoteApi,
+} from "./release-coordinator-remote.mts";
 import { performance } from "node:perf_hooks";
 import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
@@ -11,27 +15,98 @@ import { isRecord } from "./runtime-values.mts";
 import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-namespace.mts";
 import { coordinatorCheckpointUpdates } from "./release-coordinator-checkpoint-evidence.mts";
 import type { exportCoordinatorCheckpoint } from "./release-coordinator-state.mts";
-import { withCoordinatorReadback } from "./release-coordinator-deadline.mts";
+import {
+  coordinatorCommandDeadline,
+  withCoordinatorReadback,
+} from "./release-coordinator-deadline.mts";
 
 /** Credential transport only. The existing remote verifier owns repository,
  * namespace, object and CAS checks; this API grants no caller/job authority.
  * Journal credentials are never borrowed from the provider GH_TOKEN/config. */
-export function createCoordinatorJournalApi(
-  directory: string,
-  deadline?: number,
-): CoordinatorRemoteApi {
+export function createCoordinatorJournalApi(directory: string, deadline?: number) {
   if (deadline !== undefined && !Number.isFinite(deadline))
     throw new Error("journal role phase deadline must be finite");
   const remaining = () => {
-    const timeout =
-      deadline === undefined ? 15000 : Math.floor(Math.min(15000, deadline - performance.now()));
-    if (!Number.isFinite(timeout) || timeout < 1)
-      throw new Error("journal role phase deadline exhausted");
+    const end = Math.min(deadline ?? Infinity, coordinatorCommandDeadline() ?? Infinity);
+    const timeout = Math.floor(Math.min(15000, end - performance.now()));
+    if (timeout < 1) throw new Error("journal role phase deadline exhausted");
     return timeout;
   };
   remaining();
-  const token = process.env.PORTCOVE_COORDINATOR_JOURNAL_TOKEN;
-  return isolatedJournalClient(directory, token, remaining, remaining);
+  const token = journalCredential(process.env.PORTCOVE_COORDINATOR_JOURNAL_TOKEN);
+  assertOwnedJournalDirectory(directory);
+  assertTrustedDirectNode();
+  const clientDeadline = Math.min(
+    deadline ?? performance.now() + 240000,
+    coordinatorCommandDeadline() ?? Infinity,
+  );
+  let client:
+    | Promise<Awaited<ReturnType<typeof import("./github-client.mts").createGitHubClient>>>
+    | undefined;
+  const configured = () =>
+    (client ??= import("./github-client.mts").then(({ createGitHubClient }) =>
+      createGitHubClient({
+        credential: { kind: "explicit", token },
+        deadline: clientDeadline,
+        maxBytes: 2 * 1024 * 1024,
+        requestTimeoutMs: 15000,
+        allowRequest() {
+          assertTrustedDirectNode();
+          return true;
+        },
+        headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
+      }),
+    ));
+  const requestDeadline = () => Math.min(clientDeadline, coordinatorCommandDeadline() ?? Infinity);
+  const assertPublicResponse = (data: unknown) => {
+    JSON.stringify(data, (key, value: unknown) => {
+      if (key.includes(token) || (typeof value === "string" && value.includes(token)))
+        throw new Error("journal response contained credential material");
+      return typeof value === "bigint" ? null : value;
+    });
+  };
+  return {
+    async request(method: string, endpoint: string, body?: unknown) {
+      assertJournalRoute(method, endpoint);
+      remaining();
+      const sdk = await configured();
+      try {
+        const response = await sdk.request(`${method} /${endpoint}`, {
+          ...(body === undefined ? {} : { data: body }),
+          request: { portcove: { replay: "once", attempts: 0, deadline: requestDeadline() } },
+        });
+        remaining();
+        assertPublicResponse(response.data);
+        return { status: response.status, body: response.data as unknown };
+      } catch (error) {
+        if (method === "GET" && error instanceof GitHubApiError && error.status === 404) {
+          remaining();
+          return { status: 404, body: undefined };
+        }
+        throw error;
+      }
+    },
+    async graphql(query, variables) {
+      remaining();
+      const sdk = await configured();
+      const response = await sdk.request("POST /graphql", {
+        query,
+        variables,
+        request: { portcove: { replay: "once", attempts: 0, deadline: requestDeadline() } },
+      });
+      remaining();
+      const envelope: unknown = response.data;
+      if (
+        response.status !== 200 ||
+        !isRecord(envelope) ||
+        !("data" in envelope) ||
+        ("errors" in envelope && (!Array.isArray(envelope.errors) || envelope.errors.length > 0))
+      )
+        throw new Error("journal GraphQL response unavailable");
+      assertPublicResponse(envelope.data);
+      return { data: envelope.data };
+    },
+  } satisfies CoordinatorCheckpointApi;
 }
 
 /** Inert prepared-source Git object custody only. Source/object identities
@@ -310,13 +385,21 @@ export function createCheckpointHistoryReader(
   };
 }
 
-function isolatedJournalClient(
-  directory: string,
-  token: unknown,
-  remaining: () => number,
-  afterCall?: () => number,
-  allowHistoricalJobRead = false,
-): CoordinatorRemoteApi {
+function assertTrustedDirectNode() {
+  const nodeOptions = [process.env.NODE_OPTIONS ?? "", ...process.execArgv].join(" ");
+  if (
+    process.env.NODE_USE_ENV_PROXY === "1" ||
+    /(?:^|[\s"'])--use-(?:env-proxy|openssl-ca|system-ca)(?:=|[\s"']|$)/u.test(nodeOptions) ||
+    process.env.NODE_USE_SYSTEM_CA === "1" ||
+    process.env.SSL_CERT_FILE ||
+    process.env.SSL_CERT_DIR ||
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED === "0" ||
+    process.env.NODE_EXTRA_CA_CERTS
+  )
+    throw new Error("dedicated journal requires the trusted direct Node runtime");
+}
+
+function journalCredential(token: unknown): string {
   if (
     typeof token !== "string" ||
     token.length < 1 ||
@@ -326,6 +409,10 @@ function isolatedJournalClient(
     )
   )
     throw new Error("dedicated coordinator journal credential unavailable");
+  return token;
+}
+
+function assertOwnedJournalDirectory(directory: string) {
   if (
     !path.isAbsolute(directory) ||
     !lstatSync(directory).isDirectory() ||
@@ -333,6 +420,17 @@ function isolatedJournalClient(
     realpathSync(directory) !== path.resolve(directory)
   )
     throw new Error("journal transport requires a private owned directory");
+}
+
+function isolatedJournalClient(
+  directory: string,
+  token: unknown,
+  remaining: () => number,
+  afterCall?: () => number,
+  allowHistoricalJobRead = false,
+): CoordinatorRemoteApi {
+  const credential = journalCredential(token);
+  assertOwnedJournalDirectory(directory);
   const home = mkdtempSync(path.join(directory, "journal-api-"));
   const environment: NodeJS.ProcessEnv = {};
   for (const key of [
@@ -347,7 +445,7 @@ function isolatedJournalClient(
   ])
     if (process.env[key] !== undefined) environment[key] = process.env[key];
   Object.assign(environment, {
-    GH_TOKEN: token,
+    GH_TOKEN: credential,
     GH_HOST: "github.com",
     GH_CONFIG_DIR: home,
     HOME: home,
@@ -360,7 +458,7 @@ function isolatedJournalClient(
     GH_NO_EXTENSION_UPDATE_NOTIFIER: "1",
     NO_COLOR: "1",
   });
-  const redact = (value: string) => value.replaceAll(token, "[redacted]");
+  const redact = (value: string) => value.replaceAll(credential, "[redacted]");
   const runner = createGitHubRunner({
     cwd: directory,
     timeoutMs: 15000,
@@ -395,24 +493,28 @@ function isolatedJournalClient(
   });
   return {
     request(method, endpoint, body) {
-      if (
-        (!/^repos\/boburning\/portcove(?:\/git\/(?:blobs|trees|commits)(?:\/[a-f0-9]{40})?)?$/u.test(
-          endpoint,
-        ) &&
-          !(
-            allowHistoricalJobRead &&
-            method === "GET" &&
-            /^repos\/boburning\/portcove\/actions\/jobs\/[1-9][0-9]{0,15}$/u.test(endpoint)
-          )) ||
-        !["GET", "POST"].includes(method) ||
-        (method === "POST" &&
-          !/^repos\/boburning\/portcove\/git\/(?:blobs|trees|commits)$/u.test(endpoint))
-      )
-        throw new Error("journal transport route is outside the fixed repository/object endpoints");
+      assertJournalRoute(method, endpoint, allowHistoricalJobRead);
       return api.request(method, endpoint, body);
     },
     graphql(query, variables) {
       return api.graphql(query, variables);
     },
   };
+}
+
+function assertJournalRoute(method: string, endpoint: string, allowHistoricalJobRead = false) {
+  if (
+    (!/^repos\/boburning\/portcove(?:\/git\/(?:blobs|trees|commits)(?:\/[a-f0-9]{40})?)?$/u.test(
+      endpoint,
+    ) &&
+      !(
+        allowHistoricalJobRead &&
+        method === "GET" &&
+        /^repos\/boburning\/portcove\/actions\/jobs\/[1-9][0-9]{0,15}$/u.test(endpoint)
+      )) ||
+    !["GET", "POST"].includes(method) ||
+    (method === "POST" &&
+      !/^repos\/boburning\/portcove\/git\/(?:blobs|trees|commits)$/u.test(endpoint))
+  )
+    throw new Error("journal transport route is outside the fixed repository/object endpoints");
 }

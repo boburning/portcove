@@ -325,7 +325,12 @@ void test(
       f.local,
       f.saved.checkpoint,
       f.config,
-      { api: f.api },
+      {
+        api: {
+          request: async (...args) => f.api.request(...args),
+          graphql: async (...args) => f.api.graphql(...args),
+        },
+      },
     );
     assert.equal(result.objects.length, 6);
     assert.equal(f.counts().mutations, 1);

@@ -76,29 +76,75 @@ void test("journal transport shares one role deadline and refuses late write res
   assert.throws(() => createCoordinatorJournalApi(root, clock - 1), /phase deadline/);
   assert.throws(() => createCoordinatorJournalApi(root, Infinity), /must be finite/);
   assert.deepEqual(await readdir(root), []);
-  t.mock.method(
-    childProcess,
-    "spawnSync",
-    (_command: string, _args: readonly string[], options: SpawnSyncOptionsWithStringEncoding) => {
-      calls++;
-      assert.equal(options.timeout, 1000);
-      clock += 1001;
-      return {
-        status: 0,
-        stdout: 'HTTP/2.0 201 Created\r\n\r\n{"sha":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}',
-        stderr: "",
-      };
-    },
-  );
-  syncBuiltinESMExports();
+  t.mock.method(globalThis, "fetch", async () => {
+    calls++;
+    clock += 1001;
+    return Response.json({ sha: "a".repeat(40) }, { status: 201 });
+  });
   const api = createCoordinatorJournalApi(root, clock + 1000);
-  assert.throws(
-    () => api.request("POST", "repos/boburning/portcove/git/blobs", { content: "public" }),
-    /phase deadline/,
+  await assert.rejects(
+    api.request("POST", "repos/boburning/portcove/git/blobs", { content: "public" }),
+    /deadline/u,
   );
   assert.equal(calls, 1);
-  assert.throws(() => api.request("GET", "repos/boburning/portcove"), /phase deadline/);
+  await assert.rejects(api.request("GET", "repos/boburning/portcove"), /phase deadline/);
   assert.equal(calls, 1);
+});
+
+void test("dedicated journal refuses ambient certificate trust and proxy overrides before dispatch", async (t) => {
+  const root = await fixture(t);
+  process.env.PORTCOVE_COORDINATOR_JOURNAL_TOKEN = "inert-journal-trust";
+  for (const [key, value] of [
+    ["NODE_OPTIONS", "--use-openssl-ca"],
+    ["NODE_OPTIONS", "--use-system-ca"],
+    ["NODE_OPTIONS", "--use-env-proxy"],
+    ["NODE_USE_SYSTEM_CA", "1"],
+    ["SSL_CERT_FILE", "/inert/ambient.pem"],
+    ["SSL_CERT_DIR", "/inert/ambient-certs"],
+  ] as const) {
+    const original = process.env[key];
+    process.env[key] = value;
+    try {
+      assert.throws(() => createCoordinatorJournalApi(root), /trusted direct Node runtime/u);
+    } finally {
+      if (original === undefined) delete process.env[key];
+      else process.env[key] = original;
+    }
+  }
+  assert.deepEqual(await readdir(root), []);
+});
+
+void test("dedicated journal aborts an in-flight write at the tighter coordinator deadline", async (t) => {
+  const root = await fixture(t);
+  process.env.PORTCOVE_COORDINATOR_JOURNAL_TOKEN = "inert-journal-nested-deadline";
+  let dispatched = 0;
+  let aborted = false;
+  t.mock.method(globalThis, "fetch", async (_input: unknown, init?: RequestInit) => {
+    dispatched++;
+    assert.ok(init?.signal);
+    const signal = init.signal;
+    return new Promise<Response>((resolve, reject) => {
+      const safety = setTimeout(() => resolve(Response.json({ sha: "a".repeat(40) })), 4000);
+      signal.addEventListener(
+        "abort",
+        () => {
+          clearTimeout(safety);
+          aborted = true;
+          reject(signal.reason);
+        },
+        { once: true },
+      );
+    });
+  });
+  const api = createCoordinatorJournalApi(root, performance.now() + 10000);
+  await assert.rejects(
+    withCoordinatorDeadline(performance.now() + 800, () =>
+      api.request("POST", "repos/boburning/portcove/git/blobs", { content: "public" }),
+    ),
+    { code: "deadline_exceeded" },
+  );
+  assert.equal(dispatched, 1);
+  assert.equal(aborted, true);
 });
 
 async function fixture(t: test.TestContext) {
@@ -372,78 +418,75 @@ void test("fixed-job journal refuses foreign repository observation and enforces
   assert.throws(() => api.graphql(f.next, { id: "R_fixture", ...f.refs }), /request bound/);
   assert.equal(f.calls(), 16);
 });
-void test("journal subprocess receives only its frozen dedicated credential and private configuration", async (t) => {
+void test("journal SDK captures only its dedicated credential and refuses other routes", async (t) => {
   const root = await fixture(t);
   const token = "disposable-journal-only-secret";
   process.env.PORTCOVE_COORDINATOR_JOURNAL_TOKEN = token;
   process.env.GH_TOKEN = "provider-only-secret";
-  process.env.GH_ENTERPRISE_TOKEN = "enterprise-secret";
-  process.env.HTTPS_PROXY = "http://must-not-inherit.invalid";
-  process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN = "oidc-secret";
   let calls = 0;
-  t.mock.method(
-    childProcess,
-    "spawnSync",
-    (command: string, args: readonly string[], options: SpawnSyncOptionsWithStringEncoding) => {
-      calls++;
-      assert.equal(command, "gh");
-      assert.ok(options.env);
-      assert.ok(typeof options.env.GH_CONFIG_DIR === "string");
-      assert.deepEqual(args.slice(-2), ["--hostname", "github.com"]);
-      assert.equal(options.env.GH_TOKEN, token);
-      assert.equal(options.env.PORTCOVE_COORDINATOR_JOURNAL_TOKEN, undefined);
-      assert.equal(options.env.GH_ENTERPRISE_TOKEN, undefined);
-      assert.equal(options.env.HTTPS_PROXY, undefined);
-      assert.equal(options.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN, undefined);
-      assert.equal(options.env.GH_HOST, "github.com");
-      assert.equal(path.dirname(options.env.GH_CONFIG_DIR), root);
-      assert.equal(options.env.HOME, options.env.GH_CONFIG_DIR);
-      assert.equal(options.env.APPDATA, options.env.GH_CONFIG_DIR);
-      assert.equal(options.timeout, 15000);
-      assert.equal(options.maxBuffer, 2 * 1024 * 1024);
-      assert.equal(options.windowsHide, true);
-      assert.equal(inspect(args).includes(token), false);
-      return { status: 0, stdout: 'HTTP/2.0 200 OK\r\n\r\n{"ok":true}', stderr: "" };
-    },
-  );
-  syncBuiltinESMExports();
+  t.mock.method(globalThis, "fetch", async (input: string | URL | Request, init?: RequestInit) => {
+    calls++;
+    const url = new URL(input instanceof Request ? input.url : input);
+    assert.equal(url.origin, "https://api.github.com");
+    assert.equal(init?.method, "GET");
+    assert.equal(new Headers(init?.headers).get("authorization"), `token ${token}`);
+    if (url.pathname === "/repos/boburning/portcove") return Response.json({ ok: true });
+    assert.equal(url.pathname, `/repos/boburning/portcove/git/commits/${"a".repeat(40)}`);
+    return Response.json({ message: "Not Found" }, { status: 404 });
+  });
   const api = createCoordinatorJournalApi(root);
   process.env.PORTCOVE_COORDINATOR_JOURNAL_TOKEN = "changed-after-construction";
-  assert.deepEqual(api.request("GET", "repos/boburning/portcove").body, { ok: true });
+  assert.deepEqual((await api.request("GET", "repos/boburning/portcove")).body, { ok: true });
+  assert.deepEqual(
+    await api.request("GET", `repos/boburning/portcove/git/commits/${"a".repeat(40)}`),
+    {
+      status: 404,
+      body: undefined,
+    },
+  );
   for (const [method, route] of [
     ["GET", "https://evil.invalid"],
     ["POST", "repos/boburning/portcove/git/refs"],
     ["GET", "repos/other/repo"],
     ["DELETE", "repos/boburning/portcove"],
   ] as const)
-    assert.throws(() => api.request(method, route), /fixed repository/u);
-  assert.equal(calls, 1);
+    await assert.rejects(api.request(method, route), /fixed repository/u);
+  assert.deepEqual(await readdir(root), []);
+  assert.equal(calls, 2);
   assert.equal(process.env.GH_TOKEN, "provider-only-secret");
 });
-void test("journal subprocess diagnostics redact its exact credential without losing timeout ambiguity", async (t) => {
+void test("journal SDK sends the exact write once and redacts provider diagnostics", async (t) => {
   const root = await fixture(t);
   const token = "nonstandard-disposable-sensitive-value";
   process.env.PORTCOVE_COORDINATOR_JOURNAL_TOKEN = token;
-  t.mock.method(childProcess, "spawnSync", () => ({
-    status: 0,
-    stdout: token,
-    stderr: token,
-    error: Object.assign(new Error(token), { code: "ETIMEDOUT" }),
-  }));
-  syncBuiltinESMExports();
+  const body = { content: "inert", encoding: "base64" };
+  let calls = 0;
+  let echo = false;
+  t.mock.method(globalThis, "fetch", async (input: string | URL | Request, init?: RequestInit) => {
+    calls++;
+    const url = new URL(input instanceof Request ? input.url : input);
+    assert.equal(url.href, "https://api.github.com/repos/boburning/portcove/git/blobs");
+    assert.equal(init?.method, "POST");
+    assert.deepEqual(JSON.parse(typeof init.body === "string" ? init.body : ""), body);
+    if (echo) return Response.json({ sha: token }, { status: 201 });
+    return Response.json({ message: `GitHub unavailable ${token}` }, { status: 503 });
+  });
   const api = createCoordinatorJournalApi(root);
-  assert.throws(
-    () =>
-      api.request("POST", "repos/boburning/portcove/git/blobs", {
-        content: "inert",
-        encoding: "utf-8",
-      }),
+  await assert.rejects(
+    api.request("POST", "repos/boburning/portcove/git/blobs", body),
     (error: unknown) => {
       assert.equal(inspect(error, { depth: 10 }).includes(token), false);
-      assert.match(String(error), /timed out/u);
+      assert.match(String(error), /GitHub unavailable/u);
       return true;
     },
   );
+  assert.equal(calls, 1);
+  echo = true;
+  await assert.rejects(
+    api.request("POST", "repos/boburning/portcove/git/blobs", body),
+    /contained credential material/u,
+  );
+  assert.equal(calls, 2);
 });
 
 void test("fixed-job collection survives inherited execution expiry only for exact post-CAS tuple GET", async (t) => {
