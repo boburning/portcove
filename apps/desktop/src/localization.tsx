@@ -16,6 +16,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import englishCounts from "./locales/en/counts.json";
 import englishSettings from "./locales/en/settings.json";
 import engineeringSettings from "./locales/ar-XB/settings.json";
 import type { LocalePreferenceSnapshot } from "./types";
@@ -83,16 +84,17 @@ export function assertCatalog(
 
 export function initializeLocalization(initialLocales = systemLocales()): i18n {
   assertCatalog(englishSettings);
+  assertCatalog(englishCounts, "counts");
   assertCatalog(engineeringSettings);
   if (!i18next.isInitialized) {
     void i18next.use(initReactI18next).init({
       lng: resolveLocale(null, initialLocales),
       fallbackLng: "en",
       supportedLngs: [...supportedLocales],
-      ns: ["settings"],
+      ns: ["settings", "counts"],
       defaultNS: "settings",
       resources: {
-        en: { settings: englishSettings },
+        en: { settings: englishSettings, counts: englishCounts },
         "ar-XB": { settings: engineeringSettings },
       },
       initAsync: false,
@@ -239,4 +241,32 @@ export function useLocalization(): LocalizationState &
     i18n: translation.i18n,
     ready: translation.ready,
   };
+}
+
+// Only availability validation is application policy. i18next owns phrases,
+// zero overrides, plural selection, interpolation and number formatting.
+type CountMessageKey = {
+  [K in keyof typeof englishCounts]: K extends `${infer Key}_unknown` ? Key : never;
+}[keyof typeof englishCounts];
+
+type AvailableCount = number | null | undefined;
+export function countMessage(
+  count: AvailableCount,
+  key: "examinedEntries",
+  values: { bytes: string },
+): string;
+export function countMessage(
+  count: AvailableCount,
+  key: Exclude<CountMessageKey, "examinedEntries">,
+): string;
+export function countMessage(
+  count: AvailableCount,
+  key: CountMessageKey,
+  values?: { bytes: string },
+) {
+  const instance = initializeLocalization();
+  const bytes = values?.bytes ?? ""; // Required by the examinedEntries overload.
+  return count == null || !Number.isSafeInteger(count) || count < 0
+    ? instance.t(`${key}_unknown`, { ns: "counts", bytes })
+    : instance.t(key, { ns: "counts", count, bytes });
 }

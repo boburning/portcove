@@ -220,12 +220,14 @@ void test("the root owns the only pnpm workspace lock and repository tool depend
     "es-module-lexer",
     "fallow",
     "playwright",
+    "semver",
     "vite-plus",
     "vitest",
     "yaml",
   ]);
   assert.equal(repositoryPackage.devDependencies["@resvg/resvg-js"], "2.6.2");
   assert.equal(repositoryPackage.devDependencies["es-module-lexer"], "3.0.4");
+  assert.equal(repositoryPackage.devDependencies.semver, desktopPackage.devDependencies.semver);
   for (const name of [
     "@vitest/browser-playwright",
     "@vitest/coverage-v8",
@@ -249,7 +251,7 @@ void test("the root owns the only pnpm workspace lock and repository tool depend
     Object.keys(repositoryPackage.devDependencies).filter((name) =>
       Object.hasOwn(desktopPackage.devDependencies, name),
     ),
-    ["@vitest/browser-playwright", "playwright", "vite-plus", "vitest", "yaml"],
+    ["@vitest/browser-playwright", "playwright", "semver", "vite-plus", "vitest", "yaml"],
   );
   assert.equal(desktopPackage.devDependencies["vite-plus"], "catalog:");
   assert.equal(desktopPackage.devDependencies.yaml, repositoryPackage.devDependencies.yaml);

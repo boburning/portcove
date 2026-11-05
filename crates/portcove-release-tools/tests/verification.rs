@@ -146,3 +146,30 @@ fn rejects_linked_payloads() {
         Err(VerificationError::UnsafeFile)
     ));
 }
+
+#[test]
+fn verify_command_preserves_positional_arguments_and_json_stdout() {
+    let fixture = Fixture::new();
+    let binary = std::env::var_os("NEXTEST_BIN_EXE_portcove-release-tools")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| env!("CARGO_BIN_EXE_portcove-release-tools").into());
+    let output = std::process::Command::new(binary)
+        .arg("verify")
+        .arg(&fixture.artifact)
+        .arg(&fixture.signature)
+        .arg(&fixture.public_key)
+        .arg(&fixture.hash)
+        .arg(fixture.bytes.to_string())
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(output.stderr.is_empty());
+    let result: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(result["sha256"], fixture.hash);
+    assert_eq!(result["bytes"], fixture.bytes);
+    assert_eq!(result["signature_verified"], true);
+}
