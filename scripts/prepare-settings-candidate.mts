@@ -9,7 +9,7 @@ import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 import { fileIdentity } from "./development-evidence.mts";
 import { acquireOwnedProcessLock } from "./process-lock.mts";
 import { coreProposalInspector } from "./catalog-authoring-inspector.mts";
-import { projectObservation } from "./observe-configured-upstream.mts";
+import { projectObservedFacts } from "./observe-configured-upstream.mts";
 import { assetFact, releaseFact, repositoryFact } from "./upstream-observer.mts";
 import type { ProviderObservation } from "./upstream-observer.mts";
 import { orderedJsonSha256 as hash } from "./json-values.mts";
@@ -154,7 +154,7 @@ export async function prepareSettingsCandidate(options: {
       conditional_hits: 0,
     },
   };
-  const projection = await projectObservation(
+  const projection = await projectObservedFacts(
     inspector.artifact,
     { port_id: record.listing.id, repository_id: Number(project.id) },
     checkpoint,
