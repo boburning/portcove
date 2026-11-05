@@ -2172,6 +2172,7 @@ for (const file of [
     "scripts/github-client.test.mts",
     "scripts/release-publication-source.test.mts",
     "scripts/release-native-check-discovery.test.mts",
+    "scripts/release-pages-provider.test.mts",
     "scripts/audit-reuse.test.mts",
     "scripts/roadmap-rest-intake.test.mts",
     "scripts/roadmap-sdk.test.mts",

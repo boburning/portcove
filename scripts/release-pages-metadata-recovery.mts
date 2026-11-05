@@ -172,13 +172,13 @@ export async function recoverPublishedPagesMetadata(
           const handoff = inspectSettledPagesMetadataHandoff(current.input);
           if (!handoff || capacityDigest(handoff.operation) !== capacityDigest(actualOperation))
             throw new Error("exact settled Pages checkpoint/operation changed");
-          const provider = createPagesProviderTransport(directory, {}, phaseDeadline);
+          const provider = createPagesProviderTransport({}, phaseDeadline);
           const expected = {
             artifact_id: handoff.expected.artifact_id,
             generation: handoff.expected.site_generation_sha256,
             controller_revision: handoff.operation.executor_identity!.controller_revision,
           };
-          if (provider.observeByGeneration(expected).status !== "succeed")
+          if ((await provider.observeByGeneration(expected)).status !== "succeed")
             throw new Error("settled Pages provider completion unavailable");
           const acquired = await materializePublishedCompleteSite(
             {
@@ -258,7 +258,7 @@ export async function recoverPublishedPagesMetadata(
           await requirePublishedCompleteSite(acquired.receipt);
           await inspectPreparedMetadataRenewal(verified);
           await readPublicApplicationSiteMarker(site.generation, phaseDeadline);
-          if (provider.observeByGeneration(expected).status !== "succeed")
+          if ((await provider.observeByGeneration(expected)).status !== "succeed")
             throw new Error("Pages provider changed during current-feed verification");
           await writeFile(
             path.join(directory, "current-publication.json"),
