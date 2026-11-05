@@ -1933,7 +1933,7 @@ export type BootstrapPublicationTransport = {
   api: Pick<CoordinatorRemoteApi, "request">;
   upload: (releaseId: number, name: AssetName, bytes: Buffer) => Promise<void>;
   readAsset: (assetId: number, maximumBytes: number) => Promise<Buffer>;
-  beforeWrite: () => Promise<() => void>;
+  beforeWrite: (phase: "asset" | "publish") => Promise<() => void>;
   retainAssembly?: (assembly: ApplicationDraftAssembly) => Promise<unknown>;
 };
 
@@ -2085,7 +2085,7 @@ export async function publishApplicationMetadataRelease(
     }
     for (const [name, bytes] of files)
       if (!actual.some((asset) => asset.name === name)) {
-        const assertWindow = await transport.beforeWrite();
+        const assertWindow = await transport.beforeWrite("asset");
         const fresh = release();
         assert.equal(fresh.draft, true);
         assert.equal(fresh.body, current.body, "draft notes changed before upload");
@@ -2106,7 +2106,7 @@ export async function publishApplicationMetadataRelease(
         }
       }
     await verifyBytes();
-    const assertWindow = await transport.beforeWrite();
+    const assertWindow = await transport.beforeWrite("publish");
     const fresh = release();
     assert.equal(fresh.draft, true);
     assert.equal(fresh.body, current.body, "draft notes changed before publication");
@@ -2117,8 +2117,8 @@ export async function publishApplicationMetadataRelease(
     budget();
     // Uploads, byte reads and the fresh guard may consume the metadata's
     // remaining lifetime. This final local barrier follows all provider reads.
-    inspectApplicationMetadataPublicationReceipt(metadataReceipt, expected.binding, custody);
     assertWindow();
+    inspectApplicationMetadataPublicationReceipt(metadataReceipt, expected.binding, custody);
     try {
       transport.api.request("PATCH", root, {
         draft: false,

@@ -2055,6 +2055,43 @@ void test("complete draft uploads two assets then reads all bytes before and aft
   assert.deepEqual(f.counters(), { guards: 3, reads: 6 });
 });
 
+void test("complete metadata drafts require the final publish guard with no asset writes", async () => {
+  for (const create of [fixture, renewalFixture]) {
+    const f = create();
+    await f.transport.upload(10, bootstrapAssetNames[0], f.archive);
+    await f.transport.upload(10, bootstrapAssetNames[1], Buffer.from(JSON.stringify(f.raw)));
+    f.mutations.length = 0;
+    const phases: string[] = [];
+    f.transport.beforeWrite = async (phase) => {
+      phases.push(phase);
+      return () => {
+        throw new Error("served preimage changed");
+      };
+    };
+    await assert.rejects(f.run(), /served preimage changed/u);
+    assert.deepEqual(phases, ["publish"]);
+    assert.deepEqual(f.mutations, []);
+    assert.equal(f.release.draft, true);
+  }
+});
+
+void test("metadata expiry during the final Pages readback prevents publication", async (t) => {
+  const now = Date.now();
+  t.mock.timers.enable({ apis: ["Date"], now });
+  const f = renewalFixture();
+  const beforeWrite = f.transport.beforeWrite;
+  f.transport.beforeWrite = async (phase) => {
+    const assertWindow = await beforeWrite(phase);
+    return () => {
+      assertWindow();
+      if (phase === "publish") t.mock.timers.setTime(now + 400 * 86400000);
+    };
+  };
+  await assert.rejects(f.run(), /expir/u);
+  assert.equal(f.mutations.includes("publish"), false);
+  assert.equal(f.release.draft, true);
+});
+
 void test("lost upload and publication acknowledgments reconcile once without duplicate mutation", async () => {
   for (const mode of ["upload-lost", "publish-lost"]) {
     const f = fixture(mode);

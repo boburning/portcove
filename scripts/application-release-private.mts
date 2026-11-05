@@ -1161,6 +1161,7 @@ async function publishBootstrapMetadata() {
       ),
     ),
   );
+  let verifyPreimage: () => Promise<() => void>;
   if (source.purpose === "metadata-renewal") {
     const raw: unknown = JSON.parse(
       new TextDecoder("utf-8", { fatal: true }).decode(files.get(bootstrapAssetNames[1])),
@@ -1176,6 +1177,27 @@ async function publishBootstrapMetadata() {
     );
     let publicPrior: Awaited<ReturnType<typeof readApplicationPriorPublication>> | undefined;
     let lineage: Awaited<ReturnType<typeof readForwardRenewalPreimage>>["lineage"] | undefined;
+    verifyPreimage = async () => {
+      if (!publicPrior) {
+        if (source.renewal_parent === undefined)
+          publicPrior = await readApplicationPriorPublication(scratch);
+        else {
+          const forward = await readForwardRenewalPreimage(source, scratch);
+          lineage = forward.lineage;
+          publicPrior = forward;
+        }
+      }
+      const { prior, discovered } = publicPrior;
+      assert.equal(raw.prior_generation, prior.receipt.site.generation);
+      assert.equal(raw.prior_repository_sha256, prior.receipt.publication.repository_sha256);
+      await readPublicApplicationSiteMarker(prior.receipt.site);
+      assert.deepEqual(discoverPublishedApplicationCohort(applicationApi, lineage), discovered);
+      await guard(source);
+      return () => {
+        assert.deepEqual(readApplicationPagesState(applicationApi), discovered.state);
+        assertProtectionWriteWindow();
+      };
+    };
     await finishDraftRecovery(
       {
         ...expected,
@@ -1189,28 +1211,28 @@ async function publishBootstrapMetadata() {
       raw,
       receipt.publication,
       files,
-      async () => {
-        if (!publicPrior) {
-          if (source.renewal_parent === undefined)
-            publicPrior = await readApplicationPriorPublication(scratch);
-          else {
-            const forward = await readForwardRenewalPreimage(source, scratch);
-            lineage = forward.lineage;
-            publicPrior = forward;
-          }
-        }
-        const { prior, discovered } = publicPrior;
-        assert.equal(raw.prior_generation, prior.receipt.site.generation);
-        assert.equal(raw.prior_repository_sha256, prior.receipt.publication.repository_sha256);
-        await readPublicApplicationSiteMarker(prior.receipt.site);
-        assert.deepEqual(discoverPublishedApplicationCohort(applicationApi, lineage), discovered);
-        await guard(source);
-        return () => {
-          assert.deepEqual(readApplicationPagesState(applicationApi), discovered.state);
-          assertProtectionWriteWindow();
-        };
-      },
+      verifyPreimage,
     );
+  } else {
+    verifyPreimage = async () => {
+      const descriptor = await readApplicationJson(
+        "release/bootstrap-public-inputs/application/initial-site-preimage.json",
+      );
+      assert.ok(isRecord(descriptor));
+      const scratch = await mkdtemp(
+        path.join(process.env.RUNNER_TEMP!, "application-bootstrap-preimage-"),
+      );
+      await materializeInitialApplicationRehearsal(
+        descriptor,
+        bootstrapAppointment().site_preimage_sha256,
+        scratch,
+      );
+      await guard(source);
+      return () => {
+        assert.deepEqual(readApplicationPagesState(applicationApi), descriptor.provider);
+        assertProtectionWriteWindow();
+      };
+    };
   }
   const result = await publishApplicationMetadataRelease(
     {
@@ -1226,7 +1248,8 @@ async function publishBootstrapMetadata() {
           },
         );
       },
-      async beforeWrite() {
+      async beforeWrite(phase) {
+        if (phase === "publish") return verifyPreimage();
         await guard(source);
         return assertProtectionWriteWindow;
       },
