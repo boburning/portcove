@@ -349,6 +349,7 @@ async function catalogContinuationBehavior(
       tools = { identity: { ...manifest.controller, run_id: "current" } },
       controls = { evidence_scope: "github.com", readMaintenance: () => ({}) };
     const executionEnvironment = process.env;
+    executionEnvironment.GH_TOKEN = "inert-catalog-continuation";
     const toolsReceipt = Object.freeze({ kind: "inert-tool-receipt" });
     const contextReceipt = Object.freeze({ kind: "inert-context-receipt" });
     const receivedRoles: object[] = [];
@@ -386,26 +387,11 @@ async function catalogContinuationBehavior(
         return tools;
       },
       GitHubApiClient: class {
-        request(method: string, endpoint: string) {
-          assert.equal(method, "GET");
-          const route = endpoint.replace("repos/boburning/portcove/", "");
-          if (route === "actions/runs/9988" || route === "actions/runs/9988/attempts/1")
-            return { status: 200, body: fixture("context").run };
-          const job = /^actions\/jobs\/([0-9]+)$/u.exec(route);
-          if (job) {
-            const row = outputs
-              .map((output) => fixture(output))
-              .find((row) => row.job.id === Number(job[1]));
-            assert.ok(row);
-            return { status: 200, body: row.job };
-          }
-          assert.equal(route, "actions/runs/9988/artifacts?per_page=100&page=1");
-          const artifacts = outputs.flatMap((output) => fixture(output).inventory.artifacts);
-          artifacts[0]!.digest = `sha256:${hash(archive)}`;
-          artifacts[0]!.size_in_bytes = archive.length;
-          return { status: 200, body: { total_count: artifacts.length, artifacts } };
+        request() {
+          throw new Error("unexpected legacy metadata read");
         }
       },
+      coordinatorCommandDeadline: () => undefined,
       createGitHubRunner: () => () => {
         throw new Error("injected client should own transport");
       },
@@ -508,6 +494,37 @@ async function catalogContinuationBehavior(
         return operation;
       },
     };
+    let sdkReads = 0;
+    globalThis.fetch = async (input, init) => {
+      assert.ok(typeof input === "string");
+      const url = new URL(input);
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(init?.method, "GET");
+      assert.equal(
+        new Headers(init?.headers).get("authorization"),
+        "token inert-catalog-continuation",
+      );
+      assert.ok(url.pathname.startsWith("/repos/boburning/portcove/"));
+      const route = url.pathname.slice("/repos/boburning/portcove/".length);
+      sdkReads++;
+      if (route === "actions/runs/9988" || route === "actions/runs/9988/attempts/1")
+        return Response.json(fixture("context").run);
+      const job = /^actions\/jobs\/([0-9]+)$/u.exec(route);
+      if (job) {
+        const row = outputs
+          .map((output) => fixture(output))
+          .find((row) => row.job.id === Number(job[1]));
+        assert.ok(row);
+        return Response.json(row.job);
+      }
+      assert.equal(route, "actions/runs/9988/artifacts");
+      assert.equal(url.searchParams.get("per_page"), "100");
+      assert.equal(url.searchParams.get("page"), "1");
+      const artifacts = outputs.flatMap((output) => fixture(output).inventory.artifacts);
+      artifacts[0]!.digest = `sha256:${hash(archive)}`;
+      artifacts[0]!.size_in_bytes = archive.length;
+      return Response.json({ total_count: artifacts.length, artifacts });
+    };
     const moduleOwners: Record<string, string[]> = {
       "release-controller-tool-admission.mts": ["verifiedControllerToolPaths"],
       "github-api.mts": ["GitHubApiClient", "createGitHubRunner"],
@@ -519,7 +536,11 @@ async function catalogContinuationBehavior(
       ],
       "release-coordinator-state.mts": ["readRetainedCapacityOperation"],
       "release-coordinator-remote.mts": ["inspectCoordinatorRemoteNamespace"],
-      "release-coordinator-deadline.mts": ["withCoordinatorDeadline", "coordinatorCommandTimeout"],
+      "release-coordinator-deadline.mts": [
+        "withCoordinatorDeadline",
+        "coordinatorCommandTimeout",
+        "coordinatorCommandDeadline",
+      ],
       "release-authority-configuration.mts": ["requireControllerCatalogJobAuthorities"],
       "production-controller-admission.mts": [
         "readProductionControllerWorkflowBytes",
@@ -590,6 +611,7 @@ async function catalogContinuationBehavior(
       "catalog-publication-recovered",
       "catalog continuation entry must reach the exact recovered decision",
     );
+    assert.equal(sdkReads, 40);
     assert.deepEqual(calls, [
       "original-context",
       "original-definitions",
