@@ -904,7 +904,8 @@ void test("concurrent admission preserves a shared one-shot write allowance", as
   assert.equal(refused.reason.code, "retry_exhausted");
   assert.equal(sends, 1);
   assert.equal(policy.attempts, 1);
-  assert.deepEqual(settled.map((attempt) => attempt.dispatched).sort(), [false, true]);
+  assert.equal(settled.length, 2);
+  assert.equal(settled.filter((attempt) => attempt.dispatched).length, 1);
 });
 
 void test("uncooperative admission cannot extend SDK cancellation or its original request timeout", async (t) => {
