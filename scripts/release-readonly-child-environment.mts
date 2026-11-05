@@ -49,8 +49,8 @@ export function readOnlyReleaseChildEnvironment(): NodeJS.ProcessEnv | undefined
 }
 
 /** Fixed SDK readers use the same authority as the scoped subprocesses. */
-export function fixedReleaseReaderToken() {
-  const environment = environments.getStore() ?? process.env;
+export function fixedReleaseReaderToken(ambient: Readonly<NodeJS.ProcessEnv> = process.env) {
+  const environment = environments.getStore() ?? ambient;
   const token = environment.GH_TOKEN;
   if (!token || token.length > 16384 || /\s/u.test(token))
     throw new Error("explicit fixed-job reader transport token required");

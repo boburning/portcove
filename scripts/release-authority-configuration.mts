@@ -9,10 +9,6 @@ import {
 import type { CapacityExecutorRole } from "./assembler-job-identity.mts";
 import { performance } from "node:perf_hooks";
 import {
-  fixedReleaseReaderToken,
-  readOnlyReleaseChildEnvironment,
-} from "./release-readonly-child-environment.mts";
-import {
   coordinatorCommandTimeout,
   checkCoordinatorDeadline,
 } from "./release-coordinator-deadline.mts";
@@ -35,16 +31,6 @@ import {
   requireControllerJobAuthorityConfiguration,
 } from "./release-authority-configuration-contract.mts";
 export * from "./release-authority-configuration-contract.mts";
-
-function fixedSourceReaderIdentity(deadline: number) {
-  return {
-    transport: {
-      sdkToken: fixedReleaseReaderToken(),
-      deadline,
-      requireDirect: readOnlyReleaseChildEnvironment() !== undefined,
-    },
-  };
-}
 
 /** Source-bound entry routing, not an executor/control/signing capability. The
  * catalog path retains its existing actual named OIDC check before routing. */
@@ -72,7 +58,6 @@ async function readControllerJobSourceConfiguration(
   const catalog = purpose === "catalog-publication";
   let source;
   if (catalog || (isRecord(configuration) && configuration.kind === "three-app-fixed-jobs-v1")) {
-    const identity = fixedSourceReaderIdentity(deadline);
     const readers = await import("./release-live-control-admission.mts");
     const authenticate = catalog
       ? readers.authenticateCatalogControlReaderJob
@@ -80,7 +65,6 @@ async function readControllerJobSourceConfiguration(
     const actual = await authenticate(environment, await readProductionControllerWorkflowBytes(), {
       phase,
       deadline,
-      identity,
     });
     if (actual.identity.evidence_scope !== "github.com")
       throw new Error(
@@ -373,13 +357,12 @@ export async function requireControllerCatalogPublicationAuthorities(phase: unkn
     raw = env.PORTCOVE_CATALOG_AUTHORITIES;
   if (!raw || Buffer.byteLength(raw) > 32 * 1024)
     throw new Error("protected catalog authority configuration unavailable");
-  const identity = fixedSourceReaderIdentity(deadline);
   const { authenticateCatalogControlReaderJob } =
     await import("./release-live-control-admission.mts");
   const actual = await authenticateCatalogControlReaderJob(
     env,
     await readProductionControllerWorkflowBytes(),
-    { phase: inspectReleaseControlPhase(phase), deadline, identity },
+    { phase: inspectReleaseControlPhase(phase), deadline },
   );
   if (actual.identity.evidence_scope !== "github.com")
     throw new Error("actual catalog OIDC identity required");

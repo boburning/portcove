@@ -624,6 +624,7 @@ for (const [file, tests] of [
     [
       "scripts/release-catalog-site-controller.test.mts",
       "scripts/release-site-readback.test.mts",
+      "scripts/release-live-control-admission.test.mts",
       "scripts/release-job-authorities.test.mts",
       "scripts/release-catalog-authorities.test.mts",
       "scripts/release-coordinator-owned-executor.test.mts",
@@ -1061,6 +1062,7 @@ for (const [file, tests] of [
   [
     "scripts/assembler-job-identity.mts",
     [
+      "scripts/release-live-control-admission.test.mts",
       "scripts/release-job-authorities.test.mts",
       "scripts/release-catalog-authorities.test.mts",
       "scripts/release-coordinator-owned-executor.test.mts",
@@ -2377,6 +2379,7 @@ for (const file of [
     "scripts/github-client.test.mts",
     "scripts/release-catalog-site-controller.test.mts",
     "scripts/release-site-readback.test.mts",
+    "scripts/release-live-control-admission.test.mts",
     "scripts/release-catalog-authorities.test.mts",
     "scripts/release-job-authorities.test.mts",
     "scripts/release-catalog-recovery.test.mts",

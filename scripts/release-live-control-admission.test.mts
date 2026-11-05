@@ -1360,41 +1360,37 @@ for (const phase of [
         workflow_sha256: createHash("sha256").update(workflow).digest("hex"),
         authority_configuration_sha256: capacityDigest(configuration),
       }),
+      GH_TOKEN: "ghs_SYNTHETIC_SELECTED_CATALOG_READER",
       ACTIONS_ID_TOKEN_REQUEST_URL: "https://fixture.actions.githubusercontent.com/token?fixture=1",
       ACTIONS_ID_TOKEN_REQUEST_TOKEN: "inert-fixture-control-bearer",
     };
     const before = new Map(Object.keys(environment).map((key) => [key, process.env[key]]));
     Object.assign(process.env, environment);
-    const actualSpawn = childProcess.spawnSync;
     let driftDuringTokenRead = false;
-    t.mock.method(globalThis, "fetch", async (input: Parameters<typeof fetch>[0]) => {
-      const url = new URL(
-        input instanceof Request ? input.url : input instanceof URL ? input.href : input,
-      );
-      if (url.hostname === "fixture.actions.githubusercontent.com") {
-        assert.equal(url.searchParams.get("audience"), profile.reader_audience);
-        if (driftDuringTokenRead) process.env.PORTCOVE_EXECUTION_PURPOSE = "application";
-        return new Response(JSON.stringify({ value: provider.token }));
-      }
-      assert.equal(url.hostname, "token.actions.githubusercontent.com");
-      return new Response(JSON.stringify({ keys: [jwk] }));
-    });
     t.mock.method(
-      childProcess,
-      "spawnSync",
-      (
-        command: string,
-        args: readonly string[],
-        options: childProcess.SpawnSyncOptionsWithStringEncoding,
-      ) =>
-        command === "gh"
-          ? provider.transport.spawn(command, args, options)
-          : actualSpawn(command, args, options),
+      globalThis,
+      "fetch",
+      async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+        const url = new URL(input instanceof Request ? input.url : input);
+        const auth = new Headers(init?.headers).get("authorization");
+        if (url.hostname === "fixture.actions.githubusercontent.com") {
+          assert.equal(url.searchParams.get("audience"), profile.reader_audience);
+          assert.equal(auth, "Bearer inert-fixture-control-bearer");
+          if (driftDuringTokenRead) process.env.PORTCOVE_EXECUTION_PURPOSE = "application";
+          return Response.json({ value: provider.token });
+        }
+        if (url.hostname === "token.actions.githubusercontent.com") {
+          assert.equal(auth, null);
+          return Response.json({ keys: [jwk] });
+        }
+        assert.equal(url.origin, "https://api.github.com");
+        assert.equal(auth, `token ${environment.GH_TOKEN}`);
+        const page = url.searchParams.get("page");
+        const route = page ? `${url.pathname}?per_page=100&page=${page}` : url.pathname;
+        return Response.json(provider.metadata(route));
+      },
     );
-    syncBuiltinESMExports();
     t.after(() => {
-      t.mock.restoreAll();
-      syncBuiltinESMExports();
       for (const [key, value] of before) {
         if (value === undefined) delete process.env[key];
         else process.env[key] = value;
