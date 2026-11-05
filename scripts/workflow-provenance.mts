@@ -241,6 +241,7 @@ export const hostedLocalCheckAuthorityPaths = Object.freeze([
   "scripts/audit-evidence.mts",
   "scripts/audit-archive.mts",
   "scripts/audit-reuse.mts",
+  "scripts/github-artifact-download.mts",
   "scripts/dev-storage.mts",
   "scripts/tool-cache.mts",
   "scripts/select-ci-plan.mts",

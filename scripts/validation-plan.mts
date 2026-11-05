@@ -194,6 +194,7 @@ const protectedPolicyFiles = withNodeTestCompanions([
   "scripts/audit-evidence.mts",
   "scripts/audit-archive.mts",
   "scripts/audit-reuse.mts",
+  "scripts/github-artifact-download.mts",
   "scripts/check-child-process-policy.mts",
   "scripts/check-ci-prose.mts",
   "scripts/ci-result-gate.mts",

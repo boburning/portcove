@@ -698,7 +698,6 @@ void test("completed raw failed producer imports passed deterministic stages and
 void test("audit metadata uses the actual configured SDK with fixed authority and one attempt", async () => {
   let sends = 0;
   const operations = await createAuditOperations({
-    root: process.cwd(),
     deadline: performance.now() + 5000,
     environment: { GH_TOKEN: "ghs_SYNTHETIC_AUDIT_ONLY", GITHUB_TOKEN: "unused-authority" },
     fetch: async (url, init) => {
@@ -734,7 +733,6 @@ void test("audit metadata refuses failed streams and oversized responses without
   for (const mode of ["transient", "oversize", "stream"] as const) {
     let sends = 0;
     const operations = await createAuditOperations({
-      root: process.cwd(),
       deadline: performance.now() + 5000,
       environment: { GH_TOKEN: "fixture-token" },
       fetch: async () => {
@@ -753,4 +751,33 @@ void test("audit metadata refuses failed streams and oversized responses without
     await assert.rejects(operations.metadata("repos/boburning/portcove", 15000));
     assert.equal(sends, 1);
   }
+});
+
+void test("audit archive uses the scoped SDK credential only on the exact artifact lookup", async () => {
+  const endpoint = "repos/boburning/portcove/actions/artifacts/9/zip";
+  const delivery =
+    "https://productionresultssa10.blob.core.windows.net/actions-results/fixture.zip?sig=inert";
+  const archive = new Uint8Array(22);
+  const observed: string[] = [];
+  const operations = await createAuditOperations({
+    deadline: performance.now() + 5000,
+    environment: { GH_TOKEN: "inert-audit-reader", GITHUB_TOKEN: "inert-other-reader" },
+    fetch: async (input, init) => {
+      const url = new URL(input instanceof Request ? input.url : input);
+      const headers = new Headers(init?.headers);
+      observed.push(url.host);
+      if (url.origin === "https://api.github.com") {
+        assert.equal(url.pathname, `/${endpoint}`);
+        assert.equal(headers.get("authorization"), "token inert-audit-reader");
+        return new Response(null, { status: 302, headers: { location: delivery } });
+      }
+      assert.equal(url.href, delivery);
+      assert.equal(headers.get("authorization"), null);
+      return new Response(archive);
+    },
+  });
+  await assert.rejects(operations.archive("repos/other/repo/actions/artifacts/9/zip", 5000));
+  await assert.rejects(operations.archive(endpoint, 0));
+  assert.deepEqual(await operations.archive(endpoint, 5000), Buffer.from(archive));
+  assert.deepEqual(observed, ["api.github.com", "productionresultssa10.blob.core.windows.net"]);
 });
