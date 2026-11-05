@@ -5,8 +5,8 @@ import { open, writeFile, appendFile } from "node:fs/promises";
 import { crc32, inflateRawSync } from "node:zlib";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
-import type { IncludedResponse } from "./github-api.mts";
+import { createWakeProvider } from "./release-wake-provider.mts";
+import type { WakeProvider, WakeResponse, WakeWorkflow } from "./release-wake-provider.mts";
 import { isRecord, errorMessage } from "./runtime-values.mts";
 import { inspectControllerExecutionPurpose } from "./release-control-phases.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
@@ -21,7 +21,7 @@ const workflow = ".github/workflows/application-update-wake.yml";
 export const jobTokenDispatchActor = "41898282";
 export const jobTokenDispatchTransport = "github-actions-job-v1";
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
-type Api = { request(method: string, endpoint: string, body?: unknown): IncludedResponse };
+type Api = WakeProvider;
 type DispatchRunExpectation = {
   run_id: string;
   revision: string;
@@ -81,7 +81,7 @@ export function inspectJobTokenDispatchRun(raw: unknown, expected: DispatchRunEx
  * response is retained BEFORE validation. There is never another dispatch POST
  * or a renewed deadline, including after unavailable/ambiguous responses. */
 export async function observeJobTokenDispatchRun(
-  api: Api,
+  api: Pick<Api, "run">,
   expected: DispatchRunExpectation,
   record: (phase: string, evidence: unknown) => Promise<void>,
   deadline: number,
@@ -96,22 +96,28 @@ export async function observeJobTokenDispatchRun(
   };
   for (let index = 1; index <= 4; index++) {
     active();
-    let response: IncludedResponse;
+    let response: WakeResponse | undefined;
     try {
-      response = api.request("GET", `${prefix}/actions/runs/${expected.run_id}`);
+      await api.run(expected.run_id, async (received) => {
+        if (response) throw new Error("duplicate acknowledged-run response");
+        response = received;
+        const oversized = Buffer.byteLength(JSON.stringify(received.body) ?? "null") > 64 * 1024;
+        await record("dispatch-run-readback", {
+          run_id: expected.run_id,
+          index,
+          status: received.status,
+          ...(oversized
+            ? { oversized: true, body_sha256: digest(received.body) }
+            : { body: received.body }),
+        });
+      });
+      if (!response) throw new Error("acknowledged run response evidence unavailable");
     } catch {
-      await record("dispatch-run-readback-unavailable", { run_id: expected.run_id, index });
+      if (!response)
+        await record("dispatch-run-readback-unavailable", { run_id: expected.run_id, index });
       throw new Error("acknowledged run readback unavailable; retain original run ID, no POST");
     }
     const oversized = Buffer.byteLength(JSON.stringify(response.body) ?? "null") > 64 * 1024;
-    await record("dispatch-run-readback", {
-      run_id: expected.run_id,
-      index,
-      status: response.status,
-      ...(oversized
-        ? { oversized: true, body_sha256: digest(response.body) }
-        : { body: response.body }),
-    });
     active();
     if (response.status !== 200 || oversized)
       throw new Error("acknowledged run readback unavailable or oversized; retain original run ID");
@@ -134,11 +140,6 @@ export async function observeJobTokenDispatchRun(
   throw new Error("dispatch readback exhausted");
 }
 
-function providerGet(api: Api, endpoint: string) {
-  const response = api.request("GET", endpoint);
-  if (response.status !== 200) throw new Error("wake provider readback unavailable");
-  return response.body;
-}
 function sourceBytes(raw: unknown, filename: string) {
   if (
     !isRecord(raw) ||
@@ -250,8 +251,8 @@ async function verifyWakeIntentUpload(
     !/^[a-f0-9]{64}$/u.test(item.sha256)
   )
     throw new Error("wake original immutable intent artifact missing");
-  const read = () => {
-    const raw = providerGet(api, `${prefix}/actions/artifacts/${item.id}`);
+  const read = async () => {
+    const raw = await api.artifact(item.id);
     if (
       !isRecord(raw) ||
       raw.id !== item.id ||
@@ -271,7 +272,7 @@ async function verifyWakeIntentUpload(
       throw new Error("wake intent artifact provider identity differs");
     return { id: item.id, bytes: raw.size_in_bytes, sha256: item.sha256 };
   };
-  const before = read();
+  const before = await read();
   const timeoutMs = Math.floor(
     Math.min(10000, options.deadline === undefined ? 10000 : options.deadline - performance.now()),
   );
@@ -313,7 +314,7 @@ async function verifyWakeIntentUpload(
     !(options.approved_configurations
       ? matchedConfiguration !== undefined
       : bytes.equals(Buffer.from(JSON.stringify(intent) + "\n"))) ||
-    digest(before) !== digest(read())
+    digest(before) !== digest(await read())
   )
     throw new Error("wake original durable intent changed");
   return matchedConfiguration;
@@ -335,7 +336,7 @@ export async function reconcilePreviousWakes(
     approved_configurations?: readonly ReturnType<typeof inspectControllerWakeConfiguration>[];
   } = {},
 ) {
-  const current = providerGet(api, `${prefix}/actions/runs/${environment.GITHUB_RUN_ID}`);
+  const current = await api.run(environment.GITHUB_RUN_ID!);
   if (
     !isRecord(current) ||
     String(current.id) !== environment.GITHUB_RUN_ID ||
@@ -354,12 +355,11 @@ export async function reconcilePreviousWakes(
   if (activation > end) throw new Error("wake activation starts after current run");
   const start = Math.max(activation, end - 7 * 86400000),
     lower = new Date(start).toISOString();
-  const route = `${prefix}/actions/workflows/application-update-wake.yml/runs?branch=main&created=${encodeURIComponent(`${lower}..${current.created_at}`)}&per_page=100`;
-  const collect = (endpoint: string) => {
+  const collect = async (workflow: WakeWorkflow, filters: Record<string, string>) => {
     const all: Record<string, unknown>[] = [];
     let total: number | undefined;
     for (let page = 1; page <= 10; page++) {
-      const body = providerGet(api, `${endpoint}&page=${page}`);
+      const body = await api.runs(workflow, filters, page);
       if (
         !isRecord(body) ||
         typeof body.total_count !== "number" ||
@@ -392,7 +392,10 @@ export async function reconcilePreviousWakes(
     }
     throw new Error("wake readback pagination budget exhausted");
   };
-  const runs = collect(route);
+  const runs = await collect("application-update-wake.yml", {
+    branch: "main",
+    created: `${lower}..${current.created_at}`,
+  });
   if (!runs.some((run) => run.id === current.id && run.run_number === current.run_number))
     throw new Error("wake inventory omitted its known current run");
   const previous = runs
@@ -410,19 +413,12 @@ export async function reconcilePreviousWakes(
     )
       throw new Error("prior wake is not positively terminal in the selected automatic boundary");
     if (
-      hash(
-        sourceBytes(
-          providerGet(api, `${prefix}/contents/${workflow}?ref=${run.head_sha}`),
-          workflow,
-        ),
-      ) !== config.wake_workflow_sha256
+      hash(sourceBytes(await api.file(workflow, run.head_sha), workflow)) !==
+      config.wake_workflow_sha256
     )
       throw new Error("prior wake source differs; reconcile activation history");
     if (run.conclusion === "success") {
-      const artifacts = providerGet(
-        api,
-        `${prefix}/actions/runs/${String(run.id)}/artifacts?per_page=100`,
-      );
+      const artifacts = await api.artifacts(String(run.id));
       if (
         !isRecord(artifacts) ||
         typeof artifacts.total_count !== "number" ||
@@ -483,10 +479,7 @@ export async function reconcilePreviousWakes(
       });
       return;
     }
-    const jobs = providerGet(
-      api,
-      `${prefix}/actions/runs/${String(run.id)}/attempts/1/jobs?per_page=100`,
-    );
+    const jobs = await api.jobs(String(run.id));
     if (
       !isRecord(jobs) ||
       jobs.total_count !== 1 ||
@@ -516,9 +509,11 @@ export async function reconcilePreviousWakes(
     }
     if (typeof run.created_at !== "string" || !Number.isFinite(Date.parse(run.created_at)))
       throw new Error("prior wake creation identity unavailable");
-    const production = collect(
-      `${prefix}/actions/workflows/application-update-production.yml/runs?event=workflow_dispatch&head_sha=${config.revision}&created=${encodeURIComponent(`>=${run.created_at}`)}&per_page=100`,
-    );
+    const production = await collect("application-update-production.yml", {
+      event: "workflow_dispatch",
+      head_sha: config.revision,
+      created: `>=${run.created_at}`,
+    });
     const approved = options.approved_configurations ?? [config];
     const matches = production.filter((item) =>
       approved.some(
@@ -530,7 +525,7 @@ export async function reconcilePreviousWakes(
     if (matches.length !== 1)
       throw new Error("prior wake dispatch remains missing or ambiguous; no later POST");
     const observed = inspectWakeControllerRun(
-      providerGet(api, `${prefix}/actions/runs/${String(matches[0]!.id)}`),
+      await api.run(String(matches[0]!.id)),
       approved.find(
         (config) =>
           matches[0]!.display_title ===
@@ -543,7 +538,15 @@ export async function reconcilePreviousWakes(
   }
   if (start > activation)
     throw new Error("wake history expired before a successful recovery boundary; no dispatch");
-  if (digest(runs) !== digest(collect(route)))
+  if (
+    digest(runs) !==
+    digest(
+      await collect("application-update-wake.yml", {
+        branch: "main",
+        created: `${lower}..${current.created_at}`,
+      }),
+    )
+  )
     throw new Error("wake history changed during reconciliation");
 }
 
@@ -642,18 +645,37 @@ export async function wakeRatifiedController(
         approved_configurations?: readonly ReturnType<typeof inspectControllerWakeConfiguration>[];
       },
 ) {
+  environment = { ...environment };
+  options =
+    options.mode === "dispatch"
+      ? { ...options, artifact: structuredClone(options.artifact) }
+      : { ...options };
+  if (options.approved_configurations)
+    options.approved_configurations = structuredClone(options.approved_configurations);
   let deadline = Math.min(performance.now() + 55000, options.deadline ?? Infinity);
   const active = () => {
     if (!Number.isFinite(deadline) || performance.now() >= deadline)
       throw new Error("wake phase deadline exhausted; retain actual effects");
   };
-  const request = api.request.bind(api);
+  const provider = api;
+  const read = async (operation: () => Promise<unknown>, retaining = false) => {
+    active();
+    const result = await operation();
+    if (!retaining) active();
+    return result;
+  };
   api = {
-    request(method, endpoint, body) {
+    repository: () => read(() => provider.repository()),
+    run: (id, retain) => read(() => provider.run(id, retain), retain !== undefined),
+    jobs: (id) => read(() => provider.jobs(id)),
+    ref: (name) => read(() => provider.ref(name)),
+    file: (filename, revision) => read(() => provider.file(filename, revision)),
+    runs: (workflow, filters, page) => read(() => provider.runs(workflow, filters, page)),
+    artifacts: (id) => read(() => provider.artifacts(id)),
+    artifact: (id) => read(() => provider.artifact(id)),
+    dispatch: (workflow, body, retain) => {
       active();
-      const response = request(method, endpoint, body);
-      if (method !== "POST") active();
-      return response;
+      return provider.dispatch(workflow, body, retain);
     },
   };
   const config = inspectControllerWakeConfiguration(raw);
@@ -678,15 +700,15 @@ export async function wakeRatifiedController(
     throw new Error("wake-up is outside its fixed automatic default-branch boundary");
   let requests = 0;
   const started = performance.now();
-  const get = (route: string) => {
+  const get = async (operation: () => Promise<unknown>) => {
     if (++requests > 12 || performance.now() - started > 55000)
       throw new Error("wake-up collection bound exhausted");
-    const response = api.request("GET", `${prefix}/${route}`.replace(/\/$/u, ""));
-    if (response.status !== 200 || performance.now() - started > 55000)
+    const result = await operation();
+    if (performance.now() - started > 55000)
       throw new Error("wake-up provider read unavailable or late");
-    return response.body;
+    return result;
   };
-  const identity = get("");
+  const identity = await get(() => api.repository());
   if (
     !isRecord(identity) ||
     identity.id !== 1354613114 ||
@@ -696,7 +718,7 @@ export async function wakeRatifiedController(
   )
     throw new Error("wake-up fixed public repository identity differs");
   if (config.schema_version === 4) {
-    const jobs = get(`actions/runs/${environment.GITHUB_RUN_ID}/attempts/1/jobs?per_page=100`);
+    const jobs = await get(() => api.jobs(environment.GITHUB_RUN_ID!));
     const job = isRecord(jobs) && Array.isArray(jobs.jobs) ? (jobs.jobs[0] as unknown) : null;
     if (
       !isRecord(jobs) ||
@@ -722,9 +744,9 @@ export async function wakeRatifiedController(
       performance.now() + Date.parse(job.started_at) + 55000 - Date.now(),
     );
   }
-  const readRefs = () => {
-    const current = get("git/ref/heads/main");
-    const controller = get(`git/ref/${config.execution_ref.slice(5)}`);
+  const readRefs = async () => {
+    const current = await get(() => api.ref("heads/main"));
+    const controller = await get(() => api.ref(config.execution_ref.slice(5)));
     if (
       !isRecord(current) ||
       current.ref !== "refs/heads/main" ||
@@ -739,8 +761,8 @@ export async function wakeRatifiedController(
     )
       throw new Error("wake-up source/controller ref changed or unsupported");
   };
-  readRefs();
-  const source = get(`contents/${productionControllerWorkflow}?ref=${config.revision}`);
+  await readRefs();
+  const source = await get(() => api.file(productionControllerWorkflow, config.revision));
   if (
     !isRecord(source) ||
     source.type !== "file" ||
@@ -765,13 +787,13 @@ export async function wakeRatifiedController(
   )
     throw new Error("wake-up controller source digest differs");
   if (
-    hash(sourceBytes(get(`contents/${workflow}?ref=${environment.GITHUB_SHA}`), workflow)) !==
+    hash(sourceBytes(await get(() => api.file(workflow, environment.GITHUB_SHA!)), workflow)) !==
     config.wake_workflow_sha256
   )
     throw new Error("automatic wake workflow bytes differ from selected setup");
-  readRefs();
+  await readRefs();
   const intent = dispatchIntent(config, environment.GITHUB_RUN_ID!, environment.GITHUB_SHA!);
-  const { endpoint, body } = intent;
+  const { body } = intent;
   await record("dispatch-intent", intent);
   if (options.mode === "prepare")
     return { authority: "none", decision: "intent-prepared-only" as const, intent };
@@ -782,13 +804,15 @@ export async function wakeRatifiedController(
     deadline,
   });
   await reconcilePreviousWakes(config, environment, api, record, { ...options, deadline });
-  readRefs();
+  await readRefs();
   if (performance.now() - started > 55000)
     throw new Error("wake-up deadline elapsed before dispatch; no POST");
   // No retry and no replacement destination after an ambiguous provider effect.
-  let response: IncludedResponse;
+  let response: WakeResponse;
   try {
-    response = api.request("POST", endpoint, body);
+    response = await api.dispatch("application-update-production.yml", body, async (received) => {
+      await record("dispatch-response", received);
+    });
   } catch {
     await record("dispatch-ambiguous-no-retry", { response: "unavailable" });
     throw new Error("wake-up dispatch requires controller-run readback; no retry");
@@ -811,21 +835,10 @@ export async function wakeRatifiedController(
     controller_run_id: runId,
     endpoint: response.body.run_url,
   });
-  // Only this acknowledged-run GET may return a late body for bounded retention.
-  // All other GETs retain the ordinary after-response deadline check above.
-  const acknowledgedEndpoint = `${prefix}/actions/runs/${runId}`;
-  const acknowledgedRunReader: Api = {
-    request(method, endpoint, body) {
-      if (method !== "GET" || endpoint !== acknowledgedEndpoint || body !== undefined)
-        throw new Error("fixed acknowledged-run GET required");
-      active();
-      return request("GET", acknowledgedEndpoint);
-    },
-  };
   const observed =
     config.schema_version === 4
       ? await observeJobTokenDispatchRun(
-          acknowledgedRunReader,
+          api,
           {
             run_id: runId,
             revision: config.revision,
@@ -835,7 +848,7 @@ export async function wakeRatifiedController(
           record,
           deadline,
         )
-      : providerGet(api, `${prefix}/actions/runs/${runId}`);
+      : await api.run(runId);
   inspectWakeControllerRun(observed, config, environment.GITHUB_RUN_ID!, runId);
   const result = {
     authority: "none",
@@ -917,9 +930,9 @@ export function selectControllerWakePurpose(
   }
   return configs[(runNumber - 1) % configs.length]!;
 }
-export function readWakePurposePriority(api: Api, namespace: string) {
-  const endpoint = `${prefix}/git/ref/heads/${namespace}-coordinator-state`;
-  const before = providerGet(api, endpoint);
+export async function readWakePurposePriority(api: Pick<Api, "ref" | "file">, namespace: string) {
+  const ref = `heads/${namespace}-coordinator-state`;
+  const before = await api.ref(ref);
   if (
     !isRecord(before) ||
     before.ref !== `refs/heads/${namespace}-coordinator-state` ||
@@ -929,11 +942,11 @@ export function readWakePurposePriority(api: Api, namespace: string) {
     !/^[a-f0-9]{40}$/u.test(before.object.sha)
   )
     throw new Error("wake journal routing ref unavailable");
-  const raw = providerGet(api, `${prefix}/contents/state.json?ref=${before.object.sha}`);
+  const raw = await api.file("state.json", before.object.sha);
   const bytes = sourceBytes(raw, "state.json");
   const state: unknown = JSON.parse(bytes.toString("utf8"));
   if (
-    digest(before) !== digest(providerGet(api, endpoint)) ||
+    digest(before) !== digest(await api.ref(ref)) ||
     !isRecord(state) ||
     state.schema_version !== 1 ||
     !isRecord(state.input)
@@ -992,20 +1005,17 @@ async function main() {
     0o600,
   );
   try {
+    const upperDeadline = performance.now() + 55000;
     let deadline = performance.now() + 10000;
-    const api = new GitHubApiClient((args, input) => {
-      const timeoutMs = Math.floor(Math.min(10000, deadline - performance.now()));
-      if (!Number.isFinite(timeoutMs) || timeoutMs < 1)
-        throw new Error("wake job budget exhausted");
-      return createGitHubRunner({ timeoutMs, maxBuffer: 2 * 1024 ** 2 })(
-        [...args, "--hostname", "github.com", "--header", "X-GitHub-Api-Version:2026-03-10"],
-        input,
-      );
+    const token = process.env.GH_TOKEN ?? "";
+    const api = await createWakeProvider({
+      token,
+      deadline: upperDeadline,
+      remainingDeadline: () => deadline,
+      maxBytes: 2 * 1024 ** 2,
+      apiVersion: "2026-03-10",
     });
-    const jobs = providerGet(
-      api,
-      `${prefix}/actions/runs/${process.env.GITHUB_RUN_ID}/attempts/1/jobs?per_page=100`,
-    );
+    const jobs = await api.jobs(process.env.GITHUB_RUN_ID!);
     if (
       !isRecord(jobs) ||
       jobs.total_count !== 1 ||
@@ -1023,16 +1033,16 @@ async function main() {
     const remaining = Date.parse(jobs.jobs[0].started_at) + 55000 - Date.now();
     if (!Number.isFinite(remaining) || remaining <= 0 || remaining > 55000)
       throw new Error("actual wake job original budget exhausted or future-dated");
-    deadline = performance.now() + remaining;
+    deadline = Math.min(upperDeadline, performance.now() + remaining);
     const choices = readControllerWakeChoicesFromEnvironment();
     const selectedFile = path.join(temp, "controller-wake-selected.json");
     let selected: ReturnType<typeof inspectControllerWakeConfiguration>;
     if (mode === "--prepare") {
-      const current = providerGet(api, `${prefix}/actions/runs/${process.env.GITHUB_RUN_ID}`);
+      const current = await api.run(process.env.GITHUB_RUN_ID);
       if (!isRecord(current) || String(current.id) !== process.env.GITHUB_RUN_ID)
         throw new Error("actual wake run number unavailable");
       const priority =
-        choices.length === 2 ? readWakePurposePriority(api, choices[0]!.namespace!) : null;
+        choices.length === 2 ? await readWakePurposePriority(api, choices[0]!.namespace!) : null;
       selected = selectControllerWakePurpose(choices, current.run_number, priority);
       requireJobTokenWakeConfiguration(selected);
       await writeFile(selectedFile, JSON.stringify(selected), { flag: "wx", mode: 0o600 });
