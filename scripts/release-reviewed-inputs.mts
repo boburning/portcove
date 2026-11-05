@@ -1,3 +1,4 @@
+import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
 import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
 import { requireStorageAppToken } from "./release-storage-credential.mts";
 import { spawnSync } from "node:child_process";
@@ -103,6 +104,7 @@ async function runOperation(
     producer: ReturnType<typeof inspectApplicationReviewProducerConfiguration>;
     selected?: Awaited<ReturnType<typeof requireSelectedProductionClassificationAuthorities>>;
     environment: NodeJS.ProcessEnv;
+    readerToken: string;
     deadline: number;
     observerSource?: ReturnType<typeof admitProductionClassificationObserver>;
   },
@@ -416,15 +418,21 @@ async function runOperation(
         token,
         expected,
         {
-          transport: productionObservation
+          transport: classification
             ? {
-                sdkToken: environment.GH_TOKEN ?? "",
-                deadline: originalDeadline ?? performance.now() + 120_000,
+                sdkToken: classification.readerToken,
+                requireDirect: true,
+                deadline: classification.deadline,
               }
-            : {
-                cwd: process.cwd(),
-                ...(originalDeadline === undefined ? {} : { deadline: originalDeadline }),
-              },
+            : productionObservation
+              ? {
+                  sdkToken: environment.GH_TOKEN ?? "",
+                  deadline: originalDeadline ?? performance.now() + 120_000,
+                }
+              : {
+                  cwd: process.cwd(),
+                  ...(originalDeadline === undefined ? {} : { deadline: originalDeadline }),
+                },
         },
         phase,
         productionObservation ? observerSource : undefined,
@@ -759,6 +767,7 @@ async function main() {
     return runOperation();
   }
   if (process.argv.length !== 3) throw new Error("fixed classification operation required");
+  const readerToken = fixedReleaseReaderToken();
   const { inspectApplicationReviewProducerConfiguration } =
     await import("./release-control-inputs.mts");
   const environment = { ...process.env };
@@ -787,7 +796,7 @@ async function main() {
   if (!namespace) throw new Error("classification namespace unavailable");
   const policy: unknown = JSON.parse(environment.PORTCOVE_CONTROLLER_ADMISSION ?? "null");
   if (!isRecord(policy)) throw new Error("ratified classification source unavailable");
-  const deadline = currentClassificationJobDeadline(
+  const deadline = await currentClassificationJobDeadline(
     role,
     {
       run_id: environment.GITHUB_RUN_ID ?? "",
@@ -795,8 +804,8 @@ async function main() {
       controller_revision: String(policy.revision),
       controller_ref: String(policy.execution_ref),
     },
-    process.cwd(),
     performance.now() + 115000,
+    readerToken,
   );
   const observerSource =
     role === "observer"
@@ -813,6 +822,7 @@ async function main() {
       producer,
       ...(selected ? { selected } : {}),
       environment,
+      readerToken,
       deadline,
       ...(observerSource ? { observerSource } : {}),
     }),
