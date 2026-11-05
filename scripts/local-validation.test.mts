@@ -4648,6 +4648,7 @@ void test("GitHub dependency changes select actual SDK and REST integration cont
     assert.ok(selected.nodeTests.has("scripts/github-client.test.mts"), file);
     assert.ok(selected.nodeTests.has("scripts/roadmap-rest-intake.test.mts"), file);
     for (const consumer of [
+      "scripts/application-release-budget.test.mts",
       "scripts/application-release-native.test.mts",
       "scripts/application-release-qualification.test.mts",
       "scripts/roadmap-sdk.test.mts",

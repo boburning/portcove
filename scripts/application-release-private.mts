@@ -356,7 +356,7 @@ async function guard(
   }
   const known = registered.runs.map((run) => run.id);
   assert.deepEqual(JSON.parse(process.env.PORTCOVE_KNOWN_RELEASE_RUNS ?? "null"), known);
-  const budget = readApplicationJobBudget(
+  const budget = await readApplicationJobBudget(
     known,
     source.purpose,
     source.execution_path ?? "ordinary",

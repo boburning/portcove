@@ -270,7 +270,7 @@ async function beforeSourceWrite(
   budgetContext?: ApplicationBudgetContext,
 ) {
   await beforeSourceRecord();
-  readApplicationJobBudget(
+  await readApplicationJobBudget(
     knownRunIds,
     process.argv[2] === "bootstrap"
       ? "metadata-bootstrap"

@@ -6,7 +6,6 @@ import {
   applicationNativeJobMinutes,
   readApplicationJobBudget,
 } from "./application-release-budget.mts";
-import type { GitHubRestReader, IncludedResponse } from "./github-api.mts";
 import { applicationApi } from "./application-release-io.mts";
 import {
   inspectApplicationRunCustody,
@@ -297,40 +296,36 @@ function runRow(id: number, title = `Application ${opportunity}`) {
     head_repository: { id: 1354613114 },
   };
 }
-function provider(pages: IncludedResponse[]): GitHubRestReader {
+function provider(pages: ReturnType<typeof page>[]) {
   let index = 0;
   return {
-    request(_method, endpoint) {
-      if (endpoint.endsWith("/actions/workflows/application-release.yml"))
-        return {
-          status: 200,
-          headers: new Map(),
-          body: { id: 7, path: ".github/workflows/application-release.yml" },
-        };
+    async workflow() {
+      return { id: 7, path: ".github/workflows/application-release.yml" };
+    },
+    async runs() {
       const value = pages[index++];
       assert.ok(value, "unexpected provider request");
       return value;
     },
   };
 }
-const page = (rows: unknown[], total = rows.length, next?: string): IncludedResponse => ({
-  status: 200,
-  headers: new Map(next ? [["link", `<${next}>; rel="next"`]] : []),
+const page = (rows: unknown[] | null, total = rows?.length ?? 0, next: string | null = null) => ({
+  next,
   body: { total_count: total, workflow_runs: rows },
 });
 const alias =
   "https://api.github.com/repositories/1354613114/actions/workflows/7/runs?event=workflow_dispatch&per_page=100&page=2";
 
-void test("opportunity traversal covers empty, single and numeric-alias multi-page histories", () => {
-  assert.deepEqual(readApplicationOpportunityRuns(provider([page([])]), opportunity), []);
+void test("opportunity traversal covers empty, single and numeric-alias multi-page histories", async () => {
+  assert.deepEqual(await readApplicationOpportunityRuns(provider([page([])]), opportunity), []);
   assert.equal(
-    readApplicationOpportunityRuns(provider([page([runRow(1)])]), opportunity).length,
+    (await readApplicationOpportunityRuns(provider([page([runRow(1)])]), opportunity)).length,
     1,
   );
   const unrelated = Array.from({ length: 100 }, (_, index) =>
     runRow(index + 1, "ordinary qualification"),
   );
-  const observed = readApplicationOpportunityRuns(
+  const observed = await readApplicationOpportunityRuns(
     provider([page(unrelated, 101, alias), page([runRow(101)], 101)]),
     opportunity,
   );
@@ -338,7 +333,7 @@ void test("opportunity traversal covers empty, single and numeric-alias multi-pa
   assert.equal(observed[0]?.id, 101);
 });
 
-void test("automatic wake title is counted in the same opportunity as manual production", () => {
+void test("automatic wake title is counted in the same opportunity as manual production", async () => {
   const title = `Application ${opportunity} wake 42`;
   const rows = [
     runRow(1),
@@ -347,12 +342,14 @@ void test("automatic wake title is counted in the same opportunity as manual pro
     runRow(4, `Application ${opportunity} wake 042`),
   ];
   assert.deepEqual(
-    readApplicationOpportunityRuns(provider([page(rows)]), opportunity).map((run) => run.id),
+    (await readApplicationOpportunityRuns(provider([page(rows)]), opportunity)).map(
+      (run) => run.id,
+    ),
     [1, 2],
   );
 });
 
-void test("incomplete, stalled, duplicate, foreign, changing or capped histories cannot reset a release budget", () => {
+void test("incomplete, stalled, duplicate, foreign, changing or capped histories cannot reset a release budget", async () => {
   const initial = Array.from({ length: 100 }, (_, index) => runRow(index + 1));
   for (const pages of [
     [page([], 1000)],
@@ -368,9 +365,9 @@ void test("incomplete, stalled, duplicate, foreign, changing or capped histories
       ),
     ],
     [page([{ ...runRow(1), repository: { id: 1 } }])],
-    [{ status: 200, headers: new Map(), body: { total_count: 1, workflow_runs: null } }],
+    [page(null, 1)],
   ])
-    assert.throws(() => readApplicationOpportunityRuns(provider(pages), opportunity));
+    await assert.rejects(readApplicationOpportunityRuns(provider(pages), opportunity));
 });
 
 void test("forward metadata maintenance counts original executions, refuses missing parent history and keeps the shared cap and attempts", async (t) => {
@@ -386,6 +383,7 @@ void test("forward metadata maintenance counts original executions, refuses miss
   const ref = "refs/tags/portcove-production-controller-windows-fixture";
   const workflow = sha256(await readFile(".github/workflows/application-release.yml"));
   const environment = {
+    GH_TOKEN: "synthetic-budget-reader",
     PORTCOVE_APPLICATION_RELEASE_REVISION: source,
     PORTCOVE_APPLICATION_RELEASE_REF: ref,
     PORTCOVE_APPLICATION_RELEASE_OPPORTUNITY: child,
@@ -471,7 +469,18 @@ void test("forward metadata maintenance counts original executions, refuses miss
         target_commitish: source,
         body: `<!-- portcove-application-runs-v1\n${JSON.stringify(ownerState)}\n-->`,
       };
-    else if (suffix === "actions/workflows/application-release.yml")
+    else throw new Error(`unexpected legacy request: ${suffix}`);
+    return { status: 200, headers: new Map<string, string>(), body };
+  });
+  t.mock.method(globalThis, "fetch", async (input: unknown, init: RequestInit) => {
+    assert.ok(typeof input === "string");
+    const url = new URL(input);
+    assert.equal(url.origin, "https://api.github.com");
+    assert.equal(init.method, "GET");
+    assert.equal(new Headers(init.headers).get("authorization"), "token synthetic-budget-reader");
+    const suffix = (url.pathname + url.search).replace(/^\/repos\/boburning\/portcove\//u, "");
+    let body: unknown;
+    if (suffix === "actions/workflows/application-release.yml")
       body = { id: 7, path: ".github/workflows/application-release.yml" };
     else if (
       suffix ===
@@ -494,7 +503,19 @@ void test("forward metadata maintenance counts original executions, refuses miss
         });
       if (mode === "pending-member")
         rows.push({ ...runRow(125, `Application ${child}`), status: "completed", run_attempt: 1 });
+      if (mode === "multipage") {
+        const fullPage = [
+          ...rows,
+          ...Array.from({ length: 98 }, (_, index) => runRow(1000 + index, "unrelated")),
+        ];
+        return Response.json(
+          { total_count: 101, workflow_runs: fullPage },
+          { headers: { link: `<${alias}>; rel="next"` } },
+        );
+      }
       body = { total_count: rows.length, workflow_runs: rows };
+    } else if (mode === "multipage" && url.href === alias) {
+      body = { total_count: 101, workflow_runs: [runRow(1100, "unrelated")] };
     } else {
       const match =
         /^actions\/runs\/(123|124|125)\/attempts\/([1-3])(\/jobs\?per_page=100)?$/u.exec(suffix);
@@ -522,19 +543,22 @@ void test("forward metadata maintenance counts original executions, refuses miss
             : [job("native / execute", 0, 1800)],
         );
     }
-    return { status: 200, headers: new Map<string, string>(), body };
+    return Response.json(body);
   });
   const inspect = () =>
     readApplicationJobBudget(["124"], "metadata-renewal", "metadata-maintenance", {
       release_id: 11,
       custody: member,
     });
-  const result = inspect();
+  const result = await inspect();
   assert.equal(result.actual_milliseconds, 1800000);
   assert.equal(result.remaining_declared_minutes, 66);
   assert.equal(result.attempts, 2);
   assert.equal(result.maximum_minutes, 140);
   assert.deepEqual(new Set(result.opportunities), new Set([child, parent]));
+  mode = "multipage";
+  assert.deepEqual(await inspect(), result);
+  mode = "valid";
   const roleSource = {
     purpose: "metadata-renewal",
     execution_path: "metadata-maintenance",
@@ -559,7 +583,7 @@ void test("forward metadata maintenance counts original executions, refuses miss
     budget: { kind: "owner", scopes: [{ opportunity: child, run_ids: ["124", "125"] }] },
   });
   mode = "pending-member";
-  const pendingMember = inspect();
+  const pendingMember = await inspect();
   assert.equal(
     pendingMember.actual_milliseconds,
     1920000,
@@ -567,24 +591,24 @@ void test("forward metadata maintenance counts original executions, refuses miss
   );
   assert.equal(pendingMember.attempts, 3);
   mode = "valid";
-  assert.throws(
+  await assert.rejects(
     inspect,
     /recorded related execution missing/u,
     "pending cost IDs remain mandatory even before member registration completes",
   );
   ownerState = owner;
   mode = "missing";
-  assert.throws(inspect, /recorded related execution missing/u);
+  await assert.rejects(inspect, /recorded related execution missing/u);
   await assert.rejects(roleGuard, /recorded related execution missing/u);
   mode = "over-cap";
-  assert.throws(inspect, /exceed application140/u);
+  await assert.rejects(inspect, /exceed application140/u);
   await assert.rejects(roleGuard, /exceed application140/u);
   mode = "attempts";
-  assert.throws(inspect, /exhausted its bounded attempts/u);
+  await assert.rejects(inspect, /exhausted its bounded attempts/u);
   mode = "queued";
-  assert.throws(inspect, /pending related release execution/u);
+  await assert.rejects(inspect, /pending related release execution/u);
   mode = "newer-active";
-  assert.throws(inspect, /another related release execution is still active/u);
+  await assert.rejects(inspect, /another related release execution is still active/u);
   const { budget: omittedBudget, ...legacyOwner } = owner;
   assert.ok(omittedBudget);
   ownerState = inspectApplicationRunCustody({ ...legacyOwner, schema_version: 1 });
@@ -598,7 +622,7 @@ void test("forward metadata maintenance counts original executions, refuses miss
   );
   assert.equal(recordWrites, 1);
   assert.equal(ownerState.budget?.kind, "owner");
-  assert.throws(inspect, /exceed application140/u);
+  await assert.rejects(inspect, /exceed application140/u);
   assert.ok(
     ownerState.budget?.kind === "owner" &&
       ownerState.budget.scopes.some(
