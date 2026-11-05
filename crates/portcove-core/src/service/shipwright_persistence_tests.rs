@@ -15,23 +15,40 @@ fn register(
     id: &str,
     active: bool,
 ) -> InstallRecord {
+    register_release(
+        library,
+        qualification,
+        id,
+        active,
+        "9.3.1",
+        crate::ArtifactIdentity {
+            asset_name: "SoH-Dewey-Bravo-Win64.zip".into(),
+            sha256: OFFICIAL_SHA256.into(),
+            size: 72_980_600,
+        },
+    )
+}
+
+fn register_release(
+    library: &Library,
+    qualification: &InstallQualification,
+    id: &str,
+    active: bool,
+    version: &str,
+    artifact: crate::ArtifactIdentity,
+) -> InstallRecord {
     let root = library.versions_dir().join(PORT).join(id);
     fs::create_dir_all(&root).unwrap();
     fs::write(root.join("soh.exe"), b"inert executable, never run").unwrap();
     fs::write(root.join("engine.dll"), b"immutable fixture engine").unwrap();
-    let artifact = crate::ArtifactIdentity {
-        asset_name: "SoH-Dewey-Bravo-Win64.zip".into(),
-        sha256: OFFICIAL_SHA256.into(),
-        size: 72_980_600,
-    };
     let (manifest_sha256, selected_executable, runtime) = Installer::new(library.clone())
         .unwrap()
-        .create_manifest(id, PORT, "9.3.1", &artifact, qualification, &root)
+        .create_manifest(id, PORT, version, &artifact, qualification, &root)
         .unwrap();
     let install = InstallRecord {
         id: id.into(),
         port_id: PORT.into(),
-        version: "9.3.1".into(),
+        version: version.into(),
         path: root,
         channel: ReleaseChannel::Stable,
         installed_at: 1,
@@ -61,6 +78,7 @@ fn fixture() -> (
     old_port.source_profile = None;
     old_port.presentation = None;
     old_port.game_settings = None;
+    old_port.windows_shipwright_persistence = false;
     old_port.persistent_paths.retain(|path| path != "Save");
     let qualification =
         crate::test_fixture::retained_qualification(&old_port, Platform::WindowsX86_64).unwrap();
@@ -76,6 +94,135 @@ fn fixture() -> (
         Catalog::from_json(&serde_json::to_string(&current).unwrap()).unwrap(),
     );
     (temporary, service, active, qualification)
+}
+
+#[test]
+fn shipwright_declared_mirrors_keep_data_across_artifacts_and_hold_historical_direct_mode() {
+    let (_temporary, mut service, _, historical) = fixture();
+    let old_artifact = crate::ArtifactIdentity {
+        asset_name: "SoH-Dewey-Alpha-Win64.zip".into(),
+        sha256: "a".repeat(64),
+        size: 72_814_046,
+    };
+    let old = register_release(
+        &service.library,
+        &historical,
+        "historical",
+        true,
+        "9.3.0",
+        old_artifact.clone(),
+    );
+    let mut port = service.installed_port(&old).unwrap();
+    assert!(
+        service
+            .persistence_contract_for_install(&old)
+            .unwrap()
+            .writes_directly
+    );
+    port.windows_shipwright_persistence = true;
+    let current = Catalog::from_json(
+        &serde_json::json!({"schema_version":1,"ports":[port.clone()]}).to_string(),
+    )
+    .unwrap();
+    service.replace_catalog_for_test(current);
+    assert!(
+        service
+            .persistence_contract_for_install(&old)
+            .unwrap()
+            .writes_directly
+    );
+    game_write(&old, b"historical data needs review");
+    assert!(service.require_portable_transition(&old, &port).is_err());
+    assert_eq!(
+        fs::read(old.path.join("Save/file1.sav")).unwrap(),
+        b"historical data needs review"
+    );
+
+    let admitted =
+        InstallQualification::from_catalog(&service.catalog, PORT, Platform::WindowsX86_64)
+            .unwrap();
+    let first = register_release(
+        &service.library,
+        &admitted,
+        "admitted-old",
+        true,
+        "9.3.0",
+        crate::ArtifactIdentity {
+            sha256: "c".repeat(64),
+            ..old_artifact
+        },
+    );
+    let next = register_release(
+        &service.library,
+        &admitted,
+        "admitted-next",
+        false,
+        "9.4.0",
+        crate::ArtifactIdentity {
+            asset_name: "SoH-Next-Win64.zip".into(),
+            sha256: "b".repeat(64),
+            size: 72_900_000,
+        },
+    );
+    assert!(
+        !service
+            .persistence_contract_for_install(&first)
+            .unwrap()
+            .writes_directly
+    );
+    assert!(
+        !service
+            .persistence_contract_for_install(&next)
+            .unwrap()
+            .writes_directly
+    );
+    assert!(
+        service
+            .require_portable_target_transition(&first, &old)
+            .is_err()
+    );
+    game_write(&first, b"portable data");
+    let config = br#"{"settings":37,"unknown":[true,42]}"#;
+    fs::write(first.path.join("shipofharkinian.json"), config).unwrap();
+    assert_eq!(service.activate_staged(PORT).unwrap().id, next.id);
+    assert_eq!(
+        fs::read(next.path.join("shipofharkinian.json")).unwrap(),
+        config
+    );
+    assert_eq!(
+        fs::read(next.path.join("Save/file1.sav")).unwrap(),
+        b"portable data"
+    );
+    let verification = service.verify(PORT).unwrap();
+    assert_eq!(verification.install_id, next.id);
+    assert!(
+        verification.valid && verification.checked_files > 0 && verification.failures.is_empty()
+    );
+    assert_eq!(service.rollback(PORT).unwrap().id, first.id);
+    assert_eq!(
+        fs::read(first.path.join("shipofharkinian.json")).unwrap(),
+        config
+    );
+}
+
+#[test]
+fn shipwright_working_directory_contract_refuses_an_unreviewed_major_or_variant() {
+    let catalog = Catalog::embedded().unwrap();
+    let port = catalog.port(PORT).unwrap();
+    let check = |version, channel, asset| {
+        crate::installed_mutability::require_shipwright_release(
+            port,
+            Platform::WindowsX86_64,
+            version,
+            channel,
+            asset,
+        )
+    };
+    assert!(check("9.7.4", ReleaseChannel::Stable, "SoH-Future-Win64.zip").is_ok());
+    assert!(check("10.0.0", ReleaseChannel::Stable, "SoH-Future-Win64.zip").is_err());
+    assert!(check("9.7.4", ReleaseChannel::Stable, "SoH-Future-Installer.zip").is_err());
+    assert!(check("9.7.4-rc1", ReleaseChannel::Stable, "SoH-Future-Win64.zip").is_err());
+    assert!(check("9.7.4", ReleaseChannel::Beta, "SoH-Future-Win64.zip").is_err());
 }
 
 fn game_write(install: &InstallRecord, contents: &[u8]) {

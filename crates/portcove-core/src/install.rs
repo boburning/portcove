@@ -921,7 +921,20 @@ impl Installer {
             )?;
         }
         let port = catalog.port(&request.port_id)?;
-        if request.activate && crate::persistence::requires_restore_receipt(port) {
+        crate::installed_mutability::require_shipwright_release(
+            port,
+            request.qualification.platform,
+            &request.release.version,
+            request.release.channel,
+            &request.release.asset.name,
+        )?;
+        if request.activate
+            && (crate::persistence::requires_restore_receipt(port)
+                || crate::installed_mutability::declared_shipwright_persistence(
+                    port,
+                    request.qualification.platform,
+                ))
+        {
             return Err(PortcoveError::unsupported(
                 "Managed installation requires player-data preflight before activation. Install inactive, then activate through Core; the previous installation is preserved.",
             ));

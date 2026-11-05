@@ -3610,7 +3610,25 @@ backup creation, launch preparation, activation, rollback and removal collect
 launched working data before replacing or removing it. An existing non-directory
 `Save` root on either side holds the operation without overwriting it. Ordinary
 changed regular save bytes retain normal synchronization and safety-backup rules.
-This bounded compatibility repair does not qualify another release or platform.
+That exact exception continues to read historical manifests. New official
+Shipwright stable Windows 9.x portable ZIP installations retain
+`windows_shipwright_persistence` and use the same checked working-directory
+mirrors for settings and saves. The retained declaration applies only to the
+Windows route. Core validates the stable release and portable asset family
+before acquisition, stages before activation, and refuses overlaps with
+immutable archive members or incompatible data paths. The launch working
+directory and `SHIP_HOME` agree for this route. Independent definitions require
+Libultraship template capability version 3. Existing direct-storage installs
+retain their creating contracts. A transition between different storage modes
+holds the current installation for supported data migration.
+
+The stable Windows rule reflects the upstream portable setup and same-folder
+upgrade contract and the measured 9.3.0 and 9.3.1 working-directory behavior.
+Core retains the exact archive identity for every install. Another major,
+preview build or nonportable package requires separate data review. Mirroring
+randomizer files preserves bytes. Upstream does not guarantee that older seeds
+run on a newer build. [Windows setup](https://www.shipofharkinian.com/setup-guide/windows)
+and [upstream upgrade guide](https://www.shipofharkinian.com/setup-guide/update).
 
 ZIP readers bound metadata before constructing the parser: cartridge sources allow 1 GiB, 4,096 entries and 16 MiB of metadata; file-set ZIPs allow 2 GiB with the same entry and metadata limits; artifacts allow 8 GiB, 100,000 entries and 128 MiB of metadata; runtime archives allow 64 GiB, 4,096 entries and 16 MiB of metadata. A bounded immutable metadata window gates the pinned ZIP parser, including ZIP64 extension allocation. Selected source ZIPs use private temporary snapshots for payload and identity reads. Discovery can reject incomplete member inventories before creating a full snapshot. Direct file sets bound each selected member to 512 MiB and aggregate reads to 2 GiB. Preparation checkpoints reach every verification pass; cancellation retains worker ownership until reads and decoders stop.
 

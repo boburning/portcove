@@ -2670,6 +2670,12 @@ impl PortcoveService {
         catalog: &Catalog,
         port: &PortDefinition,
     ) -> Result<()> {
+        if crate::installed_mutability::declared_shipwright_persistence(port, Platform::current()?)
+        {
+            return Err(PortcoveError::unsupported(
+                "Shipwright Windows persistence requires the official managed package. A local copy needs its own external execution review.",
+            ));
+        }
         if port.archive_data_compatibility_v1.is_some() {
             return Err(PortcoveError::unsupported(
                 "partitioned managed data requires the official provider-selected installation; registering an external copy grants no replacement or migration rights",
@@ -3174,6 +3180,13 @@ impl PortcoveService {
             &output_location.effective_output_directory,
         )?;
         let release = resolution.release.clone();
+        crate::installed_mutability::require_shipwright_release(
+            port,
+            Platform::current()?,
+            &release.version,
+            release.channel,
+            &release.asset.name,
+        )?;
         let shared_root = if port.managed_shared_preferences.is_some() {
             self.shared_preferences_install_root(
                 port,
@@ -3333,7 +3346,8 @@ impl PortcoveService {
             )
             .await?;
         let staged_activation = port.adapter == AdapterKind::NativePortable
-            || crate::persistence::requires_restore_receipt(port);
+            || crate::persistence::requires_restore_receipt(port)
+            || crate::installed_mutability::declared_shipwright_persistence(port, platform);
         let installed = Installer::with_faults(self.library.clone(), self.faults.clone())?
             .install_acquired(
                 InstallRequest {
@@ -5866,6 +5880,7 @@ impl PortcoveService {
                         || current.archive_data_compatibility_v1.is_some()
                         || current.managed_shared_preferences.is_some()
                         || current.n64_runtime_at_executable_parent
+                        || (cfg!(windows) && current.windows_shipwright_persistence)
                 }) {
                     return Err(PortcoveError::verification(
                         "legacy installation cannot inherit today's runtime-coordinate, credential or shared-preferences policy; retain its original route or review a fresh managed installation",

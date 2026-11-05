@@ -13135,6 +13135,7 @@
         "macos-aarch64"
       ],
       "adapter": "libultraship-portable",
+      "windows_shipwright_persistence": true,
       "automated_tested_platforms": [
         "windows-x86-64"
       ],

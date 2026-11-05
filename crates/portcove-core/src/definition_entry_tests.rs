@@ -63,6 +63,25 @@ fn libultraship_windows_paths_require_the_owning_v2_template() {
 }
 
 #[test]
+fn shipwright_working_directory_persistence_requires_the_v3_reader() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let mut port = catalog.port("shipwright").unwrap().clone();
+    port.source_profile = None;
+    port.presentation = None;
+    let mut entry = entry_for_port(&port);
+    entry["required_capabilities"] =
+        json!([{"template":"libultraship-portable","minimum_version":2,"maximum_version":3}]);
+    assert!(
+        inspect(&entry)
+            .unwrap_err()
+            .message
+            .contains("capability version 3")
+    );
+    entry["required_capabilities"][0]["minimum_version"] = json!(3);
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+}
+
+#[test]
 fn native_ascii_paths_require_version7_instead_of_silently_using_an_older_reader() {
     let catalog = crate::Catalog::embedded().unwrap();
     let mut port = catalog.port("opentyrian-opentyrian").unwrap().clone();
