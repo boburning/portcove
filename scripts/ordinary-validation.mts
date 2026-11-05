@@ -263,7 +263,10 @@ for (const [file, tests] of [
     "scripts/release-run-evidence.mts",
     ["scripts/release-run-evidence.test.mts", "scripts/release-artifact-archive.test.mts"],
   ],
-  ["scripts/release-artifact-assembly.mts", ["scripts/release-artifact-archive.test.mts"]],
+  [
+    "scripts/release-artifact-assembly.mts",
+    ["scripts/release-artifact-archive.test.mts", "scripts/acquire-release-admission.test.mts"],
+  ],
   ...[
     "scripts/lock-maintenance-policy.mts",
     "scripts/lock-maintenance-registry.mts",

@@ -42,7 +42,10 @@ import {
   inspectReleaseProfile,
   selectReleasePackagePolicy,
 } from "./release-package-policy.mts";
-import { readGitHubArtifactArchive } from "./github-binary.mts";
+import type { readGitHubArtifactArchive } from "./github-binary.mts";
+import { acquirePackageArchive } from "./release-artifact-assembly.mts";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
+import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
 import { discoverReleaseArtifactFiles } from "./release-artifact-archive.mts";
 import { inspectTrustedAssemblyInput } from "./trusted-release-assembly.mts";
 import {
@@ -677,6 +680,14 @@ export async function acquireReleaseAdmission(
         },
       };
     };
+    const archiveLookup = () => ({
+      deadline: Math.min(admissionDeadline, performance.now() + 120000 - apiMilliseconds),
+      reserve: reserveProviderRequest,
+      elapsed(milliseconds: number) {
+        apiMilliseconds += milliseconds;
+      },
+    });
+    const scoped = readOnlyReleaseChildEnvironment() !== undefined;
     const collectEvidence = async () => {
       if (options.api && !options.collectEvidence)
         return collectReleaseRunEvidence(evidenceRequest, {
@@ -807,10 +818,22 @@ export async function acquireReleaseAdmission(
     for (const archive of archives) {
       if (performance.now() - started > 15 * 60 * 1000)
         throw new Error("admission archive acquisition deadline exhausted");
-      const bytes = (options.download ?? readGitHubArtifactArchive)(
-        `${base}/actions/artifacts/${archive.artifact_id}/zip`,
-        { cwd: root, maxBytes: archive.bytes, timeoutMs: 120000 },
-      );
+      const endpoint = `${base}/actions/artifacts/${archive.artifact_id}/zip`;
+      const bytes = options.download
+        ? options.download(endpoint, { cwd: root, maxBytes: archive.bytes, timeoutMs: 120000 })
+        : await acquirePackageArchive(
+            root,
+            endpoint,
+            archive,
+            evidenceCredential!,
+            Math.min(
+              admissionDeadline,
+              coordinatorCommandDeadline() ?? Infinity,
+              performance.now() + 120000,
+            ),
+            { lookup: archiveLookup() },
+            scoped,
+          );
       const discovered = await discoverReleaseArtifactFiles(
         bytes,
         { bytes: archive.bytes, sha256: archive.sha256 },
@@ -846,13 +869,7 @@ export async function acquireReleaseAdmission(
           download: options.download,
           credential: evidenceCredential,
           deadline: admissionDeadline,
-          lookup: () => ({
-            deadline: Math.min(admissionDeadline, performance.now() + 120000 - apiMilliseconds),
-            reserve: reserveProviderRequest,
-            elapsed(milliseconds) {
-              apiMilliseconds += milliseconds;
-            },
-          }),
+          lookup: archiveLookup,
         })
       : null;
     if (isInitialBetaReleaseProfile(config.release_profile) && !publicBinding)
@@ -914,13 +931,7 @@ export async function acquireReleaseAdmission(
       preparedNamespace: config.namespace,
       deadline: admissionDeadline,
       ...(evidenceCredential ? { credential: evidenceCredential } : {}),
-      lookup: {
-        deadline: Math.min(admissionDeadline, performance.now() + 120000 - apiMilliseconds),
-        reserve: reserveProviderRequest,
-        elapsed(milliseconds) {
-          apiMilliseconds += milliseconds;
-        },
-      },
+      lookup: archiveLookup(),
       maximumArchiveBytes: Math.min(
         512 * 1024 * 1024,
         2 * 1024 * 1024 * 1024 -
