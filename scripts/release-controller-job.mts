@@ -137,15 +137,15 @@ export async function runFixedControllerJob(rawRole: unknown, phaseDeadline?: nu
   const configuration: unknown = JSON.parse(bytes.toString("utf8"));
   let result: unknown;
   if (role === "building") {
-    const { currentBuildingJobDeadline } = await import("./release-signing-job-budget.mts");
-    const deadline = currentBuildingJobDeadline(
+    const { currentControllerJobDeadline } = await import("./release-signing-job-budget.mts");
+    const deadline = await currentControllerJobDeadline(
+      role,
       {
         run_id: environment.GITHUB_RUN_ID ?? "",
         run_attempt: 1,
         controller_revision: environment.GITHUB_SHA ?? "",
         controller_ref: environment.GITHUB_REF ?? "",
       },
-      root,
       Math.min(performance.now() + 525000, phaseDeadline ?? Infinity),
     );
     const worker = await import("./release-admitted-aggregate-controller.mts");
