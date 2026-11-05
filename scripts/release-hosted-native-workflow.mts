@@ -86,10 +86,9 @@ async function context(selected: Stage, platform: WorkflowPlatform = "linux-x86_
     ? await (
         await import("./release-signing-job-budget.mts")
       ).currentWindowsNativeJobDeadline(scope.identity, ceiling, scope.source, scope.workflow)
-    : currentNativeJobDeadline(
+    : await currentNativeJobDeadline(
         platform,
         scope.identity,
-        repository,
         ceiling,
         scope.source,
         scope.workflow,

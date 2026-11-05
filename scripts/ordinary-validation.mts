@@ -528,6 +528,7 @@ for (const [file, tests] of [
     [
       "scripts/release-tuf-controller.test.mts",
       "scripts/production-controller-admission.test.mts",
+      "scripts/release-hosted-native-runner.test.mts",
       "scripts/release-hosted-native-windows-bootstrap.test.mts",
       "scripts/release-hosted-native-windows-workflow.test.mts",
     ],

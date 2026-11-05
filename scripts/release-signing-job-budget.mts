@@ -316,24 +316,18 @@ export function nativeOriginalJobDeadline(platform: unknown, ...args: BudgetArgu
 export function currentNativeJobDeadline(
   platform: unknown,
   identity: JobIdentity,
-  root: string,
   processDeadline: number,
   source: unknown,
   workflowBytes: Uint8Array,
 ) {
+  const original = { ...identity };
   const maximum = admittedNativeProviderMaximumMilliseconds(
     platform,
     source,
     workflowBytes,
-    identity,
+    original,
   );
-  return currentSigningJobDeadline(
-    nativeClockRole(platform),
-    identity,
-    root,
-    processDeadline,
-    maximum,
-  );
+  return currentSdkJobDeadline(nativeClockRole(platform), original, processDeadline, maximum);
 }
 /** Windows pre-tool readers already run from the frozen dependency checkout. */
 export function currentWindowsNativeJobDeadline(
@@ -342,13 +336,13 @@ export function currentWindowsNativeJobDeadline(
   source: unknown,
   workflowBytes: Uint8Array,
 ) {
-  const maximum = admittedNativeProviderMaximumMilliseconds(
+  return currentNativeJobDeadline(
     "windows-x86_64",
+    identity,
+    processDeadline,
     source,
     workflowBytes,
-    identity,
   );
-  return currentSdkJobDeadline("native-windows", identity, processDeadline, maximum);
 }
 /** One original shared observer allocation; individual phases cannot renew it. */
 export function sharedProtectionOriginalJobDeadline(...args: BudgetArguments) {

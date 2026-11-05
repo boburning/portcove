@@ -2108,10 +2108,8 @@ void test("native provider allocation comes only from the original branded workf
   const {
     admittedNativeProviderMaximumMilliseconds: maximum,
     nativeOriginalJobDeadline,
-    currentWindowsNativeJobDeadline,
+    currentNativeJobDeadline,
   } = await import("./release-signing-job-budget.mts");
-  const { stripTypeScriptTypes } = await import("node:module"),
-    { runInNewContext } = await import("node:vm");
   const currentIdentity = {
     run_id: "987654",
     run_attempt: 1,
@@ -2145,7 +2143,6 @@ void test("native provider allocation comes only from the original branded workf
       ),
     };
   };
-  const windows = fixture("windows-x86_64", 10);
   const prior = new Map<string, string | undefined>();
   for (const [key, value] of Object.entries({
     GITHUB_RUN_ID: currentIdentity.run_id,
@@ -2163,6 +2160,12 @@ void test("native provider allocation comes only from the original branded workf
       else process.env[key] = value;
     }
   });
+  const providerStarted = Date.parse("2026-10-28T11:59:50Z");
+  let observedNow = providerStarted + 10000;
+  const mono = 1000;
+  t.mock.method(Date, "now", () => observedNow);
+  t.mock.method(performance, "now", () => mono);
+  let selected: "linux-x86_64" | "windows-x86_64" = "linux-x86_64";
   let dispatches = 0;
   t.mock.method(globalThis, "fetch", async (input: string | URL | Request, init?: RequestInit) => {
     dispatches++;
@@ -2179,106 +2182,44 @@ void test("native provider allocation comes only from the original branded workf
       jobs: [
         {
           id: 1,
-          name: hostedNativeJobProfile("windows-x86_64").job,
+          name: hostedNativeJobProfile(selected).job,
           run_id: 987654,
           run_attempt: 1,
           head_sha: policy.revision,
           status: "in_progress",
-          started_at: new Date(Date.now() - 1000).toISOString(),
+          started_at: new Date(providerStarted).toISOString(),
         },
       ],
     });
   });
-  const cap = performance.now() + 10000;
-  assert.equal(
-    await currentWindowsNativeJobDeadline(currentIdentity, cap, windows.source, windows.bytes),
-    cap,
-  );
-  assert.equal(dispatches, 1);
-  const moduleText = await readFile(
-      new URL("./release-signing-job-budget.mts", import.meta.url),
-      "utf8",
-    ),
-    functions =
-      moduleText.slice(
-        moduleText.indexOf("function signingOriginalJobDeadline("),
-        moduleText.indexOf("export function tufOriginalJobDeadline("),
-      ) +
-      moduleText.slice(
-        moduleText.indexOf("function nativeClockRole("),
-        moduleText.indexOf("/** One original shared observer allocation"),
-      ),
-    program = stripTypeScriptTypes(
-      functions.replace(/^export /gmu, "") +
-        "\ncurrentNativeJobDeadline(selectedPlatform,identity,'fixed',processDeadline,receipt,workflowBytes)",
-      { mode: "strip" },
-    );
   for (const platform of ["linux-x86_64", "windows-x86_64"] as const) {
     const job = productionHostedNativeJob(platform, "payload-signing");
     for (const minutes of [10, 25, 35]) {
       const f = fixture(platform, minutes);
       assert.equal(maximum(platform, f.source, f.bytes, currentIdentity), minutes * 60000 - 30000);
-      const now = Date.parse("2026-10-28T12:00:00Z"),
-        mono = 1000;
-      const inventory = {
-        total_count: 1,
-        jobs: [
-          {
-            id: 1,
-            name: hostedNativeJobProfile(platform).job,
-            run_id: 987654,
-            run_attempt: 1,
-            head_sha: policy.revision,
-            status: "in_progress",
-            started_at: new Date(now - 10000).toISOString(),
-          },
-        ],
-      };
-      let observedNow = now;
-      const sandbox = {
-        selectedPlatform: platform,
-        identity: currentIdentity,
-        processDeadline: 1e9,
-        receipt: f.source,
-        workflowBytes: f.bytes,
-        requireAdmittedProductionSource,
-        Buffer,
-        Uint8Array,
-        maximumProductionControllerWorkflowBytes,
-        createHash,
-        isRecord,
-        hostedNativeJobProfile,
-        Date: { now: () => observedNow, parse: Date.parse },
-        performance: { now: () => mono },
-        process: {
-          env: {
-            GITHUB_RUN_ID: "987654",
-            GITHUB_RUN_ATTEMPT: "1",
-            GITHUB_SHA: policy.revision,
-            GITHUB_REF: policy.execution_ref,
-          },
-        },
-        createGitHubRunner: () => () => {},
-        GitHubApiClient: class {
-          request() {
-            return { status: 200, body: inventory };
-          }
-        },
-      };
-      const first: unknown = runInNewContext(program, sandbox);
+      selected = platform;
+      observedNow = providerStarted + 10000;
+      const before = dispatches;
+      const first = await currentNativeJobDeadline(
+        platform,
+        currentIdentity,
+        1e9,
+        f.source,
+        f.bytes,
+      );
       assert.equal(first, mono + minutes * 60000 - 30000 - 10000);
       observedNow += 20000;
       assert.equal(
-        runInNewContext(program, sandbox),
-        Number(first) - 20000,
+        await currentNativeJobDeadline(platform, currentIdentity, 1e9, f.source, f.bytes),
+        first - 20000,
         "A later read cannot renew provider.started_at",
       );
-      sandbox.processDeadline = 1500;
       assert.equal(
-        runInNewContext(program, sandbox),
+        await currentNativeJobDeadline(platform, currentIdentity, 1500, f.source, f.bytes),
         1500,
         "An existing earlier owner/process deadline only shortens the provider window",
       );
+      assert.equal(dispatches - before, 3);
       assert.throws(() =>
         maximum(
           platform,
