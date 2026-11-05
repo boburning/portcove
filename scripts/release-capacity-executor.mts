@@ -47,7 +47,11 @@ import {
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import { inspectControllerExecutionPurpose } from "./release-control-phases.mts";
 import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-namespace.mts";
-import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
+import {
+  fixedReleaseReaderToken,
+  readOnlyReleaseChildEnvironment,
+  withReadOnlyReleaseChildren,
+} from "./release-readonly-child-environment.mts";
 import type { CapacityBoundaryReader } from "./release-capacity-operation.mts";
 import type { CapacityOperationOptions } from "./release-capacity-operation.mts";
 import {
@@ -165,14 +169,15 @@ export function requireOwnedCapacityPendingBoundary(session: ExecutorSession, re
 async function observe(
   role: CapacityExecutorRole,
   expected: ReturnType<typeof inspectAssemblerIdentityExpectation>,
-  directory: string,
   deadline?: number,
 ): Promise<CapacityExecutorIdentity> {
   if (expected.audience !== audience)
     throw new Error("capacity executor audience differs from its fixed role");
+  const sdkToken = fixedReleaseReaderToken();
+  const requireDirect = readOnlyReleaseChildEnvironment() !== undefined;
   const token = await requestAssemblerToken(audience, process.env, fetch, deadline);
   const actual = await verifyCapacityExecutorJobIdentity(role, token, expected, {
-    transport: { cwd: directory, ...(deadline === undefined ? {} : { deadline }) },
+    transport: { sdkToken, requireDirect, deadline: deadline ?? performance.now() + 120000 },
   });
   if (actual.evidence_scope !== "github.com")
     throw new Error("capacity executor requires actual provider identity");
@@ -200,7 +205,7 @@ export async function authenticateCapacityExecutor(
 ): Promise<ExecutorSession> {
   const requiresSignedJournal = inspectSelectedJournalRequirement({ ...process.env });
   const expected = inspectAssemblerIdentityExpectation(structuredClone(rawExpected));
-  const identity = await observe(role, expected, directory, deadline);
+  const identity = await observe(role, expected, deadline);
   const session: ExecutorSession = Object.freeze({ kind: "authenticated-capacity-executor" });
   sessions.set(session, {
     role,
@@ -230,7 +235,7 @@ export function capacityExecutorIdentity(session: ExecutorSession): CapacityExec
 export async function refreshCapacityExecutor(session: ExecutorSession) {
   const value = sessions.get(session);
   if (!value) throw new Error("imported executor sessions cannot execute or recover");
-  const actual = await observe(value.role, value.expected, value.directory, value.deadline);
+  const actual = await observe(value.role, value.expected, value.deadline);
   if (capacityDigest(actual) !== capacityDigest(value.identity))
     throw new Error("capacity executor identity changed during the attempt");
   value.observed = performance.now();

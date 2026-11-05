@@ -457,7 +457,6 @@ for (const [file, tests] of [
   ...[
     "release-control-phases",
     "release-input-protections",
-    "release-reviewed-inputs",
     "release-controller-tool-bootstrap",
   ].map((name): [string, string[]] => [
     `scripts/${name}.mts`,
@@ -466,6 +465,14 @@ for (const [file, tests] of [
       "scripts/release-controller-catalog-routing.test.mts",
     ],
   ]),
+  [
+    "scripts/release-reviewed-inputs.mts",
+    [
+      "scripts/release-control-inputs.test.mts",
+      "scripts/release-controller-catalog-routing.test.mts",
+      "scripts/release-live-control-admission.test.mts",
+    ],
+  ],
   [
     "scripts/production-controller-admission.mts",
     [
@@ -593,6 +600,7 @@ for (const [file, tests] of [
   [
     "scripts/release-coordinator-driver.mts",
     [
+      "scripts/release-catalog-coordinator.test.mts",
       "scripts/release-coordinator-driver.test.mts",
       "scripts/release-coordinator-recovery.test.mts",
     ],
@@ -624,6 +632,10 @@ for (const [file, tests] of [
     [
       "scripts/release-catalog-site-controller.test.mts",
       "scripts/release-site-readback.test.mts",
+      "scripts/release-live-control-admission.test.mts",
+      "scripts/release-job-authorities.test.mts",
+      "scripts/release-catalog-authorities.test.mts",
+      "scripts/release-coordinator-owned-executor.test.mts",
       "scripts/release-admitted-aggregate-controller.test.mts",
       "scripts/release-tuf-controller.test.mts",
     ],
@@ -900,7 +912,13 @@ for (const [file, tests] of [
     "scripts/release-pages-metadata-recovery.mts",
     ["scripts/release-pages-metadata-recovery.test.mts"],
   ],
-  ["scripts/release-capacity-executor.mts", ["scripts/release-capacity-executor.test.mts"]],
+  [
+    "scripts/release-capacity-executor.mts",
+    [
+      "scripts/release-capacity-executor.test.mts",
+      "scripts/release-coordinator-owned-executor.test.mts",
+    ],
+  ],
   [
     "scripts/release-native-admission.mts",
     [
@@ -1052,6 +1070,10 @@ for (const [file, tests] of [
   [
     "scripts/assembler-job-identity.mts",
     [
+      "scripts/release-live-control-admission.test.mts",
+      "scripts/release-job-authorities.test.mts",
+      "scripts/release-catalog-authorities.test.mts",
+      "scripts/release-coordinator-owned-executor.test.mts",
       "scripts/assembler-job-identity.test.mts",
       "scripts/release-controller-tools.test.mts",
       "scripts/release-hosted-native-windows-bootstrap.test.mts",
@@ -1298,6 +1320,7 @@ for (const [file, tests] of [
   [
     "scripts/release-authority-configuration.mts",
     [
+      "scripts/release-job-authorities.test.mts",
       "scripts/production-controller-admission.test.mts",
       "scripts/release-bootstrap-preparation.test.mts",
       "scripts/release-catalog-authorities.test.mts",
@@ -2364,6 +2387,9 @@ for (const file of [
     "scripts/github-client.test.mts",
     "scripts/release-catalog-site-controller.test.mts",
     "scripts/release-site-readback.test.mts",
+    "scripts/release-live-control-admission.test.mts",
+    "scripts/release-catalog-authorities.test.mts",
+    "scripts/release-job-authorities.test.mts",
     "scripts/release-catalog-recovery.test.mts",
     "scripts/release-site-controller.test.mts",
     "scripts/release-metadata-site-controller.test.mts",
@@ -2376,6 +2402,7 @@ for (const file of [
     "scripts/release-public-build-provenance.test.mts",
     "scripts/production-aggregate-steps.test.mts",
     "scripts/trusted-aggregate-attestation.test.mts",
+    "scripts/release-coordinator-signing-exchange.test.mts",
     "scripts/release-coordinator-capacity-effects.test.mts",
     "scripts/release-prepared-transport.test.mts",
     "scripts/release-coordinator-checkpoint-evidence.test.mts",
@@ -2383,6 +2410,7 @@ for (const file of [
     "scripts/release-coordinator-journal-api.test.mts",
     "scripts/release-coordinator-remote.test.mts",
     "scripts/release-hosted-native-history.test.mts",
+    "scripts/release-catalog-coordinator.test.mts",
     "scripts/release-coordinator-driver.test.mts",
     "scripts/release-coordinator-recovery.test.mts",
     "scripts/release-metadata-context-recovery.test.mts",
@@ -2460,6 +2488,7 @@ for (const file of ["scripts/github-cli.mts", "scripts/github-controller-attesta
 explicitNodeTests.set("scripts/release-direct-node-transport.mts", [
   "scripts/release-catalog-site-controller.test.mts",
   "scripts/release-site-readback.test.mts",
+  "scripts/release-coordinator-owned-executor.test.mts",
   "scripts/release-coordinator-journal-api.test.mts",
   "scripts/release-publication-result-artifact.test.mts",
   "scripts/release-signing-handoff.test.mts",

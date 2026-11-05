@@ -415,10 +415,15 @@ async function runOperation(
         token,
         expected,
         {
-          transport: {
-            cwd: process.cwd(),
-            ...(originalDeadline === undefined ? {} : { deadline: originalDeadline }),
-          },
+          transport: productionObservation
+            ? {
+                sdkToken: environment.GH_TOKEN ?? "",
+                deadline: originalDeadline ?? performance.now() + 120_000,
+              }
+            : {
+                cwd: process.cwd(),
+                ...(originalDeadline === undefined ? {} : { deadline: originalDeadline }),
+              },
         },
         phase,
         productionObservation ? observerSource : undefined,

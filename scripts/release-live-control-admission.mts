@@ -37,6 +37,10 @@ import {
 } from "./release-control-handshake.mts";
 import { mkdir, writeFile } from "node:fs/promises";
 import { randomBytes } from "node:crypto";
+import {
+  fixedReleaseReaderToken,
+  readOnlyReleaseChildEnvironment,
+} from "./release-readonly-child-environment.mts";
 import { performance } from "node:perf_hooks";
 import path from "node:path";
 import { inspectControlRound } from "./release-control-handshake.mts";
@@ -143,6 +147,13 @@ async function authenticateControlReaderJobForPurpose(
     run_id: admitted.run_id,
     run_attempt: admitted.run_attempt,
   };
+  const injectedTransport = options.identity?.transport;
+  const sdkReader = injectedTransport
+    ? undefined
+    : {
+        sdkToken: fixedReleaseReaderToken(env),
+        requireDirect: readOnlyReleaseChildEnvironment() !== undefined,
+      };
   const token = await (options.requestToken ?? requestAssemblerToken)(
     expected.audience,
     env,
@@ -151,14 +162,14 @@ async function authenticateControlReaderJobForPurpose(
   );
   const identityOptions = {
     ...options.identity,
-    transport: {
-      ...(options.identity?.transport ?? { cwd: process.cwd() }),
-      ...(options.deadline === undefined
-        ? {}
-        : {
-            deadline: Math.min(options.deadline, options.identity?.transport?.deadline ?? Infinity),
-          }),
-    },
+    transport: injectedTransport
+      ? {
+          ...injectedTransport,
+          ...(options.deadline === undefined
+            ? {}
+            : { deadline: Math.min(options.deadline, injectedTransport.deadline ?? Infinity) }),
+        }
+      : { ...sdkReader!, deadline: options.deadline ?? performance.now() + 120000 },
   };
   const identity = readOnlyAdmission
     ? await verifyReleaseInputReaderJobIdentity(token, expected, identityOptions)

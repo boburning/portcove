@@ -8,6 +8,7 @@ import {
   inspectReleaseAuthorityConfiguration,
   inspectBoundCatalogControllerAuthorities,
   requireControllerCatalogPublicationAuthorities,
+  requireControllerJobCredentialRoute,
   assertControllerCatalogPublisherScope,
   requireFixedControllerJobSourceConfiguration,
   requireCoordinatorAuthorityConfiguration,
@@ -17,6 +18,8 @@ import {
   admitProductionInputReader,
   admitProductionController,
   admitProductionCatalogController,
+  productionControllerWorkflow,
+  readProductionControllerWorkflowBytes,
 } from "./production-controller-admission.mts";
 import {
   authenticateCatalogControlReaderJob,
@@ -32,6 +35,9 @@ import {
   capacityDocumentFixture,
 } from "./fixtures/release-live-control-fixture.mts";
 import { selectedPublicationAuthoritiesFixture } from "./fixtures/checkpoint-proof-fixture.mts";
+import { controllerOidcSubject } from "./assembler-job-identity.mts";
+import { releaseControlPhaseProfile } from "./release-control-phases.mts";
+import { assemblerIdentityFixture, jwk } from "./fixtures/assembler-identity-fixture.mts";
 import { releaseControlInputsFixture } from "./fixtures/release-control-inputs-fixture.mts";
 
 function configuration() {
@@ -377,6 +383,81 @@ void test("catalog live controls reject application-coverage observations rather
     ["portcove-release-pause"],
   );
   assert.equal(facts.authority, "none");
+});
+void test("fixed catalog source routing reads the actual signed job through the locked SDK", async (t) => {
+  const f = runtime();
+  const profile = releaseControlPhaseProfile("coordinator");
+  const identity = assemblerIdentityFixture(
+    {
+      aud: profile.reader_audience,
+      sub: controllerOidcSubject(f.policy.execution_ref, profile.reader_environment),
+      environment: profile.reader_environment,
+    },
+    {},
+    { workflow: productionControllerWorkflow, job: profile.reader_name, runAttempt: 1 },
+  );
+  const readerToken = "ghs_SYNTHETIC_CATALOG_SOURCE_READER";
+  const environment = {
+    ...f.environment,
+    PORTCOVE_EXECUTION_PURPOSE: "catalog-publication",
+    PORTCOVE_CATALOG_CONTROLLER_ADMISSION: JSON.stringify({
+      ...f.policy,
+      workflow_sha256: createHash("sha256")
+        .update(await readProductionControllerWorkflowBytes())
+        .digest("hex"),
+    }),
+    GH_TOKEN: readerToken,
+    ACTIONS_ID_TOKEN_REQUEST_URL: "https://fixture.actions.githubusercontent.com/oidc",
+    ACTIONS_ID_TOKEN_REQUEST_TOKEN: "inert-oidc-bearer",
+  };
+  for (const [key, value] of Object.entries(environment)) {
+    const previous = process.env[key];
+    if (value === undefined) delete process.env[key];
+    else process.env[key] = value;
+    t.after(() => {
+      if (previous === undefined) delete process.env[key];
+      else process.env[key] = previous;
+    });
+  }
+  const providerRoutes: string[] = [];
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const url = new URL(input instanceof Request ? input.url : input);
+      const auth = new Headers(init?.headers).get("authorization");
+      if (url.origin === "https://fixture.actions.githubusercontent.com") {
+        assert.equal(url.searchParams.get("audience"), profile.reader_audience);
+        assert.equal(auth, "Bearer inert-oidc-bearer");
+        return Response.json({ value: identity.token });
+      }
+      if (url.origin === "https://token.actions.githubusercontent.com") {
+        assert.equal(url.pathname, "/.well-known/jwks");
+        assert.equal(auth, null);
+        return Response.json({ keys: [jwk] });
+      }
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(auth, `token ${readerToken}`);
+      const page = url.searchParams.get("page");
+      const route = page ? `${url.pathname}?per_page=100&page=${page}` : url.pathname;
+      providerRoutes.push(route);
+      return Response.json(identity.metadata(route));
+    },
+  );
+  const routed = await requireControllerJobCredentialRoute("coordinator");
+  assert.equal(routed.route.purpose, "catalog-publication");
+  routed.recheck();
+  const catalog = await requireControllerCatalogPublicationAuthorities("coordinator");
+  assert.equal(catalog.configuration_sha256, f.policy.authority_configuration_sha256);
+  const run = "/repos/boburning/portcove/actions/runs/9988";
+  const expected = [
+    run,
+    `${run}/attempts/1/jobs?per_page=100&page=1`,
+    `${run}/attempts/1/jobs?per_page=100&page=2`,
+    "/repos/boburning/portcove/actions/jobs/501",
+    run,
+  ];
+  assert.deepEqual(providerRoutes, [...expected, ...expected]);
 });
 void test("catalog actual getter refuses missing protected configuration before any OIDC effect", async () => {
   const saved = process.env.PORTCOVE_CATALOG_AUTHORITIES;

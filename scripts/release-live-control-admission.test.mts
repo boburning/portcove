@@ -140,10 +140,122 @@ void test("observer output transport refuses expiry after every awaited write an
   }
 });
 
+void test("production protection observer entry uses the captured job credential for the scoped SDK lookup", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-protection-observer-entry-"));
+  try {
+    const phase = "coordinator";
+    const profile = releaseControlPhaseProfile(phase);
+    const configuration = selectedPublicationAuthoritiesFixture("application");
+    const runtime = liveControlRuntimeFixture(
+      protectionFixture("a".repeat(40)),
+      config,
+      phase,
+      true,
+    );
+    const workflow = await readFile(new URL(`../${productionControllerWorkflow}`, import.meta.url));
+    const observer = configuration.journal.apps.protection_observer;
+    const command = new URL("./release-reviewed-inputs.mts", import.meta.url);
+    const fixture = new URL("./fixtures/assembler-identity-fixture.mts", import.meta.url);
+    const program = `
+      import assert from "node:assert/strict";
+      import { fileURLToPath } from "node:url";
+      import { assemblerIdentityFixture, jwk } from ${JSON.stringify(fixture.href)};
+      const provider = assemblerIdentityFixture({
+        aud: ${JSON.stringify(profile.observer_audience)},
+        sub: ${JSON.stringify(controllerOidcSubject(runtime.policy.execution_ref, profile.observer_environment))},
+        environment: ${JSON.stringify(profile.observer_environment)},
+      }, {}, {
+        workflow: ${JSON.stringify(productionControllerWorkflow)},
+        job: ${JSON.stringify(profile.observer_name)},
+        runAttempt: 1,
+      });
+      const dispatches = [];
+      globalThis.fetch = async (input, init) => {
+        const request = new Request(input, init);
+        const url = new URL(request.url);
+        if (url.origin === "https://fixture.actions.githubusercontent.com") {
+          assert.equal(request.headers.get("authorization"), "Bearer inert-oidc-bearer");
+          process.env.GH_TOKEN = "different-late-job-token";
+          return Response.json({ value: provider.token });
+        }
+        if (url.origin === "https://token.actions.githubusercontent.com") {
+          assert.equal(request.headers.get("authorization"), null);
+          return Response.json({ keys: [jwk] });
+        }
+        dispatches.push([request.method, url.href, request.headers.get("authorization")]);
+        return Response.json({}, { status: 503 });
+      };
+      process.on("beforeExit", () => {
+        assert.deepEqual(dispatches, [[
+          "GET", "https://api.github.com/repos/boburning/portcove/actions/runs/9988",
+          "token original-job-token",
+        ]]);
+      });
+      process.argv = [process.execPath, fileURLToPath(${JSON.stringify(command.href)}), "observe-production-coordinator"];
+      await import(${JSON.stringify(command.href)});
+    `;
+    const result = childProcess.spawnSync(
+      process.execPath,
+      ["--input-type=module", "--eval", program],
+      {
+        env: {
+          ...process.env,
+          ...runtime.environment,
+          GITHUB_JOB: profile.observer_job,
+          RUNNER_TEMP: root,
+          PORTCOVE_EXECUTION_PURPOSE: "application",
+          PORTCOVE_CONTROLLER_ADMISSION: JSON.stringify({
+            ...runtime.policy,
+            workflow_sha256: createHash("sha256").update(workflow).digest("hex"),
+            authority_configuration_sha256: capacityDigest(configuration),
+          }),
+          PORTCOVE_RELEASE_AUTHORITIES: JSON.stringify(configuration),
+          PORTCOVE_EXPECTED_PROTECTION_APP_ID: String(observer.app_id),
+          PORTCOVE_EXPECTED_INSTALLATION_ID: String(observer.installation_id),
+          PORTCOVE_CONTROL_APP_TOKEN: "different-protection-app-token",
+          PORTCOVE_STORAGE_APP_TOKEN: undefined,
+          NODE_OPTIONS: undefined,
+          NODE_PATH: undefined,
+          GH_TOKEN: "original-job-token",
+          ACTIONS_ID_TOKEN_REQUEST_URL:
+            "https://fixture.actions.githubusercontent.com/token?fixture=1",
+          ACTIONS_ID_TOKEN_REQUEST_TOKEN: "inert-oidc-bearer",
+        },
+        encoding: "utf8",
+        timeout: 15_000,
+      },
+    );
+    assert.ifError(result.error);
+    assert.equal(result.status, 1);
+    assert.equal(result.stderr.trim(), "reviewed input operation refused");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 void test("production observer joins original named source/OIDC and appointed mint output for both purposes, refusing copies, drift and expiry", async (t) => {
   let provider: ReturnType<typeof assemblerIdentityFixture>;
   const actualSpawn = childProcess.spawnSync;
-  t.mock.method(globalThis, "fetch", async () => new Response(JSON.stringify({ keys: [jwk] })));
+  const jobToken = "fixture-protection-job-reader";
+  const routes: string[] = [];
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const request = new Request(input, init);
+      const url = new URL(request.url);
+      if (url.origin === "https://token.actions.githubusercontent.com") {
+        assert.equal(request.headers.get("authorization"), null);
+        return Response.json({ keys: [jwk] });
+      }
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(request.method, "GET");
+      assert.equal(request.headers.get("authorization"), `token ${jobToken}`);
+      const route = url.pathname + url.search;
+      routes.push(route);
+      return Response.json(provider.metadata(route));
+    },
+  );
   t.mock.method(
     childProcess,
     "spawnSync",
@@ -235,6 +347,8 @@ void test("production observer joins original named source/OIDC and appointed mi
         runAttempt: 1,
       },
     );
+    routes.length = 0;
+    const sdkTransport = { sdkToken: jobToken, deadline: performance.now() + 15_000 };
     const identity =
       phase === "classification"
         ? await verifyProductionClassificationObserverJobIdentity(provider.token, expected, {
@@ -243,10 +357,22 @@ void test("production observer joins original named source/OIDC and appointed mi
         : await verifyProductionProtectionObserverJobIdentity(
             provider.token,
             expected,
-            { transport: { cwd: process.cwd() } },
+            { transport: sdkTransport },
             phase,
             source,
           );
+    if (phase === "classification") {
+      assert.deepEqual(routes, []);
+    } else {
+      const run = "/repos/boburning/portcove/actions/runs/9988";
+      assert.deepEqual(routes, [
+        run,
+        `${run}/attempts/1/jobs?per_page=100&page=1`,
+        `${run}/attempts/1/jobs?per_page=100&page=2`,
+        "/repos/boburning/portcove/actions/jobs/501",
+        run,
+      ]);
+    }
     const observer = configuration.journal.apps.protection_observer;
     const join = (
       raw: unknown = configuration,
@@ -297,7 +423,7 @@ void test("production observer joins original named source/OIDC and appointed mi
         verifyProductionProtectionObserverJobIdentity(
           provider.token,
           expected,
-          { transport: { cwd: process.cwd() } },
+          { transport: sdkTransport },
           phase,
           otherSource,
         ),
@@ -1360,41 +1486,37 @@ for (const phase of [
         workflow_sha256: createHash("sha256").update(workflow).digest("hex"),
         authority_configuration_sha256: capacityDigest(configuration),
       }),
+      GH_TOKEN: "ghs_SYNTHETIC_SELECTED_CATALOG_READER",
       ACTIONS_ID_TOKEN_REQUEST_URL: "https://fixture.actions.githubusercontent.com/token?fixture=1",
       ACTIONS_ID_TOKEN_REQUEST_TOKEN: "inert-fixture-control-bearer",
     };
     const before = new Map(Object.keys(environment).map((key) => [key, process.env[key]]));
     Object.assign(process.env, environment);
-    const actualSpawn = childProcess.spawnSync;
     let driftDuringTokenRead = false;
-    t.mock.method(globalThis, "fetch", async (input: Parameters<typeof fetch>[0]) => {
-      const url = new URL(
-        input instanceof Request ? input.url : input instanceof URL ? input.href : input,
-      );
-      if (url.hostname === "fixture.actions.githubusercontent.com") {
-        assert.equal(url.searchParams.get("audience"), profile.reader_audience);
-        if (driftDuringTokenRead) process.env.PORTCOVE_EXECUTION_PURPOSE = "application";
-        return new Response(JSON.stringify({ value: provider.token }));
-      }
-      assert.equal(url.hostname, "token.actions.githubusercontent.com");
-      return new Response(JSON.stringify({ keys: [jwk] }));
-    });
     t.mock.method(
-      childProcess,
-      "spawnSync",
-      (
-        command: string,
-        args: readonly string[],
-        options: childProcess.SpawnSyncOptionsWithStringEncoding,
-      ) =>
-        command === "gh"
-          ? provider.transport.spawn(command, args, options)
-          : actualSpawn(command, args, options),
+      globalThis,
+      "fetch",
+      async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+        const url = new URL(input instanceof Request ? input.url : input);
+        const auth = new Headers(init?.headers).get("authorization");
+        if (url.hostname === "fixture.actions.githubusercontent.com") {
+          assert.equal(url.searchParams.get("audience"), profile.reader_audience);
+          assert.equal(auth, "Bearer inert-fixture-control-bearer");
+          if (driftDuringTokenRead) process.env.PORTCOVE_EXECUTION_PURPOSE = "application";
+          return Response.json({ value: provider.token });
+        }
+        if (url.hostname === "token.actions.githubusercontent.com") {
+          assert.equal(auth, null);
+          return Response.json({ keys: [jwk] });
+        }
+        assert.equal(url.origin, "https://api.github.com");
+        assert.equal(auth, `token ${environment.GH_TOKEN}`);
+        const page = url.searchParams.get("page");
+        const route = page ? `${url.pathname}?per_page=100&page=${page}` : url.pathname;
+        return Response.json(provider.metadata(route));
+      },
     );
-    syncBuiltinESMExports();
     t.after(() => {
-      t.mock.restoreAll();
-      syncBuiltinESMExports();
       for (const [key, value] of before) {
         if (value === undefined) delete process.env[key];
         else process.env[key] = value;

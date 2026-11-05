@@ -16,7 +16,6 @@ import { publishCoordinatorSigningExchange } from "./release-coordinator-signing
 import { createCheckpointJobTokenApi } from "./release-coordinator-journal-api.mts";
 import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
 import childProcess from "node:child_process";
-import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
 import { syncBuiltinESMExports } from "node:module";
 import {
   authenticateCapacityExecutor,
@@ -452,7 +451,6 @@ void test("owned fixed-job factory freezes namespace across actual identity refr
   process.env.GH_TOKEN = "inert-owned-job-token";
   process.env.ACTIONS_ID_TOKEN_REQUEST_URL = "https://fixture.actions.githubusercontent.com/oidc";
   process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN = "inert-runner-token";
-  const actualSpawn = childProcess.spawnSync;
   let mutate = false,
     journalCalls = 0;
   t.after(() => {
@@ -489,6 +487,15 @@ void test("owned fixed-job factory freezes namespace across actual identity refr
         assert.ok(isRecord(response.data));
         return Response.json({ data: { repository: response.data.node } });
       }
+      if (url.origin === "https://api.github.com") {
+        assert.equal(
+          new Headers(init?.headers).get("authorization"),
+          "token inert-owned-job-token",
+        );
+        assert.equal(init?.method, "GET");
+        assert.equal(init.redirect, "manual");
+        return Response.json(identity.metadata(url.pathname + url.search));
+      }
       if (url.href === "https://token.actions.githubusercontent.com/.well-known/jwks")
         return new Response(JSON.stringify({ keys: [identityJwk] }));
       assert.equal(
@@ -499,15 +506,6 @@ void test("owned fixed-job factory freezes namespace across actual identity refr
       return new Response(JSON.stringify({ value: identity.token }));
     },
   );
-  t.mock.method(
-    childProcess,
-    "spawnSync",
-    (command: string, args: readonly string[], options: SpawnSyncOptionsWithStringEncoding) =>
-      command === "gh"
-        ? identity.transport.spawn(command, args, options)
-        : actualSpawn(command, args, options),
-  );
-  syncBuiltinESMExports();
   const deadline = performance.now() + 60000;
   const session = await authenticateCapacityExecutor(
     "coordinator",

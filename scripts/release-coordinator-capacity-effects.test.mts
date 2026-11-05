@@ -276,10 +276,13 @@ for (const lost of [false, true])
         async (raw: Parameters<typeof fetch>[0], init?: RequestInit) => {
           const url = new URL(raw instanceof Request ? raw.url : raw);
           if (url.origin === "https://api.github.com") {
-            assert.equal(
-              new Headers(init?.headers).get("authorization"),
-              "token inert-dedicated-journal-token",
-            );
+            const authorization = new Headers(init?.headers).get("authorization");
+            if (authorization === "token inert-provider-read-only-token") {
+              assert.equal(init?.method, "GET");
+              assert.equal(init.redirect, "manual");
+              return Response.json(activeIdentity.metadata(url.pathname + url.search));
+            }
+            assert.equal(authorization, "token inert-dedicated-journal-token");
             const body: unknown =
               typeof init?.body === "string" ? JSON.parse(init.body) : undefined;
             if (url.pathname === "/graphql") {
@@ -324,8 +327,6 @@ for (const lost of [false, true])
               })}`,
               stderr: "",
             };
-          if (args[2]?.includes("/actions/") || args[2]?.includes("/check-runs/"))
-            return activeIdentity.transport.spawn(name, args, options);
           throw new Error("dedicated journal API should use the configured SDK");
         },
       );

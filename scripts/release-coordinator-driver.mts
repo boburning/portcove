@@ -829,13 +829,8 @@ export function coordinatorOriginalJobDeadline(
     throw new Error("original coordinator job budget exhausted or future dated");
   return monotonic + remaining;
 }
-async function coordinatorDeadline(phaseDeadline?: number) {
-  const monotonicStart = performance.now();
-  if (
-    phaseDeadline !== undefined &&
-    (!Number.isFinite(phaseDeadline) || phaseDeadline <= monotonicStart)
-  )
-    throw new Error("coordinator inherited deadline exhausted");
+/** Read the fixed original job with the caller's existing lookup limits. */
+export async function readOriginalCoordinatorJobDeadline(lookupDeadline: number, maxBytes: number) {
   const run = process.env.GITHUB_RUN_ID;
   const revision = process.env.GITHUB_SHA;
   if (
@@ -846,8 +841,6 @@ async function coordinatorDeadline(phaseDeadline?: number) {
     process.env.GITHUB_RUN_ATTEMPT !== "1"
   )
     throw new Error("fixed first-attempt coordinator job budget identity required");
-  const inherited = Math.min(phaseDeadline ?? Infinity, coordinatorCommandDeadline() ?? Infinity);
-  const lookupDeadline = Math.min(monotonicStart + 10000, inherited);
   const sameIdentity = () =>
     process.env.GITHUB_RUN_ID === run &&
     process.env.GITHUB_SHA === revision &&
@@ -859,7 +852,7 @@ async function coordinatorDeadline(phaseDeadline?: number) {
   const client = await createGitHubClient({
     credential: { kind: "explicit", token },
     deadline: lookupDeadline,
-    maxBytes: 1024 * 1024,
+    maxBytes,
     allowRequest: sameIdentity,
   });
   const response = await client.request(`GET /repos/boburning/portcove/actions/runs/${run}/jobs`, {
@@ -872,10 +865,24 @@ async function coordinatorDeadline(phaseDeadline?: number) {
     throw new Error("actual coordinator original job budget unavailable");
   if (performance.now() >= lookupDeadline)
     throw new Error("coordinator inherited deadline exhausted");
+  return coordinatorOriginalJobDeadline(response.data, {
+    run_id: run,
+    controller_revision: revision,
+  });
+}
+async function coordinatorDeadline(phaseDeadline?: number) {
+  const monotonicStart = performance.now();
+  if (
+    phaseDeadline !== undefined &&
+    (!Number.isFinite(phaseDeadline) || phaseDeadline <= monotonicStart)
+  )
+    throw new Error("coordinator inherited deadline exhausted");
+  const inherited = Math.min(phaseDeadline ?? Infinity, coordinatorCommandDeadline() ?? Infinity);
+  const lookupDeadline = Math.min(monotonicStart + 10000, inherited);
   const monotonicDeadline = Math.min(
     monotonicStart + 170000,
     inherited,
-    coordinatorOriginalJobDeadline(response.data, { run_id: run, controller_revision: revision }),
+    await readOriginalCoordinatorJobDeadline(lookupDeadline, 1024 * 1024),
   );
   if (performance.now() >= monotonicDeadline)
     throw new Error("coordinator inherited deadline exhausted");
