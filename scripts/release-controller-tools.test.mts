@@ -1482,7 +1482,8 @@ void test("installed bootstrap clears inherited GitHub credentials only for comp
     "${{ inputs.publication_purpose == 'application' && 12 || 4 }}",
   );
   const workflowSha = createHash("sha256").update(text).digest("hex");
-  assert.notEqual(slice4CapacityResources.aggregate_workflow_sha256, workflowSha);
+  assert.equal(slice4CapacityResources.aggregate_workflow_sha256, workflowSha);
+  assert.equal(slice4CapacityResources.input_workflow_sha256, workflowSha);
   const historicalText = await readFile(
     new URL(
       "../docs/qualification/application-update-production.windows-20261103.proposed.yml",
@@ -1492,8 +1493,7 @@ void test("installed bootstrap clears inherited GitHub credentials only for comp
   );
   const appointed = controllerWorkflowAtCurrentNode(historicalText);
   const appointedSha = createHash("sha256").update(appointed).digest("hex");
-  assert.equal(slice4CapacityResources.aggregate_workflow_sha256, appointedSha);
-  assert.equal(slice4CapacityResources.input_workflow_sha256, appointedSha);
+  assert.equal(appointedSha, "a57e277b51e00fd20b42f4e61a712c468cae523dd523930bc37cfc248b418aa4");
   const historicalDocument = parseDocument(historicalText, { uniqueKeys: true });
   assert.deepEqual(historicalDocument.errors, []);
   const historical: unknown = historicalDocument.toJS({ maxAliasCount: 100 });

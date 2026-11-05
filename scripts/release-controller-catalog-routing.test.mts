@@ -499,9 +499,12 @@ void test("installed two-purpose workflow remains mutually exclusive under uncha
       "utf8",
     ),
   );
-  assert.equal(hash(Buffer.from(appointed)), slice4CapacityResources.aggregate_workflow_sha256);
-  assert.equal(hash(Buffer.from(appointed)), slice4CapacityResources.input_workflow_sha256);
-  assert.notEqual(hash(bytes), slice4CapacityResources.aggregate_workflow_sha256);
+  assert.equal(
+    hash(Buffer.from(appointed)),
+    "a57e277b51e00fd20b42f4e61a712c468cae523dd523930bc37cfc248b418aa4",
+  );
+  assert.equal(hash(bytes), slice4CapacityResources.aggregate_workflow_sha256);
+  assert.equal(hash(bytes), slice4CapacityResources.input_workflow_sha256);
   for (const role of ["definitions", "policy", "snapshot", "timestamp"]) {
     const job = jobs[`catalog_${role}`];
     assert.ok(isRecord(job));

@@ -540,7 +540,7 @@ void test("changed account, stop, budget, visibility, runner or resource policy 
   changed.boundary.configuration_generation = "changed";
   assert.equal(assessBoundedCapacity(changed).eligibility, "ineligible");
 });
-void test("complete held controller policy replaces historical pins without appointing capacity authority", async () => {
+void test("delivered controller policy replaces historical pins without appointing capacity authority", async () => {
   for (const [file, expected] of [
     [
       ".github/workflows/application-update-production.yml",
@@ -551,7 +551,7 @@ void test("complete held controller policy replaces historical pins without appo
       slice4CapacityResources.input_workflow_sha256,
     ],
     [
-      "docs/qualification/application-update-wake.held.yml",
+      ".github/workflows/application-update-wake.yml",
       slice4CapacityResources.wake_workflow_sha256,
     ],
   ] as const) {
