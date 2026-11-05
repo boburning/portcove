@@ -214,7 +214,7 @@ async function collectHostedNativeProof(
       (await createReleaseCustodyProvider({
         token: environment.GH_TOKEN ?? "",
         deadline,
-        jobTimeoutMs: 30000,
+        requestTimeoutMs: 30000,
       }));
     const jobProvider: HistoricalJobProvider = {
       attempt: (run, attempt) => read(() => provider.attempt(run, attempt)),

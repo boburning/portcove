@@ -1090,6 +1090,9 @@ the shared source/job request budget across later readback. Signature
 verification retains its separately bounded attestation subprocess.
 The verified publication controller uses SDK reads for its original provider job
 clock and retained upload locator, keeping the existing journal readback order.
+Publication result custody shares the bounded source, attempt, job and artifact
+metadata reader; refreshing its proof can only shorten the original deadline.
+Archive bytes and current immutable Release state remain with their owners.
 The maintained report
 publisher now uses SDK metadata operations and awaited replay/readback. Its trusted
 main checkout installs frozen dependencies before the credentialed steps. Existing

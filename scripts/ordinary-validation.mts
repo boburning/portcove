@@ -762,6 +762,7 @@ for (const [file, tests] of [
   [
     "scripts/release-custody-provider.mts",
     [
+      "scripts/release-publication-result-artifact.test.mts",
       "scripts/release-coordinator-checkpoint-authentication.test.mts",
       "scripts/release-hosted-native-acceptance.test.mts",
       "scripts/release-coordinator-metadata.test.mts",
@@ -2195,6 +2196,7 @@ for (const file of [
     "scripts/github-client.test.mts",
     "scripts/release-publication-source.test.mts",
     "scripts/release-publication-controller.test.mts",
+    "scripts/release-publication-result-artifact.test.mts",
     "scripts/release-native-check-discovery.test.mts",
     "scripts/release-pages-provider.test.mts",
     "scripts/release-controller-wake.test.mts",
