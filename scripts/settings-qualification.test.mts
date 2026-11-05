@@ -22,7 +22,7 @@ import type { AuthoredPort } from "./catalog-authoring.mts";
 import type { SettingsQualificationPolicy } from "./settings-qualification.mts";
 
 const hash = (bytes: string | Buffer) => createHash("sha256").update(bytes).digest("hex");
-test("prepared data can use the retained root or a descendant but cannot escape", async (t) => {
+void test("prepared data can use the retained root or a descendant but cannot escape", async (t) => {
   const base = await mkdtemp(join(tmpdir(), "portcove-prepared-parent-"));
   t.after(() => rm(base, { recursive: true, force: true }));
   const root = join(await realpath(base), "retained");
