@@ -550,10 +550,7 @@ void test("delivered controller policy replaces historical pins without appointi
       ".github/workflows/application-update-production.yml",
       slice4CapacityResources.input_workflow_sha256,
     ],
-    [
-      ".github/workflows/application-update-wake.yml",
-      slice4CapacityResources.wake_workflow_sha256,
-    ],
+    [".github/workflows/application-update-wake.yml", slice4CapacityResources.wake_workflow_sha256],
   ] as const) {
     const bytes = await readFile(new URL(`../${file}`, import.meta.url));
     const current = createHash("sha256").update(bytes).digest("hex");
