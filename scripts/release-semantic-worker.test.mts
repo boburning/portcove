@@ -319,6 +319,7 @@ void test("actual worker entry dispatches the initial probe before all credentia
     import assert from 'node:assert/strict'; import {registerHooks} from 'node:module'; import {createHash} from 'node:crypto';
     const sha=x=>createHash('sha256').update(x).digest('hex');
     const worker=${JSON.stringify(worker)};
+    const {inspectLinuxQualificationConfiguration}=await import(new URL('./qualify-semantic-linux.mts',worker));
     const runtime={schema_version:1,output_parent:'/private/output',node_executable:'/private/node',codex_executable:'/private/codex',node_sha256:sha('node'),codex_sha256:'3'.repeat(64),supervisor_sha256:'4'.repeat(64),tools_sha256:{python:'5'.repeat(64),bwrap:'6'.repeat(64),systemd_run:'7'.repeat(64),systemctl:'8'.repeat(64)}};
     const config={schema_version:1,kind:'portcove-initial-semantic-boundary-probe',initial_setup_probe:true,worker_revision:'a'.repeat(40),setup_grant_sha256:'b'.repeat(64),source_git_sha256:sha('git'),output_parent:runtime.output_parent,runtime};
     const raw=Buffer.from(JSON.stringify(config)), hash=sha(raw), files=new Map(), dirs=new Set(); let launches=0;
@@ -331,7 +332,10 @@ void test("actual worker entry dispatches the initial probe before all credentia
       async readdir(){return [{name:'q-fixed1',isDirectory:()=>true,isSymbolicLink:()=>false}];},
       async read(root,name){if(name==='semantic-setup-probe.json')return raw;if(name==='worker-state.json')return Buffer.from(JSON.stringify(state));if(root==='/usr/bin'&&name==='git')return Buffer.from('git');if(name==='isolation.json')return Buffer.from(JSON.stringify(isolation));if(name==='node'||name.endsWith('node.exe'))return Buffer.from('node');throw new Error('Unexpected read '+root+'/'+name);},
       git(_name,args){return args.includes('rev-parse')?'a'.repeat(40):'';},
-      async resource(profile,node,args,options){launches++;assert.equal(profile,'analysis');assert.equal(node,runtime.node_executable);assert.equal(args[1],'fixture');assert.ok(args[0].endsWith('/scripts/qualify-semantic-linux.mts'));assert.ok(options.queueDeadline>performance.now());assert.equal(options.environment.GH_TOKEN,undefined);assert.equal(options.environment.OPENAI_API_KEY,undefined);return 0;}
+      async resource(profile,node,args,options){launches++;assert.equal(profile,'analysis');assert.equal(node,runtime.node_executable);assert.equal(args[1],'fixture');assert.ok(args[0].endsWith('/scripts/qualify-semantic-linux.mts'));
+        const qualification=inspectLinuxQualificationConfiguration(JSON.parse(files.get(args[2])));
+        assert.equal(qualification.output_parent,'/private/output/initial-setup-probe');
+        assert.ok(options.queueDeadline>performance.now());assert.equal(options.environment.GH_TOKEN,undefined);assert.equal(options.environment.OPENAI_API_KEY,undefined);return 0;}
     };
     const data=s=>'data:text/javascript,'+encodeURIComponent(s);
     registerHooks({resolve(spec,context,next){if(context.parentURL===worker){
