@@ -262,10 +262,12 @@ try {
     );
     const archiveSha = createHash("sha256").update(archive).digest("hex");
     const route = producerEntry.signingContextArtifactRoute("release-signing-context");
-    const read = signingContextProviderFetch(f);
+    const read = signingContextProviderFetch(f, () => archive);
     let calls = 0;
     controlledFetch = async (input, init) => {
       const response = await read(input, init);
+      const url = new URL(input instanceof Request ? input.url : input);
+      if (url.pathname !== "/repos/boburning/portcove/actions/artifacts/101") return response;
       if (++calls === 2 && crossesExpiry) wallNow = started + 1000;
       const data = (await response.json()) as Record<string, unknown>;
       return Response.json({
@@ -273,11 +275,6 @@ try {
         size_in_bytes: archive.length,
         digest: `sha256:${archiveSha}`,
       });
-    };
-    transport = (command, args) => {
-      assert.equal(command, "gh");
-      assert.equal(args.at(-1), "repos/boburning/portcove/actions/artifacts/101/zip");
-      return { status: 0, stdout: archive };
     };
     const work = producerEntry.prepareSigningContextPredicate(
       prepared,
