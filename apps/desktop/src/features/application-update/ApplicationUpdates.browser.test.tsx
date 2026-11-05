@@ -960,8 +960,8 @@ describe("ApplicationUpdateSettings", () => {
   });
 
   it.each([
-    ["unavailable", "Use a supported package or the documented manual recovery path."],
-    ["not-configured", "Use the documented manual recovery path."],
+    ["unavailable", "Follow the manual upgrade instructions for your package."],
+    ["not-configured", "Follow the manual upgrade instructions for your package."],
     ["package-managed-deb", "Update it through the same package source."],
     ["package-managed-rpm", "Update it through the same package source."],
   ] as const)(
@@ -975,6 +975,14 @@ describe("ApplicationUpdateSettings", () => {
       const restart = vi.spyOn(desktopApi, "restartToApplyApplicationUpdate");
       await render();
       expect(host.textContent).toContain(guidance);
+      const manualGuide = [...host.querySelectorAll("a")].find(
+        (link) => link.textContent === "Manual upgrade and recovery instructions",
+      );
+      expect(manualGuide?.getAttribute("href")).toBe(
+        eligibility === "not-configured" || eligibility === "unavailable"
+          ? "https://github.com/boburning/portcove/blob/main/docs/UPGRADING.md#upgrade-portcove"
+          : undefined,
+      );
       expect(host.textContent).toContain("No verified application update is staged.");
       expect(host.textContent).not.toContain("Restart to update");
       expect(restart).not.toHaveBeenCalled();
@@ -1039,8 +1047,8 @@ describe("ApplicationUpdateSettings", () => {
   it.each([
     ["package-managed-deb", "DEB installation is managed by its package manager"],
     ["package-managed-rpm", "RPM installation is managed by its package manager"],
-    ["not-configured", "Application updating is not configured in this build"],
-    ["unavailable", "cannot use Portcove's built-in updater"],
+    ["not-configured", "This build cannot update itself"],
+    ["unavailable", "This installation cannot update itself"],
   ] as const)(
     "keeps %s package restrictions visible without offering restart",
     async (install_eligibility, guidance) => {
@@ -1053,6 +1061,14 @@ describe("ApplicationUpdateSettings", () => {
       await render();
       expect(host.textContent).toContain("Verified update downloaded");
       expect(host.textContent).toContain(guidance);
+      const manualGuide = [...host.querySelectorAll("a")].find(
+        (link) => link.textContent === "Manual upgrade and recovery instructions",
+      );
+      expect(manualGuide?.getAttribute("href")).toBe(
+        install_eligibility === "not-configured" || install_eligibility === "unavailable"
+          ? "https://github.com/boburning/portcove/blob/main/docs/UPGRADING.md#upgrade-portcove"
+          : undefined,
+      );
       expect(host.textContent).not.toContain("Update ready to install");
       expect(
         [...host.querySelectorAll("button")].some((item) =>

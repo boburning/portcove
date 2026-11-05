@@ -1,3 +1,5 @@
+import type { CatalogEntry } from "../features/browsing/catalog-entry";
+
 /** Authored cautions stay visible before setup, download and route-change decisions. */
 export function AuthoredSetupWarnings({ warnings }: { warnings?: readonly string[] | undefined }) {
   if (!warnings?.length) return null;
@@ -14,4 +16,13 @@ export function AuthoredSetupWarnings({ warnings }: { warnings?: readonly string
       </ul>
     </aside>
   );
+}
+
+export function ExternalLaunchWarnings({ port }: { port: CatalogEntry }) {
+  const warnings = port.listingStatus?.capabilities?.advisories
+    .filter(
+      ({ notice, applicability }) => notice.feature === "launch" && applicability !== "historical",
+    )
+    .map(({ notice }) => notice.explanation);
+  return <AuthoredSetupWarnings warnings={warnings} />;
 }

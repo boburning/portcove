@@ -329,7 +329,7 @@ it("refreshes descriptive directory data through Core and reloads the workspace"
   const root = createRoot(host);
   try {
     await act(async () => root.render(<CatalogSettings disabled={false} onChanged={changed} />));
-    await page.getByText("Directory updates", { exact: true }).click();
+    await page.getByText("Game listings", { exact: true }).click();
     await page
       .getByRole("textbox", { name: "Catalog metadata address" })
       .fill("https://catalog.example/metadata/");

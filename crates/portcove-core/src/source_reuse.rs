@@ -243,11 +243,11 @@ fn application_review(
         additional_checks.push("Confirm the required edition, region, revision and complete input during setup; compatibility has not been established.".into());
     }
     if app.contract.validator_contract_id.is_some() {
-        additional_checks.push(
-            "The project’s setup tool still needs to check these files.".into(),
-        );
+        additional_checks.push("The project’s setup tool still needs to check these files.".into());
     }
-    additional_checks.push("Open the port’s setup instructions to check its system and file requirements.".into());
+    additional_checks.push(
+        "Open the port’s setup instructions to check its system and file requirements.".into(),
+    );
     let mut summary = match compatibility {
         SourceReuseCompatibility::ListedIdentity => "This port lists the edition Portcove found.",
         SourceReuseCompatibility::Potential => "These files may work with this port. Check its setup instructions before continuing.",

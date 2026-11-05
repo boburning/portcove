@@ -10,6 +10,7 @@ import {
 import type { Perform } from "../features/operations/use-operation-state";
 import { gameIdentityLabel } from "../port-identity";
 import type { PortStatus } from "../types";
+import { ExternalLaunchWarnings } from "./AuthoredSetupWarnings";
 import { CatalogDownloadControl, PendingSetupActions } from "./CatalogDownload";
 import { AuthoredPreparationGuidance, UserSelectedRuntimeControl } from "./ExternalRuntime";
 import { ExternalLink } from "./ExternalLink";
@@ -80,17 +81,20 @@ export function SelfServiceSetup({
     });
   };
   const playAction = registered ? (
-    <Button
-      data-focusable
-      variant="primary"
-      size="lg"
-      disabled={!launch.allowed || busy}
-      focusableWhenDisabled={launch.allowed && busy}
-      aria-busy={launch.allowed && busy}
-      onClick={play}
-    >
-      <Icon glyph={Play} className="fill-current" /> Play
-    </Button>
+    <div className="grid min-w-0 justify-items-start gap-2 wrap-anywhere">
+      <ExternalLaunchWarnings port={entry} />
+      <Button
+        data-focusable
+        variant="primary"
+        size="lg"
+        disabled={!launch.allowed || busy}
+        focusableWhenDisabled={launch.allowed && busy}
+        aria-busy={launch.allowed && busy}
+        onClick={play}
+      >
+        <Icon glyph={Play} className="fill-current" /> Play
+      </Button>
+    </div>
   ) : null;
   const setup = (
     <section

@@ -34,7 +34,7 @@ namespace Portcove.ReferenceClient
             var source = Json.Field(inputs, "source");
             var tool = Json.Field(inputs, "setup_tool");
             var conversion = Json.Field(inputs, "conversion_tool");
-            return "Set up this game using the selected original files? Portcove checks the plan again before creating the new copy. " +
+            return "Set up this game using the selected original files? Portcove checks the plan again, then prepares a separate copy beside the existing installation. When setup succeeds, Play uses the new copy. " +
                 "Keep the original files and existing version. Stopping setup may leave files to recover.\n\nGame version: " + Json.Text(install, "version") +
                 "\nOriginal files: " + Json.Text(source, "path") +
                 "\nExisting installation folder: " + Json.Text(install, "path") +

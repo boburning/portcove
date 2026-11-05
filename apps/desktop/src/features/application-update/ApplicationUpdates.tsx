@@ -295,6 +295,19 @@ function installRestrictionCopy(status: ApplicationUpdateStatus) {
   }
 }
 
+function ManualUpgradeLink({
+  eligibility,
+}: {
+  eligibility: ApplicationUpdateStatus["install_eligibility"];
+}) {
+  if (eligibility !== "not-configured" && eligibility !== "unavailable") return null;
+  return (
+    <ExternalLink href="https://github.com/boburning/portcove/blob/main/docs/UPGRADING.md#upgrade-portcove">
+      Manual upgrade and recovery instructions
+    </ExternalLink>
+  );
+}
+
 function StagedApplicationUpdateItem({
   status,
   disabled,
@@ -323,12 +336,7 @@ function StagedApplicationUpdateItem({
             ? " Restart to update will check package ownership and other installation requirements again."
             : ` ${installRestrictionCopy(status)}`}
       </p>
-      {(status.install_eligibility === "not-configured" ||
-        status.install_eligibility === "unavailable") && (
-        <ExternalLink href="https://github.com/boburning/portcove/blob/main/docs/UPGRADING.md#upgrade-portcove">
-          Manual upgrade and recovery instructions
-        </ExternalLink>
-      )}
+      <ManualUpgradeLink eligibility={status.install_eligibility} />
       {canRestart && (
         <Button
           data-focusable
@@ -412,9 +420,10 @@ function ApplicationUpdateStatusPanel({
       {status && (
         <>
           {!status.staged && status.install_eligibility !== "eligible" && (
-            <p className={`${updateSurfaceClass} ${updateMutedCopyClass}`}>
-              {installRestrictionCopy(status)}
-            </p>
+            <div className={`${updateSurfaceClass} ${updateMutedCopyClass}`}>
+              <p>{installRestrictionCopy(status)}</p>
+              <ManualUpgradeLink eligibility={status.install_eligibility} />
+            </div>
           )}
           <ApplicationUpdateRecoveryItems
             recoveries={status.recovery_required}

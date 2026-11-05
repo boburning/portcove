@@ -103,6 +103,9 @@ it("requires an acknowledged choice, retains alternatives and targets the chosen
   }
   await render(<Fixture />);
   expect(document.querySelectorAll("[data-library-game-id]")).toHaveLength(1);
+  expect(document.body.textContent).toContain(
+    "Check its setup instructions for shared save locations before switching.",
+  );
   expect(document.body.textContent).not.toContain("Play First project");
   await page.getByRole("button", { name: "Choose Second project", exact: true }).first().click();
   expect(document.body.textContent).not.toContain("Play Second project");

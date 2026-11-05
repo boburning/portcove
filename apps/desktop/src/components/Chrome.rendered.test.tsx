@@ -386,10 +386,10 @@ describe("desktop components", () => {
     expect(html).toContain("Create a support report");
     expect(html).toContain("Game-file contents and saved credentials are excluded");
     expect(html).toContain("paths, file names, and other metadata may remain");
-    expect(html).toContain("Review the bundle before sharing it");
+    expect(html).toContain("Review the support report before sharing it");
     expect(html).toContain("Examples of details that may remain");
     expect(html).toMatch(
-      /<p>[^<]*Game-file contents and saved credentials are excluded[^<]*paths, file names, and other metadata may remain[^<]*Review the bundle before sharing it\.<\/p>\s*<details>/u,
+      /<p>[^<]*Game-file contents and saved credentials are excluded[^<]*paths, file names, and other metadata may remain[^<]*Review the support report before sharing it\.<\/p>\s*<details>/u,
     );
     expect(html).toMatch(
       /<button[^>]*data-variant="outline"[^>]*>Create a support report<\/button>/u,
@@ -739,7 +739,7 @@ describe("desktop components", () => {
     expect(html).not.toContain(">Update file location</button>");
     expect(html).toContain("Review saved location removal");
     expect(html).not.toContain("Remove saved location…");
-    expect(html).not.toContain('aria-label="Saved-location removal impact"');
+    expect(html).not.toContain('aria-label="Review removal of the saved file location"');
     expect(html).toContain("Needs attention");
     expect(html).not.toContain("Checking identity");
   });

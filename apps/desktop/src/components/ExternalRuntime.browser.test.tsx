@@ -27,6 +27,7 @@ import {
 import { catalogEntries } from "../features/browsing/catalog-entry";
 import { ActionReviewFailure } from "./ActionReviewFailure";
 import { DetailLayout } from "./DetailLayout";
+import { SelfServiceSetup } from "./SelfServiceSetup";
 
 vi.mock("../file-picker", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../file-picker")>()),
@@ -434,6 +435,72 @@ it("shows the actual Second Hunt startup warning before the setup steps", async 
     warning.element().compareDocumentPosition(firstAction.element()) &
       Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeTruthy();
+});
+
+it("keeps the Second Hunt caution visible before Play for an attached copy", async () => {
+  const listing = listings.listings.find(
+    (candidate) => candidate.id === "bountyhunterkanden-secondhunt",
+  )!;
+  const advisory = listing.compatibility!.records[0]!;
+  if (advisory.feature !== "launch" || advisory.platform !== "windows-x86-64")
+    throw new Error("The startup advisory must be scoped to Windows launch");
+  const status = {
+    ...portStatus(),
+    port_id: listing.id,
+    external_runtime: { ...record, port_id: listing.id },
+  };
+  const perform = vi.fn(async () => undefined);
+  await root.rerender(
+    <SelfServiceSetup
+      entry={{
+        ...port,
+        id: listing.id,
+        listingStatus: {
+          port_id: listing.id,
+          status,
+          actions: [{ action: "launch", allowed: true }],
+          capabilities: {
+            advisories: [
+              {
+                applicability: "context-required",
+                notice: {
+                  ...advisory,
+                  feature: "launch",
+                  platform: "windows-x86-64",
+                  artifact_sha256: null,
+                  edition: null,
+                  workaround: null,
+                },
+              },
+            ],
+            advisory_state: "available",
+            detail_problems: [],
+            format_version: 1,
+            observations: [],
+            pending_setup: null,
+            port_id: listing.id,
+            protection: null,
+            routes: [],
+            settings: null,
+            setup_guide: null,
+            source_readiness: null,
+          },
+        },
+      }}
+      status={status}
+      generation={7}
+      perform={perform}
+      onChanged={vi.fn()}
+    />,
+  );
+  const warning = page.getByText(/Before opening Second Hunt v0\.4\.2-beta/);
+  const play = page.getByRole("button", { name: "Play", exact: true });
+  await expect.element(warning).toBeVisible();
+  await expect.element(play).toBeEnabled();
+  expect(
+    warning.element().compareDocumentPosition(play.element()) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+  expect(perform).not.toHaveBeenCalled();
 });
 
 it.each(["ghostship", "starship"])(

@@ -79,7 +79,7 @@ function LibraryGame({
       ref={root}
       tabIndex={-1}
       className="min-w-0"
-      aria-label={`${gameTitle(first)} implementations`}
+      aria-label={`${gameTitle(first)} ports`}
       data-library-game-id={group.id}
       data-detail-return-group={group.id}
     >
@@ -90,7 +90,7 @@ function LibraryGame({
       )}
       <details className="mt-2 rounded-pc-md border border-pc-border px-3 py-2 text-sm">
         <summary data-focusable className="cursor-pointer">
-          All {group.ports.length} implementations · {group.matchingPorts.length} matching
+          All {group.ports.length} ports · {group.matchingPorts.length} matching
         </summary>
         <p className="my-2 text-xs text-pc-muted-foreground">
           Choosing a project does not select a release, transfer saves or replace another

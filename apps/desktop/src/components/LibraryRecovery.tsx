@@ -213,8 +213,9 @@ export function LibraryRecovery({
           </p>
           <p>
             A manual copy is unverified. Keep the source intact and test a restore into a different
-            new or empty library before relying on it. On another computer, you may need to approve
-            catalog sources again. Your copy does not carry over those approvals.
+            new or empty library before relying on it. Some catalog rules need proof from the
+            computer that made the copy. A different computer may be unable to verify that proof and
+            restore the library.
           </p>
         </section>
       </details>

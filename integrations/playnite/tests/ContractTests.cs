@@ -1125,6 +1125,7 @@ internal static class ContractTests
         })));
         Check(preparation.StartsWith("Set up this game using the selected original files?") &&
             preparation.Contains("Stopping setup may leave files to recover.") &&
+            preparation.Contains("When setup succeeds, Play uses the new copy.") &&
             preparation.Contains("Game version: 1.2") && preparation.Contains("C:/Original/edition.z64") &&
             preparation.Contains("C:/Games/test") && preparation.Contains("fixture-digest"),
             "preparation confirmation leads with the effect and retains inputs, existing installation folder and diagnostic identity");

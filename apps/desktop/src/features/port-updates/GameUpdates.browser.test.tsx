@@ -241,7 +241,7 @@ it("reviews without execution and submits the exact download-only plan on confir
   expect(apply).not.toHaveBeenCalled();
   expect(desktopApi.planGameUpdateAcquisition).toHaveBeenCalledExactlyOnceWith("sample", 9);
   expect(dialog()?.textContent).toContain("to download");
-  expect(dialog()?.textContent).toContain("Download only the immutable archive");
+  expect(dialog()?.textContent).toContain("Download this update for later");
   expect(dialog()?.textContent).not.toContain(plan.plan.output_location.user_data_root);
   await expect
     .poll(() => document.activeElement)
@@ -345,11 +345,11 @@ it("reviews an immediate update in place and obtains new consent before keeping 
   await click("Update now");
   expect(review).toHaveBeenNthCalledWith(1, "sample", true, 9);
   expect(dialog()?.textContent).toContain("Original Game · Sample Project update");
-  expect(dialog()?.textContent).toContain("current version remains available for rollback");
+  expect(dialog()?.textContent).toContain("Portcove keeps the previous version");
   expect(apply).not.toHaveBeenCalled();
   await click("Download for later");
   expect(archiveReview).toHaveBeenCalledExactlyOnceWith("sample", 9);
-  expect(dialog()?.textContent).toContain("Download only the immutable archive");
+  expect(dialog()?.textContent).toContain("Download this update for later");
   await click("Download archive for later");
   expect(acquire).toHaveBeenCalledExactlyOnceWith(
     "sample",
@@ -400,8 +400,8 @@ it("does not submit duplicate reviews or apply a stale plan after a failed chang
   await click("Download for later");
   expect(dialog()?.textContent).toContain("Checking update…");
   expect(dialog()?.textContent).not.toContain("Updating…");
-  expect(dialog()?.textContent).toContain("current version remains available for rollback");
-  expect(dialog()?.textContent).not.toContain("Download only the immutable archive");
+  expect(dialog()?.textContent).toContain("Portcove keeps the previous version");
+  expect(dialog()?.textContent).not.toContain("Download this update for later");
   expect(apply).not.toHaveBeenCalled();
   expect(archiveReview).toHaveBeenCalledExactlyOnceWith("sample", 9);
   const confirmation = [...document.querySelectorAll<HTMLButtonElement>("button")].find(
@@ -572,12 +572,12 @@ it("requires another review when the chosen action changes and binds activation 
   expect(apply).not.toHaveBeenCalled();
   await click("Download for later");
   expect(dialog()?.textContent).toContain("2.0");
-  expect(dialog()?.textContent).toContain("active version stay unchanged");
+  expect(dialog()?.textContent).toContain("installed version and saves stay as they are");
   await click("Update now");
   expect(archiveReview).toHaveBeenCalledExactlyOnceWith("sample", 9);
   expect(review).toHaveBeenCalledExactlyOnceWith("sample", true, 9);
   expect(apply).not.toHaveBeenCalled();
-  expect(dialog()?.textContent).toContain("current version remains available for rollback");
+  expect(dialog()?.textContent).toContain("Portcove keeps the previous version");
   await click("Download and install update");
   expect(apply).toHaveBeenCalledExactlyOnceWith(
     "sample",
@@ -792,7 +792,7 @@ it.each(["use_staged", "reuse_retained"] as const)(
     await click("Update now");
     expect(apply).not.toHaveBeenCalled();
     expect(dialog()?.textContent).toContain("No download; use the verified local release.");
-    expect(dialog()?.textContent).toContain("This keeps the prepared update for later.");
+    expect(dialog()?.textContent).toContain("Set up the update for later");
     await click("Keep saved update for later");
     expect(apply).toHaveBeenCalledExactlyOnceWith(
       "sample",
@@ -1098,7 +1098,7 @@ it("shows the reviewed data location and compatibility unknown for a saved updat
     ["sample", true, 9],
     ["sample", false, 9],
   ]);
-  expect(dialog()?.textContent).toContain("Your current version stays unchanged");
+  expect(dialog()?.textContent).toContain("keep using your current version");
   expect(dialog()?.textContent).toContain("Keep saved update for later");
   expect(dialog()?.textContent).toContain(notice);
   expect(apply).not.toHaveBeenCalled();
@@ -1270,7 +1270,7 @@ it.each([false, true])(
       await page.getByRole("button", { name: "Prepare for later", exact: true }).click();
     } else await click("Update now");
     expect(review).toHaveBeenCalledExactlyOnceWith("sample", activate, 9);
-    expect(dialog()?.textContent).toContain("No new archive download is planned");
+    expect(dialog()?.textContent).toContain("Portcove will check and reuse the downloaded update.");
     expect(dialog()?.textContent).toContain(acquisition.id);
     expect(acquire).not.toHaveBeenCalled();
     expect(archiveReview).not.toHaveBeenCalled();
@@ -1375,7 +1375,7 @@ it("distinguishes acquired archives from prepared updates in Activity and keeps 
       container.querySelector(".update-row")?.textContent,
   ).toContain("Update downloaded, not installed");
   expect(container.querySelector('[aria-label="Downloaded update"]')?.textContent).toContain(
-    "separate from a prepared update",
+    "Prepare or install the update separately",
   );
   expect(container.textContent).not.toContain("Update saved for later");
   const prepared = [...container.querySelectorAll(".update-stat")].find((stat) =>
@@ -1747,7 +1747,7 @@ it.each([
       return result;
     };
     await show();
-    const archives = page.getByRole("region", { name: "Retained update archives", exact: true });
+    const archives = page.getByRole("region", { name: "Downloaded updates", exact: true });
     await expect.element(archives).toBeVisible();
     await expect
       .element(

@@ -244,7 +244,7 @@ function useGameUpdateControl({
     ...targetInvocationContext("Download update archive", target, generation),
     operation: "acquire_game_update" as const,
   };
-  const discardContext = targetInvocationContext("Discard update archive", target, generation);
+  const discardContext = targetInvocationContext("Delete downloaded update", target, generation);
   const exclusiveBusy = updateInvocationBusy(owner, applyContext, fallbackBusy);
   const acquireBusy = updateInvocationBusy(owner, acquireContext, fallbackBusy);
   const [intent, setIntent] = useState<UpdateIntent>("install");
@@ -546,7 +546,9 @@ export function GameUpdateControl(props: Parameters<typeof useGameUpdateControl>
       ref={actionRegion}
       tabIndex={-1}
       aria-label={
-        archiveOnly ? `Manage archive for ${gameName ?? props.portId}` : "Review game update"
+        archiveOnly
+          ? `Manage downloaded update for ${gameName ?? props.portId}`
+          : "Review game update"
       }
     >
       {!compact && archiveOnly && <h3>Downloaded update</h3>}
@@ -1120,7 +1122,7 @@ function GameUpdateReview({
           {downloadOnly
             ? "Download this update for later. Your installed version and saves stay as they are."
             : plan.activate
-              ? "Start using the new version. You can restore the previous version from its retained copy."
+              ? "Start using the new version. Portcove keeps the previous version. Check the restore options before switching back."
               : "Set up the update for later and keep using your current version."}{" "}
           Saved update settings are unchanged.
         </p>

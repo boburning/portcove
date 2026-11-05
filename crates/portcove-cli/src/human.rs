@@ -638,7 +638,7 @@ pub(crate) fn backup_action_preview(
         ),
     };
     format!(
-        "{action} review\nPort: {port}\nBackup: {}\nArchive folder: {}\nCreated (UTC): {}\nFiles: {}\nSize: {} ({} bytes)\nBackup SHA-256: {}\nCurrent managed saved data exists: {}\n{consequences}\nReview SHA-256: {}\nConsent is bound to the reviewed contents; changed inputs require a new review.",
+        "{action} review\nPort: {port}\nBackup: {}\nArchive folder: {}\nCreated (UTC): {}\nFiles: {}\nSize: {} ({} bytes)\nBackup SHA-256: {}\nCurrent managed saved data exists: {}\n{consequences}\nReview SHA-256: {}\nIf the files change, review them again before confirming.",
         clean(&preview.backup.id),
         clean(&preview.backup.path.display().to_string()),
         utc_time(preview.backup.created_at),

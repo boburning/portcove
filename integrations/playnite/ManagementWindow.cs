@@ -347,22 +347,25 @@ namespace Portcove.ReferenceClient
             state.Text = (active != null ? "Installed version: " + Json.Text(active, "version") + "." :
                 external != null ? "Installation you maintain: " + Json.Text(external, "version") + ". Update this copy with the project’s tools." :
                 externalRoute ? "Choose the folder for a game you’ve already set up." : "Game program not installed.") + "\n" +
-                (readiness != null && Json.Boolean(readiness, "launchable") ? "Ready to play." :
-                    string.IsNullOrWhiteSpace(blockers) ? "Portcove couldn’t confirm whether this game can start. Check setup in Portcove." : blockers) +
+                (string.IsNullOrWhiteSpace(blockers) ? "" : blockers + "\n") +
                 (Json.Field(catalog, "source_profile") == null ? "" : "\nThis port requires original game files.") +
                 (Json.Field(catalog, "bios_source_profile") == null ? "" : "\nThis port requires a BIOS file.") +
                 (!string.IsNullOrWhiteSpace(preparationText) ? "\nSetup instructions: " + preparationText : "") +
-                (repairs.Length > 0 ? "\nSetup copies needing attention: " + repairs.Length + "." : "");
+                (repairs.Length > 0 ? "\nSetup copies needing attention: " + repairs.Length + "." : "") +
+                (definitionOperations == null ? "" : "\n" + definitionOperations) +
+                (portActions == null ? "" : "\n" + portActions);
             var entries = activityFeed.VisibleRecords(
                 item => (Json.Field(item, "target_id") as string) == port,
                 8);
-            progress.Text = entries.Length == 0 ?
-                (activityFeed.TerminalHistoryComplete ? "No activity for this game." :
-                    activityFeed.ActiveAndActionableComplete ? "No activity for this game appears in the available history. Earlier finished tasks may be missing." :
-                    "This list may be missing tasks. Check Activity in Portcove before starting recovery or changing the library.") :
-                string.Join("\n", entries.Select(item => Json.Text(item, "operation").Replace('_', ' ') + ": " + Json.Text(item, "status") +
+            progress.Text = entries.Length == 0
+                ? (activityFeed.TerminalHistoryComplete ? "No activity for this game." : "No activity for this game appears in the available history.")
+                : string.Join("\n", entries.Select(item => Json.Text(item, "operation").Replace('_', ' ') + ": " + Json.Text(item, "status") +
                     (Json.Field(item, "message") == null ? "" : " — " + Json.Field(item, "message"))));
-            technical.Text = Json.Print(new { status, activity = entries, catalog, definitionOperations, portActions });
+            if (!activityFeed.ActiveAndActionableComplete)
+                progress.Text += "\nThis list may be missing tasks. Check Activity in Portcove before starting recovery or changing the library.";
+            else if (!activityFeed.TerminalHistoryComplete)
+                progress.Text += "\nEarlier finished tasks may be missing.";
+            technical.Text = Json.Print(new { status, activity = entries, catalog });
             var request = plugin.RecentLaunch(game.GameId);
             if (!string.IsNullOrEmpty(request))
             {
