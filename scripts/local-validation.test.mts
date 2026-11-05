@@ -4654,6 +4654,7 @@ void test("GitHub dependency changes select actual SDK and REST integration cont
       "scripts/release-artifact-archive.test.mts",
       "scripts/release-run-evidence.test.mts",
       "scripts/acquire-release-admission.test.mts",
+      "scripts/release-metadata-context-recovery.test.mts",
       "scripts/production-controller-admission.test.mts",
       "scripts/release-bootstrap-preparation.test.mts",
       "scripts/application-release-budget.test.mts",
@@ -4695,6 +4696,7 @@ void test("GitHub dependency changes select actual SDK and REST integration cont
   assert.ok(custodyChange.nodeTests.has("scripts/application-release-native.test.mts"));
   assert.ok(custodyChange.nodeTests.has("scripts/release-bootstrap-preparation.test.mts"));
   assert.ok(custodyChange.nodeTests.has("scripts/production-controller-admission.test.mts"));
+  assert.ok(custodyChange.nodeTests.has("scripts/release-metadata-context-recovery.test.mts"));
   assert.ok(custodyChange.nodeTests.has("scripts/release-signing-handoff.test.mts"));
   assert.ok(custodyChange.nodeTests.has("scripts/release-immutable-publication.test.mts"));
   assert.ok(custodyChange.nodeTests.has("scripts/release-candidate-signing-recovery.test.mts"));

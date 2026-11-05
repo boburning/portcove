@@ -195,6 +195,12 @@ void test("pending context readback requires positive terminal exact artifact, n
 void test("default GET-only pending upload transport reconciles failed producer bytes and preserves ambiguous refusals", async (t) => {
   const parent = await mkdtemp(path.join(os.tmpdir(), "pending-context-readback-"));
   t.after(() => rm(parent, { recursive: true, force: true }));
+  const originalToken = process.env.GH_TOKEN;
+  process.env.GH_TOKEN = "inert-metadata-context-reader";
+  t.after(() => {
+    if (originalToken === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = originalToken;
+  });
   const original = childProcess.spawnSync;
   for (const bootstrap of [false, true])
     for (const fault of ["", "absent", "changed-bytes", "changed-expected", "drift"]) {
@@ -213,17 +219,33 @@ void test("default GET-only pending upload transport reconciles failed producer 
           const endpoint = args.find((a) => a.startsWith("repos/"));
           assert.ok(endpoint);
           requests.push(endpoint);
-          if (endpoint.endsWith("/zip")) {
-            downloads++;
-            return {
-              status: 0,
-              stdout: fault === "changed-bytes" ? Buffer.from("changed") : f.archive,
-              stderr: Buffer.alloc(0),
-            };
-          }
-          assert.equal(args[args.indexOf("--method") + 1], "GET");
+          assert.match(endpoint, /\/zip$/u);
+          downloads++;
+          return {
+            status: 0,
+            stdout: fault === "changed-bytes" ? Buffer.from("changed") : f.archive,
+            stderr: Buffer.alloc(0),
+          };
+        },
+      );
+      const fetchMock = t.mock.method(
+        globalThis,
+        "fetch",
+        async (input: unknown, init?: RequestInit) => {
+          assert.ok(typeof input === "string");
+          const url = new URL(input);
+          assert.equal(url.origin, "https://api.github.com");
+          assert.equal(init?.method, "GET");
+          assert.equal(
+            new Headers(init?.headers).get("authorization"),
+            "token inert-metadata-context-reader",
+          );
+          const endpoint = url.pathname.slice(1);
+          requests.push(endpoint);
           let body: unknown;
-          if (endpoint.endsWith("/artifacts?per_page=100&page=1")) {
+          if (endpoint.endsWith("/artifacts")) {
+            assert.equal(url.searchParams.get("per_page"), "100");
+            assert.equal(url.searchParams.get("page"), "1");
             snapshots++;
             body = {
               total_count: fault === "absent" ? 0 : 1,
@@ -235,11 +257,7 @@ void test("default GET-only pending upload transport reconciles failed producer 
           } else if (endpoint.includes("actions/jobs/")) body = { ...f.job, conclusion: "failure" };
           else if (endpoint.includes("actions/runs/")) body = f.run;
           else throw new Error("unexpected pending readback route");
-          return {
-            status: 0,
-            stdout: `HTTP/2.0 200 Fixture\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(body)}`,
-            stderr: "",
-          };
+          return Response.json(body);
         },
       );
       syncBuiltinESMExports();
@@ -277,6 +295,7 @@ void test("default GET-only pending upload transport reconciles failed producer 
         }
         assert.equal(downloads, fault === "absent" ? 0 : 1);
       } finally {
+        fetchMock.mock.restore();
         mock.mock.restore();
         syncBuiltinESMExports();
       }

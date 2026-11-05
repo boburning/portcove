@@ -1,6 +1,6 @@
 import {
   inspectCompleteRunArtifactInventory,
-  readCompleteRunArtifactInventory,
+  readCompleteRunArtifactInventoryAsync,
 } from "./release-run-artifact-inventory.mts";
 /** Bounded renewal-context reconciliation. Journal receipts, public artifacts
  * and completed producer identity remain separate from current controls. */
@@ -10,7 +10,7 @@ import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { isRecord } from "./runtime-values.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import { readGitHubArtifactArchive } from "./github-binary.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import { inspectCapacityOperation, inspectCompactCapacityOperations } from "./release-capacity.mts";
@@ -326,6 +326,35 @@ function inspectMetadataContextProvider(
   };
 }
 
+function metadataReadbackProvider(token: string, deadline: number, limitError: string) {
+  let reads = 0;
+  return createReleaseCustodyProvider({
+    token,
+    deadline,
+    chargeRead() {
+      if (++reads > 14) throw new Error(limitError);
+      signingContextRemaining(deadline, 15000);
+    },
+  });
+}
+
+async function readMetadataProviderSnapshot(
+  provider: Awaited<ReturnType<typeof metadataReadbackProvider>>,
+  producer: ReturnType<typeof originalProducer>,
+  deadline: number,
+) {
+  const raw = {
+    run: await provider.run(producer.run_id),
+    attempt: await provider.attempt(producer.run_id, 1),
+    job: await provider.job(producer.job_id),
+    artifacts: await readCompleteRunArtifactInventoryAsync((page) =>
+      provider.runArtifacts(producer.run_id, page),
+    ),
+  };
+  signingContextRemaining(deadline, 15000);
+  return raw;
+}
+
 /** Public custody readback only. The fixed coordinator must independently
  * derive `current` from its actual tools, ratified anchors and Tough prior;
  * only its existing authenticated recovery executor may settle the result. */
@@ -359,33 +388,8 @@ export async function readPendingMetadataContextUpload(
     GH_HOST: "github.com",
     GH_PROMPT_DISABLED: "1",
   };
-  let reads = 0;
-  const api = new GitHubApiClient((args, input) => {
-    if (++reads > 14) throw new Error("pending metadata readback limit exhausted");
-    const result = createGitHubRunner({
-      cwd: directory,
-      timeoutMs: signingContextRemaining(deadline, 15000),
-      maxBuffer: 2 * 1024 ** 2,
-      spawn: (command, argv, settings) =>
-        spawnSync(command, argv, { ...settings, env: environment }),
-    })([...args, "--hostname", "github.com"], input);
-    signingContextRemaining(deadline, 15000);
-    return result;
-  });
-  const get = (suffix: string) => {
-    const result = api.request("GET", `repos/boburning/portcove/${suffix}`);
-    if (result.status !== 200) throw new Error("pending metadata provider read unavailable");
-    return result.body;
-  };
-  const snapshot = () => {
-    const raw = {
-      run: get(`actions/runs/${producer.run_id}`),
-      attempt: get(`actions/runs/${producer.run_id}/attempts/1`),
-      job: get(`actions/jobs/${producer.job_id}`),
-      artifacts: readCompleteRunArtifactInventory((page) =>
-        get(`actions/runs/${producer.run_id}/artifacts?per_page=100&page=${page}`),
-      ),
-    };
+  const snapshot = async (provider: Awaited<ReturnType<typeof metadataReadbackProvider>>) => {
+    const raw = await readMetadataProviderSnapshot(provider, producer, deadline);
     return {
       raw,
       selected: inspectPendingMetadataContextProvider(
@@ -401,7 +405,12 @@ export async function readPendingMetadataContextUpload(
   };
   let phase = "terminal-original-provider";
   try {
-    const before = snapshot(),
+    const provider = await metadataReadbackProvider(
+      environment.GH_TOKEN ?? "",
+      deadline,
+      "pending metadata readback limit exhausted",
+    );
+    const before = await snapshot(provider),
       artifact = before.selected.artifact!;
     await writeFile(path.join(directory, "provider-before.json"), JSON.stringify(before.raw), {
       flag: "wx",
@@ -477,7 +486,7 @@ export async function readPendingMetadataContextUpload(
     )
       throw new Error("pending metadata partial receipt differs from exact readback");
     phase = "terminal-provider-after";
-    const after = snapshot();
+    const after = await snapshot(provider);
     if (digest(before.raw) !== digest(after.raw))
       throw new Error("pending metadata provider changed");
     await writeFile(path.join(directory, "provider-after.json"), JSON.stringify(after.raw), {
@@ -546,34 +555,9 @@ async function reconcileAt(actualContext: object, context: Context, parent: stri
     GH_HOST: "github.com",
     GH_PROMPT_DISABLED: "1",
   };
-  let reads = 0;
-  const api = new GitHubApiClient((args, input) => {
-    if (++reads > 14) throw new Error("metadata retry read limit exhausted");
-    const result = createGitHubRunner({
-      cwd: directory,
-      timeoutMs: signingContextRemaining(deadline, 15000),
-      maxBuffer: 2 * 1024 ** 2,
-      spawn: (command, argv, settings) =>
-        spawnSync(command, argv, { ...settings, env: environment }),
-    })([...args, "--hostname", "github.com"], input);
-    signingContextRemaining(deadline, 15000);
-    return result;
-  });
-  const get = (suffix: string) => {
-    const response = api.request("GET", `repos/boburning/portcove/${suffix}`);
-    if (response.status !== 200) throw new Error("metadata retry provider read unavailable");
-    return response.body;
-  };
   const producer = originalProducer(operation);
-  const snapshot = () => {
-    const raw = {
-      run: get(`actions/runs/${producer.run_id}`),
-      attempt: get(`actions/runs/${producer.run_id}/attempts/1`),
-      job: get(`actions/jobs/${producer.job_id}`),
-      artifacts: readCompleteRunArtifactInventory((page) =>
-        get(`actions/runs/${producer.run_id}/artifacts?per_page=100&page=${page}`),
-      ),
-    };
+  const snapshot = async (provider: Awaited<ReturnType<typeof metadataReadbackProvider>>) => {
+    const raw = await readMetadataProviderSnapshot(provider, producer, deadline);
     return {
       raw,
       selected: inspectMetadataContextRetryProvider(
@@ -588,7 +572,12 @@ async function reconcileAt(actualContext: object, context: Context, parent: stri
   };
   let phase = "terminal-original-provider";
   try {
-    const before = snapshot();
+    const provider = await metadataReadbackProvider(
+      environment.GH_TOKEN ?? "",
+      deadline,
+      "metadata retry read limit exhausted",
+    );
+    const before = await snapshot(provider);
     await writeFile(path.join(directory, "provider-before.json"), JSON.stringify(before.raw), {
       flag: "wx",
       mode: 0o600,
@@ -664,7 +653,7 @@ async function reconcileAt(actualContext: object, context: Context, parent: stri
         throw new Error("metadata retry attestation differs from settled receipt");
     }
     phase = "terminal-provider-after";
-    const after = snapshot();
+    const after = await snapshot(provider);
     if (digest(before.raw) !== digest(after.raw))
       throw new Error("metadata retry provider inventory changed");
     await writeFile(path.join(directory, "provider-after.json"), JSON.stringify(after.raw), {
