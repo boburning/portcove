@@ -125,9 +125,8 @@ export function SelfServiceSetup({
               </>
             ) : (
               <p>
-                Your download is saved. Confirm the game or launcher below to finish adding it. If
-                no launch target is available, open the download folder and follow the upstream
-                setup instructions, then return here. Nothing has been run yet.
+                Your download is ready for setup. If you still need to set it up, open the download
+                folder and follow the project’s guide. Then return here and choose the game program.
               </p>
             )}
             <code className="[overflow-wrap:anywhere]">{pending.path}</code>
@@ -184,8 +183,8 @@ export function SelfServiceSetup({
           <div className="grid gap-3 pt-2">
             <p>
               Keep using your current installation while preparing another copy. Downloading leaves
-              its files and launch details unchanged. Review the new executable before switching;
-              both copies and their saves stay where they are.
+              its files and launch details unchanged. Review the new game program before switching.
+              Check the project’s instructions for any shared save locations.
             </p>
             <CatalogDownloadControl
               libraryRoot={libraryRoot}
@@ -205,8 +204,8 @@ export function SelfServiceSetup({
       {registered && entry.listing && (
         <div className="grid gap-2 text-sm">
           <p>
-            Registered installation. You or upstream manage updates; the version you downloaded may
-            not be the version Portcove currently launches.
+            Portcove opens the program shown in Launch details. Use the project’s tools to update
+            this installation. Downloading another version leaves this choice as it is.
           </p>
           <ExternalLink href={updates!.url}>
             {updates!.releases

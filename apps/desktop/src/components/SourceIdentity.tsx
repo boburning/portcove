@@ -61,10 +61,11 @@ export function SourceIdentityPanel({
         ? "File check"
         : "Game-file check";
   const problemToolId = report.problem?.tool_id;
+  const requirementName = report.expected_identity?.label ?? report.applications[0]?.port_name;
   return (
     <section
       className="source-identity @container/source mt-3 grid gap-3 rounded-pc-lg border border-pc-border bg-pc-surface p-4"
-      aria-label={`${checkLabel} for ${report.expected_identity?.label ?? report.profile_id}`}
+      aria-label={requirementName ? `${checkLabel} for ${requirementName}` : checkLabel}
     >
       <p
         className="sr-only m-0 leading-[var(--leading-relaxed)] text-[var(--color-text-muted)]"
@@ -75,7 +76,7 @@ export function SourceIdentityPanel({
       <div className="flex items-center justify-between gap-3 @max-[30rem]/source:flex-col @max-[30rem]/source:items-start">
         <div className="grid gap-0.5">
           <small className="text-pc-muted-foreground">{checkLabel}</small>
-          <strong>{report.expected_identity?.label ?? report.profile_id}</strong>
+          {requirementName && <strong>{requirementName}</strong>}
         </div>
         <span
           className={cn(
@@ -255,7 +256,7 @@ function ApplicationResult({
       </div>
       <MetadataGrid className="@max-[30rem]/source:grid-cols-[1fr]">
         <div className="flex min-w-0 items-center justify-between gap-3 rounded-pc-md bg-[var(--color-bg-inset)] p-2 @max-[30rem]/source:flex-col @max-[30rem]/source:items-start">
-          <dt>Game version checked</dt>
+          <dt>Requirements apply to</dt>
           <dd>{applicability}</dd>
         </div>
       </MetadataGrid>
@@ -679,34 +680,34 @@ function classificationLabel(report: SourceInspectionReport) {
 export function sourceAdmissionPresentation(mode: string) {
   const modes = {
     exact_identity: {
-      label: "Exact identity",
+      label: "Edition identified",
       detailLabel: "Admitted · exact identity",
       explanation:
-        "The source matched an accepted exact identity. This is not installation or gameplay proof.",
+        "These files match a listed edition. Review the port’s setup requirements before playing.",
     },
     structural_checks: {
-      label: "Structural checks",
+      label: "Basic file checks passed",
       detailLabel: "Admitted · structural checks",
       explanation:
-        "Required file checks passed. Structural admission alone does not establish an exact edition.",
+        "These checks alone don’t identify the edition. Check which files this port needs.",
     },
     informational_consent: {
-      label: "Informational consent",
+      label: "Compatibility unconfirmed",
       detailLabel: "Admitted · informational consent",
       explanation:
-        "The source was admitted under its informational rules. This does not verify an exact edition.",
+        "You can add these files. Review the file requirements before setting up the port.",
     },
     upstream_validator: {
-      label: "Upstream validator",
+      label: "The game’s file check passed",
       detailLabel: "Admitted · upstream validator",
       explanation:
-        "The configured upstream validator accepted the source. The admission label alone does not establish an exact edition.",
+        "The project’s setup tool accepted these files. This check alone doesn’t identify the edition.",
     },
   };
   return Object.hasOwn(modes, mode)
     ? { ...modes[mode as keyof typeof modes], known: true }
     : {
-        label: "Source check unavailable",
+        label: "File check unavailable",
         detailLabel: "Admission result unavailable",
         explanation:
           "This version cannot explain the reviewed source check. Cancel this review and check the files again, or update Portcove if this continues.",
@@ -727,10 +728,10 @@ function contractLabel(
   state: SourceInspectionReport["applications"][number]["contract_result"]["state"],
 ) {
   const labels = {
-    supported: "Matches evaluated source requirements",
-    recognized_not_listed: "Recognized · not listed",
-    known_incompatible: "Known mismatch · refused",
-    informational: "Informational requirement",
+    supported: "Matches the listed file requirements",
+    recognized_not_listed: "Edition identified, but unlisted for this port",
+    known_incompatible: "Files don’t match this port’s requirements",
+    informational: "Compatibility unconfirmed",
     unreviewed_for_release: "Not reviewed for this release",
     not_evaluated: "Not evaluated",
   };
@@ -743,10 +744,10 @@ function applicabilityLabel(
 ) {
   if (contract === "unreviewed_for_release") return "Not reviewed for this release";
   const labels: Record<string, string> = {
-    artifact_bound: "Applies to this exact download",
-    integration_contract_bound: "Applies to compatible releases under the reviewed integration",
-    upstream_release_bound: "Applies to the reviewed game version",
-    not_rebound: "No game version was recorded for these checks",
+    artifact_bound: "This exact download",
+    integration_contract_bound: "Releases covered by these requirements",
+    upstream_release_bound: "The listed game version",
+    not_rebound: "Game version not recorded",
   };
   return Object.hasOwn(labels, state)
     ? labels[state]

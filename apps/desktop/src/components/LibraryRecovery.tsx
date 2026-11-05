@@ -70,8 +70,8 @@ export function LibraryRecovery({
       <details>
         <summary className="cursor-pointer py-2 font-semibold">Prepare a recovery copy</summary>
         <p>
-          This is a guided manual copy. Portcove exports metadata; it does not copy your library or
-          certify a backup here.
+          Portcove exports library information. Copy the library files yourself and test a restore
+          before relying on the copy.
         </p>
         <section className="mt-6 grid justify-items-start gap-3">
           <h3>1. Review work and game saves</h3>
@@ -161,15 +161,21 @@ export function LibraryRecovery({
               temporary files in a recovery copy. Checked restore and location changes refuse these
               files; they do not silently filter an entire library copy.
             </p>
-            <p>
-              Open the affected version, sign out and close it. Temporary files may remain. If a
-              refusal names a remaining file, privately preserve it on this host outside all
-              Portcove installation, save, backup, staging and recovery folders before manually
-              removing it from the listed transfer tree. Keep your original data intact. Do not
-              upload these files or include their contents in diagnostics. Review again after any
-              change and prepare a fresh matching export and content copy. Sign in again in the
-              destination; copying these files does not transfer sign-in authority.
+            <p className="font-semibold">
+              Do not upload sign-in files or include them in a support report.
             </p>
+            <ol className="list-decimal space-y-2 pl-5">
+              <li>In the affected version, sign out if you can. Close the game.</li>
+              <li>
+                If Portcove names a remaining sign-in file, keep a private copy on this computer
+                outside its installation, save, backup, staging and recovery folders.
+              </li>
+              <li>
+                Remove only that named file from the listed transfer folder. Keep your original data
+                intact. Prepare a fresh matching export and content copy, then review it again.
+              </li>
+              <li>Sign in again in the destination library.</li>
+            </ol>
           </aside>
           <p>
             After the export, close Portcove and all other clients and keep games closed. In your
@@ -207,8 +213,8 @@ export function LibraryRecovery({
           </p>
           <p>
             A manual copy is unverified. Keep the source intact and test a restore into a different
-            new or empty library before relying on it. Retained catalog definitions can require this
-            host’s secure-storage admission; a copy does not establish trust on another device.
+            new or empty library before relying on it. On another computer, you may need to approve
+            catalog sources again. Your copy does not carry over those approvals.
           </p>
         </section>
       </details>

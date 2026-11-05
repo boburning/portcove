@@ -904,7 +904,7 @@ describe("ApplicationUpdateSettings", () => {
 
     await render();
     expect(host.textContent).toContain("Portcove 0.2.0-beta.3 (Preview");
-    expect(host.textContent).toContain("Restart request saved");
+    expect(host.textContent).toContain("Update requested. Waiting for Portcove to restart.");
     expect(host.textContent).toContain("Update check history needs repair");
 
     await click("Reset update-check history");

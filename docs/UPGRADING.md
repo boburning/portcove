@@ -58,12 +58,7 @@ offline or failed runtime installation does not establish a usable application.
 Desktop refuses an unavailable engine, preview identity or engine below the
 floor. On Windows it displays a native diagnostic; on Linux
 it writes a diagnostic to standard error. Repair the runtime using the ordinary
-installer/package source before starting again. No supported historical-engine
-claim follows from compiler targets or a newer-host pass. Windows 25H2 remains
-an unqualified follow-up compatibility target, not an initial-beta prerequisite;
-missing media does not establish incompatibility. The support policy does not
-add an installer or Windows OS startup gate: existing Server diagnostic routes can
-still execute, without establishing support for Server or an older client OS.
+installer/package source before starting again.
 
 Ordinary Linux support is updated Ubuntu 24.04 LTS x86-64 with maintained
 `libwebkit2gtk-4.1-0`, initially 2.52.6-0ubuntu0.24.04.1 or later. The DEB declares
@@ -72,16 +67,6 @@ library bundled by an AppImage; updating only the host package cannot fix an old
 bundled engine. Use a current qualified AppImage if its bundled runtime is too
 old. Other Linux distributions remain unqualified. See the
 [support and qualification boundary](DESIGN-SYSTEM.md#compatibility-and-qualification-boundary).
-
-Fresh updater installed-context selection also refuses an insufficient runtime.
-Windows release records must declare `minimum_os_version` at least
-`10.0.26200`; Linux's existing field describes its kernel, not an Ubuntu release.
-Do not encode `24.04` as a kernel version or infer distro support from that field.
-Keep actual Ubuntu/package eligibility and the exact loaded engine in the
-candidate's evidence. No production release record or publication identity is
-allocated by this policy change. Existing authenticated selection, ownership,
-consent, recovery and replacement checks continue to apply; startup recovery of
-an interrupted replacement runs before the new engine check.
 
 ### Linux package choice
 
@@ -120,7 +105,7 @@ complete library.
 
 ### Application updater recovery without the GUI
 
-If Portcove cannot open far enough to show **Settings > Application updates**,
+If Portcove cannot open far enough to show **Settings > Portcove & catalog updates** in the development build,
 close every Portcove window and run the installed desktop executable from a
 terminal:
 
@@ -186,6 +171,25 @@ downgrade and database-recovery path; replacing only the application cannot
 reverse a migrated library.
 
 ## Technical recovery reference
+
+### Runtime qualification and release metadata
+
+No supported historical-engine
+claim follows from compiler targets or a newer-host pass. Windows 25H2 remains
+an unqualified follow-up compatibility target, not an initial-beta prerequisite;
+missing media does not establish incompatibility. The support policy does not
+add an installer or Windows OS startup gate: existing Server diagnostic routes can
+still execute, without establishing support for Server or an older client OS.
+
+Fresh updater installed-context selection also refuses an insufficient runtime.
+Windows release records must declare `minimum_os_version` at least
+`10.0.26200`; Linux's existing field describes its kernel, not an Ubuntu release.
+Do not encode `24.04` as a kernel version or infer distro support from that field.
+Keep actual Ubuntu/package eligibility and the exact loaded engine in the
+candidate's evidence. No production release record or publication identity is
+allocated by this policy change. Existing authenticated selection, ownership,
+consent, recovery and replacement checks continue to apply; startup recovery of
+an interrupted replacement runs before the new engine check.
 
 The Alpha 1 to Alpha 2 database migration is forward-only and transactional. A
 failure leaves the recorded schema at the last complete migration so a

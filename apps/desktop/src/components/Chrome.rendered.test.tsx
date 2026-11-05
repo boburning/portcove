@@ -260,7 +260,9 @@ describe("desktop components", () => {
     expect(html).toContain("1.0 TiB total storage capacity");
     expect(html).toContain('aria-label="Available capacity on the library volume"');
     expect(html).toContain("width:50%");
-    expect(html).toContain("Installed application files are kept separate from saves and settings");
+    expect(html).toContain(
+      "Check Saves &amp; backups on each game’s page for its save locations and backup options.",
+    );
     expect(html).toContain(
       "Metadata records installed versions, saved file locations and settings",
     );
@@ -341,7 +343,9 @@ describe("desktop components", () => {
     expect(html).toContain("Not found");
     expect(html).toContain("C:/Tools/chdman.exe");
     expect(html).toContain("E:/Missing/DolphinTool.exe");
-    expect(html).toContain("Future tool was not found. Choose its executable to continue.");
+    expect(html).toContain(
+      "Portcove couldn’t find Future tool. If it’s installed, choose its program file.",
+    );
     expect(html).toContain("Environment variable: PORTCOVE_FUTURE_TOOL");
     expect(html).toContain("Tool details");
     expect(html).toContain("Official site");

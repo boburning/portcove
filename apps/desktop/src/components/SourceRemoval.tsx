@@ -134,19 +134,18 @@ export function SourceRemovalReview({
     },
     close,
     failureMessage:
-      "The saved location was not removed. Check the current location and affected entries before trying again.",
+      "Portcove couldn’t confirm removal. Check the saved file location before trying again.",
   });
   return (
     <section
       id={id}
       className="source-removal-review mt-3 min-w-0 basis-full border-t border-pc-border pt-3 text-sm wrap-anywhere"
-      aria-label="Saved-location removal impact"
+      aria-label="Review removal of the saved file location"
       aria-busy={Boolean(pending)}
     >
-      <h3 className="text-base">Saved-location removal</h3>
+      <h3 className="text-base">Remove a saved file location</h3>
       <p>
-        Review the location and affected entries below. Remove saved location… opens the native
-        approval.
+        Review the location and affected games below. You’ll be asked to confirm in the next dialog.
       </p>
       {pending === "review" && (
         <p role="status">Checking the saved location and affected entries…</p>
@@ -169,7 +168,7 @@ export function SourceRemovalReview({
             disabled={Boolean(pending)}
             onClick={() => void execute()}
           >
-            {pending === "apply" ? "Waiting for native approval…" : "Remove saved location…"}
+            {pending === "apply" ? "Confirm removal in the dialog…" : "Remove saved location…"}
           </Button>
         )}
       </div>

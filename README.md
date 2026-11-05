@@ -148,8 +148,8 @@ app, **Review install** presents the plan inline, and the launch action is
 below and a separate installation-review dialog.
 
 1. Open **Portcove Desktop** and choose the local library you intend to use.
-2. Open **Discover**, choose a port, and read its game-file requirements and
-   recorded platform evidence. A catalog entry alone does not establish support.
+2. Open **Discover**, choose a game, and check which original files the port
+   needs and whether it has been tested on your system.
 3. Choose your own required game files, or enter their local path. Portcove
    checks them locally when you continue installation. An unsupported or changed
    input needs attention; do not substitute another edition blindly.
@@ -173,16 +173,16 @@ selected package's `--help` and capabilities before using a newer command. The
 [CLI task guide](docs/CLI.md) separates current source behavior from published
 preview limitations.
 
-| Task                        | Start here                                                                                                      | What the result means                                                                                                                                         |
-| --------------------------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Inspect a library or port   | Open Library/game details, or run `portcove status PORT_ID`.                                                    | Current installation and action assessments; reading them does not authorize or execute a change.                                                             |
-| Check installed files       | Run `portcove verify PORT_ID`.                                                                                  | Installed files are compared with their recorded identities. This does not test gameplay or save compatibility.                                               |
-| Check original game files   | Use Game files in Settings, or `portcove source inspect PROFILE_ID` and `portcove source verify PROFILE_ID`.    | Inspection and baseline comparison are distinct from compatibility with a particular installed release. Original bytes and the saved baseline stay unchanged. |
-| Check for a game update     | Run `portcove check PORT_ID`, or use the game's update check.                                                   | An update check does not install it. Review the current release, policy and consequences before installation or activation.                                   |
-| Protect managed saved data  | Use the port's backups, or `portcove backup create PORT_ID` followed by `portcove backup list PORT_ID`.         | The backup covers declared managed saved data, not the game download or original inputs. Restore replaces the affected current saved data after review.       |
-| Correct a moved game file   | Use Update file location in Game files, or the [reviewed relink route](docs/CLI.md#find-and-relink-game-files). | The new location must still match the registered content; relinking does not move files or accept changed bytes.                                              |
-| Recover an interrupted task | Read Activity and `portcove doctor`, then follow the operation's reported recovery action.                      | Diagnosis does not itself resume or clean up an operation. Retained files or an unknown outcome need the specific supported recovery.                         |
-| Upgrade Portcove itself     | Follow [application upgrade and recovery](docs/UPGRADING.md).                                                   | Published Alpha 2 upgrades are manual. An application update is separate from a game update or catalog refresh.                                               |
+| Task                        | Start here                                                                                                      | What the result means                                                                                                                 |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Inspect a library or port   | Open Library/game details, or run `portcove status PORT_ID`.                                                    | See which version is installed and which actions are available. This leaves your files as they are.                                   |
+| Check installed files       | Run `portcove verify PORT_ID`.                                                                                  | Installed files are compared with their recorded identities. This does not test gameplay or save compatibility.                       |
+| Check original game files   | Use Game files in Settings, or `portcove source inspect PROFILE_ID` and `portcove source verify PROFILE_ID`.    | Identify the files or check whether they changed. These checks leave the files as they are and do not test a game version.            |
+| Check for a game update     | Run `portcove check PORT_ID`, or use the game's update check.                                                   | Checking for an update leaves your current version in use. Review the update before installing it.                                    |
+| Protect managed saved data  | Use the port's backups, or `portcove backup create PORT_ID` followed by `portcove backup list PORT_ID`.         | Check which saves and settings are included. Back up your original files separately. Review which files a restore would replace.      |
+| Correct a moved game file   | Use Update file location in Game files, or the [reviewed relink route](docs/CLI.md#find-and-relink-game-files). | The new location must still match the registered content; relinking does not move files or accept changed bytes.                      |
+| Recover an interrupted task | Read Activity and `portcove doctor`, then follow the operation's reported recovery action.                      | Diagnosis does not itself resume or clean up an operation. Retained files or an unknown outcome need the specific supported recovery. |
+| Upgrade Portcove itself     | Follow [application upgrade and recovery](docs/UPGRADING.md).                                                   | Published Alpha 2 upgrades are manual. An application update is separate from a game update or catalog refresh.                       |
 
 Bulk `check --all`, `reconcile --all` and `update --all` continue after a
 per-port failure and report each outcome. A completed batch can contain failed

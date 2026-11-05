@@ -1082,7 +1082,7 @@ it("shows the reviewed data location and compatibility unknown for a saved updat
     />,
   );
   await click("Update now");
-  expect(dialog()?.textContent).toContain("Current version: 1.0");
+  expect(dialog()?.textContent).toContain("Version you’re using: 1.0");
   expect(dialog()?.textContent).toContain(plan.plan.output_location.user_data_root);
   expect(dialog()?.textContent).toContain(
     "Save compatibility between versions is not checked here",
@@ -1314,20 +1314,27 @@ it.each(["acquired", "attention_required"] as const)(
     await captureParityState(`game-update-archive-discard-${phase}-review-fixture`);
     await show(next);
     await expect
-      .element(page.getByRole("button", { name: "Discard archive", exact: true }))
+      .element(page.getByRole("button", { name: "Delete download", exact: true }))
       .toBeDisabled();
-    await click("Discard archive");
+    await expect
+      .element(
+        page.getByText(
+          "The download changed. Close this dialog and review the current download before deleting it.",
+        ),
+      )
+      .toBeVisible();
+    await click("Delete download");
     expect(discard).not.toHaveBeenCalled();
     await captureParityState(`game-update-archive-discard-${phase}-stale-fixture`);
-    await click("Keep archive");
+    await click("Keep download");
     await click("Delete downloaded update…");
     expect(document.querySelector("[data-game-update-discard-review]")?.textContent).toContain(
       next.id,
     );
-    await click("Discard archive");
+    await click("Delete download");
     expect(discard).toHaveBeenCalledExactlyOnceWith("sample", next.id, 9);
     expect(apply).not.toHaveBeenCalled();
-    expect(container.querySelector('[aria-label="Retained update archive"]')).toBeNull();
+    expect(container.querySelector('[aria-label="Downloaded update"]')).toBeNull();
     expect(container.textContent).toContain(
       "Downloaded update deleted. Installed versions and saved data are unchanged.",
     );
@@ -1367,7 +1374,7 @@ it("distinguishes acquired archives from prepared updates in Activity and keeps 
     container.querySelector(".update-state")?.textContent ??
       container.querySelector(".update-row")?.textContent,
   ).toContain("Update downloaded, not installed");
-  expect(container.querySelector('[aria-label="Retained update archive"]')?.textContent).toContain(
+  expect(container.querySelector('[aria-label="Downloaded update"]')?.textContent).toContain(
     "separate from a prepared update",
   );
   expect(container.textContent).not.toContain("Update saved for later");
@@ -1378,7 +1385,7 @@ it("distinguishes acquired archives from prepared updates in Activity and keeps 
   const header = container.querySelector<HTMLElement>(".update-entry > .update-row")!;
   const actions = container.querySelector<HTMLElement>('.update-entry > [role="group"]')!;
   const title = header.querySelector<HTMLElement>(".update-title")!;
-  const archive = actions.querySelector<HTMLElement>('[aria-label="Retained update archive"]')!;
+  const archive = actions.querySelector<HTMLElement>('[aria-label="Downloaded update"]')!;
   expect(actions.getBoundingClientRect().top).toBeGreaterThanOrEqual(
     header.getBoundingClientRect().bottom,
   );
@@ -1473,7 +1480,7 @@ it("keeps acquisition completion as a receipt until a fresh status replaces it",
   expect(container.textContent).toContain(
     "The operation finished, but library status could not be refreshed",
   );
-  expect(container.querySelector('[aria-label="Retained update archive"]')).toBeNull();
+  expect(container.querySelector('[aria-label="Downloaded update"]')).toBeNull();
   await captureParityState("game-update-acquisition-receipt-stale-status-fixture");
   expect(
     [...container.querySelectorAll("button")].some(
@@ -1769,7 +1776,7 @@ it.each([
     await captureParityState(
       `game-update-removed-runtime-discard-${phase}-${hasMetadata ? "metadata" : "no-metadata"}-fixture`,
     );
-    await confirmation.getByRole("button", { name: "Discard archive", exact: true }).click();
+    await confirmation.getByRole("button", { name: "Delete download", exact: true }).click();
     expect(discard).toHaveBeenCalledExactlyOnceWith(retainedId, archive.id, 9);
     await expect.element(archives).not.toBeInTheDocument();
     expect(snapshot.acquisition).toBeNull();

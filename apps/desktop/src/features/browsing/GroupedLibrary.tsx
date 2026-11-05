@@ -167,7 +167,7 @@ function LibraryChoicePrompt({
               {gameTitle(first)}
             </h2>
             <p className="collection-project text-pc-muted-foreground">
-              {group.ports.length} independent implementations
+              {group.ports.length} ports
             </p>
           </div>
         </div>
@@ -175,10 +175,10 @@ function LibraryChoicePrompt({
       <div className="library-entry-footer">
         <p className="collection-state text-xs text-pc-muted-foreground">
           {choice.reason === "stale"
-            ? "Your chosen implementation is no longer in this game group. Choose deliberately; installed alternatives are preserved."
+            ? "Your chosen port is no longer in this game group. Choose a port from the list."
             : choice.reason === "filtered"
-              ? "Your usual implementation is outside these filters. Matching implementations are listed below; your choice is unchanged."
-              : "Choose an implementation. Each keeps its own installation, original-file requirements and saved data."}
+              ? "Your preferred port is outside these filters. You can view matching ports below."
+              : "Choose the port to show for this game. Check its setup instructions for shared save locations before switching."}
         </p>
         <div className="collection-actions flex flex-wrap gap-2">
           {group.matchingPorts.map((port) => (

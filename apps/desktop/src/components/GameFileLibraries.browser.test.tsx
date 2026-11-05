@@ -282,7 +282,7 @@ it("returns preliminary review cancellation to its opener or the heading when th
   await click("Refresh folders");
   await click("Check these files");
   expect(document.activeElement).toBe(button("Cancel review"));
-  expect(document.body.textContent).toContain("Structural checks");
+  expect(document.body.textContent).toContain("Basic file checks passed");
   await click("Cancel review");
   expect(document.activeElement).toBe(button("Check these files"));
   await click("Check these files");

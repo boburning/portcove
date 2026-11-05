@@ -152,7 +152,7 @@ impl KnownFailureCause {
                 return (
                     "host_local_credential_transfer_refused",
                     format!(
-                        "Portcove cannot transfer this file because its name is reserved for RetroAchievements sign-in. Sign out in that installed version and close it before retrying. If it cannot run, preserve the listed file privately on this Windows host and remove it manually from the listed transfer or recovery tree. Temporary credential files can remain after sign-out and need the same treatment. Do not upload these files.\nFile to preserve or remove: {}",
+                        "Portcove stopped the transfer because this file may contain RetroAchievements sign-in information. Do not upload it.\n1. If possible, sign out in the affected game version, then close it.\n2. If the file remains, keep a private copy on this Windows computer outside the Portcove folders.\n3. Remove only the listed file from the transfer or recovery folder. Review the transfer again.\nFile: {}",
                         path.display()
                     ),
                 );
@@ -175,11 +175,11 @@ impl KnownFailureCause {
             ),
             Self::Busy => (
                 "target_busy",
-                "Another Portcove operation or process is using this target. Wait for it to finish, then review the current state before trying again.",
+                "Another task or program is using these files. Check Activity in Portcove and close the game if it’s open. Review the action again when the other task has finished.",
             ),
             Self::SourceChanged => (
                 "registered_source_changed",
-                "The game files have changed since registration. Review and verify the current files, then register the accepted source again before using it.",
+                "These files have changed since you added them. To use the changed files, add them again so Portcove can check them.",
             ),
             Self::CancellationUnavailable => (
                 "cancellation_unavailable",
@@ -199,7 +199,7 @@ impl KnownFailureCause {
             ),
             Self::StaleRemoval => (
                 "removal_review_stale",
-                "The managed installations changed after removal was reviewed. Review the current removal plan and provide fresh consent.",
+                "The installations changed after the removal review. Check the updated removal details before confirming again.",
             ),
             Self::PortableRuntimeModified {
                 directory,
@@ -252,11 +252,11 @@ impl KnownFailureCause {
             }
             Self::RestoreRecovery => (
                 "restore_recovery_required",
-                "A backup restore is unfinished. Restart Portcove to reconcile it, then review recovery before launching or collecting saves. Preserve the backup and safety copy.",
+                "A backup restore is unfinished. Keep the backup and any safety copy. Reopen Portcove and check the recovery result before playing or backing up saves again.",
             ),
             Self::BackupDeletionRecovery => (
                 "backup_deletion_recovery_required",
-                "A backup deletion is unfinished. Restart Portcove to retry recovery; if it remains held, review doctor output before further changes.",
+                "A backup deletion is unfinished. Reopening Portcove may finish deleting that backup. If it remains unfinished, check the recovery instructions in portcove doctor before changing other files.",
             ),
             Self::TfePreparationRecovery { directory } => {
                 return (
@@ -277,7 +277,7 @@ impl KnownFailureCause {
             ),
             Self::UnicodePath => (
                 "path_not_representable",
-                "This path cannot be represented by Portcove's Unicode path contract. Select a path with a valid Unicode name; a lossy replacement cannot identify the original files safely.",
+                "Portcove can’t read this file or folder name correctly. Choose a location with a valid Unicode name so Portcove can identify the exact files.",
             ),
             Self::RuntimePathRequirement => (
                 "runtime_path_requirement",

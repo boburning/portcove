@@ -42,7 +42,7 @@ export function ImplementationChoice({
         size="sm"
         data-focusable
         aria-pressed={selected}
-        disabled={!organization?.snapshot || organization.busy}
+        disabled={!organization?.snapshot || organization.busy || failed}
         focusableWhenDisabled={Boolean(organization?.snapshot && organization.busy)}
         aria-busy={organization?.busy}
         onClick={(event) => {
@@ -65,11 +65,13 @@ export function ImplementationChoice({
           })();
         }}
       >
-        {selected ? "Chosen: " : "Use "}
+        {selected ? "Preferred: " : "Choose "}
         {gameProjectLabel(port) || port.name}
       </Button>
       {failed && (
-        <p role="alert">Your choice was not saved. Refresh choices before trying again.</p>
+        <p role="alert">
+          Portcove couldn’t confirm that your choice was saved. Refresh choices to check.
+        </p>
       )}
       {(failed || organization?.failure) && organization && (
         <Button
@@ -77,7 +79,9 @@ export function ImplementationChoice({
           size="sm"
           data-focusable
           onClick={() => {
-            void organization.refresh();
+            void organization.refresh().then((refreshed) => {
+              if (refreshed && mounted.current) setFailed(false);
+            });
           }}
         >
           Refresh choices

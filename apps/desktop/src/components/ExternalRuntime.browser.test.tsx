@@ -18,7 +18,12 @@ import type {
 // Source-bound proposed metadata exercises retained presentation independently
 // of live catalog adoption. See #2926 for the remaining production rollout.
 import proposals from "../../../../crates/portcove-core/tests/fixtures/installation-rollout-proposals-20261025.json";
-import { ExternalRuntimeControl, UserSelectedRuntimeControl } from "./ExternalRuntime";
+import listings from "../../../../crates/portcove-core/catalog/listings.json";
+import {
+  AuthoredPreparationGuidance,
+  ExternalRuntimeControl,
+  UserSelectedRuntimeControl,
+} from "./ExternalRuntime";
 import { catalogEntries } from "../features/browsing/catalog-entry";
 import { ActionReviewFailure } from "./ActionReviewFailure";
 import { DetailLayout } from "./DetailLayout";
@@ -407,6 +412,28 @@ it("reviews explicit user launch details without accepted-package or file-manage
     7,
   );
   expect(changed).toHaveBeenCalledOnce();
+});
+
+it("shows the actual Second Hunt startup warning before the setup steps", async () => {
+  const entry = listings.listings.find(
+    (candidate) => candidate.id === "bountyhunterkanden-secondhunt",
+  )!;
+  const guide = entry.manual_setup!;
+  await root.rerender(
+    <AuthoredPreparationGuidance
+      port={port}
+      setup={{ manual_setup: { ...guide, help_url: guide.help_url ?? null } }}
+    />,
+  );
+  const warning = page.getByText(/Before opening Second Hunt v0\.4\.2-beta/);
+  const firstAction = page.getByRole("heading", { name: "Set up Second Hunt" });
+  await expect.element(warning).toBeVisible();
+  await expect.element(warning).toHaveTextContent("ending in .old or .old followed by digits");
+  await expect.element(warning).toHaveTextContent("including portable saves");
+  expect(
+    warning.element().compareDocumentPosition(firstAction.element()) &
+      Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
 });
 
 it.each(["ghostship", "starship"])(
@@ -1252,7 +1279,9 @@ it.each(
   await click("Stop using this installation");
   expect(preview).not.toHaveBeenCalled();
   expect(document.body.querySelector('[role="dialog"]')).toBeNull();
-  expect(document.body.textContent).toContain("Current removal availability is unavailable");
+  expect(document.body.textContent).toContain(
+    "Portcove couldn’t check whether you can remove this installation",
+  );
 });
 
 it.each([

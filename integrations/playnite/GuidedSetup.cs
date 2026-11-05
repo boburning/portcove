@@ -6,6 +6,44 @@ namespace Portcove.ReferenceClient
     // Descriptive instructions only. No step is treated as completed or authorized.
     internal static class SetupInstructions
     {
+        public static string LaunchBlocker(string code)
+        {
+            switch (code)
+            {
+                case "missing_source": return "Add the required original game files in Portcove.";
+                case "unreadable_source": return "Portcove couldn’t read the original files. Check their location in Portcove.";
+                case "changed_source": return "The original files changed. Check them again in Portcove.";
+                case "incompatible_source": return "The original files don’t meet this version’s requirements. Check the required edition and format in Portcove.";
+                case "missing_bios": return "Add the required BIOS file in Portcove.";
+                case "unreadable_bios": return "Portcove couldn’t read the BIOS file. Check its location in Portcove.";
+                case "changed_bios": return "The BIOS file changed. Check it again in Portcove.";
+                case "incompatible_bios": return "This version needs a different BIOS file. Check its requirements in Portcove.";
+                case "missing_runtime": return "The game program is missing a required file. Check setup in Portcove.";
+                case "preparation_required": return "Finish setting up the game before playing.";
+                case "shared_preferences_review_required": return "The game’s shared settings location changed. Review the installation in Portcove.";
+                case "shared_preferences_unavailable": return "Portcove couldn’t check the game’s shared settings. Leave those files in place and check setup in Portcove.";
+                case "invalid_installation": return "Portcove couldn’t check the installed game files. Review this installation in Portcove.";
+                default: return "Portcove couldn’t confirm that the game can start. Check its setup in Portcove.";
+            }
+        }
+
+        public static string PreparationConfirmation(object plan)
+        {
+            var inputs = Json.Field(plan, "inputs");
+            var install = Json.Field(inputs, "install");
+            var source = Json.Field(inputs, "source");
+            var tool = Json.Field(inputs, "setup_tool");
+            var conversion = Json.Field(inputs, "conversion_tool");
+            return "Set up this game using the selected original files? Portcove checks the plan again before creating the new copy. " +
+                "Keep the original files and existing version. Stopping setup may leave files to recover.\n\nGame version: " + Json.Text(install, "version") +
+                "\nOriginal files: " + Json.Text(source, "path") +
+                "\nExisting installation folder: " + Json.Text(install, "path") +
+                "\nBytes to copy: " + Json.Field(Json.Field(plan, "copy"), "total_bytes") +
+                "\n\nSetup details\nSetup tool: " + Json.Text(tool, "path") + "\nSetup SHA-256: " + Json.Text(tool, "sha256") +
+                (conversion == null ? "" : "\nConversion tool: " + Json.Text(conversion, "path") + "\nConversion SHA-256: " + Json.Text(conversion, "sha256")) +
+                "\nMode: " + Json.Text(Json.Field(inputs, "options"), "mode") + "\nTarget: " + Json.Text(Json.Field(inputs, "options"), "target");
+        }
+
         internal static object ForRuntime(object status, object catalog)
         {
             // A current managed definition cannot describe preparation of a

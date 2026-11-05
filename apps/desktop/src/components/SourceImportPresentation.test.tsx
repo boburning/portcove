@@ -45,9 +45,9 @@ it("distinguishes structural admission from an exact identity in the reviewed pl
     />,
   );
   expect(structural).not.toBe(exact);
-  expect(structural).toContain("Structural checks");
-  expect(structural).toContain("does not establish an exact edition");
-  expect(exact).toContain("Exact identity");
+  expect(structural).toContain("Basic file checks passed");
+  expect(structural).toContain("alone don’t identify the edition");
+  expect(exact).toContain("Edition identified");
 });
 
 it("describes a BIOS import without calling it a game file", () => {
@@ -66,10 +66,10 @@ it("describes a BIOS import without calling it a game file", () => {
 });
 
 it.each([
-  ["exact_identity", "Exact identity", "accepted exact identity"],
-  ["structural_checks", "Structural checks", "does not establish an exact edition"],
-  ["informational_consent", "Informational consent", "does not verify an exact edition"],
-  ["upstream_validator", "Upstream validator", "configured upstream validator accepted"],
+  ["exact_identity", "Edition identified", "match a listed edition"],
+  ["structural_checks", "Basic file checks passed", "alone don’t identify the edition"],
+  ["informational_consent", "Compatibility unconfirmed", "You can add these files"],
+  ["upstream_validator", "The game’s file check passed", "setup tool accepted these files"],
 ] as const)(
   "shows the reviewed %s admission basis without changing its plan",
   (mode, label, limit) => {
@@ -105,7 +105,7 @@ it.each(["future_check", "constructor", "__proto__"])(
     const html = renderToStaticMarkup(
       <SourceImportReview plan={review} busy={false} onApply={vi.fn()} onCancel={vi.fn()} />,
     );
-    expect(html).toContain("Source check unavailable");
+    expect(html).toContain("File check unavailable");
     expect(html).toContain("Cancel this review and check the files again");
     expect(html).toContain('role="alert"');
     expect(html.match(/<button /g)).toHaveLength(1);

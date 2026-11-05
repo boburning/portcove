@@ -454,7 +454,7 @@ export function SourceImportReview({
         File requirement: <strong>{profile?.label ?? plan.profile_id}</strong>
       </p>
       <p role={admission.known ? undefined : "alert"}>
-        <strong>Source check: {admission.label}.</strong> {admission.explanation}
+        <strong>File check: {admission.label}.</strong> {admission.explanation}
       </p>
       <p>
         Selected location:{" "}
