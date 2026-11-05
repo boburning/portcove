@@ -1,7 +1,13 @@
-import { settingsQualificationCatalog } from "./prepare-settings-candidate.mts";
+import {
+  assertPreparedInputParent,
+  settingsQualificationCatalog,
+} from "./prepare-settings-candidate.mts";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { mkdir, mkdtemp, realpath, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join, toNamespacedPath } from "node:path";
 import test from "node:test";
 import {
   checkSettingsPolicy,
@@ -16,6 +22,21 @@ import type { AuthoredPort } from "./catalog-authoring.mts";
 import type { SettingsQualificationPolicy } from "./settings-qualification.mts";
 
 const hash = (bytes: string | Buffer) => createHash("sha256").update(bytes).digest("hex");
+test("prepared data can use the retained root or a descendant but cannot escape", async (t) => {
+  const base = await mkdtemp(join(tmpdir(), "portcove-prepared-parent-"));
+  t.after(() => rm(base, { recursive: true, force: true }));
+  const root = join(await realpath(base), "retained");
+  const nested = join(root, "nested");
+  await mkdir(nested, { recursive: true });
+  const retained = toNamespacedPath(root);
+  await assertPreparedInputParent(retained, join(retained, "oot.o2r"));
+  await assertPreparedInputParent(retained, join(retained, "nested", "oot.o2r"));
+  await assert.rejects(
+    assertPreparedInputParent(retained, join(base, "outside.o2r")),
+    /escaped its retained root/,
+  );
+});
+
 function fixture() {
   const parsed: unknown = JSON.parse(
     readFileSync(

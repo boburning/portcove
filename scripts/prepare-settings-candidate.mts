@@ -5,7 +5,7 @@ import { randomUUID } from "node:crypto";
 import { join, resolve, extname, relative, isAbsolute, dirname, toNamespacedPath } from "node:path";
 import { promisify } from "node:util";
 import { isRecord } from "./runtime-values.mts";
-import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
+import { assertOwnedUnlinkedPath, releasePathContains } from "./release-path-safety.mts";
 import { fileIdentity } from "./development-evidence.mts";
 import { acquireOwnedProcessLock } from "./process-lock.mts";
 import { coreProposalInspector } from "./catalog-authoring-inspector.mts";
@@ -44,6 +44,12 @@ function contained(root: string, file: string) {
 async function json(file: string, value: unknown) {
   await writeFile(file, JSON.stringify(value, null, 2) + "\n", { flag: "wx" });
   return file;
+}
+
+export async function assertPreparedInputParent(userData: string, destination: string) {
+  const parent = toNamespacedPath(await realpath(dirname(destination)));
+  if (!releasePathContains(toNamespacedPath(userData), parent))
+    throw new Error("Prepared input parent escaped its retained root.");
 }
 
 /** Disposable probe authority, never an authored or publishable catalog. */
@@ -430,11 +436,7 @@ export async function prepareSettingsCandidate(options: {
       )
         throw new Error("Prepared settings input changed or escaped.");
       await mkdir(dirname(destination), { recursive: true });
-      if (
-        !contained(userData, await realpath(dirname(destination))) &&
-        (await realpath(dirname(destination))) !== userData
-      )
-        throw new Error("Prepared input parent escaped its retained root.");
+      await assertPreparedInputParent(userData, destination);
       try {
         await copyFile(input.path, destination, constants.COPYFILE_EXCL);
       } catch (error) {
