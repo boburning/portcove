@@ -98,7 +98,14 @@ void test("qualification initializes Core-retained mirrors and refuses later div
     files: [{ file_id: "preferences", canonical_path: canonical, runtime_path: runtime }],
   };
   const sample = '{"control":37,"unknown":{"keep":[true,3]}}';
-  const paths = await initializeSettingsProbeFiles(root, scope, "preferences", "exact", sample);
+  const paths = await initializeSettingsProbeFiles(
+    root,
+    scope,
+    "preferences",
+    "exact",
+    sample,
+    "working-directory-mirror",
+  );
   assert.deepEqual(paths.paths, [toNamespacedPath(canonical), toNamespacedPath(runtime)]);
   assert.equal(await readFile(canonical, "utf8"), sample);
   assert.equal(await readFile(runtime, "utf8"), sample);
@@ -119,6 +126,29 @@ void test("qualification initializes Core-retained mirrors and refuses later div
     initializeSettingsProbeFiles(root, scope, "preferences", "foreign-install", sample),
     /exact retained installation/,
   );
+});
+
+void test("a working-directory consumer without a retained runtime copy refuses before seeding", async (context) => {
+  const root = await mkdtemp(join(tmpdir(), "settings-direct-"));
+  context.after(() => rm(root, { recursive: true, force: true }));
+  const canonical = join(root, "settings.json");
+  const scope = {
+    install_id: "exact",
+    definition_sha256: "a".repeat(64),
+    files: [{ file_id: "preferences", canonical_path: canonical, runtime_path: null }],
+  };
+  await assert.rejects(
+    initializeSettingsProbeFiles(
+      root,
+      scope,
+      "preferences",
+      "exact",
+      "{}",
+      "working-directory-mirror",
+    ),
+    /no synchronized runtime copy/,
+  );
+  await assert.rejects(readFile(canonical), { code: "ENOENT" });
 });
 
 void test("mutable qualification configuration refuses a hardlink without changing foreign bytes", async (context) => {

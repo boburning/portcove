@@ -95,6 +95,7 @@
   },
   "settings_qualification_v1": {
     "format_version": 1,
+    "configuration_scope": "working-directory-mirror",
     "regions": [
       {
         "role": "consumer",

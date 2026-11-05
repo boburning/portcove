@@ -94,6 +94,7 @@ export async function settingsProbePaths(
   scope: unknown,
   fileId: string,
   installId: string,
+  configurationScope?: "working-directory-mirror",
 ) {
   if (
     !object(scope) ||
@@ -127,6 +128,10 @@ export async function settingsProbePaths(
           toNamespacedPath(file.runtime_path),
           "Runtime settings probe configuration",
         );
+  if (configurationScope === "working-directory-mirror" && relative(canonical, runtime) === "")
+    throw new Error(
+      "The reviewed Windows package uses its working-directory configuration, but the retained Core installation has no synchronized runtime copy. Qualify the package's runtime data ownership before qualifying settings.",
+    );
   return { canonical, runtime, paths: [...new Set([canonical, runtime])] };
 }
 
@@ -145,8 +150,9 @@ export async function initializeSettingsProbeFiles(
   fileId: string,
   installId: string,
   sample: string,
+  configurationScope?: "working-directory-mirror",
 ) {
-  const result = await settingsProbePaths(root, scope, fileId, installId);
+  const result = await settingsProbePaths(root, scope, fileId, installId, configurationScope);
   let document: Buffer | undefined;
   const absent: string[] = [];
   for (const file of result.paths) {
@@ -293,6 +299,7 @@ export async function qualifySettingsConsumer(options: {
     !object(value) ||
     value.format_version !== 1 ||
     value.protocol !== "libultraship-sail-v1" ||
+    value.configuration_scope !== "working-directory-mirror" ||
     typeof value.isolation_root !== "string" ||
     typeof value.isolation_token !== "string" ||
     typeof value.port_id !== "string" ||
@@ -427,7 +434,13 @@ export async function qualifySettingsConsumer(options: {
   )
     throw new Error("Native settings executable is outside the selected exact package.");
   const retainedScope = await run(["game-settings", "qualification-scope", value.port_id]);
-  const mutable = await settingsProbePaths(root, retainedScope, selected.file_id, status.active.id);
+  const mutable = await settingsProbePaths(
+    root,
+    retainedScope,
+    selected.file_id,
+    status.active.id,
+    value.configuration_scope,
+  );
   await assertRetainedSettingsConfiguration(mutable.canonical, configuration);
   const initial = await readSettingsProbeConfiguration(configuration);
   for (const file of mutable.paths) {
@@ -758,6 +771,7 @@ export async function qualifySettingsConsumer(options: {
   const observation = {
     archive_sha256: value.archive_sha256,
     source_commit: value.source_commit,
+    configuration_scope: value.configuration_scope,
     client_sha256: value.cli_sha256,
     executable_sha256: value.executable_sha256,
     evidence_sha256: hash(raw),

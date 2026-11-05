@@ -49,6 +49,7 @@ function fixture() {
   const roles = ["consumer", "loader", "storage", "path", "build"] as const;
   const policy: SettingsQualificationPolicy = {
     format_version: 1,
+    configuration_scope: "working-directory-mirror",
     regions: roles.map((role) => ({
       role,
       repository: "HarbourMasters/Shipwright",
@@ -88,6 +89,7 @@ function fixture() {
     selected_executables: [{ sha256: "d".repeat(64) }],
     settings_consumer: {
       archive_sha256: binding.archive_sha256,
+      configuration_scope: "working-directory-mirror",
       source_commit: binding.source_commit,
       client_sha256: "c".repeat(64),
       executable_sha256: "d".repeat(64),
@@ -224,6 +226,9 @@ void test("every replayed projection revalidates probe input, complete checks, c
     },
     (value: typeof observation) => {
       value.consumer_probe.observations = [];
+    },
+    (value: typeof observation) => {
+      value.consumer_probe.configuration_scope = "canonical-user-data";
     },
     (value: typeof observation) => {
       (value.consumer_probe.observations as { observed_values: number[] }[])[0]!.observed_values = [

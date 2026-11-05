@@ -722,7 +722,12 @@ definition publication. Only a normal accepted installation/update captures
 that declaration; current catalog refresh cannot enroll an old installation.
 
 The initial native adapter supports a Windows integer JSON control using the
-upstream Libultraship Sail loopback protocol. Its private scope identifies a
+upstream Libultraship Sail loopback protocol. Its stable
+`configuration_scope: "working-directory-mirror"` policy requires the retained
+Core installation to identify a separate synchronized runtime configuration.
+If Core instead treats the package as writing directly to canonical user data,
+preparation reports a settings limitation before seeding or launching. The
+settings policy does not authorize new runtime data paths. Its private scope identifies a
 marked disposable qualification root, frozen first-party installer, lawful original
 and prepared input identities. The library and candidate configuration are derived
 inside that root. All paths and the CLI/archive/executable identities must match.

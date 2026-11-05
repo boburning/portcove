@@ -15,6 +15,7 @@ interface SourceRegion {
 }
 export interface SettingsQualificationPolicy {
   format_version: 1;
+  configuration_scope: "working-directory-mirror";
   regions: SourceRegion[];
   samples: { file_id: string; document: string }[];
 }
@@ -62,6 +63,7 @@ export function checkSettingsPolicy(value: unknown): asserts value is SettingsQu
   if (
     !isRecord(value) ||
     value.format_version !== 1 ||
+    value.configuration_scope !== "working-directory-mirror" ||
     !Array.isArray(value.regions) ||
     value.regions.length < 5 ||
     value.regions.length > 16 ||
@@ -349,6 +351,7 @@ function checkQualificationProbes(
     !isRecord(consumer) ||
     consumer.archive_sha256 !== binding.archive_sha256 ||
     consumer.source_commit !== binding.source_commit ||
+    consumer.configuration_scope !== record.settings_qualification_v1?.configuration_scope ||
     !sha(consumer.client_sha256) ||
     !sha(consumer.executable_sha256) ||
     !sha(consumer.evidence_sha256) ||

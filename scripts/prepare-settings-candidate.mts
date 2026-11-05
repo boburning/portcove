@@ -460,15 +460,16 @@ export async function prepareSettingsCandidate(options: {
     if (typeof status.active.id !== "string" || typeof file.id !== "string")
       throw new Error("Settings scope identity is absent.");
     const retainedScope = await run(["game-settings", "qualification-scope", record.listing.id]);
+    await json(join(checkpoint, "retained-settings-scope.json"), retainedScope);
     const initialized = await initializeSettingsProbeFiles(
       root,
       retainedScope,
       file.id,
       status.active.id,
       record.settings_qualification_v1.samples[0]!.document,
+      record.settings_qualification_v1.configuration_scope,
     );
     const configuration = initialized.canonical;
-    await json(join(checkpoint, "retained-settings-scope.json"), retainedScope);
     const executable = toNamespacedPath(
       await realpath(resolve(status.active.path, status.active.selected_executable)),
     );
@@ -500,6 +501,7 @@ export async function prepareSettingsCandidate(options: {
     const nativeCase = await json(join(checkpoint, "native-case.json"), {
       format_version: 1,
       protocol: "libultraship-sail-v1",
+      configuration_scope: record.settings_qualification_v1.configuration_scope,
       isolation_root: root,
       isolation_token: scope.isolation_token,
       port_id: record.listing.id,
