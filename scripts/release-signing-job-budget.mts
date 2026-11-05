@@ -13,6 +13,7 @@ import type { CatalogControlPhase } from "./release-control-phases.mts";
 import { applicationProtectionObserver } from "./release-control-phases.mts";
 import { isRecord } from "./runtime-values.mts";
 import { hostedNativeJobProfile } from "./assembler-job-identity.mts";
+import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
 
 type SigningRole = "payload" | TufSigningRole;
 type ClockRole =
@@ -354,8 +355,12 @@ function catalogClockRole(raw: unknown): CatalogControlPhase {
 export function catalogOriginalJobDeadline(role: unknown, ...args: BudgetArguments) {
   return signingOriginalJobDeadline(catalogClockRole(role), ...args);
 }
-export function currentCatalogJobDeadline(role: unknown, ...args: CurrentArguments) {
-  return currentSigningJobDeadline(catalogClockRole(role), ...args);
+export async function currentCatalogJobDeadline(
+  role: unknown,
+  identity: JobIdentity,
+  processDeadline: number,
+) {
+  return currentSdkJobDeadline(catalogClockRole(role), identity, processDeadline);
 }
 
 /** Clock metadata does not make either classification job a signing executor. */
@@ -404,12 +409,21 @@ export async function currentControllerJobDeadline(
   } else {
     throw new Error("fixed controller job clock required");
   }
+  return currentSdkJobDeadline(selected, identity, processDeadline);
+}
+
+async function currentSdkJobDeadline(
+  role: ClockRole,
+  identity: JobIdentity,
+  processDeadline: number,
+) {
   requireOriginalJobIdentity(identity);
-  const token = process.env.GH_TOKEN ?? "";
+  const reader = readOnlyReleaseChildEnvironment();
+  const token = (reader === undefined ? process.env.GH_TOKEN : reader.GH_TOKEN) ?? "";
   const { createReleaseCustodyProvider } = await import("./release-custody-provider.mts");
   const provider = await createReleaseCustodyProvider({ token, deadline: processDeadline });
   const response = await provider.jobs(identity.run_id, 1, 1);
   if (response.next !== null || performance.now() >= processDeadline)
     throw new Error("original controller job budget unavailable");
-  return Math.min(processDeadline, signingOriginalJobDeadline(selected, response.body, identity));
+  return Math.min(processDeadline, signingOriginalJobDeadline(role, response.body, identity));
 }

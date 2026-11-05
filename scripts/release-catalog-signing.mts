@@ -252,9 +252,10 @@ export async function runCatalogRoleController(
   const ceiling = catalogRoleControllerDeadline(rawDeadline),
     role = inspectCatalogSigningRole(rawRole),
     identity = inspectAssemblerIdentityExpectation(structuredClone(rawIdentity)),
-    deadline = currentCatalogJobDeadline(`catalog-${role}`, identity, parent, ceiling);
+    dependencies = Array.from(rawDependencies),
+    deadline = await currentCatalogJobDeadline(`catalog-${role}`, identity, ceiling);
   return withCoordinatorDeadline(deadline, () =>
-    runRole(rawRole, rawIdentity, toolsReceipt, contextReceipt, rawDependencies, parent, deadline),
+    runRole(role, identity, toolsReceipt, contextReceipt, dependencies, parent, deadline),
   );
 }
 async function runRole(
@@ -560,10 +561,9 @@ export async function runFixedCatalogRoleConfiguration(
     throw new Error("fixed catalog role configuration differs");
   const role = inspectCatalogSigningRole(value.role),
     expected = catalogRoleDependencies(role),
-    deadline = currentCatalogJobDeadline(
+    deadline = await currentCatalogJobDeadline(
       `catalog-${role}`,
       inspectAssemblerIdentityExpectation(value.identity),
-      parent,
       processDeadline,
     );
   if (value.dependencies.length !== expected.length)

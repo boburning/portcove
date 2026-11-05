@@ -770,8 +770,10 @@ void test("actual TUF pre-key guard checks controls last after slow reservation 
   );
 });
 
-void test("pre-tool controller clock uses the exact one-shot SDK jobs read and rejects pagination", async (t) => {
-  const { currentControllerJobDeadline } = await import("./release-signing-job-budget.mts");
+void test("fixed controller clocks use bounded one-shot SDK jobs reads and the scoped credential", async (t) => {
+  const { currentCatalogJobDeadline, currentControllerJobDeadline } =
+    await import("./release-signing-job-budget.mts");
+  const { withReadOnlyReleaseChildren } = await import("./release-readonly-child-environment.mts");
   const { releaseControlPhaseProfile } = await import("./release-control-phases.mts");
   const identity = {
     run_id: "123",
@@ -795,6 +797,7 @@ void test("pre-tool controller clock uses the exact one-shot SDK jobs read and r
     }
   });
   let next = false;
+  let role: "coordinator" | "catalog-definitions" = "coordinator";
   let requests = 0;
   const started = new Date(Date.now() - 1000).toISOString();
   t.mock.method(globalThis, "fetch", async (input: string | URL | Request, init?: RequestInit) => {
@@ -816,7 +819,7 @@ void test("pre-tool controller clock uses the exact one-shot SDK jobs read and r
             head_sha: identity.controller_revision,
             status: "in_progress",
             started_at: started,
-            name: releaseControlPhaseProfile("coordinator").reader_name,
+            name: releaseControlPhaseProfile(role).reader_name,
           },
         ],
       },
@@ -830,7 +833,15 @@ void test("pre-tool controller clock uses the exact one-shot SDK jobs read and r
     currentControllerJobDeadline("coordinator", identity, deadline),
     /original controller job budget unavailable/u,
   );
+  const scoped = await mkdtemp(path.join(os.tmpdir(), "sdk-clock-scope-"));
+  t.after(() => rm(scoped, { force: true, recursive: true }));
+  next = false;
+  role = "catalog-definitions";
+  await withReadOnlyReleaseChildren(scoped, async () => {
+    process.env.GH_TOKEN = "inert-ambient-replacement";
+    assert.equal(await currentCatalogJobDeadline(role, identity, deadline), deadline);
+  });
   delete process.env.GH_TOKEN;
   await assert.rejects(currentControllerJobDeadline("coordinator", identity, deadline));
-  assert.equal(requests, 2);
+  assert.equal(requests, 3);
 });
