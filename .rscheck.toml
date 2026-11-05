@@ -221,7 +221,7 @@ allow_regex = [
 include = ["**/crates/portcove-core/src/failure_tests.rs"]
 
 [scope.rules."portability.absolute_literal_paths"]
-allow_regex = ["^C:/Games/<preserve>$"]
+allow_regex = ["^C:/Games/<preserve>$", '^C:/Transfer/retroachievements\.credentials\.1$']
 
 # test-only literal controls; values are exact and apply only to this file.
 [[scope]]
@@ -236,6 +236,7 @@ include = ["**/crates/portcove-core/src/runtime_path_policy_tests.rs"]
 
 [scope.rules."portability.absolute_literal_paths"]
 allow_regex = [
+  '^C:\\Games 日本語$',
   "^C:\\\\Games$",
   "^C:\\\\Games with spaces$",
   "^C:\\\\Games\\\\DKC3$",
@@ -302,3 +303,89 @@ include = ["**/crates/portcove-core/src/install/tests/native_paths.rs"]
 
 [scope.rules."portability.absolute_literal_paths"]
 allow_regex = ["^C:\\\\日本語$"]
+
+# GitLab HTTP route fixtures and package-file URL path comparisons.
+[[scope]]
+include = ["**/crates/portcove-core/src/gitlab/catalog_download/tests.rs"]
+
+[scope.rules."portability.absolute_literal_paths"]
+allow_regex = [
+  '^/releases$',
+  '^/releases/v1$',
+  '^/assets/links/7$',
+  '^/assets/links$',
+  '^/packages$',
+  '^/package_files$',
+  '^/owner/game/-/package_files/17/download$',
+  '^/owner/game/-/package_files/18/download$',
+  '^/owner/other/-/package_files/17/download$',
+]
+
+# Windows path-envelope rejection fixtures with exact hostile values.
+[[scope]]
+include = ["**/crates/portcove-core/src/game_settings/windows.rs"]
+
+[scope.rules."portability.absolute_literal_paths"]
+allow_regex = [
+  '^\\\\server\\share\\file\.ini$',
+  '^\\\\\?\\UNC\\server\\share\\file\.ini$',
+  '^\\\\\.\\C:\\file\.ini$',
+  '^C:\\parent\\\.\\file\.ini$',
+  '^C:\\parent\\\.\.\\file\.ini$',
+  '^C:\\parent\.\\file\.ini$',
+  '^C:\\parent \\file\.ini$',
+  '^C:\\parent\\file\.ini:stream$',
+]
+
+# Absolute selector fixtures for rejecting paths in game settings.
+[[scope]]
+include = ["**/crates/portcove-core/src/game_settings_tests.rs"]
+
+[scope.rules."portability.absolute_literal_paths"]
+allow_regex = ['^/mdkr64_app\.ini$', '^C:/mdkr64_app\.ini$']
+
+# User-selected input fixtures and emulator switches, with exact values.
+[[scope]]
+include = ["**/crates/portcove-core/src/service/user_selected.rs"]
+
+[scope.rules."portability.absolute_literal_paths"]
+allow_regex = [
+  '^C:\\Owned Discs\\Ape Escape\.cue$',
+  '^C:\\Player Data\\Ape Escape\\game\.toml$',
+  '^C:\\Player Data\\Ape Escape Cards$',
+  '^/opengl$',
+  '^/win$',
+  '^/b0$',
+  '^/x800$',
+  '^/y600$',
+  '^C:\\Owned Games\\Star Fox Adventures\.iso$',
+  '^C:\\Owned originals\\EarthBound USA\.sfc$',
+]
+
+# Provider release URL suffixes in listing identity validation.
+[[scope]]
+include = ["**/crates/portcove-core/src/service/listings.rs"]
+
+[scope.rules."portability.absolute_literal_paths"]
+allow_regex = ['^/releases$', '^/-/releases$']
+
+# Path-like text fragments rejected by advisory display redaction.
+[[scope]]
+include = ["**/crates/portcove-core/src/service/advisories.rs"]
+
+[scope.rules."portability.absolute_literal_paths"]
+allow_regex = ['^/home/$', '^/users/$']
+
+# HTTP checksum route in the native archive fixture.
+[[scope]]
+include = ["**/crates/portcove-core/src/service/native_portable.rs"]
+
+[scope.rules."portability.absolute_literal_paths"]
+allow_regex = ['^/checksums\.txt$']
+
+# Fixed HTTPS route checks in the installed-update rehearsal example.
+[[scope]]
+include = ["**/apps/desktop/src-tauri/examples/prepare_installed_update.rs"]
+
+[scope.rules."portability.absolute_literal_paths"]
+allow_regex = ['^/portcove/rehearsal/$', '^/application/metadata/$']
