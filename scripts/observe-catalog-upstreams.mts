@@ -457,8 +457,11 @@ export async function runCatalogUpstreams(
           sourceConfig.port_id === config.port_id &&
           sourceConfig.repository === config.repository;
         const filename = path.join(handoffDirectory, `${observationHash(sourceConfig)}.json`);
+        // The legacy report retains the full configured inventory. In the
+        // catalog handoff it would repeat the same large list for each source.
+        const { unmonitored_port_ids: _inventory, ...sourceReport } = observation.report;
         const report = {
-          ...observation.report,
+          ...sourceReport,
           execution: {
             kind: process.env.GITHUB_EVENT_NAME ?? "local",
             source_commit: process.env.GITHUB_SHA ?? null,

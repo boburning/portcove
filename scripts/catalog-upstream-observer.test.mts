@@ -1283,6 +1283,7 @@ void test("operational coordinator isolates handoff files, preserves failure not
       "utf8",
     ),
   ) as Record<string, unknown>;
+  assert.equal(Object.hasOwn(initialHandoff, "unmonitored_port_ids"), false);
   assert.deepEqual(initialHandoff.descriptive_listing_preimages, {
     "stable-port": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
   });
@@ -1471,10 +1472,12 @@ void test("legacy artifact retains its original report shape while shared ports 
   assert.equal(legacyReport.config_sha256, observationHash(legacy));
   assert.equal(Object.hasOwn(legacyReport, "catalog_policies"), false);
   assert.equal(Object.hasOwn(legacyReport, "source_port_ids"), false);
+  assert.deepEqual(legacyReport.unmonitored_port_ids, ["rolling-port"]);
   const handoff = JSON.parse(
     await readFile(path.join(result.handoff_directory, `${observationHash(legacy)}.json`), "utf8"),
   ) as Record<string, unknown>;
   assert.ok(Array.isArray(handoff.catalog_policies) && handoff.catalog_policies.length === 2);
+  assert.equal(Object.hasOwn(handoff, "unmonitored_port_ids"), false);
 });
 
 void test("cumulative session bytes can exceed one source operation without unsafe reads or false completion", async () => {

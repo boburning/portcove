@@ -238,7 +238,9 @@ one `report.json` and its existing consumer/configuration binding. Catalog repor
 use a separate, uniquely owned handoff directory for each invocation, exported as
 `catalog-upstream-observations-RUN-ATTEMPT`. It contains inert observations and
 per-port Core policies for #246's existing supplied-observation → bounded-candidate
-path. Historical fallback policies retain their own facts/definition identities
+path. Source files carry their own coverage and consumer IDs. The legacy
+configured report carries its unmonitored inventory, and the catalog summary
+reports coverage across configured sources. Historical fallback policies retain their own facts/definition identities
 and are explicitly held as unknown current state. No automatic acceptance,
 publication, signing or player update eligibility follows from this handoff.
 
