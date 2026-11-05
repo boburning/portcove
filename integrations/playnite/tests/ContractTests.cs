@@ -335,6 +335,12 @@ internal static class ContractTests
         stream88.Line(Json.Print(result88));
         Check(Json.Array(stream88.Finish(0)).Length == 0,
             "schema 88 retains status semantics; this client does not consume downloaded-setup identities");
+        var descriptive88 = Json.Object(Json.Parse(Json.Print(Capabilities())));
+        descriptive88["schema_version"] = 88;
+        descriptive88["port_capability_schema"] = 1;
+        descriptive88["listing_formats"] = new[] { 5, 6, 7 };
+        Check(ProtocolStream.Negotiate(descriptive88, ConsumerCapability.Library) == 3,
+            "API88 additive feature reports do not change independently negotiated event3 or client operation eligibility");
         var independent83 = Json.Object(Json.Parse(Json.Print(Capabilities())));
         independent83["schema_version"] = 83;
         independent83["operation_event_schema_version"] = 3;

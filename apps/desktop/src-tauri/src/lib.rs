@@ -2647,6 +2647,7 @@ pub fn run() -> std::process::ExitCode {
             get_runtime_diagnostic_health,
             get_locale_preference,
             game_settings_commands::get_game_settings,
+            game_settings_commands::get_port_capabilities,
             game_settings_commands::review_game_setting,
             game_settings_commands::apply_game_setting,
             favorite_commands::get_favorite_ports,

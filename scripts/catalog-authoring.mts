@@ -10,6 +10,7 @@ import { createHash } from "node:crypto";
 import { lstatSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { isRecord } from "./runtime-values.mts";
+import { checkCatalogAdvisories } from "./catalog-advisories.mts";
 import { assessUpstreamLineage, checkLineageIdentities } from "./upstream-lineage.mts";
 import type { UpstreamLineage } from "./upstream-lineage.mts";
 
@@ -23,6 +24,7 @@ export interface CatalogPort extends NamedRecord {
 }
 
 export interface AuthoredListing extends NamedRecord {
+  compatibility?: unknown;
   upstream_observation?: unknown;
   availability_override_reason?: string;
   name: string;
@@ -79,6 +81,7 @@ const listingPresentationFields = [
 ] as const;
 const sharedPortFields = ["id", "name", "summary", "project_url"] as const;
 const listingFields = new Set([
+  "compatibility",
   ...sharedPortFields,
   ...listingPresentationFields,
   "platforms",
@@ -126,6 +129,7 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
   if (!isRecord(value) || value.format_version !== 1 || !isRecord(value.listing))
     throw new Error("An authored port requires format_version 1 and a listing.");
   const listing = value.listing;
+  if (listing.compatibility !== undefined) checkCatalogAdvisories(listing.compatibility, platforms);
   if (Object.keys(listing).some((field) => !listingFields.has(field)))
     throw new Error(
       "Listing contains unknown descriptive fields; operational fields belong to its integration.",
@@ -423,26 +427,28 @@ export function assembleCatalogRecords(shared: unknown, inputs: readonly unknown
       Array.isArray(listing.manual_setup.references) &&
       listing.manual_setup.references.length > 0,
   );
-  const format_version = guideReferences
-    ? 6
-    : extendedMedia
-      ? 5
-      : listings.some(
-            (listing) =>
-              listing.upstream_observation !== undefined ||
-              listing.availability_override_reason !== undefined ||
-              "release_maintenance" in listing,
-          )
-        ? 4
+  const format_version = listings.some((listing) => listing.compatibility !== undefined)
+    ? 7
+    : guideReferences
+      ? 6
+      : extendedMedia
+        ? 5
         : listings.some(
               (listing) =>
-                listing.original_game !== undefined ||
-                (Array.isArray(listing.media) && listing.media.length > 0),
+                listing.upstream_observation !== undefined ||
+                listing.availability_override_reason !== undefined ||
+                "release_maintenance" in listing,
             )
-          ? 3
-          : listings.some((listing) => listing.download_block_reason !== undefined)
-            ? 2
-            : 1;
+          ? 4
+          : listings.some(
+                (listing) =>
+                  listing.original_game !== undefined ||
+                  (Array.isArray(listing.media) && listing.media.length > 0),
+              )
+            ? 3
+            : listings.some((listing) => listing.download_block_reason !== undefined)
+              ? 2
+              : 1;
   return { records, catalog, directory: { format_version, listings } };
 }
 

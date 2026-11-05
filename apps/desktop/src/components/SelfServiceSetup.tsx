@@ -1,5 +1,5 @@
 import { Play } from "lucide-react";
-import { useId, useRef, useState, type ReactNode } from "react";
+import { useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { desktopApi } from "../api";
 import { listingActionAssessment, type CatalogEntry } from "../features/browsing/catalog-entry";
 import {
@@ -10,7 +10,7 @@ import type { Perform } from "../features/operations/use-operation-state";
 import { gameIdentityLabel } from "../port-identity";
 import type { PortStatus } from "../types";
 import { CatalogDownloadControl, PendingSetupActions } from "./CatalogDownload";
-import { UserSelectedRuntimeControl } from "./ExternalRuntime";
+import { AuthoredPreparationGuidance, UserSelectedRuntimeControl } from "./ExternalRuntime";
 import { ExternalLink } from "./ExternalLink";
 import { Icon } from "./ui";
 import { Button } from "./ui/button";
@@ -37,6 +37,19 @@ export function SelfServiceSetup({
   render,
 }: SelfServiceSetupProps) {
   const [editorOpen, setEditorOpen] = useState(false);
+  // Only this explicitly selected non-owning surface uses listing guidance.
+  // Keep the strict definition and the managed detail's retained guide intact.
+  const routeEntry = useMemo(
+    () => ({
+      ...entry,
+      presentation: {
+        ...entry.presentation,
+        manual_setup: entry.listing?.manual_setup ?? null,
+        manual_preparation: null,
+      },
+    }),
+    [entry],
+  );
   const editorId = useId();
   const editorHeading = useRef<HTMLHeadingElement>(null);
   const pending = entry.pendingSetup;
@@ -82,6 +95,16 @@ export function SelfServiceSetup({
       className="self-service-setup grid gap-4"
       aria-label="Set up and launch"
     >
+      {!registered && entry.listing?.manual_setup && (
+        <div className="grid gap-3" aria-label="Upstream setup instructions">
+          <h3>Set up from upstream</h3>
+          <AuthoredPreparationGuidance
+            port={entry}
+            ownership="external"
+            setup={{ manual_setup: entry.listing.manual_setup }}
+          />
+        </div>
+      )}
       {pending && (
         <Notice intent={needsRecovery ? "warning" : "info"}>
           <div data-slot="notice-body">
@@ -112,7 +135,7 @@ export function SelfServiceSetup({
           <CatalogDownloadControl
             autoCheck
             libraryRoot={libraryRoot}
-            entry={entry}
+            entry={routeEntry}
             generation={generation}
             busy={busy}
             perform={perform}
@@ -162,7 +185,7 @@ export function SelfServiceSetup({
             </p>
             <CatalogDownloadControl
               libraryRoot={libraryRoot}
-              entry={entry}
+              entry={routeEntry}
               generation={generation}
               busy={busy}
               perform={perform}
@@ -198,7 +221,7 @@ export function SelfServiceSetup({
           </h2>
           <UserSelectedRuntimeControl
             libraryRoot={libraryRoot}
-            port={entry}
+            port={routeEntry}
             status={status}
             listingStatus={entry.listingStatus}
             generation={generation}

@@ -209,6 +209,11 @@ pub(crate) enum Commands {
         command: ToolCommand,
     },
     /// Show installation, game-file, launch, and update readiness.
+    PortCapabilities {
+        /// Stable catalog or retained listing identity.
+        port_id: String,
+    },
+    /// Show installation, game-file, launch, and update readiness.
     Status {
         /// Catalog port ID; run `portcove catalog list` to find it.
         port_id: Option<String>,

@@ -12,6 +12,7 @@ impl From<&PortDefinition> for PortListing {
         let presentation = port.presentation.as_ref();
         Self {
             id: port.id.clone(),
+            compatibility: None,
             upstream_observation: None,
             availability_override_reason: None,
             release_maintenance: None,
@@ -58,13 +59,19 @@ fn has_extended_media(listing: &PortListing) -> bool {
 impl CatalogListingDocument {
     /// Format 5 retains every reference paragraph in the original flat guide.
     pub fn export_format(&self, format_version: u32) -> Result<Self> {
-        if !matches!(format_version, 5 | 6) {
+        if !matches!(format_version, 5..=7) {
             return Err(PortcoveError::unsupported(
-                "listing export supports formats 5 and 6",
+                "listing export supports formats 5, 6 and 7",
             ));
         }
         let mut document = self.clone();
         document.format_version = format_version;
+        if format_version < 7 {
+            for listing in &mut document.listings {
+                // Only inert notices are omitted. Acquisition restrictions stay intact.
+                listing.compatibility = None;
+            }
+        }
         if format_version == 5 {
             for listing in &mut document.listings {
                 if let Some(guide) = &mut listing.manual_setup {
@@ -79,6 +86,13 @@ impl CatalogListingDocument {
     /// Only already accepted facts may be promoted; raw authored documents keep
     /// their declared version and pass the ordinary version checks unchanged.
     pub(super) fn promote_projected_format(&mut self) {
+        if self
+            .listings
+            .iter()
+            .any(|listing| listing.compatibility.is_some())
+        {
+            self.format_version = self.format_version.max(7);
+        }
         if self.format_version == 1
             && self
                 .listings
@@ -142,11 +156,21 @@ impl CatalogListingDocument {
     }
 
     fn validate_identity_set(&self) -> Result<()> {
-        if !matches!(self.format_version, 1..=6) {
+        if !matches!(self.format_version, 1..=7) {
             return Err(PortcoveError::unsupported(format!(
                 "listing format {} is not supported",
                 self.format_version
             )));
+        }
+        if self.format_version < 7
+            && self
+                .listings
+                .iter()
+                .any(|listing| listing.compatibility.is_some())
+        {
+            return Err(PortcoveError::unsupported(
+                "optional compatibility advisories require listing format 7",
+            ));
         }
         if self.format_version == 1
             && self
@@ -634,6 +658,7 @@ impl Catalog {
                 let release_url = listing.release_url.clone();
                 let setup_url = listing.setup_url.clone().or(projected.setup_url.clone());
                 *listing = PortListing {
+                    compatibility: listing.compatibility.clone(),
                     upstream_observation: listing.upstream_observation.clone(),
                     availability_override_reason: listing.availability_override_reason.clone(),
                     release_maintenance: listing.release_maintenance.clone(),

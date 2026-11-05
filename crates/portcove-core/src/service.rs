@@ -75,11 +75,18 @@ mod ghostship_safety;
 mod shipwright_persistence_tests;
 mod user_selected;
 pub(crate) use backups::{BackupDeletionPhase, RestorePhase};
+mod advisories;
 mod archive_data_transition;
+mod capabilities;
 #[cfg(any(test, feature = "qualification-fixtures"))]
 mod forbidden_memories_qualification;
 mod launch_preparation;
 mod listings;
+pub use advisories::{AdvisoryApplicability, CapabilityAdvisory, PortCapabilityNotice};
+pub use capabilities::{
+    CapabilityFeature, CapabilityMode, PortCapabilityFeature, PortCapabilityReport,
+    PortCapabilityRoute,
+};
 mod psx_mod_data;
 pub(crate) use psx_mod_data::metadata_name as psx_data_metadata_name;
 mod removal;
@@ -1302,7 +1309,8 @@ impl PortcoveService {
                     .collect(),
                 &sources,
             )?;
-            let listing_statuses = self.listing_statuses_from(&catalog, &statuses, listing_raw)?;
+            let listing_statuses =
+                self.listing_statuses_from(&catalog, &statuses, listing_raw, &pending_setups)?;
             // Archive-only orphan rows belong to Activity, not accepted browsing membership.
             // Retain the browsing owner's exact current-definition identity invariant.
             let browsing_statuses = statuses

@@ -3803,6 +3803,14 @@
         },
         "type": "array"
       },
+      "listing_formats": {
+        "items": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "type": "array"
+      },
       "machine_formats": {
         "items": {
           "type": "string"
@@ -3820,6 +3828,14 @@
           "$ref": "#/$defs/Platform"
         },
         "type": "array"
+      },
+      "port_capability_schema": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": [
+          "integer",
+          "null"
+        ]
       },
       "port_operation_locking": {
         "type": "string"
@@ -8121,6 +8137,9 @@
               "string",
               "null"
             ]
+          },
+          "compatibility": {
+            "description": "Inert optional advisory envelope. Invalid/future content is unavailable as advice,\nnever an acquisition restriction or an operation grant. Requires listing format 7."
           },
           "download_asset_hints": {
             "additionalProperties": false,
@@ -20641,6 +20660,14 @@
         ],
         "type": "object"
       },
+      "AdvisoryApplicability": {
+        "enum": [
+          "current-route",
+          "historical",
+          "context-required"
+        ],
+        "type": "string"
+      },
       "ArtifactIdentity": {
         "properties": {
           "asset_name": {
@@ -20728,6 +20755,144 @@
           "index_sha256"
         ],
         "type": "object"
+      },
+      "BackupRecord": {
+        "properties": {
+          "created_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "file_count": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "port_id",
+          "path",
+          "created_at",
+          "file_count",
+          "size",
+          "sha256"
+        ],
+        "type": "object"
+      },
+      "CapabilityAdvisory": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "edition": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "evidence": {
+            "type": "string"
+          },
+          "explanation": {
+            "type": "string"
+          },
+          "feature": {
+            "$ref": "#/$defs/CapabilityFeature"
+          },
+          "id": {
+            "type": "string"
+          },
+          "observed_at": {
+            "description": "Unix seconds. A newer date never proves an earlier failure is fixed.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "provenance": {
+            "type": "string"
+          },
+          "release": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "route": {
+            "type": "string"
+          },
+          "workaround": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "feature",
+          "platform",
+          "route",
+          "release",
+          "artifact_sha256",
+          "edition",
+          "explanation",
+          "provenance",
+          "observed_at",
+          "evidence",
+          "workaround"
+        ],
+        "type": "object"
+      },
+      "CapabilityFeature": {
+        "enum": [
+          "setup",
+          "original-files",
+          "launch",
+          "updates",
+          "settings",
+          "backup",
+          "restore",
+          "previous-version",
+          "gameplay",
+          "controls",
+          "audio",
+          "performance",
+          "save-compatibility"
+        ],
+        "type": "string"
+      },
+      "CapabilityMode": {
+        "enum": [
+          "automatic",
+          "manual",
+          "unavailable",
+          "unknown"
+        ],
+        "type": "string"
       },
       "DefinitionEligibility": {
         "properties": {
@@ -20919,6 +21084,229 @@
         ],
         "type": "object"
       },
+      "GameSettingChoice": {
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "value": true
+        },
+        "required": [
+          "label",
+          "value"
+        ],
+        "type": "object"
+      },
+      "GameSettingType": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "default": {
+                "type": "boolean"
+              },
+              "kind": {
+                "const": "boolean",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "default"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "default": {
+                "format": "int64",
+                "type": "integer"
+              },
+              "kind": {
+                "const": "integer",
+                "type": "string"
+              },
+              "maximum": {
+                "format": "int64",
+                "type": "integer"
+              },
+              "minimum": {
+                "format": "int64",
+                "type": "integer"
+              },
+              "step": {
+                "format": "int64",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "kind",
+              "minimum",
+              "maximum",
+              "step",
+              "default"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "default": {
+                "format": "double",
+                "type": "number"
+              },
+              "kind": {
+                "const": "number",
+                "type": "string"
+              },
+              "maximum": {
+                "format": "double",
+                "type": "number"
+              },
+              "minimum": {
+                "format": "double",
+                "type": "number"
+              },
+              "step": {
+                "format": "double",
+                "type": "number"
+              }
+            },
+            "required": [
+              "kind",
+              "minimum",
+              "maximum",
+              "step",
+              "default"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "choices": {
+                "items": {
+                  "$ref": "#/$defs/GameSettingChoice"
+                },
+                "type": "array"
+              },
+              "default": true,
+              "kind": {
+                "const": "enum",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "choices",
+              "default"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "GameSettingView": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "value": {
+            "description": "None means this declared key is absent; the verified consumer default\nremains separate from an observed persisted value."
+          },
+          "value_type": {
+            "$ref": "#/$defs/GameSettingType"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "value_type",
+          "value"
+        ],
+        "type": "object"
+      },
+      "GameSettingsFileView": {
+        "properties": {
+          "available": {
+            "type": "boolean"
+          },
+          "configuration_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "settings": {
+            "items": {
+              "$ref": "#/$defs/GameSettingView"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "path",
+          "available",
+          "reason",
+          "configuration_sha256",
+          "settings"
+        ],
+        "type": "object"
+      },
+      "GameSettingsView": {
+        "description": "A missing optional capability is local to settings. It does not disable the\ninstallation's independently assessed basic setup or launch capabilities.",
+        "properties": {
+          "available": {
+            "type": "boolean"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/$defs/GameSettingsFileView"
+            },
+            "type": "array"
+          },
+          "install_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "port_id",
+          "install_id",
+          "available",
+          "reason",
+          "files"
+        ],
+        "type": "object"
+      },
       "GameUpdateAcquisition": {
         "properties": {
           "created_at": {
@@ -21048,6 +21436,97 @@
           "upstream-setup",
           "managed-recompilation",
           "user-prepared-runtime"
+        ],
+        "type": "string"
+      },
+      "InstallationProtection": {
+        "properties": {
+          "collection": {
+            "$ref": "#/$defs/ProtectionCollectionState"
+          },
+          "collection_candidates": {
+            "description": "Declared fixed entries and current pattern matches, not a recursive backup inventory.",
+            "items": {
+              "$ref": "#/$defs/ProtectionPath"
+            },
+            "type": "array"
+          },
+          "collection_root": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "effective": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ProtectionDeclaration"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The checked contract used by collection; it can differ from either declaration."
+          },
+          "exclusions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "install_id": {
+            "type": "string"
+          },
+          "install_root": {
+            "type": "string"
+          },
+          "problem": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "retained": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ProtectionDeclaration"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None means there is no verified retained declaration, including legacy installs."
+          },
+          "role": {
+            "$ref": "#/$defs/ProtectionInstallRole"
+          },
+          "update_owner": {
+            "$ref": "#/$defs/InstallationUpdateOwner"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "install_id",
+          "version",
+          "install_root",
+          "role",
+          "update_owner",
+          "retained",
+          "effective",
+          "collection",
+          "collection_root",
+          "collection_candidates",
+          "exclusions",
+          "problem"
+        ],
+        "type": "object"
+      },
+      "InstallationUpdateOwner": {
+        "enum": [
+          "portcove",
+          "upstream_or_user"
         ],
         "type": "string"
       },
@@ -21243,6 +21722,13 @@
         ],
         "type": "object"
       },
+      "PendingSetupState": {
+        "enum": [
+          "downloaded",
+          "attention-required"
+        ],
+        "type": "string"
+      },
       "PersistentFilePattern": {
         "properties": {
           "prefix": {
@@ -21266,6 +21752,58 @@
           "macos-aarch64"
         ],
         "type": "string"
+      },
+      "PlayerDataProtection": {
+        "properties": {
+          "catalog": {
+            "$ref": "#/$defs/ProtectionDeclaration"
+          },
+          "exclusions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "installations": {
+            "items": {
+              "$ref": "#/$defs/InstallationProtection"
+            },
+            "type": "array"
+          },
+          "latest_completed_backup": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BackupRecord"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Last completed port-scoped snapshot with a valid manifest. Payload integrity and\ncurrent restore eligibility are checked by the existing reviewed restore flow."
+          },
+          "managed_data": {
+            "$ref": "#/$defs/ProtectionPath"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "problem": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "port_id",
+          "catalog",
+          "managed_data",
+          "installations",
+          "latest_completed_backup",
+          "exclusions",
+          "problem"
+        ],
+        "type": "object"
       },
       "PortAction": {
         "description": "A read-only projection of the existing operation guards for client presentation.\nAn `allowed` result is not an authorization token: execution rechecks current\ninputs under its own lock and may still require an exact reviewed plan.",
@@ -21352,6 +21890,198 @@
         ],
         "type": "string"
       },
+      "PortCapabilityFeature": {
+        "properties": {
+          "action": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PortActionAssessment"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "explanation": {
+            "type": "string"
+          },
+          "feature": {
+            "$ref": "#/$defs/CapabilityFeature"
+          },
+          "listing_action": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ListingActionAssessment"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mode": {
+            "$ref": "#/$defs/CapabilityMode",
+            "description": "Management mode, separate from prerequisites and evidence of successful use."
+          },
+          "next_step": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "feature",
+          "mode",
+          "explanation",
+          "next_step",
+          "action",
+          "listing_action"
+        ],
+        "type": "object"
+      },
+      "PortCapabilityNotice": {
+        "properties": {
+          "applicability": {
+            "$ref": "#/$defs/AdvisoryApplicability"
+          },
+          "notice": {
+            "$ref": "#/$defs/CapabilityAdvisory"
+          }
+        },
+        "required": [
+          "notice",
+          "applicability"
+        ],
+        "type": "object"
+      },
+      "PortCapabilityReport": {
+        "properties": {
+          "advisories": {
+            "items": {
+              "$ref": "#/$defs/PortCapabilityNotice"
+            },
+            "type": "array"
+          },
+          "advisory_state": {
+            "type": "string"
+          },
+          "detail_problems": {
+            "description": "Optional detail failures are local to this report, never action refusals.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "format_version": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "observations": {
+            "description": "Matching observations are enriched only on a focused request. Absence is untested.",
+            "items": {
+              "$ref": "#/$defs/RecommendationEvidence"
+            },
+            "type": "array"
+          },
+          "pending_setup": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PendingSetupState"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "protection": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PlayerDataProtection"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "routes": {
+            "items": {
+              "$ref": "#/$defs/PortCapabilityRoute"
+            },
+            "type": "array"
+          },
+          "settings": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/GameSettingsView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "setup_guide": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ManualSetupGuide"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source_readiness": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/LaunchReadiness"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "format_version",
+          "port_id",
+          "routes",
+          "observations",
+          "protection",
+          "settings",
+          "source_readiness",
+          "detail_problems",
+          "advisory_state",
+          "advisories",
+          "setup_guide",
+          "pending_setup"
+        ],
+        "type": "object"
+      },
+      "PortCapabilityRoute": {
+        "properties": {
+          "features": {
+            "items": {
+              "$ref": "#/$defs/PortCapabilityFeature"
+            },
+            "type": "array"
+          },
+          "install_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "route": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "route",
+          "install_id",
+          "features"
+        ],
+        "type": "object"
+      },
       "PortListingStatus": {
         "properties": {
           "actions": {
@@ -21359,6 +22089,17 @@
               "$ref": "#/$defs/ListingActionAssessment"
             },
             "type": "array"
+          },
+          "capabilities": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PortCapabilityReport"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional inert read model; absence cannot suppress an independently allowed action."
           },
           "port_id": {
             "type": "string"
@@ -21547,6 +22288,262 @@
             "type": "string"
           }
         ]
+      },
+      "ProtectionCollectionState": {
+        "oneOf": [
+          {
+            "enum": [
+              "direct_to_managed_data",
+              "not_initialized",
+              "inactive",
+              "external_not_collected",
+              "unavailable"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "selected_for_collection",
+            "description": "This active copy passes the existing read-only collection selection.",
+            "type": "string"
+          }
+        ]
+      },
+      "ProtectionDeclaration": {
+        "properties": {
+          "definition_sha256": {
+            "type": "string"
+          },
+          "persistent_file_patterns": {
+            "items": {
+              "$ref": "#/$defs/PersistentFilePattern"
+            },
+            "type": "array"
+          },
+          "persistent_paths": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "saves_and_settings": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/SavesAndSettingsBehavior"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "definition_sha256",
+          "saves_and_settings",
+          "persistent_paths",
+          "persistent_file_patterns"
+        ],
+        "type": "object"
+      },
+      "ProtectionInstallRole": {
+        "enum": [
+          "active",
+          "previous",
+          "staged",
+          "external"
+        ],
+        "type": "string"
+      },
+      "ProtectionPath": {
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/$defs/ProtectionPathState",
+            "description": "Presence is metadata only; it does not establish readability or backup integrity."
+          }
+        },
+        "required": [
+          "path",
+          "state"
+        ],
+        "type": "object"
+      },
+      "ProtectionPathState": {
+        "enum": [
+          "present",
+          "missing",
+          "unsafe",
+          "unreadable"
+        ],
+        "type": "string"
+      },
+      "RecommendationClaim": {
+        "oneOf": [
+          {
+            "properties": {
+              "kind": {
+                "const": "rating",
+                "type": "string"
+              },
+              "value": {
+                "format": "uint8",
+                "maximum": 255,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "kind",
+              "value"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "unknown",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "not-applicable",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "RecommendationDimension": {
+        "enum": [
+          "gameplay",
+          "stability",
+          "performance",
+          "controls",
+          "setup",
+          "maintenance"
+        ],
+        "type": "string"
+      },
+      "RecommendationEvidence": {
+        "additionalProperties": false,
+        "properties": {
+          "claim": {
+            "$ref": "#/$defs/RecommendationClaim"
+          },
+          "dimension": {
+            "$ref": "#/$defs/RecommendationDimension"
+          },
+          "explanation": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/$defs/RecommendationEvidenceKind"
+          },
+          "observed_at": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "scope": {
+            "$ref": "#/$defs/RecommendationScope"
+          },
+          "source": {
+            "type": "string"
+          },
+          "supersedes": {
+            "description": "Explicit accepted corrections, never implicit latest-report-wins ordering.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "id",
+          "scope",
+          "dimension",
+          "kind",
+          "claim",
+          "source",
+          "explanation",
+          "observed_at",
+          "supersedes"
+        ],
+        "type": "object"
+      },
+      "RecommendationEvidenceKind": {
+        "enum": [
+          "upstream-declared",
+          "artifact-inspected",
+          "setup-observed",
+          "launch-observed",
+          "gameplay-observed",
+          "performance-observed",
+          "maintenance-observed"
+        ],
+        "type": "string"
+      },
+      "RecommendationScope": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_id": {
+            "description": "Accepted artifact identity, not a mutable tag or download URL.",
+            "type": "string"
+          },
+          "edition_id": {
+            "type": "string"
+          },
+          "environment_id": {
+            "description": "Explicit relevant environment identity; not inferred from the current host.",
+            "type": "string"
+          },
+          "game_id": {
+            "type": "string"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "release_id": {
+            "type": "string"
+          },
+          "route_id": {
+            "type": "string"
+          },
+          "source_profile_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "game_id",
+          "edition_id",
+          "port_id",
+          "release_id",
+          "artifact_id",
+          "platform",
+          "environment_id",
+          "source_profile_id",
+          "route_id"
+        ],
+        "type": "object"
       },
       "ReleaseAsset": {
         "properties": {
@@ -25326,6 +26323,9 @@
               "null"
             ]
           },
+          "compatibility": {
+            "description": "Inert optional advisory envelope. Invalid/future content is unavailable as advice,\nnever an acquisition restriction or an operation grant. Requires listing format 7."
+          },
           "download_asset_hints": {
             "additionalProperties": false,
             "description": "Advisory literal filename hints for an upstream-owned download. They do\nnot authenticate a package or grant installation/execution ownership.",
@@ -27372,6 +28372,1926 @@
       "upstream_status"
     ],
     "title": "PortDefinition",
+    "type": "object"
+  },
+  "port_capability_report": {
+    "$defs": {
+      "AdvisoryApplicability": {
+        "enum": [
+          "current-route",
+          "historical",
+          "context-required"
+        ],
+        "type": "string"
+      },
+      "BackupRecord": {
+        "properties": {
+          "created_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "file_count": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "port_id",
+          "path",
+          "created_at",
+          "file_count",
+          "size",
+          "sha256"
+        ],
+        "type": "object"
+      },
+      "CapabilityAdvisory": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "edition": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "evidence": {
+            "type": "string"
+          },
+          "explanation": {
+            "type": "string"
+          },
+          "feature": {
+            "$ref": "#/$defs/CapabilityFeature"
+          },
+          "id": {
+            "type": "string"
+          },
+          "observed_at": {
+            "description": "Unix seconds. A newer date never proves an earlier failure is fixed.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "provenance": {
+            "type": "string"
+          },
+          "release": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "route": {
+            "type": "string"
+          },
+          "workaround": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "feature",
+          "platform",
+          "route",
+          "release",
+          "artifact_sha256",
+          "edition",
+          "explanation",
+          "provenance",
+          "observed_at",
+          "evidence",
+          "workaround"
+        ],
+        "type": "object"
+      },
+      "CapabilityFeature": {
+        "enum": [
+          "setup",
+          "original-files",
+          "launch",
+          "updates",
+          "settings",
+          "backup",
+          "restore",
+          "previous-version",
+          "gameplay",
+          "controls",
+          "audio",
+          "performance",
+          "save-compatibility"
+        ],
+        "type": "string"
+      },
+      "CapabilityMode": {
+        "enum": [
+          "automatic",
+          "manual",
+          "unavailable",
+          "unknown"
+        ],
+        "type": "string"
+      },
+      "DefinitionEligibility": {
+        "properties": {
+          "outcome": {
+            "$ref": "#/$defs/DefinitionEligibilityOutcome"
+          },
+          "reason": {
+            "$ref": "#/$defs/DefinitionEligibilityReason"
+          }
+        },
+        "required": [
+          "outcome",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "DefinitionEligibilityOutcome": {
+        "enum": [
+          "eligible",
+          "hold",
+          "escalate"
+        ],
+        "type": "string"
+      },
+      "DefinitionEligibilityReason": {
+        "enum": [
+          "mandatory_checks_passed",
+          "publisher_revoked",
+          "curated_artifact_revoked",
+          "curated_distribution_withdrawn",
+          "unknown_safety_semantics",
+          "publisher_scope_required",
+          "engine_capability_required",
+          "ownership_migration_required",
+          "metadata_replay",
+          "refresh_incomplete",
+          "metadata_stale",
+          "recorded_identity_changed",
+          "authenticated_integrity_required",
+          "local_integrity_failed",
+          "mandatory_check_failed",
+          "source_identity_mismatch",
+          "required_source_missing"
+        ],
+        "type": "string"
+      },
+      "GameSettingChoice": {
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "value": true
+        },
+        "required": [
+          "label",
+          "value"
+        ],
+        "type": "object"
+      },
+      "GameSettingType": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "default": {
+                "type": "boolean"
+              },
+              "kind": {
+                "const": "boolean",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "default"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "default": {
+                "format": "int64",
+                "type": "integer"
+              },
+              "kind": {
+                "const": "integer",
+                "type": "string"
+              },
+              "maximum": {
+                "format": "int64",
+                "type": "integer"
+              },
+              "minimum": {
+                "format": "int64",
+                "type": "integer"
+              },
+              "step": {
+                "format": "int64",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "kind",
+              "minimum",
+              "maximum",
+              "step",
+              "default"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "default": {
+                "format": "double",
+                "type": "number"
+              },
+              "kind": {
+                "const": "number",
+                "type": "string"
+              },
+              "maximum": {
+                "format": "double",
+                "type": "number"
+              },
+              "minimum": {
+                "format": "double",
+                "type": "number"
+              },
+              "step": {
+                "format": "double",
+                "type": "number"
+              }
+            },
+            "required": [
+              "kind",
+              "minimum",
+              "maximum",
+              "step",
+              "default"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "choices": {
+                "items": {
+                  "$ref": "#/$defs/GameSettingChoice"
+                },
+                "type": "array"
+              },
+              "default": true,
+              "kind": {
+                "const": "enum",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "choices",
+              "default"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "GameSettingView": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "value": {
+            "description": "None means this declared key is absent; the verified consumer default\nremains separate from an observed persisted value."
+          },
+          "value_type": {
+            "$ref": "#/$defs/GameSettingType"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "value_type",
+          "value"
+        ],
+        "type": "object"
+      },
+      "GameSettingsFileView": {
+        "properties": {
+          "available": {
+            "type": "boolean"
+          },
+          "configuration_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "settings": {
+            "items": {
+              "$ref": "#/$defs/GameSettingView"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "path",
+          "available",
+          "reason",
+          "configuration_sha256",
+          "settings"
+        ],
+        "type": "object"
+      },
+      "GameSettingsView": {
+        "description": "A missing optional capability is local to settings. It does not disable the\ninstallation's independently assessed basic setup or launch capabilities.",
+        "properties": {
+          "available": {
+            "type": "boolean"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/$defs/GameSettingsFileView"
+            },
+            "type": "array"
+          },
+          "install_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "port_id",
+          "install_id",
+          "available",
+          "reason",
+          "files"
+        ],
+        "type": "object"
+      },
+      "InstallationMethod": {
+        "description": "User-facing installation behavior supplied by the catalog. Adapters remain an\nimplementation detail and must not be translated into product copy by clients.",
+        "enum": [
+          "portable-package",
+          "portable-recompilation",
+          "staged-game-files",
+          "referenced-disc",
+          "generated-game-data",
+          "upstream-setup",
+          "managed-recompilation",
+          "user-prepared-runtime"
+        ],
+        "type": "string"
+      },
+      "InstallationProtection": {
+        "properties": {
+          "collection": {
+            "$ref": "#/$defs/ProtectionCollectionState"
+          },
+          "collection_candidates": {
+            "description": "Declared fixed entries and current pattern matches, not a recursive backup inventory.",
+            "items": {
+              "$ref": "#/$defs/ProtectionPath"
+            },
+            "type": "array"
+          },
+          "collection_root": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "effective": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ProtectionDeclaration"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The checked contract used by collection; it can differ from either declaration."
+          },
+          "exclusions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "install_id": {
+            "type": "string"
+          },
+          "install_root": {
+            "type": "string"
+          },
+          "problem": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "retained": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ProtectionDeclaration"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None means there is no verified retained declaration, including legacy installs."
+          },
+          "role": {
+            "$ref": "#/$defs/ProtectionInstallRole"
+          },
+          "update_owner": {
+            "$ref": "#/$defs/InstallationUpdateOwner"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "install_id",
+          "version",
+          "install_root",
+          "role",
+          "update_owner",
+          "retained",
+          "effective",
+          "collection",
+          "collection_root",
+          "collection_candidates",
+          "exclusions",
+          "problem"
+        ],
+        "type": "object"
+      },
+      "InstallationUpdateOwner": {
+        "enum": [
+          "portcove",
+          "upstream_or_user"
+        ],
+        "type": "string"
+      },
+      "LaunchBlocker": {
+        "enum": [
+          "missing_source",
+          "unreadable_source",
+          "changed_source",
+          "incompatible_source",
+          "missing_bios",
+          "unreadable_bios",
+          "changed_bios",
+          "incompatible_bios",
+          "missing_runtime",
+          "preparation_required",
+          "shared_preferences_review_required",
+          "shared_preferences_unavailable",
+          "invalid_installation"
+        ],
+        "type": "string"
+      },
+      "LaunchReadiness": {
+        "properties": {
+          "bios": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/SourceHealth"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "bios_assessment": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/SourceAssessment"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "blockers": {
+            "items": {
+              "$ref": "#/$defs/LaunchBlocker"
+            },
+            "type": "array"
+          },
+          "launchable": {
+            "type": "boolean"
+          },
+          "pending_setup": {
+            "type": "boolean"
+          },
+          "preparation_mode": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PreparationMode"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Core-owned managed preparation route for the retained active installation."
+          },
+          "required_source_extension": {
+            "description": "Original file representation required by the effective runtime contract.\nThis is independent of source identity health and uses the retained\ndefinition when an external runtime is registered.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "setup_contract": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/SetupExplanation"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Mechanical explanation from the effective (possibly retained) contract."
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/SourceHealth"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source_assessment": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/SourceAssessment"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Descriptive input evidence for this retained installed release. Missing\nlegacy fields and unreviewed contracts never establish compatibility."
+          }
+        },
+        "required": [
+          "launchable",
+          "blockers",
+          "pending_setup"
+        ],
+        "type": "object"
+      },
+      "ListingAction": {
+        "enum": [
+          "attach-existing",
+          "relink-existing",
+          "launch",
+          "remove-registration"
+        ],
+        "type": "string"
+      },
+      "ListingActionAssessment": {
+        "properties": {
+          "action": {
+            "$ref": "#/$defs/ListingAction"
+          },
+          "allowed": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "action",
+          "allowed"
+        ],
+        "type": "object"
+      },
+      "ManualSetupGuide": {
+        "additionalProperties": false,
+        "description": "Authored instructions only; these steps grant no operation or file authority.",
+        "properties": {
+          "help_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "references": {
+            "description": "Reference material, never an instruction to execute a setup action.",
+            "items": {
+              "$ref": "#/$defs/ManualSetupStep"
+            },
+            "type": "array"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/$defs/ManualSetupStep"
+            },
+            "type": "array"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "steps",
+          "warnings"
+        ],
+        "type": "object"
+      },
+      "ManualSetupStep": {
+        "additionalProperties": false,
+        "properties": {
+          "instruction": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "instruction"
+        ],
+        "type": "object"
+      },
+      "PendingSetupState": {
+        "enum": [
+          "downloaded",
+          "attention-required"
+        ],
+        "type": "string"
+      },
+      "PersistentFilePattern": {
+        "properties": {
+          "prefix": {
+            "type": "string"
+          },
+          "suffix": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "prefix",
+          "suffix"
+        ],
+        "type": "object"
+      },
+      "Platform": {
+        "enum": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "type": "string"
+      },
+      "PlayerDataProtection": {
+        "properties": {
+          "catalog": {
+            "$ref": "#/$defs/ProtectionDeclaration"
+          },
+          "exclusions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "installations": {
+            "items": {
+              "$ref": "#/$defs/InstallationProtection"
+            },
+            "type": "array"
+          },
+          "latest_completed_backup": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BackupRecord"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Last completed port-scoped snapshot with a valid manifest. Payload integrity and\ncurrent restore eligibility are checked by the existing reviewed restore flow."
+          },
+          "managed_data": {
+            "$ref": "#/$defs/ProtectionPath"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "problem": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "port_id",
+          "catalog",
+          "managed_data",
+          "installations",
+          "latest_completed_backup",
+          "exclusions",
+          "problem"
+        ],
+        "type": "object"
+      },
+      "PortAction": {
+        "description": "A read-only projection of the existing operation guards for client presentation.\nAn `allowed` result is not an authorization token: execution rechecks current\ninputs under its own lock and may still require an exact reviewed plan.",
+        "enum": [
+          "install",
+          "register_external",
+          "launch",
+          "remove_managed",
+          "remove_external",
+          "rollback",
+          "backup_create",
+          "backup_restore",
+          "update"
+        ],
+        "type": "string"
+      },
+      "PortActionAssessment": {
+        "properties": {
+          "action": {
+            "$ref": "#/$defs/PortAction"
+          },
+          "availability": {
+            "$ref": "#/$defs/PortActionAvailability"
+          },
+          "definition": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/DefinitionEligibility"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The authoritative signed-definition reason, when it limits this action."
+          },
+          "reason": {
+            "$ref": "#/$defs/PortActionReason"
+          }
+        },
+        "required": [
+          "action",
+          "availability",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "PortActionAvailability": {
+        "enum": [
+          "not_offered",
+          "waiting",
+          "held",
+          "allowed"
+        ],
+        "type": "string"
+      },
+      "PortActionReason": {
+        "enum": [
+          "available",
+          "route_not_offered",
+          "already_registered",
+          "unsupported_platform",
+          "not_installed",
+          "review_required",
+          "missing_source",
+          "unreadable_source",
+          "changed_source",
+          "incompatible_source",
+          "missing_bios",
+          "unreadable_bios",
+          "changed_bios",
+          "incompatible_bios",
+          "missing_runtime",
+          "preparation_required",
+          "shared_preferences_review_required",
+          "shared_preferences_unavailable",
+          "invalid_installation",
+          "definition_ineligible",
+          "missing_data",
+          "missing_backup",
+          "unreadable_data",
+          "unsafe_data",
+          "recovery_required",
+          "assessment_incomplete"
+        ],
+        "type": "string"
+      },
+      "PortCapabilityFeature": {
+        "properties": {
+          "action": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PortActionAssessment"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "explanation": {
+            "type": "string"
+          },
+          "feature": {
+            "$ref": "#/$defs/CapabilityFeature"
+          },
+          "listing_action": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ListingActionAssessment"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mode": {
+            "$ref": "#/$defs/CapabilityMode",
+            "description": "Management mode, separate from prerequisites and evidence of successful use."
+          },
+          "next_step": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "feature",
+          "mode",
+          "explanation",
+          "next_step",
+          "action",
+          "listing_action"
+        ],
+        "type": "object"
+      },
+      "PortCapabilityNotice": {
+        "properties": {
+          "applicability": {
+            "$ref": "#/$defs/AdvisoryApplicability"
+          },
+          "notice": {
+            "$ref": "#/$defs/CapabilityAdvisory"
+          }
+        },
+        "required": [
+          "notice",
+          "applicability"
+        ],
+        "type": "object"
+      },
+      "PortCapabilityRoute": {
+        "properties": {
+          "features": {
+            "items": {
+              "$ref": "#/$defs/PortCapabilityFeature"
+            },
+            "type": "array"
+          },
+          "install_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "route": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "route",
+          "install_id",
+          "features"
+        ],
+        "type": "object"
+      },
+      "PortSourceRole": {
+        "enum": [
+          "game",
+          "bios"
+        ],
+        "type": "string"
+      },
+      "PreparationMode": {
+        "description": "This family currently exposes the catalog's reviewed defaults only.",
+        "oneOf": [
+          {
+            "enum": [
+              "default"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "ghostship200_legacy",
+            "description": "Exact historical Windows bootstrap; this is not a generic argument override.",
+            "type": "string"
+          },
+          {
+            "const": "source_only",
+            "description": "Seal declared runtime originals without invoking an upstream setup program.",
+            "type": "string"
+          }
+        ]
+      },
+      "ProtectionCollectionState": {
+        "oneOf": [
+          {
+            "enum": [
+              "direct_to_managed_data",
+              "not_initialized",
+              "inactive",
+              "external_not_collected",
+              "unavailable"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "selected_for_collection",
+            "description": "This active copy passes the existing read-only collection selection.",
+            "type": "string"
+          }
+        ]
+      },
+      "ProtectionDeclaration": {
+        "properties": {
+          "definition_sha256": {
+            "type": "string"
+          },
+          "persistent_file_patterns": {
+            "items": {
+              "$ref": "#/$defs/PersistentFilePattern"
+            },
+            "type": "array"
+          },
+          "persistent_paths": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "saves_and_settings": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/SavesAndSettingsBehavior"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "definition_sha256",
+          "saves_and_settings",
+          "persistent_paths",
+          "persistent_file_patterns"
+        ],
+        "type": "object"
+      },
+      "ProtectionInstallRole": {
+        "enum": [
+          "active",
+          "previous",
+          "staged",
+          "external"
+        ],
+        "type": "string"
+      },
+      "ProtectionPath": {
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/$defs/ProtectionPathState",
+            "description": "Presence is metadata only; it does not establish readability or backup integrity."
+          }
+        },
+        "required": [
+          "path",
+          "state"
+        ],
+        "type": "object"
+      },
+      "ProtectionPathState": {
+        "enum": [
+          "present",
+          "missing",
+          "unsafe",
+          "unreadable"
+        ],
+        "type": "string"
+      },
+      "RecommendationClaim": {
+        "oneOf": [
+          {
+            "properties": {
+              "kind": {
+                "const": "rating",
+                "type": "string"
+              },
+              "value": {
+                "format": "uint8",
+                "maximum": 255,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "kind",
+              "value"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "unknown",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "not-applicable",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "RecommendationDimension": {
+        "enum": [
+          "gameplay",
+          "stability",
+          "performance",
+          "controls",
+          "setup",
+          "maintenance"
+        ],
+        "type": "string"
+      },
+      "RecommendationEvidence": {
+        "additionalProperties": false,
+        "properties": {
+          "claim": {
+            "$ref": "#/$defs/RecommendationClaim"
+          },
+          "dimension": {
+            "$ref": "#/$defs/RecommendationDimension"
+          },
+          "explanation": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/$defs/RecommendationEvidenceKind"
+          },
+          "observed_at": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "scope": {
+            "$ref": "#/$defs/RecommendationScope"
+          },
+          "source": {
+            "type": "string"
+          },
+          "supersedes": {
+            "description": "Explicit accepted corrections, never implicit latest-report-wins ordering.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "id",
+          "scope",
+          "dimension",
+          "kind",
+          "claim",
+          "source",
+          "explanation",
+          "observed_at",
+          "supersedes"
+        ],
+        "type": "object"
+      },
+      "RecommendationEvidenceKind": {
+        "enum": [
+          "upstream-declared",
+          "artifact-inspected",
+          "setup-observed",
+          "launch-observed",
+          "gameplay-observed",
+          "performance-observed",
+          "maintenance-observed"
+        ],
+        "type": "string"
+      },
+      "RecommendationScope": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_id": {
+            "description": "Accepted artifact identity, not a mutable tag or download URL.",
+            "type": "string"
+          },
+          "edition_id": {
+            "type": "string"
+          },
+          "environment_id": {
+            "description": "Explicit relevant environment identity; not inferred from the current host.",
+            "type": "string"
+          },
+          "game_id": {
+            "type": "string"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "release_id": {
+            "type": "string"
+          },
+          "route_id": {
+            "type": "string"
+          },
+          "source_profile_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "game_id",
+          "edition_id",
+          "port_id",
+          "release_id",
+          "artifact_id",
+          "platform",
+          "environment_id",
+          "source_profile_id",
+          "route_id"
+        ],
+        "type": "object"
+      },
+      "SavesAndSettingsBehavior": {
+        "enum": [
+          "portcove-managed",
+          "external-user-owned"
+        ],
+        "type": "string"
+      },
+      "SetupExplanation": {
+        "properties": {
+          "definition_sha256": {
+            "type": "string"
+          },
+          "installation_method": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/InstallationMethod"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "manual_preparation": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "manual_setup": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ManualSetupGuide"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "persistent_file_patterns": {
+            "items": {
+              "$ref": "#/$defs/PersistentFilePattern"
+            },
+            "type": "array"
+          },
+          "persistent_paths": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "platforms": {
+            "items": {
+              "$ref": "#/$defs/Platform"
+            },
+            "type": "array"
+          },
+          "retained": {
+            "type": "boolean"
+          },
+          "saves_and_settings": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/SavesAndSettingsBehavior"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source_requirements": {
+            "items": {
+              "$ref": "#/$defs/SourceRequirementPresentation"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "definition_sha256",
+          "retained",
+          "platforms",
+          "installation_method",
+          "source_requirements",
+          "saves_and_settings",
+          "persistent_paths",
+          "persistent_file_patterns",
+          "manual_preparation",
+          "manual_setup"
+        ],
+        "type": "object"
+      },
+      "SourceAdmission": {
+        "oneOf": [
+          {
+            "properties": {
+              "state": {
+                "const": "not_evaluated",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "mode": {
+                "$ref": "#/$defs/SourceAdmissionMode"
+              },
+              "state": {
+                "const": "admitted",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "mode"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "reason": {
+                "$ref": "#/$defs/SourceRejectionReason"
+              },
+              "state": {
+                "const": "rejected",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "reason"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "SourceAdmissionMode": {
+        "enum": [
+          "exact_identity",
+          "structural_checks",
+          "informational_consent",
+          "upstream_validator"
+        ],
+        "type": "string"
+      },
+      "SourceAssessment": {
+        "properties": {
+          "admission": {
+            "$ref": "#/$defs/SourceAdmission"
+          },
+          "classification": {
+            "$ref": "#/$defs/SourceClassification"
+          },
+          "contract": {
+            "$ref": "#/$defs/SourceContractResult"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/$defs/SourceEvidence"
+            },
+            "type": "array"
+          },
+          "health": {
+            "$ref": "#/$defs/SourceHealth"
+          }
+        },
+        "required": [
+          "health",
+          "classification",
+          "contract",
+          "admission",
+          "evidence"
+        ],
+        "type": "object"
+      },
+      "SourceClassification": {
+        "oneOf": [
+          {
+            "properties": {
+              "state": {
+                "const": "not_evaluated",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "state": {
+                "const": "unrecognized",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "identity": {
+                "$ref": "#/$defs/SourceIdentity"
+              },
+              "state": {
+                "const": "recognized",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "identity"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "candidates": {
+                "items": {
+                  "$ref": "#/$defs/SourceIdentity"
+                },
+                "type": "array"
+              },
+              "state": {
+                "const": "ambiguous",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "candidates"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "SourceContractResult": {
+        "oneOf": [
+          {
+            "properties": {
+              "state": {
+                "const": "not_evaluated",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "state": {
+                "const": "unreviewed_for_release",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "contract_id": {
+                "type": "string"
+              },
+              "state": {
+                "const": "supported",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "contract_id"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "contract_id": {
+                "type": "string"
+              },
+              "state": {
+                "const": "recognized_not_listed",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "contract_id"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "contract_id": {
+                "type": "string"
+              },
+              "state": {
+                "const": "known_incompatible",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "contract_id"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "contract_id": {
+                "type": "string"
+              },
+              "state": {
+                "const": "informational",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "contract_id"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "SourceEvidence": {
+        "properties": {
+          "evidence_ids": {
+            "description": "Reviewed catalog evidence IDs. A renderer must not treat these as URLs.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "kind": {
+            "$ref": "#/$defs/SourceEvidenceKind"
+          },
+          "method": {
+            "type": "string"
+          },
+          "observed_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "outcome": {
+            "$ref": "#/$defs/SourceEvidenceOutcome"
+          },
+          "portcove_commit": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "portcove_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "scope": {
+            "$ref": "#/$defs/SourceEvidenceScope"
+          }
+        },
+        "required": [
+          "scope",
+          "kind",
+          "outcome",
+          "observed_at",
+          "portcove_version",
+          "portcove_commit",
+          "method",
+          "evidence_ids"
+        ],
+        "type": "object"
+      },
+      "SourceEvidenceKind": {
+        "enum": [
+          "structural_check",
+          "automated_lifecycle",
+          "hands_on",
+          "known_failure"
+        ],
+        "type": "string"
+      },
+      "SourceEvidenceOutcome": {
+        "enum": [
+          "passed",
+          "failed",
+          "not_run",
+          "unknown"
+        ],
+        "type": "string"
+      },
+      "SourceEvidenceScope": {
+        "properties": {
+          "artifact_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "check_version": {
+            "description": "Version of the tested adapter/tool/check contract, not today's app build.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "contract_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "upstream_ref": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "variant": {
+            "$ref": "#/$defs/SourceVariantScope",
+            "default": {
+              "state": "unspecified"
+            }
+          }
+        },
+        "required": [
+          "port_id",
+          "platform",
+          "artifact_sha256",
+          "upstream_ref",
+          "contract_id",
+          "variant",
+          "check_version"
+        ],
+        "type": "object"
+      },
+      "SourceHealth": {
+        "description": "Current relationship between a registered source path and its saved storage identity.\n`Current` means the bytes are unchanged since registration; it does not strengthen the\ncatalog profile's game-revision evidence.\n`NotBaselined` means readable selected bytes have no saved identity baseline.",
+        "enum": [
+          "unregistered",
+          "current",
+          "missing",
+          "unreadable",
+          "changed",
+          "not_checked",
+          "not_baselined"
+        ],
+        "type": "string"
+      },
+      "SourceIdentity": {
+        "description": "Stable catalog identifiers, never display names or inferred hash-array pairs.",
+        "properties": {
+          "game_id": {
+            "type": "string"
+          },
+          "representation_id": {
+            "type": "string"
+          },
+          "variant_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "game_id",
+          "variant_id",
+          "representation_id"
+        ],
+        "type": "object"
+      },
+      "SourceRejectionReason": {
+        "enum": [
+          "missing",
+          "unreadable",
+          "changed",
+          "known_mismatch",
+          "ambiguous_identity",
+          "missing_tool",
+          "check_failed",
+          "consent_required"
+        ],
+        "type": "string"
+      },
+      "SourceRequirementPresentation": {
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "profile_id": {
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/$defs/PortSourceRole"
+          },
+          "verification": {
+            "$ref": "#/$defs/SourceVerificationMethod"
+          }
+        },
+        "required": [
+          "role",
+          "profile_id",
+          "label",
+          "verification"
+        ],
+        "type": "object"
+      },
+      "SourceVariantScope": {
+        "description": "Missing legacy scope is explicit, not a wildcard for a newly selected variant.",
+        "oneOf": [
+          {
+            "properties": {
+              "state": {
+                "const": "unspecified",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "identity": {
+                "$ref": "#/$defs/SourceIdentity"
+              },
+              "state": {
+                "const": "exact",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "identity"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "SourceVerificationMethod": {
+        "enum": [
+          "catalog-identity",
+          "upstream-validator",
+          "catalog-rules"
+        ],
+        "type": "string"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "advisories": {
+        "items": {
+          "$ref": "#/$defs/PortCapabilityNotice"
+        },
+        "type": "array"
+      },
+      "advisory_state": {
+        "type": "string"
+      },
+      "detail_problems": {
+        "description": "Optional detail failures are local to this report, never action refusals.",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "format_version": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "observations": {
+        "description": "Matching observations are enriched only on a focused request. Absence is untested.",
+        "items": {
+          "$ref": "#/$defs/RecommendationEvidence"
+        },
+        "type": "array"
+      },
+      "pending_setup": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/PendingSetupState"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "port_id": {
+        "type": "string"
+      },
+      "protection": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/PlayerDataProtection"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "routes": {
+        "items": {
+          "$ref": "#/$defs/PortCapabilityRoute"
+        },
+        "type": "array"
+      },
+      "settings": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/GameSettingsView"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "setup_guide": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ManualSetupGuide"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "source_readiness": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/LaunchReadiness"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    },
+    "required": [
+      "format_version",
+      "port_id",
+      "routes",
+      "observations",
+      "protection",
+      "settings",
+      "source_readiness",
+      "detail_problems",
+      "advisory_state",
+      "advisories",
+      "setup_guide",
+      "pending_setup"
+    ],
+    "title": "PortCapabilityReport",
     "type": "object"
   },
   "port_output_location": {

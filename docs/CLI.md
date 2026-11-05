@@ -368,6 +368,26 @@ legacy/unknown-value handling; this planning contract adds no command or field.
 
 The CLI API schema version is independent of the Portcove release version.
 
+`port-capabilities PORT_ID` returns a format-1 read-only feature report for a
+current or retained listing. `capabilities` advertises `port_capability_schema`
+and `listing_formats` independently from API schema 88 and event schema 3.
+Clients may ignore these additive descriptive fields; missing reports never
+override operation assessments. Cheap reports on `catalog listing-status` use
+already loaded status/action facts. The focused command additionally reads the
+existing backup and retained settings inventories for the selected managed
+installation, without refreshing upstream or recommendation history. A changed
+installation invalidates the focused result. Available management and observed
+success are separate: optional observations retain their exact historical scope.
+
+Listing format 7 adds optional inert `compatibility` advice. Explicit exports
+to formats 5 or 6 omit only that advice, retaining real acquisition restrictions;
+format 5 also preserves guide references as legacy flat steps. Older strict
+readers must request an advertised format they understand. Invalid or future
+optional advice is unavailable as advice, while ordinary operations continue to
+use their own owners. Newly retained user-selected listings carrying this field
+use envelope version 3; older envelopes remain readable and older readers must
+refuse the new envelope rather than reinterpret its authority.
+
 The catalog listing document has its own format version. Readers accept format 1
 descriptive directories and format 2 directories with optional
 `download_block_reason`. A restriction requires format 2; unknown formats and

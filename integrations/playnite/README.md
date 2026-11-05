@@ -123,6 +123,12 @@ versions and missing required capabilities produce an upgrade message before
 management. A product version string is not used as a compatibility guess.
 Schema 88 adds provider-qualified GitLab identities to self-service download selection and version-2 pending setup records. This reference client does not invoke those setup commands or decode those records; it continues to consume Core status, readiness and lifecycle decisions. Numeric GitHub download identities retain their original representation.
 
+API 88 also permits additive descriptive feature reports. This client ignores
+`PortListingStatus.capabilities`, `listing_formats` and `port_capability_schema`;
+it does not consume format-7 listings or invoke `port-capabilities`. Its existing
+status and operation decisions remain authoritative. These optional reports do
+not widen its negotiated API or event window.
+
 Schema 87 adds optional Desktop official-catalog setup contracts. This client invokes none of those Desktop-only commands and accepts no Root or transport input; existing CLI status, lifecycle, trust and event negotiation remain unchanged. Unknown future API89 and consequential semantics are refused.
 Schema 69 adds the optional reviewed Ghostship legacy recovery commands and backup deletion disclosure. This client does not invoke those commands or backup deletion; its existing lifecycle decisions remain unchanged.
 Schema 84 adds optional IGDB key art, game logos and reviewed edition applicability to descriptive catalog media. This client does not render or acquire that media; these fields cannot change port identity, ownership, readiness, trust or action eligibility. Existing cover/title handling remains unchanged. Strict media listing format 5 does not change the CLI catalog/status responses consumed here, and event schemas remain 2–3. Unknown future APIs and consequential semantics are refused.

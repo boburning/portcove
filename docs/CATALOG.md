@@ -1,5 +1,34 @@
 # Catalog policy
 
+## Descriptive compatibility advisories
+
+The optional `listing.compatibility` format-1 envelope belongs to the existing
+single per-port authored record. Use existing generated setup warnings and exact
+recommendation observations first; no bulk backfill is required. This envelope
+contains only remaining descriptive facts, never acquisition restrictions,
+execution grants, commands, signature overrides or private paths.
+
+Each of at most 64 records has a stable `id`, `feature`, `platform`, `route`,
+`explanation`, public HTTPS `provenance`, Unix-seconds `observed_at`, and `evidence`
+(`observed`, `upstream-reported` or `manual-requirement`). Optional `release`,
+`artifact_sha256`, `edition` and descriptive `workaround` narrow applicability.
+An artifact digest requires its actual release. The envelope is bounded to
+64 KiB and emits listing format 7. Authoring rejects malformed, future, unknown
+and command-bearing content. Runtime interpretation makes invalid or future
+optional content unavailable without changing operation eligibility.
+
+Route-wide management facts need no invented artifact identity. Version-specific
+failures retain their exact release/artifact/edition scope; a date or a missing
+later observation never establishes recovery. Existing recommendation evidence
+keeps its own exact-scope failure and correction semantics. The feature report
+shows those records as historical until the recommendation owner has a matching
+environment and identity; it does not produce another recommendation score.
+
+Legacy format-5/6 exports omit only inert compatibility advice and retain
+acquisition restrictions. A retained user-selected listing carrying advice uses
+envelope version 3 so earlier strict readers refuse unfamiliar content. Existing
+managed definitions and retained managed instructions keep their original owners.
+
 ## Integration ownership
 
 The owner adopted this upstream-first boundary on October 22, 2026 in

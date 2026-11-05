@@ -70,7 +70,9 @@ fn encode_external_catalog(catalog: &Catalog, port_id: &str) -> Result<String> {
     if catalog.is_user_selected_listing(port_id) {
         return Ok(serde_json::to_string(&RetainedUserSelectedListing {
             format: USER_SELECTED_LISTING_FORMAT.into(),
-            format_version: if catalog
+            format_version: if catalog.listing(port_id)?.compatibility.is_some() {
+                3
+            } else if catalog
                 .listing(port_id)?
                 .manual_setup
                 .as_ref()
@@ -108,7 +110,9 @@ fn decode_external_catalog(content: &str, port_id: &str) -> Result<Catalog> {
             .manual_setup
             .as_ref()
             .is_some_and(|guide| !guide.references.is_empty());
-        if !matches!(retained.format_version, 1 | 2)
+        if !matches!(retained.format_version, 1..=3)
+            || (retained.format_version == 3 && retained.listing.compatibility.is_none())
+            || (retained.format_version < 3 && retained.listing.compatibility.is_some())
             || (retained.format_version == 1 && has_references)
             || retained.listing.id != port_id
         {
@@ -3256,6 +3260,29 @@ mod tests {
         );
         value["format_version"] = 1.into();
         assert!(decode_external_catalog(&value.to_string(), "syphon-filter-sf-pc-port").is_err());
+    }
+
+    #[test]
+    fn advisory_listing_retains_inert_payload_with_an_explicit_reader_fence() {
+        let mut listing = Catalog::embedded()
+            .unwrap()
+            .listing("shipwright")
+            .unwrap()
+            .clone();
+        listing.compatibility = Some(serde_json::json!({"format_version": 99, "future": true}));
+        let catalog = Catalog::for_user_selected_listing(listing.clone()).unwrap();
+        let content = encode_external_catalog(&catalog, "shipwright").unwrap();
+        let mut value: serde_json::Value = serde_json::from_str(&content).unwrap();
+        assert_eq!(value["format_version"], 3);
+        let restored = decode_external_catalog(&content, "shipwright").unwrap();
+        assert_eq!(
+            restored.listing("shipwright").unwrap().compatibility,
+            listing.compatibility
+        );
+        for version in [1, 2, 4] {
+            value["format_version"] = version.into();
+            assert!(decode_external_catalog(&value.to_string(), "shipwright").is_err());
+        }
     }
 
     #[test]

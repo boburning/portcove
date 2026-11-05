@@ -1,6 +1,8 @@
 use std::path::Path;
 
 mod phases;
+mod port_capabilities;
+pub(crate) use port_capabilities::port_capabilities;
 mod task_results;
 mod transfers;
 pub(crate) use phases::phase_name;

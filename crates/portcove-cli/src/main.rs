@@ -1373,6 +1373,14 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 },
             )?;
         }
+        Commands::PortCapabilities { port_id } => {
+            render_read_success(
+                mode,
+                "port-capabilities",
+                service.port_capabilities(&port_id)?,
+                human::port_capabilities,
+            )?;
+        }
         Commands::Status { port_id } => {
             if let Some(port_id) = port_id {
                 render_read_success(mode, "status", service.status(&port_id)?, |value| {
@@ -3167,6 +3175,7 @@ fn command_name(command: &Commands) -> &'static str {
             ToolCommand::SetPath { .. } => "tool.set-path",
             ToolCommand::ClearPath { .. } => "tool.clear-path",
         },
+        Commands::PortCapabilities { .. } => "port-capabilities",
         Commands::Status { .. } => "status",
         Commands::Activity {
             command: Some(ActivityCommand::Log { .. }),
@@ -3908,6 +3917,7 @@ mod tests {
             vec!["portcove", "doctor"],
             vec!["portcove", "auth", "status"],
             vec!["portcove", "capabilities"],
+            vec!["portcove", "port-capabilities", "shipwright"],
             vec!["portcove", "source", "verify", "zelda64-recomp"],
             vec!["portcove", "source", "verify", "--all"],
             vec!["portcove", "catalog", "update", "--file", "catalog.json"],
@@ -4438,6 +4448,13 @@ mod tests {
     #[test]
     fn capabilities_advertise_failure_isolated_batches() {
         let capabilities = CapabilityDocument::current();
+        assert_eq!(capabilities.port_capability_schema, Some(1));
+        assert_eq!(capabilities.listing_formats, [5, 6, 7]);
+        assert!(
+            capabilities
+                .commands
+                .contains(&"port-capabilities".to_owned())
+        );
         assert_eq!(
             capabilities.schema_version,
             portcove_core::API_SCHEMA_VERSION

@@ -80,6 +80,7 @@ import { PortBrowser, SteamBatchLibraryAction } from "./components/PortBrowser";
 import { ListingDetailPanel } from "./components/ListingDetailPanel";
 import { SelfServiceSetup } from "./components/SelfServiceSetup";
 import { catalogEntries, usesSelfServiceDetail } from "./features/browsing/catalog-entry";
+import { setupRoutePresentation } from "./features/port-actions/setup-route-presentation";
 import { evaluateCatalogQuery, type CatalogQueryContext } from "./features/browsing/catalog-query";
 import {
   useGameFileFilterContext,
@@ -760,7 +761,10 @@ function useWorkspace(props: WorkspaceProps) {
             !model.status?.active &&
             !model.status?.staged &&
             !model.status?.external_runtime && (
-              <details className="mt-6 border-t border-pc-border pt-4">
+              <details
+                open={setupRoutePresentation(model.entry, model.status).promoteAlternative}
+                className="mt-6 border-t border-pc-border pt-4"
+              >
                 <summary data-focusable className="cursor-pointer font-medium">
                   Use an existing installation · Installation options
                 </summary>

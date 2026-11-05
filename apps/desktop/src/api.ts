@@ -125,6 +125,8 @@ export type DesktopArtworkThumbnail = Pick<ArtworkThumbnail, "asset_sha256" | "c
 export const desktopApi = {
   gameSettings: (portId: string, generation: number) =>
     invoke<import("./types").GameSettingsView>("get_game_settings", { portId, generation }),
+  portCapabilities: (portId: string, generation: number) =>
+    invoke<import("./types").PortCapabilityReport>("get_port_capabilities", { portId, generation }),
   reviewGameSetting: (
     portId: string,
     fileId: string,

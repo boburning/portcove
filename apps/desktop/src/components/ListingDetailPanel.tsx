@@ -16,6 +16,7 @@ import { DetailLayout } from "./DetailLayout";
 import { ChoiceFailure, SetupStatement, type DetailOrganization } from "./DetailChoices";
 import { ExternalLink } from "./ExternalLink";
 import { SelfServiceSetup } from "./SelfServiceSetup";
+import { PortCapabilities } from "./PortCapabilities";
 import { Button } from "./ui/button";
 import { Icon } from "./ui";
 import { CurrentStateSummary, ManagementRow } from "./ui/patterns";
@@ -217,6 +218,7 @@ export function ListingDetailPanel({
           )}
           overviewDetails={
             <section className="detail-evidence" aria-label="Project information and checks">
+              <PortCapabilities entry={entry} status={status} generation={generation} />
               <details className="mt-6">
                 <summary data-focusable>Project status and compatibility qualifications</summary>
                 {links}

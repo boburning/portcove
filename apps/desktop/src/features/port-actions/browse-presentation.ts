@@ -2,6 +2,7 @@ import { gameUpdateAcquisitionLabel } from "../port-updates/acquisition-presenta
 import type { PortStatus, PortDefinition } from "../../types";
 import type { CatalogEntry } from "../browsing/catalog-entry";
 import { listingAvailabilityLabel } from "../browsing/catalog-entry";
+import { setupRoutePresentation } from "./setup-route-presentation";
 import {
   SOURCE_BLOCKERS,
   BIOS_BLOCKERS,
@@ -34,7 +35,7 @@ export function browsePortPresentation(
     !status?.external_runtime &&
     !port.pendingSetup &&
     Boolean(port.release)
-      ? catalogSetupPresentation(status)
+      ? setupRoutePresentation(port, status)
       : undefined;
   return { input, state, setup, concurrentBlockers: concurrentReadinessReasons(status) };
 }
@@ -58,7 +59,9 @@ export function readinessPresentation(
     return { label: "Compatibility unconfirmed", action: "View details", tone: "setup" } as const;
   if (view === "catalog" && !status?.active && !status?.external_runtime)
     return {
-      label: catalogSetupPresentation(status).label,
+      label: port
+        ? setupRoutePresentation(port, status).label
+        : catalogSetupPresentation(status).label,
       action: "View details",
       tone: "available",
     } as const;

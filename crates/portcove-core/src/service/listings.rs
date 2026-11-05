@@ -49,8 +49,8 @@ impl PortcoveService {
     }
 
     pub fn listing_status(&self, port_id: &str) -> Result<crate::PortListingStatus> {
-        self.catalog_for_installed_fallback(port_id)?
-            .listing(port_id)?;
+        let catalog = self.catalog_for_installed_fallback(port_id)?;
+        let listing = catalog.listing(port_id)?;
         let status = self.status(port_id)?;
         let owned = self
             .library
@@ -62,7 +62,12 @@ impl PortcoveService {
             .launch_sessions()?
             .iter()
             .any(|session| session.port_id == port_id && session.outcome.is_none());
-        Ok(Self::assess_listing_status(status, owned, launching))
+        let mut projected = Self::assess_listing_status(status, owned, launching);
+        let pending = self.pending_setups()?;
+        if let Some(report) = projected.capabilities.as_mut() {
+            report.add_setup_context(listing, pending.iter().find(|p| p.port_id == port_id));
+        }
+        Ok(projected)
     }
 
     pub fn listing_statuses(&self) -> Result<Vec<crate::PortListingStatus>> {
@@ -75,7 +80,7 @@ impl PortcoveService {
             .map(|listing| (listing.id.clone(), ReleaseChannel::Stable))
             .collect::<Vec<_>>();
         let raw = self.library.statuses_with_metrics(&ports)?.0;
-        self.listing_statuses_from(&catalog, &strict, raw)
+        self.listing_statuses_from(&catalog, &strict, raw, &self.pending_setups()?)
     }
 
     pub(super) fn catalog_with_registered_listings(
@@ -116,6 +121,7 @@ impl PortcoveService {
         catalog: &Catalog,
         strict: &[PortStatus],
         raw: Vec<PortStatus>,
+        pending: &[crate::PendingSetupRecord],
     ) -> Result<Vec<crate::PortListingStatus>> {
         let strict = strict
             .iter()
@@ -136,7 +142,7 @@ impl PortcoveService {
             .collect::<HashSet<_>>();
         raw.into_iter()
             .map(|status| {
-                catalog.listing(&status.port_id)?;
+                let listing = catalog.listing(&status.port_id)?;
                 let status = if let Some(status) = strict.get(status.port_id.as_str()) {
                     (**status).clone()
                 } else if status
@@ -150,7 +156,14 @@ impl PortcoveService {
                 };
                 let has_owner = owned.contains(&status.port_id);
                 let launching = launching.contains(&status.port_id);
-                Ok(Self::assess_listing_status(status, has_owner, launching))
+                let mut projected = Self::assess_listing_status(status, has_owner, launching);
+                if let Some(report) = projected.capabilities.as_mut() {
+                    report.add_setup_context(
+                        listing,
+                        pending.iter().find(|p| p.port_id == projected.port_id),
+                    );
+                }
+                Ok(projected)
             })
             .collect()
     }
@@ -207,6 +220,7 @@ impl PortcoveService {
         ];
         crate::PortListingStatus {
             port_id: status.port_id.clone(),
+            capabilities: Some(crate::PortCapabilityReport::from_status(&status, &actions)),
             status,
             actions,
         }
@@ -215,6 +229,7 @@ impl PortcoveService {
 
 fn listing_resource_url(listing: &crate::PortListing, url: &str) -> bool {
     listing.project_url == url
+        || super::advisories::reviewed_advisory_url(listing, url)
         || [
             listing.release_url.as_deref(),
             listing.setup_url.as_deref(),
