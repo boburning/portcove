@@ -1,3 +1,4 @@
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 /** Coordinator-owned unchanged-feed context. This cannot manufacture a release
  * candidate, native qualification, a prior repository or bootstrap absence. */
 import { createHash } from "node:crypto";
@@ -391,16 +392,24 @@ export async function requireCoordinatorSigningContext(receipt: object, phaseDea
   await verifyState(owned, await snapshot(owned));
   if (site) await readPublicApplicationSiteMarker(site.generation, owned.deadline);
   else if (performance.now() - owned.bootstrap_observed >= 45000) {
+    const provider = await createReleaseCustodyProvider({
+      token: process.env.GH_TOKEN ?? "",
+      deadline: owned.deadline,
+      maxBytes: 512 * 1024,
+      chargeRead: () => {
+        remaining(owned);
+      },
+    });
     if (owned.session.mode === "bootstrap" && owned.session.catalog_site) {
       const readback = await readConfiguredCatalogOnlyBootstrapSite(
-        apiFor(owned),
+        provider,
         owned.session.catalog_pins,
         owned.session.catalog_site,
         owned.deadline,
       );
       if (digest(readback) !== owned.facts.catalog_readback_sha256)
         throw new Error("metadata catalog baseline readback changed");
-    } else await readConfiguredBootstrapSite(apiFor(owned), owned.deadline);
+    } else await readConfiguredBootstrapSite(provider, owned.deadline);
     owned.bootstrap_observed = performance.now();
   }
   // Source/public reads may consume the original controls lifetime. Return only
