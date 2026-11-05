@@ -653,10 +653,7 @@ void test("production secret selection never falls back across purposes and job-
           ["catalog-publication", "", "APP", false],
           ["application", "CATALOG", "", false],
         ] as const) {
-          assert.equal(
-            evaluate(purpose, "", "legacy-app", "", catalog, app) || false,
-            expected,
-          );
+          assert.equal(evaluate(purpose, "", "legacy-app", "", catalog, app) || false, expected);
         }
         for (const purpose of ["application", "catalog-publication"]) {
           assert.equal(
