@@ -225,3 +225,48 @@ console.log('controlled Windows preparation passed; held connection refused befo
 `,
   );
 });
+
+void test("protected Windows runtime clock keeps exact provider Date and job identity on one SDK read", async (t) => {
+  const { readProtectedWindowsRuntimeDeadline } =
+    await import("./release-windows-bootstrap-runtime.mts");
+  const expected = {
+    jobId: 900,
+    revision: "a".repeat(40),
+    runId: "123",
+    jobName: "fixed Windows tool job",
+    minutes: 10,
+    readerToken: "inert-runtime-reader",
+  };
+  let requests = 0;
+  let mode: "current" | "missing-date" | "contradictory" = "current";
+  t.mock.method(globalThis, "fetch", async (input: string | URL | Request, init?: RequestInit) => {
+    requests++;
+    const url = new URL(input instanceof Request ? input.url : input);
+    assert.equal(url.href, "https://api.github.com/repos/boburning/portcove/actions/jobs/900");
+    assert.equal(init?.redirect, "manual");
+    assert.equal(new Headers(init?.headers).get("authorization"), "token inert-runtime-reader");
+    const date = new Date();
+    return Response.json(
+      {
+        id: expected.jobId,
+        head_sha: expected.revision,
+        run_id: Number(expected.runId),
+        run_attempt: mode === "contradictory" ? 2 : 1,
+        name: expected.jobName,
+        status: "in_progress",
+        started_at: new Date(date.valueOf() - 10000).toISOString(),
+      },
+      mode === "missing-date" ? {} : { headers: { date: date.toUTCString() } },
+    );
+  });
+  const { deadline, startedAt, providerObservedAt } =
+    await readProtectedWindowsRuntimeDeadline(expected);
+  assert.ok(Date.parse(startedAt) < Date.parse(providerObservedAt));
+  assert.ok(deadline - performance.now() >= 480000 && deadline - performance.now() < 600000);
+  mode = "missing-date";
+  await assert.rejects(readProtectedWindowsRuntimeDeadline(expected));
+  mode = "contradictory";
+  await assert.rejects(readProtectedWindowsRuntimeDeadline(expected), /job identity differs/u);
+  await assert.rejects(readProtectedWindowsRuntimeDeadline({ ...expected, readerToken: "" }));
+  assert.equal(requests, 3);
+});

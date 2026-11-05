@@ -998,6 +998,10 @@ for (const [file, tests] of [
     ],
   ],
   [
+    "scripts/release-windows-bootstrap-runtime.mts",
+    ["scripts/release-hosted-native-windows-bootstrap.test.mts"],
+  ],
+  [
     "scripts/release-hosted-native-bootstrap.mts",
     [
       "scripts/release-hosted-native-runner.test.mts",
@@ -2311,6 +2315,7 @@ for (const file of [
     "scripts/release-coordinator-recovery.test.mts",
     "scripts/release-metadata-context-recovery.test.mts",
     "scripts/production-controller-admission.test.mts",
+    "scripts/release-hosted-native-windows-bootstrap.test.mts",
     "scripts/release-bootstrap-preparation.test.mts",
     "scripts/application-release-budget.test.mts",
     "scripts/application-release-native.test.mts",

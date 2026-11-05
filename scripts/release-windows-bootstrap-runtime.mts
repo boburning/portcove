@@ -9,7 +9,7 @@ import { createHash } from "node:crypto";
 import { writeFile } from "node:fs/promises";
 import { performance } from "node:perf_hooks";
 import { parseDocument } from "yaml";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
+import { createGitHubClient } from "./github-client.mts";
 import { isRecord } from "./runtime-values.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import {
@@ -79,6 +79,57 @@ export function remainingProtectedWindowsRuntimeWindow(input: {
     "Original provider job cannot preserve complete sequential runtime preparation and settlement; resource amendment required",
   );
   return remaining;
+}
+/** Read the numeric job for the already authenticated source-appointed issuer.
+ * The provider Date and body must come from the same original one-shot read. */
+export async function readProtectedWindowsRuntimeDeadline(input: {
+  jobId: number;
+  revision: string;
+  runId: string;
+  jobName: string;
+  minutes: number;
+  readerToken: string;
+}) {
+  const { jobId, revision, runId, jobName, minutes, readerToken } = input;
+  assert.ok(Number.isSafeInteger(jobId) && jobId > 0);
+  const started = performance.now();
+  const route = `/repos/boburning/portcove/actions/jobs/${jobId}`;
+  const sdk = await createGitHubClient({
+    credential: { kind: "explicit", token: readerToken },
+    deadline: started + 15000,
+    maxBytes: 128 * 1024,
+    headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
+    allowRequest: (method, url) => method === "GET" && url.pathname === route && !url.search,
+  });
+  const response = await sdk.request(`GET ${route}`, {
+    request: { portcove: { replay: "once", attempts: 0 } },
+  });
+  const job: unknown = response.data;
+  assert.equal(response.status, 200);
+  assert.ok(
+    isRecord(job) &&
+      job.id === jobId &&
+      job.head_sha === revision &&
+      String(job.run_id) === runId &&
+      job.run_attempt === 1 &&
+      job.name === jobName &&
+      job.status === "in_progress" &&
+      typeof job.started_at === "string",
+    "Original protected Windows runtime job identity differs",
+  );
+  const providerDate = Date.parse(response.headers.date ?? "");
+  const remaining = remainingProtectedWindowsRuntimeWindow({
+    startedAt: Date.parse(job.started_at),
+    providerDate,
+    localDate: Date.now(),
+    minutes,
+    requestMilliseconds: performance.now() - started,
+  });
+  return {
+    deadline: performance.now() + remaining,
+    startedAt: job.started_at,
+    providerObservedAt: new Date(providerDate).toISOString(),
+  };
 }
 export async function prepareAdmittedWindowsBootstrapRuntime() {
   return prepareAdmittedWindowsSourceRuntime("bootstrap");
@@ -198,33 +249,16 @@ async function prepareAdmittedWindowsSourceRuntime(role: "bootstrap" | "native")
   assert.ok(isRecord(document) && isRecord(document.jobs) && isRecord(document.jobs[jobKey]));
   const minutes = document.jobs[jobKey]["timeout-minutes"];
   assert.ok(Number.isSafeInteger(minutes) && Number(minutes) > 0 && Number(minutes) <= 360);
-  const readStarted = performance.now();
-  const runner = createGitHubRunner({ cwd: project, maxBuffer: 128 * 1024, timeoutMs: 15000 }),
-    api = new GitHubApiClient((args, input) =>
-      runner([...args, "--hostname", "github.com"], input),
-    ),
-    job = api.request("GET", `repos/boburning/portcove/actions/jobs/${identity.job_id}`);
-  assert.equal(job.status, 200);
-  assert.ok(
-    isRecord(job.body) &&
-      job.body.id === identity.job_id &&
-      job.body.head_sha === source.revision &&
-      String(job.body.run_id) === source.run_id &&
-      job.body.run_attempt === 1 &&
-      job.body.name === profile.job &&
-      job.body.status === "in_progress" &&
-      typeof job.body.started_at === "string",
-  );
-  const providerDate = Date.parse(job.headers.get("date") ?? ""),
-    startedAt = Date.parse(job.body.started_at);
-  const remaining = remainingProtectedWindowsRuntimeWindow({
-    startedAt,
-    providerDate,
-    localDate: Date.now(),
+  assert.ok(typeof source.run_id === "string");
+  const clock = await readProtectedWindowsRuntimeDeadline({
+    jobId: identity.job_id,
+    revision: source.revision,
+    runId: source.run_id,
+    jobName: profile.job,
     minutes: Number(minutes),
-    requestMilliseconds: performance.now() - readStarted,
+    readerToken: environment.GH_TOKEN ?? "",
   });
-  const originalDeadline = performance.now() + remaining;
+  const originalDeadline = clock.deadline;
   const context = Buffer.from(JSON.stringify({ root: project, source: source.revision })).toString(
       "base64",
     ),
@@ -247,6 +281,17 @@ async function prepareAdmittedWindowsSourceRuntime(role: "bootstrap" | "native")
     "GITHUB_SHA",
   ])
     child[key] = environment[key];
+  await recheck();
+  assert.ok(
+    Date.now() < Date.parse(identity.expires_at),
+    "Original Windows runtime issuer expired",
+  );
+  assert.ok(
+    originalDeadline - performance.now() >=
+      protectedWindowsRuntimeHelperMilliseconds +
+        protectedWindowsRuntimeFinalizerReserveMilliseconds,
+    "Original provider job cannot preserve complete sequential runtime preparation and settlement; resource amendment required",
+  );
   try {
     execFileSync(
       windowsSourceSystemExecutables.powershell,
@@ -323,9 +368,9 @@ async function prepareAdmittedWindowsSourceRuntime(role: "bootstrap" | "native")
     runtime_version: facts.observed,
     minimum: facts.minimum,
     original_provider_job: {
-      started_at: job.body.started_at,
+      started_at: clock.startedAt,
       maximum_minutes: Number(minutes),
-      provider_observed_at: new Date(providerDate).toISOString(),
+      provider_observed_at: clock.providerObservedAt,
       helper_maximum_milliseconds: protectedWindowsRuntimeHelperMilliseconds,
       finalizer_reserve_milliseconds: protectedWindowsRuntimeFinalizerReserveMilliseconds,
     },
