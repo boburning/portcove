@@ -769,6 +769,7 @@ for (const [file, tests] of [
     "scripts/release-custody-provider.mts",
     [
       "scripts/release-publication-result-artifact.test.mts",
+      "scripts/release-immutable-publication.test.mts",
       "scripts/release-signing-handoff.test.mts",
       "scripts/release-signing-context-artifact.test.mts",
       "scripts/release-tuf-role-artifact.test.mts",
@@ -2206,6 +2207,7 @@ for (const file of [
     "scripts/release-publication-source.test.mts",
     "scripts/release-publication-controller.test.mts",
     "scripts/release-publication-result-artifact.test.mts",
+    "scripts/release-immutable-publication.test.mts",
     "scripts/release-signing-handoff.test.mts",
     "scripts/release-signing-context-artifact.test.mts",
     "scripts/release-tuf-role-artifact.test.mts",
