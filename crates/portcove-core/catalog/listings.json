@@ -28747,7 +28747,18 @@
       },
       "platforms": [
         "windows-x86-64"
-      ]
+      ],
+      "release_maintenance": {
+        "reason": "The full scenario package and engine-only package overlap the provider’s current literal filename hints. Populated shared upstream profiles have not been qualified across runtime versions; Core does not own or migrate them. The incidental archive wrapper is derived from the retained exact player path, not pinned.",
+        "reconsider_when": "Enable compatible-release selection after an unambiguous full-scenario package selector and bounded shared-profile read/write compatibility evidence are available. Reassess changed executable identity, scenario structure and Windows path limits independently of wrapper naming.",
+        "pinned_releases": [
+          {
+            "platform": "windows-x86-64",
+            "version": "release-20260930",
+            "published_at": "2026-10-01T01:46:14Z"
+          }
+        ]
+      }
     },
     {
       "id": "marathon-aleph-one",
@@ -28776,8 +28787,8 @@
         "windows-x86-64"
       ],
       "release_maintenance": {
-        "reason": "The accepted package has a release-specific runtime directory and reads upstream-owned shared profiles. A later package must not reinterpret either contract.",
-        "reconsider_when": "Reassess a newly observed official Windows game package against archive layout, executable identity, Windows path limits, profile ownership and retained runtime compatibility.",
+        "reason": "The full scenario package and engine-only package overlap the provider’s current literal filename hints. Populated shared upstream profiles have not been qualified across runtime versions; Core does not own or migrate them. The incidental archive wrapper is derived from the retained exact player path, not pinned.",
+        "reconsider_when": "Enable compatible-release selection after an unambiguous full-scenario package selector and bounded shared-profile read/write compatibility evidence are available. Reassess changed executable identity, scenario structure and Windows path limits independently of wrapper naming.",
         "pinned_releases": [
           {
             "platform": "windows-x86-64",
@@ -28820,7 +28831,18 @@
       },
       "platforms": [
         "windows-x86-64"
-      ]
+      ],
+      "release_maintenance": {
+        "reason": "The full scenario package and engine-only package overlap the provider’s current literal filename hints. Populated shared upstream profiles have not been qualified across runtime versions; Core does not own or migrate them. The incidental archive wrapper is derived from the retained exact player path, not pinned.",
+        "reconsider_when": "Enable compatible-release selection after an unambiguous full-scenario package selector and bounded shared-profile read/write compatibility evidence are available. Reassess changed executable identity, scenario structure and Windows path limits independently of wrapper naming.",
+        "pinned_releases": [
+          {
+            "platform": "windows-x86-64",
+            "version": "release-20260930",
+            "published_at": "2026-10-01T01:46:14Z"
+          }
+        ]
+      }
     },
     {
       "id": "mario-kart-64-mariokart64recomp",
