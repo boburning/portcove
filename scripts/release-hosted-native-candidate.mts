@@ -23,10 +23,10 @@ import {
   inspectNativePostSignController,
   inspectNativePostSignArtifactInventory,
   inspectNativePostSignPackageMetadata,
-  inspectNativePredecessorReleaseAsset,
+  acquireNativePredecessorRelease,
 } from "./release-native-candidate.mts";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
-import { readGitHubArtifactArchive, readGitHubReleaseAsset } from "./github-binary.mts";
+import { readGitHubArtifactArchive } from "./github-binary.mts";
 import { downloadGitHubArtifactArchiveFile } from "./github-artifact-download.mts";
 import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import {
@@ -182,21 +182,6 @@ async function hostedNativeSourceTransport(parentReceipt: object, directory: str
       throw new Error("original signed artifact archive changed");
     return bytes;
   };
-  const downloadAsset: typeof readGitHubReleaseAsset = (endpoint, options) =>
-    readGitHubReleaseAsset(endpoint, {
-      ...options,
-      spawn: (command, args, settings) => {
-        if (command !== "gh") throw new Error("fixed hosted native source executable differs");
-        inspectNativeSourceCommand(args);
-        const result = spawnSync(command, args, {
-          ...settings,
-          env: childEnvironment,
-          timeout: remaining(settings.timeout ?? 60000),
-        });
-        remaining(1);
-        return result;
-      },
-    });
   const recover = bindReadOnlyReleaseChildren(async () => {
     await requireActualHostedNativeParentSource(parentReceipt);
     remaining(1);
@@ -275,7 +260,15 @@ async function hostedNativeSourceTransport(parentReceipt: object, directory: str
     download,
     readPostSignMetadata,
     downloadPostSignArchive,
-    downloadAsset,
+    acquirePredecessor: (record: unknown, candidate: unknown, root: string) =>
+      acquireNativePredecessorRelease(record, candidate, root, {
+        credential,
+        deadline,
+        fetch: directFetch,
+        recheck: () => {
+          remaining(1);
+        },
+      }),
     recover,
     checkpointObjects,
     declarationProvider,
@@ -1083,63 +1076,11 @@ export async function acquireActualHostedNativePostSignPackage(journeyReceipt: o
       let predecessor: { path: string; bytes: number; sha256: string; version: string } | null =
         null;
       if (isRecord(verified.journey) && isRecord(verified.journey.predecessor)) {
-        const record = verified.predecessor_record;
-        if (!record || typeof record.version !== "string")
-          throw new Error("original predecessor release record absent");
-        const releaseEndpoint = `repos/boburning/portcove/releases/tags/${encodeURIComponent(`v${record.version}`)}`;
-        const readRelease = () => {
-          original.source.remaining(1);
-          const response = original.source.api.request("GET", releaseEndpoint);
-          if (
-            response.status !== 200 ||
-            !isRecord(response.body) ||
-            typeof response.body.id !== "number"
-          )
-            throw new Error("original predecessor release unavailable");
-          const assets = original.source.api.paginateRest(
-            `repos/boburning/portcove/releases/${response.body.id}/assets`,
-            {
-              identity: (item: unknown) => {
-                if (!isRecord(item) || typeof item.id !== "number")
-                  throw new Error("predecessor asset identity absent");
-                return String(item.id);
-              },
-              label: "original native immutable predecessor assets",
-            },
-          );
-          original.source.remaining(1);
-          return { release: response.body, assets };
-        };
-        const before = readRelease();
-        const asset = inspectNativePredecessorReleaseAsset(
-          record,
+        predecessor = await original.source.acquirePredecessor(
+          verified.predecessor_record,
           verified.journey.predecessor,
-          before.release,
-          before.assets,
+          directory,
         );
-        const bytes = original.source.downloadAsset(
-          `repos/boburning/portcove/releases/assets/${asset.id}`,
-          { cwd: directory, maxBytes: asset.bytes, timeoutMs: original.source.remaining(120000) },
-        );
-        if (bytes.length !== asset.bytes || hash(bytes) !== asset.sha256)
-          throw new Error("original immutable predecessor bytes differ");
-        const after = readRelease();
-        const repeated = inspectNativePredecessorReleaseAsset(
-          record,
-          verified.journey.predecessor,
-          after.release,
-          after.assets,
-        );
-        if (releaseCanonicalDigest(asset) !== releaseCanonicalDigest(repeated))
-          throw new Error("original predecessor provider identity changed");
-        const filename = path.join(directory, `predecessor-${asset.filename}`);
-        await writeFile(filename, bytes, { flag: "wx", mode: 0o600 });
-        predecessor = {
-          path: filename,
-          bytes: asset.bytes,
-          sha256: asset.sha256,
-          version: asset.version,
-        };
       }
       phase = "package-retention";
       const packagePath = path.join(directory, identity.candidate.package.filename);

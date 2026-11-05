@@ -2,17 +2,18 @@ import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { createRequire } from "node:module";
-import { mkdir, mkdtemp, readFile, writeFile, copyFile, cp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, writeFile, copyFile, cp, readdir, rm } from "node:fs/promises";
 import { performance } from "node:perf_hooks";
 import { disposableTufWorkerFixture } from "./fixtures/tuf-worker-fixture.mts";
 import { signIsolatedTufRole, tufRoleDependencies } from "./release-tuf-signing.mts";
 import { signReleasePayload } from "./release-payload-signing.mts";
-import { readGitHubReleaseAsset } from "./github-binary.mts";
+import os from "node:os";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { trustedAssemblyFixture } from "./fixtures/trusted-assembly-fixture.mts";
 import {
   inspectNativePredecessorReleaseAsset,
+  acquireNativePredecessorRelease,
   inspectNativePostSignPackageMetadata,
   acquireActualNativePostSignCandidate,
   inspectSelectedNativeCandidate,
@@ -581,9 +582,17 @@ void test("signed native package source binds the complete platform archive tupl
   await assert.rejects(acquireActualNativePostSignCandidate({}), /actual installed native parent/);
 });
 
-void test("predecessor materialization requires exact immutable Release and recorded package while binary transport stays bounded and fixed-host", () => {
-  const native = nativeQualificationFixture(),
-    candidate = native.candidate;
+void test("predecessor custody requires exact immutable Release and streams verified bytes around complete inventories", async (t) => {
+  const payload = Buffer.from("opaque exact predecessor");
+  const original = nativeQualificationFixture().candidate;
+  const candidate = {
+    ...original,
+    package: {
+      ...original.package,
+      bytes: payload.length,
+      sha256: createHash("sha256").update(payload).digest("hex"),
+    },
+  };
   const url = `https://github.com/boburning/portcove/releases/download/v0.1.0-beta.1/${candidate.package.filename}`;
   const record = {
     version: "0.1.0-beta.1",
@@ -626,32 +635,78 @@ void test("predecessor materialization requires exact immutable Release and reco
     [release, [{ ...asset, browser_download_url: url + "?other" }]],
   ] as const)
     assert.throws(() => inspectNativePredecessorReleaseAsset(record, candidate, r, assets));
-  let calls = 0;
-  const options: Parameters<typeof readGitHubReleaseAsset>[1] = {
-    cwd: process.cwd(),
-    maxBytes: 128,
-    timeoutMs: 1000,
-    spawn: (command, args, settings) => {
-      calls++;
-      assert.equal(command, "gh");
-      inspectNativeSourceCommand(args);
-      assert.equal(settings.maxBuffer, 128);
-      assert.equal(settings.shell, false);
-      return { status: 0, stdout: Buffer.from("opaque") };
-    },
-  };
-  assert.equal(
-    readGitHubReleaseAsset("repos/boburning/portcove/releases/assets/2", options).toString(),
-    "opaque",
-  );
-  assert.equal(calls, 1);
-  for (const endpoint of [
-    "repos/foreign/portcove/releases/assets/2",
-    "https://github.com/example",
-    "repos/boburning/portcove/releases/assets/0",
-  ])
-    assert.throws(() => readGitHubReleaseAsset(endpoint, options));
-  assert.equal(calls, 1);
+  const root = await mkdtemp(path.join(os.tmpdir(), "native-predecessor-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  let observations = 0;
+  let fault = "";
+  const routes: string[] = [];
+  const acquire = () =>
+    acquireNativePredecessorRelease(record, candidate, root, {
+      credential: { kind: "explicit", token: "fixed-fixture-native-reader" },
+      deadline: performance.now() + 5000,
+      recheck() {},
+      async fetch(input, init) {
+        const request = new Request(input, init);
+        const endpoint = new URL(request.url);
+        assert.equal(endpoint.origin, "https://api.github.com");
+        assert.equal(request.headers.get("authorization"), "token fixed-fixture-native-reader");
+        const route = endpoint.pathname + endpoint.search;
+        routes.push(route);
+        switch (route) {
+          case "/repos/boburning/portcove/releases/tags/v0.1.0-beta.1":
+            observations++;
+            return Response.json(release);
+          case "/repos/boburning/portcove/releases/1/assets":
+            return Response.json([{ id: 3 }], {
+              headers: {
+                link:
+                  fault === "malformed"
+                    ? "rel=next"
+                    : `<https://api.github.com/repositories/1354613114/releases/1/assets?page=${fault === "skip" ? 3 : 2}>; rel="next"`,
+              },
+            });
+          case "/repositories/1354613114/releases/1/assets?page=2":
+            return Response.json([
+              fault === "drift" && observations === 2 ? { ...asset, state: "new" } : asset,
+            ]);
+          case "/repos/boburning/portcove/releases/assets/2":
+            assert.equal(request.headers.get("accept"), "application/octet-stream");
+            return new Response(
+              new ReadableStream({
+                start(controller) {
+                  controller.enqueue(payload.subarray(0, 1));
+                  if (fault !== "short") controller.enqueue(payload.subarray(1));
+                  controller.close();
+                },
+              }),
+            );
+          default:
+            throw new Error("unexpected predecessor fixture route");
+        }
+      },
+    });
+  for (const refusal of ["skip", "malformed", "short", "drift"]) {
+    fault = refusal;
+    observations = 0;
+    await assert.rejects(acquire());
+    assert.deepEqual(await readdir(root), []);
+  }
+  fault = "";
+  routes.length = 0;
+  const retained = await acquire();
+  assert.deepEqual(await readFile(retained.path), payload);
+  assert.deepEqual(routes, [
+    "/repos/boburning/portcove/releases/tags/v0.1.0-beta.1",
+    "/repos/boburning/portcove/releases/1/assets",
+    "/repositories/1354613114/releases/1/assets?page=2",
+    "/repos/boburning/portcove/releases/assets/2",
+    "/repos/boburning/portcove/releases/tags/v0.1.0-beta.1",
+    "/repos/boburning/portcove/releases/1/assets",
+    "/repositories/1354613114/releases/1/assets?page=2",
+  ]);
+  await assert.rejects(acquire(), { code: "EEXIST" });
+  assert.deepEqual(await readFile(retained.path), payload);
+  assert.deepEqual(await readdir(root), [path.basename(retained.path)]);
   assert.throws(() =>
     inspectNativeSourceCommand([
       "api",
