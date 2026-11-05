@@ -4627,6 +4627,8 @@ void test("GitHub dependency changes select actual SDK and REST integration cont
       "scripts/release-pages-provider.test.mts",
       "scripts/release-publication-controller.test.mts",
       "scripts/release-publication-result-artifact.test.mts",
+      "scripts/release-signing-handoff.test.mts",
+      "scripts/release-tuf-role-artifact.test.mts",
       "scripts/release-controller-wake.test.mts",
       "scripts/release-coordinator-checkpoint-authentication.test.mts",
       "scripts/release-hosted-native-acceptance.test.mts",
@@ -4635,6 +4637,12 @@ void test("GitHub dependency changes select actual SDK and REST integration cont
       assert.ok(existsSync(new URL(`../${consumer}`, import.meta.url)));
     }
   }
+  const custodyChange = classifyChanges(
+    [{ status: "M", path: "scripts/release-custody-provider.mts" }],
+    { fileExists: () => false },
+  );
+  assert.ok(custodyChange.nodeTests.has("scripts/release-signing-handoff.test.mts"));
+  assert.ok(custodyChange.nodeTests.has("scripts/release-tuf-role-artifact.test.mts"));
   for (const name of ["ci-health", "handoff-evidence", "postmerge-ci"]) {
     const file = `scripts/${name}.mts`;
     const selected = classifyChanges([{ status: "M", path: file }], { fileExists: () => false });

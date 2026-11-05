@@ -19,7 +19,7 @@ import {
   catalogRolePredicateType,
 } from "./release-tuf-role-artifact.mts";
 import { releaseControlPhaseProfile } from "./release-control-phases.mts";
-import type { GitHubRestReader, createGitHubRunner } from "./github-api.mts";
+import type { RetainedGitHubSpawn } from "./github-cli.mts";
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 function fixture(catalog = false) {
   const phase = catalog ? "catalog-definitions" : "tuf-releases",
@@ -155,29 +155,28 @@ function fixture(catalog = false) {
     name: releaseControlPhaseProfile(phase).reader_name,
   };
   const calls: string[] = [];
-  const api: GitHubRestReader = {
-    request(method, endpoint) {
-      assert.equal(method, "GET");
-      calls.push(endpoint);
-      return {
-        status: 200,
-        headers: new Map(),
-        body: structuredClone(
-          endpoint.endsWith("artifacts/900")
-            ? artifact
-            : endpoint.endsWith("artifacts/901")
-              ? bundleArtifact
-              : endpoint.endsWith("jobs/501")
-                ? job
-                : run,
-        ),
-      };
+  const metadata = {
+    async attempt(runId: string, attempt: number) {
+      assert.equal(runId, "12345");
+      assert.equal(attempt, 1);
+      calls.push("attempt");
+      return structuredClone(run);
+    },
+    async job(id: number) {
+      assert.equal(id, 501);
+      calls.push("job");
+      return structuredClone(job);
+    },
+    async artifact(id: number) {
+      assert.ok(id === 900 || id === 901);
+      calls.push(`artifact:${id}`);
+      return structuredClone(id === 900 ? artifact : bundleArtifact);
     },
   };
   let verifications = 0,
     downloads = 0;
   const options = {
-    api,
+    metadata,
     download: (endpoint: string) => {
       downloads++;
       assert.ok(
@@ -200,7 +199,7 @@ function fixture(catalog = false) {
           },
         ]),
       };
-    }) as NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"],
+    }) as RetainedGitHubSpawn,
   };
   return {
     expected,
@@ -336,7 +335,7 @@ void test("TUF receiver refuses unknown fields and expired phase before director
   assert.equal(f.calls.length, 0);
   assert.equal(f.downloads(), 0);
 });
-void test("default gh metadata/archive/verifier transports pin host and share one monotonic remaining budget", async (t) => {
+void test("locked SDK metadata and retained archive/verifier share the original role deadline", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "tuf-role-default-transports-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const f = fixture(),
@@ -360,23 +359,47 @@ void test("default gh metadata/archive/verifier transports pin host and share on
     timeouts.push(timeout);
     now += 0.125; // The mocked child consumes original-clock time, never resets it.
   };
+  const previousToken = process.env.GH_TOKEN;
+  process.env.GH_TOKEN = "ghs_SYNTHETIC_ROLE";
+  t.after(() => {
+    if (previousToken === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = previousToken;
+  });
   const result = await readAttestedTufRoleArtifact(root, f.expected, deadline, {
+    fetch: async (input, settings) => {
+      const request = new Request(input, settings);
+      const url = new URL(request.url);
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(request.method, "GET");
+      assert.equal(request.headers.get("authorization"), "token ghs_SYNTHETIC_ROLE");
+      assert.equal(request.headers.get("x-github-api-version"), "2022-11-28");
+      assert.ok(now < effectiveDeadline);
+      now += 0.125;
+      const prefix = "/repos/boburning/portcove/actions";
+      const route = url.pathname;
+      assert.ok(
+        [
+          `${prefix}/artifacts/900`,
+          `${prefix}/artifacts/901`,
+          `${prefix}/jobs/501`,
+          `${prefix}/runs/12345/attempts/1`,
+        ].includes(route),
+      );
+      const data = route.startsWith(`${prefix}/artifacts/`)
+        ? await f.options.metadata.artifact(Number(route.split("/").at(-1)))
+        : route === `${prefix}/jobs/501`
+          ? await f.options.metadata.job(501)
+          : await f.options.metadata.attempt("12345", 1);
+      return Response.json(data);
+    },
     spawn: (command, argv, settings) => {
       assert.equal(command, "gh");
+      assert.equal(argv[0], "attestation");
       assert.equal(settings.env?.GH_HOST, "github.com");
       assert.equal(settings.env?.NODE_OPTIONS, undefined);
       assert.equal(settings.env?.HTTPS_PROXY, undefined);
-      recordTimeout(settings.timeout, argv[0] === "attestation" ? 30000 : 15000);
-      if (argv[0] === "attestation") return f.options.spawn!(command, argv, settings);
-      assert.equal(argv[argv.indexOf("--hostname") + 1], "github.com");
-      assert.equal(argv[argv.indexOf("--method") + 1], "GET");
-      const endpoint = argv.find((value) => value.startsWith("repos/boburning/portcove/"));
-      assert.ok(endpoint);
-      return {
-        status: 0,
-        stderr: "",
-        stdout: `HTTP/2.0 200 OK\r\n\r\n${JSON.stringify(f.options.api.request("GET", endpoint).body)}`,
-      };
+      recordTimeout(settings.timeout, 30000);
+      return f.options.spawn(command, argv, settings);
     },
     archiveSpawn: (command, argv, settings) => {
       assert.equal(command, "gh");
@@ -395,22 +418,15 @@ void test("default gh metadata/archive/verifier transports pin host and share on
     });
   });
   assert.equal(result.evidence_scope, "injected-provider");
-  assert.equal(timeouts.length, 15);
-  assert.ok(timeouts.every((value) => value > 0 && value <= 5000));
-  assert.ok(
-    timeouts.some((value, index) => index > 0 && value > timeouts[index - 1]!),
-    "fractional clock exercises differing floor/ceil transport rounding",
-  );
+  assert.equal(timeouts.length, 4);
+  assert.equal(f.calls.length, 11);
   const tight = now + 500;
   effectiveDeadline = tight;
-  const previousCalls = timeouts.length;
-  recheckTufRoleArtifactCustody(result, tight);
-  assert.ok(timeouts.length > previousCalls);
-  assert.ok(timeouts.slice(previousCalls).every((value) => value > 0 && value <= 500));
-  const second = timeouts.length;
-  recheckTufRoleArtifactCustody(result, performance.now() + 300000);
-  assert.ok(timeouts.slice(second).every((value) => value > 0 && value <= 500));
-  const last = timeouts.length;
-  assert.throws(() => recheckTufRoleArtifactCustody(result, performance.now() - 1), /deadline/u);
-  assert.equal(timeouts.length, last);
+  await recheckTufRoleArtifactCustody(result, tight);
+  assert.deepEqual(f.calls.slice(11), ["artifact:900", "artifact:901", "job"]);
+  await recheckTufRoleArtifactCustody(result, now + 300000);
+  assert.equal(f.calls.length, 17);
+  now = tight;
+  await assert.rejects(recheckTufRoleArtifactCustody(result, now + 300000), /deadline/u);
+  assert.equal(f.calls.length, 17);
 });
