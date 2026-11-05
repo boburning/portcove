@@ -13,7 +13,11 @@ import { candidateProgressIdentity } from "./release-candidate-progress-contract
 import { isRecord } from "./runtime-values.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import { releaseControlPhaseProfile } from "./release-control-phases.mts";
-import { readCompleteRunArtifactInventory } from "./release-run-artifact-inventory.mts";
+import {
+  readCompleteRunArtifactInventory,
+  readCompleteRunArtifactInventoryAsync,
+} from "./release-run-artifact-inventory.mts";
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import {
   inspectCandidateSigningOperation,
   inspectCandidateSigningContextBinding,
@@ -22,6 +26,48 @@ import {
   readSigningOperationsForPendingRelease,
   recoverCandidateSigningCustody,
 } from "./release-candidate-signing-recovery.mts";
+
+void test("locked recovery reader joins ordered artifact pages within a shared discovery allowance", async () => {
+  const calls: string[] = [];
+  let reads = 0;
+  const provider = await createReleaseCustodyProvider({
+    token: "inert-signing-recovery",
+    deadline: performance.now() + 5000,
+    chargeRead: () => {
+      if (++reads > 3) throw new Error("discovery allowance exhausted");
+    },
+    fetch: async (input, init) => {
+      const request = new Request(input, init);
+      const url = new URL(request.url);
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(request.method, "GET");
+      assert.equal(request.headers.get("authorization"), "token inert-signing-recovery");
+      const prefix = "/repos/boburning/portcove/actions/runs/123";
+      if (url.pathname === prefix) {
+        calls.push("run");
+        return Response.json({ id: 123 });
+      }
+      assert.equal(url.pathname, `${prefix}/artifacts`);
+      assert.equal(url.searchParams.get("per_page"), "100");
+      const page = url.searchParams.get("page");
+      assert.ok(page === "1" || page === "2");
+      calls.push(page);
+      return Response.json({
+        total_count: 101,
+        artifacts:
+          page === "1" ? Array.from({ length: 100 }, (_, id) => ({ id: id + 1 })) : [{ id: 101 }],
+      });
+    },
+  });
+  assert.deepEqual(await provider.run("123"), { id: 123 });
+  const inventory = await readCompleteRunArtifactInventoryAsync((page) =>
+    provider.runArtifacts("123", page),
+  );
+  assert.equal(inventory.total_count, 101);
+  assert.deepEqual(inventory.artifacts.at(-1), { id: 101 });
+  await assert.rejects(provider.job(501), /discovery allowance exhausted/u);
+  assert.deepEqual(calls, ["run", "1", "2"]);
+});
 
 const roles = ["releases", "preview", "stable", "snapshot", "timestamp"] as const;
 const candidate = {

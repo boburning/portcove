@@ -466,7 +466,17 @@ void test("source-bound coordinator pending continuation verifies custody then r
     settlements = 0;
   const calls: string[] = [];
   const pending = inspectPendingCandidateReleaseOperation(operation("publish"), candidate);
-  const provider = Object.freeze({ role: "immutable-readback" });
+  const provider = Object.freeze({
+    async run() {
+      return { terminal: true };
+    },
+    async attempt() {
+      return { terminal: true };
+    },
+    async job() {
+      return { terminal: true };
+    },
+  });
   const context = {
     pendingRelease: pending,
     context: {},
@@ -474,7 +484,7 @@ void test("source-bound coordinator pending continuation verifies custody then r
     toolsReceipt: {},
     active: candidate,
     deadline: 170000,
-    releaseMetadata: async () => provider,
+    metadata: provider,
     input: { repository: "bare", remote_configuration: {} },
     directory: "private",
     environment: {},
@@ -490,7 +500,6 @@ void test("source-bound coordinator pending continuation verifies custody then r
     guard: async () => {
       calls.push("fresh-controls-current-CP");
     },
-    get: () => ({ terminal: true }),
     inspectPendingReleaseProducer: () => ({ original: true }),
     requireRetainedActualTufPublication: async () => {
       calls.push("retained-Tough");
