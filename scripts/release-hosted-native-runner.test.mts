@@ -373,8 +373,13 @@ for(const name of ['valid','detached','timeout']){
  await writeFile(path.join(directory,'fixed-bootstrap.mjs'),childSource,{mode:0o600});deadline=performance.now()+(name==='timeout'?2000:15000);
  let done=false;const outcome=api.superviseFixedHostedLinuxNativeStages().then(value=>({value}),error=>({error})).finally(()=>{done=true});
  if(name!=='timeout'){
-   const ready=path.join(directory,'pre-sign-supervision-settlement.json');for(let i=0;i<4000&&!existsSync(ready)&&!done;i++)await delay(2);
-   assert.ok(existsSync(ready));const preRow=JSON.parse(await readFile(ready,'utf8'));assert.equal(preRow.exit_code,0,JSON.stringify({name,preRow,stderr:(await readFile(path.join(directory,'pre-sign-worker.stderr.bin'),'utf8')).slice(0,8192)}));await api.signalFixedHostedLinuxPostStart();
+   const ready=path.join(directory,'pre-sign-supervision-settlement.json');let preRow;
+   // Creation precedes completed JSON publication; retain the original finite poll bound.
+   for(let i=0;i<4000&&preRow===undefined&&!done;i++){
+     try{preRow=JSON.parse(await readFile(ready,'utf8'))}catch(error){if(error.code!=='ENOENT'&&!(error instanceof SyntaxError))throw error}
+     if(preRow===undefined)await delay(2);
+   }
+   assert.ok(preRow,'fixture must await completed settlement bytes before signaling');assert.equal(preRow.exit_code,0,JSON.stringify({name,preRow,stderr:(await readFile(path.join(directory,'pre-sign-worker.stderr.bin'),'utf8')).slice(0,8192)}));await api.signalFixedHostedLinuxPostStart();
  }
  const observed=await outcome,final=JSON.parse(await readFile(path.join(directory,'native-supervision-settlement.json'),'utf8'));
  if(name==='timeout'){assert.ok(observed.error);assert.equal(final.recovery_required,true);assert.equal(final.post_sign_complete,false)}else {assert.ok(!observed.error,observed.error?.stack);assert.equal(final.post_sign_complete,true)}
