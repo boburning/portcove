@@ -1046,6 +1046,10 @@ before credentialed scripts. Installation remains charged to the original provid
 55-second deadline. Complete acknowledged-run responses are retained before deadline
 refusal; incomplete streams supply no successful response evidence. Dispatch remains
 one attempt, with no automatic retry or release activation authority.
+Historical checkpoint and hosted native custody read exact attempt, job and
+source metadata through the SDK, retaining each proof's original deadline and
+the shared source/job request budget across later readback. Signature
+verification retains its separately bounded attestation subprocess.
 The maintained report
 publisher now uses SDK metadata operations and awaited replay/readback. Its trusted
 main checkout installs frozen dependencies before the credentialed steps. Existing

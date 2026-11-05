@@ -7,7 +7,10 @@ import { isRecord } from "./runtime-values.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-remote.mts";
 import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
 import { performance } from "node:perf_hooks";
-import { checkpointProofFixture } from "./fixtures/checkpoint-proof-fixture.mts";
+import {
+  checkpointProofFixture,
+  releaseCustodyFetch,
+} from "./fixtures/checkpoint-proof-fixture.mts";
 import { authenticateCoordinatorCheckpointEvidence } from "./release-coordinator-checkpoint-authentication.mts";
 import { publishCoordinatorSigningExchange } from "./release-coordinator-signing-exchange.mts";
 import { createCheckpointJobTokenApi } from "./release-coordinator-journal-api.mts";
@@ -80,15 +83,20 @@ async function signingExchangeFixture(
           stderr: "",
         };
       }
-      const response = proof.api.request("GET", args[2]!);
-      return {
-        status: 0,
-        stdout: `HTTP/2.0 200 OK\r\n\r\n${JSON.stringify(response.body)}`,
-        stderr: "",
-      };
+      assert.fail("unexpected retained CLI route");
     },
   );
   syncBuiltinESMExports();
+  t.mock.method(
+    globalThis,
+    "fetch",
+    releaseCustodyFetch(proof.provider, (_url, init) => {
+      assert.equal(
+        new Headers(init?.headers).get("authorization"),
+        "token inert-checkpoint-reader",
+      );
+    }),
+  );
   const intent = `refs/tags/portcove-fixture-checkpoint-intent/${f.initial.checkpoint}`;
   if (fault === "object-after") f.faults.object = "evidence-commits";
   let calls = 0,

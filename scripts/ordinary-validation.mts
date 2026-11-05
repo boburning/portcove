@@ -760,6 +760,16 @@ for (const [file, tests] of [
   ["scripts/release-site-composer.mts", ["scripts/release-site-composer.test.mts"]],
   ["scripts/release-pages-provider.mts", ["scripts/release-pages-provider.test.mts"]],
   [
+    "scripts/release-custody-provider.mts",
+    [
+      "scripts/release-coordinator-checkpoint-authentication.test.mts",
+      "scripts/release-hosted-native-acceptance.test.mts",
+      "scripts/release-coordinator-metadata.test.mts",
+      "scripts/release-coordinator-owned-executor.test.mts",
+      "scripts/release-coordinator-signing-exchange.test.mts",
+    ],
+  ],
+  [
     "scripts/release-wake-provider.mts",
     [
       "scripts/github-client.test.mts",
@@ -2187,6 +2197,8 @@ for (const file of [
     "scripts/release-native-check-discovery.test.mts",
     "scripts/release-pages-provider.test.mts",
     "scripts/release-controller-wake.test.mts",
+    "scripts/release-coordinator-checkpoint-authentication.test.mts",
+    "scripts/release-hosted-native-acceptance.test.mts",
     "scripts/audit-reuse.test.mts",
     "scripts/roadmap-rest-intake.test.mts",
     "scripts/roadmap-sdk.test.mts",

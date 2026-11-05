@@ -301,6 +301,8 @@ void test("scoped beta matcher and Roadmap release consumer retain protected qua
 void test("coordinator state and remote transport retain protected release qualification ownership", () => {
   for (const file of [
     "scripts/release-checkpoint-job-identity.mts",
+    "scripts/release-custody-provider.mts",
+    "scripts/release-wake-provider.mts",
     "scripts/release-coordinator-checkpoint-authentication.mts",
     "scripts/release-coordinator-checkpoint-authentication.test.mts",
     "scripts/release-coordinator-checkpoint-signing.mts",
