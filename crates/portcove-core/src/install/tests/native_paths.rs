@@ -588,8 +588,8 @@ fn native_marathon_historical_root_is_retained_when_the_live_layout_changes() {
         let active = register("another-derived-wrapper", &new, "");
         let error = service.rollback(id).unwrap_err();
         assert_eq!(
-            error.failure.known_cause,
-            Some(crate::failure::KnownFailureCause::PortableDataContractChanged)
+            error.presentation().presentation_key,
+            "portable_data_contract_changed"
         );
         assert_eq!(service.status(id).unwrap().active.unwrap().id, active.id);
         assert!(different.path.join("Marathon-20260930/Map.scen").is_file());
