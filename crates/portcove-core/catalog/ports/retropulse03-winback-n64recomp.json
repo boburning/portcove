@@ -42,12 +42,8 @@
   },
   "integration": {
     "support_tier": "beta",
-    "channels": [
-      "stable"
-    ],
-    "platforms": [
-      "windows-x86-64"
-    ],
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
     "adapter": "staged-source-portable",
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
@@ -55,16 +51,11 @@
       "provider": "github",
       "repository": "RetroPulse03/WinBackRecomp",
       "asset_hints": {
-        "windows-x86-64": [
-          "WinBackRecompiled-",
-          "-Windows-x64.zip"
-        ]
+        "windows-x86-64": ["WinBackRecompiled-", "-Windows-x64.zip"]
       }
     },
     "executable_hints": {
-      "windows-x86-64": [
-        "WinBackRecompiled.exe"
-      ]
+      "windows-x86-64": ["WinBackRecompiled.exe"]
     },
     "launch_environment": {
       "RECOMPLAUNCHER": "1"
@@ -79,10 +70,7 @@
       "mod_config",
       "rt64"
     ],
-    "runtime_mutable_paths": [
-      "logs/winback.log",
-      "logs/winback.previous.log"
-    ],
+    "runtime_mutable_paths": ["logs/winback.log", "logs/winback.previous.log"],
     "archive_data_compatibility_v1": {
       "contract_id": "winback-recomp-conventional-v1",
       "shared_paths": [
@@ -93,9 +81,7 @@
         "saves/controller_pak_3.bin",
         "saves/controller_pak_4.bin"
       ],
-      "build_specific_progress_paths": [
-        "saves/checkpoints"
-      ]
+      "build_specific_progress_paths": ["saves/checkpoints"]
     },
     "presentation": {
       "installation_method": "portable-recompilation",
