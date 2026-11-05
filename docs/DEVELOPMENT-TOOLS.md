@@ -791,7 +791,10 @@ Complete each proposal through the existing Codex issue/PR delivery process:
    Existing Vite+ projects take the upstream version-only migration, not --full.
    Inspect every manifest, catalog, alias and override. Match the directly consumed
    browser provider to the target's bundled Vitest; verify every upgrade even when
-   the migrator updates it automatically.
+   the migrator updates it automatically. Coordinate the trusted Pack identity
+   in `scripts/release-controller-tools.mts` and qualify the existing public
+   controller tool build fixtures on Linux and Windows. The builder, manifest
+   producer and validator require that exact identity.
 
 4. Preserve the 1440-minute/non-strict pnpm policy. Remove migrator-added
    minimumReleaseAgeExclude entries for the bundle. pnpm 12's frozen-install

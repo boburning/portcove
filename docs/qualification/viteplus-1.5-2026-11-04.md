@@ -82,7 +82,7 @@ type-aware TypeScript policy. The now-suspicious
 `typescript/no-non-null-asserted-nullish-coalescing` also becomes an explicit
 error; it was previously a restriction rule. Existing React, accessibility,
 promise, import and unsafe-operation checks remain. The 1.91 React compiler
-regression flagged eleven effect/invocation-local assignments. Each exception
+regression flagged twelve effect/invocation-local assignments. Each exception
 is limited to that assignment line and cites oxc#28401; separate review confirmed
 none hides prop or render-state mutation. Oxfmt 0.76 accepted all 3,802 discovered
 files after formatting only the edited inputs. Integrity exclusions remain.
@@ -164,6 +164,14 @@ Declare that prerequisite through the existing registry and cover both direct
 selection and the workspace-pin fallback in the baseline contracts. This adds
 no dependency, job or release authority; the failure remains in
 [the original run](https://github.com/boburning/portcove/actions/runs/41963472820).
+
+The [public controller tool fixtures](https://github.com/boburning/portcove/actions/runs/41963472867)
+reached fixed Node bundling after the age gate opened and refused the stale
+trusted Pack 1.4 pin. The coordinated upgrade moves that exact identity to 1.5
+and shares it across the installed-pack check, manifest writer and manifest
+reader. A contract compares it with the trusted workspace catalog; candidate
+source cannot choose a bundler. The existing fixtures still exercise actual
+fixed tool builds and custody without signing or publication effects.
 
 Full exact-head CI, Windows/container qualification, final review and delivery
 readback remain separate observations recorded on the owning issue and its linked

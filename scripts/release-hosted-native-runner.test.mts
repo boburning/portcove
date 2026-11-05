@@ -962,7 +962,7 @@ import {mkdirSync,writeFileSync,readFileSync,chmodSync,mkdtempSync} from 'node:f
 import {createHash} from 'node:crypto';import path from 'node:path';import {performance} from 'node:perf_hooks';
 import * as realTools from ${JSON.stringify(new URL("./release-controller-tools.mts", import.meta.url).href)};
 import {lstat as realLstat,realpath} from 'node:fs/promises';
-const {controllerToolPaths}=realTools;
+const {controllerToolPaths,controllerToolBundler}=realTools;
 import {controllerNodeVersion} from ${JSON.stringify(new URL("./controller-node-runtime.mts", import.meta.url).href)};
 import {nativeRuntimeSupport as fixed} from ${JSON.stringify(new URL("./release-native-runtime-support.mts", import.meta.url).href)};
 import {rustSupportInputIdentity} from ${JSON.stringify(new URL("./rust-support-cache.mts", import.meta.url).href)};
@@ -980,7 +980,7 @@ function fixture(name){
  const metadata=Buffer.from(JSON.stringify({schema_version:1,product:fixed.product,platform:'linux-x86_64',compiler,input_fingerprint:fingerprint,rustc_arguments:fixed.arguments,source:{bytes:source.length,sha256:hash(source)},output:{bytes:binary.length,sha256:hash(binary),mode:0o700}}));
  const files=[];for(const name of controllerToolPaths){const filename=path.join(tools,name);mkdirSync(path.dirname(filename),{recursive:true,mode:0o700});const bytes=name===fixed.source?source:name===fixed.binary?binary:name===fixed.metadata?metadata:name==='bin/node'?readFileSync(process.execPath):Buffer.from('inert '+name);if(name!==fixed.source)writeFileSync(filename,bytes,{flag:'wx',mode:name.startsWith('bin/')?0o700:0o600});files.push({path:name,bytes:bytes.length,sha256:hash(bytes)})}
  const identity={controller_revision:'a'.repeat(40),source_tree:'b'.repeat(40),controller_ref:'refs/tags/fixed-fixture',run_id:'99',run_attempt:1};
- writeFileSync(path.join(tools,'manifest.json'),JSON.stringify({schema_version:2,source_commit:identity.controller_revision,source_tree:identity.source_tree,platform:'linux-x86_64',node_version:controllerNodeVersion,bundler:'vite-plus@1.4.0',tauri_cli_version:'2.12.2',files}),{mode:0o600});
+ writeFileSync(path.join(tools,'manifest.json'),JSON.stringify({schema_version:2,source_commit:identity.controller_revision,source_tree:identity.source_tree,platform:'linux-x86_64',node_version:controllerNodeVersion,bundler:controllerToolBundler,tauri_cli_version:'2.12.2',files}),{mode:0o600});
  const tool={},parent={};toolReceipts.set(tool,{root:tools,node:path.join(tools,'bin/node'),platform:'linux-x86_64',identity});parents.set(parent,{producer:{...identity},stage:'payload-signing',platform_label:'linux-x86_64',deadline:performance.now()+60000,recheck(){assert.ok(performance.now()<this.deadline)}});
  return {directory,tools,tool,parent,entry:path.join(tools,'scripts/release-hosted-native-runner.bundle.mjs')};
 }
