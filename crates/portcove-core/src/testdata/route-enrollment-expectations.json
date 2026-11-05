@@ -53,6 +53,12 @@
       "executable": "MuppetRaceMania.exe",
       "arguments": ["--offline"],
       "managed_native": false
+    },
+    {
+      "port_id": "tomba-2-recompiled",
+      "executable": "Tomba2Recomp.exe",
+      "arguments": [],
+      "managed_native": false
     }
   ]
 }
