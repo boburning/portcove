@@ -5,7 +5,6 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { crc32, inflateRawSync } from "node:zlib";
-import type { GitHubRestReader } from "./github-api.mts";
 import { readGitHubArtifactArchive } from "./github-binary.mts";
 import { inspectBoundedZip } from "./bounded-zip.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -196,7 +195,7 @@ export function selectWindowsApplicationQualificationRun(raw: unknown, source: s
  * copies, then reads the exact source/run/attempt and bounded retained plan.
  * Missing/expired evidence holds; old successful source is never substituted. */
 export async function readWindowsApplicationQualification(
-  api: GitHubRestReader | Pick<WakeProvider, "run" | "file" | "jobs" | "artifacts">,
+  reader: Pick<WakeProvider, "run" | "file" | "jobs" | "artifacts">,
   runId: number,
   source: string,
   options: { deadline?: number; download?: typeof readGitHubArtifactArchive } = {},
@@ -205,24 +204,7 @@ export async function readWindowsApplicationQualification(
   assert.match(source, /^[a-f0-9]{40}$/u);
   let requests = 0;
   const deadline = Math.min(performance.now() + 90000, options.deadline ?? Infinity);
-  const reader =
-    "request" in api
-      ? {
-          run: (id: string) => getRest(`actions/runs/${id}`),
-          file: (filename: string, revision: string) =>
-            getRest(`contents/${filename}?ref=${revision}`),
-          jobs: (id: string, attempt: number) =>
-            getRest(`actions/runs/${id}/attempts/${attempt}/jobs?per_page=100`),
-          artifacts: (id: string) => getRest(`actions/runs/${id}/artifacts?per_page=100`),
-        }
-      : api;
-  function getRest(suffix: string) {
-    assert.ok("request" in api);
-    const response = api.request("GET", `${repository}/${suffix}`);
-    assert.equal(response.status, 200);
-    return response.body;
-  }
-  const get = async (read: () => unknown) => {
+  const get = async (read: () => Promise<unknown>) => {
     assert.ok(++requests <= 8 && performance.now() < deadline);
     const raw = await read();
     assert.ok(Buffer.byteLength(JSON.stringify(raw)) <= 2 * 1024 ** 2);

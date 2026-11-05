@@ -72,6 +72,28 @@ import {
   verifyApplicationReleaseTrust,
 } from "./application-release-policy.mts";
 
+import { localDeveloperCredential } from "./github-cli.mts";
+import type { GitHubCredential } from "./github-client.mts";
+import { createWakeProvider } from "./release-wake-provider.mts";
+
+function applicationQualificationReader(
+  credential: GitHubCredential,
+  deadline: number,
+  remainingDeadline: () => number,
+  maxRequests: number,
+  maxBytes = 2 * 1024 ** 2,
+) {
+  return createWakeProvider({
+    credential,
+    deadline,
+    remainingDeadline,
+    maxRequests,
+    maxBytes,
+    requestTimeoutMs: 30000,
+    apiVersion: "2022-11-28",
+  });
+}
+
 const semanticProducer = {
   schema_version: 2,
   purpose: "application",
@@ -131,27 +153,47 @@ export async function readApplicationSemanticSelection(source: string) {
 /** Current main qualification observation for automatic routing. It performs
  * no dispatch, eligibility write, or reservation. The source job re-admits. */
 export async function readCurrentApplicationWakeQualification() {
-  const main = () => {
-    const ref = applicationGet("git/ref/heads/main");
+  const deadline = performance.now() + 210000;
+  let phaseDeadline = deadline;
+  const reader = await applicationQualificationReader(
+    localDeveloperCredential({ deadline }),
+    deadline,
+    () => phaseDeadline,
+    12,
+    8 * 1024 ** 2,
+  );
+  const main = async () => {
+    const ref = await reader.ref("heads/main");
     assert.ok(isRecord(ref) && ref.ref === "refs/heads/main" && isRecord(ref.object));
     assert.equal(ref.object.type, "commit");
     assert.ok(typeof ref.object.sha === "string" && /^[a-f0-9]{40}$/u.test(ref.object.sha));
     return ref.object.sha;
   };
-  const source = main();
-  const route = `actions/workflows/application-release.yml/runs?branch=main&event=workflow_dispatch&head_sha=${source}&per_page=100`;
-  const observe = () => selectWindowsApplicationQualificationRun(applicationGet(route), source);
-  const selected = observe();
+  const source = await main();
+  const observe = async () =>
+    selectWindowsApplicationQualificationRun(
+      await reader.runs(
+        "application-release.yml",
+        { branch: "main", event: "workflow_dispatch", head_sha: source },
+        1,
+      ),
+      source,
+    );
+  const selected = await observe();
+  phaseDeadline = Math.min(deadline, performance.now() + 90000);
   const qualification =
     selected.decision === "candidate"
-      ? await readWindowsApplicationQualification(applicationApi, selected.run_id, source)
+      ? await readWindowsApplicationQualification(reader, selected.run_id, source, {
+          deadline: phaseDeadline,
+        })
       : undefined;
+  phaseDeadline = deadline;
   if (qualification) {
     assert.equal(qualification.attempt, selected.run_attempt);
     assert.equal(qualification.workflow, ".github/workflows/application-release.yml");
   }
-  assert.deepEqual(observe(), selected, "qualification selection changed during readback");
-  assert.equal(main(), source, "main changed during qualification selection");
+  assert.deepEqual(await observe(), selected, "qualification selection changed during readback");
+  assert.equal(await main(), source, "main changed during qualification selection");
   return { source, ...selected, ...(qualification ? { qualification } : {}) };
 }
 
@@ -262,15 +304,25 @@ async function prepare() {
   assert.match(commit.tree.sha, /^[a-f0-9]{40}$/u);
   const runId = Number(process.env.PORTCOVE_QUALIFICATION_RUN);
   assert.ok(Number.isSafeInteger(runId) && runId > 0);
-  const run = applicationGet(`actions/runs/${runId}`);
+  const token = process.env.GH_TOKEN ?? "";
+  const credential = { kind: "explicit", token } as const;
+  const runDeadline = performance.now() + 30000;
+  const runReader = await applicationQualificationReader(
+    credential,
+    runDeadline,
+    () => runDeadline,
+    1,
+    8 * 1024 ** 2,
+  );
+  const run = await runReader.run(String(runId));
   assert.ok(isRecord(run) && typeof run.head_sha === "string");
   assert.equal(run.path, ".github/workflows/application-release.yml");
   assert.equal(process.env.PORTCOVE_APPLICATION_RELEASE_OPPORTUNITY, run.head_sha);
-  const qualification = await readWindowsApplicationQualification(
-    applicationApi,
-    runId,
-    run.head_sha,
-  );
+  const deadline = performance.now() + 90000;
+  const reader = await applicationQualificationReader(credential, deadline, () => deadline, 8);
+  const qualification = await readWindowsApplicationQualification(reader, runId, run.head_sha, {
+    deadline,
+  });
   if (process.env.PORTCOVE_WAKE_RUN_ID) {
     assert.match(process.env.PORTCOVE_WAKE_RUN_ID, /^[1-9][0-9]{0,15}$/u);
     assert.equal(process.env.PORTCOVE_QUALIFICATION_ATTEMPT, String(qualification.attempt));

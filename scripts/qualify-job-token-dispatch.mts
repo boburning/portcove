@@ -60,7 +60,7 @@ try {
   let deadline = started + 10000;
   const token = env.GH_TOKEN ?? "";
   const api = await createWakeProvider({
-    token,
+    credential: { kind: "explicit", token },
     deadline: started + 55000,
     remainingDeadline: () => deadline,
     maxBytes: 1024 * 1024,

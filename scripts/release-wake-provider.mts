@@ -1,5 +1,5 @@
 import { createGitHubClient } from "./github-client.mts";
-import type { GitHubRequestPolicy } from "./github-client.mts";
+import type { GitHubCredential, GitHubRequestPolicy } from "./github-client.mts";
 
 export type WakeResponse = { status: number; body: unknown };
 export type RetainWakeResponse = (response: WakeResponse) => Promise<void>;
@@ -32,20 +32,21 @@ export interface WakeProvider {
 /** Fixed repository operations. Credentials and the original job deadline are
  * supplied by the owning workflow; this adapter grants no dispatch authority. */
 export async function createWakeProvider(options: {
-  token: string;
+  credential: GitHubCredential;
   deadline: number;
   remainingDeadline: () => number;
   apiVersion: string;
   maxBytes: number;
   maxRequests?: number;
+  requestTimeoutMs?: 10000 | 30000;
   fetch?: typeof globalThis.fetch;
   now?: () => number;
 }): Promise<WakeProvider> {
   const client = await createGitHubClient({
-    credential: { kind: "explicit", token: options.token },
+    credential: options.credential,
     deadline: options.deadline,
     maxBytes: options.maxBytes,
-    requestTimeoutMs: 10000,
+    requestTimeoutMs: options.requestTimeoutMs ?? 10000,
     headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": options.apiVersion },
     ...(options.fetch ? { fetch: options.fetch } : {}),
     ...(options.now ? { now: options.now } : {}),
