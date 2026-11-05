@@ -545,7 +545,12 @@ async function reconcileAt(actualContext: object, context: Context, parent: stri
   const state = await readRemoteCoordinatorSnapshot(
     parent,
     { schema_version: 1, namespace: context.namespace },
-    { transport: { cwd: parent, deadline } },
+    {
+      transport: {
+        credential: { token: (readOnlyReleaseChildEnvironment() ?? process.env).GH_TOKEN ?? "" },
+        deadline,
+      },
+    },
   );
   if (state.checkpoint !== context.checkpoint) throw new Error("metadata retry checkpoint changed");
   const operation = await priorOperation(context, state.input);

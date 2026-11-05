@@ -2265,6 +2265,7 @@ for (const file of [
     "scripts/release-public-build-provenance.test.mts",
     "scripts/production-aggregate-steps.test.mts",
     "scripts/trusted-aggregate-attestation.test.mts",
+    "scripts/release-coordinator-recovery.test.mts",
     "scripts/release-metadata-context-recovery.test.mts",
     "scripts/production-controller-admission.test.mts",
     "scripts/release-bootstrap-preparation.test.mts",

@@ -14,6 +14,7 @@ import {
 } from "./release-coordinator-state.mts";
 import {
   recoverRemoteCoordinator,
+  readRemoteCoordinatorSnapshot,
   hydrateRetainedCoordinatorCheckpointExport,
 } from "./release-coordinator-recovery.mts";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
@@ -161,6 +162,81 @@ void test(
     );
   },
 );
+
+void test("configured SDK recovers the exact bracketed snapshot and refuses a GraphQL error", async (t) => {
+  const f = await recoveryFixture(t);
+  const configuration = { schema_version: 1, namespace: "portcove-fixture" };
+  const legacyRequests: string[] = [];
+  const legacy = await readRemoteCoordinatorSnapshot(f.parent, configuration, {
+    transport: {
+      ...f.transport,
+      spawn(command: string, args: readonly string[], options: SpawnSyncOptionsWithStringEncoding) {
+        if (args[1] === "graphql") {
+          const payload: unknown = JSON.parse(
+            typeof options.input === "string" ? options.input : "",
+          );
+          assert.ok(
+            isRecord(payload) &&
+              isRecord(payload.variables) &&
+              typeof payload.variables.ref === "string",
+          );
+          legacyRequests.push(`/graphql ${payload.variables.ref}`);
+        } else {
+          assert.ok(args[2]);
+          legacyRequests.push(`/${args[2]}`);
+        }
+        return f.transport.spawn(command, args, options);
+      },
+    },
+  });
+  const token = "synthetic-sdk-recovery";
+  const requests: string[] = [];
+  let refused = false;
+  t.mock.method(globalThis, "fetch", async (input: string | URL | Request, init?: RequestInit) => {
+    const url = new URL(input instanceof Request ? input.url : input);
+    assert.equal(url.origin, "https://api.github.com");
+    assert.equal(url.search, "");
+    assert.equal(new Headers(init?.headers).get("authorization"), `token ${token}`);
+    if (url.pathname === "/graphql") {
+      assert.equal(init?.method, "POST");
+      const payload: unknown = JSON.parse(typeof init.body === "string" ? init.body : "");
+      assert.ok(
+        isRecord(payload) &&
+          typeof payload.query === "string" &&
+          payload.query.startsWith("query("),
+      );
+      assert.ok(
+        isRecord(payload.variables) &&
+          typeof payload.variables.id === "string" &&
+          typeof payload.variables.ref === "string",
+      );
+      requests.push(`/graphql ${payload.variables.ref}`);
+      const data = f.readRef(payload.variables.id, payload.variables.ref);
+      return Response.json(refused ? { ...data, errors: [{ message: "Synthetic error" }] } : data);
+    }
+    assert.equal(init?.method, "GET");
+    requests.push(url.pathname);
+    return Response.json(
+      url.pathname === "/repos/boburning/portcove"
+        ? f.readRepository()
+        : f.readObject(url.pathname),
+    );
+  });
+  const read = () =>
+    readRemoteCoordinatorSnapshot(f.parent, configuration, {
+      transport: { credential: { token }, deadline: performance.now() + 15000 },
+    });
+  assert.deepEqual(await read(), legacy);
+  assert.equal(requests.length, legacy.requests);
+  assert.deepEqual(requests, legacyRequests);
+  requests.length = 0;
+  refused = true;
+  await assert.rejects(read(), /Synthetic error/);
+  assert.deepEqual(requests, [
+    "/repos/boburning/portcove",
+    "/graphql refs/heads/portcove-fixture-coordinator-state",
+  ]);
+});
 
 for (const scenario of ["seeded", "changed", "unseeded", "pending-context"] as const)
   void test(
