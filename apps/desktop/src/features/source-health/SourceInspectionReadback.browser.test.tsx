@@ -101,7 +101,7 @@ it.each(["failed", "cancelled"])(
     expect(row().textContent).not.toContain("Saved-file check did not pass.");
     expect(row().textContent).not.toContain(failure.presentation.technical_message);
     expect(row().textContent).not.toContain("private/source.z64");
-    await expect.element(row()).toHaveTextContent(report.summary);
+    await expect.poll(() => row().textContent).toContain(report.summary);
     expect(row().textContent).toContain("Exact match");
     await act(async () => {
       reject({
@@ -112,7 +112,7 @@ it.each(["failed", "cancelled"])(
     });
     expect(row().textContent).not.toContain("Saved-file check did not pass.");
     expect(row().textContent).not.toContain(failure.presentation.technical_message);
-    await expect.element(row()).toHaveTextContent(report.summary);
+    await expect.poll(() => row().textContent).toContain(report.summary);
     const check = [...row().querySelectorAll("button")].find(
       (button) => button.textContent === "Check file again",
     );
@@ -154,7 +154,7 @@ it("offers an explicit file check without inspecting on mount", async () => {
   expect(button).toBeDefined();
   await act(async () => button!.click());
   expect(inspect).toHaveBeenCalledTimes(1);
-  await expect.element(row()).toHaveTextContent(report.summary);
+  await expect.poll(() => row().textContent).toContain(report.summary);
 });
 
 function row() {
@@ -218,7 +218,7 @@ it("coalesces same-turn read-only retry and shows the later successful inspectio
     resolve(report);
     await pending;
   });
-  await expect.element(row()).toHaveTextContent(report.summary);
+  await expect.poll(() => row().textContent).toContain(report.summary);
   expect(row().textContent).not.toContain("Checking file…");
   expect(row().textContent).not.toContain(failure.presentation.summary);
   expect(verify).not.toHaveBeenCalled();
@@ -239,7 +239,7 @@ it("shows a successful explicit inspection without a pending or failure notice",
   const inspect = vi.spyOn(desktopApi, "inspectSource").mockResolvedValue(report);
   await renderAndRequestCheck();
   expect(inspect).toHaveBeenCalledTimes(1);
-  await expect.element(row()).toHaveTextContent(report.summary);
+  await expect.poll(() => row().textContent).toContain(report.summary);
   expect(row().textContent).not.toContain("Checking file…");
   expect(row().textContent).not.toContain("Check unavailable");
 });
