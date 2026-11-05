@@ -41,6 +41,7 @@ import {
   inspectReleaseCompilerSourceClosure,
 } from "./release-compiler-source-closure.mts";
 import {
+  prepareControllerToolPredicate,
   receiveControllerTools,
   verifiedControllerToolPaths,
   type ControllerToolArtifactExpected,
@@ -49,6 +50,7 @@ import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
 import { readFixtureModuleClosure } from "./fixtures/module-closure.mts";
 import {
   assemblerIdentityFixture,
+  jwk,
   expected as identityExpected,
 } from "./fixtures/assembler-identity-fixture.mts";
 import {
@@ -1104,6 +1106,107 @@ function fixture(
     calls,
   };
 }
+void test("fixed controller tool senders use the locked SDK before signing exact uploaded tool custody", async (t) => {
+  const previous = { ...process.env };
+  t.after(() => {
+    for (const key of [
+      "GH_TOKEN",
+      "ACTIONS_ID_TOKEN_REQUEST_URL",
+      "ACTIONS_ID_TOKEN_REQUEST_TOKEN",
+    ])
+      if (previous[key] === undefined) delete process.env[key];
+      else process.env[key] = previous[key];
+  });
+  for (const platform of ["linux-x86_64", "windows-x86_64"] as const) {
+    const f = fixture({}, platform);
+    const root = await mkdtemp(path.join(os.tmpdir(), "sdk-controller-tool-sender-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const profile = controllerToolBootstrapProfile(platform);
+    const oidc = assemblerIdentityFixture(
+      { aud: profile.audience },
+      {},
+      {
+        workflow: ".github/workflows/application-update-production.yml",
+        job: profile.job,
+        runAttempt: 1,
+        ...(profile.labels ? { labels: profile.labels } : {}),
+      },
+    );
+    Object.assign(process.env, {
+      GH_TOKEN: "fixture-fixed-sender",
+      ACTIONS_ID_TOKEN_REQUEST_URL: "https://runner.actions.githubusercontent.com/oidc",
+      ACTIONS_ID_TOKEN_REQUEST_TOKEN: "fixture-oidc-bearer",
+    });
+    const calls: string[] = [];
+    const fetcher: typeof globalThis.fetch = async (input, init) => {
+      const url = new URL(input instanceof Request ? input.url : input);
+      const headers = new Headers(init?.headers);
+      calls.push(url.pathname);
+      if (url.hostname === "runner.actions.githubusercontent.com") {
+        assert.equal(url.searchParams.get("audience"), profile.audience);
+        assert.equal(headers.get("authorization"), "Bearer fixture-oidc-bearer");
+        return Response.json({ value: oidc.token });
+      }
+      if (url.hostname === "token.actions.githubusercontent.com") {
+        assert.equal(url.pathname, "/.well-known/jwks");
+        assert.equal(headers.has("authorization"), false);
+        return Response.json({ keys: [jwk] });
+      }
+      if (url.hostname === "productionresultssa1.blob.core.windows.net") {
+        assert.equal(init?.credentials, "omit");
+        assert.equal(init.redirect, "manual");
+        assert.equal(headers.has("authorization"), false);
+        return new Response(f.archive);
+      }
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(headers.get("authorization"), "token fixture-fixed-sender");
+      const prefix = "/repos/boburning/portcove";
+      if (url.pathname === `${prefix}/actions/artifacts/99`) {
+        process.env.GH_TOKEN = "unrelated-mutated-token";
+        return Response.json(f.options.api.request("GET", url.pathname).body);
+      }
+      if (url.pathname === `${prefix}/actions/artifacts/99/zip`) {
+        assert.equal(init?.redirect, "manual");
+        return new Response(null, {
+          status: 302,
+          headers: {
+            location:
+              "https://productionresultssa1.blob.core.windows.net/actions-results/99?sig=fixture",
+          },
+        });
+      }
+      return Response.json(oidc.metadata(url.pathname + url.search));
+    };
+    const mocked = t.mock.method(globalThis, "fetch", fetcher);
+    try {
+      const result = await prepareControllerToolPredicate(root, f.expected, {
+        ...identityExpected,
+        audience: profile.audience,
+        run_attempt: 1,
+      });
+      assert.deepEqual(result.predicate, f.predicate);
+      assert.deepEqual(await readFile(path.join(result.directory, "uploaded.zip")), f.archive);
+      const actions = "/repos/boburning/portcove/actions";
+      assert.deepEqual(calls, [
+        `${actions}/artifacts/99`,
+        `${actions}/artifacts/99/zip`,
+        "/actions-results/99",
+        "/oidc",
+        "/.well-known/jwks",
+        `${actions}/runs/9988`,
+        `${actions}/runs/9988/attempts/1/jobs`,
+        `${actions}/runs/9988/attempts/1/jobs`,
+        `${actions}/jobs/501`,
+        `${actions}/runs/9988`,
+        `${actions}/artifacts/99`,
+      ]);
+      assert.equal(oidc.counts().requests, 5);
+    } finally {
+      mocked.mock.restore();
+    }
+  }
+});
+
 void test("opaque fixture tool archive requires exact complete inventory and refuses links, omissions, aliases and changed bytes", () => {
   const f = fixture();
   assert.equal(

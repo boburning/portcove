@@ -6,6 +6,8 @@ import path from "node:path";
 import { crc32, inflateRawSync } from "node:zlib";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import type { GitHubRestReader } from "./github-api.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
 import { readGitHubArtifactArchive } from "./github-binary.mts";
 import { verifyControllerArtifactStatement } from "./github-controller-attestation.mts";
 import { inspectBoundedZip } from "./bounded-zip.mts";
@@ -187,6 +189,15 @@ export async function prepareControllerToolPredicate(
   raw: ControllerToolArtifactExpected,
   rawIdentity: unknown,
 ) {
+  const environment = { ...process.env };
+  const token = environment.GH_TOKEN ?? "";
+  const credential = { kind: "explicit", token } as const;
+  const inheritedDeadline = coordinatorCommandDeadline() ?? Infinity;
+  const deadline = (maximum: number) => Math.min(inheritedDeadline, performance.now() + maximum);
+  const directFetch: typeof globalThis.fetch = (input, init) => {
+    assertTrustedDirectNode("controller tool sender");
+    return globalThis.fetch(input, init);
+  };
   const expected = expectedInput(raw);
   const profile = toolProfile(expected);
   const identityExpected = inspectAssemblerIdentityExpectation(structuredClone(rawIdentity));
@@ -205,48 +216,68 @@ export async function prepareControllerToolPredicate(
   });
   let phase = "provider-before";
   try {
-    const runner = createGitHubRunner({ cwd: root, maxBuffer: 128 * 1024, timeoutMs: 15000 });
-    const api = new GitHubApiClient((args, input) =>
-      runner([...args, "--hostname", "github.com"], input),
-    );
-    const read = () => {
-      const response = api.request("GET", `${base}/actions/artifacts/${expected.artifact_id}`);
-      if (response.status !== 200) throw new Error("bootstrap upload metadata unavailable");
-      return artifact(response.body, expected, expected.artifact_id, expected.sha256);
+    const { createReleaseCustodyProvider } = await import("./release-custody-provider.mts");
+    const read = async () => {
+      const metadata = await createReleaseCustodyProvider({
+        token,
+        deadline: deadline(15000),
+        maxBytes: 128 * 1024,
+        fetch: directFetch,
+      });
+      const data = await metadata.artifact(expected.artifact_id);
+      return artifact(data, expected, expected.artifact_id, expected.sha256);
     };
-    const before = read();
+    const before = await read();
     await writeFile(path.join(attempt, "provider-before.json"), JSON.stringify(before), {
       flag: "wx",
       mode: 0o600,
     });
     phase = "opaque-upload-readback";
-    const archive = readGitHubArtifactArchive(`${base}/actions/artifacts/${before.id}/zip`, {
-      cwd: root,
-      maxBytes: before.bytes,
-      timeoutMs: 120000,
-    });
-    await writeFile(path.join(attempt, "uploaded.zip"), archive, { flag: "wx", mode: 0o600 });
-    if (archive.length !== before.bytes || hash(archive) !== before.sha256)
-      throw new Error("bootstrap upload ZIP changed");
+    const { downloadGitHubArtifactArchiveFile } = await import("./github-artifact-download.mts");
+    const archivePath = path.join(attempt, "uploaded.zip");
+    const archiveDeadline = deadline(120000);
+    await downloadGitHubArtifactArchiveFile(
+      `${base}/actions/artifacts/${before.id}/zip`,
+      archivePath,
+      {
+        credential,
+        deadline: archiveDeadline,
+        maxBytes: before.bytes,
+        fetch: directFetch,
+      },
+    );
+    const archive = await readControllerToolFile(archivePath, before.bytes);
+    if (
+      performance.now() >= archiveDeadline ||
+      archive.length !== before.bytes ||
+      hash(archive) !== before.sha256
+    )
+      throw new Error("bootstrap upload ZIP changed or exceeded its bound");
     const inspected = inspectControllerToolArchive(archive, {
       source_commit: expected.controller_revision,
       source_tree: expected.source_tree,
       platform: profile.platform,
     });
     phase = "fresh-producer-identity";
-    const token = await requestAssemblerToken(identityExpected.audience);
+    const oidc = await requestAssemblerToken(
+      identityExpected.audience,
+      environment,
+      globalThis.fetch,
+      deadline(15000),
+    );
     const identity = await verifyControllerToolBootstrapJobIdentity(
-      token,
+      oidc,
       identityExpected,
       {
-        transport: { cwd: root },
+        transport: { sdkToken: token, deadline: deadline(120000) },
       },
       profile.platform,
     );
     if (
       identity.evidence_scope !== "github.com" ||
       Date.now() >= Date.parse(identity.expires_at) ||
-      JSON.stringify(before) !== JSON.stringify(read())
+      JSON.stringify(before) !== JSON.stringify(await read()) ||
+      Date.now() >= Date.parse(identity.expires_at)
     )
       throw new Error("bootstrap identity/upload drifted");
     const predicate = {
