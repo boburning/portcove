@@ -1093,6 +1093,10 @@ clock and retained upload locator, keeping the existing journal readback order.
 Publication result custody shares the bounded source, attempt, job and artifact
 metadata reader; refreshing its proof can only shorten the original deadline.
 Archive bytes and current immutable Release state remain with their owners.
+Signing-output and TUF role custody use the same SDK reader for sequential
+attempt, job and artifact checks around byte custody. A later role refresh
+can tighten the original deadline; archive reads and attestation keep their
+existing bounds and private execution environment.
 The maintained report
 publisher now uses SDK metadata operations and awaited replay/readback. Its trusted
 main checkout installs frozen dependencies before the credentialed steps. Existing

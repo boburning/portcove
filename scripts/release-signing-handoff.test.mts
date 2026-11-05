@@ -13,6 +13,7 @@ import {
 } from "./release-signing-handoff.mts";
 import { handoffSigningOutput } from "./release-signing-handoff.mts";
 import { performance } from "node:perf_hooks";
+import { setTimeout as delay } from "node:timers/promises";
 import { isRecord } from "./runtime-values.mts";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
@@ -85,17 +86,23 @@ async function fixture(t: TestContext) {
   const calls: string[] = [];
   let downloads = 0;
   const options = {
-    api: {
-      request(method: string, endpoint: string) {
-        assert.equal(method, "GET");
-        calls.push(endpoint);
-        return {
-          status: 200,
-          headers: new Map<string, string>(),
-          body: structuredClone(
-            endpoint.endsWith("/900") ? artifact : endpoint.endsWith("/501") ? job : run,
-          ),
-        };
+    deadline: performance.now() + 30000,
+    metadata: {
+      async attempt(runId: string, attempt: number) {
+        assert.equal(runId, "12345");
+        assert.equal(attempt, 1);
+        calls.push("attempt");
+        return structuredClone(run);
+      },
+      async job(id: number) {
+        assert.equal(id, 501);
+        calls.push("job");
+        return structuredClone(job);
+      },
+      async artifact(id: number) {
+        assert.equal(id, 900);
+        calls.push("artifact");
+        return structuredClone(artifact);
       },
     },
     download: (endpoint: string) => {
@@ -119,7 +126,7 @@ async function fixture(t: TestContext) {
 void test("exact immutable signing output brackets numeric producer identity and all retained bytes without claiming attestation", async (t) => {
   const f = await fixture(t);
   const result = await readSigningOutputArtifact(f.directory, f.expected, f.options);
-  assert.equal(f.calls.length, 6);
+  assert.deepEqual(f.calls, ["attempt", "job", "artifact", "attempt", "job", "artifact"]);
   assert.equal(f.downloads(), 1);
   assert.equal(result.evidence_scope, "injected-provider");
   assert.equal(result.authority, "none");
@@ -291,37 +298,45 @@ void test("missing fixed upload output has a finite deadline and retains only pu
     ),
   );
 });
-void test("actual default REST and opaque archive paths cap every child timeout to the remaining phase budget", async (t) => {
-  const f = await fixture(t),
-    timeouts: number[] = [],
-    previousHost = process.env.GH_HOST;
+void test("locked SDK brackets bounded archive readback with exact credentials, routes, and headers", async (t) => {
+  const f = await fixture(t);
+  const previousHost = process.env.GH_HOST,
+    previousToken = process.env.GH_TOKEN;
   process.env.GH_HOST = "ambient.invalid";
+  process.env.GH_TOKEN = "ghs_SYNTHETIC_OUTPUT";
   t.after(() => {
     if (previousHost === undefined) delete process.env.GH_HOST;
     else process.env.GH_HOST = previousHost;
+    if (previousToken === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = previousToken;
   });
   const deadline = performance.now() + 2000;
   const result = await readSigningOutputArtifact(f.directory, f.expected, {
     deadline,
-    spawn: (command, args, settings) => {
-      assert.equal(command, "gh");
-      assert.equal(args[args.indexOf("--hostname") + 1], "github.com");
-      assert.equal(args[args.indexOf("--method") + 1], "GET");
-      assert.equal(settings.env?.GH_HOST, "github.com");
-      assert.equal(settings.env?.NODE_OPTIONS, undefined);
-      assert.equal(settings.env?.HTTPS_PROXY, undefined);
+    fetch: async (input, settings) => {
+      const request = new Request(input, settings);
+      const url = new URL(request.url);
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(request.method, "GET");
+      assert.equal(request.headers.get("authorization"), "token ghs_SYNTHETIC_OUTPUT");
+      assert.equal(request.headers.get("x-github-api-version"), "2022-11-28");
+      assert.equal(request.headers.get("accept"), "application/vnd.github+json");
+      const route = url.pathname;
+      const prefix = "/repos/boburning/portcove/actions";
       assert.ok(
-        typeof settings.timeout === "number" && settings.timeout > 0 && settings.timeout <= 2000,
+        [
+          `${prefix}/artifacts/900`,
+          `${prefix}/jobs/501`,
+          `${prefix}/runs/12345/attempts/1`,
+        ].includes(route),
       );
-      timeouts.push(settings.timeout);
-      const endpoint = args.find((arg) => arg.startsWith("repos/boburning/portcove/"));
-      assert.ok(endpoint);
-      const body = f.options.api.request("GET", endpoint).body;
-      return {
-        status: 0,
-        stdout: `HTTP/2.0 200 OK\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(body)}`,
-        stderr: "",
-      };
+      const body =
+        route === `${prefix}/artifacts/900`
+          ? await f.options.metadata.artifact(900)
+          : route === `${prefix}/jobs/501`
+            ? await f.options.metadata.job(501)
+            : await f.options.metadata.attempt("12345", 1);
+      return Response.json(body);
     },
     archiveSpawn: (command, args, settings) => {
       assert.equal(command, "gh");
@@ -331,14 +346,13 @@ void test("actual default REST and opaque archive paths cap every child timeout 
       assert.ok(
         typeof settings.timeout === "number" && settings.timeout > 0 && settings.timeout <= 2000,
       );
-      timeouts.push(settings.timeout);
+      assert.deepEqual(f.calls, ["attempt", "job", "artifact"]);
       assert.equal(settings.maxBuffer, f.archive.length);
       return { status: 0, stdout: Buffer.from(f.archive) };
     },
   });
   assert.equal(result.evidence_scope, "injected-provider");
-  assert.equal(timeouts.length, 7);
-  assert.ok(timeouts.every((timeout, index) => index === 0 || timeout <= timeouts[index - 1]!));
+  assert.deepEqual(f.calls, ["attempt", "job", "artifact", "attempt", "job", "artifact"]);
 });
 void test("exhausted readback budget refuses before any transport and expiration during a read cannot continue", async (t) => {
   const f = await fixture(t);
@@ -352,17 +366,72 @@ void test("exhausted readback budget refuses before any transport and expiration
   assert.equal(f.calls.length, 0);
   assert.equal(f.downloads(), 0);
   let calls = 0;
+  const previousToken = process.env.GH_TOKEN;
+  process.env.GH_TOKEN = "ghs_SYNTHETIC_OUTPUT";
+  t.after(() => {
+    if (previousToken === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = previousToken;
+  });
   await assert.rejects(
     readSigningOutputArtifact(f.directory, f.expected, {
-      deadline: performance.now() + 50,
-      spawn: (_command, _args, settings) => {
-        assert.ok(typeof settings.timeout === "number" && settings.timeout <= 50);
+      deadline: performance.now() + 250,
+      download: f.options.download,
+      fetch: async (input, settings) => {
         calls++;
-        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 80);
-        return { status: 0, stdout: `HTTP/2.0 200 OK\r\n\r\n${JSON.stringify(f.run)}`, stderr: "" };
+        await delay(500, undefined, { signal: new Request(input, settings).signal });
+        return Response.json(f.run);
       },
     }),
     /retain owned directory/u,
   );
   assert.equal(calls, 1);
+  assert.equal(f.downloads(), 0);
+});
+
+void test("missing explicit reader token and truncated SDK metadata refuse before any archive read", async (t) => {
+  const missing = await fixture(t),
+    truncated = await fixture(t);
+  const previousToken = process.env.GH_TOKEN,
+    previousFallback = process.env.GITHUB_TOKEN;
+  delete process.env.GH_TOKEN;
+  process.env.GITHUB_TOKEN = "ghs_SYNTHETIC_WRONG_ROLE";
+  t.after(() => {
+    if (previousToken === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = previousToken;
+    if (previousFallback === undefined) delete process.env.GITHUB_TOKEN;
+    else process.env.GITHUB_TOKEN = previousFallback;
+  });
+  let calls = 0;
+  const controlledFetch = async () => {
+    calls++;
+    return new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.error(new Error("truncated metadata"));
+        },
+      }),
+      { headers: { "content-type": "application/json" } },
+    );
+  };
+  await assert.rejects(
+    readSigningOutputArtifact(missing.directory, missing.expected, {
+      fetch: controlledFetch,
+      download: missing.options.download,
+      deadline: performance.now() + 5000,
+    }),
+    /retain owned directory/u,
+  );
+  assert.equal(calls, 0);
+  assert.equal(missing.downloads(), 0);
+  process.env.GH_TOKEN = "ghs_SYNTHETIC_OUTPUT";
+  await assert.rejects(
+    readSigningOutputArtifact(truncated.directory, truncated.expected, {
+      fetch: controlledFetch,
+      download: truncated.options.download,
+      deadline: performance.now() + 5000,
+    }),
+    /retain owned directory/u,
+  );
+  assert.equal(calls, 1);
+  assert.equal(truncated.downloads(), 0);
 });

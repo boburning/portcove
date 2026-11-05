@@ -19,6 +19,7 @@ import {
 } from "./release-native-parent.mts";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import { readGitHubArtifactArchive, readGitHubReleaseAsset } from "./github-binary.mts";
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import {
   recoverRemoteCoordinator,
   hydrateRetainedCoordinatorOperation,
@@ -497,7 +498,12 @@ async function sourceTransport(parent: Parent, directory: string) {
     };
     return spawn;
   };
-  return { api, download, downloadAsset, recover, recheck, verifier, releaseVerifier };
+  const metadata = (deadline: number) =>
+    createReleaseCustodyProvider({
+      token,
+      deadline: Math.min(deadline, performance.now() + remainingNativeParentBudget(300000)),
+    });
+  return { api, metadata, download, downloadAsset, recover, recheck, verifier, releaseVerifier };
 }
 
 /** The public journey uses the same installed parent's read-only source tool
@@ -922,6 +928,7 @@ export async function readActualNativePostSignPublicInputs(controllerReceipt: ob
     throw new Error(
       "native signed context differs from exact reserved compiler run/prepared source",
     );
+  const metadata = await source.metadata(deadline);
   const roles = [];
   for (const role of before.roles) {
     const { bytes: _artifactBytes, ...artifact } = role.artifact,
@@ -945,7 +952,7 @@ export async function readActualNativePostSignPublicInputs(controllerReceipt: ob
           context_facts_sha256: expected.facts_sha256,
         },
         deadline,
-        { api: source.api, download: source.download, spawn: source.verifier(controller) },
+        { metadata, download: source.download, spawn: source.verifier(controller) },
       ),
     );
   }
