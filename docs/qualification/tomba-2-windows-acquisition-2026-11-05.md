@@ -12,8 +12,8 @@ GitHub release asset metadata and pass ZIP member CRC checks. Each contains
 `Tomba2Recomp-windows-x64/Tomba2Recomp.exe` and 73 native cache DLLs paired
 with audit records for SCUS-94454.
 
-| Preview release | Asset ID | SHA-256 |
-| --- | ---: | --- |
+| Preview release                                                     |  Asset ID | SHA-256                                                            |
+| ------------------------------------------------------------------- | --------: | ------------------------------------------------------------------ |
 | [v0.3.2](https://github.com/mstan/Tomba2Recomp/releases/tag/v0.3.2) | 678674207 | `09548e1e82e11e0fce799eebbb52e5e8dfa0c14119ee55cff4adf35bca3d13e8` |
 | [v0.3.3](https://github.com/mstan/Tomba2Recomp/releases/tag/v0.3.3) | 693863309 | `7336c6fae40b71d177697a819e644eec77cfd2b4cf0eeabe1ff0366ed16f9370` |
 
