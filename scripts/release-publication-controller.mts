@@ -361,6 +361,7 @@ export async function runReleasePublicationController(
 ) {
   const readerToken = publicationReaderToken();
   const deadline = Math.min(started + 350000, phaseDeadline ?? Infinity);
+  const transport = { credential: { token: readerToken }, deadline };
   return withCoordinatorDeadline(deadline, async () => {
     const configuration: unknown = structuredClone(raw);
     if (
@@ -451,7 +452,7 @@ export async function runReleasePublicationController(
           });
           const snapshot = () =>
             readRemoteCoordinatorSnapshot(directory, coordinator, {
-              transport: { cwd: directory, deadline },
+              transport,
             });
           stage = "keyless-release-preparation";
           const prepared = await prepareImmutableReleasePublication(
@@ -762,7 +763,7 @@ export async function runReleasePublicationController(
           const current = await readRemoteCoordinatorSnapshot(
             directory,
             { schema_version: 1, namespace: authorities.namespace },
-            { transport: { cwd: directory, deadline } },
+            { transport },
           );
           if (current.checkpoint !== facts.checkpoint)
             throw new Error("native publication checkpoint changed before collection");

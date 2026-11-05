@@ -1,5 +1,10 @@
 import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
-import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
+import {
+  fixedReleaseReaderToken,
+  readOnlyReleaseChildEnvironment,
+} from "./release-readonly-child-environment.mts";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -20,7 +25,7 @@ import {
   materializePublishedCatalogCompleteSite,
 } from "./release-site-readback.mts";
 import { createGitHubRunner, GitHubApiClient, sanitizeOperationError } from "./github-api.mts";
-import { readGitHubArtifactArchive } from "./github-binary.mts";
+import { downloadGitHubArtifactArchiveFile } from "./github-artifact-download.mts";
 import { inspectBoundedZip } from "./bounded-zip.mts";
 import { crc32, inflateRawSync } from "node:zlib";
 import { isRecord } from "./runtime-values.mts";
@@ -257,10 +262,6 @@ interface SiteUploadExpected {
 export async function verifyUploadedSiteArchive(
   session: DeploymentSession,
   rawExpected: SiteUploadExpected,
-  options: {
-    api?: Pick<GitHubApiClient, "request">;
-    download?: typeof readGitHubArtifactArchive;
-  } = {},
 ) {
   const prepared = sessions.get(session);
   if (!prepared || prepared.catalog?.recovery_only)
@@ -276,22 +277,27 @@ export async function verifyUploadedSiteArchive(
     !/^[a-f0-9]{40}$/u.test(expected.controller_revision)
   )
     throw new Error("site artifact provider identity unavailable");
-  const api =
-    options.api ??
-    new GitHubApiClient((args, input) =>
-      createGitHubRunner({
-        cwd: prepared.directory,
-        timeoutMs: remaining(prepared.deadline, 15000),
-        maxBuffer: 128 * 1024,
-      })([...args, "--hostname", "github.com"], input),
-    );
-  const endpoint = `repos/boburning/portcove/actions/artifacts/${expected.artifact_id}`;
-  const identity = () => {
-    remaining(prepared.deadline, 15000);
-    const response = api.request("GET", endpoint);
-    remaining(prepared.deadline, 15000);
-    if (response.status !== 200) throw new Error("site artifact provider readback unavailable");
-    const value = response.body;
+  const token = fixedReleaseReaderToken();
+  const scoped = readOnlyReleaseChildEnvironment() !== undefined;
+  const deadline = Math.min(
+    prepared.deadline ?? performance.now() + 150000,
+    coordinatorCommandDeadline() ?? Infinity,
+  );
+  const fetcher = globalThis.fetch;
+  const fetch: typeof globalThis.fetch = (input, init) => {
+    if (scoped) assertTrustedDirectNode("site upload archive");
+    return fetcher(input, init);
+  };
+  const metadata = await createReleaseCustodyProvider({
+    token,
+    deadline,
+    maxBytes: 128 * 1024,
+    fetch,
+  });
+  const identity = async () => {
+    remaining(deadline, 15000);
+    const value = await metadata.artifact(expected.artifact_id);
+    remaining(deadline, 15000);
     if (
       !isRecord(value) ||
       value.id !== expected.artifact_id ||
@@ -317,32 +323,39 @@ export async function verifyUploadedSiteArchive(
       sha256: value.digest.slice(7),
     };
   };
-  const before = identity();
+  const before = await identity();
   const attempt = await mkdtemp(path.join(prepared.directory, "upload-readback-"));
   await writeFile(path.join(attempt, "provider-before.json"), JSON.stringify(before), {
     flag: "wx",
     mode: 0o600,
   });
   try {
-    const bytes = (options.download ?? readGitHubArtifactArchive)(`${endpoint}/zip`, {
-      cwd: prepared.directory,
-      maxBytes: before.bytes,
-      timeoutMs: remaining(prepared.deadline, 120000),
-    });
-    await writeFile(path.join(attempt, "uploaded.zip"), bytes, { flag: "wx", mode: 0o600 });
-    remaining(prepared.deadline, 15000);
+    const file = path.join(attempt, "uploaded.zip");
+    await downloadGitHubArtifactArchiveFile(
+      `repos/boburning/portcove/actions/artifacts/${before.id}/zip`,
+      file,
+      {
+        credential: { kind: "explicit", token },
+        maxBytes: before.bytes,
+        deadline: performance.now() + remaining(deadline, 120000),
+        fetch,
+      },
+    );
+    remaining(deadline, 15000);
+    const bytes = await readControllerToolFile(file, before.bytes);
+    remaining(deadline, 15000);
     if (bytes.length !== before.bytes || hash(bytes) !== before.sha256)
       throw new Error("site artifact provider archive bytes differ");
     inspectSiteArtifactArchive(bytes, {
       bytes: prepared.archive_bytes,
       sha256: prepared.archive_sha256,
     });
-    if (JSON.stringify(before) !== JSON.stringify(identity()))
+    if (JSON.stringify(before) !== JSON.stringify(await identity()))
       throw new Error("site artifact changed during independent download");
     const upload = {
       artifact_id: before.id,
       archive_sha256: before.sha256,
-      evidence_scope: options.api || options.download ? "injected-provider" : "github.com",
+      evidence_scope: "github.com" as const,
       run_id: expected.run_id,
       run_attempt: expected.run_attempt,
       controller_revision: expected.controller_revision,
