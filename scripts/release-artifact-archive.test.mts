@@ -399,65 +399,62 @@ async function integration(
   let inventoryReads = 0;
   let drift = false;
   const timestamp = "2026-10-18T00:00:00Z";
-  const api = {
-    request(method: string, endpoint: string) {
-      assert.equal(method, "GET");
-      const key = new URL(endpoint, "https://api.github.com/").pathname.replace(
-        "/repos/boburning/portcove",
-        "",
-      );
-      let body: unknown;
-      if (key === "/actions/runs/12345" || key === "/actions/runs/12345/attempts/1")
-        body = {
-          id: 12345,
-          run_attempt: 1,
-          head_sha: expected.revision,
-          repository: { id: expected.repository_id, full_name: "boburning/portcove" },
-          head_repository: { id: expected.repository_id },
-          path: ".github/workflows/release.yml",
-          status: "completed",
-          conclusion: "success",
-          workflow_id: 6,
-          event: "workflow_dispatch",
-          updated_at: timestamp,
-        };
-      else if (key === `/git/commits/${expected.revision}`)
-        body = { sha: expected.revision, tree: { sha: expected.tree } };
-      else if (key === "/contents/.github/workflows/release.yml")
-        body = {
-          type: "file",
-          path: ".github/workflows/release.yml",
-          encoding: "base64",
-          size: workflow.length,
-          content: workflow.toString("base64"),
-        };
-      else if (key === "/actions/runs/12345/attempts/1/jobs") body = { total_count: 0, jobs: [] };
-      else if (key === "/actions/runs/12345/artifacts") {
-        inventoryReads++;
-        body = {
-          total_count: archives.length,
-          artifacts: archives.map((a) => ({
-            id: a.artifact_id,
-            name: `release-build-${a.platform}-12345-1`,
-            size_in_bytes: a.bytes,
-            digest: `sha256:${drift && inventoryReads > 1 ? "0".repeat(64) : a.sha256}`,
-            expired: false,
-            created_at: timestamp,
-            expires_at: null,
-            workflow_run: {
-              id: 12345,
-              repository_id: expected.repository_id,
-              head_repository_id: expected.repository_id,
-              head_sha: expected.revision,
-            },
-          })),
-        };
-      } else assert.fail(`unexpected integration endpoint ${key}`);
-      return { status: 200, headers: new Map<string, string>(), body };
-    },
+  const read = async (endpoint: string) => {
+    const key = new URL(endpoint, "https://api.github.com/").pathname.replace(
+      "/repos/boburning/portcove",
+      "",
+    );
+    let body: unknown;
+    if (key === "/actions/runs/12345" || key === "/actions/runs/12345/attempts/1")
+      body = {
+        id: 12345,
+        run_attempt: 1,
+        head_sha: expected.revision,
+        repository: { id: expected.repository_id, full_name: "boburning/portcove" },
+        head_repository: { id: expected.repository_id },
+        path: ".github/workflows/release.yml",
+        status: "completed",
+        conclusion: "success",
+        workflow_id: 6,
+        event: "workflow_dispatch",
+        updated_at: timestamp,
+      };
+    else if (key === `/git/commits/${expected.revision}`)
+      body = { sha: expected.revision, tree: { sha: expected.tree } };
+    else if (key === "/contents/.github/workflows/release.yml")
+      body = {
+        type: "file",
+        path: ".github/workflows/release.yml",
+        encoding: "base64",
+        size: workflow.length,
+        content: workflow.toString("base64"),
+      };
+    else if (key === "/actions/runs/12345/attempts/1/jobs") body = { total_count: 0, jobs: [] };
+    else if (key === "/actions/runs/12345/artifacts") {
+      inventoryReads++;
+      body = {
+        total_count: archives.length,
+        artifacts: archives.map((a) => ({
+          id: a.artifact_id,
+          name: `release-build-${a.platform}-12345-1`,
+          size_in_bytes: a.bytes,
+          digest: `sha256:${drift && inventoryReads > 1 ? "0".repeat(64) : a.sha256}`,
+          expired: false,
+          created_at: timestamp,
+          expires_at: null,
+          workflow_run: {
+            id: 12345,
+            repository_id: expected.repository_id,
+            head_repository_id: expected.repository_id,
+            head_sha: expected.revision,
+          },
+        })),
+      };
+    } else assert.fail(`unexpected integration endpoint ${key}`);
+    return { status: 200, headers: new Map<string, string>(), body };
   };
   const options = {
-    evidence: { api },
+    evidence: { read },
     download: (endpoint: string, options: Parameters<typeof readGitHubArtifactArchive>[1]) => {
       const id = Number(endpoint.split("/").at(-2));
       const bytes = blobs.get(id)!;
