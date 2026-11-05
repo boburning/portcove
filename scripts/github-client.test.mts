@@ -867,6 +867,46 @@ void test("parsed GraphQL cost is available on each settled SDK attempt includin
   }
 });
 
+void test("concurrent admission preserves a shared one-shot write allowance", async () => {
+  const policy: GitHubRequestPolicy = { replay: "once", attempts: 0 };
+  const settled: GitHubAttemptObservation[] = [];
+  let reservations = 0,
+    sends = 0;
+  const { promise: bothEntered, resolve: entered } = Promise.withResolvers<void>();
+  const { promise: gate, resolve: release } = Promise.withResolvers<void>();
+  const client = await createGitHubClient({
+    credential: { kind: "anonymous" },
+    deadline: performance.now() + 5000,
+    async reserve() {
+      if (++reservations === 2) entered();
+      await gate;
+      return { consumeBytes() {}, settle: (attempt) => settled.push(attempt) };
+    },
+    fetch: async () => {
+      sends++;
+      return Response.json({});
+    },
+  });
+  const submit = () =>
+    client.request("POST /repos/{owner}/{repo}/issues", {
+      owner: "portcove",
+      repo: "fixture",
+      title: "fixture",
+      request: { portcove: policy },
+    });
+  const outcomes = Promise.allSettled([submit(), submit()]);
+  await bothEntered;
+  release();
+  const results = await outcomes;
+  assert.equal(results.filter((result) => result.status === "fulfilled").length, 1);
+  const refused = results.find((result) => result.status === "rejected");
+  assert.ok(refused?.reason instanceof GitHubApiError);
+  assert.equal(refused.reason.code, "retry_exhausted");
+  assert.equal(sends, 1);
+  assert.equal(policy.attempts, 1);
+  assert.deepEqual(settled.map((attempt) => attempt.dispatched).sort(), [false, true]);
+});
+
 void test("uncooperative admission cannot extend SDK cancellation or its original request timeout", async (t) => {
   const keepAlive = setTimeout(() => {}, 2000);
   t.after(() => clearTimeout(keepAlive));
