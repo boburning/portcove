@@ -59,6 +59,8 @@ export interface AuthoredPort extends Record<string, unknown> {
   format_version: 1;
   listing: AuthoredListing;
   route_facts_v1?: RouteFactsV1;
+  /** Reviewed common staged archive layout; expanded before Core validation. */
+  gba_staged_archive_v1?: { game_code: string; versioned_mods: boolean };
   package_observation_v1?: PackagePlayerObservationV1;
   settings_qualification_v1?: SettingsQualificationPolicy;
   settings_observation_v1?: SettingsQualificationObservation;
@@ -152,6 +154,64 @@ function checkPlayerGuideCopy(id: string, field: string, value: unknown) {
   if (Array.isArray(value.warnings))
     for (const [index, warning] of value.warnings.entries())
       checkPlayerCopy(id, `${field}.warnings[${index}]`, warning);
+}
+
+function projectGbaArchive(record: AuthoredPort): AuthoredPort {
+  const facts = record.gba_staged_archive_v1;
+  if (facts === undefined) return record;
+  const integration = record.integration;
+  if (
+    !isRecord(facts) ||
+    Object.keys(facts).some((key) => key !== "game_code" && key !== "versioned_mods") ||
+    typeof facts.game_code !== "string" ||
+    !/^[A-Z0-9]{4}$/u.test(facts.game_code) ||
+    typeof facts.versioned_mods !== "boolean" ||
+    !integration ||
+    integration.adapter !== "staged-source-portable" ||
+    !Array.isArray(integration.platforms) ||
+    integration.platforms.length !== 1 ||
+    integration.platforms[0] !== "windows-x86-64" ||
+    !isRecord(integration.release) ||
+    integration.release.provider !== "github" ||
+    integration.source_profile != null ||
+    record.settings_qualification_v1 !== undefined ||
+    record.settings_observation_v1 !== undefined
+  )
+    throw new Error(
+      "GBA archive facts require a reviewed Windows staged GitHub archive with an upstream picker.",
+    );
+  for (const field of ["persistent_paths", "runtime_mutable_paths", "mod_package_policy"])
+    if (Object.hasOwn(integration, field))
+      throw new Error(
+        `GBA archive facts already own ${field}; use an explicit integration for a different layout.`,
+      );
+
+  const { game_code: code, versioned_mods: mods } = facts;
+  const { presentation, ...operation } = integration;
+  return {
+    ...record,
+    integration: {
+      ...operation,
+      persistent_paths: [
+        "config.ini",
+        "keybinds.ini",
+        "rom.cfg",
+        "bios.cfg",
+        "game.toml",
+        "saves",
+        ...(mods ? ["mods"] : []),
+      ],
+      ...(mods ? { mod_package_policy: "versioned-packages-v1" } : {}),
+      runtime_mutable_paths: [
+        "recomp_cache",
+        "diagnostics",
+        `recomp_master_misses_${code}.toml.frag`,
+        `recomp_coverage_${code}.json`,
+        "replay-divergence.state",
+      ],
+      ...(presentation === undefined ? {} : { presentation }),
+    },
+  };
 }
 
 export function checkedAuthoredPort(value: unknown, expectedId?: string): AuthoredPort {
@@ -341,6 +401,7 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
       throw new Error("Shared presentation fields belong to the listing.");
   }
   const record = value as AuthoredPort;
+  projectGbaArchive(record);
   if (record.route_facts_v1 !== undefined)
     checkRouteFacts(record.route_facts_v1, record.integration);
   if (record.package_observation_v1 !== undefined) {
@@ -378,7 +439,9 @@ export function authoringRecordFromPort(port: CatalogPort, order?: number): Auth
 }
 
 export function projectAuthoredPort(input: AuthoredPort): CatalogPort | undefined {
-  const record = projectSettingsQualification(projectPackagePlayerFacts(projectRouteFacts(input)));
+  const record = projectSettingsQualification(
+    projectPackagePlayerFacts(projectRouteFacts(projectGbaArchive(input))),
+  );
   if (!record.integration) return undefined;
   const integration = structuredClone(record.integration);
   const common: Record<string, unknown> = {};

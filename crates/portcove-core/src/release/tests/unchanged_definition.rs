@@ -2136,3 +2136,52 @@ async fn native_engine_selection_2612() {
     )
     .await;
 }
+
+#[tokio::test]
+async fn gba_pokemon_selection_advances_each_game_from_one_shared_release_inventory() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let observed: Vec<serde_json::Value> = serde_json::from_str(include_str!(
+        "../../testdata/gba-pokemon-release-selection-2026-11-05.json"
+    ))
+    .unwrap();
+    for (id, prefix) in [
+        ("pokemon-firered-fireredleafgreenrecomp", "FireRedRecomp"),
+        (
+            "pokemon-leafgreen-fireredleafgreenrecomp",
+            "LeafGreenRecomp",
+        ),
+    ] {
+        let port = catalog.port(id).unwrap();
+        let definition = serde_json::to_value(port).unwrap();
+        for (index, tag) in ["v0.0.6", "v0.0.8"].into_iter().enumerate() {
+            let name = format!("{prefix}-windows-x64-{tag}.zip");
+            let expected = observed[index]["assets"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|asset| asset["name"] == name)
+                .unwrap();
+            let visible = observed[..=index].iter().rev().cloned().collect::<Vec<_>>();
+            let (root, requests, server) = serve_http(vec![metadata(), releases(&visible)]);
+            let selected = GithubReleaseProvider::with_api_root(root)
+                .unwrap()
+                .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+                .await
+                .unwrap();
+            assert_eq!(selected.version, tag);
+            assert_eq!(selected.asset.name, name);
+            assert_eq!(selected.asset.size, expected["size"].as_u64().unwrap());
+            assert_eq!(
+                selected.asset.sha256,
+                expected["digest"]
+                    .as_str()
+                    .unwrap()
+                    .strip_prefix("sha256:")
+                    .unwrap()
+            );
+            server.join().unwrap();
+            assert_eq!(requests.try_iter().count(), 2);
+        }
+        assert_eq!(serde_json::to_value(port).unwrap(), definition);
+    }
+}
