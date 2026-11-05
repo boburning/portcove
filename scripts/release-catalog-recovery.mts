@@ -10,7 +10,7 @@ import { performance } from "node:perf_hooks";
 import { isRecord } from "./runtime-values.mts";
 import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
-import type { GitHubRestReader } from "./github-api.mts";
+import type { CatalogAnchorMetadataProvider } from "./release-custody-provider.mts";
 import { readGitHubArtifactArchive } from "./github-binary.mts";
 import {
   capacityDigest as digest,
@@ -203,10 +203,10 @@ export function inspectCatalogContinuationProvider(
 
 /** Read only compact proofs for this exact descriptor/lifecycle. No ancestry
  * fetch or latest-run selection; duplicate usable attempts remain ambiguous. */
-export async function readCatalogContinuationOperations(
+async function readCatalogContinuationOperations(
   repository: string,
   rawInput: unknown,
-  api: GitHubRestReader,
+  provider: CatalogAnchorMetadataProvider,
   deadline: number,
 ) {
   if (
@@ -239,7 +239,7 @@ export async function readCatalogContinuationOperations(
       try {
         retained = readRetainedCapacityOperation(repository, proof);
       } catch {
-        retained = await hydrateRetainedCoordinatorOperation(repository, proof, { api });
+        retained = await hydrateRetainedCoordinatorOperation(repository, proof, { provider });
       }
       const op = inspectCapacityOperation(retained);
       if (op) found.push(op);
@@ -503,19 +503,22 @@ export async function continueActualCatalogPublication(
         checkpointControls,
       );
       phase = "original-attested-context-and-four-roles";
-      const operations = await readCatalogContinuationOperations(
-        state.repository,
-        state.input,
-        api,
-        originalDeadline,
-      );
       const metadata = await createReleaseCustodyProvider({
         token: environment.GH_TOKEN ?? "",
         deadline: originalDeadline,
         maxBytes: 4 * 1024 ** 2,
         chargeRead,
+        afterRead: () => {
+          signingContextRemaining(originalDeadline, 15000);
+        },
         currentDeadline: () => performance.now() + signingContextRemaining(originalDeadline, 15000),
       });
+      const operations = await readCatalogContinuationOperations(
+        state.repository,
+        state.input,
+        metadata,
+        originalDeadline,
+      );
       const observe = async (op: Operation, output: Output) => {
         const p = op.executor_identity!;
         const run = String(p.run_id);

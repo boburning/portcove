@@ -460,7 +460,13 @@ void test("unrelated unresolved operation is refused before raw receipt hydratio
       },
       candidate,
       {
-        request() {
+        async commit() {
+          assert.fail("unrelated pending must refuse before GET");
+        },
+        async tree() {
+          assert.fail("unrelated pending must refuse before GET");
+        },
+        async blob() {
           assert.fail("unrelated pending must refuse before GET");
         },
       },
@@ -599,8 +605,20 @@ void test(
       { controller: { capacity_attempt: capacity } },
       active,
       {
-        request() {
-          assert.fail("all named original receipt objects already present; no provider read");
+        async commit() {
+          return assert.fail(
+            "all named original receipt objects already present; no provider read",
+          );
+        },
+        async tree() {
+          return assert.fail(
+            "all named original receipt objects already present; no provider read",
+          );
+        },
+        async blob() {
+          return assert.fail(
+            "all named original receipt objects already present; no provider read",
+          );
         },
       },
     );
@@ -623,8 +641,14 @@ void test(
       { controller: { capacity_attempt: { ...capacity, operation: pendingRelease } } },
       active,
       {
-        request() {
-          assert.fail("exact seven compact proofs need no new provider request");
+        async commit() {
+          return assert.fail("exact seven compact proofs need no new provider request");
+        },
+        async tree() {
+          return assert.fail("exact seven compact proofs need no new provider request");
+        },
+        async blob() {
+          return assert.fail("exact seven compact proofs need no new provider request");
         },
       },
     );
@@ -659,7 +683,13 @@ void test(
         { controller: { capacity_attempt: { ...capacity, prior_operations: altered } } },
         active,
         {
-          request() {
+          async commit() {
+            throw new Error("inert altered-proof raw hydration refused");
+          },
+          async tree() {
+            throw new Error("inert altered-proof raw hydration refused");
+          },
+          async blob() {
             throw new Error("inert altered-proof raw hydration refused");
           },
         },
