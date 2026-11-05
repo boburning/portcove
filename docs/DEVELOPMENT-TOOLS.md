@@ -1061,7 +1061,11 @@ before deletion, rereads identity and sends one DELETE followed by authoritative
 readback. Its trusted main workflow installs the locked packages before the token
 step. Existing cleanup eligibility and workflow permissions remain authoritative.
 Audit receipt discovery uses command-scoped SDK metadata reads and awaited
-identity/readback before importing evidence. Artifact-byte acquisition
+identity/readback before importing evidence. Publication-source custody uses
+fixed SDK Git-object reads and pure queries with the captured job-reader token;
+exact object hashes, source closure and candidate-execution restrictions remain
+with the materializer. Trusted controller bundles include the locked SDK and
+refuse external runtime package imports. Artifact-byte acquisition
 retains its existing bounded helper until its caller family migrates. The discovery
 worker now admits GitHub only for its original artifact ZIP byte route; external
 GET/HEAD provider reads remain separate from GitHub metadata.
@@ -2262,7 +2266,17 @@ Its format-2 registry gives each test file one ownership record with
 `[suite, position]` memberships; suites retain their existing runner arguments.
 Positions are unique nonnegative safe integers within a suite. Gaps allow new
 records without renumbering others, and independent positions preserve suites
-with different execution orders. Legacy format-1 inputs remain readable for
+with different execution orders.
+Optional `ordinary_families` membership on that same test record supplies the
+ordinary selector's shared contract families. Add/move a test in the registry;
+do not synchronize another filename array in `ordinary-validation.mts`.
+Semantic safety input-to-family relationships (such as process containment) stay
+explicit in the selector. Cargo's bounded offline `metadata --no-deps` output
+supplies ordinary workspace package names and locations for Rust inputs, with
+`RUSTUP_AUTO_INSTALL=0` so selection never provisions a missing toolchain; missing,
+ambiguous or unavailable metadata retains conservative unknown/workspace coverage.
+Prose-only selection does not invoke Cargo, and no dependency graph crawl or
+persistent package cache is introduced. Legacy format-1 inputs remain readable for
 existing callers and fixtures.
 
 Add, rename or remove the ownership record, then run `node scripts/node-test-suites.mts --write`
