@@ -788,6 +788,7 @@ void test("fixture module closure edits retain all independent policy and constr
     "scripts/production-aggregate-steps.test.mts",
     "scripts/release-control-inputs.test.mts",
     "scripts/release-controller-tools.test.mts",
+    "scripts/release-controller-wake.test.mts",
     "scripts/release-windows-webview-driver.test.mts",
     "scripts/renovate-engine-probe.test.mts",
     "scripts/repository-settings.test.mts",

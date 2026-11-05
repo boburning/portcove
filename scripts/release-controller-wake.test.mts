@@ -649,7 +649,10 @@ void test("fixed wake uses its job token and retains intent before dispatch with
     workflow.indexOf("Retain intent before any dispatch") <
       workflow.indexOf("Dispatch retained immutable controller intent"),
   );
-  assert.doesNotMatch(workflow, /npm install|^\s+cache:|secrets\.|create-github-app-token/mu);
+  assert.doesNotMatch(
+    workflow,
+    /\bnpm (?:ci|install)\b|^\s+cache:|secrets\.|create-github-app-token/mu,
+  );
   assert.match(workflow, /    permissions:\n      contents: read\n      actions: write/u);
   assert.match(workflow, /fromJSON\(vars\.PORTCOVE_CONTROLLER_WAKE\)\.schema_version == 4/u);
   assert.match(

@@ -1383,6 +1383,7 @@ for (const [file, tests] of [
       "scripts/fixture-module-closure.test.mts",
       "scripts/precommit-check.test.mts",
       "scripts/daily-discovery.test.mts",
+      "scripts/release-controller-wake.test.mts",
     ],
   ],
   [
