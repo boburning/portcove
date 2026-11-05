@@ -75,13 +75,13 @@ void test("actual entry routes frozen requests and one neutral CAS without app p
   async recover(){const r=await recoverReleaseOpportunity(live,cp);if(['unchanged','previous-missing'].includes(scenario))r.input.published_catalog_metadata={schema_version:1,source_commit:'4'.repeat(40),source_tree:'a'.repeat(40),operation_id:'1'.repeat(64),publication:{evidence_sha256:'2'.repeat(64),remote_identity:'fixture:none',site_generation_sha256:'3'.repeat(64)},root_sha256:'5'.repeat(64),offline_targets_sha256:'6'.repeat(64),index_sha256:'7'.repeat(64),repository_sha256:'8'.repeat(64),verifier_repository_sha256:'9'.repeat(64),snapshot_sha256:'a'.repeat(64),timestamp_sha256:'b'.repeat(64),immutable_targets_sha256:'c'.repeat(64),versions:{targets:'1',definitions:'1',policy:'1',snapshot:'1',timestamp:'1'},expires:Object.fromEntries(['targets','definitions','policy','snapshot','timestamp'].map(x=>[x,'2026-12-01T00:00:00Z']))};if(scenario==='continuation')r.input.catalog_publication={fixture:'original held subject'};return {...r,repository:live,checkpoint:cp};},
   async publish(repository,checkpoint,_namespace,{api}){await api.request('POST','fixed-journal-object',{});await api.graphql('mutation FixedCas {}',{});cp=checkpoint;},
   controls:{evidence_scope:'github.com',readMaintenance(){maintenanceReads++;if(scenario==='expired'&&maintenanceReads>1)throw new Error('expired maintenance');return facts;}},
-  client:{request(method,route){assert.equal(method,'GET');if(route.includes('/actions/runs/'))return {status:200,body:{}};if(route==='repos/boburning/portcove')return {status:200,body:{id:1354613114,full_name:'boburning/portcove',default_branch:'main'}};if(route.endsWith('/git/ref/heads/main')){counters.main++;return {status:200,body:{ref:'refs/heads/main',object:{type:'commit',sha:scope.source.commit}}};}return {status:200,body:{}};},graphql(){return {}; }},
+  client:{request(method,route){assert.equal(method,'GET');if(route==='repos/boburning/portcove')return {status:200,body:{id:1354613114,full_name:'boburning/portcove',default_branch:'main'}};if(route.endsWith('/git/ref/heads/main')){counters.main++;return {status:200,body:{ref:'refs/heads/main',object:{type:'commit',sha:scope.source.commit}}};}return {status:200,body:{}};},graphql(){return {}; }},
  };
  globalThis.__catalog=fake;
  const data=s=>'data:text/javascript,'+encodeURIComponent(s),code={
  './release-capacity-executor.mts': 'export const authenticateCapacityExecutor=async()=>globalThis.__catalog;export const ensureOwnedCheckpointJournalHistory=async(executor,repository,checkpoint,controls)=>{if(executor!==globalThis.__catalog)throw Error("wrong controlled executor");await controls();return false;};export const publishOwnedSignedCoordinatorCheckpoint=async()=>{throw Error("legacy fixture must not select signed transport")};',
  './github-api.mts': 'export const createGitHubRunner=()=>{};export class GitHubApiClient {constructor(){} request(...a){return globalThis.__catalog.client.request(...a)} graphql(...a){return globalThis.__catalog.client.graphql(...a)}}',
- './release-coordinator-driver.mts':'export const coordinatorOriginalJobDeadline=()=>performance.now()+160000;export const catalogCoordinatorMaintenanceIdentity=()=>"stable";export const deriveCoordinatorPublication=(_t,_r,_a,now)=>({complete:true,observed_at:now,published_versions:[],published_sources:[],reserved_versions:[],last_routine_preview_at:null});export const prepareActualCoordinatorCatalogSigning=(...a)=>globalThis.__catalog.prepare(...a);',
+ './release-coordinator-driver.mts':'export {readOriginalCoordinatorJobDeadline} from '+JSON.stringify(new URL('./release-coordinator-driver.mts',entry).href)+';export const catalogCoordinatorMaintenanceIdentity=()=>"stable";export const deriveCoordinatorPublication=(_t,_r,_a,now)=>({complete:true,observed_at:now,published_versions:[],published_sources:[],reserved_versions:[],last_routine_preview_at:null});export const prepareActualCoordinatorCatalogSigning=(...a)=>globalThis.__catalog.prepare(...a);',
  './release-catalog-recovery.mts':'export const continueActualCatalogPublication=(...a)=>globalThis.__catalog.continue(...a);',
  './release-catalog-signing-context.mts':'export const completeCoordinatorCatalogSigningContext=(...a)=>globalThis.__catalog.complete(...a);',
  './release-authority-configuration.mts':'export const requireControllerCatalogCoordinatorAuthorities=async()=>globalThis.__catalog.authority;export const assertControllerCatalogPublisherScope=()=>{};',
@@ -104,6 +104,17 @@ void test("actual entry routes frozen requests and one neutral CAS without app p
  registerHooks({resolve(spec,context,next){if(context.parentURL===entry&&code[spec])return {url:data(code[spec]),shortCircuit:true};return next(spec,context);}});
  const {runFixedCatalogCoordinatorConfiguration}=await import(entry);
  process.env.GITHUB_RUN_ID='123';process.env.GITHUB_SHA=selection.tools.artifact.controller_revision;process.env.GITHUB_RUN_ATTEMPT='1';
+ process.env.GH_TOKEN='ghs_catalog_coordinator_clock_fixture';
+ globalThis.fetch=async(input,init)=>{
+  const url=new URL(input instanceof Request?input.url:input);
+  assert.equal(url.origin,'https://api.github.com');
+  assert.equal(url.pathname,'/repos/boburning/portcove/actions/runs/123/jobs');
+  assert.deepEqual(Object.fromEntries(url.searchParams),{filter:'all',per_page:'100',page:'1'});
+  assert.equal(init.method,'GET');
+  assert.equal(new Headers(init.headers).get('authorization'),'token ghs_catalog_coordinator_clock_fixture');
+  return Response.json({total_count:1,jobs:[{id:51,name:'Coordinate application release',run_id:123,run_attempt:1,head_sha:process.env.GITHUB_SHA,status:'in_progress',started_at:new Date().toISOString()}]});
+ };
+
  root=await mkdtemp(path.join(os.tmpdir(),'catalog-entry-controlled-'));
  try {
   async function setup(name){scenario=name;counters={main:0,controls:0,inspect:0,write:0,prepare:0,complete:0};maintenanceReads=0;live=path.join(root,name);await mkdir(live);execFileSync('git',['init','--bare','--quiet',live]);

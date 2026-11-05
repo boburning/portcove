@@ -593,6 +593,7 @@ for (const [file, tests] of [
   [
     "scripts/release-coordinator-driver.mts",
     [
+      "scripts/release-catalog-coordinator.test.mts",
       "scripts/release-coordinator-driver.test.mts",
       "scripts/release-coordinator-recovery.test.mts",
     ],
@@ -2401,6 +2402,7 @@ for (const file of [
     "scripts/release-coordinator-journal-api.test.mts",
     "scripts/release-coordinator-remote.test.mts",
     "scripts/release-hosted-native-history.test.mts",
+    "scripts/release-catalog-coordinator.test.mts",
     "scripts/release-coordinator-driver.test.mts",
     "scripts/release-coordinator-recovery.test.mts",
     "scripts/release-metadata-context-recovery.test.mts",

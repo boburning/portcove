@@ -24,9 +24,10 @@ import { capacityDigest, inspectCapacityOperation } from "./release-capacity.mts
 import {
   withCoordinatorDeadline,
   coordinatorCommandTimeout,
+  coordinatorCommandDeadline,
 } from "./release-coordinator-deadline.mts";
 import {
-  coordinatorOriginalJobDeadline,
+  readOriginalCoordinatorJobDeadline,
   catalogCoordinatorMaintenanceIdentity,
   deriveCoordinatorPublication,
   prepareActualCoordinatorCatalogSigning,
@@ -202,7 +203,11 @@ export async function runFixedCatalogCoordinatorConfiguration(
     (phaseDeadline !== undefined && (!Number.isFinite(phaseDeadline) || phaseDeadline <= start))
   )
     throw new Error("catalog coordinator original deadline/private parent unavailable");
-  let deadline = Math.min(start + 170000, phaseDeadline ?? Infinity);
+  let deadline = Math.min(
+    start + 170000,
+    phaseDeadline ?? Infinity,
+    coordinatorCommandDeadline() ?? Infinity,
+  );
   const check = () => {
     if (performance.now() >= deadline)
       throw new Error("catalog coordinator original job budget exhausted");
@@ -234,24 +239,12 @@ export async function runFixedCatalogCoordinatorConfiguration(
       return client.graphql(query, variables);
     },
   };
-  const run = process.env.GITHUB_RUN_ID,
-    revision = process.env.GITHUB_SHA;
-  if (
-    !run ||
-    !/^[1-9][0-9]{0,15}$/u.test(run) ||
-    !revision ||
-    !/^[a-f0-9]{40}$/u.test(revision) ||
-    process.env.GITHUB_RUN_ATTEMPT !== "1"
-  )
-    throw new Error("actual first coordinator job identity required");
-  const jobs = api.request(
-    "GET",
-    `${repository}/actions/runs/${run}/jobs?filter=all&per_page=100&page=1`,
-  );
-  if (jobs.status !== 200) throw new Error("catalog coordinator original job unavailable");
   deadline = Math.min(
     deadline,
-    coordinatorOriginalJobDeadline(jobs.body, { run_id: run, controller_revision: revision }),
+    await readOriginalCoordinatorJobDeadline(
+      Math.min(deadline, performance.now() + 15000),
+      16 * 1024 ** 2,
+    ),
   );
   check();
   return withCoordinatorDeadline(deadline, async () => {
