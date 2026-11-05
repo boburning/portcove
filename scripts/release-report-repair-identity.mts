@@ -18,7 +18,6 @@ import {
   inspectPublicationReportRepair,
   reportRepairDispatchDestination,
 } from "./release-report-repair-contract.mts";
-import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 
 export function inspectReportRepairIdentity(
   raw: unknown,
@@ -144,12 +143,17 @@ export function inspectReportRepairIdentity(
   };
 }
 
-async function main() {
-  const env = { ...process.env },
-    start = performance.now(),
-    deadline = start + 60000;
+export async function acknowledgeReportRepairIdentity(
+  environment: Readonly<NodeJS.ProcessEnv>,
+  readSnapshot: (
+    ...args: Parameters<typeof readRemoteCoordinatorSnapshot>
+  ) => Promise<{ checkpoint: string; input: unknown }> = readRemoteCoordinatorSnapshot,
+) {
+  const env = { ...environment };
+  const deadline = performance.now() + 60000;
   assert.ok(/^[a-f0-9]{64}$/u.test(env.PORTCOVE_REPORT_REPAIR_SHA256 ?? ""));
-  assert.ok(/^[1-9][0-9]*$/u.test(env.GITHUB_RUN_ID ?? ""));
+  const runId = env.GITHUB_RUN_ID;
+  assert.ok(runId && /^[1-9][0-9]*$/u.test(runId));
   const authorities: unknown = JSON.parse(env.PORTCOVE_RELEASE_AUTHORITIES ?? "null");
   assert.ok(isRecord(authorities));
   const selected =
@@ -162,35 +166,29 @@ async function main() {
     namespace: selected ? selected.journal.namespace : authorities.namespace,
   };
   inspectCoordinatorRemoteNamespace(configuration);
-  const snapshot = await readRemoteCoordinatorSnapshot(process.cwd(), configuration, {
-    transport: { cwd: process.cwd(), deadline },
-  });
-  const api = new GitHubApiClient((args, input) => {
-    const timeoutMs = Math.floor(Math.min(15000, deadline - performance.now()));
-    assert.ok(timeoutMs > 0);
-    return createGitHubRunner({ cwd: process.cwd(), maxBuffer: 2 * 1024 * 1024, timeoutMs })(
-      [...args, "--hostname", "github.com"],
-      input,
-    );
-  });
-  const route = `repos/boburning/portcove/actions/runs/${env.GITHUB_RUN_ID}`;
-  const observed = api.request("GET", route);
-  assert.equal(observed.status, 200);
-  inspectReportRepairIdentity(snapshot.input, env, observed.body);
-  const again = await readRemoteCoordinatorSnapshot(process.cwd(), configuration, {
-    transport: { cwd: process.cwd(), deadline },
-  });
+  const token = env.GH_TOKEN ?? "";
+  assert.ok(
+    token && token.length <= 16384 && !/\s/u.test(token),
+    "fixed report reader unavailable",
+  );
+  const transport = { credential: { token }, deadline };
+  const snapshot = await readSnapshot(process.cwd(), configuration, { transport });
+  const { createReleaseCustodyProvider } = await import("./release-custody-provider.mts");
+  const provider = await createReleaseCustodyProvider({ token, deadline });
+  inspectReportRepairIdentity(snapshot.input, env, await provider.run(runId));
+  const again = await readSnapshot(process.cwd(), configuration, { transport });
   assert.equal(again.checkpoint, snapshot.checkpoint);
   assert.equal(digest(again.input), digest(snapshot.input));
   assert.ok(performance.now() < deadline && env.GITHUB_OUTPUT);
   await appendFile(env.GITHUB_OUTPUT, "report_only_repair=true\n");
 }
+
 if (
   process.argv[1] &&
   /(?:^|[\\/])release-report-repair-identity\.mts$/u.test(process.argv[1]) &&
   path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 )
-  void main().catch(() => {
+  void acknowledgeReportRepairIdentity(process.env).catch(() => {
     console.error("report-only dispatch identity refused; retain current journal intent");
     process.exitCode = 1;
   });

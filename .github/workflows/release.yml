@@ -47,6 +47,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
@@ -55,6 +56,27 @@ jobs:
         env:
           PORTCOVE_RELEASE_PROFILE: ${{ inputs.release_profile || 'full' }}
         run: node scripts/release-package-policy.mts --profile "$PORTCOVE_RELEASE_PROFILE" --build-plan >> "$GITHUB_OUTPUT"
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413
+        if: inputs.report_only_repair
+        with:
+          package_json_file: package.json
+          run_install: false
+      - name: Install frozen report reader dependencies before credentials
+        if: inputs.report_only_repair
+        shell: bash
+        env:
+          GH_TOKEN: ""
+          GITHUB_TOKEN: ""
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          git diff --quiet HEAD -- package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc patches/
+          if test -e .npmrc || test -L .npmrc; then
+            git ls-files --error-unmatch -- .npmrc >/dev/null
+          fi
+          install_home="$RUNNER_TEMP/report-reader-install-home"
+          mkdir -m 700 "$install_home"
+          env -i PATH="$PATH" HOME="$install_home" CI=true pnpm --filter portcove-repository install --prod --frozen-lockfile --ignore-scripts --ignore-pnpmfile --store-dir "$RUNNER_TEMP/report-reader-store"
       - name: Bind report-only invocation to the actual current journal dispatch
         if: inputs.report_only_repair
         id: report-repair

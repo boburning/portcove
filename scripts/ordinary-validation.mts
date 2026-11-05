@@ -751,6 +751,7 @@ for (const [file, tests] of [
       "scripts/release-metadata-site-controller.test.mts",
       "scripts/release-catalog-site-controller.test.mts",
       "scripts/release-publication-controller.test.mts",
+      "scripts/release-report-repair-identity.test.mts",
     ],
   ],
   [
@@ -855,6 +856,7 @@ for (const [file, tests] of [
       "scripts/release-coordinator-metadata.test.mts",
       "scripts/release-coordinator-owned-executor.test.mts",
       "scripts/release-coordinator-signing-exchange.test.mts",
+      "scripts/release-report-repair-identity.test.mts",
     ],
   ],
   [
@@ -2356,6 +2358,7 @@ for (const file of [
     "scripts/release-hosted-native-history.test.mts",
     "scripts/release-coordinator-recovery.test.mts",
     "scripts/release-metadata-context-recovery.test.mts",
+    "scripts/release-report-repair-identity.test.mts",
     "scripts/production-controller-admission.test.mts",
     "scripts/release-hosted-native-windows-bootstrap.test.mts",
     "scripts/assembler-job-identity.test.mts",
