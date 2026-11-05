@@ -24,6 +24,7 @@ import {
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 import {
+  controllerToolBundler,
   controllerToolEntries,
   readControllerToolFile,
   inspectControllerToolManifest,
@@ -76,7 +77,8 @@ async function bundleFixedControllerEntries(
     !version ||
     typeof version !== "object" ||
     !("version" in version) ||
-    version.version !== "1.4.0"
+    typeof version.version !== "string" ||
+    `vite-plus@${version.version}` !== controllerToolBundler
   )
     throw new Error("repository-pinned pack version differs");
   await mkdir(path.join(outputRoot, "scripts"), { recursive: true, mode: 0o700 });
@@ -508,7 +510,7 @@ export async function buildControllerTools(
         source_tree: expected.tree,
         platform,
         node_version: controllerNodeVersion,
-        bundler: "vite-plus@1.4.0",
+        bundler: controllerToolBundler,
         tauri_cli_version: "2.12.2",
         files,
       },

@@ -404,6 +404,7 @@ function useGameUpdateControl({
           };
           try {
             const command = await executeReviewedGameUpdate(selection, portId, generation, receive);
+            // oxlint-disable-next-line react/immutability -- oxc#28401: invocation-local binding.
             acquired = command.acquired;
             return command.value;
           } catch (value) {

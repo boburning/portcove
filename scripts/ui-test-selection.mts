@@ -2,6 +2,36 @@ import { lstatSync, realpathSync } from "node:fs";
 import path from "node:path";
 import type { TestModule, TestCase } from "vite-plus/test/node";
 import { browserTraceProbe } from "../apps/desktop/src/browser/failure-probe-contract.ts";
+import { isRecord } from "./runtime-values.mts";
+
+/** Replay whole files: native --last-failed test-name filters miss renamed cases. */
+export function failedUiSpecifications<T>(
+  specifications: T[],
+  cachedResult: (specification: T) => unknown,
+  oldestRun: number,
+  now = Date.now(),
+): T[] {
+  if (!Number.isFinite(oldestRun) || oldestRun > now) return specifications;
+  const failed: T[] = [];
+  for (const specification of specifications) {
+    const result = cachedResult(specification);
+    if (
+      !isRecord(result) ||
+      typeof result.failed !== "boolean" ||
+      typeof result.duration !== "number" ||
+      !Number.isFinite(result.duration) ||
+      result.duration < 0 ||
+      typeof result.lastRun !== "number" ||
+      !Number.isFinite(result.lastRun) ||
+      result.lastRun <= oldestRun ||
+      result.lastRun > now
+    )
+      return specifications;
+    if (result.failed) failed.push(specification);
+  }
+  // No prior failures is useful information, but never a successful empty run.
+  return failed.length ? failed : specifications;
+}
 
 type TestObservation = Pick<TestCase, "fullName"> & {
   result(): Pick<ReturnType<TestCase["result"]>, "state"> & { note?: string | undefined };

@@ -122,6 +122,7 @@ export function useGameFileScan(generation: number) {
             }
           })
           .finally(() => {
+            // oxlint-disable-next-line react/immutability -- oxc#28401: invocation-local binding.
             acceptingEvents = false;
           });
       }

@@ -10,6 +10,8 @@ export const controllerCompilerSourceAsset = "compiler-source-closure.json";
 export const controllerToolSourceAssetMaximumBytes = 128 * 1024;
 /** Same reviewed dependency as the maintained desktop bootstrap. */
 export const controllerNativeDriverVersion = "2.0.6";
+// Trusted controller identity, independent of the source being bundled.
+export const controllerToolBundler = "vite-plus@1.5.0";
 export const controllerToolEntries = Object.freeze([
   "production-controller-admission",
   "release-control-ready",
@@ -214,7 +216,7 @@ export function inspectControllerToolManifest(
     value.schema_version !== profile.schema_version ||
     value.platform !== profile.platform ||
     value.node_version !== controllerNodeVersion ||
-    value.bundler !== "vite-plus@1.4.0" ||
+    value.bundler !== controllerToolBundler ||
     value.tauri_cli_version !== "2.12.2" ||
     typeof value.source_commit !== "string" ||
     !/^[a-f0-9]{40}$/.test(value.source_commit) ||
@@ -248,7 +250,7 @@ export function inspectControllerToolManifest(
     source_tree: value.source_tree,
     platform: profile.platform,
     node_version: controllerNodeVersion,
-    bundler: "vite-plus@1.4.0",
+    bundler: controllerToolBundler,
     tauri_cli_version: "2.12.2",
     files,
   };

@@ -292,6 +292,18 @@ void test("selected actual transport schema contracts provision their Desktop AJ
   );
 });
 
+void test("publication source preparation provisions its Desktop semver dependency", () => {
+  const consumer = "scripts/release-publication-source.test.mts";
+  const upgrade = make(["pnpm-lock.yaml", "tools/containers/build/Dockerfile"]);
+  assert.equal(upgrade.fallback?.kind, "all-fast-groups");
+  for (const plan of [make([consumer]), upgrade]) {
+    assert.ok(baselineContractTests(plan).includes(consumer));
+    assert.equal(plan.mode, "fast");
+    assert.equal(plan.qualification_required, false);
+    assert.equal(baselineRequiresDesktopDependencies(plan), true);
+  }
+});
+
 void test("native source declarations start their cheap hosted consumer without release qualification", () => {
   const contract = "scripts/release-native-source-contract.test.mts";
   for (const source of nativeCompatibilitySourcePaths) {
