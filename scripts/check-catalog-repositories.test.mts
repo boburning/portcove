@@ -140,7 +140,7 @@ function requiredFixture<T>(value: T | null | undefined): T {
       assert.ok(options.signal instanceof AbortSignal);
       assert.equal(
         new URL(url).host === "api.github.com",
-        Object.hasOwn(options.headers, "Authorization"),
+        new Headers(options.headers).has("authorization"),
       );
       assert.equal(
         new URL(url).host === "gitlab.com",
@@ -665,3 +665,76 @@ function requiredFixture<T>(value: T | null | undefined): T {
     }
   });
 }
+
+void test("health policy consumes narrow async metadata and preserves serialized evidence", async () => {
+  const calls: string[] = [];
+  const data = { id: 42, full_name: "owner/project", archived: false };
+  const bytes = Buffer.byteLength(JSON.stringify(data));
+  const result = await collectRepositoryHealth(
+    { ports: [{ id: "fixture", release: { provider: "github", repository: "owner/project" } }] },
+    {
+      fetch: () => assert.fail("Domain metadata fake must not invoke HTTP"),
+      githubMetadata: async (url) => {
+        calls.push(url);
+        return {
+          status: 200,
+          headers: new Headers({ "content-type": "application/json" }),
+          data,
+          body: null,
+          responseBytes: bytes,
+        };
+      },
+    },
+  );
+  assert.deepEqual(calls, ["https://api.github.com/repos/owner/project"]);
+  assert.equal(result.outcome, "complete");
+  assert.equal(result.observations[0]?.observed_repository_id, 42);
+  assert.deepEqual(result.consumed, { requests: 1, response_bytes: bytes });
+  assert.deepEqual(JSON.parse(JSON.stringify(result)), result);
+});
+
+void test(
+  "health command abort drains its single SDK read without publishing a provider failure",
+  { timeout: 10000 },
+  async () => {
+    const controller = new AbortController();
+    const reason = new Error("fixture command cancelled");
+    let start!: () => void;
+    const started = new Promise<void>((resolve) => {
+      start = resolve;
+    });
+    let dispatched = 0,
+      published = 0,
+      drained = false;
+    const operation = collectRepositoryHealth(
+      { ports: [{ id: "fixture", release: { provider: "github", repository: "owner/project" } }] },
+      {
+        abortSignal: controller.signal,
+        githubToken: "synthetic-health-token",
+        fetch: async (_url, options) => {
+          dispatched++;
+          start();
+          return await new Promise<Response>((_resolve, reject) => {
+            options.signal.addEventListener(
+              "abort",
+              () => {
+                drained = true;
+                reject(options.signal.reason);
+              },
+              { once: true },
+            );
+          });
+        },
+        onObservation: async () => {
+          published++;
+        },
+      },
+    );
+    await started;
+    controller.abort(reason);
+    await assert.rejects(operation, (error: unknown) => error === reason);
+    assert.equal(dispatched, 1);
+    assert.equal(drained, true);
+    assert.equal(published, 0);
+  },
+);
