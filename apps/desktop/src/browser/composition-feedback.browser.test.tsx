@@ -179,26 +179,54 @@ it.each(["main", "aside", "header"] as const)(
 );
 
 it("coordinates initial hover delay and adjacent tooltips through one shared provider", async () => {
-  await render(
-    <TooltipProvider>
-      <main>
-        <Tooltip label="First help">
-          <Button>First action</Button>
-        </Tooltip>
-        <Tooltip label="Second help">
-          <Button>Second action</Button>
-        </Tooltip>
-      </main>
-    </TooltipProvider>,
-  );
+  // Park the real pointer before mounting either trigger so an earlier test
+  // cannot start a hover on the real clock while this fixture is rendering.
+  const restingArea = <div>Pointer resting area</div>;
+  const view = await render(<main>{restingArea}</main>);
+  await userEvent.hover(page.getByText("Pointer resting area").element());
+
   vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
   try {
-    await userEvent.hover(page.getByRole("button", { name: "First action" }).element());
+    await view.rerender(
+      <main>
+        {restingArea}
+        <TooltipProvider>
+          <Tooltip label="First help">
+            <Button>First action</Button>
+          </Tooltip>
+          <Tooltip label="Second help">
+            <Button>Second action</Button>
+          </Tooltip>
+        </TooltipProvider>
+      </main>,
+    );
+    const firstTrigger = page.getByRole("button", { name: "First action" }).element();
+    const secondTrigger = page.getByRole("button", { name: "Second action" }).element();
+
+    // Vitest advances fake timers while Playwright actions are pending. Dispatch
+    // hover events in the browser so only the explicit advances move the clock.
+    function enterTrigger(trigger: Element, from: Element | null) {
+      trigger.dispatchEvent(
+        new PointerEvent("pointerover", {
+          bubbles: true,
+          pointerType: "mouse",
+          relatedTarget: from,
+        }),
+      );
+      trigger.dispatchEvent(new MouseEvent("mouseenter", { relatedTarget: from }));
+      trigger.dispatchEvent(new MouseEvent("mousemove", { bubbles: true, relatedTarget: from }));
+    }
+
+    await act(async () => enterTrigger(firstTrigger, null));
+    expect(document.querySelector('[role="tooltip"]')).toBeNull();
     await act(async () => vi.advanceTimersByTimeAsync(399));
     expect(document.querySelector('[role="tooltip"]')).toBeNull();
     await act(async () => vi.advanceTimersByTimeAsync(1));
     expect(document.querySelector('[role="tooltip"]')?.textContent).toBe("First help");
-    await userEvent.hover(page.getByRole("button", { name: "Second action" }).element());
+    await act(async () => {
+      firstTrigger.dispatchEvent(new MouseEvent("mouseleave", { relatedTarget: secondTrigger }));
+      enterTrigger(secondTrigger, firstTrigger);
+    });
     await act(async () => vi.advanceTimersByTimeAsync(0));
     expect(
       [...document.querySelectorAll('[role="tooltip"]')].some(
