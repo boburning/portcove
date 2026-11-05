@@ -2,7 +2,6 @@
  * provider projections remain inert until the maintained private receivers and
  * coordinator executor independently authenticate them. No signing is retried. */
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -11,7 +10,6 @@ import { isRecord } from "./runtime-values.mts";
 import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import type { CatalogAnchorMetadataProvider } from "./release-custody-provider.mts";
-import { readGitHubArtifactArchive } from "./github-binary.mts";
 import {
   capacityDigest as digest,
   inspectCapacityOperation,
@@ -65,6 +63,7 @@ import {
   inspectSigningContextArchive,
   receiveCatalogSigningContextArtifact,
   requireReceivedCatalogSigningContext,
+  acquireSigningContextArchive,
   signingContextRemaining,
 } from "./release-signing-context-artifact.mts";
 import type { SigningContextArtifactExpected } from "./release-signing-context-artifact.mts";
@@ -83,8 +82,6 @@ import {
 import { assembleActualCatalogRepositoryForRecovery } from "./release-catalog-signing.mts";
 import { recoverActualCatalogSitePublication } from "./release-catalog-site-controller.mts";
 
-const base = "repos/boburning/portcove";
-const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 type Operation = NonNullable<ReturnType<typeof inspectCapacityOperation>>;
 type Output = "context" | (typeof catalogSigningRoles)[number];
 const destination = (output: Output) =>
@@ -307,7 +304,11 @@ export async function continueActualCatalogPublication(
     ) => spawnSync(command, args, { ...settings, env: environment });
     let reads = 0;
     const chargeRead = () => {
-      if (++reads > 160) throw new Error("catalog continuation read budget exhausted");
+      if (reads >= 160) throw new Error("catalog continuation read budget exhausted");
+      reads++;
+      return () => {
+        reads--;
+      };
     };
     const api = new GitHubApiClient((args, body) => {
       chargeRead();
@@ -537,18 +538,11 @@ export async function continueActualCatalogPublication(
       };
       const contextOp = operations.get("context")!,
         before = await observe(contextOp, "context");
-      const archive = readGitHubArtifactArchive(
-        `${base}/actions/artifacts/${before.artifact.id}/zip`,
-        {
-          cwd: directory,
-          maxBytes: before.artifact.bytes,
-          timeoutMs: signingContextRemaining(originalDeadline, 30000),
-          spawn: (command, args, settings) =>
-            spawnSync(command, args, { ...settings, env: environment }),
-        },
-      );
-      if (hash(archive) !== before.artifact.sha256)
-        throw new Error("original catalog context archive changed");
+      const archive = await acquireSigningContextArchive(directory, before.artifact, {
+        token: environment.GH_TOKEN ?? "",
+        deadline: originalDeadline,
+        charge: chargeRead,
+      });
       const parsed = inspectSigningContextArchive(archive),
         manifest = parsed.manifest,
         producer = contextOp.executor_identity!;

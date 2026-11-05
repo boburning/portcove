@@ -609,7 +609,7 @@ export async function handoffSigningContextArtifact(
   }
 }
 
-async function acquireContextArchive(
+export async function acquireSigningContextArchive(
   directory: string,
   item: { id: number; bytes: number; sha256: string },
   options: {
@@ -733,7 +733,7 @@ export async function prepareSigningContextPredicate(
     return { id: raw.id, bytes: raw.size_in_bytes, sha256: uploaded.sha256 };
   };
   const before = await read();
-  const archive = await acquireContextArchive(owned.directory, before, {
+  const archive = await acquireSigningContextArchive(owned.directory, before, {
     token: readerToken,
     deadline,
   });
@@ -1035,7 +1035,7 @@ async function receiveContextArtifact(
     });
     phase = "opaque-download";
     const acquire = (item: { id: number; bytes: number; sha256: string }) =>
-      acquireContextArchive(directory, item, {
+      acquireSigningContextArchive(directory, item, {
         token: GH_TOKEN ?? "",
         deadline,
         fetch,

@@ -1268,6 +1268,9 @@ for (const [file, tests] of [
   [
     "scripts/release-signing-context-artifact.mts",
     [
+      "scripts/release-candidate-signing-recovery.test.mts",
+      "scripts/release-catalog-continuation.test.mts",
+      "scripts/release-metadata-context-recovery.test.mts",
       "scripts/release-signing-context-artifact.test.mts",
       "scripts/release-controller-transport.test.mts",
     ],
@@ -2441,6 +2444,9 @@ explicitNodeTests.set("scripts/release-direct-node-transport.mts", [
 
 explicitNodeTests.set("scripts/github-artifact-download.mts", [
   "scripts/release-compiler-evidence.test.mts",
+  "scripts/release-candidate-signing-recovery.test.mts",
+  "scripts/release-catalog-continuation.test.mts",
+  "scripts/release-metadata-context-recovery.test.mts",
   "scripts/release-controller-tools.test.mts",
   "scripts/release-catalog-site-controller.test.mts",
   "scripts/release-acceptance-evidence.test.mts",

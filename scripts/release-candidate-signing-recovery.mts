@@ -45,6 +45,7 @@ import {
   receiveSigningContextArtifact,
   requireReceivedSigningContext,
   requireRetainedSigningContext,
+  acquireSigningContextArchive,
   signingContextRemaining,
 } from "./release-signing-context-artifact.mts";
 import type { SigningContextArtifactExpected } from "./release-signing-context-artifact.mts";
@@ -557,7 +558,11 @@ export async function recoverCandidateSigningCustody(
       phase = "current-coordinator";
     let requests = 0;
     const chargeRead = () => {
-      if (++requests > 128) throw new Error("candidate signing discovery read bound exhausted");
+      if (requests >= 128) throw new Error("candidate signing discovery read bound exhausted");
+      requests++;
+      return () => {
+        requests--;
+      };
     };
     try {
       await verifiedControllerToolPaths(toolsReceipt);
@@ -677,21 +682,11 @@ export async function recoverCandidateSigningCustody(
       phase = "original-context";
       const contextOperation = operations.get("context")!;
       const contextBefore = await observe(contextOperation, "context");
-      const bytes = readGitHubArtifactArchive(
-        `${base}/actions/artifacts/${contextBefore.artifact.id}/zip`,
-        {
-          cwd: directory,
-          maxBytes: contextBefore.artifact.bytes,
-          timeoutMs: signingContextRemaining(deadline, 30000),
-          spawn: (command, args, settings) =>
-            spawnSync(command, args, { ...settings, env: environment }),
-        },
-      );
-      assert.equal(
-        hash(bytes),
-        contextBefore.artifact.sha256,
-        "original opaque context digest differs",
-      );
+      const bytes = await acquireSigningContextArchive(directory, contextBefore.artifact, {
+        token: environment.GH_TOKEN ?? "",
+        deadline: deadline,
+        charge: chargeRead,
+      });
       const inspected = inspectSigningContextArchive(bytes),
         manifest = inspected.manifest;
       assert.ok(

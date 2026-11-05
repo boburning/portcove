@@ -1,9 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { mkdtemp, readdir, rm, mkdir, readFile } from "node:fs/promises";
-import childProcess, { execFileSync } from "node:child_process";
-import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
-import { syncBuiltinESMExports } from "node:module";
+import { execFileSync } from "node:child_process";
 import path from "node:path";
 import os from "node:os";
 import { capacityDigest as digest } from "./release-capacity.mts";
@@ -201,47 +199,41 @@ void test("default GET-only pending upload transport reconciles failed producer 
     if (originalToken === undefined) delete process.env.GH_TOKEN;
     else process.env.GH_TOKEN = originalToken;
   });
-  const original = childProcess.spawnSync;
   for (const bootstrap of [false, true])
     for (const fault of ["", "absent", "changed-bytes", "changed-expected", "drift"]) {
       const f = pendingFixture(bootstrap),
         requests: string[] = [];
       let snapshots = 0,
         downloads = 0;
-      const mock = t.mock.method(
-        childProcess,
-        "spawnSync",
-        (command: string, args: readonly string[], options: SpawnSyncOptionsWithStringEncoding) => {
-          if (command !== "gh") return original(command, args, options);
-          assert.equal(args[args.indexOf("--hostname") + 1], "github.com");
-          assert.ok(options.timeout! > 0 && options.timeout! <= 30000);
-          assert.equal(options.env?.GH_HOST, "github.com");
-          const endpoint = args.find((a) => a.startsWith("repos/"));
-          assert.ok(endpoint);
-          requests.push(endpoint);
-          assert.match(endpoint, /\/zip$/u);
-          downloads++;
-          return {
-            status: 0,
-            stdout: fault === "changed-bytes" ? Buffer.from("changed") : f.archive,
-            stderr: Buffer.alloc(0),
-          };
-        },
-      );
       const fetchMock = t.mock.method(
         globalThis,
         "fetch",
         async (input: unknown, init?: RequestInit) => {
-          assert.ok(typeof input === "string");
+          assert.ok(typeof input === "string" || input instanceof URL);
           const url = new URL(input);
-          assert.equal(url.origin, "https://api.github.com");
           assert.equal(init?.method, "GET");
-          assert.equal(
-            new Headers(init?.headers).get("authorization"),
-            "token inert-metadata-context-reader",
-          );
+          const headers = new Headers(init?.headers);
+          if (url.origin !== "https://api.github.com") {
+            assert.equal(init?.credentials, "omit");
+            assert.equal(headers.has("authorization"), false);
+            return new Response(
+              Uint8Array.from(fault === "changed-bytes" ? Buffer.from("changed") : f.archive),
+            );
+          }
+          assert.equal(headers.get("authorization"), "token inert-metadata-context-reader");
           const endpoint = url.pathname.slice(1);
           requests.push(endpoint);
+          if (endpoint.endsWith("/zip")) {
+            assert.equal(endpoint, "repos/boburning/portcove/actions/artifacts/99/zip");
+            downloads++;
+            return new Response(null, {
+              status: 302,
+              headers: {
+                location:
+                  "https://productionresultssa10.blob.core.windows.net/actions-results/context?sig=synthetic",
+              },
+            });
+          }
           let body: unknown;
           if (endpoint.endsWith("/artifacts")) {
             assert.equal(url.searchParams.get("per_page"), "100");
@@ -260,7 +252,6 @@ void test("default GET-only pending upload transport reconciles failed producer 
           return Response.json(body);
         },
       );
-      syncBuiltinESMExports();
       try {
         const read = readPendingMetadataContextUpload(
           f.operation,
@@ -296,8 +287,6 @@ void test("default GET-only pending upload transport reconciles failed producer 
         assert.equal(downloads, fault === "absent" ? 0 : 1);
       } finally {
         fetchMock.mock.restore();
-        mock.mock.restore();
-        syncBuiltinESMExports();
       }
     }
 });
