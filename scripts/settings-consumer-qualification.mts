@@ -130,6 +130,15 @@ export async function settingsProbePaths(
   return { canonical, runtime, paths: [...new Set([canonical, runtime])] };
 }
 
+export async function assertRetainedSettingsConfiguration(
+  canonical: string,
+  configuration: string,
+) {
+  const retained = toNamespacedPath(await realpath(canonical));
+  if (relative(retained, toNamespacedPath(configuration)) !== "")
+    throw new Error("Native settings case differs from Core's retained canonical file.");
+}
+
 export async function initializeSettingsProbeFiles(
   root: string,
   scope: unknown,
@@ -419,8 +428,7 @@ export async function qualifySettingsConsumer(options: {
     throw new Error("Native settings executable is outside the selected exact package.");
   const retainedScope = await run(["game-settings", "qualification-scope", value.port_id]);
   const mutable = await settingsProbePaths(root, retainedScope, selected.file_id, status.active.id);
-  if ((await realpath(mutable.canonical)).toLowerCase() !== configuration.toLowerCase())
-    throw new Error("Native settings case differs from Core's retained canonical file.");
+  await assertRetainedSettingsConfiguration(mutable.canonical, configuration);
   const initial = await readSettingsProbeConfiguration(configuration);
   for (const file of mutable.paths) {
     if (!(await readSettingsProbeConfiguration(file)).equals(initial))

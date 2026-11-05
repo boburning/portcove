@@ -9,6 +9,7 @@ import {
   openSettingsProbeListener,
   requireSettingsVerification,
   initializeSettingsProbeFiles,
+  assertRetainedSettingsConfiguration,
   writeSettingsProbeConfiguration,
   readSettingsProbeConfiguration,
 } from "./settings-consumer-qualification.mts";
@@ -101,6 +102,11 @@ void test("qualification initializes Core-retained mirrors and refuses later div
   assert.deepEqual(paths.paths, [toNamespacedPath(canonical), toNamespacedPath(runtime)]);
   assert.equal(await readFile(canonical, "utf8"), sample);
   assert.equal(await readFile(runtime, "utf8"), sample);
+  await assertRetainedSettingsConfiguration(paths.canonical, toNamespacedPath(canonical));
+  await assert.rejects(
+    assertRetainedSettingsConfiguration(paths.canonical, toNamespacedPath(runtime)),
+    /differs from Core's retained canonical file/,
+  );
   await writeSettingsProbeConfiguration(runtime, '{"control":40,"unknown":{"keep":[true,3]}}');
   await assert.rejects(
     initializeSettingsProbeFiles(root, scope, "preferences", "exact", sample),
