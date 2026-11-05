@@ -381,3 +381,43 @@ fn quoted_credentials_are_redacted_and_repeated_redaction_is_stable() {
             .contains("still-private")
     );
 }
+
+#[test]
+fn unfinished_recovery_explains_the_next_action_without_claiming_completion() {
+    for (cause, key, consequence) in [
+        (
+            KnownFailureCause::RestoreRecovery,
+            "restore_recovery_required",
+            "Keep the backup and any safety copy",
+        ),
+        (
+            KnownFailureCause::BackupDeletionRecovery,
+            "backup_deletion_recovery_required",
+            "Reopening Portcove may finish deleting that backup",
+        ),
+    ] {
+        let report = PortcoveError::conflict("unfinished")
+            .with_known_cause(cause)
+            .report();
+        assert_eq!(report.presentation.presentation_key, key);
+        assert!(report.presentation.summary.contains(consequence));
+    }
+}
+
+#[test]
+fn credential_transfer_refusal_keeps_the_exact_path_and_preservation_order() {
+    let path = "C:/Transfer/retroachievements.credentials.1";
+    let report = PortcoveError::conflict("transfer refused")
+        .with_known_cause(KnownFailureCause::HostLocalCredential { path: path.into() })
+        .report();
+    assert_eq!(
+        report.presentation.presentation_key,
+        "host_local_credential_transfer_refused"
+    );
+    let summary = report.presentation.summary;
+    let warning = summary.find("Do not upload it").unwrap();
+    let preserve = summary.find("keep a private copy").unwrap();
+    let remove = summary.find("Remove only the listed file").unwrap();
+    assert!(warning < preserve && preserve < remove);
+    assert!(summary.contains(path));
+}

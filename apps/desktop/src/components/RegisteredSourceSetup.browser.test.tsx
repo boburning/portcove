@@ -35,7 +35,7 @@ const makeReview = (): SourceReuseReview => ({
     health: "current",
     state_code: "recognized_exact",
     summary: "Observed controlled edition",
-    next_action: "Review each integration",
+    next_action: "Open this game’s page in Portcove to see the next step.",
     registered: source,
     applications: [],
     evidence: [],
@@ -49,8 +49,10 @@ const makeReview = (): SourceReuseReview => ({
       contract_id: "2ship-source",
       compatibility: "listed_identity",
       can_review_setup: true,
-      summary: "The edition is listed, with informational admission.",
-      additional_checks: ["Review the integration's remaining requirements."],
+      summary: "This port lists the edition Portcove found.",
+      additional_checks: [
+        "You can review setup with these files. Portcove has not confirmed their compatibility with this port.",
+      ],
     },
     {
       port_id: "zelda64-recomp",
@@ -161,6 +163,12 @@ it("uses Core's per-integration result and carries the checked reference without
   expect(accessibility.violations).toEqual([]);
   expect(check).toHaveBeenCalledWith(source.profile_id, 3);
   expect(element.textContent).toContain("Choose USA 1.0");
+  expect(element.textContent).toContain("Open this game’s page in Portcove to see the next step.");
+  expect(element.textContent).toContain("This port lists the edition Portcove found.");
+  expect(element.textContent).toContain(
+    "Portcove has not confirmed their compatibility with this port.",
+  );
+
   expect(button("Review Zelda64 setup using these files")).toBeUndefined();
   await act(async () => button("Review 2Ship setup using these files").click());
   expect(selection.pendingReview).toEqual({
@@ -243,7 +251,7 @@ it("refuses a stale repair baseline and preserves substituted-input failure with
   await act(async () => render());
   await select();
   await act(async () => button("Repair moved file location").click());
-  expect(element.textContent).toContain("registration changed");
+  expect(element.textContent).toContain("saved file location changed");
   expect(apply).not.toHaveBeenCalled();
   plan.mockRejectedValueOnce(failureReport());
   await act(async () => button("Repair moved file location").click());

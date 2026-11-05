@@ -6,6 +6,44 @@ namespace Portcove.ReferenceClient
     // Descriptive instructions only. No step is treated as completed or authorized.
     internal static class SetupInstructions
     {
+        public static string LaunchBlocker(string code)
+        {
+            switch (code)
+            {
+                case "missing_source": return "Add the required original game files in Portcove.";
+                case "unreadable_source": return "Portcove couldn’t read the original files. Check their location in Portcove.";
+                case "changed_source": return "The original files changed. Check them again in Portcove.";
+                case "incompatible_source": return "The original files don’t meet this version’s requirements. Check the required edition and format in Portcove.";
+                case "missing_bios": return "Add the required BIOS file in Portcove.";
+                case "unreadable_bios": return "Portcove couldn’t read the BIOS file. Check its location in Portcove.";
+                case "changed_bios": return "The BIOS file changed. Check it again in Portcove.";
+                case "incompatible_bios": return "This version needs a different BIOS file. Check its requirements in Portcove.";
+                case "missing_runtime": return "The game program is missing a required file. Check setup in Portcove.";
+                case "preparation_required": return "Finish setting up the game before playing.";
+                case "shared_preferences_review_required": return "The game’s shared settings location changed. In Portcove, remove the managed installation while keeping saves and settings, then review a fresh installation. Leave the shared settings file in place.";
+                case "shared_preferences_unavailable": return "Portcove couldn’t check the game’s shared settings. Leave the settings file in place, close other copies of the game, check your Windows profile, then refresh.";
+                case "invalid_installation": return "Portcove couldn’t check the installed game files. Review this installation in Portcove.";
+                default: return "Portcove couldn’t confirm that the game can start. Check its setup in Portcove.";
+            }
+        }
+
+        public static string PreparationConfirmation(object plan)
+        {
+            var inputs = Json.Field(plan, "inputs");
+            var install = Json.Field(inputs, "install");
+            var source = Json.Field(inputs, "source");
+            var tool = Json.Field(inputs, "setup_tool");
+            var conversion = Json.Field(inputs, "conversion_tool");
+            return "Set up this game using the selected original files? Portcove checks the plan again, then prepares a separate copy beside the existing installation. When setup succeeds, Play uses the new copy. " +
+                "Keep the original files and existing version. Stopping setup may leave files to recover.\n\nGame version: " + Json.Text(install, "version") +
+                "\nOriginal files: " + Json.Text(source, "path") +
+                "\nExisting installation folder: " + Json.Text(install, "path") +
+                "\nBytes to copy: " + Json.Field(Json.Field(plan, "copy"), "total_bytes") +
+                "\n\nSetup details\nSetup tool: " + Json.Text(tool, "path") + "\nSetup SHA-256: " + Json.Text(tool, "sha256") +
+                (conversion == null ? "" : "\nConversion tool: " + Json.Text(conversion, "path") + "\nConversion SHA-256: " + Json.Text(conversion, "sha256")) +
+                "\nMode: " + Json.Text(Json.Field(inputs, "options"), "mode") + "\nTarget: " + Json.Text(Json.Field(inputs, "options"), "target");
+        }
+
         internal static object ForRuntime(object status, object catalog)
         {
             // A current managed definition cannot describe preparation of a
@@ -247,10 +285,10 @@ namespace Portcove.ReferenceClient
             var install = actions.FirstOrDefault(value => value.Action == "install");
             if (!installed && install != null && install.Availability == "held")
                 return Step(GuidedStepKind.ReviewProblem, "Review installation hold",
-                    "Portcove has held installation. Review the action reason above before registering more files or retrying.");
+                    "Portcove couldn’t continue installation. Open this game’s page in Portcove for the reason and available actions.");
             if (installed && launch != null && launch.Availability == "held")
                 return Step(GuidedStepKind.ReviewProblem, "Review launch hold",
-                    "This game is registered, but Portcove has held launch. Review the action reason above before registering more files or retrying.");
+                    "Portcove can’t start this game. Open its page in Portcove for the reason and available actions.");
             var external = Json.OptionalObjectField(status, "external_runtime") != null ||
                 Json.Text(Json.Field(catalog, "release"), "provider") == "user-prepared";
             var selectedRoute = external && UsesUserSelectedRuntime(catalog);
@@ -260,7 +298,7 @@ namespace Portcove.ReferenceClient
             var register = actions.FirstOrDefault(value => value.Action == "register_external");
             if (external && !installed && register != null && register.Availability == "held")
                 return Step(GuidedStepKind.ReviewProblem, "Review registration hold",
-                    "Portcove has held runtime registration. Review its action reason before selecting another folder.");
+                    "Portcove couldn’t add this installation. Open this game’s page in Portcove before selecting another folder.");
             if (!string.IsNullOrWhiteSpace(sourcePath) || !string.IsNullOrWhiteSpace(biosPath))
             {
                 if ((!string.IsNullOrWhiteSpace(sourcePath) && sourceProfile == null) ||
@@ -304,7 +342,7 @@ namespace Portcove.ReferenceClient
             }
             if (external)
                 return installed ? Step(GuidedStepKind.ReviewProblem, "Review external runtime",
-                    "This player-owned runtime is registered but cannot launch. Review the readiness and launch-action reasons above; refresh after resolving them.") :
+                    "Portcove can’t start the installation you added. Check Launch details in Portcove and refresh after resolving the problem.") :
                     Step(GuidedStepKind.RegisterExternal, "Choose prepared runtime folder…",
                         "Choose your already extracted official runtime. Portcove checks the exact accepted package identity and reviews its use in place; it does not install or update these files.");
             if (installed && Json.Boolean(readiness, "pending_setup"))

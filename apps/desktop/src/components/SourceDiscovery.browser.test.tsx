@@ -282,7 +282,7 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
     expect(plan.admission_mode).toBe("exact_identity");
     const renderedReview = document.body.querySelector('[aria-label="Source import review"]');
     expect(renderedReview?.textContent).toContain(profile.label);
-    expect(renderedReview?.textContent).toContain("Source check: Exact identity");
+    expect(renderedReview?.textContent).toContain("File check: Edition identified");
     expect(renderedReview?.textContent).toContain("Additional space needed: 64 B");
     await click("Copy into Portcove");
     expect(importSource).toHaveBeenCalledWith(

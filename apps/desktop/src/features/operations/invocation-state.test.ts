@@ -33,7 +33,7 @@ it("keeps other file work and library/application maintenance exclusive", () => 
     "Apply",
     "Verify",
     "Restore",
-    "Discard archive",
+    "Delete download",
     "Downloading",
   ]) {
     const mutation = targetInvocationContext(action, port, 7);

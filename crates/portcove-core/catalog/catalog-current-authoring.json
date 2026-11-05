@@ -13536,22 +13536,28 @@
             },
             {
               "title": "Prepare your own Super Mario 64 files",
-              "instruction": "Use your own supported Super Mario 64 US .z64 original for the accepted Windows route. The upstream 3.0.0 guide also describes JP input; that is separate from the credited US observation. Keep the original unchanged. Open Ghostship.exe from the extracted folder, select the original in the upstream file picker and let preparation finish. Keep the resulting sm64.o2r beside the game and its other extracted files. Close Ghostship normally before adding it."
+              "instruction": "Use your own Super Mario 64 US .z64 file and keep it unchanged. Open Ghostship.exe, choose the file and let setup finish. Keep sm64.o2r with the rest of the extracted files. Close Ghostship before adding it to Portcove."
             },
             {
               "title": "Add the prepared executable and play",
               "instruction": "Open this game’s Files tab, expand Use an existing installation · Installation options, then choose Use an existing installation. Choose game executable and select Ghostship.exe from the prepared folder. Set Start in folder to that same folder and leave launch arguments empty. Review launch details and confirm the registration, then choose Play. Selecting a program records your intent to run it; it does not authenticate a publisher package."
-            },
-            {
-              "title": "Keep updates and recovery with the correct owner",
-              "instruction": "For this external copy, you and upstream manage updates. Close the game and helpers, preserve the whole working folder including sm64.o2r, saves, mods, screenshots, ghostship.cfg.json and imgui.ini, then prepare a new version separately before changing launch details. Portcove offers launch and registration removal for this copy; it does not offer managed updates, backups, rollback, migration or deletion of its files. Removing the registration leaves the game and data in place. Existing Portcove-managed copies keep their own available management and qualified recovery."
             }
           ],
           "warnings": [
-            "Do not use an executable-only downgrade from Ghostship 3.0.0 to 2.0.0 with newer save data. Ordinary managed rollback can be held as unsafe; use only the existing qualified, consented recovery route where offered. The external registration does not provide that recovery.",
+            "Do not replace only the Ghostship 3.0.0 program with 2.0.0 while using newer saves. For a managed copy, use the legacy save recovery review in Saves & backups if Portcove offers it. For an installation you maintain, keep the newer files and use your own recovery copy.",
             "This guide covers Windows. Existing data, source and execution safeguards still apply; a held update or recovery does not by itself prevent an otherwise safe Play."
           ],
-          "help_url": "https://github.com/HarbourMasters/Ghostship/blob/deb091c29caff57dd986398087b058f16b11911e/README.md"
+          "help_url": "https://github.com/HarbourMasters/Ghostship/blob/deb091c29caff57dd986398087b058f16b11911e/README.md",
+          "references": [
+            {
+              "title": "Original file editions",
+              "instruction": "The Windows 3.0.0 route was checked with the US edition. The project’s guide also describes JP input, which was outside that check."
+            },
+            {
+              "title": "Updates and backups",
+              "instruction": "For this external copy, use the project’s tools to update it. Close the game and helpers, preserve the whole working folder including sm64.o2r, saves, mods, screenshots, ghostship.cfg.json and imgui.ini, then prepare a new version separately before changing launch details. Portcove offers launch and registration removal for this copy; it does not offer managed updates, backups, rollback, migration or deletion of its files. Removing the registration leaves the game and data in place. Existing Portcove-managed copies keep their own available update and recovery actions."
+            }
+          ]
         },
         "artwork": {
           "game_id": 1074,
@@ -13701,7 +13707,7 @@
           "steps": [
             {
               "title": "Download from the official Starship project",
-              "instruction": "Use HarbourMasters/Starship on GitHub, open its v2.0.0 release and download Starship-Barnard-Alfa-Windows.zip. Extract every file into a new folder outside your Portcove library. Keep existing originals, installations and saves in place. This upstream download is an alternative when automatic managed acquisition is held."
+              "instruction": "Use HarbourMasters/Starship on GitHub, open its v2.0.0 release and download Starship-Barnard-Alfa-Windows.zip. Extract every file into a new folder outside your Portcove library. Keep existing originals, installations and saves in place."
             },
             {
               "title": "Prepare the supported Star Fox 64 original",
@@ -13714,17 +13720,23 @@
             {
               "title": "Select the prepared game in Portcove",
               "instruction": "Open this game’s Files tab, expand Use an existing installation · Installation options, then choose Use an existing installation. Choose game executable and select Starship.exe from the prepared folder. Set Start in folder to that folder and leave launch arguments empty. Review launch details and confirm the registration, then choose Play. Selecting this executable records your intent to run it; it does not authenticate it as an official publisher package."
-            },
-            {
-              "title": "Manage updates and protect the prepared copy",
-              "instruction": "You and upstream own updates for this external copy. Close the game and helpers, preserve the whole working folder including sf64.o2r, mods, saves, starship.cfg.json and any legacy config.json, then prepare an update separately before changing launch details. Portcove offers launch and registration removal; it does not offer managed updates, backups, rollback, migration or deletion for these external files. Removing the registration preserves them. Any existing managed installation retains its own management and integrity checks."
             }
           ],
           "warnings": [
-            "The selected v2.0.0 Windows package has no published SHA-256 in the inspected release metadata. Automatic managed acquisition keeps its integrity hold. A user-selected executable is not publisher authentication; a locally computed hash does not supply it.",
+            "Portcove cannot automatically install the v2.0.0 Windows package because the expected download check is missing. Choosing Starship.exe yourself does not confirm who published it.",
             "If the game crashes with DirectX 11, upstream documents switching to OpenGL through Settings or starship.cfg.json, then restarting. Preserve the configuration before editing it. This guide covers Windows; it does not qualify other platforms."
           ],
-          "help_url": "https://github.com/HarbourMasters/Starship/blob/cb19785b51698185a688e17ba1a34c7889195bdb/README.md"
+          "help_url": "https://github.com/HarbourMasters/Starship/blob/cb19785b51698185a688e17ba1a34c7889195bdb/README.md",
+          "references": [
+            {
+              "title": "Download check",
+              "instruction": "The inspected v2.0.0 release metadata did not publish a SHA-256 for Starship-Barnard-Alfa-Windows.zip. A locally calculated hash identifies the file but does not confirm who published it."
+            },
+            {
+              "title": "Updates and backups",
+              "instruction": "Use the project’s tools to update this copy. Close the game and helpers, preserve the whole working folder including sf64.o2r, mods, saves, starship.cfg.json and any legacy config.json, then prepare an update separately before changing launch details. Portcove offers launch and registration removal; it does not offer managed updates, backups, rollback, migration or deletion for these external files. Removing the registration preserves them. Any existing managed installation retains its own management and integrity checks."
+            }
+          ]
         },
         "artwork": {
           "game_id": 2591,
@@ -23430,7 +23442,7 @@
         "installation_method": "user-prepared-runtime",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "For the documented upstream v0.1.12 route, finish Generate & Build outside Portcove using your own Japanese original (SHA-256 dd94308d822636c6ddf73c5e2644c84f2eb8fb4d9201150fc5f37d44d6f423f1; CRC32 c0aecdca). The downloaded setup host is not the prepared game. Select the completed build's GundamWingEndlessDuelSNESRecomp.exe, normally under build, with its containing folder as working directory. Supply two literal argument lines: --no-launcher, then the actual absolute path to your Japanese .sfc file, without shell quotes. Preserve the complete project/build tree, original, private generated code, mods, saves and save states, working-directory or parent config.ini, executable-adjacent keybinds.ini and separately configured upstream profiles with their creating runtime. Finish rebuilds and updates upstream outside the selected Play session. Portcove records reviewed execution intent and supervises only the selected process; Play is separate and registration removal preserves all external files. Managed installation, rebuild, update, backup, rollback, migration and deletion are not offered for this external copy. Existing registrations retain their supported arguments; older Portcove-built installations retain their original installation, source, backup and recovery contracts. No older-save, mod or save-state compatibility is inferred.",
+        "manual_preparation": "For the documented upstream v0.1.12 route, finish Generate & Build outside Portcove using your own Japanese original (SHA-256 dd94308d822636c6ddf73c5e2644c84f2eb8fb4d9201150fc5f37d44d6f423f1; CRC32 c0aecdca). The downloaded setup host is not the prepared game. Select the completed build's GundamWingEndlessDuelSNESRecomp.exe, normally under build, with its containing folder as working directory. Supply two literal argument lines: --no-launcher, then the actual absolute path to your Japanese .sfc file, without shell quotes. Preserve the complete project/build tree, original, private generated code, mods, saves and save states, working-directory or parent config.ini, executable-adjacent keybinds.ini and separately configured upstream profiles with their creating runtime. Finish rebuilds and updates upstream outside the selected Play session. Portcove saves the program and launch details you reviewed and tracks only that program; Play is separate and registration removal preserves all external files. Managed installation, rebuild, update, backup, rollback, migration and deletion are not offered for this external copy. Existing registrations retain their supported arguments; older Portcove-built installations retain their original installation, source, backup and recovery contracts. No older-save, mod or save-state compatibility is inferred.",
         "original_game_title": "Shin Kidou Senki Gundam W: Endless Duel",
         "manual_setup": {
           "steps": [
@@ -30574,7 +30586,7 @@
         "installation_method": "user-prepared-runtime",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Use the official WiiCompiled setup through Wheel Wizard with your own clean, supported Mario Kart Wii disc. The reviewed route uses the resolved PAL RMCP01 source identity. Complete upstream preparation and establish a working vanilla player before registration; Portcove does not extract, translate, compile, repair or validate game data. Choose Base/WiiCompiled.exe inside the existing installation, with that Base folder as the working directory and no arguments. Keep the complete installation and its configured GameAssets together. Do not select WiiCompiled-Setup.exe, Wheel Wizard or a compiler as the player. This route covers the vanilla game, not Retro Rewind. Review the selected executable, folder and literal arguments and consent to that execution intent. Registration does not start the game. Choose Play separately when ready. Portcove retains the selection for restart or relink and observes the selected player process. Keep the whole portable folder, portable.txt marker and UserData together. Otherwise the normal Windows profile is LocalAppData/WiiCompiled; if that known folder is unavailable upstream can use WiiCompiled under the working directory. Preserve Config.toml, NAND saves/settings, Cache, Logs and all original disc files and game assets. Configured relative NAND and DVD paths resolve from the Config.toml folder; preserve every actual custom path too. Wheel Wizard and upstream retain preparation, repair and runtime replacement. Direct player registration does not run their provenance checks, moved-install healing or install-operation lock. Close every actual player and preserve all working files and data before upstream repair or updates. Removing the registration removes only Portcove metadata and preserves all external files. Do not move the Base folder alone or add/remove portable.txt to change profile locations. Different installations may share LocalAppData/WiiCompiled. Portcove registration does not authenticate the game disc, setup package, generated player or source/build provenance. The upstream runtime writes its profile, may seed missing files in a configured NAND and prunes entries older than four days in its Logs folder. Preserve diagnostic evidence before Play when needed. External files remain upstream/player owned; Portcove cannot guarantee their retention by the game. Managed Install, Update, Backup, Rollback, migration and external deletion are unavailable. No original-game redistribution, Retro Rewind compatibility, gameplay/save-load or other-platform qualification is implied.",
+        "manual_preparation": "Use the official WiiCompiled setup through Wheel Wizard with your own clean, supported Mario Kart Wii disc. The reviewed route uses the resolved PAL RMCP01 source identity. Complete upstream preparation and establish a working vanilla player before registration; Portcove does not extract, translate, compile, repair or validate game data. Choose Base/WiiCompiled.exe inside the existing installation, with that Base folder as the working directory and no arguments. Keep the complete installation and its configured GameAssets together. Do not select WiiCompiled-Setup.exe, Wheel Wizard or a compiler as the player. This route covers the vanilla game, not Retro Rewind. Review the game program, start folder and launch arguments. Add the game, then choose Play when you’re ready. Portcove retains the selection for restart or relink and observes the selected player process. Keep the whole portable folder, portable.txt marker and UserData together. Otherwise the normal Windows profile is LocalAppData/WiiCompiled; if that known folder is unavailable upstream can use WiiCompiled under the working directory. Preserve Config.toml, NAND saves/settings, Cache, Logs and all original disc files and game assets. Configured relative NAND and DVD paths resolve from the Config.toml folder; preserve every actual custom path too. Wheel Wizard and upstream retain preparation, repair and runtime replacement. Direct player registration does not run their provenance checks, moved-install healing or install-operation lock. Close every actual player and preserve all working files and data before upstream repair or updates. Removing the registration removes only Portcove metadata and preserves all external files. Do not move the Base folder alone or add/remove portable.txt to change profile locations. Different installations may share LocalAppData/WiiCompiled. Portcove registration does not authenticate the game disc, setup package, generated player or source/build provenance. The upstream runtime writes its profile, may seed missing files in a configured NAND and prunes entries older than four days in its Logs folder. Preserve diagnostic evidence before Play when needed. External files remain upstream/player owned; Portcove cannot guarantee their retention by the game. Managed Install, Update, Backup, Rollback, migration and external deletion are unavailable. No original-game redistribution, Retro Rewind compatibility, gameplay/save-load or other-platform qualification is implied.",
         "original_game_title": "Mario Kart Wii",
         "manual_setup": {
           "steps": [
@@ -30588,7 +30600,7 @@
             },
             {
               "title": "Confirm and choose Play separately",
-              "instruction": "Review the selected executable, folder and literal arguments and consent to that execution intent. Registration does not start the game. Choose Play separately when ready. Portcove retains the selection for restart or relink and observes the selected player process."
+              "instruction": "Review the game program, start folder and launch arguments. Add the game, then choose Play when you’re ready. Portcove retains the selection for restart or relink and observes the selected player process."
             }
           ],
           "warnings": [
@@ -34465,7 +34477,7 @@
     {
       "id": "soulcalibur-ii-ring-out",
       "name": "Soulcalibur II / Ring Out",
-      "summary": "Register your already prepared Ring Out Windows runtime with your own Soulcalibur II USA disc data and generated module.",
+      "summary": "Play Soulcalibur II on Windows with Ring Out. Prepare a copy with your own USA disc and generated module before adding the game to Portcove.",
       "project_url": "https://github.com/jackpoison-prog/RingOut",
       "support_tier": "beta",
       "channels": [
@@ -34514,12 +34526,12 @@
               "instruction": "Use six separate literal argument tokens: --user-dir, the absolute path to this copy's userdata directory, --game, its absolute game directory, --module, and its absolute bin/gGRSEAF_recomp.dll path. Preserve spaces within each path token. Replace paths with your actual prepared locations; do not enter placeholders or --extract. The generated DLL is executable code and must be part of your permitted trusted prepared copy."
             },
             {
-              "title": "Review, consent and choose Play separately",
-              "instruction": "Review the exact runtime executable, root working directory and all six arguments, then consent to that execution intent. Registration does not start the game. Choose Play separately. Portcove retains the selection across restart and relink and observes the selected runtime process. Re-review and re-consent to every changed path after moving a copy."
+              "title": "Add the game, then choose Play",
+              "instruction": "Review the program, start folder and all six launch arguments. Add it to Portcove, then choose Play. If you move this copy, review every changed path before playing again."
             }
           ],
           "warnings": [
-            "Use an already permitted prepared copy and comply with its engine and component terms. Engine GPL/source statements do not license original-game files or generated game code. Core validates the selected execution intent; it does not authenticate the disc revision, generated DLL, package/build provenance or every component.",
+            "Use a prepared copy you have permission to use. The engine’s license does not give you rights to original game files or generated code. Portcove checks the selected launch details. Check the origin of your disc, package and generated DLL yourself.",
             "Explicit --user-dir avoids an unintended shared default profile; without it the runtime can use LOCALAPPDATA/moderngekko, an XDG/HOME profile or a working-directory fallback depending on its build. Explicit --game and --module avoid default-game.txt and module discovery. Keep your actual prior profiles and custom data paths; changing coordinates does not migrate them or prove state compatibility.",
             "Player startup creates and writes profile directories and settings; diagnostic, replay, texture/mod and configured external paths remain player-owned. Registration provides no sandbox or guarantee that upstream retains every file. Managed acquisition, Install, Update, Backup, Rollback, migration and external deletion are unoffered. Gameplay, save/load, netplay and other platforms remain unqualified.",
             "The reviewed v1.7 publication is distinct from historical v1.6.1 assets whose bytes changed under one name. It does not repair that old integrity gap. Old package CREDITS/README version and source-bundle instructions are stale; preserve notices and follow the matching upstream source. No binary/source attestation or new distribution right is inferred.",
@@ -34529,7 +34541,7 @@
           "references": [
             {
               "title": "Preserve the complete copy and keep one update owner",
-              "instruction": "Keep game, bin including the generated module, art, module-src, work, userdata and every actual custom location together. Preserve settings, memory cards, states, screenshots, logs, replays, shaders, textures, mods and unknown files. Upstream and the player own preparation, repair and replacement. Close all actual players and preserve originals/data before upstream changes. Removing the registration removes only Portcove metadata and preserves external files."
+              "instruction": "Keep game, bin including the generated module, art, module-src, work, userdata and every actual custom location together. Preserve settings, memory cards, states, screenshots, logs, replays, shaders, textures, mods and unknown files. Upstream and the player own preparation, repair and replacement."
             }
           ]
         },

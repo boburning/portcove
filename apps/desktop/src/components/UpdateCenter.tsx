@@ -659,8 +659,8 @@ function UpdateCenterView(model: ReturnType<typeof useUpdateCenter>) {
           </div>
         )}
         {model.retainedArchives.length > 0 && (
-          <section className="mt-7" aria-label="Retained update archives">
-            <h3 className="mb-3 text-base">Retained update archives</h3>
+          <section className="mt-7" aria-label="Downloaded updates">
+            <h3 className="mb-3 text-base">Downloaded updates</h3>
             <p className="mb-4 text-sm text-pc-muted-foreground">
               Archives remain recorded separately from installations. These records offer archive
               cleanup; preparing or installing an update requires an available managed installation

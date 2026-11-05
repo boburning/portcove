@@ -44,7 +44,7 @@ describe("Portcove app shell", () => {
     expect(html).not.toContain("Install");
     expect(html).toContain("Create a support report");
     expect(html).toContain("Game-file contents and saved credentials are excluded");
-    expect(html).toContain("Review the bundle before sharing it");
+    expect(html).toContain("Review the support report before sharing it");
     const exportButton = html.match(/<button([^>]*)>Create a support report<\/button>/)?.[1];
     expect(exportButton).toBeDefined();
     expect(exportButton).not.toMatch(/\sdisabled(?:=|\s|$)/);

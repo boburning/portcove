@@ -70,7 +70,7 @@ it("keeps manual preparation distinct from checked restore and authority-changin
   expect(text).toContain("then opens the new copy");
   expect(text).toContain("retroachievements.credentials");
   expect(text).toContain("Checked restore and location changes refuse these files");
-  expect(text).toContain("Temporary files may remain");
+  expect(text).toContain("If Portcove names a remaining sign-in file");
   expect(document.querySelector('input[type="checkbox"]')).toBeNull();
   await expect
     .element(page.getByRole("button", { name: "Restore from a library copy" }))

@@ -14,3 +14,5 @@
 ## Review and risk
 
 <!-- Review performed, reviewed head and result under QUALITY; material risks/limitations. -->
+
+<!-- For player copy or a producer change, check the full rendered task against docs/CONTENT-DESIGN.md. Verify state, file effects, warning order, accessible labels and the available next action. -->

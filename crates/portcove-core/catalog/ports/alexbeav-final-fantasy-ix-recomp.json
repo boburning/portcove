@@ -20,20 +20,26 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Download the upstream setup package",
-          "instruction": "Extract the complete official setup ZIP for your system into a separate writable folder you control. Its launcher builds the game using your own matching disc. On Linux, follow that version’s prerequisites, including CMake, Ninja, Python 3 and a C/C++ compiler where required; bundled Windows tools do not supply Linux tools. Downloading and extracting do not start setup or the game. Portcove has not confirmed setup or gameplay for this package."
+          "title": "Download and unpack the setup kit",
+          "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
         },
         {
           "title": "Supply the matching original files",
           "instruction": "Follow the upstream guide for the version you downloaded. Use your own original in its supported image representation, keeping a CUE and every referenced track together when required, and supply your own BIOS whenever that guide requires it. Preserve the exact edition, disc layout and BIOS requirements in that guide; an included setup BIOS does not establish game compatibility."
         },
         {
-          "title": "Finish upstream setup, then add the player",
-          "instruction": "Open the project’s launcher to build the game from your own files. Follow the instructions for that version and keep the completed game with its required runtime and compiler files. In Portcove, select the completed game executable or supported launcher and its working folder. If setup created the game elsewhere, select that location. Save the launch details, then choose Play when you are ready. You manage updates, original files, saves and settings; Portcove does not back up these external files. Keep a working copy and its data before changing versions."
+          "title": "Build the game and add it to Portcove",
+          "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
         }
       ],
-      "warnings": [],
-      "help_url": "https://github.com/alexbeavs-ps1-ports/final-fantasy-ix-recomp#readme"
+      "warnings": ["Portcove has not confirmed setup or gameplay for this package."],
+      "help_url": "https://github.com/alexbeavs-ps1-ports/final-fantasy-ix-recomp#readme",
+      "references": [
+        {
+          "title": "Updates and backups",
+          "instruction": "Keep a working copy and its data before changing versions. Use the project’s tools for updates and back up your original files, saves and settings yourself."
+        }
+      ]
     },
     "release_url": "https://github.com/alexbeavs-ps1-ports/final-fantasy-ix-recomp/releases",
     "download_asset_hints": {

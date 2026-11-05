@@ -1,3 +1,4 @@
+import { ExternalLaunchWarnings } from "./AuthoredSetupWarnings";
 import { GameHero } from "./GameHero";
 import {
   browsePortPresentation,
@@ -263,11 +264,14 @@ function usePortBrowser({
       statuses,
     });
   const favoritesUnavailable = favorites?.only === true && !favorites.ids;
+  const loadingResults = loading || Boolean(favoritesUnavailable && favorites?.busy);
+  const showingRetainedFavorites = Boolean(favorites?.only && favorites.ids && favorites.failure);
   const queryState =
     typeof filter === "string" ? "matched" : evaluateCatalogQuery([], filter, queryContext).state;
   const resultsUnavailable =
     favoritesUnavailable ||
     queryState === "unavailable" ||
+    queryState === "unresolved" ||
     (composedLibrary && candidates === undefined);
   const unresolvedFilter = queryState === "unresolved";
   const { favoriteCount, visiblePorts: favoriteMatches } = favoritePorts(ports, favorites);
@@ -285,7 +289,7 @@ function usePortBrowser({
           groupCatalog(catalogUniverse ?? ports, visiblePorts).some(
             (group) => group.ports.length > 1,
           )
-        ? `${groupCountLabel(groupCatalog(catalogUniverse ?? ports, visiblePorts))} · ${visiblePorts.length} matching implementations`
+        ? `${groupCountLabel(groupCatalog(catalogUniverse ?? ports, visiblePorts))} · ${visiblePorts.length} matching ports`
         : browserResultCount(view, visiblePorts.length);
   const reset = () => {
     const owner = browserOwner.current;
@@ -304,15 +308,17 @@ function usePortBrowser({
     filterConstrained(filter) ||
     favorites?.only === true ||
     (composedLibrary && libraryReadiness !== "all");
-  const firstUseEmpty = firstLibraryVisit({
-    view,
-    loading,
-    recent,
-    installed: overview.installed,
-    portCount: ports.length,
-    constrained,
-    query,
-  });
+  const firstUseEmpty =
+    !resultsUnavailable &&
+    firstLibraryVisit({
+      view,
+      loading,
+      recent,
+      installed: overview.installed,
+      portCount: ports.length,
+      constrained,
+      query,
+    });
   return {
     favorites,
     organization,
@@ -354,6 +360,8 @@ function usePortBrowser({
     readinessCount,
     declaredCandidates,
     favoritesUnavailable,
+    loadingResults,
+    showingRetainedFavorites,
     resultsUnavailable,
     unresolvedFilter,
     favoriteCount,
@@ -386,11 +394,15 @@ function PortBrowserView({
   return (
     <div ref={browserRoot} className="@container/library-query min-w-0">
       <p className="sr-only" role="status" aria-label="Search results">
-        {model.firstUseEmpty
-          ? "Your library is empty."
-          : model.resultsUnavailable
-            ? "Search results unavailable"
-            : model.resultCount}
+        {model.loadingResults
+          ? "Loading search results"
+          : model.firstUseEmpty
+            ? "Your library is empty."
+            : model.resultsUnavailable
+              ? "Search results unavailable"
+              : model.showingRetainedFavorites
+                ? `Last confirmed favorites. ${model.resultCount}`
+                : model.resultCount}
       </p>
       {renderDropAnnouncement()}
       {renderConnectPrompt()}
@@ -465,11 +477,26 @@ function PortBrowserView({
           Your other filters will stay on.
         </p>
       )}
-      {model.favoritesUnavailable && (
-        <p role="status">
-          We couldn’t load your favorites, so we can’t show this filtered view yet.
-        </p>
+      {model.favoritesUnavailable && !model.loadingResults && (
+        <Button variant="outline" onClick={() => favorites?.setOnly(false)}>
+          Show all games
+        </Button>
       )}
+      {model.resultsUnavailable &&
+        !model.favoritesUnavailable &&
+        !model.unresolvedFilter &&
+        !model.loadingResults && (
+          <Notice intent="warning">
+            {model.visiblePorts.length
+              ? "Portcove couldn’t check these filters. Previously loaded results are shown."
+              : "Portcove couldn’t check these filters."}
+            {(model.view !== "library" || !(model.constrained || model.query.trim())) && (
+              <Button variant="outline" onClick={model.reset}>
+                Reset view
+              </Button>
+            )}
+          </Notice>
+        )}
       {model.unresolvedFilter && (
         <p role="alert" className="mb-3 text-sm text-pc-muted-foreground">
           These saved filters aren’t supported by this version of Portcove. Reset them to search
@@ -508,7 +535,8 @@ function PortBrowserView({
         onBrowseCatalog={model.onBrowseCatalog}
         onConnectGameFiles={model.onConnectGameFiles}
         clearFilters={model.reset}
-        loading={model.loading || model.resultsUnavailable}
+        loading={model.loadingResults}
+        unavailable={model.resultsUnavailable}
         nativeSourceDrag={model.nativeSourceDrag}
       />
     </div>
@@ -604,6 +632,7 @@ function BrowserResults({
   onConnectGameFiles,
   clearFilters,
   loading,
+  unavailable,
   nativeSourceDrag,
 }: {
   organization?: Organization | undefined;
@@ -625,9 +654,11 @@ function BrowserResults({
   onConnectGameFiles?: (() => void) | undefined;
   clearFilters?: (() => void) | undefined;
   loading: boolean;
+  unavailable: boolean;
   nativeSourceDrag: NativeSourceDragState;
 }) {
-  if (loading) return <LoadingState />;
+  if (loading && ports.length === 0) return <LoadingState />;
+  if (unavailable && ports.length === 0) return null;
   if (ports.length === 0)
     return (
       <BrowserEmptyState
@@ -835,6 +866,9 @@ function ContinueCard({
         )}
       </div>
       <div className="continue-actions min-w-0">
+        {launchable && status.external_runtime && (
+          <ExternalLaunchWarnings portId={port.id} status={status} />
+        )}
         <Button
           data-focusable
           variant="primary"
@@ -1166,6 +1200,9 @@ function PortCardStatus({
           : "View details";
   return (
     <div className="collection-actions mt-0 flex min-h-8 flex-wrap items-center justify-end gap-1 pt-0 text-xs">
+      {!taskPrimary && canLaunch && status?.external_runtime && (
+        <ExternalLaunchWarnings portId={port.id} status={status} />
+      )}
       <span className="inline-flex flex-wrap items-center justify-end gap-1 text-[var(--color-interactive-text-strong)]">
         {taskPrimary && (
           <Button
@@ -1390,9 +1427,11 @@ function renderFavoritesFailurePortBrowserView(
               : "Favorites could not be refreshed"}
           </strong>
           <p>
-            Last confirmed choices have been kept; a write may already have applied. You can keep
-            browsing and playing. Retry reading favorites to reconcile them; if the error continues,
-            repair the host preferences file.
+            {favorites.failure === "write"
+              ? "Your choice may already be saved. Retry favorites to check."
+              : favorites.ids
+                ? "Portcove is showing your last saved favorites. Retry favorites to check for changes."
+                : "Portcove couldn’t load your favorites. Retry favorites or keep browsing and playing without them."}
           </p>
           <Button
             data-focusable

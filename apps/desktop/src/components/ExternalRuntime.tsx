@@ -1,4 +1,4 @@
-import { AuthoredSetupWarnings } from "./AuthoredSetupWarnings";
+import { AuthoredSetupWarnings, setupWarningsBeforeAction } from "./AuthoredSetupWarnings";
 import { ActionReviewFailure } from "./ActionReviewFailure";
 import { FolderOpen } from "lucide-react";
 import { gameIdentityLabel } from "../port-identity";
@@ -103,7 +103,7 @@ export function AuthoredPreparationGuidance({
     <>
       {guide ? (
         <>
-          <AuthoredSetupWarnings warnings={guide.warnings} />
+          <AuthoredSetupWarnings warnings={setupWarningsBeforeAction(port.id, guide.warnings)} />
           <ol className="grid min-w-0 list-decimal gap-4 pl-5 wrap-anywhere marker:font-semibold">
             {guide.steps.map((step, index) => (
               <li key={`${index}:${step.title}`} className="pl-1">

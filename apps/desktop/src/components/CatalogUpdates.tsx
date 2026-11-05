@@ -609,7 +609,7 @@ function ListingDeliveryControls({
   };
   return (
     <details>
-      <summary>Directory updates</summary>
+      <summary>Game listings</summary>
       <p>
         Refresh port listings, artwork and setup information from the configured official publisher.
         Game installations keep their existing permissions and files.
@@ -617,7 +617,7 @@ function ListingDeliveryControls({
       {status && (
         <p>
           {status.selected
-            ? `Directory revision ${status.revision} · ${status.listing_count} published listings`
+            ? `Game listings revision ${status.revision} · ${status.listing_count} published listings`
             : "Using the built-in directory"}
         </p>
       )}
@@ -648,7 +648,7 @@ function ListingDeliveryControls({
           void refresh();
         }}
       >
-        {busy ? "Refreshing directory…" : "Refresh directory"}
+        {busy ? "Refreshing game listings…" : "Refresh game listings"}
       </Button>
       {error && <p role="alert">{error}</p>}
     </details>

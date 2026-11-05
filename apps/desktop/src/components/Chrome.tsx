@@ -2267,7 +2267,7 @@ export function LibrarySelectionCard({
               className="mb-4 leading-relaxed"
             >
               {review.kind === "switch"
-                ? "Portcove will open this library and save it for future launches. A launch override can still select another library for one launch. Existing files stay in place. The library you open uses its own game install folder settings."
+                ? "Portcove will open this library and save it for future launches. Existing files stay in place. The library you open uses its own game install folder settings."
                 : "Portcove will open the default library shown below and clear the saved library choice. If host preferences are damaged or from a newer format, this also resets saved language and tool paths. Files in the current library will stay where they are. The default library uses its own game install folder settings."}
             </DialogDescription>
             <code className="block break-all">{review.path}</code>
@@ -2487,7 +2487,10 @@ export function HostToolRow({
       </div>
       <small className="text-[var(--color-text-secondary)]">{tool.purpose}</small>
       {tool.state === "missing" && (
-        <p>{tool.display_name} was not found. Choose its executable to continue.</p>
+        <p>
+          Portcove couldn’t find {tool.display_name}. If it’s installed, choose its program file.
+          Otherwise, install it from its official site first.
+        </p>
       )}
       {tool.state === "misconfigured" &&
         (tool.source === "environment" ? (
@@ -2629,9 +2632,8 @@ function StorageCard({
       ) : (
         <p>Storage capacity is unavailable for this location.</p>
       )}
-      <p className="flex items-start gap-2 [&_svg]:mt-0.5">
-        <Icon glyph={ShieldCheck} size="sm" /> Installed application files are kept separate from
-        saves and settings.
+      <p>
+        Check Saves &amp; backups on each game’s page for its save locations and backup options.
       </p>
     </SettingsRow>
   );

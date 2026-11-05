@@ -841,6 +841,12 @@ function classifyPath(file: string): PathOwnership {
       "platform-contract",
     );
     match(
+      file.startsWith("integrations/playnite/") && /\.(?:cs|csproj|ps1|json)$/u.test(file),
+      "policy",
+      ["rust"],
+      "playnite-reference-client",
+    );
+    match(
       file.startsWith("scripts/") ||
         file === "apps/desktop/src/browser/failure-probe-contract.ts" ||
         file === ".fallow-tooling.json" ||

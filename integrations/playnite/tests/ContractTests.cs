@@ -339,8 +339,13 @@ internal static class ContractTests
         descriptive88["schema_version"] = 88;
         descriptive88["port_capability_schema"] = 1;
         descriptive88["listing_formats"] = new[] { 5, 6, 7, 8 };
-        Check(ProtocolStream.Negotiate(descriptive88, ConsumerCapability.Library) == 3,
-            "API88 additive feature reports do not change independently negotiated event3 or client operation eligibility");
+        descriptive88["operation_event_schema_version"] = 3;
+        descriptive88["commands"] = Json.Array(Json.Field(descriptive88, "commands")).Cast<string>()
+            .Concat(new[] { "remove.preview", "remove", "installation.review" }).ToArray();
+        Check(ProtocolStream.Negotiate(descriptive88, ConsumerCapability.Library) == 2,
+            "API88 library negotiation ignores the event channel and additive feature reports");
+        Check(ProtocolStream.Negotiate(descriptive88, ConsumerCapability.Lifecycle) == 3,
+            "API88 lifecycle negotiates event3 independently of additive feature reports");
         var independent83 = Json.Object(Json.Parse(Json.Print(Capabilities())));
         independent83["schema_version"] = 83;
         independent83["operation_event_schema_version"] = 3;
@@ -1114,6 +1119,26 @@ internal static class ContractTests
 
     private static void CheckGuidedSetup()
     {
+        var preparation = SetupInstructions.PreparationConfirmation(Json.Parse(Json.Print(new {
+            inputs = new {
+                install = new { path = "C:/Games/test", version = "1.2" },
+                source = new { path = "C:/Original/edition.z64" },
+                setup_tool = new { path = "C:/Games/tool.exe", sha256 = "fixture-digest" },
+                conversion_tool = (object)null,
+                options = new { mode = "default", target = "windows-x86-64" }
+            },
+            copy = new { total_bytes = 1234 }
+        })));
+        Check(preparation.StartsWith("Set up this game using the selected original files?") &&
+            preparation.Contains("Stopping setup may leave files to recover.") &&
+            preparation.Contains("When setup succeeds, Play uses the new copy.") &&
+            preparation.Contains("Game version: 1.2") && preparation.Contains("C:/Original/edition.z64") &&
+            preparation.Contains("C:/Games/test") && preparation.Contains("fixture-digest") &&
+            preparation.Contains("Target: windows-x86-64"),
+            "preparation confirmation leads with the effect and retains inputs, existing installation folder and diagnostic identity");
+        Check(SetupInstructions.LaunchBlocker("missing_bios").Contains("required BIOS file") &&
+            SetupInstructions.LaunchBlocker("future_blocker").Contains("couldn’t confirm"),
+            "BIOS blockers and unknown states explain the available next step");
         var instructions = Json.Parse("{\"manual_setup\":{\"steps\":[{\"title\":\"Prepare a copy\",\"instruction\":\"Keep the original unchanged.\"}],\"warnings\":[\"Preserve saves.\"]},\"manual_preparation\":\"Long legacy notes\"}");
         var summary = SetupInstructions.Summary(instructions);
         Check(summary.Contains("Before you begin: Preserve saves.") && summary.Contains("1. Prepare a copy: Keep the original unchanged.") && !summary.Contains("Long legacy notes"),
@@ -1257,8 +1282,10 @@ internal static class ContractTests
         Check(GuidedSetup.Choose(registerHeld, externalNeedsSource, @"C:\owned\game.rom", "").Kind == GuidedStepKind.ReviewProblem,
             "selected files cannot override a held external registration");
         var registeredExternal = Json.Parse("{\"active\":null,\"external_runtime\":{\"path\":\"C:\\\\owned\\\\runtime\",\"version\":\"1\"},\"readiness\":{\"launchable\":false,\"pending_setup\":false,\"blockers\":[\"invalid_installation\"]},\"port_actions\":[{\"action\":\"launch\",\"availability\":\"held\",\"reason\":\"invalid_installation\"}]}");
-        Check(GuidedSetup.Choose(registeredExternal, external, "", "").Detail.Contains("is registered"),
-            "registered but held external runtime receives its actual review path");
+        var heldLaunch = GuidedSetup.Choose(registeredExternal, external, "", "");
+        Check(heldLaunch.Kind == GuidedStepKind.ReviewProblem && heldLaunch.Label == "Review launch hold" &&
+            heldLaunch.Detail.Contains("can’t start this game") && heldLaunch.Detail.Contains("Open its page in Portcove"),
+            "registered but held external runtime explains why Play is unavailable and where to review it");
         var convertedCatalog = Json.Parse(Json.Print(new {
             source_profile = (string)null, bios_source_profile = (string)null,
             release = new { provider = "direct-manifest" },

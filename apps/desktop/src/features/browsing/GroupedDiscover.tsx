@@ -188,7 +188,7 @@ export function GroupedDiscover({
               <DialogDescription>
                 {comparison.ports.length === 1
                   ? "Review this port’s setup requirements and reports."
-                  : `Compare ${comparison.ports.length} port projects. Each keeps its own installation, files and saved data.`}
+                  : `Compare setup requirements for ${comparison.ports.length} ports. Check each port’s instructions for shared save locations.`}
               </DialogDescription>
               <details className="my-4 text-xs text-pc-muted-foreground">
                 <summary data-focusable className="cursor-pointer py-2">

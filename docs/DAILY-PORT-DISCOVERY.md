@@ -842,6 +842,11 @@ cannot claim no new ports or complete currency. Surface offered-integration
 integrity concerns first without claiming compromise from metadata alone.
 Do not recompute whole-project release readiness.
 
+For generated proposals containing a listing summary or guide, record upstream
+facts and evidence before writing the player text. Follow the
+[Content design](CONTENT-DESIGN.md) standard for summaries, warnings, actions
+and references.
+
 The scheduler prompt should identify repo, this skill and durable checkpoint
 path, daily metadata-write authority, approved model policy and result location.
 Keep the detailed specification here. Do not launch a second product writer.
