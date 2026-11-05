@@ -35,7 +35,7 @@ async function main() {
   if (
     args.length !== 6 ||
     args[0] !== "--role" ||
-    !["semantic", "protection_observer"].includes(args[1] ?? "") ||
+    !["semantic", "protection_observer", "storage_writer"].includes(args[1] ?? "") ||
     args[2] !== "--expected-source" ||
     args[4] !== "--registration-source" ||
     !/^[a-f0-9]{40}$/u.test(args[5] ?? "")

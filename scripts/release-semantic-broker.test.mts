@@ -2181,6 +2181,36 @@ void test("selected issuer identity is closed, purpose-specific and cannot add a
     assert.throws(() => inspectSemanticIssuerConfiguration(bad));
 });
 
+void test("storage-writer installation CLI reaches the source guard before private setup", () => {
+  const entry = new URL("./observe-hosted-release-app-installation.mts", import.meta.url);
+  const source = "a".repeat(40);
+  const output = execFileSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "-e",
+      `
+      import { registerHooks } from "node:module";
+      import { fileURLToPath } from "node:url";
+      const entry = ${JSON.stringify(entry.href)};
+      const source = ${JSON.stringify(source)};
+      registerHooks({ resolve(spec, context, next) {
+        if (context.parentURL === entry && spec === "./register-hosted-release-app.mts") {
+          const guard = "export function requireOrdinaryHostedAppSetupSource(source) { console.log(source); process.exit(0); }";
+          return { url: "data:text/javascript," + encodeURIComponent(guard), shortCircuit: true };
+        }
+        return next(spec, context);
+      } });
+      process.argv = [process.execPath, fileURLToPath(entry), "--role", "storage_writer",
+        "--expected-source", source, "--registration-source", source];
+      await import(entry);
+      `,
+    ],
+    { encoding: "utf8", timeout: 15000, windowsHide: true },
+  );
+  assert.equal(output.trim(), source);
+});
+
 void test("selected actual broker control flow publishes and reconciles both purposes with controlled capture/provider boundaries only", async (t) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "selected-semantic-broker-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
