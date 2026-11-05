@@ -113,13 +113,44 @@
         "match_kind": "underlying-game"
       },
       "issue_number": 53,
+      "availability": "packages",
+      "setup_url": "https://github.com/HarbourMasters/Ghostship/blob/deb091c29caff57dd986398087b058f16b11911e/README.md",
+      "release_url": "https://github.com/HarbourMasters/Ghostship/releases/tag/3.0.0",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Keep your current Ghostship installation",
+            "instruction": "If Ghostship already works in Portcove, keep using Play and the management operations available for that installation. Do not replace it or move its data to use this alternative Windows setup. For a separately prepared copy, follow the steps below."
+          },
+          {
+            "title": "Download the official Windows package",
+            "instruction": "Use HarbourMasters/Ghostship on GitHub and its official 3.0.0 release. Download Nautilus-Alfa-Win64.zip and extract every file into a new folder outside your Portcove library. Keep existing installations and originals in place; do not extract over them."
+          },
+          {
+            "title": "Prepare your own Super Mario 64 files",
+            "instruction": "Use your own supported Super Mario 64 US .z64 original for the accepted Windows route. The upstream 3.0.0 guide also describes JP input; that is separate from the credited US observation. Keep the original unchanged. Open Ghostship.exe from the extracted folder, select the original in the upstream file picker and let preparation finish. Keep the resulting sm64.o2r beside the game and its other extracted files. Close Ghostship normally before adding it."
+          },
+          {
+            "title": "Add the prepared executable and play",
+            "instruction": "Open this game’s Files tab, expand Use an existing installation · Installation options, then choose Use an existing installation. Choose game executable and select Ghostship.exe from the prepared folder. Set Start in folder to that same folder and leave launch arguments empty. Review launch details and confirm the registration, then choose Play. Selecting a program records your intent to run it; it does not authenticate a publisher package."
+          },
+          {
+            "title": "Keep updates and recovery with the correct owner",
+            "instruction": "For this external copy, you and upstream manage updates. Close the game and helpers, preserve the whole working folder including sm64.o2r, saves, mods, screenshots, ghostship.cfg.json and imgui.ini, then prepare a new version separately before changing launch details. Portcove offers launch and registration removal for this copy; it does not offer managed updates, backups, rollback, migration or deletion of its files. Removing the registration leaves the game and data in place. Existing Portcove-managed copies keep their own available management and qualified recovery."
+          }
+        ],
+        "warnings": [
+          "Do not use an executable-only downgrade from Ghostship 3.0.0 to 2.0.0 with newer save data. Ordinary managed rollback can be held as unsafe; use only the existing qualified, consented recovery route where offered. The external registration does not provide that recovery.",
+          "This guide covers Windows. Existing data, source and execution safeguards still apply; a held update or recovery does not by itself prevent an otherwise safe Play."
+        ],
+        "help_url": "https://github.com/HarbourMasters/Ghostship/blob/deb091c29caff57dd986398087b058f16b11911e/README.md"
+      },
       "platforms": [
         "windows-x86-64",
         "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
-      ],
-      "availability": "unknown"
+      ]
     },
     {
       "id": "paperboat",
@@ -157,13 +188,44 @@
         "match_kind": "underlying-game"
       },
       "issue_number": 61,
+      "availability": "packages",
+      "setup_url": "https://github.com/HarbourMasters/Starship/blob/cb19785b51698185a688e17ba1a34c7889195bdb/README.md",
+      "release_url": "https://github.com/HarbourMasters/Starship/releases/tag/v2.0.0",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Download from the official Starship project",
+            "instruction": "Use HarbourMasters/Starship on GitHub, open its v2.0.0 release and download Starship-Barnard-Alfa-Windows.zip. Extract every file into a new folder outside your Portcove library. Keep existing originals, installations and saves in place. This upstream download is an alternative when automatic managed acquisition is held."
+          },
+          {
+            "title": "Prepare the supported Star Fox 64 original",
+            "instruction": "Supply your own Star Fox 64 US 1.0 or US 1.1 Rev A original in .z64 format. JP and EU originals can supply optional voices with a US base; they cannot create the base game. Follow upstream’s conversion instructions if your dump is .n64 or .v64, keeping the original unchanged. Portcove registration does not validate or authenticate these original files."
+          },
+          {
+            "title": "Complete upstream setup before adding the game",
+            "instruction": "Open Starship.exe from the extracted folder and select the supported US .z64 original in the upstream file picker. Let it generate sf64.o2r. Keep that generated file, the separate shipped starship.o2r and all other package files in the game folder. A ROM launch argument or the shipped starship.o2r alone does not finish preparation. Close the game normally before registration."
+          },
+          {
+            "title": "Select the prepared game in Portcove",
+            "instruction": "Open this game’s Files tab, expand Use an existing installation · Installation options, then choose Use an existing installation. Choose game executable and select Starship.exe from the prepared folder. Set Start in folder to that folder and leave launch arguments empty. Review launch details and confirm the registration, then choose Play. Selecting this executable records your intent to run it; it does not authenticate it as an official publisher package."
+          },
+          {
+            "title": "Manage updates and protect the prepared copy",
+            "instruction": "You and upstream own updates for this external copy. Close the game and helpers, preserve the whole working folder including sf64.o2r, mods, saves, starship.cfg.json and any legacy config.json, then prepare an update separately before changing launch details. Portcove offers launch and registration removal; it does not offer managed updates, backups, rollback, migration or deletion for these external files. Removing the registration preserves them. Any existing managed installation retains its own management and integrity checks."
+          }
+        ],
+        "warnings": [
+          "The selected v2.0.0 Windows package has no published SHA-256 in the inspected release metadata. Automatic managed acquisition keeps its integrity hold. A user-selected executable is not publisher authentication; a locally computed hash does not supply it.",
+          "If the game crashes with DirectX 11, upstream documents switching to OpenGL through Settings or starship.cfg.json, then restarting. Preserve the configuration before editing it. This guide covers Windows; it does not qualify other platforms."
+        ],
+        "help_url": "https://github.com/HarbourMasters/Starship/blob/cb19785b51698185a688e17ba1a34c7889195bdb/README.md"
+      },
       "platforms": [
         "windows-x86-64",
         "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
-      ],
-      "availability": "unknown"
+      ]
     },
     {
       "id": "lighthouse",
