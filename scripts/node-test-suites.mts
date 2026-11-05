@@ -31,6 +31,8 @@ export interface NodeTestSuites {
   qualificationOwners?: Record<string, Record<string, string>>;
   platformSkips?: Record<string, NodePlatformSkipContract[]>;
   desktopDependencies?: string[];
+  /** Semantic ordinary-validation membership, declared on the registered test. */
+  ordinaryFamilies?: Record<string, string[]>;
 }
 
 export function localNodeResourceProfile(files: readonly string[], registry: NodeTestSuites) {
@@ -204,6 +206,7 @@ function expandNodeTestOwnership(
   qualificationOwners: Record<string, Record<string, string>>,
   platformSkips: Record<string, NodePlatformSkipContract[]>,
   desktopDependencies: string[],
+  ordinaryFamilies: Record<string, string[]>,
 ) {
   if (
     Object.keys(value).some((key) => !["format_version", "suites", "tests"].includes(key)) ||
@@ -247,6 +250,7 @@ function expandNodeTestOwnership(
             "qualification",
             "platform_skips",
             "desktop_dependencies",
+            "ordinary_families",
           ].includes(key),
       ) ||
       typeof entry.file !== "string" ||
@@ -257,6 +261,20 @@ function expandNodeTestOwnership(
     )
       throw new Error("Invalid or repeated Node test ownership record");
     seenFiles.add(entry.file);
+    if (entry.ordinary_families !== undefined) {
+      if (
+        !Array.isArray(entry.ordinary_families) ||
+        !entry.ordinary_families.length ||
+        entry.ordinary_families.length > 64 ||
+        !entry.ordinary_families.every(
+          (id: unknown) => typeof id === "string" && /^[a-z][a-z0-9-]*$/u.test(id),
+        ) ||
+        new Set(entry.ordinary_families).size !== entry.ordinary_families.length
+      )
+        throw new Error("Invalid ordinary validation family: " + entry.file);
+      for (const id of entry.ordinary_families as string[])
+        (ordinaryFamilies[id] ??= []).push(entry.file);
+    }
     if (entry.desktop_dependencies !== undefined) {
       if (entry.desktop_dependencies !== true)
         throw new Error("Invalid Desktop dependency ownership: " + entry.file);
@@ -311,8 +329,18 @@ export function parseNodeTestSuites(text: string): NodeTestSuites {
   const qualificationOwners: Record<string, Record<string, string>> = {};
   const platformSkips: Record<string, NodePlatformSkipContract[]> = {};
   const desktopDependencies: string[] = [];
+  const ordinaryFamilies: Record<string, string[]> = Object.create(null) as Record<
+    string,
+    string[]
+  >;
   if (isRecord(value) && value.format_version === 2)
-    value = expandNodeTestOwnership(value, qualificationOwners, platformSkips, desktopDependencies);
+    value = expandNodeTestOwnership(
+      value,
+      qualificationOwners,
+      platformSkips,
+      desktopDependencies,
+      ordinaryFamilies,
+    );
   if (!isRecord(value) || value.format_version !== 1 || !isRecord(value.suites))
     throw new Error("Invalid Node test suite registry");
   const suites: Record<string, NodeTestSuite> = {};
@@ -361,6 +389,7 @@ export function parseNodeTestSuites(text: string): NodeTestSuites {
     ...(Object.keys(qualificationOwners).length ? { qualificationOwners } : {}),
     ...(Object.keys(platformSkips).length ? { platformSkips } : {}),
     ...(desktopDependencies.length ? { desktopDependencies } : {}),
+    ...(Object.keys(ordinaryFamilies).length ? { ordinaryFamilies } : {}),
   };
 }
 

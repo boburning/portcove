@@ -134,6 +134,36 @@ export function portablePreparationFeedback(record: AuthoredPort, facts: Package
   };
 }
 
+/** Advice only: distinctive declarations never follow from arbitrary guide prose. */
+export function declarativePreparationFeedback(record: AuthoredPort) {
+  const integration = record.integration;
+  const fitting =
+    (!integration &&
+      (!Array.isArray(record.listing.platforms) ||
+        record.listing.platforms.includes("windows-x86-64"))) ||
+    (integration !== undefined &&
+      integration.adapter === "native-portable" &&
+      isRecord(integration.release) &&
+      integration.release.provider === "github" &&
+      integration.source_profile == null &&
+      Array.isArray(integration.platforms) &&
+      integration.platforms.includes("windows-x86-64"));
+  return {
+    status: !fitting
+      ? "retain-existing-route"
+      : record.route_facts_v1
+        ? "declared"
+        : "review-fitting-route",
+    next: fitting
+      ? "Use route_facts_v1 for a reviewed Windows basename, executable-parent folder, literal arguments and actual data locations. Preserve bespoke preparation/actions/warnings; do not infer facts from prose. Regenerate with generate-catalog.mts for shared explanations and distinct lifecycle tests. Feed accepted package/player inspections through --package-observation and --package-observation-reference where applicable; retain independent expected facts."
+      : "Keep this working route: its platform, adapter, source preparation or working-directory contract is outside the narrow declarative model. Do not force it into route_facts_v1.",
+    original_files:
+      "An absent Core source_profile does not establish that no originals are required. Keep upstream original-file preparation and its owner explicit.",
+    release_progression:
+      "Initial acceptance or a changed integration needs its own applicable evidence. Ordinary releases already covered by stable rules use existing resolution/integrity checks without new version/applicability rows, wrappers, guide edits or routine owner/agent approval.",
+  };
+}
+
 /** Read-only authoring context; canonical prose never becomes operation authority. */
 export function canonicalPreparationFeedback(
   record: AuthoredPort,
@@ -698,6 +728,7 @@ export async function preparePort(options: PrepareOptions) {
       route: record.integration ? "existing-integration" : (options.route ?? "listing"),
       lineage: assessUpstreamLineage(record),
       ...(packageObservation === undefined ? {} : { package_observation: packageObservation }),
+      declarative_authoring: declarativePreparationFeedback(record),
       canonical_preparation: canonicalPreparationFeedback(record, facts),
       portable_preparation: portablePreparationFeedback(record, facts),
       download_preparation: downloadPreparationFeedback(record, facts),

@@ -3435,6 +3435,27 @@ mod tests {
     }
 
     #[test]
+    fn canonical_repository_update_handoff_uses_reviewed_catalog_identity() {
+        let temporary = tempfile::tempdir().unwrap();
+        let service =
+            PortcoveService::new(Library::open(temporary.path().join("library")).unwrap()).unwrap();
+        for repository in ["Ghostship", "Starship"] {
+            let url = format!("https://github.com/HarbourMasters/{repository}/releases");
+            validate_external_url(&service, &url).unwrap();
+            for unrelated in [
+                format!("{url}?redirect=elsewhere"),
+                format!("{url}/download/unreviewed/game.exe"),
+                format!("https://github.com/ForeignOwner/{repository}/releases"),
+            ] {
+                assert!(
+                    validate_external_url(&service, &unrelated).is_err(),
+                    "{unrelated}"
+                );
+            }
+        }
+    }
+
+    #[test]
     fn listing_only_resource_handoff_uses_exact_accepted_urls() {
         let temporary = tempfile::tempdir().unwrap();
         let service =

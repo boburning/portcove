@@ -21,6 +21,7 @@ impl PortcoveService {
         // Retain strict project/artwork links even if a separate directory corrects its own display.
         if self.catalog.ports().iter().any(|port| {
             port.project_url == url
+                || repository_updates_url(&port.project_url).as_deref() == Some(url)
                 || crate::game_recommendations::normalize(port, u64::MAX)
                     .evidence
                     .iter()
@@ -229,6 +230,14 @@ impl PortcoveService {
 
 fn listing_resource_url(listing: &crate::PortListing, url: &str) -> bool {
     listing.project_url == url
+        || [
+            Some(listing.project_url.as_str()),
+            listing.release_url.as_deref(),
+        ]
+        .into_iter()
+        .flatten()
+        .filter_map(repository_updates_url)
+        .any(|reviewed| reviewed == url)
         || super::advisories::reviewed_advisory_url(listing, url)
         || [
             listing.release_url.as_deref(),
@@ -254,10 +263,152 @@ fn listing_resource_url(listing: &crate::PortListing, url: &str) -> bool {
         })
 }
 
+/// A single navigation destination derived from a reviewed repository identity.
+/// This does not authorize repository descendants, acquisition or execution.
+fn repository_updates_url(value: &str) -> Option<String> {
+    if value.len() > 4096 || value.trim() != value || value.chars().any(char::is_control) {
+        return None;
+    }
+    let url = reqwest::Url::parse(value).ok()?;
+    if url.scheme() != "https"
+        || !url.username().is_empty()
+        || url.password().is_some()
+        || url.port().is_some()
+    {
+        return None;
+    }
+    let parts = url
+        .path()
+        .trim_end_matches('/')
+        .strip_prefix('/')?
+        .split('/')
+        .collect::<Vec<_>>();
+    let component = |part: &str| {
+        !part.is_empty()
+            && part != "."
+            && part != ".."
+            && part
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || b"-_.".contains(&byte))
+    };
+    let (project, suffix) = match url.host_str()? {
+        "github.com" if parts.len() >= 2 && (parts.len() == 2 || parts[2] == "releases") => {
+            (&parts[..2], "/releases")
+        }
+        "gitlab.com" => {
+            let end = parts
+                .iter()
+                .position(|part| *part == "-")
+                .unwrap_or(parts.len());
+            if end < 2 || (end < parts.len() && parts.get(end + 1) != Some(&"releases")) {
+                return None;
+            }
+            (&parts[..end], "/-/releases")
+        }
+        _ => return None,
+    };
+    if !project.iter().all(|part| component(part)) {
+        return None;
+    }
+    let repository = project.last()?;
+    let repository = repository.strip_suffix(".git").unwrap_or(repository);
+    if !component(repository) {
+        return None;
+    }
+    Some(format!(
+        "https://{}/{}/{repository}{suffix}",
+        url.host_str()?,
+        project[..project.len() - 1].join("/")
+    ))
+}
+
 #[cfg(test)]
 mod resource_url_tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn repository_update_handoff_is_one_canonical_reviewed_destination() {
+        let temporary = tempfile::tempdir().unwrap();
+        let mut service =
+            PortcoveService::new(Library::open(temporary.path().join("library")).unwrap()).unwrap();
+        let listings = [
+            (
+                "github-project",
+                "https://github.com/owner/game.git",
+                Some("https://github.com/owner/game/releases/tag/v1"),
+            ),
+            (
+                "gitlab-project",
+                "https://gitlab.com/group/subgroup/game.git",
+                Some("https://gitlab.com/group/subgroup/game/-/releases/v2"),
+            ),
+            (
+                "release-only",
+                "https://example.org/project",
+                Some("https://github.com/owner/packager/releases/tag/v3"),
+            ),
+        ]
+        .into_iter()
+        .map(|(id, project, release)| {
+            serde_json::from_value(json!({
+                "id":id,"name":"Reviewed repository", "summary":"Navigation fixture.",
+                "project_url":project,"release_url":release,"platforms":[],"availability":"unknown"
+            }))
+            .unwrap()
+        })
+        .collect();
+        service.catalog = Catalog::from_json(r#"{"schema_version":1,"ports":[]}"#)
+            .unwrap()
+            .with_listing_document(crate::CatalogListingDocument {
+                format_version: 1,
+                listings,
+            })
+            .unwrap();
+        for url in [
+            "https://github.com/owner/game/releases",
+            "https://gitlab.com/group/subgroup/game/-/releases",
+            "https://github.com/owner/packager/releases",
+        ] {
+            assert!(service.is_reviewed_resource_url(url).unwrap(), "{url}");
+        }
+        for url in [
+            "https://github.com/foreign/game/releases",
+            "https://github.com/owner/another-game/releases",
+            "https://github.com/owner/game/releases?redirect=elsewhere",
+            "https://github.com/owner/game/releases#changed",
+            "https://github.com/owner/game/releases/latest",
+            "https://github.com/owner/game/releases/download/v2/game.exe",
+            "https://github.com/owner/game/issues",
+            "https://gitlab.com/group/foreign/game/-/releases",
+            "https://gitlab.com/group/subgroup/game/-/releases/v3",
+            "https://github.com.evil.example/owner/game/releases",
+            "https://player:secret@github.com/owner/game/releases",
+            "https://github.com:8443/owner/game/releases",
+        ] {
+            assert!(!service.is_reviewed_resource_url(url).unwrap(), "{url}");
+        }
+        for source in [
+            "http://github.com/owner/game",
+            "https://player:secret@github.com/owner/game",
+            "https://github.com:8443/owner/game",
+            "https://github.com.evil.example/owner/game",
+            "https://github.com/owner/game/blob/main/README.md",
+            "https://gitlab.com/group/game/-/blob/main/README.md",
+            " https://github.com/owner/game",
+            "https://github.com/owner/game\n",
+            "https://github.com/owner/game/releases/\u{85}",
+        ] {
+            assert!(repository_updates_url(source).is_none(), "{source}");
+        }
+        assert!(
+            repository_updates_url(&format!(
+                "https://github.com/owner/game/releases?note={}",
+                "🎮".repeat(2000)
+            ))
+            .is_none()
+        );
+    }
 
     #[test]
     fn handoff_accepts_only_exact_reviewed_current_listing_and_media_resources() {

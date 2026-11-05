@@ -1406,3 +1406,41 @@ it("uses only explicit listing guidance inside non-owning download and executabl
   );
   expect(document.body.textContent).not.toContain("MANAGED CONTRACT MUST STAY IN MANAGED DETAILS");
 });
+
+it("separates stable update navigation, selected-package notes and historical setup evidence", async () => {
+  const historical = `${listing.project_url}/blob/v0.9/README.md`;
+  vi.mocked(desktopApi.catalogDownloadCandidates).mockResolvedValue({
+    ...candidates,
+    upstream_url: `${listing.project_url}/releases/tag/v0.9`,
+  });
+  await root.rerender(
+    <ListingDetailPanel
+      entry={{
+        ...entry,
+        listing: {
+          ...listing,
+          release_url: `${listing.project_url}/releases/tag/v0.9`,
+          setup_url: historical,
+        },
+      }}
+      status={status}
+      generation={9}
+      perform={perform}
+      onChanged={changed}
+      close={vi.fn()}
+    />,
+  );
+  await expect
+    .element(page.getByRole("link", { name: "Upstream releases", exact: true }))
+    .toHaveAttribute("href", `${listing.project_url}/releases`);
+  await expect
+    .element(page.getByRole("link", { name: "Setup instructions", exact: true }))
+    .toHaveAttribute("href", historical);
+  await expect
+    .element(page.getByRole("link", { name: "View upstream releases", exact: true }))
+    .toHaveAttribute("href", `${listing.project_url}/releases`);
+  await click("Change download options");
+  await expect
+    .element(page.getByRole("link", { name: "Release notes and requirements", exact: true }))
+    .toHaveAttribute("href", artifact.release_url);
+});

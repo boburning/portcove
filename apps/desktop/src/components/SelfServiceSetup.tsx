@@ -1,3 +1,4 @@
+import { upstreamUpdatesDestination } from "../features/browsing/upstream-links";
 import { Play } from "lucide-react";
 import { useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { desktopApi } from "../api";
@@ -36,6 +37,9 @@ export function SelfServiceSetup({
   onChanged,
   render,
 }: SelfServiceSetupProps) {
+  const updates =
+    entry.listing &&
+    upstreamUpdatesDestination(entry.listing.project_url, entry.listing.release_url);
   const [editorOpen, setEditorOpen] = useState(false);
   // Only this explicitly selected non-owning surface uses listing guidance.
   // Keep the strict definition and the managed detail's retained guide intact.
@@ -204,8 +208,10 @@ export function SelfServiceSetup({
             Registered installation. You or upstream manage updates; the version you downloaded may
             not be the version Portcove currently launches.
           </p>
-          <ExternalLink href={entry.listing.release_url || entry.listing.project_url}>
-            Versions and updates on the project’s website
+          <ExternalLink href={updates!.url}>
+            {updates!.releases
+              ? "Versions and updates on the project’s website"
+              : "Project website"}
           </ExternalLink>
         </div>
       )}

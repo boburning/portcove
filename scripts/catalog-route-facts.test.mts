@@ -280,3 +280,36 @@ void test("expanded route guides refuse the retained concrete entry bound before
   }));
   assert.throws(() => projectRouteFacts(raw), /Expanded route guide exceeds/);
 });
+
+void test("257 route declarations retain distinct deterministic complete enrollment", () => {
+  const original = input("mstan-tetrisgbrecomp");
+  const records = Array.from({ length: 257 }, (_, index) => {
+    const value = structuredClone(original);
+    value.listing.id = `enrollment-fixture-${String(index).padStart(3, "0")}`;
+    return value;
+  });
+  const rendered = renderRouteTests(records);
+  assert.equal((rendered.prepared.match(/#\[test\]/gu) ?? []).length, 257);
+  const inventory = routeEnrollment(records).cases;
+  assert.equal(inventory.length, 257);
+  for (const row of inventory) {
+    assert.ok(
+      rendered.prepared.includes(
+        `fn prepared_guide_adoption_declared_${row.port_id.replaceAll("-", "_")}()`,
+      ),
+    );
+    assert.ok(rendered.prepared.includes(`    "${row.port_id}",`));
+  }
+  assert.deepEqual(renderRouteTests([...records].reverse()), rendered);
+  assert.deepEqual(renderRouteTests(records), rendered);
+  assert.throws(() => renderRouteTests([...records, records[0]!]), /Duplicate/);
+  const unsafe = structuredClone(records[0]!);
+  unsafe.listing.id = "unsafe_id";
+  assert.throws(() => renderRouteTests([unsafe]), /safe literals/);
+  const collision = structuredClone(records[0]!);
+  collision.listing.id = records[0]!.listing.id.replaceAll("-", "_");
+  assert.throws(() => renderRouteTests([records[0]!, collision]), /safe literals/);
+  const malformed = structuredClone(records[0]!);
+  malformed.route_facts_v1!.prepared_player.executable = "../bad.exe";
+  assert.throws(() => renderRouteTests([malformed]));
+});
