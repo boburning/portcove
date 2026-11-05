@@ -295,6 +295,10 @@ export async function continueActualCatalogPublication(
       GH_HOST: "github.com",
       GH_PROMPT_DISABLED: "1",
     });
+    const recoveryTransport = {
+      credential: { token: environment.GH_TOKEN ?? "" },
+      deadline: originalDeadline,
+    };
     const spawn: NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"] = (
       command,
       args,
@@ -347,7 +351,7 @@ export async function continueActualCatalogPublication(
       )
         throw new Error("actual current catalog coordinator/tool custody differs");
       const state = await recoverRemoteCoordinator(directory, remote, {
-        transport: { cwd: directory, deadline: originalDeadline, spawn },
+        transport: recoveryTransport,
       });
       let checkpoint = state.checkpoint;
       const descriptor = inspectCatalogPublicationDescriptor(state.input.catalog_publication);
@@ -448,7 +452,7 @@ export async function continueActualCatalogPublication(
         signingContextRemaining(originalDeadline, 15000);
         await verifiedControllerToolPaths(toolsReceipt);
         const snapshot = await readRemoteCoordinatorSnapshot(directory, remote, {
-          transport: { cwd: directory, deadline: originalDeadline, spawn },
+          transport: recoveryTransport,
         });
         if (
           snapshot.checkpoint !== checkpoint ||
