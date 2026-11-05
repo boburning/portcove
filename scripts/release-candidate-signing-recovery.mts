@@ -7,8 +7,7 @@ import { spawnSync } from "node:child_process";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
-import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
-import type { GitHubRestReader } from "./github-api.mts";
+import type { CatalogAnchorMetadataProvider } from "./release-custody-provider.mts";
 import { readGitHubReleaseAsset, readGitHubArtifactArchive } from "./github-binary.mts";
 import {
   capacityDigest as digest,
@@ -333,9 +332,9 @@ export async function readCandidateSigningOperations(
   repository: string,
   input: unknown,
   active: Record<string, unknown>,
-  api?: GitHubRestReader,
+  provider?: CatalogAnchorMetadataProvider,
 ) {
-  return readOriginalSigningOperations(repository, input, active, api);
+  return readOriginalSigningOperations(repository, input, active, provider);
 }
 /** Data-only original receipt discovery through one narrowly inspected pending
  * Release intent. Every signing output must already be positively settled;
@@ -344,7 +343,7 @@ export async function readSigningOperationsForPendingRelease(
   repository: string,
   input: unknown,
   active: Record<string, unknown>,
-  api?: GitHubRestReader,
+  provider?: CatalogAnchorMetadataProvider,
 ) {
   assert.ok(
     isRecord(input) && isRecord(input.controller) && isRecord(input.controller.capacity_attempt),
@@ -353,13 +352,13 @@ export async function readSigningOperationsForPendingRelease(
     input.controller.capacity_attempt.operation,
     active,
   );
-  return readOriginalSigningOperations(repository, input, active, api, pending);
+  return readOriginalSigningOperations(repository, input, active, provider, pending);
 }
 async function readOriginalPublishedOperation(
   repository: string,
   input: Record<string, unknown>,
   active: Record<string, unknown>,
-  api: GitHubRestReader,
+  provider: CatalogAnchorMetadataProvider,
 ) {
   assert.ok(isRecord(input.controller) && isRecord(input.controller.capacity_attempt));
   const capacity = input.controller.capacity_attempt;
@@ -380,7 +379,7 @@ async function readOriginalPublishedOperation(
         try {
           raw = readRetainedCapacityOperation(repository, proof);
         } catch {
-          raw = await hydrateRetainedCoordinatorOperation(repository, proof, { api });
+          raw = await hydrateRetainedCoordinatorOperation(repository, proof, { provider });
         }
         const retained = inspectCapacityOperation(raw);
         if (retained && settled(retained)) candidates.push(retained);
@@ -405,7 +404,7 @@ async function readOriginalResultOperation(
   repository: string,
   input: Record<string, unknown>,
   active: Record<string, unknown>,
-  api: GitHubRestReader,
+  provider: CatalogAnchorMetadataProvider,
 ) {
   assert.ok(isRecord(input.controller) && isRecord(input.controller.capacity_attempt));
   const capacity = input.controller.capacity_attempt;
@@ -431,7 +430,7 @@ async function readOriginalResultOperation(
     try {
       raw = readRetainedCapacityOperation(repository, proof);
     } catch {
-      raw = await hydrateRetainedCoordinatorOperation(repository, proof, { api });
+      raw = await hydrateRetainedCoordinatorOperation(repository, proof, { provider });
     }
     return inspectRetainedResultOperation(raw, active);
   }
@@ -446,7 +445,7 @@ async function readOriginalSigningOperations(
   repository: string,
   input: unknown,
   active: Record<string, unknown>,
-  api?: GitHubRestReader,
+  provider?: CatalogAnchorMetadataProvider,
   pendingRelease?: Operation,
 ) {
   assert.ok(
@@ -484,11 +483,8 @@ async function readOriginalSigningOperations(
         try {
           retained = readRetainedCapacityOperation(repository, proof);
         } catch {
-          retained = await hydrateRetainedCoordinatorOperation(
-            repository,
-            proof,
-            api ? { api } : {},
-          );
+          if (!provider) throw new Error("retained signing receipt provider required");
+          retained = await hydrateRetainedCoordinatorOperation(repository, proof, { provider });
         }
         const parsed = inspectCapacityOperation(retained);
         assert.ok(parsed);
@@ -557,28 +553,12 @@ export async function recoverCandidateSigningCustody(
       GH_HOST: "github.com",
       GH_PROMPT_DISABLED: "1",
     });
-    const spawn: NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"] = (
-      command,
-      args,
-      settings,
-    ) => spawnSync(command, args, { ...settings, env: environment });
     let checkpoint = input.checkpoint,
       phase = "current-coordinator";
     let requests = 0;
     const chargeRead = () => {
       if (++requests > 128) throw new Error("candidate signing discovery read bound exhausted");
     };
-    const api: GitHubRestReader = new GitHubApiClient((args, body) => {
-      chargeRead();
-      const response = createGitHubRunner({
-        cwd: directory,
-        maxBuffer: 2 * 1024 ** 2,
-        timeoutMs: signingContextRemaining(deadline, 15000),
-        spawn,
-      })([...args, "--hostname", "github.com"], body);
-      signingContextRemaining(deadline, 15000);
-      return response;
-    });
     try {
       await verifiedControllerToolPaths(toolsReceipt);
       assert.equal((await refreshCapacityExecutor(executor)).role, "coordinator");
@@ -597,7 +577,7 @@ export async function recoverCandidateSigningCustody(
         const snapshot = await readRemoteCoordinatorSnapshot(
           directory,
           input.remote_configuration,
-          { transport: { cwd: directory, deadline, spawn } },
+          { transport: { credential: { token: environment.GH_TOKEN ?? "" }, deadline } },
         );
         assert.equal(snapshot.checkpoint, checkpoint, "signing custody journal changed");
         assert.equal(
@@ -620,25 +600,28 @@ export async function recoverCandidateSigningCustody(
         currentOperation.destination.startsWith("github-release:boburning/portcove:")
           ? inspectPendingCandidateReleaseOperation(currentOperation, active)
           : undefined;
+      const metadata = await createReleaseCustodyProvider({
+        token: environment.GH_TOKEN ?? "",
+        deadline,
+        chargeRead,
+        afterRead: () => {
+          signingContextRemaining(deadline, 15000);
+        },
+      });
       const pendingResult = pendingRelease
         ? undefined
-        : await readOriginalResultOperation(input.repository, state.input, active, api);
+        : await readOriginalResultOperation(input.repository, state.input, active, metadata);
       const operations = pendingResult
         ? await readOriginalSigningOperations(
             input.repository,
             state.input,
             active,
-            api,
+            metadata,
             pendingResult,
           )
         : await (
             pendingRelease ? readSigningOperationsForPendingRelease : readCandidateSigningOperations
-          )(input.repository, state.input, active, api);
-      const metadata = await createReleaseCustodyProvider({
-        token: environment.GH_TOKEN ?? "",
-        deadline,
-        chargeRead,
-      });
+          )(input.repository, state.input, active, metadata);
       const observe = async (operation: Operation, output: Exclude<Output, "payload">) => {
         const producer = operation.executor_identity!;
         return inspectCandidateSigningProvider(
@@ -813,7 +796,7 @@ export async function recoverCandidateSigningCustody(
           input.repository,
           state.input,
           active,
-          api,
+          metadata,
         );
         const expected = await derivePendingReleaseAssets(
           context,
