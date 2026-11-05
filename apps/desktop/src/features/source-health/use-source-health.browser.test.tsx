@@ -1,4 +1,10 @@
-import { QueryClient, focusManager, onlineManager } from "@tanstack/react-query";
+import {
+  QueryClient,
+  focusManager,
+  onlineManager,
+  notifyManager,
+  defaultScheduler,
+} from "@tanstack/react-query";
 import { act, createElement, StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
@@ -81,6 +87,8 @@ async function renderAndRequestCheck(path: string, catalog: string) {
 }
 
 beforeEach(() => {
+  // Flush package notifications as microtasks inside act, without timer-based guesses.
+  notifyManager.setScheduler(queueMicrotask);
   queryClient = new QueryClient();
   queryClient.mount();
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
@@ -90,6 +98,7 @@ afterEach(async () => {
   await act(async () => root.unmount());
   queryClient.unmount();
   queryClient.clear();
+  notifyManager.setScheduler(defaultScheduler);
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });

@@ -229,9 +229,13 @@ it("retains the shared provider across a modal portal and preserves existing des
   const tooltip = page.getByRole("tooltip");
   await expect.element(tooltip).toBeVisible();
   expect(tooltip.element().closest('[role="dialog"]')).toBe(page.getByRole("dialog").element());
+  await expect
+    .element(trigger)
+    .toHaveAccessibleDescription("Existing instructions Modal supplemental help");
   expect(trigger.element().getAttribute("aria-describedby")?.split(" ")).toEqual(
     expect.arrayContaining(["existing-help", tooltip.element().id]),
   );
   await userEvent.keyboard("{Escape}");
   await expect.element(tooltip).not.toBeInTheDocument();
+  await expect.element(trigger).toHaveAccessibleDescription("Existing instructions");
 });

@@ -1,4 +1,11 @@
-import { useCallback, useId, useState, type ReactElement, type ReactNode } from "react";
+import {
+  cloneElement,
+  useCallback,
+  useId,
+  useState,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 import { Tooltip as TooltipPrimitive } from "@base-ui/react/tooltip";
 import { floatingMotion } from "./control-style";
 
@@ -15,7 +22,7 @@ export function Tooltip({
   side = "top",
 }: {
   label: ReactNode;
-  children: ReactElement;
+  children: ReactElement<{ "aria-describedby"?: string | undefined }>;
   disabled?: boolean;
   side?: TooltipPrimitive.Positioner.Props["side"];
 }) {
@@ -31,9 +38,7 @@ export function Tooltip({
         null,
     );
   }, []);
-  const existingDescription = (children.props as { "aria-describedby"?: string })[
-    "aria-describedby"
-  ];
+  const existingDescription = children.props["aria-describedby"];
   const description = open
     ? [existingDescription, id].filter(Boolean).join(" ")
     : existingDescription;
@@ -41,7 +46,8 @@ export function Tooltip({
     <TooltipPrimitive.Root disabled={disabled} onOpenChange={setOpen}>
       <TooltipPrimitive.Trigger
         ref={retainSemanticOwner}
-        render={children}
+        // Render-element props take precedence in Base UI, so compose on that element too.
+        render={cloneElement(children, { "aria-describedby": description })}
         aria-describedby={description}
       />
       <TooltipPrimitive.Portal container={portalContainer}>
