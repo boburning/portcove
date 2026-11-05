@@ -765,7 +765,9 @@ async function collectNativePublicationPair(
             journey: journeys[index],
           }))
         : bindNativeQualificationLocators(
-            locators === null ? discoverNativeQualificationLocators(templates, deadline) : locators,
+            locators === null
+              ? await discoverNativeQualificationLocators(templates, deadline)
+              : locators,
             templates,
           );
     await writeFile(path.join(directory, "expected.json"), JSON.stringify(expected), {

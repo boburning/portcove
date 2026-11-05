@@ -1,4 +1,5 @@
-import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
+import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
+import { coordinatorCommandTimeout } from "./release-coordinator-deadline.mts";
 import { requestAssemblerToken } from "./assembler-job-identity.mts";
 import { isRecord } from "./runtime-values.mts";
 import { performance } from "node:perf_hooks";
@@ -18,12 +19,78 @@ const terminalFailures = new Set([
 export function isTerminalPagesFailure(status: string) {
   return terminalFailures.has(status);
 }
-interface Api {
-  request(
-    method: string,
-    endpoint: string,
-    body?: unknown,
-  ): Pick<ReturnType<GitHubApiClient["request"]>, "status" | "headers" | "body">;
+interface PagesReply {
+  status: number;
+  body: unknown;
+}
+interface PagesCreateInput {
+  artifact_id: number;
+  pages_build_version: string;
+  oidc_token: string;
+}
+export interface PagesProviderOperations {
+  create(input: PagesCreateInput): Promise<PagesReply>;
+  observe(id: string): Promise<PagesReply>;
+}
+
+/** HTTP only. Pending intent, final controls and byte acceptance belong to the caller. */
+export async function createPagesProviderOperations(options: {
+  deadline: number;
+  environment?: NodeJS.ProcessEnv;
+  fetch?: typeof globalThis.fetch;
+}): Promise<PagesProviderOperations> {
+  const { deadline, fetch: configuredFetch } = options;
+  const started = performance.now(),
+    left = Math.floor(deadline - started);
+  if (!Number.isFinite(deadline) || left < 1)
+    throw new Error("Pages phase deadline exhausted; retain pending intent");
+  const originalDeadline = Math.min(
+    deadline,
+    started + coordinatorCommandTimeout(Math.min(left, 2_147_483_647)),
+  );
+  const credential = (options.environment ?? readOnlyReleaseChildEnvironment() ?? process.env)
+    .GH_TOKEN;
+  if (!credential) throw new Error("explicit Pages credential required");
+  const { createGitHubClient } = await import("./github-client.mts");
+  const sdk = await createGitHubClient({
+    credential: { kind: "explicit", token: credential },
+    deadline: originalDeadline,
+    maxBytes: 128 * 1024,
+    requestTimeoutMs: 30000,
+    headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
+    ...(configuredFetch ? { fetch: configuredFetch } : {}),
+    allowRequest(method, url) {
+      return (
+        !url.search &&
+        ((method === "POST" && url.pathname === `/${endpoint}`) ||
+          (method === "GET" &&
+            /^\/repos\/boburning\/portcove\/pages\/deployments\/[A-Za-z0-9_-]{1,128}$/u.test(
+              url.pathname,
+            )))
+      );
+    },
+  });
+  return {
+    async create(input) {
+      const response = await sdk.request({
+        method: "POST",
+        url: `https://api.github.com/${endpoint}`,
+        data: input,
+        request: { portcove: { replay: "once", attempts: 0 } },
+      });
+      return { status: response.status, body: response.data as unknown };
+    },
+    async observe(id) {
+      if (!/^[A-Za-z0-9_-]{1,128}$/u.test(id))
+        throw new Error("Pages deployment identity is unavailable");
+      const response = await sdk.request({
+        method: "GET",
+        url: `https://api.github.com/${endpoint}/${id}`,
+        request: { portcove: { replay: "once", attempts: 0 } },
+      });
+      return { status: response.status, body: response.data as unknown };
+    },
+  };
 }
 
 export interface PagesDeploymentIdentity {
@@ -62,8 +129,7 @@ function identity(value: unknown): PagesDeploymentIdentity {
  * This instance allows exactly one POST, including when its response is lost.
  * Recovery uses readback; creating a new instance is not retry authorization. */
 export function createPagesProviderTransport(
-  directory: string,
-  injected: { api?: Api; token?: () => Promise<string> } = {},
+  injected: { operations?: PagesProviderOperations; token?: () => Promise<string> } = {},
   deadline?: number,
 ) {
   const remaining = () => {
@@ -76,15 +142,14 @@ export function createPagesProviderTransport(
     return timeoutMs;
   };
   remaining();
-  const api =
-    injected.api ??
-    new GitHubApiClient((args, input) =>
-      createGitHubRunner({ cwd: directory, timeoutMs: remaining(), maxBuffer: 128 * 1024 })(
-        [...args, "--hostname", "github.com"],
-        input,
-      ),
-    );
-  const scope = injected.api || injected.token ? "injected-provider" : "github.com";
+  const capturedOperations = injected.operations,
+    tokenProvider = injected.token;
+  const environment = { GH_TOKEN: (readOnlyReleaseChildEnvironment() ?? process.env).GH_TOKEN };
+  const originalDeadline = deadline ?? performance.now() + 30000;
+  let configured: Promise<PagesProviderOperations> | undefined;
+  const operations = () =>
+    (configured ??= createPagesProviderOperations({ deadline: originalDeadline, environment }));
+  const scope = capturedOperations || tokenProvider ? "injected-provider" : "github.com";
   let attempted = false;
   return {
     evidence_scope: scope,
@@ -103,10 +168,12 @@ export function createPagesProviderTransport(
       // not both acquire a credential and enter the same pending effect.
       attempted = true;
       remaining();
+      const provider = capturedOperations ?? (await operations());
+      remaining();
       // Acquire a distinct Pages-audience token only in the actual fixed job.
       // It is never returned, retained in receipts, or included in diagnostics.
       const token = await (
-        injected.token ??
+        tokenProvider ??
         (() =>
           requestAssemblerToken(audience, process.env, (input, init) =>
             fetch(input, {
@@ -124,9 +191,9 @@ export function createPagesProviderTransport(
       // fixed guard runs after that await, immediately before the sole POST.
       await beforePost?.();
       remaining();
-      let response: ReturnType<Api["request"]>;
+      let response: PagesReply;
       try {
-        response = api.request("POST", endpoint, {
+        response = await provider.create({
           artifact_id: expected.artifact_id,
           pages_build_version: expected.generation,
           oidc_token: token,
@@ -165,12 +232,14 @@ export function createPagesProviderTransport(
     },
     /** One observation, no cancellation, re-POST or unbounded polling. Even
      * succeed must be followed by independent complete expected-byte readback. */
-    observe(raw: PagesDeploymentIdentity) {
+    async observe(raw: PagesDeploymentIdentity) {
       remaining();
       const expected = identity(structuredClone(raw));
-      let response: ReturnType<Api["request"]>;
+      let response: PagesReply;
       try {
-        response = api.request("GET", `${endpoint}/${expected.id}`);
+        const provider = capturedOperations ?? (await operations());
+        remaining();
+        response = await provider.observe(expected.id);
       } catch {
         throw new Error("Pages deployment readback unavailable; retain original pending intent");
       }
