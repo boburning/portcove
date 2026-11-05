@@ -377,14 +377,7 @@ async function runFixedHostedWindowsOperation<Operation extends keyof WindowsOpe
   originalWorkflowDeadline?: bigint,
 ): Promise<WindowsOperations[Operation]> {
   const scope = await readActualHostedWindowsBootstrapScope("pre-sign");
-  let providerDeadline = currentNativeJobDeadline(
-    "windows-x86_64",
-    scope.identity,
-    fileURLToPath(new URL("..", import.meta.url)),
-    performance.now() + 570000,
-    scope.source,
-    scope.workflow,
-  );
+  let ceiling = performance.now() + 570000;
   if (originalWorkflowDeadline !== undefined) {
     const origin = performance.now(),
       now = process.hrtime.bigint();
@@ -395,11 +388,15 @@ async function runFixedHostedWindowsOperation<Operation extends keyof WindowsOpe
       "original Windows workflow deadline exhausted or invalid",
     );
     // Caller data can only shorten this independently admitted provider window.
-    providerDeadline = Math.min(
-      providerDeadline,
-      origin + Number(originalWorkflowDeadline - now) / 1e6,
-    );
+    ceiling = Math.min(ceiling, origin + Number(originalWorkflowDeadline - now) / 1e6);
   }
+  const { currentWindowsNativeJobDeadline } = await import("./release-signing-job-budget.mts");
+  const providerDeadline = await currentWindowsNativeJobDeadline(
+    scope.identity,
+    ceiling,
+    scope.source,
+    scope.workflow,
+  );
   scope.unchanged();
   const home = homedir();
   assert.ok(path.isAbsolute(home) && path.normalize(home) === home);

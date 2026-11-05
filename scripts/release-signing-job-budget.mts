@@ -335,6 +335,21 @@ export function currentNativeJobDeadline(
     maximum,
   );
 }
+/** Windows pre-tool readers already run from the frozen dependency checkout. */
+export function currentWindowsNativeJobDeadline(
+  identity: JobIdentity,
+  processDeadline: number,
+  source: unknown,
+  workflowBytes: Uint8Array,
+) {
+  const maximum = admittedNativeProviderMaximumMilliseconds(
+    "windows-x86_64",
+    source,
+    workflowBytes,
+    identity,
+  );
+  return currentSdkJobDeadline("native-windows", identity, processDeadline, maximum);
+}
 /** One original shared observer allocation; individual phases cannot renew it. */
 export function sharedProtectionOriginalJobDeadline(...args: BudgetArguments) {
   return signingOriginalJobDeadline("application-protection", ...args);
@@ -416,6 +431,7 @@ async function currentSdkJobDeadline(
   role: ClockRole,
   identity: JobIdentity,
   processDeadline: number,
+  admittedNativeMaximum?: number,
 ) {
   requireOriginalJobIdentity(identity);
   const token = fixedReleaseReaderToken();
@@ -424,5 +440,15 @@ async function currentSdkJobDeadline(
   const response = await provider.jobs(identity.run_id, 1, 1);
   if (response.next !== null || performance.now() >= processDeadline)
     throw new Error("original controller job budget unavailable");
-  return Math.min(processDeadline, signingOriginalJobDeadline(role, response.body, identity));
+  return Math.min(
+    processDeadline,
+    signingOriginalJobDeadline(
+      role,
+      response.body,
+      identity,
+      Date.now(),
+      performance.now(),
+      admittedNativeMaximum,
+    ),
+  );
 }
