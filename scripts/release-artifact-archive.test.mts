@@ -9,6 +9,10 @@ import { trustedAssemblyFixture } from "./fixtures/trusted-assembly-fixture.mts"
 import { stageReleaseArtifact, discoverReleaseArtifactFiles } from "./release-artifact-archive.mts";
 import { assembleTrustedRelease } from "./trusted-release-assembly.mts";
 import { assembleReleaseArtifacts } from "./release-artifact-assembly.mts";
+import {
+  downloadGitHubArtifactArchive,
+  downloadGitHubArtifactArchiveFile,
+} from "./github-artifact-download.mts";
 import { readGitHubArtifactArchive } from "./github-binary.mts";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
@@ -467,6 +471,7 @@ async function integration(
     ...f,
     expected,
     archives,
+    blobs,
     options,
     setDrift: () => {
       drift = true;
@@ -561,5 +566,164 @@ void test("artifact matrix and run mismatch refuse before transport or private o
       options,
     ),
   );
+  assert.deepEqual(await readdir(f.stage), []);
+});
+
+void test("production assembly acquires exact package bytes through locked SDK redirects and awaits cleanup", async (t) => {
+  const f = await integration(t, "initial-beta-win-linux");
+  const order: string[] = [];
+  let short = false;
+  const results: Record<string, string>[] = [];
+  const evidence = {
+    credential: { kind: "explicit" as const, token: "explicit-assembly-fixture" },
+    async read(endpoint: string) {
+      order.push(endpoint);
+      return f.options.evidence.read(endpoint);
+    },
+    reserve() {
+      return {
+        consumeBytes() {},
+        settle(observation: { headers: Readonly<Record<string, string>> }) {
+          results.push({ ...observation.headers });
+        },
+      };
+    },
+    async fetch(input: Parameters<typeof fetch>[0], init?: RequestInit) {
+      const url = new URL(input instanceof Request ? input.url : input);
+      const headers = new Headers(init?.headers);
+      const id = Number(url.pathname.split("/").at(-2));
+      order.push(url.hostname);
+      assert.equal(init?.redirect, "manual");
+      if (url.hostname === "api.github.com") {
+        assert.match(url.pathname, /^\/repos\/boburning\/portcove\/actions\/artifacts\/\d+\/zip$/u);
+        assert.equal(headers.get("authorization"), "token explicit-assembly-fixture");
+        return new Response(null, {
+          status: 302,
+          headers: {
+            location: `https://productionresultssa1.blob.core.windows.net/actions-results/${id}/package.zip?secret=fixture`,
+            "x-github-request-id": "SAFE-ID",
+          },
+        });
+      }
+      assert.equal(init?.credentials, "omit");
+      assert.equal(headers.has("authorization"), false);
+      const bytes = f.blobs.get(id)!;
+      return new Response(short ? bytes.subarray(0, bytes.length - 1) : bytes);
+    },
+  };
+  const result = await assembleReleaseArtifacts(f.stage, f.request, f.archives, f.expected, {
+    evidence,
+  });
+  assert.deepEqual(
+    order.filter((value) => value.endsWith(".com") || value.endsWith(".net")),
+    f.archives.flatMap(() => ["api.github.com", "productionresultssa1.blob.core.windows.net"]),
+  );
+  assert.equal(order.filter((value) => value.includes("/actions/runs/12345/artifacts")).length, 2);
+  assert.equal(results.length, f.archives.length);
+  assert.ok(
+    results.every(
+      (headers) => headers["x-github-request-id"] === "SAFE-ID" && !("location" in headers),
+    ),
+  );
+  assert.ok(!(await readdir(result.directory)).some((name) => name.endsWith(".zip")));
+  short = true;
+  await assert.rejects(
+    assembleReleaseArtifacts(f.stage, f.request, f.archives, f.expected, { evidence }),
+    (error: unknown) => error instanceof Error && /byte count differs/u.test(String(error.cause)),
+  );
+  const failed = (await readdir(f.stage)).find((name) => name !== path.basename(result.directory))!;
+  assert.deepEqual(await readdir(path.join(f.stage, failed)), ["inputs"]);
+});
+
+void test("file delivery streams above the memory cap and refuses an existing destination", async (t) => {
+  const f = await integration(t, "initial-beta-win-linux");
+  const filename = path.join(f.stage, "opaque.zip");
+  const endpoint = "repos/boburning/portcove/actions/artifacts/123/zip";
+  const chunk = new Uint8Array(1024 * 1024).fill(42);
+  let requests = 0;
+  const options = {
+    credential: { kind: "explicit" as const, token: "file-fixture" },
+    maxBytes: chunk.length * 9,
+    deadline: performance.now() + 30000,
+    async fetch(input: Parameters<typeof fetch>[0]) {
+      requests++;
+      if (new URL(input instanceof Request ? input.url : input).hostname === "api.github.com")
+        return new Response(null, {
+          status: 302,
+          headers: {
+            location:
+              "https://productionresultssa1.blob.core.windows.net/actions-results/pkg?secret=fixture",
+          },
+        });
+      let remaining = 9;
+      return new Response(
+        new ReadableStream({
+          pull(controller) {
+            if (remaining-- > 0) controller.enqueue(chunk);
+            else controller.close();
+          },
+        }),
+      );
+    },
+  };
+  await assert.rejects(
+    downloadGitHubArtifactArchive(endpoint, options),
+    /bounded github artifact/iu,
+  );
+  assert.equal(requests, 0);
+  await downloadGitHubArtifactArchiveFile(endpoint, filename, options);
+  assert.equal(requests, 2);
+  await assert.rejects(downloadGitHubArtifactArchiveFile(endpoint, filename, options), {
+    code: "EEXIST",
+  });
+  assert.equal(requests, 2);
+  const contents = await readFile(filename);
+  assert.equal(contents.length, options.maxBytes);
+  assert.equal(contents.at(-1), 42);
+});
+
+void test("file delivery cancellation joins partial-file cleanup after one SDK lookup", async (t) => {
+  const f = await integration(t, "initial-beta-win-linux");
+  const filename = path.join(f.stage, "cancelled.zip");
+  const controller = new AbortController();
+  let requests = 0;
+  let cancelled = false;
+  await assert.rejects(
+    downloadGitHubArtifactArchiveFile(
+      "repos/boburning/portcove/actions/artifacts/123/zip",
+      filename,
+      {
+        credential: { kind: "explicit", token: "file-fixture" },
+        deadline: performance.now() + 30000,
+        maxBytes: 2048,
+        signal: controller.signal,
+        async fetch(input) {
+          requests++;
+          if (new URL(input instanceof Request ? input.url : input).hostname === "api.github.com")
+            return new Response(null, {
+              status: 302,
+              headers: {
+                location:
+                  "https://productionresultssa1.blob.core.windows.net/actions-results/pkg?secret=fixture",
+              },
+            });
+          return new Response(
+            new ReadableStream({
+              start(stream) {
+                stream.enqueue(new Uint8Array(1024));
+                setTimeout(() => controller.abort(), 20);
+              },
+              cancel() {
+                cancelled = true;
+              },
+            }),
+          );
+        },
+      },
+    ),
+    (error: unknown) => error instanceof Error && /delivery cancelled/u.test(error.message),
+  );
+  assert.equal(requests, 2);
+  assert.ok(cancelled);
   assert.deepEqual(await readdir(f.stage), []);
 });
