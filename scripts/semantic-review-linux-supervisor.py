@@ -253,7 +253,6 @@ def inspect_model_catalog(data):
 
 def inspect_files(request):
     root = private_directory(request["run_root"])
-    require(len(os.fsencode(root / "transport/control.sock")) < 104, "owned Unix socket path is too long")
     require(read_regular(root / ".portcove-semantic-review-owned", 128).strip(), "owned marker missing")
     for name in ("runtime", "inputs", "capture"):
         private_directory(root / name)
@@ -557,6 +556,23 @@ def forward(left, right, stopped, account):
                 event.data.sendall(data)
     finally:
         selector.close()
+
+
+@contextlib.contextmanager
+def transport_socket_directory(root):
+    transport = root / "transport"
+    transport.mkdir(mode=0o700)
+    fd = os.open(transport, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        info = os.fstat(fd)
+        require(
+            info.st_uid == os.getuid() and stat.S_IMODE(info.st_mode) == 0o700, "private transport directory required"
+        )
+        # Linux bind resolves this held directory without putting the full
+        # custody path in sockaddr_un. The sandbox still mounts transport.
+        yield Path("/proc/self/fd") / str(fd)
+    finally:
+        os.close(fd)
 
 
 class ProviderTunnel:
@@ -1254,11 +1270,11 @@ def supervise(request):
                 }
             ).encode(),
         )
-        (root / "transport").mkdir(mode=0o700)
-        tunnel = ProviderTunnel(root / "transport/provider.sock")
-        listener = socket.socket(socket.AF_UNIX, socket.SOCK_SEQPACKET)
-        listener.bind(str(root / "transport/control.sock"))
-        os.chmod(root / "transport/control.sock", 0o600)
+        with transport_socket_directory(root) as transport:
+            tunnel = ProviderTunnel(transport / "provider.sock")
+            listener = socket.socket(socket.AF_UNIX, socket.SOCK_SEQPACKET)
+            listener.bind(str(transport / "control.sock"))
+            os.chmod(transport / "control.sock", 0o600)
         listener.listen(1)
         listener.setblocking(False)
         for name, filename in (("stdout", "stdout.jsonl"), ("stderr", "stderr.log")):
