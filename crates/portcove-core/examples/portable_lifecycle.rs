@@ -1,7 +1,12 @@
 //! Explicit real-package observation, separate from deterministic offline tests.
 //! Baseline release facts must carry an independently published expected digest.
-//! No native process or original game input is executed by this example.
-use std::{io::Read, path::PathBuf, sync::Arc};
+//! No native process is started. Optional owned inputs use ordinary Core source admission.
+use std::{
+    ffi::OsString,
+    io::Read,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use portcove_core::{
     GithubReleaseProvider, Library, Platform, PortDefinition, PortcoveError, PortcoveService,
@@ -55,15 +60,23 @@ fn main() -> Result<()> {
     }
 }
 
+fn baseline_arguments(args: &[OsString]) -> Result<(bool, Option<&Path>)> {
+    match args {
+        [_, _, _] => Ok((false, None)),
+        [_, _, _, mode] if mode == "--baseline-only" => Ok((true, None)),
+        [_, _, _, mode, source, path] if mode == "--baseline-only" && source == "--source" => {
+            Ok((true, Some(Path::new(path))))
+        }
+        _ => Err(PortcoveError::usage(
+            "portable_lifecycle PORT_ID BASELINE_RELEASE_JSON NEW_LIBRARY [--baseline-only [--source PATH]]",
+        )),
+    }
+}
+
 #[tokio::main]
 async fn run() -> Result<()> {
     let args = std::env::args_os().skip(1).collect::<Vec<_>>();
-    let baseline_only = args.len() == 4 && args[3] == "--baseline-only";
-    if args.len() != 3 && !baseline_only {
-        return Err(PortcoveError::usage(
-            "portable_lifecycle PORT_ID BASELINE_RELEASE_JSON NEW_LIBRARY [--baseline-only]",
-        ));
-    }
+    let (baseline_only, baseline_source) = baseline_arguments(&args)?;
     let port_id = args[0]
         .to_str()
         .ok_or_else(|| PortcoveError::usage("port ID must be Unicode"))?;
@@ -85,7 +98,7 @@ async fn run() -> Result<()> {
     let initial = PortcoveService::with_provider(library.clone(), Arc::new(Baseline(baseline)))?;
     eprintln!("Installing the explicitly selected baseline package");
     let first = initial
-        .install(port_id, None, None, None, true, |_| {})
+        .install(port_id, None, baseline_source, None, true, |_| {})
         .await?;
     if baseline_only {
         let verification = require_verification("baseline", &first.id, initial.verify(port_id)?)?;
@@ -169,6 +182,62 @@ mod tests {
             serde_json::json!({
                 "install_id": "expected-install", "checked_files": 3, "valid": true, "failures": []
             })
+        );
+    }
+    #[test]
+    fn original_source_is_only_admitted_in_explicit_baseline_mode() {
+        let arguments = |values: &[&str]| {
+            values
+                .iter()
+                .copied()
+                .map(OsString::from)
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            baseline_arguments(&arguments(&["port", "release.json", "library"])).unwrap(),
+            (false, None)
+        );
+        assert_eq!(
+            baseline_arguments(&arguments(&[
+                "port",
+                "release.json",
+                "library",
+                "--baseline-only"
+            ]))
+            .unwrap(),
+            (true, None)
+        );
+        assert_eq!(
+            baseline_arguments(&arguments(&[
+                "port",
+                "release.json",
+                "library",
+                "--baseline-only",
+                "--source",
+                "owned.z64"
+            ]))
+            .unwrap(),
+            (true, Some(Path::new("owned.z64")))
+        );
+        assert!(
+            baseline_arguments(&arguments(&[
+                "port",
+                "release.json",
+                "library",
+                "--source",
+                "owned.z64"
+            ]))
+            .is_err()
+        );
+        assert!(
+            baseline_arguments(&arguments(&[
+                "port",
+                "release.json",
+                "library",
+                "--baseline-only",
+                "--source"
+            ]))
+            .is_err()
         );
     }
 }

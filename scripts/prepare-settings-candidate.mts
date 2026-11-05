@@ -25,7 +25,8 @@ import {
   initializeSettingsProbeFiles,
 } from "./settings-consumer-qualification.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
-import type { collectPortFacts, PortFactsOptions } from "./port-upstream-facts.mts";
+import { collectPortFacts } from "./port-upstream-facts.mts";
+import type { PortFactsOptions } from "./port-upstream-facts.mts";
 
 const execute = promisify(execFile);
 const sha = (value: unknown): value is string =>
@@ -74,9 +75,11 @@ export async function prepareSettingsCandidate(options: {
   scope: unknown;
   cli: string;
   checkpoint: string;
+  releaseTag?: string | undefined;
   sourceOptions?: Pick<PortFactsOptions, "token" | "fetcher"> | undefined;
 }) {
-  const { record, facts } = options;
+  const { record } = options;
+  let facts = options.facts;
   const scope = options.scope;
   if (
     !isRecord(scope) ||
@@ -112,105 +115,9 @@ export async function prepareSettingsCandidate(options: {
     throw new Error("Settings qualification profile is not the selected owned disposable scope.");
   if ((await fileIdentity(scope.baseline_installer)).sha256 !== scope.baseline_installer_sha256)
     throw new Error("Settings baseline installer changed; preserve the previous evidence.");
-  if (
-    !facts.assets_complete ||
-    !isRecord(facts.release?.body) ||
-    typeof facts.release.body.tag_name !== "string" ||
-    !isRecord(facts.release_project?.body) ||
-    typeof facts.release_repository !== "string"
-  )
-    throw new Error(
-      "Settings qualification needs one fully observed exact release and asset inventory.",
-    );
-  const project = facts.release_project.body;
-  const repository = facts.release_repository;
-  const tag = facts.release.body.tag_name;
-  if (!Number.isSafeInteger(project.id) || Number(project.id) < 1)
-    throw new Error("Settings release provider identity is missing.");
   const checkpoint = join(options.checkpoint, "settings-candidate-" + randomUUID());
   await mkdir(checkpoint);
   const inspector = coreProposalInspector(options.cli, checkpoint);
-  const clock = facts.release.observed_at ?? new Date().toISOString();
-  const normalizedFacts = {
-    repository: repositoryFact(project, { repository, repository_id: Number(project.id) }),
-    releases: [
-      {
-        ...releaseFact(facts.release.body),
-        assets: facts.assets.map((asset) => assetFact(asset, { repository }, tag)),
-      },
-    ],
-  };
-  const observation: ProviderObservation = {
-    format: 1,
-    authority: "provider-observation-only",
-    port_id: record.listing.id,
-    config_sha256: hash({ id: record.listing.id, repository, repository_id: project.id }),
-    started_at: clock,
-    completed_at: clock,
-    facts_sha256: hash(normalizedFacts),
-    facts: normalizedFacts,
-    consumed: {
-      requests: facts.usage.requests,
-      response_bytes: facts.usage.bytes,
-      conditional_hits: 0,
-    },
-  };
-  const projection = await projectObservedFacts(
-    inspector.artifact,
-    { port_id: record.listing.id, repository_id: Number(project.id) },
-    checkpoint,
-    observation,
-  );
-  if (!isRecord(projection) || !Array.isArray(projection.projections))
-    throw new Error("Core did not select settings candidate metadata.");
-  const projections: unknown[] = projection.projections;
-  const selected: unknown = projections.find(
-    (row) => isRecord(row) && row.platform === "windows-x86-64" && row.channel === "stable",
-  );
-  const eligible = isRecord(selected) ? selected.latest_eligible : undefined;
-  const release = isRecord(eligible) ? eligible.release : undefined;
-  const asset = isRecord(release) ? release.asset : undefined;
-  if (
-    !isRecord(release) ||
-    typeof release.version !== "string" ||
-    !isRecord(asset) ||
-    !sha(asset.sha256) ||
-    !isRecord(eligible) ||
-    !Number.isSafeInteger(eligible.asset_id)
-  )
-    throw new Error(
-      "Core did not establish an eligible exact settings package with independently expected integrity.",
-    );
-  const officialAsset = facts.assets.find(
-    (entry) => isRecord(entry) && entry.id === eligible.asset_id,
-  );
-  if (!isRecord(officialAsset) || officialAsset.digest !== "sha256:" + asset.sha256)
-    throw new Error("Settings candidate asset is not bound to the observed provider digest.");
-  const sources = await collectSettingsSource(record, null, {
-    ...options.sourceOptions,
-    releaseTag: tag,
-  });
-  const source = sources.find((file) => file.repository === facts.release_repository);
-  if (!source) throw new Error("Settings candidate lacks its exact root source.");
-  const binding = {
-    version: release.version,
-    platform: "windows-x86-64" as const,
-    archive_sha256: asset.sha256,
-    source_commit: source.revision,
-  };
-  const preflight = settingsCandidateSource(record, binding, sources);
-  const probeInput = settingsDocumentInput(record, preflight.candidate);
-  const probe: Record<string, unknown> = inspector.inspectSettings(
-    "settings-document-probe",
-    probeInput,
-  );
-  await json(join(checkpoint, "source-evidence.json"), sources);
-  await json(join(checkpoint, "selection.json"), {
-    observation,
-    projection,
-    release,
-    scope: "local provider facts and Core selection; not scheduled or protected publication",
-  });
 
   const lease = await acquireOwnedProcessLock(
     join(root, "settings-candidate-owner"),
@@ -248,22 +155,10 @@ export async function prepareSettingsCandidate(options: {
   };
   try {
     const library = await assertOwnedUnlinkedPath(root, join(root, "library"), "Settings library");
-    const fixture = settingsQualificationCatalog(
-      options.catalog,
-      record.listing.id,
-      preflight.candidate,
-    );
     const ownedCandidate = join(root, "candidate-" + randomUUID());
     await mkdir(ownedCandidate);
-    const fixturePath = await json(
-      join(ownedCandidate, "qualification-only-catalog.json"),
-      fixture,
-    );
-    await json(join(checkpoint, "qualification-only-catalog.json"), fixture);
-    inspector.inspect("qualification-only-proposal", Buffer.from(JSON.stringify(fixture)));
     const environment: NodeJS.ProcessEnv = {
       ...process.env,
-      PORTCOVE_QUALIFICATION_CATALOG: fixturePath,
       PORTCOVE_PREFERENCES: join(root, "preferences.json"),
       PORTCOVE_APPLICATION_RUNTIME_LOCK: join(root, "application-runtime"),
     };
@@ -285,25 +180,197 @@ export async function prepareSettingsCandidate(options: {
         throw new Error("Settings candidate Core operation failed.");
       return envelope.data;
     };
-    let install: unknown;
+    let planned: Record<string, unknown> | undefined;
+    if (options.releaseTag === undefined) {
+      const planCatalog = await json(join(ownedCandidate, "plan-catalog.json"), options.catalog);
+      environment.PORTCOVE_QUALIFICATION_CATALOG = planCatalog;
+      const plan = await run(["plan", record.listing.id, "--channel", "stable"]);
+      if (
+        !isRecord(plan) ||
+        plan.platform !== "windows-x86-64" ||
+        plan.channel !== "stable" ||
+        !isRecord(plan.release) ||
+        typeof plan.release.version !== "string" ||
+        !isRecord(plan.release.asset) ||
+        typeof plan.release.asset.url !== "string"
+      )
+        throw new Error("Core did not discover an exact stable Windows settings candidate.");
+      planned = plan.release;
+      facts = await collectPortFacts({
+        ...options.sourceOptions,
+        projectUrl: record.listing.project_url,
+        releaseUrl: plan.release.asset.url,
+        releaseTag: plan.release.version,
+        route: "download",
+        cacheDirectory: join(options.checkpoint, "facts"),
+      });
+    }
+    if (
+      !facts.assets_complete ||
+      !isRecord(facts.release?.body) ||
+      typeof facts.release.body.tag_name !== "string" ||
+      !isRecord(facts.release_project?.body) ||
+      typeof facts.release_repository !== "string"
+    )
+      throw new Error(
+        "Settings qualification needs one fully observed exact release and asset inventory.",
+      );
+    const project = facts.release_project.body;
+    const repository = facts.release_repository;
+    const tag = facts.release.body.tag_name;
+    if (!Number.isSafeInteger(project.id) || Number(project.id) < 1)
+      throw new Error("Settings release provider identity is missing.");
+    const clock = facts.release.observed_at ?? new Date().toISOString();
+    const normalizedFacts = {
+      repository: repositoryFact(project, { repository, repository_id: Number(project.id) }),
+      releases: [
+        {
+          ...releaseFact(facts.release.body),
+          assets: facts.assets.map((asset) => assetFact(asset, { repository }, tag)),
+        },
+      ],
+    };
+    const observation: ProviderObservation = {
+      format: 1,
+      authority: "provider-observation-only",
+      port_id: record.listing.id,
+      config_sha256: hash({ id: record.listing.id, repository, repository_id: project.id }),
+      started_at: clock,
+      completed_at: clock,
+      facts_sha256: hash(normalizedFacts),
+      facts: normalizedFacts,
+      consumed: {
+        requests: facts.usage.requests,
+        response_bytes: facts.usage.bytes,
+        conditional_hits: 0,
+      },
+    };
+    const projection = await projectObservedFacts(
+      inspector.artifact,
+      { port_id: record.listing.id, repository_id: Number(project.id) },
+      checkpoint,
+      observation,
+    );
+    if (!isRecord(projection) || !Array.isArray(projection.projections))
+      throw new Error("Core did not select settings candidate metadata.");
+    const projections: unknown[] = projection.projections;
+    const selected: unknown = projections.find(
+      (row) => isRecord(row) && row.platform === "windows-x86-64" && row.channel === "stable",
+    );
+    const eligible = isRecord(selected) ? selected.latest_eligible : undefined;
+    const release = isRecord(eligible) ? eligible.release : undefined;
+    const asset = isRecord(release) ? release.asset : undefined;
+    if (
+      !isRecord(release) ||
+      typeof release.version !== "string" ||
+      !isRecord(asset) ||
+      !sha(asset.sha256) ||
+      !isRecord(eligible) ||
+      !Number.isSafeInteger(eligible.asset_id)
+    )
+      throw new Error(
+        "Core did not establish an eligible exact settings package with independently expected integrity.",
+      );
+    const officialAsset = facts.assets.find(
+      (entry) => isRecord(entry) && entry.id === eligible.asset_id,
+    );
+    if (!isRecord(officialAsset) || officialAsset.digest !== "sha256:" + asset.sha256)
+      throw new Error("Settings candidate asset is not bound to the observed provider digest.");
+    if (
+      planned &&
+      (planned.version !== release.version ||
+        !isRecord(planned.asset) ||
+        !["url", "name", "size", "sha256"].every(
+          (field) => asset[field] === (planned.asset as Record<string, unknown>)[field],
+        ))
+    )
+      throw new Error("Observed candidate changed after normal Core release selection.");
+    const sources = await collectSettingsSource(record, null, {
+      ...options.sourceOptions,
+      releaseTag: tag,
+    });
+    const source = sources.find((file) => file.repository === facts.release_repository);
+    if (!source) throw new Error("Settings candidate lacks its exact root source.");
+    const binding = {
+      version: release.version,
+      platform: "windows-x86-64" as const,
+      archive_sha256: asset.sha256,
+      source_commit: source.revision,
+    };
+    const preflight = settingsCandidateSource(record, binding, sources);
+    const probeInput = settingsDocumentInput(record, preflight.candidate);
+    const probe: Record<string, unknown> = inspector.inspectSettings(
+      "settings-document-probe",
+      probeInput,
+    );
+    await json(join(checkpoint, "source-evidence.json"), sources);
+    await json(join(checkpoint, "selection.json"), {
+      observation,
+      projection,
+      release,
+      scope: "local provider facts and Core selection; not scheduled or protected publication",
+    });
+
+    const fixture = settingsQualificationCatalog(
+      options.catalog,
+      record.listing.id,
+      preflight.candidate,
+    );
+    const fixturePath = await json(
+      join(ownedCandidate, "qualification-only-catalog.json"),
+      fixture,
+    );
+    await json(join(checkpoint, "qualification-only-catalog.json"), fixture);
+    inspector.inspect("qualification-only-proposal", Buffer.from(JSON.stringify(fixture)));
+    environment.PORTCOVE_QUALIFICATION_CATALOG = fixturePath;
+    const inputRoot = await assertOwnedUnlinkedPath(
+      root,
+      join(root, "inputs"),
+      "Settings input root",
+    );
+    await mkdir(inputRoot, { recursive: true });
+    const copiedOriginal = await assertOwnedUnlinkedPath(
+      root,
+      join(inputRoot, original.sha256 + extname(original.path)),
+      "Settings copied original",
+    );
+    const sourceIdentity = await fileIdentity(original.path);
+    if (sourceIdentity.sha256 !== original.sha256)
+      throw new Error("The provisioned lawful original changed.");
     try {
-      const info = await lstat(library);
+      await copyFile(original.path, copiedOriginal, constants.COPYFILE_EXCL);
+    } catch (error) {
+      if (!isRecord(error) || error.code !== "EEXIST") throw error;
+    }
+    if ((await fileIdentity(copiedOriginal)).sha256 !== original.sha256)
+      throw new Error("The copied lawful original differs.");
+    const info = await lstat(library).catch((error: unknown) => {
+      if (!isRecord(error) || error.code !== "ENOENT") throw error;
+      return null;
+    });
+    if (info) {
       if (!info.isDirectory() || info.isSymbolicLink())
         throw new Error("Settings library is not its owned directory.");
       const before = await run(["status", record.listing.id]);
       await json(join(checkpoint, "before-update.json"), before);
-      if (!isRecord(before) || !isRecord(before.active) || !isRecord(before.active.artifact))
-        throw new Error("Settings candidate library has no retained managed baseline.");
-      if (before.active.artifact.sha256 !== asset.sha256)
-        await run(["update", record.listing.id, "--yes"]);
-    } catch (error) {
-      if (!isRecord(error) || error.code !== "ENOENT") throw error;
+      if (!isRecord(before)) throw new Error("Core settings candidate status is absent.");
+      if (planned && before.active === null && before.staged === null && before.previous === null) {
+        const args = ["install", record.listing.id, "--yes"];
+        if (typeof record.integration?.source_profile === "string")
+          args.push("--source", copiedOriginal);
+        await run(args);
+      } else {
+        if (!isRecord(before.active) || !isRecord(before.active.artifact))
+          throw new Error("Settings candidate library has no retained managed baseline.");
+        if (before.active.artifact.sha256 !== asset.sha256)
+          await run(["update", record.listing.id, "--yes"]);
+      }
+    } else {
       const baseline = await json(join(checkpoint, "baseline-release.json"), release);
-      const result = await executeRecorded(
-        scope.baseline_installer,
-        [record.listing.id, baseline, library, "--baseline-only"],
-        environment,
-      );
+      const args = [record.listing.id, baseline, library, "--baseline-only"];
+      if (typeof record.integration?.source_profile === "string")
+        args.push("--source", copiedOriginal);
+      const result = await executeRecorded(scope.baseline_installer, args, environment);
       const initialized: unknown = JSON.parse(result.stdout);
       await json(join(checkpoint, "baseline-install.json"), {
         stdout: result.stdout,
@@ -330,40 +397,16 @@ export async function prepareSettingsCandidate(options: {
       typeof status.active.selected_executable !== "string"
     )
       throw new Error("Installed settings candidate differs from the exact observed package.");
-    install = status.active;
-    const userData = toNamespacedPath(await realpath(status.user_data_root));
+    const install = status.active;
+    const userDataPath = await assertOwnedUnlinkedPath(
+      root,
+      toNamespacedPath(status.user_data_root),
+      "Settings user data root",
+    );
+    await mkdir(userDataPath, { recursive: true });
+    const userData = toNamespacedPath(await realpath(userDataPath));
     if (!contained(root, userData))
       throw new Error("Settings candidate user data escaped its marked root.");
-    const inputRoot = await assertOwnedUnlinkedPath(
-      root,
-      join(root, "inputs"),
-      "Settings input root",
-    );
-    await mkdir(inputRoot, { recursive: true });
-    const copiedOriginal = await assertOwnedUnlinkedPath(
-      root,
-      join(inputRoot, original.sha256 + extname(original.path)),
-      "Settings copied original",
-    );
-    const sourceIdentity = await fileIdentity(original.path);
-    if (sourceIdentity.sha256 !== original.sha256)
-      throw new Error("The provisioned lawful original changed.");
-    try {
-      await copyFile(original.path, copiedOriginal, constants.COPYFILE_EXCL);
-    } catch (error) {
-      if (!isRecord(error) || error.code !== "EEXIST") throw error;
-    }
-    if ((await fileIdentity(copiedOriginal)).sha256 !== original.sha256)
-      throw new Error("The copied lawful original differs.");
-    if (typeof record.integration?.source_profile === "string")
-      await run([
-        "source",
-        "add",
-        record.integration.source_profile,
-        copiedOriginal,
-        "--expected-sha256",
-        original.sha256,
-      ]);
     for (const input of scope.prepared_files) {
       if (
         !isRecord(input) ||

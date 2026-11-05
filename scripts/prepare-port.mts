@@ -575,7 +575,10 @@ export async function preparePort(options: PrepareOptions) {
       projectUrl:
         options.projectUrl ?? explicit?.listing.project_url ?? selected?.listing.project_url,
       issue: options.issue,
-      route: options.route ?? "listing",
+      route:
+        options.settingsNativeScope !== undefined && options.releaseTag !== undefined
+          ? "download"
+          : (options.route ?? "listing"),
       releaseTag: options.releaseTag,
       resolveReleaseUrl: ({ projectUrl, issuePortId }) => {
         const { base } = resolveIdentity(projectUrl, issuePortId);
@@ -698,6 +701,7 @@ export async function preparePort(options: PrepareOptions) {
           scope: options.settingsNativeScope,
           cli: options.validatorCli,
           checkpoint: root,
+          releaseTag: options.releaseTag,
           sourceOptions: options.facts,
         });
         record = checkedAuthoredPort({ ...record, settings_observation_v1: result.observation });

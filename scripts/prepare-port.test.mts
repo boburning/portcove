@@ -1971,3 +1971,51 @@ void test("normal preparation feedback directs fitting declarations without inve
   };
   assert.equal(declarativePreparationFeedback(outside).status, "retain-existing-route");
 });
+
+void test("settings qualification requests complete exact package facts and limits missing evidence to settings", async () => {
+  const f = fixture();
+  try {
+    const authored = readCatalogSource(catalogRoot);
+    const ship = authored.records.find((entry) => entry.listing.id === "shipwright")!;
+    const upstream = ship.listing.project_url;
+    const tag = "9.9.9";
+    const result = await preparePort({
+      catalogRoot,
+      outputDirectory: join(f.root, "settings"),
+      id: ship.listing.id,
+      releaseTag: tag,
+      settingsNativeScope: {},
+      facts: {
+        fetcher: f.fetcher((url) =>
+          url.includes("/assets?")
+            ? json([
+                {
+                  id: 31,
+                  name: "settings-fixture.zip",
+                  size: 42,
+                  browser_download_url: `${upstream}/releases/download/${tag}/settings-fixture.zip`,
+                },
+              ])
+            : url.includes("/releases/tags/")
+              ? json({
+                  id: 30,
+                  tag_name: tag,
+                  draft: false,
+                  html_url: `${upstream}/releases/tag/${tag}`,
+                })
+              : json({ ...metadata, full_name: "HarbourMasters/Shipwright", private: false }),
+        ),
+      },
+      artwork: { inspectGame: () => [] },
+    });
+    assert.equal(f.requests.filter((url) => url.includes("/assets?")).length, 1);
+    assert.match(JSON.stringify(result.report.settings_qualification), /settings-unqualified/u);
+    assert.equal(result.report.operational_changed, false);
+    assert.deepEqual(
+      JSON.parse(readFileSync(result.report.files.catalog, "utf8")),
+      authored.catalog,
+    );
+  } finally {
+    f.clean();
+  }
+});

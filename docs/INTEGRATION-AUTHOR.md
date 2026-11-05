@@ -704,9 +704,12 @@ change receives its own review and native controls. A new implementation hash is
 not silently accepted as routine version churn.
 
 `prepare-port.mts --settings-native-scope FILE` consumes ordinary observed release
-facts and a once-configured private input profile. Core selects the exact package;
-the existing portable lifecycle example provisions the first disposable library,
-and normal Core update handles subsequent candidates. No candidate receipt or
+facts and a once-configured private input profile. The ordinary Core install plan
+discovers the stable Windows candidate; the shared metadata reader collects its
+complete exact release and asset inventory and Core checks the same artifact.
+Normal Core install/update provisions the disposable library. An explicit
+historical acceptance baseline uses the existing portable lifecycle example.
+No candidate receipt, release tag or
 release-specific library needs to be assembled by hand. It invokes Core's
 `catalog inspect-settings-qualification` and the existing qualification-report
 native route automatically. The generated `settings_observation_v1` retains
@@ -748,8 +751,10 @@ existing native-session lock and preserves uncertain cleanup ownership.
 
 Qualification-only candidate definitions and package facts are generated before
 testing, never hand-authored as accepted operational release entries. The
-existing portable lifecycle example's `--baseline-only` mode can prepare a real
-historical package with positive verification before the normal provider advances
+existing portable lifecycle example's `--baseline-only --source PATH` mode
+admits the verified copy of the owned original through ordinary Core source
+validation and prepares a real historical package with positive verification
+before the normal provider advances
 the same client. Private original/prepared data must already be lawfully provisioned;
 the probe does not acquire it. Unsupported controls, missing native prerequisites
 or insufficient evidence produce a settings-only qualification limitation;
