@@ -754,6 +754,15 @@ default reset and immutable verification are retained. This proves packaged
 configuration consumption, not audible amplitude or gameplay. It uses the
 existing native-session lock and preserves uncertain cleanup ownership.
 
+A private same-client acceptance run may set `transition_proof` to
+`"retain-baseline"` with an explicitly selected historical package. Its last
+engine-saved nondefault value and unrelated JSON marker become a byte-bound
+witness. Pass that witness as `transition_proof` in the same marked library
+and omit the release tag. Preparation checks both old mirrors before update and
+both successor mirrors before any probe writes. The successor first launches
+with the preserved value, then runs the normal editor probes and reset. The
+witness is private qualification evidence and grants no runtime data authority.
+
 Qualification-only candidate definitions and package facts are generated before
 testing, never hand-authored as accepted operational release entries. The
 existing portable lifecycle example's `--baseline-only --source PATH` mode

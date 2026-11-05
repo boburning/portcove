@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { mkdtemp, mkdir, writeFile, readFile, link, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, toNamespacedPath } from "node:path";
@@ -8,6 +9,8 @@ import test from "node:test";
 import {
   openSettingsProbeListener,
   requireSettingsVerification,
+  requireSettingsTransitionMirrors,
+  settingsTransitionProof,
   initializeSettingsProbeFiles,
   assertRetainedSettingsConfiguration,
   writeSettingsProbeConfiguration,
@@ -33,6 +36,38 @@ void test("native settings verification requires positive exact-install evidence
       /positive exact-install/,
     );
   assert.throws(() => requireSettingsVerification(report, undefined), /positive exact-install/);
+});
+
+void test("a transition witness refuses a changed or missing mirror without seeding it", async (context) => {
+  const root = await mkdtemp(join(tmpdir(), "settings-transition-"));
+  context.after(() => rm(root, { recursive: true, force: true }));
+  const canonical = join(root, "canonical.json");
+  const runtime = join(root, "runtime.json");
+  const markerKey = "PortcoveQualification_" + "a".repeat(32);
+  const bytes = JSON.stringify({
+    volume: 100,
+    [markerKey]: { text: "keep this unrelated value", flag: true, array: [3, false, "unknown"] },
+  });
+  const witness = {
+    baseline_install_id: "12345678-0000-0000-0000-123456789abc",
+    settings_sha256: createHash("sha256").update(bytes).digest("hex"),
+    value: 100,
+    marker_key: markerKey,
+  };
+  assert.deepEqual(settingsTransitionProof(witness), witness);
+  await writeFile(canonical, bytes);
+  await assert.rejects(requireSettingsTransitionMirrors([canonical, runtime], witness), {
+    code: "ENOENT",
+  });
+  await assert.rejects(readFile(runtime), { code: "ENOENT" });
+  await writeFile(runtime, bytes.replace("100", "40"));
+  await assert.rejects(
+    requireSettingsTransitionMirrors([canonical, runtime], witness),
+    /changed before probe setup/,
+  );
+  assert.equal(await readFile(canonical, "utf8"), bytes);
+  await writeFile(runtime, bytes);
+  await requireSettingsTransitionMirrors([canonical, runtime], witness);
 });
 
 void test("native probe listener owns the first connection and rejects/closes reconnects", async () => {

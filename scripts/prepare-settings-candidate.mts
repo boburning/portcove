@@ -23,6 +23,9 @@ import {
   qualifySettingsConsumer,
   requireSettingsVerification,
   initializeSettingsProbeFiles,
+  requireSettingsTransitionMirrors,
+  settingsProbePaths,
+  settingsTransitionProof,
 } from "./settings-consumer-qualification.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
 import { collectPortFacts } from "./port-upstream-facts.mts";
@@ -104,6 +107,15 @@ export async function prepareSettingsCandidate(options: {
       "Settings qualification needs its once-provisioned private source and compiled-installer profile.",
     );
   const original = { path: scope.original.path, sha256: scope.original.sha256 };
+  const transition = settingsTransitionProof(scope.transition_proof);
+  const witness = typeof transition === "object" ? transition : undefined;
+  if (
+    (transition === "retain-baseline" && options.releaseTag === undefined) ||
+    (witness && options.releaseTag !== undefined)
+  )
+    throw new Error(
+      "Transition proof requires explicit historical baseline selection and ordinary discovery for its successor.",
+    );
   const root = toNamespacedPath(await realpath(scope.isolation_root));
   const markerPath = join(root, ".portcove-settings-qualification.json");
   const markerInfo = await lstat(markerPath);
@@ -354,12 +366,44 @@ export async function prepareSettingsCandidate(options: {
       if (!isRecord(error) || error.code !== "ENOENT") throw error;
       return null;
     });
+    if ((transition === "retain-baseline" && info) || (witness && !info))
+      throw new Error(
+        "The selected library does not match the requested settings transition phase.",
+      );
     if (info) {
       if (!info.isDirectory() || info.isSymbolicLink())
         throw new Error("Settings library is not its owned directory.");
       const before = await run(["status", record.listing.id]);
       await json(join(checkpoint, "before-update.json"), before);
       if (!isRecord(before)) throw new Error("Core settings candidate status is absent.");
+      if (witness) {
+        const policy = record.settings_qualification_v1;
+        const fileId = policy?.samples[0]?.file_id;
+        if (
+          !policy ||
+          !fileId ||
+          !isRecord(before.active) ||
+          !isRecord(before.active.artifact) ||
+          before.active.id !== witness.baseline_install_id ||
+          before.active.artifact.sha256 === asset.sha256
+        )
+          throw new Error(
+            "Settings transition needs the exact active baseline and a different ordinary provider candidate.",
+          );
+        const beforeScope = await run(["game-settings", "qualification-scope", record.listing.id]);
+        const beforePaths = await settingsProbePaths(
+          root,
+          beforeScope,
+          fileId,
+          witness.baseline_install_id,
+          policy.configuration_scope,
+        );
+        await requireSettingsTransitionMirrors(beforePaths.paths, witness);
+        await json(join(checkpoint, "verified-transition-baseline.json"), {
+          scope: beforeScope,
+          witness,
+        });
+      }
       if (planned && before.active === null && before.staged === null && before.previous === null) {
         const args = ["install", record.listing.id, "--channel", "stable"];
         if (typeof record.integration?.source_profile === "string")
@@ -461,14 +505,36 @@ export async function prepareSettingsCandidate(options: {
       throw new Error("Settings scope identity is absent.");
     const retainedScope = await run(["game-settings", "qualification-scope", record.listing.id]);
     await json(join(checkpoint, "retained-settings-scope.json"), retainedScope);
-    const initialized = await initializeSettingsProbeFiles(
-      root,
-      retainedScope,
-      file.id,
-      status.active.id,
-      record.settings_qualification_v1.samples[0]!.document,
-      record.settings_qualification_v1.configuration_scope,
-    );
+    if (
+      witness &&
+      (!isRecord(status.previous) ||
+        status.previous.id !== witness.baseline_install_id ||
+        status.active.id === witness.baseline_install_id)
+    )
+      throw new Error("The installed successor did not retain the exact previous baseline.");
+    const initialized = witness
+      ? await settingsProbePaths(
+          root,
+          retainedScope,
+          file.id,
+          status.active.id,
+          record.settings_qualification_v1.configuration_scope,
+        )
+      : await initializeSettingsProbeFiles(
+          root,
+          retainedScope,
+          file.id,
+          status.active.id,
+          record.settings_qualification_v1.samples[0]!.document,
+          record.settings_qualification_v1.configuration_scope,
+        );
+    if (witness) {
+      await requireSettingsTransitionMirrors(initialized.paths, witness);
+      await json(join(checkpoint, "verified-transition-preservation.json"), {
+        scope: retainedScope,
+        witness,
+      });
+    }
     const configuration = initialized.canonical;
     const executable = toNamespacedPath(
       await realpath(resolve(status.active.path, status.active.selected_executable)),
@@ -518,6 +584,7 @@ export async function prepareSettingsCandidate(options: {
       output: join(root, "native-settings-" + randomUUID()),
       caseFile: nativeCase,
       qualificationCatalog: fixturePath,
+      transition,
     });
     const qualified = await qualifySettingsObservation(
       record,

@@ -16,6 +16,63 @@ const object = (value: unknown): value is Record<string, unknown> =>
 const sha = (value: unknown): value is string =>
   typeof value === "string" && /^[a-f0-9]{64}$/u.test(value);
 const hash = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
+const preservationValue = {
+  text: "keep this unrelated value",
+  flag: true,
+  array: [3, false, "unknown"],
+};
+
+export type SettingsTransitionWitness = {
+  baseline_install_id: string;
+  settings_sha256: string;
+  value: number;
+  marker_key: string;
+};
+
+export function settingsTransitionProof(
+  value: unknown,
+): "retain-baseline" | SettingsTransitionWitness | undefined {
+  if (value === undefined || value === "retain-baseline") return value;
+  if (
+    !object(value) ||
+    typeof value.baseline_install_id !== "string" ||
+    !/^[a-f0-9-]{36}$/u.test(value.baseline_install_id) ||
+    !sha(value.settings_sha256) ||
+    typeof value.value !== "number" ||
+    !Number.isSafeInteger(value.value) ||
+    Math.abs(value.value) > 1_000_000_000 ||
+    typeof value.marker_key !== "string" ||
+    !/^PortcoveQualification_[a-f0-9]{32}$/u.test(value.marker_key)
+  )
+    throw new Error("The private settings transition witness is invalid.");
+  return {
+    baseline_install_id: value.baseline_install_id,
+    settings_sha256: value.settings_sha256,
+    value: value.value,
+    marker_key: value.marker_key,
+  };
+}
+
+export async function requireSettingsTransitionMirrors(
+  paths: readonly string[],
+  witness: SettingsTransitionWitness,
+) {
+  if (paths.length !== 2)
+    throw new Error("A settings transition requires two retained mirror paths.");
+  for (const path of paths) {
+    const bytes = await readSettingsProbeConfiguration(path);
+    if (
+      hash(bytes) !== witness.settings_sha256 ||
+      !isDeepStrictEqual(
+        at(JSON.parse(bytes.toString("utf8")), [witness.marker_key]),
+        preservationValue,
+      )
+    )
+      throw new Error(
+        "The retained transition configuration or unrelated marker changed before probe setup.",
+      );
+  }
+}
 const wait = (ms: number) => new Promise<void>((done) => setTimeout(done, ms));
 async function within<T>(promise: Promise<T>, ms: number): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -291,6 +348,7 @@ export async function qualifySettingsConsumer(options: {
   output: string;
   caseFile: string;
   qualificationCatalog?: string | undefined;
+  transition?: "retain-baseline" | SettingsTransitionWitness | undefined;
 }) {
   if (process.platform !== "win32")
     throw new Error("This native Libultraship consumer probe requires Windows x86-64.");
@@ -338,6 +396,9 @@ export async function qualifySettingsConsumer(options: {
   )
     throw new Error("Native settings case needs one bounded integer JSON probe.");
   const selected = probe as unknown as Probe;
+  const witness = typeof options.transition === "object" ? options.transition : undefined;
+  if (options.transition === "retain-baseline" && selected.values.at(-1) === selected.values[0])
+    throw new Error("The baseline must finish with a nondefault native settings value.");
   const root = toNamespacedPath(await realpath(value.isolation_root));
   const library = toNamespacedPath(await realpath(options.library));
   const configuration = toNamespacedPath(await realpath(value.configuration_path));
@@ -447,12 +508,12 @@ export async function qualifySettingsConsumer(options: {
     if (!(await readSettingsProbeConfiguration(file)).equals(initial))
       throw new Error("Native retained settings mirrors differ before qualification.");
   }
+  if (witness) {
+    await requireSettingsTransitionMirrors(mutable.paths, witness);
+    if (at(JSON.parse(initial.toString("utf8")), selected.key) !== witness.value)
+      throw new Error("The updated package did not retain the baseline setting before launch.");
+  }
   const preservationKey = "PortcoveQualification_" + randomUUID().replaceAll("-", "");
-  const preservationValue = {
-    text: "keep this unrelated value",
-    flag: true,
-    array: [3, false, "unknown"],
-  };
   const observedValues: number[] = [];
   const producerSha256 = hash(await readFile(new URL(import.meta.url)));
   const { acquireNativeSessionLock } = await import("./native-session-lock.mts");
@@ -464,7 +525,9 @@ export async function qualifySettingsConsumer(options: {
   let failure: unknown;
   let failed = false;
   try {
-    for (const requested of selected.values) {
+    const cases = selected.values.map((requested) => ({ requested, preserved: false }));
+    if (witness) cases.unshift({ requested: witness.value, preserved: true });
+    for (const { requested, preserved } of cases) {
       const listener = await openSettingsProbeListener();
       let socket: Socket | undefined;
       let ownerVerified = false;
@@ -495,10 +558,18 @@ export async function qualifySettingsConsumer(options: {
           "--value",
           String(requested),
         ];
-        const review = await run(["game-settings", "review", ...intent]);
-        if (!object(review) || !sha(review.review_sha256) || review.proposed_value !== requested)
-          throw new Error("Native settings review differs from the requested integer.");
-        await run(["game-settings", "apply", ...intent, "--expected-review", review.review_sha256]);
+        if (!preserved) {
+          const review = await run(["game-settings", "review", ...intent]);
+          if (!object(review) || !sha(review.review_sha256) || review.proposed_value !== requested)
+            throw new Error("Native settings review differs from the requested integer.");
+          await run([
+            "game-settings",
+            "apply",
+            ...intent,
+            "--expected-review",
+            review.review_sha256,
+          ]);
+        }
         const applied: unknown = JSON.parse(
           (await readSettingsProbeConfiguration(configuration)).toString("utf8"),
         );
@@ -608,6 +679,8 @@ export async function qualifySettingsConsumer(options: {
               throw new Error("Actual packaged consumer did not retain the requested setting.");
             if (!isDeepStrictEqual(at(disk, [preservationKey]), preservationValue))
               throw new Error("Actual packaged consumer changed unrelated JSON evidence.");
+            if (witness && !isDeepStrictEqual(at(disk, [witness.marker_key]), preservationValue))
+              throw new Error("The updated engine did not preserve the baseline JSON marker.");
             consumed = true;
             break;
           }
@@ -615,12 +688,13 @@ export async function qualifySettingsConsumer(options: {
         }
         if (!consumed)
           throw new Error("Actual consumer did not publish its loaded value before the deadline.");
-        observedValues.push(requested);
+        if (!preserved) observedValues.push(requested);
         socket.write(JSON.stringify({ id: nonce + 1, type: "command", command: "quit" }) + "\0");
         const outcome = await within(terminal, deadline - performance.now());
         const retained = await run(["launch", "show", requestId]);
         evidence.push({
           requested,
+          ...(preserved ? { preserved_transition_value: true } : {}),
           session,
           peer: identity,
           outcome,
@@ -685,44 +759,62 @@ export async function qualifySettingsConsumer(options: {
         await listener.close();
       }
     }
-    const reset = await run([
-      "game-settings",
-      "review",
-      value.port_id,
-      selected.file_id,
-      selected.setting_id,
-      "--reset",
-    ]);
-    if (!object(reset) || !sha(reset.review_sha256) || !Number.isSafeInteger(reset.proposed_value))
-      throw new Error("Native default reset review is unavailable.");
-    await run([
-      "game-settings",
-      "apply",
-      value.port_id,
-      selected.file_id,
-      selected.setting_id,
-      "--reset",
-      "--expected-review",
-      reset.review_sha256,
-    ]);
-    const resetBytes = await readSettingsProbeConfiguration(configuration);
-    if (!(await readSettingsProbeConfiguration(mutable.runtime)).equals(resetBytes))
-      throw new Error("Reset left different canonical and runtime settings mirrors.");
-    const resetDocument: unknown = JSON.parse(resetBytes.toString("utf8"));
-    if (
-      at(resetDocument, selected.key) !== reset.proposed_value ||
-      !isDeepStrictEqual(at(resetDocument, [preservationKey]), preservationValue)
-    )
-      throw new Error("Native settings reset readback or unrelated JSON preservation differs.");
+    if (options.transition !== "retain-baseline") {
+      const reset = await run([
+        "game-settings",
+        "review",
+        value.port_id,
+        selected.file_id,
+        selected.setting_id,
+        "--reset",
+      ]);
+      if (
+        !object(reset) ||
+        !sha(reset.review_sha256) ||
+        !Number.isSafeInteger(reset.proposed_value)
+      )
+        throw new Error("Native default reset review is unavailable.");
+      await run([
+        "game-settings",
+        "apply",
+        value.port_id,
+        selected.file_id,
+        selected.setting_id,
+        "--reset",
+        "--expected-review",
+        reset.review_sha256,
+      ]);
+      const resetBytes = await readSettingsProbeConfiguration(configuration);
+      if (!(await readSettingsProbeConfiguration(mutable.runtime)).equals(resetBytes))
+        throw new Error("Reset left different canonical and runtime settings mirrors.");
+      const resetDocument: unknown = JSON.parse(resetBytes.toString("utf8"));
+      if (
+        at(resetDocument, selected.key) !== reset.proposed_value ||
+        !isDeepStrictEqual(at(resetDocument, [preservationKey]), preservationValue) ||
+        (witness && !isDeepStrictEqual(at(resetDocument, [witness.marker_key]), preservationValue))
+      )
+        throw new Error("Native settings reset readback or unrelated JSON preservation differs.");
+      evidence.push({
+        reset_value: reset.proposed_value,
+        unrelated_json_preserved: true,
+      });
+    }
     const verification = requireSettingsVerification(
       await run(["verify", value.port_id]),
       status.active.id,
     );
-    evidence.push({
-      reset_value: reset.proposed_value,
-      unrelated_json_preserved: true,
-      verification,
-    });
+    evidence.push({ verification });
+    if (options.transition === "retain-baseline") {
+      const bytes = await readSettingsProbeConfiguration(configuration);
+      const retained = {
+        baseline_install_id: status.active.id,
+        settings_sha256: hash(bytes),
+        value: selected.values.at(-1)!,
+        marker_key: preservationKey,
+      };
+      await requireSettingsTransitionMirrors(mutable.paths, retained);
+      evidence.push({ retained_transition_witness: retained });
+    }
     if (hash(await bounded(executable, 512 * 1024 * 1024)) !== value.executable_sha256)
       throw new Error("Native executable changed during qualification.");
   } catch (error) {
