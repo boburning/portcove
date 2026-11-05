@@ -50036,12 +50036,27 @@
           {
             "title": "Keep optional mods and maintenance separate",
             "instruction": "The USA release uses title-specific Seamless Loading rather than generic CD Speed/Fast Loading; retain that choice and region-specific mod catalog. Mario’s Hat is optional/experimental and requires the user’s separately verified Super Smash Bros. 64 USA 1.0 ROM; neither that original nor imported assets are provided or accessed here. Keep psxrecomp PolyForm Noncommercial 1.0.0, recomp-ui MIT, OpenBIOS and all project/library/font notices distinct from original/optional content rights. Upstream owns preparation and replacement: quit normally, retain recovery and review/relink changed bytes. No full playthrough, physical controller, real-save restore, native/installed, Supported or managed lifecycle acceptance is asserted."
+          },
+          {
+            "title": "Select the prepared player",
+            "instruction": "Select Tomba2Recomp.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
           }
         ],
         "warnings": [
           "Use the USA Tomba2Recomp.exe and preserve its cards plus the separate seamless-loading cache. Italian mappings, imported-character mods and complete native coverage require their own evidence."
+        ],
+        "references": [
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          },
+          {
+            "title": "Player-data ownership",
+            "instruction": "You and upstream own the external copy's data: saves/ and settings.toml beside the player, plus any configured card or settings locations; mods/ and cache/ beside the player; %LOCALAPPDATA%/Tomba2Recomp/seamless and any custom seamless-loading locations. Back up these locations separately; registration does not migrate or certify their compatibility."
+          }
         ]
-      }
+      },
+      "download_block_reason": "Portcove downloads are paused until permission for the bundled disc-derived native cache is established or upstream supplies an appropriately licensed replacement package. You can add a complete copy you are permitted to use."
     },
     {
       "id": "tombraider-pc-drakenabarion-tomb-raider-definitive-edition",

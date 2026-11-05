@@ -11,6 +11,7 @@ const DECLARED_PREPARED_ROUTE_TEST_IDS: &[&str] = &[
     "retropulse03-winback-n64recomp",
     "scottjco-wetrix-n64-usa-rev0-recomp",
     "tekrantgaming-muppet-racemania-recompiled",
+    "tomba-2-recompiled",
 ];
 
 #[test]
@@ -61,4 +62,9 @@ fn prepared_guide_adoption_declared_scottjco_wetrix_n64_usa_rev0_recomp() {
 #[test]
 fn prepared_guide_adoption_declared_tekrantgaming_muppet_racemania_recompiled() {
     assert_declarative_prepared_player_route("tekrantgaming-muppet-racemania-recompiled");
+}
+
+#[test]
+fn prepared_guide_adoption_declared_tomba_2_recompiled() {
+    assert_declarative_prepared_player_route("tomba-2-recompiled");
 }

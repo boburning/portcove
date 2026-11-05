@@ -145,6 +145,20 @@
         ]
       },
       "managed_native": false
+    },
+    {
+      "port_id": "tomba-2-recompiled",
+      "prepared_player": {
+        "executable": "Tomba2Recomp.exe",
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "saves/ and settings.toml beside the player, plus any configured card or settings locations",
+          "mods/ and cache/ beside the player",
+          "%LOCALAPPDATA%/Tomba2Recomp/seamless and any custom seamless-loading locations"
+        ]
+      },
+      "managed_native": false
     }
   ]
 }
