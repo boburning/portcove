@@ -1,5 +1,5 @@
 import { createGitHubClient } from "./github-client.mts";
-import { nextLink } from "./github-operation.mts";
+import { GitHubApiError, nextLink } from "./github-operation.mts";
 import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
 
 export interface HistoricalJobProvider {
@@ -13,8 +13,17 @@ export interface HostedNativeSourceProvider {
   file(filename: string, revision: string): Promise<unknown>;
 }
 
+export interface ImmutableReleaseMetadataProvider {
+  releases(page: number): Promise<unknown>;
+  versionTag(tag: string): Promise<{ kind: "absent" } | { kind: "present"; data: unknown }>;
+  annotatedTag(sha: string): Promise<unknown>;
+  releaseAssets(id: number, page: number): Promise<unknown>;
+  release(id: number): Promise<unknown>;
+}
+
 type ReleaseCustodyProvider = HistoricalJobProvider &
-  HostedNativeSourceProvider & {
+  HostedNativeSourceProvider &
+  ImmutableReleaseMetadataProvider & {
     run(id: string): Promise<unknown>;
     artifact(id: number): Promise<unknown>;
   };
@@ -36,6 +45,7 @@ export async function createReleaseCustodyProvider(options: {
   requestTimeoutMs?: 15000 | 30000;
   maxBytes?: number;
   currentDeadline?: () => number;
+  chargeRead?: () => void;
   fetch?: typeof globalThis.fetch;
 }): Promise<ReleaseCustodyProvider> {
   const {
@@ -44,6 +54,7 @@ export async function createReleaseCustodyProvider(options: {
     requestTimeoutMs = 15000,
     maxBytes = 2 * 1024 ** 2,
     currentDeadline,
+    chargeRead,
     fetch,
   } = options;
   const deadline = Math.min(phaseDeadline, coordinatorCommandDeadline() ?? Infinity);
@@ -56,6 +67,7 @@ export async function createReleaseCustodyProvider(options: {
     ...(fetch ? { fetch } : {}),
   });
   const get = async (route: string, parameters: Record<string, unknown>) => {
+    chargeRead?.();
     const response = await client.request(`GET ${route}`, {
       ...parameters,
       owner: "boburning",
@@ -75,6 +87,35 @@ export async function createReleaseCustodyProvider(options: {
     return response;
   };
   return {
+    async releases(page) {
+      return (await get("/repos/{owner}/{repo}/releases", { per_page: 100, page })).data as unknown;
+    },
+    async versionTag(tag) {
+      try {
+        const result = await get("/repos/{owner}/{repo}/git/ref/tags/{tag}", { tag });
+        return { kind: "present", data: result.data as unknown };
+      } catch (error) {
+        if (error instanceof GitHubApiError && error.status === 404) return { kind: "absent" };
+        throw error;
+      }
+    },
+    async annotatedTag(sha) {
+      return (await get("/repos/{owner}/{repo}/git/tags/{tag_sha}", { tag_sha: sha }))
+        .data as unknown;
+    },
+    async releaseAssets(id, page) {
+      return (
+        await get("/repos/{owner}/{repo}/releases/{release_id}/assets", {
+          release_id: id,
+          per_page: 100,
+          page,
+        })
+      ).data as unknown;
+    },
+    async release(id) {
+      return (await get("/repos/{owner}/{repo}/releases/{release_id}", { release_id: id }))
+        .data as unknown;
+    },
     async run(id) {
       return (await get("/repos/{owner}/{repo}/actions/runs/{run_id}", { run_id: id }))
         .data as unknown;

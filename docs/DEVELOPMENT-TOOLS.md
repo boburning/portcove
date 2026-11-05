@@ -1092,7 +1092,10 @@ The verified publication controller uses SDK reads for its original provider job
 clock and retained upload locator, keeping the existing journal readback order.
 Publication result custody shares the bounded source, attempt, job and artifact
 metadata reader; refreshing its proof can only shorten the original deadline.
-Archive bytes and current immutable Release state remain with their owners.
+Immutable Release custody also uses fixed SDK reads. The Release owner still
+requires the draft-inclusive inventory, exact version tag and asset readback
+before accepting an effect or reconciling an ambiguous mutation. Archive bytes
+and publication effects remain with their existing owners.
 Signing-output and TUF role custody use the same SDK reader for sequential
 attempt, job and artifact checks around byte custody. A later role refresh
 can tighten the original deadline; archive reads and attestation keep their

@@ -9,7 +9,6 @@ import { crc32, inflateRawSync } from "node:zlib";
 import { performance } from "node:perf_hooks";
 import { setTimeout as delay } from "node:timers/promises";
 import { inspectBoundedZip } from "./bounded-zip.mts";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import type { ReleaseArtifactMetadataProvider } from "./release-custody-provider.mts";
 import type { RetainedGitHubSpawn } from "./github-cli.mts";
@@ -604,16 +603,11 @@ export async function requireReceivedPublicationResult(receipt: object, phaseDea
       sha256,
     })),
   };
-  const api = new GitHubApiClient((args, input) => {
-    const output = createGitHubRunner({
-      cwd: actual.directory,
-      timeoutMs: remaining(actual.deadline),
-      maxBuffer: 2 * 1024 ** 2,
-    })([...args, "--hostname", "github.com"], input);
-    remaining(actual.deadline);
-    return output;
+  const metadata = await createReleaseCustodyProvider({
+    token: (readOnlyReleaseChildEnvironment() ?? process.env).GH_TOKEN ?? "",
+    deadline: actual.deadline,
   });
-  const observed = readImmutableReleaseState(api, identity);
+  const observed = await readImmutableReleaseState(metadata, identity);
   const transition = proposeImmutableReleaseTransition(identity, observed.release, observed.assets);
   if (transition.decision !== "complete")
     throw new Error("attested immutable Release is no longer complete");

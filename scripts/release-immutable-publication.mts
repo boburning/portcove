@@ -39,8 +39,12 @@ import {
 import { parseReleaseChecksumManifest } from "./reconcile-release-assets.mts";
 import { prepareReleasePublicBuildInputs } from "./release-public-build-inputs.mts";
 import { verifyUpdaterInventory } from "./updater-artifact-inventory.mts";
-import { GitHubApiClient, GitHubApiError, createGitHubRunner } from "./github-api.mts";
-import type { GitHubRestReader } from "./github-api.mts";
+import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
+import {
+  createReleaseCustodyProvider,
+  type ImmutableReleaseMetadataProvider,
+} from "./release-custody-provider.mts";
+import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
 import {
   requireActualReleaseAdmissionContext,
   requireActualPublicationControllerContext,
@@ -97,7 +101,7 @@ const ownedCompletions = new WeakMap<
     admission: object;
     checkpoint: string;
     operation: NonNullable<ReturnType<typeof inspectCapacityOperation>>;
-    readback: ReturnType<typeof verifyPreparedImmutableRelease>;
+    readback: Awaited<ReturnType<typeof verifyPreparedImmutableRelease>>;
     candidate: Record<string, unknown>;
     namespace: string;
     executor: ReturnType<typeof capacityExecutorIdentity>;
@@ -776,7 +780,7 @@ export async function rebindPreparedImmutableReleaseAfterPhase(
 /** Read-only feed prerequisite. Obtain the expected complete asset inventory from
  * the actual private preparation, not a caller's release receipt. This performs
  * no publication and does not clear the independent acceptance gates. */
-export function verifyPreparedImmutableRelease(
+export async function verifyPreparedImmutableRelease(
   session: PreparedReleasePublication,
   candidate: unknown,
   deadline?: number,
@@ -790,25 +794,13 @@ export function verifyPreparedImmutableRelease(
     candidate.version !== identity.version
   )
     throw new Error("immutable Release preparation differs from the current reservation");
-  const remaining = () => {
-    if (deadline !== undefined && !Number.isFinite(deadline))
-      throw new Error("immutable Release readback phase deadline exhausted");
-    const timeoutMs =
-      deadline === undefined ? 15000 : Math.floor(Math.min(15000, deadline - performance.now()));
-    if (timeoutMs < 1) throw new Error("immutable Release readback phase deadline exhausted");
-    return timeoutMs;
-  };
-  remaining();
-  const api = new GitHubApiClient((args, body) => {
-    const result = createGitHubRunner({
-      cwd: privateValue.session.directory,
-      timeoutMs: remaining(),
-      maxBuffer: 2 * 1024 * 1024,
-    })([...args, "--hostname", "github.com"], body);
-    remaining();
-    return result;
+  publicationRemaining(deadline);
+  const metadata = await createReleaseCustodyProvider({
+    token: (readOnlyReleaseChildEnvironment() ?? process.env).GH_TOKEN ?? "",
+    deadline: deadline ?? performance.now() + 24 * 15000,
   });
-  const actual = readImmutableReleaseState(api, identity);
+  const actual = await readImmutableReleaseState(metadata, identity);
+  publicationRemaining(deadline);
   const transition = proposeImmutableReleaseTransition(identity, actual.release, actual.assets);
   if (transition.decision !== "complete")
     throw new Error("feed publication requires the complete observed immutable Release");
@@ -823,12 +815,12 @@ export function verifyPreparedImmutableRelease(
 
 /** Complete release inventory includes drafts; a published-only tag lookup can
  * hide a retained draft after an ambiguous create. Embedded assets are ignored. */
-export function readImmutableReleaseState(
-  api: GitHubRestReader,
+export async function readImmutableReleaseState(
+  metadata: ImmutableReleaseMetadataProvider,
   identity: ReleasePublicationIdentity,
 ) {
   const wanted = expectedIdentity(identity);
-  return readImmutableReleaseCustodyState(api, {
+  return readImmutableReleaseCustodyState(metadata, {
     version: wanted.version,
     source_commit: wanted.source_commit,
     asset_names: wanted.assets.map((asset) => asset.filename),
@@ -838,8 +830,8 @@ export function readImmutableReleaseState(
 /** Raw GET custody only. A complete-byte identity remains mandatory for all
  * transition/effect and publication consumers. No placeholder lengths/hashes
  * are manufactured when an authenticated context omits a document length. */
-export function readImmutableReleaseCustodyState(
-  api: GitHubRestReader,
+export async function readImmutableReleaseCustodyState(
+  metadata: ImmutableReleaseMetadataProvider,
   rawIdentity: { version: string; source_commit: string; asset_names: readonly string[] },
 ) {
   const wanted = structuredClone(rawIdentity);
@@ -859,10 +851,10 @@ export function readImmutableReleaseCustodyState(
   wanted.version = classifyApplicationVersion(wanted.version).version;
   const all: Record<string, unknown>[] = [];
   for (let page = 1; page <= 16; page++) {
-    const response = api.request("GET", `${base}/releases?per_page=100&page=${page}`);
-    if (response.status !== 200 || !Array.isArray(response.body) || response.body.length > 100)
+    const pageRows = await metadata.releases(page);
+    if (!Array.isArray(pageRows) || pageRows.length > 100)
       throw new Error("release inventory unavailable");
-    for (const item of response.body as unknown[]) {
+    for (const item of pageRows as unknown[]) {
       if (
         !isRecord(item) ||
         !Number.isSafeInteger(item.id) ||
@@ -872,30 +864,19 @@ export function readImmutableReleaseCustodyState(
         throw new Error("release inventory duplicates or omits provider identity");
       all.push(item);
     }
-    if (response.body.length < 100) break;
+    if (pageRows.length < 100) break;
     if (page === 16) throw new Error("release inventory pagination bound exhausted");
   }
   const found = all.filter((r) => r.tag_name === `v${wanted.version}`);
   if (found.length > 1) throw new Error("reserved tag has multiple release identities");
-  let tag: ReturnType<GitHubRestReader["request"]>;
-  try {
-    tag = api.request("GET", `${base}/git/ref/tags/${encodeURIComponent(`v${wanted.version}`)}`);
-  } catch (error) {
-    // The real gh runner throws on HTTP errors. Only the exact tag GET's
-    // collected 404 is absence; authentication/refusal/timeout remains unknown.
-    // Complete authenticated Release inventory above is still mandatory.
-    if (!(error instanceof GitHubApiError) || error.status !== 404) throw error;
-    tag = { status: 404, body: null, headers: new Map() };
-  }
+  // Only the exact tag GET's observed HTTP 404 is absence. The authenticated
+  // draft-inclusive inventory above must still have completed.
+  const tag = await metadata.versionTag(`v${wanted.version}`);
   let tagCommit: string | null = null;
-  if (tag.status !== 404) {
-    if (
-      tag.status !== 200 ||
-      !isRecord(tag.body) ||
-      tag.body.ref !== `refs/tags/v${wanted.version}`
-    )
+  if (tag.kind === "present") {
+    if (!isRecord(tag.data) || tag.data.ref !== `refs/tags/v${wanted.version}`)
       throw new Error("release tag readback unavailable");
-    let target: unknown = tag.body.object;
+    let target: unknown = tag.data.object;
     for (let depth = 0; depth < 4; depth++) {
       if (
         !isRecord(target) ||
@@ -908,14 +889,10 @@ export function readImmutableReleaseCustodyState(
         break;
       }
       if (target.type !== "tag") throw new Error("release tag target is not a commit");
-      const annotated = api.request("GET", `${base}/git/tags/${target.sha}`);
-      if (
-        annotated.status !== 200 ||
-        !isRecord(annotated.body) ||
-        annotated.body.sha !== target.sha
-      )
+      const annotated = await metadata.annotatedTag(target.sha);
+      if (!isRecord(annotated) || annotated.sha !== target.sha)
         throw new Error("annotated release tag readback unavailable");
-      target = annotated.body.object;
+      target = annotated.object;
     }
     if (tagCommit !== wanted.source_commit)
       throw new Error("existing version tag differs; never move it");
@@ -927,21 +904,15 @@ export function readImmutableReleaseCustodyState(
     throw new Error("published release lacks the exact actual version tag");
   const collected: unknown[] = [];
   for (let page = 1; page <= 2; page++) {
-    const result = api.request(
-      "GET",
-      `${base}/releases/${current.id}/assets?per_page=100&page=${page}`,
-    );
-    if (result.status !== 200 || !Array.isArray(result.body) || result.body.length > 100)
+    const rows = await metadata.releaseAssets(current.id, page);
+    if (!Array.isArray(rows) || rows.length > 100)
       throw new Error("complete release asset readback unavailable");
-    collected.push(...(result.body as unknown[]));
+    collected.push(...(rows as unknown[]));
     if (collected.length > wanted.asset_names.length)
       throw new Error("unexpected release assets; preserve and reconcile");
-    if (result.body.length < 100) {
-      const detail = api.request("GET", `${base}/releases/${current.id}`);
-      if (
-        detail.status !== 200 ||
-        capacityDigest(release(detail.body, wanted)) !== capacityDigest(current)
-      )
+    if (rows.length < 100) {
+      const detail = await metadata.release(current.id);
+      if (capacityDigest(release(detail, wanted)) !== capacityDigest(current))
         throw new Error("release identity changed during asset readback");
       return { release: raw, assets: collected, tag_commit: tagCommit };
     }
@@ -1112,7 +1083,7 @@ export async function advanceImmutableReleasePublication(
       },
       operation: () => Promise<{ remote_identity: string; evidence_sha256: string }>,
     ) => Promise<{ checkpoint: string; operation_id: string; evidence_sha256: string }>;
-    api?: GitHubRestReader;
+    metadata?: ImmutableReleaseMetadataProvider;
     token: string;
     fetch?: typeof fetch;
     deadline?: number;
@@ -1127,30 +1098,26 @@ export async function advanceImmutableReleasePublication(
   session = state.session;
   active.add(sessionKey);
   try {
-    const api =
-      options.api ??
-      new GitHubApiClient((args, input) => {
-        const result = createGitHubRunner({
-          cwd: session.directory,
-          maxBuffer: 512 * 1024,
-          timeoutMs: publicationRemaining(options.deadline),
-        })([...args, "--hostname", "github.com"], input);
-        publicationRemaining(options.deadline);
-        return result;
-      });
+    const metadata =
+      options.metadata ??
+      (await createReleaseCustodyProvider({
+        token: (readOnlyReleaseChildEnvironment() ?? process.env).GH_TOKEN ?? "",
+        deadline: options.deadline ?? performance.now() + 3 * 24 * 15000,
+        maxBytes: 512 * 1024,
+      }));
     const reservedState = await options.recover(state.checkpoint);
     publicationRemaining(options.deadline);
     await requireReservedAggregate(state.descriptor, reservedState);
     if (!isRecord(reservedState) || !isRecord(reservedState.input))
       throw new Error("reserved input missing");
     const candidate = reservedState.input.active_candidate;
-    const before = readImmutableReleaseState(api, session.identity);
+    const before = await readImmutableReleaseState(metadata, session.identity);
     publicationRemaining(options.deadline);
     const next = proposeImmutableReleaseTransition(session.identity, before.release, before.assets);
     if (next.decision === "complete")
       return {
         ...next,
-        evidence_scope: options.api || options.fetch ? "injected-provider" : "github.com",
+        evidence_scope: options.metadata || options.fetch ? "injected-provider" : "github.com",
       };
     const releaseExpectation = inspectReleaseEffectExpectation({
       before_checkpoint: state.checkpoint,
@@ -1183,17 +1150,19 @@ export async function advanceImmutableReleasePublication(
             effect.asset.bytes,
           )
         : null;
-    let started = false;
+    let entered = false,
+      started = false;
     const invocationCheckpoint = state.checkpoint;
     let knownSettlementCheckpoint: string | null = null;
     try {
       let evidenceSha256: string | null = null;
       let remoteIdentity: string | null = null;
-      let observed: ReturnType<typeof readImmutableReleaseState> | null = null;
+      let observed: Awaited<ReturnType<typeof readImmutableReleaseState>> | null = null;
       const settlement = await options.effect(effect, async () => {
-        if (started) throw new Error("a release effect may execute only once");
+        if (entered) throw new Error("a release effect may execute only once");
+        entered = true;
         publicationRemaining(options.deadline);
-        const immediate = readImmutableReleaseState(api, session.identity);
+        const immediate = await readImmutableReleaseState(metadata, session.identity);
         const immediateNext = proposeImmutableReleaseTransition(
           session.identity,
           immediate.release,
@@ -1232,7 +1201,7 @@ export async function advanceImmutableReleasePublication(
           options.deadline,
           options.riskExpiresAt,
         );
-        const after = readImmutableReleaseState(api, session.identity);
+        const after = await readImmutableReleaseState(metadata, session.identity);
         publicationRemaining(options.deadline);
         const nextAfter = proposeImmutableReleaseTransition(
           session.identity,
@@ -1332,7 +1301,7 @@ export async function advanceImmutableReleasePublication(
         settlement,
         authority: "none",
         automatic_continue: false,
-        evidence_scope: options.api || options.fetch ? "injected-provider" : "github.com",
+        evidence_scope: options.metadata || options.fetch ? "injected-provider" : "github.com",
       };
     } catch {
       // No second operation. Caller persists this ambiguity in its existing intent
@@ -1622,7 +1591,7 @@ export async function observeOwnedImmutableReleaseCompletion(
       operation = attempts[0]!;
     }
   }
-  const readback = verifyPreparedImmutableRelease(session, candidate, deadline);
+  const readback = await verifyPreparedImmutableRelease(session, candidate, deadline);
   const effect = operation?.completed_effects[0];
   const original = operation?.executor_identity;
   if (
@@ -1716,7 +1685,7 @@ export async function requireOwnedImmutableReleaseCompletion(receipt: object) {
     "release-publication",
   );
   await requireVerifiedReleaseSbomDocument(admission.sbom_receipt);
-  const readback = verifyPreparedImmutableRelease(
+  const readback = await verifyPreparedImmutableRelease(
     retained.session,
     retained.candidate,
     retained.deadline,
