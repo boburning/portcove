@@ -19,10 +19,9 @@ import {
 import { collectReleaseRunEvidence } from "./release-run-evidence.mts";
 import { isRecord } from "./runtime-values.mts";
 import { inspectCompilerRiskAssessment706 } from "./linux-beta-risk-706.mts";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import { controllerNodeVersion } from "./controller-node-runtime.mts";
 
-type Evidence = ReturnType<typeof collectReleaseRunEvidence>;
+type Evidence = Awaited<ReturnType<typeof collectReleaseRunEvidence>>;
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const interfaces = ["cli", "desktop"] as const;
 type Platform = ReturnType<typeof nativePlatformsForReleaseProfile>[number];
@@ -381,16 +380,8 @@ export async function collectReleaseCompilerEvidence(
     tree: accepted.source_tree,
     workflow_sha256: evidence.source_workflow_sha256,
   };
-  const runner = createGitHubRunner({
-    cwd: privateRoot,
-    maxBuffer: 2 * 1024 * 1024,
-    timeoutMs: 15000,
-  });
-  const api = new GitHubApiClient((args, input) =>
-    runner([...args, "--hostname", "github.com"], input),
-  );
-  const freshEvidence = () => collectReleaseRunEvidence(request, { api });
-  if (!options.download && !options.spawn) evidence = freshEvidence();
+  const freshEvidence = () => collectReleaseRunEvidence(request);
+  if (!options.download && !options.spawn) evidence = await freshEvidence();
   requirePublicBuildInputProviderBinding(publicInputs.binding, evidence);
   const wanted = platforms.flatMap((platform) =>
     interfaces.map(
@@ -548,7 +539,7 @@ export async function collectReleaseCompilerEvidence(
   });
   if (receipt.evidence_scope === "github.com") {
     await requireVerifiedReleasePublicBuildInputs(publicInputs);
-    const final = freshEvidence();
+    const final = await freshEvidence();
     const { observed_at: _before, ...before } = evidence;
     const { observed_at: _after, ...after } = final;
     if (!isDeepStrictEqual(before, after))

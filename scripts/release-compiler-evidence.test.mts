@@ -36,7 +36,9 @@ const roles = [
 ];
 async function fixture(t: test.TestContext) {
   const f = await releasePublicBuildProvenanceFixture(t);
-  const evidence = collectReleaseRunEvidence(f.expected, { api: f.api });
+  const evidence = await collectReleaseRunEvidence(f.expected, {
+    read: async (endpoint) => f.api.request("GET", endpoint),
+  });
   const publicInputs = await verifyReleasePublicBuildInputs(f.root, f.binding, evidence, {
     download: f.download,
   });

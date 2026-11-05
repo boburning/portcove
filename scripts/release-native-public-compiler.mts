@@ -9,7 +9,6 @@ import { isRecord } from "./runtime-values.mts";
 import { requireActualPublicJourneySource } from "./release-native-public-pair.mts";
 import { readReleaseCompilerReportArchive } from "./release-compiler-report-archive.mts";
 import { inspectReleaseCompilerReport } from "./release-compiler-evidence.mts";
-import { collectReleaseRunEvidence } from "./release-run-evidence.mts";
 import {
   selectPublicBuildInputBinding,
   verifyReleasePublicBuildInputs,
@@ -196,8 +195,8 @@ export async function collectActualPublicWindowsCompilerIdentity(
     tree: identity.source_tree,
     workflow_sha256: hash(workflow),
   };
-  const readEvidence = () => collectReleaseRunEvidence(request, { api: selected.source.api });
-  const evidence = readEvidence();
+  const readEvidence = () => selected.source.collectEvidence(request);
+  const evidence = await readEvidence();
   assert.ok(
     evidence.run.event === "workflow_dispatch" &&
       evidence.run.status === "completed" &&
@@ -334,7 +333,7 @@ export async function collectActualPublicWindowsCompilerIdentity(
     sha256: hash(verifiedBytes),
   });
   const { observed_at: _before, ...before } = evidence;
-  const { observed_at: _after, ...after } = readEvidence();
+  const { observed_at: _after, ...after } = await readEvidence();
   assert.ok(
     isDeepStrictEqual(before, after),
     "public compiler provider changed during acquisition",

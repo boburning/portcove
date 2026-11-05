@@ -2247,6 +2247,13 @@ for (const file of [
   explicitNodeTests.set(file, [
     ...(explicitNodeTests.get(file) ?? []),
     "scripts/github-client.test.mts",
+    "scripts/release-run-evidence.test.mts",
+    "scripts/acquire-release-admission.test.mts",
+    "scripts/release-compiler-evidence.test.mts",
+    "scripts/release-acceptance-evidence.test.mts",
+    "scripts/release-public-build-provenance.test.mts",
+    "scripts/production-aggregate-steps.test.mts",
+    "scripts/trusted-aggregate-attestation.test.mts",
     "scripts/production-controller-admission.test.mts",
     "scripts/release-bootstrap-preparation.test.mts",
     "scripts/application-release-budget.test.mts",

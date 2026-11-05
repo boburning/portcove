@@ -1,3 +1,5 @@
+import { collectReleaseRunEvidence } from "./release-run-evidence.mts";
+import type { ReleaseEvidenceOptions } from "./release-run-evidence.mts";
 import { nativeCompatibilitySourcePaths } from "./release-native-source-contract.mts";
 import { nativePlatformsForReleaseProfile } from "./release-package-policy.mts";
 import { isInitialBetaReleaseProfile } from "./release-package-policy.mts";
@@ -505,6 +507,30 @@ async function sourceTransport(parent: Parent, directory: string) {
       deadline: Math.min(deadline, performance.now() + remainingNativeParentBudget(300000)),
       maxBytes,
     });
+  const collectEvidence = (request: unknown, options: ReleaseEvidenceOptions = {}) => {
+    checkToolIdentity();
+    return collectReleaseRunEvidence(request, {
+      ...options,
+      credential: { kind: "explicit", token },
+      async reserve(request) {
+        checkToolIdentity();
+        const outer = await options.reserve?.(request);
+        return {
+          consumeBytes(bytes) {
+            outer?.consumeBytes(bytes);
+          },
+          settle(observation) {
+            outer?.settle(observation);
+            checkToolIdentity();
+          },
+        };
+      },
+      deadline: Math.min(
+        options.deadline ?? Infinity,
+        performance.now() + remainingNativeParentBudget(),
+      ),
+    });
+  };
   const declarations = async () => {
     const deadline =
       performance.now() +
@@ -528,6 +554,7 @@ async function sourceTransport(parent: Parent, directory: string) {
   };
   return {
     api,
+    collectEvidence,
     metadata,
     declarations,
     download,
@@ -1789,6 +1816,7 @@ export async function acquireActualNativeCandidate(parentReceipt: object) {
       },
       {
         api: source.api,
+        collectEvidence: source.collectEvidence,
         download: source.download,
         recover: source.recover,
         controlPhase: "payload",

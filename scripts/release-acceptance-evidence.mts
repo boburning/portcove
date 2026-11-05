@@ -24,7 +24,7 @@ const repository = "boburning/portcove";
 const workflow = ".github/workflows/release.yml";
 export const releaseSpdxPredicateType = "https://spdx.dev/Document/v2.3";
 const sha256 = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
-type Evidence = ReturnType<typeof collectReleaseRunEvidence>;
+type Evidence = Awaited<ReturnType<typeof collectReleaseRunEvidence>>;
 const verifiedSbomDocuments = new WeakMap<
   object,
   {
