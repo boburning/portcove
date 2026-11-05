@@ -27,7 +27,7 @@ import { spawnCommand } from "../../../scripts/dev-storage.mts";
 import { errorMessage, isRecord } from "../../../scripts/runtime-values.mts";
 import {
   fixtureSuccess,
-  ownedFixtureCommand,
+  ownedFixtureObservationCommand,
   requiredFixtureValue as required,
 } from "./desktop-scenario-state.mts";
 import { transportValue, transportValues } from "./transport-values.mts";
@@ -193,17 +193,11 @@ export async function gameFirstInstalledScenario(context: GameFirstInstalledCont
         "Gameplay, save compatibility, total network offline, definition withdrawal and full #4154 acceptance",
       ],
     };
-    const coreRaw = ownedFixtureCommand({ cli, library, output });
-    const core = (args: readonly string[]) => {
-      assert.ok(
-        (args.length === 2 &&
-          ["status", "paths"].includes(String(args[0])) &&
-          args[1] === portId) ||
-          (args.length === 3 && args[0] === "launch" && args[1] === "show"),
-        "Read-only normal CLI observations only",
-      );
-      return coreRaw(args);
-    };
+    const core = ownedFixtureObservationCommand(
+      { cli, library, output },
+      [portId],
+      "Read-only normal CLI observations only",
+    );
     const status = async () =>
       required(
         transportValues("status", fixtureSuccess(await invoke("get_statuses"))).find(

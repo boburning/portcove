@@ -12,7 +12,7 @@ import { fileIdentity } from "../../../scripts/development-evidence.mts";
 import { errorCode, errorMessage } from "../../../scripts/runtime-values.mts";
 import {
   fixtureSuccess,
-  ownedFixtureCommand,
+  ownedFixtureObservationCommand,
   requiredFixtureValue as required,
 } from "./desktop-scenario-state.mts";
 import { transportValue } from "./transport-values.mts";
@@ -152,6 +152,31 @@ async function userDataInventory(root: string) {
   return { exists: true as const, files: files.sort((a, b) => a.name.localeCompare(b.name, "en")) };
 }
 
+async function filterInstalledMM(
+  browser: MMInstalledContext["browser"],
+  click: (locator: Locator) => Promise<void>,
+  method: "portable-package" | "portable-recompilation",
+) {
+  await clearCatalogFilters(browser);
+  await openCatalogFilters(browser);
+  await click(By.css('button[aria-label^="Original system:"]'));
+  await click(By.css('label[for$=":originalSystems:nintendo-gamecube"] [role="checkbox"]'));
+  await click(By.css('button[aria-label="Close Original system choices"]'));
+  const advanced = await browser.findElement(
+    By.xpath(
+      '//section[@aria-label="Filter options"]//summary[normalize-space(.)="Advanced filters"]',
+    ),
+  );
+  if (
+    (await (await advanced.findElement(By.xpath("parent::details"))).getAttribute("open")) === null
+  )
+    await clickVisible(browser, advanced);
+  await click(By.css('button[aria-label^="Setup methods:"]'));
+  await click(By.css(`label[for$=":installationMethods:${method}"] [role="checkbox"]`));
+  await click(By.css('button[aria-label="Close Setup methods choices"]'));
+  await click(By.xpath('//button[normalize-space(.)="Done"]'));
+}
+
 export async function gameFirstInstalledMMScenario(context: MMInstalledContext) {
   const { invoke, scenario, library, cli, output, artifacts, inputBaseline, sourceDirectory } =
     context;
@@ -186,17 +211,11 @@ export async function gameFirstInstalledMMScenario(context: MMInstalledContext) 
     };
     const row = async (id: string) =>
       required((await read()).statuses.find((item) => item.port_id === id));
-    const coreRaw = ownedFixtureCommand({ cli, library, output });
-    const core = (args: readonly string[]) => {
-      assert.ok(
-        (args.length === 2 &&
-          ["status", "paths"].includes(String(args[0])) &&
-          pair.some((id) => id === args[1])) ||
-          (args.length === 3 && args[0] === "launch" && args[1] === "show"),
-        "Read-only normal CLI only",
-      );
-      return coreRaw(args);
-    };
+    const core = ownedFixtureObservationCommand(
+      { cli, library, output },
+      pair,
+      "Read-only normal CLI only",
+    );
     const button = (label: string) => By.xpath(`//button[normalize-space(.)="${label}"]`);
     const click = async (locator: Locator, timeout = 15_000) => {
       const element = await browser.wait(until.elementLocated(locator), timeout);
@@ -557,27 +576,8 @@ export async function gameFirstInstalledMMScenario(context: MMInstalledContext) 
       await browser.wait(async () => (await favorites()).includes(portId), 15_000);
       const installedBeforeFilters = pair.map(async (id) => required((await row(id)).active));
       const activeRecords = await Promise.all(installedBeforeFilters);
-      const filter = async (method: "portable-package" | "portable-recompilation") => {
-        await clearCatalogFilters(browser);
-        await openCatalogFilters(browser);
-        await click(By.css('button[aria-label^="Original system:"]'));
-        await click(By.css('label[for$=":originalSystems:nintendo-gamecube"] [role="checkbox"]'));
-        await click(By.css('button[aria-label="Close Original system choices"]'));
-        const advanced = await browser.findElement(
-          By.xpath(
-            '//section[@aria-label="Filter options"]//summary[normalize-space(.)="Advanced filters"]',
-          ),
-        );
-        if (
-          (await (await advanced.findElement(By.xpath("parent::details"))).getAttribute("open")) ===
-          null
-        )
-          await clickVisible(browser, advanced);
-        await click(By.css('button[aria-label^="Setup methods:"]'));
-        await click(By.css(`label[for$=":installationMethods:${method}"] [role="checkbox"]`));
-        await click(By.css('button[aria-label="Close Setup methods choices"]'));
-        await click(button("Done"));
-      };
+      const filter = (method: "portable-package" | "portable-recompilation") =>
+        filterInstalledMM(browser, click, method);
       assertNoManagedLaunches(library);
       await filter("portable-recompilation");
       await browser.wait(

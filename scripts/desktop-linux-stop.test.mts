@@ -36,7 +36,10 @@ void test("Linux cover restart joins exact captured processes before fixture mut
     ).length,
     1,
   );
-  const restart = between("async function restartApplication(", "// Interrupt only this harness");
+  const restart = between(
+    "async function restartHistoryApplication(",
+    "// Interrupt only this harness",
+  );
   for (const failure of [false, true]) {
     const calls: string[] = [];
     const inventory = { driver: { start_ticks: "7" }, processes: [{ pid: 23, start_ticks: "7" }] };

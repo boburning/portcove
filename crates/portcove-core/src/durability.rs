@@ -203,11 +203,11 @@ pub(crate) fn tempfile_destination(destination: &Path) -> Result<std::path::Path
             .parent()
             .ok_or_else(|| PortcoveError::usage("publication path has no parent"))?;
         let parent = fs::canonicalize(parent)?;
-        return Ok(parent.join(
+        Ok(parent.join(
             destination
                 .file_name()
                 .ok_or_else(|| PortcoveError::usage("publication path has no filename"))?,
-        ));
+        ))
     }
     #[cfg(not(windows))]
     Ok(destination.to_path_buf())

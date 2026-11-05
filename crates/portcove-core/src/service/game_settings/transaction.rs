@@ -587,12 +587,12 @@ impl PortcoveService {
             GameSettingChange::Reset => setting.value.default_value(),
         };
         for leg in std::iter::once(&canonical).chain(runtime.iter()) {
-            if let Some(before) = &leg.before {
-                if document::read(file, before)?.get(index) != Some(&payload.review.previous_value)
-                    || document::edit(file, before, &setting.id, &proposed)? != leg.after
-                {
-                    return Err(conflict());
-                }
+            if let Some(before) = &leg.before
+                && (document::read(file, before)?.get(index)
+                    != Some(&payload.review.previous_value)
+                    || document::edit(file, before, &setting.id, &proposed)? != leg.after)
+            {
+                return Err(conflict());
             }
             if document::read(file, &leg.after)?.get(index)
                 != Some(&Some(payload.review.proposed_value.clone()))

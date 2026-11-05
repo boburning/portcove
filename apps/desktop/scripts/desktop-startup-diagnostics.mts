@@ -25,57 +25,10 @@ function startupTargetUrl(value: unknown) {
   }
 }
 
-/** Initial owned-startup observation only. Never switches the selected target. */
-async function captureStartupTargets(
+async function captureStartupCapabilities(
   browser: WebDriver | LinuxInspectorProtocol,
-  currentUrl: unknown,
+  observation: Record<string, unknown>,
 ) {
-  const observation: Record<string, unknown> = {
-    context_switching: "not-attempted-no-cancellable-switch",
-    restoration: "not-needed-no-context-switch",
-  };
-  let currentHandle: string | undefined;
-  try {
-    if (!("getWindowHandle" in browser) || typeof browser.getWindowHandle !== "function")
-      observation.current_handle_unavailable = true;
-    else {
-      const handle: unknown = await browser.getWindowHandle();
-      if (typeof handle !== "string") throw new Error("Current window handle is not a string");
-      currentHandle = handle;
-      observation.current_handle = handle.slice(0, 256);
-      observation.current_handle_truncated = handle.length > 256;
-    }
-  } catch {
-    observation.current_handle_error = "read-failed";
-  }
-  try {
-    if (!("getAllWindowHandles" in browser) || typeof browser.getAllWindowHandles !== "function")
-      observation.handles_unavailable = true;
-    else {
-      const handles: unknown = await browser.getAllWindowHandles();
-      if (!Array.isArray(handles)) throw new Error("Window handles are not an array");
-      observation.handle_count = handles.length;
-      observation.handles_truncated = handles.length > 4;
-      observation.handles = handles.slice(0, 4).map((handle: unknown) => {
-        if (typeof handle !== "string") return { invalid_handle: true };
-        const selected = handle === currentHandle;
-        return {
-          handle: handle.slice(0, 256),
-          handle_truncated: handle.length > 256,
-          selected,
-          ...(selected
-            ? startupTargetUrl(currentUrl)
-            : { url: null, url_classification: "unavailable" }),
-          url_observation:
-            selected && typeof currentUrl === "string"
-              ? "selected-origin-only-components-omitted"
-              : "unavailable-without-context-switch",
-        };
-      });
-    }
-  } catch {
-    observation.handles_error = "read-failed";
-  }
   try {
     if (!("getCapabilities" in browser) || typeof browser.getCapabilities !== "function")
       observation.capabilities_unavailable = true;
@@ -128,6 +81,60 @@ async function captureStartupTargets(
   } catch {
     observation.capabilities_error = "read-failed";
   }
+}
+
+/** Initial owned-startup observation only. Never switches the selected target. */
+async function captureStartupTargets(
+  browser: WebDriver | LinuxInspectorProtocol,
+  currentUrl: unknown,
+) {
+  const observation: Record<string, unknown> = {
+    context_switching: "not-attempted-no-cancellable-switch",
+    restoration: "not-needed-no-context-switch",
+  };
+  let currentHandle: string | undefined;
+  try {
+    if (!("getWindowHandle" in browser) || typeof browser.getWindowHandle !== "function")
+      observation.current_handle_unavailable = true;
+    else {
+      const handle: unknown = await browser.getWindowHandle();
+      if (typeof handle !== "string") throw new Error("Current window handle is not a string");
+      currentHandle = handle;
+      observation.current_handle = handle.slice(0, 256);
+      observation.current_handle_truncated = handle.length > 256;
+    }
+  } catch {
+    observation.current_handle_error = "read-failed";
+  }
+  try {
+    if (!("getAllWindowHandles" in browser) || typeof browser.getAllWindowHandles !== "function")
+      observation.handles_unavailable = true;
+    else {
+      const handles: unknown = await browser.getAllWindowHandles();
+      if (!Array.isArray(handles)) throw new Error("Window handles are not an array");
+      observation.handle_count = handles.length;
+      observation.handles_truncated = handles.length > 4;
+      observation.handles = handles.slice(0, 4).map((handle: unknown) => {
+        if (typeof handle !== "string") return { invalid_handle: true };
+        const selected = handle === currentHandle;
+        return {
+          handle: handle.slice(0, 256),
+          handle_truncated: handle.length > 256,
+          selected,
+          ...(selected
+            ? startupTargetUrl(currentUrl)
+            : { url: null, url_classification: "unavailable" }),
+          url_observation:
+            selected && typeof currentUrl === "string"
+              ? "selected-origin-only-components-omitted"
+              : "unavailable-without-context-switch",
+        };
+      });
+    }
+  } catch {
+    observation.handles_error = "read-failed";
+  }
+  await captureStartupCapabilities(browser, observation);
   try {
     const manager = browser.manage();
     if (!("logs" in manager)) observation.driver_logs_unavailable = true;

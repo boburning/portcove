@@ -85,6 +85,18 @@ function shareWorkspaceRead(previous: unknown, next: unknown): WorkspaceRead {
   };
 }
 
+function workspaceDiagnosticInputsChanged(previous: WorkspaceSnapshot, next: WorkspaceSnapshot) {
+  return (
+    next.catalog !== previous.catalog ||
+    next.statuses !== previous.statuses ||
+    next.sources !== previous.sources ||
+    next.browsing !== previous.browsing ||
+    next.listing_catalog !== previous.listing_catalog ||
+    next.listing_statuses !== previous.listing_statuses ||
+    next.pending_setups !== previous.pending_setups
+  );
+}
+
 const emptyStatuses: PortStatus[] = [];
 const emptySources: SourceRecord[] = [];
 const emptyListingStatuses: PortListingStatus[] = [];
@@ -258,17 +270,7 @@ export function usePortcoveData(libraryGeneration = 0) {
     if (!workspace.data) return;
     const next = workspace.data.snapshot;
     const previous = previousSnapshot.current;
-    if (
-      previous &&
-      (next.catalog !== previous.catalog ||
-        next.statuses !== previous.statuses ||
-        next.sources !== previous.sources ||
-        next.browsing !== previous.browsing ||
-        next.listing_catalog !== previous.listing_catalog ||
-        next.listing_statuses !== previous.listing_statuses ||
-        next.pending_setups !== previous.pending_setups)
-    )
-      invalidateDiagnostics();
+    if (previous && workspaceDiagnosticInputsChanged(previous, next)) invalidateDiagnostics();
     previousSnapshot.current = next;
     if (
       workspace.data.activityRequest !== null &&

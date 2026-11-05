@@ -26,6 +26,22 @@ import type {
 } from "../../types";
 import type { OperationResult } from "../../transport-types.generated";
 
+function applyFixtureSetupConfirmation(
+  next: LibraryOrganization,
+  change: Extract<OrganizationChange, { kind: "set_setup_confirmation" }>,
+) {
+  const confirmation = change.confirmation;
+  next.setup_confirmations = next.setup_confirmations.filter(
+    (item) =>
+      !(
+        item.port_id === confirmation.port_id &&
+        item.context.kind === confirmation.context.kind &&
+        item.context.installation_id === confirmation.context.installation_id
+      ),
+  );
+  if (change.confirmed) next.setup_confirmations.push(confirmation);
+}
+
 export const recoveryKey = "portcove.interactive.fixture-recovery";
 export function installInteractiveTransport(journey: Journey, refuse: (message: string) => void) {
   if (!import.meta.env.DEV || "__TAURI_INTERNALS__" in window || "__TAURI__" in window) {
@@ -207,19 +223,9 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
             skipped_release: change.choice.skipped_release ?? null,
           };
           break;
-        case "set_setup_confirmation": {
-          const confirmation = change.confirmation;
-          next.setup_confirmations = next.setup_confirmations.filter(
-            (item) =>
-              !(
-                item.port_id === confirmation.port_id &&
-                item.context.kind === confirmation.context.kind &&
-                item.context.installation_id === confirmation.context.installation_id
-              ),
-          );
-          if (change.confirmed) next.setup_confirmations.push(confirmation);
+        case "set_setup_confirmation":
+          applyFixtureSetupConfirmation(next, change);
           break;
-        }
         default:
           return unsupported("change_library_organization (unknown fixture choice)");
       }

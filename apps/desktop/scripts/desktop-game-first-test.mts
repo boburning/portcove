@@ -223,6 +223,50 @@ export async function captureGameFirstTarget<Semantic extends { ready: boolean }
   });
 }
 
+async function inspectGameFirstBaseline(
+  output: string,
+  before: Awaited<ReturnType<typeof readGameFirstObservation>>,
+) {
+  const relative = path.relative(
+    await realpath(output),
+    await realpath(required(before.bootstrap.library_root)),
+  );
+  assert.ok(
+    relative &&
+      relative !== ".." &&
+      !relative.startsWith(`..${path.sep}`) &&
+      !path.isAbsolute(relative),
+    "Game-first scenario requires the harness-owned library beneath this output scope",
+  );
+  const ports = pair.map((id) =>
+    required(before.workspace.catalog.ports.find((port) => port.id === id)),
+  );
+  const [ship, recompiled] = ports.map((port) => required(port.presentation?.original_game));
+  assert.equal(required(ship).id, gameId);
+  assert.equal(required(recompiled).id, gameId);
+  assert.deepEqual(
+    required(ship).source_editions.map((edition) => edition.id),
+    ["majoras-mask-n64-usa-1-0", "majoras-mask-gamecube-usa"],
+  );
+  assert.deepEqual(
+    required(recompiled).source_editions.map((edition) => edition.id),
+    ["majoras-mask-n64-usa-1-0"],
+  );
+  const picori = required(
+    before.workspace.catalog.ports.find((port) => port.id === "project-picori"),
+  );
+  assert.equal(picori.presentation?.original_game?.id, "the-legend-of-zelda-the-minish-cap");
+  const gzdoom = required(
+    before.workspace.listing_catalog?.listings.find((port) => port.id === "zdoom-gzdoom"),
+  );
+  assert.equal(
+    gzdoom.original_game ?? null,
+    null,
+    "Unresolved engine identity must remain ungrouped",
+  );
+  return { ports, picori, gzdoom };
+}
+
 /** Normal controls and read-only IPC only; no qualification catalog or installation fixture. */
 export async function gameFirstScenarios({
   browser,
@@ -252,43 +296,7 @@ export async function gameFirstScenarios({
       organization: before.organization,
       statuses: before.statuses.filter((row) => pair.some((id) => id === row.port_id)),
     });
-    const relative = path.relative(
-      await realpath(output),
-      await realpath(required(before.bootstrap.library_root)),
-    );
-    assert.ok(
-      relative &&
-        relative !== ".." &&
-        !relative.startsWith(`..${path.sep}`) &&
-        !path.isAbsolute(relative),
-      "Game-first scenario requires the harness-owned library beneath this output scope",
-    );
-    const ports = pair.map((id) =>
-      required(before.workspace.catalog.ports.find((port) => port.id === id)),
-    );
-    const [ship, recompiled] = ports.map((port) => required(port.presentation?.original_game));
-    assert.equal(required(ship).id, gameId);
-    assert.equal(required(recompiled).id, gameId);
-    assert.deepEqual(
-      required(ship).source_editions.map((edition) => edition.id),
-      ["majoras-mask-n64-usa-1-0", "majoras-mask-gamecube-usa"],
-    );
-    assert.deepEqual(
-      required(recompiled).source_editions.map((edition) => edition.id),
-      ["majoras-mask-n64-usa-1-0"],
-    );
-    const picori = required(
-      before.workspace.catalog.ports.find((port) => port.id === "project-picori"),
-    );
-    assert.equal(picori.presentation?.original_game?.id, "the-legend-of-zelda-the-minish-cap");
-    const gzdoom = required(
-      before.workspace.listing_catalog?.listings.find((port) => port.id === "zdoom-gzdoom"),
-    );
-    assert.equal(
-      gzdoom.original_game ?? null,
-      null,
-      "Unresolved engine identity must remain ungrouped",
-    );
+    const { ports, picori, gzdoom } = await inspectGameFirstBaseline(output, before);
     const click = async (selector: string) => {
       const element = await browser.wait(until.elementLocated(By.css(selector)), 15_000);
       await clickVisible(browser, element);

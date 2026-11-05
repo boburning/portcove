@@ -516,8 +516,9 @@ function renderInstalledUpdateFailure({ port, outcome, failure }: InstalledUpdat
   );
 }
 
-function UpdateCenterView(model: ReturnType<typeof useUpdateCenter>) {
-  const countId = useId();
+type UpdateCenterModel = ReturnType<typeof useUpdateCenter>;
+
+function activitySectionCounts(model: UpdateCenterModel) {
   const feed = model.activityFeed;
   const taskCount = new Set([
     ...(feed?.current_activity_ids ?? []),
@@ -538,7 +539,7 @@ function UpdateCenterView(model: ReturnType<typeof useUpdateCenter>) {
   ).length;
   const boundedCount = (count: number, complete: boolean | undefined) =>
     complete ? String(count) : count > 0 ? `${count}+` : "—";
-  const counts = {
+  return {
     tasks: {
       value: taskCount > 0 ? boundedCount(taskCount, feed?.active_and_actionable_complete) : "—",
       description:
@@ -566,6 +567,163 @@ function UpdateCenterView(model: ReturnType<typeof useUpdateCenter>) {
             : `${historyCount} loaded history records. History coverage is incomplete.`,
     },
   };
+}
+
+function GameUpdatesContent({ model }: { model: UpdateCenterModel }) {
+  return (
+    <>
+      {renderUpdateCheckToolbar(model)}
+      <UpdateBatchNotice read={model.batchRead} />
+      <details className="update-check-details">
+        <summary>About update checks</summary>
+        <p>
+          Checking does not install. Review an update before downloading or installing; Play uses
+          your current version.
+        </p>
+        <h3>Update statistics</h3>
+        {model.renderStatistics()}
+        <p className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground">
+          Looking for Portcove or catalog updates?{" "}
+          <Button
+            data-focusable
+            variant="link"
+            size="xs"
+            onClick={() => model.onOpenSettings("application-updates")}
+          >
+            Open Portcove update settings
+          </Button>
+        </p>
+      </details>
+      {model.installed.length > 0 && (
+        <p className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground">
+          {model.earlierBatch ? "Earlier update results cover " : "Update results cover "}
+          {model.checked.length} of {model.installed.length} installed{" "}
+          {model.installed.length === 1 ? "port" : "ports"}.
+          {model.latestSavedCheck > 0 &&
+            ` Latest saved check: ${formatActivityTime(model.latestSavedCheck)}.`}
+        </p>
+      )}
+      {model.installed.length === 0 && model.retainedArchives.length > 0 ? (
+        <p className="mb-5 text-sm text-pc-muted-foreground">
+          No managed installations can be updated here. Retained archives can still be reviewed and
+          discarded below.
+        </p>
+      ) : model.installed.length === 0 ? (
+        <EmptyState
+          icon={RefreshCw}
+          eyebrow="UPDATE CENTER"
+          title="No managed installations to check"
+          description={
+            model.external.length > 0
+              ? "Registered runtimes are updated externally. Install a managed port or copy in an existing installation to check it for updates here."
+              : "Install a port or copy in an existing installation first. Portcove will then show its update channel, update setting, latest available release, and previous installed version here."
+          }
+        />
+      ) : (
+        <div className="update-list grid max-w-5xl gap-3" data-focus-group>
+          {model.installed.map((port) => renderInstalledUpdateRow(model, port))}
+        </div>
+      )}
+      {model.retainedArchives.length > 0 && (
+        <section className="mt-7" aria-label="Downloaded updates">
+          <h3 className="mb-3 text-base">Downloaded updates</h3>
+          <p className="mb-4 text-sm text-pc-muted-foreground">
+            Archives remain recorded separately from installations. These records offer archive
+            cleanup; preparing or installing an update requires an available managed installation
+            and a fresh review.
+          </p>
+          <div className="grid gap-4" data-focus-group>
+            {model.retainedArchives.map((status) => {
+              const entry = model.activityPorts.find((port) => port.id === status.port_id);
+              const displayName = entry ? gameIdentityLabel(entry) : undefined;
+              return (
+                <article
+                  key={status.port_id}
+                  data-retained-update-archive-port-id={status.port_id}
+                  className="min-w-0 rounded-pc-lg border border-pc-border bg-pc-surface p-5"
+                >
+                  <h4 className="text-base">{displayName ?? status.port_id}</h4>
+                  {displayName && (
+                    <p className="mt-1 text-xs [overflow-wrap:anywhere] text-pc-muted-foreground">
+                      {status.port_id}
+                    </p>
+                  )}
+                  <GameUpdateControl
+                    portId={status.port_id}
+                    gameName={displayName}
+                    generation={model.generation}
+                    policy={status.update_policy}
+                    busy={Boolean(model.busy)}
+                    perform={model.perform}
+                    status={status}
+                    archiveOnly
+                    compact
+                  />
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      )}
+      {model.external.length > 0 && (
+        <section className="external-update-section mt-6" aria-label="Externally updated games">
+          <h3 className="mb-2 text-base">Externally updated games</h3>
+          <p className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground">
+            You prepare updates for these registered runtimes outside Portcove. Open a game to
+            review its saved location and launch details.
+          </p>
+          <div className="update-list grid gap-2" data-focus-group>
+            {model.external.map((port) => {
+              const runtime = model.statuses.get(port.id)!.external_runtime!;
+              return (
+                <button
+                  data-focusable
+                  data-detail-origin={`updates:external:${port.id}`}
+                  className={updateRowClass}
+                  key={port.id}
+                  onClick={() => model.onSelect(port.id, `updates:external:${port.id}`)}
+                >
+                  <ArtworkImage port={port} quietFallback className="update-artwork" />
+                  <div className="update-title min-w-0">
+                    <strong className="block text-sm">{gameTitle(port)}</strong>
+                    <small className="block text-xs text-pc-muted-foreground">
+                      {gameProjectLabel(port)}
+                    </small>
+                    <small className="mt-1 block text-xs text-[var(--color-text-secondary)] capitalize">
+                      Registered user-prepared runtime
+                    </small>
+                  </div>
+                  <div className="update-versions grid min-w-0 grid-cols-2 gap-3.5 max-[65rem]:grid-cols-1 max-[65rem]:gap-2">
+                    <div className="update-version min-w-0">
+                      <small className="mt-1 block text-xs text-[var(--color-text-secondary)] capitalize">
+                        {runtime.user_selected ? "Update ownership" : "Registered version"}
+                      </small>
+                      <span className="mt-[3px] block text-sm [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
+                        {runtime.user_selected ? "You or the upstream launcher" : runtime.version}
+                      </span>
+                    </div>
+                  </div>
+                  <span className="external-update-action grid justify-items-end gap-3">
+                    <span className={`${updateStateClass} ${updateStateTones.muted}`}>
+                      Updated externally
+                    </span>
+                    <span className="inline-flex items-center gap-2 text-xs font-medium text-pc-interactive-foreground">
+                      View game <Icon glyph={ArrowRight} size="sm" />
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
+    </>
+  );
+}
+
+function UpdateCenterView(model: UpdateCenterModel) {
+  const countId = useId();
+  const counts = activitySectionCounts(model);
   return (
     <Tabs.Root
       render={<section className="update-center" data-activity-section={model.selectedSection} />}
@@ -606,151 +764,7 @@ function UpdateCenterView(model: ReturnType<typeof useUpdateCenter>) {
         ))}
       </Tabs.List>
       <Tabs.Panel value="updates" keepMounted aria-label="Game updates">
-        {renderUpdateCheckToolbar(model)}
-        <UpdateBatchNotice read={model.batchRead} />
-        <details className="update-check-details">
-          <summary>About update checks</summary>
-          <p>
-            Checking does not install. Review an update before downloading or installing; Play uses
-            your current version.
-          </p>
-          <h3>Update statistics</h3>
-          {model.renderStatistics()}
-          <p className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground">
-            Looking for Portcove or catalog updates?{" "}
-            <Button
-              data-focusable
-              variant="link"
-              size="xs"
-              onClick={() => model.onOpenSettings("application-updates")}
-            >
-              Open Portcove update settings
-            </Button>
-          </p>
-        </details>
-        {model.installed.length > 0 && (
-          <p className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground">
-            {model.earlierBatch ? "Earlier update results cover " : "Update results cover "}
-            {model.checked.length} of {model.installed.length} installed{" "}
-            {model.installed.length === 1 ? "port" : "ports"}.
-            {model.latestSavedCheck > 0 &&
-              ` Latest saved check: ${formatActivityTime(model.latestSavedCheck)}.`}
-          </p>
-        )}
-        {model.installed.length === 0 && model.retainedArchives.length > 0 ? (
-          <p className="mb-5 text-sm text-pc-muted-foreground">
-            No managed installations can be updated here. Retained archives can still be reviewed
-            and discarded below.
-          </p>
-        ) : model.installed.length === 0 ? (
-          <EmptyState
-            icon={RefreshCw}
-            eyebrow="UPDATE CENTER"
-            title="No managed installations to check"
-            description={
-              model.external.length > 0
-                ? "Registered runtimes are updated externally. Install a managed port or copy in an existing installation to check it for updates here."
-                : "Install a port or copy in an existing installation first. Portcove will then show its update channel, update setting, latest available release, and previous installed version here."
-            }
-          />
-        ) : (
-          <div className="update-list grid max-w-5xl gap-3" data-focus-group>
-            {model.installed.map((port) => renderInstalledUpdateRow(model, port))}
-          </div>
-        )}
-        {model.retainedArchives.length > 0 && (
-          <section className="mt-7" aria-label="Downloaded updates">
-            <h3 className="mb-3 text-base">Downloaded updates</h3>
-            <p className="mb-4 text-sm text-pc-muted-foreground">
-              Archives remain recorded separately from installations. These records offer archive
-              cleanup; preparing or installing an update requires an available managed installation
-              and a fresh review.
-            </p>
-            <div className="grid gap-4" data-focus-group>
-              {model.retainedArchives.map((status) => {
-                const entry = model.activityPorts.find((port) => port.id === status.port_id);
-                const displayName = entry ? gameIdentityLabel(entry) : undefined;
-                return (
-                  <article
-                    key={status.port_id}
-                    data-retained-update-archive-port-id={status.port_id}
-                    className="min-w-0 rounded-pc-lg border border-pc-border bg-pc-surface p-5"
-                  >
-                    <h4 className="text-base">{displayName ?? status.port_id}</h4>
-                    {displayName && (
-                      <p className="mt-1 text-xs [overflow-wrap:anywhere] text-pc-muted-foreground">
-                        {status.port_id}
-                      </p>
-                    )}
-                    <GameUpdateControl
-                      portId={status.port_id}
-                      gameName={displayName}
-                      generation={model.generation}
-                      policy={status.update_policy}
-                      busy={Boolean(model.busy)}
-                      perform={model.perform}
-                      status={status}
-                      archiveOnly
-                      compact
-                    />
-                  </article>
-                );
-              })}
-            </div>
-          </section>
-        )}
-        {model.external.length > 0 && (
-          <section className="external-update-section mt-6" aria-label="Externally updated games">
-            <h3 className="mb-2 text-base">Externally updated games</h3>
-            <p className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground">
-              You prepare updates for these registered runtimes outside Portcove. Open a game to
-              review its saved location and launch details.
-            </p>
-            <div className="update-list grid gap-2" data-focus-group>
-              {model.external.map((port) => {
-                const runtime = model.statuses.get(port.id)!.external_runtime!;
-                return (
-                  <button
-                    data-focusable
-                    data-detail-origin={`updates:external:${port.id}`}
-                    className={updateRowClass}
-                    key={port.id}
-                    onClick={() => model.onSelect(port.id, `updates:external:${port.id}`)}
-                  >
-                    <ArtworkImage port={port} quietFallback className="update-artwork" />
-                    <div className="update-title min-w-0">
-                      <strong className="block text-sm">{gameTitle(port)}</strong>
-                      <small className="block text-xs text-pc-muted-foreground">
-                        {gameProjectLabel(port)}
-                      </small>
-                      <small className="mt-1 block text-xs text-[var(--color-text-secondary)] capitalize">
-                        Registered user-prepared runtime
-                      </small>
-                    </div>
-                    <div className="update-versions grid min-w-0 grid-cols-2 gap-3.5 max-[65rem]:grid-cols-1 max-[65rem]:gap-2">
-                      <div className="update-version min-w-0">
-                        <small className="mt-1 block text-xs text-[var(--color-text-secondary)] capitalize">
-                          {runtime.user_selected ? "Update ownership" : "Registered version"}
-                        </small>
-                        <span className="mt-[3px] block text-sm [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
-                          {runtime.user_selected ? "You or the upstream launcher" : runtime.version}
-                        </span>
-                      </div>
-                    </div>
-                    <span className="external-update-action grid justify-items-end gap-3">
-                      <span className={`${updateStateClass} ${updateStateTones.muted}`}>
-                        Updated externally
-                      </span>
-                      <span className="inline-flex items-center gap-2 text-xs font-medium text-pc-interactive-foreground">
-                        View game <Icon glyph={ArrowRight} size="sm" />
-                      </span>
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-        )}
+        <GameUpdatesContent model={model} />
       </Tabs.Panel>
       <Tabs.Panel
         value={model.selectedSection === "history" ? "history" : "tasks"}

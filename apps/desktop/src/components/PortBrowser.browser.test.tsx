@@ -74,6 +74,40 @@ describe("Library card overflow", () => {
     expect(onSelect).toHaveBeenCalledWith(port.id, `library:card-more:${port.id}`, "saves");
   });
 
+  it("replaces a focused review button when the card becomes launchable", async () => {
+    const port = portDefinition();
+    const props = {
+      view: "library" as const,
+      ports: [port],
+      overview: { installed: 1, ready: 0, needsSetup: 1, staged: 0 },
+      filter: "all" as const,
+      setFilter: vi.fn(),
+      onSelect: vi.fn(),
+      onLaunch: vi.fn(),
+      loading: false,
+    };
+    await act(async () => root.render(<PortBrowser {...props} statuses={new Map()} />));
+    const review = host.querySelector<HTMLButtonElement>('[data-detail-origin$=":review"]');
+    expect(review).not.toBeNull();
+    review?.focus();
+    expect(document.activeElement).toBe(review);
+
+    const launchable = installedLaunchStatus({
+      launchable: true,
+      pending_setup: false,
+      blockers: [],
+      source: "not_checked",
+    });
+    await act(async () =>
+      root.render(<PortBrowser {...props} statuses={new Map([[port.id, launchable]])} />),
+    );
+
+    const play = host.querySelector<HTMLButtonElement>(".library-card-play");
+    expect(play).not.toBeNull();
+    expect(review?.isConnected).toBe(false);
+    expect(document.activeElement).not.toBe(play);
+  });
+
   it("routes a recorded input blocker directly to file review without launching", async () => {
     const port = portDefinition();
     const status = installedLaunchStatus({

@@ -7,6 +7,14 @@ license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 
+# The service test modules include these generated wrappers with include!().
+# Keep their existing test names and inventory while Shear scans normal modules.
+[package.metadata.cargo-shear]
+ignored-paths = [
+  "src/testdata/managed-route-tests.generated.rs",
+  "src/testdata/prepared-route-tests.generated.rs",
+]
+
 [features]
 qualification-fixtures = []
 

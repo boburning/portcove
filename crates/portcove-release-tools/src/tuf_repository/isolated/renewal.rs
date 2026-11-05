@@ -365,12 +365,10 @@ pub async fn prepare_tuf_renewal(config_path: &Path) -> Result<RenewalReport, Tu
             value.stable,
         ]
     });
-    if let Some(floors) = reserved_floors {
-        if floors[0] != versions[0].get() || floors.iter().any(|value| *value == 0) {
-            return invalid(
-                "reserved floors require positive versions and unchanged pinned Targets",
-            );
-        }
+    if let Some(floors) = reserved_floors
+        && (floors[0] != versions[0].get() || floors.contains(&0))
+    {
+        return invalid("reserved floors require positive versions and unchanged pinned Targets");
     }
     for (index, days) in [(1, 7), (2, 2), (3, 90), (4, 7), (5, 7)] {
         next_versions[index] = nonzero(

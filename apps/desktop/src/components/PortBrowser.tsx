@@ -141,6 +141,58 @@ function visibleRecentPort(
     : recent;
 }
 
+function browserResultAvailability(
+  favorites: ReturnType<typeof useFavorites> | undefined,
+  loading: boolean,
+  filter: Filter | CatalogQuery,
+  queryContext: CatalogQueryContext | undefined,
+  readinessUnavailable: boolean,
+) {
+  const favoritesUnavailable = favorites?.only === true && !favorites.ids;
+  const loadingResults = loading || Boolean(favoritesUnavailable && favorites?.busy);
+  const showingRetainedFavorites = Boolean(favorites?.only && favorites.ids && favorites.failure);
+  const queryState =
+    typeof filter === "string" ? "matched" : evaluateCatalogQuery([], filter, queryContext).state;
+  const resultsUnavailable =
+    favoritesUnavailable ||
+    queryState === "unavailable" ||
+    queryState === "unresolved" ||
+    readinessUnavailable;
+  const unresolvedFilter = queryState === "unresolved";
+  return {
+    favoritesUnavailable,
+    loadingResults,
+    showingRetainedFavorites,
+    resultsUnavailable,
+    unresolvedFilter,
+  };
+}
+
+function browserResultCountLabel({
+  view,
+  visiblePorts,
+  ports,
+  catalogUniverse,
+  declaredCandidates,
+}: {
+  view: View;
+  visiblePorts: CatalogEntry[];
+  ports: CatalogEntry[];
+  catalogUniverse: CatalogEntry[] | undefined;
+  declaredCandidates: CatalogEntry[] | undefined;
+}) {
+  if (view === "catalog") {
+    const groups = groupCatalog(catalogUniverse ?? declaredCandidates ?? ports, visiblePorts);
+    return `${groupCountLabel(groups)} · ${visiblePorts.length} matching ports`;
+  }
+  if (view === "library") {
+    const groups = groupCatalog(catalogUniverse ?? ports, visiblePorts);
+    if (groups.some((group) => group.ports.length > 1))
+      return `${groupCountLabel(groups)} · ${visiblePorts.length} matching ports`;
+  }
+  return browserResultCount(view, visiblePorts.length);
+}
+
 function usePortBrowser({
   organization,
   organizationSelection,
@@ -263,17 +315,19 @@ function usePortBrowser({
       queryContext,
       statuses,
     });
-  const favoritesUnavailable = favorites?.only === true && !favorites.ids;
-  const loadingResults = loading || Boolean(favoritesUnavailable && favorites?.busy);
-  const showingRetainedFavorites = Boolean(favorites?.only && favorites.ids && favorites.failure);
-  const queryState =
-    typeof filter === "string" ? "matched" : evaluateCatalogQuery([], filter, queryContext).state;
-  const resultsUnavailable =
-    favoritesUnavailable ||
-    queryState === "unavailable" ||
-    queryState === "unresolved" ||
-    (composedLibrary && candidates === undefined);
-  const unresolvedFilter = queryState === "unresolved";
+  const {
+    favoritesUnavailable,
+    loadingResults,
+    showingRetainedFavorites,
+    resultsUnavailable,
+    unresolvedFilter,
+  } = browserResultAvailability(
+    favorites,
+    loading,
+    filter,
+    queryContext,
+    composedLibrary && candidates === undefined,
+  );
   const { favoriteCount, visiblePorts: favoriteMatches } = favoritePorts(ports, favorites);
   const visiblePorts = organizedPorts(
     favoriteMatches,
@@ -282,15 +336,13 @@ function usePortBrowser({
     view === "catalog",
     catalogUniverse ?? ports,
   );
-  const resultCount =
-    view === "catalog"
-      ? `${groupCountLabel(groupCatalog(catalogUniverse ?? declaredCandidates ?? ports, visiblePorts))} · ${visiblePorts.length} matching ports`
-      : view === "library" &&
-          groupCatalog(catalogUniverse ?? ports, visiblePorts).some(
-            (group) => group.ports.length > 1,
-          )
-        ? `${groupCountLabel(groupCatalog(catalogUniverse ?? ports, visiblePorts))} · ${visiblePorts.length} matching ports`
-        : browserResultCount(view, visiblePorts.length);
+  const resultCount = browserResultCountLabel({
+    view,
+    visiblePorts,
+    ports,
+    catalogUniverse,
+    declaredCandidates,
+  });
   const reset = () => {
     const owner = browserOwner.current;
     const origin = document.activeElement;
@@ -377,6 +429,131 @@ export function PortBrowser(props: Parameters<typeof usePortBrowser>[0]) {
   return <PortBrowserView {...usePortBrowser(props)} />;
 }
 
+type BrowserModel = ReturnType<typeof usePortBrowser>;
+
+function DiscoverOrganizationControls({
+  model,
+  favorites,
+  renderFilters,
+  renderSteamBatch,
+}: {
+  model: Pick<
+    BrowserModel,
+    | "view"
+    | "organization"
+    | "organizationView"
+    | "setOrganizationView"
+    | "filter"
+    | "setFilter"
+    | "queryContext"
+  >;
+  favorites: BrowserModel["favorites"];
+  renderFilters: () => ReactNode;
+  renderSteamBatch: () => ReactNode;
+}) {
+  if (model.view !== "catalog" || !model.organization) return null;
+  const query = queryFromFilter(model.filter);
+  const notInLibrary = query.membership?.length === 1 && query.membership[0] === "not-in-library";
+  return (
+    <OrganizationControls
+      organization={model.organization}
+      selected={model.organizationView}
+      onSelect={(value) => {
+        model.setOrganizationView(value);
+        favorites?.setOnly(false);
+        model.setFilter((current) => {
+          const query = queryFromFilter(current);
+          return query.version === 1 ? { ...query, membership: [] } : current;
+        });
+      }}
+      allSelected={
+        model.organizationView === "all" && !favorites?.only && !query.membership?.length
+      }
+      afterAll={
+        <Button
+          size="sm"
+          data-focusable
+          variant={notInLibrary ? "selected" : "ghost"}
+          aria-pressed={notInLibrary}
+          disabled={query.version !== 1 || !model.queryContext?.library}
+          onClick={() => {
+            model.setOrganizationView("all");
+            favorites?.setOnly(false);
+            model.setFilter((current) => {
+              const query = queryFromFilter(current);
+              return query.version === 1 ? { ...query, membership: ["not-in-library"] } : current;
+            });
+          }}
+        >
+          Not in library
+        </Button>
+      }
+      discover
+    >
+      {renderFilters()}
+      {renderSteamBatch()}
+    </OrganizationControls>
+  );
+}
+
+function BrowserResultNotices({
+  model,
+  favorites,
+}: {
+  model: Pick<
+    BrowserModel,
+    | "unresolvedReadiness"
+    | "libraryReadiness"
+    | "favoritesUnavailable"
+    | "loadingResults"
+    | "resultsUnavailable"
+    | "unresolvedFilter"
+    | "visiblePorts"
+    | "view"
+    | "constrained"
+    | "query"
+    | "reset"
+  >;
+  favorites: BrowserModel["favorites"];
+}) {
+  return (
+    <>
+      {model.unresolvedReadiness && (
+        <p role="alert" className="mb-3 text-sm text-pc-muted-foreground">
+          We couldn’t restore the status filter “{model.libraryReadiness}”. Choose All to reset it.
+          Your other filters will stay on.
+        </p>
+      )}
+      {model.favoritesUnavailable && !model.loadingResults && (
+        <Button variant="outline" onClick={() => favorites?.setOnly(false)}>
+          Show all games
+        </Button>
+      )}
+      {model.resultsUnavailable &&
+        !model.favoritesUnavailable &&
+        !model.unresolvedFilter &&
+        !model.loadingResults && (
+          <Notice intent="warning">
+            {model.visiblePorts.length
+              ? "Portcove couldn’t check these filters. Previously loaded results are shown."
+              : "Portcove couldn’t check these filters."}
+            {(model.view !== "library" || !(model.constrained || model.query.trim())) && (
+              <Button variant="outline" onClick={model.reset}>
+                Reset view
+              </Button>
+            )}
+          </Notice>
+        )}
+      {model.unresolvedFilter && (
+        <p role="alert" className="mb-3 text-sm text-pc-muted-foreground">
+          These saved filters aren’t supported by this version of Portcove. Reset them to search
+          again.
+        </p>
+      )}
+    </>
+  );
+}
+
 function PortBrowserView({
   browserRoot,
   filterButton,
@@ -415,94 +592,15 @@ function PortBrowserView({
         )}
       >
         <BrowserQuickViews model={model} favorites={favorites} filterButton={filterButton} />
-        {model.view === "catalog" && model.organization && (
-          <OrganizationControls
-            organization={model.organization}
-            selected={model.organizationView}
-            onSelect={(value) => {
-              model.setOrganizationView(value);
-              favorites?.setOnly(false);
-              model.setFilter((current) => {
-                const query = queryFromFilter(current);
-                return query.version === 1 ? { ...query, membership: [] } : current;
-              });
-            }}
-            allSelected={
-              model.organizationView === "all" &&
-              !favorites?.only &&
-              !queryFromFilter(model.filter).membership?.length
-            }
-            afterAll={
-              <Button
-                size="sm"
-                data-focusable
-                variant={
-                  queryFromFilter(model.filter).membership?.length === 1 &&
-                  queryFromFilter(model.filter).membership?.[0] === "not-in-library"
-                    ? "selected"
-                    : "ghost"
-                }
-                aria-pressed={
-                  queryFromFilter(model.filter).membership?.length === 1 &&
-                  queryFromFilter(model.filter).membership?.[0] === "not-in-library"
-                }
-                disabled={
-                  queryFromFilter(model.filter).version !== 1 || !model.queryContext?.library
-                }
-                onClick={() => {
-                  model.setOrganizationView("all");
-                  favorites?.setOnly(false);
-                  model.setFilter((current) => {
-                    const query = queryFromFilter(current);
-                    return query.version === 1
-                      ? { ...query, membership: ["not-in-library"] }
-                      : current;
-                  });
-                }}
-              >
-                Not in library
-              </Button>
-            }
-            discover
-          >
-            {renderFilters()}
-            {renderSteamBatch()}
-          </OrganizationControls>
-        )}
+        <DiscoverOrganizationControls
+          model={model}
+          favorites={favorites}
+          renderFilters={renderFilters}
+          renderSteamBatch={renderSteamBatch}
+        />
       </div>
       {renderFavoritesFailure()}
-      {model.unresolvedReadiness && (
-        <p role="alert" className="mb-3 text-sm text-pc-muted-foreground">
-          We couldn’t restore the status filter “{model.libraryReadiness}”. Choose All to reset it.
-          Your other filters will stay on.
-        </p>
-      )}
-      {model.favoritesUnavailable && !model.loadingResults && (
-        <Button variant="outline" onClick={() => favorites?.setOnly(false)}>
-          Show all games
-        </Button>
-      )}
-      {model.resultsUnavailable &&
-        !model.favoritesUnavailable &&
-        !model.unresolvedFilter &&
-        !model.loadingResults && (
-          <Notice intent="warning">
-            {model.visiblePorts.length
-              ? "Portcove couldn’t check these filters. Previously loaded results are shown."
-              : "Portcove couldn’t check these filters."}
-            {(model.view !== "library" || !(model.constrained || model.query.trim())) && (
-              <Button variant="outline" onClick={model.reset}>
-                Reset view
-              </Button>
-            )}
-          </Notice>
-        )}
-      {model.unresolvedFilter && (
-        <p role="alert" className="mb-3 text-sm text-pc-muted-foreground">
-          These saved filters aren’t supported by this version of Portcove. Reset them to search
-          again.
-        </p>
-      )}
+      <BrowserResultNotices model={model} favorites={favorites} />
       {
         <BrowserCollectionTools
           {...{
@@ -1204,8 +1302,9 @@ function PortCardStatus({
         <ExternalLaunchWarnings portId={port.id} status={status} />
       )}
       <span className="inline-flex flex-wrap items-center justify-end gap-1 text-[var(--color-interactive-text-strong)]">
-        {taskPrimary && (
+        {taskPrimary ? (
           <Button
+            key="task"
             data-focusable
             variant="outline"
             size="xs"
@@ -1219,9 +1318,9 @@ function PortCardStatus({
           >
             View task <ArrowRight aria-hidden="true" />
           </Button>
-        )}
-        {!taskPrimary && !canLaunch && (
+        ) : !canLaunch ? (
           <Button
+            key="review"
             data-focusable
             variant="outline"
             size="xs"
@@ -1238,9 +1337,9 @@ function PortCardStatus({
             {reviewLabel}
             <ArrowRight aria-hidden="true" />
           </Button>
-        )}
-        {!taskPrimary && canLaunch && (
+        ) : (
           <Button
+            key="play"
             data-focusable
             variant="outline"
             size="xs"
@@ -1684,15 +1783,14 @@ function CollectionResultSummary({
     | "overview"
   >;
 }) {
+  const constrainedLibrary =
+    model.view === "library" && (model.constrained || model.query.trim().length > 0);
+  const count = constrainedLibrary
+    ? libraryResultCount(model.visiblePorts.length, model.overview.installed)
+    : model.resultCount;
   return (
     <div className="collection-result-summary">
-      <span>
-        {model.resultsUnavailable
-          ? "Ports unavailable"
-          : model.view === "library" && (model.constrained || model.query.trim())
-            ? `${model.visiblePorts.length} of ${model.overview.installed} library ${model.overview.installed === 1 ? "entry" : "entries"}`
-            : model.resultCount}
-      </span>
+      <span>{model.resultsUnavailable ? "Ports unavailable" : count}</span>
       {model.organizationView !== "all" && (
         <span>
           Collection:{" "}
@@ -1705,9 +1803,8 @@ function CollectionResultSummary({
       {model.libraryReadiness !== "all" && model.view === "library" && (
         <span>Readiness: {filterLabel(model.libraryReadiness as Filter)}</span>
       )}
-      {model.view === "library" &&
+      {constrainedLibrary &&
         !model.firstUseEmpty &&
-        (model.constrained || model.query.trim()) &&
         (model.resultsUnavailable || model.visiblePorts.length > 0) && (
           <Button variant="ghost" size="sm" onClick={model.reset}>
             Reset view
@@ -1722,6 +1819,10 @@ function CollectionResultSummary({
       )}
     </div>
   );
+}
+
+function libraryResultCount(visible: number, installed: number) {
+  return `${visible} of ${installed} library ${installed === 1 ? "entry" : "entries"}`;
 }
 
 function CollectionLayoutToggle({
