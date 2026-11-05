@@ -4,6 +4,7 @@ Set-StrictMode -Version Latest
 # Source-prepared entry only. The calling Node producer checks the appointed
 # control source, ACTIVE/pause/spending/classification before any owner launch.
 $hostedSessionExecutionAuthorized=$true
+if(-not $hostedSessionExecutionAuthorized){throw 'Hosted application session awaits separate owner authority; no account or station effects'}
 $ownerUtf8=[Text.UTF8Encoding]::new($false,$true)
 function Read-OwnerWrapperBytes([string]$File,[int]$Maximum) {
     $item=Get-Item -LiteralPath $File -Force
