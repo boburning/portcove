@@ -196,26 +196,25 @@ Library location-change review and recovery retain Core's typed failure conseque
 
 Portcove should feel like development software from an alternate 1997 console studio, rebuilt with current desktop UX and accessibility standards. Nostalgia never outranks clarity. The working interface stays compact, neutral, and technical; personality appears through tactile geometry, restrained color, direct copy, and quick interaction feedback.
 
-The React/Vite/Tauri desktop is migrating incrementally under [#917](https://github.com/boburning/portcove/issues/917). Its checked-in foundation uses official shadcn/ui component source with Base UI, Tailwind, semantic CSS variables, and a Portcove theme; several journeys already consume that foundation while legacy controls and rules remain on unmigrated surfaces. This is a decided architecture and an active migration, not another framework comparison or a claim that the complete redesign or its platform qualification has shipped.
+The React/Vite/Tauri desktop uses checked-in official shadcn/ui component source
+with Base UI, Tailwind, semantic CSS variables and the Portcove theme. [#917](https://github.com/boburning/portcove/issues/917)
+completed its current redesign, migration and visual-acceptance contract on
+October 18, 2026. Extend the delivered architecture through shared controls and
+real application patterns using the [implementation workflow](#agent-implementation-workflow).
+Completed migration does not qualify new candidate bytes, every platform/package,
+physical controls, gameplay or production publication.
 
 ## Checked-in foundation
 
-`apps/desktop/components.json` records Base UI, Base Nova (`style: base-nova`), React Server Components off, Lucide, the Tailwind entry, and the app-local aliases. The initial checked-in controls are Button, Dialog, and Select. They exist to prove the difficult installation-review nesting; they do not authorize broad screen migration by themselves. Portcove retained the generated internal implementations but removed the unused generated helper and unused public exports after static analysis; future regeneration must preserve that deliberately smaller maintained surface.
-
-The following table preserves the initial generation inputs. Current runtime inputs are Base UI 1.9.0, cn 0.5.0 and Tailwind 4.3.3 under Vite+ 1.4.0. The finite [CSS architecture cutover](reference/css-architecture.md) uses Preflight, explicit layers and Base UI transitions; tw-animate-css is removed. The wider #917 acceptance remains open.
-
-| Input                             | Version | License    | Demonstrated purpose                                              |
-| --------------------------------- | ------- | ---------- | ----------------------------------------------------------------- |
-| shadcn CLI                        | 4.21.0  | MIT        | Base/Nova project configuration and checked-in control source     |
-| Tailwind CSS and Vite integration | 4.3.3   | MIT        | generated component utilities and production CSS compilation      |
-| Base UI React                     | 1.8.0   | MIT        | dialog, select, portal, dismissal, and focus primitives           |
-| class-variance-authority          | 0.7.1   | Apache-2.0 | generated Button variants                                         |
-| cn                                | 0.3.0   | MIT        | generated class composition utility                               |
-| tw-animate-css                    | 1.4.0   | MIT        | generated state animations with Portcove reduced-motion overrides |
-| Geist variable font               | 5.3.0   | OFL-1.1    | bundled, offline heading and interface typography                 |
-| Tauri WDIO WebDriver plugin       | 1.4.0   | MIT        | feature-gated driver server, absent from production builds        |
-
-The production build from base `52e81bd` emitted 560,643 bytes of JavaScript and 76,142 bytes of CSS. The same build after the foundation emitted 560,908 bytes of JavaScript, 111,551 bytes of CSS, and 76,416 bytes of local font files: a measured 112,094-byte raw asset increase excluding source maps (about 82,990 bytes using Vite's gzip figures for CSS/JavaScript and the already-compressed font files). This measurement is a bundle effect, not a performance claim.
+`apps/desktop/components.json` records Base UI, Base Nova (`style: base-nova`),
+React Server Components off, Lucide, the Tailwind entry and app-local aliases.
+The checked-in controls are app-owned source; preserve deliberately maintained
+exports and behavior fixes when comparing upstream changes. Current runtime
+inputs are Base UI 1.9.0, cn 0.5.0 and Tailwind 4.3.3 under Vite+ 1.4.0. The
+[CSS architecture cutover](reference/css-architecture.md) uses Preflight,
+explicit layers and Base UI transitions; tw-animate-css is removed. The
+[initial generation inputs and bundle measurement](#initial-foundation-history)
+are retained as history.
 
 For an upstream component update, invoke the exact CLI on demand with `pnpm dlx shadcn@4.21.0`, inspect `shadcn view` and `shadcn add <component> --dry-run`, compare the generated source with the app-owned file, and apply only reviewed changes. Ordinary builds do not carry the CLI dependency graph. Adapt generated output to native Base UI starting/ending and state attributes, the shared outline/motion conventions, and the CSS entry at `src/styles/index.css`; do not restore copied animation helpers or reset overrides. Never overwrite Portcove token mappings or behavior fixes wholesale. Dependency upgrades and copied-component updates remain separate review decisions.
 
@@ -226,17 +225,22 @@ The dependency requirement, Portcove support promise, and observed environment a
 | Platform            | Upstream dependency requirement                                                                                       | Portcove Public beta baseline                                                                                   | Executable evidence owner                                                                                                                     |
 | ------------------- | --------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | Windows x64         | Tailwind/Base UI need a Chromium-family engine at least Chrome/Edge 111                                               | Windows 11 26H2 with security updates; serviced WebView2 Evergreen production Runtime, initially 155.0.4283.62+ | #993 retains exact 26H2 native/installed evidence; 25H2 is an unqualified follow-up, not an initial-beta gate                                 |
-| Linux x64           | Tauri runtime 2.12.2 with Wry 0.57.0 enables WebKitGTK 2.40+; Tailwind does not publish a WebKitGTK minimum guarantee | Updated Ubuntu 24.04 LTS with maintained WebKitGTK 2.52.6+ (initial package 2.52.6-0ubuntu0.24.04.1)            | #993 must qualify Ubuntu 24.04 native and installed packages, including the AppImage's actual bundled/loaded engine                           |
+| Linux x64           | Tauri runtime 2.12.2 with Wry 0.57.0 enables WebKitGTK 2.40+; Tailwind does not publish a WebKitGTK minimum guarantee | Updated Ubuntu 24.04 LTS with maintained WebKitGTK 2.52.6+ (initial package 2.52.6-0ubuntu0.24.04.1)            | #993 retains scoped Ubuntu 24.04 native/package and engine evidence; later Linux candidates require their own applicable qualification        |
 | Steam Deck          | Must satisfy the proven Linux engine requirement in the actual SteamOS runtime                                        | Unqualified at initial beta; follow-up required before 1.0                                                      | #51/#217 run the retained fixture on actual Deck and record SteamOS/WebKitGTK identity; #993 beta closure does not wait for this device proof |
 | macOS Intel         | Tailwind/Base UI require Safari/WebKit 16.4-era features                                                              | Unqualified initial beta; qualify before 1.0 during beta                                                        | #45/#226 use the existing qualification route on an exact Intel WKWebView host                                                                |
 | macOS Apple silicon | Tailwind/Base UI require Safari/WebKit 16.4-era features                                                              | Unqualified initial beta; qualify before 1.0 during beta                                                        | #45/#226 use the existing qualification route on an exact Apple-silicon WKWebView host                                                        |
 
 The owner approved the Linux support pair in the October 18 #993 follow-up and amended the initial-beta Windows target to 26H2 on October 19. Windows 25H2 remains an explicit unqualified follow-up compatibility target; missing media is not evidence of incompatibility. This support amendment adds no installer or startup OS rejection. Approval selects the support policy; it does not establish a qualification pass. Evergreen automatic updates remain enabled. The exact tested OS builds, package revisions, loaded engines and artifact identities belong to #993's evidence. Other Linux distributions and older engines acquire no support claim. Ubuntu 22.04 compilation remains useful CI feedback, separately from the Ubuntu 24.04 package producer and supported runtime.
 
-Vite's `chrome111` and `safari16.4` transform targets match the selected Tailwind engine features and are not an operating-system support declaration. Until #993 records the required native-family and claimed-minimum evidence, an affected platform remains unqualified for redesign publication even though this non-publishing foundation may be developed and merged. #993 retains the bounded selected-stack architecture/portability decision and
-Windows/Linux native/minimum proof required by #917. Keep practical macOS CI/build
-health; full Intel/Apple Silicon native/package qualification belongs to #45/#226
-during beta before 1.0, without holding the initial Windows/Linux foundation.
+Vite's `chrome111` and `safari16.4` transform targets match the selected Tailwind
+engine features and are not an operating-system support declaration. [#993](https://github.com/boburning/portcove/issues/993)
+completed its amended initial-beta stack/minimum acceptance on October 19, 2026.
+Its retained native, installed and engine observations keep their exact source,
+artifact and environment scopes; they do not certify a new candidate or imply
+publication authority. Follow the [current first-beta release boundary](DELIVERY.md#first-public-beta-host-boundary)
+for Windows candidate qualification and retain the completed Linux evidence for
+later Linux delivery. Keep practical macOS CI/build health; full Intel/Apple
+Silicon native/package qualification belongs to #45/#226 during beta before 1.0.
 
 The [versioned runtime manifest](https://github.com/tauri-apps/tauri/blob/tauri-runtime-wry-v2.12.2/crates/tauri-runtime-wry/Cargo.toml)
 selects Wry 0.57.0's `linux-body` feature and WebKitGTK `v2_40`; the
@@ -344,9 +348,9 @@ For each cohesive slice:
 3. Run focused tests and render the affected real-component scenarios at relevant themes, sizes, and states. Inspect the output for clipping, hierarchy, spacing, inconsistent controls, hidden actions, unreadable text, and missing states; screenshot generation alone is not inspection.
 4. Repair identifiable defects or violated contracts. Repeated defects in an approved control or pattern are fixed at the shared owner rather than hidden by another feature override.
 5. For an intentional reference change, record the reason, affected semantic or interaction contract, and inspected before/after evidence. Unexplained screenshot churn does not replace an accepted reference.
-6. Hand the exact candidate head, acceptance criteria, scenario IDs, screenshots, checks, and limitations to the separate non-writing reviewer. Complete the normal exact-head validation and merge path.
+6. Provide the exact candidate head, acceptance criteria, scenario IDs, screenshots, checks and limitations for [applicable review](QUALITY.md#review-scope), including separate non-writing review where required. Complete the normal exact-head validation and merge path.
 
-The first foundation slice records the actual `components.json` paths, aliases, Base UI selection, Nova preset, Tailwind entry, semantic token mapping, icon choice, and component-update procedure, then imports only the controls needed to prove the complex installation-review dialog's nested selector, controller, portal, focus, and dismissal behavior in Tauri. Library and broad screen migration start only after that foundation is reviewed. Until the configuration lands, later sessions must not guess it. The existing development-only renderer remains the ordinary presentation loop, while the native harness remains required for Tauri, WebView, IPC, portal, focus, controller, native-dialog, restart, platform, and packaged obligations.
+The completed foundation records the actual `components.json` paths, aliases, Base UI selection, Nova preset, Tailwind entry, semantic token mapping, icon choice and component-update procedure. Read those checked-in inputs when extending the system. The original nested installation-review selector, controller, portal, focus and dismissal proof remains in the [foundation history](#initial-foundation-history) and #917 receipts; its phase restriction is satisfied. The existing development-only renderer remains the ordinary presentation loop, while the native harness remains required for Tauri, WebView, IPC, portal, focus, controller, native-dialog, restart, platform, and packaged obligations.
 
 ## Product vocabulary
 
@@ -731,11 +735,11 @@ The approved brand direction is an expressive 2D illustrated crab, custom `Portc
 
 ## Approved Public beta redesign contract
 
-[#917](https://github.com/boburning/portcove/issues/917) is the finite desktop
-redesign, shared-control, visual-system, style-enforcement, and visual-acceptance
-owner. It is an organizational child of #200; that parentage does not retarget
-the broader workstream or make #200 closure a Public beta prerequisite. #917 itself remains a Required
-Public beta outcome. #206 retains information
+[#917](https://github.com/boburning/portcove/issues/917) completed the finite
+desktop redesign, shared-control, visual-system, style-enforcement and
+visual-acceptance contract on October 18, 2026. It remains credited as a completed
+Required Public beta outcome. Its organizational parent #200 retains the broader
+workstream; parentage does not make #200 closure a Public beta prerequisite. #206 retains information
 architecture, navigation, interaction, focus, content ordering, and domain-driven
 presentation. #203 retains labels, localization, formatting, and safe unknowns.
 #208 retains shared artwork selection/provenance/fallback/ingestion/cache, and
@@ -1113,3 +1117,26 @@ original keyboard order, disabled skipping and command dispatch unchanged.
 Shared dialogs reserve heading and description space for Close. Shared empty
 states use an open icon/title/body composition; informational notices use a quiet
 surface and leading accent while warning/error semantics remain independent.
+
+## Initial foundation history
+
+The initial #917 foundation checked in Button, Dialog and Select to prove nested
+installation-review behavior. Those controls alone did not authorize broad
+migration: actual native portal, dismissal and focus evidence was required.
+The [completed owner's receipts](https://github.com/boburning/portcove/issues/917)
+record the satisfied phase gate and subsequent migration. The following original
+generation inputs and bundle measurement describe that foundation, rather than
+current dependency versions or a renewed migration gate.
+
+| Input                             | Version | License    | Demonstrated purpose                                              |
+| --------------------------------- | ------- | ---------- | ----------------------------------------------------------------- |
+| shadcn CLI                        | 4.21.0  | MIT        | Base/Nova project configuration and checked-in control source     |
+| Tailwind CSS and Vite integration | 4.3.3   | MIT        | generated component utilities and production CSS compilation      |
+| Base UI React                     | 1.8.0   | MIT        | dialog, select, portal, dismissal, and focus primitives           |
+| class-variance-authority          | 0.7.1   | Apache-2.0 | generated Button variants                                         |
+| cn                                | 0.3.0   | MIT        | generated class composition utility                               |
+| tw-animate-css                    | 1.4.0   | MIT        | generated state animations with Portcove reduced-motion overrides |
+| Geist variable font               | 5.3.0   | OFL-1.1    | bundled, offline heading and interface typography                 |
+| Tauri WDIO WebDriver plugin       | 1.4.0   | MIT        | feature-gated driver server, absent from production builds        |
+
+The production build from base `52e81bd` emitted 560,643 bytes of JavaScript and 76,142 bytes of CSS. The same build after the foundation emitted 560,908 bytes of JavaScript, 111,551 bytes of CSS, and 76,416 bytes of local font files: a measured 112,094-byte raw asset increase excluding source maps (about 82,990 bytes using Vite's gzip figures for CSS/JavaScript and the already-compressed font files). This measurement is a bundle effect, not a performance claim.

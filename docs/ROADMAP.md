@@ -12,7 +12,9 @@ corrections. Agents investigate changed contracts and genuine exceptions.
 Normal use stays local-first, without paid inference, mandatory accounts,
 telemetry or redistribution of copyrighted game data.
 
-Execution uses one local delivery runner with independent non-writing review.
+Execution follows [candidate ownership and shared-resource safeguards](QUALITY.md#local-feedback-and-hosted-authority)
+and [applicable review](QUALITY.md#review-scope), with delivery operations in
+[Contribution conventions](CONTRIBUTION-CONVENTIONS.md#review-and-merge).
 The retired board preserves historical handoff discovery; it grants no new work.
 See [the pickup contract](PROJECT-GOVERNANCE.md#pickup-consumption-and-execution-upkeep).
 
@@ -35,9 +37,18 @@ of accepted scope or release readiness.
 
 ```sh
 node scripts/roadmap.mts next
+# Initial public beta: Windows x86-64 planning assessment
+node scripts/roadmap.mts readiness --release "Public beta" --release-profile initial-beta-windows-x86_64-v1
+# Broader full-scope investigation
 node scripts/roadmap.mts readiness --release "Public beta"
 node scripts/roadmap.mts readiness --release "1.0"
 ```
+
+The Windows profile omits only the canonical Linux #49/#706 special automatic
+promotion; explicit Required roots and genuine blockers still count. Default/full
+readiness and `doctor` retain the broader assessment. See
+[Quality's profile boundary](QUALITY.md#staged-audit-receipts). Selecting a profile
+is not a passing result, native/package acceptance or signing/publication authority.
 
 **Required** must finish for its target release. **Planned** is approved work
 selected by Priority, Horizon, readiness and queue order; its classification
