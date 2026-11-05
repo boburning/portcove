@@ -569,11 +569,12 @@ export async function advanceCatalogObservations(
           (!progress.retry_at || Date.parse(progress.retry_at) <= now()))
       );
     })
+    // A source without a checkpoint has never had a turn. Putting it at the
+    // current sequence lets each bounded opportunity retry the same prefix.
     .sort(
       (a, b) =>
-        (state.sources[a.key]?.attempted_sequence ?? state.sequence) -
-          (state.sources[b.key]?.attempted_sequence ?? state.sequence) ||
-        a.key.localeCompare(b.key),
+        (state.sources[a.key]?.attempted_sequence ?? -1) -
+          (state.sources[b.key]?.attempted_sequence ?? -1) || a.key.localeCompare(b.key),
     );
   const capacity = () =>
     state.provider_retry_at && Date.parse(state.provider_retry_at) > now()
