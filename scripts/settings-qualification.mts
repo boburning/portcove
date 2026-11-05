@@ -130,7 +130,7 @@ function matchesReviewedRegion(region: SourceRegion, observed: unknown) {
  * identities bound every request; credentials never follow upstream URLs. */
 export async function collectSettingsSource(
   record: AuthoredPort,
-  revision: string,
+  revision: string | null,
   options: {
     token?: string | undefined;
     fetcher?: typeof fetch | undefined;
@@ -141,7 +141,7 @@ export async function collectSettingsSource(
   checkSettingsPolicy(policy);
   const release = record.integration?.release;
   const rootRepository = isRecord(release) ? release.repository : undefined;
-  if (!repository(rootRepository) || !sha(revision, 40))
+  if (!repository(rootRepository) || (revision !== null && !sha(revision, 40)))
     throw new Error(
       "Settings collection needs an explicit GitHub provider and exact source commit.",
     );
@@ -205,9 +205,11 @@ export async function collectSettingsSource(
   if (
     selectedCommit.status !== 200 ||
     !isRecord(selectedCommit.data) ||
-    selectedCommit.data.sha !== revision
+    !sha(selectedCommit.data.sha, 40) ||
+    (revision !== null && selectedCommit.data.sha !== revision)
   )
     throw new Error("Settings package source differs from the selected release tag.");
+  const sourceRevision = selectedCommit.data.sha;
   const read = async (repo: string, path: string, ref: string) => {
     const response = await sdk.request({
       method: "GET",
@@ -221,12 +223,12 @@ export async function collectSettingsSource(
   const revisions = new Map<string, string>();
   const files = new Map<string, SettingsSourceFile>();
   for (const region of policy.regions) {
-    let selected = revision;
+    let selected = sourceRevision;
     if (region.submodule_path) {
       const key = `${region.submodule_path}:${region.repository}`;
       let bound = revisions.get(key);
       if (!bound) {
-        const link = await read(rootRepository, region.submodule_path, revision);
+        const link = await read(rootRepository, region.submodule_path, sourceRevision);
         if (
           !sha(link.sha, 40) ||
           link.submodule_git_url !== `https://github.com/${region.repository}.git`
@@ -366,37 +368,14 @@ function checkQualificationProbes(
     );
 }
 
-/** Produce exact generated definition data from independently verified package
- * evidence, relevant source regions and an actual Core document probe. The
- * result remains an unsigned proposal for the existing acceptance/publisher. */
-export async function qualifySettingsObservation(
+/** Relevant source identity only; this does not qualify or publish a package. */
+export function settingsCandidateSource(
   record: AuthoredPort,
   binding: Omit<SettingsBinding, "evidence_urls">,
-  packageReceipt: unknown,
   files: readonly SettingsSourceFile[],
-  inspect: (input: Buffer) => Promise<Record<string, unknown>> | Record<string, unknown>,
-  observeConsumer?: (binding: SettingsBinding, probe: Record<string, unknown>) => Promise<unknown>,
-): Promise<SettingsQualificationObservation> {
+) {
   const policy = record.settings_qualification_v1;
   checkSettingsPolicy(policy);
-  const settings = contract(record);
-  if (
-    !isRecord(packageReceipt) ||
-    packageReceipt.id !== record.listing.id ||
-    packageReceipt.source_revision !== binding.source_commit ||
-    packageReceipt.expected_digest_matched !== true ||
-    packageReceipt.observed_archive_sha256 !== binding.archive_sha256 ||
-    !isRecord(packageReceipt.official_asset) ||
-    packageReceipt.official_asset.digest !== `sha256:${binding.archive_sha256}` ||
-    !sha(binding.source_commit, 40) ||
-    !sha(binding.archive_sha256) ||
-    binding.platform !== "windows-x86-64" ||
-    !binding.version ||
-    binding.version.length > 128
-  )
-    throw new Error(
-      "Settings qualification requires the exact independently expected package and source.",
-    );
   const sourceRegions = policy.regions.map((region) => {
     const matches = files.filter(
       (file) => file.repository === region.repository && file.path === region.path,
@@ -431,6 +410,45 @@ export async function qualifySettingsObservation(
       ),
     ].slice(0, 8),
   };
+  return { candidate, sourceRegions };
+}
+
+export function settingsDocumentInput(record: AuthoredPort, binding: SettingsBinding) {
+  return qualificationInput(record, binding);
+}
+
+/** Produce exact generated definition data from independently verified package
+ * evidence, relevant source regions and an actual Core document probe. The
+ * result remains an unsigned proposal for the existing acceptance/publisher. */
+export async function qualifySettingsObservation(
+  record: AuthoredPort,
+  binding: Omit<SettingsBinding, "evidence_urls">,
+  packageReceipt: unknown,
+  files: readonly SettingsSourceFile[],
+  inspect: (input: Buffer) => Promise<Record<string, unknown>> | Record<string, unknown>,
+  observeConsumer?: (binding: SettingsBinding, probe: Record<string, unknown>) => Promise<unknown>,
+): Promise<SettingsQualificationObservation> {
+  const policy = record.settings_qualification_v1;
+  checkSettingsPolicy(policy);
+  const settings = contract(record);
+  if (
+    !isRecord(packageReceipt) ||
+    packageReceipt.id !== record.listing.id ||
+    packageReceipt.source_revision !== binding.source_commit ||
+    packageReceipt.expected_digest_matched !== true ||
+    packageReceipt.observed_archive_sha256 !== binding.archive_sha256 ||
+    !isRecord(packageReceipt.official_asset) ||
+    packageReceipt.official_asset.digest !== `sha256:${binding.archive_sha256}` ||
+    !sha(binding.source_commit, 40) ||
+    !sha(binding.archive_sha256) ||
+    binding.platform !== "windows-x86-64" ||
+    !binding.version ||
+    binding.version.length > 128
+  )
+    throw new Error(
+      "Settings qualification requires the exact independently expected package and source.",
+    );
+  const { candidate, sourceRegions } = settingsCandidateSource(record, binding, files);
   const input = qualificationInput(record, candidate);
   const probe = await inspect(input);
   if (probe.format_version !== 1 || observationHash(probe.binding) !== observationHash(candidate))

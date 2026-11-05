@@ -606,7 +606,7 @@ export function catalogObservationDefinitionHashes(report: unknown, bytes: Buffe
 
 export async function projectObservation(
   cli: string,
-  config: ObserverConfig,
+  config: Pick<ObserverConfig, "port_id" | "repository_id">,
   directory: string,
   observation: Observation,
   bounds?: InspectionBounds,

@@ -703,9 +703,11 @@ implementations used by the two real upstream packages; that write-behavior
 change receives its own review and native controls. A new implementation hash is
 not silently accepted as routine version churn.
 
-`prepare-port.mts --package-observation FILE --package-observation-reference REF`
-consumes the existing exact package inspection row. With the once-configured
-private `--settings-native-scope FILE`, it invokes Core's
+`prepare-port.mts --settings-native-scope FILE` consumes ordinary observed release
+facts and a once-configured private input profile. Core selects the exact package;
+the existing portable lifecycle example provisions the first disposable library,
+and normal Core update handles subsequent candidates. No candidate receipt or
+release-specific library needs to be assembled by hand. It invokes Core's
 `catalog inspect-settings-qualification` and the existing qualification-report
 native route automatically. The generated `settings_observation_v1` retains
 the exact archive/source, policy, Core validator, complete probes and native
@@ -717,9 +719,18 @@ definition publication. Only a normal accepted installation/update captures
 that declaration; current catalog refresh cannot enroll an old installation.
 
 The initial native adapter supports a Windows integer JSON control using the
-upstream Libultraship Sail loopback protocol. Its private scope identifies an
-already prepared **disposable qualification library**, configuration path and
-ownership marker. All paths and the CLI/archive/executable identities must match.
+upstream Libultraship Sail loopback protocol. Its private scope identifies a
+marked disposable qualification root, frozen first-party installer, lawful original
+and prepared input identities. The library and candidate configuration are derived
+inside that root. All paths and the CLI/archive/executable identities must match.
+The private profile has `format_version: 1`, `isolation_root`, `isolation_token`,
+`baseline_installer`, `baseline_installer_sha256`, `original: { path, sha256 }`
+and `prepared_files: [{ path, sha256, destination }]`. Prepared destinations must
+already belong to the authored persistent contract. The root marker
+`.portcove-settings-qualification.json` has `owner: "portcove-settings-qualification"`
+and the same `token`. These are stable local input/ownership facts, not a new
+per-release package table. Preserve failed checkpoints and unsettled ownership;
+never reuse a player's library for this profile.
 `qualification-report.mts --settings-case FILE` uses normal Core review/apply,
 checks unrelated values, launches through a durable Core request and verifies
 the socket peer against that exact child's PID, creation identity and executable.

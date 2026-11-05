@@ -2,7 +2,31 @@ import assert from "node:assert/strict";
 import { once } from "node:events";
 import { connect } from "node:net";
 import test from "node:test";
-import { openSettingsProbeListener } from "./settings-consumer-qualification.mts";
+import {
+  openSettingsProbeListener,
+  requireSettingsVerification,
+} from "./settings-consumer-qualification.mts";
+
+void test("native settings verification requires positive exact-install evidence", () => {
+  const report = { install_id: "retained-install", checked_files: 183, valid: true, failures: [] };
+  assert.equal(requireSettingsVerification(report, "retained-install"), report);
+  for (const invalid of [
+    undefined,
+    { ...report, valid: false },
+    { ...report, checked_files: 0 },
+    { ...report, checked_files: -1 },
+    { ...report, checked_files: 1.5 },
+    { ...report, checked_files: undefined, verified_files: 183 },
+    { ...report, install_id: "another-install" },
+    { ...report, failures: ["immutable file differs"] },
+    { ...report, failures: undefined },
+  ])
+    assert.throws(
+      () => requireSettingsVerification(invalid, "retained-install"),
+      /positive exact-install/,
+    );
+  assert.throws(() => requireSettingsVerification(report, undefined), /positive exact-install/);
+});
 
 void test("native probe listener owns the first connection and rejects/closes reconnects", async () => {
   const listener = await openSettingsProbeListener();

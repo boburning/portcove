@@ -15,7 +15,7 @@ import {
 } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createHash, randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 import {
   assembleCatalogRecords,
   checkedAuthoredPort,
@@ -44,6 +44,7 @@ import { observationHash } from "./upstream-observer.mts";
 import { listingDeclarationHash } from "./listing-upstream-observation.mts";
 import { isRecord, errorCode } from "./runtime-values.mts";
 import { collectSettingsSource, qualifySettingsObservation } from "./settings-qualification.mts";
+import { prepareSettingsCandidate } from "./prepare-settings-candidate.mts";
 import {
   assessUpstreamLineage,
   checkLineageChange,
@@ -686,7 +687,31 @@ export async function preparePort(options: PrepareOptions) {
     }
     let settingsQualification: unknown;
     let settingsSourceEvidence: string | undefined;
-    if (record.settings_qualification_v1 && settingsPackageObservation !== undefined) {
+    if (record.settings_qualification_v1 && options.settingsNativeScope !== undefined) {
+      try {
+        if (!options.validatorCli)
+          throw new Error("Settings qualification requires the captured capable Core client.");
+        const result = await prepareSettingsCandidate({
+          record,
+          catalog: authored.catalog,
+          facts,
+          scope: options.settingsNativeScope,
+          cli: options.validatorCli,
+          checkpoint: root,
+          sourceOptions: options.facts,
+        });
+        record = checkedAuthoredPort({ ...record, settings_observation_v1: result.observation });
+        settingsQualification = result;
+      } catch (error) {
+        settingsQualification = {
+          status: "settings-unqualified",
+          reason:
+            error instanceof Error ? error.message : "Settings qualification could not complete.",
+          scope:
+            "Only optional settings qualification failed; existing package availability and basic operations are unchanged.",
+        };
+      }
+    } else if (record.settings_qualification_v1 && settingsPackageObservation !== undefined) {
       try {
         if (!options.validatorCli || !isRecord(facts.release?.body) || !facts.assets_complete)
           throw new Error(
@@ -731,93 +756,6 @@ export async function preparePort(options: PrepareOptions) {
           receipt,
           sources,
           (bytes) => inspector.inspectSettings("settings-probe", bytes),
-          options.settingsNativeScope === undefined
-            ? undefined
-            : async (binding, probe) => {
-                const scope = options.settingsNativeScope;
-                if (
-                  !isRecord(scope) ||
-                  scope.format_version !== 1 ||
-                  ![
-                    scope.isolation_root,
-                    scope.isolation_token,
-                    scope.library,
-                    scope.configuration_path,
-                  ].every((value) => typeof value === "string" && value.length > 0) ||
-                  !Array.isArray(receipt.selected_executables)
-                )
-                  throw new Error(
-                    "Settings native qualification needs its existing marked disposable scope and exact inspected player.",
-                  );
-                const hints = isRecord(record.integration?.executable_hints)
-                  ? record.integration.executable_hints["windows-x86-64"]
-                  : undefined;
-                const members: unknown[] = receipt.selected_executables;
-                const players = members.filter((member) => {
-                  if (!isRecord(member) || typeof member.path !== "string" || !Array.isArray(hints))
-                    return false;
-                  const memberPath = member.path;
-                  return hints.some(
-                    (hint) =>
-                      typeof hint === "string" &&
-                      memberPath.split("/").at(-1)?.toLowerCase() === hint.toLowerCase(),
-                  );
-                });
-                if (
-                  players.length !== 1 ||
-                  !isRecord(players[0]) ||
-                  typeof players[0].sha256 !== "string" ||
-                  !Array.isArray(probe.checks)
-                )
-                  throw new Error(
-                    "Settings native qualification selected player is missing or ambiguous.",
-                  );
-                const settings = record.integration!.game_settings;
-                if (!isRecord(settings) || !Array.isArray(settings.files))
-                  throw new Error("Settings declaration is absent.");
-                const settingsFiles: unknown[] = settings.files;
-                const probes = probe.checks.filter(isRecord).map((check) => {
-                  const file = settingsFiles.find(
-                    (candidate: unknown) => isRecord(candidate) && candidate.id === check.file_id,
-                  );
-                  const declarations: unknown[] =
-                    isRecord(file) && Array.isArray(file.settings) ? file.settings : [];
-                  const setting: unknown =
-                    isRecord(file) && Array.isArray(file.settings)
-                      ? declarations.find(
-                          (candidate) => isRecord(candidate) && candidate.id === check.setting_id,
-                        )
-                      : undefined;
-                  if (!isRecord(setting))
-                    throw new Error(
-                      "Settings native control is absent from the retained candidate.",
-                    );
-                  return {
-                    file_id: check.file_id,
-                    setting_id: check.setting_id,
-                    key: setting.key,
-                    values: check.values,
-                  };
-                });
-                const caseFile = immutableJson(root, "settings-native-case", {
-                  ...scope,
-                  protocol: "libultraship-sail-v1",
-                  port_id: id,
-                  archive_sha256: binding.archive_sha256,
-                  source_commit: binding.source_commit,
-                  cli_sha256: validatorIdentity,
-                  executable_sha256: players[0].sha256,
-                  probes,
-                });
-                const { qualifySettingsConsumer } =
-                  await import("./settings-consumer-qualification.mts");
-                return await qualifySettingsConsumer({
-                  cli: options.validatorCli!,
-                  library: String(scope.library),
-                  output: join(String(scope.isolation_root), "settings-consumer-" + randomUUID()),
-                  caseFile,
-                });
-              },
         );
         record = checkedAuthoredPort({ ...record, settings_observation_v1: observation });
         settingsQualification = {
@@ -1176,6 +1114,12 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     if (!allowed.has(name) || values.has(name) || !value || value.startsWith("--"))
       throw new Error("Unknown, repeated or missing prepare-port option.");
     values.set(name, value);
+  }
+  if (values.has("--settings-native-scope")) {
+    const { reenterResourceCommand } = await import("./resource-command.mts");
+    await reenterResourceCommand("rust", import.meta.url, {
+      executionTimeoutMilliseconds: 1_800_000,
+    });
   }
   const output = values.get("--output-dir");
   if (!output) throw new Error("--output-dir is required (a new or owned preparation checkpoint).");

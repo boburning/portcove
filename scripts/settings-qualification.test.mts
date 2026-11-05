@@ -1,3 +1,4 @@
+import { settingsQualificationCatalog } from "./prepare-settings-candidate.mts";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -319,4 +320,18 @@ void test("private repository and changed submodule origins refuse before source
     }),
     /submodule source identity differs/,
   );
+});
+
+void test("disposable candidate projection never borrows a historical authored release binding", () => {
+  const { record, binding } = fixture();
+  const original = projectAuthoredPort(record)!;
+  const catalog = { ports: [original, { id: "unrelated", explicit: true }] };
+  const before = structuredClone(catalog);
+  const generated = settingsQualificationCatalog(catalog, record.listing.id, binding);
+  assert.deepEqual(catalog, before);
+  const ports: unknown[] = generated.ports as unknown[];
+  assert.ok(isRecord(ports[0]) && isRecord(ports[0].game_settings));
+  assert.deepEqual(ports[0].game_settings.releases, [binding]);
+  assert.deepEqual(ports[1], before.ports[1]);
+  assert.throws(() => settingsQualificationCatalog(catalog, "missing", binding), /absent/u);
 });

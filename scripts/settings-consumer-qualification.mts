@@ -71,6 +71,23 @@ interface Probe {
   values: number[];
 }
 
+/** Refuse vacuous, contradictory or foreign immutable-verification receipts. */
+export function requireSettingsVerification(report: unknown, installId: unknown) {
+  if (
+    typeof installId !== "string" ||
+    installId.length === 0 ||
+    !object(report) ||
+    report.install_id !== installId ||
+    report.valid !== true ||
+    !Number.isSafeInteger(report.checked_files) ||
+    Number(report.checked_files) <= 0 ||
+    !Array.isArray(report.failures) ||
+    report.failures.length !== 0
+  )
+    throw new Error("Native settings package lacks positive exact-install immutable verification.");
+  return report;
+}
+
 /** Own every accepted socket, including rejected reconnects. Socket failures are
  * observations consumed by the bounded owner, never uncaught event errors. */
 export async function openSettingsProbeListener() {
@@ -147,6 +164,7 @@ export async function qualifySettingsConsumer(options: {
   library: string;
   output: string;
   caseFile: string;
+  qualificationCatalog?: string | undefined;
 }) {
   if (process.platform !== "win32")
     throw new Error("This native Libultraship consumer probe requires Windows x86-64.");
@@ -216,16 +234,52 @@ export async function qualifySettingsConsumer(options: {
     throw new Error(
       "Native settings case is outside its marked disposable scope or changed client.",
     );
+  const environment: Record<string, string | undefined> = {
+    ...process.env,
+    PORTCOVE_PREFERENCES: join(root, "preferences.json"),
+    PORTCOVE_APPLICATION_RUNTIME_LOCK: join(root, "application-runtime"),
+  };
+  for (const name of [
+    "GH_TOKEN",
+    "GITHUB_TOKEN",
+    "ACTIONS_ID_TOKEN_REQUEST_TOKEN",
+    "ACTIONS_RUNTIME_TOKEN",
+    "PORTCOVE_QUALIFICATION_CATALOG",
+  ])
+    delete environment[name];
+  let qualificationCatalog: { path: string; sha256: string } | undefined;
+  if (options.qualificationCatalog !== undefined) {
+    const file = await realpath(options.qualificationCatalog);
+    if (!contained(root, file))
+      throw new Error("Native settings qualification catalog escaped its marked disposable scope.");
+    qualificationCatalog = { path: file, sha256: hash(await bounded(file, 16 * 1024 * 1024)) };
+    environment.PORTCOVE_QUALIFICATION_CATALOG = file;
+  }
   await mkdir(output);
   await writeFile(join(output, "case.json"), JSON.stringify(value), { flag: "wx" });
   const evidence: Record<string, unknown>[] = [];
-  const run = async (args: string[]) => {
+  const checkInputs = async () => {
     if (hash(await bounded(cli, 512 * 1024 * 1024)) !== value.cli_sha256)
       throw new Error("Native settings client changed.");
+    if (
+      qualificationCatalog &&
+      hash(await bounded(qualificationCatalog.path, 16 * 1024 * 1024)) !==
+        qualificationCatalog.sha256
+    )
+      throw new Error("Native settings qualification catalog changed.");
+  };
+  const run = async (args: string[]) => {
+    await checkInputs();
     const result = await execute(
       cli,
       ["--library", library, "--json", "--non-interactive", ...args],
-      { encoding: "utf8", windowsHide: true, timeout: 120000, maxBuffer: 4 * 1024 * 1024 },
+      {
+        env: environment,
+        encoding: "utf8",
+        windowsHide: true,
+        timeout: 120000,
+        maxBuffer: 4 * 1024 * 1024,
+      },
     );
     const envelope: unknown = JSON.parse(result.stdout);
     evidence.push({ args, stdout: result.stdout, stderr: result.stderr });
@@ -239,6 +293,7 @@ export async function qualifySettingsConsumer(options: {
     !object(status.active) ||
     !object(status.active.artifact) ||
     status.active.artifact.sha256 !== value.archive_sha256 ||
+    typeof status.active.id !== "string" ||
     typeof status.active.path !== "string" ||
     typeof status.active.selected_executable !== "string"
   )
@@ -250,7 +305,14 @@ export async function qualifySettingsConsumer(options: {
   )
     throw new Error("Native settings executable is outside the selected exact package.");
   const initial = await bounded(configuration);
+  const preservationKey = "PortcoveQualification_" + randomUUID().replaceAll("-", "");
+  const preservationValue = {
+    text: "keep this unrelated value",
+    flag: true,
+    array: [3, false, "unknown"],
+  };
   const observedValues: number[] = [];
+  const producerSha256 = hash(await readFile(new URL(import.meta.url)));
   const { acquireNativeSessionLock } = await import("./native-session-lock.mts");
   const nativeLock = await acquireNativeSessionLock({
     workspace: process.cwd(),
@@ -258,6 +320,7 @@ export async function qualifySettingsConsumer(options: {
   });
   let unsettled = false;
   let failure: unknown;
+  let failed = false;
   try {
     for (const requested of selected.values) {
       const listener = await openSettingsProbeListener();
@@ -270,6 +333,7 @@ export async function qualifySettingsConsumer(options: {
       try {
         const before: unknown = JSON.parse((await bounded(configuration)).toString("utf8"));
         if (!object(before)) throw new Error("Native settings configuration must be an object.");
+        before[preservationKey] = preservationValue;
         set(before, ["CVars", "gRemote", "Sail"], {
           Enabled: 1,
           Host: "127.0.0.1",
@@ -292,6 +356,7 @@ export async function qualifySettingsConsumer(options: {
         set(expected, selected.key, requested);
         if (!isDeepStrictEqual(applied, expected))
           throw new Error("Native service changed unrelated configuration values.");
+        await checkInputs();
         child = spawn(
           cli,
           [
@@ -303,7 +368,7 @@ export async function qualifySettingsConsumer(options: {
             "--request-id",
             requestId,
           ],
-          { windowsHide: true, stdio: ["ignore", "pipe", "pipe"] },
+          { env: environment, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] },
         );
         unsettled = true;
         let streams = "";
@@ -376,6 +441,8 @@ export async function qualifySettingsConsumer(options: {
           if (at(disk, ["CVars", "portcoveQualificationSentinel"]) === nonce) {
             if (at(disk, selected.key) !== requested)
               throw new Error("Actual packaged consumer did not retain the requested setting.");
+            if (!isDeepStrictEqual(at(disk, [preservationKey]), preservationValue))
+              throw new Error("Actual packaged consumer changed unrelated JSON evidence.");
             consumed = true;
             break;
           }
@@ -387,7 +454,15 @@ export async function qualifySettingsConsumer(options: {
         socket.write(JSON.stringify({ id: nonce + 1, type: "command", command: "quit" }) + "\0");
         const outcome = await within(terminal, deadline - performance.now());
         const retained = await run(["launch", "show", requestId]);
-        evidence.push({ requested, session, peer: identity, outcome, retained, streams });
+        evidence.push({
+          requested,
+          session,
+          peer: identity,
+          outcome,
+          retained,
+          streams,
+          unrelated_json_preserved: true,
+        });
         if (
           outcome.code !== 0 ||
           outcome.signal ||
@@ -440,7 +515,7 @@ export async function qualifySettingsConsumer(options: {
       selected.setting_id,
       "--reset",
     ]);
-    if (!object(reset) || !sha(reset.review_sha256))
+    if (!object(reset) || !sha(reset.review_sha256) || !Number.isSafeInteger(reset.proposed_value))
       throw new Error("Native default reset review is unavailable.");
     await run([
       "game-settings",
@@ -452,13 +527,26 @@ export async function qualifySettingsConsumer(options: {
       "--expected-review",
       reset.review_sha256,
     ]);
-    const verification = await run(["verify", value.port_id]);
-    if (!object(verification) || verification.valid !== true)
-      throw new Error("Native settings probe changed immutable bytes.");
+    const resetDocument: unknown = JSON.parse((await bounded(configuration)).toString("utf8"));
+    if (
+      at(resetDocument, selected.key) !== reset.proposed_value ||
+      !isDeepStrictEqual(at(resetDocument, [preservationKey]), preservationValue)
+    )
+      throw new Error("Native settings reset readback or unrelated JSON preservation differs.");
+    const verification = requireSettingsVerification(
+      await run(["verify", value.port_id]),
+      status.active.id,
+    );
+    evidence.push({
+      reset_value: reset.proposed_value,
+      unrelated_json_preserved: true,
+      verification,
+    });
     if (hash(await bounded(executable, 512 * 1024 * 1024)) !== value.executable_sha256)
       throw new Error("Native executable changed during qualification.");
   } catch (error) {
     failure = error;
+    failed = true;
   }
   const raw = Buffer.from(
     JSON.stringify({
@@ -466,24 +554,38 @@ export async function qualifySettingsConsumer(options: {
       scope: "actual packaged CVar load/save; not audible amplitude or gameplay",
       input: value,
       initial_sha256: hash(initial),
+      qualification_catalog: qualificationCatalog,
+      preservation: { key: preservationKey, expected: preservationValue },
       observed_values: observedValues,
       evidence,
       unsettled_owned_process: unsettled,
-      producer_sha256: hash(await readFile(new URL(import.meta.url))),
-      failure: failure instanceof Error ? failure.message : (failure ?? null),
+      producer_sha256: producerSha256,
+      failure: failed ? (failure instanceof Error ? failure.message : String(failure)) : null,
     }),
   );
   try {
     await writeFile(join(output, "native-settings-evidence.json"), raw, { flag: "wx" });
+  } catch (error) {
+    failure = failed
+      ? new AggregateError(
+          [failure, error],
+          "Native settings probe and evidence persistence failed.",
+        )
+      : error;
+    failed = true;
   } finally {
     if (!unsettled) await nativeLock.release();
   }
-  if (failure)
-    throw failure instanceof Error
-      ? failure
-      : new Error(
-          "Native settings probe failed; the original non-Error result is retained in its evidence.",
-        );
+  if (failed || unsettled) {
+    const error =
+      failure instanceof Error
+        ? failure
+        : new Error(
+            "Native settings probe failed or its owned process has not settled; inspect the retained evidence.",
+          );
+    if (unsettled) Object.assign(error, { code: "PORTCOVE_NATIVE_OWNER_UNSETTLED" });
+    throw error;
+  }
   const observation = {
     archive_sha256: value.archive_sha256,
     source_commit: value.source_commit,

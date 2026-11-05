@@ -411,7 +411,7 @@ function downloadUrl(value: unknown, config: { repository: string }, tag: string
   return textFact(value, "asset URL", 4096);
 }
 
-function assetFact(asset: unknown, config: { repository: string }, tag: string) {
+export function assetFact(asset: unknown, config: { repository: string }, tag: string) {
   requireFact(isRecord(asset), "invalid-metadata", "invalid asset object");
   const name = textFact(asset.name, "asset filename", 255);
   requireFact(
@@ -446,7 +446,7 @@ function assetFact(asset: unknown, config: { repository: string }, tag: string) 
   };
 }
 
-function releaseFact(release: unknown) {
+export function releaseFact(release: unknown) {
   requireFact(
     isRecord(release) &&
       typeof release.draft === "boolean" &&
@@ -470,7 +470,7 @@ function releaseFact(release: unknown) {
   };
 }
 
-function repositoryFact(
+export function repositoryFact(
   repository: unknown,
   config: Pick<ObserverConfig, "repository" | "repository_id">,
 ) {
