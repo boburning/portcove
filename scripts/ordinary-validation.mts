@@ -929,7 +929,6 @@ for (const [file, tests] of [
     [
       "scripts/release-native-admission.test.mts",
       "scripts/release-native-check-discovery.test.mts",
-      "scripts/release-native-candidate.test.mts",
     ],
   ],
   [
@@ -2457,6 +2456,7 @@ for (const file of [
     "scripts/release-pages-provider.test.mts",
     "scripts/release-controller-wake.test.mts",
     "scripts/release-coordinator-checkpoint-authentication.test.mts",
+    "scripts/release-native-candidate.test.mts",
     "scripts/release-native-acceptance.test.mts",
     "scripts/release-hosted-native-acceptance.test.mts",
     "scripts/audit-reuse.test.mts",
