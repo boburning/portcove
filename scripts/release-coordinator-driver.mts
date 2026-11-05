@@ -1,3 +1,5 @@
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
+import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
 import { applicationReleaseProfile } from "./release-authority-configuration-contract.mts";
 import {
   materializePublishedCatalogCompleteSite,
@@ -861,6 +863,18 @@ function coordinatorApi(
     })([...args, "--hostname", "github.com"], input);
     budget.check();
     return result;
+  });
+}
+function coordinatorBootstrapSourceProvider(
+  budget: ReturnType<typeof coordinatorDeadline>,
+  maxBytes: number,
+) {
+  return createReleaseCustodyProvider({
+    token: (readOnlyReleaseChildEnvironment() ?? process.env).GH_TOKEN ?? "",
+    deadline: budget.monotonicDeadline,
+    chargeRead: () => budget.check(),
+    currentDeadline: () => performance.now() + budget.remaining(15000),
+    maxBytes,
   });
 }
 function guardedCoordinatorJournal(
@@ -2248,12 +2262,14 @@ async function prepareTrustedCoordinatorBootstrapAt(
   )
     throw new Error("same actual initial bootstrap reader required");
   const initialIdentity = coordinatorMaintenanceIdentity(initialFacts);
-  const source = readBootstrapPublicSource(
-    api,
+  const bootstrapSource = await coordinatorBootstrapSourceProvider(budget, 16 * 1024 ** 2);
+  const source = await readBootstrapPublicSource(
+    bootstrapSource,
     authorities.publication,
     generatedAt,
     budget.monotonicDeadline,
   );
+  budget.check();
   const descriptor =
     oldDescriptor ??
     deriveMetadataBootstrapDescriptor(authorities.publication, source.files, generatedAt);
@@ -2390,12 +2406,13 @@ async function prepareTrustedCoordinatorBootstrapAt(
     throw new Error("bootstrap checkpoint or no-prior state changed");
   await verifiedControllerToolPaths(toolsReceipt);
   await inspectPreparedMetadataBootstrap(preparation);
-  const repeated = readBootstrapPublicSource(
-    api,
+  const repeated = await readBootstrapPublicSource(
+    bootstrapSource,
     authorities.publication,
     generatedAt,
     budget.monotonicDeadline,
   );
+  budget.check();
   if (capacityDigest(repeated.publication) !== capacityDigest(source.publication))
     throw new Error("bootstrap ratified public source changed");
   assertBootstrapSiteBaseline(catalogPins, current.input);
@@ -2931,7 +2948,8 @@ async function recoverTrustedCoordinatorContext(
       checkpoint: recovered.checkpoint,
       operation_id: selected.operation.id,
     }),
-    api = coordinatorApi(directory, budget, 2 * 1024 ** 2);
+    contextReadMaximum = 2 * 1024 ** 2,
+    api = coordinatorApi(directory, budget, contextReadMaximum);
   let controls = await authenticateCoordinatorInitialControls(
       directory,
       factsSha,
@@ -3007,12 +3025,14 @@ async function recoverTrustedCoordinatorContext(
     if (selected.descriptor.kind !== "application-tuf-initial-bootstrap")
       throw new Error("explicit initial context descriptor required");
     assertMetadataBootstrapBinding(selected.descriptor, published, new Date().toISOString());
-    const source = readBootstrapPublicSource(
-      api,
+    const bootstrapSource = await coordinatorBootstrapSourceProvider(budget, contextReadMaximum);
+    const source = await readBootstrapPublicSource(
+      bootstrapSource,
       authorities.publication,
       selected.descriptor.generated_at,
       budget.monotonicDeadline,
     );
+    budget.check();
     const preparation = await prepareAuthenticatedMetadataBootstrap({
       verifier: tools.rust,
       verifier_sha256,

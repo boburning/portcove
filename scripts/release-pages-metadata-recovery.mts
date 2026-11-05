@@ -9,7 +9,8 @@ import {
   bootstrapPreimageCatalogPins,
 } from "./release-bootstrap-public-inputs.mts";
 import { requireControllerApplicationJobPublicationAuthorities } from "./release-authority-configuration.mts";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
+import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
 import { currentPublishedSite } from "./release-catalog-metadata-contract.mts";
 import {
   inspectPublishedMetadata,
@@ -201,19 +202,14 @@ export async function recoverPublishedPagesMetadata(
               descriptor.root_sha256 !== authority.publication.public_source.root.sha256
             )
               throw new Error("bootstrap handoff differs from current protected setup");
-            const api = new GitHubApiClient((args, body) => {
-              check();
-              return createGitHubRunner({
-                cwd: directory,
-                timeoutMs: Math.max(
-                  1,
-                  Math.floor(Math.min(15000, phaseDeadline - performance.now())),
-                ),
-                maxBuffer: 16 * 1024 * 1024,
-              })([...args, "--hostname", "github.com"], body);
+            const provider = await createReleaseCustodyProvider({
+              token: (readOnlyReleaseChildEnvironment() ?? process.env).GH_TOKEN ?? "",
+              deadline: phaseDeadline,
+              maxBytes: 16 * 1024 ** 2,
+              chargeRead: check,
             });
-            const source = readBootstrapPublicSource(
-              api,
+            const source = await readBootstrapPublicSource(
+              provider,
               authority.publication,
               descriptor.generated_at,
               phaseDeadline,

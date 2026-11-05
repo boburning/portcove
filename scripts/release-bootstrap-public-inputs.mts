@@ -4,6 +4,9 @@
 import { createHash } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import type { GitHubRestReader } from "./github-api.mts";
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
+import type { CatalogAnchorMetadataProvider } from "./release-custody-provider.mts";
+import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
 import {
   inspectPublicationAuthorities,
   inspectCatalogAuthorityConfiguration,
@@ -197,8 +200,8 @@ export async function readConfiguredCatalogOnlyBootstrapSite(
 
 /** The complete bounded tree and raw objects authenticate the configured commit
  * paths. A JSON hash alone is never substituted for that path/commit custody. */
-export function readBootstrapPublicSource(
-  api: GitHubRestReader,
+export async function readBootstrapPublicSource(
+  provider: CatalogAnchorMetadataProvider,
   rawPublication: unknown,
   generatedAt: string,
   deadline: number,
@@ -207,8 +210,8 @@ export function readBootstrapPublicSource(
   const pins = publication.public_source;
   if (!pins.initial_site_preimage)
     throw new Error("explicit schema2 historical setup locator required");
-  const result = readPinnedBootstrapSource(
-    api,
+  const result = await readPinnedBootstrapSource(
+    provider,
     pins.commit,
     {
       root: pins.root,
@@ -225,8 +228,8 @@ export function readBootstrapPublicSource(
 
 /** Catalog bootstrap has its own explicit setup pin and never requires an
  * application Root, payload registry or application authority appointment. */
-export function readCatalogBootstrapPublicSource(
-  api: GitHubRestReader,
+export async function readCatalogBootstrapPublicSource(
+  provider: CatalogAnchorMetadataProvider,
   rawAuthorities: unknown,
   generatedAt: string,
   deadline: number,
@@ -244,8 +247,8 @@ export function readCatalogBootstrapPublicSource(
     throw new Error("explicit catalog historical whole-site preimage locator required");
   return {
     authorities,
-    ...readPinnedBootstrapSource(
-      api,
+    ...(await readPinnedBootstrapSource(
+      provider,
       pins.commit,
       {
         root: pins.root,
@@ -254,12 +257,12 @@ export function readCatalogBootstrapPublicSource(
       },
       generatedAt,
       deadline,
-    ),
+    )),
   };
 }
 
-function readPinnedBootstrapSource(
-  api: GitHubRestReader,
+async function readPinnedBootstrapSource(
+  provider: CatalogAnchorMetadataProvider,
   sourceCommit: string,
   pins: Record<string, { path: string; bytes: number; sha256: string }>,
   generatedAt: string,
@@ -267,30 +270,26 @@ function readPinnedBootstrapSource(
   allowCatalogOnly = false,
 ) {
   let reads = 0;
-  const get = (endpoint: string) => {
+  const get = async (read: () => Promise<unknown>) => {
     check(deadline);
     if (++reads > Object.keys(pins).length + 2)
       throw new Error("bootstrap public source read bound exhausted");
-    const response = api.request("GET", endpoint);
+    const body = await read();
     check(deadline);
-    if (response.status !== 200) throw new Error("bootstrap public source unavailable");
-    return response.body;
+    return body;
   };
   const commit = inspectRemoteCommitObject(
-    get(`${base}/git/commits/${sourceCommit}`),
+    await get(() => provider.commit(sourceCommit)),
     sourceCommit,
   );
-  const tree = inspectReleaseSourceTree(
-    get(`${base}/git/trees/${commit.tree}?recursive=1`),
-    commit.tree,
-  );
+  const tree = inspectReleaseSourceTree(await get(() => provider.tree(commit.tree)), commit.tree);
   const files = new Map<string, Buffer>();
   for (const name of Object.keys(pins)) {
     const pin = pins[name]!;
     const entry = tree.entries.get(pin.path);
     if (!entry || entry.type !== "blob" || entry.mode !== "100644" || pin.bytes > 128 * 1024)
       throw new Error("bootstrap public input is not a supported bounded regular Git blob");
-    const body = get(`${base}/git/blobs/${entry.oid}`);
+    const body = await get(() => provider.blob(entry.oid));
     if (
       !isRecord(body) ||
       body.sha !== entry.oid ||
@@ -343,7 +342,17 @@ export async function readConfiguredCatalogBootstrapSite(
   const configuration = Object.fromEntries(
     Object.entries(authorities.configuration).filter(([key]) => key !== "configuration_sha256"),
   );
-  const source = readCatalogBootstrapPublicSource(api, configuration, generatedAt, phaseDeadline);
+  const provider = await createReleaseCustodyProvider({
+    token: (readOnlyReleaseChildEnvironment() ?? process.env).GH_TOKEN ?? "",
+    deadline: phaseDeadline,
+    maxBytes: 512 * 1024,
+  });
+  const source = await readCatalogBootstrapPublicSource(
+    provider,
+    configuration,
+    generatedAt,
+    phaseDeadline,
+  );
   const current = await readConfiguredBootstrapSite(api, phaseDeadline);
   check(phaseDeadline);
   return {
