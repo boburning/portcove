@@ -2402,6 +2402,7 @@ for (const file of [
     "scripts/release-public-build-provenance.test.mts",
     "scripts/production-aggregate-steps.test.mts",
     "scripts/trusted-aggregate-attestation.test.mts",
+    "scripts/release-coordinator-signing-exchange.test.mts",
     "scripts/release-coordinator-capacity-effects.test.mts",
     "scripts/release-prepared-transport.test.mts",
     "scripts/release-coordinator-checkpoint-evidence.test.mts",
