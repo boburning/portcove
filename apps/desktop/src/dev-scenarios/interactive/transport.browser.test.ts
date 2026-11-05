@@ -68,6 +68,9 @@ it("supports current read surfaces without hiding unsupported mutations", async 
     provenance: { origin: "embedded" },
     trusted_keys: [],
   });
+  await expect(desktopApi.portCapabilities("sample", 1)).rejects.toThrow(
+    "Feature details are unavailable in this browser fixture",
+  );
   expect(refuse).not.toHaveBeenCalled();
   await expect(desktopApi.resetOutputLocation("sample", "unreviewed", 1)).rejects.toThrow(
     "Unsupported fixture action",
@@ -76,6 +79,23 @@ it("supports current read surfaces without hiding unsupported mutations", async 
     "Unsupported fixture action",
   );
   await expect(desktopApi.outputLocation("sample", 2)).rejects.toThrow("unexpected arguments");
+  await expect(desktopApi.portCapabilities("sample", 2)).rejects.toThrow("unexpected arguments");
+});
+it("keeps optional feature-detail failures scoped for listing-only entries", async () => {
+  const refuse = vi.fn();
+  transport = installInteractiveTransport("details", refuse);
+  for (const portId of ["details-external", "details-unknown", "details-downloaded"]) {
+    await expect(desktopApi.portCapabilities(portId, 1)).rejects.toThrow(
+      "Feature details are unavailable in this browser fixture",
+    );
+  }
+  expect(refuse).not.toHaveBeenCalled();
+  await expect(desktopApi.portCapabilities("foreign", 1)).rejects.toThrow(
+    "Unsupported fixture action",
+  );
+  await expect(desktopApi.portCapabilities("details-external", 2)).rejects.toThrow(
+    "unexpected arguments",
+  );
 });
 it("models an eligible launch without claiming a native process and resets favorites", async () => {
   transport = installInteractiveTransport("library", vi.fn());

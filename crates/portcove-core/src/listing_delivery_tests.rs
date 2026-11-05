@@ -408,6 +408,8 @@ async fn authenticated_gitlab_listing_observations_and_unknown_format_recovery_s
     candidate["directory"]["format_version"] = json!(8);
     let listing = &mut candidate["directory"]["listings"][0];
     listing["project_url"] = json!("https://gitlab.com/example/game");
+    let advice = json!({"format_version":99,"future":true});
+    listing["compatibility"] = advice.clone();
     listing["upstream_observation"] = json!({
         "provider":"gitlab","repository":"example/game","repository_id":7,
         "status":"complete","attempted_at":"2026-10-27T00:01:00Z",
@@ -422,6 +424,14 @@ async fn authenticated_gitlab_listing_observations_and_unknown_format_recovery_s
     let original = library.listing_delivery_status().unwrap().target_sha256;
     let (catalog, _) = library.load_catalog().unwrap();
     assert_eq!(catalog.listing_document().format_version, 8);
+    assert_eq!(
+        catalog
+            .listing("new-unmanaged-port")
+            .unwrap()
+            .compatibility
+            .as_ref(),
+        Some(&advice)
+    );
     assert_eq!(
         catalog
             .listing("new-unmanaged-port")

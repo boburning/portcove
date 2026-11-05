@@ -2647,6 +2647,7 @@ pub fn run() -> std::process::ExitCode {
             get_runtime_diagnostic_health,
             get_locale_preference,
             game_settings_commands::get_game_settings,
+            game_settings_commands::get_port_capabilities,
             game_settings_commands::review_game_setting,
             game_settings_commands::apply_game_setting,
             favorite_commands::get_favorite_ports,
@@ -3430,6 +3431,27 @@ mod tests {
             "https://www.igdb.com/games/unmapped-game",
         ] {
             assert!(validate_external_url(&service, url).is_err(), "{url}");
+        }
+    }
+
+    #[test]
+    fn canonical_repository_update_handoff_uses_reviewed_catalog_identity() {
+        let temporary = tempfile::tempdir().unwrap();
+        let service =
+            PortcoveService::new(Library::open(temporary.path().join("library")).unwrap()).unwrap();
+        for repository in ["Ghostship", "Starship"] {
+            let url = format!("https://github.com/HarbourMasters/{repository}/releases");
+            validate_external_url(&service, &url).unwrap();
+            for unrelated in [
+                format!("{url}?redirect=elsewhere"),
+                format!("{url}/download/unreviewed/game.exe"),
+                format!("https://github.com/ForeignOwner/{repository}/releases"),
+            ] {
+                assert!(
+                    validate_external_url(&service, &unrelated).is_err(),
+                    "{unrelated}"
+                );
+            }
         }
     }
 

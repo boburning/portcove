@@ -791,6 +791,10 @@ pub struct CatalogDocument {
 #[serde(deny_unknown_fields)]
 pub struct PortListing {
     pub id: String,
+    /// Inert optional advisory envelope. Invalid/future content is unavailable as advice,
+    /// never an acquisition restriction or an operation grant. Requires listing format 7.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub compatibility: Option<serde_json::Value>,
     /// Accepted descriptive observation, never a package or execution grant.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub upstream_observation: Option<ListingUpstreamObservation>,
@@ -942,6 +946,9 @@ pub struct PortListingStatus {
     pub port_id: String,
     pub status: PortStatus,
     pub actions: Vec<ListingActionAssessment>,
+    /// Optional inert read model; absence cannot suppress an independently allowed action.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub capabilities: Option<crate::PortCapabilityReport>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -2054,6 +2061,10 @@ pub enum OperationEventKind {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CapabilityDocument {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub listing_formats: Vec<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub port_capability_schema: Option<u32>,
     pub schema_version: u32,
     /// Optional read-only destination handoff; negotiate independently of API/events.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -2077,11 +2088,14 @@ impl CapabilityDocument {
     pub fn current() -> Self {
         Self {
             schema_version: crate::API_SCHEMA_VERSION,
+            listing_formats: vec![5, 6, 7, 8],
+            port_capability_schema: Some(1),
             artwork_handoff_schema: Some(crate::ARTWORK_HANDOFF_SCHEMA),
             operation_event_schema_version: crate::OPERATION_EVENT_SCHEMA_VERSION,
             product: "Portcove".into(),
             product_version: env!("CARGO_PKG_VERSION").into(),
             commands: vec![
+                "port-capabilities".into(),
                 "auth".into(),
                 "backup".into(),
                 "backup.ghostship-legacy-plan".into(),

@@ -27,6 +27,21 @@ fn at_generation<T>(
 }
 
 #[tauri::command]
+pub(crate) async fn get_port_capabilities(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+) -> DesktopResult<portcove_core::PortCapabilityReport> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        at_generation(&state, generation, |service| {
+            service.port_capabilities(&port_id)
+        })
+    })
+    .await
+}
+
+#[tauri::command]
 pub(crate) async fn get_game_settings(
     state: tauri::State<'_, DesktopState>,
     generation: u64,
