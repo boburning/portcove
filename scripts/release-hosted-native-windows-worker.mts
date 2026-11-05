@@ -184,6 +184,25 @@ async function runWindowsWorkerStageMechanism(file: string, expected: string) {
       read(request.predecessor.path, request.predecessor.bytes, request.predecessor.sha256).length,
       request.predecessor.bytes,
     );
+  if (request.stage === "ordinary-public-initial") {
+    assert.equal(
+      path.resolve(file),
+      path.join(
+        root,
+        "work/application-public-native-owner",
+        "ordinary-public-initial/capture/worker-input.json",
+      ),
+    );
+    assert.ok(request.public_inputs);
+    const publicInput: unknown = JSON.parse(
+      read(request.public_inputs.path, 16384, request.public_inputs.sha256).toString("utf8"),
+    );
+    assert.ok(isRecord(publicInput));
+    assert.equal(publicInput.schema_version, 1);
+    assert.equal(publicInput.kind, "ordinary-public-windows-update-inputs");
+    assert.equal(publicInput.prior_version, request.package.version);
+    assert.equal(publicInput.prior_installer_sha256, request.package.sha256);
+  }
   const environment: NodeJS.ProcessEnv = {};
   for (const name of [
     "SystemRoot",
@@ -229,6 +248,13 @@ async function runWindowsWorkerStageMechanism(file: string, expected: string) {
     "-CleanupTimeoutSeconds",
     "15",
   ];
+  if (request.public_inputs)
+    args.push(
+      "-OrdinaryPublicUpdateInputsPath",
+      request.public_inputs.path,
+      "-OrdinaryPublicUpdateInputsSha256",
+      request.public_inputs.sha256,
+    );
   if (request.predecessor)
     args.push(
       "-UpgradeFromInstallerPath",
@@ -303,6 +329,8 @@ async function runWindowsWorkerStageMechanism(file: string, expected: string) {
   }
   const remaining = Math.floor(started + request.remaining_milliseconds - performance.now());
   assert.ok(remaining > 0, "B preflight consumed remaining parent budget");
+  if (request.public_inputs)
+    args.push("-OrdinaryPublicUpdateRemainingMilliseconds", String(remaining));
   const result = spawnSync(request.tools.powershell.path, args, {
     cwd: root,
     env: environment,

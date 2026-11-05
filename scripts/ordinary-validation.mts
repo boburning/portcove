@@ -2087,6 +2087,23 @@ for (const file of ["scripts/release-resource-observation.mts", "scripts/release
     ...(explicitNodeTests.get(file) ?? []),
     "scripts/release-resource-observation.test.mts",
   ]);
+const applicationReleaseTests = ordinaryFamily("application-release-contract-tests");
+for (const file of [
+  "scripts/application-release-build-inputs.mts",
+  "scripts/application-release-io.mts",
+  "scripts/application-release-run-title.mts",
+  "scripts/application-release-transfer.mts",
+  "scripts/application-release-source.mts",
+  "scripts/application-release-private.mts",
+  "scripts/application-release-native-execution.mts",
+  "scripts/application-release-native-owner.ps1",
+  "scripts/release-hosted-native-windows-owner-mechanism.ps1",
+  "scripts/native-qualification-account.cs.txt",
+])
+  explicitNodeTests.set(file, [
+    ...new Set([...(explicitNodeTests.get(file) ?? []), ...applicationReleaseTests]),
+  ]);
+
 const workflowTests = new Map([
   [
     "hosted-native-continuity.yml",
@@ -2110,6 +2127,11 @@ const workflowTests = new Map([
     ],
   ],
   ["release.yml", ["scripts/release-workflow.test.mts"]],
+  ["application-release.yml", applicationReleaseTests],
+  ["application-release-assembly.yml", applicationReleaseTests],
+  ["application-release-native.yml", applicationReleaseTests],
+  ["application-release-package.yml", applicationReleaseTests],
+  ["application-release-private.yml", applicationReleaseTests],
   ["qualification.yml", ["scripts/qualification-coverage.test.mts"]],
   [
     "configured-upstream-observer.yml",

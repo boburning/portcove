@@ -2,12 +2,13 @@ import { GitHubApiClient } from "./github-api.mts";
 import { inspectRemoteCommitObject } from "./release-coordinator-recovery.mts";
 import { inspectPreparationCommitBytes } from "./release-coordinator-state.mts";
 import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-remote.mts";
+import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
 import { classifyApplicationVersion } from "../apps/desktop/scripts/release-version-policy.mts";
 import { isRecord } from "./runtime-values.mts";
 import { performance } from "node:perf_hooks";
 const repository = "boburning/portcove";
 const base = `repos/${repository}`;
-type Api = Pick<GitHubApiClient, "request" | "graphql">;
+type Api = CoordinatorRemoteApi;
 const refsQuery = `query AdmissionRefs($cursor:String) {
  repository(owner:"boburning",name:"portcove") { id databaseId nameWithOwner
   refs(refPrefix:"refs/tags/",first:100,after:$cursor,orderBy:{field:ALPHABETICAL,direction:ASC}) {
@@ -70,7 +71,7 @@ export function createReleasePublicationReader(rawApi: Api) {
   const page = (endpoint: string, key?: string) => {
     let count = 0;
     return GitHubApiClient.prototype.paginateRest
-      .call({ request: api.request }, `${base}/${endpoint}`, {
+      .call({ request: api.request.bind(api) }, `${base}/${endpoint}`, {
         select: (body: unknown) => {
           const rows = key ? record(body)[key] : body;
           if (!Array.isArray(rows) || rows.length > 100 || (count += rows.length) > 1600)
@@ -251,6 +252,22 @@ export function createReleasePublicationReader(rawApi: Api) {
 
     return { allocations, intents };
   };
-  return { tags, releases, readAllocations };
+  const releaseNotes = () =>
+    page("releases?per_page=100").map((r) => {
+      integer(r.id);
+      if (
+        typeof r.tag_name !== "string" ||
+        r.tag_name.length > 128 ||
+        typeof r.draft !== "boolean" ||
+        typeof r.prerelease !== "boolean" ||
+        typeof r.immutable !== "boolean" ||
+        typeof r.target_commitish !== "string" ||
+        !(r.body === null || typeof r.body === "string") ||
+        (typeof r.body === "string" && Buffer.byteLength(r.body) > 65536)
+      )
+        throw new Error("native release notes inventory incomplete or oversized");
+      return r;
+    });
+  return { tags, releases, releaseNotes, readAllocations };
 }
 export { peel as peelReleaseReference, refsQuery as releasePublicationRefsQuery };

@@ -15,6 +15,7 @@ const COMMANDS: &[&str] = &[
     "assemble-tuf",
     "prepare-tuf-renewal",
     "inspect-tuf-bootstrap",
+    "inspect-tuf-context",
     "create-offline-key",
     "inspect-existing-tuf-key",
     "inspect-existing-payload-key",
@@ -53,6 +54,7 @@ fn grammar_errors_preserve_failure_exit_and_stderr_contract() {
         vec!["verify", "a", "b", "c", "hash", "-1"],
         vec!["verify", "a", "b", "c", "hash", "18446744073709551616"],
         vec!["assemble-tuf", "config", "extra"],
+        vec!["inspect-tuf-context"],
         vec!["sign-tuf-role", "releases"],
         vec!["sign-definition-role", "targets"],
     ] {

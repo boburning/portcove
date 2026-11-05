@@ -11,11 +11,12 @@ export interface WakeDispatch {
 export type WakeWorkflow =
   | "application-update-wake.yml"
   | "application-update-production.yml"
-  | "job-token-dispatch-fixture.yml";
+  | "job-token-dispatch-fixture.yml"
+  | "application-release.yml";
 export interface WakeProvider {
   repository(): Promise<unknown>;
   run(id: string, retain?: RetainWakeResponse): Promise<unknown>;
-  jobs(id: string): Promise<unknown>;
+  jobs(id: string, attempt?: number): Promise<unknown>;
   ref(name: string): Promise<unknown>;
   file(filename: string, revision: string): Promise<unknown>;
   runs(workflow: WakeWorkflow, filters: Record<string, string>, page: number): Promise<unknown>;
@@ -79,9 +80,10 @@ export async function createWakeProvider(options: {
   return {
     repository: () => get("/repos/{owner}/{repo}", {}),
     run: (id, retain) => get("/repos/{owner}/{repo}/actions/runs/{run_id}", { run_id: id }, retain),
-    jobs: (id) =>
-      get("/repos/{owner}/{repo}/actions/runs/{run_id}/attempts/1/jobs", {
+    jobs: (id, attempt = 1) =>
+      get("/repos/{owner}/{repo}/actions/runs/{run_id}/attempts/{attempt_number}/jobs", {
         run_id: id,
+        attempt_number: attempt,
         per_page: 100,
       }),
     ref: (name) => get("/repos/{owner}/{repo}/git/ref/{ref}", { ref: name }),

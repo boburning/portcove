@@ -616,8 +616,60 @@ export async function prepareActualNativeStageReport(captured: object) {
 export async function prepareActualHostedWindowsNativeStageReport(captured: object) {
   return prepareWindowsStageReport(captured, true);
 }
+type WindowsStageReportInput = Pick<
+  Awaited<ReturnType<typeof originalWindowsReportInput>>,
+  | "status"
+  | "result"
+  | "capture_directory"
+  | "directory"
+  | "request"
+  | "version"
+  | "predecessor"
+  | "payload_cryptography"
+  | "parent"
+  | "hosted"
+  | "serialize"
+  | "recheck"
+> & {
+  readSource: () => Promise<{ declaration: ReturnType<typeof inspectNativeCompatibilitySources> }>;
+};
+
 async function prepareWindowsStageReport(captured: object, hosted: boolean) {
   const actual = await originalWindowsReportInput(captured, hosted);
+  const { directory, files, report } = await collectWindowsStageReport(actual);
+  const receipt = Object.freeze({
+    kind: hosted ? "actual-hosted-windows-stage-report" : "actual-direct-native-stage-report",
+    directory,
+    report_sha256: digest(report),
+    authority: "none",
+    scope: "actual fixed parent stage capture; Check issuance and admission separately required",
+  });
+  reports.set(receipt, {
+    capture: captured,
+    directory,
+    files,
+    report_sha256: digest(report),
+    hosted,
+    stopped: false,
+  });
+  return receipt;
+}
+
+/** Public-data reconstruction for the new Actions producer. This factory does
+ * not mint the private direct-parent report brand or any Check admission. */
+export async function collectApplicationNativeReport(actual: WindowsStageReportInput) {
+  if (actual.request.request.stage !== "payload-signing" || !actual.hosted)
+    throw new Error("Application producer requires hosted Windows pre-sign observations");
+  const data = await collectWindowsStageReport(actual);
+  return {
+    report: data.report,
+    capture: data.capture,
+    evidence: data.evidence,
+    authority: "none" as const,
+  };
+}
+
+async function collectWindowsStageReport(actual: WindowsStageReportInput) {
   if (actual.status !== 0 || actual.result.failure !== null)
     throw new Error("actual native driver failed; preserve original capture before recovery");
   const directory = actual.capture_directory;
@@ -843,22 +895,13 @@ async function prepareWindowsStageReport(captured: object, hosted: boolean) {
     { name: "native-report.json", sha256: hash(reportBytes), bytes: reportBytes.byteLength },
   );
   await actual.recheck();
-  const receipt = Object.freeze({
-    kind: hosted ? "actual-hosted-windows-stage-report" : "actual-direct-native-stage-report",
-    directory,
-    report_sha256: digest(prepared.report),
-    authority: "none",
-    scope: "actual fixed parent stage capture; Check issuance and admission separately required",
-  });
-  reports.set(receipt, {
-    capture: captured,
+  return {
     directory,
     files,
-    report_sha256: digest(prepared.report),
-    hosted,
-    stopped: false,
-  });
-  return receipt;
+    report: prepared.report,
+    capture: stage.capture,
+    evidence: evidenceInput,
+  };
 }
 
 export async function requireActualNativeStageReport(receipt: object) {

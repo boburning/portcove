@@ -65,6 +65,9 @@ enum Command {
     InspectTufBootstrap {
         config: PathBuf,
     },
+    InspectTufContext {
+        config: PathBuf,
+    },
     PrepareTufRenewal {
         config: PathBuf,
     },
@@ -239,6 +242,15 @@ fn run(command: Command) -> Result<(), Box<dyn std::error::Error>> {
                 .build()?;
             let report = runtime.block_on(
                 portcove_release_tools::tuf_repository::isolated::inspect_tuf_bootstrap(&config),
+            )?;
+            println!("{}", serde_json::to_string(&report)?);
+        }
+        Command::InspectTufContext { config } => {
+            let runtime = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()?;
+            let report = runtime.block_on(
+                portcove_release_tools::tuf_repository::isolated::inspect_tuf_context(&config),
             )?;
             println!("{}", serde_json::to_string(&report)?);
         }

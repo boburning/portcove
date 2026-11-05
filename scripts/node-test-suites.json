@@ -256,6 +256,86 @@
       ]
     },
     {
+      "file": "scripts/application-release-artifacts.test.mts",
+      "memberships": [
+        ["catalog-full-3", 300],
+        ["release-check", 50100]
+      ],
+      "ordinary_families": ["application-release-contract-tests"]
+    },
+    {
+      "file": "scripts/application-release-budget.test.mts",
+      "memberships": [
+        ["catalog-full-3", 400],
+        ["release-check", 50200]
+      ],
+      "ordinary_families": ["application-release-contract-tests"]
+    },
+    {
+      "file": "scripts/application-release-context.test.mts",
+      "memberships": [
+        ["catalog-full-3", 500],
+        ["release-check", 50300]
+      ],
+      "ordinary_families": ["application-release-contract-tests"]
+    },
+    {
+      "file": "scripts/application-release-feed.test.mts",
+      "memberships": [
+        ["catalog-full-3", 600],
+        ["release-check", 50400]
+      ],
+      "ordinary_families": ["application-release-contract-tests"]
+    },
+    {
+      "file": "scripts/application-release-native.test.mts",
+      "memberships": [
+        ["catalog-full-3", 700],
+        ["release-check", 50500]
+      ],
+      "ordinary_families": ["application-release-contract-tests"]
+    },
+    {
+      "file": "scripts/application-release-policy.test.mts",
+      "memberships": [
+        ["catalog-full-3", 800],
+        ["release-check", 50600]
+      ],
+      "ordinary_families": ["application-release-contract-tests"]
+    },
+    {
+      "file": "scripts/application-release-publication.test.mts",
+      "memberships": [
+        ["catalog-full-3", 900],
+        ["release-check", 50700]
+      ],
+      "ordinary_families": ["application-release-contract-tests"]
+    },
+    {
+      "file": "scripts/application-release-qualification.test.mts",
+      "memberships": [
+        ["catalog-full-3", 1000],
+        ["release-check", 50800]
+      ],
+      "ordinary_families": ["application-release-contract-tests"]
+    },
+    {
+      "file": "scripts/application-release-run.test.mts",
+      "memberships": [
+        ["catalog-full-3", 1100],
+        ["release-check", 50900]
+      ],
+      "ordinary_families": ["application-release-contract-tests"]
+    },
+    {
+      "file": "scripts/application-release-site.test.mts",
+      "memberships": [
+        ["catalog-full-3", 1200],
+        ["release-check", 51000]
+      ],
+      "ordinary_families": ["application-release-contract-tests"]
+    },
+    {
       "file": "scripts/assembler-job-identity.test.mts",
       "memberships": [
         ["frontend-full-6", 500],
@@ -2570,6 +2650,21 @@
           "required_environment": [
             "PORTCOVE_TUF_RENEWAL_ADAPTER_TOOL",
             "PORTCOVE_TUF_RENEWAL_ADAPTER_FIXTURE"
+          ]
+        },
+        {
+          "platform": ["linux", "win32", "darwin"],
+          "owner": "frontend-full-6",
+          "category": "explicit-acceptance",
+          "prerequisite": "Appointed rebuilt Rust verifier and public historical fixture",
+          "reason": "Historical expiry verification requires the original public bytes and the explicit rebuilt tool.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite frontend-full-6; Mac complement macos-platform-contracts",
+          "cases": [
+            "actual Rust adapter authenticates expired online prior only under explicit historical policy"
+          ],
+          "required_environment": [
+            "PORTCOVE_TUF_RENEWAL_ADAPTER_TOOL",
+            "PORTCOVE_TUF_HISTORICAL_ADAPTER_FIXTURE"
           ]
         }
       ]

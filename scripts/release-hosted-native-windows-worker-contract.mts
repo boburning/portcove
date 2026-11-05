@@ -82,14 +82,17 @@ export function inspectHostedWindowsHarnessBinding(
 }
 
 export function inspectHostedWindowsWorkerRequest(raw: unknown) {
-  assert.ok(
-    isRecord(raw) &&
-      Object.keys(raw).sort().join(",") ===
-        "abi,binding,capture_root,package,predecessor,remaining_milliseconds,schema_version,stage,tools,work_root,worker_sha256",
+  assert.ok(isRecord(raw));
+  const publicStage = raw.stage === "ordinary-public-initial";
+  assert.equal(
+    Object.keys(raw).sort().join(","),
+    "abi,binding,capture_root,package,predecessor," +
+      (publicStage ? "public_inputs," : "") +
+      "remaining_milliseconds,schema_version,stage,tools,work_root,worker_sha256",
   );
   assert.equal(raw.schema_version, 1);
   assert.equal(raw.abi, hostedWindowsWorkerAbi);
-  assert.ok(raw.stage === "payload-signing" || raw.stage === "release-publication");
+  assert.ok(raw.stage === "payload-signing" || raw.stage === "release-publication" || publicStage);
   local(raw.capture_root);
   local(raw.work_root);
   assert.equal(path.win32.basename(raw.work_root), "work");
@@ -141,7 +144,7 @@ export function inspectHostedWindowsWorkerRequest(raw: unknown) {
   const readonly = path.win32.join(path.win32.dirname(raw.work_root), "readonly");
   assert.equal(
     candidate.path.toLowerCase(),
-    path.win32.join(readonly, "candidate.exe").toLowerCase(),
+    path.win32.join(readonly, publicStage ? "predecessor.exe" : "candidate.exe").toLowerCase(),
   );
   if (predecessor)
     assert.equal(
@@ -153,12 +156,26 @@ export function inspectHostedWindowsWorkerRequest(raw: unknown) {
       !raw.capture_root.toLowerCase().startsWith(raw.work_root.toLowerCase() + "\\"),
     "capture must remain outside candidate work",
   );
+  const publicInputs = publicStage ? file(raw.public_inputs) : undefined;
+  if (publicInputs) {
+    const stageRoot = path.win32.dirname(raw.work_root);
+    assert.equal(path.win32.basename(stageRoot), "ordinary-public-initial");
+    assert.equal(
+      raw.capture_root.toLowerCase(),
+      path.win32.join(stageRoot, "capture").toLowerCase(),
+    );
+    assert.equal(
+      publicInputs.path.toLowerCase(),
+      path.win32.join(readonly, "public-inputs.json").toLowerCase(),
+    );
+  }
   const binding = file(raw.binding);
   assert.equal(path.win32.dirname(binding.path).toLowerCase(), raw.capture_root.toLowerCase());
   return Object.freeze({
     schema_version: 1 as const,
     abi: hostedWindowsWorkerAbi,
     stage: raw.stage,
+    ...(publicInputs ? { public_inputs: publicInputs } : {}),
     package: candidate,
     predecessor,
     binding,

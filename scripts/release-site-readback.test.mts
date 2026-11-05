@@ -16,9 +16,107 @@ import {
   observeInitialApplicationSite,
   materializePublishedCompleteSite,
   requirePublishedCompleteSite,
+  materializeInitialApplicationRehearsal,
 } from "./release-site-readback.mts";
 
 const origin = "https://boburning.github.io/portcove/";
+
+void test("initial production composition retains an appointed rehearsal inventory with bracketed Pages readback", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "initial-rehearsal-test-"));
+  try {
+    for (const mode of ["valid", "provider-drift", "bytes", "present", "redirect", "unavailable"]) {
+      const retained = "rehearsal/41788540335-1/application/metadata/1.root.json";
+      const files = new Map([
+        [".nojekyll", Buffer.alloc(0)],
+        [retained, Buffer.from("opaque public rehearsal bytes")],
+      ]);
+      const identities = [...files].map(([name, bytes]) => ({
+        path: name,
+        bytes: bytes.length,
+        sha256: createHash("sha256").update(bytes).digest("hex"),
+      }));
+      const provider = {
+        deployment_id: 123,
+        source_commit: "a".repeat(40),
+        ref: "reviewed-rehearsal",
+        environment: "github-pages",
+        status_id: 456,
+        log_url: "https://github.com/boburning/portcove/actions/runs/7/job/8",
+        pages: { html_url: origin, build_type: "workflow", cname: null, https_enforced: true },
+      };
+      const descriptor = {
+        schema_version: 1,
+        kind: "retained-application-rehearsal-preimage",
+        provider,
+        files: identities,
+        inventory_sha256: capacityDigest(identities),
+      };
+      let observations = 0;
+      const api = {
+        request(method: string, endpoint: string) {
+          assert.equal(method, "GET");
+          const prefix = "repos/boburning/portcove";
+          let body: unknown;
+          if (endpoint === prefix) body = { id: 1354613114, full_name: "boburning/portcove" };
+          else if (endpoint === `${prefix}/pages`) body = provider.pages;
+          else if (endpoint === `${prefix}/deployments?environment=github-pages&per_page=1`) {
+            observations++;
+            body = [
+              {
+                id: mode === "provider-drift" && observations > 1 ? 124 : 123,
+                sha: provider.source_commit,
+                ref: provider.ref,
+                environment: provider.environment,
+              },
+            ];
+          } else if (endpoint.endsWith("/statuses?per_page=1"))
+            body = [{ id: 456, state: "success", log_url: provider.log_url }];
+          else throw new Error(`unexpected provider route ${endpoint}`);
+          return { status: 200, headers: new Map<string, string>(), body };
+        },
+      };
+      const fetcher = (async (input: string) => {
+        assert.ok(input.startsWith(origin));
+        const name = input.slice(origin.length),
+          bytes = files.get(name);
+        if (bytes)
+          return response(
+            input,
+            mode === "bytes" && name === retained ? Buffer.from("changed") : bytes,
+          );
+        return response(
+          mode === "redirect" ? `${input}?redirected` : input,
+          Buffer.alloc(0),
+          mode === "present" ? 200 : mode === "unavailable" ? 503 : 404,
+        );
+      }) as typeof fetch;
+      const expected = materializeInitialApplicationRehearsal(
+        descriptor,
+        capacityDigest(descriptor),
+        directory,
+        { api, fetch: fetcher },
+      );
+      if (mode === "valid") {
+        const observed = await expected;
+        assert.equal(observed.authority, "none");
+        assert.equal(observed.inventory_sha256, descriptor.inventory_sha256);
+        for (const [name, bytes] of files)
+          assert.deepEqual(await readFile(path.join(observed.directory, name)), bytes);
+        assert.equal(observations, 2);
+        await rm(observed.directory, { recursive: true });
+      } else await assert.rejects(expected);
+      assert.deepEqual(await readdir(directory), []);
+      await assert.rejects(
+        materializeInitialApplicationRehearsal(descriptor, "f".repeat(64), directory, {
+          api,
+          fetch: fetcher,
+        }),
+      );
+    }
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
 
 void test("complete site context deadline refuses before creating custody or requesting bytes", async () => {
   await assert.rejects(

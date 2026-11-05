@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "kind": "retained-application-rehearsal-preimage",
+  "provider": {
+    "deployment_id": 7542465102,
+    "source_commit": "4aba7f0beeea4befdd4595bdbb052b8908d340af",
+    "ref": "portcove-upstream-rehearsal-20261104r3",
+    "environment": "github-pages",
+    "status_id": 21328490154,
+    "log_url": "https://github.com/boburning/portcove/actions/runs/41806364323/job/126494682367",
+    "pages": {
+      "html_url": "https://boburning.github.io/portcove/",
+      "build_type": "workflow",
+      "cname": null,
+      "https_enforced": true
+    }
+  },
+  "files": [
+    {
+      "path": ".nojekyll",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "rehearsal/41788540335-1/application/metadata/1.preview.json",
+      "bytes": 486,
+      "sha256": "b5b795f78842442a6aa190a61567ef0c41a8259274b4003d8e144521cf6bc60a"
+    },
+    {
+      "path": "rehearsal/41788540335-1/application/metadata/1.releases.json",
+      "bytes": 486,
+      "sha256": "7b8bff75b65c7c811e01a834713f9be73070b0f24da89876e7ff97ac2cd4ecfb"
+    },
+    {
+      "path": "rehearsal/41788540335-1/application/metadata/1.root.json",
+      "bytes": 3072,
+      "sha256": "2ef726c02a613bdb583dfa8432f8f316d28645123dc7e2059a8dd36d8d237a30"
+    },
+    {
+      "path": "rehearsal/41788540335-1/application/metadata/1.snapshot.json",
+      "bytes": 1205,
+      "sha256": "e76f54712ec51113f6a13ba1b34daf0e3dba82a7b60039d0e1a3b12ff255f374"
+    },
+    {
+      "path": "rehearsal/41788540335-1/application/metadata/1.stable.json",
+      "bytes": 486,
+      "sha256": "d216c711cb9499cfb48346ed947774d4bb752dc86835b671a77b82b2c3187514"
+    },
+    {
+      "path": "rehearsal/41788540335-1/application/metadata/1.targets.json",
+      "bytes": 2384,
+      "sha256": "9693aba2e8b9d7ccc4def5062914fa7109f56c13ad4a610d13abae7a51d551bc"
+    },
+    {
+      "path": "rehearsal/41788540335-1/application/metadata/2.preview.json",
+      "bytes": 722,
+      "sha256": "d810eff8ae83403313e068177fb0eae7ed2a14bc775eaaf63948b39dab9aa139"
+    },
+    {
+      "path": "rehearsal/41788540335-1/application/metadata/2.releases.json",
+      "bytes": 715,
+      "sha256": "d9d93490edc846145a09866a56556dd9581513ad67c5c2ebba6128aea80e9206"
+    },
+    {
+      "path": "rehearsal/41788540335-1/application/metadata/2.snapshot.json",
+      "bytes": 1205,
+      "sha256": "2e594af399cda9abeed340218373d259f83f13a5ce693ccbb3885870e2c0e24f"
+    },
+    {
+      "path": "rehearsal/41788540335-1/application/metadata/2.stable.json",
+      "bytes": 486,
+      "sha256": "ba70a168384d209863ea68a01c2ec10a41bc63a5ceb57691dae7f3aee95ab85e"
+    },
+    {
+      "path": "rehearsal/41788540335-1/application/metadata/2.targets.json",
+      "bytes": 2472,
+      "sha256": "7af10461a0fd0936bc9a7b7288793de065edebee470a8b8f25aea6e38cf734e7"
+    },
+    {
+      "path": "rehearsal/41788540335-1/application/metadata/timestamp.json",
+      "bytes": 622,
+      "sha256": "af6db1f17dc93511b1d5cf0213fbe0019dd7df538fe819dcc0aaa3d493e6e70e"
+    },
+    {
+      "path": "rehearsal/41788540335-1/application/targets/97808e03f2dea01f96b09d7d70d344e24a59f9b2ff22703c847a1f2ee77c95e7.releases/0.0.0-rehearsal.41788540335.1/windows-x86_64/nsis.json",
+      "bytes": 2084,
+      "sha256": "97808e03f2dea01f96b09d7d70d344e24a59f9b2ff22703c847a1f2ee77c95e7"
+    },
+    {
+      "path": "rehearsal/41788540335-1/application/targets/a90f8588df9ddf8ab9f39c3459fa3f74497f41cd32bcc360cc8060a11d6af5a2.channels/preview/windows-x86_64/nsis/0.0.0-rehearsal.41788540335.1.json",
+      "bytes": 439,
+      "sha256": "a90f8588df9ddf8ab9f39c3459fa3f74497f41cd32bcc360cc8060a11d6af5a2"
+    },
+    {
+      "path": "rehearsal/41788540335-1/application/targets/fcc1558109eee4a2d95f4643b178e05df188358ac683e81edd7ac9081655b01a.keys/payload.json",
+      "bytes": 315,
+      "sha256": "fcc1558109eee4a2d95f4643b178e05df188358ac683e81edd7ac9081655b01a"
+    }
+  ],
+  "inventory_sha256": "ee468e4046111cb04f8eac0df7f66899d119f4588dfb632852ab3112675b2abf"
+}

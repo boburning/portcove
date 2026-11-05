@@ -5,6 +5,7 @@ import { prepareNegativeSemanticDispositionCheck } from "./release-semantic-disp
 import {
   readIndependentSemanticDisposition,
   discoverIndependentSemanticDisposition,
+  selectLatestApplicationSemanticCheck,
 } from "./release-semantic-disposition-reader.mts";
 import {
   semanticReviewCheckName,
@@ -247,4 +248,50 @@ void test("automatic discovery never chooses missing/duplicate/changed/capped or
     assert.throws(() => discoverIndependentSemanticDisposition(f.api, config, f.wire.request));
     assert.ok(f.discoveryCalls.length <= 14);
   }
+});
+
+void test("application selection ignores only catalog namespaces in the shared App inventory", () => {
+  const application = {
+    id: 10,
+    external_id: `portcove-release-review-v2:${"a".repeat(64)}`,
+    status: "completed",
+    conclusion: "success",
+  };
+  for (const namespace of ["portcove-catalog-review-v1", "portcove-catalog-review-negative-v1"]) {
+    const catalog = { id: 20, external_id: `${namespace}:${"b".repeat(64)}` };
+    assert.equal(selectLatestApplicationSemanticCheck([catalog, application]), application);
+    assert.throws(
+      () => selectLatestApplicationSemanticCheck([catalog]),
+      /no independent application/,
+    );
+  }
+  for (const decision of [
+    {
+      status: "completed",
+      conclusion: "failure",
+      namespace: "portcove-release-review-negative-v1",
+    },
+    { status: "in_progress", conclusion: null, namespace: "portcove-release-review-v2" },
+  ]) {
+    const later = {
+      id: 30,
+      external_id: `${decision.namespace}:${"c".repeat(64)}`,
+      status: decision.status,
+      conclusion: decision.conclusion,
+    };
+    assert.equal(selectLatestApplicationSemanticCheck([application, later]), later);
+    assert.equal(selectLatestApplicationSemanticCheck([later, application]), later);
+  }
+  for (const external_id of [
+    "unknown:v1",
+    "portcove-catalog-review-v1:malformed",
+    `portcove-catalog-review-v2:${"b".repeat(64)}`,
+    "",
+    null,
+  ])
+    assert.throws(() =>
+      selectLatestApplicationSemanticCheck([application, { id: 40, external_id }]),
+    );
+  assert.throws(() => selectLatestApplicationSemanticCheck([application, application]));
+  assert.throws(() => selectLatestApplicationSemanticCheck([]));
 });

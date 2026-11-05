@@ -272,7 +272,7 @@ void test("selected D1 workflow uses source-bound observer outputs and skips leg
     }
   assert.equal(observerCalls, 14);
 });
-void test("installed workflows remain inert and preserve reviewed proposal bytes except the current Node anchor", async () => {
+void test("installed workflows remain inert and legacy production preserves the reviewed proposal", async () => {
   for (const [actual, proposal] of [
     [
       ".github/workflows/application-update-production.yml",
@@ -284,13 +284,10 @@ void test("installed workflows remain inert and preserve reviewed proposal bytes
     ],
   ] as const) {
     const source = await readFile(new URL(actual, root), "utf8");
-    const historical = await readFile(new URL(proposal, root), "utf8");
-    assert.equal(
-      source,
-      proposal.endsWith("windows-20261103.proposed.yml")
-        ? controllerWorkflowAtCurrentNode(historical)
-        : historical,
-    );
+    if (proposal.endsWith("windows-20261103.proposed.yml")) {
+      const historical = await readFile(new URL(proposal, root), "utf8");
+      assert.equal(source, controllerWorkflowAtCurrentNode(historical));
+    }
     const workflow = parse(source) as Workflow;
     const states: Record<string, { result: string; outputs: Record<string, string> }> = {};
     for (const [name, job] of Object.entries(workflow.jobs)) {
@@ -328,6 +325,8 @@ void test("held automatic wake uses one fixed job token without a dispatch App c
     [JSON.stringify({ schema_version: 3 }), "", false],
     ["", JSON.stringify({ schema_version: 3 }), false],
     [JSON.stringify({ schema_version: 4 }), "", true],
+    [JSON.stringify({ schema_version: 5 }), "", true],
+    ["", JSON.stringify({ schema_version: 5 }), false],
     ["", JSON.stringify({ schema_version: 4 }), true],
     [JSON.stringify({ schema_version: 3 }), JSON.stringify({ schema_version: 4 }), false],
     [JSON.stringify({ schema_version: 4 }), JSON.stringify({ schema_version: 3 }), false],
