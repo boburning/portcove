@@ -45,7 +45,7 @@ import {
 } from "./release-metadata-contract.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import { publishCoordinatorCheckpoint } from "./release-coordinator-remote.mts";
-import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
+import type { CoordinatorCheckpointApi } from "./release-coordinator-remote.mts";
 import { isRecord } from "./runtime-values.mts";
 import { sanitizeOperationError } from "./github-api.mts";
 import { randomBytes } from "node:crypto";
@@ -83,7 +83,7 @@ export interface CapacityOperationOptions {
   /** Trusted controller adapter only. A callable is not serialized evidence or
    * executor authority; the actual private owner must establish those. */
   remote?:
-    | { configuration: unknown; api: CoordinatorRemoteApi }
+    | { configuration: unknown; api: CoordinatorCheckpointApi }
     | { publish: (checkpoint: string) => Promise<{ checkpoint: string }> };
   executorIdentity?: unknown;
   maximumReceipts?: number;

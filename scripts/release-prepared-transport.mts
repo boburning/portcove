@@ -6,7 +6,7 @@ import {
   inspectCoordinatorRemoteNamespace,
   publishCoordinatorCheckpoint,
 } from "./release-coordinator-remote.mts";
-import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
+import type { CoordinatorCheckpointApi } from "./release-coordinator-remote.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import { sanitizeOperationError } from "./github-api.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -22,7 +22,7 @@ export async function publishPreparedCoordinatorCheckpoint(
   expected: string,
   configuration: unknown,
   options: {
-    api?: CoordinatorRemoteApi;
+    api?: CoordinatorCheckpointApi;
     publishCheckpoint?: (checkpoint: string) => Promise<unknown>;
   } = {},
 ) {
@@ -90,13 +90,13 @@ export async function publishPreparedCoordinatorCheckpoint(
  * coordinator. It never creates a ref, release, journal, or execution grant. */
 async function publishPreparedGitObjects(
   prepared: ReturnType<typeof exportPreparedReleaseVersion>,
-  api: Pick<CoordinatorRemoteApi, "request">,
+  api: Pick<CoordinatorCheckpointApi, "request">,
   observations: { kind: string; oid: string; mutation_error: unknown }[],
   expected: string | null,
 ) {
   const started = performance.now();
   let requests = 0;
-  const request = (
+  const request = async (
     method: "GET" | "POST",
     endpoint: string,
     body?: unknown,
@@ -104,7 +104,7 @@ async function publishPreparedGitObjects(
   ) => {
     if (++requests > 32 || performance.now() - started > (collecting ? 150000 : 120000))
       throw new Error("prepared object request or duration bound exceeded");
-    const result = api.request(
+    const result = await api.request(
       method,
       endpoint ? `${base}/${endpoint}` : base,
       body === undefined ? undefined : structuredClone(body),
@@ -115,7 +115,7 @@ async function publishPreparedGitObjects(
   };
   const inspectCommit = (value: unknown) =>
     inspectRemoteCommitObject(value, prepared.prepared_commit, Buffer.from(prepared.raw_commit));
-  const post = (
+  const post = async (
     kind: "blobs" | "trees" | "commits",
     body: unknown,
     oid: string,
@@ -123,7 +123,7 @@ async function publishPreparedGitObjects(
   ) => {
     let mutationError: unknown = null;
     try {
-      const reply = request("POST", `git/${kind}`, body);
+      const reply = await request("POST", `git/${kind}`, body);
       if (reply.status !== 201) throw new Error("prepared object creation unavailable");
       if (!isRecord(reply.body) || reply.body.sha !== oid)
         throw new CoordinatorRemoteError("prepared object OID differs", {
@@ -134,7 +134,7 @@ async function publishPreparedGitObjects(
       if (error instanceof CoordinatorRemoteError) throw error;
       mutationError = sanitizeOperationError(error);
       try {
-        const readback = request("GET", `git/${kind}/${oid}`, undefined, true);
+        const readback = await request("GET", `git/${kind}/${oid}`, undefined, true);
         if (readback.status !== 200) throw new Error("prepared object readback unavailable");
         validate(readback.body);
       } catch (readbackError) {
@@ -153,7 +153,7 @@ async function publishPreparedGitObjects(
     }
     observations.push({ kind, oid, mutation_error: mutationError });
   };
-  const identity = request("GET", "");
+  const identity = await request("GET", "");
   if (
     identity.status !== 200 ||
     !isRecord(identity.body) ||
@@ -161,7 +161,7 @@ async function publishPreparedGitObjects(
     identity.body.full_name !== "boburning/portcove"
   )
     throw new Error("prepared transport repository identity differs");
-  const source = request("GET", `git/commits/${prepared.source_commit}`);
+  const source = await request("GET", `git/commits/${prepared.source_commit}`);
   if (
     source.status !== 200 ||
     !isRecord(source.body) ||
@@ -170,12 +170,12 @@ async function publishPreparedGitObjects(
     source.body.tree.sha !== prepared.source_tree
   )
     throw new Error("exact source commit/tree must already exist remotely");
-  const existing = request("GET", `git/commits/${prepared.prepared_commit}`);
+  const existing = await request("GET", `git/commits/${prepared.prepared_commit}`);
   if (existing.status === 200) inspectCommit(existing.body);
   else {
     if (existing.status !== 404) throw new Error("prepared commit availability unknown");
     for (const blob of prepared.blobs)
-      post("blobs", { encoding: "base64", content: blob.contents }, blob.oid, (value) => {
+      await post("blobs", { encoding: "base64", content: blob.contents }, blob.oid, (value) => {
         if (
           !isRecord(value) ||
           value.sha !== blob.oid ||
@@ -185,7 +185,7 @@ async function publishPreparedGitObjects(
         )
           throw new Error("prepared blob readback differs");
       });
-    post(
+    await post(
       "trees",
       {
         base_tree: prepared.source_tree,
@@ -202,8 +202,8 @@ async function publishPreparedGitObjects(
           throw new Error("prepared tree readback differs");
       },
     );
-    post("commits", prepared.commit, prepared.prepared_commit, inspectCommit);
-    const readback = request("GET", `git/commits/${prepared.prepared_commit}`);
+    await post("commits", prepared.commit, prepared.prepared_commit, inspectCommit);
+    const readback = await request("GET", `git/commits/${prepared.prepared_commit}`);
     if (readback.status !== 200) throw new Error("prepared commit fresh readback unavailable");
     inspectCommit(readback.body);
   }
@@ -215,7 +215,7 @@ async function publishPreparedGitObjects(
 export async function publishPreparedReleaseObjects(
   repository: string,
   candidate: Parameters<typeof exportPreparedReleaseVersion>[1],
-  options: { api: Pick<CoordinatorRemoteApi, "request">; beforeWrite: () => Promise<void> },
+  options: { api: Pick<CoordinatorCheckpointApi, "request">; beforeWrite: () => Promise<void> },
 ) {
   await options.beforeWrite();
   const prepared = exportPreparedReleaseVersion(repository, candidate);
