@@ -164,7 +164,8 @@ it.each(
     portActionPresentation({ ...portStatus(), port_actions } as PortStatus, "rollback"),
   ).toEqual({
     blocked: true,
-    reason: "Current rollback availability is unavailable. Refresh the workspace to check again.",
+    reason:
+      "Portcove couldn’t check whether you can restore the previous version. Refresh to check again.",
   });
 });
 

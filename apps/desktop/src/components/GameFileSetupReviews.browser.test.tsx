@@ -75,7 +75,7 @@ it("keeps registered preliminary inputs distinct while opening only fresh Core-e
   await act(async () => render());
   expect(element.querySelectorAll("[data-setup-review-port]")).toHaveLength(18);
   expect(element.textContent).toContain("Validation has not run for a selected input");
-  expect(element.textContent).not.toContain("Exact identity");
+  expect(element.textContent).not.toContain("Edition identified");
   await act(async () =>
     fixtureValue(
       element.querySelectorAll<HTMLInputElement>("input")[0],

@@ -351,9 +351,7 @@ namespace Portcove.ReferenceClient
                 (Json.Field(catalog, "source_profile") == null ? "" : "\nThis port requires original game files.") +
                 (Json.Field(catalog, "bios_source_profile") == null ? "" : "\nThis port requires a BIOS file.") +
                 (!string.IsNullOrWhiteSpace(preparationText) ? "\nSetup instructions: " + preparationText : "") +
-                (repairs.Length > 0 ? "\nSetup copies needing attention: " + repairs.Length + "." : "") +
-                (definitionOperations == null ? "" : "\n" + definitionOperations) +
-                (portActions == null ? "" : "\n" + portActions);
+                (repairs.Length > 0 ? "\nSetup copies needing attention: " + repairs.Length + "." : "");
             var entries = activityFeed.VisibleRecords(
                 item => (Json.Field(item, "target_id") as string) == port,
                 8);
@@ -365,7 +363,7 @@ namespace Portcove.ReferenceClient
                 progress.Text += "\nThis list may be missing tasks. Check Activity in Portcove before starting recovery or changing the library.";
             else if (!activityFeed.TerminalHistoryComplete)
                 progress.Text += "\nEarlier finished tasks may be missing.";
-            technical.Text = Json.Print(new { status, activity = entries, catalog });
+            technical.Text = Json.Print(new { status, activity = entries, catalog, definitionOperations, portActions });
             var request = plugin.RecentLaunch(game.GameId);
             if (!string.IsNullOrEmpty(request))
             {

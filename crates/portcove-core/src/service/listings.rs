@@ -63,7 +63,7 @@ impl PortcoveService {
             .launch_sessions()?
             .iter()
             .any(|session| session.port_id == port_id && session.outcome.is_none());
-        let mut projected = Self::assess_listing_status(listing, status, owned, launching);
+        let mut projected = Self::assess_listing_status(status, owned, launching);
         let pending = self.pending_setups()?;
         if let Some(report) = projected.capabilities.as_mut() {
             report.add_setup_context(listing, pending.iter().find(|p| p.port_id == port_id));
@@ -157,8 +157,7 @@ impl PortcoveService {
                 };
                 let has_owner = owned.contains(&status.port_id);
                 let launching = launching.contains(&status.port_id);
-                let mut projected =
-                    Self::assess_listing_status(listing, status, has_owner, launching);
+                let mut projected = Self::assess_listing_status(status, has_owner, launching);
                 if let Some(report) = projected.capabilities.as_mut() {
                     report.add_setup_context(
                         listing,
@@ -171,7 +170,6 @@ impl PortcoveService {
     }
 
     fn assess_listing_status(
-        listing: &crate::PortListing,
         status: PortStatus,
         has_managed_owner: bool,
         launching: bool,
@@ -221,15 +219,9 @@ impl PortcoveService {
                 "Registration removal requires an external installation with no active launch.",
             ),
         ];
-        let mut capabilities = crate::PortCapabilityReport::from_status(&status, &actions);
-        // External launch controls are available in the collection as well as
-        // the details page. Reuse the existing scoped, descriptive advisories.
-        if registered {
-            capabilities.add_advisories(listing, &status);
-        }
         crate::PortListingStatus {
             port_id: status.port_id.clone(),
-            capabilities: Some(capabilities),
+            capabilities: Some(crate::PortCapabilityReport::from_status(&status, &actions)),
             status,
             actions,
         }

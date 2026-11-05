@@ -44,7 +44,7 @@ test("managed hold retains its reason while independent attachment is prominent 
   const result = setupRoutePresentation(entry, status);
   expect(result.promoteAlternative).toBe(true);
   expect(result.label).toBe("Manual setup available");
-  expect(result.managedReason).toContain("integrity evidence");
+  expect(result.managedReason).toContain("expected verification");
   expect(result.routes.map((r) => r.action)).toEqual([
     "install",
     "register_external",

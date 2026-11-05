@@ -1069,7 +1069,7 @@ it("reports cancelled source addition while keeping its review and completed sca
   });
   await click("Review game files");
   const renderedReview = document.body.querySelector('[aria-label="Source import review"]');
-  expect(renderedReview?.textContent).toContain("Source check: Exact identity");
+  expect(renderedReview?.textContent).toContain("File check: Edition identified");
   expect(renderedReview?.textContent).toContain("Additional space needed: 0 B");
   vi.mocked(desktopApi.importSource).mockRejectedValueOnce({ code: "cancelled" });
   await click("Use current location");

@@ -866,7 +866,9 @@ function ContinueCard({
         )}
       </div>
       <div className="continue-actions min-w-0">
-        {launchable && status.external_runtime && <ExternalLaunchWarnings port={port} />}
+        {launchable && status.external_runtime && (
+          <ExternalLaunchWarnings portId={port.id} status={status} />
+        )}
         <Button
           data-focusable
           variant="primary"
@@ -1199,7 +1201,7 @@ function PortCardStatus({
   return (
     <div className="collection-actions mt-0 flex min-h-8 flex-wrap items-center justify-end gap-1 pt-0 text-xs">
       {!taskPrimary && canLaunch && status?.external_runtime && (
-        <ExternalLaunchWarnings port={port} />
+        <ExternalLaunchWarnings portId={port.id} status={status} />
       )}
       <span className="inline-flex flex-wrap items-center justify-end gap-1 text-[var(--color-interactive-text-strong)]">
         {taskPrimary && (

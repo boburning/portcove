@@ -273,7 +273,7 @@ it("reads back a committed port choice after its acknowledgement is lost", async
     .getByRole("button", { name: /^(Choose|Use) Second project$/ })
     .first()
     .click();
-  await expect.element(page.getByRole("alert")).toHaveTextContent("couldn’t confirm");
+  await expect.element(page.getByRole("alert")).toMatchTextContent(/couldn’t confirm/);
   await expect
     .element(page.getByRole("button", { name: "Play Second project" }))
     .not.toBeInTheDocument();

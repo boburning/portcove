@@ -82,7 +82,7 @@ export function SelfServiceSetup({
   };
   const playAction = registered ? (
     <div className="grid min-w-0 justify-items-start gap-2 wrap-anywhere">
-      <ExternalLaunchWarnings port={entry} />
+      <ExternalLaunchWarnings portId={entry.id} status={status} />
       <Button
         data-focusable
         variant="primary"

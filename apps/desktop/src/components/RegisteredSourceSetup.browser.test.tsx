@@ -251,7 +251,7 @@ it("refuses a stale repair baseline and preserves substituted-input failure with
   await act(async () => render());
   await select();
   await act(async () => button("Repair moved file location").click());
-  expect(element.textContent).toContain("registration changed");
+  expect(element.textContent).toContain("saved file location changed");
   expect(apply).not.toHaveBeenCalled();
   plan.mockRejectedValueOnce(failureReport());
   await act(async () => button("Repair moved file location").click());

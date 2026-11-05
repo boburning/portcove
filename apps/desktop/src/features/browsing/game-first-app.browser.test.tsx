@@ -109,7 +109,7 @@ it.each([1366, 414])(
     await expect
       .element(page.getByRole("heading", { name: "Original fixture game", exact: true }))
       .toBeVisible();
-    const alternatives = page.getByText("Implementations (2)", { exact: true });
+    const alternatives = page.getByText("Other ports for this game (2)", { exact: true });
     await expect.element(alternatives).toBeVisible();
     await alternatives.click();
     await expect
@@ -125,7 +125,7 @@ it.each([1366, 414])(
       1,
     );
     await page.getByRole("button", { name: "View Native project Alpha", exact: true }).click();
-    await page.getByText("Implementations (2)", { exact: true }).click();
+    await page.getByText("Other ports for this game (2)", { exact: true }).click();
     await expect
       .element(page.getByRole("button", { name: "Preferred: Native project Beta", exact: true }))
       .toBeVisible();

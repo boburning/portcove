@@ -776,6 +776,7 @@ function RetainedUpdateArchive({
   return (
     <section
       className="my-3 rounded-pc-md border border-pc-border p-3"
+      data-update-download
       aria-label="Downloaded update"
     >
       <h4 className="text-sm">

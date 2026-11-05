@@ -325,7 +325,10 @@ it("names exact port choices from their visible identity and readiness inside gr
     .toHaveTextContent("Mario modern port · Modern renderer");
   await expect
     .element(
-      dialog.getByRole("button", { name: "Use Mario modern port · Modern renderer", exact: true }),
+      dialog.getByRole("button", {
+        name: "Choose Mario modern port · Modern renderer",
+        exact: true,
+      }),
     )
     .toBeEnabled();
   await expect.element(row).toMatchTextContent("Stable");

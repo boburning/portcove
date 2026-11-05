@@ -52,22 +52,6 @@
           "instruction": "The base Hunters route does not require Prime1/2/3/Trilogy discs, Prime4Beyond files/keys or optional imported characters/music/arenas. Each additional source has its own ownership/permission requirements. Online/LAN/voice/chat/profile sharing and replay-preparation workers are upstream features, not qualifications or operations offered through this guide. Replay preparation can use background helper invocations; close all actual players/helpers/successors before replacement or another attachment. Second Hunt original post-October20 code/art/documents uses PolyForm Strict with additional personal/noncommercial private modification permission and a redistribution prohibition; MphRead-derived and earlier MIT parts and third-party components retain their own terms. Official licensor-published builds are distinguished in that license; do not mirror or redistribute a copy through this guide. These terms grant no Nintendo/game rights."
         }
       ]
-    },
-    "compatibility": {
-      "format_version": 1,
-      "records": [
-        {
-          "id": "second-hunt-startup-cleanup-0-4-2-beta",
-          "feature": "launch",
-          "platform": "windows-x86-64",
-          "route": "user-selected",
-          "release": "v0.4.2-beta",
-          "explanation": "Before opening Second Hunt v0.4.2-beta on Windows, keep recovery copies outside its entire program folder and its update and staging folders. Every normal startup can delete files ending in .old or .old followed by digits (such as .old1) anywhere inside the program folder, including portable saves stored there.",
-          "provenance": "https://github.com/BountyHunterKanden/SecondHunt/blob/6a41f47fa6ed580c0b3ff8f90b2f841acd1d738c/src/SecondHunt.Desktop/DesktopUpdater.cs#L122",
-          "observed_at": 1793836800,
-          "evidence": "manual-requirement"
-        }
-      ]
     }
   },
   "upstream_lineage": {

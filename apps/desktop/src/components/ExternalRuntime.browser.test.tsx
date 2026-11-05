@@ -429,8 +429,8 @@ it("shows the actual Second Hunt startup warning before the setup steps", async 
   const warning = page.getByText(/Before opening Second Hunt v0\.4\.2-beta/);
   const firstAction = page.getByRole("heading", { name: "Set up Second Hunt" });
   await expect.element(warning).toBeVisible();
-  await expect.element(warning).toHaveTextContent("ending in .old or .old followed by digits");
-  await expect.element(warning).toHaveTextContent("including portable saves");
+  await expect.element(warning).toMatchTextContent(/ending in \.old or \.old followed by digits/);
+  await expect.element(warning).toMatchTextContent(/including portable saves/);
   expect(
     warning.element().compareDocumentPosition(firstAction.element()) &
       Node.DOCUMENT_POSITION_FOLLOWING,
@@ -441,9 +441,6 @@ it("keeps the Second Hunt caution visible before Play for an attached copy", asy
   const listing = listings.listings.find(
     (candidate) => candidate.id === "bountyhunterkanden-secondhunt",
   )!;
-  const advisory = listing.compatibility!.records[0]!;
-  if (advisory.feature !== "launch" || advisory.platform !== "windows-x86-64")
-    throw new Error("The startup advisory must be scoped to Windows launch");
   const status = {
     ...portStatus(),
     port_id: listing.id,
@@ -459,32 +456,6 @@ it("keeps the Second Hunt caution visible before Play for an attached copy", asy
           port_id: listing.id,
           status,
           actions: [{ action: "launch", allowed: true }],
-          capabilities: {
-            advisories: [
-              {
-                applicability: "context-required",
-                notice: {
-                  ...advisory,
-                  feature: "launch",
-                  platform: "windows-x86-64",
-                  artifact_sha256: null,
-                  edition: null,
-                  workaround: null,
-                },
-              },
-            ],
-            advisory_state: "available",
-            detail_problems: [],
-            format_version: 1,
-            observations: [],
-            pending_setup: null,
-            port_id: listing.id,
-            protection: null,
-            routes: [],
-            settings: null,
-            setup_guide: null,
-            source_readiness: null,
-          },
         },
       }}
       status={status}
