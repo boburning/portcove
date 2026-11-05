@@ -1072,8 +1072,9 @@ discovery and upstream preparation use the same factory. Ordinary pagination use
 preserving raw response/count evidence and refusing synthetic empty results for
 HTTP 409. API-version headers remain owned by each caller. Configured upstream
 observation, fresh repository identity and checkpoint recovery also use the SDK,
-retaining their existing cache and completeness owners. Catalog-health acquisition
-and release caller families retain their existing bounded transports during #4319.
+retaining their existing cache and completeness owners. Catalog health uses that
+SDK factory; remaining release caller families retain their bounded transports
+during #4319.
 The maintained report
 publisher now uses SDK metadata operations and awaited replay/readback. Its trusted
 main checkout installs frozen dependencies before the credentialed steps. Existing
@@ -1090,7 +1091,11 @@ Explicit credentials never fall back to another source. Anonymous clients never
 inherit credentials. Eligible local tooling selects `GH_TOKEN`, then
 `GITHUB_TOKEN`, then resolves an existing `gh` login once per command; workflows
 must supply their credential. Retained attestation verification has its own
-bounded subprocess helper and cannot invoke `gh api`. Intel artifact cleanup is
+bounded subprocess helper and cannot invoke `gh api`. Source-report and SBOM
+attestation verification use that retained path with the captured reader environment,
+original coordinator deadline and existing output limits. Timeout or output-limit
+failures cannot publish complete-looking proof; bounded diagnostics redact credentials
+before truncation. Pinned native verifier owners remain separate. Intel artifact cleanup is
 an explicit-credential workflow client: it completes each scoped SDK inventory
 before deletion, rereads identity and sends one DELETE followed by authoritative
 readback. Its trusted main workflow installs the locked packages before the token
@@ -1100,7 +1105,12 @@ identity/readback before importing evidence. Publication-source custody uses
 fixed SDK Git-object reads and pure queries with the captured job-reader token;
 exact object hashes, source closure and candidate-execution restrictions remain
 with the materializer. Trusted controller bundles include the locked SDK and
-refuse external runtime package imports. Artifact-byte acquisition
+refuse external runtime package imports. Native Check locator discovery awaits
+fixed source/App SDK reads, preserves complete stable inventories and returns inert
+locators only. Report authentication and native acceptance remain separate. Pages
+deployment creation and status readback use the configured SDK with one attempt
+and the existing final pre-POST guard. Recovery awaits provider/public-byte/provider
+observations and never treats absence as proof of no effect. Artifact-byte acquisition
 retains its existing bounded helper until its caller family migrates. The discovery
 worker now admits GitHub only for its original artifact ZIP byte route; external
 GET/HEAD provider reads remain separate from GitHub metadata.

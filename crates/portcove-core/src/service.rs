@@ -50,6 +50,7 @@ pub use catalog_download_identity::{
     CatalogDownloadAssetId, CatalogDownloadReleaseId, CatalogForeignAssetId,
     CatalogForeignReleaseId,
 };
+pub(crate) use catalog_download_provider::CatalogDownloadRepository;
 mod native_portable;
 pub(crate) mod package_selection;
 mod retained_direct_compatibility;

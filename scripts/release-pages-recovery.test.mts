@@ -9,11 +9,20 @@ import { requirePublishedCompleteSite } from "./release-site-readback.mts";
 import { capacityDigest } from "./release-capacity.mts";
 import { pagesRecoveryOperationFixture as operation } from "./fixtures/release-pages-recovery-fixture.mts";
 import { createPagesProviderTransport } from "./release-pages-provider.mts";
+import type { PagesProviderOperations } from "./release-pages-provider.mts";
 import {
   inspectPendingPagesReadback,
   readPendingPagesPublication,
 } from "./release-pages-recovery.mts";
 
+function observations(observe: PagesProviderOperations["observe"]): PagesProviderOperations {
+  return {
+    async create() {
+      throw Error("recovery must not create Pages deployments");
+    },
+    observe,
+  };
+}
 const response = (body: unknown, status = 200) => ({
   body,
   status,
@@ -72,8 +81,8 @@ void test("default full-site materializer returns the genuine receipt used by re
     Object.defineProperty(result, "url", { value: url });
     return result;
   });
-  const provider = createPagesProviderTransport(parent, {
-    api: { request: () => response({ status: "succeed" }) },
+  const provider = createPagesProviderTransport({
+    operations: observations(async () => response({ status: "succeed" })),
   });
   const observed = await readPendingPagesPublication(parent, pending, performance.now() + 5000, {
     provider,
@@ -89,13 +98,11 @@ void test("default full-site materializer returns the genuine receipt used by re
 void test("lost Pages acknowledgement resolves only by exact generation GET/public bytes/GET without POST", async () => {
   const pending = operation(),
     calls: string[] = [];
-  const provider = createPagesProviderTransport(".", {
-    api: {
-      request(method, endpoint) {
-        calls.push(method + " " + endpoint);
-        return response({ status: "succeed" });
-      },
-    },
+  const provider = createPagesProviderTransport({
+    operations: observations(async (id) => {
+      calls.push("observe " + id);
+      return response({ status: "succeed" });
+    }),
   });
   const observed = await readPendingPagesPublication(".", pending, performance.now() + 1000, {
     provider,
@@ -105,9 +112,7 @@ void test("lost Pages acknowledgement resolves only by exact generation GET/publ
       return { complete: true };
     },
   });
-  const route =
-    "GET repos/boburning/portcove/pages/deployments/" +
-    pending.site_expectation.site_generation_sha256;
+  const route = "observe " + pending.site_expectation.site_generation_sha256;
   assert.deepEqual(calls, [
     route,
     "public " + pending.site_expectation.site_generation_sha256,
@@ -125,24 +130,21 @@ void test("missing/failed/pending status and changing provider or public bytes n
   for (const status of ["missing", "failed", "deployment_in_progress", "drift", "public-drift"]) {
     let reads = 0,
       publicReads = 0;
-    const provider = createPagesProviderTransport(".", {
-      api: {
-        request(method) {
-          assert.equal(method, "GET");
-          reads++;
-          return response(
-            {
-              status:
-                status === "drift" && reads === 2
-                  ? "failed"
-                  : status === "drift" || status === "public-drift"
-                    ? "succeed"
-                    : status,
-            },
-            status === "missing" ? 404 : 200,
-          );
-        },
-      },
+    const provider = createPagesProviderTransport({
+      operations: observations(async () => {
+        reads++;
+        return response(
+          {
+            status:
+              status === "drift" && reads === 2
+                ? "failed"
+                : status === "drift" || status === "public-drift"
+                  ? "succeed"
+                  : status,
+          },
+          status === "missing" ? 404 : 200,
+        );
+      }),
     });
     await assert.rejects(
       readPendingPagesPublication(".", operation(), performance.now() + 1000, {
@@ -166,12 +168,8 @@ void test("retained completed receipt cannot be replaced and malformed/expired i
       evidence_sha256: "9".repeat(64),
     },
   ];
-  const provider = createPagesProviderTransport(".", {
-    api: {
-      request() {
-        return response({ status: "succeed" });
-      },
-    },
+  const provider = createPagesProviderTransport({
+    operations: observations(async () => response({ status: "succeed" })),
   });
   const observed = await readPendingPagesPublication(".", pending, performance.now() + 1000, {
     provider,

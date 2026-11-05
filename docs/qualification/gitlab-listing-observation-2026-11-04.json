@@ -1,0 +1,730 @@
+{
+  "scope": "Public GitLab metadata observation only; no package bytes acquired, no production publication or execution.",
+  "source_repository": "sonicdcer/MarioKart64Recomp",
+  "collector_requests": 8,
+  "collector_bytes": 10349,
+  "provider_observation": {
+    "format": 3,
+    "authority": "provider-observation-only",
+    "provider": "gitlab",
+    "port_id": "mario-kart-64-mariokart64recomp",
+    "started_at": "2026-11-05T01:30:32.810Z",
+    "completed_at": "2026-11-05T01:30:33.886Z",
+    "facts": {
+      "project": {
+        "id": 84098210,
+        "description": null,
+        "name": "MarioKart64Recomp",
+        "name_with_namespace": "Sonic Dreamcaster / MarioKart64Recomp",
+        "path": "MarioKart64Recomp",
+        "path_with_namespace": "sonicdcer/MarioKart64Recomp",
+        "created_at": "2026-07-04T15:46:54.339Z",
+        "default_branch": "main",
+        "tag_list": [],
+        "topics": [],
+        "ssh_url_to_repo": "git@gitlab.com:sonicdcer/MarioKart64Recomp.git",
+        "http_url_to_repo": "https://gitlab.com/sonicdcer/MarioKart64Recomp.git",
+        "web_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp",
+        "readme_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/blob/main/README.md",
+        "forks_count": 0,
+        "avatar_url": null,
+        "star_count": 13,
+        "last_activity_at": "2026-08-11T16:13:28.180Z",
+        "visibility": "public",
+        "namespace": {
+          "id": 8890633,
+          "name": "Sonic Dreamcaster",
+          "path": "sonicdcer",
+          "kind": "user",
+          "full_path": "sonicdcer",
+          "parent_id": null,
+          "avatar_url": "https://secure.gravatar.com/avatar/9ecde98097f92c2324f48c0187890cf0eb687bfdb431ac7087b5c16ce8ee975a?s=80&d=identicon",
+          "web_url": "https://gitlab.com/sonicdcer"
+        },
+        "archived": null
+      },
+      "releases": [
+        {
+          "name": "MarioKart 64: Recompiled 0.9.2",
+          "tag_name": "v0.9.2",
+          "description": "> [!WARNING]\n> If your antivirus software flags the game, it is a false positive. Builds downloaded from this page are always going to be safe.\n\n### Changelog\n- Reduced glitches related to Matrix Interpolation.\n- Fixed a performance issue in Kalimari Desert caused by incorrect usage of decals from the train.\n- The game will now adjust the HUD's aspect ratio according to the option picked in the options menu.\n- Eliminated flickering caused by interpolation during camera cuts.\n- Controller Pak support, now you can save your ghosts!\n- Audio channel swap has been fixed.\n\n### Modding & HD Texture Pack support\n- Mod support! Check out the [modding template](https://github.com/sonicdcer/MK64RecompModTemplate).\n- Compatible with [MK Reloaded](https://evilgames.eu/texture-packs/mk64-reloaded.htm#rt64) (HD Texture Pack). Thanks to @GhostlyDark for the help!\n  - To install the texture pack, go [here](https://evilgames.eu/texture-packs/mk64-reloaded.htm#rt64) and click the **RTZ** button under **Recomp** (the golden cup) to download it. \n  - Install the texture pack by launching the game, going into the mods menu and dropping the file on top of the game window or using the **Install Mods** button.\n\n> [!NOTE]\n> Support for configuring multiple controller ports is currently in development for N64 Recompilations. For that reason, only Single Player modes are available at the moment. Multiplayer modes will be accessible once the UI for multiple controllers is finished.\n\n> [!NOTE]  \n> **Intel GPU users:** Using outdated Intel drivers may cause the game to crash or cause graphical glitches. Please make sure your drivers are up-to-date before playing.\n>\n> [Intel HD 11th+ Gen/Intel Arc/Iris Xe](https://www.intel.com/content/www/us/en/download/785597/intel-arc-iris-xe-graphics-windows.html)\n> [Intel HD 7th-10th Gen](https://www.intel.com/content/www/us/en/download/776137/intel-7th-10th-gen-processor-graphics-windows.html)\n> [Intel HD 6th Gen](https://www.intel.com/content/www/us/en/download/762755/intel-6th-10th-gen-processor-graphics-windows.html)\n>\n> Do not use your operating system or driver suite to check for driver updates, sometimes these updates are not distributed by vendors. Always check Intel's website for the latest drivers.\n",
+          "created_at": "2026-08-11T16:13:27.938Z",
+          "released_at": "2026-02-13T03:00:00.000Z",
+          "upcoming_release": false,
+          "author": {
+            "id": 6686916,
+            "username": "sonicdcer",
+            "public_email": "",
+            "name": "Sonic Dreamcaster",
+            "state": "active",
+            "locked": false,
+            "avatar_url": "https://secure.gravatar.com/avatar/9ecde98097f92c2324f48c0187890cf0eb687bfdb431ac7087b5c16ce8ee975a?s=80&d=identicon",
+            "web_url": "https://gitlab.com/sonicdcer"
+          },
+          "commit": {
+            "id": "3885e86a4b2088188ddb3914aa26ad4f147bb5df",
+            "short_id": "3885e86a",
+            "created_at": "2026-02-21T03:18:00.000-03:00",
+            "parent_ids": ["ad9761e0fbdeee4b4923b09967ff5ce3401322c8"],
+            "title": "Implement --show-console",
+            "message": "Implement --show-console\n",
+            "author_name": "Sonic Dreamcaster",
+            "author_email": "alejandro.asenjo88@gmail.com",
+            "authored_date": "2026-02-21T03:18:00.000-03:00",
+            "committer_name": "Sonic Dreamcaster",
+            "committer_email": "alejandro.asenjo88@gmail.com",
+            "committed_date": "2026-02-21T03:18:00.000-03:00",
+            "trailers": {},
+            "extended_trailers": {},
+            "web_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/commit/3885e86a4b2088188ddb3914aa26ad4f147bb5df"
+          },
+          "commit_path": "/sonicdcer/MarioKart64Recomp/-/commit/3885e86a4b2088188ddb3914aa26ad4f147bb5df",
+          "tag_path": "/sonicdcer/MarioKart64Recomp/-/tags/v0.9.2",
+          "assets": {
+            "count": 9,
+            "sources": [
+              {
+                "format": "zip",
+                "url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/archive/v0.9.2/MarioKart64Recomp-v0.9.2.zip"
+              },
+              {
+                "format": "tar.gz",
+                "url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/archive/v0.9.2/MarioKart64Recomp-v0.9.2.tar.gz"
+              },
+              {
+                "format": "tar.bz2",
+                "url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/archive/v0.9.2/MarioKart64Recomp-v0.9.2.tar.bz2"
+              },
+              {
+                "format": "tar",
+                "url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/archive/v0.9.2/MarioKart64Recomp-v0.9.2.tar"
+              }
+            ],
+            "links": [
+              {
+                "id": 12383432,
+                "name": "MarioKart64Recompiled-v0.9.2-Flatpak-X64-Release",
+                "url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/package_files/333136089/download",
+                "direct_asset_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/package_files/333136089/download",
+                "link_type": "package"
+              },
+              {
+                "id": 12383431,
+                "name": "MarioKart64Recompiled-v0.9.2-Linux-X64-Release",
+                "url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/package_files/333135845/download",
+                "direct_asset_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/package_files/333135845/download",
+                "link_type": "package"
+              },
+              {
+                "id": 12383430,
+                "name": "MarioKart64Recompiled-v0.9.2-Windows-RelWithDebInfo",
+                "url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/package_files/333130840/download",
+                "direct_asset_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/package_files/333130840/download",
+                "link_type": "package"
+              },
+              {
+                "id": 12383429,
+                "name": "MarioKart64Recompiled-v0.9.2-macOS-Release",
+                "url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/package_files/333135339/download",
+                "direct_asset_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/package_files/333135339/download",
+                "link_type": "package"
+              },
+              {
+                "id": 12383428,
+                "name": "MarioKart64Recompiled-v0.9.2-Linux-ARM64-Release",
+                "url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/package_files/333136056/download",
+                "direct_asset_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/package_files/333136056/download",
+                "link_type": "package"
+              }
+            ]
+          },
+          "evidences": [],
+          "_links": {
+            "closed_issues_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/issues?release_tag=v0.9.2&scope=all&state=closed",
+            "closed_merge_requests_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/merge_requests?release_tag=v0.9.2&scope=all&state=closed",
+            "merged_merge_requests_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/merge_requests?release_tag=v0.9.2&scope=all&state=merged",
+            "opened_issues_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/issues?release_tag=v0.9.2&scope=all&state=opened",
+            "opened_merge_requests_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/merge_requests?release_tag=v0.9.2&scope=all&state=opened",
+            "self": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/releases/v0.9.2"
+          }
+        }
+      ],
+      "packages": [
+        {
+          "id": 66299791,
+          "name": "mariokart64recompiledlinuxflatpakx64",
+          "version": "0.9.2",
+          "package_type": "generic",
+          "status": "default",
+          "_links": {
+            "web_path": "/sonicdcer/MarioKart64Recomp/-/packages/66299791"
+          },
+          "created_at": "2026-08-11T16:19:42.616Z",
+          "last_downloaded_at": "2026-11-05T00:56:20.674Z",
+          "creator_id": 6686916,
+          "tags": []
+        },
+        {
+          "id": 66299777,
+          "name": "mariokart64recompiledlinuxarm64",
+          "version": "0.9.2",
+          "package_type": "generic",
+          "status": "default",
+          "_links": {
+            "web_path": "/sonicdcer/MarioKart64Recomp/-/packages/66299777"
+          },
+          "created_at": "2026-08-11T16:19:36.695Z",
+          "last_downloaded_at": "2026-11-05T00:31:05.965Z",
+          "creator_id": 6686916,
+          "tags": []
+        },
+        {
+          "id": 66299718,
+          "name": "mariokart64recompiledlinuxx64",
+          "version": "0.9.2",
+          "package_type": "generic",
+          "status": "default",
+          "_links": {
+            "web_path": "/sonicdcer/MarioKart64Recomp/-/packages/66299718"
+          },
+          "created_at": "2026-08-11T16:18:39.900Z",
+          "last_downloaded_at": "2026-11-05T00:55:59.868Z",
+          "creator_id": 6686916,
+          "tags": []
+        },
+        {
+          "id": 66299593,
+          "name": "mariokart64recompiledmacos",
+          "version": "0.9.2",
+          "package_type": "generic",
+          "status": "default",
+          "_links": {
+            "web_path": "/sonicdcer/MarioKart64Recomp/-/packages/66299593"
+          },
+          "created_at": "2026-08-11T16:16:38.106Z",
+          "last_downloaded_at": "2026-11-05T00:31:05.708Z",
+          "creator_id": 6686916,
+          "tags": []
+        },
+        {
+          "id": 66298316,
+          "name": "mariokart64recompiledwindows",
+          "version": "0.9.2",
+          "package_type": "generic",
+          "status": "default",
+          "_links": {
+            "web_path": "/sonicdcer/MarioKart64Recomp/-/packages/66298316"
+          },
+          "created_at": "2026-08-11T16:04:05.316Z",
+          "last_downloaded_at": "2026-11-05T01:23:24.860Z",
+          "creator_id": 6686916,
+          "tags": []
+        }
+      ],
+      "package_files": {
+        "66298316": [
+          {
+            "id": 333130840,
+            "package_id": 66298316,
+            "created_at": "2026-08-11T16:04:05.391Z",
+            "file_name": "MarioKart64Recompiled-v0.9.2-Windows-RelWithDebInfo.zip",
+            "size": 23847630,
+            "file_md5": null,
+            "file_sha1": null,
+            "file_sha256": "4b41226ad7d4c6012878194fa88fe1a83c1fa8f425dfbaa2a7ea87eb01c1c2b4"
+          }
+        ],
+        "66299593": [
+          {
+            "id": 333135339,
+            "package_id": 66299593,
+            "created_at": "2026-08-11T16:16:38.154Z",
+            "file_name": "MarioKart64Recompiled-v0.9.2-macOS-Release.zip",
+            "size": 21382363,
+            "file_md5": null,
+            "file_sha1": null,
+            "file_sha256": "4e27d59d9fb4f13d4519b46a3bc06275bc794d32eff5c7179835a1ee6ecbe8e8"
+          }
+        ],
+        "66299718": [
+          {
+            "id": 333135845,
+            "package_id": 66299718,
+            "created_at": "2026-08-11T16:18:39.936Z",
+            "file_name": "MarioKart64Recompiled-v0.9.2-Linux-X64-Release.zip",
+            "size": 13126507,
+            "file_md5": null,
+            "file_sha1": null,
+            "file_sha256": "46d4c34f755111daa460c64d34c1e97a932a3406995936ae1f059453a4fba819"
+          }
+        ],
+        "66299777": [
+          {
+            "id": 333136056,
+            "package_id": 66299777,
+            "created_at": "2026-08-11T16:19:36.733Z",
+            "file_name": "MarioKart64Recompiled-v0.9.2-Linux-ARM64-Release.zip",
+            "size": 13173429,
+            "file_md5": null,
+            "file_sha1": null,
+            "file_sha256": "c0ba8b08f7c31510871433ffd3e23ce8f07de77a31b15a66a0ccfb5a26386afa"
+          }
+        ],
+        "66299791": [
+          {
+            "id": 333136089,
+            "package_id": 66299791,
+            "created_at": "2026-08-11T16:19:42.681Z",
+            "file_name": "MarioKart64Recompiled-v0.9.2-Flatpak-X64-Release.zip",
+            "size": 9492638,
+            "file_md5": null,
+            "file_sha1": null,
+            "file_sha256": "07a7f8b0aeb61ee339dba4b9a3f5b5cc96cacec0b101d3d6034b53ba7d8c5697"
+          }
+        ]
+      },
+      "coverage": {
+        "releases": true,
+        "packages": true
+      }
+    },
+    "facts_sha256": "f6fde3a4c4c8188d60a0d3969241870e192891dac6be4cb31280500845dc72ec"
+  },
+  "provider_reads": [
+    {
+      "url": "https://gitlab.com/api/v4/projects/sonicdcer%2FMarioKart64Recomp",
+      "method": "GET",
+      "body": {
+        "id": 84098210,
+        "description": null,
+        "name": "MarioKart64Recomp",
+        "name_with_namespace": "Sonic Dreamcaster / MarioKart64Recomp",
+        "path": "MarioKart64Recomp",
+        "path_with_namespace": "sonicdcer/MarioKart64Recomp",
+        "created_at": "2026-07-04T15:46:54.339Z",
+        "default_branch": "main",
+        "tag_list": [],
+        "topics": [],
+        "ssh_url_to_repo": "git@gitlab.com:sonicdcer/MarioKart64Recomp.git",
+        "http_url_to_repo": "https://gitlab.com/sonicdcer/MarioKart64Recomp.git",
+        "web_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp",
+        "readme_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/blob/main/README.md",
+        "forks_count": 0,
+        "avatar_url": null,
+        "star_count": 13,
+        "last_activity_at": "2026-08-11T16:13:28.180Z",
+        "visibility": "public",
+        "namespace": {
+          "id": 8890633,
+          "name": "Sonic Dreamcaster",
+          "path": "sonicdcer",
+          "kind": "user",
+          "full_path": "sonicdcer",
+          "parent_id": null,
+          "avatar_url": "https://secure.gravatar.com/avatar/9ecde98097f92c2324f48c0187890cf0eb687bfdb431ac7087b5c16ce8ee975a?s=80&d=identicon",
+          "web_url": "https://gitlab.com/sonicdcer"
+        }
+      },
+      "status": 200,
+      "next": null,
+      "page": null,
+      "per_page": null,
+      "content_length": null,
+      "etag": "W/\"afa846880abaf1e9e1840a7a69a3e4a6\"",
+      "observed_at": "2026-11-05T01:30:32.810Z",
+      "sha256": "951cf04d7ea5608dd9a4e16bd0a2bb31e005ba05ae065311f8aa2bfccbf459dd"
+    },
+    {
+      "url": "https://gitlab.com/api/v4/projects/sonicdcer%2FMarioKart64Recomp/releases?order_by=released_at&sort=desc&per_page=100&page=1",
+      "method": "GET",
+      "body": [
+        {
+          "name": "MarioKart 64: Recompiled 0.9.2",
+          "tag_name": "v0.9.2",
+          "description": "> [!WARNING]\n> If your antivirus software flags the game, it is a false positive. Builds downloaded from this page are always going to be safe.\n\n### Changelog\n- Reduced glitches related to Matrix Interpolation.\n- Fixed a performance issue in Kalimari Desert caused by incorrect usage of decals from the train.\n- The game will now adjust the HUD's aspect ratio according to the option picked in the options menu.\n- Eliminated flickering caused by interpolation during camera cuts.\n- Controller Pak support, now you can save your ghosts!\n- Audio channel swap has been fixed.\n\n### Modding & HD Texture Pack support\n- Mod support! Check out the [modding template](https://github.com/sonicdcer/MK64RecompModTemplate).\n- Compatible with [MK Reloaded](https://evilgames.eu/texture-packs/mk64-reloaded.htm#rt64) (HD Texture Pack). Thanks to @GhostlyDark for the help!\n  - To install the texture pack, go [here](https://evilgames.eu/texture-packs/mk64-reloaded.htm#rt64) and click the **RTZ** button under **Recomp** (the golden cup) to download it. \n  - Install the texture pack by launching the game, going into the mods menu and dropping the file on top of the game window or using the **Install Mods** button.\n\n> [!NOTE]\n> Support for configuring multiple controller ports is currently in development for N64 Recompilations. For that reason, only Single Player modes are available at the moment. Multiplayer modes will be accessible once the UI for multiple controllers is finished.\n\n> [!NOTE]  \n> **Intel GPU users:** Using outdated Intel drivers may cause the game to crash or cause graphical glitches. Please make sure your drivers are up-to-date before playing.\n>\n> [Intel HD 11th+ Gen/Intel Arc/Iris Xe](https://www.intel.com/content/www/us/en/download/785597/intel-arc-iris-xe-graphics-windows.html)\n> [Intel HD 7th-10th Gen](https://www.intel.com/content/www/us/en/download/776137/intel-7th-10th-gen-processor-graphics-windows.html)\n> [Intel HD 6th Gen](https://www.intel.com/content/www/us/en/download/762755/intel-6th-10th-gen-processor-graphics-windows.html)\n>\n> Do not use your operating system or driver suite to check for driver updates, sometimes these updates are not distributed by vendors. Always check Intel's website for the latest drivers.\n",
+          "created_at": "2026-08-11T16:13:27.938Z",
+          "released_at": "2026-02-13T03:00:00.000Z",
+          "upcoming_release": false,
+          "author": {
+            "id": 6686916,
+            "username": "sonicdcer",
+            "public_email": "",
+            "name": "Sonic Dreamcaster",
+            "state": "active",
+            "locked": false,
+            "avatar_url": "https://secure.gravatar.com/avatar/9ecde98097f92c2324f48c0187890cf0eb687bfdb431ac7087b5c16ce8ee975a?s=80&d=identicon",
+            "web_url": "https://gitlab.com/sonicdcer"
+          },
+          "commit": {
+            "id": "3885e86a4b2088188ddb3914aa26ad4f147bb5df",
+            "short_id": "3885e86a",
+            "created_at": "2026-02-21T03:18:00.000-03:00",
+            "parent_ids": ["ad9761e0fbdeee4b4923b09967ff5ce3401322c8"],
+            "title": "Implement --show-console",
+            "message": "Implement --show-console\n",
+            "author_name": "Sonic Dreamcaster",
+            "author_email": "alejandro.asenjo88@gmail.com",
+            "authored_date": "2026-02-21T03:18:00.000-03:00",
+            "committer_name": "Sonic Dreamcaster",
+            "committer_email": "alejandro.asenjo88@gmail.com",
+            "committed_date": "2026-02-21T03:18:00.000-03:00",
+            "trailers": {},
+            "extended_trailers": {},
+            "web_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/commit/3885e86a4b2088188ddb3914aa26ad4f147bb5df"
+          },
+          "commit_path": "/sonicdcer/MarioKart64Recomp/-/commit/3885e86a4b2088188ddb3914aa26ad4f147bb5df",
+          "tag_path": "/sonicdcer/MarioKart64Recomp/-/tags/v0.9.2",
+          "assets": {
+            "count": 9,
+            "sources": [
+              {
+                "format": "zip",
+                "url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/archive/v0.9.2/MarioKart64Recomp-v0.9.2.zip"
+              },
+              {
+                "format": "tar.gz",
+                "url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/archive/v0.9.2/MarioKart64Recomp-v0.9.2.tar.gz"
+              },
+              {
+                "format": "tar.bz2",
+                "url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/archive/v0.9.2/MarioKart64Recomp-v0.9.2.tar.bz2"
+              },
+              {
+                "format": "tar",
+                "url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/archive/v0.9.2/MarioKart64Recomp-v0.9.2.tar"
+              }
+            ],
+            "links": [
+              {
+                "id": 12383432,
+                "name": "MarioKart64Recompiled-v0.9.2-Flatpak-X64-Release",
+                "url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/package_files/333136089/download",
+                "direct_asset_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/package_files/333136089/download",
+                "link_type": "package"
+              },
+              {
+                "id": 12383431,
+                "name": "MarioKart64Recompiled-v0.9.2-Linux-X64-Release",
+                "url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/package_files/333135845/download",
+                "direct_asset_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/package_files/333135845/download",
+                "link_type": "package"
+              },
+              {
+                "id": 12383430,
+                "name": "MarioKart64Recompiled-v0.9.2-Windows-RelWithDebInfo",
+                "url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/package_files/333130840/download",
+                "direct_asset_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/package_files/333130840/download",
+                "link_type": "package"
+              },
+              {
+                "id": 12383429,
+                "name": "MarioKart64Recompiled-v0.9.2-macOS-Release",
+                "url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/package_files/333135339/download",
+                "direct_asset_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/package_files/333135339/download",
+                "link_type": "package"
+              },
+              {
+                "id": 12383428,
+                "name": "MarioKart64Recompiled-v0.9.2-Linux-ARM64-Release",
+                "url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/package_files/333136056/download",
+                "direct_asset_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/package_files/333136056/download",
+                "link_type": "package"
+              }
+            ]
+          },
+          "evidences": [],
+          "_links": {
+            "closed_issues_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/issues?release_tag=v0.9.2&scope=all&state=closed",
+            "closed_merge_requests_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/merge_requests?release_tag=v0.9.2&scope=all&state=closed",
+            "merged_merge_requests_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/merge_requests?release_tag=v0.9.2&scope=all&state=merged",
+            "opened_issues_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/issues?release_tag=v0.9.2&scope=all&state=opened",
+            "opened_merge_requests_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/merge_requests?release_tag=v0.9.2&scope=all&state=opened",
+            "self": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/releases/v0.9.2"
+          }
+        }
+      ],
+      "status": 200,
+      "next": "",
+      "page": "1",
+      "per_page": "100",
+      "content_length": null,
+      "etag": "W/\"c78c94fd333e8151d9fe6414e05afc20\"",
+      "observed_at": "2026-11-05T01:30:32.985Z",
+      "sha256": "d0cb13f626ca84da48efd8101ca5617919b530f45a89e7728e44eef1f8e69548"
+    },
+    {
+      "url": "https://gitlab.com/api/v4/projects/sonicdcer%2FMarioKart64Recomp/packages?package_type=generic&order_by=created_at&sort=desc&per_page=100&page=1",
+      "method": "GET",
+      "body": [
+        {
+          "id": 66299791,
+          "name": "mariokart64recompiledlinuxflatpakx64",
+          "version": "0.9.2",
+          "package_type": "generic",
+          "status": "default",
+          "_links": {
+            "web_path": "/sonicdcer/MarioKart64Recomp/-/packages/66299791"
+          },
+          "created_at": "2026-08-11T16:19:42.616Z",
+          "last_downloaded_at": "2026-11-05T00:56:20.674Z",
+          "creator_id": 6686916,
+          "tags": []
+        },
+        {
+          "id": 66299777,
+          "name": "mariokart64recompiledlinuxarm64",
+          "version": "0.9.2",
+          "package_type": "generic",
+          "status": "default",
+          "_links": {
+            "web_path": "/sonicdcer/MarioKart64Recomp/-/packages/66299777"
+          },
+          "created_at": "2026-08-11T16:19:36.695Z",
+          "last_downloaded_at": "2026-11-05T00:31:05.965Z",
+          "creator_id": 6686916,
+          "tags": []
+        },
+        {
+          "id": 66299718,
+          "name": "mariokart64recompiledlinuxx64",
+          "version": "0.9.2",
+          "package_type": "generic",
+          "status": "default",
+          "_links": {
+            "web_path": "/sonicdcer/MarioKart64Recomp/-/packages/66299718"
+          },
+          "created_at": "2026-08-11T16:18:39.900Z",
+          "last_downloaded_at": "2026-11-05T00:55:59.868Z",
+          "creator_id": 6686916,
+          "tags": []
+        },
+        {
+          "id": 66299593,
+          "name": "mariokart64recompiledmacos",
+          "version": "0.9.2",
+          "package_type": "generic",
+          "status": "default",
+          "_links": {
+            "web_path": "/sonicdcer/MarioKart64Recomp/-/packages/66299593"
+          },
+          "created_at": "2026-08-11T16:16:38.106Z",
+          "last_downloaded_at": "2026-11-05T00:31:05.708Z",
+          "creator_id": 6686916,
+          "tags": []
+        },
+        {
+          "id": 66298316,
+          "name": "mariokart64recompiledwindows",
+          "version": "0.9.2",
+          "package_type": "generic",
+          "status": "default",
+          "_links": {
+            "web_path": "/sonicdcer/MarioKart64Recomp/-/packages/66298316"
+          },
+          "created_at": "2026-08-11T16:04:05.316Z",
+          "last_downloaded_at": "2026-11-05T01:23:24.860Z",
+          "creator_id": 6686916,
+          "tags": []
+        }
+      ],
+      "status": 200,
+      "next": "",
+      "page": "1",
+      "per_page": "100",
+      "content_length": null,
+      "etag": "W/\"0c01f18157ef05a1a123a1d6a4067a97\"",
+      "observed_at": "2026-11-05T01:30:33.119Z",
+      "sha256": "e53ca679cae717a63a61bc6eb404e5b547fa789a8f697623eebe72ca64ec04fe"
+    },
+    {
+      "url": "https://gitlab.com/api/v4/projects/84098210/packages/66299791/package_files?per_page=100&page=1",
+      "method": "GET",
+      "body": [
+        {
+          "id": 333136089,
+          "package_id": 66299791,
+          "created_at": "2026-08-11T16:19:42.681Z",
+          "file_name": "MarioKart64Recompiled-v0.9.2-Flatpak-X64-Release.zip",
+          "size": 9492638,
+          "file_md5": null,
+          "file_sha1": null,
+          "file_sha256": "07a7f8b0aeb61ee339dba4b9a3f5b5cc96cacec0b101d3d6034b53ba7d8c5697"
+        }
+      ],
+      "status": 200,
+      "next": "",
+      "page": "1",
+      "per_page": "100",
+      "content_length": null,
+      "etag": "W/\"7de3c47d133a0bf25a6db31855ed5cca\"",
+      "observed_at": "2026-11-05T01:30:33.321Z",
+      "sha256": "aeb41ecff133b7277c8f9a8447b791ce354eadb6677b214dd0a3b1be80aa9333"
+    },
+    {
+      "url": "https://gitlab.com/api/v4/projects/84098210/packages/66299777/package_files?per_page=100&page=1",
+      "method": "GET",
+      "body": [
+        {
+          "id": 333136056,
+          "package_id": 66299777,
+          "created_at": "2026-08-11T16:19:36.733Z",
+          "file_name": "MarioKart64Recompiled-v0.9.2-Linux-ARM64-Release.zip",
+          "size": 13173429,
+          "file_md5": null,
+          "file_sha1": null,
+          "file_sha256": "c0ba8b08f7c31510871433ffd3e23ce8f07de77a31b15a66a0ccfb5a26386afa"
+        }
+      ],
+      "status": 200,
+      "next": "",
+      "page": "1",
+      "per_page": "100",
+      "content_length": null,
+      "etag": "W/\"dc542c4a96b04ed4fde763ecc013043d\"",
+      "observed_at": "2026-11-05T01:30:33.443Z",
+      "sha256": "46ca909e589be361562fc936eb7a598e74b304040ca14e85197820caff973912"
+    },
+    {
+      "url": "https://gitlab.com/api/v4/projects/84098210/packages/66299718/package_files?per_page=100&page=1",
+      "method": "GET",
+      "body": [
+        {
+          "id": 333135845,
+          "package_id": 66299718,
+          "created_at": "2026-08-11T16:18:39.936Z",
+          "file_name": "MarioKart64Recompiled-v0.9.2-Linux-X64-Release.zip",
+          "size": 13126507,
+          "file_md5": null,
+          "file_sha1": null,
+          "file_sha256": "46d4c34f755111daa460c64d34c1e97a932a3406995936ae1f059453a4fba819"
+        }
+      ],
+      "status": 200,
+      "next": "",
+      "page": "1",
+      "per_page": "100",
+      "content_length": null,
+      "etag": "W/\"faf8841f5dfa5ec50c72d59fcc417309\"",
+      "observed_at": "2026-11-05T01:30:33.589Z",
+      "sha256": "32d2c4739691bdedbe165c12b06a300cc767b00081bad30caba3c4823ba9369a"
+    },
+    {
+      "url": "https://gitlab.com/api/v4/projects/84098210/packages/66299593/package_files?per_page=100&page=1",
+      "method": "GET",
+      "body": [
+        {
+          "id": 333135339,
+          "package_id": 66299593,
+          "created_at": "2026-08-11T16:16:38.154Z",
+          "file_name": "MarioKart64Recompiled-v0.9.2-macOS-Release.zip",
+          "size": 21382363,
+          "file_md5": null,
+          "file_sha1": null,
+          "file_sha256": "4e27d59d9fb4f13d4519b46a3bc06275bc794d32eff5c7179835a1ee6ecbe8e8"
+        }
+      ],
+      "status": 200,
+      "next": "",
+      "page": "1",
+      "per_page": "100",
+      "content_length": null,
+      "etag": "W/\"b6a97c86b2ab3f136c5296bf70e3da63\"",
+      "observed_at": "2026-11-05T01:30:33.752Z",
+      "sha256": "cee41c764656e147c0918cefe98e2f4c21d5f1521aff29014a93fdaaca2bba60"
+    },
+    {
+      "url": "https://gitlab.com/api/v4/projects/84098210/packages/66298316/package_files?per_page=100&page=1",
+      "method": "GET",
+      "body": [
+        {
+          "id": 333130840,
+          "package_id": 66298316,
+          "created_at": "2026-08-11T16:04:05.391Z",
+          "file_name": "MarioKart64Recompiled-v0.9.2-Windows-RelWithDebInfo.zip",
+          "size": 23847630,
+          "file_md5": null,
+          "file_sha1": null,
+          "file_sha256": "4b41226ad7d4c6012878194fa88fe1a83c1fa8f425dfbaa2a7ea87eb01c1c2b4"
+        }
+      ],
+      "status": 200,
+      "next": "",
+      "page": "1",
+      "per_page": "100",
+      "content_length": null,
+      "etag": "W/\"5b376521858165c01b0271f3d9ea7bb4\"",
+      "observed_at": "2026-11-05T01:30:33.886Z",
+      "sha256": "a4a7105bff40567f479f28cef93197080397c9afa5b6e1ee4711db2fd4a6b8b7"
+    }
+  ],
+  "projected_observation": {
+    "provider": "gitlab",
+    "repository": "sonicdcer/MarioKart64Recomp",
+    "repository_id": 84098210,
+    "status": "complete",
+    "attempted_at": "2026-11-05T01:30:33.886Z",
+    "observed_at": "2026-11-05T01:30:32.810Z",
+    "fresh_until": "2026-11-05T13:30:32.810Z",
+    "facts_sha256": "f6fde3a4c4c8188d60a0d3969241870e192891dac6be4cb31280500845dc72ec",
+    "release_limit": 4,
+    "releases": [
+      {
+        "id": {
+          "provider": "gitlab",
+          "project_id": 84098210,
+          "tag": "v0.9.2"
+        },
+        "version": "v0.9.2",
+        "published_at": "2026-02-13T03:00:00.000Z",
+        "release_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/releases/v0.9.2",
+        "provider_prerelease": false,
+        "assets_complete": true,
+        "assets": [
+          {
+            "id": 333136089,
+            "name": "MarioKart64Recompiled-v0.9.2-Flatpak-X64-Release.zip",
+            "size": 9492638,
+            "sha256": "07a7f8b0aeb61ee339dba4b9a3f5b5cc96cacec0b101d3d6034b53ba7d8c5697",
+            "platform_hints": [],
+            "url": "https://gitlab.com/api/v4/projects/84098210/packages/generic/mariokart64recompiledlinuxflatpakx64/0.9.2/MarioKart64Recompiled-v0.9.2-Flatpak-X64-Release.zip"
+          },
+          {
+            "id": 333136056,
+            "name": "MarioKart64Recompiled-v0.9.2-Linux-ARM64-Release.zip",
+            "size": 13173429,
+            "sha256": "c0ba8b08f7c31510871433ffd3e23ce8f07de77a31b15a66a0ccfb5a26386afa",
+            "platform_hints": [],
+            "url": "https://gitlab.com/api/v4/projects/84098210/packages/generic/mariokart64recompiledlinuxarm64/0.9.2/MarioKart64Recompiled-v0.9.2-Linux-ARM64-Release.zip"
+          },
+          {
+            "id": 333135845,
+            "name": "MarioKart64Recompiled-v0.9.2-Linux-X64-Release.zip",
+            "size": 13126507,
+            "sha256": "46d4c34f755111daa460c64d34c1e97a932a3406995936ae1f059453a4fba819",
+            "platform_hints": [],
+            "url": "https://gitlab.com/api/v4/projects/84098210/packages/generic/mariokart64recompiledlinuxx64/0.9.2/MarioKart64Recompiled-v0.9.2-Linux-X64-Release.zip"
+          },
+          {
+            "id": 333135339,
+            "name": "MarioKart64Recompiled-v0.9.2-macOS-Release.zip",
+            "size": 21382363,
+            "sha256": "4e27d59d9fb4f13d4519b46a3bc06275bc794d32eff5c7179835a1ee6ecbe8e8",
+            "platform_hints": [],
+            "url": "https://gitlab.com/api/v4/projects/84098210/packages/generic/mariokart64recompiledmacos/0.9.2/MarioKart64Recompiled-v0.9.2-macOS-Release.zip"
+          },
+          {
+            "id": 333130840,
+            "name": "MarioKart64Recompiled-v0.9.2-Windows-RelWithDebInfo.zip",
+            "size": 23847630,
+            "sha256": "4b41226ad7d4c6012878194fa88fe1a83c1fa8f425dfbaa2a7ea87eb01c1c2b4",
+            "platform_hints": [],
+            "url": "https://gitlab.com/api/v4/projects/84098210/packages/generic/mariokart64recompiledwindows/0.9.2/MarioKart64Recompiled-v0.9.2-Windows-RelWithDebInfo.zip"
+          }
+        ]
+      }
+    ]
+  },
+  "baseline_commit": "5d9310dba5e7f20cd8a0d1de5067fbc0a1a77a4d",
+  "collector_sha256": "9b17c28e4be0d00115ea289dca251924bc4052e8f39022f8beaa341e7b79f7fc",
+  "projection_sha256": "305a3f9a1ce80a7b8107fbf8ff394c3995aa5f88e23e6d1812a64e865192bdfc"
+}

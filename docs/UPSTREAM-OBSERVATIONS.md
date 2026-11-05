@@ -835,16 +835,26 @@ account, signing authority or production activation is introduced.
 ## Descriptive consumers and accepted listing corrections
 
 The same scheduled coordinator also reads the reviewed listing directory. GitHub
-listing consumers share repository identity, conditional page collection, quotas,
+and supported public GitLab listing consumers share repository identity, conditional page collection, quotas,
 continuation and last-complete facts with operational consumers. A listing never
 needs an adapter or managed definition. Explicit consumer kind, declaration hash,
 projection implementation/schema-inventory hash and repository identity bind its
 scope. An accepted observation does not invalidate its unchanged declaration.
-Other descriptive providers remain outside this GitHub route; no absence claim
-is inferred for them.
+Only explicit credential-free HTTPS identities on github.com or gitlab.com enter
+the existing provider collectors. Unsupported hosts or source shapes are reported
+as observation unsupported, never as an empty release history. Existing GitLab
+metadata pagination proofs, request budgets, per-origin quotas and checkpoints
+also apply to listings; no new collector or per-title task is introduced.
 
 Descriptive consumers request complete asset collections for at most four newest
-published release headers. This is a bounded release window, not complete
+published release headers. GitLab uses exact tag identities and generic registry
+file IDs, sizes and provider digest claims through its existing collector. Release
+links without supported exact registry metadata leave asset coverage incomplete;
+no size, digest or acquisition permission is guessed. GitLab does not have a
+GitHub numeric release ID or provider prerelease flag; tags remain strings and
+its upcoming releases are excluded. Existing project/tag release references and
+Desktop identity keys are reused, without a parallel provider identity model. Listing format8 fences this provider shape;
+older readers retain their last accepted directory. This is a bounded release window, not complete
 repository history. Drafts are excluded. Release assets retain exact provider
 identities, names, URLs, sizes and optional digest claims. Authored literal
 filename hints can annotate platform candidates; these are neither compatibility

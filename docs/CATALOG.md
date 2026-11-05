@@ -1617,6 +1617,27 @@ cross-version update/rollback, or non-Windows behavior. The exact identities,
 methods, and remaining boundaries are recorded in
 [`docs/qualification/dr-mario-64-recompiled-windows-2026-09-15.md`](qualification/dr-mario-64-recompiled-windows-2026-09-15.md).
 
+Native portable archives normally derive the working directory from the unique
+exact declared player filename. Do not repeat an incidental dated wrapper in
+`runtime_subdirectory` when the player’s parent is the reviewed runtime root.
+The authenticated package and full immutable manifest still bind expected
+contents; a missing or ambiguous player is refused. The installation retains
+its exact selected relative player path and creating definition, so later
+catalog observations do not reinterpret older working coordinates.
+The existing transition guard recognizes the omission only for native runtimes
+without owned data or source preparation, when an explicit root equals the
+authenticated retained player’s parent. Reverse rollback needs the retained
+target’s own coordinate. Changed roots or data ownership remain held.
+
+Marathon’s three official Windows integrations use that existing rule. Their
+full-scenario artifact pins remain separate: full-game and engine-only package
+names overlap the current provider hints, and populated shared upstream profiles
+have no qualified cross-version transition. Wrapper naming is no longer a pin
+reason. [Two real package inspections and regression controls](qualification/marathon-derived-wrapper-2026-11-05.md)
+record the narrower removal of release-specific layout edits. OpenPete’s exact
+runtime/source/cards/states boundary remains independently explicit under #113;
+this layout change supplies no OpenPete upgrade or state-compatibility evidence.
+
 The optional `n64_windows_initial_d3d12` declaration seeds only
 `{"api_option":"D3D12"}` in a fresh Windows N64 portable working directory.
 Both `graphics.json` and `graphics.json.bak` must be declared persistent at that
@@ -2583,6 +2604,13 @@ format while preserving older serialized documents. Signed listing delivery
 retains the same publisher, revision, integrity, atomic selection and recovery
 boundary. Unsupported or invalid replacement data does not replace last-good
 cached listings or grant managed operations.
+
+Listing format8 adds supported GitLab descriptive observations with existing provider-qualified
+project/tag release identities and numeric generic registry file identities. GitHub IDs
+and serialized observations remain unchanged. Exporting a GitLab-bearing directory
+to an older format refuses; unknown formats retain existing last-good delivery
+behavior. Authored format derivation selects8 only when these fields occur. This
+adds no managed GitLab authority and leaves unsupported package layouts incomplete.
 
 Authored availability remains attributable. An explicit availability override
 requires its reason and takes display precedence. Otherwise accepted observations

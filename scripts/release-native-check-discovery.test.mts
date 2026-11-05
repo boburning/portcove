@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { performance } from "node:perf_hooks";
+import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import { nativeQualificationFixture } from "./fixtures/native-qualification-fixture.mts";
 import {
@@ -9,7 +10,10 @@ import {
   verifiedNativeReleaseQualification,
 } from "./release-native-acceptance.mts";
 import { bindNativeQualificationLocators } from "./release-native-admission.mts";
-import { discoverNativeQualificationLocators } from "./release-native-check-discovery.mts";
+import {
+  discoverNativeQualificationLocators,
+  createNativeCheckDiscoveryOperations,
+} from "./release-native-check-discovery.mts";
 import {
   nativePrepublicationProfile,
   nativePrepublicationPending,
@@ -111,32 +115,27 @@ function fixture(
   let mutate:
     | ((body: Record<string, unknown>, route: string, snapshot: number) => void)
     | undefined;
-  const api = {
-    request(method: string, route: string, body?: unknown) {
-      assert.equal(method, "GET");
-      assert.equal(body, undefined);
-      calls.push(route);
-      let response: Record<string, unknown>;
-      if (
-        route.includes("/commits/") &&
-        route.endsWith("/check-suites?app_id=900&per_page=100&page=1")
-      ) {
-        suiteReads++;
-        response = { total_count: 1, check_suites: [structuredClone(suite)] };
-      } else {
-        const match =
-          /\/check-suites\/500\/check-runs\?check_name=[^&]+&filter=all&per_page=100&page=([1-9][0-9]*)$/u.exec(
-            route,
-          );
-        assert.ok(match, route);
-        const page = Number(match[1]);
-        response = {
-          total_count: rows.length,
-          check_runs: structuredClone(rows.slice((page - 1) * 100, page * 100)),
-        };
-      }
-      mutate?.(response, route, suiteReads);
-      return { status: 200, body: response, headers: new Map<string, string>() };
+  const observe = (page?: number) => {
+    const kind = page === undefined ? "suites" : "checks";
+    calls.push(kind);
+    if (page === undefined) suiteReads++;
+    const response =
+      page === undefined
+        ? { total_count: 1, check_suites: [structuredClone(suite)] }
+        : {
+            total_count: rows.length,
+            check_runs: structuredClone(rows.slice((page - 1) * 100, page * 100)),
+          };
+    mutate?.(response, kind, suiteReads);
+    return response;
+  };
+  const operations = {
+    async suites() {
+      return observe();
+    },
+    async checks(suiteId: number, page: number) {
+      assert.equal(suiteId, 500);
+      return observe(page);
     },
   };
   return {
@@ -144,7 +143,7 @@ function fixture(
     prepared,
     rows,
     suite,
-    api,
+    operations,
     calls,
     setMutator(value: typeof mutate) {
       mutate = value;
@@ -154,7 +153,9 @@ function fixture(
 const deadline = () => performance.now() + 120000;
 void test("native discovery returns only unique inert exact stage/package locators and final expectation binding stays separate", async () => {
   const f = fixture();
-  const locators = discoverNativeQualificationLocators(f.templates, deadline(), { api: f.api });
+  const locators = await discoverNativeQualificationLocators(f.templates, deadline(), {
+    operations: f.operations,
+  });
   assert.equal(f.calls.length, 4);
   assert.deepEqual(
     locators.map((v) => v.check_id),
@@ -171,7 +172,7 @@ void test("native discovery returns only unique inert exact stage/package locato
   assert.throws(() => bindNativeQualificationLocators(null, f.templates));
   await assert.rejects(verifiedNativeReleaseQualification(locators[0]!), /actual provider/);
 });
-void test("native discovery refuses missing, false, wrong issuer and duplicate platform observations", () => {
+void test("native discovery refuses missing, false, wrong issuer and duplicate platform observations", async () => {
   for (const mutate of [
     (f: ReturnType<typeof fixture>) => {
       f.rows.pop();
@@ -197,12 +198,12 @@ void test("native discovery refuses missing, false, wrong issuer and duplicate p
   ]) {
     const f = fixture();
     mutate(f);
-    assert.throws(() =>
-      discoverNativeQualificationLocators(f.templates, deadline(), { api: f.api }),
+    await assert.rejects(() =>
+      discoverNativeQualificationLocators(f.templates, deadline(), { operations: f.operations }),
     );
   }
 });
-void test("native discovery refuses changed expected inputs, incomplete capture and exact Check wire corruption", () => {
+void test("native discovery refuses changed expected inputs, incomplete capture and exact Check wire corruption", async () => {
   const original = fixture();
   for (const mutate of [
     (t: typeof original.templates) => {
@@ -224,8 +225,8 @@ void test("native discovery refuses changed expected inputs, incomplete capture 
     const f = fixture(),
       changed = structuredClone(f.templates);
     mutate(changed);
-    assert.throws(
-      () => discoverNativeQualificationLocators(changed, deadline(), { api: f.api }),
+    await assert.rejects(
+      () => discoverNativeQualificationLocators(changed, deadline(), { operations: f.operations }),
       /unique/,
     );
   }
@@ -248,12 +249,12 @@ void test("native discovery refuses changed expected inputs, incomplete capture 
   ]) {
     const f = fixture();
     mutate(f.rows[0]!);
-    assert.throws(() =>
-      discoverNativeQualificationLocators(f.templates, deadline(), { api: f.api }),
+    await assert.rejects(() =>
+      discoverNativeQualificationLocators(f.templates, deadline(), { operations: f.operations }),
     );
   }
 });
-void test("native discovery requires complete stable pagination and brackets returned provider data", () => {
+void test("native discovery requires complete stable pagination and brackets returned provider data", async () => {
   const f = fixture();
   const pending = Array.from({ length: 100 }, (_, index) => ({
     ...f.rows[0],
@@ -262,7 +263,11 @@ void test("native discovery requires complete stable pagination and brackets ret
   }));
   f.rows.unshift(...pending);
   assert.equal(
-    discoverNativeQualificationLocators(f.templates, deadline(), { api: f.api }).length,
+    (
+      await discoverNativeQualificationLocators(f.templates, deadline(), {
+        operations: f.operations,
+      })
+    ).length,
     2,
   );
   assert.equal(f.calls.length, 6);
@@ -277,67 +282,33 @@ void test("native discovery requires complete stable pagination and brackets ret
         body.check_runs[0].details_url = "https://changed.invalid";
       }
     });
-    assert.throws(() =>
-      discoverNativeQualificationLocators(g.templates, deadline(), { api: g.api }),
+    await assert.rejects(() =>
+      discoverNativeQualificationLocators(g.templates, deadline(), { operations: g.operations }),
     );
   }
 });
-void test("native discovery default transport pins github.com and strips ambient hooks/config without granting native authority", (t) => {
-  const f = fixture(),
-    oldHost = process.env.GH_HOST,
-    oldHooks = process.env.NODE_OPTIONS;
-  process.env.GH_HOST = "ambient.invalid";
-  process.env.NODE_OPTIONS = "--ambient-hook";
-  t.after(() => {
-    if (oldHost === undefined) delete process.env.GH_HOST;
-    else process.env.GH_HOST = oldHost;
-    if (oldHooks === undefined) delete process.env.NODE_OPTIONS;
-    else process.env.NODE_OPTIONS = oldHooks;
-  });
-  let calls = 0;
-  const locators = discoverNativeQualificationLocators(f.templates, deadline(), {
-    spawn: (_command, args, settings) => {
-      calls++;
-      assert.equal(args[args.indexOf("--hostname") + 1], "github.com");
-      assert.equal(args[args.indexOf("--method") + 1], "GET");
-      assert.equal(settings.env?.GH_HOST, "github.com");
-      assert.equal(settings.env?.NODE_OPTIONS, undefined);
-      assert.equal(settings.env?.HTTPS_PROXY, undefined);
-      assert.match(String(settings.env?.GH_CONFIG_DIR), /native-check-discovery-/);
-      const route = args.find((v) => v.startsWith("repos/boburning/portcove/"));
-      assert.ok(route);
-      const body = f.api.request("GET", route).body;
-      return {
-        status: 0,
-        stdout: `HTTP/2.0 200 OK\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(body)}`,
-        stderr: "",
-      };
-    },
-  });
-  assert.equal(calls, 4);
-  assert.equal(locators.length, 2);
-  assert.throws(
-    () => discoverNativeQualificationLocators(f.templates, performance.now() - 1, { api: f.api }),
-    /deadline/,
-  );
-});
-
-void test("native discovery distinguishes selected report2 initial and predecessor branches and ignores other signed contexts", () => {
+void test("native discovery distinguishes selected report2 initial and predecessor branches and ignores other signed contexts", async () => {
   for (const initial of [false, true]) {
     const f = fixture("release-publication", initial);
-    const pair = discoverNativeQualificationLocators(f.templates, deadline(), { api: f.api });
+    const pair = await discoverNativeQualificationLocators(f.templates, deadline(), {
+      operations: f.operations,
+    });
     assert.equal(pair.length, 2);
     const changed = structuredClone(f.templates);
     assert.ok(changed[0]!.journey);
     changed[0]!.journey.signed_context_sha256 = "0".repeat(64);
-    assert.throws(
-      () => discoverNativeQualificationLocators(changed, deadline(), { api: f.api }),
+    await assert.rejects(
+      () => discoverNativeQualificationLocators(changed, deadline(), { operations: f.operations }),
       /unique/,
     );
     const other = fixture("release-publication", !initial);
     f.rows.push({ ...other.rows[0], id: 503 });
     assert.equal(
-      discoverNativeQualificationLocators(f.templates, deadline(), { api: f.api }).length,
+      (
+        await discoverNativeQualificationLocators(f.templates, deadline(), {
+          operations: f.operations,
+        })
+      ).length,
       2,
     );
   }
@@ -348,7 +319,9 @@ void test("native discovery never extends an expired inherited role clock or per
   await assert.rejects(
     withCoordinatorDeadline(performance.now() + 20, async () => {
       await new Promise((resolve) => setTimeout(resolve, 40));
-      discoverNativeQualificationLocators(f.templates, deadline(), { api: f.api });
+      await discoverNativeQualificationLocators(f.templates, deadline(), {
+        operations: f.operations,
+      });
     }),
     /deadline/,
   );
@@ -356,14 +329,12 @@ void test("native discovery never extends an expired inherited role clock or per
   const g = fixture();
   await assert.rejects(
     withCoordinatorDeadline(performance.now() + 100, async () => {
-      discoverNativeQualificationLocators(g.templates, deadline(), {
-        api: {
-          request(method, route) {
-            const body = g.api.request(method, route);
-            const until = performance.now() + 150;
-            while (performance.now() < until) {
-              /* inert delayed provider response */
-            }
+      await discoverNativeQualificationLocators(g.templates, deadline(), {
+        operations: {
+          ...g.operations,
+          async suites() {
+            const body = await g.operations.suites();
+            await new Promise((resolve) => setTimeout(resolve, 150));
             return body;
           },
         },
@@ -373,22 +344,204 @@ void test("native discovery never extends an expired inherited role clock or per
   );
   assert.equal(g.calls.length, 1);
 });
-void test("native discovery default child uses the tighter inherited phase budget", async () => {
-  const f = fixture();
-  await withCoordinatorDeadline(performance.now() + 1000, async () => {
-    const result = discoverNativeQualificationLocators(f.templates, deadline(), {
-      spawn: (_command, args, settings) => {
-        assert.ok(
-          typeof settings.timeout === "number" && settings.timeout > 0 && settings.timeout <= 1000,
+
+function sdkFetch(
+  f: ReturnType<typeof fixture>,
+  observe?: (url: URL, settings: RequestInit | undefined) => void,
+): typeof globalThis.fetch {
+  return async (input, settings) => {
+    const url = new URL(
+      input instanceof Request ? input.url : input instanceof URL ? input.href : input,
+    );
+    observe?.(url, settings);
+    assert.equal(url.origin, "https://api.github.com");
+    assert.equal(settings?.method, "GET");
+    assert.equal(settings?.redirect, "manual");
+    const body = url.pathname.endsWith("/check-suites")
+      ? await f.operations.suites()
+      : await f.operations.checks(
+          Number(url.pathname.split("/").at(-2)),
+          Number(url.searchParams.get("page")),
         );
-        const route = args.find((v) => v.startsWith("repos/boburning/portcove/"));
-        assert.ok(route);
-        const body = f.api.request("GET", route).body;
-        return {
-          status: 0,
-          stdout: `HTTP/2.0 200 OK\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(body)}`,
-          stderr: "",
-        };
+    return new Response(JSON.stringify(body), { headers: { "content-type": "application/json" } });
+  };
+}
+const sdkOptions = (f: ReturnType<typeof fixture>) => ({
+  source: f.templates[0]!.candidate.source_commit,
+  app: 900,
+  deadline: deadline(),
+  environment: { GH_TOKEN: "ghs_SYNTHETIC_READER_ONLY" },
+});
+void test("native discovery actual SDK fixes authority and captures the explicit reader before asynchronous work", async () => {
+  const f = fixture();
+  const environment = {
+    GH_TOKEN: "ghs_SYNTHETIC_READER_ONLY",
+    GH_HOST: "ambient.invalid",
+    NODE_OPTIONS: "--ambient-hook",
+  };
+  const constructing = createNativeCheckDiscoveryOperations({
+    ...sdkOptions(f),
+    environment,
+    fetch: sdkFetch(f, (url, settings) => {
+      assert.equal(
+        new Headers(settings?.headers).get("authorization"),
+        "token ghs_SYNTHETIC_READER_ONLY",
+      );
+      assert.equal(new Headers(settings?.headers).get("x-github-api-version"), "2022-11-28");
+      if (url.pathname.endsWith("/check-suites")) {
+        assert.equal(
+          url.pathname,
+          `/repos/boburning/portcove/commits/${f.templates[0]!.candidate.source_commit}/check-suites`,
+        );
+        assert.equal(url.search, "?app_id=900&per_page=100&page=1");
+      } else {
+        assert.equal(url.pathname, "/repos/boburning/portcove/check-suites/500/check-runs");
+        assert.equal(url.searchParams.get("filter"), "all");
+        assert.equal(url.searchParams.get("per_page"), "100");
+        assert.equal(url.searchParams.get("page"), "1");
+        assert.equal(url.searchParams.get("check_name"), f.rows[0]!.name);
+      }
+    }),
+  });
+  environment.GH_TOKEN = "ghs_SYNTHETIC_OTHER_ROLE";
+  const operations = await constructing;
+  const locators = await discoverNativeQualificationLocators(f.templates, deadline(), {
+    operations,
+  });
+  assert.equal(f.calls.length, 4);
+  assert.equal(locators.length, 2);
+  assert.ok(Object.isFrozen(locators) && locators.every(Object.isFrozen));
+  await assert.rejects(
+    createNativeCheckDiscoveryOperations({
+      ...sdkOptions(f),
+      environment: { GITHUB_TOKEN: "ghs_SYNTHETIC_WRONG_SOURCE" },
+      fetch: sdkFetch(f),
+    }),
+    /explicit.*credential/,
+  );
+  await assert.rejects(
+    () => discoverNativeQualificationLocators(f.templates, performance.now() - 1, { operations }),
+    /deadline/,
+  );
+});
+
+void test("native discovery actual SDK refuses non-200, failing streams, oversized bodies and redirects without replay", async () => {
+  const f = fixture();
+  for (const mode of ["created", "server", "stream", "oversized", "redirect"] as const) {
+    let calls = 0;
+    const operations = await createNativeCheckDiscoveryOperations({
+      ...sdkOptions(f),
+      fetch: async () => {
+        calls++;
+        if (mode === "stream")
+          return new Response(
+            new ReadableStream({
+              start(controller) {
+                controller.enqueue(new TextEncoder().encode("{}"));
+                controller.error(new Error("synthetic failed stream"));
+              },
+            }),
+          );
+        if (mode === "oversized") return new Response("x".repeat(8 * 1024 ** 2 + 1));
+        if (mode === "redirect")
+          return new Response(null, {
+            status: 302,
+            headers: { location: "https://other.invalid/credential-target" },
+          });
+        return new Response("{}", {
+          status: mode === "created" ? 201 : 503,
+          headers: { "content-type": "application/json" },
+        });
+      },
+    });
+    await assert.rejects(operations.suites());
+    assert.equal(calls, 1, mode);
+  }
+});
+
+void test("native discovery actual SDK preserves aggregate wire budget and original attempt allowance", async () => {
+  const f = fixture();
+  let calls = 0;
+  const operations = await createNativeCheckDiscoveryOperations({
+    ...sdkOptions(f),
+    fetch: async () => {
+      calls++;
+      return new Response(`"${"x".repeat(8 * 1024 ** 2 - 2)}"`, {
+        headers: { "content-type": "application/json" },
+      });
+    },
+  });
+  for (let index = 0; index < 4; index++) await operations.suites();
+  await assert.rejects(operations.suites());
+  assert.equal(calls, 5);
+  let sends = 0;
+  const bounded = await createNativeCheckDiscoveryOperations({
+    ...sdkOptions(f),
+    fetch: async () => {
+      sends++;
+      return new Response("{}");
+    },
+  });
+  for (let index = 0; index < 40; index++) await bounded.suites();
+  await assert.rejects(bounded.suites());
+  assert.equal(sends, 40);
+});
+
+void test("native discovery actual SDK cancellation uses the inherited phase budget and drains the stream", async () => {
+  const f = fixture();
+  let calls = 0,
+    cancelled = 0;
+  await assert.rejects(
+    withCoordinatorDeadline(performance.now() + 1000, async () => {
+      const operations = await createNativeCheckDiscoveryOperations({
+        ...sdkOptions(f),
+        fetch: async () => {
+          calls++;
+          return new Response(
+            new ReadableStream({
+              cancel() {
+                cancelled++;
+              },
+            }),
+          );
+        },
+      });
+      await discoverNativeQualificationLocators(f.templates, deadline(), { operations });
+    }),
+    /deadline|cancel|time/u,
+  );
+  assert.equal(calls, 1);
+  assert.equal(cancelled, 1);
+});
+
+void test("native discovery preserves captured reader role and frozen template expectations across awaits", async (t) => {
+  const f = fixture();
+  const previous = process.env.GH_TOKEN;
+  t.after(() => {
+    if (previous === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = previous;
+  });
+  process.env.GH_TOKEN = "ghs_SYNTHETIC_CAPTURED_READER";
+  await withReadOnlyReleaseChildren(process.cwd(), async () => {
+    process.env.GH_TOKEN = "ghs_SYNTHETIC_OTHER_ROLE";
+    const operations = await createNativeCheckDiscoveryOperations({
+      source: f.templates[0]!.candidate.source_commit,
+      app: 900,
+      deadline: deadline(),
+      fetch: sdkFetch(f, (_url, settings) =>
+        assert.equal(
+          new Headers(settings?.headers).get("authorization"),
+          "token ghs_SYNTHETIC_CAPTURED_READER",
+        ),
+      ),
+    });
+    const result = await discoverNativeQualificationLocators(f.templates, deadline(), {
+      operations: {
+        ...operations,
+        async suites() {
+          f.templates[0]!.candidate.package.sha256 = "0".repeat(64);
+          return operations.suites();
+        },
       },
     });
     assert.equal(result.length, 2);
