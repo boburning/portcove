@@ -38,6 +38,7 @@ import {
 import { hostedNativeJobProfile } from "./assembler-job-identity.mts";
 import { inspectControllerToolManifest } from "./release-controller-tools.mts";
 import {
+  createNativePostSignReader,
   inspectNativePostSignReadiness,
   waitForNativePostSignReadiness,
 } from "./release-native-postsign-readiness.mts";
@@ -104,7 +105,7 @@ void test("post-sign waiting observes only pending reads, preserves evidence and
     run: "123",
     revision: "a".repeat(40),
     active: () => assert.ok(active, "original clock/owner expired"),
-    read: () => (++reads === 1 ? prerequisiteJobs("in_progress", null) : prerequisiteJobs()),
+    read: async () => (++reads === 1 ? prerequisiteJobs("in_progress", null) : prerequisiteJobs()),
     retain: async (value: unknown) => {
       observations.push(value);
     },
@@ -181,6 +182,88 @@ const preparedFixtureResult = path.join(
   process.env.RUNNER_TEMP ?? os.tmpdir(),
   "controller-tool-build-fixture/result.json",
 );
+void test("locked prerequisite SDK retains actual statuses and refuses every Link header and stalled bodies", async (t) => {
+  const previous = process.env.GH_TOKEN;
+  process.env.GH_TOKEN = "fixed-native-prerequisite-fixture";
+  t.after(() => {
+    if (previous === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = previous;
+  });
+  const keepAlive = setInterval(() => {}, 1000);
+  t.after(() => clearInterval(keepAlive));
+  for (const fault of [
+    "none",
+    "empty-link",
+    "malformed-link",
+    "unavailable",
+    "network",
+    "owner-lost",
+    "stalled",
+  ] as const) {
+    const statuses: number[] = [];
+    let requests = 0;
+    let cancelled = false;
+    let ownerLive = true;
+    const active = () => assert.ok(ownerLive, "original native worker disappeared");
+    const fetcher: typeof globalThis.fetch = async (input, init) => {
+      requests++;
+      const url = new URL(input instanceof Request ? input.url : input);
+      assert.equal(
+        url.href,
+        "https://api.github.com/repos/boburning/portcove/actions/runs/123/attempts/1/jobs?per_page=100",
+      );
+      assert.equal(init?.redirect, "manual");
+      assert.equal(
+        new Headers(init.headers).get("authorization"),
+        "token fixed-native-prerequisite-fixture",
+      );
+      if (fault === "network") throw new TypeError("controlled network refusal");
+      if (fault === "unavailable") return Response.json({}, { status: 503 });
+      if (fault === "stalled")
+        return new Response(
+          new ReadableStream({
+            start(controller) {
+              controller.enqueue(new Uint8Array([123]));
+            },
+            cancel() {
+              cancelled = true;
+            },
+          }),
+          { headers: { "content-type": "application/json" } },
+        );
+      const link =
+        fault === "empty-link" ? "" : fault === "malformed-link" ? "unexpected" : undefined;
+      return Response.json(prerequisiteJobs(), link === undefined ? {} : { headers: { link } });
+    };
+    const mock = t.mock.method(globalThis, "fetch", fetcher);
+    try {
+      const read = await createNativePostSignReader(
+        "123",
+        performance.now() + (fault === "stalled" ? 350 : 5000),
+        active,
+        (status) => {
+          statuses.push(status);
+        },
+      );
+      active();
+      if (fault === "owner-lost") ownerLive = false;
+      if (fault === "none") assert.deepEqual(await read(), prerequisiteJobs());
+      else if (fault.endsWith("-link")) await assert.rejects(read, /requires one complete page/u);
+      else if (fault === "owner-lost")
+        await assert.rejects(read, /original native worker disappeared/u);
+      else await assert.rejects(read);
+      assert.equal(requests, fault === "owner-lost" ? 0 : 1);
+      assert.deepEqual(
+        statuses,
+        fault === "network" || fault === "owner-lost" ? [] : [fault === "unavailable" ? 503 : 200],
+      );
+      if (fault === "stalled") assert.ok(cancelled);
+    } finally {
+      mock.mock.restore();
+    }
+  }
+});
+
 void test("fixed native composite pins uploads and binds responses through environment only", () => {
   const body = readFileSync(
     new URL("../.github/actions/release-native-linux/action.yml", import.meta.url),
@@ -254,11 +337,11 @@ if(fault!=='missing-final')await put('native-supervision-settlement.json',{bindi
         JSON.stringify(new URL("./heavy-rust-test-lock.mts", import.meta.url).href),
       ),
     )},{mode:0o600});
-globalThis.workflowFixture={fault:()=>fault,scope:async()=>({identity,binding,temporary,artifact:{fixture:true},bundle:{fixture:true},unchanged(){}}),budget:async()=>deadline,appendFile,mkdir,open:async(...args)=>{const handle=await open(...args);if(!args[0].endsWith('native-post-sign-prerequisites.jsonl'))return handle;return {writeFile:b=>handle.writeFile(b),sync:()=>handle.sync(),close:async()=>{await handle.close();if(fault==='dies-during-prerequisite-close'){child.ref();child.kill('SIGKILL');await childClosed}}}},read:async(file,maximum)=>{const bytes=await readControllerToolFile(file,maximum);if(refusalDuringRead&&file.endsWith('portcove-native-job-clock.json')){refusalDuringRead=false;await writeFile(path.join(path.dirname(file),'pre-sign-supervision-refusal.json'),JSON.stringify({schema_version:1,authority:'none',recovery_required:true}),{mode:0o600})}if(killDuringRead&&file.endsWith('portcove-native-job-clock.json')){killDuringRead=false;child.ref();child.kill('SIGKILL');await childClosed}return bytes},
+globalThis.workflowFixture={fault:()=>fault,scope:async()=>({identity,binding,temporary,artifact:{fixture:true},bundle:{fixture:true},unchanged(){}}),budget:async()=>deadline,prerequisite:async(run,bound,active,status)=>{assert.equal(run,'123');assert.ok(bound>performance.now());return async()=>{active();if(fault==='prerequisite-ambiguous')throw Error('ambiguous GET');status(200);return {total_count:2,jobs:['Sign admitted updater payloads','Sign authenticated Timestamp metadata'].map((name,i)=>({id:i+1,run_id:123,head_sha:'a'.repeat(40),name,status:'completed',conclusion:fault==='prerequisite-failed'?'failure':'success'}))}}},appendFile,mkdir,open:async(...args)=>{const handle=await open(...args);if(!args[0].endsWith('native-post-sign-prerequisites.jsonl'))return handle;return {writeFile:b=>handle.writeFile(b),sync:()=>handle.sync(),close:async()=>{await handle.close();if(fault==='dies-during-prerequisite-close'){child.ref();child.kill('SIGKILL');await childClosed}}}},read:async(file,maximum)=>{const bytes=await readControllerToolFile(file,maximum);if(refusalDuringRead&&file.endsWith('portcove-native-job-clock.json')){refusalDuringRead=false;await writeFile(path.join(path.dirname(file),'pre-sign-supervision-refusal.json'),JSON.stringify({schema_version:1,authority:'none',recovery_required:true}),{mode:0o600})}if(killDuringRead&&file.endsWith('portcove-native-job-clock.json')){killDuringRead=false;child.ref();child.kill('SIGKILL');await childClosed}return bytes},
 receive:async root=>{await mkdir(path.join(root,'bin'),{mode:0o700});await mkdir(path.join(root,'scripts'),{mode:0o700});const node=path.join(root,'bin/node'),worker=path.join(root,'scripts/release-hosted-native-worker.bundle.mjs');await copyFile(process.execPath,node);await chmod(node,fault==='shared-node'?0o722:0o700);await copyFile(fake,worker);await chmod(worker,0o600);await writeFile(path.join(root,'manifest.json'),'{}',{mode:0o600});tools={root,node,entries:{'release-hosted-native-worker':worker}};return tools},verify:async receipt=>{assert.equal(receipt,tools);return tools},
 spawn(command,args,options){assert.equal(command,tools.node);assert.equal(args[0],tools.entries['release-hosted-native-worker']);assert.deepEqual(args.slice(1),['run']);assert.equal(options.stdio,'ignore');child=spawn(command,args,options);childClosed=new Promise(resolve=>child.once('close',resolve));birth=readProcessIdentity(child.pid);return child}};
-const routes={'node:fs/promises':'fs','./github-api.mts':'github','./release-signing-job-budget.mts':'budget','./release-controller-tool-admission.mts':'tools','./release-controller-tools.mts':'read','node:child_process':'spawn'};
-registerHooks({resolve(s,c,next){if(c.parentURL===${JSON.stringify(entry)}&&routes[s])return {url:'workflow:'+routes[s],shortCircuit:true};if((c.parentURL===${JSON.stringify(entry)}||c.parentURL===${JSON.stringify(new URL("./release-hosted-native-worker.mts", import.meta.url).href)})&&s==='./release-hosted-native-bootstrap.mts')return {url:'workflow:scope',shortCircuit:true};return next(s,c)},load(u,c,next){if(u.startsWith('workflow:'))return {format:'module',source:u==='workflow:fs'?'export const appendFile=globalThis.workflowFixture.appendFile;export const mkdir=globalThis.workflowFixture.mkdir;export const open=globalThis.workflowFixture.open;':u==='workflow:github'?'export class GitHubApiClient {request(method,endpoint){if(method!=="GET"||endpoint!=="repos/boburning/portcove/actions/runs/123/attempts/1/jobs?per_page=100")throw Error("wrong fixed read");if(globalThis.workflowFixture.fault()==="prerequisite-ambiguous")throw Error("ambiguous GET");return {status:200,headers:new Map(),body:{total_count:2,jobs:["Sign admitted updater payloads","Sign authenticated Timestamp metadata"].map((name,i)=>({id:i+1,run_id:123,head_sha:"a".repeat(40),name,status:"completed",conclusion:globalThis.workflowFixture.fault()==="prerequisite-failed"?"failure":"success"}))}}}};export const createGitHubRunner=()=>()=>{};':u==='workflow:budget'?'export const currentNativeJobDeadline=globalThis.workflowFixture.budget;':u==='workflow:scope'?'export const readActualHostedLinuxBootstrapScope=globalThis.workflowFixture.scope;':u==='workflow:tools'?'export const receiveControllerTools=globalThis.workflowFixture.receive;export const verifiedControllerToolPaths=globalThis.workflowFixture.verify;':u==='workflow:read'?'export const readControllerToolFile=globalThis.workflowFixture.read;export const controllerToolPaths=["bin/node","scripts/release-hosted-native-worker.bundle.mjs"];':'export const spawn=globalThis.workflowFixture.spawn;',shortCircuit:true};return next(u,c)}});
+const routes={'node:fs/promises':'fs','./release-native-postsign-readiness.mts':'readiness','./release-signing-job-budget.mts':'budget','./release-controller-tool-admission.mts':'tools','./release-controller-tools.mts':'read','node:child_process':'spawn'};
+registerHooks({resolve(s,c,next){if(c.parentURL===${JSON.stringify(entry)}&&routes[s])return {url:'workflow:'+routes[s],shortCircuit:true};if((c.parentURL===${JSON.stringify(entry)}||c.parentURL===${JSON.stringify(new URL("./release-hosted-native-worker.mts", import.meta.url).href)})&&s==='./release-hosted-native-bootstrap.mts')return {url:'workflow:scope',shortCircuit:true};return next(s,c)},load(u,c,next){if(u.startsWith('workflow:'))return {format:'module',source:u==='workflow:fs'?'export const appendFile=globalThis.workflowFixture.appendFile;export const mkdir=globalThis.workflowFixture.mkdir;export const open=globalThis.workflowFixture.open;':u==='workflow:readiness'?'export {waitForNativePostSignReadiness} from '+${JSON.stringify(JSON.stringify(new URL("./release-native-postsign-readiness.mts", import.meta.url).href))}+';export const createNativePostSignReader=globalThis.workflowFixture.prerequisite;':u==='workflow:budget'?'export const currentNativeJobDeadline=globalThis.workflowFixture.budget;':u==='workflow:scope'?'export const readActualHostedLinuxBootstrapScope=globalThis.workflowFixture.scope;':u==='workflow:tools'?'export const receiveControllerTools=globalThis.workflowFixture.receive;export const verifiedControllerToolPaths=globalThis.workflowFixture.verify;':u==='workflow:read'?'export const readControllerToolFile=globalThis.workflowFixture.read;export const controllerToolPaths=["bin/node","scripts/release-hosted-native-worker.bundle.mjs"];':'export const spawn=globalThis.workflowFixture.spawn;',shortCircuit:true};return next(u,c)}});
 const api=await import(${JSON.stringify(entry)});
 for(const name of ['valid','prerequisite-failed','prerequisite-ambiguous','dies-during-prerequisite-close','partial-records','shared-node','late-refusal','dies-during-clock','wrong-owner','changed-binding','expired-clock','retained-refusal','missing-final']){
  process.stderr.write('workflow-fixture:'+name+'\n');fault=name;child=undefined;killDuringRead=false;refusalDuringRead=false;process.env.PORTCOVE_FIXTURE_FAULT=name;binding='fixed';home=path.join(root,name);temporary=path.join(home,'temp');await mkdir(home,{mode:0o700});await mkdir(temporary,{mode:0o700});process.env.HOME=home;deadline=performance.now()+30000;
@@ -273,7 +356,7 @@ for(const name of ['valid','prerequisite-failed','prerequisite-ambiguous','dies-
   if(name==='expired-clock'){const file=path.join(directory,'portcove-native-job-clock.json'),clock=JSON.parse(await readFile(file,'utf8'));await writeFile(file,JSON.stringify({...clock,deadline_ns:clock.started_ns}));await assert.rejects(api.hostedLinuxWorkflowUploadRequest('pre-sign'));continue}
   if(name==='retained-refusal'){await writeFile(path.join(directory,'pre-sign-supervision-refusal.json'),JSON.stringify({schema_version:1,authority:'none',recovery_required:true}));await assert.rejects(api.hostedLinuxWorkflowUploadRequest('pre-sign'));continue}
   await assert.rejects(api.acknowledgeHostedLinuxWorkflowUpload('pre-sign','f'.repeat(64),'11','b'.repeat(64)));assert.equal(existsSync(path.join(directory,'portcove-native-linux-pre-sign/native-job-upload-ack.json')),false);
-  await api.acknowledgeHostedLinuxWorkflowUpload('pre-sign',request.request_sha256,'11','b'.repeat(64));await api.settleHostedLinuxWorkflowStage('pre-sign');if(name==='prerequisite-failed'||name==='prerequisite-ambiguous'){await assert.rejects(api.startHostedLinuxWorkflowPostSign());assert.equal(existsSync(path.join(directory,'native-post-start.json')),false);const log=await readFile(path.join(directory,'native-post-sign-prerequisites.jsonl'),'utf8');assert.match(log,/refused-or-ambiguous/);assert.match(log,/recovery_required/);await assert.rejects(api.startHostedLinuxWorkflowPostSign(),{code:'EEXIST'});continue}if(name==='dies-during-prerequisite-close'){await assert.rejects(api.startHostedLinuxWorkflowPostSign(),/unavailable after readback/);assert.equal(existsSync(path.join(directory,'native-post-start.json')),false);assert.equal(existsSync(path.join(directory,'native-post-sign-prerequisites.jsonl')),true);continue}await api.startHostedLinuxWorkflowPostSign();await assert.rejects(api.startHostedLinuxWorkflowPostSign(),{code:'EEXIST'});
+  await api.acknowledgeHostedLinuxWorkflowUpload('pre-sign',request.request_sha256,'11','b'.repeat(64));await api.settleHostedLinuxWorkflowStage('pre-sign');if(name==='prerequisite-failed'||name==='prerequisite-ambiguous'){await assert.rejects(api.startHostedLinuxWorkflowPostSign());assert.equal(existsSync(path.join(directory,'native-post-start.json')),false);const log=await readFile(path.join(directory,'native-post-sign-prerequisites.jsonl'),'utf8');assert.match(log,/refused-or-ambiguous/);assert.match(log,/recovery_required/);assert.equal(JSON.parse(log.trim().split(String.fromCharCode(10)).at(-1)).last_http_status,name==='prerequisite-failed'?200:null);await assert.rejects(api.startHostedLinuxWorkflowPostSign(),{code:'EEXIST'});continue}if(name==='dies-during-prerequisite-close'){await assert.rejects(api.startHostedLinuxWorkflowPostSign(),/unavailable after readback/);assert.equal(existsSync(path.join(directory,'native-post-start.json')),false);assert.equal(existsSync(path.join(directory,'native-post-sign-prerequisites.jsonl')),true);continue}await api.startHostedLinuxWorkflowPostSign();await assert.rejects(api.startHostedLinuxWorkflowPostSign(),{code:'EEXIST'});
   const post=await api.hostedLinuxWorkflowUploadRequest('post-sign');await api.acknowledgeHostedLinuxWorkflowUpload('post-sign',post.request_sha256,'12','c'.repeat(64));
   if(name==='missing-final')await assert.rejects(api.settleHostedLinuxWorkflowStage('post-sign'));else {const result=await api.settleHostedLinuxWorkflowStage('post-sign');assert.equal(result.native_acceptance,'not-established');assert.equal(readProcessIdentity(child.pid),null)}
  }finally{if(child&&readProcessIdentity(child.pid)===birth){child.ref();child.kill('SIGKILL');await childClosed}}

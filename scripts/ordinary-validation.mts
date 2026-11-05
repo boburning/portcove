@@ -2421,6 +2421,7 @@ for (const file of [
     "scripts/release-controller-transport.test.mts",
     "scripts/release-control-step-bridge.test.mts",
     "scripts/production-controller-admission.test.mts",
+    "scripts/release-hosted-native-runner.test.mts",
     "scripts/release-hosted-native-windows-bootstrap.test.mts",
     "scripts/assembler-job-identity.test.mts",
     "scripts/release-bootstrap-preparation.test.mts",
