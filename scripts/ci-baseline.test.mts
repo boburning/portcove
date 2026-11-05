@@ -294,12 +294,13 @@ void test("selected actual transport schema contracts provision their Desktop AJ
 
 void test("publication source preparation provisions its Desktop semver dependency", () => {
   const consumer = "scripts/release-publication-source.test.mts";
-  for (const source of [consumer, "pnpm-workspace.yaml"]) {
-    const plan = make([source]);
-    assert.ok(baselineContractTests(plan).includes(consumer), source);
-    assert.equal(plan.mode, "fast", source);
-    assert.equal(plan.qualification_required, false, source);
-    assert.equal(baselineRequiresDesktopDependencies(plan), true, source);
+  const upgrade = make(["pnpm-lock.yaml", "tools/containers/build/Dockerfile"]);
+  assert.equal(upgrade.fallback?.kind, "all-fast-groups");
+  for (const plan of [make([consumer]), upgrade]) {
+    assert.ok(baselineContractTests(plan).includes(consumer));
+    assert.equal(plan.mode, "fast");
+    assert.equal(plan.qualification_required, false);
+    assert.equal(baselineRequiresDesktopDependencies(plan), true);
   }
 });
 

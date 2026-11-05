@@ -165,6 +165,7 @@ void test("hook fixture runtime dependencies match the independently reviewed mo
     [
       "apps/desktop/src/catalog-values.generated.ts",
       "scripts/bounded-summary.mts",
+      "scripts/catalog-advisories.mts",
       "scripts/catalog-authoring.mts",
       "scripts/catalog-route-facts.mts",
       "scripts/catalog-staged-check.mts",

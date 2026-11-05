@@ -161,7 +161,7 @@ omission: `release-publication-source.test.mts` calls Desktop's release-version
 policy but its registered ownership lacked `desktop_dependencies: true`.
 The root-filtered install therefore could not resolve Desktop's `semver`.
 Declare that prerequisite through the existing registry and cover both direct
-selection and the workspace-pin fallback in the baseline contracts. This adds
+selection and the combined upgrade’s all-fast fallback in the baseline contracts. This adds
 no dependency, job or release authority; the failure remains in
 [the original run](https://github.com/boburning/portcove/actions/runs/41963472820).
 
