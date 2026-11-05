@@ -457,7 +457,6 @@ for (const [file, tests] of [
   ...[
     "release-control-phases",
     "release-input-protections",
-    "release-control-ready",
     "release-reviewed-inputs",
     "release-controller-tool-bootstrap",
   ].map((name): [string, string[]] => [
@@ -672,6 +671,19 @@ for (const [file, tests] of [
     [
       "scripts/release-site-controller.test.mts",
       "scripts/release-metadata-site-controller.test.mts",
+    ],
+  ],
+  [
+    "scripts/release-control-handshake.mts",
+    ["scripts/release-control-handshake.test.mts", "scripts/release-production-dag.test.mts"],
+  ],
+  [
+    "scripts/release-control-ready.mts",
+    [
+      "scripts/release-control-inputs.test.mts",
+      "scripts/release-controller-catalog-routing.test.mts",
+      "scripts/production-controller-admission.test.mts",
+      "scripts/release-production-dag.test.mts",
     ],
   ],
   ["scripts/release-control-step-bridge.mts", ["scripts/release-control-step-bridge.test.mts"]],
@@ -2348,6 +2360,7 @@ for (const file of [
 ])
   explicitNodeTests.set(file, [
     ...(explicitNodeTests.get(file) ?? []),
+    "scripts/release-control-handshake.test.mts",
     "scripts/github-client.test.mts",
     "scripts/release-catalog-site-controller.test.mts",
     "scripts/release-site-readback.test.mts",
@@ -2458,6 +2471,7 @@ explicitNodeTests.set("scripts/github-artifact-download.mts", [
   "scripts/release-candidate-signing-recovery.test.mts",
   "scripts/release-catalog-continuation.test.mts",
   "scripts/release-metadata-context-recovery.test.mts",
+  "scripts/release-control-handshake.test.mts",
   "scripts/release-controller-tools.test.mts",
   "scripts/release-catalog-site-controller.test.mts",
   "scripts/release-acceptance-evidence.test.mts",
