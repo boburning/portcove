@@ -1124,7 +1124,8 @@ internal static class ContractTests
                 install = new { path = "C:/Games/test", version = "1.2" },
                 source = new { path = "C:/Original/edition.z64" },
                 setup_tool = new { path = "C:/Games/tool.exe", sha256 = "fixture-digest" },
-                options = new { mode = "prepare", target = "current" }
+                conversion_tool = (object)null,
+                options = new { mode = "default", target = "windows-x86-64" }
             },
             copy = new { total_bytes = 1234 }
         })));
@@ -1132,7 +1133,8 @@ internal static class ContractTests
             preparation.Contains("Stopping setup may leave files to recover.") &&
             preparation.Contains("When setup succeeds, Play uses the new copy.") &&
             preparation.Contains("Game version: 1.2") && preparation.Contains("C:/Original/edition.z64") &&
-            preparation.Contains("C:/Games/test") && preparation.Contains("fixture-digest"),
+            preparation.Contains("C:/Games/test") && preparation.Contains("fixture-digest") &&
+            preparation.Contains("Target: windows-x86-64"),
             "preparation confirmation leads with the effect and retains inputs, existing installation folder and diagnostic identity");
         Check(SetupInstructions.LaunchBlocker("missing_bios").Contains("required BIOS file") &&
             SetupInstructions.LaunchBlocker("future_blocker").Contains("couldn’t confirm"),
