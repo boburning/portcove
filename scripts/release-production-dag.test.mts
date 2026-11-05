@@ -993,6 +993,29 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
     requiredJob(name).steps.filter(
       (step) => step.uses === "./.github/actions/release-control-observer",
     );
+  for (const name of [
+    "coordinator_protection_observation",
+    "protection_observation",
+    "site_protection_observation",
+    "catalog_metadata_protection_observation",
+  ]) {
+    const steps = requiredJob(name).steps;
+    const action = steps.findIndex(
+      (step) => step.uses === "./.github/actions/release-control-observer",
+    );
+    const install = steps.findIndex((step) => step.run?.includes("controller-clock-store"));
+    assert.ok(install >= 0 && install < action, name);
+    assert.equal(steps[install]?.env?.GH_TOKEN, "");
+    assert.equal(steps[install]?.env?.GITHUB_TOKEN, "");
+    assert.match(
+      steps[install]?.run ?? "",
+      /env -i .*--frozen-lockfile --ignore-scripts --ignore-pnpmfile/u,
+    );
+    assert.match(
+      steps[install]?.run ?? "",
+      /git diff --quiet HEAD -- package.json pnpm-lock.yaml/u,
+    );
+  }
   const coordinatorCalls = observerCalls("coordinator_protection_observation");
   assert.equal(coordinatorCalls.length, 1);
   assert.equal(coordinatorCalls[0]?.with?.initial, "true");

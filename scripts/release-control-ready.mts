@@ -61,14 +61,13 @@ async function main() {
   )
     throw new Error("appointed observer mint target differs from the source-bound configuration");
   const phaseDeadline = isSharedApplicationProtectionObserverSource(admitted)
-    ? currentSharedProtectionJobDeadline(
+    ? await currentSharedProtectionJobDeadline(
         {
           run_id: String(admitted.run_id),
           run_attempt: 1,
           controller_revision: admitted.revision,
           controller_ref: admitted.execution_ref,
         },
-        process.cwd(),
         performance.now() + 570000,
       )
     : undefined;

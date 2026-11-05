@@ -702,14 +702,13 @@ async function main() {
         phase,
       );
       if (isSharedApplicationProtectionObserverSource(source)) {
-        const deadline = currentSharedProtectionJobDeadline(
+        const deadline = await currentSharedProtectionJobDeadline(
           {
             run_id: String(source.run_id),
             run_attempt: 1,
             controller_revision: source.revision,
             controller_ref: source.execution_ref,
           },
-          process.cwd(),
           performance.now() + 570000,
         );
         return withCoordinatorDeadline(deadline, () =>

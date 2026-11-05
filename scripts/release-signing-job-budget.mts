@@ -354,8 +354,8 @@ export function currentWindowsNativeJobDeadline(
 export function sharedProtectionOriginalJobDeadline(...args: BudgetArguments) {
   return signingOriginalJobDeadline("application-protection", ...args);
 }
-export function currentSharedProtectionJobDeadline(...args: CurrentArguments) {
-  return currentSigningJobDeadline("application-protection", ...args);
+export function currentSharedProtectionJobDeadline(identity: JobIdentity, processDeadline: number) {
+  return currentSdkJobDeadline("application-protection", identity, processDeadline);
 }
 function catalogClockRole(raw: unknown): CatalogControlPhase {
   if (

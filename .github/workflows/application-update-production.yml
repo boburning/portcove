@@ -704,7 +704,9 @@ jobs:
       checks: read
     steps:
       - *a1
+      - *controller_clock_pnpm
       - *a2
+      - *controller_clock_install
       - uses: ./.github/actions/release-control-observer
         with:
           phase: coordinator
@@ -807,7 +809,9 @@ jobs:
       checks: read
     steps:
       - *a1
+      - *controller_clock_pnpm
       - *a2
+      - *controller_clock_install
       - uses: ./.github/actions/release-control-observer
         if: ${{ needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.publication_custody
           != 'reused' }}
@@ -1495,7 +1499,9 @@ jobs:
       checks: read
     steps:
       - *a1
+      - *controller_clock_pnpm
       - *a2
+      - *controller_clock_install
       - uses: ./.github/actions/release-control-observer
         with:
           phase: site-publication
@@ -1741,7 +1747,9 @@ jobs:
       checks: read
     steps:
       - *a1
+      - *controller_clock_pnpm
       - *a2
+      - *controller_clock_install
       - uses: ./.github/actions/release-control-observer
         with:
           phase: catalog-definitions
