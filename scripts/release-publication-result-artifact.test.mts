@@ -7,6 +7,7 @@ import { performance } from "node:perf_hooks";
 import { isRecord } from "./runtime-values.mts";
 import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
 import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
+import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import {
   inspectPublicationResultArchive,
   preparePublicationResultPredicate,
@@ -49,6 +50,32 @@ void test("a retained SDK custody reader honors a shorter phase and never renews
   now = 10001;
   await assert.rejects(provider.artifact(1), /deadline exhausted/);
   assert.equal(sends, 1);
+});
+
+void test("SDK custody inherits the coordinator command ceiling without renewing it after scope exit", async (t) => {
+  let now = 1000,
+    sends = 0;
+  t.mock.method(performance, "now", () => now);
+  const provider = await withCoordinatorDeadline(5000, () =>
+    createReleaseCustodyProvider({
+      token: "inert-result-reader",
+      deadline: 10000,
+      fetch: async () => {
+        sends++;
+        if (sends === 2) now = 2500;
+        return Response.json({ id: 1 });
+      },
+    }),
+  );
+  assert.deepEqual(await provider.artifact(1), { id: 1 });
+  await assert.rejects(
+    withCoordinatorDeadline(2000, () => provider.artifact(1)),
+    { code: "deadline_exceeded" },
+  );
+  assert.equal(sends, 2);
+  now = 5001;
+  await assert.rejects(provider.artifact(1), /deadline exhausted/u);
+  assert.equal(sends, 2);
 });
 
 void test("publication result handoff admits one bounded UTF-8 member and rejects alternate inventory, CRC, and expansion", () => {
