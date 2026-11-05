@@ -2401,6 +2401,7 @@ explicitNodeTests.set("scripts/release-direct-node-transport.mts", [
 ]);
 
 explicitNodeTests.set("scripts/github-artifact-download.mts", [
+  "scripts/release-controller-tools.test.mts",
   "scripts/release-artifact-archive.test.mts",
   "scripts/release-public-build-provenance.test.mts",
   "scripts/application-release-qualification.test.mts",
