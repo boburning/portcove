@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import { localDeveloperCredential } from "./github-cli.mts";
-import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
+import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
 import {
   checkCoordinatorDeadline,
   coordinatorCommandDeadline,
@@ -37,6 +37,7 @@ export async function compareVerifiedReleaseCompilerSource(
 ) {
   const candidate = structuredClone(rawCandidate);
   const controller = structuredClone(rawController);
+  const scopedEnvironment = readOnlyReleaseChildEnvironment();
   const environment = { ...process.env };
   const deadline = coordinatorCommandDeadline() ?? performance.now() + 32 * 15_000;
   const tools = await verifiedControllerToolPaths(toolsReceipt);
@@ -52,7 +53,9 @@ export async function compareVerifiedReleaseCompilerSource(
   )
     throw new Error("compiler closure belongs to a different fixed controller source/tree");
   const directory = path.dirname(tools.compiler_source_closure);
-  if (readToken !== undefined && (!readToken || readToken.length > 16384 || /\s/u.test(readToken)))
+  const fixedReader = readToken !== undefined || scopedEnvironment !== undefined;
+  const treeToken = readToken ?? scopedEnvironment?.GH_TOKEN;
+  if (fixedReader && (!treeToken || treeToken.length > 16384 || /\s/u.test(treeToken)))
     throw new Error("fixed compiler source job-reader token malformed");
   const readEnvironment: NodeJS.ProcessEnv = {};
   for (const key of [
@@ -94,14 +97,14 @@ export async function compareVerifiedReleaseCompilerSource(
   const api = new GitHubApiClient((args, input) =>
     runner([...args, "--hostname", "github.com"], input),
   );
-  if (readToken !== undefined) assertTrustedDirectNode("Fixed compiler source reader");
   const preparation = inspectPreparedCompilerSource(api, candidate);
   checkCoordinatorDeadline();
   const source = await compareCompilerClosure(closure, candidate.source_tree, {
     credential:
-      readToken === undefined
+      treeToken === undefined
         ? localDeveloperCredential({ deadline, environment })
-        : { kind: "explicit", token: readToken },
+        : { kind: "explicit", token: treeToken },
+    fixedReader,
     deadline,
     maxBytes: 4 * 1024 * 1024,
   });

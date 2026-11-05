@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createHash } from "node:crypto";
+import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
@@ -67,6 +68,7 @@ void test("verified admission reads the exact tree with the appointed reader and
   const order: string[] = [];
   let changed = false;
   let stalled = false;
+  let enableProxyAfterPreparation = false;
   let cancelled = false;
   t.mock.module("./release-controller-tool-admission.mts", {
     exports: {
@@ -83,6 +85,7 @@ void test("verified admission reads the exact tree with the appointed reader and
       ...compiler,
       inspectPreparedCompilerSource() {
         order.push("preparation");
+        if (enableProxyAfterPreparation) process.env.NODE_USE_ENV_PROXY = "1";
         return { authority: "none" };
       },
     },
@@ -128,6 +131,28 @@ void test("verified admission reads the exact tree with the appointed reader and
   assert.equal(result.candidate_tree, candidate.prepared_tree);
   assert.equal(result.evidence_scope, "github.com");
   assert.deepEqual(order, ["receipt", "preparation", "tree", "receipt"]);
+  order.length = 0;
+  process.env.GH_TOKEN = "appointed-compiler-token";
+  await withReadOnlyReleaseChildren(root, async () => {
+    process.env.GH_TOKEN = "different-ambient-compiler-token";
+    const scoped = await compare(receipt, candidate, controller);
+    assert.equal(scoped.evidence_scope, "github.com");
+  });
+  assert.deepEqual(order, ["receipt", "preparation", "tree", "receipt"]);
+  order.length = 0;
+  enableProxyAfterPreparation = true;
+  const originalProxySetting = process.env.NODE_USE_ENV_PROXY;
+  try {
+    await assert.rejects(
+      compare(receipt, candidate, controller, "appointed-compiler-token"),
+      /trusted direct Node runtime/u,
+    );
+    assert.deepEqual(order, ["receipt", "preparation"]);
+  } finally {
+    enableProxyAfterPreparation = false;
+    if (originalProxySetting === undefined) delete process.env.NODE_USE_ENV_PROXY;
+    else process.env.NODE_USE_ENV_PROXY = originalProxySetting;
+  }
   order.length = 0;
   changed = true;
   await assert.rejects(

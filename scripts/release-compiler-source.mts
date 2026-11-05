@@ -5,6 +5,7 @@ import { execFileSync } from "node:child_process";
 import type { GitHubRestReader } from "./github-api.mts";
 import type { GitHubCredential, GitHubRequestPolicy } from "./github-client.mts";
 import { localDeveloperCredential } from "./github-cli.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
 import { isRecord } from "./runtime-values.mts";
 import { collectReleaseSourceChanges } from "./release-source-changes.mts";
@@ -133,6 +134,7 @@ export async function compareCompilerClosure(
   options: {
     readTree?: CompilerTreeReader;
     credential?: GitHubCredential;
+    fixedReader?: boolean;
     deadline?: number;
     maxBytes?: number;
   },
@@ -154,10 +156,14 @@ export async function compareCompilerClosure(
       deadline,
       maxBytes: options.maxBytes ?? 2 * 1024 * 1024,
       requestTimeoutMs: compilerTreeTimeoutMs,
-      allowRequest: (method, url) =>
-        method === "GET" &&
-        !url.search &&
-        /^\/repos\/boburning\/portcove\/git\/trees\/[a-f0-9]{40}$/u.test(url.pathname),
+      allowRequest(method, url) {
+        if (options.fixedReader) assertTrustedDirectNode("Fixed compiler source reader");
+        return (
+          method === "GET" &&
+          !url.search &&
+          /^\/repos\/boburning\/portcove\/git\/trees\/[a-f0-9]{40}$/u.test(url.pathname)
+        );
+      },
     });
     provider = async (sha) => {
       const policy: GitHubRequestPolicy = { replay: "once", attempts: 0 };
