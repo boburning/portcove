@@ -8,7 +8,7 @@ import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import type { CatalogAnchorMetadataProvider } from "./release-custody-provider.mts";
-import { readGitHubReleaseAsset, readGitHubArtifactArchive } from "./github-binary.mts";
+import { readGitHubReleaseAsset } from "./github-binary.mts";
 import {
   capacityDigest as digest,
   inspectCapacityOperation,
@@ -77,6 +77,7 @@ import {
   inspectRetainedResultOperation,
   publicationResultReadbackDestination,
   inspectPendingResultProvider,
+  acquirePendingResultArchive,
   readPendingResultArchive,
 } from "./release-pending-result-recovery.mts";
 import { inspectCandidateStageEvidence } from "./release-candidate-progress-contract.mts";
@@ -821,15 +822,11 @@ export async function recoverCandidateSigningCustody(
         );
         const controllerTree = commit.tree.sha;
         const providerBefore = await observeProvider();
-        const archive = readGitHubArtifactArchive(
-          `${base}/actions/artifacts/${providerBefore.artifact.id}/zip`,
-          {
-            cwd: directory,
-            maxBytes: providerBefore.artifact.bytes,
-            timeoutMs: signingContextRemaining(deadline, 30000),
-            spawn: (command, args, settings) =>
-              spawnSync(command, args, { ...settings, env: environment }),
-          },
+        const archive = await acquirePendingResultArchive(
+          providerBefore,
+          environment.GH_TOKEN ?? "",
+          deadline,
+          chargeRead,
         );
         signingContextRemaining(deadline, 15000);
         const observeRelease = async (record: Record<string, unknown>) => {
