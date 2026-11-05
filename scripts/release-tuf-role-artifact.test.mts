@@ -177,13 +177,19 @@ function fixture(catalog = false) {
     downloads = 0;
   const options = {
     metadata,
-    download: (endpoint: string) => {
+    download: (endpoint: string, bounds?: { cwd: string; maxBytes: number; timeoutMs: number }) => {
       downloads++;
       assert.ok(
         endpoint === "repos/boburning/portcove/actions/artifacts/900/zip" ||
           endpoint === "repos/boburning/portcove/actions/artifacts/901/zip",
       );
-      return Buffer.from(endpoint.includes("/900/") ? archive : bundle);
+      const bytes = endpoint.includes("/900/") ? archive : bundle;
+      if (bounds) {
+        assert.ok(path.isAbsolute(bounds.cwd));
+        assert.equal(bounds.maxBytes, bytes.length);
+        assert.ok(bounds.timeoutMs > 0 && bounds.timeoutMs <= 30000);
+      }
+      return Buffer.from(bytes);
     },
     spawn: ((_command, argv) => {
       verifications++;
@@ -365,13 +371,35 @@ void test("locked SDK metadata and retained archive/verifier share the original 
     if (previousToken === undefined) delete process.env.GH_TOKEN;
     else process.env.GH_TOKEN = previousToken;
   });
+  const byteRoutes: number[] = [];
   const result = await readAttestedTufRoleArtifact(root, f.expected, deadline, {
     fetch: async (input, settings) => {
       const request = new Request(input, settings);
       const url = new URL(request.url);
+      assert.ok(now < effectiveDeadline);
+      if (url.hostname === "productionresultssa10.blob.core.windows.net") {
+        const id = Number(/^\/actions-results\/([0-9]+)\.zip$/u.exec(url.pathname)?.[1]);
+        assert.equal(request.headers.get("authorization"), null);
+        assert.equal(settings?.credentials, "omit");
+        byteRoutes.push(id);
+        return new Response(
+          Uint8Array.from(
+            f.options.download(`repos/boburning/portcove/actions/artifacts/${id}/zip`),
+          ),
+        );
+      }
       assert.equal(url.origin, "https://api.github.com");
       assert.equal(request.method, "GET");
       assert.equal(request.headers.get("authorization"), "token ghs_SYNTHETIC_ROLE");
+      const archive = /\/artifacts\/([0-9]+)\/zip$/u.exec(url.pathname);
+      if (archive) {
+        return new Response(null, {
+          status: 302,
+          headers: {
+            location: `https://productionresultssa10.blob.core.windows.net/actions-results/${archive[1]}.zip?sig=inert`,
+          },
+        });
+      }
       assert.equal(request.headers.get("x-github-api-version"), "2022-11-28");
       assert.ok(now < effectiveDeadline);
       now += 0.125;
@@ -401,15 +429,6 @@ void test("locked SDK metadata and retained archive/verifier share the original 
       recordTimeout(settings.timeout, 30000);
       return f.options.spawn(command, argv, settings);
     },
-    archiveSpawn: (command, argv, settings) => {
-      assert.equal(command, "gh");
-      assert.equal(argv[argv.indexOf("--hostname") + 1], "github.com");
-      assert.equal(settings.env?.GH_HOST, "github.com");
-      recordTimeout(settings.timeout, 30000);
-      const endpoint = argv.find((value) => value.startsWith("repos/boburning/portcove/"));
-      assert.ok(endpoint);
-      return { status: 0, stdout: f.options.download(endpoint) };
-    },
   }).catch(async (error: unknown) => {
     const names = await readdir(root);
     const phase = await readFile(path.join(root, names[0]!, "refusal.json"), "utf8");
@@ -418,7 +437,8 @@ void test("locked SDK metadata and retained archive/verifier share the original 
     });
   });
   assert.equal(result.evidence_scope, "injected-provider");
-  assert.equal(timeouts.length, 4);
+  assert.equal(timeouts.length, 1);
+  assert.deepEqual(byteRoutes, [900, 901, 900]);
   assert.equal(f.calls.length, 11);
   const tight = now + 500;
   effectiveDeadline = tight;

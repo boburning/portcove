@@ -311,14 +311,26 @@ void test("locked SDK brackets bounded archive readback with exact credentials, 
     else process.env.GH_TOKEN = previousToken;
   });
   const deadline = performance.now() + 2000;
+  const delivery =
+    "https://productionresultssa10.blob.core.windows.net/actions-results/900.zip?sig=inert";
+  let signedTransfers = 0;
   const result = await readSigningOutputArtifact(f.directory, f.expected, {
     deadline,
     fetch: async (input, settings) => {
       const request = new Request(input, settings);
       const url = new URL(request.url);
+      if (url.href === delivery) {
+        signedTransfers++;
+        assert.equal(request.headers.get("authorization"), null);
+        assert.equal(settings?.credentials, "omit");
+        assert.deepEqual(f.calls, ["attempt", "job", "artifact"]);
+        return new Response(Uint8Array.from(f.archive));
+      }
       assert.equal(url.origin, "https://api.github.com");
       assert.equal(request.method, "GET");
       assert.equal(request.headers.get("authorization"), "token ghs_SYNTHETIC_OUTPUT");
+      if (url.pathname === "/repos/boburning/portcove/actions/artifacts/900/zip")
+        return new Response(null, { status: 302, headers: { location: delivery } });
       assert.equal(request.headers.get("x-github-api-version"), "2022-11-28");
       assert.equal(request.headers.get("accept"), "application/vnd.github+json");
       const route = url.pathname;
@@ -338,19 +350,8 @@ void test("locked SDK brackets bounded archive readback with exact credentials, 
             : await f.options.metadata.attempt("12345", 1);
       return Response.json(body);
     },
-    archiveSpawn: (command, args, settings) => {
-      assert.equal(command, "gh");
-      assert.equal(args[args.indexOf("--hostname") + 1], "github.com");
-      assert.equal(settings.env?.GH_HOST, "github.com");
-      assert.equal(settings.env?.NODE_OPTIONS, undefined);
-      assert.ok(
-        typeof settings.timeout === "number" && settings.timeout > 0 && settings.timeout <= 2000,
-      );
-      assert.deepEqual(f.calls, ["attempt", "job", "artifact"]);
-      assert.equal(settings.maxBuffer, f.archive.length);
-      return { status: 0, stdout: Buffer.from(f.archive) };
-    },
   });
+  assert.equal(signedTransfers, 1);
   assert.equal(result.evidence_scope, "injected-provider");
   assert.deepEqual(f.calls, ["attempt", "job", "artifact", "attempt", "job", "artifact"]);
 });
