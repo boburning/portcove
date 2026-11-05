@@ -392,7 +392,7 @@ async function verificationFixture(t: test.TestContext, withPublic = false) {
     ? {
         ...f.options,
         evidenceRequest: publicInputs.expected,
-        evidence: { api: publicInputs.api },
+        evidence: { read: async (endpoint: string) => publicInputs.api.request("GET", endpoint) },
         download: (endpoint: string) =>
           endpoint.includes("/99/") ? f.state.payload : publicInputs.download(endpoint),
       }
@@ -511,7 +511,12 @@ void test("schema3 attester refuses altered public build bytes before obtaining 
       { ...f.request, schema_version: 3, public_build_inputs: p.binding },
       [1, 2],
       f.upload,
-      { ...f.options, evidenceRequest: p.expected, evidence: { api: p.api }, download: p.download },
+      {
+        ...f.options,
+        evidenceRequest: p.expected,
+        evidence: { read: async (endpoint) => p.api.request("GET", endpoint) },
+        download: p.download,
+      },
     ),
     CoordinatorRemoteError,
   );

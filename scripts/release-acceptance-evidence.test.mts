@@ -184,7 +184,9 @@ void test("verified SBOM requires exact issuer/run/attempt/source, all subjects 
 });
 void test("dispatch without an existing signed final artifact remains Unknown without network", async (t) => {
   const f = await releasePublicBuildProvenanceFixture(t);
-  const evidence = collectReleaseRunEvidence(f.expected, { api: f.api });
+  const evidence = await collectReleaseRunEvidence(f.expected, {
+    read: async (endpoint) => f.api.request("GET", endpoint),
+  });
   const result = await collectReleaseSbomEvidence(f.root, f.request, evidence, {
     download: () => {
       throw new Error("unexpected network");
@@ -195,7 +197,9 @@ void test("dispatch without an existing signed final artifact remains Unknown wi
 void test("actual bounded ZIP + verifier transport validates fixture document but remains injected-provider", async (t) => {
   const f = await trustedAssemblyFixture(t, "initial-beta-win-linux");
   const source = await releasePublicBuildProvenanceFixture(t);
-  const evidence = collectReleaseRunEvidence(source.expected, { api: source.api });
+  const evidence = await collectReleaseRunEvidence(source.expected, {
+    read: async (endpoint) => source.api.request("GET", endpoint),
+  });
   const packages = f.request.files.filter(
     (file) =>
       !file.filename.startsWith("SHA256SUMS-") && !file.filename.startsWith("release-producer-"),

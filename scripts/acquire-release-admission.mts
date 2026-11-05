@@ -19,6 +19,7 @@ import { fileURLToPath } from "node:url";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import { recoverRemoteCoordinator } from "./release-coordinator-recovery.mts";
 import { collectReleaseRunEvidence } from "./release-run-evidence.mts";
+import type { ReleaseEvidenceOptions } from "./release-run-evidence.mts";
 import {
   collectReleaseSbomEvidence,
   requireVerifiedReleaseSbomDocument,
@@ -137,7 +138,7 @@ export interface PreparedReleaseAdmissionFacts {
   assembly: unknown;
   archives: readonly { platform: string; artifact_id: number; bytes: number; sha256: string }[];
   public_build_inputs: unknown;
-  evidence: ReturnType<typeof collectReleaseRunEvidence>;
+  evidence: Awaited<ReturnType<typeof collectReleaseRunEvidence>>;
   contexts: unknown;
   allocations: unknown;
   compiler_evidence?: unknown;
@@ -302,7 +303,7 @@ export async function acquireHostedNativePreparation(
   configuration: unknown,
   sources: Pick<
     NonNullable<Parameters<typeof acquireReleaseAdmission>[2]>,
-    "api" | "recover" | "download" | "retainDesktopPackage"
+    "api" | "collectEvidence" | "recover" | "download" | "retainDesktopPackage"
   >,
   receiveFacts: (facts: Readonly<PreparedReleaseAdmissionFacts>) => Promise<unknown>,
 ) {
@@ -313,6 +314,7 @@ export async function acquireHostedNativePreparation(
     throw new Error("native preparation requires the original pre-sign source");
   const collection: NonNullable<Parameters<typeof acquireReleaseAdmission>[2]> = {
     ...(sources.api ? { api: sources.api } : {}),
+    ...(sources.collectEvidence ? { collectEvidence: sources.collectEvidence } : {}),
     ...(sources.recover ? { recover: sources.recover } : {}),
     ...(sources.download ? { download: sources.download } : {}),
     ...(sources.retainDesktopPackage ? { retainDesktopPackage: sources.retainDesktopPackage } : {}),
@@ -333,6 +335,7 @@ export async function acquireReleaseAdmission(
   rawConfiguration: unknown,
   rawOptions: {
     api?: Api;
+    collectEvidence?: typeof collectReleaseRunEvidence;
     recover?: Recover;
     download?: typeof readGitHubArtifactArchive;
     now?: () => number;
@@ -357,6 +360,8 @@ export async function acquireReleaseAdmission(
     ) => Promise<AuthenticatedReleaseControlSource>;
   } = {},
 ) {
+  if (rawOptions.collectEvidence && !rawOptions.api)
+    throw new Error("custom release evidence requires its original source reader");
   const qualifyingOnly = qualifyingCollections.has(rawOptions);
   const nativePreparation = nativePreparationCollections.has(rawOptions);
   const aggregateResume = aggregateCollections.has(rawOptions);
@@ -658,7 +663,38 @@ export async function acquireReleaseAdmission(
       tree: active.prepared_tree,
       workflow_sha256: hash(workflow),
     };
-    const evidence = collectReleaseRunEvidence(evidenceRequest, { api });
+    const collectEvidence = async () => {
+      if (options.api && !options.collectEvidence)
+        return collectReleaseRunEvidence(evidenceRequest, {
+          read: async (endpoint) => api.request("GET", endpoint),
+        });
+      const startedEvidence = performance.now();
+      const deadline = Math.min(
+        started + 15 * 60 * 1000,
+        startedEvidence + 120000 - apiMilliseconds,
+      );
+      const evidenceOptions: ReleaseEvidenceOptions = {
+        deadline,
+        reserve() {
+          budget();
+          return {
+            consumeBytes() {},
+            settle(observation) {
+              if (!observation.dispatched) requests--;
+            },
+          };
+        },
+      };
+      try {
+        return await (options.collectEvidence ?? collectReleaseRunEvidence)(
+          evidenceRequest,
+          evidenceOptions,
+        );
+      } finally {
+        apiMilliseconds += performance.now() - startedEvidence;
+      }
+    };
+    const evidence = await collectEvidence();
     if (
       evidence.run.conclusion !== "success" ||
       evidence.jobs.some((job) => !["success", "skipped"].includes(job.conclusion ?? ""))
@@ -915,7 +951,7 @@ export async function acquireReleaseAdmission(
       }
     }
     phase = "freshness-bracket";
-    const afterEvidence = collectReleaseRunEvidence(evidenceRequest, { api });
+    const afterEvidence = await collectEvidence();
     if (publicBinding)
       requireStablePublicBuildInputEvidence(publicBinding, evidence, afterEvidence);
     if (

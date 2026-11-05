@@ -1754,6 +1754,7 @@ the association controls, not cryptographic or hosted attestation success.
 
 ### Read-only release-run evidence
 
+With the checkout’s frozen Node dependencies installed,
 `node scripts/release-run-evidence.mts REQUEST.json` collects bounded read-only
 API evidence for an exact completed current `Release` run and attempt. The
 request contains only schema version `1`, numeric `repository_id`, `run_id` and
@@ -1762,8 +1763,8 @@ hexadecimal digests (40, 40 and 64 characters). It verifies the commit/tree and
 workflow source bytes at that commit, reads every job page for that attempt and
 every artifact page for the run, then rechecks current run identity. A changed
 attempt, missing page, inconsistent total, duplicate identity or exhausted
-bound refuses the receipt. Bounds are 1,600 records per inventory, 40 GET
-requests, 120 seconds and 2 MiB per API reply.
+bound refuses the receipt. Bounds are 1,600 records per inventory, 40 dispatched
+GET attempts including retries, 120 seconds and 2 MiB per API reply.
 
 `node scripts/release-run-evidence.mts REQUEST.json ARTIFACT_ID RETAINED_FILE`
 also compares an already retained opaque file with that artifact's current
@@ -1771,10 +1772,10 @@ provider digest and exact byte count. Missing, expired or undigested artifacts
 refuse before file I/O. One regular-file handle streams at most 512 MiB using a
 64 KiB buffer plus a one-byte growth probe, checks mutation and SHA-256, then
 refreshes the complete API evidence and refuses changed run/artifact identity.
-Both collections and file comparison share a 40-request cap and cooperative
-120-second receipt/refusal deadline. An in-flight bounded `gh` call may finish
-after the deadline; filesystem I/O has no hard cancellation. This is not a
-process-termination guarantee. The receipt includes both complete API receipts
+Both collections and file comparison share the 40-attempt cap and original
+120-second deadline. The SDK applies that deadline to retry waits and response
+reads. Filesystem I/O is checked cooperatively before further work and before
+returning the receipt. The receipt includes both complete API receipts
 and their digests so its byte/metadata binding remains reviewable; it does not download, parse, extract
 or execute them. Provider upload size and digest describe the uploaded object
 in [GitHub's artifact uploader](https://github.com/actions/toolkit/blob/main/packages/artifact/src/internal/upload/upload-artifact.ts),

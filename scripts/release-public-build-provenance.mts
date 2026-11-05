@@ -23,7 +23,7 @@ import {
 import type { collectReleaseRunEvidence } from "./release-run-evidence.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 
-type Evidence = ReturnType<typeof collectReleaseRunEvidence>;
+type Evidence = Awaited<ReturnType<typeof collectReleaseRunEvidence>>;
 const maximumExpandedBytes = 512 * 1024;
 const members = new Map([
   ["root.json", 256 * 1024],

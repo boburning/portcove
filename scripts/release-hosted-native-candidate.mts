@@ -1,3 +1,5 @@
+import { collectReleaseRunEvidence } from "./release-run-evidence.mts";
+import type { ReleaseEvidenceOptions } from "./release-run-evidence.mts";
 import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import { applicationPublicBuildInputs } from "./release-authority-configuration.mts";
 import { nativePlatformsForReleaseProfile } from "./release-package-policy.mts";
@@ -147,6 +149,27 @@ async function hostedNativeSourceTransport(parentReceipt: object, directory: str
     remaining(1);
     return current;
   });
+  const collectEvidence = (request: unknown, options: ReleaseEvidenceOptions = {}) => {
+    remaining(1);
+    return collectReleaseRunEvidence(request, {
+      ...options,
+      credential: { kind: "explicit", token: childEnvironment.GH_TOKEN ?? "" },
+      async reserve(request) {
+        remaining(1);
+        const outer = await options.reserve?.(request);
+        return {
+          consumeBytes(bytes) {
+            outer?.consumeBytes(bytes);
+          },
+          settle(observation) {
+            outer?.settle(observation);
+            remaining(1);
+          },
+        };
+      },
+      deadline: Math.min(options.deadline ?? Infinity, deadline),
+    });
+  };
   const declarationProvider = async () => {
     const scoped = (maxBytes: number) =>
       createReleaseCustodyProvider({
@@ -176,6 +199,7 @@ async function hostedNativeSourceTransport(parentReceipt: object, directory: str
     deadline,
     remaining,
     api,
+    collectEvidence,
     download,
     downloadAsset,
     recover,
@@ -198,7 +222,7 @@ export async function acquireActualHostedNativeCandidate(parentReceipt: object) 
   try {
     return await withCoordinatorDeadline(Math.min(acquisitionDeadline, parent.deadline), () =>
       withReadOnlyReleaseChildren(directory, async () => {
-        const { remaining, api, download, recover, declarationProvider } =
+        const { remaining, api, collectEvidence, download, recover, declarationProvider } =
           await hostedNativeSourceTransport(parentReceipt, directory);
         const before = await recover();
         if (inspectHostedNativePreparationStage(before.input) !== "payload-signing")
@@ -221,6 +245,7 @@ export async function acquireActualHostedNativeCandidate(parentReceipt: object) 
             },
             {
               api,
+              collectEvidence,
               download,
               recover,
               retainDesktopPackage: async (identity, bytes) => {

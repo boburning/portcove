@@ -259,6 +259,11 @@ const platformSkipConsumers = [
 ];
 const explicitNodeTests = new Map<string, readonly string[]>();
 for (const [file, tests] of [
+  [
+    "scripts/release-run-evidence.mts",
+    ["scripts/release-run-evidence.test.mts", "scripts/release-artifact-archive.test.mts"],
+  ],
+  ["scripts/release-artifact-assembly.mts", ["scripts/release-artifact-archive.test.mts"]],
   ...[
     "scripts/lock-maintenance-policy.mts",
     "scripts/lock-maintenance-registry.mts",
@@ -2247,6 +2252,14 @@ for (const file of [
   explicitNodeTests.set(file, [
     ...(explicitNodeTests.get(file) ?? []),
     "scripts/github-client.test.mts",
+    "scripts/release-run-evidence.test.mts",
+    "scripts/release-artifact-archive.test.mts",
+    "scripts/acquire-release-admission.test.mts",
+    "scripts/release-compiler-evidence.test.mts",
+    "scripts/release-acceptance-evidence.test.mts",
+    "scripts/release-public-build-provenance.test.mts",
+    "scripts/production-aggregate-steps.test.mts",
+    "scripts/trusted-aggregate-attestation.test.mts",
     "scripts/production-controller-admission.test.mts",
     "scripts/release-bootstrap-preparation.test.mts",
     "scripts/application-release-budget.test.mts",
