@@ -10,8 +10,6 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { performance } from "node:perf_hooks";
 import {
-  applicationApi,
-  applicationGet,
   applicationOutput,
   applicationFileIdentity,
   readApplicationJson,
@@ -49,6 +47,9 @@ import {
 } from "./release-hosted-native-windows-worker-contract.mts";
 import { collectApplicationNativeReport } from "./release-native-pre-sign-report.mts";
 import { serializeApplicationPreSignCapture } from "./release-native-stage-capture.mts";
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
+import type { HistoricalJobProvider } from "./release-custody-provider.mts";
+import { nativeCompatibilitySourcePaths } from "./release-native-source-contract.mts";
 import { retainNativeSourceDeclarations } from "./release-native-source-provider.mts";
 import { acquireWindowsWebviewDriver } from "./release-windows-webview-driver.mts";
 import {
@@ -59,7 +60,10 @@ import { runResourceCommand } from "./resource-command.mts";
 import { runRustTests } from "./run-rust-tests.mts";
 import { prepareRustSupportArtifact, rustSupportCompilerIdentity } from "./rust-support-cache.mts";
 import { isRecord } from "./runtime-values.mts";
-import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
+import {
+  readOnlyReleaseChildEnvironment,
+  withReadOnlyReleaseChildren,
+} from "./release-readonly-child-environment.mts";
 import {
   windowsOwnerEnvironment,
   writeWindowsOwnerFrame,
@@ -100,12 +104,12 @@ export function inspectApplicationNativeExecutionEnvironment(environment: NodeJS
   return execution;
 }
 
-function readPublicInstalledOwnerDeadline(
+export async function readPublicInstalledOwnerDeadline(
   current: ReturnType<typeof inspectApplicationReleaseExecution>,
+  provider: Pick<HistoricalJobProvider, "jobs">,
 ) {
-  const raw = applicationGet(
-    `actions/runs/${current.run_id}/attempts/${current.run_attempt}/jobs?per_page=100`,
-  );
+  const { body: raw, next } = await provider.jobs(current.run_id, current.run_attempt, 1);
+  assert.equal(next, null, "original public installed job inventory is incomplete");
   assert.ok(isRecord(raw) && Array.isArray(raw.jobs) && raw.jobs.length < 100);
   assert.equal(raw.total_count, raw.jobs.length);
   const matches = raw.jobs.filter(
@@ -132,7 +136,18 @@ async function produce() {
   );
   const source = await readNativeApplicationSource();
   const publicJob = process.env.GITHUB_JOB === "public_installed";
-  const publicDeadline = publicJob ? readPublicInstalledOwnerDeadline(current) : Infinity;
+  const token = readOnlyReleaseChildEnvironment()?.GH_TOKEN;
+  assert.ok(token, "explicit native execution job reader required");
+  const metadata = (deadline: number) =>
+    createReleaseCustodyProvider({
+      token,
+      deadline,
+      requestTimeoutMs: 30000,
+      maxBytes: 8 * 1024 ** 2,
+    });
+  const publicDeadline = publicJob
+    ? await readPublicInstalledOwnerDeadline(current, await metadata(performance.now() + 30000))
+    : Infinity;
   const acquired = publicJob ? await preparePublicWindowsCandidate(source) : undefined;
   const publicInput = acquired?.ordinaryInputs;
   if (publicJob) assert.ok(publicInput && acquired?.candidate.predecessor);
@@ -148,15 +163,23 @@ async function produce() {
   );
   const minimum = process.env.PORTCOVE_APPLICATION_NATIVE_MINIMUM_PLATFORM;
   assert.ok(minimum === "windows-11-26h2-x64" || minimum === "windows-server-2022-x64-continuity");
-  const control = applicationGet(`git/commits/${current.source}`);
+  // Commit and config plus at most one Contents and immutable blob read per declaration.
+  const provider = await metadata(
+    Math.min(
+      publicDeadline,
+      performance.now() + (2 + 2 * nativeCompatibilitySourcePaths.length) * 30000,
+    ),
+  );
+  const control = await provider.commit(current.source);
   assert.ok(
     isRecord(control) &&
       isRecord(control.tree) &&
       typeof control.tree.sha === "string" &&
       control.sha === current.source,
   );
-  const configuration = applicationGet(
-    `contents/apps/desktop/src-tauri/tauri.conf.json?ref=${prepared.prepared_commit}`,
+  const configuration = await provider.file(
+    "apps/desktop/src-tauri/tauri.conf.json",
+    prepared.prepared_commit,
   );
   assert.ok(
     isRecord(configuration) &&
@@ -202,12 +225,8 @@ async function produce() {
     ? undefined
     : await retainNativeSourceDeclarations(
         output,
-        (pathname) =>
-          applicationApi.request(
-            "GET",
-            `repos/boburning/portcove/contents/${pathname}?ref=${sourceCommit}`,
-          ),
-        (blob) => applicationApi.request("GET", `repos/boburning/portcove/git/blobs/${blob}`),
+        (pathname) => provider.file(pathname, sourceCommit),
+        (blob) => provider.blob(blob),
       );
   for (const filename of fixedScripts)
     await copyFile(path.join(root, "scripts", filename), path.join(tools, "scripts", filename));

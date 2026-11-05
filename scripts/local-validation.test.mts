@@ -4643,6 +4643,7 @@ void test("GitHub dependency changes select actual SDK and REST integration cont
     assert.ok(selected.nodeTests.has("scripts/github-client.test.mts"), file);
     assert.ok(selected.nodeTests.has("scripts/roadmap-rest-intake.test.mts"), file);
     for (const consumer of [
+      "scripts/application-release-native.test.mts",
       "scripts/roadmap-sdk.test.mts",
       "scripts/roadmap-provider-inventory.test.mts",
       "scripts/discovery-github.test.mts",
@@ -4671,6 +4672,7 @@ void test("GitHub dependency changes select actual SDK and REST integration cont
     [{ status: "M", path: "scripts/release-custody-provider.mts" }],
     { fileExists: () => false },
   );
+  assert.ok(custodyChange.nodeTests.has("scripts/application-release-native.test.mts"));
   assert.ok(custodyChange.nodeTests.has("scripts/release-signing-handoff.test.mts"));
   assert.ok(custodyChange.nodeTests.has("scripts/release-immutable-publication.test.mts"));
   assert.ok(custodyChange.nodeTests.has("scripts/release-candidate-signing-recovery.test.mts"));

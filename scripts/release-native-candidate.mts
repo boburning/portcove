@@ -2074,12 +2074,17 @@ export async function readActualNativeSourceDeclarations(receipt: object) {
   const selected = await requireActualNativeCandidate(receipt);
   const declaration = await retainNativeSourceDeclarations(
     retained.directory,
-    (pathname) =>
-      retained.api.request(
+    async (pathname) => {
+      const response = retained.api.request(
         "GET",
         `repos/boburning/portcove/contents/${pathname}?ref=${selected.request.request.candidate.source_commit}`,
-      ),
-    (sha) => retained.api.request("GET", `repos/boburning/portcove/git/blobs/${sha}`),
+      );
+      return response.status === 200 ? response.body : undefined;
+    },
+    async (sha) => {
+      const response = retained.api.request("GET", `repos/boburning/portcove/git/blobs/${sha}`);
+      return response.status === 200 ? response.body : undefined;
+    },
   );
   await requireActualNativeCandidate(receipt);
   return Object.freeze({

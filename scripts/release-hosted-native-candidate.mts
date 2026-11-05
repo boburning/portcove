@@ -271,11 +271,15 @@ export async function acquireActualHostedNativeCandidate(parentReceipt: object) 
           readDeclarations: bindReadOnlyReleaseChildren(async () => {
             await requireActualHostedNativeParentSource(parentReceipt);
             remaining(1);
-            const declaration = await retainNativeSourceDeclarations(directory, (pathname) =>
-              api.request(
-                "GET",
-                `repos/boburning/portcove/contents/${pathname}?ref=${selection.identity.candidate.source_commit}`,
-              ),
+            const declaration = await retainNativeSourceDeclarations(
+              directory,
+              async (pathname) => {
+                const response = api.request(
+                  "GET",
+                  `repos/boburning/portcove/contents/${pathname}?ref=${selection.identity.candidate.source_commit}`,
+                );
+                return response.status === 200 ? response.body : undefined;
+              },
             );
             await requireActualHostedNativeParentSource(parentReceipt);
             remaining(1);
@@ -1139,13 +1143,17 @@ export async function readActualHostedNativePostSignSourceDeclarations(packageRe
   const original = postSignSources.get(inputs.source_receipt);
   if (!original) throw new Error("original post-sign source reader absent");
   return await withReadOnlyReleaseChildren(selected.directory, async () => {
-    const declaration = await retainNativeSourceDeclarations(selected.directory, (pathname) => {
-      original.source.remaining(1);
-      return original.source.api.request(
-        "GET",
-        `repos/boburning/portcove/contents/${pathname}?ref=${selected.candidate.source_commit}`,
-      );
-    });
+    const declaration = await retainNativeSourceDeclarations(
+      selected.directory,
+      async (pathname) => {
+        original.source.remaining(1);
+        const response = original.source.api.request(
+          "GET",
+          `repos/boburning/portcove/contents/${pathname}?ref=${selected.candidate.source_commit}`,
+        );
+        return response.status === 200 ? response.body : undefined;
+      },
+    );
     await requireActualHostedNativePostSignPackage(packageReceipt);
     return Object.freeze({
       declaration,

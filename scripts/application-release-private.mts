@@ -2585,12 +2585,17 @@ async function readNativePayloadAcceptance(
   const productSource = source.prepared.prepared_commit;
   const declarations = await retainNativeSourceDeclarations(
     directory,
-    (pathname) =>
-      applicationApi.request(
+    async (pathname) => {
+      const response = applicationApi.request(
         "GET",
         `repos/boburning/portcove/contents/${pathname}?ref=${productSource}`,
-      ),
-    (blob) => applicationApi.request("GET", `repos/boburning/portcove/git/blobs/${blob}`),
+      );
+      return response.status === 200 ? response.body : undefined;
+    },
+    async (sha) => {
+      const response = applicationApi.request("GET", `repos/boburning/portcove/git/blobs/${sha}`);
+      return response.status === 200 ? response.body : undefined;
+    },
   );
   const binding: ApplicationNativeBinding = {
     control_commit: current.source,
