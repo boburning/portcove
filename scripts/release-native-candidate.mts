@@ -10,7 +10,7 @@ import { createHash } from "node:crypto";
 import { retainNativeSourceDeclarations } from "./release-native-source-provider.mts";
 import { spawnSync } from "node:child_process";
 import { lstatSync, readFileSync } from "node:fs";
-import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { EventEmitter } from "node:events";
@@ -22,6 +22,11 @@ import {
 } from "./release-native-parent.mts";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import { readGitHubArtifactArchive, readGitHubReleaseAsset } from "./github-binary.mts";
+import { downloadGitHubArtifactArchiveFile } from "./github-artifact-download.mts";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
+import { readControllerToolFile } from "./release-controller-tools.mts";
+import type { SigningArchiveDownload } from "./release-signing-handoff.mts";
 import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import {
   recoverRemoteCoordinator,
@@ -450,6 +455,70 @@ async function sourceTransport(parent: Parent, directory: string) {
           return result;
         },
       });
+  const credential = { kind: "explicit" as const, token };
+  const fixedFetch: typeof globalThis.fetch = (input, init) => {
+    checkToolIdentity();
+    assertTrustedDirectNode("installed native post-sign artifacts");
+    return globalThis.fetch(input, init);
+  };
+  const postSignDeadline = (phaseDeadline: number, cap: number) =>
+    Math.min(
+      phaseDeadline,
+      coordinatorCommandDeadline() ?? Infinity,
+      performance.now() + remainingNativeParentBudget(cap),
+    );
+  const readPostSignInventory = async (run: string, phaseDeadline: number) => {
+    await recheck();
+    const deadline = postSignDeadline(phaseDeadline, 15000);
+    const endpoint = `/repos/boburning/portcove/actions/runs/${run}/artifacts?per_page=100`;
+    const { createGitHubClient } = await import("./github-client.mts");
+    const client = await createGitHubClient({
+      credential,
+      deadline,
+      maxBytes: 2 * 1024 ** 2,
+      fetch: fixedFetch,
+      allowRequest(method, url) {
+        if (method !== "GET" || url.pathname + url.search !== endpoint) return false;
+        checkToolIdentity();
+        return true;
+      },
+    });
+    const response = await client.request(`GET ${endpoint}`, {
+      request: { portcove: { replay: "once", attempts: 0 } },
+    });
+    await recheck();
+    if (response.status !== 200 || performance.now() >= deadline)
+      throw new Error("post-sign artifact inventory unavailable");
+    return response.data as unknown;
+  };
+  const downloadPostSignArchive = async (
+    item: { id: number; bytes: number; sha256: string },
+    root: string,
+    cap: number,
+    phaseDeadline: number,
+  ) => {
+    const deadline = postSignDeadline(phaseDeadline, cap);
+    await recheck();
+    const scratch = await mkdtemp(path.join(root, "native-proof-archive-"));
+    let bytes: Buffer;
+    try {
+      const filename = path.join(scratch, "archive.zip");
+      await downloadGitHubArtifactArchiveFile(
+        `repos/boburning/portcove/actions/artifacts/${item.id}/zip`,
+        filename,
+        { credential, deadline, maxBytes: item.bytes, fetch: fixedFetch },
+      );
+      checkToolIdentity();
+      if (performance.now() >= deadline) throw new Error("native proof archive deadline exhausted");
+      bytes = await readControllerToolFile(filename, item.bytes);
+    } finally {
+      await rm(scratch, { recursive: true, force: true });
+    }
+    await recheck();
+    if (performance.now() >= deadline || bytes.length !== item.bytes || hash(bytes) !== item.sha256)
+      throw new Error("native proof archive differs or exceeded its deadline");
+    return bytes;
+  };
   const download = opaque(readGitHubArtifactArchive);
   const downloadAsset = opaque(readGitHubReleaseAsset);
   const recover = () =>
@@ -558,6 +627,8 @@ async function sourceTransport(parent: Parent, directory: string) {
     metadata,
     declarations,
     download,
+    readPostSignInventory,
+    downloadPostSignArchive,
     downloadAsset,
     recover,
     recheck,
@@ -916,28 +987,19 @@ export async function readActualNativePostSignPublicInputs(controllerReceipt: ob
     if (performance.now() >= deadline)
       throw new Error("native public input acquisition deadline exhausted");
   };
-  const inventory = () => {
+  const inventory = async () => {
     active();
-    const response = source.api.request(
-      "GET",
-      `repos/boburning/portcove/actions/runs/${controller.run_id}/artifacts?per_page=100`,
-    );
+    const body = await source.readPostSignInventory(controller.run_id, deadline);
     active();
-    if (response.status !== 200) throw new Error("post-sign artifact inventory unavailable");
-    return inspectNativePostSignArtifactInventory(response.body, controller);
+    return inspectNativePostSignArtifactInventory(body, controller);
   };
-  const before = inventory();
-  const zipEndpoint = `repos/boburning/portcove/actions/artifacts/${before.context.id}/zip`;
-  const contextArchive = source.download(zipEndpoint, {
-    cwd: directory,
-    maxBytes: before.context.bytes,
-    timeoutMs: 30000,
-  });
-  if (
-    contextArchive.length !== before.context.bytes ||
-    hash(contextArchive) !== before.context.sha256
-  )
-    throw new Error("native public context archive differs from provider identity");
+  const before = await inventory();
+  const contextArchive = await source.downloadPostSignArchive(
+    before.context,
+    directory,
+    30000,
+    deadline,
+  );
   const inspected = inspectSigningContextArchive(contextArchive);
   for (const [name, expectedHash] of [
     ["trusted-root.json", publicPins.public_source.root.sha256],
@@ -965,12 +1027,25 @@ export async function readActualNativePostSignPublicInputs(controllerReceipt: ob
     binding_sha256: digest(inspected.manifest.binding),
     facts_sha256: factsSha256,
   };
-  const cachedDownload: typeof readGitHubArtifactArchive = (endpoint, options) =>
-    endpoint === zipEndpoint ? Buffer.from(contextArchive) : source.download(endpoint, options);
+  const selectedArchives = new Map(
+    [
+      before.context,
+      before.context_bundle,
+      ...before.roles.flatMap((role) => [role.artifact, role.bundle]),
+    ].map((item) => [`repos/boburning/portcove/actions/artifacts/${item.id}/zip`, item]),
+  );
+  const download: SigningArchiveDownload = (endpoint, options) => {
+    const item = selectedArchives.get(endpoint);
+    if (!item || item.bytes !== options.maxBytes)
+      throw new Error("native proof archive differs from original inventory");
+    return item.id === before.context.id
+      ? Buffer.from(contextArchive)
+      : source.downloadPostSignArchive(item, options.cwd, options.timeoutMs, deadline);
+  };
   const metadata = await source.metadata(deadline);
   const context = await receiveSigningContextArtifact(directory, expected, deadline, {
     metadata,
-    download: cachedDownload,
+    download,
     spawn: source.verifier(controller),
   });
   const candidate = selected.candidate,
@@ -1013,12 +1088,12 @@ export async function readActualNativePostSignPublicInputs(controllerReceipt: ob
           context_facts_sha256: expected.facts_sha256,
         },
         deadline,
-        { metadata, download: source.download, spawn: source.verifier(controller) },
+        { metadata, download, spawn: source.verifier(controller) },
       ),
     );
   }
   active();
-  if (digest(inventory()) !== digest(before))
+  if (digest(await inventory()) !== digest(before))
     throw new Error("post-sign artifact inventory changed during acquisition");
   await requireActualNativePostSignController(controllerReceipt);
   await writeFile(
