@@ -339,16 +339,39 @@ void test("actual bounded archive member readback brackets complete inventory an
             },
           })
         : { runArtifacts: readPage };
-    return readAdmittedAggregateUpload(
-      provider,
-      producer,
-      wanted,
-      f.request,
-      f.root,
-      deadline,
-      undefined,
-      () => (fault === "bytes" ? Buffer.alloc(archive.length) : archive),
-    );
+    return readAdmittedAggregateUpload(provider, producer, wanted, f.request, f.root, deadline, {
+      token: "inert-aggregate-reader",
+      ...(fault === ""
+        ? {
+            async fetch(input: Parameters<typeof fetch>[0], init?: RequestInit) {
+              const url = new URL(input instanceof Request ? input.url : input);
+              const headers = new Headers(init?.headers);
+              if (url.origin === "https://api.github.com") {
+                assert.equal(url.pathname, "/repos/boburning/portcove/actions/artifacts/99/zip");
+                assert.equal(headers.get("authorization"), "token inert-aggregate-reader");
+                assert.equal(reads, 1);
+                return new Response(null, {
+                  status: 302,
+                  headers: {
+                    location:
+                      "https://productionresultssa10.blob.core.windows.net/actions-results/aggregate?sig=synthetic",
+                  },
+                });
+              }
+              assert.equal(init?.credentials, "omit");
+              assert.equal(headers.has("authorization"), false);
+              assert.equal(reads, 1);
+              return new Response(Uint8Array.from(archive));
+            },
+          }
+        : {
+            async download(artifact: { id: number; bytes: number }, bound: number) {
+              assert.deepEqual(artifact, { id: 99, bytes: archive.length });
+              assert.equal(bound, deadline);
+              return fault === "bytes" ? Buffer.alloc(archive.length) : archive;
+            },
+          }),
+    });
   };
   const result = await exercise("");
   assert.deepEqual(result.artifact, { id: 99, sha256: sha(archive) });

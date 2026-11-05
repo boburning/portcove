@@ -331,10 +331,8 @@ export async function runFixedAdmittedAggregateConfiguration(
           old = attempts[0]!;
         }
       }
-      const metadata = await createReleaseCustodyProvider({
-        token: readOnlyReleaseChildEnvironment()?.GH_TOKEN ?? "",
-        deadline,
-      });
+      const token = readOnlyReleaseChildEnvironment()?.GH_TOKEN ?? "";
+      const metadata = await createReleaseCustodyProvider({ token, deadline });
       let observed: Awaited<ReturnType<typeof readAdmittedAggregateUpload>> | undefined;
       let settlement: { checkpoint: string; operation_id: unknown };
       const finishBinding = async (
@@ -453,6 +451,7 @@ export async function runFixedAdmittedAggregateConfiguration(
                 admitted.facts.assembly,
                 directory,
                 deadline,
+                { token },
               );
               await fresh();
               return {
@@ -484,6 +483,7 @@ export async function runFixedAdmittedAggregateConfiguration(
             admitted.facts.assembly,
             directory,
             deadline,
+            { token },
           );
           if (
             old.completed_effects[0]!.remote_identity !==
@@ -552,7 +552,7 @@ export async function runFixedAdmittedAggregateConfiguration(
             descriptor.assembly,
             directory,
             deadline,
-            locator,
+            { token, locator },
           );
           await fresh();
           return {

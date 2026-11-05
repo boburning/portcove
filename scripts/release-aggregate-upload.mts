@@ -1,6 +1,6 @@
 import { readCompleteRunArtifactInventoryAsync } from "./release-run-artifact-inventory.mts";
 import { createHash } from "node:crypto";
-import { writeFile } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { setTimeout as delay } from "node:timers/promises";
@@ -8,7 +8,8 @@ import { isRecord } from "./runtime-values.mts";
 import { inspectAggregateUploadExpectation } from "./release-aggregate-contract.mts";
 import { inspectCapacityExecutorIdentity, capacityDigest } from "./release-capacity.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
-import { readGitHubArtifactArchive } from "./github-binary.mts";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { verifyAggregateUploadBytes } from "./trusted-aggregate-attestation.mts";
 import type {
   HistoricalJobProvider,
@@ -59,12 +60,18 @@ export async function readAdmittedAggregateUpload(
   rawExpectation: unknown,
   assembly: unknown,
   directory: string,
-  deadline: number,
-  locator?: { artifact_id: number; sha256: string },
-  download: typeof readGitHubArtifactArchive = readGitHubArtifactArchive,
+  phaseDeadline: number,
+  options: {
+    token: string;
+    locator?: { artifact_id: number; sha256: string };
+    download?: (artifact: { id: number; bytes: number }, deadline: number) => Promise<Buffer>;
+    fetch?: typeof globalThis.fetch;
+  },
 ) {
   assembly = structuredClone(assembly);
-  locator = locator === undefined ? undefined : structuredClone(locator);
+  const { token, download, fetch: fetcher = globalThis.fetch } = options;
+  const locator = options.locator === undefined ? undefined : structuredClone(options.locator);
+  const deadline = Math.min(phaseDeadline, coordinatorCommandDeadline() ?? Infinity);
   const readPage = metadata.runArtifacts.bind(metadata);
   const producer = inspectCapacityExecutorIdentity(rawProducer);
   const expectation = inspectAggregateUploadExpectation(rawExpectation);
@@ -107,11 +114,30 @@ export async function readAdmittedAggregateUpload(
     return { id: Number(raw.id), sha256: raw.digest.slice(7), bytes: raw.size_in_bytes, name };
   };
   const before = await inventory();
-  const archive = download(`${base}/actions/artifacts/${before.id}/zip`, {
-    cwd: directory,
-    maxBytes: before.bytes,
-    timeoutMs: active(deadline),
-  });
+  const transferDeadline = Math.min(deadline, performance.now() + 120000);
+  let archive: Buffer;
+  if (download) {
+    archive = await download({ id: before.id, bytes: before.bytes }, transferDeadline);
+  } else {
+    const scratch = await mkdtemp(path.join(directory, "aggregate-upload-download-"));
+    const file = path.join(scratch, "archive.zip");
+    try {
+      const { downloadGitHubArtifactArchiveFile } = await import("./github-artifact-download.mts");
+      await downloadGitHubArtifactArchiveFile(`${base}/actions/artifacts/${before.id}/zip`, file, {
+        credential: { kind: "explicit", token },
+        deadline: transferDeadline,
+        maxBytes: before.bytes,
+        fetch(input, init) {
+          assertTrustedDirectNode("aggregate upload archive");
+          return fetcher(input, init);
+        },
+      });
+      archive = await readControllerToolFile(file, before.bytes);
+    } finally {
+      await rm(scratch, { recursive: true, force: true });
+    }
+  }
+  active(transferDeadline);
   active(deadline);
   if (archive.length !== before.bytes || hash(archive) !== before.sha256)
     throw new Error("aggregate opaque upload bytes changed");
