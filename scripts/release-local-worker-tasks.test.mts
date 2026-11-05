@@ -125,6 +125,7 @@ void test("semantic WSL task starts only the existing bounded oneshot, with no d
     task.linux_service,
     /TimeoutStartSec=2700\nTimeoutStopSec=30\nKillMode=control-group/,
   );
+  assert.match(task.linux_service, /^Environment=PATH=%h\/\.cargo\/bin:\/usr\/bin:\/bin$/mu);
   assert.equal(task.timer_enabled, false);
   assert.equal(
     createHash("sha256").update(task.linux_service).digest("hex"),
