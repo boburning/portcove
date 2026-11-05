@@ -1,12 +1,58 @@
-import { orderedJsonValue as canonical } from "./json-values.mts";
+import { createGitHubClient } from "./github-client.mts";
+import type {
+  GitHubRequestPolicy,
+  GitHubDeferralState,
+  GitHubAttemptObservation,
+} from "./github-client.mts";
+import { GitHubApiError } from "./github-operation.mts";
+import { orderedJsonSha256 as observationHash } from "./json-values.mts";
 import { isRecord } from "./runtime-values.mts";
-import { createHash } from "node:crypto";
 
-export const observationHash = (value: unknown): string => {
-  const serialized = JSON.stringify(canonical(value));
-  if (serialized === undefined) throw new TypeError("Observation is not JSON serializable");
-  return createHash("sha256").update(serialized).digest("hex");
-};
+/** Existing observer metadata contracts retain exact received bytes through the SDK. */
+export async function readObserverMetadata(
+  sdk: Awaited<ReturnType<typeof createGitHubClient>>,
+  endpoint: string,
+  policy: GitHubRequestPolicy = { replay: "once", attempts: 0 },
+) {
+  const evidence: { attempt?: GitHubAttemptObservation } = {};
+  const previousObserve = policy.observe;
+  policy.observe = (attempt) => {
+    evidence.attempt = attempt;
+    previousObserve?.(attempt);
+  };
+  try {
+    const response = await sdk.request({
+      method: "GET",
+      url: new URL(endpoint, "https://api.github.com/").href,
+      request: { portcove: policy },
+    });
+    if (!evidence.attempt)
+      throw new GitHubApiError("invalid_response", "Observer response evidence is unavailable");
+    return {
+      status: response.status,
+      headers: new Map(Object.entries(evidence.attempt.headers)),
+      body: response.data as unknown,
+      bodyBytes: evidence.attempt.bytes,
+    };
+  } catch (error) {
+    if (error instanceof GitHubApiError)
+      throw new GitHubApiError(error.code, error.message, {
+        status: evidence.attempt?.status ?? error.status,
+        responseBytes: evidence.attempt?.bytes ?? error.responseBytes,
+        rateLimit: error.rateLimit,
+        retryAfter: error.retryAfter,
+        requestId: error.requestId,
+        responseDate: error.responseDate,
+      });
+    throw error;
+  } finally {
+    if (previousObserve) policy.observe = previousObserve;
+    else delete policy.observe;
+  }
+}
+
+export { orderedJsonSha256 as observationHash } from "./json-values.mts";
+
 export interface ObserverBudget {
   requests: number;
   pages_per_collection: number;
@@ -103,6 +149,12 @@ export interface ObservationContinuation {
   asset_redirects?: Record<string, string[]>;
   consumed: { requests: number; response_bytes: number; conditional_hits: number };
 }
+/** One invocation owns transport allowances across continued source batches. */
+export interface ObserverGitHubScope {
+  deadline: number;
+  failedReads: Map<string, GitHubRequestPolicy>;
+  deferral: GitHubDeferralState;
+}
 export interface ObserveOptions {
   cache?: unknown;
   continuation?: unknown;
@@ -120,6 +172,7 @@ export interface ObserveOptions {
   deadline?: number;
   sleep?: (milliseconds: number) => Promise<unknown>;
   token?: string;
+  githubScope?: ObserverGitHubScope;
 }
 export interface ChecksumSource {
   release_id: number;
@@ -1249,7 +1302,76 @@ export async function observeUpstream(
     await options.onCheckpoint?.(structuredClone(continuation));
   };
 
-  async function request(
+  if (options.signal?.aborted)
+    throw new ObservationFailure(
+      "cancelled",
+      "Observation cancelled; retain the exact continuation",
+    );
+  const failedReads = options.githubScope?.failedReads ?? new Map<string, GitHubRequestPolicy>();
+  const sdk = await createGitHubClient({
+    credential:
+      options.token === undefined
+        ? { kind: "anonymous" }
+        : { kind: "explicit", token: options.token },
+    deadline: Math.min(
+      options.githubScope?.deadline ?? Infinity,
+      performance.now() + Math.max(0, deadline - now()),
+    ),
+    ...(options.githubScope ? { deferral: options.githubScope.deferral } : {}),
+    maxBytes: config.budget.response_bytes,
+    wallNow: now,
+    ...(options.signal ? { signal: options.signal } : {}),
+    headers: {
+      accept: "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+      "user-agent": "Portcove-upstream-observer",
+    },
+    fetch: async (input, init) =>
+      fetcher(input instanceof Request ? input.url : String(input), {
+        headers: Object.fromEntries(new Headers(init?.headers)),
+        redirect: "manual",
+        signal: init?.signal ?? AbortSignal.abort(),
+      }),
+    sleep: async (milliseconds) => {
+      await sleep(milliseconds);
+    },
+    reserve: () => {
+      if (now() >= deadline || consumed.requests >= config.budget.requests)
+        throw new GitHubApiError(
+          "budget_exhausted",
+          "observation request or time budget exhausted",
+        );
+      try {
+        options.admitRequest?.();
+      } catch {
+        throw new GitHubApiError("budget_exhausted", "observation request admission refused");
+      }
+      consumed.requests++;
+      return {
+        consumeBytes(bytes) {
+          consumed.response_bytes += bytes;
+          try {
+            options.consumeResponseBytes?.(bytes);
+          } catch {
+            throw new GitHubApiError("budget_exhausted", "observation response accounting refused");
+          }
+          if (consumed.response_bytes > config.budget.total_bytes)
+            throw new GitHubApiError("budget_exhausted", "provider response byte budget exhausted");
+        },
+        settle(observation) {
+          if (observation.status !== null)
+            options.observeResponse?.(
+              new Response(null, {
+                status: observation.status,
+                headers: observation.headers,
+              }),
+            );
+        },
+      };
+    },
+  });
+
+  async function requestChecksum(
     pathname: string,
     page: number | null = null,
     cached: unknown = null,
@@ -1261,7 +1383,6 @@ export async function observeUpstream(
         "Observation cancelled; retain the exact continuation",
       );
     const url = `${apiRoot}${pathname}${page === null ? "" : `?per_page=100&page=${page}`}`;
-    const checksumText = /^\/repos\/[^/]+\/[^/]+\/releases\/assets\/\d+$/u.test(pathname);
     const candidate = cached ?? prior[url];
     let previous: CachedPage | undefined;
     if (candidate) {
@@ -1290,7 +1411,7 @@ export async function observeUpstream(
         "observation request or time budget exhausted",
       );
       const headers: Record<string, string> = {
-        Accept: checksumText ? "application/octet-stream" : "application/vnd.github+json",
+        Accept: "application/octet-stream",
         "X-GitHub-Api-Version": "2022-11-28",
         "User-Agent": "Portcove-upstream-observer",
       };
@@ -1300,7 +1421,7 @@ export async function observeUpstream(
       consumed.requests++;
       let response;
       try {
-        const chain = [...(checksumText ? (continuation.asset_redirects?.[url] ?? []) : [])];
+        const chain = [...(continuation.asset_redirects?.[url] ?? [])];
         let address = chain.at(-1) ?? url;
         for (let redirects = 0; ; redirects++) {
           const hopRemaining = deadline - now();
@@ -1323,15 +1444,15 @@ export async function observeUpstream(
                       ([key]) => !["Authorization", "X-GitHub-Api-Version"].includes(key),
                     ),
                   ),
-            redirect: checksumText ? "manual" : "error",
+            redirect: "manual",
             signal: options.signal
               ? AbortSignal.any([
                   options.signal,
-                  AbortSignal.timeout(Math.min(15_000, hopRemaining)),
+                  AbortSignal.timeout(Math.ceil(Math.min(15_000, hopRemaining))),
                 ])
-              : AbortSignal.timeout(Math.min(15_000, hopRemaining)),
+              : AbortSignal.timeout(Math.ceil(Math.min(15_000, hopRemaining))),
           });
-          if (!checksumText || ![301, 302, 303, 307, 308].includes(response.status)) break;
+          if (![301, 302, 303, 307, 308].includes(response.status)) break;
           options.observeResponse?.(response);
           const location = response.headers.get("location");
           await response.body?.cancel();
@@ -1408,26 +1529,18 @@ export async function observeUpstream(
           "provider returned 304 without a validated conditional response",
         );
         consumed.conditional_hits++;
-        if (checksumText && continuation.asset_redirects) delete continuation.asset_redirects[url];
+        if (continuation.asset_redirects) delete continuation.asset_redirects[url];
         return { url, value: previous };
       }
       if (response.status !== 200) {
         await response.body?.cancel();
-        if (checksumText && continuation.asset_redirects?.[url])
-          delete continuation.asset_redirects[url];
+        if (continuation.asset_redirects?.[url]) delete continuation.asset_redirects[url];
         const failure = new ObservationFailure(
           "provider-status",
           `provider returned HTTP ${response.status}`,
         );
-        failure.restartContinuation = checksumText;
+        failure.restartContinuation = true;
         throw failure;
-      }
-      if (
-        !checksumText &&
-        !(response.headers.get("content-type") ?? "").includes("application/json")
-      ) {
-        await response.body?.cancel();
-        throw new ObservationFailure("invalid-metadata", "provider response is not JSON");
       }
       const chunks: Uint8Array[] = [];
       let bytes = 0;
@@ -1443,7 +1556,7 @@ export async function observeUpstream(
         consumed.response_bytes += bytesChunk.length;
         options.consumeResponseBytes?.(bytesChunk.length);
         requireFact(
-          bytes <= Math.min(config.budget.response_bytes, checksumText ? 1024 * 1024 : Infinity) &&
+          bytes <= Math.min(config.budget.response_bytes, 1024 * 1024) &&
             consumed.response_bytes <= config.budget.total_bytes,
           "budget",
           "provider response byte budget exhausted",
@@ -1453,11 +1566,11 @@ export async function observeUpstream(
       let body: unknown;
       try {
         const text = new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(chunks));
-        body = checksumText ? text : JSON.parse(text);
+        body = text;
       } catch {
         throw new ObservationFailure("invalid-metadata", "provider returned malformed UTF-8 JSON");
       }
-      if (checksumText && continuation.asset_redirects) delete continuation.asset_redirects[url];
+      if (continuation.asset_redirects) delete continuation.asset_redirects[url];
       return {
         url,
         value: {
@@ -1467,6 +1580,137 @@ export async function observeUpstream(
           sha256: observationHash(body),
         },
       };
+    }
+  }
+
+  async function request(
+    pathname: string,
+    page: number | null = null,
+    cached: unknown = null,
+    replay = false,
+  ): Promise<{ url: string; value: CachedPage }> {
+    if (options.signal?.aborted)
+      throw new ObservationFailure(
+        "cancelled",
+        "Observation cancelled; retain the exact continuation",
+      );
+    const url = `${apiRoot}${pathname}${page === null ? "" : `?per_page=100&page=${page}`}`;
+    if (/^\/repos\/[^/]+\/[^/]+\/releases\/assets\/\d+$/u.test(pathname))
+      return requestChecksum(pathname, page, cached, replay);
+    const candidate = cached ?? prior[url];
+    let previous: CachedPage | undefined;
+    if (candidate) {
+      try {
+        const context = cached ? pages : priorContexts.get(url);
+        requireFact(context, "invalid-cache", "cached response context missing");
+        previous = { ...validatedPage(candidate, url, config, context) };
+      } catch {
+        throw new ObservationFailure("invalid-cache", "cached response identity is invalid");
+      }
+    }
+    if (replay) {
+      requireFact(previous, "invalid-checkpoint", "continued page is missing");
+      return { url, value: previous };
+    }
+    const policy: GitHubRequestPolicy = failedReads.get(url) ?? {
+      replay: "safe-read",
+      attempts: 0,
+      maxAttempts: config.budget.retries + 1,
+    };
+    failedReads.set(url, policy);
+    try {
+      const response = await sdk.request({
+        method: "GET",
+        url,
+        headers: previous?.etag ? { "if-none-match": previous.etag } : {},
+        request: { portcove: policy },
+      });
+      await policy.admissionSettled;
+      if (response.status === 304) {
+        requireFact(
+          previous?.etag,
+          "invalid-cache",
+          "provider returned 304 without a validated conditional response",
+        );
+        consumed.conditional_hits++;
+        failedReads.delete(url);
+        return { url, value: previous };
+      }
+      requireFact(
+        response.status === 200,
+        "provider-status",
+        `provider returned HTTP ${response.status}`,
+      );
+      requireFact(
+        (response.headers["content-type"] ?? "").includes("application/json"),
+        "invalid-metadata",
+        "provider response is not JSON",
+      );
+      // Endpoint types do not establish usable runtime JSON or domain identity.
+      const body: unknown = response.data;
+      requireFact(
+        typeof body === "object" && body !== null,
+        "invalid-metadata",
+        "provider returned malformed UTF-8 JSON",
+      );
+      failedReads.delete(url);
+      return {
+        url,
+        value: {
+          etag: response.headers.etag ?? "",
+          link: response.headers.link ?? "",
+          body,
+          sha256: observationHash(body),
+        },
+      };
+    } catch (error) {
+      if (error instanceof ObservationFailure) throw error;
+      if (options.signal?.aborted)
+        throw new ObservationFailure(
+          "cancelled",
+          "Observation cancelled; retain the exact continuation",
+        );
+      if (now() >= deadline)
+        throw new ObservationFailure(
+          "budget",
+          "Observation opportunity exhausted during provider request",
+        );
+      if (error instanceof GitHubApiError) {
+        if (error.code === "rate_limited") {
+          const retry = error.retryAfter;
+          const required =
+            retry && /^\d+$/u.test(retry) ? now() + Number(retry) * 1000 : Date.parse(retry ?? "");
+          const reset = error.rateLimit?.resetAt ? Date.parse(error.rateLimit.resetAt) : NaN;
+          const resume = Math.max(
+            now() + 60_000,
+            Number.isFinite(required) ? required : 0,
+            Number.isFinite(reset) ? reset : 0,
+          );
+          requireFact(
+            Number.isFinite(resume) && resume <= 8.64e15,
+            "invalid-metadata",
+            "provider retry clock is invalid",
+          );
+          throw new ObservationFailure(
+            "rate-limit",
+            "provider rate limit defers observation without advancing the last complete snapshot",
+            new Date(resume).toISOString(),
+          );
+        }
+        if (["response_limit", "budget_exhausted", "deadline_exceeded"].includes(error.code))
+          throw new ObservationFailure("budget", "provider response byte or time budget exhausted");
+        if (error.code === "invalid_response")
+          throw new ObservationFailure(
+            "invalid-metadata",
+            "provider returned malformed UTF-8 JSON",
+          );
+        if (error.status !== null)
+          throw new ObservationFailure("provider-status", `provider returned HTTP ${error.status}`);
+      }
+      throw new ObservationFailure(
+        "transport",
+        "provider transport failed within its retry budget",
+      );
     }
   }
 

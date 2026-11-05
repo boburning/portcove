@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   readCompleteRunArtifactInventory,
+  readCompleteRunArtifactInventoryAsync,
   inspectCompleteRunArtifactInventory,
 } from "./release-run-artifact-inventory.mts";
 
@@ -61,4 +62,34 @@ void test("caller deadline refusal interrupts pagination before accepting missin
     /phase deadline/,
   );
   assert.equal(reads, 2);
+});
+
+void test("async artifact inventory waits for each page and refuses duplicate identities before another read", async () => {
+  let release!: () => void;
+  const first = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const seen: number[] = [];
+  const collecting = readCompleteRunArtifactInventoryAsync(async (page) => {
+    seen.push(page);
+    if (page === 1) {
+      await first;
+      return { total_count: 101, artifacts: rows(100) };
+    }
+    return { total_count: 101, artifacts: rows(1, 101) };
+  });
+  await Promise.resolve();
+  assert.deepEqual(seen, [1]);
+  release();
+  assert.deepEqual((await collecting).artifacts, rows(101));
+  assert.deepEqual(seen, [1, 2]);
+  let calls = 0;
+  await assert.rejects(
+    readCompleteRunArtifactInventoryAsync(async () => {
+      calls++;
+      return { total_count: 101, artifacts: [{ id: 1 }, { id: 1 }] };
+    }),
+    /duplicates identity/u,
+  );
+  assert.equal(calls, 1);
 });

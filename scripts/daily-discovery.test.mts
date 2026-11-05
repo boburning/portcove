@@ -2,6 +2,7 @@ import { replacePreparedFile } from "./prepared-file-replacement.mts";
 import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 import { once } from "node:events";
+import { isBuiltin } from "node:module";
 import { DiscoveryBudget, selectDiscoveryProfile } from "./discovery-budget.mts";
 import { boundedDiscoveryRequest } from "./discovery-http.mts";
 import { boundedDiscoveryInput } from "./daily-discovery-session.mts";
@@ -116,13 +117,19 @@ void test("bootstrap identity covers the complete statically loaded module closu
   const entry = new URL("./daily-discovery.mts", import.meta.url);
   // The maintained production bootstrap list remains the independent expectation.
   // Later imports belong to the separately captured runner/execution inputs.
-  const loaded = readFixtureModuleClosure(
+  const closure = readFixtureModuleClosure(
     path.dirname(fileURLToPath(entry)),
     ["daily-discovery.mts"],
     {
       includeDynamicImports: false,
     },
-  ).modules.map((module) => module.path);
+  );
+  assert.deepEqual(
+    closure.external.filter((name) => !isBuiltin(name)),
+    [],
+    "Bootstrap must import before its frozen package installation",
+  );
+  const loaded = closure.modules.map((module) => module.path);
   assert.deepEqual([...new Set(discoveryBootstrapModules)].sort(), loaded.sort());
 });
 void test("metadata fetch skips inherited graph writing and automatic maintenance", (t) => {
@@ -241,7 +248,7 @@ void test("actual discovery startup consumes its bootstrap identities and bounde
         const value=name==='package.json'?JSON.stringify({packageManager:'pnpm@99.0.0'}):name==='.node-version'?process.version.slice(1):name+(changed?'changed':'');
         return encoding==='utf8'?value:Buffer.from(value);
       }}});
-      mock.module(${JSON.stringify(dependency("./observe-configured-upstream.mts"))},{namedExports:{withCheckpointLock:async(file,body)=>{assert.equal(file,path.join(state,'investigation'));await body();}}});
+      mock.module(${JSON.stringify(dependency("./observer-checkpoint-storage.mts"))},{namedExports:{withCheckpointLock:async(file,body)=>{assert.equal(file,path.join(state,'investigation'));await body();}}});
       mock.module(${JSON.stringify(dependency("./release-path-safety.mts"))},{namedExports:{assertOwnedUnlinkedPath:async(parent,value)=>{assert.equal(value,state);return state;}}});
       mock.module(${JSON.stringify(dependency("./discovery-budget.mts"))},{namedExports:{selectDiscoveryProfile:()=>{throw Error('Unexpected profile selection');},discoveryProfiles:{}}});
       mock.module(${JSON.stringify(dependency("./discovery-cache.mts"))},{namedExports:{readDiscoveryCache:()=>{throw Error('Unexpected cache read');}}});

@@ -1,7 +1,7 @@
 import type { ProviderObservation } from "./upstream-observer.mts";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { GitHubApiError } from "./github-api.mts";
+import { GitHubApiError } from "./github-operation.mts";
 import { mkdtemp, mkdir, writeFile, readFile, readdir, rm } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -525,7 +525,7 @@ void test("production-shaped retained provider pages fit the fixed artifact rese
     current: { run: 103, attempt: 1, source: "d".repeat(40) },
     deadline: Date.now() + 60000,
     api: {
-      request: (_method, route) => {
+      read: async (route) => {
         assert.equal(
           route,
           "repos/boburning/portcove",
@@ -1231,21 +1231,18 @@ void test("operational coordinator isolates handoff files, preserves failure not
       _directory: string,
       observation: Parameters<typeof h.options.project>[2],
     ) => h.options.project(config.port_id, config.repository_id, observation),
-    api: {
-      request: (_method: string, endpoint: string) => {
-        const repository = endpoint.replace("/repos/", "");
-        const body = {
-          id: repository === "owner/shared" ? 7 : 8,
-          full_name: repository,
-          archived: false,
-        };
-        return {
-          status: 200,
-          headers: new Map<string, string>(),
-          body,
-          bodyBytes: Buffer.byteLength(JSON.stringify(body)),
-        };
-      },
+    repositoryMetadata: async (repository: string) => {
+      const body = {
+        id: repository === "owner/shared" ? 7 : 8,
+        full_name: repository,
+        archived: false,
+      };
+      return {
+        status: 200,
+        headers: new Map<string, string>(),
+        body,
+        bodyBytes: Buffer.byteLength(JSON.stringify(body)),
+      };
     },
     log: () => {},
   };
@@ -1305,7 +1302,7 @@ void test("operational coordinator isolates handoff files, preserves failure not
     release: { repository: "owner/unavailable" },
   });
   await writeFile(catalog, JSON.stringify(h.input));
-  runtime.api.request = () => {
+  runtime.repositoryMetadata = async () => {
     throw new GitHubApiError(
       "command_failed",
       "private transport detail must stay out of proposal evidence",
@@ -1435,9 +1432,8 @@ void test("legacy artifact retains its original report shape while shared ports 
     now: h.options.now!,
     observer: { fetch: h.options.fetch! },
     log: () => {},
-    api: {
-      request: () => assert.fail("Reviewed legacy numeric identity needs no new baseline lookup"),
-    },
+    repositoryMetadata: async () =>
+      assert.fail("Reviewed legacy numeric identity needs no new baseline lookup"),
     project: async (_cli, source, _directory, observation) =>
       h.options.project(source.port_id, source.repository_id, observation),
   });
@@ -1738,7 +1734,7 @@ void test("a Core executable changed during projection cannot publish a complete
     now: h.options.now!,
     observer: { fetch: h.options.fetch! },
     log: () => {},
-    api: { request: () => assert.fail("Legacy exact source identity needs no lookup") },
+    repositoryMetadata: async () => assert.fail("Legacy exact source identity needs no lookup"),
     project: async (_cli, source, _directory, observation) => {
       await writeFile(cli, "changed mock Core identity");
       return h.options.project(source.port_id, source.repository_id, observation);
@@ -2231,21 +2227,18 @@ void test("hosted opportunity preserves one aggregate handoff and refuses change
       _directory: string,
       observation: Parameters<typeof h.options.project>[2],
     ) => h.options.project(config.port_id, config.repository_id, observation),
-    api: {
-      request: (_method: string, endpoint: string) => {
-        const repository = endpoint.replace("/repos/", ""),
-          body = {
-            id: repository === "owner/shared" ? 7 : 8,
-            full_name: repository,
-            archived: false,
-          };
-        return {
-          status: 200,
-          headers: new Map<string, string>(),
-          body,
-          bodyBytes: Buffer.byteLength(JSON.stringify(body)),
-        };
-      },
+    repositoryMetadata: async (repository: string) => {
+      const body = {
+        id: repository === "owner/shared" ? 7 : 8,
+        full_name: repository,
+        archived: false,
+      };
+      return {
+        status: 200,
+        headers: new Map<string, string>(),
+        body,
+        bodyBytes: Buffer.byteLength(JSON.stringify(body)),
+      };
     },
     log: () => {},
   };
@@ -2555,3 +2548,117 @@ void test("failed refresh invalidates only derived platform labels after authore
   assert.equal(candidate.upstream_observation.fresh_until, fact.fresh_until);
   assert.equal(candidate.upstream_observation.facts_sha256, fact.facts_sha256);
 });
+
+void test(
+  "repository identity lookup aborts the actual SDK fetch with its command",
+  { timeout: 30000 },
+  async (t) => {
+    for (const [name, run] of [
+      ["batch", runCatalogUpstreams],
+      ["opportunity", runCatalogOpportunity],
+    ] as const)
+      await t.test(name, async (t) => {
+        const work = fileURLToPath(new URL("../work/", import.meta.url));
+        await mkdir(work, { recursive: true });
+        const root = await mkdtemp(path.join(work, "catalog-identity-cancel-"));
+        t.after(() => rm(root, { recursive: true, force: true }));
+        const originalGh = process.env.GH_TOKEN,
+          originalGitHub = process.env.GITHUB_TOKEN;
+        process.env.GH_TOKEN = process.env.GITHUB_TOKEN = "synthetic-cancelled-identity";
+        t.after(() => {
+          if (originalGh === undefined) delete process.env.GH_TOKEN;
+          else process.env.GH_TOKEN = originalGh;
+          if (originalGitHub === undefined) delete process.env.GITHUB_TOKEN;
+          else process.env.GITHUB_TOKEN = originalGitHub;
+        });
+        const h = harness();
+        await mkdir(path.join(root, "release"), { recursive: true });
+        await mkdir(path.join(root, "crates/portcove-core/catalog"), { recursive: true });
+        await writeFile(
+          path.join(root, "release/upstream-observer.json"),
+          JSON.stringify(h.options.config),
+        );
+        await writeFile(
+          path.join(root, "crates/portcove-core/catalog/catalog.json"),
+          JSON.stringify({ ports: h.input.ports.slice(0, 1) }),
+        );
+        await writeFile(
+          path.join(root, "crates/portcove-core/catalog/listings.json"),
+          JSON.stringify({ format_version: 1, listings: [] }),
+        );
+        const cli = path.join(root, "inspector");
+        await writeFile(cli, "inert controlled inspector");
+        const controller = new AbortController();
+        let dispatched!: () => void,
+          drain!: () => void,
+          aborted = false,
+          calls = 0,
+          projections = 0;
+        const entered = new Promise<void>((resolve) => {
+          dispatched = resolve;
+        });
+        t.mock.method(
+          globalThis,
+          "fetch",
+          async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+            calls++;
+            const url =
+              input instanceof Request ? input.url : input instanceof URL ? input.href : input;
+            assert.equal(url, "https://api.github.com/repos/owner/shared");
+            assert.ok(init?.signal);
+            return await new Promise<Response>((_resolve, reject) => {
+              drain = () => reject(new Error("controlled fixture cleanup"));
+              init.signal!.addEventListener(
+                "abort",
+                () => {
+                  aborted = true;
+                  reject(init.signal!.reason);
+                },
+                { once: true },
+              );
+              dispatched();
+            });
+          },
+        );
+        const completed = run(["--cli", cli], {
+          root,
+          deadline: h.options.now!() + 60000,
+          now: h.options.now!,
+          observer: { signal: controller.signal },
+          inspectCatalog: async () =>
+            new Map(h.input.ports.map((port) => [port.id, observationHash(port)])),
+          project: async () => {
+            projections++;
+            assert.fail("cancelled identity cannot project facts");
+          },
+          log: () => {},
+        }).then(
+          (value) => ({ status: "resolved" as const, value }),
+          (error: unknown) => ({ status: "rejected" as const, error }),
+        );
+        try {
+          await Promise.race([
+            entered,
+            completed.then(() => assert.fail("identity did not reach the configured SDK")),
+          ]);
+          controller.abort();
+          assert.equal(aborted, true, "command cancellation must reach the pending SDK fetch");
+          const result = await completed;
+          assert.equal(calls, 1);
+          assert.equal(projections, 0);
+          if (result.status === "resolved")
+            assert.equal(result.value.report.failures[0]?.rule, "cancelled");
+          else
+            assert.ok(
+              result.error instanceof Error &&
+                "rule" in result.error &&
+                result.error.rule === "cancelled",
+            );
+        } finally {
+          controller.abort();
+          drain?.();
+          await completed;
+        }
+      });
+  },
+);

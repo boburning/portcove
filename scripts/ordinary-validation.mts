@@ -2027,6 +2027,7 @@ for (const file of [
   ]);
 explicitNodeTests.set("scripts/fixtures/module-closure.mts", [
   ...(explicitNodeTests.get("scripts/fixtures/module-closure.mts") ?? []),
+  "scripts/upstream-health-monitor.test.mts",
   "scripts/repository-settings.test.mts",
   "scripts/release-controller-tools.test.mts",
   "scripts/release-windows-webview-driver.test.mts",
@@ -2199,6 +2200,9 @@ for (const file of [
     "scripts/discovery-github.test.mts",
     "scripts/discovery-primary-progress.test.mts",
     "scripts/roadmap-provider-inventory.test.mts",
+    "scripts/upstream-observer.test.mts",
+    "scripts/catalog-upstream-observer.test.mts",
+    "scripts/observer-checkpoint-artifact.test.mts",
   ]);
 
 // Preparation's accepted-observation reuse and lineage refusals also consume

@@ -345,8 +345,14 @@ per collection; retained pages do not consume another collection allowance.
 These bounds do not cap the total legitimate collection across resumed batches.
 Each batch also retains
 4 MiB per response, 16 MiB total response bytes and three minutes of observation.
-Transport/server failures allow two retries with bounded backoff; rate-limit
-responses defer to the provider retry clock rather than sleep through a job.
+Eligible transient transport/server failures use the configured GitHub SDK with
+at most two retries; smaller configured allowances remain effective. Cancellation,
+resource limits and invalid metadata remain terminal. Continued catalog batches
+retain the command's original monotonic deadline and exhausted logical-read
+allowances. Rate-limit responses respect provider waits and defer whenever those
+waits cannot fit the original bounds. The existing observer owns conditional
+cache reuse, facts digests, identity validation and complete-versus-prefix proofs;
+the SDK supplies bounded transport and request evidence.
 Conditional requests count against the request budget. No game artifact bytes
 are downloaded. The core input is bounded to 4 MiB, its process to thirty
 seconds, and the entire hosted job to ten minutes on one fixed Linux runner.

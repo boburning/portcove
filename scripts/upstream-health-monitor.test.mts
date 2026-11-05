@@ -1,8 +1,19 @@
+import { isBuiltin } from "node:module";
+import { readFixtureModuleClosure } from "./fixtures/module-closure.mts";
 import assert from "node:assert/strict";
-import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  copyFile,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  writeFile,
+  symlink,
+  realpath,
+} from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
-import { pathToFileURL } from "node:url";
+import { pathToFileURL, fileURLToPath } from "node:url";
 import path from "node:path";
 import test from "node:test";
 import pinFixture from "./fixtures/upstream-health-fade-to-black.json" with { type: "json" };
@@ -680,27 +691,23 @@ void test("missing planner scope emits CLI failure artifacts without network wor
   t.after(() => rm(directory, { recursive: true, force: true }));
   await mkdir(path.join(directory, "scripts"));
   await mkdir(path.join(directory, ".github"));
-  for (const script of [
-    "upstream-health-monitor",
-    "upstream-health-triage",
-    "check-catalog-repositories",
-    "observe-configured-upstream",
-    "observer-checkpoint-storage",
-    "upstream-observer",
-    "upstream-health-inputs",
-    "upstream-lineage",
-    "release-path-safety",
-    "json-values",
-    "runtime-values",
-  ])
-    await copyFile(
-      new URL(`./${script}.mts`, import.meta.url),
-      path.join(directory, "scripts", `${script}.mts`),
-    );
-  await copyFile(
-    new URL("../.github/upstream-health-accounting.json", import.meta.url),
-    path.join(directory, ".github/upstream-health-accounting.json"),
-  );
+  const root = fileURLToPath(new URL("../", import.meta.url));
+  const closure = readFixtureModuleClosure(root, ["scripts/upstream-health-monitor.mts"]);
+  const packages = closure.external.filter((name) => !isBuiltin(name));
+  assert.deepEqual(packages, ["@octokit/core", "@octokit/plugin-paginate-rest"]);
+  for (const module of closure.modules) {
+    const destination = path.join(directory, module.path);
+    await mkdir(path.dirname(destination), { recursive: true });
+    await writeFile(destination, module.bytes);
+  }
+  // Package availability is explicit; dependency discovery grants no provenance authority.
+  for (const name of packages) {
+    const destination = path.join(directory, "node_modules", name);
+    await mkdir(path.dirname(destination), { recursive: true });
+    await symlink(await realpath(path.join(root, "node_modules", name)), destination, "junction");
+  }
+  for (const name of ["package.json", "pnpm-lock.yaml", ".github/upstream-health-accounting.json"])
+    await copyFile(path.join(root, name), path.join(directory, name));
   const denyNetwork = path.join(directory, "deny-network.mjs");
   await writeFile(
     denyNetwork,
@@ -731,6 +738,8 @@ void test("missing planner scope emits CLI failure artifacts without network wor
         GITHUB_RUN_ID: mainExecution.run_id,
         GITHUB_RUN_ATTEMPT: mainExecution.run_attempt,
         GITHUB_TOKEN: "",
+        GH_TOKEN: "",
+        REPOSITORY_TOKEN: "",
         GITHUB_OUTPUT: outputs,
         GITHUB_STEP_SUMMARY: stepSummary,
       },

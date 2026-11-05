@@ -11,10 +11,13 @@ import { randomUUID, createHash } from "node:crypto";
 import { mkdir, lstat, rm, appendFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import type { GitHubRestReader } from "./github-api.mts";
+import type { GitHubMetadataResponse } from "./github-operation.mts";
+import { createGitHubClient } from "./github-client.mts";
+import { localDeveloperCredential } from "./github-cli.mts";
+import type { GitHubRequestPolicy } from "./github-client.mts";
 import type { ObserveOptions } from "./upstream-observer.mts";
 import type { CatalogObserverCheckpoint } from "./catalog-upstream-observer.mts";
-import { GitHubApiClient, GitHubApiError, createGitHubRunner } from "./github-api.mts";
+import { GitHubApiError } from "./github-operation.mts";
 import { isRecord } from "./runtime-values.mts";
 import { advanceCatalogObservations } from "./catalog-upstream-observer.mts";
 import {
@@ -28,6 +31,7 @@ import {
 } from "./observe-configured-upstream.mts";
 import {
   observationHash,
+  readObserverMetadata,
   ObservationFailure,
   validateObserverConfig,
 } from "./upstream-observer.mts";
@@ -38,6 +42,40 @@ import { observerSnapshotLimit } from "./observer-checkpoint-artifact.mts";
 import { decodeStoredObserverCheckpoint } from "./observer-checkpoint-storage.mts";
 
 const defaultRoot = fileURLToPath(new URL("../", import.meta.url));
+
+/** One eligible command selects credentials lazily, once, for fresh repository identity reads. */
+function repositoryMetadataReader(
+  maxBytes: number,
+  scope: NonNullable<ObserveOptions["githubScope"]>,
+  token: string | undefined,
+  signal?: AbortSignal,
+) {
+  let sdk: ReturnType<typeof createGitHubClient> | undefined;
+  const failed = new Map<string, GitHubRequestPolicy>();
+  return async (repository: string) => {
+    if (!sdk) {
+      const credential = localDeveloperCredential({ deadline: scope.deadline });
+      sdk = createGitHubClient({
+        credential,
+        ...(signal ? { signal } : {}),
+        deadline: scope.deadline,
+        maxBytes,
+        ...(credential.kind === "explicit" && credential.token === token
+          ? { deferral: scope.deferral }
+          : {}),
+        headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
+        allowRequest: (method, url) =>
+          method === "GET" && /^\/repos\/[^/]+\/[^/]+$/u.test(url.pathname),
+      });
+    }
+    const endpoint = `/repos/${repository}`;
+    const policy = failed.get(endpoint) ?? { replay: "once" as const, attempts: 0 };
+    failed.set(endpoint, policy);
+    const response = await readObserverMetadata(await sdk, endpoint, policy);
+    failed.delete(endpoint);
+    return response;
+  };
+}
 
 export async function retireObserverConfigurations(
   root: string,
@@ -112,12 +150,12 @@ export async function runCatalogUpstreams(
   runtime: {
     root?: string;
     now?: () => number;
-    observer?: Pick<ObserveOptions, "fetch" | "sleep" | "signal">;
+    observer?: Pick<ObserveOptions, "fetch" | "sleep" | "signal" | "githubScope" | "token">;
     project?: typeof projectObservation;
     projectProvider?: typeof projectProviderObservation;
     providerFetch?: typeof fetch;
     inspectCatalog?: typeof inspectCatalogDefinitions;
-    api?: GitHubRestReader;
+    repositoryMetadata?: (repository: string) => Promise<GitHubMetadataResponse>;
     log?: (value: string) => void;
     deadline?: number;
     excludedSources?: ReadonlySet<string>;
@@ -138,6 +176,13 @@ export async function runCatalogUpstreams(
   );
   if (!Number.isFinite(operationDeadline) || operationDeadline <= now())
     throw new ObservationFailure("budget", "Observer opportunity deadline unavailable");
+  const githubScope = runtime.observer?.githubScope ?? {
+    deadline: performance.now() + Math.max(0, operationDeadline - now()),
+    failedReads: new Map<string, GitHubRequestPolicy>(),
+    deferral: { primary: new Map<string, number>(), secondary: 0 },
+  };
+  const observationToken = runtime.observer?.token ?? process.env.GITHUB_TOKEN;
+
   const catalogInput = await readBoundedEvidenceFile(
     path.join(root, "crates/portcove-core/catalog/catalog.json"),
     4 * 1024 * 1024,
@@ -159,14 +204,13 @@ export async function runCatalogUpstreams(
     path.join(root, "work/upstream-observer", observationHash(config));
   const statePath = path.join(root, "work/upstream-observer/catalog/checkpoint.json");
   await mkdir(path.dirname(statePath), { recursive: true });
-  const api =
-    runtime.api ??
-    new GitHubApiClient((args, input) =>
-      createGitHubRunner({
-        cwd: root,
-        maxBuffer: config.budget.response_bytes + 16384,
-        timeoutMs: Math.max(1, Math.min(15000, Math.floor(operationDeadline - now()))),
-      })(args, input),
+  const repositoryMetadata =
+    runtime.repositoryMetadata ??
+    repositoryMetadataReader(
+      config.budget.response_bytes,
+      githubScope,
+      observationToken,
+      runtime.observer?.signal,
     );
   let health: unknown = null;
   try {
@@ -233,9 +277,10 @@ export async function runCatalogUpstreams(
       deadline: operationDeadline,
       ...(runtime.excludedSources ? { excludedSources: runtime.excludedSources } : {}),
       ...runtime.observer,
+      githubScope,
       policyIdentity: coreIdentity.sha256,
       definitionHash: (portId) => definitionHashes.get(portId) ?? "",
-      ...(process.env.GITHUB_TOKEN ? { token: process.env.GITHUB_TOKEN } : {}),
+      ...(observationToken === undefined ? {} : { token: observationToken }),
       withSourceLock: (sourceConfig, operation) =>
         withCheckpointLock(path.join(directory(sourceConfig), "checkpoint.json"), operation),
       load: async (sourceConfig) => {
@@ -265,7 +310,7 @@ export async function runCatalogUpstreams(
         if (equivalent !== null) return equivalent;
         transport.admitRequest();
         try {
-          const response = api.request("GET", `/repos/${source.repository}`);
+          const response = await repositoryMetadata(source.repository);
           transport.observeResponse(
             new Response(null, { headers: Object.fromEntries(response.headers) }),
           );
@@ -290,6 +335,14 @@ export async function runCatalogUpstreams(
           return Number(response.body.id);
         } catch (error) {
           if (error instanceof GitHubApiError) transport.consumeResponseBytes(error.responseBytes);
+          if (
+            runtime.observer?.signal?.aborted ||
+            (error instanceof GitHubApiError && error.code === "cancelled")
+          )
+            throw new ObservationFailure(
+              "cancelled",
+              "Repository identity lookup cancelled; retain existing observations",
+            );
           if (error instanceof GitHubApiError && error.code === "rate_limited")
             throw new ObservationFailure(
               "rate-limit",
@@ -548,6 +601,20 @@ export async function runCatalogOpportunity(
   const config = validateObserverConfig(
     await boundedJson(path.join(root, "release/upstream-observer.json"), 16384),
   );
+  const githubScope = runtime.observer?.githubScope ?? {
+    deadline: performance.now() + Math.max(0, runtime.deadline - now()),
+    failedReads: new Map<string, import("./github-client.mts").GitHubRequestPolicy>(),
+    deferral: { primary: new Map<string, number>(), secondary: 0 },
+  };
+  const observationToken = runtime.observer?.token ?? process.env.GITHUB_TOKEN;
+  const repositoryMetadata =
+    runtime.repositoryMetadata ??
+    repositoryMetadataReader(
+      config.budget.response_bytes,
+      githubScope,
+      observationToken,
+      runtime.observer?.signal,
+    );
   const handoff = {
     directory: path.join(root, "work/upstream-observer-handoff", randomUUID()),
     sizes: new Map<string, number>(),
@@ -564,6 +631,12 @@ export async function runCatalogOpportunity(
         await assertInputs();
         const batch = await runCatalogUpstreams(fixedArgs, {
           ...runtime,
+          observer: {
+            ...runtime.observer,
+            githubScope,
+            ...(observationToken === undefined ? {} : { token: observationToken }),
+          },
+          repositoryMetadata,
           handoff,
           excludedSources: excluded,
           log: () => {},

@@ -13,6 +13,7 @@ import { fileURLToPath } from "node:url";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 import {
   decodeStoredObserverCheckpoint,
+  withCheckpointLock,
   observerSourceCheckpointLimit,
 } from "./observer-checkpoint-storage.mts";
 import {
@@ -508,31 +509,7 @@ export async function atomicJson(filename: string, value: unknown) {
   }
 }
 
-/** Never steal an interrupted coordinator's lock; preserve its checkpoint for recovery. */
-export async function withCheckpointLock<T>(
-  statePath: string,
-  operation: () => T | Promise<T>,
-): Promise<T> {
-  const lockPath = await assertOwnedUnlinkedPath(
-    path.join(repositoryRoot, "work"),
-    `${statePath}.lock`,
-    "observer coordinator lock",
-  );
-  await mkdir(path.dirname(lockPath), { recursive: true });
-  const handle = await open(lockPath, "wx");
-  try {
-    await handle.writeFile(
-      JSON.stringify({
-        pid: process.pid,
-        started_at: new Date().toISOString(),
-      }),
-    );
-    return await operation();
-  } finally {
-    await handle.close();
-    await rm(lockPath);
-  }
-}
+export { withCheckpointLock } from "./observer-checkpoint-storage.mts";
 
 interface InspectionBounds {
   deadline: number;
