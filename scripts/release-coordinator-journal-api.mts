@@ -1,13 +1,11 @@
+import type { GitHubAttemptObservation, GitHubRequestPolicy } from "./github-client.mts";
 import { GitHubApiError } from "./github-operation.mts";
 import { spawnSync } from "node:child_process";
 import { requireStorageAppToken } from "./release-storage-credential.mts";
 import { lstatSync, mkdtempSync, realpathSync } from "node:fs";
 import path from "node:path";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
-import type {
-  CoordinatorCheckpointApi,
-  CoordinatorRemoteApi,
-} from "./release-coordinator-remote.mts";
+import type { CoordinatorSigningApi, CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
 import { performance } from "node:perf_hooks";
 import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
@@ -34,12 +32,23 @@ export function createCoordinatorJournalApi(directory: string, deadline?: number
   };
   remaining();
   const token = journalCredential(process.env.PORTCOVE_COORDINATOR_JOURNAL_TOKEN);
+  return createJournalSdk(
+    directory,
+    token,
+    Math.min(deadline ?? performance.now() + 240000, coordinatorCommandDeadline() ?? Infinity),
+    remaining,
+  );
+}
+
+function createJournalSdk(
+  directory: string,
+  token: string,
+  clientDeadline: number,
+  remaining?: () => void,
+  preserveLateObjectEvidence = false,
+) {
   assertOwnedJournalDirectory(directory);
   assertTrustedDirectNode();
-  const clientDeadline = Math.min(
-    deadline ?? performance.now() + 240000,
-    coordinatorCommandDeadline() ?? Infinity,
-  );
   let client:
     | Promise<Awaited<ReturnType<typeof import("./github-client.mts").createGitHubClient>>>
     | undefined;
@@ -57,7 +66,8 @@ export function createCoordinatorJournalApi(directory: string, deadline?: number
         headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
       }),
     ));
-  const requestDeadline = () => Math.min(clientDeadline, coordinatorCommandDeadline() ?? Infinity);
+  const requestDeadline = (deadline = Infinity) =>
+    Math.min(clientDeadline, deadline, coordinatorCommandDeadline() ?? Infinity);
   const assertPublicResponse = (data: unknown) => {
     JSON.stringify(data, (key, value: unknown) => {
       if (key.includes(token) || (typeof value === "string" && value.includes(token)))
@@ -66,35 +76,72 @@ export function createCoordinatorJournalApi(directory: string, deadline?: number
     });
   };
   return {
-    async request(method: string, endpoint: string, body?: unknown) {
+    async request(method: string, endpoint: string, body?: unknown, deadline?: number) {
       assertJournalRoute(method, endpoint);
-      remaining();
+      remaining?.();
       const sdk = await configured();
+      let retained: { status: number; body: unknown } | undefined;
       try {
         const response = await sdk.request(`${method} /${endpoint}`, {
           ...(body === undefined ? {} : { data: body }),
-          request: { portcove: { replay: "once", attempts: 0, deadline: requestDeadline() } },
+          request: {
+            portcove: {
+              replay: "once",
+              attempts: 0,
+              deadline: requestDeadline(deadline),
+              ...(preserveLateObjectEvidence && method === "POST"
+                ? {
+                    async retainResponse(
+                      value: Parameters<NonNullable<GitHubRequestPolicy["retainResponse"]>>[0],
+                    ) {
+                      assertPublicResponse(value.data);
+                      retained = { status: value.status, body: value.data };
+                    },
+                  }
+                : {}),
+            },
+          },
         });
-        remaining();
+        if (!retained) remaining?.();
         assertPublicResponse(response.data);
         return { status: response.status, body: response.data as unknown };
       } catch (error) {
-        if (method === "GET" && error instanceof GitHubApiError && error.status === 404) {
-          remaining();
-          return { status: 404, body: undefined };
+        if (error instanceof GitHubApiError) {
+          if (retained && error.code === "deadline_exceeded") return retained;
+          if (method === "GET" && error.status === 404) {
+            remaining?.();
+            return { status: 404, body: undefined };
+          }
         }
         throw error;
       }
     },
-    async graphql(query, variables) {
-      remaining();
+    async graphql(
+      query: string,
+      variables: Readonly<Record<string, unknown>>,
+      options?: { deadline?: number; onDispatched?: () => void },
+    ) {
+      remaining?.();
       const sdk = await configured();
       const response = await sdk.request("POST /graphql", {
         query,
         variables,
-        request: { portcove: { replay: "once", attempts: 0, deadline: requestDeadline() } },
+        request: {
+          portcove: {
+            replay: "once",
+            attempts: 0,
+            deadline: requestDeadline(options?.deadline),
+            ...(options?.onDispatched
+              ? {
+                  observe(attempt: GitHubAttemptObservation) {
+                    if (attempt.dispatched) options.onDispatched?.();
+                  },
+                }
+              : {}),
+          },
+        },
       });
-      remaining();
+      remaining?.();
       const envelope: unknown = response.data;
       if (
         response.status !== 200 ||
@@ -106,7 +153,7 @@ export function createCoordinatorJournalApi(directory: string, deadline?: number
       assertPublicResponse(envelope.data);
       return { data: envelope.data };
     },
-  } satisfies CoordinatorCheckpointApi;
+  };
 }
 
 /** Inert prepared-source Git object custody only. Source/object identities
@@ -145,7 +192,7 @@ export function createCheckpointJobTokenApi(
   configuration: unknown,
   deadline: number,
   storageWriter?: { app_id: number; installation_id: number },
-): CoordinatorRemoteApi {
+) {
   const started = performance.now();
   if (!Number.isFinite(deadline) || deadline <= started || deadline - started > 120000)
     throw new Error("job journal requires the original bounded deadline");
@@ -183,24 +230,14 @@ export function createCheckpointJobTokenApi(
   let nodeId: string | null = null,
     requests = 0,
     casAttempted = false;
-  let requestCollecting = false;
-  const remaining = () => {
-    const end = deadline + (requestCollecting && casAttempted ? 30000 : 0);
-    const timeout = Math.floor(Math.min(15000, end - performance.now()));
-    if (timeout < 1) throw new Error("job journal original deadline exhausted");
-    return timeout;
-  };
-  const admit = (collecting: boolean) => {
-    requestCollecting = collecting;
-    remaining();
+  const admit = (end: number) => {
+    if (performance.now() >= Math.min(end, coordinatorCommandDeadline() ?? Infinity))
+      throw new Error("job journal original deadline exhausted");
     if (++requests > 16) throw new Error("job journal request bound exhausted");
   };
-  // Do not discard a late acknowledgment. The exchange records it, refuses
-  // execution after its original deadline and decides whether readback resolves
-  // the effect. Only its exact tuple query may use collection time.
-  const api = isolatedJournalClient(directory, token, remaining);
+  const api = createJournalSdk(directory, token, deadline + 30000, undefined, true);
   return {
-    request(method, endpoint, body) {
+    async request(method: string, endpoint: string, body?: unknown, inherited?: number) {
       const read =
         method === "GET" &&
         body === undefined &&
@@ -216,22 +253,33 @@ export function createCheckpointJobTokenApi(
         if (typeof encoded !== "string" || Buffer.byteLength(encoded) > 2 * 1024 * 1024)
           throw new Error("job journal object request exceeds bounded encoding");
       }
-      admit(false);
-      return api.request(method, endpoint, body);
+      const end = Math.min(deadline, inherited ?? Infinity);
+      admit(end);
+      return api.request(method, endpoint, body, end);
     },
-    graphql(query, variables) {
+    async graphql(
+      query: string,
+      variables: Readonly<Record<string, unknown>>,
+      policy?: { deadline: number; collecting?: boolean },
+    ) {
+      const original = Math.min(deadline, policy?.deadline ?? Infinity);
+
       const initial =
         query === initialQuery && nodeId === null && isDeepStrictEqual(variables, refs);
       const snapshot =
         query === nextQuery &&
         nodeId !== null &&
         isDeepStrictEqual(variables, { id: nodeId, ...refs });
+      if (policy?.collecting && (!snapshot || !casAttempted))
+        throw new Error("job journal collection requires an attempted CAS and exact tuple");
       if (initial || snapshot) {
-        admit(snapshot);
-        const result =
-          snapshot && casAttempted
-            ? withCoordinatorReadback(deadline, () => api.graphql(query, variables))
-            : api.graphql(query, variables);
+        const read = (end: number) => {
+          admit(end);
+          return api.graphql(query, variables, { deadline: end });
+        };
+        const result = await (policy?.collecting
+          ? withCoordinatorReadback(original, () => read(original + 30000))
+          : read(original));
         const node = isRecord(result.data) ? result.data[initial ? "repository" : "node"] : null;
         if (
           !isRecord(node) ||
@@ -285,11 +333,15 @@ export function createCheckpointJobTokenApi(
         throw new Error(
           "job journal CAS must preserve exact state, preparation, intent and proof tuple",
         );
-      admit(false);
-      casAttempted = true;
-      return api.graphql(query, variables);
+      admit(original);
+      return api.graphql(query, variables, {
+        deadline: original,
+        onDispatched() {
+          casAttempted = true;
+        },
+      });
     },
-  };
+  } satisfies CoordinatorSigningApi;
 }
 
 /** Separate read-only history collection. Its nine requests cover two current

@@ -30,6 +30,19 @@ export interface CoordinatorCheckpointApi {
     variables: Readonly<Record<string, unknown>>,
   ): { data: unknown } | Promise<{ data: unknown }>;
 }
+export interface CoordinatorSigningApi extends CoordinatorCheckpointApi {
+  request(
+    method: string,
+    endpoint: string,
+    body?: unknown,
+    deadline?: number,
+  ): Pick<IncludedResponse, "status" | "body"> | Promise<Pick<IncludedResponse, "status" | "body">>;
+  graphql(
+    query: string,
+    variables: Readonly<Record<string, unknown>>,
+    policy?: { deadline: number; collecting?: boolean },
+  ): { data: unknown } | Promise<{ data: unknown }>;
+}
 const repository = "boburning/portcove";
 const repositoryId = 1354613114;
 const zero = "0".repeat(40);

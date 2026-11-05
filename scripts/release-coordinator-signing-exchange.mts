@@ -22,7 +22,7 @@ import type {
 import { signCoordinatorCheckpointEvidence } from "./release-coordinator-checkpoint-signing.mts";
 import { requirePreparedHostedNativeCustody } from "./release-hosted-native-acceptance.mts";
 import type { CapacityExecutorRole } from "./assembler-job-identity.mts";
-import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
+import type { CoordinatorSigningApi } from "./release-coordinator-remote.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import { sanitizeOperationError } from "./github-api.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -45,7 +45,7 @@ export async function signAndPublishCoordinatorCheckpoint(
   expectedProducer: { role: CapacityExecutorRole; producer: CheckpointProducerExpectation },
   deadline: number,
   options: {
-    api: CoordinatorRemoteApi;
+    api: CoordinatorSigningApi;
     refresh: (stage: Stage) => Promise<void>;
     nativeCustody?: object;
   },
@@ -123,7 +123,7 @@ export async function publishCoordinatorSigningExchange(
   rawConfiguration: unknown,
   deadline: number,
   options: {
-    api: CoordinatorRemoteApi;
+    api: CoordinatorSigningApi;
     refresh: (stage: Stage) => Promise<void>;
     produce: (
       checkpoint: Checkpoint,
@@ -176,18 +176,19 @@ export async function publishCoordinatorSigningExchange(
     active(collecting);
     if (++requests > 16) throw new Error("signing exchange request bound exhausted");
   };
-  const snapshot = (initial = false, collecting = false) => {
+  const snapshot = async (initial = false, collecting = false) => {
     budget(collecting);
     const declarations = names.map((_, i) => `$r${i}:String!`).join(",");
     const fields = names
       .map((_, i) => `r${i}:ref(qualifiedName:$r${i}){name prefix target{__typename oid}}`)
       .join(" ");
     const refs = Object.fromEntries(names.map((name, i) => [`r${i}`, name]));
-    const result = api.graphql(
+    const result = await api.graphql(
       initial
         ? `query(${declarations}){repository(owner:"boburning",name:"portcove"){__typename id databaseId nameWithOwner ${fields}}}`
         : `query($id:ID!,${declarations}){node(id:$id){__typename ... on Repository{id databaseId nameWithOwner ${fields}}}}`,
       initial ? refs : { id: nodeId, ...refs },
+      { deadline, collecting },
     );
     active(collecting);
     const node = isRecord(result.data) ? result.data[initial ? "repository" : "node"] : null;
@@ -225,30 +226,30 @@ export async function publishCoordinatorSigningExchange(
   const owned = [...updates.map((ref) => ref.beforeOid), expected, zero];
   const matches = (a: readonly string[], b: readonly string[]) =>
     a.length === b.length && a.every((value, i) => value === b[i]);
-  const requireSnapshot = (expectedRefs: readonly string[], initial = false) => {
-    const observed = snapshot(initial);
+  const requireSnapshot = async (expectedRefs: readonly string[], initial = false) => {
+    const observed = await snapshot(initial);
     if (!matches(observed, expectedRefs))
       throw new CoordinatorRemoteError(
         "signing exchange preimage/owned intent changed; explicit recovery required",
         { checkpoint: expected, names, expected: expectedRefs, observed },
       );
   };
-  const rest = (method: "GET" | "POST", endpoint: string, body?: unknown) => {
+  const rest = async (method: "GET" | "POST", endpoint: string, body?: unknown) => {
     budget();
-    const result = api.request(method, endpoint, body);
+    const result = await api.request(method, endpoint, body, deadline);
     active();
     if (result.status !== (method === "GET" ? 200 : 201))
       throw new Error("signing exchange object request refused");
     return result.body;
   };
-  const upload = (kind: string, body: unknown, oid: string) => {
+  const upload = async (kind: string, body: unknown, oid: string) => {
     const object: (typeof objects)[number] = { kind, expected: oid, observed: null, status: null };
     // Retain the attempted object before transport; a failed response never
     // means no effect. Preserve even a late positive acknowledgment separately
     // from accepting that response inside the original execution deadline.
     objects.push(object);
     budget();
-    const response = api.request("POST", `repos/${repository}/git/${kind}`, body);
+    const response = await api.request("POST", `repos/${repository}/git/${kind}`, body, deadline);
     object.status = response.status ?? null;
     const value = response.body;
     object.observed =
@@ -257,12 +258,13 @@ export async function publishCoordinatorSigningExchange(
     if (response.status !== 201 || object.observed !== oid)
       throw new Error("signing exchange object response refused or identity differs");
   };
-  const cas = (refs: CoordinatorRefUpdate[]) => {
+  const cas = async (refs: CoordinatorRefUpdate[]) => {
     budget();
     const id = createHash("sha256").update(JSON.stringify({ nodeId, refs })).digest("hex");
-    const result = api.graphql(
+    const result = await api.graphql(
       "mutation($input:UpdateRefsInput!){updateRefs(input:$input){clientMutationId}}",
       { input: { repositoryId: nodeId, clientMutationId: id, refUpdates: refs } },
+      { deadline },
     );
     active();
     const payload = isRecord(result.data) ? result.data.updateRefs : null;
@@ -270,9 +272,9 @@ export async function publishCoordinatorSigningExchange(
       throw new Error("signing exchange CAS acknowledgment differs or is ambiguous");
   };
   try {
-    requireSnapshot(preimage, true);
+    await requireSnapshot(preimage, true);
     for (const required of checkpoint.required_commits) {
-      const value = rest("GET", `repos/${repository}/git/commits/${required.oid}`);
+      const value = await rest("GET", `repos/${repository}/git/commits/${required.oid}`);
       if (
         !isRecord(value) ||
         value.sha !== required.oid ||
@@ -289,14 +291,14 @@ export async function publishCoordinatorSigningExchange(
     phase = "checkpoint-objects";
     await refresh("claim");
     active();
-    upload(
+    await upload(
       "blobs",
       { content: Buffer.from(checkpoint.blob.contents).toString("base64"), encoding: "base64" },
       checkpoint.blob.oid,
     );
-    upload("trees", { tree: checkpoint.tree.entries }, checkpoint.tree.oid);
+    await upload("trees", { tree: checkpoint.tree.entries }, checkpoint.tree.oid);
     const { oid: _oid, ...commit } = checkpoint.commit;
-    upload("commits", commit, checkpoint.commit.oid);
+    await upload("commits", commit, checkpoint.commit.oid);
     phase = "claim";
     await refresh("claim");
     active();
@@ -304,11 +306,11 @@ export async function publishCoordinatorSigningExchange(
     // One slot per independently ratified predecessor, shared by competing
     // proposed checkpoints. The authoritative state head is NOT advanced.
     try {
-      cas([{ ...updates[0]!, afterOid: checkpoint.previous! }, claim]);
+      await cas([{ ...updates[0]!, afterOid: checkpoint.previous! }, claim]);
     } catch (error) {
       let observed: string[] | null = null;
       try {
-        observed = snapshot(false, true);
+        observed = await snapshot(false, true);
       } catch {
         /* original ambiguity retained */
       }
@@ -333,7 +335,7 @@ export async function publishCoordinatorSigningExchange(
       busy = true;
       const pending = (async () => {
         try {
-          requireSnapshot(owned);
+          await requireSnapshot(owned);
           await refresh(stage);
           active();
           if (stopped) throw new Error("signing producer returned before its gate settled");
@@ -375,20 +377,20 @@ export async function publishCoordinatorSigningExchange(
     phase = "proof-objects";
     for (const object of evidence.objects) {
       proof();
-      upload(object.kind, object.body, object.oid);
+      await upload(object.kind, object.body, object.oid);
     }
     phase = "commit";
-    requireSnapshot(owned);
+    await requireSnapshot(owned);
     await refresh("commit");
     active();
     proof();
     let mutationError: ReturnType<typeof sanitizeOperationError> | null = null;
     try {
-      cas([...updates, evidence.update, { ...claim, beforeOid: expected }]);
+      await cas([...updates, evidence.update, { ...claim, beforeOid: expected }]);
     } catch (error) {
       mutationError = sanitizeOperationError(error);
     }
-    const observed = snapshot(false, true);
+    const observed = await snapshot(false, true);
     const after = [...updates.map((ref) => ref.afterOid), expected, evidence.update.afterOid];
     if (!matches(observed, after))
       throw new CoordinatorRemoteError(
