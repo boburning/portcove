@@ -457,7 +457,6 @@ for (const [file, tests] of [
   ...[
     "release-control-phases",
     "release-input-protections",
-    "release-control-ready",
     "release-reviewed-inputs",
     "release-controller-tool-bootstrap",
   ].map((name): [string, string[]] => [
@@ -680,7 +679,12 @@ for (const [file, tests] of [
   ],
   [
     "scripts/release-control-ready.mts",
-    ["scripts/production-controller-admission.test.mts", "scripts/release-production-dag.test.mts"],
+    [
+      "scripts/release-control-inputs.test.mts",
+      "scripts/release-controller-catalog-routing.test.mts",
+      "scripts/production-controller-admission.test.mts",
+      "scripts/release-production-dag.test.mts",
+    ],
   ],
   ["scripts/release-control-step-bridge.mts", ["scripts/release-control-step-bridge.test.mts"]],
   ["scripts/release-controller-transport.mts", ["scripts/release-controller-transport.test.mts"]],
