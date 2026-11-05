@@ -650,7 +650,13 @@ for (const [file, tests] of [
   ],
   ["scripts/release-site-deployment.mts", ["scripts/release-site-deployment.test.mts"]],
   ["scripts/release-site-controller.mts", ["scripts/release-site-controller.test.mts"]],
-  ["scripts/release-site-launch.mts", ["scripts/release-site-controller.test.mts"]],
+  [
+    "scripts/release-site-launch.mts",
+    [
+      "scripts/release-site-controller.test.mts",
+      "scripts/release-metadata-site-controller.test.mts",
+    ],
+  ],
   ["scripts/release-control-step-bridge.mts", ["scripts/release-control-step-bridge.test.mts"]],
   ["scripts/release-controller-transport.mts", ["scripts/release-controller-transport.test.mts"]],
   [
@@ -672,7 +678,13 @@ for (const [file, tests] of [
     ".github/actions/release-controller-transport/action.yml",
     ["scripts/release-controller-transport.test.mts"],
   ],
-  ["scripts/release-site-job-budget.mts", ["scripts/release-site-controller.test.mts"]],
+  [
+    "scripts/release-site-job-budget.mts",
+    [
+      "scripts/release-site-controller.test.mts",
+      "scripts/release-metadata-site-controller.test.mts",
+    ],
+  ],
 
   ["scripts/release-site-readback.mts", ["scripts/release-site-readback.test.mts"]],
   [
@@ -813,6 +825,8 @@ for (const [file, tests] of [
       "scripts/release-coordinator-recovery.test.mts",
       "scripts/release-hosted-native-history.test.mts",
       "scripts/release-catalog-recovery.test.mts",
+      "scripts/release-site-controller.test.mts",
+      "scripts/release-metadata-site-controller.test.mts",
       "scripts/release-catalog-continuation.test.mts",
       "scripts/release-metadata-context-recovery.test.mts",
       "scripts/production-controller-admission.test.mts",
@@ -2311,6 +2325,8 @@ for (const file of [
     ...(explicitNodeTests.get(file) ?? []),
     "scripts/github-client.test.mts",
     "scripts/release-catalog-recovery.test.mts",
+    "scripts/release-site-controller.test.mts",
+    "scripts/release-metadata-site-controller.test.mts",
     "scripts/release-catalog-continuation.test.mts",
     "scripts/release-run-evidence.test.mts",
     "scripts/release-artifact-archive.test.mts",

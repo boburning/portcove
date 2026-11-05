@@ -1,6 +1,3 @@
-import childProcess from "node:child_process";
-import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
-import { syncBuiltinESMExports } from "node:module";
 import { launchFixedSiteController } from "./release-site-launch.mts";
 import { expected as identityExpected } from "./fixtures/assembler-identity-fixture.mts";
 import assert from "node:assert/strict";
@@ -224,6 +221,7 @@ void test("actual metadata launcher schema reaches the original provider clock b
     GITHUB_RUN_ATTEMPT: "1",
     GITHUB_SHA: identity.controller_revision,
     GITHUB_REF: identity.controller_ref,
+    GH_TOKEN: "ghs_SYNTHETIC_METADATA_SITE_READER",
     NODE_OPTIONS: undefined,
     NODE_PATH: undefined,
   })) {
@@ -237,22 +235,23 @@ void test("actual metadata launcher schema reaches the original provider clock b
       else process.env[key] = value;
     }
   });
-  let reads = 0;
-  const mock = t.mock.method(
-    childProcess,
-    "spawnSync",
-    (command: string, args: readonly string[], options: SpawnSyncOptionsWithStringEncoding) => {
-      assert.equal(command, "gh");
-      assert.equal(args[args.indexOf("--method") + 1], "GET");
-      assert.equal(args[args.indexOf("--hostname") + 1], "github.com");
-      assert.ok(
-        args.includes(
-          `repos/boburning/portcove/actions/runs/${identity.run_id}/attempts/1/jobs?per_page=100`,
-        ),
+  const fetcher = t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      assert.ok(typeof input === "string");
+      const url = new URL(input);
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(
+        url.pathname,
+        `/repos/boburning/portcove/actions/runs/${identity.run_id}/attempts/1/jobs`,
       );
-      assert.ok(options.timeout && options.timeout > 0 && options.timeout <= 15000);
-      reads++;
-      const body = {
+      assert.equal(url.searchParams.get("per_page"), "100");
+      assert.equal(
+        new Headers(init?.headers).get("authorization"),
+        "token ghs_SYNTHETIC_METADATA_SITE_READER",
+      );
+      return Response.json({
         total_count: 1,
         jobs: [
           {
@@ -265,19 +264,9 @@ void test("actual metadata launcher schema reaches the original provider clock b
             started_at: new Date(Date.now() - 1000).toISOString(),
           },
         ],
-      };
-      return {
-        status: 0,
-        stdout: `HTTP/2.0 200 Fixture\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(body)}`,
-        stderr: "",
-      };
+      });
     },
   );
-  syncBuiltinESMExports();
-  t.after(() => {
-    mock.mock.restore();
-    syncBuiltinESMExports();
-  });
   await assert.rejects(
     launchFixedSiteController(
       { mode: "metadata", context: {}, identity, roles: [], tools: { artifact: {}, bundle: {} } },
@@ -291,7 +280,7 @@ void test("actual metadata launcher schema reaches the original provider clock b
     },
   );
   assert.equal(
-    reads,
+    fetcher.mock.callCount(),
     1,
     "fixed launcher must reach the actual original-job read, but missing custody still refuses",
   );

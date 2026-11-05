@@ -155,14 +155,13 @@ export async function runFixedSiteConfiguration(
 async function siteUploadBridge(mode: "--ready" | "--uploaded") {
   const parent = process.env.RUNNER_TEMP;
   if (!parent || !path.isAbsolute(parent)) throw new Error("site runner root unavailable");
-  const deadline = currentSiteJobDeadline(
+  const deadline = await currentSiteJobDeadline(
     {
       controller_revision: process.env.GITHUB_SHA ?? "",
       controller_ref: process.env.GITHUB_REF ?? "",
       run_id: process.env.GITHUB_RUN_ID ?? "",
       run_attempt: Number(process.env.GITHUB_RUN_ATTEMPT),
     },
-    parent,
     started + 290000,
   );
   let pointer: unknown;

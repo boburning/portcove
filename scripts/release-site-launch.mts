@@ -41,9 +41,8 @@ export async function launchFixedSiteController(
     throw new Error("fixed site launcher fields differ");
   if (process.env.NODE_OPTIONS || process.env.NODE_PATH)
     throw new Error("site launcher forbids ambient Node hooks");
-  deadline = currentSiteJobDeadline(
+  deadline = await currentSiteJobDeadline(
     inspectAssemblerIdentityExpectation(input.identity),
-    parent,
     deadline,
   );
   const receipt = await receiveControllerTools(
