@@ -40,6 +40,8 @@ import { parseReleaseChecksumManifest } from "./reconcile-release-assets.mts";
 import { prepareReleasePublicBuildInputs } from "./release-public-build-inputs.mts";
 import { verifyUpdaterInventory } from "./updater-artifact-inventory.mts";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
+import { createGitHubClient } from "./github-client.mts";
+import { GitHubApiError } from "./github-operation.mts";
 import {
   createReleaseCustodyProvider,
   type ImmutableReleaseMetadataProvider,
@@ -70,6 +72,7 @@ import type { AuthenticatedReleaseControlSource } from "./release-live-control-a
 import {
   withCoordinatorDeadline,
   coordinatorCommandTimeout,
+  coordinatorCommandDeadline,
   checkCoordinatorDeadline,
 } from "./release-coordinator-deadline.mts";
 import { verifiedControllerToolPaths } from "./release-controller-tool-admission.mts";
@@ -923,7 +926,7 @@ export async function readImmutableReleaseCustodyState(
 /** Fixed REST operation, invoked ONLY inside the caller's admitted existing
  * executor/pending-intent callback. No journal, retry, token discovery or CLI. */
 export async function performImmutableReleaseEffect(
-  effect: ImmutableReleaseEffect,
+  rawEffect: ImmutableReleaseEffect,
   assetBytes: Buffer | null,
   token: string,
   fetcher: typeof fetch = fetch,
@@ -931,6 +934,7 @@ export async function performImmutableReleaseEffect(
   riskExpiresAt?: number,
 ) {
   publicationRemaining(deadline);
+  const effect = structuredClone(rawEffect);
   if (!token || token.length > 16384)
     throw new Error("isolated publication credential unavailable");
   const upload = effect.kind === "upload-asset";
@@ -993,30 +997,65 @@ export async function performImmutableReleaseEffect(
         )
   )
     throw new Error("release operation escaped the fixed create/upload/publish boundary");
-  if (
-    riskExpiresAt !== undefined &&
-    (!Number.isFinite(riskExpiresAt) || Date.now() >= riskExpiresAt)
-  )
-    throw new Error("Linux risk authorization expired before Release provider mutation");
-  const response = await fetcher(endpoint, {
-    method: effect.method,
-    redirect: "error",
-    credentials: "omit",
+  const riskError = "Linux risk authorization expired before Release provider mutation";
+  const requireRisk = () => {
+    if (
+      riskExpiresAt !== undefined &&
+      (!Number.isFinite(riskExpiresAt) || Date.now() >= riskExpiresAt)
+    )
+      throw new Error(riskError);
+  };
+  requireRisk();
+  const operationDeadline = Math.min(
+    deadline ?? Infinity,
+    performance.now() + 120000,
+    coordinatorCommandDeadline() ?? Infinity,
+  );
+  const body = upload ? new Uint8Array(assetBytes!) : JSON.stringify(effect.body);
+  let riskRefused = false;
+  const client = await createGitHubClient({
+    credential: { kind: "explicit", token },
+    deadline: operationDeadline,
+    requestTimeoutMs: 120000,
+    maxBytes: 512 * 1024,
+    baseUrl: upload ? "https://uploads.github.com" : "https://api.github.com",
     headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: "application/vnd.github+json",
-      "X-GitHub-Api-Version": "2026-03-10",
-      "Content-Type": upload ? "application/octet-stream" : "application/json",
+      accept: "application/vnd.github+json",
+      "x-github-api-version": "2026-03-10",
+      "content-type": upload ? "application/octet-stream" : "application/json",
     },
-    body: upload ? new Uint8Array(assetBytes!) : JSON.stringify(effect.body),
-    signal: AbortSignal.timeout(publicationRemaining(deadline, 120000)),
+    fetch: (input, init) => {
+      // This is the actual dispatch boundary, after the SDK's async setup.
+      try {
+        requireRisk();
+      } catch (error) {
+        riskRefused = true;
+        throw error;
+      }
+      return fetcher(input, { ...init, credentials: "omit" });
+    },
   });
-  // A non-success response can still have caused a partial remote effect.
-  await response.body?.cancel();
+  let status: number;
+  try {
+    const response = await client.request(`${effect.method} ${endpoint}`, {
+      data: body,
+      request: {
+        parseSuccessResponseBody: false,
+        portcove: { replay: "once", attempts: 0 },
+      },
+    });
+    status = response.status;
+  } catch (error) {
+    if (riskRefused) throw new Error(riskError);
+    if (error instanceof GitHubApiError && error.code === "deadline_exceeded")
+      throw new Error("immutable publication phase deadline exhausted", { cause: error });
+    throw new Error("release write response requires exact readback/recovery", { cause: error });
+  }
   publicationRemaining(deadline);
-  if (response.status !== (effect.kind === "publish-draft" ? 200 : 201))
+  // A non-success response can still have caused a partial remote effect.
+  if (status !== (effect.kind === "publish-draft" ? 200 : 201))
     throw new Error("release write response requires exact readback/recovery");
-  return { status: response.status }; // never trust the mutation response as settlement
+  return { status }; // never trust the mutation response as settlement
 }
 
 /** Data validation only; the caller must recover this exact remote checkpoint. */

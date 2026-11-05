@@ -1094,8 +1094,11 @@ Publication result custody shares the bounded source, attempt, job and artifact
 metadata reader; refreshing its proof can only shorten the original deadline.
 Immutable Release custody also uses fixed SDK reads. The Release owner still
 requires the draft-inclusive inventory, exact version tag and asset readback
-before accepting an effect or reconciling an ambiguous mutation. Archive bytes
-and publication effects remain with their existing owners.
+before accepting an effect or reconciling an ambiguous mutation. Its fixed
+create, asset upload and publish effects use one SDK dispatch with the separate
+publication token. Redirects are refused, risk expiry is checked at dispatch,
+and a response alone never establishes settlement. Archive bytes remain with
+their existing owners.
 Signing-output and TUF role custody use the same SDK reader for sequential
 attempt, job and artifact checks around byte custody. A later role refresh
 can tighten the original deadline; archive reads and attestation keep their

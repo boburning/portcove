@@ -300,30 +300,100 @@ void test("locked SDK only treats a complete exact tag 404 as absence after the 
   );
 });
 
-void test("fixed write transport sends one bounded binary effect and never follows a redirect or retries refusal", async () => {
+void test("locked SDK sends unchanged upload bytes once and refuses redirects or server errors", async () => {
   const f = fixture();
   const step = proposeImmutableReleaseTransition(f.identity, f.release, []);
   assert.ok(step.decision === "effect" && step.effect.kind === "upload-asset");
-  let calls = 0;
-  const fetcher = (async (input: string | URL | Request, options?: RequestInit) => {
-    calls++;
-    assert.equal(typeof input, "string");
-    assert.match(input as string, /^https:\/\/uploads.github.com\/repos\/boburning\/portcove\//u);
-    assert.equal(options?.method, "POST");
-    assert.equal(options?.redirect, "error");
-    assert.equal(options?.credentials, "omit");
-    return new Response(null, { status: 502 });
-  }) as typeof fetch;
+  const { effect } = step;
+  const bytes = f.data.get(effect.asset.filename)!;
+  for (const status of [302, 502]) {
+    let calls = 0;
+    const fetcher: typeof globalThis.fetch = async (input, options) => {
+      calls++;
+      assert.equal(input, effect.endpoint);
+      assert.equal(options?.method, "POST");
+      assert.equal(options?.redirect, "manual");
+      assert.equal(options?.credentials, "omit");
+      const headers = new Headers(options?.headers);
+      assert.equal(headers.get("authorization"), "token inert-fixture-token");
+      assert.equal(headers.get("x-github-api-version"), "2026-03-10");
+      assert.equal(headers.get("content-type"), "application/octet-stream");
+      assert.ok(options?.body instanceof Uint8Array);
+      assert.deepEqual(Buffer.from(options.body), bytes);
+      return new Response(null, { status, headers: { location: "https://untrusted.invalid/" } });
+    };
+    await assert.rejects(
+      performImmutableReleaseEffect(effect, bytes, "inert-fixture-token", fetcher),
+      /readback\/recovery/u,
+    );
+    assert.equal(calls, 1);
+  }
+});
+
+void test("locked SDK sends exact draft creation and publish JSON to the fixed API origin", async () => {
+  const f = fixture();
+  const create = proposeImmutableReleaseTransition(f.identity, null, []);
+  const publish = proposeImmutableReleaseTransition(f.identity, f.release, f.assets);
+  assert.ok(create.decision === "effect" && create.effect.kind === "create-draft");
+  assert.ok(publish.decision === "effect" && publish.effect.kind === "publish-draft");
+  const expected = [
+    {
+      effect: create.effect,
+      method: "POST",
+      route: "/repos/boburning/portcove/releases",
+      status: 201,
+    },
+    {
+      effect: publish.effect,
+      method: "PATCH",
+      route: `/repos/boburning/portcove/releases/${f.release.id}`,
+      status: 200,
+    },
+  ];
+  const calls: string[] = [];
+  for (const { effect, method, route, status } of expected) {
+    const result = await performImmutableReleaseEffect(
+      effect,
+      null,
+      "inert-publication",
+      async (input, init) => {
+        const request = new Request(input, init);
+        assert.equal(request.url, `https://api.github.com${route}`);
+        assert.equal(request.method, method);
+        assert.equal(request.headers.get("authorization"), "token inert-publication");
+        assert.equal(request.headers.get("content-type"), "application/json");
+        assert.equal(await request.text(), JSON.stringify(effect.body));
+        calls.push(method);
+        return Response.json({ ignored: true }, { status });
+      },
+    );
+    assert.deepEqual(result, { status });
+  }
+  assert.deepEqual(calls, ["POST", "PATCH"]);
+});
+
+void test("risk expiry during SDK setup prevents dispatch even after the initial gate passed", async (t) => {
+  const next = proposeImmutableReleaseTransition(fixture().identity, null, []);
+  assert.ok(next.decision === "effect" && next.effect.kind === "create-draft");
+  let clockReads = 0,
+    sends = 0;
+  t.mock.method(Date, "now", () => (++clockReads === 1 ? 1000 : 2000));
   await assert.rejects(
     performImmutableReleaseEffect(
-      step.effect,
-      f.data.get(step.effect.asset.filename)!,
-      "inert-fixture-token",
-      fetcher,
+      next.effect,
+      null,
+      "inert",
+      async () => {
+        sends++;
+        return new Response(null, { status: 201 });
+      },
+      performance.now() + 5000,
+      1500,
     ),
-    /readback\/recovery/u,
+    /risk authorization expired/u,
   );
-  assert.equal(calls, 1);
+  assert.ok(clockReads > 1);
+  assert.equal(sends, 0);
 });
 
 void test("imported accepted receipts cannot execute a Release operation", async () => {
