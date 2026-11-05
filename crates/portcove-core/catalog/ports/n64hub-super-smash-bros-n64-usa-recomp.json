@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "n64hub-super-smash-bros-n64-usa-recomp",
+    "project_url": "https://github.com/n64hub/super-smash-bros-recomp",
+    "name": "Super Smash Bros. (Smash Bros. Recompiled)",
+    "summary": "A Windows port of the original Super Smash Bros. Set it up with your own US Nintendo 64 game file.",
+    "issue_number": 4337,
+    "original_game_title": "Super Smash Bros.",
+    "availability": "unknown",
+    "platforms": [],
+    "setup_url": "https://github.com/n64hub/super-smash-bros-recomp/blob/89f7644a08ac705a03db9a61fad77828645797b0/README.md",
+    "manual_setup": {
+      "help_url": "https://github.com/n64hub/super-smash-bros-recomp/blob/89f7644a08ac705a03db9a61fad77828645797b0/README.md",
+      "steps": [
+        {
+          "title": "Prepare your Windows copy",
+          "instruction": "Install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if needed. Extract the complete Windows x64 ZIP into a writable folder. Open SmashBrosRecompiled.exe, choose Load ROM and select your own 16 MiB, big-endian Super Smash Bros. USA .z64 (SHA-1 e2929e10fccc0aa84e5776227e798abc07cedabf). Choose Start Game."
+        }
+      ],
+      "warnings": [
+        "Keep the profile that contains your SRAM and settings. Changing portable mode does not move existing data."
+      ],
+      "references": [
+        {
+          "title": "Setup instructions for the inspected release",
+          "instruction": "https://github.com/n64hub/super-smash-bros-recomp/releases/tag/v0.1.5"
+        }
+      ]
+    }
+  },
+  "route_facts_v1": {
+    "format_version": 1,
+    "prepared_player": {
+      "executable": "SmashBrosRecompiled.exe",
+      "working_directory": "executable-parent",
+      "arguments": [],
+      "data_locations": [
+        "%LOCALAPPDATA%/SmashBrosRecompiled by default, or the game folder if it already uses portable.txt"
+      ]
+    }
+  }
+}

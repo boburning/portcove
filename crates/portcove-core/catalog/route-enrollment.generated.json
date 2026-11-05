@@ -43,6 +43,18 @@
       "managed_native": false
     },
     {
+      "port_id": "n64hub-rayman-2-recomp-n64-usa",
+      "prepared_player": {
+        "executable": "Rayman2Recompiled.exe",
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "%LOCALAPPDATA%/Rayman2Recompiled by default, or the game folder if it already uses portable.txt; saves/controllerpak_1.mpk and other Controller Pak files under that profile"
+        ]
+      },
+      "managed_native": false
+    },
+    {
       "port_id": "n64hub-super-mario-64-recomp",
       "prepared_player": {
         "executable": "SuperMario64Recompiled.exe",
@@ -57,6 +69,18 @@
       "managed_native": false
     },
     {
+      "port_id": "n64hub-super-smash-bros-n64-usa-recomp",
+      "prepared_player": {
+        "executable": "SmashBrosRecompiled.exe",
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "%LOCALAPPDATA%/SmashBrosRecompiled by default, or the game folder if it already uses portable.txt"
+        ]
+      },
+      "managed_native": false
+    },
+    {
       "port_id": "nhl-94-genesis-ninety-four",
       "prepared_player": {
         "executable": "nhl94.exe",
@@ -64,6 +88,30 @@
         "arguments": [],
         "data_locations": [
           "settings.ini; out/nhl94.srm cartridge SRAM; states/ including Autosave; rosters, recordings, screenshots, videos and configured external ROM/save paths"
+        ]
+      },
+      "managed_native": false
+    },
+    {
+      "port_id": "retropulse03-winback-n64recomp",
+      "prepared_player": {
+        "executable": "WinBackRecompiled.exe",
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "ROM copy, settings.json, saves/ including Controller Pak and checkpoints, mods and renderer data in the game folder"
+        ]
+      },
+      "managed_native": false
+    },
+    {
+      "port_id": "scottjco-wetrix-n64-usa-rev0-recomp",
+      "prepared_player": {
+        "executable": "Wetrix.exe",
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "Assets/data.z64, config/user/ and saves/controller1.mpk in the game folder"
         ]
       },
       "managed_native": false
