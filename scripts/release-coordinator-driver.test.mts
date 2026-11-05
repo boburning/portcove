@@ -953,3 +953,219 @@ void test("actual coordinator signing callgraph preserves initial0, original dea
       wake.indexOf("const outstanding ="),
   );
 });
+
+void test("actual first bootstrap entry binds the preserved seed before local intent and publishes only through the owned signed session", async () => {
+  const text = await readFile(new URL("./release-coordinator-driver.mts", import.meta.url), "utf8");
+  const start = text.indexOf("async function prepareTrustedCoordinatorBootstrapAt("),
+    end = text.indexOf(
+      "export async function requireActualCoordinatorBootstrapPreparation(",
+      start,
+    ),
+    helperStart = text.indexOf("async function coordinatorCheckpointPublisher("),
+    helperEnd = text.indexOf("function guardedCoordinatorJournal(", helperStart);
+  assert.ok(start > 0 && end > start && helperStart > 0 && helperEnd > helperStart);
+  const prior = "a".repeat(40),
+    revision = "b".repeat(40),
+    next = "c".repeat(40);
+  const executor = {},
+    tools = {},
+    descriptor = {},
+    session = new WeakMap();
+  const events: string[] = [];
+  const original = {
+    repository: "/inert/state.git",
+    checkpoint: prior,
+    input: {
+      controller: {
+        revision: prior,
+        capacity_attempt: { schema_version: 2, operation: null, prior_operations: [] },
+      },
+    },
+  };
+  const immutableSeed = structuredClone(original);
+  const reader = {
+    admitted: {
+      revision,
+      execution_ref: "refs/tags/portcove-production-controller-fixture",
+      actor_id: "1",
+      run_id: "2",
+      run_attempt: 1,
+    },
+    identity: { job_id: 3, check_run_id: "4" },
+  };
+  const facts = {
+    phase: "coordinator",
+    purpose: "metadata-coordinator-controls",
+    resource_policy_matches_controller: true,
+    reader: reader.identity,
+    protection: {},
+    pause: { publication_paused: false },
+    capacity: {},
+    capacity_source: { capacity: { schema_version: 2 } },
+  };
+  const control = { evidence_scope: "github.com", readMaintenance: () => facts };
+  const publication = {
+    public_source: { commit: revision, initial_site_preimage: { path: "historical.json" } },
+    initial_site_preimage_sha256: "d".repeat(64),
+  };
+  const authority = {
+    namespace: "fixed",
+    configuration: {
+      schema_version: 4,
+      kind: "three-app-fixed-jobs-v1",
+      purpose: "application",
+      journal: { journal_seed: { checkpoint: prior } },
+    },
+    publication,
+  };
+  const bootstrapProvider = {};
+  const publicSource = {
+    files: new Map([["initial_site_preimage", Buffer.from("inert public history")]]),
+    publication: {
+      public_source: { commit: revision, initial_site_preimage: { path: "historical.json" } },
+    },
+    source_tree: "e".repeat(40),
+    historical: { observed_at: "2026-11-03T00:00:00Z" },
+  };
+  let refuseHistory = false;
+  const sandbox = {
+    isRecord: (await import("./runtime-values.mts")).isRecord,
+    inspectPublishedMetadata: () => null,
+    coordinatorHasUnresolvedEffect: () => false,
+    requireControllerApplicationCoordinatorPublicationAuthorities: async () => authority,
+    requireControllerApplicationCoordinatorAuthorities: async () => authority,
+    inspectCoordinatorRemoteNamespace: () => "fixed",
+    receiveControllerTools: async () => tools,
+    verifiedControllerToolPaths: async () => ({
+      identity: { controller_revision: revision, controller_ref: reader.admitted.execution_ref },
+      rust: "/inert/verifier",
+    }),
+    readProductionControllerWorkflowBytes: async () => Buffer.from("fixed source"),
+    authenticateControlReaderJob: async () => reader,
+    coordinatorApi: () => ({}),
+    authenticateCoordinatorInitialControls: async () => control,
+    coordinatorMaintenanceIdentity,
+    capacityDigest: releaseCanonicalDigest,
+    coordinatorBootstrapSourceProvider: async () => bootstrapProvider,
+    readBootstrapPublicSource: async (provider: object) => {
+      assert.equal(provider, bootstrapProvider);
+      return publicSource;
+    },
+    deriveMetadataBootstrapDescriptor: () => descriptor,
+    assertMetadataBootstrapBinding: () => {},
+    writeFile: async () => {},
+    prepareAuthenticatedMetadataBootstrap: async () => ({}),
+    readControllerToolFile: async () => Buffer.from("public verifier"),
+    createHash: (await import("node:crypto")).createHash,
+    inspectPreparedMetadataBootstrap: async () => ({
+      descriptor,
+      context: {},
+      prepared_root: "/inert",
+      files: [],
+    }),
+    bootstrapPreimageCatalogPins: () => null,
+    assertBootstrapSiteBaseline: () => {},
+    readConfiguredBootstrapSite: async (provider: object) => {
+      assert.equal(provider, bootstrapProvider);
+      return {};
+    },
+    authenticateReleaseControlRound: async () => control,
+    metadataContinuationApi: () => ({}),
+    coordinatorContinuationDeadline,
+    assessBoundedCapacity: () => ({ eligibility: "eligible" }),
+    readRemoteCoordinatorSnapshot: async () => original,
+    controllerOidcSubject: (await import("./assembler-job-identity.mts")).controllerOidcSubject,
+    authenticateCapacityExecutor: async () => executor,
+    ensureOwnedCheckpointJournalHistory: async (
+      actual: object,
+      repository: string,
+      checkpoint: string,
+      guard: () => Promise<void>,
+    ) => {
+      assert.equal(actual, executor);
+      assert.equal(repository, original.repository);
+      assert.equal(checkpoint, prior);
+      await guard();
+      events.push("verify-original-history");
+      if (refuseHistory) throw new Error("retained history refused");
+      return true;
+    },
+    checkpointReleaseOpportunity: async (
+      repository: string,
+      checkpoint: string,
+      input: { controller: { revision: string } },
+    ) => {
+      assert.equal(repository, original.repository);
+      assert.equal(checkpoint, prior);
+      assert.equal(events.at(-1), "verify-original-history");
+      assert.equal(
+        input.controller.revision,
+        revision,
+        "first authorized child records the actual repaired controller source",
+      );
+      events.push("local-intent");
+      return { checkpoint: next };
+    },
+    publishOwnedSignedCoordinatorCheckpoint: async (
+      actual: object,
+      repository: string,
+      checkpoint: string,
+      guard: () => Promise<void>,
+    ) => {
+      assert.equal(actual, executor);
+      assert.equal(repository, original.repository);
+      assert.equal(checkpoint, next);
+      await guard();
+      assert.equal(events.at(-1), "local-intent");
+      events.push("signed-publication");
+      return { checkpoint };
+    },
+    guardedCoordinatorJournal: () =>
+      assert.fail("selected bootstrap must not construct a legacy transport"),
+    publishCoordinatorCheckpoint: () =>
+      assert.fail("selected bootstrap must not use a raw journal publisher"),
+    bootstrapPreparations: session,
+    performance,
+    path: (await import("node:path")).default,
+    process: { env: {} },
+    structuredClone,
+    Buffer,
+  };
+  const entry = runInNewContext(
+    stripTypeScriptTypes(text.slice(helperStart, helperEnd) + text.slice(start, end)) +
+      "\nprepareTrustedCoordinatorBootstrapAt",
+    sandbox,
+  ) as (
+    directory: string,
+    selected: unknown,
+    recovered: unknown,
+    budget: unknown,
+  ) => Promise<{ decision: string; checkpoint: string }>;
+  const budget = { monotonicDeadline: performance.now() + 60000, check: () => {} };
+  const result = await entry(
+    "/inert",
+    { tools: { artifact: {}, bundle: {} }, remote_configuration: {} },
+    original,
+    budget,
+  );
+  assert.equal(result.decision, "metadata-bootstrap-prepared");
+  assert.equal(result.checkpoint, next);
+  assert.deepEqual(events, ["verify-original-history", "local-intent", "signed-publication"]);
+  assert.deepEqual(original, immutableSeed, "the original seed remains unchanged");
+  events.length = 0;
+  refuseHistory = true;
+  await assert.rejects(
+    entry(
+      "/inert",
+      { tools: { artifact: {}, bundle: {} }, remote_configuration: {} },
+      original,
+      budget,
+    ),
+    /retained history refused/,
+  );
+  assert.deepEqual(
+    events,
+    ["verify-original-history"],
+    "failed history permits no local intent or publication",
+  );
+});

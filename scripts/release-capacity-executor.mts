@@ -116,7 +116,12 @@ export function inspectSelectedJournalRequirement(environment: Readonly<NodeJS.P
     throw new Error("protected journal configuration exceeds bounds");
   const record: unknown = JSON.parse(raw);
   if (!isRecord(record)) throw new Error("protected journal configuration schema differs");
-  if (record.schema_version === 3 || record.kind === "two-app-fixed-jobs-v1") return true;
+  if (
+    record.schema_version === 3 ||
+    record.kind === "two-app-fixed-jobs-v1" ||
+    record.kind === "three-app-fixed-jobs-v1"
+  )
+    return true;
   if (
     purpose === "application" &&
     (record.schema_version === 1 || record.schema_version === 2) &&
@@ -257,7 +262,16 @@ export async function createOwnedCheckpointSigningApi(
     exportCoordinatorCheckpoint(repository, expected),
   );
   capacityExecutorIdentity(session);
-  return createCheckpointJobTokenApi(value.directory, checkpoint, frozenConfiguration, deadline);
+  if (value.requiresSignedJournal && value.journalBinding !== "bound")
+    throw new Error("selected checkpoint credential requires authenticated bound journal history");
+  const storage = value.journal?.configuration.configuration.apps.storage_writer;
+  return createCheckpointJobTokenApi(
+    value.directory,
+    checkpoint,
+    frozenConfiguration,
+    deadline,
+    storage,
+  );
 }
 
 /** First join for the selected profile. This reads actual protected source
@@ -858,7 +872,7 @@ export function inspectCapacityExecutorSubject(
 
 /** One transport choice for effects and explicit recovery. The selected source
  * cannot borrow a legacy credential or guard in place of authenticated history. */
-function ownedCheckpointTransport(
+async function ownedCheckpointTransport(
   session: ExecutorSession,
   input: { repository: string; checkpoint: string; remote_configuration: unknown },
   beforeCheckpointMutation?: () => Promise<void>,
@@ -871,6 +885,20 @@ function ownedCheckpointTransport(
   let remote: NonNullable<CapacityOperationOptions["remote"]>;
   value.requiresSignedJournal ||= inspectSelectedJournalRequirement({ ...process.env });
   if (value.requiresSignedJournal || value.journalBinding !== undefined) {
+    if (value.journalBinding === undefined) {
+      if (typeof beforeCheckpointMutation !== "function" || beforeLegacyMutation !== undefined)
+        throw new Error(
+          "selected journal requires original live checkpoint controls before history binding",
+        );
+      // This is the existing private operation owner, before any local intent
+      // or provider effect. Stopped/ambiguous sessions never enter this branch.
+      await ensureOwnedCheckpointJournalHistory(
+        session,
+        input.repository,
+        input.checkpoint,
+        beforeCheckpointMutation,
+      );
+    }
     if (
       value.journalBinding !== "bound" ||
       !value.journal ||
@@ -985,7 +1013,7 @@ async function executeOwnedCapacityEffectWithinScope(
   let ownedId: string | null = null;
   const captured: { completed?: { remote_identity: string; evidence_sha256: string } } = {};
   try {
-    const { remote, publish } = ownedCheckpointTransport(
+    const { remote, publish } = await ownedCheckpointTransport(
       session,
       input,
       beforeCheckpointMutation,
@@ -1226,7 +1254,7 @@ async function recoverOwnedCapacityEffectWithinScope(
   state.busy = true;
   try {
     const api = capacityRecoveryProviderApi(value);
-    const { remote, publish } = ownedCheckpointTransport(
+    const { remote, publish } = await ownedCheckpointTransport(
       session,
       input,
       beforeCheckpointMutation,
@@ -1396,7 +1424,7 @@ async function recoverOwnedPublishedMetadataWithinScope(
   state.busy = true;
   try {
     const api = capacityRecoveryProviderApi(value);
-    const { remote, publish } = ownedCheckpointTransport(
+    const { remote, publish } = await ownedCheckpointTransport(
       session,
       input,
       beforeCheckpointMutation,

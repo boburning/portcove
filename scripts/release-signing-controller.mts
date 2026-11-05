@@ -172,6 +172,9 @@ export async function runPayloadSigningAndContextController(
         evidence_sha256: digest(handoff),
       };
     },
+    async () => {
+      await fresh();
+    },
   );
   if (!handoff) throw new Error("actual context artifact custody missing");
   signingContextRemaining(deadline, 15000);

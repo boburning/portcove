@@ -1,3 +1,4 @@
+import { requireStorageAppToken } from "./release-storage-credential.mts";
 import assert from "node:assert/strict";
 import childProcess from "node:child_process";
 import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
@@ -11,6 +12,7 @@ import {
   createCoordinatorJournalApi,
   createCheckpointJobTokenApi,
   createCheckpointHistoryReader,
+  createPreparedCheckpointObjectApi,
 } from "./release-coordinator-journal-api.mts";
 import { performance } from "node:perf_hooks";
 import { checkpointProofFixture } from "./fixtures/checkpoint-proof-fixture.mts";
@@ -104,6 +106,9 @@ async function fixture(t: test.TestContext) {
   t.after(() => rm(root, { recursive: true, force: true }));
   const keys = [
     "GH_TOKEN",
+    "PORTCOVE_STORAGE_APP_TOKEN",
+    "PORTCOVE_STORAGE_APP_ID",
+    "PORTCOVE_STORAGE_INSTALLATION_ID",
     "GH_ENTERPRISE_TOKEN",
     "PORTCOVE_COORDINATOR_JOURNAL_TOKEN",
     "HTTPS_PROXY",
@@ -463,4 +468,75 @@ void test("fixed-job collection survives inherited execution expiry only for exa
     /phase deadline/,
   );
   assert.equal(f.calls(), 3);
+});
+
+void test("new storage token cannot borrow a job/legacy credential or mismatched App installation", () => {
+  const expected = { app_id: 90001, installation_id: 90002 };
+  const environment = {
+    GH_TOKEN: "job-token",
+    PORTCOVE_COORDINATOR_JOURNAL_TOKEN: "legacy-token",
+    PORTCOVE_CONTROL_APP_TOKEN: "observer-token",
+    PORTCOVE_STORAGE_APP_TOKEN: "new-storage-token",
+    PORTCOVE_STORAGE_APP_ID: "90001",
+    PORTCOVE_STORAGE_INSTALLATION_ID: "90002",
+  };
+  assert.equal(requireStorageAppToken(expected, environment), "new-storage-token");
+  for (const changed of [
+    { ...environment, PORTCOVE_STORAGE_APP_TOKEN: undefined },
+    { ...environment, PORTCOVE_STORAGE_APP_TOKEN: "job-token" },
+    { ...environment, PORTCOVE_STORAGE_APP_TOKEN: "legacy-token" },
+    { ...environment, PORTCOVE_STORAGE_APP_TOKEN: "observer-token" },
+    { ...environment, PORTCOVE_STORAGE_APP_TOKEN: "bad token" },
+    { ...environment, PORTCOVE_STORAGE_APP_ID: "15368" },
+    { ...environment, PORTCOVE_STORAGE_INSTALLATION_ID: "90003" },
+  ])
+    assert.throws(() => requireStorageAppToken(expected, changed));
+});
+void test("dedicated storage checkpoint adapter isolates the new token and preserves endpoint/deadline restrictions", async (t) => {
+  const root = await fixture(t);
+  const { checkpoint, configuration } = checkpointProofFixture();
+  process.env.GH_TOKEN = "job-read-only-here";
+  process.env.PORTCOVE_STORAGE_APP_TOKEN = "dedicated-storage-token";
+  process.env.PORTCOVE_STORAGE_APP_ID = "90001";
+  process.env.PORTCOVE_STORAGE_INSTALLATION_ID = "90002";
+  let calls = 0;
+  t.mock.method(
+    childProcess,
+    "spawnSync",
+    (_command: string, _args: readonly string[], options: SpawnSyncOptionsWithStringEncoding) => {
+      calls++;
+      assert.equal(options.env!.GH_TOKEN, "dedicated-storage-token");
+      assert.equal(options.env!.PORTCOVE_STORAGE_APP_TOKEN, undefined);
+      assert.equal(options.env!.GITHUB_TOKEN, undefined);
+      assert.equal(options.env!.ACTIONS_ID_TOKEN_REQUEST_TOKEN, undefined);
+      return { status: 0, stdout: 'HTTP/2.0 201 Created\r\n\r\n{"observed":true}', stderr: "" };
+    },
+  );
+  syncBuiltinESMExports();
+  const api = createCheckpointJobTokenApi(
+    root,
+    checkpoint,
+    configuration,
+    performance.now() + 1000,
+    { app_id: 90001, installation_id: 90002 },
+  );
+  for (const route of [
+    "repos/boburning/portcove/releases",
+    "repos/other/repo/git/blobs",
+    "repos/boburning/portcove/actions/jobs/1",
+  ])
+    assert.throws(() => api.request("POST", route, {}));
+  assert.equal(calls, 0);
+  api.request("POST", "repos/boburning/portcove/git/blobs", { content: "public" });
+  assert.equal(calls, 1);
+  const prepared = createPreparedCheckpointObjectApi(root, performance.now() + 1000, {
+    app_id: 90001,
+    installation_id: 90002,
+  });
+  assert.throws(() => prepared.request("POST", "repos/boburning/portcove/git/refs", {}));
+  assert.throws(() => prepared.graphql("mutation { updateRefs }", {}));
+  assert.equal(calls, 1);
+  prepared.request("POST", "repos/boburning/portcove/git/blobs", { content: "public" });
+  assert.equal(calls, 2);
+  assert.equal(process.env.GH_TOKEN, "job-read-only-here");
 });

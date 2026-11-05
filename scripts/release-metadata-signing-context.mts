@@ -367,6 +367,22 @@ export async function bindCoordinatorSigningContextPending(
   await requireCoordinatorSigningContext(receipt);
 }
 export async function requireCoordinatorSigningContext(receipt: object, phaseDeadline?: number) {
+  return requireCoordinatorSigningContextAt(receipt, phaseDeadline, true);
+}
+/** Existing private receipt's retained inputs and fresh controls only. The
+ * authenticated owned journal checks head/pending state during checkpoint
+ * mutation; an old context-head assertion cannot replace that protocol. */
+export async function requireCoordinatorSigningCheckpointControls(
+  receipt: object,
+  phaseDeadline?: number,
+) {
+  await requireCoordinatorSigningContextAt(receipt, phaseDeadline, false);
+}
+async function requireCoordinatorSigningContextAt(
+  receipt: object,
+  phaseDeadline: number | undefined,
+  verifyCheckpointState: boolean,
+) {
   const owned = contexts.get(receipt);
   if (!owned) throw new Error("actual coordinator metadata context required");
   if (phaseDeadline !== undefined) {
@@ -389,7 +405,7 @@ export async function requireCoordinatorSigningContext(receipt: object, phaseDea
   )
     throw new Error("actual metadata context retained bytes changed");
   await controls(owned);
-  await verifyState(owned, await snapshot(owned));
+  if (verifyCheckpointState) await verifyState(owned, await snapshot(owned));
   if (site) await readPublicApplicationSiteMarker(site.generation, owned.deadline);
   else if (performance.now() - owned.bootstrap_observed >= 45000) {
     const provider = await createReleaseCustodyProvider({

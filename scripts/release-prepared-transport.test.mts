@@ -347,6 +347,38 @@ void test(
 );
 
 void test(
+  "prepared transport delegates the journal write after publishing and checking the exact objects",
+  { timeout: 60000 },
+  async (t) => {
+    const f = await fixture(t);
+    const refs = [...f.refs];
+    const published = { checkpoint: f.saved.checkpoint };
+    const checkpoints: string[] = [];
+    const result = await publishPreparedCoordinatorCheckpoint(
+      f.local,
+      f.saved.checkpoint,
+      f.config,
+      {
+        api: f.api,
+        publishCheckpoint: async (checkpoint) => {
+          checkpoints.push(checkpoint);
+          assert.equal(
+            f.git(f.remote, ["rev-parse", `${f.prepared.prepared_commit}^{tree}`]),
+            f.prepared.prepared_tree,
+          );
+          assert.deepEqual([...f.refs], refs);
+          return published;
+        },
+      },
+    );
+    assert.deepEqual(checkpoints, [f.saved.checkpoint]);
+    assert.equal(result.published, published);
+    assert.deepEqual([...f.refs], refs);
+    assert.equal(f.counts().mutations, 0);
+  },
+);
+
+void test(
   "native release source custody publishes exact objects without touching any journal or ref",
   { timeout: 60000 },
   async (t) => {

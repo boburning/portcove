@@ -3,10 +3,11 @@ import type { GitHubRestReader } from "./github-api.mts";
 import { releaseCanonicalDigest } from "./release-canonical.mts";
 import { isRecord } from "./runtime-values.mts";
 
-export type HostedReleaseAppRole = "semantic" | "protection_observer";
+export type HostedReleaseAppRole = "semantic" | "protection_observer" | "storage_writer";
 function rolePermissions(role: HostedReleaseAppRole) {
-  if (role !== "semantic" && role !== "protection_observer")
+  if (role !== "semantic" && role !== "protection_observer" && role !== "storage_writer")
     throw new Error("unselected hosted App role");
+  if (role === "storage_writer") return { contents: "write", metadata: "read" };
   return role === "semantic"
     ? { checks: "write", metadata: "read" }
     : { administration: "write", metadata: "read" };
@@ -17,6 +18,20 @@ function rolePermissions(role: HostedReleaseAppRole) {
  * Neither generating this manifest nor reading an App appoints a producer. */
 export function prepareHostedReleaseAppManifest(role: HostedReleaseAppRole) {
   const permissions = rolePermissions(role);
+  if (role === "storage_writer")
+    return {
+      name: "Portcove production storage writer",
+      url: "https://github.com/boburning/portcove",
+      description:
+        "Fixed authenticated classification and coordinator-journal storage for Portcove; no review or signing role.",
+      public: false,
+      hook_attributes: { url: "https://github.com/boburning/portcove", active: false },
+      redirect_url: "http://127.0.0.1:1456/github-app/manifest-callback",
+      default_permissions: permissions,
+      default_events: [],
+      request_oauth_on_install: false,
+      setup_on_update: false,
+    };
   return {
     name: role === "semantic" ? "Portcove Semantic Producer" : "Portcove Protection Observer",
     url: "https://github.com/boburning/portcove",
@@ -131,6 +146,7 @@ export function observeHostedReleaseApp(
 export function inspectHostedReleaseAppSeparation(
   semantic: ReturnType<typeof observeHostedReleaseApp>,
   observer: ReturnType<typeof observeHostedReleaseApp>,
+  storage?: ReturnType<typeof observeHostedReleaseApp>,
 ) {
   if (
     semantic.role !== "semantic" ||
@@ -139,5 +155,16 @@ export function inspectHostedReleaseAppSeparation(
     semantic.installation_id === observer.installation_id
   )
     throw new Error("hosted App roles are conflated");
-  return { semantic: structuredClone(semantic), protection_observer: structuredClone(observer) };
+  if (
+    storage &&
+    (storage.role !== "storage_writer" ||
+      [semantic.app_id, observer.app_id].includes(storage.app_id) ||
+      [semantic.installation_id, observer.installation_id].includes(storage.installation_id))
+  )
+    throw new Error("hosted storage App role is conflated");
+  return {
+    semantic: structuredClone(semantic),
+    protection_observer: structuredClone(observer),
+    ...(storage ? { storage_writer: structuredClone(storage) } : {}),
+  };
 }

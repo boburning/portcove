@@ -642,9 +642,10 @@ void test("metadata context rechecks maintenance after slow current-state/public
       files: [],
       bootstrap_observed: 59000,
     };
-  const getter = runInNewContext(
-    stripTypeScriptTypes(source.slice(start, end).replace("export ", "")) +
-      "\nrequireCoordinatorSigningContext",
+  let stateReads = 0;
+  const entry = runInNewContext(
+    stripTypeScriptTypes(source.slice(start, end).replaceAll(/^export /gmu, "")) +
+      "\n({getter: requireCoordinatorSigningContext, checkpointControls: requireCoordinatorSigningCheckpointControls})",
     {
       contexts: new WeakMap([[receipt, owned]]),
       performance: { now: () => clock },
@@ -660,13 +661,30 @@ void test("metadata context rechecks maintenance after slow current-state/public
         return {};
       },
       snapshot: async () => {
+        stateReads++;
         clock = 61000;
         return {};
       },
       verifyState: async () => {},
       structuredClone,
+      path,
     },
-  ) as (r: object) => Promise<unknown>;
-  await assert.rejects(getter(receipt), /maintenance observation expired/);
+  ) as {
+    getter: (r: object) => Promise<unknown>;
+    checkpointControls: (r: object) => Promise<void>;
+  };
+  await assert.rejects(entry.getter(receipt), /maintenance observation expired/);
   assert.deepEqual(reads, [59000, 61000]);
+  assert.equal(stateReads, 1);
+  clock = 59000;
+  reads.length = 0;
+  await entry.checkpointControls(receipt);
+  assert.equal(
+    stateReads,
+    1,
+    "checkpoint state remains owned by the signed journal, not the stale context head",
+  );
+  assert.deepEqual(reads, [59000, 59000]);
+  clock = 61000;
+  await assert.rejects(entry.checkpointControls(receipt), /maintenance observation expired/);
 });

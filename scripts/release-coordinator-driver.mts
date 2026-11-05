@@ -54,7 +54,10 @@ import {
   recoverReleaseOpportunity,
 } from "./release-coordinator-state.mts";
 import { planReleaseOpportunity, validateOpportunity } from "./release-coordinator.mts";
-import { createCoordinatorJournalApi } from "./release-coordinator-journal-api.mts";
+import {
+  createCoordinatorJournalApi,
+  createPreparedCheckpointObjectApi,
+} from "./release-coordinator-journal-api.mts";
 import { collectReleaseSourceChanges, netTreeDeltaScope } from "./release-source-changes.mts";
 import { hydrateReleasePreparationSource } from "./release-preparation-source.mts";
 import { prepareReleaseVersion } from "../apps/desktop/scripts/prepare-release-version.mts";
@@ -70,6 +73,8 @@ import {
 } from "./release-candidate-dispatch.mts";
 import {
   authenticateCapacityExecutor,
+  ensureOwnedCheckpointJournalHistory,
+  publishOwnedSignedCoordinatorCheckpoint,
   executeOwnedCapacityEffect,
   refreshCapacityExecutor,
   recoverOwnedCapacityEffect,
@@ -337,35 +342,50 @@ export async function prepareActualCoordinatorCatalogSigning(
         );
         if (before.checkpoint !== recovered.checkpoint)
           throw new Error("catalog journal changed before subject CAS");
+        const beforeMutation = () => {
+          budget.check();
+          const currentProof = readCatalogCoordinatorReview(
+            api,
+            authorities,
+            inputs.opportunity,
+            inputs.check_id,
+          );
+          if (currentProof.proof_sha256 !== semantic.proof_sha256)
+            throw new Error("catalog selected Check changed before journal mutation");
+          if (
+            catalogCoordinatorMaintenanceIdentity(initialControls.readMaintenance(api)) !== stable
+          )
+            throw new Error("catalog controls changed before provider journal mutation");
+          budget.check();
+        };
+        const checkpointControls = async () => {
+          beforeMutation();
+        };
+        const signedJournal = await ensureOwnedCheckpointJournalHistory(
+          executor,
+          recovered.repository,
+          recovered.checkpoint,
+          checkpointControls,
+        );
         const persisted = await checkpointReleaseOpportunity(
           recovered.repository,
           recovered.checkpoint,
           input,
         );
-        await publishCoordinatorCheckpoint(
-          recovered.repository,
-          persisted.checkpoint,
-          { schema_version: 1, namespace: authorities.namespace },
-          {
-            api: guardedCoordinatorJournal(directory, budget, () => {
-              budget.check();
-              const currentProof = readCatalogCoordinatorReview(
-                api,
-                authorities,
-                inputs.opportunity,
-                inputs.check_id,
-              );
-              if (currentProof.proof_sha256 !== semantic.proof_sha256)
-                throw new Error("catalog selected Check changed before journal mutation");
-              if (
-                catalogCoordinatorMaintenanceIdentity(initialControls.readMaintenance(api)) !==
-                stable
-              )
-                throw new Error("catalog controls changed before provider journal mutation");
-              budget.check();
-            }),
-          },
-        );
+        if (signedJournal)
+          await publishOwnedSignedCoordinatorCheckpoint(
+            executor,
+            recovered.repository,
+            persisted.checkpoint,
+            checkpointControls,
+          );
+        else
+          await publishCoordinatorCheckpoint(
+            recovered.repository,
+            persisted.checkpoint,
+            { schema_version: 1, namespace: authorities.namespace },
+            { api: guardedCoordinatorJournal(directory, budget, beforeMutation) },
+          );
         const readback = await readRemoteCoordinatorSnapshot(
           directory,
           { schema_version: 1, namespace: authorities.namespace },
@@ -737,6 +757,17 @@ function maintenanceIdentity(raw: unknown, purpose: string) {
   delete stable.reader.expires_at;
   delete stable.reader.round;
   delete stable.protection.observed_at;
+  if (stable.protection.journal_policy_sha256 !== undefined) {
+    if (
+      typeof stable.protection.journal_policy_sha256 !== "string" ||
+      !/^[a-f0-9]{64}$/u.test(stable.protection.journal_policy_sha256)
+    )
+      throw new Error("journal policy identity unavailable");
+    // Keep the explicit policy projection. Its authenticated source retains
+    // the complete observation; normal signed journal progression changes only
+    // that observation's head OID, independently proved by the journal owner.
+    delete stable.protection.inventory_sha256;
+  }
   return capacityDigest(stable);
 }
 /** Budget derivation only, never job/source authorization. The actual fixed
@@ -877,6 +908,61 @@ function coordinatorBootstrapSourceProvider(
     maxBytes,
   });
 }
+
+/** Same fixed coordinator, original deadline and current controls; no new
+ * journal authority. Bind retained history before the caller writes local
+ * intent. Selected publication never constructs a legacy transport. */
+async function coordinatorCheckpointPublisher(
+  directory: string,
+  budget: ReturnType<typeof coordinatorDeadline>,
+  reader: Awaited<ReturnType<typeof authenticateControlReaderJob>>,
+  repository: string,
+  previous: string,
+  configuration: unknown,
+  controls: () => void,
+) {
+  const authorities = await requireControllerApplicationCoordinatorAuthorities();
+  if (inspectCoordinatorRemoteNamespace(configuration) !== authorities.namespace)
+    throw new Error("coordinator checkpoint namespace differs from actual source");
+  const executor = await authenticateCapacityExecutor(
+    "coordinator",
+    {
+      audience: "portcove-capacity-executor",
+      subject: controllerOidcSubject(
+        reader.admitted.execution_ref,
+        "production-release-coordinator",
+      ),
+      controller_revision: reader.admitted.revision,
+      controller_ref: reader.admitted.execution_ref,
+      actor_id: reader.admitted.actor_id,
+      run_id: reader.admitted.run_id,
+      run_attempt: reader.admitted.run_attempt,
+    },
+    directory,
+    budget.monotonicDeadline,
+  );
+  const refresh = async () => {
+    controls();
+  };
+  const selected = await ensureOwnedCheckpointJournalHistory(
+    executor,
+    repository,
+    previous,
+    refresh,
+  );
+  return async (checkpoint: string) => {
+    controls();
+    if (selected)
+      return publishOwnedSignedCoordinatorCheckpoint(executor, repository, checkpoint, refresh);
+    const api = guardedCoordinatorJournal(directory, budget, controls);
+    const result = await publishCoordinatorCheckpoint(repository, checkpoint, configuration, {
+      api,
+    });
+    controls();
+    return result;
+  };
+}
+
 function guardedCoordinatorJournal(
   directory: string,
   budget: ReturnType<typeof coordinatorDeadline>,
@@ -1308,6 +1394,19 @@ async function coordinateTrustedReleaseAt(
             },
           };
         },
+        undefined,
+        async () => {
+          budget.check();
+          const fresh = controls.read(api, activeOpportunity);
+          if (
+            fresh.pause.publication_paused ||
+            !fresh.resource_policy_matches_controller ||
+            capacityDigest(fresh.pause) !== capacityDigest(original.pause) ||
+            capacityDigest(fresh.capacity) !== capacityDigest(original.capacity) ||
+            capacityDigest(fresh.classification) !== capacityDigest(original.classification)
+          )
+            throw new Error("dispatch recovery controls changed");
+        },
       );
       checkpoint = resolved.checkpoint;
       recovered = { ...recovered, ...(await recoverReleaseOpportunity(repository, checkpoint)) };
@@ -1380,9 +1479,6 @@ async function coordinateTrustedReleaseAt(
         authority: "none",
         automatic_retry: false,
       };
-    const journal = guardedCoordinatorJournal(directory, budget, () => {
-      readSynchronousBoundary();
-    });
     const readSynchronousBoundary = () => {
       budget.check();
       if (round?.admission) {
@@ -1415,14 +1511,35 @@ async function coordinateTrustedReleaseAt(
     const readBoundary = async () => readSynchronousBoundary();
     await readBoundary();
     await assertInventory();
+    const checkpointControls = async () => {
+      await readBoundary();
+    };
+    const journalExecutor = await getExecutor();
+    const signedJournal = await ensureOwnedCheckpointJournalHistory(
+      journalExecutor,
+      repository,
+      checkpoint,
+      checkpointControls,
+    );
+    const legacyJournal = signedJournal
+      ? undefined
+      : guardedCoordinatorJournal(directory, budget, readSynchronousBoundary);
+    const publishCheckpoint = async (next: string) => {
+      if (signedJournal)
+        return publishOwnedSignedCoordinatorCheckpoint(
+          journalExecutor,
+          repository,
+          next,
+          checkpointControls,
+        );
+      if (!legacyJournal) throw new Error("legacy coordinator transport unavailable");
+      return publishCoordinatorCheckpoint(repository, next, selected.remote_configuration, {
+        api: legacyJournal,
+      });
+    };
     phase = "durable-planner-input";
     const planned = await checkpointReleaseOpportunity(repository, checkpoint, input);
-    await publishCoordinatorCheckpoint(
-      repository,
-      planned.checkpoint,
-      selected.remote_configuration,
-      { api: journal },
-    );
+    await publishCheckpoint(planned.checkpoint);
     checkpoint = planned.checkpoint;
     if (plan.action === "skip" || plan.action === "coalesce")
       return { decision: plan.action, plan, directory, checkpoint, authority: "none" };
@@ -1451,12 +1568,7 @@ async function coordinateTrustedReleaseAt(
       await readBoundary();
       await assertInventory();
       const resumed = await checkpointReleaseOpportunity(repository, checkpoint, input);
-      await publishCoordinatorCheckpoint(
-        repository,
-        resumed.checkpoint,
-        selected.remote_configuration,
-        { api: journal },
-      );
+      await publishCheckpoint(resumed.checkpoint);
       checkpoint = resumed.checkpoint;
     }
     if (plan.action === "prepare") {
@@ -1500,7 +1612,18 @@ async function coordinateTrustedReleaseAt(
         repository,
         allocated.checkpoint,
         selected.remote_configuration,
-        { api: journal },
+        signedJournal
+          ? {
+              api: createPreparedCheckpointObjectApi(
+                directory,
+                budget.monotonicDeadline,
+                "journal" in profileAuthorities.configuration
+                  ? profileAuthorities.configuration.journal.apps.storage_writer
+                  : undefined,
+              ),
+              publishCheckpoint,
+            }
+          : { api: legacyJournal! },
       );
       checkpoint = allocated.checkpoint;
       const ownTags = inventory.tags();
@@ -1631,6 +1754,7 @@ async function coordinateTrustedReleaseAt(
           );
           return dispatch.value;
         },
+        checkpointControls,
       );
     }
     checkpoint = result.checkpoint;
@@ -1684,9 +1808,7 @@ async function coordinateTrustedReleaseAt(
     await refreshCapacityExecutor(executor);
     const bound = await checkpointReleaseOpportunity(repository, checkpoint, progressed);
     checkpoint = bound.checkpoint;
-    await publishCoordinatorCheckpoint(repository, checkpoint, selected.remote_configuration, {
-      api: journal,
-    });
+    await publishCheckpoint(checkpoint);
     return {
       decision: candidate.report_repair === undefined ? "dispatched" : "report-repair-dispatched",
       directory,
@@ -1926,19 +2048,23 @@ async function prepareTrustedCoordinatorRenewalAt(
       throw new Error("maintenance inputs or remote checkpoint changed before durable preparation");
     phase = "durable-maintenance-descriptor";
     budget.check();
-    const saved = await checkpointReleaseOpportunity(recovered.repository, checkpoint, input);
-    checkpoint = saved.checkpoint;
-    await publishCoordinatorCheckpoint(
+    const checkpointControls = () => {
+      budget.check();
+      if (controls.readMaintenance(api).facts_sha256 !== initial.facts_sha256)
+        throw new Error("maintenance controls changed immediately before journal CAS");
+    };
+    const publishCheckpoint = await coordinatorCheckpointPublisher(
+      directory,
+      budget,
+      reader,
       recovered.repository,
       checkpoint,
       selected.remote_configuration,
-      {
-        api: guardedCoordinatorJournal(directory, budget, () => {
-          if (controls.readMaintenance(api).facts_sha256 !== initial.facts_sha256)
-            throw new Error("maintenance controls changed immediately before journal CAS");
-        }),
-      },
+      checkpointControls,
     );
+    const saved = await checkpointReleaseOpportunity(recovered.repository, checkpoint, input);
+    checkpoint = saved.checkpoint;
+    await publishCheckpoint(checkpoint);
     const result = Object.freeze({
       decision: "metadata-prepared",
       directory,
@@ -2380,6 +2506,14 @@ async function prepareTrustedCoordinatorBootstrapAt(
   input.metadata_bootstrap = descriptor;
   input.controller = {
     ...recovered.input.controller,
+    // The exact independently ratified empty seed is historical setup. Its
+    // first authenticated child records the repaired current controller without
+    // rewriting that seed or changing an active candidate's frozen source.
+    ...("journal" in authorities.configuration &&
+    recovered.checkpoint === authorities.configuration.journal.journal_seed.checkpoint &&
+    recovered.input.active_candidate == null
+      ? { revision: reader.admitted.revision }
+      : {}),
     publication_paused: initial.pause.publication_paused,
     capacity_attempt: {
       ...initial.capacity_source.capacity,
@@ -2437,22 +2571,26 @@ async function prepareTrustedCoordinatorBootstrapAt(
   if (coordinatorMaintenanceIdentity(fresh) !== identity)
     throw new Error("bootstrap controls changed before journal CAS");
   budget.check();
+  const checkpointControls = () => {
+    budget.check();
+    if (coordinatorMaintenanceIdentity(beforeControls.readMaintenance(api)) !== identity)
+      throw new Error("bootstrap controls changed immediately before journal CAS");
+  };
+  const publishCheckpoint = await coordinatorCheckpointPublisher(
+    directory,
+    budget,
+    reader,
+    recovered.repository,
+    recovered.checkpoint,
+    selected.remote_configuration,
+    checkpointControls,
+  );
   const saved = await checkpointReleaseOpportunity(
     recovered.repository,
     recovered.checkpoint,
     input,
   );
-  await publishCoordinatorCheckpoint(
-    recovered.repository,
-    saved.checkpoint,
-    selected.remote_configuration,
-    {
-      api: guardedCoordinatorJournal(directory, budget, () => {
-        if (coordinatorMaintenanceIdentity(beforeControls.readMaintenance(api)) !== identity)
-          throw new Error("bootstrap controls changed immediately before journal CAS");
-      }),
-    },
-  );
+  await publishCheckpoint(saved.checkpoint);
   controlCheckpoint = saved.checkpoint;
   const result = Object.freeze({
     decision: "metadata-bootstrap-prepared",
@@ -3219,6 +3357,8 @@ async function recoverTrustedCoordinatorContext(
       await guard();
       return readback;
     },
+    undefined,
+    guard,
   );
   budget.check();
   return {
@@ -3520,19 +3660,23 @@ async function requestTrustedSemanticReviewAt(
       throw new Error("neutral request provider/control snapshot changed before durable intent");
     phase = "durable-neutral-review-request";
     budget.check();
-    const result = await checkpointReleaseOpportunity(recovered.repository, checkpoint, input);
-    checkpoint = result.checkpoint;
-    await publishCoordinatorCheckpoint(
+    const checkpointControls = () => {
+      budget.check();
+      if (controls.readMaintenance(api).facts_sha256 !== observed.facts_sha256)
+        throw new Error("neutral request controls changed immediately before journal CAS");
+    };
+    const publishCheckpoint = await coordinatorCheckpointPublisher(
+      directory,
+      budget,
+      reader,
       recovered.repository,
       checkpoint,
       selected.remote_configuration,
-      {
-        api: guardedCoordinatorJournal(directory, budget, () => {
-          if (controls.readMaintenance(api).facts_sha256 !== observed.facts_sha256)
-            throw new Error("neutral request controls changed immediately before journal CAS");
-        }),
-      },
+      checkpointControls,
     );
+    const result = await checkpointReleaseOpportunity(recovered.repository, checkpoint, input);
+    checkpoint = result.checkpoint;
+    await publishCheckpoint(checkpoint);
     return {
       decision: "review-requested",
       directory,
@@ -3661,14 +3805,23 @@ async function continueTrustedSemanticReview(
     if (fresh.facts_sha256 !== observed.facts_sha256 || current.checkpoint !== checkpoint)
       throw new Error("negative semantic/control/checkpoint identity changed before retirement");
     phase = "durable-negative-semantic-retirement";
+    const checkpointControls = () => {
+      budget.check();
+      if (controls.readDisposition(api, request).facts_sha256 !== observed.facts_sha256)
+        throw new Error("semantic disposition/controls changed immediately before journal CAS");
+    };
+    const publishCheckpoint = await coordinatorCheckpointPublisher(
+      directory,
+      budget,
+      reader,
+      recovered.repository,
+      checkpoint,
+      remoteConfiguration,
+      checkpointControls,
+    );
     const saved = await checkpointReleaseOpportunity(recovered.repository, checkpoint, input);
     checkpoint = saved.checkpoint;
-    await publishCoordinatorCheckpoint(recovered.repository, checkpoint, remoteConfiguration, {
-      api: guardedCoordinatorJournal(directory, budget, () => {
-        if (controls.readDisposition(api, request).facts_sha256 !== observed.facts_sha256)
-          throw new Error("semantic disposition/controls changed immediately before journal CAS");
-      }),
-    });
+    await publishCheckpoint(checkpoint);
     return {
       decision: "negative-review-retired",
       directory,

@@ -8,6 +8,13 @@ import {
   releaseControlPhaseProfile,
 } from "./release-control-phases.mts";
 import { requireFixedClassificationPrincipal } from "./release-classification-principal.mts";
+import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-namespace.mts";
+
+type StorageJournalPolicy = { namespace: string; writer_app_id: number };
+type ProtectionObservationOptions = {
+  releasePublication?: boolean;
+  journalNamespace?: string | undefined;
+};
 
 /** Transport only, emitted after the fixed production-observer verifier.
  * Authentication comes from admitted same-workflow needs, not this JSON. */
@@ -90,18 +97,29 @@ function id(value: unknown): asserts value is number {
  */
 export function observeReleaseInputProtections(
   api: GitHubRestReader,
-  options: { releasePublication?: boolean } = {},
+  options: ProtectionObservationOptions = {},
 ) {
   return observeProtections(api, options, "application");
 }
-export function observeCatalogMaintenanceProtections(api: GitHubRestReader) {
-  return observeProtections(api, {}, "catalog-publication");
+export function observeCatalogMaintenanceProtections(
+  api: GitHubRestReader,
+  options: ProtectionObservationOptions = {},
+) {
+  return observeProtections(api, options, "catalog-publication");
 }
 function observeProtections(
   api: GitHubRestReader,
-  options: { releasePublication?: boolean },
+  options: ProtectionObservationOptions,
   purpose: "application" | "catalog-publication",
 ) {
+  const journalBranch =
+    options.journalNamespace === undefined
+      ? undefined
+      : `${inspectCoordinatorRemoteNamespace({ schema_version: 1, namespace: options.journalNamespace })}-coordinator-state`;
+  const selectedBranches = [
+    ...(purpose === "catalog-publication" ? ["portcove-release-pause"] : refs),
+    ...(journalBranch === undefined ? [] : [journalBranch]),
+  ];
   let requests = 0;
   const started = performance.now();
   const get = (suffix: string) => {
@@ -166,37 +184,35 @@ function observeProtections(
     }
     if (!complete || new Set(rulesets.map((rule) => rule.id)).size !== rulesets.length)
       throw new Error("protection inventory pages incomplete or duplicated");
-    const branches = (purpose === "catalog-publication" ? ["portcove-release-pause"] : refs).map(
-      (branch) => {
-        const ref = get(`/git/ref/heads/${branch}`);
-        if (
-          !isRecord(ref) ||
-          ref.ref !== `refs/heads/${branch}` ||
-          !isRecord(ref.object) ||
-          ref.object.type !== "commit" ||
-          typeof ref.object.sha !== "string" ||
-          !/^[a-f0-9]{40}$/u.test(ref.object.sha)
-        )
-          throw new Error("protected input ref unavailable");
-        const effective: unknown[] = [];
-        let covered = false;
-        for (let page = 1; page <= 8; page++) {
-          const values = get(`/rules/branches/${branch}?per_page=100&page=${page}`);
-          if (!Array.isArray(values) || values.length > 100)
-            throw new Error("effective protection rules unavailable");
-          for (const value of values as unknown[]) effective.push(value);
-          if (values.length < 100) {
-            covered = true;
-            break;
-          }
+    const branches = selectedBranches.map((branch) => {
+      const ref = get(`/git/ref/heads/${branch}`);
+      if (
+        !isRecord(ref) ||
+        ref.ref !== `refs/heads/${branch}` ||
+        !isRecord(ref.object) ||
+        ref.object.type !== "commit" ||
+        typeof ref.object.sha !== "string" ||
+        !/^[a-f0-9]{40}$/u.test(ref.object.sha)
+      )
+        throw new Error("protected input ref unavailable");
+      const effective: unknown[] = [];
+      let covered = false;
+      for (let page = 1; page <= 8; page++) {
+        const values = get(`/rules/branches/${branch}?per_page=100&page=${page}`);
+        if (!Array.isArray(values) || values.length > 100)
+          throw new Error("effective protection rules unavailable");
+        for (const value of values as unknown[]) effective.push(value);
+        if (values.length < 100) {
+          covered = true;
+          break;
         }
-        if (!covered) throw new Error("effective rules pagination incomplete");
-        // Classic protection can add restrictions but cannot bypass a ruleset.
-        // This assertion concerns exact writers/ref immutability in active rulesets;
-        // it does not assert that a future operation will be available.
-        return { branch, ref, effective_rules: effective };
-      },
-    );
+      }
+      if (!covered) throw new Error("effective rules pagination incomplete");
+      // Classic protection can add restrictions but cannot bypass a ruleset.
+      // This assertion concerns exact writers/ref immutability in active rulesets;
+      // it does not assert that a future operation will be available.
+      return { branch, ref, effective_rules: effective };
+    });
     const environments =
       purpose === "catalog-publication"
         ? catalogProtectionEnvironments.map((name) => {
@@ -313,8 +329,9 @@ export function requireCatalogMaintenancePolicy(
   raw: unknown,
   controllerRef: string,
   now = Date.now(),
+  journal?: StorageJournalPolicy,
 ) {
-  const policy = requireInputPolicy(raw, 43177418, now, "catalog-publication");
+  const policy = requireInputPolicy(raw, 43177418, now, "catalog-publication", false, journal);
   // The caller supplies its already authenticated original controller ref, not
   // a tag selected by the observation or a candidate/dispatch body.
   if (
@@ -389,11 +406,24 @@ export function requireFixedClassificationStoragePolicy(
   principal: unknown,
   now = Date.now(),
 ) {
-  requireFixedClassificationPrincipal(principal, now);
+  const saved = requireFixedClassificationPrincipal(principal, now);
+  const app = saved.storage_writer;
   return {
-    ...requireInputPolicy(raw, 15368, now, "application", true),
+    ...requireInputPolicy(
+      raw,
+      app?.app_id ?? 15368,
+      now,
+      "application",
+      true,
+      app === null
+        ? undefined
+        : { namespace: saved.producer.writer.namespace, writer_app_id: app.app_id },
+    ),
     authorization: "fixed-job-input-storage-policy-only",
-    provider_writer: "github-actions-integration-not-workflow-specific",
+    provider_writer:
+      app === null
+        ? "github-actions-integration-not-workflow-specific"
+        : "dedicated-storage-app-not-workflow-specific",
     semantic_authority: "none",
   };
 }
@@ -403,7 +433,19 @@ function requireInputPolicy(
   now: number,
   purpose: "application" | "catalog-publication",
   selected = false,
+  journal?: StorageJournalPolicy,
 ) {
+  const journalBranch =
+    journal === undefined
+      ? undefined
+      : `${inspectCoordinatorRemoteNamespace({ schema_version: 1, namespace: journal.namespace })}-coordinator-state`;
+  if (
+    journal &&
+    (!Number.isSafeInteger(journal.writer_app_id) ||
+      journal.writer_app_id < 1 ||
+      journal.writer_app_id === 15368)
+  )
+    throw new Error("dedicated journal writer identity required");
   if (
     !Number.isSafeInteger(writerAppId) ||
     writerAppId < 1 ||
@@ -430,7 +472,10 @@ function requireInputPolicy(
   )
     throw new Error("fresh authenticated protection inventory unavailable");
   const rulesets = raw.inventory.rulesets;
-  for (const branch of purpose === "catalog-publication" ? ["portcove-release-pause"] : refs) {
+  for (const branch of [
+    ...(purpose === "catalog-publication" ? ["portcove-release-pause"] : refs),
+    ...(journalBranch === undefined ? [] : [journalBranch]),
+  ]) {
     const rows = raw.inventory.branches.filter(
       (value) => isRecord(value) && value.branch === branch,
     );
@@ -474,8 +519,13 @@ function requireInputPolicy(
         return (
           rule.bypass_actors.length === 1 &&
           isRecord(actor) &&
-          actor.actor_type === (branch === "portcove-release-inputs" ? "Integration" : "User") &&
-          actor.actor_id === (branch === "portcove-release-inputs" ? writerAppId : 43177418) &&
+          actor.actor_type === (branch === "portcove-release-pause" ? "User" : "Integration") &&
+          actor.actor_id ===
+            (branch === journalBranch
+              ? journal!.writer_app_id
+              : branch === "portcove-release-inputs"
+                ? writerAppId
+                : 43177418) &&
           actor.bypass_mode === "always"
         );
       });
@@ -485,9 +535,35 @@ function requireInputPolicy(
     )
       throw new Error("exact writer or immutable ref protection is unproven");
   }
+  const policyBranches = raw.inventory.branches.map((entry: unknown) => {
+    const row = structuredClone(entry);
+    if (journalBranch !== undefined && isRecord(row) && row.branch === journalBranch) {
+      if (
+        !isRecord(row.ref) ||
+        row.ref.ref !== `refs/heads/${journalBranch}` ||
+        !isRecord(row.ref.object) ||
+        row.ref.object.type !== "commit" ||
+        typeof row.ref.object.sha !== "string" ||
+        !/^[a-f0-9]{40}$/u.test(row.ref.object.sha)
+      )
+        throw new Error("observed journal ref identity unavailable");
+      // The original complete inventory digest is retained separately. Journal
+      // head progression is authenticated by the owned checkpoint protocol;
+      // it is not a change to writer/retention policy between fresh rounds.
+      delete row.ref.object.sha;
+    }
+    return row;
+  });
   return {
     observed_at: raw.observed_at,
     inventory_sha256: raw.inventory_sha256,
+    ...(journalBranch === undefined
+      ? {}
+      : {
+          journal_policy_sha256: createHash("sha256")
+            .update(canonical({ ...raw.inventory, branches: policyBranches }))
+            .digest("hex"),
+        }),
     authorization: "input-writer-policy-only",
   };
 }

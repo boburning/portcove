@@ -67,6 +67,12 @@ async function readControllerJobSourceConfiguration(
     if (actual.identity.evidence_scope !== "github.com")
       throw new Error("actual catalog OIDC identity required");
     source = actual.admitted;
+  } else if (isRecord(configuration) && configuration.kind === "three-app-fixed-jobs-v1") {
+    const { authenticateControlReaderJob } = await import("./release-live-control-admission.mts");
+    const actual = await authenticateControlReaderJob(environment, workflow, { phase, deadline });
+    if (actual.identity.evidence_scope !== "github.com")
+      throw new Error("actual storage writer job OIDC identity required before credential routing");
+    source = actual.admitted;
   } else {
     source = admitProductionInputReader(
       environment.PORTCOVE_CONTROLLER_ADMISSION,
@@ -126,6 +132,9 @@ export async function requireControllerJobCredentialRoute(rawPhase: unknown) {
         : {}),
       credential_transport:
         view.configuration.schema_version === 4 ? ("fixed-job" as const) : ("legacy-app" as const),
+      ...("journal" in view.configuration && view.configuration.journal.apps.storage_writer
+        ? { storage_writer: { ...view.configuration.journal.apps.storage_writer } }
+        : {}),
       source: view.source,
     }),
     recheck: captured.recheck,

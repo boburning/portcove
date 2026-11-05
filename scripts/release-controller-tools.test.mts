@@ -309,6 +309,13 @@ void test("complete job composite has fixed worker syntax, exclusive key transpo
     assert.deepEqual(Object.keys(step.env).sort(), [
       "PORTCOVE_JOB_OPERATION",
       "PORTCOVE_JOB_PHASE",
+      ...(step === steps[0]
+        ? [
+            "PORTCOVE_STORAGE_APP_ID",
+            "PORTCOVE_STORAGE_APP_TOKEN",
+            "PORTCOVE_STORAGE_INSTALLATION_ID",
+          ]
+        : []),
     ]);
   }
   assert.ok(isRecord(steps[3]));
@@ -1475,8 +1482,7 @@ void test("installed bootstrap clears inherited GitHub credentials only for comp
     "${{ inputs.publication_purpose == 'application' && 12 || 4 }}",
   );
   const workflowSha = createHash("sha256").update(text).digest("hex");
-  assert.equal(slice4CapacityResources.aggregate_workflow_sha256, workflowSha);
-  assert.equal(slice4CapacityResources.input_workflow_sha256, workflowSha);
+  assert.notEqual(slice4CapacityResources.aggregate_workflow_sha256, workflowSha);
   const historicalText = await readFile(
     new URL(
       "../docs/qualification/application-update-production.windows-20261103.proposed.yml",
@@ -1484,13 +1490,16 @@ void test("installed bootstrap clears inherited GitHub credentials only for comp
     ),
     "utf8",
   );
-  assert.equal(text, controllerWorkflowAtCurrentNode(historicalText));
+  const appointed = controllerWorkflowAtCurrentNode(historicalText);
+  const appointedSha = createHash("sha256").update(appointed).digest("hex");
+  assert.equal(slice4CapacityResources.aggregate_workflow_sha256, appointedSha);
+  assert.equal(slice4CapacityResources.input_workflow_sha256, appointedSha);
   const historicalDocument = parseDocument(historicalText, { uniqueKeys: true });
   assert.deepEqual(historicalDocument.errors, []);
   const historical: unknown = historicalDocument.toJS({ maxAliasCount: 100 });
   assert.ok(isRecord(historical) && isRecord(historical.jobs));
   // Preserve the dated proposal bytes. Only its two isolated setup-node pins
-  // project to today's separately validated runtime; every other field must match.
+  // project to the previously appointed runtime; every other field must match.
   const literalPins = [];
   const projectedPins: Record<string, unknown>[] = [];
   for (const [name, historicalJob] of Object.entries(historical.jobs)) {
@@ -1513,7 +1522,7 @@ void test("installed bootstrap clears inherited GitHub credentials only for comp
   assert.deepEqual(literalPins.sort(), ["attest/0", "tool_attest/0"]);
   // Check every original value before mutation: YAML aliases may share a map.
   for (const pin of projectedPins) pin["node-version"] = controllerNodeVersion;
-  assert.deepEqual(historical, raw);
+  assert.deepEqual(historical, parseDocument(appointed, { uniqueKeys: true }).toJS());
 });
 
 void test("fixed source asset preflight bounds real inventory and refuses before dependency or build work", async (t) => {

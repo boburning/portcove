@@ -34,6 +34,8 @@ import {
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import {
   capacityExecutorIdentity,
+  ensureOwnedCheckpointJournalHistory,
+  publishOwnedSignedCoordinatorCheckpoint,
   refreshCapacityExecutor,
   recoverOwnedCapacityEffect,
 } from "./release-capacity-executor.mts";
@@ -583,6 +585,11 @@ export async function recoverCandidateSigningCustody(
       const state = await recoverReleaseOpportunity(input.repository, checkpoint);
       const active = candidate(state.input.active_candidate);
       let originalCandidate = digest(active);
+      const checkpointControls = async () => {
+        signingContextRemaining(deadline, 15000);
+        await verifiedControllerToolPaths(toolsReceipt);
+        await freshBoundary();
+      };
       const guard = async () => {
         signingContextRemaining(deadline, 15000);
         await verifiedControllerToolPaths(toolsReceipt);
@@ -678,6 +685,8 @@ export async function recoverCandidateSigningCustody(
               },
             };
           },
+          undefined,
+          checkpointControls,
         );
         checkpoint = result.checkpoint;
         await guard();
@@ -942,6 +951,8 @@ export async function recoverCandidateSigningCustody(
                     }),
               };
             },
+            undefined,
+            checkpointControls,
           );
           checkpoint = recovered.checkpoint;
         }
@@ -1024,15 +1035,29 @@ export async function recoverCandidateSigningCustody(
             const failedCandidate = { ...failed, report_repair: proof };
             const next = structuredClone(current.input);
             next.active_candidate = failedCandidate;
+            const signedJournal = await ensureOwnedCheckpointJournalHistory(
+              executor,
+              input.repository,
+              checkpoint,
+              checkpointControls,
+            );
             const saved = await checkpointReleaseOpportunity(input.repository, checkpoint, next);
             await guard();
             await refreshCapacityExecutor(executor);
-            await publishCoordinatorCheckpoint(
-              input.repository,
-              saved.checkpoint,
-              input.remote_configuration,
-              { api: createCoordinatorJournalApi(directory, deadline) },
-            );
+            if (signedJournal)
+              await publishOwnedSignedCoordinatorCheckpoint(
+                executor,
+                input.repository,
+                saved.checkpoint,
+                checkpointControls,
+              );
+            else
+              await publishCoordinatorCheckpoint(
+                input.repository,
+                saved.checkpoint,
+                input.remote_configuration,
+                { api: createCoordinatorJournalApi(directory, deadline) },
+              );
             checkpoint = saved.checkpoint;
             originalCandidate = digest(failedCandidate);
             await guard();
@@ -1117,6 +1142,8 @@ export async function recoverCandidateSigningCustody(
                   }),
             };
           },
+          undefined,
+          checkpointControls,
         );
         checkpoint = recovered.checkpoint;
         await guard();

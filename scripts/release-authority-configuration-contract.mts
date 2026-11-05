@@ -309,10 +309,16 @@ export type ReleaseAuthorityConfiguration = ReturnType<typeof inspectReleaseAuth
  * migrate explicitly; parsing this record appoints no key or provider role. */
 export function inspectFixedJobJournalAuthorities(raw: unknown) {
   const value: unknown = structuredClone(raw);
-  exact(value, "apps,journal_seed,kind,namespace,repository_id,schema_version,setup_plan_sha256");
+  if (!isRecord(value)) throw new Error("selected journal record required");
+  const storageApp = value.kind === "three-app-fixed-jobs-v1";
+  exact(
+    value,
+    "apps,journal_seed,kind,namespace,repository_id,schema_version,setup_plan_sha256" +
+      (storageApp ? ",storage_setup_plan_sha256" : ""),
+  );
   if (
     value.schema_version !== 3 ||
-    value.kind !== "two-app-fixed-jobs-v1" ||
+    (!storageApp && value.kind !== "two-app-fixed-jobs-v1") ||
     value.repository_id !== 1354613114 ||
     Buffer.byteLength(JSON.stringify(value)) > 32768
   )
@@ -321,7 +327,10 @@ export function inspectFixedJobJournalAuthorities(raw: unknown) {
     schema_version: 1,
     namespace: value.namespace,
   });
-  exact(value.apps, "protection_observer,semantic");
+  exact(
+    value.apps,
+    storageApp ? "protection_observer,semantic,storage_writer" : "protection_observer,semantic",
+  );
   const inspectApp = (rawApp: unknown) => {
     exact(rawApp, "app_id,installation_id");
     return { app_id: positive(rawApp.app_id), installation_id: positive(rawApp.installation_id) };
@@ -329,20 +338,25 @@ export function inspectFixedJobJournalAuthorities(raw: unknown) {
   const apps = {
     semantic: inspectApp(value.apps.semantic),
     protection_observer: inspectApp(value.apps.protection_observer),
+    ...(storageApp ? { storage_writer: inspectApp(value.apps.storage_writer) } : {}),
   };
+  const identities = Object.values(apps);
   if (
-    new Set([15368, apps.semantic.app_id, apps.protection_observer.app_id]).size !== 3 ||
-    apps.semantic.installation_id === apps.protection_observer.installation_id
+    new Set([15368, ...identities.map((app) => app.app_id)]).size !== identities.length + 1 ||
+    new Set(identities.map((app) => app.installation_id)).size !== identities.length
   )
     throw new Error("selected App identities are conflated with each other or generic Actions");
+  if (storageApp && value.storage_setup_plan_sha256 === value.setup_plan_sha256)
+    throw new Error("storage amendment must remain separate from the original setup plan");
   exact(value.journal_seed, "checkpoint,state_sha256");
   return {
     schema_version: 3 as const,
-    kind: "two-app-fixed-jobs-v1" as const,
+    kind: storageApp ? ("three-app-fixed-jobs-v1" as const) : ("two-app-fixed-jobs-v1" as const),
     repository_id: 1354613114 as const,
     namespace,
     apps,
     setup_plan_sha256: hex(value.setup_plan_sha256, 64),
+    ...(storageApp ? { storage_setup_plan_sha256: hex(value.storage_setup_plan_sha256, 64) } : {}),
     journal_seed: {
       checkpoint: hex(value.journal_seed.checkpoint, 40),
       state_sha256: hex(value.journal_seed.state_sha256, 64),
@@ -428,12 +442,13 @@ export function inspectSelectedPublicationAuthorityConfiguration(raw: unknown) {
   );
   if (
     value.schema_version !== 4 ||
-    value.kind !== "two-app-fixed-jobs-v1" ||
+    !["two-app-fixed-jobs-v1", "three-app-fixed-jobs-v1"].includes(String(value.kind)) ||
     Buffer.byteLength(JSON.stringify(value)) > 32768
   )
     throw new Error("selected full authority profile or bound differs");
   const journal = inspectFixedJobJournalAuthorities(value.journal);
-  const common = { schema_version: 4 as const, kind: "two-app-fixed-jobs-v1" as const, journal };
+  if (value.kind !== journal.kind) throw new Error("selected full and journal profiles differ");
+  const common = { schema_version: 4 as const, kind: journal.kind, journal };
   if (application) {
     if (
       Object.hasOwn(value, "release_profile") &&
@@ -545,6 +560,13 @@ function boundInputRoles(
     const observer = selected.configuration.journal.apps.protection_observer;
     return {
       classification_transport: "fixed-job" as const,
+      storage_journal:
+        selected.configuration.journal.apps.storage_writer === undefined
+          ? undefined
+          : {
+              namespace: selected.configuration.journal.namespace,
+              writer_app_id: selected.configuration.journal.apps.storage_writer.app_id,
+            },
       protection_app_id: observer.app_id,
       protection_installation_id: observer.installation_id,
       configuration_sha256: selected.configuration_sha256,
@@ -556,6 +578,7 @@ function boundInputRoles(
       : inspectBoundCatalogControllerAuthorities(raw, source);
   return {
     classification_transport: "legacy-app" as const,
+    storage_journal: undefined,
     protection_app_id: legacy.apps.protection_observer.app_id,
     protection_installation_id: legacy.apps.protection_observer.installation_id,
     configuration_sha256: source.authority_configuration_sha256!,

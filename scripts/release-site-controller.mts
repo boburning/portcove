@@ -53,6 +53,8 @@ import { readControllerToolFile } from "./release-controller-tools.mts";
 import { authenticateReleaseControlRound } from "./release-live-control-admission.mts";
 import {
   authenticateCapacityExecutor,
+  ensureOwnedCheckpointJournalHistory,
+  publishOwnedSignedCoordinatorCheckpoint,
   capacityExecutorIdentity,
   executeOwnedCapacityEffect,
   refreshCapacityExecutor,
@@ -490,6 +492,9 @@ export async function runSitePublicationController(
             evidence_sha256: digest(upload),
           };
         },
+        async () => {
+          currentBoundary();
+        },
       );
       checkpoint = uploaded.checkpoint;
       const snapshot = await readRemoteCoordinatorSnapshot(directory, remote, {
@@ -582,17 +587,23 @@ export async function runSitePublicationController(
       next.active_candidate = null;
       next.publication = nextPublication;
       next.now = new Date().toISOString();
+      const checkpointControls = async () => {
+        currentBoundary();
+      };
+      const signedJournal = await ensureOwnedCheckpointJournalHistory(
+        executor,
+        recovered.repository,
+        result.checkpoint,
+        checkpointControls,
+      );
       const saved = await checkpointReleaseOpportunity(
         recovered.repository,
         result.checkpoint,
         next,
       );
-      const journal = createCoordinatorJournalApi(directory, deadline);
-      const completionRemote = await publishCoordinatorCheckpoint(
-        recovered.repository,
-        saved.checkpoint,
-        remote,
-        {
+      const publishLegacy = async () => {
+        const journal = createCoordinatorJournalApi(directory, deadline);
+        return publishCoordinatorCheckpoint(recovered.repository, saved.checkpoint, remote, {
           api: {
             request: journal.request.bind(journal),
             graphql(query, variables) {
@@ -600,8 +611,16 @@ export async function runSitePublicationController(
               return journal.graphql(query, variables);
             },
           },
-        },
-      );
+        });
+      };
+      const completionRemote = signedJournal
+        ? await publishOwnedSignedCoordinatorCheckpoint(
+            executor,
+            recovered.repository,
+            saved.checkpoint,
+            checkpointControls,
+          )
+        : await publishLegacy();
       remaining(deadline);
       const completed = await readRemoteCoordinatorSnapshot(directory, remote, {
         transport: { cwd: directory, deadline },

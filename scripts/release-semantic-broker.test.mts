@@ -107,6 +107,15 @@ function fullInstallationFixture(role: HostedReleaseAppRole = "semantic") {
         { status: 201 },
       );
     }
+    if (options.method === "DELETE") {
+      assert.equal(role, "storage_writer");
+      assert.equal(endpoint, "installation/token");
+      assert.equal(
+        new Headers(options.headers).get("authorization"),
+        "Bearer inert-full-installation-token",
+      );
+      return new Response(null, { status: 204 });
+    }
     assert.equal(options.method, "GET");
     if (endpoint.startsWith("installation/")) {
       assert.equal(
@@ -2261,4 +2270,122 @@ void test("selected actual broker control flow publishes and reconciles both pur
     actual_runtime: false,
     actual_provider: false,
   });
+});
+
+void test("new storage App manifest and observed identity keep the exact separately approved permission/callback boundary", () => {
+  const manifest = prepareHostedReleaseAppManifest("storage_writer");
+  assert.equal(manifest.name, "Portcove production storage writer");
+  assert.ok(manifest.name.length <= 34);
+  assert.deepEqual(manifest.default_permissions, { contents: "write", metadata: "read" });
+  assert.equal(manifest.redirect_url, "http://127.0.0.1:1456/github-app/manifest-callback");
+  assert.equal(manifest.public, false);
+  assert.equal(manifest.hook_attributes.active, false);
+  assert.deepEqual(manifest.default_events, []);
+  assert.equal(manifest.request_oauth_on_install, false);
+  const callback = {
+    ...appCallback,
+    url: `/github-app/manifest-callback?code=${appCode}&state=${appState}`,
+  };
+  assert.equal(inspectAppRegistrationCallback("storage_writer", appState, callback), appCode);
+  assert.throws(() => inspectAppRegistrationCallback("semantic", appState, callback));
+  const s = hostedAppReadback("semantic"),
+    o = hostedAppReadback("protection_observer", 124, 457),
+    w = hostedAppReadback("storage_writer", 125, 458);
+  const semantic = observeHostedReleaseApp("semantic", s.expected, s.clients),
+    observer = observeHostedReleaseApp("protection_observer", o.expected, o.clients),
+    writer = observeHostedReleaseApp("storage_writer", w.expected, w.clients);
+  assert.equal(
+    inspectHostedReleaseAppSeparation(semantic, observer, writer).storage_writer?.app_id,
+    125,
+  );
+  assert.throws(() =>
+    inspectHostedReleaseAppSeparation(semantic, observer, { ...writer, app_id: semantic.app_id }),
+  );
+  assert.throws(() =>
+    inspectHostedReleaseAppSeparation(semantic, observer, {
+      ...writer,
+      installation_id: observer.installation_id,
+    }),
+  );
+  w.values.app = { ...w.app, permissions: { ...w.app.permissions, checks: "write" } };
+  assert.throws(
+    () => observeHostedReleaseApp("storage_writer", w.expected, w.clients),
+    /boundary differs/,
+  );
+});
+void test("storage App capture keeps its one key privately and omits unused OAuth/webhook material and callback code", async () => {
+  const f = appRegistrationFixture();
+  const app = { ...f.app, permissions: { contents: "write", metadata: "read" } };
+  const capture = createAppRegistrationCapture({
+    ...f.options,
+    role: "storage_writer",
+    transport: async (_url, options) =>
+      options?.method === "POST"
+        ? Response.json(
+            {
+              ...app,
+              pem: f.pem,
+              client_secret: "unused-oauth-secret",
+              webhook_secret: "unused-webhook-secret",
+            },
+            { status: 201 },
+          )
+        : Response.json(app),
+  });
+  const result = await capture({
+    ...appCallback,
+    url: `/github-app/manifest-callback?code=${appCode}&state=${appState}`,
+  });
+  assert.equal(result.role, "storage_writer");
+  assert.equal(f.privateFiles.get("app.pem")!.toString(), f.pem);
+  const body = f.privateFiles.get("conversion.body")!.toString();
+  assert.ok(!body.includes("PRIVATE KEY"));
+  assert.ok(!body.includes("unused-oauth-secret") && !body.includes("unused-webhook-secret"));
+  assert.equal(f.record("conversion-response.json").encoding, "storage-app-allowlist");
+  assert.equal(Object.hasOwn(f.record("conversion-intent.json"), "code"), false);
+  assert.ok(!JSON.stringify(result).includes("PRIVATE KEY"));
+});
+void test("storage installation observation revokes its unfiltered metadata token and retains no usable token", async () => {
+  const f = fullInstallationFixture("storage_writer");
+  const result = await observeHostedAppInstallationScope(
+    "storage_writer",
+    Buffer.from(f.registration.pem),
+    f.expected,
+    f.registration.options.store,
+    { fetch: f.transport },
+  );
+  assert.equal(result.installation_repository_scope, "full-installation-observed");
+  assert.equal(result.metadata_token_revoked, true);
+  assert.equal(result.api_requests, 9);
+  assert.equal(f.calls.filter((c) => c.options.method === "POST").length, 1);
+  assert.equal(f.calls.filter((c) => c.options.method === "DELETE").length, 1);
+  for (const bytes of f.registration.privateFiles.values())
+    assert.ok(!bytes.includes(Buffer.from("inert-full-installation-token")));
+});
+void test("storage installation refusal still revokes its metadata token and preserves both failures if cleanup also refuses", async () => {
+  for (const cleanupFails of [false, true]) {
+    const f = fullInstallationFixture("storage_writer");
+    const transport: typeof fetch = async (url, options) => {
+      assert(typeof url === "string");
+      if (url.includes("/installation/repositories"))
+        return Response.json({ total_count: 2, repositories: [] });
+      if (cleanupFails && options?.method === "DELETE") return new Response(null, { status: 403 });
+      return f.transport(url, options);
+    };
+    await assert.rejects(
+      observeHostedAppInstallationScope(
+        "storage_writer",
+        Buffer.from(f.registration.pem),
+        f.expected,
+        f.registration.options.store,
+        { fetch: transport },
+      ),
+      (error: unknown) =>
+        cleanupFails
+          ? error instanceof AggregateError && error.errors.length === 2
+          : error instanceof Error && /exactly boburning/.test(error.message),
+    );
+    assert.ok(f.registration.privateFiles.has("metadata-token-revocation.json"));
+    assert.ok(!f.registration.privateFiles.has("result.json"));
+  }
 });

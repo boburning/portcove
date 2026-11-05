@@ -357,8 +357,23 @@ async function authenticateControlSource(
     if (now() >= Date.parse(identity.expires_at))
       throw new Error("control reader identity expired");
     const policy = (() => {
-      if (purpose === "catalog-publication")
-        return requireCatalogMaintenancePolicy(handoff.observation, admitted.execution_ref, now());
+      if (purpose === "catalog-publication") {
+        const raw = json(env.PORTCOVE_CATALOG_AUTHORITIES, 32768);
+        const journal =
+          isRecord(raw) && raw.schema_version === 4
+            ? inspectBoundSelectedPublicationAuthorities(raw, admitted, purpose).configuration
+                .journal
+            : null;
+        const storage = journal?.apps.storage_writer;
+        return requireCatalogMaintenancePolicy(
+          handoff.observation,
+          admitted.execution_ref,
+          now(),
+          storage === undefined
+            ? undefined
+            : { namespace: journal!.namespace, writer_app_id: storage.app_id },
+        );
+      }
       if (applicationConfig === null)
         throw new Error("application classification writer identity unavailable");
       if (selectedApplication !== null)

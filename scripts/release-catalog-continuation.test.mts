@@ -434,6 +434,7 @@ async function catalogContinuationBehavior(
       authenticateCatalogReleaseControlSource: async () => controls,
       catalogCoordinatorMaintenanceIdentity: () => "same-controls",
       authenticateCapacityExecutor: async () => ({}),
+      ensureOwnedCheckpointJournalHistory: async () => false,
       controllerOidcSubject: () => "fixed",
       readRemoteCoordinatorSnapshot: async (_parent: string, _scope: unknown, options: unknown) => {
         assertRecoveryTransport(options);
@@ -572,6 +573,7 @@ async function catalogContinuationBehavior(
       "assembler-job-identity.mts": ["controllerOidcSubject"],
       "release-capacity-executor.mts": [
         "authenticateCapacityExecutor",
+        "ensureOwnedCheckpointJournalHistory",
         "refreshCapacityExecutor",
         "recoverOwnedCapacityEffect",
       ],

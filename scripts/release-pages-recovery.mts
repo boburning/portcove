@@ -7,7 +7,10 @@ import {
   materializePublishedCompleteSite,
   requirePublishedCompleteSite,
 } from "./release-site-readback.mts";
-import { recoverOwnedCapacityEffect } from "./release-capacity-executor.mts";
+import {
+  recoverOwnedCapacityEffect,
+  ensureOwnedCheckpointJournalHistory,
+} from "./release-capacity-executor.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 
@@ -142,6 +145,17 @@ export async function recoverPendingPagesPublication(
   let observation: Awaited<ReturnType<typeof readPendingPagesPublication>> | undefined;
   try {
     await beforeSettlement?.();
+    const checkpointControls = async () => {
+      if (!beforeMutation)
+        throw new Error("selected Pages recovery requires original live mutation controls");
+      beforeMutation();
+    };
+    const signedJournal = await ensureOwnedCheckpointJournalHistory(
+      executor,
+      raw.repository,
+      raw.checkpoint,
+      checkpointControls,
+    );
     const settled = await withCoordinatorDeadline(phaseDeadline, () =>
       recoverOwnedCapacityEffect(
         executor,
@@ -159,7 +173,8 @@ export async function recoverPendingPagesPublication(
           await beforeSettlement?.();
           return observation.resolution;
         },
-        beforeMutation,
+        signedJournal ? undefined : beforeMutation,
+        signedJournal ? checkpointControls : undefined,
       ),
     );
     if (!observation) throw new Error("actual Pages readback was not completed");

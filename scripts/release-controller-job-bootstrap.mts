@@ -12,6 +12,7 @@ import { requireControllerJobSourceConfiguration } from "./release-authority-con
 import { currentControllerJobDeadline } from "./release-signing-job-budget.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import { isRecord } from "./runtime-values.mts";
+import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
 function positive(raw: unknown) {
   if (
     typeof raw !== "string" ||
@@ -54,6 +55,16 @@ export function assertControllerBootstrapEnvironment(environment: NodeJS.Process
     );
 }
 export async function launchFixedControllerJob(rawOperation: unknown) {
+  if (process.env.PORTCOVE_STORAGE_APP_TOKEN) {
+    const directory = process.env.RUNNER_TEMP;
+    if (!directory || !path.isAbsolute(directory))
+      throw new Error("clean fixed controller runtime required");
+    return withReadOnlyReleaseChildren(directory, () => launchControllerWorker(rawOperation));
+  }
+  return launchControllerWorker(rawOperation);
+}
+
+async function launchControllerWorker(rawOperation: unknown) {
   const environment = { ...process.env };
   if (
     ![

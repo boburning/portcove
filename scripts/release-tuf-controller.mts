@@ -351,6 +351,9 @@ export async function runTufRoleController(
           evidence_sha256: digest(handoff),
         };
       },
+      async () => {
+        await fresh();
+      },
     );
     if (!envelope || !handoff || !ownedPending)
       throw new Error("actual TUF output settlement missing");

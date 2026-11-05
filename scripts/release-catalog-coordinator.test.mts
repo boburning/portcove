@@ -79,6 +79,7 @@ void test("actual entry routes frozen requests and one neutral CAS without app p
  };
  globalThis.__catalog=fake;
  const data=s=>'data:text/javascript,'+encodeURIComponent(s),code={
+ './release-capacity-executor.mts': 'export const authenticateCapacityExecutor=async()=>globalThis.__catalog;export const ensureOwnedCheckpointJournalHistory=async(executor,repository,checkpoint,controls)=>{if(executor!==globalThis.__catalog)throw Error("wrong controlled executor");await controls();return false;};export const publishOwnedSignedCoordinatorCheckpoint=async()=>{throw Error("legacy fixture must not select signed transport")};',
  './github-api.mts': 'export const createGitHubRunner=()=>{};export class GitHubApiClient {constructor(){} request(...a){return globalThis.__catalog.client.request(...a)} graphql(...a){return globalThis.__catalog.client.graphql(...a)}}',
  './release-coordinator-driver.mts':'export const coordinatorOriginalJobDeadline=()=>performance.now()+160000;export const catalogCoordinatorMaintenanceIdentity=()=>"stable";export const deriveCoordinatorPublication=(_t,_r,_a,now)=>({complete:true,observed_at:now,published_versions:[],published_sources:[],reserved_versions:[],last_routine_preview_at:null});export const prepareActualCoordinatorCatalogSigning=(...a)=>globalThis.__catalog.prepare(...a);',
  './release-catalog-recovery.mts':'export const continueActualCatalogPublication=(...a)=>globalThis.__catalog.continue(...a);',

@@ -10,6 +10,7 @@ import {
   slice4CapacityResourceDigest,
   capacityDigest,
 } from "./release-capacity.mts";
+import { controllerWorkflowAtCurrentNode } from "./fixtures/release-capacity-fixture.mts";
 import { isRecord } from "./runtime-values.mts";
 
 void test("Windows-only protected source proposal preserves shared controls and stays held outside effective resource policy", async () => {
@@ -85,9 +86,24 @@ void test("resource observations reconcile current purposes and keep provider, b
     createHash("sha256").update(appointedWake).digest("hex"),
     slice4CapacityResources.wake_workflow_sha256,
   );
+  const appointedProduction = Buffer.from(
+    controllerWorkflowAtCurrentNode(
+      await readFile(
+        new URL(
+          "../docs/qualification/application-update-production.windows-20261103.proposed.yml",
+          import.meta.url,
+        ),
+        "utf8",
+      ),
+    ),
+  );
+  assert.equal(
+    observeReleaseResources(appointedProduction, appointedWake, candidate).policy_matches_workflow,
+    true,
+  );
   assert.equal(
     observeReleaseResources(production, appointedWake, candidate).policy_matches_workflow,
-    true,
+    false,
   );
   assert.equal(result.accounting.measured_wall_seconds, null);
   assert.equal(result.accounting.account_headroom, "Unknown");

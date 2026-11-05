@@ -157,7 +157,7 @@ async function main() {
   if (
     args.length !== 4 ||
     args[0] !== "--role" ||
-    !["semantic", "protection_observer"].includes(args[1] ?? "") ||
+    !["semantic", "protection_observer", "storage_writer"].includes(args[1] ?? "") ||
     args[2] !== "--expected-source"
   )
     throw new Error("fixed App setup role and source required");
@@ -166,6 +166,9 @@ async function main() {
   const role = args[1] as HostedReleaseAppRole;
   const state = randomBytes(32).toString("hex");
   const deadline = Date.now() + 600000;
+  // This create-only private staging slot grants no custody/activation result.
+  // The storage extension must seal/restore its one new operational key under
+  // the appointed existing encrypted vault before use; old roles are not rerun.
   const directory = `/home/boburning/.local/share/portcove/app-registration/${role}`;
   let dispatch: ((request: IncomingMessage, response: ServerResponse) => void) | null = null;
   const server = createServer((request, response) => {

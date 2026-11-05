@@ -505,6 +505,22 @@ jobs:
       - *a2
       - id: probe
         run: node scripts/release-reviewed-inputs.mts probe-production-request
+      - id: storage
+        if: ${{ steps.probe.outputs.storage_app_id != '' && steps.probe.outputs.eligible == 'true' && needs.classification_protection_observation.outputs.eligible == 'true' }}
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
+        with:
+          app-id: ${{ steps.probe.outputs.storage_app_id }}
+          private-key: ${{ secrets.PORTCOVE_STORAGE_APP_PRIVATE_KEY }}
+          owner: boburning
+          repositories: portcove
+          permission-contents: write
+      - name: Bind actual storage writer installation before classification use
+        if: ${{ steps.probe.outputs.storage_app_id != '' && steps.probe.outputs.eligible == 'true' && needs.classification_protection_observation.outputs.eligible == 'true' }}
+        shell: bash
+        env:
+          EXPECTED_STORAGE_INSTALLATION: ${{ steps.probe.outputs.storage_installation_id }}
+          OBSERVED_STORAGE_INSTALLATION: ${{ steps.storage.outputs.installation-id }}
+        run: '[[ "$EXPECTED_STORAGE_INSTALLATION" =~ ^[1-9][0-9]*$ && "$OBSERVED_STORAGE_INSTALLATION" == "$EXPECTED_STORAGE_INSTALLATION" ]]'
       - id: writer
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
         with:
@@ -538,6 +554,9 @@ jobs:
           needs.classification_protection_observation.outputs.eligible == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
+          PORTCOVE_STORAGE_APP_TOKEN: ${{ steps.storage.outputs.token }}
+          PORTCOVE_STORAGE_APP_ID: ${{ steps.probe.outputs.storage_app_id }}
+          PORTCOVE_STORAGE_INSTALLATION_ID: ${{ steps.storage.outputs.installation-id }}
           PORTCOVE_TRUSTED_PROTECTION_OBSERVATION: ${{ needs.classification_protection_observation.outputs.observation }}
         run: node scripts/release-reviewed-inputs.mts persist-production-request
     if: ${{ needs.admission.outputs.publication_purpose == 'application' }}
@@ -581,29 +600,29 @@ jobs:
         id: journal
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
         with:
-          app-id: ${{ needs.admission.outputs.publication_purpose == 'catalog-publication' &&
+          app-id: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.authorities.outputs.storage_app_id || (steps.authorities.outputs.credential_transport == 'legacy-app' && (needs.admission.outputs.publication_purpose == 'catalog-publication' &&
             fromJSON(vars.PORTCOVE_CATALOG_AUTHORITIES).apps.coordinator_journal.app_id ||
-            fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.coordinator_journal.app_id }}
-          private-key: ${{ (needs.admission.outputs.publication_purpose == 'catalog-publication' &&
+            fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.coordinator_journal.app_id)) }}
+          private-key: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && secrets.PORTCOVE_STORAGE_APP_PRIVATE_KEY || (steps.authorities.outputs.credential_transport == 'legacy-app' && ((needs.admission.outputs.publication_purpose == 'catalog-publication' &&
             secrets.PORTCOVE_CATALOG_COORDINATOR_JOURNAL_APP_PRIVATE_KEY) ||
             (needs.admission.outputs.publication_purpose == 'application' &&
-            secrets.PORTCOVE_COORDINATOR_JOURNAL_APP_PRIVATE_KEY) }}
+            secrets.PORTCOVE_COORDINATOR_JOURNAL_APP_PRIVATE_KEY))) }}
           owner: boburning
           repositories: portcove
           permission-contents: write
-        if: ${{ steps.authorities.outputs.credential_transport == 'legacy-app' }}
+        if: ${{ steps.authorities.outputs.credential_transport == 'legacy-app' || steps.authorities.outputs.storage_transport == 'dedicated-app' }}
       - &a8
         name: Bind actual coordinator_journal installation before credential use
         shell: bash
         env:
-          PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ needs.admission.outputs.publication_purpose ==
+          PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.authorities.outputs.storage_installation_id || (steps.authorities.outputs.credential_transport == 'legacy-app' && (needs.admission.outputs.publication_purpose ==
             'catalog-publication' &&
             fromJSON(vars.PORTCOVE_CATALOG_AUTHORITIES).apps.coordinator_journal.installation_id ||
-            fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.coordinator_journal.installation_id }}
+            fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.coordinator_journal.installation_id)) }}
           PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.journal.outputs.installation-id }}
         run: '[[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ &&
           "$PORTCOVE_OBSERVED_INSTALLATION_ID" == "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]'
-        if: ${{ steps.authorities.outputs.credential_transport == 'legacy-app' }}
+        if: ${{ steps.authorities.outputs.credential_transport == 'legacy-app' || steps.authorities.outputs.storage_transport == 'dedicated-app' }}
       - id: dispatch
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
         with:
@@ -641,6 +660,9 @@ jobs:
             && needs.admission.outputs.publication_purpose == 'application' && github.token ||
             steps.dispatch.outputs.token }}
         with:
+          storage_token: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.token || '' }}
+          storage_app_id: ${{ steps.authorities.outputs.storage_app_id }}
+          storage_installation_id: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.installation-id || '' }}
           operation: coordinator
           phase: coordinator
   coordinator_protection_observation:
@@ -711,22 +733,21 @@ jobs:
         id: journal
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
         with:
-          app-id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.coordinator_journal.app_id }}
-          private-key: ${{ secrets.PORTCOVE_COORDINATOR_JOURNAL_APP_PRIVATE_KEY }}
+          app-id: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.authorities.outputs.storage_app_id || (steps.authorities.outputs.credential_transport == 'legacy-app' && (fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.coordinator_journal.app_id)) }}
+          private-key: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && secrets.PORTCOVE_STORAGE_APP_PRIVATE_KEY || (steps.authorities.outputs.credential_transport == 'legacy-app' && (secrets.PORTCOVE_COORDINATOR_JOURNAL_APP_PRIVATE_KEY)) }}
           owner: boburning
           repositories: portcove
           permission-contents: write
-        if: ${{ steps.authorities.outputs.credential_transport == 'legacy-app' }}
+        if: ${{ steps.authorities.outputs.credential_transport == 'legacy-app' || steps.authorities.outputs.storage_transport == 'dedicated-app' }}
       - &a6
         name: Bind actual coordinator_journal installation before credential use
         shell: bash
         env:
-          PORTCOVE_EXPECTED_INSTALLATION_ID: ${{
-            fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.coordinator_journal.installation_id }}
+          PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.authorities.outputs.storage_installation_id || (steps.authorities.outputs.credential_transport == 'legacy-app' && (fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.coordinator_journal.installation_id)) }}
           PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.journal.outputs.installation-id }}
         run: '[[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ &&
           "$PORTCOVE_OBSERVED_INSTALLATION_ID" == "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]'
-        if: ${{ steps.authorities.outputs.credential_transport == 'legacy-app' }}
+        if: ${{ steps.authorities.outputs.credential_transport == 'legacy-app' || steps.authorities.outputs.storage_transport == 'dedicated-app' }}
       - id: job
         uses: ./.github/actions/release-controller-job
         env:
@@ -734,6 +755,9 @@ jobs:
           PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.authorities.outputs.credential_transport ==
             'legacy-app' && steps.journal.outputs.token || '' }}
         with:
+          storage_token: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.token || '' }}
+          storage_app_id: ${{ steps.authorities.outputs.storage_app_id }}
+          storage_installation_id: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.installation-id || '' }}
           operation: building
           phase: admission
   protection_observation:
@@ -986,6 +1010,9 @@ jobs:
           PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.authorities.outputs.credential_transport ==
             'legacy-app' && steps.journal.outputs.token || '' }}
         with:
+          storage_token: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.token || '' }}
+          storage_app_id: ${{ steps.authorities.outputs.storage_app_id }}
+          storage_installation_id: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.installation-id || '' }}
           operation: payload
           phase: payload
           role_key: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -1033,6 +1060,9 @@ jobs:
           PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.authorities.outputs.credential_transport ==
             'legacy-app' && steps.journal.outputs.token || '' }}
         with:
+          storage_token: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.token || '' }}
+          storage_app_id: ${{ steps.authorities.outputs.storage_app_id }}
+          storage_installation_id: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.installation-id || '' }}
           operation: tuf-releases
           phase: tuf-releases
           role_key: ${{ secrets.PORTCOVE_TUF_RELEASES_KEY }}
@@ -1081,6 +1111,9 @@ jobs:
           PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.authorities.outputs.credential_transport ==
             'legacy-app' && steps.journal.outputs.token || '' }}
         with:
+          storage_token: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.token || '' }}
+          storage_app_id: ${{ steps.authorities.outputs.storage_app_id }}
+          storage_installation_id: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.installation-id || '' }}
           operation: tuf-preview
           phase: tuf-preview
           role_key: ${{ secrets.PORTCOVE_TUF_PREVIEW_KEY }}
@@ -1130,6 +1163,9 @@ jobs:
           PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.authorities.outputs.credential_transport ==
             'legacy-app' && steps.journal.outputs.token || '' }}
         with:
+          storage_token: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.token || '' }}
+          storage_app_id: ${{ steps.authorities.outputs.storage_app_id }}
+          storage_installation_id: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.installation-id || '' }}
           operation: tuf-stable
           phase: tuf-stable
           role_key: ${{ secrets.PORTCOVE_TUF_STABLE_KEY }}
@@ -1180,6 +1216,9 @@ jobs:
           PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.authorities.outputs.credential_transport ==
             'legacy-app' && steps.journal.outputs.token || '' }}
         with:
+          storage_token: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.token || '' }}
+          storage_app_id: ${{ steps.authorities.outputs.storage_app_id }}
+          storage_installation_id: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.installation-id || '' }}
           operation: tuf-snapshot
           phase: tuf-snapshot
           role_key: ${{ secrets.PORTCOVE_TUF_SNAPSHOT_KEY }}
@@ -1231,6 +1270,9 @@ jobs:
           PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.authorities.outputs.credential_transport ==
             'legacy-app' && steps.journal.outputs.token || '' }}
         with:
+          storage_token: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.token || '' }}
+          storage_app_id: ${{ steps.authorities.outputs.storage_app_id }}
+          storage_installation_id: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.installation-id || '' }}
           operation: tuf-timestamp
           phase: tuf-timestamp
           role_key: ${{ secrets.PORTCOVE_TUF_TIMESTAMP_KEY }}
@@ -1309,6 +1351,9 @@ jobs:
           PORTCOVE_RELEASE_PUBLICATION_TOKEN: ${{ steps.authorities.outputs.credential_transport ==
             'fixed-job' && github.token || steps.publication.outputs.token }}
         with:
+          storage_token: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.token || '' }}
+          storage_app_id: ${{ steps.authorities.outputs.storage_app_id }}
+          storage_installation_id: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.installation-id || '' }}
           operation: release-publication
           phase: release-publication
   site_publication:
@@ -1367,6 +1412,9 @@ jobs:
           PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.authorities.outputs.credential_transport ==
             'legacy-app' && steps.journal.outputs.token || '' }}
         with:
+          storage_token: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.token || '' }}
+          storage_app_id: ${{ steps.authorities.outputs.storage_app_id }}
+          storage_installation_id: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.installation-id || '' }}
           operation: site-publication
           phase: site-publication
   site_protection_observation:
@@ -1450,22 +1498,21 @@ jobs:
         id: journal
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
         with:
-          app-id: ${{ fromJSON(vars.PORTCOVE_CATALOG_AUTHORITIES).apps.coordinator_journal.app_id }}
-          private-key: ${{ secrets.PORTCOVE_CATALOG_COORDINATOR_JOURNAL_APP_PRIVATE_KEY }}
+          app-id: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.authorities.outputs.storage_app_id || (steps.authorities.outputs.credential_transport == 'legacy-app' && (fromJSON(vars.PORTCOVE_CATALOG_AUTHORITIES).apps.coordinator_journal.app_id)) }}
+          private-key: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && secrets.PORTCOVE_STORAGE_APP_PRIVATE_KEY || (steps.authorities.outputs.credential_transport == 'legacy-app' && (secrets.PORTCOVE_CATALOG_COORDINATOR_JOURNAL_APP_PRIVATE_KEY)) }}
           owner: boburning
           repositories: portcove
           permission-contents: write
-        if: ${{ steps.authorities.outputs.credential_transport == 'legacy-app' }}
+        if: ${{ steps.authorities.outputs.credential_transport == 'legacy-app' || steps.authorities.outputs.storage_transport == 'dedicated-app' }}
       - &a10
         name: Bind actual coordinator_journal installation before credential use
         shell: bash
         env:
-          PORTCOVE_EXPECTED_INSTALLATION_ID: ${{
-            fromJSON(vars.PORTCOVE_CATALOG_AUTHORITIES).apps.coordinator_journal.installation_id }}
+          PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.authorities.outputs.storage_installation_id || (steps.authorities.outputs.credential_transport == 'legacy-app' && (fromJSON(vars.PORTCOVE_CATALOG_AUTHORITIES).apps.coordinator_journal.installation_id)) }}
           PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.journal.outputs.installation-id }}
         run: '[[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ &&
           "$PORTCOVE_OBSERVED_INSTALLATION_ID" == "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]'
-        if: ${{ steps.authorities.outputs.credential_transport == 'legacy-app' }}
+        if: ${{ steps.authorities.outputs.credential_transport == 'legacy-app' || steps.authorities.outputs.storage_transport == 'dedicated-app' }}
       - id: job
         uses: ./.github/actions/release-controller-job
         env:
@@ -1473,6 +1520,9 @@ jobs:
           PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.authorities.outputs.credential_transport ==
             'legacy-app' && steps.journal.outputs.token || '' }}
         with:
+          storage_token: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.token || '' }}
+          storage_app_id: ${{ steps.authorities.outputs.storage_app_id }}
+          storage_installation_id: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.installation-id || '' }}
           operation: catalog-definitions
           phase: catalog-definitions
           role_key: ${{ secrets.PORTCOVE_CATALOG_DEFINITIONS_KEY }}
@@ -1517,6 +1567,9 @@ jobs:
           PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.authorities.outputs.credential_transport ==
             'legacy-app' && steps.journal.outputs.token || '' }}
         with:
+          storage_token: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.token || '' }}
+          storage_app_id: ${{ steps.authorities.outputs.storage_app_id }}
+          storage_installation_id: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.installation-id || '' }}
           operation: catalog-policy
           phase: catalog-policy
           role_key: ${{ secrets.PORTCOVE_CATALOG_POLICY_KEY }}
@@ -1562,6 +1615,9 @@ jobs:
           PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.authorities.outputs.credential_transport ==
             'legacy-app' && steps.journal.outputs.token || '' }}
         with:
+          storage_token: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.token || '' }}
+          storage_app_id: ${{ steps.authorities.outputs.storage_app_id }}
+          storage_installation_id: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.installation-id || '' }}
           operation: catalog-snapshot
           phase: catalog-snapshot
           role_key: ${{ secrets.PORTCOVE_CATALOG_SNAPSHOT_KEY }}
@@ -1608,6 +1664,9 @@ jobs:
           PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.authorities.outputs.credential_transport ==
             'legacy-app' && steps.journal.outputs.token || '' }}
         with:
+          storage_token: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.token || '' }}
+          storage_app_id: ${{ steps.authorities.outputs.storage_app_id }}
+          storage_installation_id: ${{ steps.authorities.outputs.storage_transport == 'dedicated-app' && steps.journal.outputs.installation-id || '' }}
           operation: catalog-timestamp
           phase: catalog-timestamp
           role_key: ${{ secrets.PORTCOVE_CATALOG_TIMESTAMP_KEY }}

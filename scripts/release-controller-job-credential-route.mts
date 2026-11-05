@@ -15,7 +15,14 @@ export async function writeControllerJobCredentialRoute(phase: unknown) {
   const captured = await requireControllerJobCredentialRoute(phase);
   await waitForOriginalPayloadNativeProof(captured);
   captured.recheck();
-  await appendFile(output, `credential_transport=${captured.route.credential_transport}\n`);
+  const storage = captured.route.storage_writer;
+  await appendFile(
+    output,
+    `credential_transport=${captured.route.credential_transport}\n` +
+      (storage === undefined
+        ? ""
+        : `storage_transport=dedicated-app\nstorage_app_id=${storage.app_id}\nstorage_installation_id=${storage.installation_id}\n`),
+  );
   captured.recheck();
   return captured.route;
 }
