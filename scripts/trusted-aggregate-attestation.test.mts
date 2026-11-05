@@ -19,6 +19,7 @@ import {
 import { controllerOidcSubject } from "./assembler-job-identity.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
+import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
@@ -743,18 +744,11 @@ async function uploadedFixture(t: test.TestContext) {
   const apiCalls: string[] = [];
   const downloadCalls: string[] = [];
   const options = {
-    spawn: (
-      command: string,
-      args: readonly string[],
-      settings: SpawnSyncOptionsWithStringEncoding,
-    ) => {
-      if (args[0] !== "api") return f.spawn(command, args, settings);
+    spawn: f.spawn,
+    async readMetadata(route: string) {
       state.reads++;
-      apiCalls.push(args[1]!);
-      assert.equal(settings.timeout, 15000);
-      assert.equal(settings.maxBuffer, 128 * 1024);
-      assert.deepEqual(args.slice(2), ["--include", "--method", "GET", "--hostname", "github.com"]);
-      const endpoint = args[1]!;
+      const endpoint = `repos/boburning/portcove/${route}`;
+      apiCalls.push(endpoint);
       let body: unknown;
       if (endpoint.includes("/actions/runs/")) {
         assert.ok(
@@ -794,11 +788,7 @@ async function uploadedFixture(t: test.TestContext) {
           },
         };
       }
-      return {
-        status: 0,
-        stdout: `HTTP/2.0 200 OK\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(body)}`,
-        stderr: "",
-      };
+      return body;
     },
     download: (endpoint: string) => {
       downloadCalls.push(endpoint);
@@ -823,6 +813,85 @@ void test("downstream consumer acquires exact opaque IDs in a still-active contr
   assert.equal(f.calls.length, 1);
   assert.equal(f.downloadCalls.length, 2);
   assert.equal(f.apiCalls.filter((endpoint) => endpoint.includes("/attempts/2")).length, 2);
+});
+
+void test("fixed aggregate receiver uses eight locked SDK metadata reads and two anonymous signed deliveries", async (t) => {
+  const f = await uploadedFixture(t);
+  const previous = { ...process.env };
+  process.env.GH_TOKEN = "fixed-aggregate-receiver-fixture";
+  process.env.PORTCOVE_CONTROL_APP_TOKEN = "unrelated-crypto-exclusion-fixture";
+  t.after(() => {
+    for (const key of ["GH_TOKEN", "PORTCOVE_CONTROL_APP_TOKEN"])
+      if (previous[key] === undefined) delete process.env[key];
+      else process.env[key] = previous[key];
+  });
+  const calls: string[] = [];
+  const fetcher: typeof globalThis.fetch = async (input, init) => {
+    const url = new URL(input instanceof Request ? input.url : input);
+    const headers = new Headers(init?.headers);
+    assert.equal(init?.redirect, "manual");
+    calls.push(url.pathname);
+    if (url.origin === "https://productionresultssa1.blob.core.windows.net") {
+      assert.equal(init.credentials, "omit");
+      assert.equal(headers.has("authorization"), false);
+      return new Response(
+        f.options.download(
+          `repos/boburning/portcove/actions/artifacts/${url.pathname.split("/").at(-1)}/zip`,
+        ),
+      );
+    }
+    assert.equal(url.origin, "https://api.github.com");
+    assert.equal(headers.get("authorization"), "token fixed-aggregate-receiver-fixture");
+    if (url.pathname.endsWith("/zip")) {
+      const id = url.pathname.split("/").at(-2);
+      assert.ok(id === "99" || id === "100");
+      return new Response(null, {
+        status: 302,
+        headers: {
+          location: `https://productionresultssa1.blob.core.windows.net/actions-results/${id}?sig=fixture`,
+        },
+      });
+    }
+    process.env.GH_TOKEN = "unrelated-mutated-token";
+    return Response.json(
+      await f.options.readMetadata(url.pathname.slice("/repos/boburning/portcove/".length)),
+    );
+  };
+  t.mock.method(globalThis, "fetch", fetcher);
+  const result = await withReadOnlyReleaseChildren(f.root, () =>
+    verifyUploadedAggregate(f.root, f.supplied, {
+      spawn(command, args, settings) {
+        assert.equal(settings.env?.GH_TOKEN, "fixed-aggregate-receiver-fixture");
+        assert.equal(settings.env.PORTCOVE_CONTROL_APP_TOKEN, undefined);
+        assert.equal(f.apiCalls.length, 4);
+        assert.equal(f.downloadCalls.length, 2);
+        return f.options.spawn(command, args, settings);
+      },
+    }),
+  );
+  assert.equal(result.authority, "none");
+  assert.equal(result.evidence_scope, "injected-provider");
+  assert.equal(result.api_requests, 8);
+  const base = "/repos/boburning/portcove/actions";
+  const snapshot = [
+    `${base}/runs/9988`,
+    `${base}/runs/9988/attempts/2`,
+    `${base}/artifacts/99`,
+    `${base}/artifacts/100`,
+  ];
+  assert.deepEqual(calls, [
+    ...snapshot,
+    `${base}/artifacts/99/zip`,
+    "/actions-results/99",
+    `${base}/artifacts/100/zip`,
+    "/actions-results/100",
+    ...snapshot,
+  ]);
+  assert.ok(
+    !(await readdir(result.acquisition_directory)).some((entry) =>
+      entry.startsWith("aggregate-upload-readback-"),
+    ),
+  );
 });
 
 void test("downstream drift, expired/mismatched provider objects, changed ZIPs and provider exceptions refuse with exact sanitized association", async (t) => {
