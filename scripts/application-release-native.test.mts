@@ -7,7 +7,11 @@ import path from "node:path";
 import { sha256 } from "./application-release-io.mts";
 import { isRecord } from "./runtime-values.mts";
 import { collectApplicationNativeReport } from "./release-native-pre-sign-report.mts";
-import { inspectApplicationNativeExecutionEnvironment } from "./application-release-native-execution.mts";
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
+import {
+  inspectApplicationNativeExecutionEnvironment,
+  readPublicInstalledOwnerDeadline,
+} from "./application-release-native-execution.mts";
 import { nativePreSignReportFixture } from "./fixtures/native-linux-report-fixture.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { serializeApplicationPreSignCapture } from "./release-native-stage-capture.mts";
@@ -457,6 +461,87 @@ void test("native execution requires the fixed protected hosted Windows caller a
     { ACTIONS_ID_TOKEN_REQUEST_TOKEN: "inert" },
   ])
     assert.throws(() => inspectApplicationNativeExecutionEnvironment({ ...env, ...change }));
+});
+
+void test("native public owner clock uses the exact original SDK job inventory", async () => {
+  const current = {
+    source: "a".repeat(40),
+    ref: "refs/tags/portcove-production-controller-windows-fixture",
+    run_id: "41800000000",
+    run_attempt: 2,
+  };
+  const job = {
+    name: "public_installed",
+    status: "in_progress",
+    run_id: Number(current.run_id),
+    run_attempt: current.run_attempt,
+    head_sha: current.source,
+    started_at: new Date(Date.now() - 120000).toISOString(),
+  };
+  const start = performance.now();
+  let next = false;
+  let reads = 0;
+  const provider = await createReleaseCustodyProvider({
+    token: "synthetic-reader",
+    deadline: start + 15000,
+    fetch: async (input, init) => {
+      reads++;
+      assert.ok(typeof input === "string");
+      const url = new URL(input);
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(
+        url.pathname,
+        "/repos/boburning/portcove/actions/runs/41800000000/attempts/2/jobs",
+      );
+      assert.equal(url.searchParams.get("page"), "1");
+      assert.equal(url.searchParams.get("per_page"), "100");
+      assert.equal(new Headers(init?.headers).get("authorization"), "token synthetic-reader");
+      return Response.json(
+        { total_count: 1, jobs: [job] },
+        {
+          headers: next ? { link: '<https://api.github.com/next>; rel="next"' } : {},
+        },
+      );
+    },
+  });
+  const deadline = await readPublicInstalledOwnerDeadline(current, provider);
+  assert.ok(deadline >= start + 718000 && deadline <= start + 722000);
+  next = true;
+  await assert.rejects(
+    readPublicInstalledOwnerDeadline(current, provider),
+    /inventory is incomplete/u,
+  );
+  assert.equal(reads, 2);
+});
+
+void test("native SDK reads nested source configuration and immutable blobs at the selected identity", async () => {
+  const revision = "a".repeat(40);
+  const blob = "b".repeat(40);
+  const filename = "apps/desktop/src-tauri/tauri.conf.json";
+  const responses = [
+    { sha: revision, tree: { sha: "c".repeat(40) } },
+    { path: filename, sha: blob, encoding: "none", content: "" },
+    { sha: blob, encoding: "base64", content: "e30=" },
+  ];
+  const seen: string[] = [];
+  const provider = await createReleaseCustodyProvider({
+    token: "synthetic-reader",
+    deadline: performance.now() + 15000,
+    fetch: async (input) => {
+      assert.ok(typeof input === "string");
+      seen.push(input);
+      return Response.json(responses[seen.length - 1]);
+    },
+  });
+  assert.deepEqual(await provider.commit(revision), responses[0]);
+  assert.deepEqual(await provider.file(filename, revision), responses[1]);
+  assert.deepEqual(await provider.blob(blob), responses[2]);
+  const repository = "https://api.github.com/repos/boburning/portcove";
+  assert.deepEqual(seen, [
+    `${repository}/git/commits/${revision}`,
+    `${repository}/contents/${encodeURIComponent(filename)}?ref=${revision}`,
+    `${repository}/git/blobs/${blob}`,
+  ]);
 });
 
 void test("native capture collector reuses actual retained fragments and cannot accept changed runtime bytes", async () => {
