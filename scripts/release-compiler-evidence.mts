@@ -5,7 +5,12 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { readReleaseCompilerReportArchive } from "./release-compiler-report-archive.mts";
-import { readGitHubArtifactArchive } from "./github-binary.mts";
+import { downloadGitHubArtifactArchive } from "./github-artifact-download.mts";
+import type { GitHubCredential } from "./github-client.mts";
+import type { SigningArchiveDownload } from "./release-signing-handoff.mts";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
+import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
 import { inspectTrustedAssemblyInput } from "./trusted-release-assembly.mts";
 import { inspectCompiledCliPackage } from "./release-compiler-outputs.mts";
 import { inspectWindowsDesktopCompilerIdentity } from "./release-compiler-desktop.mts";
@@ -13,6 +18,7 @@ import { requireVerifiedReleaseCompilerSource } from "./release-compiler-source-
 import { verifyReleaseSourceAttestation } from "./release-source-attestation.mts";
 import type { verifyReleasePublicBuildInputs } from "./release-public-build-provenance.mts";
 import {
+  publicBuildReadCredential,
   requirePublicBuildInputProviderBinding,
   requireVerifiedReleasePublicBuildInputs,
 } from "./release-public-build-provenance.mts";
@@ -345,10 +351,32 @@ export async function collectReleaseCompilerEvidence(
   sourceBinding: object,
   options: {
     preparedNamespace: string;
-    download?: typeof readGitHubArtifactArchive;
+    download?: SigningArchiveDownload;
     spawn?: NonNullable<Parameters<typeof verifyReleaseSourceAttestation>[3]>["spawn"];
+    transport?: {
+      credential: GitHubCredential;
+      deadline: number;
+      lookup: () => NonNullable<Parameters<typeof downloadGitHubArtifactArchive>[1]["lookup"]>;
+    };
   } = { preparedNamespace: "" },
 ) {
+  const { preparedNamespace, download, spawn } = options;
+  const transport = options.transport && {
+    ...options.transport,
+    credential: { ...options.transport.credential },
+  };
+  const deadline = Math.min(
+    transport?.deadline ?? Infinity,
+    coordinatorCommandDeadline() ?? Infinity,
+  );
+  const active = () => {
+    if (performance.now() >= deadline) throw new Error("compiler evidence deadline exhausted");
+  };
+  const scoped = readOnlyReleaseChildEnvironment() !== undefined;
+  const scopedFetch: typeof globalThis.fetch = (input, init) => {
+    assertTrustedDirectNode("compiler report evidence");
+    return globalThis.fetch(input, init);
+  };
   const { accepted } = await inspectTrustedAssemblyInput(assembly);
   if (
     !isInitialBetaReleaseProfile(accepted.release_profile) ||
@@ -380,8 +408,26 @@ export async function collectReleaseCompilerEvidence(
     tree: accepted.source_tree,
     workflow_sha256: evidence.source_workflow_sha256,
   };
-  const freshEvidence = () => collectReleaseRunEvidence(request);
-  if (!options.download && !options.spawn) evidence = await freshEvidence();
+  active();
+  const credential = download
+    ? undefined
+    : (transport?.credential ??
+      publicBuildReadCredential(Math.min(deadline, performance.now() + 120000)));
+  const freshEvidence = async () => {
+    const started = performance.now();
+    const accounting = transport?.lookup();
+    try {
+      return await collectReleaseRunEvidence(request, {
+        deadline: Math.min(deadline, accounting?.deadline ?? Infinity),
+        ...(credential ? { credential } : {}),
+        ...(accounting?.reserve ? { reserve: accounting.reserve } : {}),
+        ...(scoped ? { fetch: scopedFetch } : {}),
+      });
+    } finally {
+      accounting?.elapsed?.(performance.now() - started);
+    }
+  };
+  if (!download && !spawn) evidence = await freshEvidence();
   requirePublicBuildInputProviderBinding(publicInputs.binding, evidence);
   const wanted = platforms.flatMap((platform) =>
     interfaces.map(
@@ -429,11 +475,27 @@ export async function collectReleaseCompilerEvidence(
       )
         throw new Error("compiler immutable report artifact identity/bound differs");
       archiveBytes += artifact.bytes;
-      const archive = (options.download ?? readGitHubArtifactArchive)(
-        `repos/boburning/portcove/actions/artifacts/${artifact.id}/zip`,
-        { cwd: privateRoot, maxBytes: artifact.bytes, timeoutMs: 30000 },
-      );
-      if (archive.length !== artifact.bytes || hash(archive) !== artifact.archive_sha256)
+      const transferDeadline = Math.min(deadline, performance.now() + 30000);
+      const timeoutMs = Math.floor(transferDeadline - performance.now());
+      if (!Number.isFinite(timeoutMs) || timeoutMs < 1)
+        throw new Error("compiler report artifact deadline exhausted");
+      const endpoint = `repos/boburning/portcove/actions/artifacts/${artifact.id}/zip`;
+      const archive = download
+        ? await download(endpoint, { cwd: privateRoot, maxBytes: artifact.bytes, timeoutMs })
+        : await downloadGitHubArtifactArchive(endpoint, {
+            credential: credential!,
+            deadline: transferDeadline,
+            maxBytes: artifact.bytes,
+            ...(scoped ? { fetch: scopedFetch } : {}),
+            ...(transport ? { lookup: transport.lookup() } : {}),
+          });
+      if (performance.now() >= transferDeadline)
+        throw new Error("compiler report artifact deadline exhausted");
+      if (
+        !Buffer.isBuffer(archive) ||
+        archive.length !== artifact.bytes ||
+        hash(archive) !== artifact.archive_sha256
+      )
         throw new Error("compiler report artifact bytes differ");
       await retain(`${artifact.id}.zip`, archive);
       const suffix = `${inter}-${platform}`;
@@ -501,26 +563,28 @@ export async function collectReleaseCompilerEvidence(
     attesters.length !== 1 ||
     attesters[0]!.conclusion !== "success" ||
     attesters[0]!.status !== "completed" ||
-    !/^portcove-[a-z0-9]+(?:-[a-z0-9]+){0,5}$/u.test(options.preparedNamespace)
+    !/^portcove-[a-z0-9]+(?:-[a-z0-9]+){0,5}$/u.test(preparedNamespace)
   )
     throw new Error("actual compiler report attester or exact prepared namespace unavailable");
+  active();
   const verified = await verifyReleaseSourceAttestation(
     directory,
     path.join(directory, subjects[0]!.filename),
     {
       source_commit: accepted.source_commit,
-      ref: `refs/tags/${options.preparedNamespace}-prepared/v${accepted.version}`,
+      ref: `refs/tags/${preparedNamespace}-prepared/v${accepted.version}`,
       run_id: accepted.run_id,
       run_attempt: accepted.run_attempt,
       subjects,
     },
-    { ...(options.spawn ? { spawn: options.spawn } : {}) },
+    { ...(spawn ? { spawn } : {}) },
   );
+  active();
   const receipt = Object.freeze({
     state: "verified-compiler-output-bindings",
     evidence_scope:
-      options.download ||
-      options.spawn ||
+      download ||
+      spawn ||
       verified.evidence_scope !== "github.com" ||
       publicInputs.evidence_scope !== "github.com"
         ? "injected-provider"
@@ -556,6 +620,7 @@ export async function collectReleaseCompilerEvidence(
       sha256: hash(verificationBytes),
     });
     await retain("provider-evidence.json", Buffer.from(`${JSON.stringify(evidence)}\n`));
+    active();
     verifiedCompiler.set(receipt, {
       files: retained,
       source: sourceBinding,
