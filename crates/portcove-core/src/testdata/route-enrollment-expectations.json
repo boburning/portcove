@@ -1,6 +1,6 @@
 {
   "format_version": 1,
-  "provenance": "Preserved independently reviewed argument/executable expectations from PR4253, source f2f35b614a59d524df71860c46edcd7d276e7b24; owned-probe tests, not execution or authentication of upstream binaries. Managed expected identity derives from separately accepted PR4231 member observations. Windows N64 ROM-picker additions use the executable members observed in the official release ZIPs and the no-argument launch documented by each tagged README.",
+  "provenance": "Preserved independently reviewed argument/executable expectations from PR4253, source f2f35b614a59d524df71860c46edcd7d276e7b24; owned-probe tests, not execution or authentication of upstream binaries. Managed expected identity derives from separately accepted PR4231 member observations. Windows N64 ROM-picker additions use the executable members observed in the official release ZIPs and the no-argument launch documented by each tagged README. Full Rumble and Muppet RaceMania use the executable members observed in their Windows ZIPs and the startup arguments checked against pinned upstream source.",
   "cases": [
     {
       "port_id": "mstan-tetrisgbrecomp",
@@ -40,6 +40,18 @@
       "port_id": "retropulse03-winback-n64recomp",
       "executable": "WinBackRecompiled.exe",
       "arguments": [],
+      "managed_native": false
+    },
+    {
+      "port_id": "gamebreaker20xx-fullrumble-ps1-slus01068",
+      "executable": "FullRumble.exe",
+      "arguments": [],
+      "managed_native": false
+    },
+    {
+      "port_id": "tekrantgaming-muppet-racemania-recompiled",
+      "executable": "MuppetRaceMania.exe",
+      "arguments": ["--offline"],
       "managed_native": false
     }
   ]

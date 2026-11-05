@@ -1,0 +1,41 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "tekrantgaming-muppet-racemania-recompiled",
+    "project_url": "https://github.com/TekRantGaming/muppet-racemania-recompiled",
+    "name": "Muppet RaceMania (TekRantGaming)",
+    "summary": "A Windows port of Muppet RaceMania. Set it up with your own original PlayStation disc image.",
+    "issue_number": 4130,
+    "original_game_title": "Muppet RaceMania",
+    "availability": "unknown",
+    "platforms": [],
+    "setup_url": "https://github.com/TekRantGaming/muppet-racemania-recompiled/blob/63caf5cfafe22a76cbcce5c91b055cbde861c957/README.md",
+    "manual_setup": {
+      "help_url": "https://github.com/TekRantGaming/muppet-racemania-recompiled/blob/63caf5cfafe22a76cbcce5c91b055cbde861c957/README.md",
+      "steps": [
+        {
+          "title": "Prepare your Windows copy",
+          "instruction": "Use a complete prepared copy you are permitted to use on Windows 10 or 11 (x64) with OpenGL 3.3 or newer. Optional upscalers require OpenGL 4.3. Use your own USA (SLUS-01237) or Europe (SCES-02008) PlayStation CUE/BIN with the matching regional game build. Open MuppetRaceMania.exe and choose Play to select your disc. Finish that setup before adding the launcher to Portcove. The launcher starts the player for the selected region."
+        }
+      ],
+      "warnings": [
+        "Keep the launcher and its matching regional game files together. When Play returns you to the launcher, close the launcher to end the Portcove session.",
+        "Portcove opens the launcher without startup updates. To update, close the Portcove Play session, then open the upstream launcher separately. Use a copy you are permitted to use."
+      ]
+    },
+    "download_block_reason": "Portcove downloads are paused until the applicable permission for the bundled translated game code is established or upstream supplies an appropriately licensed replacement package. You can add a complete copy you are permitted to use."
+  },
+  "route_facts_v1": {
+    "format_version": 1,
+    "prepared_player": {
+      "executable": "MuppetRaceMania.exe",
+      "working_directory": "executable-parent",
+      "arguments": ["--offline"],
+      "data_locations": [
+        "saves/muppet_racemania and save-backups/muppet_racemania beside the launcher",
+        "games/muppet_racemania for the staged disc and game settings",
+        "muppet_racemania.txt beside the launcher"
+      ]
+    }
+  }
+}
