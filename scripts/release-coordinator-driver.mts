@@ -1143,9 +1143,10 @@ export async function coordinateTrustedRelease(
   privateParent: string,
   raw: { remote_configuration: unknown; opportunity: unknown; dispatch_actor_id: string },
 ) {
+  const selected = structuredClone(raw);
   const budget = await coordinatorDeadline();
   return withCoordinatorDeadline(budget.monotonicDeadline, () =>
-    coordinateTrustedReleaseAt(privateParent, raw, undefined, budget),
+    coordinateTrustedReleaseAt(privateParent, selected, undefined, budget),
   );
 }
 
@@ -1873,9 +1874,10 @@ export async function prepareTrustedCoordinatorRenewal(
     };
   },
 ) {
+  const selected = structuredClone(raw);
   const budget = await coordinatorDeadline();
   return withCoordinatorDeadline(budget.monotonicDeadline, () =>
-    prepareTrustedCoordinatorRenewalAt(privateParent, raw, undefined, budget),
+    prepareTrustedCoordinatorRenewalAt(privateParent, selected, undefined, budget),
   );
 }
 
@@ -3403,9 +3405,10 @@ export async function requestTrustedSemanticReview(
   },
   phaseDeadline?: number,
 ) {
+  const selected = structuredClone(raw);
   const budget = await coordinatorDeadline(phaseDeadline);
   return withCoordinatorDeadline(budget.monotonicDeadline, () =>
-    requestTrustedSemanticReviewAt(privateParent, raw, budget),
+    requestTrustedSemanticReviewAt(privateParent, selected, budget),
   );
 }
 async function requestTrustedSemanticReviewAt(

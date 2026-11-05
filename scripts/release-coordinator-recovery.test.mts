@@ -368,9 +368,11 @@ for (const scenario of ["seeded", "changed", "unseeded", "pending-context"] as c
         mock.mock.restore();
         syncBuiltinESMExports();
       });
-      const run = requestTrustedSemanticReview(parent, {
+      const invocation = {
         remote_configuration: { schema_version: 1, namespace: "portcove-fixture" },
-      });
+      };
+      const run = requestTrustedSemanticReview(parent, invocation);
+      invocation.remote_configuration.namespace = "changed-while-clock-pending";
       if (changed) {
         await assert.rejects(run, (error: unknown) => {
           assert.ok(error instanceof CoordinatorRemoteError);
