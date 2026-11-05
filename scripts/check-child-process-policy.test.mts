@@ -118,6 +118,8 @@ void test("reviewed extracted subprocess fixtures retain exact paths and denied 
     "crates/portcove-cli/tests/machine_contract/self_service.rs",
     "crates/portcove-core/src/definition_publication_connected_tests.rs",
     "crates/portcove-diagnostics/src/writer_tests.rs",
+    "crates/portcove-release-tools/tests/cli.rs",
+    "crates/portcove-release-tools/tests/verification.rs",
     "crates/portcove-release-tools/tests/tuf_repository/isolated/renewal.rs",
     "crates/portcove-release-tools/tests/tuf_repository/isolated.rs",
     "crates/portcove-release-tools/tests/tuf_repository/offline.rs",
