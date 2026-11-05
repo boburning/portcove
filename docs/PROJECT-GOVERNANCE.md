@@ -357,17 +357,15 @@ with quiet success and deduplicated exceptions identifying affected operations,
 failed rules, evidence and resume conditions. Discovery has no admission
 authority. Engineering/policy/authority changes still require scoped review;
 neither an agent nor a candidate may change its own protected acceptance rules.
-Routine authorized work follows mandatory CI, an actual separate non-writing
-reviewer result, substantive finding repair, current-revision and authority
-confirmation, then the guarded normal merge path. The exact incremental review
-and evidence contract is owned by
-[Contribution conventions](CONTRIBUTION-CONVENTIONS.md), not repeated here. An
-implementation or continuation request authorizes that routine workflow within
+Routine authorized work follows mandatory CI, [applicable review under Quality](QUALITY.md#review-scope),
+substantive finding repair, current-revision and authority confirmation, then the
+guarded normal merge path. [Contribution conventions](CONTRIBUTION-CONVENTIONS.md#review-and-merge)
+owns the delivery operations. An implementation or continuation request authorizes that routine workflow within
 its scope without repeated owner approval. Ask the owner only for an unresolved
 blocker, intrinsically required manual participation, or authority not already
-granted, and continue unrelated authorized work. Unavailable delegation holds
-the affected merge, not every other lane. A timeout, cancellation, empty
-response, or absence of comments is not a successful review. Administrator
+granted, and continue unrelated authorized work. When independent review is
+required, unavailable delegation holds the affected merge, not every other lane.
+A timeout, cancellation, empty response, or absence of comments is not a successful review. Administrator
 bypass is emergency-only. Protected
 acceptance, merge authority, signing/publication permission, credentials, and
 other meaningful boundaries require separate owner authorization; candidates
@@ -598,13 +596,13 @@ empty PRs or claim an unavailable upload succeeded. Then select the highest-valu
 independent eligible work in the same active session. An owner-only action is
 reported once with its effect; it does not suspend safe independent work.
 
-Preserve actual separate non-writing review, required exact-head hosted CI and
-explicit acceptance. Local validation is optional under
+Preserve [applicable review](QUALITY.md#review-scope), required exact-head hosted
+CI and explicit acceptance. Local validation is optional under
 [QUALITY](QUALITY.md#required-hosted-baseline). Reuse evidence only at permitted matching
 inputs and scope. A bounded reviewer receives the exact diff/head, relevant
 acceptance/contracts, risks and existing evidence; implementers handle findings
-directly. Missing independent review leaves a candidate awaiting review, never
-self-approved. Existing narrow dependency exceptions remain unchanged.
+directly. Where independent review is required, its absence leaves a candidate
+awaiting review, never self-approved. Existing narrow dependency exceptions remain unchanged.
 
 Use existing canonical owners for discoveries and narrow blockers. Record fact
 versus hypothesis, affected acceptance, evidence, disposition and resume action.

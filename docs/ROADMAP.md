@@ -12,7 +12,9 @@ corrections. Agents investigate changed contracts and genuine exceptions.
 Normal use stays local-first, without paid inference, mandatory accounts,
 telemetry or redistribution of copyrighted game data.
 
-Execution uses one local delivery runner with independent non-writing review.
+Execution follows [candidate ownership and shared-resource safeguards](QUALITY.md#local-feedback-and-hosted-authority)
+and [applicable review](QUALITY.md#review-scope), with delivery operations in
+[Contribution conventions](CONTRIBUTION-CONVENTIONS.md#review-and-merge).
 The retired board preserves historical handoff discovery; it grants no new work.
 See [the pickup contract](PROJECT-GOVERNANCE.md#pickup-consumption-and-execution-upkeep).
 
@@ -35,9 +37,18 @@ of accepted scope or release readiness.
 
 ```sh
 node scripts/roadmap.mts next
+# Initial public beta: Windows x86-64 planning assessment
+node scripts/roadmap.mts readiness --release "Public beta" --release-profile initial-beta-windows-x86_64-v1
+# Broader full-scope investigation
 node scripts/roadmap.mts readiness --release "Public beta"
 node scripts/roadmap.mts readiness --release "1.0"
 ```
+
+The Windows profile omits only the canonical Linux #49/#706 special automatic
+promotion; explicit Required roots and genuine blockers still count. Default/full
+readiness and `doctor` retain the broader assessment. See
+[Quality's profile boundary](QUALITY.md#staged-audit-receipts). Selecting a profile
+is not a passing result, native/package acceptance or signing/publication authority.
 
 **Required** must finish for its target release. **Planned** is approved work
 selected by Priority, Horizon, readiness and queue order; its classification
@@ -127,6 +138,26 @@ Required Windows and shared foundations include:
   separately protected [production authority #534](https://github.com/boburning/portcove/issues/534),
   [Windows application updates and shared trust #52](https://github.com/boburning/portcove/issues/52),
   applicable security, interruption, recovery and data preservation.
+
+The November 4, 2026 owner decision defines #53 and #61’s **Required / Public
+beta** minimum as day-one availability: discover the game, follow official
+upstream/original-file preparation instructions, explicitly add the prepared
+executable and launch it, with clear operation ownership and limitations. Preserve
+the best working managed route and all credited Ghostship installation, startup
+and qualified recovery evidence. When managed acquisition or distribution is held,
+use the existing non-owning registration/launch route; Starship does not wait for
+a publisher checksum to offer this alternative. User selection is execution
+intent, never publisher authentication. A listing alone is insufficient.
+
+Protected per-title catalog delivery, automatic acquisition, advanced maintenance
+and later-version acceptance remain unfinished follow-up under #53/#61 and the
+existing #315/#246/#534 owners where applicable, with no promised release; they do
+not gate these two titles’ revised minimum through #1422/#2510/#2926 or another
+parent. Shared application security, trust, production and release acceptance
+remain independently required at their existing scope. Known issues hold only
+the affected operation; preserve originals, installations and saves. Reuse accepted
+evidence and validate the offered setup/launch route without adding gameplay,
+all-version, populated-save, automatic-update or other-platform campaigns.
 
 Other unfinished title completion under this rollout, catalog expansion and the broad historical/
 all-port campaign are **Planned / Unscheduled**, with no promised release and no
