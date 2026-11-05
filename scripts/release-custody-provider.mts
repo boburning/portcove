@@ -10,7 +10,7 @@ export interface HistoricalJobProvider {
 
 export interface CatalogAnchorMetadataProvider {
   commit(sha: string): Promise<unknown>;
-  tree(sha: string): Promise<unknown>;
+  tree(sha: string, recursive?: boolean): Promise<unknown>;
   blob(sha: string): Promise<unknown>;
 }
 
@@ -192,9 +192,12 @@ export async function createReleaseCustodyProvider(options: {
       return (await get("/repos/{owner}/{repo}/git/commits/{commit_sha}", { commit_sha: sha }))
         .data as unknown;
     },
-    async tree(sha) {
+    async tree(sha, recursive = true) {
       return (
-        await get("/repos/{owner}/{repo}/git/trees/{tree_sha}", { tree_sha: sha, recursive: 1 })
+        await get("/repos/{owner}/{repo}/git/trees/{tree_sha}", {
+          tree_sha: sha,
+          ...(recursive ? { recursive: 1 } : {}),
+        })
       ).data as unknown;
     },
     async blob(sha) {

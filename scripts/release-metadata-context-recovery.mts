@@ -14,12 +14,16 @@ import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import { readGitHubArtifactArchive } from "./github-binary.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import { inspectCapacityOperation, inspectCompactCapacityOperations } from "./release-capacity.mts";
+import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
 import { readRetainedCapacityOperation } from "./release-coordinator-state.mts";
 import {
   readRemoteCoordinatorSnapshot,
   hydrateRetainedCoordinatorOperation,
 } from "./release-coordinator-recovery.mts";
-import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
+import {
+  coordinatorCommandDeadline,
+  withCoordinatorDeadline,
+} from "./release-coordinator-deadline.mts";
 import {
   requireCoordinatorSigningContext,
   readCoordinatorSigningContextFiles,
@@ -166,7 +170,13 @@ export async function readMetadataContextRetryReceipt(repository: string, proof:
   try {
     return readRetainedCapacityOperation(repository, proof);
   } catch {
-    return hydrateRetainedCoordinatorOperation(repository, proof);
+    const environment = readOnlyReleaseChildEnvironment() ?? process.env;
+    const provider = await createReleaseCustodyProvider({
+      token: environment.GH_TOKEN ?? "",
+      deadline: coordinatorCommandDeadline() ?? performance.now() + 45000,
+      maxBytes: 256 * 1024,
+    });
+    return hydrateRetainedCoordinatorOperation(repository, proof, { provider });
   }
 }
 

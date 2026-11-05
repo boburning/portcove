@@ -5,6 +5,7 @@ import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { createGitHubRunner, GitHubApiClient, sanitizeOperationError } from "./github-api.mts";
 import type { GitHubRestReader } from "./github-api.mts";
+import type { CatalogAnchorMetadataProvider } from "./release-custody-provider.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import {
   readRetainedCapacityOperation,
@@ -25,6 +26,9 @@ const repository = "boburning/portcove";
 const maximumResponseBytes = 256 * 1024;
 const maximumObjectBytes = 128 * 1024;
 const duration = 120_000;
+type RetainedCheckpointReader =
+  | { api?: GitHubRestReader; provider?: never }
+  | { provider: CatalogAnchorMetadataProvider; api?: never };
 type Spawn = NonNullable<NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"]>;
 
 function oid(value: unknown): asserts value is string {
@@ -194,7 +198,7 @@ export function inspectRemoteCommitObject(value: unknown, expected: string, exac
 export async function hydrateRetainedCoordinatorOperation(
   repository: string,
   proof: unknown,
-  options: { api?: GitHubRestReader } = {},
+  options: RetainedCheckpointReader = {},
 ) {
   if (!isRecord(proof) || Object.keys(proof).sort().join(",") !== "checkpoint,id,operation_sha256")
     throw new Error("retained operation proof schema differs");
@@ -215,25 +219,12 @@ export async function hydrateRetainedCoordinatorOperation(
 export async function hydrateRetainedCoordinatorCheckpoint(
   repository: string,
   checkpoint: unknown,
-  options: { api?: GitHubRestReader } = {},
+  options: RetainedCheckpointReader = {},
 ) {
   oid(checkpoint);
-  const api =
-    options.api ??
-    new GitHubApiClient((args, input) =>
-      createGitHubRunner({
-        cwd: repository,
-        maxBuffer: 256 * 1024,
-        timeoutMs: coordinatorCommandTimeout(15000),
-      })([...args, "--hostname", "github.com"], input),
-    );
-  const get = (suffix: string) => {
-    const result = api.request("GET", `repos/boburning/portcove/${suffix}`);
-    if (result.status !== 200) throw new Error("retained operation unavailable");
-    return result.body;
-  };
-  const commit = inspectRemoteCommitObject(get(`git/commits/${checkpoint}`), checkpoint);
-  const raw = get(`git/trees/${commit.tree}`);
+  const provider = options.provider ?? legacyRetainedCheckpointReader(repository, options.api);
+  const commit = inspectRemoteCommitObject(await provider.commit(checkpoint), checkpoint);
+  const raw = await provider.tree(commit.tree, false);
   if (
     !isRecord(raw) ||
     raw.sha !== commit.tree ||
@@ -256,7 +247,7 @@ export async function hydrateRetainedCoordinatorCheckpoint(
     commit.tree,
     Buffer.concat([Buffer.from("100644 state.json\0"), Buffer.from(entry.sha, "hex")]),
   );
-  const blobRaw = get(`git/blobs/${entry.sha}`);
+  const blobRaw = await provider.blob(entry.sha);
   if (
     !isRecord(blobRaw) ||
     blobRaw.sha !== entry.sha ||
@@ -274,6 +265,31 @@ export async function hydrateRetainedCoordinatorCheckpoint(
   const blob = inspectRemoteGitObject("blob", entry.sha, bytes);
   writeRetainedCoordinatorObjects(repository, [commit.object, tree, blob]);
   return readRetainedCoordinatorCheckpoint(repository, checkpoint);
+}
+
+function legacyRetainedCheckpointReader(
+  repository: string,
+  injected?: GitHubRestReader,
+): CatalogAnchorMetadataProvider {
+  const api =
+    injected ??
+    new GitHubApiClient((args, input) =>
+      createGitHubRunner({
+        cwd: repository,
+        maxBuffer: maximumResponseBytes,
+        timeoutMs: coordinatorCommandTimeout(15000),
+      })([...args, "--hostname", "github.com"], input),
+    );
+  const get = async (suffix: string) => {
+    const result = api.request("GET", `repos/boburning/portcove/${suffix}`);
+    if (result.status !== 200) throw new Error("retained operation unavailable");
+    return result.body;
+  };
+  return {
+    commit: (sha) => get(`git/commits/${sha}`),
+    tree: (sha) => get(`git/trees/${sha}`),
+    blob: (sha) => get(`git/blobs/${sha}`),
+  };
 }
 
 function writeRetainedCoordinatorObjects(

@@ -357,18 +357,21 @@ void test(
       stateBytes = git("cat-file", "blob", blob);
     const proof = { checkpoint: saved.checkpoint, id: f.raw.id, operation_sha256: digest(f.raw) };
     assert.throws(() => readRetainedCapacityOperation(sparse, proof));
-    const original = childProcess.spawnSync,
-      requests: string[] = [];
-    const mock = t.mock.method(
-      childProcess,
-      "spawnSync",
-      (command: string, args: readonly string[], options: SpawnSyncOptionsWithStringEncoding) => {
-        if (command !== "gh") return original(command, args, options);
-        assert.equal(args[args.indexOf("--method") + 1], "GET");
-        assert.equal(args[args.indexOf("--hostname") + 1], "github.com");
-        const endpoint = args.find((arg) => arg.startsWith("repos/"));
-        assert.ok(endpoint);
+    const requests: string[] = [];
+    const token = "synthetic-retained-metadata-fixture";
+    let unavailable = true;
+    t.mock.method(
+      globalThis,
+      "fetch",
+      async (input: string | URL | Request, init?: RequestInit) => {
+        const url = new URL(input instanceof Request ? input.url : input);
+        assert.equal(url.origin, "https://api.github.com");
+        assert.equal(url.search, "");
+        assert.equal(init?.method, "GET");
+        assert.equal(new Headers(init?.headers).get("authorization"), `token ${token}`);
+        const endpoint = url.pathname.slice(1);
         requests.push(endpoint);
+        if (unavailable) return Response.json({ message: "Unavailable" }, { status: 503 });
         let body: unknown;
         if (endpoint === `repos/boburning/portcove/git/commits/${saved.checkpoint}`) {
           const person = {
@@ -399,18 +402,25 @@ void test(
             content: stateBytes.toString("base64"),
           };
         else throw new Error("unexpected fixture GET");
-        return {
-          status: 0,
-          stdout: `HTTP/2.0 200 Fixture\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(body)}`,
-          stderr: "",
-        };
+        return Response.json(body);
       },
     );
-    syncBuiltinESMExports();
+    const previousToken = process.env.GH_TOKEN;
+    process.env.GH_TOKEN = token;
     t.after(() => {
-      mock.mock.restore();
-      syncBuiltinESMExports();
+      if (previousToken === undefined) delete process.env.GH_TOKEN;
+      else process.env.GH_TOKEN = previousToken;
     });
+    await assert.rejects(
+      withCoordinatorDeadline(performance.now() + 15000, () =>
+        readMetadataContextRetryReceipt(sparse, proof),
+      ),
+      (error: unknown) => error instanceof Error && "status" in error && error.status === 503,
+    );
+    assert.deepEqual(requests, [`repos/boburning/portcove/git/commits/${saved.checkpoint}`]);
+    assert.throws(() => readRetainedCapacityOperation(sparse, proof));
+    requests.length = 0;
+    unavailable = false;
     const actual = await withCoordinatorDeadline(performance.now() + 15000, () =>
       readMetadataContextRetryReceipt(sparse, proof),
     );
