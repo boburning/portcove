@@ -145,7 +145,7 @@ globalThis.fixture={
  inspectConfiguration:inspectSelectedPublicationAuthorityConfiguration,
  source:readSource,workflow:async()=>Buffer.from(state.workflow),
  environment:()=>({PATH:process.env.PATH,SystemRoot:process.env.SystemRoot}),
- hydrate:async(repo,pin)=>{reads++;assert.equal(pin,state.pin.checkpoint);return {checkpoint:pin,requests:1}},
+ hydrate:async(repo,pin,provider)=>{reads++;assert.equal(pin,state.pin.checkpoint);assert.equal(provider,checkpointObjects);return {checkpoint:pin,requests:1}},
  evidence:()=>({subject:Buffer.from(JSON.stringify({schema_version:2,producer:state.custody.proofs[0].producer,native_custody:state.custody})),requests:1}),
  authenticate:async(dir,checkpoint,config,evidence,expected,deadline)=>{checkpointChecks++;assert.equal(expected.role,'aggregate-assembly');assert.equal(checkpoint.checkpoint,state.pin.checkpoint);if(state.fault==='checkpoint-signature')throw Error('checkpoint signature refused');return {evidence_scope:'github.com'}},
  requireCheckpoint:()=>{assert.equal(checkpointChecks,1)},
@@ -165,6 +165,7 @@ const routes={
 };
 registerHooks({resolve(spec,ctx,next){if(ctx.parentURL===${JSON.stringify(entry)}&&routes[spec])return {url:'inert-history:'+spec,shortCircuit:true};return next(spec,ctx)},load(url,ctx,next){if(url.startsWith('inert-history:'))return {format:'module',source:Object.entries(routes[url.slice(14)]).map(([name,key])=>'export const '+name+'=globalThis.fixture.'+key+';').join('\n'),shortCircuit:true};return next(url,ctx)}});
 const api=await import(${JSON.stringify(entry)});
+const checkpointObjects={commit(){throw Error('unexpected commit')},tree(){throw Error('unexpected tree')},blob(){throw Error('unexpected blob')}};
 const provider={request(){throw Error('unexpected transport')},graphql(){throw Error('unexpected GraphQL')}};
 for(const consumer of ['publication','native']){
 for(const fault of ['valid','caller-mutation','source','configuration','grant','workflow','package','checkpoint-pin','checkpoint-signature','native-proof','changed-source','final-source-drift','configured-history','configured-live-history','history','live-history']){
@@ -178,7 +179,7 @@ for(const fault of ['valid','caller-mutation','source','configuration','grant','
  if(fault==='configured-history'||fault==='configured-live-history')state.view.source.run_id='99999';
  const directory=path.join(root,consumer+'-'+fault);mkdirSync(directory);
  const collect=fault==='history'||fault==='live-history'?api.collectHistoricalHostedNativePredecessors:consumer==='native'?((...args)=>api.collectOriginalNativeParentPredecessors(nativeParent,...args)):api.collectConfiguredHostedNativePredecessors;
- const operation=()=>collect(directory,state.records,{schema_version:1,namespace:state.custody.configuration.journal.namespace},performance.now()+60000,provider);
+ const operation=()=>collect(directory,state.records,{schema_version:1,namespace:state.custody.configuration.journal.namespace},performance.now()+60000,provider,{checkpointObjects:async()=>checkpointObjects});
  if(['valid','caller-mutation','history','configured-history'].includes(fault)){
    const pending=operation();
    if(fault==='caller-mutation')state.records[0].artifact.sha256='e'.repeat(64);

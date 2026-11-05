@@ -792,6 +792,8 @@ for (const [file, tests] of [
   [
     "scripts/release-custody-provider.mts",
     [
+      "scripts/release-coordinator-recovery.test.mts",
+      "scripts/release-hosted-native-history.test.mts",
       "scripts/release-catalog-recovery.test.mts",
       "scripts/release-catalog-continuation.test.mts",
       "scripts/release-metadata-context-recovery.test.mts",
@@ -2285,6 +2287,7 @@ for (const file of [
     "scripts/release-coordinator-checkpoint-evidence.test.mts",
     "scripts/release-coordinator-journal-api.test.mts",
     "scripts/release-coordinator-remote.test.mts",
+    "scripts/release-hosted-native-history.test.mts",
     "scripts/release-coordinator-recovery.test.mts",
     "scripts/release-metadata-context-recovery.test.mts",
     "scripts/production-controller-admission.test.mts",

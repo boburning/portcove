@@ -170,6 +170,18 @@ async function hostedNativeSourceTransport(parentReceipt: object, directory: str
       deadline: Math.min(options.deadline ?? Infinity, deadline),
     });
   };
+  const checkpointObjects = (originalDeadline: number) =>
+    createReleaseCustodyProvider({
+      token: childEnvironment.GH_TOKEN ?? "",
+      deadline: Math.min(deadline, originalDeadline),
+      maxBytes: 2 * 1024 * 1024,
+      chargeRead: () => {
+        remaining(1);
+      },
+      afterRead: () => {
+        remaining(1);
+      },
+    });
   const declarationProvider = async () => {
     const scoped = (maxBytes: number) =>
       createReleaseCustodyProvider({
@@ -203,6 +215,7 @@ async function hostedNativeSourceTransport(parentReceipt: object, directory: str
     download,
     downloadAsset,
     recover,
+    checkpointObjects,
     declarationProvider,
   };
 }
@@ -770,6 +783,7 @@ export async function readActualHostedNativePostSignJourney(inputsReceipt: objec
             platform_labels: platforms,
             public_pins: configuration.publication,
             authority_schema_version: configuration.schema_version,
+            checkpointObjects: original.source.checkpointObjects,
             api: original.source.api,
           },
           directory,

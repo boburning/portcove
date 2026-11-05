@@ -1,3 +1,5 @@
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
+import type { CatalogAnchorMetadataProvider } from "./release-custody-provider.mts";
 /** Actual fixed post-sign reader. Context/role/provider persistence is custody,
  * not native acceptance. Only the existing current native consumer mints that
  * private qualification after all independently expected inputs match. */
@@ -192,6 +194,7 @@ type NativePublicationJourneyInput = {
   public_pins: ReturnType<typeof inspectPublicationAuthorities>;
   authority_schema_version?: unknown;
   api: Pick<GitHubApiClient, "request" | "graphql">;
+  checkpointObjects?: (deadline: number) => Promise<CatalogAnchorMetadataProvider>;
 };
 
 function readLegacyNativePredecessor(
@@ -272,6 +275,9 @@ export async function deriveHostedNativePublicationJourneys(
     { schema_version: 1, namespace: input.namespace },
     deadline,
     input.api,
+    input.checkpointObjects === undefined
+      ? undefined
+      : { checkpointObjects: input.checkpointObjects },
   ] as const;
   const historical =
     nativeParentReceipt === undefined
@@ -632,6 +638,7 @@ async function collectNativePublicationPair(
       JSON.stringify({ checkpoint: before.checkpoint, published }),
       { flag: "wx", mode: 0o600 },
     );
+    const token = process.env.GH_TOKEN;
     const runner = createGitHubRunner({
       cwd: directory,
       timeoutMs: 15000,
@@ -643,7 +650,7 @@ async function collectNativePublicationPair(
           env: {
             PATH: process.env.PATH,
             SystemRoot: process.env.SystemRoot,
-            GH_TOKEN: process.env.GH_TOKEN,
+            GH_TOKEN: token,
             GH_HOST: "github.com",
             HOME: directory,
             USERPROFILE: directory,
@@ -658,18 +665,29 @@ async function collectNativePublicationPair(
       return result;
     });
     let reads = 0;
+    const chargeRead = (message = "post-sign native read budget exhausted") => {
+      if (++reads > 160) throw new Error(message);
+      remaining();
+    };
+    const checkpointObjects = (originalDeadline: number) =>
+      createReleaseCustodyProvider({
+        token: token ?? "",
+        deadline: Math.min(deadline, originalDeadline),
+        maxBytes: 1024 * 1024,
+        chargeRead,
+        afterRead: remaining,
+      });
     const api = {
       request: (method: string, endpoint: string, body?: unknown) => {
-        if (method !== "GET" || body != null || ++reads > 160)
+        if (method !== "GET" || body != null)
           throw new Error("post-sign native source is bounded GET only");
-        remaining();
+        chargeRead("post-sign native source is bounded GET only");
         const result = client.request(method, endpoint);
         remaining();
         return result;
       },
       graphql: (query: string, variables: Readonly<Record<string, unknown>>) => {
-        if (++reads > 160) throw new Error("post-sign native read budget exhausted");
-        remaining();
+        chargeRead();
         const result = client.graphql(query, variables);
         remaining();
         return result;
@@ -712,8 +730,10 @@ async function collectNativePublicationPair(
           windowsHide: true,
         },
       );
-      const historical = await withCoordinatorDeadline(deadline, () =>
-        hydrateRetainedCoordinatorCheckpoint(historicalRepository, checkpoint, { api }),
+      const historical = await withCoordinatorDeadline(deadline, async () =>
+        hydrateRetainedCoordinatorCheckpoint(historicalRepository, checkpoint, {
+          provider: await checkpointObjects(deadline),
+        }),
       );
       journeyInput = inspectNativeCompletionLineage(
         before.input,
@@ -742,6 +762,7 @@ async function collectNativePublicationPair(
       platform_labels: expectedBefore.map((item) => item.platform_label),
       public_pins: publicPins,
       authority_schema_version: authorities.schema_version,
+      checkpointObjects,
       api,
     };
     const journeys = selectedHosted
