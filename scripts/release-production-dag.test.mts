@@ -170,6 +170,30 @@ void test("all fixed workers select credentials from their actual full source be
     assert.equal(source?.run, `node scripts/release-controller-job-credential-route.mts ${phase}`);
     assert.equal(job.permissions?.contents, "write");
     const index = job.steps.indexOf(source);
+    const checkout = job.steps.findIndex((step) => step.uses?.startsWith("actions/checkout@"));
+    const pnpm = job.steps.findIndex((step) => step.uses?.startsWith("pnpm/action-setup@"));
+    const runtime = job.steps.findIndex((step) => step.uses?.startsWith("actions/setup-node@"));
+    const install = job.steps.findIndex((step) => step.run?.includes("controller-clock-store"));
+    assert.ok(
+      checkout >= 0 && checkout < pnpm && pnpm < runtime && runtime < install && install < index,
+      name,
+    );
+    assert.equal(job.steps[checkout]!.with?.["persist-credentials"], false);
+    assert.equal(job.steps[pnpm]!.with?.package_json_file, "package.json");
+    assert.equal(job.steps[pnpm]!.with?.run_install, false);
+    for (const at of [pnpm, install]) {
+      assert.equal(job.steps[at]!.env?.GH_TOKEN, "");
+      assert.equal(job.steps[at]!.env?.GITHUB_TOKEN, "");
+      assert.equal(job.steps[at]!.env?.PORTCOVE_RELEASE_READ_TOKEN, "");
+    }
+    assert.match(
+      job.steps[install]!.run ?? "",
+      /env -i .*pnpm --filter portcove-repository install --prod --frozen-lockfile --ignore-scripts --ignore-pnpmfile/u,
+    );
+    assert.match(
+      job.steps[install]!.run ?? "",
+      /git diff --quiet HEAD -- package.json pnpm-lock.yaml/u,
+    );
     assert.ok(index >= 0);
     const legacy = job.steps.filter(
       (step) =>

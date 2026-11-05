@@ -592,7 +592,31 @@ jobs:
       role_locators: ${{ steps.job.outputs.role_locators }}
     steps:
       - *a1
+      - &controller_clock_pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413
+        with:
+          package_json_file: package.json
+          run_install: false
+        env:
+          GH_TOKEN: ""
+          GITHUB_TOKEN: ""
+          PORTCOVE_RELEASE_READ_TOKEN: ""
       - *a2
+      - &controller_clock_install
+        name: Install the fixed controller clock dependencies before role credentials
+        shell: bash
+        env:
+          GH_TOKEN: ""
+          GITHUB_TOKEN: ""
+          PORTCOVE_RELEASE_READ_TOKEN: ""
+        run: |
+          set -euo pipefail
+          [[ "$(git rev-parse HEAD)" == "$GITHUB_WORKFLOW_SHA" ]]
+          git diff --quiet HEAD -- package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc patches/
+          if [[ -e .npmrc ]]; then git ls-files --error-unmatch .npmrc >/dev/null; fi
+          install_home="$RUNNER_TEMP/controller-clock-install-home"
+          mkdir -m 700 "$install_home"
+          env -i PATH="$PATH" HOME="$install_home" CI=true pnpm --filter portcove-repository install --prod --frozen-lockfile --ignore-scripts --ignore-pnpmfile --store-dir "$RUNNER_TEMP/controller-clock-store"
       - name: Bind protected source and exact role before App or signing-key release
         run: node scripts/release-controller-job-credential-route.mts coordinator
         id: authorities
@@ -725,7 +749,9 @@ jobs:
       original_upload: ${{ steps.job.outputs.original_upload }}
     steps:
       - *a1
+      - *controller_clock_pnpm
       - *a2
+      - *controller_clock_install
       - name: Bind protected source and exact role before App or signing-key release
         run: node scripts/release-controller-job-credential-route.mts admission
         id: authorities
@@ -997,7 +1023,9 @@ jobs:
       context_locator: ${{ steps.job.outputs.context_locator }}
     steps:
       - *a1
+      - *controller_clock_pnpm
       - *a2
+      - *controller_clock_install
       - name: Bind protected source and exact role before App or signing-key release
         run: node scripts/release-controller-job-credential-route.mts payload
         id: authorities
@@ -1047,7 +1075,9 @@ jobs:
       role_locator: ${{ steps.job.outputs.role_locator }}
     steps:
       - *a1
+      - *controller_clock_pnpm
       - *a2
+      - *controller_clock_install
       - name: Bind protected source and exact role before App or signing-key release
         run: node scripts/release-controller-job-credential-route.mts tuf-releases
         id: authorities
@@ -1098,7 +1128,9 @@ jobs:
       role_locator: ${{ steps.job.outputs.role_locator }}
     steps:
       - *a1
+      - *controller_clock_pnpm
       - *a2
+      - *controller_clock_install
       - name: Bind protected source and exact role before App or signing-key release
         run: node scripts/release-controller-job-credential-route.mts tuf-preview
         id: authorities
@@ -1150,7 +1182,9 @@ jobs:
       role_locator: ${{ steps.job.outputs.role_locator }}
     steps:
       - *a1
+      - *controller_clock_pnpm
       - *a2
+      - *controller_clock_install
       - name: Bind protected source and exact role before App or signing-key release
         run: node scripts/release-controller-job-credential-route.mts tuf-stable
         id: authorities
@@ -1203,7 +1237,9 @@ jobs:
       role_locator: ${{ steps.job.outputs.role_locator }}
     steps:
       - *a1
+      - *controller_clock_pnpm
       - *a2
+      - *controller_clock_install
       - name: Bind protected source and exact role before App or signing-key release
         run: node scripts/release-controller-job-credential-route.mts tuf-snapshot
         id: authorities
@@ -1257,7 +1293,9 @@ jobs:
       role_locator: ${{ steps.job.outputs.role_locator }}
     steps:
       - *a1
+      - *controller_clock_pnpm
       - *a2
+      - *controller_clock_install
       - name: Bind protected source and exact role before App or signing-key release
         run: node scripts/release-controller-job-credential-route.mts tuf-timestamp
         id: authorities
@@ -1318,7 +1356,9 @@ jobs:
       publication_locator: ${{ steps.job.outputs.publication_locator }}
     steps:
       - *a1
+      - *controller_clock_pnpm
       - *a2
+      - *controller_clock_install
       - name: Bind protected source and exact role before App or signing-key release
         run: node scripts/release-controller-job-credential-route.mts release-publication
         id: authorities
@@ -1399,7 +1439,9 @@ jobs:
       decision: ${{ steps.job.outputs.decision }}
     steps:
       - *a1
+      - *controller_clock_pnpm
       - *a2
+      - *controller_clock_install
       - name: Bind protected source and exact role before App or signing-key release
         run: node scripts/release-controller-job-credential-route.mts site-publication
         id: authorities
@@ -1490,7 +1532,9 @@ jobs:
       role_locator: ${{ steps.job.outputs.role_locator }}
     steps:
       - *a1
+      - *controller_clock_pnpm
       - *a2
+      - *controller_clock_install
       - name: Bind protected source and exact role before App or signing-key release
         run: node scripts/release-controller-job-credential-route.mts catalog-definitions
         id: authorities
@@ -1554,7 +1598,9 @@ jobs:
       role_locator: ${{ steps.job.outputs.role_locator }}
     steps:
       - *a1
+      - *controller_clock_pnpm
       - *a2
+      - *controller_clock_install
       - name: Bind protected source and exact role before App or signing-key release
         run: node scripts/release-controller-job-credential-route.mts catalog-policy
         id: authorities
@@ -1602,7 +1648,9 @@ jobs:
       role_locator: ${{ steps.job.outputs.role_locator }}
     steps:
       - *a1
+      - *controller_clock_pnpm
       - *a2
+      - *controller_clock_install
       - name: Bind protected source and exact role before App or signing-key release
         run: node scripts/release-controller-job-credential-route.mts catalog-snapshot
         id: authorities
@@ -1651,7 +1699,9 @@ jobs:
       role_locator: ${{ steps.job.outputs.role_locator }}
     steps:
       - *a1
+      - *controller_clock_pnpm
       - *a2
+      - *controller_clock_install
       - name: Bind protected source and exact role before App or signing-key release
         run: node scripts/release-controller-job-credential-route.mts catalog-timestamp
         id: authorities
