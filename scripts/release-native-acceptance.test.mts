@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
@@ -355,6 +355,7 @@ void test("actual locked SDK default binds exact Check, suite and immutable sour
   t.after(() => rm(root, { recursive: true, force: true }));
   nativeReaderEnvironment(t);
   const f = fixture();
+  let tamper: string | undefined;
   const fetcher: typeof globalThis.fetch = async (input, init) => {
     const url = new URL(input instanceof Request ? input.url : input);
     assert.equal(url.origin, "https://api.github.com");
@@ -362,6 +363,7 @@ void test("actual locked SDK default binds exact Check, suite and immutable sour
     assert.equal(init.redirect, "manual");
     assert.equal(new Headers(init.headers).get("authorization"), "token fixed-native-check-reader");
     assert.ok(url.pathname.startsWith("/repos/boburning/portcove/"));
+    if (tamper && url.pathname.endsWith("/check-suites/456")) await writeFile(tamper, "{}");
     process.env.GH_TOKEN = "unrelated-rotated-token";
     return Response.json(
       await f.read(url.pathname.slice("/repos/boburning/portcove/".length) + url.search),
@@ -387,6 +389,16 @@ void test("actual locked SDK default binds exact Check, suite and immutable sour
       "check-suites/456",
     ],
   );
+  const [directory] = await readdir(root);
+  const retained = path.join(root, directory!, "expected.json");
+  const original = await readFile(retained);
+  tamper = retained;
+  await assert.rejects(
+    verifiedNativeReleaseQualification(receipt),
+    /native retained proof changed/u,
+  );
+  tamper = undefined;
+  await writeFile(retained, original);
   f.check.conclusion = "cancelled";
   await assert.rejects(verifiedNativeReleaseQualification(receipt));
   await assert.rejects(

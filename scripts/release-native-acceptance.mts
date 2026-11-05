@@ -596,12 +596,6 @@ export async function verifiedNativeReleaseQualification(
   if (!bound)
     throw new Error("native qualification was not authenticated by this actual provider process");
   bound.active();
-  for (const file of bound.files) {
-    const bytes = await readControllerToolFile(file.path, 512 * 1024);
-    if (bytes.length !== file.bytes || hash(bytes) !== file.sha256)
-      throw new Error("native retained proof changed");
-    bound.active();
-  }
   const check = checkIdentity(
     await bound.get(`check-runs/${bound.expected.check_id}`),
     bound.expected,
@@ -612,6 +606,12 @@ export async function verifiedNativeReleaseQualification(
     !isDeepStrictEqual(suite, bound.suite_identity)
   )
     throw new Error("native qualification changed before consumption");
+  for (const file of bound.files) {
+    const bytes = await readControllerToolFile(file.path, 512 * 1024);
+    if (bytes.length !== file.bytes || hash(bytes) !== file.sha256)
+      throw new Error("native retained proof changed");
+    bound.active();
+  }
   const result = structuredClone({
     ...bound.report,
     check: {
