@@ -531,7 +531,11 @@ for (const missing of ["keys", "spawn"] as const) {
       else process.env.GH_TOKEN = previous;
     });
     if (missing === "keys") delete f.options.identity!.readKeys;
-    else delete f.options.identity!.transport!.spawn;
+    else {
+      const transport = f.options.identity?.transport;
+      assert.ok(transport && "cwd" in transport);
+      delete transport.spawn;
+    }
     await withReadOnlyReleaseChildren(directory, async () => {
       await assert.rejects(
         signCoordinatorCheckpointEvidence(
