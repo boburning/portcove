@@ -825,35 +825,43 @@ for (const fault of [
           verifies++;
           return options(f).attestation.spawn(command, args);
         }
-        if (settings.env?.GH_CONFIG_DIR?.startsWith(path.join(directory, "journal-api-"))) {
-          let body: unknown;
-          if (args[1] === "graphql") {
-            assert.ok(typeof settings.input === "string");
-            const input: unknown = JSON.parse(settings.input);
-            assert.ok(
-              isRecord(input) && typeof input.query === "string" && isRecord(input.variables),
-            );
-            body = api.graphql(input.query, input.variables);
-          } else body = api.request("GET", args[2]!).body;
-          return {
-            status: 0,
-            stdout: `HTTP/2.0 200 Fixture\r\n\r\n${JSON.stringify(body)}`,
-            stderr: "",
-          };
-        }
         assert.fail("unexpected retained CLI route");
       },
     );
     syncBuiltinESMExports();
+    const custodyFetch = releaseCustodyFetch(f.provider, (_url, init) => {
+      assert.equal(
+        new Headers(init?.headers).get("authorization"),
+        "token inert-history-job-token",
+      );
+    });
     t.mock.method(
       globalThis,
       "fetch",
-      releaseCustodyFetch(f.provider, (_url, init) => {
-        assert.equal(
-          new Headers(init?.headers).get("authorization"),
-          "token inert-history-job-token",
-        );
-      }),
+      async (raw: Parameters<typeof fetch>[0], init?: RequestInit) => {
+        const url = new URL(raw instanceof Request ? raw.url : raw);
+        if (
+          url.href === "https://api.github.com/graphql" ||
+          url.pathname.startsWith("/repos/boburning/portcove/git/") ||
+          (url.pathname === `/repos/boburning/portcove/actions/jobs/${f.producer.job_id}` &&
+            reads === 4)
+        ) {
+          assert.equal(
+            new Headers(init?.headers).get("authorization"),
+            "token inert-history-job-token",
+          );
+          if (url.pathname === "/graphql") {
+            assert.ok(typeof init?.body === "string");
+            const input: unknown = JSON.parse(init.body);
+            assert.ok(
+              isRecord(input) && typeof input.query === "string" && isRecord(input.variables),
+            );
+            return Response.json(api.graphql(input.query, input.variables));
+          }
+          return Response.json(api.request("GET", url.pathname.slice(1)).body);
+        }
+        return custodyFetch(raw, init);
+      },
     );
     await withReadOnlyReleaseChildren(directory, async () => {
       const deadline = performance.now() + 60000;
@@ -863,7 +871,7 @@ for (const fault of [
         f.configuration,
         deadline,
       );
-      reader.assertCurrentUnclaimedHead();
+      await reader.assertCurrentUnclaimedHead();
       const run = () =>
         authenticateFixedJobCoordinatorHistory(
           directory,
@@ -887,7 +895,7 @@ for (const fault of [
           f.evidence,
         );
         assert.equal(verifies, 1);
-        reader.assertCurrentUnclaimedHead();
+        await reader.assertCurrentUnclaimedHead();
         assert.equal(reads + snapshots, 9);
       }
       if (["source", "setup", "role", "changed-proof"].includes(fault)) assert.equal(verifies, 0);

@@ -252,7 +252,7 @@ for (const releaseProfile of ["initial-beta-win-linux", "initial-beta-windows-x8
     assert.equal(inspected.signature_verification, "not-performed");
     assert.ok(Buffer.byteLength(JSON.stringify(inspected.objects[1]!.body)) < 2 * 1024 * 1024);
     let reads = 0;
-    const retained = readCoordinatorCheckpointEvidence(
+    const retained = await readCoordinatorCheckpointEvidence(
       checkpoint,
       configuration,
       {

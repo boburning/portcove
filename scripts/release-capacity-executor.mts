@@ -340,7 +340,7 @@ async function authenticateOwnedCheckpointJournalHistoryWithinScope(
   const configuration = { schema_version: 1, namespace: selected.configuration.namespace };
   const checkpoint = await exportCoordinatorCheckpoint(repository, expected);
   const reader = createCheckpointHistoryReader(value.directory, expected, configuration, deadline);
-  reader.assertCurrentUnclaimedHead();
+  await reader.assertCurrentUnclaimedHead();
   const history = await authenticateFixedJobCoordinatorHistory(
     value.directory,
     checkpoint,
@@ -350,7 +350,7 @@ async function authenticateOwnedCheckpointJournalHistoryWithinScope(
     reader.api,
   );
   await exportCoordinatorCheckpoint(repository, expected);
-  reader.assertCurrentUnclaimedHead();
+  await reader.assertCurrentUnclaimedHead();
   const current = await requireControllerFixedJobJournalAuthorities(value.role);
   capacityExecutorIdentity(session);
   if (capacityDigest(current) !== capacityDigest(selected))
@@ -568,7 +568,7 @@ async function publishOwnedSignedCoordinatorCheckpointWithinScope(
           configuration,
           value.journalDeadline!,
         );
-        reader.assertCurrentUnclaimedHead();
+        await reader.assertCurrentUnclaimedHead();
         return { checkpoint: expected, changed: false, authority: "none" as const };
       }
       const checkpoint = await withCoordinatorDeadline(value.journalDeadline!, () =>

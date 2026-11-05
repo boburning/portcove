@@ -8,7 +8,7 @@ import type { exportCoordinatorCheckpoint } from "./release-coordinator-state.mt
 import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-namespace.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import { isRecord } from "./runtime-values.mts";
-import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
+import type { CoordinatorCheckpointApi } from "./release-coordinator-remote.mts";
 import { performance } from "node:perf_hooks";
 import { inspectNativeCheckpointCustody } from "./release-native-checkpoint-custody.mts";
 
@@ -282,12 +282,14 @@ export function inspectCoordinatorCheckpointEvidence(
  * No history traversal, artifact retention dependency, default credentials or
  * signature authority. The caller passes an independently selected checkpoint
  * and must authenticate these returned bytes before recovery/admission use. */
-export function readCoordinatorCheckpointEvidence(
-  checkpoint: Checkpoint,
-  configuration: unknown,
-  api: CoordinatorRemoteApi,
+export async function readCoordinatorCheckpointEvidence(
+  rawCheckpoint: Checkpoint,
+  rawConfiguration: unknown,
+  api: CoordinatorCheckpointApi,
   deadline: number,
 ) {
+  const checkpoint = structuredClone(rawCheckpoint);
+  const configuration = structuredClone(rawConfiguration);
   const scope = inspectCoordinatorRemoteNamespace(configuration);
   const started = performance.now();
   if (!Number.isFinite(deadline) || deadline <= started || deadline - started > 120_000)
@@ -298,10 +300,10 @@ export function readCoordinatorCheckpointEvidence(
       throw new Error("checkpoint evidence read deadline or request bound exhausted");
   };
   const name = `refs/tags/${scope}-checkpoint-proof/${checkpoint.checkpoint}`;
-  const snapshot = () => {
+  const snapshot = async () => {
     active();
     requests++;
-    const response = api.graphql(
+    const response = await api.graphql(
       'query($name:String!){repository(owner:"boburning",name:"portcove"){databaseId nameWithOwner ref(qualifiedName:$name){name prefix target{__typename oid}}}}',
       { name },
     );
@@ -324,24 +326,24 @@ export function readCoordinatorCheckpointEvidence(
       throw new Error("checkpoint evidence proof ref is missing or differs");
     return target.oid;
   };
-  const get = (kind: string, oid: string) => {
+  const get = async (kind: string, oid: string) => {
     active();
     requests++;
-    const response = api.request("GET", `repos/boburning/portcove/git/${kind}/${oid}`);
+    const response = await api.request("GET", `repos/boburning/portcove/git/${kind}/${oid}`);
     active();
     if (response.status !== 200 || !isRecord(response.body) || response.body.sha !== oid)
       throw new Error("checkpoint evidence object is unavailable or differs");
     return response.body;
   };
-  const proof = snapshot();
-  const commit = get("commits", proof);
+  const proof = await snapshot();
+  const commit = await get("commits", proof);
   if (
     !isRecord(commit.tree) ||
     typeof commit.tree.sha !== "string" ||
     !/^[a-f0-9]{40}$/u.test(commit.tree.sha)
   )
     throw new Error("checkpoint evidence commit tree differs");
-  const tree = get("trees", commit.tree.sha);
+  const tree = await get("trees", commit.tree.sha);
   if (tree.truncated !== false || !Array.isArray(tree.tree) || tree.tree.length !== 2)
     throw new Error("checkpoint evidence tree is incomplete");
   const files: Buffer[] = [];
@@ -356,7 +358,7 @@ export function readCoordinatorCheckpointEvidence(
       !/^[a-f0-9]{40}$/u.test(entry.sha)
     )
       throw new Error("checkpoint evidence tree entry differs");
-    const blob = get("blobs", entry.sha);
+    const blob = await get("blobs", entry.sha);
     if (
       blob.encoding !== "base64" ||
       typeof blob.content !== "string" ||
@@ -382,7 +384,7 @@ export function readCoordinatorCheckpointEvidence(
   if (
     checked.update.afterOid !== proof ||
     checked.objects[2]!.oid !== tree.sha ||
-    snapshot() !== proof
+    (await snapshot()) !== proof
   )
     throw new Error("checkpoint evidence objects or ref changed during readback");
   return {
