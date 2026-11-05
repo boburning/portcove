@@ -2998,6 +2998,14 @@ pub(crate) fn portability_catalog_for_install(
                 "partitioned data portability requires the installation's actual retained contract",
             ));
         }
+        if crate::installed_mutability::declared_shipwright_persistence(
+            embedded.port(&install.port_id)?,
+            Platform::current()?,
+        ) {
+            return Err(PortcoveError::verification(
+                "Shipwright Windows portability requires the installation's actual retained contract",
+            ));
+        }
         crate::managed_shared_preferences::refuse_scope_transfer(embedded.port(&install.port_id)?)?;
         return Ok(None);
     }

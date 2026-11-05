@@ -254,6 +254,8 @@ impl<'a> IndexedCatalogFixture<'a> {
         let port_id = &port.id;
         let capability_version = if crate::preparation::source::native(port) {
             6
+        } else if port.windows_shipwright_persistence {
+            3
         } else if port.windows_temp_directory.is_some() {
             5
         } else if port.adapter == crate::AdapterKind::NativePortable

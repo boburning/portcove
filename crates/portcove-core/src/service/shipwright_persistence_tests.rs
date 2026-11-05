@@ -9,6 +9,17 @@ const OFFICIAL_SHA256: &str = "429292a0bfbdfcda283b33c1538ecdc49163b9ed53e8702ca
 const SPLITS_A: &[u8] = br#"{"player":"Test player","splits":[{"name":"Forest","best":120}]}"#;
 const SPLITS_B: &[u8] = br#"{"player":"Test player","splits":[{"name":"Forest","best":110}]}"#;
 
+fn historical_catalog() -> Catalog {
+    let mut document = Catalog::embedded().unwrap().authoritative_document();
+    document
+        .ports
+        .iter_mut()
+        .find(|port| port.id == PORT)
+        .unwrap()
+        .windows_shipwright_persistence = false;
+    Catalog::from_document(document).unwrap()
+}
+
 fn register(
     library: &Library,
     qualification: &InstallQualification,
@@ -235,7 +246,7 @@ fn game_write(install: &InstallRecord, contents: &[u8]) {
 fn shipwright_frozen_catalog_import_retains_runtime_save_without_rewriting_authority() {
     let temporary = tempfile::tempdir().unwrap();
     let library = Library::open(temporary.path().join("original")).unwrap();
-    let catalog = Catalog::embedded().unwrap();
+    let catalog = historical_catalog();
     let port = catalog.port(PORT).unwrap();
     assert!(!port.persistent_paths.iter().any(|path| path == "Save"));
     let qualification =
@@ -298,7 +309,7 @@ fn shipwright_frozen_catalog_import_retains_runtime_save_without_rewriting_autho
 fn shipwright_frozen_catalog_import_still_refuses_unrecorded_immutable_files() {
     let temporary = tempfile::tempdir().unwrap();
     let library = Library::open(temporary.path().join("original")).unwrap();
-    let catalog = Catalog::embedded().unwrap();
+    let catalog = historical_catalog();
     let qualification =
         InstallQualification::from_catalog(&catalog, PORT, Platform::WindowsX86_64).unwrap();
     let active = register(&library, &qualification, "original", true);
@@ -700,35 +711,118 @@ fn shipwright_new_save_path_cannot_override_an_immutable_manifest_entry() {
 }
 
 #[test]
-fn shipwright_unrelated_catalog_drift_does_not_admit_new_save_path() {
+fn shipwright_historical_correction_ignores_unrelated_current_catalog_drift() {
     let (_temporary, mut service, active, _) = fixture();
     let mut current = service.catalog.authoritative_document();
-    current
+    let changed = current
         .ports
         .iter_mut()
         .find(|port| port.id == PORT)
-        .unwrap()
-        .launch_arguments
-        .push("--unreviewed".into());
+        .unwrap();
+    changed.persistent_paths.push("unreviewed".into());
+    changed.windows_shipwright_persistence = true;
     service.replace_catalog_for_test(
         Catalog::from_json(&serde_json::to_string(&current).unwrap()).unwrap(),
     );
-    game_write(&active, b"unadmitted runtime save");
-    assert!(
-        !service
-            .installed_mutability_port(&active)
-            .unwrap()
-            .persistent_paths
-            .contains(&"Save".into())
-    );
-    // Retained launch authority remains usable; the changed current catalog
-    // must not expand its persistent paths or launch arguments.
-    let spec = service.prepare_launch(PORT, None).unwrap();
-    assert!(!spec.arguments.contains(&"--unreviewed".into()));
-    assert!(!service.library.user_dir(PORT).join("Save").exists());
+    game_write(&active, b"retained runtime save");
+    let effective = service.installed_mutability_port(&active).unwrap();
+    assert!(effective.persistent_paths.contains(&"Save".into()));
+    assert!(!effective.persistent_paths.contains(&"unreviewed".into()));
+    assert!(!effective.windows_shipwright_persistence);
+    service.prepare_launch(PORT, None).unwrap();
     assert_eq!(
-        fs::read(active.path.join("Save/file1.sav")).unwrap(),
-        b"unadmitted runtime save"
+        fs::read(service.library.user_dir(PORT).join("Save/file1.sav")).unwrap(),
+        b"retained runtime save"
+    );
+}
+
+#[test]
+fn shipwright_retained_working_paths_survive_current_catalog_removal() {
+    let (_temporary, mut service, historical, _) = fixture();
+    let mut declared_port = service.installed_port(&historical).unwrap();
+    declared_port.windows_shipwright_persistence = true;
+    let qualified =
+        crate::test_fixture::retained_qualification(&declared_port, Platform::WindowsX86_64)
+            .unwrap();
+    let declared = register_release(
+        &service.library,
+        &qualified,
+        "declared",
+        false,
+        "9.4.0",
+        crate::ArtifactIdentity {
+            asset_name: "SoH-Next-Win64.zip".into(),
+            sha256: "d".repeat(64),
+            size: 72_900_000,
+        },
+    );
+    service.replace_catalog_for_test(
+        Catalog::from_json(r#"{"schema_version":1,"ports":[]}"#).unwrap(),
+    );
+    for install in [&historical, &declared] {
+        let effective = service.installed_mutability_port(install).unwrap();
+        assert!(effective.persistent_paths.contains(&"Save".into()));
+        assert!(
+            effective
+                .persistent_paths
+                .contains(&"SoHTimeSplitData.json".into())
+        );
+        assert!(
+            effective
+                .runtime_mutable_paths
+                .contains(&"logs/Ship of Harkinian.log".into())
+        );
+        assert!(
+            !service
+                .persistence_contract_for_install(install)
+                .unwrap()
+                .writes_directly
+        );
+    }
+}
+
+#[test]
+fn shipwright_declared_working_paths_hold_packaged_immutable_overlap() {
+    let (_temporary, service, historical, _) = fixture();
+    let mut declared_port = service.installed_port(&historical).unwrap();
+    declared_port.windows_shipwright_persistence = true;
+    let qualified =
+        crate::test_fixture::retained_qualification(&declared_port, Platform::WindowsX86_64)
+            .unwrap();
+    let root = service
+        .library
+        .versions_dir()
+        .join(PORT)
+        .join("packaged-data");
+    fs::create_dir_all(root.join("Save")).unwrap();
+    fs::write(root.join("Save/file1.sav"), b"immutable packaged witness").unwrap();
+    let staged = register_release(
+        &service.library,
+        &qualified,
+        "packaged-data",
+        false,
+        "9.4.0",
+        crate::ArtifactIdentity {
+            asset_name: "SoH-Next-Win64.zip".into(),
+            sha256: "e".repeat(64),
+            size: 72_900_000,
+        },
+    );
+    assert!(
+        service
+            .installed_mutability_qualification(&staged)
+            .unwrap_err()
+            .message
+            .contains("overlap")
+    );
+    assert!(service.activate_staged(PORT).is_err());
+    assert_eq!(
+        service.status(PORT).unwrap().active.unwrap().id,
+        historical.id
+    );
+    assert_eq!(
+        fs::read(root.join("Save/file1.sav")).unwrap(),
+        b"immutable packaged witness"
     );
 }
 

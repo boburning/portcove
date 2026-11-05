@@ -23,6 +23,17 @@ pub(crate) fn validate_shipwright_persistence(port: &PortDefinition) -> Result<(
             || crate::preparation::managed(port)
             || port.runtime_subdirectory.is_some()
             || port.launch_from_install_root
+            || !port.launch_arguments.is_empty()
+            || !port.launch_environment.is_empty()
+            || port
+                .executable_hints
+                .get(&Platform::WindowsX86_64)
+                .is_none_or(|names| {
+                    names.is_empty()
+                        || names
+                            .iter()
+                            .any(|name| !matches!(name.as_str(), "soh.exe" | "shipwright.exe"))
+                })
             || !port
                 .persistent_paths
                 .iter()
@@ -87,8 +98,10 @@ pub(crate) fn checked_port(
         &install.artifact.asset_name,
     )?;
     let declared_shipwright = declared_shipwright_persistence(retained, platform);
-    // This scoped rule derives only the reviewed paths from the creating contract.
-    let mut current = if declared_shipwright {
+    let shipwright = shipwright_windows_cwd_persistence(retained, install, platform);
+    // Both the exact historical correction and the declared rule derive only
+    // reviewed paths from the creating contract.
+    let mut current = if shipwright {
         retained.clone()
     } else {
         current.clone()
@@ -108,7 +121,6 @@ pub(crate) fn checked_port(
         // In particular, current-only path additions are not borrowed here.
         current = retained.clone();
     }
-    let shipwright = shipwright_windows_cwd_persistence(retained, install, platform);
     if shipwright {
         for path in ["Save", "SoHTimeSplitData.json"] {
             if !current

@@ -9,6 +9,9 @@ fn signing_key() -> SigningKey {
 
 fn fixture(sequence: i64, now: i64) -> SignedCatalogPayload {
     let mut catalog = Catalog::embedded().unwrap().document().clone();
+    for port in &mut catalog.ports {
+        port.windows_shipwright_persistence = false;
+    }
     catalog.ports[0].summary = format!("Synthetic signed metadata {sequence}");
     SignedCatalogPayload {
         sequence,
@@ -945,4 +948,34 @@ fn format_one_growth_at_the_exact_envelope_bound_preserves_verification_and_refu
     let overflow = serde_json::to_vec(&envelope).unwrap();
     assert_eq!(overflow.len(), MAX_CATALOG_BYTES + 1);
     assert!(signed_catalog::verify(&overflow, &[trust], now).is_err());
+}
+
+#[test]
+fn legacy_signed_catalog_cannot_supply_shipwright_persistence() {
+    let now = 1_800_000_000;
+    let mut payload = fixture(1, now);
+    let trust = crate::CatalogTrustKey::from_public_key(&hex::encode(
+        signing_key().verifying_key().as_bytes(),
+    ))
+    .unwrap();
+    let verified =
+        signed_catalog::verify(&sign(&payload), std::slice::from_ref(&trust), now).unwrap();
+    assert!(
+        verified
+            .catalog
+            .port("shipwright")
+            .unwrap()
+            .windows_shipwright_persistence
+    );
+    payload
+        .catalog
+        .ports
+        .iter_mut()
+        .find(|port| port.id == "shipwright")
+        .unwrap()
+        .windows_shipwright_persistence = true;
+    let result = signed_catalog::verify(&sign(&payload), &[trust], now);
+    assert!(
+        matches!(result, Err(error) if error.message.contains("legacy signed catalogs cannot deliver"))
+    );
 }

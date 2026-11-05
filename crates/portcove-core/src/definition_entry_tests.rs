@@ -603,6 +603,8 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
         // Keep entry_for_port at v1 for the explicit older-reader refusal tests.
         let version = if crate::preparation::source::native(port) {
             6
+        } else if port.windows_shipwright_persistence {
+            3
         } else if port.windows_temp_directory.is_some() {
             5
         } else if port.adapter == crate::AdapterKind::NativePortable
