@@ -1415,6 +1415,7 @@ it("renders accepted GitLab listing observations through the shared descriptive 
       close={vi.fn()}
     />,
   );
+  await page.getByRole("tab", { name: "Overview", exact: true }).click();
   const evidence = page.getByRole("region", {
     name: "Project information and checks",
     exact: true,
