@@ -1,3 +1,4 @@
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import type { GitHubAttemptObservation, GitHubRequestPolicy } from "./github-client.mts";
 import { GitHubApiError } from "./github-operation.mts";
 import { requireStorageAppToken } from "./release-storage-credential.mts";
@@ -49,7 +50,7 @@ function createJournalSdk(
   policy?: { preserveLateObjectEvidence?: true; allowHistoricalJobRead?: true },
 ) {
   assertOwnedJournalDirectory(directory);
-  assertTrustedDirectNode();
+  assertTrustedDirectNode("journal");
   let client:
     | Promise<Awaited<ReturnType<typeof import("./github-client.mts").createGitHubClient>>>
     | undefined;
@@ -61,7 +62,7 @@ function createJournalSdk(
         maxBytes: 2 * 1024 * 1024,
         requestTimeoutMs: 15000,
         allowRequest() {
-          assertTrustedDirectNode();
+          assertTrustedDirectNode("journal");
           return true;
         },
         headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
@@ -440,20 +441,6 @@ export function createCheckpointHistoryReader(
       return { checkpoint: expected, requests, authority: "none" as const };
     },
   };
-}
-
-function assertTrustedDirectNode() {
-  const nodeOptions = [process.env.NODE_OPTIONS ?? "", ...process.execArgv].join(" ");
-  if (
-    process.env.NODE_USE_ENV_PROXY === "1" ||
-    /(?:^|[\s"'])--use-(?:env-proxy|openssl-ca|system-ca)(?:=|[\s"']|$)/u.test(nodeOptions) ||
-    process.env.NODE_USE_SYSTEM_CA === "1" ||
-    process.env.SSL_CERT_FILE ||
-    process.env.SSL_CERT_DIR ||
-    process.env.NODE_TLS_REJECT_UNAUTHORIZED === "0" ||
-    process.env.NODE_EXTRA_CA_CERTS
-  )
-    throw new Error("journal requires the trusted direct Node runtime");
 }
 
 function journalCredential(token: unknown): string {

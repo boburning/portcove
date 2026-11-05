@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
 import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import os from "node:os";
@@ -161,7 +162,7 @@ void test("receiver refuses changed controller expectations and provider artifac
   t.after(() => rm(directory, { recursive: true, force: true }));
   const expected = expectedResult();
   let downloads = 0;
-  const download = () => {
+  const download = async () => {
     downloads++;
     throw new Error("must not download");
   };
@@ -251,6 +252,10 @@ void test("locked result metadata reads the original proof in order and refuses 
     else process.env.GH_TOKEN = previous;
   });
   const expected = expectedResult();
+  const archive = new Uint8Array(22);
+  const archiveDigest = createHash("sha256").update(archive).digest("hex");
+  expected.artifact.sha256 = archiveDigest;
+  expected.bundle.sha256 = archiveDigest;
   const base = "https://api.github.com/repos/boburning/portcove";
   const routes = [
     `${base}/git/commits/${expected.controller_revision}`,
@@ -271,6 +276,8 @@ void test("locked result metadata reads the original proof in order and refuses 
   };
   for (const fault of [
     "complete",
+    "byte-lookup",
+    "byte-deadline",
     "stream",
     "cap",
     "redirect",
@@ -278,13 +285,43 @@ void test("locked result metadata reads the original proof in order and refuses 
     "non-200",
   ] as const) {
     let sends = 0,
-      downloads = 0;
+      downloads = 0,
+      cancelled = false;
+    const sdkBytes = fault === "byte-lookup" || fault === "byte-deadline";
     const mockedFetch = t.mock.method(
       globalThis,
       "fetch",
       async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
         const index = sends++;
-        assert.equal(input instanceof Request ? input.url : String(input), routes[index]);
+        const address = input instanceof Request ? input.url : String(input);
+        if (sdkBytes && index >= routes.length) {
+          const offset = index - routes.length;
+          const id = offset < 2 ? 1 : 2;
+          const delivery = `https://productionresultssa10.blob.core.windows.net/actions-results/${id}.zip?sig=inert`;
+          assert.equal(init?.method, "GET");
+          assert.equal(init?.redirect, "manual");
+          if (offset % 2 === 0) {
+            assert.equal(address, `${base}/actions/artifacts/${id}/zip`);
+            assert.equal(
+              new Headers(init?.headers).get("authorization"),
+              "token inert-result-reader",
+            );
+            return new Response(null, { status: 302, headers: { location: delivery } });
+          }
+          assert.equal(address, delivery);
+          assert.equal(init?.credentials, "omit");
+          assert.equal(new Headers(init?.headers).get("authorization"), null);
+          return fault === "byte-deadline"
+            ? new Response(
+                new ReadableStream<Uint8Array>({
+                  cancel() {
+                    cancelled = true;
+                  },
+                }),
+              )
+            : new Response(archive);
+        }
+        assert.equal(address, routes[index]);
         assert.equal(init?.method, "GET");
         assert.equal(init?.redirect, "manual");
         const headers = new Headers(init?.headers);
@@ -330,20 +367,47 @@ void test("locked result metadata reads the original proof in order and refuses 
         });
       },
     );
+    const acquire = () =>
+      receivePublicationResultArtifact(
+        parent,
+        expected,
+        {},
+        performance.now() + 15000,
+        sdkBytes
+          ? {}
+          : {
+              async download(id, bytes) {
+                downloads++;
+                assert.equal(id, 1);
+                assert.equal(bytes, 22);
+                throw new Error("fixture stops at separate archive acquisition");
+              },
+            },
+      );
+    const keepAlive = setTimeout(() => {}, 1500);
     try {
       await assert.rejects(
-        receivePublicationResultArtifact(parent, expected, {}, performance.now() + 15000, {
-          download(endpoint) {
-            downloads++;
-            assert.equal(endpoint, "repos/boburning/portcove/actions/artifacts/1/zip");
-            throw new Error("fixture stops at separate archive acquisition");
-          },
-        }),
+        fault === "byte-deadline"
+          ? withCoordinatorDeadline(performance.now() + 500, acquire)
+          : acquire(),
         /acquisition refused/,
       );
-      assert.equal(sends, fault === "complete" ? 5 : fault === "stream" ? 4 : 1);
+      assert.equal(
+        sends,
+        fault === "byte-lookup"
+          ? 9
+          : fault === "byte-deadline"
+            ? 7
+            : fault === "complete"
+              ? 5
+              : fault === "stream"
+                ? 4
+                : 1,
+      );
+      assert.equal(cancelled, fault === "byte-deadline");
       assert.equal(downloads, fault === "complete" ? 1 : 0);
     } finally {
+      clearTimeout(keepAlive);
       mockedFetch.mock.restore();
     }
   }

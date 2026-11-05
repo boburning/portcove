@@ -2365,9 +2365,15 @@ for (const file of ["scripts/github-cli.mts", "scripts/github-controller-attesta
     "scripts/release-hosted-native-acceptance.test.mts",
   ]);
 
+explicitNodeTests.set("scripts/release-direct-node-transport.mts", [
+  "scripts/release-coordinator-journal-api.test.mts",
+  "scripts/release-publication-result-artifact.test.mts",
+]);
+
 explicitNodeTests.set("scripts/github-artifact-download.mts", [
   "scripts/audit-reuse.test.mts",
   "scripts/postmerge-ci.test.mts",
+  "scripts/release-publication-result-artifact.test.mts",
 ]);
 
 for (const name of ["ci-health", "handoff-evidence", "postmerge-ci"]) {
