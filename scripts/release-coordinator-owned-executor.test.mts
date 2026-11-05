@@ -198,6 +198,16 @@ async function selectedOwnedHistoryFixture(
           },
         });
       }
+      if (url.origin === "https://api.github.com") {
+        assert.equal(
+          new Headers(init?.headers).get("authorization"),
+          "token inert-selected-job-token",
+        );
+        const page = url.searchParams.get("page");
+        if (page) assert.equal(url.searchParams.get("per_page"), "100");
+        const route = page ? `${url.pathname}?per_page=100&page=${page}` : url.pathname;
+        return Response.json(identity.metadata(route));
+      }
       if (url.href === "https://token.actions.githubusercontent.com/.well-known/jwks")
         return new Response(JSON.stringify({ keys: [identityJwk] }));
       assert.equal(
@@ -358,8 +368,12 @@ async function selectedEffectFixture(
         const { body, status } = journalReply(settings.method, new URL(url).pathname, payload);
         return json(body, status);
       }
-      if (url.startsWith("https://api.github.com/repos/boburning/portcove/actions/"))
-        return custodyFetch(raw, settings);
+      if (url.startsWith("https://api.github.com/repos/boburning/portcove/actions/")) {
+        // Historical custody requests carry the custody provider's fixed API version.
+        if (new Headers(settings?.headers).get("x-github-api-version") === "2022-11-28")
+          return custodyFetch(raw, settings);
+        return oldFetch(raw, settings);
+      }
       if (url === "https://fixture.actions.githubusercontent.com/oidc?audience=sigstore")
         return json({ value: sigstore.token });
       if (url === "https://fulcio.sigstore.dev/api/v2/signingCert") {

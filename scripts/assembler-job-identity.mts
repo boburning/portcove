@@ -2,6 +2,7 @@ import { createPublicKey, verify } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import type { GitHubRequestPolicy } from "./github-client.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
 import {
   productionControllerWorkflow,
@@ -98,6 +99,7 @@ type IdentityTransport =
   | { cwd: string; spawn?: Spawn; deadline?: number }
   | {
       sdkToken: string;
+      requireDirect?: boolean;
       deadline: number;
       read?: (route: string, deadline: number) => Promise<unknown>;
     };
@@ -352,6 +354,14 @@ async function verifyJobIdentity(
       credential: { kind: "explicit", token: transport.sdkToken },
       deadline: sdkDeadline,
       maxBytes: 2 * 1024 * 1024,
+      ...(transport.requireDirect
+        ? {
+            fetch(input, init) {
+              assertTrustedDirectNode("fixed job identity");
+              return globalThis.fetch(input, init);
+            },
+          }
+        : {}),
       allowRequest: (method, url) => {
         if (method !== "GET") return false;
         if (url.pathname === `/repos/${repository}${jobsPath}`)

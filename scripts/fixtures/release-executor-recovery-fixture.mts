@@ -68,10 +68,19 @@ mock.module(new URL("../assembler-job-identity.mts", import.meta.url).href, {
       assert.equal(audience, expected.audience);
       return "inert-provider-identity";
     },
-    verifyCapacityExecutorJobIdentity: async (role: string, token: string, actual: unknown) => {
+    verifyCapacityExecutorJobIdentity: async (
+      role: string,
+      token: string,
+      actual: unknown,
+      options: Parameters<typeof identity.verifyCapacityExecutorJobIdentity>[3],
+    ) => {
       assert.equal(role, "coordinator");
       assert.equal(token, "inert-provider-identity");
       assert.deepEqual(actual, expected);
+      const transport = options?.transport;
+      assert.ok(transport && "sdkToken" in transport);
+      assert.equal(transport.sdkToken, "ghs_SYNTHETIC_CAPACITY_READER");
+      assert.ok(transport.deadline > performance.now());
       return {
         evidence_scope: "github.com",
         workflow_revision: expected.controller_revision,
@@ -265,6 +274,7 @@ async function sharedRecovery(subject: Subject, omitGuard = false, journalMode =
     component: "application" | "catalog" = "application",
     beforeMutation?: () => unknown,
   ) => {
+    process.env.GH_TOKEN = "ghs_SYNTHETIC_CAPACITY_READER";
     const session = await subject.authenticateCapacityExecutor("coordinator", expected, "inert");
     const guard = omitGuard ? undefined : beforeMutation;
     return component === "catalog"
