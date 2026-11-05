@@ -1,18 +1,34 @@
-import { createGitHubClient } from "./github-client.mts";
-import type { GitHubCredential } from "./github-client.mts";
+import { open, unlink } from "node:fs/promises";
+import { createGitHubClient, retainedGitHubHeaders } from "./github-client.mts";
+import type {
+  GitHubClientOptions,
+  GitHubCredential,
+  GitHubRequestPolicy,
+} from "./github-client.mts";
 import { GitHubApiError } from "./github-operation.mts";
 
 /** GitHub Actions redirects the authenticated API lookup to a short-lived
  * blob URL. Keep that URL out of observations, diagnostics and persistence. */
-export async function downloadGitHubArtifactArchive(
+type ArtifactDownloadOptions = {
+  credential: GitHubCredential;
+  deadline: number;
+  maxBytes: number;
+  fetch?: typeof globalThis.fetch;
+  signal?: AbortSignal;
+  /** Accounting for the authenticated lookup only. The signed transfer uses
+   * the original delivery deadline and never enters the GitHub API budget. */
+  lookup?: Pick<GitHubRequestPolicy, "deadline"> &
+    Pick<GitHubClientOptions, "reserve"> & {
+      elapsed?: (milliseconds: number) => void;
+    };
+};
+
+async function transferGitHubArtifactArchive(
   endpoint: string,
-  options: {
-    credential: GitHubCredential;
-    deadline: number;
-    maxBytes: number;
-    fetch?: typeof globalThis.fetch;
-  },
-): Promise<Buffer> {
+  options: ArtifactDownloadOptions,
+  maximum: number,
+  receive: (chunk: Uint8Array) => void | Promise<void>,
+) {
   const { credential, deadline, maxBytes, fetch: fetcher = globalThis.fetch } = options;
   if (
     !/^repos\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/actions\/artifacts\/[1-9][0-9]{0,15}\/zip$/u.test(
@@ -20,7 +36,7 @@ export async function downloadGitHubArtifactArchive(
     ) ||
     !Number.isSafeInteger(maxBytes) ||
     maxBytes < 22 ||
-    maxBytes > 8 * 1024 * 1024 ||
+    maxBytes > maximum ||
     !Number.isFinite(deadline) ||
     deadline - performance.now() > 120000
   )
@@ -30,13 +46,41 @@ export async function downloadGitHubArtifactArchive(
     deadline,
     maxBytes: 128 * 1024,
     fetch: fetcher,
+    ...(options.signal ? { signal: options.signal } : {}),
     observeRedirects: true,
     allowRequest: (method, url) =>
       method === "GET" && url.pathname === `/${endpoint}` && !url.search,
   });
-  const lookup = await api.request(`GET /${endpoint}`, {
-    request: { portcove: { replay: "once", attempts: 0, readRedirectBodyFor: [] } },
-  });
+  const { deadline: lookupDeadline, reserve, elapsed } = options.lookup ?? {};
+  const policy: GitHubRequestPolicy = {
+    ...(lookupDeadline === undefined ? {} : { deadline: lookupDeadline }),
+    ...(reserve
+      ? {
+          async reserve(request) {
+            const reservation = await reserve(request);
+            return {
+              consumeBytes: (bytes) => reservation.consumeBytes(bytes),
+              settle(observation) {
+                const headers = retainedGitHubHeaders(observation.headers);
+                // Artifact lookups have no pagination evidence.
+                delete headers.link;
+                reservation.settle({ ...observation, headers });
+              },
+            };
+          },
+        }
+      : {}),
+    ...(elapsed ? { observe: (observation) => elapsed(observation.elapsedMs) } : {}),
+    replay: "once",
+    attempts: 0,
+    readRedirectBodyFor: [],
+  };
+  let lookup;
+  try {
+    lookup = await api.request(`GET /${endpoint}`, { request: { portcove: policy } });
+  } finally {
+    await policy.admissionSettled;
+  }
   const location = lookup.headers.location;
   let delivery: URL | undefined;
   if (lookup.status === 302 && typeof location === "string" && location.length <= 8192) {
@@ -62,8 +106,8 @@ export async function downloadGitHubArtifactArchive(
   const remaining = Math.ceil(deadline - performance.now());
   if (remaining < 1)
     throw new GitHubApiError("deadline_exceeded", "GitHub artifact deadline exhausted");
-  const signal = AbortSignal.timeout(remaining);
-  const chunks: Uint8Array[] = [];
+  const timeout = AbortSignal.timeout(remaining);
+  const signal = options.signal ? AbortSignal.any([timeout, options.signal]) : timeout;
   let bytes = 0;
   try {
     const response = await fetcher(delivery, {
@@ -95,7 +139,7 @@ export async function downloadGitHubArtifactArchive(
         bytes += payload.byteLength;
         if (bytes > maxBytes)
           throw new GitHubApiError("response_limit", "GitHub artifact exceeds its byte limit");
-        chunks.push(payload);
+        await receive(payload);
       }
     } finally {
       signal.removeEventListener("abort", cancel);
@@ -106,9 +150,49 @@ export async function downloadGitHubArtifactArchive(
       throw new GitHubApiError("deadline_exceeded", "GitHub artifact deadline exhausted");
   } catch (error) {
     if (error instanceof GitHubApiError) throw error;
-    if (signal.aborted)
+    if (timeout.aborted)
       throw new GitHubApiError("deadline_exceeded", "GitHub artifact deadline exhausted");
+    if (signal.aborted) throw new GitHubApiError("cancelled", "GitHub artifact delivery cancelled");
     throw new GitHubApiError("request_failed", "GitHub artifact delivery failed");
   }
+  return bytes;
+}
+
+export async function downloadGitHubArtifactArchive(
+  endpoint: string,
+  options: ArtifactDownloadOptions,
+): Promise<Buffer> {
+  const chunks: Uint8Array[] = [];
+  const bytes = await transferGitHubArtifactArchive(endpoint, options, 8 * 1024 * 1024, (chunk) => {
+    chunks.push(chunk);
+  });
   return Buffer.concat(chunks, bytes);
+}
+
+/** Stream an exact admitted archive into an exclusively owned scratch file.
+ * The caller must still verify its digest and archive structure. */
+export async function downloadGitHubArtifactArchiveFile(
+  endpoint: string,
+  filename: string,
+  options: ArtifactDownloadOptions,
+) {
+  const file = await open(filename, "wx", 0o600);
+  let complete = false;
+  try {
+    try {
+      const bytes = await transferGitHubArtifactArchive(
+        endpoint,
+        options,
+        512 * 1024 * 1024,
+        (chunk) => file.writeFile(chunk),
+      );
+      if (bytes !== options.maxBytes)
+        throw new GitHubApiError("invalid_response", "GitHub artifact byte count differs");
+    } finally {
+      await file.close();
+    }
+    complete = true;
+  } finally {
+    if (!complete) await unlink(filename);
+  }
 }

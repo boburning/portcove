@@ -4646,6 +4646,13 @@ void test("GitHub dependency changes select actual SDK and REST integration cont
       file,
     );
   }
+  for (const file of [
+    "scripts/github-artifact-download.mts",
+    "scripts/release-artifact-assembly.mts",
+  ]) {
+    const selected = classifyChanges([{ status: "M", path: file }], { fileExists: () => false });
+    assert.ok(selected.nodeTests.has("scripts/release-artifact-archive.test.mts"), file);
+  }
   const wakeProviderChange = classifyChanges(
     [{ status: "M", path: "scripts/release-wake-provider.mts" }],
     { fileExists: () => false },

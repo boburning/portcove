@@ -100,7 +100,7 @@ const retainedHeaderNames = new Set([
   "x-ratelimit-resource",
   "x-ratelimit-used",
 ]);
-const retainedHeaders = (headers: Record<string, string>) =>
+export const retainedGitHubHeaders = (headers: Readonly<Record<string, string>>) =>
   Object.fromEntries(Object.entries(headers).filter(([name]) => retainedHeaderNames.has(name)));
 
 /** Reject values that cannot pass through existing JSON/hash contracts exactly. */
@@ -501,7 +501,7 @@ export async function createGitHubClient(options: GitHubClientOptions) {
               await policy.retainResponse({
                 status: result.status,
                 data: body,
-                headers: retainedHeaders(observation.headers),
+                headers: retainedGitHubHeaders(observation.headers),
               });
             } catch (error) {
               localFailure = error;
@@ -599,7 +599,7 @@ export async function createGitHubClient(options: GitHubClientOptions) {
               await policy.retainResponse({
                 status: observation.status,
                 data: body,
-                headers: retainedHeaders(observation.headers),
+                headers: retainedGitHubHeaders(observation.headers),
               });
             } catch (retentionError) {
               const safe = sanitizeOperationError(retentionError, {

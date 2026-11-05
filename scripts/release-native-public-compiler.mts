@@ -205,6 +205,7 @@ export async function collectActualPublicWindowsCompilerIdentity(
   const binding = selectPublicBuildInputBinding(config.public_build_inputs, evidence);
   const publicInputs = await verifyReleasePublicBuildInputs(directory, binding, evidence, {
     download: selected.source.download,
+    deadline: selected.deadline,
   });
   for (const artifact of binding.artifacts) {
     const filename = path.join(publicInputs.directory, `${artifact.platform}.zip`);

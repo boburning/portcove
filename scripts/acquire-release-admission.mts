@@ -48,6 +48,7 @@ import { inspectTrustedAssemblyInput } from "./trusted-release-assembly.mts";
 import {
   inspectPublicBuildConfiguration,
   selectPublicBuildInputBinding,
+  publicBuildReadCredential,
   verifyReleasePublicBuildInputs,
   requireStablePublicBuildInputEvidence,
   requireVerifiedReleasePublicBuildInputs,
@@ -663,6 +664,20 @@ export async function acquireReleaseAdmission(
       tree: active.prepared_tree,
       workflow_sha256: hash(workflow),
     };
+    const admissionDeadline = started + 15 * 60 * 1000;
+    const publicBuildCredential =
+      config.public_build_inputs && !options.download
+        ? publicBuildReadCredential(admissionDeadline)
+        : undefined;
+    const reserveProviderRequest = () => {
+      budget();
+      return {
+        consumeBytes() {},
+        settle(observation: { dispatched: boolean }) {
+          if (!observation.dispatched) requests--;
+        },
+      };
+    };
     const collectEvidence = async () => {
       if (options.api && !options.collectEvidence)
         return collectReleaseRunEvidence(evidenceRequest, {
@@ -675,15 +690,8 @@ export async function acquireReleaseAdmission(
       );
       const evidenceOptions: ReleaseEvidenceOptions = {
         deadline,
-        reserve() {
-          budget();
-          return {
-            consumeBytes() {},
-            settle(observation) {
-              if (!observation.dispatched) requests--;
-            },
-          };
-        },
+        reserve: reserveProviderRequest,
+        ...(publicBuildCredential ? { credential: publicBuildCredential } : {}),
       };
       try {
         return await (options.collectEvidence ?? collectReleaseRunEvidence)(
@@ -837,6 +845,15 @@ export async function acquireReleaseAdmission(
     const publicBuildInputs = publicBinding
       ? await verifyReleasePublicBuildInputs(root, publicBinding, evidence, {
           download: options.download,
+          credential: publicBuildCredential,
+          deadline: admissionDeadline,
+          lookup: () => ({
+            deadline: Math.min(admissionDeadline, performance.now() + 120000 - apiMilliseconds),
+            reserve: reserveProviderRequest,
+            elapsed(milliseconds) {
+              apiMilliseconds += milliseconds;
+            },
+          }),
         })
       : null;
     if (isInitialBetaReleaseProfile(config.release_profile) && !publicBinding)
