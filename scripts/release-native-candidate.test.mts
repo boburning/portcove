@@ -2,7 +2,17 @@ import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { createRequire } from "node:module";
-import { mkdir, mkdtemp, readFile, writeFile, copyFile, cp, readdir, rm } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  writeFile,
+  copyFile,
+  cp,
+  readdir,
+  rename,
+  rm,
+} from "node:fs/promises";
 import { performance } from "node:perf_hooks";
 import { disposableTufWorkerFixture } from "./fixtures/tuf-worker-fixture.mts";
 import { signIsolatedTufRole, tufRoleDependencies } from "./release-tuf-signing.mts";
@@ -640,11 +650,18 @@ void test("predecessor custody requires exact immutable Release and streams veri
   let observations = 0;
   let fault = "";
   const routes: string[] = [];
+  const final = path.join(root, `predecessor-${asset.name}`);
   const acquire = () =>
     acquireNativePredecessorRelease(record, candidate, root, {
       credential: { kind: "explicit", token: "fixed-fixture-native-reader" },
       deadline: performance.now() + 5000,
-      recheck() {},
+      async recheck() {
+        if (fault !== "cleanup-deadline" && fault !== "foreign-final") return;
+        if ((await readdir(root)).join(",") !== path.basename(final)) return;
+        if (fault === "cleanup-deadline") throw new Error("fixture parent expired after cleanup");
+        await rename(final, `${final}.original`);
+        await writeFile(final, "foreign final");
+      },
       async fetch(input, init) {
         const request = new Request(input, init);
         const endpoint = new URL(request.url);
@@ -655,6 +672,15 @@ void test("predecessor custody requires exact immutable Release and streams veri
         switch (route) {
           case "/repos/boburning/portcove/releases/tags/v0.1.0-beta.1":
             observations++;
+            if (observations === 2 && (fault === "replace" || fault === "rewrite")) {
+              const scratch = (await readdir(root)).find((name) =>
+                name.startsWith("native-predecessor-"),
+              );
+              assert.ok(scratch);
+              const file = path.join(root, scratch, "asset");
+              if (fault === "replace") await rename(file, `${file}.original`);
+              await writeFile(file, Buffer.alloc(payload.length, 1));
+            }
             return Response.json(release);
           case "/repos/boburning/portcove/releases/1/assets":
             return Response.json([{ id: 3 }], {
@@ -685,12 +711,25 @@ void test("predecessor custody requires exact immutable Release and streams veri
         }
       },
     });
-  for (const refusal of ["skip", "malformed", "short", "drift"]) {
+  for (const refusal of ["skip", "malformed", "short", "drift", "replace", "rewrite"]) {
     fault = refusal;
     observations = 0;
-    await assert.rejects(acquire());
+    if (fault === "replace" || fault === "rewrite") {
+      await assert.rejects(acquire(), /scratch file changed/u);
+      assert.equal(observations, 2);
+    } else {
+      await assert.rejects(acquire());
+    }
     assert.deepEqual(await readdir(root), []);
   }
+  fault = "cleanup-deadline";
+  await assert.rejects(acquire(), /parent expired after cleanup/u);
+  assert.deepEqual(await readdir(root), []);
+  fault = "foreign-final";
+  await assert.rejects(acquire(), /retained file or lifetime changed/u);
+  assert.equal(await readFile(final, "utf8"), "foreign final");
+  await rm(final);
+  await rm(`${final}.original`);
   fault = "";
   routes.length = 0;
   const retained = await acquire();

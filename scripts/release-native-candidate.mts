@@ -9,8 +9,8 @@ import { isInitialBetaReleaseProfile } from "./release-package-policy.mts";
 import { createHash } from "node:crypto";
 import { retainNativeSourceDeclarations } from "./release-native-source-provider.mts";
 import { spawnSync } from "node:child_process";
-import { lstatSync, readFileSync } from "node:fs";
-import { link, mkdir, mkdtemp, rm, unlink, writeFile } from "node:fs/promises";
+import { constants, lstatSync, readFileSync, unlinkSync, type BigIntStats } from "node:fs";
+import { link, lstat, mkdir, mkdtemp, open, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { EventEmitter } from "node:events";
@@ -1611,33 +1611,97 @@ export async function acquireNativePredecessorRelease(
   const asset = await read();
   const transferDeadline = Math.min(deadline, performance.now() + 120000);
   const scratch = await mkdtemp(path.join(directory, "native-predecessor-"));
+  const filename = path.join(directory, `predecessor-${asset.filename}`);
+  const sameFile = (left: BigIntStats, right: BigIntStats) =>
+    left.isFile() && right.isFile() && left.dev === right.dev && left.ino === right.ino;
+  const sameVersion = (left: BigIntStats, right: BigIntStats) =>
+    sameFile(left, right) &&
+    left.size === right.size &&
+    left.mtimeNs === right.mtimeNs &&
+    left.ctimeNs === right.ctimeNs;
+  let published: BigIntStats | undefined;
   try {
-    const source = path.join(scratch, "asset");
-    await guard();
-    const downloaded = await downloadGitHubReleaseAssetFile(asset.id, source, {
-      credential: options.credential,
-      deadline: transferDeadline,
-      maxBytes: asset.bytes,
-      fetch: options.fetch,
-    });
-    await guard();
-    if (downloaded.bytes !== asset.bytes || downloaded.sha256 !== asset.sha256)
-      throw new Error("native predecessor bytes differ from exact Tough identity");
-    const repeated = await read();
-    if (digest(asset) !== digest(repeated))
-      throw new Error("native predecessor provider state changed");
-    const filename = path.join(directory, `predecessor-${asset.filename}`);
-    await guard();
-    await link(source, filename);
     try {
+      const source = path.join(scratch, "asset");
       await guard();
-    } catch (error) {
-      await unlink(filename);
-      throw error;
+      const downloaded = await downloadGitHubReleaseAssetFile(asset.id, source, {
+        credential: options.credential,
+        deadline: transferDeadline,
+        maxBytes: asset.bytes,
+        fetch: options.fetch,
+      });
+      await guard();
+      if (downloaded.bytes !== asset.bytes || downloaded.sha256 !== asset.sha256)
+        throw new Error("native predecessor bytes differ from exact Tough identity");
+      const owned = await open(
+        source,
+        constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0),
+      );
+      try {
+        if (!sameVersion(downloaded.identity, await owned.stat({ bigint: true })))
+          throw new Error("native predecessor scratch file changed");
+        const repeated = await read();
+        if (digest(asset) !== digest(repeated))
+          throw new Error("native predecessor provider state changed");
+        await guard();
+        if (!sameVersion(downloaded.identity, await lstat(source, { bigint: true })))
+          throw new Error("native predecessor scratch file changed");
+        await link(source, filename);
+        published = downloaded.identity;
+        const before = await owned.stat({ bigint: true });
+        if (
+          !sameFile(published, before) ||
+          before.size !== BigInt(asset.bytes) ||
+          !sameVersion(before, await lstat(filename, { bigint: true }))
+        )
+          throw new Error("native predecessor retained file changed");
+        const sha256 = createHash("sha256");
+        const buffer = Buffer.alloc(64 * 1024);
+        let bytes = 0;
+        while (bytes <= asset.bytes) {
+          if (performance.now() >= deadline)
+            throw new Error("native predecessor lifetime exhausted");
+          const { bytesRead } = await owned.read(
+            buffer,
+            0,
+            Math.min(buffer.length, asset.bytes - bytes + 1),
+            null,
+          );
+          if (!bytesRead) break;
+          bytes += bytesRead;
+          sha256.update(buffer.subarray(0, bytesRead));
+        }
+        if (
+          bytes !== asset.bytes ||
+          sha256.digest("hex") !== asset.sha256 ||
+          !sameVersion(before, await owned.stat({ bigint: true })) ||
+          !sameVersion(before, await lstat(filename, { bigint: true }))
+        )
+          throw new Error("native predecessor retained bytes changed");
+      } finally {
+        await owned.close();
+      }
+    } finally {
+      await rm(scratch, { recursive: true, force: true });
     }
+    await guard();
+    const retained = await lstat(filename, { bigint: true });
+    if (
+      !published ||
+      !sameFile(published, retained) ||
+      retained.size !== BigInt(asset.bytes) ||
+      retained.mtimeNs !== published.mtimeNs ||
+      retained.nlink !== 1n ||
+      performance.now() >= deadline
+    )
+      throw new Error("native predecessor retained file or lifetime changed");
     return { path: filename, bytes: asset.bytes, sha256: asset.sha256, version: asset.version };
-  } finally {
-    await rm(scratch, { recursive: true, force: true });
+  } catch (error) {
+    if (published) {
+      const existing = lstatSync(filename, { bigint: true, throwIfNoEntry: false });
+      if (existing && sameFile(published, existing)) unlinkSync(filename);
+    }
+    throw error;
   }
 }
 

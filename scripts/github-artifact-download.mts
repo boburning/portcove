@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { open, unlink } from "node:fs/promises";
+import { open, unlink, type FileHandle } from "node:fs/promises";
 import { createGitHubClient, retainedGitHubHeaders } from "./github-client.mts";
 import type {
   GitHubClientOptions,
@@ -267,18 +267,18 @@ export async function downloadGitHubReleaseAssetFile(
   filename: string,
   options: ArtifactDownloadOptions,
 ) {
-  return writeExclusiveDownload(filename, async (write) => {
+  return writeExclusiveDownload(filename, async (file) => {
     const digest = createHash("sha256");
     const bytes = await transferGitHubReleaseAsset(
       id,
       options,
       512 * 1024 * 1024,
       async (chunk) => {
-        await write(chunk);
+        await file.writeFile(chunk);
         digest.update(chunk);
       },
     );
-    return { bytes, sha256: digest.digest("hex") };
+    return { bytes, sha256: digest.digest("hex"), identity: await file.stat({ bigint: true }) };
   });
 }
 
@@ -289,8 +289,13 @@ export async function downloadGitHubArtifactArchiveFile(
   filename: string,
   options: ArtifactDownloadOptions,
 ) {
-  return writeExclusiveDownload(filename, async (write) => {
-    const bytes = await transferGitHubArtifactArchive(endpoint, options, 512 * 1024 * 1024, write);
+  return writeExclusiveDownload(filename, async (file) => {
+    const bytes = await transferGitHubArtifactArchive(
+      endpoint,
+      options,
+      512 * 1024 * 1024,
+      (chunk) => file.writeFile(chunk),
+    );
     if (bytes !== options.maxBytes)
       throw new GitHubApiError("invalid_response", "GitHub artifact byte count differs");
   });
@@ -298,14 +303,14 @@ export async function downloadGitHubArtifactArchiveFile(
 
 async function writeExclusiveDownload<T>(
   filename: string,
-  transfer: (write: (chunk: Uint8Array) => Promise<void>) => Promise<T>,
+  transfer: (file: FileHandle) => Promise<T>,
 ) {
   const file = await open(filename, "wx", 0o600);
   let complete = false;
   try {
     let result: T;
     try {
-      result = await transfer((chunk) => file.writeFile(chunk));
+      result = await transfer(file);
     } finally {
       await file.close();
     }
