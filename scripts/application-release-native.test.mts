@@ -437,7 +437,7 @@ void test("native execution requires the fixed protected hosted Windows caller a
     GITHUB_REF_PROTECTED: "true",
     GITHUB_SHA: revision,
     GITHUB_WORKFLOW_SHA: revision,
-    GITHUB_WORKFLOW_REF: `boburning/portcove/.github/workflows/release.yml@${ref}`,
+    GITHUB_WORKFLOW_REF: `boburning/portcove/.github/workflows/application-release.yml@${ref}`,
     GITHUB_RUN_ID: "41800000000",
     GITHUB_RUN_ATTEMPT: "2",
     RUNNER_OS: "Windows",
@@ -624,7 +624,10 @@ void test("canonical native producer and signing DAG keeps candidate execution b
       "raw producer facts must come from the fixed execution job",
     );
   const release = parse(
-    await readFile(new URL("../.github/workflows/release.yml", import.meta.url), "utf8"),
+    await readFile(
+      new URL("../.github/workflows/application-release.yml", import.meta.url),
+      "utf8",
+    ),
   ) as { jobs: Record<string, Job> };
   assert.equal(release.jobs.native?.uses, "./.github/workflows/application-release-native.yml");
   const protectionNeeds = release.jobs.protection_payload?.needs;
@@ -694,7 +697,7 @@ void test("signed payload inventory joins exact native installer and the complet
         signatureBytes: signature,
         source_tree: manifest.source_tree,
         qualified_run: {
-          workflow: ".github/workflows/release.yml",
+          workflow: ".github/workflows/application-release.yml",
           workflow_commit: manifest.control_commit,
           run_id: Number(manifest.run_id),
           attempt: 2,
@@ -1123,7 +1126,7 @@ void test("public installed readback requires the exact successful Windows attem
 });
 
 void test("post-feed Windows proof uses the read-only ordinary account path only for an admitted predecessor", async () => {
-  const raw: unknown = parse(await readFile(".github/workflows/release.yml", "utf8"));
+  const raw: unknown = parse(await readFile(".github/workflows/application-release.yml", "utf8"));
   assert.ok(isRecord(raw) && isRecord(raw.jobs));
   const job = raw.jobs.public_installed;
   assert.ok(isRecord(job) && isRecord(job.env));
@@ -1159,7 +1162,7 @@ void test("post-feed Windows proof uses the read-only ordinary account path only
 });
 
 void test("ordinary publication prepares actual inputs before a separate fresh observer and keeps signing credentials out of byte preparation", async () => {
-  const raw: unknown = parse(await readFile(".github/workflows/release.yml", "utf8"));
+  const raw: unknown = parse(await readFile(".github/workflows/application-release.yml", "utf8"));
   assert.ok(isRecord(raw) && isRecord(raw.jobs));
   const prep = raw.jobs.publication_prepare,
     observer = raw.jobs.protection_publication,
@@ -1292,7 +1295,9 @@ void test("ordinary publication prepares actual inputs before a separate fresh o
 });
 
 void test("metadata renewal traverses existing protected metadata jobs while excluding payload work and retaining its bounded publisher", async () => {
-  const workflow: unknown = parse(await readFile(".github/workflows/release.yml", "utf8"));
+  const workflow: unknown = parse(
+    await readFile(".github/workflows/application-release.yml", "utf8"),
+  );
   assert.ok(isRecord(workflow) && isRecord(workflow.jobs));
   for (const name of [
     "source",
@@ -1372,7 +1377,9 @@ void test("metadata renewal traverses existing protected metadata jobs while exc
 });
 
 void test("metadata recovery reaches only current feed staging and guarded deployment with no publisher-artifact dependency", async () => {
-  const workflow: unknown = parse(await readFile(".github/workflows/release.yml", "utf8"));
+  const workflow: unknown = parse(
+    await readFile(".github/workflows/application-release.yml", "utf8"),
+  );
   assert.ok(isRecord(workflow) && isRecord(workflow.jobs));
   for (const name of ["source", "tools", "feed_prepare", "protection_feed", "feed", "readback"]) {
     const job: unknown = workflow.jobs[name];
@@ -1435,7 +1442,9 @@ void test("metadata recovery reaches only current feed staging and guarded deplo
 });
 
 void test("expired-unserved renewal uses existing metadata roles and source admission, never payload jobs", async () => {
-  const workflow: unknown = parse(await readFile(".github/workflows/release.yml", "utf8"));
+  const workflow: unknown = parse(
+    await readFile(".github/workflows/application-release.yml", "utf8"),
+  );
   assert.ok(isRecord(workflow) && isRecord(workflow.jobs));
   for (const name of [
     "source",
@@ -1561,7 +1570,7 @@ void test("JSON receipt cannot appoint an authenticated prior or create an appli
 });
 
 void test("context reservations keep write credentials in the key-free job and preserve native cost identity", async () => {
-  const raw: unknown = parse(await readFile(".github/workflows/release.yml", "utf8"));
+  const raw: unknown = parse(await readFile(".github/workflows/application-release.yml", "utf8"));
   assert.ok(isRecord(raw) && isRecord(raw.jobs) && isRecord(raw.jobs.context));
   const context = raw.jobs.context;
   assert.equal(context.name, "context / execute");

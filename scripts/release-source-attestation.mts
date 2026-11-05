@@ -23,11 +23,13 @@ const workflow = ".github/workflows/release.yml";
 type AttestationScope =
   | "release"
   | "upstream-rehearsal"
+  | "application-controller"
   | "application-package"
   | "application-assembly"
   | "application-native";
 function attestationWorkflow(scope: AttestationScope) {
   if (scope === "release") return workflow;
+  if (scope === "application-controller") return ".github/workflows/application-release.yml";
   if (scope === "upstream-rehearsal") return ".github/workflows/upstream-release-rehearsal.yml";
   if (scope === "application-package") return ".github/workflows/application-release-package.yml";
   if (scope === "application-assembly") return ".github/workflows/application-release-assembly.yml";
@@ -49,6 +51,7 @@ export function inspectReleaseSourceAttestation(
   // duplicate attestations for that exact identity still refuse as ambiguous.
   if (
     (scope === "upstream-rehearsal" ||
+      scope === "application-controller" ||
       scope === "application-package" ||
       scope === "application-assembly" ||
       scope === "application-native") &&

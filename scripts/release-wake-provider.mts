@@ -12,7 +12,7 @@ export type WakeWorkflow =
   | "application-update-wake.yml"
   | "application-update-production.yml"
   | "job-token-dispatch-fixture.yml"
-  | "release.yml";
+  | "application-release.yml";
 export interface WakeProvider {
   repository(): Promise<unknown>;
   run(id: string, retain?: RetainWakeResponse): Promise<unknown>;

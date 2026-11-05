@@ -434,7 +434,7 @@ async function reconstructApplicationContextInput(
   const classification = parseVersionClassification(input.classification);
   assert.equal(input.qualification.workflow_commit, classification.source_commit);
   assert.ok(
-    [".github/workflows/release.yml", ".github/workflows/qualification.yml"].includes(
+    [".github/workflows/application-release.yml", ".github/workflows/qualification.yml"].includes(
       input.qualification.workflow,
     ),
   );

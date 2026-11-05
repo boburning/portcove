@@ -2182,6 +2182,26 @@ void test("production controller admission source and workflow retain their requ
   }
 });
 
+void test("Windows application release workflow and fixed owner changes select their ordinary contracts", () => {
+  for (const file of [
+    ".github/workflows/application-release.yml",
+    ".github/workflows/application-release-native.yml",
+    ".github/workflows/application-release-private.yml",
+    "scripts/application-release-private.mts",
+    "scripts/release-hosted-native-windows-owner-mechanism.ps1",
+    "scripts/native-qualification-account.cs.txt",
+  ]) {
+    const { selection } = planFor([file]);
+    for (const test of [
+      "scripts/application-release-native.test.mts",
+      "scripts/application-release-qualification.test.mts",
+      "scripts/application-release-publication.test.mts",
+      "scripts/application-release-site.test.mts",
+    ])
+      assert.ok(selection.nodeTests.has(test), `${file}: ${test}`);
+  }
+});
+
 void test("release-script changes select deterministic release contracts without packaged qualification", () => {
   const { selection, plan } = planFor(["scripts/release-preflight.ps1"]);
   for (const contract of [

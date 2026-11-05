@@ -1857,6 +1857,16 @@ public `SHA256SUMS.txt`. Filename checks identify the expected package; the
 extracted executable inspection is the practical architecture evidence for the
 CLI. Desktop runtime and installed-package qualification remain separate.
 
+## Windows application cutover
+
+The held `application-release.yml` workflow qualifies the Windows x86-64
+application and stages the replacement production path. Qualification binds
+the exact workflow, source, run attempt and Windows packaging evidence.
+Production requires a separately appointed protected control ref, active
+configuration, spending appointment and unpaused publication. The existing
+`release.yml` tag and report-repair entry points stay in service through
+qualification and cutover review.
+
 ## Windows preflight
 
 From the repository root, run the complete local gate before creating a tag:

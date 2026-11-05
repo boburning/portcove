@@ -6,7 +6,7 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { isRecord } from "./runtime-values.mts";
 
-export const applicationReleaseWorkflow = ".github/workflows/release.yml";
+export const applicationReleaseWorkflow = ".github/workflows/application-release.yml";
 export const applicationReleaseConcurrency = "application-update-production-controller";
 export const applicationReleaseJobMinutes = Object.freeze({
   source: 2,
@@ -173,7 +173,7 @@ export function inspectApplicationPackageExecution(environment: NodeJS.ProcessEn
   assert.equal(environment.GITHUB_REF, "refs/heads/main");
   assert.equal(
     environment.GITHUB_WORKFLOW_REF,
-    "boburning/portcove/.github/workflows/release.yml@refs/heads/main",
+    "boburning/portcove/.github/workflows/application-release.yml@refs/heads/main",
   );
   const source = environment.GITHUB_SHA ?? "";
   assert.match(source, /^[a-f0-9]{40}$/u);

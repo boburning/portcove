@@ -25,7 +25,7 @@ export function inspectApplicationQualificationIdentity(raw: unknown, source: st
   assert.ok(isRecord(raw));
   assert.ok(
     raw.workflow === ".github/workflows/qualification.yml" ||
-      raw.workflow === ".github/workflows/release.yml",
+      raw.workflow === ".github/workflows/application-release.yml",
   );
   assert.equal(raw.workflow_commit, source);
   const { run_id, attempt } = raw;

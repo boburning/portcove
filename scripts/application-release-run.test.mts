@@ -293,7 +293,7 @@ void test("one mechanical preparation is retained exactly and cannot be silently
       compatibility: "compatible" as const,
     },
     qualification: {
-      workflow: ".github/workflows/release.yml" as const,
+      workflow: ".github/workflows/application-release.yml" as const,
       workflow_commit: source,
       run_id: 200,
       attempt: 2,

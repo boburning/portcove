@@ -30,7 +30,7 @@ const context = (attempt: number) => ({
   id: 123,
   run_attempt: attempt,
   head_sha: source,
-  path: ".github/workflows/release.yml",
+  path: ".github/workflows/application-release.yml",
   event: "workflow_dispatch",
   run_started_at: at((attempt - 1) * 600),
 });
@@ -290,7 +290,7 @@ function runRow(id: number, title = `Application ${opportunity}`) {
   return {
     id,
     display_title: title,
-    path: ".github/workflows/release.yml",
+    path: ".github/workflows/application-release.yml",
     event: "workflow_dispatch",
     head_sha: source,
     repository: { id: 1354613114 },
@@ -301,11 +301,11 @@ function provider(pages: IncludedResponse[]): GitHubRestReader {
   let index = 0;
   return {
     request(_method, endpoint) {
-      if (endpoint.endsWith("/actions/workflows/release.yml"))
+      if (endpoint.endsWith("/actions/workflows/application-release.yml"))
         return {
           status: 200,
           headers: new Map(),
-          body: { id: 7, path: ".github/workflows/release.yml" },
+          body: { id: 7, path: ".github/workflows/application-release.yml" },
         };
       const value = pages[index++];
       assert.ok(value, "unexpected provider request");
@@ -364,7 +364,7 @@ void test("incomplete, stalled, duplicate, foreign, changing or capped histories
       page(
         initial,
         101,
-        "https://api.github.com/repos/boburning/portcove/actions/workflows/release.yml/runs?event=workflow_dispatch&per_page=100",
+        "https://api.github.com/repos/boburning/portcove/actions/workflows/application-release.yml/runs?event=workflow_dispatch&per_page=100",
       ),
     ],
     [page([{ ...runRow(1), repository: { id: 1 } }])],
@@ -384,7 +384,7 @@ void test("forward metadata maintenance counts original executions, refuses miss
   const child = releaseCanonicalDigest(basis),
     parent = "e".repeat(40);
   const ref = "refs/tags/portcove-production-controller-windows-fixture";
-  const workflow = sha256(await readFile(".github/workflows/release.yml"));
+  const workflow = sha256(await readFile(".github/workflows/application-release.yml"));
   const environment = {
     PORTCOVE_APPLICATION_RELEASE_REVISION: source,
     PORTCOVE_APPLICATION_RELEASE_REF: ref,
@@ -396,7 +396,7 @@ void test("forward metadata maintenance counts original executions, refuses miss
     GITHUB_REF_PROTECTED: "true",
     GITHUB_SHA: source,
     GITHUB_WORKFLOW_SHA: source,
-    GITHUB_WORKFLOW_REF: `boburning/portcove/.github/workflows/release.yml@${ref}`,
+    GITHUB_WORKFLOW_REF: `boburning/portcove/.github/workflows/application-release.yml@${ref}`,
     GITHUB_RUN_ID: "124",
     GITHUB_RUN_ATTEMPT: "1",
     PORTCOVE_APPLICATION_RELEASE_ACTIVE: "true",
@@ -471,9 +471,12 @@ void test("forward metadata maintenance counts original executions, refuses miss
         target_commitish: source,
         body: `<!-- portcove-application-runs-v1\n${JSON.stringify(ownerState)}\n-->`,
       };
-    else if (suffix === "actions/workflows/release.yml")
-      body = { id: 7, path: ".github/workflows/release.yml" };
-    else if (suffix === "actions/workflows/release.yml/runs?event=workflow_dispatch&per_page=100") {
+    else if (suffix === "actions/workflows/application-release.yml")
+      body = { id: 7, path: ".github/workflows/application-release.yml" };
+    else if (
+      suffix ===
+      "actions/workflows/application-release.yml/runs?event=workflow_dispatch&per_page=100"
+    ) {
       const rows = [
         {
           ...runRow(123, `Application ${parent}`),

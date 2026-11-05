@@ -172,7 +172,7 @@ void test("prior Pages discovery checks the original feed attempt and refuses re
       id: 123,
       run_attempt: 1,
       head_sha: control,
-      path: ".github/workflows/release.yml",
+      path: ".github/workflows/application-release.yml",
       event: "workflow_dispatch",
       repository: repo,
       head_repository: repo,

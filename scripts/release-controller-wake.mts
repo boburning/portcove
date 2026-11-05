@@ -27,7 +27,7 @@ import timers from "node:timers/promises";
 const repository = "boburning/portcove";
 const prefix = `repos/${repository}`;
 const workflow = ".github/workflows/application-update-wake.yml";
-const nativeWorkflow = ".github/workflows/release.yml";
+const nativeWorkflow = ".github/workflows/application-release.yml";
 export const jobTokenDispatchActor = "41898282";
 export const jobTokenDispatchTransport = "github-actions-job-v1";
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
@@ -180,7 +180,7 @@ type WakeConfiguration = ReturnType<typeof inspectControllerWakeConfiguration>;
 const destinationWorkflow = (config: WakeConfiguration) =>
   config.schema_version === 5 ? nativeWorkflow : productionControllerWorkflow;
 const destinationWorkflowName = (config: WakeConfiguration) =>
-  config.schema_version === 5 ? "release.yml" : "application-update-production.yml";
+  config.schema_version === 5 ? "application-release.yml" : "application-update-production.yml";
 const destinationTitle = (config: WakeConfiguration, wakeRun: string, source?: string) =>
   config.schema_version === 5
     ? `Application ${source} wake ${wakeRun}`
@@ -926,7 +926,7 @@ export async function wakeRatifiedController(
     const selected = selectWindowsApplicationQualificationRun(
       await get(() =>
         api.runs(
-          "release.yml",
+          "application-release.yml",
           {
             branch: "main",
             event: "workflow_dispatch",
@@ -940,7 +940,7 @@ export async function wakeRatifiedController(
     if (selected.decision !== "candidate") return selected;
     const previous = await get(() =>
       api.runs(
-        "release.yml",
+        "application-release.yml",
         {
           event: "workflow_dispatch",
           head_sha: config.revision,

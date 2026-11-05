@@ -139,7 +139,7 @@ export async function readCurrentApplicationWakeQualification() {
     return ref.object.sha;
   };
   const source = main();
-  const route = `actions/workflows/release.yml/runs?branch=main&event=workflow_dispatch&head_sha=${source}&per_page=100`;
+  const route = `actions/workflows/application-release.yml/runs?branch=main&event=workflow_dispatch&head_sha=${source}&per_page=100`;
   const observe = () => selectWindowsApplicationQualificationRun(applicationGet(route), source);
   const selected = observe();
   const qualification =
@@ -148,7 +148,7 @@ export async function readCurrentApplicationWakeQualification() {
       : undefined;
   if (qualification) {
     assert.equal(qualification.attempt, selected.run_attempt);
-    assert.equal(qualification.workflow, ".github/workflows/release.yml");
+    assert.equal(qualification.workflow, ".github/workflows/application-release.yml");
   }
   assert.deepEqual(observe(), selected, "qualification selection changed during readback");
   assert.equal(main(), source, "main changed during qualification selection");
@@ -213,7 +213,7 @@ async function beforeSourceRecord() {
   );
   inspectApplicationSpendingAppointment(process.env);
   assert.equal(
-    sha256(await readFile(".github/workflows/release.yml")),
+    sha256(await readFile(".github/workflows/application-release.yml")),
     process.env.PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256,
   );
   assert.equal(
@@ -264,7 +264,7 @@ async function prepare() {
   assert.ok(Number.isSafeInteger(runId) && runId > 0);
   const run = applicationGet(`actions/runs/${runId}`);
   assert.ok(isRecord(run) && typeof run.head_sha === "string");
-  assert.equal(run.path, ".github/workflows/release.yml");
+  assert.equal(run.path, ".github/workflows/application-release.yml");
   assert.equal(process.env.PORTCOVE_APPLICATION_RELEASE_OPPORTUNITY, run.head_sha);
   const qualification = await readWindowsApplicationQualification(
     applicationApi,

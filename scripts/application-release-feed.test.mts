@@ -80,7 +80,7 @@ void test("prior discovery joins actual feed to one immutable native cohort and 
         id: 123,
         run_attempt: 1,
         head_sha: control,
-        path: ".github/workflows/release.yml",
+        path: ".github/workflows/application-release.yml",
         event: "workflow_dispatch",
         repository: repo,
         head_repository: repo,

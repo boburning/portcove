@@ -83,7 +83,7 @@ $fixedOwnerContext=if($OwnerProfile -ceq 'Production') {
     $env:GITHUB_JOB -ceq 'native_windows' -and $env:GITHUB_WORKFLOW_REF -cmatch '^boburning/portcove/[.]github/workflows/application-update-production[.]yml@refs/tags/[^/]+$'
 }elseif($OwnerProfile -ceq 'Application') {
     ($env:GITHUB_JOB -ceq 'execute' -or $applicationPublicJob) -and $env:GITHUB_EVENT_NAME -ceq 'workflow_dispatch' -and
-    $env:GITHUB_WORKFLOW_REF -cmatch '^boburning/portcove/[.]github/workflows/release[.]yml@refs/tags/portcove-production-controller-windows-[A-Za-z0-9._-]{1,64}$' -and
+    $env:GITHUB_WORKFLOW_REF -cmatch '^boburning/portcove/[.]github/workflows/application-release[.]yml@refs/tags/portcove-production-controller-windows-[A-Za-z0-9._-]{1,64}$' -and
     $env:GITHUB_SHA -ceq $context.source_commit -and $context.run_attempt -ge 1 -and $context.run_attempt -le 3 -and
     $env:GITHUB_RUN_ATTEMPT -ceq [string]$context.run_attempt -and
     $context.root -ceq (Join-Path $context.source_root $(if($applicationPublicJob){'work/application-public-native-owner'}else{'work/application-native-owner'})) -and

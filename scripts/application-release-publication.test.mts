@@ -619,7 +619,7 @@ void test("authenticated release record binds source, inventory, both public pac
     if (mode === "inventory") changed.qualified_run.inventory_sha256 = "f".repeat(64);
     if (mode === "qualified-source") changed.qualified_run.workflow_commit = "f".repeat(40);
     if (mode === "qualified-workflow")
-      changed.qualified_run.workflow = ".github/workflows/release.yml";
+      changed.qualified_run.workflow = ".github/workflows/application-release.yml";
     if (mode === "qualified-run") changed.qualified_run.run_id++;
     if (mode === "qualified-attempt") changed.qualified_run.attempt++;
     if (mode === "url") changed.artifact.url = "https://example.test/wrong.exe";

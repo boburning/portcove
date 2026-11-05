@@ -60,7 +60,7 @@ export function windowsApplicationQualificationFixture(source: string) {
     checkoutSha: source,
     forceQualification: true,
     qualificationCaller: "release",
-    callerWorkflow: "release.yml",
+    callerWorkflow: "application-release.yml",
     releaseProfile: "initial-beta-windows-x86_64-v1",
   });
   return { run, jobs: { total_count: jobs.length, jobs }, plan };

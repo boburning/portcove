@@ -123,6 +123,19 @@ void test("bootstrap assembly attestation binds both fixed subjects and selects 
     ),
   );
 });
+void test("native controller attestation cannot be substituted with the legacy workflow", () => {
+  const raw = fixture();
+  raw[0]!.verificationResult.signature.certificate.buildSignerURI = `https://github.com/boburning/portcove/.github/workflows/application-release.yml@${expected.ref}`;
+  assert.equal(
+    inspectReleaseSourceAttestation(raw, expected, "application-controller").authority,
+    "none",
+  );
+  assert.throws(() => inspectReleaseSourceAttestation(raw, expected));
+  assert.throws(() =>
+    inspectReleaseSourceAttestation(fixture(), expected, "application-controller"),
+  );
+});
+
 void test("application package provenance requires the reusable attester identity", () => {
   const raw = fixture();
   raw[0]!.verificationResult.signature.certificate.buildSignerURI = `https://github.com/boburning/portcove/.github/workflows/application-release-package.yml@${expected.ref}`;

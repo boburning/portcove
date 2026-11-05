@@ -62,7 +62,7 @@ export function inspectApplicationJobBudget(
         context.run_attempt === index + 1 &&
         context.head_sha === source,
     );
-    assert.equal(context.path, ".github/workflows/release.yml");
+    assert.equal(context.path, ".github/workflows/application-release.yml");
     assert.equal(context.event, "workflow_dispatch");
     assert.ok(
       typeof context.run_started_at === "string" &&
@@ -173,17 +173,17 @@ export function readApplicationOpportunityRuns(
   const scopes = new Set(opportunities);
   const workflowResponse = api.request(
     "GET",
-    `${applicationRepository}/actions/workflows/release.yml`,
+    `${applicationRepository}/actions/workflows/application-release.yml`,
   );
   assert.equal(workflowResponse.status, 200);
   const workflow = workflowResponse.body;
   assert.ok(
     isRecord(workflow) &&
-      workflow.path === ".github/workflows/release.yml" &&
+      workflow.path === ".github/workflows/application-release.yml" &&
       Number.isSafeInteger(workflow.id) &&
       Number(workflow.id) > 0,
   );
-  const route = `${applicationRepository}/actions/workflows/release.yml/runs`;
+  const route = `${applicationRepository}/actions/workflows/application-release.yml/runs`;
   const aliases = new Set([
     `/${route}`,
     `/${applicationRepository}/actions/workflows/${Number(workflow.id)}/runs`,
@@ -250,7 +250,7 @@ export function readApplicationOpportunityRuns(
     .map((raw: unknown) => {
       assert.ok(
         isRecord(raw) &&
-          raw.path === ".github/workflows/release.yml" &&
+          raw.path === ".github/workflows/application-release.yml" &&
           raw.event === "workflow_dispatch",
       );
       assert.ok(

@@ -49,7 +49,7 @@ export function inspectWindowsApplicationQualification(
   assert.ok(Number.isSafeInteger(run.run_attempt) && Number(run.run_attempt) > 0);
   assert.ok(
     run.path === ".github/workflows/qualification.yml" ||
-      run.path === ".github/workflows/release.yml",
+      run.path === ".github/workflows/application-release.yml",
   );
   assert.equal(run.head_sha, source);
   assert.equal(run.head_branch, "main");
@@ -91,7 +91,7 @@ export function inspectWindowsApplicationQualification(
     ids.add(value.id);
   }
   const requiredJobs = sharedAndWindowsJobs.map((name) => `qualify / ${name}`);
-  if (run.path === ".github/workflows/release.yml") {
+  if (run.path === ".github/workflows/application-release.yml") {
     assert.equal(run.event, "workflow_dispatch");
     assert.equal(run.display_title, `Windows qualification ${source}`);
     assert.equal(plan.release_profile, "initial-beta-windows-x86_64-v1");
@@ -154,7 +154,7 @@ export function selectWindowsApplicationQualificationRun(raw: unknown, source: s
     assert.ok(isRecord(run));
     assert.equal(run.head_sha, source);
     assert.equal(run.head_branch, "main");
-    assert.equal(run.path, ".github/workflows/release.yml");
+    assert.equal(run.path, ".github/workflows/application-release.yml");
     assert.equal(run.event, "workflow_dispatch");
     assert.ok(isRecord(run.head_repository) && run.head_repository.id === 1354613114);
     assert.ok(isRecord(run.repository) && run.repository.id === 1354613114);
@@ -236,8 +236,8 @@ export async function readWindowsApplicationQualification(
   const attempt = Number(run.run_attempt);
   for (const workflow of [
     "ci.yml",
-    ...(run.path === ".github/workflows/release.yml"
-      ? ["release.yml", "application-release-package.yml"]
+    ...(run.path === ".github/workflows/application-release.yml"
+      ? ["application-release.yml", "application-release-package.yml"]
       : ["qualification.yml"]),
   ]) {
     const remote = await get(() => reader.file(`.github/workflows/${workflow}`, source));

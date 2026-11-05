@@ -648,7 +648,7 @@ export function assertApplicationPublicationRecord(
   assert.equal(qualification.workflow_commit, identity.custody.source);
   assert.ok(
     qualification.workflow === ".github/workflows/qualification.yml" ||
-      qualification.workflow === ".github/workflows/release.yml",
+      qualification.workflow === ".github/workflows/application-release.yml",
   );
   assert.ok(Number.isSafeInteger(qualification.run_id) && qualification.run_id > 0);
   assert.ok(Number.isSafeInteger(qualification.attempt) && qualification.attempt > 0);

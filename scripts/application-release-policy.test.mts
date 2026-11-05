@@ -73,7 +73,8 @@ void test("main qualification can attest public packages but cannot enter the pr
     ...controlFixture(),
     PORTCOVE_APPLICATION_PACKAGE_MODE: "qualification",
     GITHUB_REF: "refs/heads/main",
-    GITHUB_WORKFLOW_REF: "boburning/portcove/.github/workflows/release.yml@refs/heads/main",
+    GITHUB_WORKFLOW_REF:
+      "boburning/portcove/.github/workflows/application-release.yml@refs/heads/main",
   };
   assert.equal(inspectApplicationPackageExecution(fixture).ref, "refs/heads/main");
   assert.throws(() => inspectApplicationReleaseExecution(fixture));
@@ -111,7 +112,10 @@ void test("a candidate, mutable ref or foreign execution cannot masquerade as tr
     { PORTCOVE_APPLICATION_RELEASE_REF: "refs/heads/main" },
     { GITHUB_SHA: "b".repeat(40) },
     { GITHUB_WORKFLOW_SHA: "b".repeat(40) },
-    { GITHUB_WORKFLOW_REF: "boburning/portcove/.github/workflows/release.yml@refs/heads/main" },
+    {
+      GITHUB_WORKFLOW_REF:
+        "boburning/portcove/.github/workflows/application-release.yml@refs/heads/main",
+    },
     { PORTCOVE_APPLICATION_RELEASE_REVISION: "" },
     { GITHUB_RUN_ID: "0" },
     { GITHUB_RUN_ID: "9007199254740992" },

@@ -250,7 +250,7 @@ async function guard(
     "native production authority remains held",
   );
   assert.equal(
-    sha256(await readFile(".github/workflows/release.yml")),
+    sha256(await readFile(".github/workflows/application-release.yml")),
     process.env.PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256,
   );
   const spending = inspectApplicationSpendingAppointment(process.env);
@@ -1089,7 +1089,7 @@ async function receiveOrdinaryPreparation(
           run_attempt: attempt,
           subjects,
         },
-        { scope: "release" },
+        { scope: "application-controller" },
       );
     },
   };

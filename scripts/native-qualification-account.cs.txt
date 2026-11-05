@@ -657,7 +657,9 @@ namespace Portcove.NativeQualification {
                 Environment.GetEnvironmentVariable("GITHUB_REPOSITORY") != "boburning/portcove" ||
                 workflow == null || !(
                   (Environment.GetEnvironmentVariable("GITHUB_JOB") == "native_windows" && workflow.StartsWith("boburning/portcove/.github/workflows/application-update-production.yml@refs/tags/", StringComparison.Ordinal)) ||
-                  (Environment.GetEnvironmentVariable("GITHUB_JOB") == "execute" && System.Text.RegularExpressions.Regex.IsMatch(workflow, "^boburning/portcove/[.]github/workflows/release[.]yml@refs/tags/portcove-production-controller-windows-[A-Za-z0-9._-]{1,64}$"))) ||
+                  ((Environment.GetEnvironmentVariable("GITHUB_JOB") == "execute" || Environment.GetEnvironmentVariable("GITHUB_JOB") == "public_installed") &&
+                   Environment.GetEnvironmentVariable("GITHUB_EVENT_NAME") == "workflow_dispatch" &&
+                   System.Text.RegularExpressions.Regex.IsMatch(workflow, "^boburning/portcove/[.]github/workflows/application-release[.]yml@refs/tags/portcove-production-controller-windows-[A-Za-z0-9._-]{1,64}$"))) ||
                 config.UserName != "PortcoveNativeQual" || group == null || expectedSha256 == null ||
                 !System.Text.RegularExpressions.Regex.IsMatch(expectedSha256, "^[a-f0-9]{64}$") ||
                 desktopName == null || !System.Text.RegularExpressions.Regex.IsMatch(desktopName, "^PortcoveHosted_[0-9a-f]{32}$"))

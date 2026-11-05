@@ -19,7 +19,7 @@ void test("automatic qualification selection rejects stale success, foreign iden
     run_attempt: 1,
     head_sha: source,
     head_branch: "main",
-    path: ".github/workflows/release.yml",
+    path: ".github/workflows/application-release.yml",
     event: "workflow_dispatch",
     head_repository: { id: 1354613114 },
     repository: { id: 1354613114 },
@@ -90,7 +90,7 @@ void test("canonical Windows qualification requires its exact profile and all pa
   const { run, jobs, plan } = fixture();
   const canonical = {
     ...run,
-    path: ".github/workflows/release.yml",
+    path: ".github/workflows/application-release.yml",
     event: "workflow_dispatch",
     display_title: `Windows qualification ${source}`,
   };

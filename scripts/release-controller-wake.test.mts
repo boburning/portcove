@@ -1036,7 +1036,7 @@ void test("invalid and expired wake deadline refuses before collection", async (
 });
 
 function nativeFixture(jobToken: boolean, native: boolean) {
-  const destination = native ? "release.yml" : "application-update-production.yml";
+  const destination = native ? "application-release.yml" : "application-update-production.yml";
   const bytes = Buffer.from("fixed inert controller workflow\n"),
     wakeBytes = Buffer.from("fixed inert wake workflow\n");
   const created = new Date().toISOString().replace(/\.\d{3}Z$/u, "Z");
@@ -1242,7 +1242,7 @@ function nativeFixture(jobToken: boolean, native: boolean) {
         result = { total_count: 1 + prior.length, workflow_runs: [ownRun, ...prior] };
       else if (
         native &&
-        endpoint.includes("release.yml/runs?branch=main&event=workflow_dispatch")
+        endpoint.includes("application-release.yml/runs?branch=main&event=workflow_dispatch")
       ) {
         const runs = qualificationAttempt === 0 ? [] : [qualificationRun()];
         result = { total_count: runs.length, workflow_runs: runs };
@@ -1520,7 +1520,7 @@ void test("native wake holds before qualification lookup without active producti
   });
   assert.equal(result.decision, "no-intent");
   assert.equal(
-    f.calls.some(({ endpoint }) => endpoint.includes("release.yml/runs?")),
+    f.calls.some(({ endpoint }) => endpoint.includes("application-release.yml/runs?")),
     false,
   );
   assert.equal(
@@ -1578,7 +1578,7 @@ void test("native wake leaves no intent during publication pause and refuses a p
   );
   assert.equal(result.decision, "no-intent");
   assert.equal(
-    paused.calls.some(({ endpoint }) => endpoint.includes("release.yml/runs?")),
+    paused.calls.some(({ endpoint }) => endpoint.includes("application-release.yml/runs?")),
     false,
   );
   const retained = nativeFixture(true, true);

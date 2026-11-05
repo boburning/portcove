@@ -143,7 +143,7 @@ export function readApplicationPagesExecution(
   assert.equal(run.id, runId);
   assert.equal(run.run_attempt, job.run_attempt);
   assert.equal(run.head_sha, job.head_sha);
-  assert.equal(run.path, ".github/workflows/release.yml");
+  assert.equal(run.path, ".github/workflows/application-release.yml");
   assert.equal(run.event, "workflow_dispatch");
   assert.ok(
     isRecord(run.repository) &&
