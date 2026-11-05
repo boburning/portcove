@@ -1624,6 +1624,7 @@
     },
     {
       "file": "scripts/settings-consumer-qualification.test.mts",
+      "ordinary_families": ["catalog-preparation-contract-tests"],
       "memberships": [
         ["catalog-full-2", 9104],
         ["repository-tools-2", 4104]
@@ -1631,6 +1632,7 @@
     },
     {
       "file": "scripts/settings-qualification.test.mts",
+      "ordinary_families": ["catalog-preparation-contract-tests"],
       "memberships": [
         ["catalog-full-2", 9105],
         ["repository-tools-2", 4105]
