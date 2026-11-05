@@ -68,9 +68,10 @@ export async function createReleaseCustodyProvider(options: {
           per_page: 100,
         },
       );
+      const link = result.headers.link;
       return {
         body: result.data as unknown,
-        next: nextLink(new Map(Object.entries(result.headers))),
+        next: typeof link === "string" ? nextLink(new Map([["link", link]])) : null,
       };
     },
     async job(id) {
