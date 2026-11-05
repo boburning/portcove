@@ -1,3 +1,4 @@
+import { nativeCompatibilitySourcePaths } from "./release-native-source-contract.mts";
 import { nativePlatformsForReleaseProfile } from "./release-package-policy.mts";
 import { isInitialBetaReleaseProfile } from "./release-package-policy.mts";
 /** Actual local-parent candidate selection. Provider acquisition deliberately
@@ -498,12 +499,44 @@ async function sourceTransport(parent: Parent, directory: string) {
     };
     return spawn;
   };
-  const metadata = (deadline: number) =>
+  const metadata = (deadline: number, maxBytes = 2 * 1024 ** 2) =>
     createReleaseCustodyProvider({
       token,
       deadline: Math.min(deadline, performance.now() + remainingNativeParentBudget(300000)),
+      maxBytes,
     });
-  return { api, metadata, download, downloadAsset, recover, recheck, verifier, releaseVerifier };
+  const declarations = async () => {
+    const deadline =
+      performance.now() +
+      remainingNativeParentBudget(2 * nativeCompatibilitySourcePaths.length * 15000);
+    const contents = await metadata(deadline);
+    let blobs: ReturnType<typeof metadata> | undefined;
+    const read = async (operation: () => Promise<unknown>) => {
+      checkToolIdentity();
+      const body = await operation();
+      checkToolIdentity();
+      return body;
+    };
+    return {
+      file: (pathname: string, revision: string) => read(() => contents.file(pathname, revision)),
+      blob: (sha: string) =>
+        read(async () => {
+          blobs ??= metadata(deadline, 8 * 1024 ** 2);
+          return (await blobs).blob(sha);
+        }),
+    };
+  };
+  return {
+    api,
+    metadata,
+    declarations,
+    download,
+    downloadAsset,
+    recover,
+    recheck,
+    verifier,
+    releaseVerifier,
+  };
 }
 
 /** The public journey uses the same installed parent's read-only source tool
@@ -567,6 +600,7 @@ const selections = new WeakMap<
     recover: Awaited<ReturnType<typeof sourceTransport>>["recover"];
     recheckSource: Awaited<ReturnType<typeof sourceTransport>>["recheck"];
     api: GitHubApiClient;
+    declarations: Awaited<ReturnType<typeof sourceTransport>>["declarations"];
   }
 >();
 
@@ -1647,6 +1681,7 @@ export async function acquireActualNativePostSignCandidate(parentReceipt: object
         throw new Error("native signed repository changed after package selection");
     },
     api: original.source.api,
+    declarations: original.source.declarations,
   });
   await requireActualNativeCandidate(receipt);
   return receipt;
@@ -1856,6 +1891,7 @@ export async function acquireActualNativeCandidate(parentReceipt: object) {
     recover: source.recover,
     recheckSource: source.recheck,
     api: source.api,
+    declarations: source.declarations,
   });
   packages.clear();
   return receipt;
@@ -2072,19 +2108,12 @@ export async function readActualNativeSourceDeclarations(receipt: object) {
   const retained = selections.get(receipt);
   if (!retained) throw new Error("actual native source selection required");
   const selected = await requireActualNativeCandidate(receipt);
+  const provider = await retained.declarations();
+  const source = selected.request.request.candidate.source_commit;
   const declaration = await retainNativeSourceDeclarations(
     retained.directory,
-    async (pathname) => {
-      const response = retained.api.request(
-        "GET",
-        `repos/boburning/portcove/contents/${pathname}?ref=${selected.request.request.candidate.source_commit}`,
-      );
-      return response.status === 200 ? response.body : undefined;
-    },
-    async (sha) => {
-      const response = retained.api.request("GET", `repos/boburning/portcove/git/blobs/${sha}`);
-      return response.status === 200 ? response.body : undefined;
-    },
+    (pathname) => provider.file(pathname, source),
+    (sha) => provider.blob(sha),
   );
   await requireActualNativeCandidate(receipt);
   return Object.freeze({
