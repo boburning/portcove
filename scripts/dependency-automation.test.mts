@@ -251,7 +251,7 @@ void test("the root owns the only pnpm workspace lock and repository tool depend
     Object.keys(repositoryPackage.devDependencies).filter((name) =>
       Object.hasOwn(desktopPackage.devDependencies, name),
     ),
-    ["@vitest/browser-playwright", "playwright", "vite-plus", "vitest", "yaml"],
+    ["@vitest/browser-playwright", "playwright", "semver", "vite-plus", "vitest", "yaml"],
   );
   assert.equal(desktopPackage.devDependencies["vite-plus"], "catalog:");
   assert.equal(desktopPackage.devDependencies.yaml, repositoryPackage.devDependencies.yaml);
