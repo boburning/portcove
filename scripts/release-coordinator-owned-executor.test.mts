@@ -368,6 +368,23 @@ async function selectedEffectFixture(
         const { body, status } = journalReply(settings.method, new URL(url).pathname, payload);
         return json(body, status);
       }
+      if (url === "https://api.github.com/repos/boburning/portcove/actions/jobs/502") {
+        faults.originalJobReads++;
+        assert.equal(settings?.method, "GET");
+        assert.equal(
+          new Headers(settings.headers).get("authorization"),
+          "token inert-selected-job-token",
+        );
+        return json({
+          id: 502,
+          run_id: 9988,
+          run_attempt: 1,
+          head_sha: f.expected.controller_revision,
+          status: faults.originalTerminal ? "completed" : "in_progress",
+          conclusion: faults.originalTerminal ? "failure" : null,
+          check_run_url: "https://api.github.com/repos/boburning/portcove/check-runs/778",
+        });
+      }
       if (url.startsWith("https://api.github.com/repos/boburning/portcove/actions/")) {
         // Historical custody requests carry the custody provider's fixed API version.
         if (new Headers(settings?.headers).get("x-github-api-version") === "2022-11-28")
@@ -426,23 +443,6 @@ async function selectedEffectFixture(
     (command: string, args: readonly string[], options: SpawnSyncOptionsWithStringEncoding) => {
       if (command !== "gh") return actualSpawn(command, args, options);
       traffic.calls++;
-      if (args[2]?.endsWith("/actions/jobs/502")) {
-        faults.originalJobReads++;
-        assert.equal(args[args.indexOf("--method") + 1], "GET");
-        return {
-          status: 0,
-          stdout: `HTTP/2.0 200 Fixture\r\n\r\n${JSON.stringify({
-            id: 502,
-            run_id: 9988,
-            run_attempt: 1,
-            head_sha: f.expected.controller_revision,
-            status: faults.originalTerminal ? "completed" : "in_progress",
-            conclusion: faults.originalTerminal ? "failure" : null,
-            check_run_url: "https://api.github.com/repos/boburning/portcove/check-runs/778",
-          })}`,
-          stderr: "",
-        };
-      }
       if (args[0] === "attestation") {
         const bundle: unknown = JSON.parse(
           readFileSync(args[args.indexOf("--bundle") + 1]!, "utf8"),
