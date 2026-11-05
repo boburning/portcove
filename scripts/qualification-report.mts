@@ -35,6 +35,8 @@ Required arguments:
 Options:
   --preparation-case FILE  Run the reviewed preparation/verification sequence instead
                            of read-only capture. See docs/CATALOG.md.
+  --settings-case FILE     Run the bounded native Libultraship consumer probe in
+                           its marked disposable scope. No live library enrollment.
   --help               Show this help without executing the CLI or writing a report.
 
 The report retains the selected CLI SHA-256 and core evidence. Gameplay, audio,
@@ -545,6 +547,7 @@ if (import.meta.main) {
       library: { type: "string" },
       output: { type: "string" },
       "preparation-case": { type: "string" },
+      "settings-case": { type: "string" },
       help: { type: "boolean" },
     },
   });
@@ -564,9 +567,15 @@ if (import.meta.main) {
     library: values.library,
     output: values.output,
   };
-  const result = values["preparation-case"]
-    ? await qualifyPreparation({ ...options, caseFile: values["preparation-case"] })
-    : await captureQualificationReport(options);
+  if (values["preparation-case"] && values["settings-case"])
+    throw new Error("Select one qualification case; preparation and settings cannot share a run.");
+  const result = values["settings-case"]
+    ? await (
+        await import("./settings-consumer-qualification.mts")
+      ).qualifySettingsConsumer({ ...options, caseFile: values["settings-case"] })
+    : values["preparation-case"]
+      ? await qualifyPreparation({ ...options, caseFile: values["preparation-case"] })
+      : await captureQualificationReport(options);
   process.stdout.write(`${JSON.stringify(result)}\n`);
 }
 

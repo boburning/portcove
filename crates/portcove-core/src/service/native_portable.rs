@@ -44,6 +44,7 @@ impl PortcoveService {
         from: &InstallRecord,
         to: &PortDefinition,
     ) -> Result<()> {
+        self.require_shipwright_persistence_transition(from, to, None)?;
         self.require_portable_transition_to(from, to, None)
     }
 
@@ -57,7 +58,39 @@ impl PortcoveService {
                 "rollback target belongs to another port",
             ));
         }
-        self.require_portable_transition_to(from, &self.installed_port(previous)?, Some(previous))
+        let to = self.installed_port(previous)?;
+        self.require_shipwright_persistence_transition(from, &to, Some(previous))?;
+        self.require_portable_transition_to(from, &to, Some(previous))
+    }
+
+    fn require_shipwright_persistence_transition(
+        &self,
+        from: &InstallRecord,
+        to: &PortDefinition,
+        target: Option<&InstallRecord>,
+    ) -> Result<()> {
+        let platform = Platform::current()?;
+        if platform != Platform::WindowsX86_64 || from.port_id != "shipwright" {
+            return Ok(());
+        }
+        use crate::installed_mutability::{
+            declared_shipwright_persistence, shipwright_windows_cwd_persistence,
+        };
+        let retained = self.installed_port(from)?;
+        if !declared_shipwright_persistence(&retained, platform)
+            && !declared_shipwright_persistence(to, platform)
+        {
+            return Ok(());
+        }
+        let from_mirrored = shipwright_windows_cwd_persistence(&retained, from, platform);
+        let to_mirrored = target.map_or_else(
+            || declared_shipwright_persistence(to, platform),
+            |install| shipwright_windows_cwd_persistence(to, install, platform),
+        );
+        if from_mirrored != to_mirrored {
+            return Err(portable_data_change());
+        }
+        Ok(())
     }
 
     /// Omitting an incidental wrapper does not move any owned data. Normalize
@@ -112,16 +145,18 @@ impl PortcoveService {
         let retained = self.effective_archive_data_port(from)?;
         let target = self.retained_archive_data_target(to, retained_rollback)?;
         let to = &target;
+        let platform = Platform::current()?;
         if retained.adapter != AdapterKind::NativePortable
             && to.adapter != AdapterKind::NativePortable
             && !crate::persistence::ready_staged_archive(&retained)
             && !crate::persistence::ready_staged_archive(to)
             && !retained.n64_runtime_at_executable_parent
             && !to.n64_runtime_at_executable_parent
+            && !crate::installed_mutability::declared_shipwright_persistence(&retained, platform)
+            && !crate::installed_mutability::declared_shipwright_persistence(to, platform)
         {
             return Ok(());
         }
-        let platform = Platform::current()?;
         if retained.adapter != to.adapter
             || retained.n64_runtime_at_executable_parent != to.n64_runtime_at_executable_parent
             || crate::persistence::ready_staged_archive(&retained)
@@ -202,7 +237,8 @@ impl PortcoveService {
         target: &InstallRecord,
     ) -> Result<()> {
         let to = self.effective_archive_data_port(target)?;
-        self.require_portable_transition(from, &to)?;
+        self.require_shipwright_persistence_transition(from, &to, Some(target))?;
+        self.require_portable_transition_to(from, &to, None)?;
         self.require_direct_artifact_transition(from, &to, &target.artifact.sha256, Some(target))?;
         let retained = self.installed_port(from)?;
         if crate::preparation::source::native(&retained)

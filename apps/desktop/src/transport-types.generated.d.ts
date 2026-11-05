@@ -1828,6 +1828,10 @@ export interface PortDefinition {
   user_data_environment: string | null;
   windows_runtime_path_policy?: WindowsRuntimePathPolicy | null;
   /**
+   * Official Shipwright Windows portable packages write player data in their working directory.
+   */
+  windows_shipwright_persistence?: boolean;
+  /**
    * Native5: dedicated entry-owned data directory used for Windows TEMP/TMP.
    * The upstream process must preserve the reviewed working directory.
    */

@@ -311,6 +311,15 @@ impl DefinitionContentIndex {
                 "managed TFE initialization requires staged-source capability version 12",
             ));
         }
+        if port.windows_shipwright_persistence
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "libultraship-portable" && requirement.minimum_version >= 3
+            })
+        {
+            return Err(PortcoveError::verification(
+                "Shipwright working-directory persistence requires libultraship-portable capability version 3",
+            ));
+        }
         if port.windows_runtime_path_policy.is_some()
             && !document.required_capabilities.iter().any(|requirement| {
                 requirement.template == crate::runtime_path_policy::capability_template(&port)

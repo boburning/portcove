@@ -2,7 +2,14 @@ use super::*;
 use serde_json::{Value, json};
 
 fn fixture(schema: u32) -> BTreeMap<String, Vec<u8>> {
-    let catalog = crate::Catalog::embedded().unwrap();
+    let mut document = crate::Catalog::embedded().unwrap().authoritative_document();
+    document
+        .ports
+        .iter_mut()
+        .find(|port| port.id == "shipwright")
+        .unwrap()
+        .windows_shipwright_persistence = false;
+    let catalog = crate::Catalog::from_document(document).unwrap();
     let port = catalog.port("shipwright").unwrap();
     let leaf = serde_json::to_vec(&json!({"contract_schema":1,"representation":"catalog_projection","catalog":catalog.authoritative_document()})).unwrap();
     let leaf_target = format!("sha256/{}.json", hash(&leaf));

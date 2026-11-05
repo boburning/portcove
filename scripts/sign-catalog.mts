@@ -33,7 +33,7 @@ The escaped envelope must also fit within 4194304 bytes (4 MiB).
 Successful signing prints the existing public-key, key-ID, sequence and output JSON summary.
 
 Example:
-  node scripts/sign-catalog.mts --catalog catalog.json --key publisher-private.pem --sequence 1 --expires-at <unix-seconds> --output catalog-signed.json
+  node scripts/sign-catalog.mts --catalog legacy-catalog.json --key publisher-private.pem --sequence 1 --expires-at <unix-seconds> --output catalog-signed.json
 `);
   process.exit(0);
 }
@@ -109,6 +109,26 @@ if (expiresAt - issuedAt > 366 * 86400) {
     `Catalog validity must be at most 366 days (31622400 seconds); received ${expiresAt - issuedAt} seconds. Choose --issued-at and --expires-at within that interval.`,
   );
 }
+const catalog: unknown = JSON.parse(
+  readRegular(values.catalog, 4 * 1024 * 1024, "--catalog").toString("utf8"),
+);
+if (
+  catalog &&
+  typeof catalog === "object" &&
+  "ports" in catalog &&
+  Array.isArray(catalog.ports) &&
+  catalog.ports.some(
+    (port: unknown) =>
+      port &&
+      typeof port === "object" &&
+      "windows_shipwright_persistence" in port &&
+      port.windows_shipwright_persistence === true,
+  )
+) {
+  throw new Error(
+    "Format-1 signed catalogs cannot deliver Shipwright working-directory persistence. Use a compatible indexed definition.",
+  );
+}
 const privateKey = createPrivateKey(readRegular(values.key, 64 * 1024, "--key"));
 if (privateKey.asymmetricKeyType !== "ed25519")
   throw new Error(
@@ -118,9 +138,6 @@ const jwk = createPublicKey(privateKey).export({ format: "jwk" });
 if (typeof jwk.x !== "string") throw new Error("Ed25519 public key must contain its encoded point");
 const publicKey = Buffer.from(jwk.x, "base64url");
 const keyId = createHash("sha256").update(publicKey).digest("hex");
-const catalog: unknown = JSON.parse(
-  readRegular(values.catalog, 4 * 1024 * 1024, "--catalog").toString("utf8"),
-);
 const payload = JSON.stringify({
   sequence,
   issued_at: issuedAt,

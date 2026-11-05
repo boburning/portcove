@@ -3,6 +3,11 @@ import {
   projectPackagePlayerFacts,
 } from "./package-player-observation.mts";
 import type { PackagePlayerObservationV1 } from "./package-player-observation.mts";
+import { checkSettingsPolicy, projectSettingsQualification } from "./settings-qualification.mts";
+import type {
+  SettingsQualificationPolicy,
+  SettingsQualificationObservation,
+} from "./settings-qualification.mts";
 import { checkRouteFacts, projectRouteFacts } from "./catalog-route-facts.mts";
 import type { RouteFactsV1 } from "./catalog-route-facts.mts";
 import { platforms } from "../apps/desktop/src/catalog-values.generated.ts";
@@ -55,6 +60,8 @@ export interface AuthoredPort extends Record<string, unknown> {
   listing: AuthoredListing;
   route_facts_v1?: RouteFactsV1;
   package_observation_v1?: PackagePlayerObservationV1;
+  settings_qualification_v1?: SettingsQualificationPolicy;
+  settings_observation_v1?: SettingsQualificationObservation;
   /** Strict operational fields; common descriptive fields have one authority above. */
   integration?: Record<string, unknown>;
   /** Retained only to preserve the established operational ordering at migration. */
@@ -341,6 +348,9 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
     if (!record.integration && record.listing.platforms !== undefined)
       throw new Error("Observed package platforms must be derived, not separately transcribed.");
   }
+  if (record.settings_qualification_v1 !== undefined)
+    checkSettingsPolicy(record.settings_qualification_v1);
+  if (record.settings_observation_v1 !== undefined) projectSettingsQualification(record);
   assessUpstreamLineage(record);
   return record;
 }
@@ -368,7 +378,7 @@ export function authoringRecordFromPort(port: CatalogPort, order?: number): Auth
 }
 
 export function projectAuthoredPort(input: AuthoredPort): CatalogPort | undefined {
-  const record = projectPackagePlayerFacts(projectRouteFacts(input));
+  const record = projectSettingsQualification(projectPackagePlayerFacts(projectRouteFacts(input)));
   if (!record.integration) return undefined;
   const integration = structuredClone(record.integration);
   const common: Record<string, unknown> = {};

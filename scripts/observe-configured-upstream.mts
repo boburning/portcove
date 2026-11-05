@@ -611,6 +611,18 @@ export async function projectObservation(
   observation: Observation,
   bounds?: InspectionBounds,
 ): Promise<unknown> {
+  return projectObservedFacts(cli, config, directory, observation, bounds);
+}
+
+/** Reuse the same Core projection when the caller already collected bounded facts;
+ * this entry does not construct cadence or scheduling policy. */
+export async function projectObservedFacts(
+  cli: string,
+  config: Pick<ObserverConfig, "port_id" | "repository_id">,
+  directory: string,
+  observation: Observation,
+  bounds?: InspectionBounds,
+): Promise<unknown> {
   return inspectCoreJson(
     cli,
     directory,

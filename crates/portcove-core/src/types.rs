@@ -728,6 +728,9 @@ pub struct PortDefinition {
     pub managed_initialization: Option<ManagedInitialization>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub runtime_data_policy: Option<RuntimeDataPolicy>,
+    /// Official Shipwright Windows portable packages write player data in their working directory.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub windows_shipwright_persistence: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mod_package_policy: Option<ModPackagePolicy>,
     /// Optional, release-bound editable configuration. Retained installations

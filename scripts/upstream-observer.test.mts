@@ -1,6 +1,8 @@
 import { isRecord } from "./runtime-values.mts";
+import { execFileSync } from "node:child_process";
+import { tmpdir } from "node:os";
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile, copyFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import test from "node:test";
@@ -1790,4 +1792,27 @@ void test("observer metadata preserves actual SDK success and failed-stream evid
       error instanceof Error && "responseBytes" in error && error.responseBytes === 6,
   );
   assert.equal(calls, 1);
+});
+
+void test("pure observer hashes load in a clean dependency-free checkout without initializing the SDK", async (context) => {
+  const root = await mkdtemp(path.join(tmpdir(), "observer-pure-import-"));
+  context.after(() => rm(root, { recursive: true, force: true }));
+  // Independent closed fixture: the network factory and npm packages are absent.
+  for (const file of [
+    "upstream-observer.mts",
+    "github-operation.mts",
+    "json-values.mts",
+    "runtime-values.mts",
+  ])
+    await copyFile(new URL(file, import.meta.url), path.join(root, file));
+  const result = execFileSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "-e",
+      'import { observationHash } from "./upstream-observer.mts"; process.stdout.write(observationHash({proof:true}));',
+    ],
+    { cwd: root, encoding: "utf8", timeout: 20000, maxBuffer: 16384 },
+  );
+  assert.equal(result, "b582d69203da8050e06ea8c50746b42435449c8af7eefe2025b2bb6eeacaa1d1");
 });

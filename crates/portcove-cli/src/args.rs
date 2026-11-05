@@ -1700,6 +1700,9 @@ mod tests {
 
 #[derive(Debug, Subcommand)]
 pub(crate) enum GameSettingsCommand {
+    /// Inspect retained file locations for an isolated qualification probe.
+    #[cfg(feature = "qualification-fixtures")]
+    QualificationScope { port_id: String },
     /// Read available settings without changing game configuration.
     List {
         /// Port ID from catalog list for the active managed installation.

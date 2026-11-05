@@ -5316,6 +5316,10 @@
               }
             ]
           },
+          "windows_shipwright_persistence": {
+            "description": "Official Shipwright Windows portable packages write player data in their working directory.",
+            "type": "boolean"
+          },
           "windows_temp_directory": {
             "description": "Native5: dedicated entry-owned data directory used for Windows TEMP/TMP.\nThe upstream process must preserve the reviewed working directory.",
             "type": [
@@ -28362,6 +28366,10 @@
           }
         ]
       },
+      "windows_shipwright_persistence": {
+        "description": "Official Shipwright Windows portable packages write player data in their working directory.",
+        "type": "boolean"
+      },
       "windows_temp_directory": {
         "description": "Native5: dedicated entry-owned data directory used for Windows TEMP/TMP.\nThe upstream process must preserve the reviewed working directory.",
         "type": [
@@ -37425,6 +37433,10 @@
                 "type": "null"
               }
             ]
+          },
+          "windows_shipwright_persistence": {
+            "description": "Official Shipwright Windows portable packages write player data in their working directory.",
+            "type": "boolean"
           },
           "windows_temp_directory": {
             "description": "Native5: dedicated entry-owned data directory used for Windows TEMP/TMP.\nThe upstream process must preserve the reviewed working directory.",

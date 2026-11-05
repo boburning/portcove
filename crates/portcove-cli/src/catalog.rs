@@ -93,6 +93,11 @@ pub(crate) enum CatalogCommand {
         /// Inert catalog proposal JSON file; inspection does not sign, trust or publish it.
         file: PathBuf,
     },
+    /// Probe inert settings samples through Core's document editor without library writes.
+    InspectSettingsQualification {
+        /// Bounded JSON qualification input; this does not trust or publish a binding.
+        file: PathBuf,
+    },
     /// Validate a lightweight listing projection without opening a library or trusting it.
     InspectListings {
         /// Inert versioned listings JSON file to inspect.
@@ -220,6 +225,7 @@ impl CatalogCommand {
             Self::Show { .. } => "catalog.show",
             Self::CheckCapabilities { .. } => "catalog.check-capabilities",
             Self::InspectProposal { .. } => "catalog.inspect-proposal",
+            Self::InspectSettingsQualification { .. } => "catalog.inspect-settings-qualification",
             Self::InspectListings { .. } => "catalog.inspect-listings",
             Self::InspectDefinitionPublication { .. } => "catalog.inspect-definition-publication",
             Self::InspectObservation { .. } => "catalog.inspect-observation",
@@ -417,6 +423,9 @@ pub(crate) async fn execute(
         }
         CatalogCommand::InspectProposal { .. } => {
             unreachable!("proposal inspection executes before opening a library")
+        }
+        CatalogCommand::InspectSettingsQualification { .. } => {
+            unreachable!("settings qualification executes before opening a library")
         }
         CatalogCommand::InspectListings { .. } => {
             unreachable!("listing inspection executes before opening a library")

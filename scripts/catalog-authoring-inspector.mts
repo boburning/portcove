@@ -31,7 +31,7 @@ export function coreProposalInspector(cli: string, root: string) {
   const invoke = (
     name: string,
     bytes: Buffer,
-    operation: "inspect-proposal" | "inspect-listings",
+    operation: "inspect-proposal" | "inspect-listings" | "inspect-settings-qualification",
   ) => {
     const file = join(root, `${name}.json`);
     writeFileSync(file, bytes, { flag: "wx" });
@@ -122,5 +122,11 @@ export function coreProposalInspector(cli: string, root: string) {
       validator_artifact_sha256: artifactSha256,
     };
   };
-  return { artifact, inspect, inspectListings };
+  const inspectSettings = (name: string, bytes: Buffer) => {
+    const { report, sha256 } = invoke(name, bytes, "inspect-settings-qualification");
+    if (!isRecord(report) || report.input_sha256 !== sha256 || report.format_version !== 1)
+      throw new Error("Core settings response differs from the exact qualification input.");
+    return { ...report, validator_artifact_sha256: artifactSha256 };
+  };
+  return { artifact, inspect, inspectListings, inspectSettings };
 }

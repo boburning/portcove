@@ -43,6 +43,8 @@ import { prepareArtworkWorkset } from "./artwork-preparation-progress.mts";
 import { observationHash } from "./upstream-observer.mts";
 import { listingDeclarationHash } from "./listing-upstream-observation.mts";
 import { isRecord, errorCode } from "./runtime-values.mts";
+import { collectSettingsSource, qualifySettingsObservation } from "./settings-qualification.mts";
+import { prepareSettingsCandidate } from "./prepare-settings-candidate.mts";
 import {
   assessUpstreamLineage,
   checkLineageChange,
@@ -54,6 +56,7 @@ interface PrepareOptions {
   outputDirectory: string;
   record?: unknown;
   packageObservation?: { receipt: unknown; reference: string };
+  settingsNativeScope?: unknown;
   projectUrl?: string | undefined;
   issue?: string | undefined;
   id?: string | undefined;
@@ -584,7 +587,10 @@ export async function preparePort(options: PrepareOptions) {
       projectUrl:
         options.projectUrl ?? explicit?.listing.project_url ?? selected?.listing.project_url,
       issue: options.issue,
-      route: options.route ?? "listing",
+      route:
+        options.settingsNativeScope !== undefined && options.releaseTag !== undefined
+          ? "download"
+          : (options.route ?? "listing"),
       releaseTag: options.releaseTag,
       resolveReleaseUrl: ({ projectUrl, issuePortId }) => {
         const { base } = resolveIdentity(projectUrl, issuePortId);
@@ -655,6 +661,7 @@ export async function preparePort(options: PrepareOptions) {
       record = checkedAuthoredPort(record);
     }
     let packageObservation: unknown;
+    let settingsPackageObservation: unknown;
     if (options.packageObservation) {
       const receipt = options.packageObservation.receipt;
       const rows = isRecord(receipt) && Array.isArray(receipt.rows) ? receipt.rows : undefined;
@@ -665,30 +672,125 @@ export async function preparePort(options: PrepareOptions) {
         : [receipt];
       if (candidates.length !== 1)
         throw new Error("Accepted package receipt needs one exact selected title row.");
-      const observation = acceptPackagePlayerObservation(
-        record,
-        candidates[0],
-        options.packageObservation.reference,
-        previous?.package_observation_v1 ?? record.package_observation_v1,
-      );
-      const key = packagePlayerProjectionKey(record, observation);
-      let projection = cachedValue(root, "package-player", key);
-      const reused = projection !== undefined;
-      if (projection === undefined) {
-        projection = packagePlayerProjection(record, observation);
-        retainValue(root, "package-player", key, projection);
+      settingsPackageObservation = candidates[0];
+      if (!record.settings_qualification_v1 || record.route_facts_v1?.prepared_player) {
+        const observation = acceptPackagePlayerObservation(
+          record,
+          candidates[0],
+          options.packageObservation.reference,
+          previous?.package_observation_v1 ?? record.package_observation_v1,
+        );
+        const key = packagePlayerProjectionKey(record, observation);
+        let projection = cachedValue(root, "package-player", key);
+        const reused = projection !== undefined;
+        if (projection === undefined) {
+          projection = packagePlayerProjection(record, observation);
+          retainValue(root, "package-player", key, projection);
+        }
+        const listing = { ...record.listing };
+        delete listing.platforms;
+        record = checkedAuthoredPort({ ...record, listing, package_observation_v1: observation });
+        packageObservation = {
+          reused,
+          scope_sha256: observation.scope_sha256,
+          cache_key: key,
+          projection,
+          scope:
+            "Accepted exact package/player evidence projected descriptively; no fresh byte inspection, support or publication authority.",
+        };
       }
-      const listing = { ...record.listing };
-      delete listing.platforms;
-      record = checkedAuthoredPort({ ...record, listing, package_observation_v1: observation });
-      packageObservation = {
-        reused,
-        scope_sha256: observation.scope_sha256,
-        cache_key: key,
-        projection,
-        scope:
-          "Accepted exact package/player evidence projected descriptively; no fresh byte inspection, support or publication authority.",
-      };
+    }
+    let settingsQualification: unknown;
+    let settingsSourceEvidence: string | undefined;
+    if (record.settings_qualification_v1 && options.settingsNativeScope !== undefined) {
+      try {
+        if (!options.validatorCli)
+          throw new Error("Settings qualification requires the captured capable Core client.");
+        const result = await prepareSettingsCandidate({
+          record,
+          catalog: authored.catalog,
+          facts,
+          scope: options.settingsNativeScope,
+          cli: options.validatorCli,
+          checkpoint: root,
+          releaseTag: options.releaseTag,
+          sourceOptions: options.facts,
+        });
+        record = checkedAuthoredPort({ ...record, settings_observation_v1: result.observation });
+        settingsQualification = result;
+      } catch (error) {
+        settingsQualification = {
+          status: "settings-unqualified",
+          reason:
+            error instanceof Error ? error.message : "Settings qualification could not complete.",
+          scope:
+            "Only optional settings qualification failed; existing package availability and basic operations are unchanged.",
+        };
+      }
+    } else if (record.settings_qualification_v1 && settingsPackageObservation !== undefined) {
+      try {
+        if (!options.validatorCli || !isRecord(facts.release?.body) || !facts.assets_complete)
+          throw new Error(
+            "Settings qualification needs a captured Core validator and complete selected release facts.",
+          );
+        const receipt = settingsPackageObservation;
+        const officialAsset = isRecord(receipt) ? receipt.official_asset : undefined;
+        if (
+          !isRecord(receipt) ||
+          !isRecord(officialAsset) ||
+          typeof receipt.source_revision !== "string" ||
+          typeof receipt.observed_archive_sha256 !== "string" ||
+          typeof facts.release.body.tag_name !== "string" ||
+          !facts.assets.some(
+            (asset) =>
+              isRecord(asset) &&
+              ["id", "name", "size", "digest", "browser_download_url"].every(
+                (field) => asset[field] === officialAsset[field],
+              ),
+          )
+        )
+          throw new Error(
+            "Settings package observation differs from the selected provider package.",
+          );
+        const sources = await collectSettingsSource(record, receipt.source_revision, {
+          ...options.facts,
+          releaseTag: facts.release.body.tag_name,
+        });
+        settingsSourceEvidence = immutableJson(root, "settings-source", sources);
+        const inspector = coreProposalInspector(
+          options.validatorCli,
+          mkdtempSync(join(root, "settings-core-")),
+        );
+        const observation = await qualifySettingsObservation(
+          record,
+          {
+            version: facts.release.body.tag_name,
+            platform: "windows-x86-64",
+            archive_sha256: receipt.observed_archive_sha256,
+            source_commit: receipt.source_revision,
+          },
+          receipt,
+          sources,
+          (bytes) => inspector.inspectSettings("settings-probe", bytes),
+        );
+        record = checkedAuthoredPort({ ...record, settings_observation_v1: observation });
+        settingsQualification = {
+          status: "qualified-proposal",
+          observation,
+          source_evidence: settingsSourceEvidence,
+          scope:
+            "Generated exact settings binding only; existing protected acceptance/publication and retained installation boundaries remain required.",
+        };
+      } catch (error) {
+        settingsQualification = {
+          status: "settings-unqualified",
+          source_evidence: settingsSourceEvidence,
+          reason:
+            error instanceof Error ? error.message : "Settings qualification could not complete.",
+          scope:
+            "Only optional settings qualification failed; package availability and basic operations retain their existing assessments.",
+        };
+      }
     }
     const records = authored.records.filter((entry) => entry.listing.id !== id).concat(record);
     const inspector = artworkInspector(options, root, validatorIdentity);
@@ -718,6 +820,9 @@ export async function preparePort(options: PrepareOptions) {
       route: record.integration ? "existing-integration" : (options.route ?? "listing"),
       lineage: assessUpstreamLineage(record),
       ...(packageObservation === undefined ? {} : { package_observation: packageObservation }),
+      ...(settingsQualification === undefined
+        ? {}
+        : { settings_qualification: settingsQualification }),
       declarative_authoring: declarativePreparationFeedback(record),
       canonical_preparation: canonicalPreparationFeedback(record, facts),
       portable_preparation: portablePreparationFeedback(record, facts),
@@ -999,6 +1104,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     "--listing-observations",
     "--package-observation",
     "--package-observation-reference",
+    "--settings-native-scope",
   ]);
   for (let index = 2; index < process.argv.length; index += 2) {
     const name = process.argv[index]!;
@@ -1006,6 +1112,12 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     if (!allowed.has(name) || values.has(name) || !value || value.startsWith("--"))
       throw new Error("Unknown, repeated or missing prepare-port option.");
     values.set(name, value);
+  }
+  if (values.has("--settings-native-scope")) {
+    const { reenterResourceCommand } = await import("./resource-command.mts");
+    await reenterResourceCommand("rust", import.meta.url, {
+      executionTimeoutMilliseconds: 1_800_000,
+    });
   }
   const output = values.get("--output-dir");
   if (!output) throw new Error("--output-dir is required (a new or owned preparation checkpoint).");
@@ -1096,6 +1208,15 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
                   ),
                   reference: values.get("--package-observation-reference")!,
                 },
+              }
+            : {}),
+          ...(values.get("--settings-native-scope")
+            ? {
+                settingsNativeScope: parseCatalogSource(
+                  readArtworkInput(values.get("--settings-native-scope")!, 8192).bytes.toString(
+                    "utf8",
+                  ),
+                ),
               }
             : {}),
           route,

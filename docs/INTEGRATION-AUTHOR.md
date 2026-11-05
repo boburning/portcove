@@ -690,6 +690,91 @@ Unrelated lines and comments remain intact; this is not universal INI support.
 An installation must retain the declaration; a current catalog advertisement
 cannot grant new file access to an older retained install.
 
+Compatible settings releases can use the existing package observation and
+preparation route instead of editing `integration.game_settings.releases`.
+The Shipwright authoring record declares a stable `settings_qualification_v1`
+policy: bounded relevant source regions, source-provider/submodule identities
+and configuration samples. Collection resolves the actual release tag and
+submodule commits through the shared GitHub client. Missing, ambiguous or changed
+regions stop settings qualification; unrelated code outside those regions does
+not invalidate that contract. There is no unrestricted version range.
+The storage region explicitly retains the reviewed direct-save and atomic-save
+implementations used by the two real upstream packages; that write-behavior
+change receives its own review and native controls. A new implementation hash is
+not silently accepted as routine version churn.
+
+`prepare-port.mts --settings-native-scope FILE` consumes ordinary observed release
+facts and a once-configured private input profile. The ordinary Core install plan
+discovers the stable Windows candidate; the shared metadata reader collects its
+complete exact release and asset inventory and Core checks the same artifact.
+Normal Core install/update provisions the disposable library. An explicit
+historical acceptance baseline uses the existing portable lifecycle example.
+No candidate receipt, release tag or
+release-specific library needs to be assembled by hand. It invokes Core's
+`catalog inspect-settings-qualification` and the existing qualification-report
+native route automatically. The generated `settings_observation_v1` retains
+the exact archive/source, policy, Core validator, complete probes and native
+evidence identities. Authoring projection adds its exact binding to generated
+definition data without changing the authored settings files or baseline release
+table. Replaying projection revalidates those same inputs and complete checks.
+The result remains an unsigned proposal for existing protected acceptance and
+definition publication. Only a normal accepted installation/update captures
+that declaration; current catalog refresh cannot enroll an old installation.
+
+The initial native adapter supports a Windows integer JSON control using the
+upstream Libultraship Sail loopback protocol. Its stable
+`configuration_scope: "working-directory-mirror"` policy requires the retained
+Core installation to identify a separate synchronized runtime configuration.
+If Core instead treats the package as writing directly to canonical user data,
+preparation reports a settings limitation before seeding or launching. The
+settings policy does not authorize new runtime data paths. Its private scope identifies a
+marked disposable qualification root, frozen first-party installer, lawful original
+and prepared input identities. The library and candidate configuration are derived
+inside that root. All paths and the CLI/archive/executable identities must match.
+The private profile has `format_version: 1`, `isolation_root`, `isolation_token`,
+`baseline_installer`, `baseline_installer_sha256`, `original: { path, sha256 }`
+and `prepared_files: [{ path, sha256, destination }]`. Prepared destinations must
+already belong to the authored persistent contract. The root marker
+`.portcove-settings-qualification.json` has `owner: "portcove-settings-qualification"`
+and the same `token`. These are stable local input/ownership facts, not a new
+per-release package table. Preserve failed checkpoints and unsettled ownership;
+never reuse a player's library for this profile.
+`qualification-report.mts --settings-case FILE` uses normal Core review/apply,
+reads the feature-only `game-settings qualification-scope` from the same retained
+Core editor context, initializes only missing canonical/runtime mirrors, refuses
+multi-link mutable files, checks unrelated values, launches through a durable Core request and verifies
+the socket peer against that exact child's PID, creation identity and executable.
+After loading value X it writes test-only disk value Y and requests a save through
+a fixed unrelated sentinel command; the real package must restore its loaded X
+in the actual runtime file. Positive normal Core launch completion must synchronize
+that file back to canonical storage before reset. The probe does not assume that
+canonical user data changes while the game runs.
+Only fixed sentinel and normal `quit` commands are sent. Positive Core exit,
+default reset and immutable verification are retained. This proves packaged
+configuration consumption, not audible amplitude or gameplay. It uses the
+existing native-session lock and preserves uncertain cleanup ownership.
+
+A private same-client acceptance run may set `transition_proof` to
+`"retain-baseline"` with an explicitly selected historical package. Its last
+engine-saved nondefault value and unrelated JSON marker become a byte-bound
+witness. Pass that witness as `transition_proof` in the same marked library
+and omit the release tag. Preparation checks both old mirrors before update and
+both successor mirrors before any probe writes. The successor first launches
+with the preserved value, then runs the normal editor probes and reset. The
+witness is private qualification evidence and grants no runtime data authority.
+
+Qualification-only candidate definitions and package facts are generated before
+testing, never hand-authored as accepted operational release entries. The
+existing portable lifecycle example's `--baseline-only --source PATH` mode
+admits the verified copy of the owned original through ordinary Core source
+validation and prepares a real historical package with positive verification
+before the normal provider advances
+the same client. Private original/prepared data must already be lawfully provisioned;
+the probe does not acquire it. Unsupported controls, missing native prerequisites
+or insufficient evidence produce a settings-only qualification limitation;
+basic package visibility and operations retain their own assessments. No new
+scheduler, publication authority or additional release gate is introduced.
+
 The inspected examples deliberately distinguish consumer representations:
 Shipwright 9.3.1's `CVars.gSettings.Volume.Master` is an integer percentage from
 0 to 100, default 40. Its pinned Libultraship loader distinguishes integers from

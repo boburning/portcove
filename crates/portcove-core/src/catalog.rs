@@ -2845,6 +2845,12 @@ mod tests {
         // Keep frozen port facts except the reviewed metadata/runtime/persistence
         // declarations below. Every source contract remains exact.
         let mut expected_ports = legacy.document().ports.clone();
+        let shipwright = expected_ports
+            .iter_mut()
+            .find(|port| port.id == "shipwright")
+            .unwrap();
+        assert!(!shipwright.windows_shipwright_persistence);
+        shipwright.windows_shipwright_persistence = true;
         // Historical readers keep the unmodified launch recipe. Only the current
         // definition gains the reviewed upstream update-owner switch.
         let gen1 = expected_ports

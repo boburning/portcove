@@ -52,13 +52,19 @@ Bounded authoring (#254), compatible loading (#397) and configured observation
 (#398) are completed components. Their fixtures and this envelope format do not
 establish #246's production journey or #534's provisioning acceptance.
 
+Shipwright working-directory persistence requires a capable bundled client or
+an indexed definition declaring `libultraship-portable` capability version 3.
+The format-1 signer and verifier refuse that operational field. A newer client
+applies compatible format-1 metadata with the persistence authority compiled into
+the client. Use a format-1-compatible catalog input for the legacy command.
+
 Run `node scripts/sign-catalog.mts --help` for the required arguments, limits and
 an example. Help does not read signing inputs or create output files.
 
 With an existing publisher-controlled Ed25519 PKCS#8 PEM key, run:
 
 ```text
-node scripts/sign-catalog.mts --catalog catalog.json --key publisher-private.pem --sequence 1 --expires-at <unix-seconds> --output catalog-signed.json
+node scripts/sign-catalog.mts --catalog legacy-catalog.json --key publisher-private.pem --sequence 1 --expires-at <unix-seconds> --output catalog-signed.json
 ```
 
 The key and catalog inputs must be regular files, limited to 64 KiB (65536 bytes)

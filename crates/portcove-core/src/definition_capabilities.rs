@@ -31,6 +31,10 @@ impl EngineTemplateCapability {
             contract_version: 2,
         });
         supported.push(Self {
+            template: AdapterKind::LibultrashipPortable,
+            contract_version: 3,
+        });
+        supported.push(Self {
             template: AdapterKind::NativePortable,
             contract_version: 2,
         });

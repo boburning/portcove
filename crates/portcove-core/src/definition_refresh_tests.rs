@@ -357,6 +357,11 @@ async fn ordinary_refresh_uses_one_authenticated_snapshot_and_exact_retry_preser
         .unwrap()
         .authoritative_document()
         .clone();
+    // The legacy signature changes metadata. The reader supplies the
+    // independent working-directory authority compiled into the client.
+    for port in &mut baseline.ports {
+        port.windows_shipwright_persistence = false;
+    }
     baseline.ports[0].summary = "Changed independently signed baseline fixture".into();
     let now = Library::now();
     let payload = serde_json::to_string(&crate::SignedCatalogPayload {

@@ -27,6 +27,7 @@ impl BundledRuntime {
 }
 
 pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
+    crate::installed_mutability::validate_shipwright_persistence(port)?;
     if port.n64_runtime_at_executable_parent
         && (port.adapter != crate::AdapterKind::N64RecompPortable
             || port.runtime_subdirectory.is_some()

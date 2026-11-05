@@ -303,3 +303,22 @@ void test("offline capacity diagnostics match the existing publisher envelope by
   const report = catalogCapacity(catalog, 4 * 1024 * 1024, 100);
   assert.equal(report.representative_envelope_bytes, readFileSync(item.output).length);
 });
+
+void test("legacy signer refuses Shipwright working-directory persistence before key access", (t) => {
+  const item = fixture();
+  t.after(() => rmSync(item.root, { recursive: true, force: true }));
+  rmSync(item.key);
+  writeFileSync(
+    item.catalog,
+    JSON.stringify({
+      ports: [{ id: "shipwright", windows_shipwright_persistence: true }],
+    }),
+  );
+  const result = item.run();
+  assert.notEqual(result.status, 0);
+  assert.match(
+    result.stderr,
+    /Format-1 signed catalogs cannot deliver Shipwright working-directory persistence/u,
+  );
+  assert.equal(existsSync(item.output), false);
+});

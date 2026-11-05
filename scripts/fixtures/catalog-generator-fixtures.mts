@@ -109,6 +109,8 @@ export function isolatedGenerator() {
     "runtime-values.mts",
     "catalog-authoring.mts",
     "catalog-advisories.mts",
+    "settings-qualification.mts",
+    "json-values.mts",
     "catalog-route-facts.mts",
     "package-player-observation.mts",
     "upstream-lineage.mts",

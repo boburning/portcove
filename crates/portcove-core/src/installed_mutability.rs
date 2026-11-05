@@ -3,6 +3,86 @@
 
 use crate::{InstallQualification, InstallRecord, Installer, Platform, PortDefinition, Result};
 
+pub(crate) fn validate_shipwright_persistence(port: &PortDefinition) -> Result<()> {
+    if port.windows_shipwright_persistence
+        && (port.id != "shipwright"
+            || port.adapter != crate::AdapterKind::LibultrashipPortable
+            || !port.platforms.contains(&Platform::WindowsX86_64)
+            || port.release.provider != crate::ReleaseSource::Github
+            || !port
+                .release
+                .repository
+                .eq_ignore_ascii_case("HarbourMasters/Shipwright")
+            || port.channels != [crate::ReleaseChannel::Stable]
+            || port.user_data_environment.is_some()
+            || port.runtime_data_policy.is_some()
+            || port.archive_data_compatibility_v1.is_some()
+            || !port.bundled_runtime.is_empty()
+            || !port.release.user_prepared.is_empty()
+            || !port.release.managed_build.is_empty()
+            || crate::preparation::managed(port)
+            || port.runtime_subdirectory.is_some()
+            || port.launch_from_install_root
+            || !port.launch_arguments.is_empty()
+            || !port.launch_environment.is_empty()
+            || port
+                .executable_hints
+                .get(&Platform::WindowsX86_64)
+                .is_none_or(|names| {
+                    names.is_empty()
+                        || names
+                            .iter()
+                            .any(|name| !matches!(name.as_str(), "soh.exe" | "shipwright.exe"))
+                })
+            || !port
+                .persistent_paths
+                .iter()
+                .any(|path| path == "shipofharkinian.json"))
+    {
+        return Err(crate::PortcoveError::verification(
+            "Shipwright working-directory persistence requires the official Windows portable package route and its canonical settings path",
+        ));
+    }
+    Ok(())
+}
+
+pub(crate) fn declared_shipwright_persistence(port: &PortDefinition, platform: Platform) -> bool {
+    platform == Platform::WindowsX86_64 && port.windows_shipwright_persistence
+}
+
+pub(crate) fn require_shipwright_release(
+    port: &PortDefinition,
+    platform: Platform,
+    version: &str,
+    channel: crate::ReleaseChannel,
+    asset_name: &str,
+) -> Result<()> {
+    if !declared_shipwright_persistence(port, platform) {
+        return Ok(());
+    }
+    let mut parts = version.split('.');
+    let stable_major_nine = parts.next() == Some("9")
+        && (0..2).all(|_| {
+            parts.next().is_some_and(|part| {
+                !part.is_empty() && part.bytes().all(|byte| byte.is_ascii_digit())
+            })
+        })
+        && parts.next().is_none();
+    let asset = asset_name.to_ascii_lowercase();
+    if channel != crate::ReleaseChannel::Stable
+        || !stable_major_nine
+        || asset
+            .strip_prefix("soh-")
+            .and_then(|name| name.strip_suffix("-win64.zip"))
+            .is_none_or(|name| name.is_empty())
+    {
+        return Err(crate::PortcoveError::conflict(
+            "Shipwright package is outside the reviewed stable Windows 9.x portable data contract. Keep existing runtime data until the new package is reviewed.",
+        ).with_known_cause(crate::failure::KnownFailureCause::PortableDataContractChanged));
+    }
+    Ok(())
+}
+
 pub(crate) fn checked_port(
     installer: &Installer,
     install: &InstallRecord,
@@ -10,7 +90,22 @@ pub(crate) fn checked_port(
     current: &PortDefinition,
     platform: Platform,
 ) -> Result<PortDefinition> {
-    let mut current = current.clone();
+    require_shipwright_release(
+        retained,
+        platform,
+        &install.version,
+        install.channel,
+        &install.artifact.asset_name,
+    )?;
+    let declared_shipwright = declared_shipwright_persistence(retained, platform);
+    let shipwright = shipwright_windows_cwd_persistence(retained, install, platform);
+    // Both the exact historical correction and the declared rule derive only
+    // reviewed paths from the creating contract.
+    let mut current = if shipwright {
+        retained.clone()
+    } else {
+        current.clone()
+    };
     if operational_compatibility(retained) != operational_compatibility(&current) {
         let mut without_settings_drift = current.clone();
         without_settings_drift
@@ -26,7 +121,6 @@ pub(crate) fn checked_port(
         // In particular, current-only path additions are not borrowed here.
         current = retained.clone();
     }
-    let shipwright = shipwright_windows_cwd_persistence(retained, install, platform);
     if shipwright {
         for path in ["Save", "SoHTimeSplitData.json"] {
             if !current
@@ -68,6 +162,11 @@ pub(crate) fn checked_port(
         .clone_from(&current.runtime_mutable_paths);
     let candidate_qualification = InstallQualification::from_port(&candidate, platform)?;
     if !installer.permits_additive_mutability(install, &original, &candidate_qualification)? {
+        if declared_shipwright {
+            return Err(crate::PortcoveError::verification(
+                "Shipwright package contents overlap its retained working-directory data paths",
+            ));
+        }
         return Ok(retained.clone());
     }
     if shipwright {
@@ -88,18 +187,19 @@ pub(crate) fn shipwright_windows_cwd_persistence(
     install: &InstallRecord,
     platform: Platform,
 ) -> bool {
-    // Official 9.3.1 portable Win64 uses CWD/Save, not SHIP_HOME. Neither a
-    // future version nor another Libultraship payload inherits this evidence.
+    // The exact 9.3.1 correction remains the reader for historical declarations.
+    // Fresh official packages retain the separately reviewed creating contract.
     platform == Platform::WindowsX86_64
         && port.id == "shipwright"
         && install.port_id == port.id
         && port.adapter == crate::AdapterKind::LibultrashipPortable
         && port.user_data_environment.is_none()
-        && install.version == "9.3.1"
-        && install.artifact.asset_name == "SoH-Dewey-Bravo-Win64.zip"
-        && install.artifact.size == 72_980_600
-        && install.artifact.sha256
-            == "429292a0bfbdfcda283b33c1538ecdc49163b9ed53e8702cac80b2489d9fe26c"
+        && (port.windows_shipwright_persistence
+            || (install.version == "9.3.1"
+                && install.artifact.asset_name == "SoH-Dewey-Bravo-Win64.zip"
+                && install.artifact.size == 72_980_600
+                && install.artifact.sha256
+                    == "429292a0bfbdfcda283b33c1538ecdc49163b9ed53e8702cac80b2489d9fe26c"))
 }
 
 /// Compare the retained execution/authority contract, excluding only display
@@ -138,6 +238,7 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
         n64_runtime_at_executable_parent,
         managed_initialization,
         runtime_data_policy,
+        windows_shipwright_persistence,
         mod_package_policy,
         game_settings,
         managed_shared_preferences,
@@ -180,6 +281,7 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
         "n64_runtime_at_executable_parent": n64_runtime_at_executable_parent,
         "managed_initialization": managed_initialization,
         "runtime_data_policy": runtime_data_policy,
+        "windows_shipwright_persistence": windows_shipwright_persistence,
         "mod_package_policy": mod_package_policy,
         "game_settings": game_settings,
         "managed_shared_preferences": managed_shared_preferences,

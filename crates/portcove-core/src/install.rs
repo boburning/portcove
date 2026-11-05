@@ -921,7 +921,20 @@ impl Installer {
             )?;
         }
         let port = catalog.port(&request.port_id)?;
-        if request.activate && crate::persistence::requires_restore_receipt(port) {
+        crate::installed_mutability::require_shipwright_release(
+            port,
+            request.qualification.platform,
+            &request.release.version,
+            request.release.channel,
+            &request.release.asset.name,
+        )?;
+        if request.activate
+            && (crate::persistence::requires_restore_receipt(port)
+                || crate::installed_mutability::declared_shipwright_persistence(
+                    port,
+                    request.qualification.platform,
+                ))
+        {
             return Err(PortcoveError::unsupported(
                 "Managed installation requires player-data preflight before activation. Install inactive, then activate through Core; the previous installation is preserved.",
             ));
@@ -2983,6 +2996,14 @@ pub(crate) fn portability_catalog_for_install(
         {
             return Err(PortcoveError::verification(
                 "partitioned data portability requires the installation's actual retained contract",
+            ));
+        }
+        if crate::installed_mutability::declared_shipwright_persistence(
+            embedded.port(&install.port_id)?,
+            Platform::current()?,
+        ) {
+            return Err(PortcoveError::verification(
+                "Shipwright Windows portability requires the installation's actual retained contract",
             ));
         }
         crate::managed_shared_preferences::refuse_scope_transfer(embedded.port(&install.port_id)?)?;

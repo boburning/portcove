@@ -79,6 +79,8 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             | BackupCommand::GhostshipLegacyRecover { .. } => Recovering,
         },
         Commands::GameSettings { command } => match command {
+            #[cfg(feature = "qualification-fixtures")]
+            GameSettingsCommand::QualificationScope { .. } => ReadOnly,
             GameSettingsCommand::List { .. } | GameSettingsCommand::Review(_) => ReadOnly,
             GameSettingsCommand::Apply { .. } => Recovering,
         },
@@ -91,7 +93,8 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             | CatalogCommand::Show { .. }
             | CatalogCommand::Status
             | CatalogCommand::ListingStatus
-            | CatalogCommand::InspectProposal { .. } => ReadOnly,
+            | CatalogCommand::InspectProposal { .. }
+            | CatalogCommand::InspectSettingsQualification { .. } => ReadOnly,
             CatalogCommand::InspectDefinitionPublication { .. } => ReadOnly,
             CatalogCommand::DefinitionAuthority { apply, .. }
             | CatalogCommand::Update { apply, .. } => apply_mode(*apply),

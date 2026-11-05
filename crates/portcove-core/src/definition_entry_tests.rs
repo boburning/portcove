@@ -63,6 +63,25 @@ fn libultraship_windows_paths_require_the_owning_v2_template() {
 }
 
 #[test]
+fn shipwright_working_directory_persistence_requires_the_v3_reader() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let mut port = catalog.port("shipwright").unwrap().clone();
+    port.source_profile = None;
+    port.presentation = None;
+    let mut entry = entry_for_port(&port);
+    entry["required_capabilities"] =
+        json!([{"template":"libultraship-portable","minimum_version":2,"maximum_version":3}]);
+    assert!(
+        inspect(&entry)
+            .unwrap_err()
+            .message
+            .contains("capability version 3")
+    );
+    entry["required_capabilities"][0]["minimum_version"] = json!(3);
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+}
+
+#[test]
 fn native_ascii_paths_require_version7_instead_of_silently_using_an_older_reader() {
     let catalog = crate::Catalog::embedded().unwrap();
     let mut port = catalog.port("opentyrian-opentyrian").unwrap().clone();
@@ -387,7 +406,14 @@ fn runtime_credential_policy_requires_the_exact_new_reader_floor() {
 }
 
 fn catalog_fixture() -> Value {
-    entry_for_port(&crate::Catalog::embedded().unwrap().ports()[0])
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = &catalog.ports()[0];
+    let mut entry = entry_for_port(port);
+    if port.windows_shipwright_persistence {
+        entry["required_capabilities"][0]["minimum_version"] = json!(3);
+        entry["required_capabilities"][0]["maximum_version"] = json!(3);
+    }
+    entry
 }
 
 fn entry_for_port(port: &crate::PortDefinition) -> Value {
@@ -584,6 +610,8 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
         // Keep entry_for_port at v1 for the explicit older-reader refusal tests.
         let version = if crate::preparation::source::native(port) {
             6
+        } else if port.windows_shipwright_persistence {
+            3
         } else if port.windows_temp_directory.is_some() {
             5
         } else if port.adapter == crate::AdapterKind::NativePortable
@@ -785,8 +813,8 @@ fn entry_schema_and_exact_index_identity_are_independent_checks() {
 fn unsupported_capabilities_remain_reportable_and_the_adapter_is_required() {
     let baseline = fixture();
     let mut value = baseline.clone();
-    value["required_capabilities"][0]["minimum_version"] = json!(3);
-    value["required_capabilities"][0]["maximum_version"] = json!(3);
+    value["required_capabilities"][0]["minimum_version"] = json!(4);
+    value["required_capabilities"][0]["maximum_version"] = json!(4);
     assert!(!inspect(&value).unwrap().capabilities().compatible);
     value["required_capabilities"]
         .as_array_mut()
