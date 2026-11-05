@@ -46,6 +46,27 @@ function strings(value: unknown, maximum: number): value is string[] {
     new Set(value).size === value.length
   );
 }
+// Match Core's selected-runtime argv contract, not descriptive-label rules.
+// JSON presentation preserves empty items, whitespace, repeats and boundaries.
+function literalArguments(value: unknown): value is string[] {
+  if (!Array.isArray(value) || value.length > 64) return false;
+  let bytes = 0;
+  for (const argument of value) {
+    if (typeof argument !== "string" || !argument.isWellFormed() || argument.includes("\0"))
+      return false;
+    bytes += Buffer.byteLength(argument);
+    if (bytes > 32 * 1024) return false;
+  }
+  return true;
+}
+function selectionInstruction(executable: string, arguments_: readonly string[]) {
+  // JSON already escapes C0; escape DEL/C1 too for Core-readable guide text.
+  const literal = JSON.stringify(arguments_).replace(
+    /[\u007f-\u009f]/gu,
+    (character) => `\\u${character.charCodeAt(0).toString(16).padStart(4, "0")}`,
+  );
+  return `Select ${executable} and use its containing folder as the working directory. ${arguments_.length ? `Enter these literal argument values in order, one array item per argument: ${literal}.` : "Leave arguments empty."} Keep the complete independently permitted runtime and finish the title-specific preparation before Play.`;
+}
 function playerExecutable(
   player: Record<string, unknown>,
   integration?: Record<string, unknown>,
@@ -77,12 +98,16 @@ export function checkRouteFacts(
     !executable.toLowerCase().endsWith(".exe") ||
     executable === ".exe" ||
     player.working_directory !== "executable-parent" ||
-    !strings(player.arguments, 32) ||
+    !literalArguments(player.arguments) ||
     !strings(player.data_locations, 32) ||
     player.data_locations.length === 0
   )
     throw new Error(
       "Prepared-player facts need a bounded Windows basename, executable-parent folder, literal arguments and data locations.",
+    );
+  if (Buffer.byteLength(selectionInstruction(executable, player.arguments)) > 4096)
+    throw new Error(
+      "Prepared-player arguments exceed the concrete guide's 4096-byte instruction bound.",
     );
   if (value.managed_native !== undefined) {
     const managed = value.managed_native;
@@ -129,7 +154,7 @@ export function projectRouteFacts(record: AuthoredPort): AuthoredPort {
   const player = resolvedPlayer(facts, record.integration);
   const selector: Step = {
     title: "Select the prepared player",
-    instruction: `Select ${player.executable} and use its containing folder as the working directory. ${player.arguments.length ? `Enter these literal argument values in order, one array item per argument: ${JSON.stringify(player.arguments)}.` : "Leave arguments empty."} Keep the complete independently permitted runtime and finish the title-specific preparation before Play.`,
+    instruction: selectionInstruction(player.executable, player.arguments),
   };
   const steps: unknown[] = guide.steps;
   const warnings: unknown[] = guide.warnings;
