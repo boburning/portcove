@@ -125,7 +125,7 @@ Schema 88 adds provider-qualified GitLab identities to self-service download sel
 
 API 88 also permits additive descriptive feature reports. This client ignores
 `PortListingStatus.capabilities`, `listing_formats` and `port_capability_schema`;
-it does not consume format-7 listings or invoke `port-capabilities`. Its existing
+it does not consume format-7/8 listings or invoke `port-capabilities`. Its existing
 status and operation decisions remain authoritative. These optional reports do
 not widen its negotiated API or event window.
 

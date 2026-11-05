@@ -2423,7 +2423,7 @@ export interface ListingUpstreamObservation {
 export interface ListingObservedRelease {
   assets: ListingObservedAsset[];
   assets_complete: boolean;
-  id: number;
+  id: CatalogDownloadReleaseId;
   provider_prerelease: boolean;
   published_at: string;
   release_url: string;

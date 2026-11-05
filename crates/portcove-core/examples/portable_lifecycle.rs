@@ -5,7 +5,7 @@ use std::{io::Read, path::PathBuf, sync::Arc};
 
 use portcove_core::{
     GithubReleaseProvider, Library, Platform, PortDefinition, PortcoveError, PortcoveService,
-    ReleaseChannel, ReleaseProvider, ResolvedRelease, Result,
+    ReleaseChannel, ReleaseProvider, ResolvedRelease, Result, VerificationReport,
 };
 
 struct Baseline(ResolvedRelease);
@@ -22,6 +22,24 @@ impl ReleaseProvider for Baseline {
         release.channel = channel;
         Ok(release)
     }
+}
+
+fn require_verification(
+    phase: &str,
+    expected_install: &str,
+    report: VerificationReport,
+) -> Result<VerificationReport> {
+    if !report.valid
+        || report.checked_files == 0
+        || !report.failures.is_empty()
+        || report.install_id != expected_install
+    {
+        return Err(PortcoveError::verification(format!(
+            "{phase} verification did not establish the expected installation: {}",
+            serde_json::to_string(&report)?,
+        )));
+    }
+    Ok(report)
 }
 
 fn main() -> Result<()> {
@@ -81,19 +99,63 @@ async fn run() -> Result<()> {
     }
     eprintln!("Applying the release selected by the normal GitHub provider");
     let second = current.update(port_id, None, None, true, |_| {}).await?;
-    current.verify(port_id)?;
+    let update_verification = require_verification("update", &second.id, current.verify(port_id)?)?;
     let before_rollback = current.status(port_id)?;
     let rolled_back = current.rollback(port_id)?;
-    current.verify(port_id)?;
+    let rollback_verification =
+        require_verification("rollback", &rolled_back.id, current.verify(port_id)?)?;
     println!(
         "{}",
         serde_json::to_string_pretty(&serde_json::json!({
             "evidence": "real upstream bytes through production Core install, GitHub update selection, activation, verification and rollback; baseline metadata explicitly supplied",
             "baseline": first, "update_check": check, "replacement": second,
             "status_after_update": before_rollback, "rolled_back": rolled_back,
+            "update_verification": update_verification, "rollback_verification": rollback_verification,
             "gameplay": "not run", "native_setup_launch": "not run",
             "data_preservation": "declared-data behavior is separately exercised by deterministic lifecycle fixtures; external application data is not migrated by this example"
         }))?
     );
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn report() -> VerificationReport {
+        VerificationReport {
+            install_id: "expected-install".into(),
+            checked_files: 3,
+            valid: true,
+            failures: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn successful_result_with_invalid_or_unbound_verification_cannot_qualify() {
+        let mut invalid = report();
+        invalid.valid = false;
+        invalid.failures.push("sha256: player".into());
+        let mut empty = report();
+        empty.checked_files = 0;
+        let mut contradictory = report();
+        contradictory.failures.push("missing: scenario".into());
+        let mut foreign = report();
+        foreign.install_id = "another-install".into();
+        for rejected in [invalid, empty, contradictory, foreign] {
+            let error = require_verification("update", "expected-install", rejected).unwrap_err();
+            assert!(error.message.contains("update verification"));
+        }
+    }
+
+    #[test]
+    fn positive_verification_retains_exact_identity_and_checked_members() {
+        let accepted = require_verification("rollback", "expected-install", report()).unwrap();
+        assert_eq!(
+            serde_json::to_value(accepted).unwrap(),
+            serde_json::json!({
+                "install_id": "expected-install", "checked_files": 3, "valid": true, "failures": []
+            })
+        );
+    }
 }

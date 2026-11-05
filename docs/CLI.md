@@ -397,7 +397,15 @@ use their own owners. Newly retained user-selected listings carrying this field
 use envelope version 3; older envelopes remain readable and older readers must
 refuse the new envelope rather than reinterpret its authority.
 
-The catalog listing document has its own format version. Readers accept format 1
+The catalog listing document has its own format version. Readers accept formats
+1–8 with independent field gates: format 7 adds advice and format 8 adds GitLab
+descriptive observations using provider-qualified project/tag identities.
+`catalog listings --format-version 8` preserves both. Exports to 5/6 omit only
+inert advice; any GitLab-bearing export below 8 refuses. A reader that understands
+only format 6 cannot consume 7 or 8; failed refresh retains its previous accepted
+directory. CLI, Tauri and independent refresh share the same Core validation.
+Command capabilities and document-format negotiation remain separate.
+Readers accept format 1
 descriptive directories and format 2 directories with optional
 `download_block_reason`. A restriction requires format 2; unknown formats and
 invalid reasons are refused. Core uses the restriction for fresh self-service

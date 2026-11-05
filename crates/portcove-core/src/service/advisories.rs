@@ -152,11 +152,19 @@ impl PortCapabilityReport {
         } else {
             ""
         };
+        // A user-selected copy has an ownership label, not an identified release/archive.
         let release = status
             .active
             .as_ref()
             .map(|r| r.version.as_str())
-            .or_else(|| status.external_runtime.as_ref().map(|r| r.version.as_str()));
+            .or_else(|| {
+                status
+                    .external_runtime
+                    .as_ref()
+                    .filter(|r| r.user_selected.is_none())
+                    .map(|r| r.version.as_str())
+            })
+            .filter(|version| !version.is_empty());
         let artifact = status
             .active
             .as_ref()
@@ -165,44 +173,44 @@ impl PortCapabilityReport {
                 status
                     .external_runtime
                     .as_ref()
+                    .filter(|r| r.user_selected.is_none())
                     .map(|r| r.archive_sha256.as_str())
-            });
-        self.advisories = envelope
-            .records
-            .into_iter()
-            .map(|notice| {
-                let same_route = notice.route == route
-                    || (route == "user-selected" && notice.route == "existing-copy");
-                let applicability = if platform.is_some_and(|p| p != notice.platform)
-                    || (!route.is_empty() && !same_route)
-                    || notice
-                        .release
-                        .as_ref()
-                        .zip(release)
-                        .is_some_and(|(expected, current)| expected != current)
-                    || notice
-                        .artifact_sha256
-                        .as_ref()
-                        .zip(artifact)
-                        .is_some_and(|(expected, current)| expected != current)
-                {
-                    AdvisoryApplicability::Historical
-                } else if platform.is_none()
-                    || route.is_empty()
-                    || notice.edition.is_some()
-                    || (notice.release.is_some() && release.is_none())
-                    || (notice.artifact_sha256.is_some() && artifact.is_none_or(str::is_empty))
-                {
-                    AdvisoryApplicability::ContextRequired
-                } else {
-                    AdvisoryApplicability::CurrentRoute
-                };
-                PortCapabilityNotice {
-                    notice,
-                    applicability,
-                }
             })
-            .collect();
+            .filter(|hash| hash.len() == 64 && hash.bytes().all(|byte| byte.is_ascii_hexdigit()));
+        self.advisories =
+            envelope
+                .records
+                .into_iter()
+                .map(|notice| {
+                    let same_route = notice.route == route
+                        || (route == "user-selected" && notice.route == "existing-copy");
+                    let applicability = if platform.is_some_and(|p| p != notice.platform)
+                        || (!route.is_empty() && !same_route)
+                        || notice
+                            .release
+                            .as_ref()
+                            .zip(release)
+                            .is_some_and(|(expected, current)| expected != current)
+                        || notice.artifact_sha256.as_ref().zip(artifact).is_some_and(
+                            |(expected, current)| !expected.eq_ignore_ascii_case(current),
+                        ) {
+                        AdvisoryApplicability::Historical
+                    } else if platform.is_none()
+                        || route.is_empty()
+                        || notice.edition.is_some()
+                        || (notice.release.is_some() && release.is_none())
+                        || (notice.artifact_sha256.is_some() && artifact.is_none_or(str::is_empty))
+                    {
+                        AdvisoryApplicability::ContextRequired
+                    } else {
+                        AdvisoryApplicability::CurrentRoute
+                    };
+                    PortCapabilityNotice {
+                        notice,
+                        applicability,
+                    }
+                })
+                .collect();
     }
 }
 

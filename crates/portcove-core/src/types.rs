@@ -882,7 +882,7 @@ pub struct ListingUpstreamObservation {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ListingObservedRelease {
-    pub id: u64,
+    pub id: crate::CatalogDownloadReleaseId,
     pub version: String,
     pub release_url: String,
     pub published_at: String,
@@ -2088,7 +2088,7 @@ impl CapabilityDocument {
     pub fn current() -> Self {
         Self {
             schema_version: crate::API_SCHEMA_VERSION,
-            listing_formats: vec![5, 6, 7],
+            listing_formats: vec![5, 6, 7, 8],
             port_capability_schema: Some(1),
             artwork_handoff_schema: Some(crate::ARTWORK_HANDOFF_SCHEMA),
             operation_event_schema_version: crate::OPERATION_EVENT_SCHEMA_VERSION,

@@ -441,6 +441,49 @@ mod tests {
     }
 
     #[test]
+    fn advisory_scope_keeps_unknown_copy_identity_separate_from_known_mismatch() {
+        let mut status = status();
+        let mut listing: crate::PortListing = serde_json::from_value(json!({"id":"fixture", "name":"Fixture", "summary":"Fixture", "project_url":"https://example.com/fixture"})).unwrap();
+        for (selected, version, hash, expected) in [
+            (true, "user-managed", String::new(), "context-required"),
+            (false, "v1", String::new(), "context-required"),
+            (false, "v1", "a".repeat(64), "current-route"),
+            (false, "v1", "b".repeat(64), "historical"),
+            (false, "v2", "a".repeat(64), "historical"),
+        ] {
+            status.external_runtime = Some(crate::ExternalRuntimeRecord {
+                user_selected: selected.then(|| crate::UserSelectedLaunch { arguments: vec![] }),
+                id: "copy".into(),
+                port_id: "fixture".into(),
+                path: "copy".into(),
+                executable: "game.exe".into(),
+                version: version.into(),
+                platform: crate::Platform::current().unwrap(),
+                archive_sha256: hash,
+                immutable_tree_sha256: String::new(),
+                registered_at: 0,
+                retained_definition: None,
+                shared_preferences: None,
+            });
+            listing.compatibility = Some(json!({"format_version":1,"records":[{
+                "id":"exact-build", "feature":"launch", "platform":crate::Platform::current().unwrap(),
+                "route":if selected {"existing-copy"} else {"accepted-external"}, "release":"v1",
+                "artifact_sha256":"A".repeat(64), "explanation":"A scoped observation.",
+                "provenance":"https://example.com/evidence", "observed_at":1,"evidence":"observed"
+            }]}));
+            let before = serde_json::to_value(&status).unwrap();
+            let mut report = PortCapabilityReport::from_status(&status, &[]);
+            report.add_advisories(&listing, &status);
+            assert_eq!(
+                serde_json::to_value(&report.advisories[0].applicability).unwrap(),
+                json!(expected)
+            );
+            assert_eq!(report.routes[3].features[0].mode, CapabilityMode::Automatic);
+            assert_eq!(serde_json::to_value(&status).unwrap(), before);
+        }
+    }
+
+    #[test]
     fn legacy_export_keeps_real_acquisition_restrictions() {
         let listing: crate::PortListing = serde_json::from_value(json!({"id":"fixture", "name":"Fixture", "summary":"Fixture", "project_url":"https://example.com/fixture", "download_block_reason":"No accepted original-input route.", "compatibility":{"format_version":2}})).unwrap();
         let document = crate::CatalogListingDocument {

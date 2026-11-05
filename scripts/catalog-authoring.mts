@@ -427,28 +427,34 @@ export function assembleCatalogRecords(shared: unknown, inputs: readonly unknown
       Array.isArray(listing.manual_setup.references) &&
       listing.manual_setup.references.length > 0,
   );
-  const format_version = listings.some((listing) => listing.compatibility !== undefined)
-    ? 7
-    : guideReferences
-      ? 6
-      : extendedMedia
-        ? 5
-        : listings.some(
-              (listing) =>
-                listing.upstream_observation !== undefined ||
-                listing.availability_override_reason !== undefined ||
-                "release_maintenance" in listing,
-            )
-          ? 4
+  const gitlabObservations = listings.some(
+    (listing) =>
+      isRecord(listing.upstream_observation) && listing.upstream_observation.provider === "gitlab",
+  );
+  const format_version = gitlabObservations
+    ? 8
+    : listings.some((listing) => listing.compatibility !== undefined)
+      ? 7
+      : guideReferences
+        ? 6
+        : extendedMedia
+          ? 5
           : listings.some(
                 (listing) =>
-                  listing.original_game !== undefined ||
-                  (Array.isArray(listing.media) && listing.media.length > 0),
+                  listing.upstream_observation !== undefined ||
+                  listing.availability_override_reason !== undefined ||
+                  "release_maintenance" in listing,
               )
-            ? 3
-            : listings.some((listing) => listing.download_block_reason !== undefined)
-              ? 2
-              : 1;
+            ? 4
+            : listings.some(
+                  (listing) =>
+                    listing.original_game !== undefined ||
+                    (Array.isArray(listing.media) && listing.media.length > 0),
+                )
+              ? 3
+              : listings.some((listing) => listing.download_block_reason !== undefined)
+                ? 2
+                : 1;
   return { records, catalog, directory: { format_version, listings } };
 }
 

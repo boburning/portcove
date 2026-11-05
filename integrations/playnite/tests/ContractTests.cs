@@ -338,7 +338,7 @@ internal static class ContractTests
         var descriptive88 = Json.Object(Json.Parse(Json.Print(Capabilities())));
         descriptive88["schema_version"] = 88;
         descriptive88["port_capability_schema"] = 1;
-        descriptive88["listing_formats"] = new[] { 5, 6, 7 };
+        descriptive88["listing_formats"] = new[] { 5, 6, 7, 8 };
         Check(ProtocolStream.Negotiate(descriptive88, ConsumerCapability.Library) == 3,
             "API88 additive feature reports do not change independently negotiated event3 or client operation eligibility");
         var independent83 = Json.Object(Json.Parse(Json.Print(Capabilities())));

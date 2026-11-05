@@ -607,3 +607,51 @@ void test("reference guides select strict new formats and retain actions and war
       assert.throws(() => checkCatalogAdvisories(value, platforms, 2));
   });
 }
+
+void test("GitLab descriptive observations derive listing format8 without changing operational output", () => {
+  const accepted = readCatalogSource(catalogRoot);
+  const records = structuredClone(accepted.records);
+  const record = records.find(
+    (entry) => entry.listing.project_url === "https://gitlab.com/sonicdcer/MarioKart64Recomp",
+  );
+  assert.ok(record);
+  record.listing.upstream_observation = {
+    provider: "gitlab",
+    repository: "sonicdcer/MarioKart64Recomp",
+    repository_id: null,
+    status: "failed",
+    attempted_at: "2026-11-04T00:00:00Z",
+    observed_at: null,
+    fresh_until: null,
+    facts_sha256: null,
+    release_limit: 4,
+    releases: [],
+  };
+  const { ports: _ports, ...shared } = accepted.catalog;
+  const assembled = assembleCatalogRecords(shared, records);
+  assert.equal(assembled.directory.format_version, 8);
+  assert.deepEqual(assembled.catalog, accepted.catalog);
+  const compatibility = {
+    format_version: 1,
+    records: [
+      {
+        id: "manual-updates",
+        feature: "updates",
+        platform: "windows-x86-64",
+        route: "existing-copy",
+        explanation: "Follow upstream update instructions.",
+        provenance: "https://gitlab.com/sonicdcer/MarioKart64Recomp",
+        observed_at: 1,
+        evidence: "manual-requirement",
+      },
+    ],
+  };
+  record.listing.compatibility = compatibility;
+  const combined = assembleCatalogRecords(shared, records);
+  assert.equal(combined.directory.format_version, 8);
+  assert.deepEqual(
+    combined.directory.listings.find((listing) => listing.id === record.listing.id)?.compatibility,
+    compatibility,
+  );
+  assert.deepEqual(combined.catalog, accepted.catalog);
+});

@@ -19,7 +19,8 @@ Each of at most 64 records has a stable `id`, `feature`, `platform`, `route`,
 (`observed`, `upstream-reported` or `manual-requirement`). Optional `release`,
 `artifact_sha256`, `edition` and descriptive `workaround` narrow applicability.
 An artifact digest requires its actual release. The envelope is bounded to
-64 KiB and emits listing format 7. Authoring rejects malformed, future, unknown
+64 KiB and requires listing format 7 or later. A directory also carrying GitLab
+observations uses format 8. Authoring rejects malformed, future, unknown
 and command-bearing content. Runtime interpretation makes invalid or future
 optional content unavailable without changing operation eligibility.
 
@@ -31,9 +32,13 @@ shows those records as historical until the recommendation owner has a matching
 environment and identity; it does not produce another recommendation score.
 
 Legacy format-5/6 exports omit only inert compatibility advice and retain
-acquisition restrictions. A retained user-selected listing carrying advice uses
+acquisition restrictions. GitLab-bearing directories refuse exports below format
+8; format 7 retains advice without accepting GitLab observation identities.
+A retained user-selected listing carrying advice uses
 envelope version 3 so earlier strict readers refuse unfamiliar content. Existing
-managed definitions and retained managed instructions keep their original owners.
+GitLab listings in envelopes 1/2 remain readable; a combined GitLab/advice envelope
+uses version 3 and projects to directory format 8. Managed definitions and retained
+managed instructions keep their original owners.
 
 ## Integration ownership
 
@@ -2617,6 +2622,13 @@ format while preserving older serialized documents. Signed listing delivery
 retains the same publisher, revision, integrity, atomic selection and recovery
 boundary. Unsupported or invalid replacement data does not replace last-good
 cached listings or grant managed operations.
+
+Listing format8 adds supported GitLab descriptive observations with existing provider-qualified
+project/tag release identities and numeric generic registry file identities. GitHub IDs
+and serialized observations remain unchanged. Exporting a GitLab-bearing directory
+to an older format refuses; unknown formats retain existing last-good delivery
+behavior. Authored format derivation selects8 only when these fields occur. This
+adds no managed GitLab authority and leaves unsupported package layouts incomplete.
 
 Authored availability remains attributable. An explicit availability override
 requires its reason and takes display precedence. Otherwise accepted observations

@@ -3286,6 +3286,42 @@ mod tests {
     }
 
     #[test]
+    fn retained_gitlab_listings_preserve_legacy_envelopes_and_combined_advice() {
+        let listing: crate::PortListing = serde_json::from_value(serde_json::json!({
+            "id":"retained-gitlab", "name":"Retained GitLab fixture", "summary":"Descriptive evidence only.",
+            "project_url":"https://gitlab.com/example/game", "platforms":[],
+            "upstream_observation":crate::test_fixture::gitlab_listing_observation()
+        })).unwrap();
+        for version in [1, 2, 3] {
+            let mut listing = listing.clone();
+            if version == 2 {
+                listing.manual_setup = Some(serde_json::from_value(serde_json::json!({
+                    "steps":[{"title":"Prepare", "instruction":"Follow upstream instructions."}], "warnings":[],
+                    "references":[{"title":"Historical context", "instruction":"Keep release-specific evidence scoped."}]
+                })).unwrap());
+            }
+            if version == 3 {
+                listing.compatibility =
+                    Some(serde_json::json!({"format_version":99,"future":true}));
+            }
+            let catalog = Catalog::for_user_selected_listing(listing.clone()).unwrap();
+            let encoded = encode_external_catalog(&catalog, &listing.id).unwrap();
+            let mut value: serde_json::Value = serde_json::from_str(&encoded).unwrap();
+            assert_eq!(value["format_version"], version);
+            let restored = decode_external_catalog(&encoded, &listing.id).unwrap();
+            assert_eq!(restored.listing_document().format_version, 8);
+            assert_eq!(restored.listing(&listing.id).unwrap(), &listing);
+            assert!(restored.port(&listing.id).is_err());
+            if version == 3 {
+                for older in [1, 2] {
+                    value["format_version"] = older.into();
+                    assert!(decode_external_catalog(&value.to_string(), &listing.id).is_err());
+                }
+            }
+        }
+    }
+
+    #[test]
     fn prepared_source_directory_retained_envelope_refuses_prior_readers() {
         let input = include_str!("../tests/fixtures/prepared-source-directory.json");
         let catalog = Catalog::from_json(input).unwrap();

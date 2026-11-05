@@ -7568,6 +7568,45 @@
   },
   "catalog_listings": {
     "$defs": {
+      "CatalogDownloadReleaseId": {
+        "anyOf": [
+          {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          {
+            "$ref": "#/$defs/CatalogForeignReleaseId"
+          }
+        ]
+      },
+      "CatalogForeignReleaseId": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "project_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "provider": {
+                "const": "gitlab",
+                "type": "string"
+              },
+              "tag": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "project_id",
+              "tag"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "CatalogMediaAsset": {
         "additionalProperties": false,
         "properties": {
@@ -7876,9 +7915,7 @@
             "type": "boolean"
           },
           "id": {
-            "format": "uint64",
-            "minimum": 0,
-            "type": "integer"
+            "$ref": "#/$defs/CatalogDownloadReleaseId"
           },
           "provider_prerelease": {
             "type": "boolean"
@@ -26000,9 +26037,7 @@
             "type": "boolean"
           },
           "id": {
-            "format": "uint64",
-            "minimum": 0,
-            "type": "integer"
+            "$ref": "#/$defs/CatalogDownloadReleaseId"
           },
           "provider_prerelease": {
             "type": "boolean"
