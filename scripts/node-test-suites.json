@@ -2651,6 +2651,21 @@
             "PORTCOVE_TUF_RENEWAL_ADAPTER_TOOL",
             "PORTCOVE_TUF_RENEWAL_ADAPTER_FIXTURE"
           ]
+        },
+        {
+          "platform": ["linux", "win32", "darwin"],
+          "owner": "frontend-full-6",
+          "category": "explicit-acceptance",
+          "prerequisite": "Appointed rebuilt Rust verifier and public historical fixture",
+          "reason": "Historical expiry verification requires the original public bytes and the explicit rebuilt tool.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite frontend-full-6; Mac complement macos-platform-contracts",
+          "cases": [
+            "actual Rust adapter authenticates expired online prior only under explicit historical policy"
+          ],
+          "required_environment": [
+            "PORTCOVE_TUF_RENEWAL_ADAPTER_TOOL",
+            "PORTCOVE_TUF_HISTORICAL_ADAPTER_FIXTURE"
+          ]
         }
       ]
     },

@@ -248,6 +248,42 @@ void test("only the exact disabled browser diagnostic receives an explicit skip 
   assert.match(permissions.get(probe)?.reason ?? "", /diagnostic/);
 });
 
+void test("the declared Windows case may skip elsewhere only within a running suite", () => {
+  const root = path.resolve("desktop");
+  const file = path.join(root, "scripts/desktop-install-fixture.test.mts");
+  const name = "lifecycle timeout terminates a ready descendant process tree within a second bound";
+  const skipped = { fullName: name, result: () => ({ state: "skipped" as const }) };
+  const passed = {
+    fullName: "ordinary fixture case",
+    result: () => ({ state: "passed" as const }),
+  };
+  const observed = (cases: (typeof skipped | typeof passed)[]) =>
+    report([{ ...suite(file), children: { allTests: () => cases } }]);
+  const permissions = allowedUiSkippedFiles([file], root);
+  if (process.platform === "win32") {
+    assert.equal(permissions.size, 0);
+    assert.throws(
+      () => reconcileUiSelection(observed([passed, skipped]), [file], permissions),
+      /Unexpected UI skip/,
+    );
+  } else {
+    assert.equal(reconcileUiSelection(observed([passed, skipped]), [file], permissions).skipped, 1);
+    assert.throws(
+      () => reconcileUiSelection(observed([skipped]), [file], permissions),
+      /wholly skipped/,
+    );
+    assert.throws(
+      () =>
+        reconcileUiSelection(
+          observed([passed, { ...skipped, fullName: "different case" }]),
+          [file],
+          permissions,
+        ),
+      /Unexpected UI skip/,
+    );
+  }
+});
+
 void test("exact wrapper rejects a mixed valid/missing request before invoking its runner", () => {
   const result = spawnSync(
     process.execPath,
