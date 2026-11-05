@@ -1437,6 +1437,16 @@ filter = 'package(portcove-core) & test(/^library_move::tests::published_move_re
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 success-output = "immediate"
 
+# Windows shard 5 in 42015767951/1 reached the first resume before
+# Nextest stopped the verified-boundary fixture at 30.188s. The prior
+# run passed in 24.776s. Match the published-boundary harness budget
+# while retaining every authority assertion, product deadline and zero retries.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^library_move::tests::verified_move_recovers_without_two_writable_libraries$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
 # CI41295985500/a1 Windows7 job124818374351 reached the second
 # refused launch at29.946s before the30.040s harness cutoff, after initial
 # admission/install10.187s and status projection23.522s. Preserve every
