@@ -18,7 +18,10 @@ import { createWakeProvider } from "./release-wake-provider.mts";
 import type { WakeProvider, WakeResponse, WakeWorkflow } from "./release-wake-provider.mts";
 import { isRecord, errorMessage } from "./runtime-values.mts";
 import { inspectControllerExecutionPurpose } from "./release-control-phases.mts";
-import { productionControllerWorkflow } from "./production-controller-admission.mts";
+import {
+  maximumProductionControllerWorkflowBytes,
+  productionControllerWorkflow,
+} from "./production-controller-admission.mts";
 import { inspectBoundedZip } from "./bounded-zip.mts";
 import { readGitHubArtifactArchive } from "./github-binary.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
@@ -853,7 +856,8 @@ export async function wakeRatifiedController(
   };
   await readRefs();
   const target = destinationWorkflow(config);
-  const maximumWorkflowBytes = config.schema_version === 5 ? 128 * 1024 : 65536;
+  const maximumWorkflowBytes =
+    config.schema_version === 5 ? 128 * 1024 : maximumProductionControllerWorkflowBytes;
   const source = await get(() => api.file(target, config.revision));
   if (
     !isRecord(source) ||
