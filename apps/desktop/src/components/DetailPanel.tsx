@@ -404,6 +404,33 @@ interface DetailState {
   updateAttention?: string;
 }
 
+function detailBodyAvailability(
+  model: Parameters<typeof DetailBody>[0],
+  external: boolean,
+  promoteAlternative: boolean,
+) {
+  const directInstall =
+    !promoteAlternative &&
+    !portActionPresentation(model.status, "install").blocked &&
+    !model.installed &&
+    !model.status?.staged &&
+    !external &&
+    model.sourceReady &&
+    model.biosReady;
+  const initialSection = initialDetailSection({
+    destination: model.opening?.destination,
+    needsFiles:
+      !model.installed ||
+      !model.status?.readiness ||
+      !model.status.readiness.launchable ||
+      model.pendingSetup ||
+      !model.sourceReady ||
+      !model.biosReady,
+    hasUpdate: model.runtimeUpdateAvailable || Boolean(model.stagedVersion),
+  });
+  return { directInstall, initialSection };
+}
+
 function DetailBody(model: {
   backLabel?: string | undefined;
   favoriteControl?: ReactNode;
@@ -458,25 +485,11 @@ function DetailBody(model: {
     model.displayPort ?? { ...model.port, definition: model.port },
     model.status,
   );
-  const directInstall =
-    !setupRoutes.promoteAlternative &&
-    !portActionPresentation(model.status, "install").blocked &&
-    !model.installed &&
-    !model.status?.staged &&
-    !external &&
-    model.sourceReady &&
-    model.biosReady;
-  const initialSection = initialDetailSection({
-    destination: model.opening?.destination,
-    needsFiles:
-      !model.installed ||
-      !model.status?.readiness ||
-      !model.status.readiness.launchable ||
-      model.pendingSetup ||
-      !model.sourceReady ||
-      !model.biosReady,
-    hasUpdate: model.runtimeUpdateAvailable || Boolean(model.stagedVersion),
-  });
+  const { directInstall, initialSection } = detailBodyAvailability(
+    model,
+    external,
+    setupRoutes.promoteAlternative,
+  );
   return (
     <DetailLayout
       backLabel={model.backLabel}

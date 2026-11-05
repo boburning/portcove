@@ -26,6 +26,35 @@ import type {
 } from "../../types";
 import type { OperationResult } from "../../transport-types.generated";
 
+function applyFixtureCollectionChange(
+  next: LibraryOrganization,
+  change: Extract<
+    OrganizationChange,
+    { kind: "upsert_collection" | "remove_collection" | "set_collection_port" }
+  >,
+  membership: (values: string[], id: string, included: boolean) => string[],
+  unsupported: (command: string) => never,
+) {
+  switch (change.kind) {
+    case "upsert_collection":
+      next.collections[change.collection_id] = {
+        name: change.name,
+        port_ids: next.collections[change.collection_id]?.port_ids ?? [],
+      };
+      break;
+    case "remove_collection":
+      delete next.collections[change.collection_id];
+      break;
+    case "set_collection_port": {
+      const collection = next.collections[change.collection_id];
+      if (!collection)
+        return unsupported("change_library_organization (missing fixture collection)");
+      collection.port_ids = membership(collection.port_ids, change.port_id, change.included);
+      break;
+    }
+  }
+}
+
 function applyFixtureSetupConfirmation(
   next: LibraryOrganization,
   change: Extract<OrganizationChange, { kind: "set_setup_confirmation" }>,
@@ -202,21 +231,10 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
           applySavedGroup(change);
           break;
         case "upsert_collection":
-          next.collections[change.collection_id] = {
-            name: change.name,
-            port_ids: next.collections[change.collection_id]?.port_ids ?? [],
-          };
-          break;
         case "remove_collection":
-          delete next.collections[change.collection_id];
+        case "set_collection_port":
+          applyFixtureCollectionChange(next, change, membership, unsupported);
           break;
-        case "set_collection_port": {
-          const collection = next.collections[change.collection_id];
-          if (!collection)
-            return unsupported("change_library_organization (missing fixture collection)");
-          collection.port_ids = membership(collection.port_ids, change.port_id, change.included);
-          break;
-        }
         case "set_update_notice":
           next.update_notices[change.port_id] = {
             ...change.choice,

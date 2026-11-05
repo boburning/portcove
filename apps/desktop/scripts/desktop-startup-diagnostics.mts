@@ -25,6 +25,34 @@ function startupTargetUrl(value: unknown) {
   }
 }
 
+function captureEdgeStartupCapabilities(
+  get: (name: string) => unknown,
+  allowed: Record<string, string>,
+  errors: Record<string, string>,
+) {
+  try {
+    // Edge returns additional private fields beside this version. Read only
+    // the version rather than retaining the vendor capability object.
+    const edge = get("msedge");
+    if (!allowed.driverVersion && isRecord(edge) && typeof edge.msedgedriverVersion === "string")
+      allowed.driverVersion = edge.msedgedriverVersion.slice(0, 256);
+  } catch {
+    errors.driverVersion = "read-failed";
+  }
+  try {
+    const options = get("ms:edgeOptions");
+    const address = isRecord(options) ? options.debuggerAddress : undefined;
+    const match =
+      typeof address === "string" && address.length <= 128
+        ? /^(?:localhost|127\.0\.0\.1|\[::1\]):([1-9]\d{0,4})$/iu.exec(address)
+        : null;
+    if (match && Number(match[1]) <= 65535 && typeof address === "string")
+      allowed.debuggerAddress = address;
+  } catch {
+    errors.debuggerAddress = "read-failed";
+  }
+}
+
 async function captureStartupCapabilities(
   browser: WebDriver | LinuxInspectorProtocol,
   observation: Record<string, unknown>,
@@ -50,31 +78,7 @@ async function captureStartupCapabilities(
           errors[name] = "read-failed";
         }
       }
-      try {
-        // Edge returns additional private fields beside this version. Read only
-        // the version rather than retaining the vendor capability object.
-        const edge = get("msedge");
-        if (
-          !allowed.driverVersion &&
-          isRecord(edge) &&
-          typeof edge.msedgedriverVersion === "string"
-        )
-          allowed.driverVersion = edge.msedgedriverVersion.slice(0, 256);
-      } catch {
-        errors.driverVersion = "read-failed";
-      }
-      try {
-        const options = get("ms:edgeOptions");
-        const address = isRecord(options) ? options.debuggerAddress : undefined;
-        const match =
-          typeof address === "string" && address.length <= 128
-            ? /^(?:localhost|127\.0\.0\.1|\[::1\]):([1-9]\d{0,4})$/iu.exec(address)
-            : null;
-        if (match && Number(match[1]) <= 65535 && typeof address === "string")
-          allowed.debuggerAddress = address;
-      } catch {
-        errors.debuggerAddress = "read-failed";
-      }
+      captureEdgeStartupCapabilities(get, allowed, errors);
       observation.capabilities = allowed;
       if (Object.keys(errors).length) observation.capability_errors = errors;
     }

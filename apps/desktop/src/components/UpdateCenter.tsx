@@ -518,9 +518,9 @@ function renderInstalledUpdateFailure({ port, outcome, failure }: InstalledUpdat
 
 type UpdateCenterModel = ReturnType<typeof useUpdateCenter>;
 
-function activitySectionCounts(model: UpdateCenterModel) {
+function countActivityTasks(model: UpdateCenterModel) {
   const feed = model.activityFeed;
-  const taskCount = new Set([
+  return new Set([
     ...(feed?.current_activity_ids ?? []),
     ...(feed?.attention_required_activity_ids ?? []),
     ...(feed?.recovery_required_activity_ids ?? []),
@@ -533,6 +533,11 @@ function activitySectionCounts(model: UpdateCenterModel) {
       )
       .map((activity) => activity.id),
   ]).size;
+}
+
+function activitySectionCounts(model: UpdateCenterModel) {
+  const feed = model.activityFeed;
+  const taskCount = countActivityTasks(model);
   const historyCount = model.activities.filter(
     (activity) =>
       !["running", "unfinished"].includes(activityPresentationState(activity, model.nowSeconds)),

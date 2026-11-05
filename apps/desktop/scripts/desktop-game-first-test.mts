@@ -396,6 +396,67 @@ export async function gameFirstScenarios({
     let failed = true;
     let failure: unknown;
     let cleanupFailure: unknown;
+    const retainResultAndRestoreAppearance = async () => {
+      // The scenario wrapper retains the original failure. Evidence/appearance
+      // cleanup must not replace it with a secondary persistence or UI error.
+      try {
+        const report = path.join(output, "game-first-choice-result.json");
+        await writeFile(
+          report,
+          `${JSON.stringify(
+            {
+              scenario: scenarioId,
+              outcome: failed ? "failed" : "interactions-complete",
+              captures,
+              readbacks,
+              failure: failure === undefined ? null : errorMessage(failure),
+              identity: {
+                game_id: gameId,
+                port_ids: pair,
+                independent_source_editions: ports.map((port) => ({
+                  port_id: port.id,
+                  editions: port.presentation?.original_game?.source_editions,
+                })),
+                picori_game_id: picori.presentation?.original_game?.id,
+                gzdoom_game_id: null,
+              },
+              evidence:
+                "Normal application controls and ordinary Core IPC in an owned isolated library; screenshots require separate image inspection.",
+              held: [
+                "Library membership and installed-alternative actions: requires separately admitted normal installations; no installations are seeded here.",
+                "Original-file compatibility, preparation, real upstream runtime launch, gameplay, save compatibility and removal: unexecuted; lawful originals and complete upstream runtime inputs were not supplied to this module.",
+              ],
+            },
+            null,
+            2,
+          )}\n`,
+          { flag: "wx" },
+        );
+        artifacts.push(report);
+        await resetSize();
+        for (const size of INTERFACE_SIZES) {
+          if (size === 100 || size > originalSize) continue;
+          await shortcut("+");
+          await browser.wait(
+            () =>
+              executeBrowserScript(
+                browser,
+                (size) => document.body.textContent?.includes(`Interface size ${size}%.`) === true,
+                size,
+              ),
+            10_000,
+          );
+        }
+        await browser.manage().window().setRect(originalWindow);
+      } catch (cleanupError) {
+        cleanupFailure = cleanupError;
+        if (failed)
+          console.error(
+            `${scenarioId}: secondary evidence/appearance cleanup failed; original scenario failure retained`,
+            cleanupError,
+          );
+      }
+    };
     try {
       await resetSize();
       await browser.manage().window().setRect({ width: 1280, height: 900 });
@@ -603,65 +664,7 @@ export async function gameFirstScenarios({
       failure = error;
       throw error;
     } finally {
-      // The scenario wrapper retains the original failure. Evidence/appearance
-      // cleanup must not replace it with a secondary persistence or UI error.
-      try {
-        const report = path.join(output, "game-first-choice-result.json");
-        await writeFile(
-          report,
-          `${JSON.stringify(
-            {
-              scenario: scenarioId,
-              outcome: failed ? "failed" : "interactions-complete",
-              captures,
-              readbacks,
-              failure: failure === undefined ? null : errorMessage(failure),
-              identity: {
-                game_id: gameId,
-                port_ids: pair,
-                independent_source_editions: ports.map((port) => ({
-                  port_id: port.id,
-                  editions: port.presentation?.original_game?.source_editions,
-                })),
-                picori_game_id: picori.presentation?.original_game?.id,
-                gzdoom_game_id: null,
-              },
-              evidence:
-                "Normal application controls and ordinary Core IPC in an owned isolated library; screenshots require separate image inspection.",
-              held: [
-                "Library membership and installed-alternative actions: requires separately admitted normal installations; no installations are seeded here.",
-                "Original-file compatibility, preparation, real upstream runtime launch, gameplay, save compatibility and removal: unexecuted; lawful originals and complete upstream runtime inputs were not supplied to this module.",
-              ],
-            },
-            null,
-            2,
-          )}\n`,
-          { flag: "wx" },
-        );
-        artifacts.push(report);
-        await resetSize();
-        for (const size of INTERFACE_SIZES) {
-          if (size === 100 || size > originalSize) continue;
-          await shortcut("+");
-          await browser.wait(
-            () =>
-              executeBrowserScript(
-                browser,
-                (size) => document.body.textContent?.includes(`Interface size ${size}%.`) === true,
-                size,
-              ),
-            10_000,
-          );
-        }
-        await browser.manage().window().setRect(originalWindow);
-      } catch (cleanupError) {
-        cleanupFailure = cleanupError;
-        if (failed)
-          console.error(
-            `${scenarioId}: secondary evidence/appearance cleanup failed; original scenario failure retained`,
-            cleanupError,
-          );
-      }
+      await retainResultAndRestoreAppearance();
     }
     if (cleanupFailure !== undefined) throw new Error(errorMessage(cleanupFailure));
   });

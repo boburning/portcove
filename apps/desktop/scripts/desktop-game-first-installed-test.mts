@@ -530,166 +530,171 @@ export async function gameFirstInstalledScenario(context: GameFirstInstalledCont
         "true",
       );
       assert.equal(await (await browser.findElement(By.css(playTarget))).isEnabled(), true);
-      // Refuse only proxy-aware provider traffic in this application's child
-      // environment. Definition traffic deliberately bypasses these proxies.
-      const provider: Record<string, unknown> = {
-        scope: "Scoped loopback proxy refusal of proxy-aware provider requests",
-        total_network_offline: "not-evaluated",
-        definition_unavailable: "not-evaluated",
-      };
-      report.provider_unavailable = provider;
-      let providerFailure: Error | undefined;
-      let providerCleanupFailure: Error | undefined;
-      let afterProviderLaunch: typeof saved | undefined;
-      let providerDenialObserved = false;
-      const durableState = async () => {
-        const current = await status();
-        return {
-          active: current.active,
-          previous: current.previous,
-          staged: current.staged,
-          channel: current.channel,
-          update_policy: current.update_policy,
-          sources: await sources(),
-          organization: await organization(),
-          favorites: await favorites(),
+      const observeProviderRefusal = async () => {
+        // Refuse only proxy-aware provider traffic in this application's child
+        // environment. Definition traffic deliberately bypasses these proxies.
+        const provider: Record<string, unknown> = {
+          scope: "Scoped loopback proxy refusal of proxy-aware provider requests",
+          total_network_offline: "not-evaluated",
+          definition_unavailable: "not-evaluated",
         };
-      };
-      const durableBefore = await durableState();
-      const refusal = await createImageRefusal();
-      try {
-        browser = await context.restartApplication(
-          "picori-provider-refused",
-          undefined,
-          refusal.environment,
-        );
-        await libraryView();
-        assert.deepEqual(await durableState(), durableBefore);
-        assert.deepEqual(await userDataInventory(paths.user_data_root), saved.userData);
-        const beforeChecks = new Set(
-          transportValue("activity", fixtureSuccess(await invoke("get_activities"))).records.map(
-            (record) => record.id,
-          ),
-        );
-        await selectPrimaryNavigation(browser, "Activity");
-        const updatesTab = await browser.findElement(
-          By.xpath(
-            '//*[@role="tablist" and @aria-label="Activity sections"]//*[@role="tab" and text()[normalize-space(.)="Game updates"]]',
-          ),
-        );
-        await clickVisible(browser, updatesTab);
-        await browser.wait(
-          async () => (await updatesTab.getAttribute("aria-selected")) === "true",
-          5000,
-        );
-        const beforeTraffic = refusal.origins.length;
-        await click(button("Check installed ports for updates"));
-        const failureRegion = await browser.wait(
-          until.elementLocated(By.css(`[data-update-check-failure="${portId}"]`)),
-          60_000,
-        );
-        assert.equal(
-          await failureRegion.getAttribute("aria-label"),
-          `Update check failure for ${port.name}`,
-        );
-        const failedCheck = await browser.wait(async () => {
-          const records = transportValue(
-            "activity",
-            fixtureSuccess(await invoke("get_activities")),
-          ).records;
-          return (
-            records.find(
-              (record) =>
-                !beforeChecks.has(record.id) &&
-                record.operation === "check_update" &&
-                record.target_id === portId &&
-                record.status === "failed" &&
-                record.finished_at !== null,
-            ) || false
-          );
-        }, 60_000);
-        assert.ok(failedCheck);
-        const refusedRequests = refusal.origins.slice(beforeTraffic);
-        providerDenialObserved =
-          required(failedCheck.failure).code === "network" &&
-          refusedRequests.includes("other-origin");
-        provider.failed_check = failedCheck;
-        provider.refused_origins_during_check = refusedRequests;
-        provider.failure_ui = await failureRegion.getText();
-        assert.deepEqual(await durableState(), durableBefore);
-        assert.deepEqual(sessionIds(library), saved.sessions);
-        assert.deepEqual(await userDataInventory(paths.user_data_root), saved.userData);
-        if (providerDenialObserved) {
-          await libraryView();
-          assert.equal(await (await browser.findElement(By.css(playTarget))).isEnabled(), true);
-          await capture("picori-provider-unavailable-play", playTarget, 100);
-          provider.launch = await launchInstalledManagedGame({
-            context: { ...context, browser, operatorObservation: false },
-            installed,
-            executableIdentity,
-            play: () => click(By.css(playTarget)),
-            core,
-            prefix: "picori-provider-unavailable",
-            expectedPortId: portId,
-          });
-          assert.deepEqual(await durableState(), durableBefore);
+        report.provider_unavailable = provider;
+        let providerFailure: Error | undefined;
+        let providerCleanupFailure: Error | undefined;
+        let afterProviderLaunch: typeof saved | undefined;
+        let providerDenialObserved = false;
+        const durableState = async () => {
           const current = await status();
-          assert.equal(current.successful_launches, saved.status.successful_launches + 1);
-          assert.ok(required(current.last_launched_at) >= required(saved.status.last_launched_at));
-          const ids = sessionIds(library);
-          assert.equal(ids.length, saved.sessions.length + 1);
-          assert.ok(saved.sessions.every((id) => ids.includes(id)));
-        } else {
-          provider.status = "held";
-          provider.reason =
-            "The adopted installation did not establish a provider network failure with matching scoped proxy traffic; a normal GitHub-installed artifact may be required. No policy change or retry was performed.";
-          assert.equal((await status()).successful_launches, saved.status.successful_launches);
-        }
-        afterProviderLaunch = {
-          status: await status(),
-          sources: await sources(),
-          organization: await organization(),
-          favorites: await favorites(),
-          sessions: sessionIds(library),
-          userData: await userDataInventory(paths.user_data_root),
+          return {
+            active: current.active,
+            previous: current.previous,
+            staged: current.staged,
+            channel: current.channel,
+            update_policy: current.update_policy,
+            sources: await sources(),
+            organization: await organization(),
+            favorites: await favorites(),
+          };
         };
-        provider.after_observation = afterProviderLaunch;
-      } catch (error) {
-        providerFailure = retainedError(error);
-        provider.failure = errorMessage(error);
-      } finally {
-        // Restore the real application environment even when the refused request
-        // or launch failed; closing this listener alone cannot restore the child.
+        const durableBefore = await durableState();
+        const refusal = await createImageRefusal();
         try {
-          browser = await context.restartApplication("picori-provider-environment-restored");
+          browser = await context.restartApplication(
+            "picori-provider-refused",
+            undefined,
+            refusal.environment,
+          );
+          await libraryView();
+          assert.deepEqual(await durableState(), durableBefore);
+          assert.deepEqual(await userDataInventory(paths.user_data_root), saved.userData);
+          const beforeChecks = new Set(
+            transportValue("activity", fixtureSuccess(await invoke("get_activities"))).records.map(
+              (record) => record.id,
+            ),
+          );
+          await selectPrimaryNavigation(browser, "Activity");
+          const updatesTab = await browser.findElement(
+            By.xpath(
+              '//*[@role="tablist" and @aria-label="Activity sections"]//*[@role="tab" and text()[normalize-space(.)="Game updates"]]',
+            ),
+          );
+          await clickVisible(browser, updatesTab);
+          await browser.wait(
+            async () => (await updatesTab.getAttribute("aria-selected")) === "true",
+            5000,
+          );
+          const beforeTraffic = refusal.origins.length;
+          await click(button("Check installed ports for updates"));
+          const failureRegion = await browser.wait(
+            until.elementLocated(By.css(`[data-update-check-failure="${portId}"]`)),
+            60_000,
+          );
+          assert.equal(
+            await failureRegion.getAttribute("aria-label"),
+            `Update check failure for ${port.name}`,
+          );
+          const failedCheck = await browser.wait(async () => {
+            const records = transportValue(
+              "activity",
+              fixtureSuccess(await invoke("get_activities")),
+            ).records;
+            return (
+              records.find(
+                (record) =>
+                  !beforeChecks.has(record.id) &&
+                  record.operation === "check_update" &&
+                  record.target_id === portId &&
+                  record.status === "failed" &&
+                  record.finished_at !== null,
+              ) || false
+            );
+          }, 60_000);
+          assert.ok(failedCheck);
+          const refusedRequests = refusal.origins.slice(beforeTraffic);
+          providerDenialObserved =
+            required(failedCheck.failure).code === "network" &&
+            refusedRequests.includes("other-origin");
+          provider.failed_check = failedCheck;
+          provider.refused_origins_during_check = refusedRequests;
+          provider.failure_ui = await failureRegion.getText();
+          assert.deepEqual(await durableState(), durableBefore);
+          assert.deepEqual(sessionIds(library), saved.sessions);
+          assert.deepEqual(await userDataInventory(paths.user_data_root), saved.userData);
+          if (providerDenialObserved) {
+            await libraryView();
+            assert.equal(await (await browser.findElement(By.css(playTarget))).isEnabled(), true);
+            await capture("picori-provider-unavailable-play", playTarget, 100);
+            provider.launch = await launchInstalledManagedGame({
+              context: { ...context, browser, operatorObservation: false },
+              installed,
+              executableIdentity,
+              play: () => click(By.css(playTarget)),
+              core,
+              prefix: "picori-provider-unavailable",
+              expectedPortId: portId,
+            });
+            assert.deepEqual(await durableState(), durableBefore);
+            const current = await status();
+            assert.equal(current.successful_launches, saved.status.successful_launches + 1);
+            assert.ok(
+              required(current.last_launched_at) >= required(saved.status.last_launched_at),
+            );
+            const ids = sessionIds(library);
+            assert.equal(ids.length, saved.sessions.length + 1);
+            assert.ok(saved.sessions.every((id) => ids.includes(id)));
+          } else {
+            provider.status = "held";
+            provider.reason =
+              "The adopted installation did not establish a provider network failure with matching scoped proxy traffic; a normal GitHub-installed artifact may be required. No policy change or retry was performed.";
+            assert.equal((await status()).successful_launches, saved.status.successful_launches);
+          }
+          afterProviderLaunch = {
+            status: await status(),
+            sources: await sources(),
+            organization: await organization(),
+            favorites: await favorites(),
+            sessions: sessionIds(library),
+            userData: await userDataInventory(paths.user_data_root),
+          };
+          provider.after_observation = afterProviderLaunch;
         } catch (error) {
-          providerCleanupFailure = retainedError(error);
-          provider.restore_failure = errorMessage(error);
-          console.error("Picori provider environment restoration failed:", errorMessage(error));
+          providerFailure = retainedError(error);
+          provider.failure = errorMessage(error);
+        } finally {
+          // Restore the real application environment even when the refused request
+          // or launch failed; closing this listener alone cannot restore the child.
+          try {
+            browser = await context.restartApplication("picori-provider-environment-restored");
+          } catch (error) {
+            providerCleanupFailure = retainedError(error);
+            provider.restore_failure = errorMessage(error);
+            console.error("Picori provider environment restoration failed:", errorMessage(error));
+          }
+          try {
+            await refusal.close();
+          } catch (error) {
+            providerCleanupFailure ??= retainedError(error);
+            provider.refusal_close_failure = errorMessage(error);
+            console.error("Picori scoped refusal cleanup failed:", errorMessage(error));
+          }
         }
-        try {
-          await refusal.close();
-        } catch (error) {
-          providerCleanupFailure ??= retainedError(error);
-          provider.refusal_close_failure = errorMessage(error);
-          console.error("Picori scoped refusal cleanup failed:", errorMessage(error));
-        }
-      }
-      if (providerFailure) throw providerFailure;
-      if (providerCleanupFailure) throw providerCleanupFailure;
-      const preserved = required(afterProviderLaunch);
-      await libraryView();
-      assert.deepEqual(await status(), preserved.status);
-      assert.deepEqual(await durableState(), durableBefore);
-      assert.deepEqual(await sources(), preserved.sources);
-      assert.deepEqual(await organization(), preserved.organization);
-      assert.deepEqual(await favorites(), preserved.favorites);
-      assert.deepEqual(sessionIds(library), preserved.sessions);
-      assert.deepEqual(await userDataInventory(paths.user_data_root), preserved.userData);
-      assert.equal(await (await browser.findElement(By.css(playTarget))).isEnabled(), true);
-      if (providerDenialObserved)
-        provider.status = "scoped-provider-unavailable-preservation-observed";
-      provider.restored_environment_restart_preserved_state = true;
+        if (providerFailure) throw providerFailure;
+        if (providerCleanupFailure) throw providerCleanupFailure;
+        const preserved = required(afterProviderLaunch);
+        await libraryView();
+        assert.deepEqual(await status(), preserved.status);
+        assert.deepEqual(await durableState(), durableBefore);
+        assert.deepEqual(await sources(), preserved.sources);
+        assert.deepEqual(await organization(), preserved.organization);
+        assert.deepEqual(await favorites(), preserved.favorites);
+        assert.deepEqual(sessionIds(library), preserved.sessions);
+        assert.deepEqual(await userDataInventory(paths.user_data_root), preserved.userData);
+        assert.equal(await (await browser.findElement(By.css(playTarget))).isEnabled(), true);
+        if (providerDenialObserved)
+          provider.status = "scoped-provider-unavailable-preservation-observed";
+        provider.restored_environment_restart_preserved_state = true;
+      };
+      await observeProviderRefusal();
       await verifyGameFirstInstalledInputs(
         inputPaths,
         prepared.metadata,

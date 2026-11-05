@@ -131,6 +131,18 @@ function useWorkspaceViewState() {
   };
 }
 
+function workspaceSnapshotView(snapshot: WorkspaceSnapshot | undefined) {
+  return {
+    catalog: snapshot?.catalog,
+    statuses: snapshot?.statuses ?? emptyStatuses,
+    sources: snapshot?.sources ?? emptySources,
+    browsing: snapshot?.browsing,
+    listingCatalog: snapshot?.listing_catalog ?? undefined,
+    listingStatuses: snapshot?.listing_statuses ?? emptyListingStatuses,
+    pendingSetups: snapshot?.pending_setups ?? emptyPendingSetups,
+  };
+}
+
 export function usePortcoveData(libraryGeneration = 0) {
   const view = useWorkspaceViewState();
   const {
@@ -258,11 +270,6 @@ export function usePortcoveData(libraryGeneration = 0) {
     },
     queryClient,
   );
-  const snapshot = workspace.data?.snapshot;
-  const catalog = snapshot?.catalog;
-  const statuses = snapshot?.statuses ?? emptyStatuses;
-  const sources = snapshot?.sources ?? emptySources;
-  const browsing = snapshot?.browsing;
   const refreshFailure = workspace.isError ? { error: workspace.error } : undefined;
   const refreshing = workspace.isFetching;
   const previousSnapshot = useRef<WorkspaceSnapshot | undefined>(undefined);
@@ -472,15 +479,9 @@ export function usePortcoveData(libraryGeneration = 0) {
   const activities = activityFeed.records;
   return {
     queryClient,
-    catalog,
-    statuses,
-    sources,
-    browsing,
+    ...workspaceSnapshotView(workspace.data?.snapshot),
     refreshFailure,
     refreshing,
-    listingCatalog: snapshot?.listing_catalog ?? undefined,
-    listingStatuses: snapshot?.listing_statuses ?? emptyListingStatuses,
-    pendingSetups: snapshot?.pending_setups ?? emptyPendingSetups,
     activities,
     activityFeed,
     doctor,
