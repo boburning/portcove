@@ -4616,6 +4616,8 @@ void test("GitHub dependency changes select actual SDK and REST integration cont
       "scripts/release-native-check-discovery.test.mts",
       "scripts/release-pages-provider.test.mts",
       "scripts/release-controller-wake.test.mts",
+      "scripts/release-coordinator-checkpoint-authentication.test.mts",
+      "scripts/release-hosted-native-acceptance.test.mts",
     ]) {
       assert.ok(selected.nodeTests.has(consumer), file);
       assert.ok(existsSync(new URL(`../${consumer}`, import.meta.url)));
