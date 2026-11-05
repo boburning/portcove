@@ -5,8 +5,10 @@ import path from "node:path";
 import os from "node:os";
 import { mkdtemp, mkdir, writeFile, readFile, rm } from "node:fs/promises";
 import { performance } from "node:perf_hooks";
+import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import {
   controlBridgeOriginalDeadline,
+  readControlBridgeOriginalJob,
   inspectControlStepReadiness,
   retainControlStepLocator,
   controlReadyUploadRoute,
@@ -139,4 +141,95 @@ void test("readiness upload uses original provider start rather than allocating 
     );
   for (const now of [start - 1, start + 290000])
     assert.throws(() => controlBridgeOriginalDeadline(raw, "site-publication", now, 1000));
+});
+
+void test("locked Jobs clock refuses original source drift after its one fixed read", async (t) => {
+  const values = {
+    GITHUB_RUN_ID: expected.run_id,
+    GITHUB_RUN_ATTEMPT: "1",
+    GITHUB_SHA: expected.revision,
+    GITHUB_REF: expected.ref,
+    GH_TOKEN: "fixed-controller-clock-fixture",
+  };
+  const previous = { ...process.env };
+  Object.assign(process.env, values);
+  t.after(() => {
+    for (const key of Object.keys(values))
+      if (previous[key] === undefined) delete process.env[key];
+      else process.env[key] = previous[key];
+  });
+  let calls = 0;
+  let fault: "none" | "drift" | "link" | "http" | "stall" = "none";
+  let cancelled = false;
+  const keepAlive = setInterval(() => {}, 1000);
+  t.after(() => clearInterval(keepAlive));
+  const started_at = new Date(Date.now() - 1000).toISOString();
+  const fetcher: typeof globalThis.fetch = async (input, init) => {
+    calls++;
+    const url = new URL(input instanceof Request ? input.url : input);
+    assert.equal(url.origin, "https://api.github.com");
+    assert.equal(url.pathname, "/repos/boburning/portcove/actions/runs/123/attempts/1/jobs");
+    assert.deepEqual(Object.fromEntries(url.searchParams), { page: "1", per_page: "100" });
+    assert.equal(init?.redirect, "manual");
+    assert.equal(
+      new Headers(init.headers).get("authorization"),
+      "token fixed-controller-clock-fixture",
+    );
+    if (fault === "drift") process.env.GITHUB_REF = `${expected.ref}-drift`;
+    if (fault === "stall")
+      return new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(new Uint8Array([123]));
+          },
+          cancel() {
+            cancelled = true;
+          },
+        }),
+        { headers: { "content-type": "application/json" } },
+      );
+    return Response.json(
+      {
+        total_count: 1,
+        jobs: [
+          {
+            id: 77,
+            run_id: 123,
+            run_attempt: 1,
+            head_sha: expected.revision,
+            status: "in_progress",
+            name: "Publish authenticated application site",
+            started_at,
+          },
+        ],
+      },
+      {
+        status: fault === "http" ? 503 : 200,
+        ...(fault === "link"
+          ? {
+              headers: {
+                link: '<https://api.github.com/repos/boburning/portcove/actions/runs/123/attempts/1/jobs?page=2&per_page=100>; rel="next"',
+              },
+            }
+          : {}),
+      },
+    );
+  };
+  t.mock.method(globalThis, "fetch", fetcher);
+  const observed = await readControlBridgeOriginalJob(expected.phase);
+  assert.deepEqual(observed.job, { id: 77, started_at });
+  assert.ok(observed.deadline > performance.now());
+  for (const mode of ["drift", "link", "http"] as const) {
+    fault = mode;
+    await assert.rejects(readControlBridgeOriginalJob(expected.phase));
+    process.env.GITHUB_REF = expected.ref;
+  }
+  fault = "stall";
+  await assert.rejects(
+    withCoordinatorDeadline(performance.now() + 350, () =>
+      readControlBridgeOriginalJob(expected.phase),
+    ),
+  );
+  assert.ok(cancelled);
+  assert.equal(calls, 5);
 });

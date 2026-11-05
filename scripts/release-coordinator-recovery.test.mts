@@ -271,8 +271,8 @@ for (const scenario of ["seeded", "changed", "unseeded", "pending-context"] as c
     `trusted coordinator ${scenario === "changed" ? "refuses changed remote recovery before reading main" : scenario === "seeded" ? "recovers active candidate then requires actual resumption authority before reading main" : scenario === "pending-context" ? "routes unresolved context to GET-only recovery before bootstrap preparation" : "holds an unseeded active candidate at bootstrap before resumption or main"}`,
     { timeout: 60000 },
     async (t) => {
-      // Real Git recovery through the production default transport, with the gh
-      // subprocess provider simulated. No OIDC, credential or protected POST.
+      // Real Git recovery and locked SDK clock, with controlled provider boundaries.
+      // No OIDC, live credential or protected POST.
       const changed = scenario === "changed";
       const f = await recoveryFixture(
         t,
@@ -286,6 +286,7 @@ for (const scenario of ["seeded", "changed", "unseeded", "pending-context"] as c
       t.after(() => rm(parent, { recursive: true, force: true }));
       const initialRefs = structuredClone(f.refs);
       const jobEnvironment = {
+        GH_TOKEN: "ghs_coordinator_clock_fixture",
         GITHUB_RUN_ID: "12345",
         GITHUB_RUN_ATTEMPT: "1",
         GITHUB_SHA: f.input.opportunity.source_commit,
@@ -309,26 +310,46 @@ for (const scenario of ["seeded", "changed", "unseeded", "pending-context"] as c
       const original = childProcess.spawnSync;
       let mainReads = 0;
       let jobReads = 0;
+      t.mock.method(
+        globalThis,
+        "fetch",
+        async (input: URL | Request | string, init?: RequestInit) => {
+          const url = new URL(input instanceof Request ? input.url : input);
+          assert.equal(url.origin, "https://api.github.com");
+          assert.equal(url.pathname, "/repos/boburning/portcove/actions/runs/12345/jobs");
+          assert.deepEqual(Object.fromEntries(url.searchParams), {
+            filter: "all",
+            per_page: "100",
+            page: "1",
+          });
+          assert.equal(init?.method, "GET");
+          assert.equal(
+            new Headers(init?.headers).get("authorization"),
+            `token ${jobEnvironment.GH_TOKEN}`,
+          );
+          assert.equal(f.reads(), 0, "original job budget precedes recovery reads");
+          jobReads++;
+          return Response.json({
+            total_count: 1,
+            jobs: [
+              {
+                id: 901,
+                name: "Coordinate application release",
+                run_id: 12345,
+                run_attempt: 1,
+                head_sha: jobEnvironment.GITHUB_SHA,
+                status: "in_progress",
+                started_at: new Date().toISOString(),
+              },
+            ],
+          });
+        },
+      );
       const mock = t.mock.method(
         childProcess,
         "spawnSync",
         (command: string, args: readonly string[], options: SpawnSyncOptionsWithStringEncoding) => {
           if (command !== "gh") return original(command, args, options);
-          if (
-            args.includes(
-              "repos/boburning/portcove/actions/runs/12345/jobs?filter=all&per_page=100&page=1",
-            )
-          ) {
-            jobReads++;
-            assert.equal(args[args.indexOf("--method") + 1], "GET");
-            assert.equal(args[args.indexOf("--hostname") + 1], "github.com");
-            assert.equal(f.reads(), 0, "original job budget precedes recovery reads");
-            return {
-              status: 0,
-              stdout: `HTTP/2.0 200 Fixture\r\nContent-Type: application/json\r\n\r\n${JSON.stringify({ total_count: 1, jobs: [{ id: 901, name: "Coordinate application release", run_id: 12345, run_attempt: 1, head_sha: jobEnvironment.GITHUB_SHA, status: "in_progress", started_at: new Date().toISOString() }] })}`,
-              stderr: "",
-            };
-          }
           if (args.includes("repos/boburning/portcove/git/ref/heads/main")) {
             mainReads++;
             assert.ok(f.reads() >= 16, "complete recovery must precede live source selection");
@@ -347,9 +368,11 @@ for (const scenario of ["seeded", "changed", "unseeded", "pending-context"] as c
         mock.mock.restore();
         syncBuiltinESMExports();
       });
-      const run = requestTrustedSemanticReview(parent, {
+      const invocation = {
         remote_configuration: { schema_version: 1, namespace: "portcove-fixture" },
-      });
+      };
+      const run = requestTrustedSemanticReview(parent, invocation);
+      invocation.remote_configuration.namespace = "changed-while-clock-pending";
       if (changed) {
         await assert.rejects(run, (error: unknown) => {
           assert.ok(error instanceof CoordinatorRemoteError);

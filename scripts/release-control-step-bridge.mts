@@ -14,13 +14,13 @@ import { controlHandshakeArtifactName, inspectControlRound } from "./release-con
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import { isRecord } from "./runtime-values.mts";
 import { releaseControlPhaseProfile } from "./release-control-phases.mts";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
+import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
-/** Runtime budget metadata only, never proof of role authority. */
-export function controlBridgeOriginalDeadline(
+function controlBridgeOriginalJob(
   raw: unknown,
   rawPhase: unknown,
+  environment: NodeJS.ProcessEnv,
   now = Date.now(),
   monotonic = performance.now(),
 ) {
@@ -65,10 +65,10 @@ export function controlBridgeOriginalDeadline(
   if (
     matches.length !== 1 ||
     !isRecord(job) ||
-    String(job.run_id) !== process.env.GITHUB_RUN_ID ||
+    String(job.run_id) !== environment.GITHUB_RUN_ID ||
     job.run_attempt !== 1 ||
-    process.env.GITHUB_RUN_ATTEMPT !== "1" ||
-    job.head_sha !== process.env.GITHUB_SHA ||
+    environment.GITHUB_RUN_ATTEMPT !== "1" ||
+    job.head_sha !== environment.GITHUB_SHA ||
     job.status !== "in_progress" ||
     typeof job.started_at !== "string"
   )
@@ -76,7 +76,54 @@ export function controlBridgeOriginalDeadline(
   const left = Date.parse(job.started_at) + milliseconds - now;
   if (!Number.isFinite(left) || left <= 0 || left > milliseconds || !Number.isFinite(monotonic))
     throw new Error("original fixed readiness job deadline exhausted or future dated");
-  return monotonic + left;
+  return { deadline: monotonic + left, job: { id: Number(job.id), started_at: job.started_at } };
+}
+
+/** Runtime budget metadata only, never proof of role authority. */
+export function controlBridgeOriginalDeadline(
+  raw: unknown,
+  phase: unknown,
+  now = Date.now(),
+  monotonic = performance.now(),
+) {
+  return controlBridgeOriginalJob(raw, phase, process.env, now, monotonic).deadline;
+}
+
+/** One observation of the original fixed attempt. Keep provider loading off
+ * retained-clock and pure readiness paths. */
+export async function readControlBridgeOriginalJob(
+  rawPhase: unknown,
+  environment: NodeJS.ProcessEnv = process.env,
+) {
+  const phase = inspectReleaseControlPhase(rawPhase);
+  const original = {
+    GITHUB_RUN_ID: environment.GITHUB_RUN_ID,
+    GITHUB_RUN_ATTEMPT: environment.GITHUB_RUN_ATTEMPT,
+    GITHUB_SHA: environment.GITHUB_SHA,
+    GITHUB_REF: environment.GITHUB_REF,
+  };
+  const run = original.GITHUB_RUN_ID ?? "";
+  if (
+    !/^[1-9][0-9]{0,15}$/u.test(run) ||
+    original.GITHUB_RUN_ATTEMPT !== "1" ||
+    !/^[a-f0-9]{40}$/u.test(original.GITHUB_SHA ?? "") ||
+    !/^refs\/tags\/portcove-production-controller-[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/u.test(
+      original.GITHUB_REF ?? "",
+    )
+  )
+    throw new Error("fixed readiness current source/run/ref required");
+  const token = fixedReleaseReaderToken();
+  const deadline = performance.now() + 15000;
+  const { createReleaseCustodyProvider } = await import("./release-custody-provider.mts");
+  const provider = await createReleaseCustodyProvider({ token, deadline });
+  const response = await provider.jobs(run, 1, 1);
+  if (
+    performance.now() >= deadline ||
+    response.next !== null ||
+    Object.entries(original).some(([key, value]) => process.env[key] !== value)
+  )
+    throw new Error("original readiness job observation unavailable");
+  return controlBridgeOriginalJob(response.body, phase, original);
 }
 export function inspectControlStepReadiness(
   raw: unknown,
@@ -255,35 +302,16 @@ if (
 }
 async function runControlBridgeCli() {
   try {
-    if (process.argv.length !== 4 || !process.env.RUNNER_TEMP || !process.env.GITHUB_OUTPUT)
-      throw new Error("fixed readiness bridge requires phase/ordinal and Actions output");
-    if (
-      !/^[1-9][0-9]{0,15}$/u.test(process.env.GITHUB_RUN_ID ?? "") ||
-      !/^[a-f0-9]{40}$/u.test(process.env.GITHUB_SHA ?? "")
-    )
-      throw new Error("fixed readiness current source/run required");
     const runnerRoot = process.env.RUNNER_TEMP;
-    const api = new GitHubApiClient((args, body) =>
-      createGitHubRunner({
-        cwd: runnerRoot,
-        timeoutMs: 15000,
-        maxBuffer: 2 * 1024 ** 2,
-      })([...args, "--hostname", "github.com"], body),
-    );
-    const response = api.request(
-      "GET",
-      `repos/boburning/portcove/actions/runs/${process.env.GITHUB_RUN_ID}/attempts/1/jobs?per_page=100`,
-    );
-    if (response.status !== 200) throw new Error("original readiness job observation unavailable");
-    const deadline = controlBridgeOriginalDeadline(response.body, process.argv[2]);
-    const route = await controlReadyUploadRoute(
-      process.env.RUNNER_TEMP,
-      process.argv[2],
-      Number(process.argv[3]),
-      deadline,
-    );
+    const output = process.env.GITHUB_OUTPUT;
+    const phase = inspectReleaseControlPhase(process.argv[2]);
+    const index = Number(process.argv[3]);
+    if (process.argv.length !== 4 || !runnerRoot || !output)
+      throw new Error("fixed readiness bridge requires phase/ordinal and Actions output");
+    const { deadline } = await readControlBridgeOriginalJob(phase);
+    const route = await controlReadyUploadRoute(runnerRoot, phase, index, deadline);
     await appendFile(
-      process.env.GITHUB_OUTPUT,
+      output,
       route.ready ? `ready=true\npath=${route.path}\nname=${route.name}\n` : "ready=false\n",
     );
   } catch {

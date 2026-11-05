@@ -1,5 +1,8 @@
 import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
-import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
+import {
+  fixedReleaseReaderToken,
+  readOnlyReleaseChildEnvironment,
+} from "./release-readonly-child-environment.mts";
 import { applicationReleaseProfile } from "./release-authority-configuration-contract.mts";
 import {
   materializePublishedCatalogCompleteSite,
@@ -134,7 +137,10 @@ import {
   prepareAuthenticatedMetadataBootstrap,
   inspectPreparedMetadataBootstrap,
 } from "./release-bootstrap-preparation.mts";
-import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
+import {
+  coordinatorCommandDeadline,
+  withCoordinatorDeadline,
+} from "./release-coordinator-deadline.mts";
 import { readBoundedReleaseContextFiles } from "./release-signing-context.mts";
 import {
   assertBootstrapSiteBaseline,
@@ -189,7 +195,7 @@ export async function prepareActualCoordinatorCatalogSigning(
   const inputs = { ...raw, opportunity: inspectCatalogSemanticOpportunity(raw.opportunity) };
   if (Object.keys(raw).sort().join(",") !== "check_id,inspection,opportunity,tools")
     throw new Error("catalog coordinator exact actual inputs required");
-  const budget = coordinatorDeadline(phaseDeadline);
+  const budget = await coordinatorDeadline(phaseDeadline);
   return withCoordinatorDeadline(budget.monotonicDeadline, async () => {
     await assertOwnedUnlinkedPath(project, parent, "catalog coordinator private parent");
     const directory = await mkdtemp(path.join(parent, "coordinator-catalog-"));
@@ -823,7 +829,7 @@ export function coordinatorOriginalJobDeadline(
     throw new Error("original coordinator job budget exhausted or future dated");
   return monotonic + remaining;
 }
-function coordinatorDeadline(phaseDeadline?: number) {
+async function coordinatorDeadline(phaseDeadline?: number) {
   const monotonicStart = performance.now();
   if (
     phaseDeadline !== undefined &&
@@ -840,27 +846,36 @@ function coordinatorDeadline(phaseDeadline?: number) {
     process.env.GITHUB_RUN_ATTEMPT !== "1"
   )
     throw new Error("fixed first-attempt coordinator job budget identity required");
-  const lookupRemaining = Math.floor(
-    Math.min(10000, (phaseDeadline ?? Infinity) - performance.now()),
-  );
-  if (lookupRemaining < 1) throw new Error("coordinator inherited deadline exhausted");
-  const runner = createGitHubRunner({
-    cwd: project,
-    timeoutMs: lookupRemaining,
-    maxBuffer: 1024 * 1024,
+  const inherited = Math.min(phaseDeadline ?? Infinity, coordinatorCommandDeadline() ?? Infinity);
+  const lookupDeadline = Math.min(monotonicStart + 10000, inherited);
+  const sameIdentity = () =>
+    process.env.GITHUB_RUN_ID === run &&
+    process.env.GITHUB_SHA === revision &&
+    process.env.GITHUB_RUN_ATTEMPT === "1";
+  if (performance.now() >= lookupDeadline)
+    throw new Error("coordinator inherited deadline exhausted");
+  const token = fixedReleaseReaderToken();
+  const { createGitHubClient } = await import("./github-client.mts");
+  const client = await createGitHubClient({
+    credential: { kind: "explicit", token },
+    deadline: lookupDeadline,
+    maxBytes: 1024 * 1024,
+    allowRequest: sameIdentity,
   });
-  const response = new GitHubApiClient((args, input) =>
-    runner([...args, "--hostname", "github.com"], input),
-  ).request(
-    "GET",
-    `repos/boburning/portcove/actions/runs/${run}/jobs?filter=all&per_page=100&page=1`,
-  );
-  if (response.status !== 200)
+  const response = await client.request(`GET /repos/boburning/portcove/actions/runs/${run}/jobs`, {
+    filter: "all",
+    per_page: 100,
+    page: 1,
+    request: { portcove: { replay: "once", attempts: 0 } },
+  });
+  if (response.status !== 200 || !sameIdentity())
     throw new Error("actual coordinator original job budget unavailable");
+  if (performance.now() >= lookupDeadline)
+    throw new Error("coordinator inherited deadline exhausted");
   const monotonicDeadline = Math.min(
     monotonicStart + 170000,
-    phaseDeadline ?? Infinity,
-    coordinatorOriginalJobDeadline(response.body, { run_id: run, controller_revision: revision }),
+    inherited,
+    coordinatorOriginalJobDeadline(response.data, { run_id: run, controller_revision: revision }),
   );
   if (performance.now() >= monotonicDeadline)
     throw new Error("coordinator inherited deadline exhausted");
@@ -883,7 +898,7 @@ function coordinatorDeadline(phaseDeadline?: number) {
 }
 function coordinatorApi(
   directory: string,
-  budget: ReturnType<typeof coordinatorDeadline>,
+  budget: Awaited<ReturnType<typeof coordinatorDeadline>>,
   maxBuffer: number,
 ) {
   return new GitHubApiClient((args, input) => {
@@ -897,7 +912,7 @@ function coordinatorApi(
   });
 }
 function coordinatorBootstrapSourceProvider(
-  budget: ReturnType<typeof coordinatorDeadline>,
+  budget: Awaited<ReturnType<typeof coordinatorDeadline>>,
   maxBytes: number,
 ) {
   return createReleaseCustodyProvider({
@@ -914,7 +929,7 @@ function coordinatorBootstrapSourceProvider(
  * intent. Selected publication never constructs a legacy transport. */
 async function coordinatorCheckpointPublisher(
   directory: string,
-  budget: ReturnType<typeof coordinatorDeadline>,
+  budget: Awaited<ReturnType<typeof coordinatorDeadline>>,
   reader: Awaited<ReturnType<typeof authenticateControlReaderJob>>,
   repository: string,
   previous: string,
@@ -965,7 +980,7 @@ async function coordinatorCheckpointPublisher(
 
 function guardedCoordinatorJournal(
   directory: string,
-  budget: ReturnType<typeof coordinatorDeadline>,
+  budget: Awaited<ReturnType<typeof coordinatorDeadline>>,
   beforeMutation: () => void,
 ) {
   const journal = createCoordinatorJournalApi(directory, budget.monotonicDeadline);
@@ -1128,15 +1143,16 @@ export async function coordinateTrustedRelease(
   privateParent: string,
   raw: { remote_configuration: unknown; opportunity: unknown; dispatch_actor_id: string },
 ) {
-  const budget = coordinatorDeadline();
+  const selected = structuredClone(raw);
+  const budget = await coordinatorDeadline();
   return withCoordinatorDeadline(budget.monotonicDeadline, () =>
-    coordinateTrustedReleaseAt(privateParent, raw, undefined, budget),
+    coordinateTrustedReleaseAt(privateParent, selected, undefined, budget),
   );
 }
 
 type RecoveredCoordinatorRound = {
   directory: string;
-  budget: ReturnType<typeof coordinatorDeadline>;
+  budget: Awaited<ReturnType<typeof coordinatorDeadline>>;
   recovered: Awaited<ReturnType<typeof recoverRemoteCoordinator>>;
   admission?: {
     workflow: Awaited<ReturnType<typeof readProductionControllerWorkflowBytes>>;
@@ -1150,7 +1166,7 @@ async function coordinateTrustedReleaseAt(
   privateParent: string,
   raw: Parameters<typeof coordinateTrustedRelease>[1],
   round?: RecoveredCoordinatorRound,
-  inheritedBudget?: ReturnType<typeof coordinatorDeadline>,
+  inheritedBudget?: Awaited<ReturnType<typeof coordinatorDeadline>>,
 ) {
   const selected = structuredClone(raw);
   if (
@@ -1176,7 +1192,7 @@ async function coordinateTrustedReleaseAt(
   if (!round) await assertOwnedUnlinkedPath(project, privateParent, "coordinator private parent");
   const directory =
     round?.directory ?? (await mkdtemp(path.join(privateParent, "coordinator-attempt-")));
-  const budget = round?.budget ?? inheritedBudget ?? coordinatorDeadline();
+  const budget = round?.budget ?? inheritedBudget ?? (await coordinatorDeadline());
   let phase = "remote-recovery";
   let checkpoint: string | null = null;
   try {
@@ -1858,9 +1874,10 @@ export async function prepareTrustedCoordinatorRenewal(
     };
   },
 ) {
-  const budget = coordinatorDeadline();
+  const selected = structuredClone(raw);
+  const budget = await coordinatorDeadline();
   return withCoordinatorDeadline(budget.monotonicDeadline, () =>
-    prepareTrustedCoordinatorRenewalAt(privateParent, raw, undefined, budget),
+    prepareTrustedCoordinatorRenewalAt(privateParent, selected, undefined, budget),
   );
 }
 
@@ -1868,7 +1885,7 @@ async function prepareTrustedCoordinatorRenewalAt(
   privateParent: string,
   raw: Parameters<typeof prepareTrustedCoordinatorRenewal>[1],
   round?: RecoveredCoordinatorRound,
-  inheritedBudget?: ReturnType<typeof coordinatorDeadline>,
+  inheritedBudget?: Awaited<ReturnType<typeof coordinatorDeadline>>,
 ) {
   const selected = structuredClone(raw);
   if (
@@ -1881,7 +1898,7 @@ async function prepareTrustedCoordinatorRenewalAt(
   await assertOwnedUnlinkedPath(project, privateParent, "metadata coordinator private parent");
   const directory =
     round?.directory ?? (await mkdtemp(path.join(privateParent, "coordinator-renewal-")));
-  const budget = round?.budget ?? inheritedBudget ?? coordinatorDeadline();
+  const budget = round?.budget ?? inheritedBudget ?? (await coordinatorDeadline());
   let checkpoint: string | null = null;
   let phase = "remote-recovery";
   try {
@@ -2244,7 +2261,7 @@ async function authenticateCoordinatorInitialControls(
   factsSha: string,
   reader: Awaited<ReturnType<typeof authenticateControlReaderJob>>,
   workflow: Buffer,
-  budget: ReturnType<typeof coordinatorDeadline>,
+  budget: Awaited<ReturnType<typeof coordinatorDeadline>>,
   purpose: "application" | "catalog" = "application",
 ) {
   budget.check();
@@ -2320,7 +2337,7 @@ async function prepareTrustedCoordinatorBootstrapAt(
   directory: string,
   selected: Parameters<typeof requestTrustedSemanticReview>[1],
   recovered: Awaited<ReturnType<typeof recoverRemoteCoordinator>>,
-  budget: ReturnType<typeof coordinatorDeadline>,
+  budget: Awaited<ReturnType<typeof coordinatorDeadline>>,
 ) {
   if (inspectPublishedMetadata(recovered.input.published_metadata))
     throw new Error("initial bootstrap permanently closed by actual published metadata");
@@ -2749,7 +2766,7 @@ async function recoverTrustedCoordinatorCandidateSigning(
   directory: string,
   configuration: unknown,
   recovered: Awaited<ReturnType<typeof recoverRemoteCoordinator>>,
-  budget: ReturnType<typeof coordinatorDeadline>,
+  budget: Awaited<ReturnType<typeof coordinatorDeadline>>,
   locators?: Parameters<typeof prepareTrustedCoordinatorRenewal>[1]["tools"],
 ) {
   if (!selectCoordinatorCandidateSigningRecovery(recovered.input))
@@ -2871,7 +2888,7 @@ async function recoverTrustedCoordinatorPages(
   directory: string,
   configuration: unknown,
   recovered: Awaited<ReturnType<typeof recoverRemoteCoordinator>>,
-  budget: ReturnType<typeof coordinatorDeadline>,
+  budget: Awaited<ReturnType<typeof coordinatorDeadline>>,
   toolLocators?: Parameters<typeof prepareTrustedCoordinatorRenewal>[1]["tools"],
 ) {
   const selected = selectCoordinatorPendingPagesRecovery(recovered.input);
@@ -3051,7 +3068,7 @@ async function recoverTrustedCoordinatorContext(
   directory: string,
   configuration: unknown,
   recovered: Awaited<ReturnType<typeof recoverRemoteCoordinator>>,
-  budget: ReturnType<typeof coordinatorDeadline>,
+  budget: Awaited<ReturnType<typeof coordinatorDeadline>>,
   locators?: Parameters<typeof prepareTrustedCoordinatorRenewal>[1]["tools"],
 ) {
   const contextFileDigest = (files: ReadonlyMap<string, Buffer>) =>
@@ -3388,15 +3405,16 @@ export async function requestTrustedSemanticReview(
   },
   phaseDeadline?: number,
 ) {
-  const budget = coordinatorDeadline(phaseDeadline);
+  const selected = structuredClone(raw);
+  const budget = await coordinatorDeadline(phaseDeadline);
   return withCoordinatorDeadline(budget.monotonicDeadline, () =>
-    requestTrustedSemanticReviewAt(privateParent, raw, budget),
+    requestTrustedSemanticReviewAt(privateParent, selected, budget),
   );
 }
 async function requestTrustedSemanticReviewAt(
   privateParent: string,
   raw: Parameters<typeof requestTrustedSemanticReview>[1],
-  budget: ReturnType<typeof coordinatorDeadline>,
+  budget: Awaited<ReturnType<typeof coordinatorDeadline>>,
 ) {
   const selected = structuredClone(raw);
   if (
@@ -3708,7 +3726,7 @@ async function continueTrustedSemanticReview(
   directory: string,
   remoteConfiguration: unknown,
   recovered: Awaited<ReturnType<typeof recoverRemoteCoordinator>>,
-  budget: ReturnType<typeof coordinatorDeadline>,
+  budget: Awaited<ReturnType<typeof coordinatorDeadline>>,
 ) {
   let checkpoint: string = recovered.checkpoint;
   let phase = "actual-negative-semantic-controls";
