@@ -86,6 +86,18 @@ for (const id of ids)
         "bespoke warnings stay visible",
       );
   });
+void test("staged archive keeps its managed presentation and the independent prepared-copy guide", () => {
+  const raw = input("retropulse03-winback-n64recomp");
+  const projected = projectRouteFacts(raw);
+  assert.equal(raw.integration?.adapter, "staged-source-portable");
+  assert.deepEqual(projected.integration, raw.integration);
+  assert.ok(
+    guide(projected).references.some(
+      (reference) => isRecord(reference) && reference.instruction === registrationOwnership,
+    ),
+  );
+  assert.equal(routeEnrollment([raw]).cases[0]?.managed_native, false);
+});
 void test("unknown, conflicting and unbounded route facts refuse before projection", () => {
   const object = (value: unknown) => {
     assert.ok(isRecord(value));

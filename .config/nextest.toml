@@ -61,6 +61,21 @@ filter = 'package(portcove-core) & test(/^service::native_portable::tests::compa
 slow-timeout = { period = "5s", terminate-after = 180, grace-period = "0s" }
 success-output = "immediate"
 
+# CI42056822258/1 Windows1 reached the 30s outer limit in two complete
+# preparation lifecycles. Keep every fixture assertion and product deadline.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & (test(/^preparation::tests::execution_tests::completed_legacy_setup_keeps_working_without_repeating_setup$/) | test(/^preparation::tests::execution_tests::preparation_is_explicit_and_play_never_runs_setup_or_recreates_inputs$/))'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+
+# CI42056822258/1 Windows6 reached 45s in this complete correction lifecycle.
+# Give this exact Windows case 90s while keeping all checks and inner deadlines.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::managed_ordinary_artifacts_and_compatible_correction_retain_exact_contract$/)'
+slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
+success-output = "immediate"
+
 # The complete compatible-runtime fixture in41893774776/a1 Windows2 took
 # 183.584s for MMX2 and122.389s/113.682s for the other two consumers.
 # These explicit predecessor-transition cases include the same populated

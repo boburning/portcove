@@ -134,7 +134,7 @@ export function checkRouteFacts(
       !integration.executable_hints["windows-x86-64"].includes(executable)
     )
       throw new Error("Managed executable facts disagree with the operational declaration.");
-  } else if (integration !== undefined)
+  } else if (integration !== undefined && integration.adapter !== "staged-source-portable")
     throw new Error("A managed declaration needs its explicit managed route facts.");
 }
 

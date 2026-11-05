@@ -32955,7 +32955,7 @@
         "steps": [
           {
             "title": "Prepare your Windows copy",
-            "instruction": "Install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if needed. Extract the complete Windows x64 ZIP into a writable folder. Open Rayman2Recompiled.exe, choose Load ROM and select your own 32 MiB, big-endian Rayman 2 USA .z64 (SHA-1 50558356b059ad3fbaf5fe95380512b9dceaaf52). Choose Start Game."
+            "instruction": "Use a complete Windows x64 copy that you are permitted to use. Install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if needed. Open Rayman2Recompiled.exe, choose Load ROM and select your own 32 MiB, big-endian Rayman 2 USA .z64 (SHA-1 50558356b059ad3fbaf5fe95380512b9dceaaf52). Choose Start Game."
           },
           {
             "title": "Select the prepared player",
@@ -32979,7 +32979,8 @@
             "instruction": "You and upstream own the external copy's data: %LOCALAPPDATA%/Rayman2Recompiled by default, or the game folder if it already uses portable.txt; saves/controllerpak_1.mpk and other Controller Pak files under that profile. Back up these locations separately; registration does not migrate or certify their compatibility."
           }
         ]
-      }
+      },
+      "download_block_reason": "Portcove downloads are paused until the applicable permission for the bundled Fontworks Chiaro fonts is established or upstream publishes a package with appropriately licensed replacements. You can add a complete copy you are permitted to use."
     },
     {
       "id": "n64hub-rush-2049-recomp",
@@ -33080,7 +33081,7 @@
         "steps": [
           {
             "title": "Prepare your Windows copy",
-            "instruction": "Install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if needed. Extract the complete Windows x64 ZIP into a writable folder. Open SmashBrosRecompiled.exe, choose Load ROM and select your own 16 MiB, big-endian Super Smash Bros. USA .z64 (SHA-1 e2929e10fccc0aa84e5776227e798abc07cedabf). Choose Start Game."
+            "instruction": "Use a complete Windows x64 copy that you are permitted to use. Install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if needed. Open SmashBrosRecompiled.exe, choose Load ROM and select your own 16 MiB, big-endian Super Smash Bros. USA .z64 (SHA-1 e2929e10fccc0aa84e5776227e798abc07cedabf). Choose Start Game."
           },
           {
             "title": "Select the prepared player",
@@ -33104,7 +33105,8 @@
             "instruction": "You and upstream own the external copy's data: %LOCALAPPDATA%/SmashBrosRecompiled by default, or the game folder if it already uses portable.txt. Back up these locations separately; registration does not migrate or certify their compatibility."
           }
         ]
-      }
+      },
+      "download_block_reason": "Portcove downloads are paused until the applicable permission for the bundled Fontworks Chiaro fonts is established or upstream publishes a package with appropriately licensed replacements. You can add a complete copy you are permitted to use."
     },
     {
       "id": "nakagawa-recomp-jstar269-hot-shots-tennis-get-a-grip",
@@ -41014,7 +41016,6 @@
       "issue_number": 4221,
       "original_game_title": "WinBack: Covert Operations",
       "availability": "unknown",
-      "platforms": [],
       "setup_url": "https://github.com/RetroPulse03/WinBackRecomp/blob/83d35d08f0839e3084d915f1177dc70e8d03cb96/README.md",
       "manual_setup": {
         "help_url": "https://github.com/RetroPulse03/WinBackRecomp/blob/83d35d08f0839e3084d915f1177dc70e8d03cb96/README.md",
@@ -41046,7 +41047,10 @@
             "instruction": "You and upstream own the external copy's data: ROM copy, settings.json, saves/ including Controller Pak and checkpoints, mods and renderer data in the game folder. Back up these locations separately; registration does not migrate or certify their compatibility."
           }
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "retroreplay82-legendary-wings-nes-to-pc",

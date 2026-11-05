@@ -15,7 +15,7 @@
       "steps": [
         {
           "title": "Prepare your Windows copy",
-          "instruction": "Install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if needed. Extract the complete Windows x64 ZIP into a writable folder. Open Rayman2Recompiled.exe, choose Load ROM and select your own 32 MiB, big-endian Rayman 2 USA .z64 (SHA-1 50558356b059ad3fbaf5fe95380512b9dceaaf52). Choose Start Game."
+          "instruction": "Use a complete Windows x64 copy that you are permitted to use. Install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if needed. Open Rayman2Recompiled.exe, choose Load ROM and select your own 32 MiB, big-endian Rayman 2 USA .z64 (SHA-1 50558356b059ad3fbaf5fe95380512b9dceaaf52). Choose Start Game."
         }
       ],
       "warnings": [
@@ -27,7 +27,8 @@
           "instruction": "https://github.com/n64hub/rayman-2-recomp/releases/tag/v0.1.4"
         }
       ]
-    }
+    },
+    "download_block_reason": "Portcove downloads are paused until the applicable permission for the bundled Fontworks Chiaro fonts is established or upstream publishes a package with appropriately licensed replacements. You can add a complete copy you are permitted to use."
   },
   "route_facts_v1": {
     "format_version": 1,
