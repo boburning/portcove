@@ -83,7 +83,7 @@ describe("Library card overflow", () => {
       filter: "all" as const,
       setFilter: vi.fn(),
       onSelect: vi.fn(),
-      onLaunch: vi.fn(),
+      onContinue: vi.fn(),
       loading: false,
     };
     await act(async () => root.render(<PortBrowser {...props} statuses={new Map()} />));
@@ -106,6 +106,8 @@ describe("Library card overflow", () => {
     expect(play).not.toBeNull();
     expect(review?.isConnected).toBe(false);
     expect(document.activeElement).not.toBe(play);
+    await act(async () => play?.click());
+    expect(props.onContinue).toHaveBeenCalledExactlyOnceWith(port.id);
   });
 
   it("routes a recorded input blocker directly to file review without launching", async () => {
