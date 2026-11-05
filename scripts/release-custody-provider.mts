@@ -8,6 +8,12 @@ export interface HistoricalJobProvider {
   job(id: number): Promise<unknown>;
 }
 
+export interface CatalogAnchorMetadataProvider {
+  commit(sha: string): Promise<unknown>;
+  tree(sha: string): Promise<unknown>;
+  blob(sha: string): Promise<unknown>;
+}
+
 export interface HostedNativeSourceProvider {
   commit(sha: string): Promise<unknown>;
   file(filename: string, revision: string): Promise<unknown>;
@@ -23,6 +29,7 @@ export interface ImmutableReleaseMetadataProvider {
 
 type ReleaseCustodyProvider = HistoricalJobProvider &
   HostedNativeSourceProvider &
+  CatalogAnchorMetadataProvider &
   ImmutableReleaseMetadataProvider & {
     run(id: string): Promise<unknown>;
     artifact(id: number): Promise<unknown>;
@@ -165,6 +172,15 @@ export async function createReleaseCustodyProvider(options: {
     },
     async commit(sha) {
       return (await get("/repos/{owner}/{repo}/git/commits/{commit_sha}", { commit_sha: sha }))
+        .data as unknown;
+    },
+    async tree(sha) {
+      return (
+        await get("/repos/{owner}/{repo}/git/trees/{tree_sha}", { tree_sha: sha, recursive: 1 })
+      ).data as unknown;
+    },
+    async blob(sha) {
+      return (await get("/repos/{owner}/{repo}/git/blobs/{file_sha}", { file_sha: sha }))
         .data as unknown;
     },
     async file(filename, revision) {
