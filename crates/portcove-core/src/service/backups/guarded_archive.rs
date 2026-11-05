@@ -77,223 +77,6 @@ fn read_input(path: &Path) -> Result<BackupManifest> {
     Ok(manifest)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn guarded_snapshot_digest_preserves_legacy_and_rejects_ignored_or_changed_binding() {
-        let mut hash = Sha256::new();
-        hash.update(b"dir\0\0file\0save.bin\0private fixture");
-        let legacy = hex::encode(Sha256::digest(b"dir\0\0file\0save.bin\0private fixture"));
-        assert_eq!(content_digest(hash.clone(), None, None).unwrap(), legacy);
-        let bound = content_digest(hash.clone(), Some(&"a".repeat(64)), None).unwrap();
-        assert_ne!(
-            bound, legacy,
-            "older raw-byte readers must refuse a bound backup"
-        );
-        assert_ne!(
-            bound,
-            content_digest(hash.clone(), Some(&"b".repeat(64)), None).unwrap()
-        );
-        assert!(content_digest(hash, Some("unverified-tag"), None).is_err());
-        let mut hash = Sha256::new();
-        hash.update(b"same private snapshot");
-        let partitioned =
-            content_digest(hash.clone(), Some(&"a".repeat(64)), Some(&"b".repeat(64))).unwrap();
-        assert_ne!(
-            partitioned,
-            content_digest(hash.clone(), Some(&"a".repeat(64)), None).unwrap(),
-            "earlier unpartitioned readers must fail integrity, even at the same archive"
-        );
-        assert_ne!(
-            partitioned,
-            content_digest(hash.clone(), Some(&"a".repeat(64)), Some(&"c".repeat(64))).unwrap()
-        );
-        assert_ne!(
-            content_digest(hash.clone(), None, Some(&"b".repeat(64))).unwrap(),
-            content_digest(hash, None, None).unwrap(),
-            "opaque retained data still fences older readers"
-        );
-    }
-
-    #[test]
-    #[cfg(windows)]
-    fn partitioned_backup_and_runtime_copy_preserve_deep_windows_data_and_timestamps() {
-        use std::os::windows::ffi::OsStrExt;
-        let temporary = tempfile::tempdir().unwrap();
-        let source = temporary.path().join("source");
-        fs::create_dir(&source).unwrap();
-        fs::write(
-            source.join("snapshot-境界.sav"),
-            b"exact first-party snapshot fixture",
-        )
-        .unwrap();
-        let parent = temporary
-            .path()
-            .join("recovery")
-            .join(uuid::Uuid::new_v4().to_string())
-            .join("staged-data")
-            .join(".portcove-archive-data-v1")
-            .join("a".repeat(64))
-            .join("b".repeat(64));
-        fs::create_dir_all(&parent).unwrap();
-        let mut destination = parent.join("preserved");
-        while destination.as_os_str().encode_wide().count() < 280 {
-            destination = destination.join("owned-data-coordinate");
-        }
-        fs::create_dir_all(&destination).unwrap();
-        let output = destination.join("snapshot-境界.sav");
-        crate::runtime_data_policy::copy_ordinary_file(&source.join("snapshot-境界.sav"), &output)
-            .unwrap();
-        assert_eq!(
-            fs::read(&output).unwrap(),
-            b"exact first-party snapshot fixture"
-        );
-        assert_eq!(
-            fs::metadata(&output).unwrap().modified().unwrap(),
-            fs::metadata(source.join("snapshot-境界.sav"))
-                .unwrap()
-                .modified()
-                .unwrap()
-        );
-        let mut stats = BackupStats::default();
-        copy_backup_tree(&source, &destination.join("backup"), &source, &mut stats).unwrap();
-        let copied = destination.join("backup/snapshot-境界.sav");
-        assert_eq!(fs::read(&copied).unwrap(), fs::read(&output).unwrap());
-        assert_eq!(
-            fs::metadata(&copied).unwrap().modified().unwrap(),
-            fs::metadata(&output).unwrap().modified().unwrap()
-        );
-        assert_eq!(stats.file_count, 1);
-        assert_eq!(
-            fs::read(source.join("snapshot-境界.sav")).unwrap(),
-            b"exact first-party snapshot fixture"
-        );
-    }
-
-    #[test]
-    fn opaque_partitioned_restore_retains_proof_before_publication() {
-        opaque_partitioned_restore_at(LifecycleFaultPoint::RestorePrepared);
-    }
-
-    #[test]
-    fn opaque_partitioned_restore_retains_proof_after_publication() {
-        opaque_partitioned_restore_at(LifecycleFaultPoint::RestorePublished);
-    }
-
-    fn opaque_partitioned_restore_at(point: LifecycleFaultPoint) {
-        use std::sync::Arc;
-        struct Interrupt(LifecycleFaultPoint);
-        impl crate::operation::LifecycleFaultInjector for Interrupt {
-            fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
-                if point == self.0 {
-                    Err(PortcoveError::state("opaque restore fixture interruption"))
-                } else {
-                    Ok(())
-                }
-            }
-        }
-        let started = std::time::Instant::now();
-        let temporary = tempfile::tempdir().unwrap();
-        let library = Library::open(temporary.path().join("library")).unwrap();
-        let id = "super-metroid-recomp";
-        let mut service = PortcoveService::new(library.clone()).unwrap();
-        let port = service.catalog.port(id).unwrap();
-        let user = library.user_dir(id);
-        crate::archive_data::initialize(port, &user).unwrap();
-        let bound = crate::archive_data::namespace(port, &user)
-            .unwrap()
-            .join("a".repeat(64));
-        fs::create_dir_all(&bound).unwrap();
-        fs::write(bound.join("snapshot.sav"), b"opaque preserved snapshot").unwrap();
-        fs::write(user.join("config.ini"), b"reviewed conventional data").unwrap();
-        let backup = service.create_backup(id).unwrap();
-        eprintln!("opaque {point:?}: backup at {:?}", started.elapsed());
-        let manifest: BackupManifest =
-            serde_json::from_slice(&fs::read(backup.path.join("backup.json")).unwrap()).unwrap();
-        assert!(manifest.guarded_archive_v1.is_none());
-        assert!(manifest.partitioned_data_v1.is_some());
-        fs::write(user.join("config.ini"), b"current data before restore").unwrap();
-        let preview = service
-            .preview_backup_action(id, &backup.id, BackupAction::Restore)
-            .unwrap();
-        let consent = service
-            .authorize_backup_action(
-                id,
-                &backup.id,
-                BackupAction::Restore,
-                &preview.preview_sha256,
-            )
-            .unwrap();
-        service.faults = Arc::new(Interrupt(point));
-        assert!(
-            service
-                .restore_backup(id, &backup.id, &consent.token)
-                .is_err()
-        );
-        let store = OperationStore::new(library.clone());
-        let mut operations = store.all().unwrap();
-        assert_eq!(operations.len(), 1);
-        let operation = &mut operations[0];
-        assert_eq!(
-            operation.original_paths.len(),
-            1,
-            "opaque data still requires phase-owned restore proof"
-        );
-        let restore = service.validate_restore_operation(operation).unwrap();
-        let snapshot = if point == LifecycleFaultPoint::RestorePrepared {
-            restore.staged_data
-        } else {
-            user.clone()
-        };
-        fs::rename(snapshot.join("config.ini"), snapshot.join("config.changed")).unwrap();
-        assert!(crate::recovery::recover_restore(&service, &store, operation).is_err());
-        assert!(operation.original_paths[0].is_file());
-        assert!(store.all().unwrap().len() == 1);
-        fs::rename(snapshot.join("config.changed"), snapshot.join("config.ini")).unwrap();
-        crate::recovery::recover_restore(&service, &store, operation).unwrap();
-        assert_eq!(
-            fs::read(user.join("config.ini")).unwrap(),
-            b"reviewed conventional data"
-        );
-        assert_eq!(
-            crate::archive_data::snapshot_policy(&user).unwrap(),
-            manifest.partitioned_data_v1
-        );
-        assert!(store.all().unwrap().is_empty());
-        eprintln!("opaque {point:?}: recovered at {:?}", started.elapsed());
-    }
-
-    #[test]
-    fn guarded_snapshot_read_only_integrity_matches_published_copy_and_detects_tamper() {
-        let temporary = tempfile::tempdir().unwrap();
-        let source = temporary.path().join("source");
-        let copied = temporary.path().join("copied");
-        fs::create_dir_all(source.join("empty")).unwrap();
-        fs::write(source.join("save.bin"), b"private fixture").unwrap();
-        let mut written = BackupStats::default();
-        copy_backup_tree(&source, &copied, &source, &mut written).unwrap();
-        let expected = hex::encode(Sha256::digest(
-            b"dir\0\0dir\0empty\0file\0save.bin\0private fixture",
-        ));
-        assert_eq!(hex::encode(written.hasher.clone().finalize()), expected);
-        let mut observed = BackupStats::default();
-        inspect_snapshot(&copied, &copied, &mut observed, &mut 0, 0).unwrap();
-        assert_eq!(observed.file_count, 1);
-        assert_eq!(observed.size, 15);
-        assert_eq!(hex::encode(observed.hasher.finalize()), expected);
-        assert_eq!(
-            hex::encode(observed.metadata_hasher.finalize()),
-            hex::encode(written.metadata_hasher.finalize())
-        );
-        fs::write(copied.join("save.bin"), b"changed fixture").unwrap();
-        let mut changed = BackupStats::default();
-        inspect_snapshot(&copied, &copied, &mut changed, &mut 0, 0).unwrap();
-        assert_ne!(hex::encode(changed.hasher.finalize()), expected);
-    }
-}
-
 pub(super) fn manifest_input(
     operation: &LifecycleOperation,
     recovery: &Path,
@@ -510,4 +293,221 @@ fn inspect_snapshot(
         stats.file_count += 1;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn guarded_snapshot_digest_preserves_legacy_and_rejects_ignored_or_changed_binding() {
+        let mut hash = Sha256::new();
+        hash.update(b"dir\0\0file\0save.bin\0private fixture");
+        let legacy = hex::encode(Sha256::digest(b"dir\0\0file\0save.bin\0private fixture"));
+        assert_eq!(content_digest(hash.clone(), None, None).unwrap(), legacy);
+        let bound = content_digest(hash.clone(), Some(&"a".repeat(64)), None).unwrap();
+        assert_ne!(
+            bound, legacy,
+            "older raw-byte readers must refuse a bound backup"
+        );
+        assert_ne!(
+            bound,
+            content_digest(hash.clone(), Some(&"b".repeat(64)), None).unwrap()
+        );
+        assert!(content_digest(hash, Some("unverified-tag"), None).is_err());
+        let mut hash = Sha256::new();
+        hash.update(b"same private snapshot");
+        let partitioned =
+            content_digest(hash.clone(), Some(&"a".repeat(64)), Some(&"b".repeat(64))).unwrap();
+        assert_ne!(
+            partitioned,
+            content_digest(hash.clone(), Some(&"a".repeat(64)), None).unwrap(),
+            "earlier unpartitioned readers must fail integrity, even at the same archive"
+        );
+        assert_ne!(
+            partitioned,
+            content_digest(hash.clone(), Some(&"a".repeat(64)), Some(&"c".repeat(64))).unwrap()
+        );
+        assert_ne!(
+            content_digest(hash.clone(), None, Some(&"b".repeat(64))).unwrap(),
+            content_digest(hash, None, None).unwrap(),
+            "opaque retained data still fences older readers"
+        );
+    }
+
+    #[test]
+    #[cfg(windows)]
+    fn partitioned_backup_and_runtime_copy_preserve_deep_windows_data_and_timestamps() {
+        use std::os::windows::ffi::OsStrExt;
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join("source");
+        fs::create_dir(&source).unwrap();
+        fs::write(
+            source.join("snapshot-境界.sav"),
+            b"exact first-party snapshot fixture",
+        )
+        .unwrap();
+        let parent = temporary
+            .path()
+            .join("recovery")
+            .join(uuid::Uuid::new_v4().to_string())
+            .join("staged-data")
+            .join(".portcove-archive-data-v1")
+            .join("a".repeat(64))
+            .join("b".repeat(64));
+        fs::create_dir_all(&parent).unwrap();
+        let mut destination = parent.join("preserved");
+        while destination.as_os_str().encode_wide().count() < 280 {
+            destination = destination.join("owned-data-coordinate");
+        }
+        fs::create_dir_all(&destination).unwrap();
+        let output = destination.join("snapshot-境界.sav");
+        crate::runtime_data_policy::copy_ordinary_file(&source.join("snapshot-境界.sav"), &output)
+            .unwrap();
+        assert_eq!(
+            fs::read(&output).unwrap(),
+            b"exact first-party snapshot fixture"
+        );
+        assert_eq!(
+            fs::metadata(&output).unwrap().modified().unwrap(),
+            fs::metadata(source.join("snapshot-境界.sav"))
+                .unwrap()
+                .modified()
+                .unwrap()
+        );
+        let mut stats = BackupStats::default();
+        copy_backup_tree(&source, &destination.join("backup"), &source, &mut stats).unwrap();
+        let copied = destination.join("backup/snapshot-境界.sav");
+        assert_eq!(fs::read(&copied).unwrap(), fs::read(&output).unwrap());
+        assert_eq!(
+            fs::metadata(&copied).unwrap().modified().unwrap(),
+            fs::metadata(&output).unwrap().modified().unwrap()
+        );
+        assert_eq!(stats.file_count, 1);
+        assert_eq!(
+            fs::read(source.join("snapshot-境界.sav")).unwrap(),
+            b"exact first-party snapshot fixture"
+        );
+    }
+
+    #[test]
+    fn opaque_partitioned_restore_retains_proof_before_publication() {
+        opaque_partitioned_restore_at(LifecycleFaultPoint::RestorePrepared);
+    }
+
+    #[test]
+    fn opaque_partitioned_restore_retains_proof_after_publication() {
+        opaque_partitioned_restore_at(LifecycleFaultPoint::RestorePublished);
+    }
+
+    fn opaque_partitioned_restore_at(point: LifecycleFaultPoint) {
+        use std::sync::Arc;
+        struct Interrupt(LifecycleFaultPoint);
+        impl crate::operation::LifecycleFaultInjector for Interrupt {
+            fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
+                if point == self.0 {
+                    Err(PortcoveError::state("opaque restore fixture interruption"))
+                } else {
+                    Ok(())
+                }
+            }
+        }
+        let started = std::time::Instant::now();
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let id = "super-metroid-recomp";
+        let mut service = PortcoveService::new(library.clone()).unwrap();
+        let port = service.catalog.port(id).unwrap();
+        let user = library.user_dir(id);
+        crate::archive_data::initialize(port, &user).unwrap();
+        let bound = crate::archive_data::namespace(port, &user)
+            .unwrap()
+            .join("a".repeat(64));
+        fs::create_dir_all(&bound).unwrap();
+        fs::write(bound.join("snapshot.sav"), b"opaque preserved snapshot").unwrap();
+        fs::write(user.join("config.ini"), b"reviewed conventional data").unwrap();
+        let backup = service.create_backup(id).unwrap();
+        eprintln!("opaque {point:?}: backup at {:?}", started.elapsed());
+        let manifest: BackupManifest =
+            serde_json::from_slice(&fs::read(backup.path.join("backup.json")).unwrap()).unwrap();
+        assert!(manifest.guarded_archive_v1.is_none());
+        assert!(manifest.partitioned_data_v1.is_some());
+        fs::write(user.join("config.ini"), b"current data before restore").unwrap();
+        let preview = service
+            .preview_backup_action(id, &backup.id, BackupAction::Restore)
+            .unwrap();
+        let consent = service
+            .authorize_backup_action(
+                id,
+                &backup.id,
+                BackupAction::Restore,
+                &preview.preview_sha256,
+            )
+            .unwrap();
+        service.faults = Arc::new(Interrupt(point));
+        assert!(
+            service
+                .restore_backup(id, &backup.id, &consent.token)
+                .is_err()
+        );
+        let store = OperationStore::new(library.clone());
+        let mut operations = store.all().unwrap();
+        assert_eq!(operations.len(), 1);
+        let operation = &mut operations[0];
+        assert_eq!(
+            operation.original_paths.len(),
+            1,
+            "opaque data still requires phase-owned restore proof"
+        );
+        let restore = service.validate_restore_operation(operation).unwrap();
+        let snapshot = if point == LifecycleFaultPoint::RestorePrepared {
+            restore.staged_data
+        } else {
+            user.clone()
+        };
+        fs::rename(snapshot.join("config.ini"), snapshot.join("config.changed")).unwrap();
+        assert!(crate::recovery::recover_restore(&service, &store, operation).is_err());
+        assert!(operation.original_paths[0].is_file());
+        assert!(store.all().unwrap().len() == 1);
+        fs::rename(snapshot.join("config.changed"), snapshot.join("config.ini")).unwrap();
+        crate::recovery::recover_restore(&service, &store, operation).unwrap();
+        assert_eq!(
+            fs::read(user.join("config.ini")).unwrap(),
+            b"reviewed conventional data"
+        );
+        assert_eq!(
+            crate::archive_data::snapshot_policy(&user).unwrap(),
+            manifest.partitioned_data_v1
+        );
+        assert!(store.all().unwrap().is_empty());
+        eprintln!("opaque {point:?}: recovered at {:?}", started.elapsed());
+    }
+
+    #[test]
+    fn guarded_snapshot_read_only_integrity_matches_published_copy_and_detects_tamper() {
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join("source");
+        let copied = temporary.path().join("copied");
+        fs::create_dir_all(source.join("empty")).unwrap();
+        fs::write(source.join("save.bin"), b"private fixture").unwrap();
+        let mut written = BackupStats::default();
+        copy_backup_tree(&source, &copied, &source, &mut written).unwrap();
+        let expected = hex::encode(Sha256::digest(
+            b"dir\0\0dir\0empty\0file\0save.bin\0private fixture",
+        ));
+        assert_eq!(hex::encode(written.hasher.clone().finalize()), expected);
+        let mut observed = BackupStats::default();
+        inspect_snapshot(&copied, &copied, &mut observed, &mut 0, 0).unwrap();
+        assert_eq!(observed.file_count, 1);
+        assert_eq!(observed.size, 15);
+        assert_eq!(hex::encode(observed.hasher.finalize()), expected);
+        assert_eq!(
+            hex::encode(observed.metadata_hasher.finalize()),
+            hex::encode(written.metadata_hasher.finalize())
+        );
+        fs::write(copied.join("save.bin"), b"changed fixture").unwrap();
+        let mut changed = BackupStats::default();
+        inspect_snapshot(&copied, &copied, &mut changed, &mut 0, 0).unwrap();
+        assert_ne!(hex::encode(changed.hasher.finalize()), expected);
+    }
 }

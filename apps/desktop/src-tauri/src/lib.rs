@@ -1141,6 +1141,8 @@ fn plan_source_import_for(
         .map_err(Into::into)
 }
 
+// Tauri binds these named IPC arguments and injects the app, state and event channel.
+#[allow(clippy::too_many_arguments)]
 #[tauri::command]
 async fn import_source(
     app: tauri::AppHandle,
