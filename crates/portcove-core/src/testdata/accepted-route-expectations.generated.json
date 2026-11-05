@@ -7,6 +7,13 @@
       "arguments": [],
       "managed_native": false,
       "observation_scope_sha256": "111033e4012b570f5b4ee6ff453d31c38574c9ced21e8b818bd3c2fd6cb8b2ee"
+    },
+    {
+      "port_id": "nhl-94-genesis-ninety-four",
+      "executable": "nhl94.exe",
+      "arguments": [],
+      "managed_native": false,
+      "observation_scope_sha256": "c3a77269a9edda2a105856eb2321abea0e1cfc651f09566566f246070360aefa"
     }
   ]
 }

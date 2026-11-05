@@ -4,6 +4,7 @@ const DECLARED_PREPARED_ROUTE_TEST_IDS: &[&str] = &[
     "mother-3-mother-3-recomp",
     "mstan-tetrisgbrecomp",
     "n64hub-super-mario-64-recomp",
+    "nhl-94-genesis-ninety-four",
 ];
 
 #[test]
@@ -19,4 +20,9 @@ fn prepared_guide_adoption_declared_mstan_tetrisgbrecomp() {
 #[test]
 fn prepared_guide_adoption_declared_n64hub_super_mario_64_recomp() {
     assert_declarative_prepared_player_route("n64hub-super-mario-64-recomp");
+}
+
+#[test]
+fn prepared_guide_adoption_declared_nhl_94_genesis_ninety_four() {
+    assert_declarative_prepared_player_route("nhl-94-genesis-ninety-four");
 }
