@@ -1017,6 +1017,15 @@ void test("public installed readback requires the exact successful Windows attem
     candidate_executable_sha256: "4".repeat(64),
   };
   const preserved = { library: [{ path: "portcove.sqlite3" }] };
+  const profile = {
+    library_root: "D:\\fixture\\desktop-ordinary-public-update\\library",
+    preferences_path: "D:\\fixture\\desktop-ordinary-public-update\\preferences.json",
+  };
+  const journeyManifest = {
+    library: [{ path: "portcove.sqlite3", type: "file", bytes: 4096, sha256: "c".repeat(64) }],
+    preferences: { present: true, bytes: 128, sha256: "d".repeat(64) },
+  };
+
   const installer = {
     phase: "complete",
     details: {
@@ -1026,6 +1035,7 @@ void test("public installed readback requires the exact successful Windows attem
       persistent_data_preserved: true,
       preservation_manifest_before_uninstall: preserved,
       preservation_manifest_after_uninstall: preserved,
+      journey_profile_preservation: { ...profile, before: journeyManifest, after: journeyManifest },
       isolated_account_boundary: {
         native_invocation_id: invocation,
         installed_executable_sha256: inputs.candidate_executable_sha256,
@@ -1041,9 +1051,10 @@ void test("public installed readback requires the exact successful Windows attem
     recovery_cases: ["apply", "schedule", "staging"].map((area) => ({ area })),
     phase: "initial-v0-v1",
     outcome: "observed",
+    profile,
     user_state: {
-      before: { application_version: inputs.prior_version },
-      after: { application_version: inputs.candidate_version },
+      before: { application_version: inputs.prior_version, library_root: profile.library_root },
+      after: { application_version: inputs.candidate_version, library_root: profile.library_root },
     },
     automatic_relaunch: {
       title: "Portcove",
@@ -1102,6 +1113,36 @@ void test("public installed readback requires the exact successful Windows attem
     inspectApplicationPublicInstalledProof(proof, installer, journey, expected).job_id,
     job.id,
   );
+  for (const preservation of [
+    null,
+    {
+      ...profile,
+      library_root: "D:\\fixture\\installer\\library",
+      before: journeyManifest,
+      after: journeyManifest,
+    },
+    {
+      ...profile,
+      before: journeyManifest,
+      after: {
+        ...journeyManifest,
+        preferences: { ...journeyManifest.preferences, sha256: "e".repeat(64) },
+      },
+    },
+  ]) {
+    const changed = {
+      ...installer,
+      details: { ...installer.details, journey_profile_preservation: preservation },
+    };
+    assert.throws(() =>
+      inspectApplicationPublicInstalledProof(
+        { ...proof, installer_sha256: digest(changed) },
+        changed,
+        journey,
+        expected,
+      ),
+    );
+  }
   for (const invalid of [
     { ...proof, completed_at: "2026-11-05T01:11:00Z" },
     { ...proof, stage_settlement: { ...proof.stage_settlement, disabled: false } },

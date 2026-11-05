@@ -2,6 +2,7 @@
  * These byte inspectors grant no authority; the receiver authenticates the
  * fixed Actions producer and exact artifact before admitting any key use. */
 import assert from "node:assert/strict";
+import path from "node:path";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { isRecord } from "./runtime-values.mts";
 import {
@@ -68,6 +69,50 @@ export function inspectApplicationPublicInstalledJourney(
   );
   assert.equal(journey.user_state.before.application_version, expected.prior_version);
   assert.equal(journey.user_state.after.application_version, expected.candidate_version);
+  const preservation = installer.details.journey_profile_preservation;
+  assert.ok(isRecord(preservation) && isRecord(journey.profile));
+  const normalized = (value: unknown) => {
+    assert.ok(typeof value === "string" && /^[a-z]:[\\/]/iu.test(value));
+    return path.win32.resolve(value).toLowerCase();
+  };
+  const library = normalized(preservation.library_root);
+  const preferences = normalized(preservation.preferences_path);
+  assert.equal(path.win32.basename(library), "library");
+  assert.equal(preferences, path.win32.join(path.win32.dirname(library), "preferences.json"));
+  assert.equal(library, normalized(journey.profile.library_root));
+  assert.equal(library, normalized(journey.user_state.before.library_root));
+  assert.equal(library, normalized(journey.user_state.after.library_root));
+  assert.equal(preferences, normalized(journey.profile.preferences_path));
+  const profile = preservation.before;
+  assert.ok(isRecord(profile) && Array.isArray(profile.library) && isRecord(profile.preferences));
+  assert.deepEqual(profile, preservation.after);
+  assert.ok(
+    profile.library.some(
+      (entry: unknown) =>
+        isRecord(entry) &&
+        entry.path === "portcove.sqlite3" &&
+        entry.type === "file" &&
+        typeof entry.bytes === "number" &&
+        Number.isSafeInteger(entry.bytes) &&
+        entry.bytes > 0 &&
+        typeof entry.sha256 === "string" &&
+        /^[a-f0-9]{64}$/u.test(entry.sha256),
+    ),
+  );
+  if (profile.preferences.present === true) {
+    assert.ok(
+      typeof profile.preferences.bytes === "number" &&
+        Number.isSafeInteger(profile.preferences.bytes) &&
+        profile.preferences.bytes > 0,
+    );
+    assert.ok(
+      typeof profile.preferences.sha256 === "string" &&
+        /^[a-f0-9]{64}$/u.test(profile.preferences.sha256),
+    );
+  } else {
+    assert.deepEqual(profile.preferences, { present: false, bytes: null, sha256: null });
+  }
+
   assert.ok(
     isRecord(journey.automatic_relaunch) && isRecord(journey.automatic_relaunch.executable),
   );
