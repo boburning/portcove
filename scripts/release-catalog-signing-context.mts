@@ -31,6 +31,10 @@ import {
 import { inspectReleaseSourceTree } from "./release-source-changes.mts";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import {
+  createReleaseCustodyProvider,
+  type CatalogAnchorMetadataProvider,
+} from "./release-custody-provider.mts";
+import {
   materializePublishedCatalogCompleteSite,
   requirePublishedCatalogCompleteSite,
   materializePublishedCompleteSite,
@@ -96,21 +100,30 @@ function remaining(owned: { deadline: number }, max = 15000) {
     throw new Error("catalog context original deadline exhausted");
   return Math.min(left, max);
 }
-function apiFor(owned: Pick<Owned, "directory" | "work" | "deadline">) {
+function readAllowance() {
   let reads = 0;
+  return () => {
+    if (++reads > 32) throw new Error("catalog context bounded GET budget exhausted");
+  };
+}
+function apiFor(
+  owned: Pick<Owned, "directory" | "work" | "deadline">,
+  chargeRead = readAllowance(),
+  token = process.env.GH_TOKEN,
+) {
   const env = {
     PATH: process.env.PATH,
     SystemRoot: process.env.SystemRoot,
     HOME: owned.work,
     USERPROFILE: owned.work,
     GH_CONFIG_DIR: path.join(owned.work, "gh-config"),
-    GH_TOKEN: process.env.GH_TOKEN,
+    GH_TOKEN: token,
     GH_PROMPT_DISABLED: "1",
     GH_NO_UPDATE_NOTIFIER: "1",
     NO_COLOR: "1",
   };
   return new GitHubApiClient((args, input) => {
-    if (++reads > 32) throw new Error("catalog context bounded GET budget exhausted");
+    chargeRead();
     const response = createGitHubRunner({
       cwd: owned.directory,
       maxBuffer: 2 * 1024 ** 2,
@@ -123,24 +136,21 @@ function apiFor(owned: Pick<Owned, "directory" | "work" | "deadline">) {
 }
 /** Fixed ratified Git paths, complete bounded raw tree and exact Git blob hash.
  * This authenticates public bytes, not a new publisher or trust root. */
-export function readCatalogPublicAnchors(
-  api: Pick<GitHubApiClient, "request">,
-  pins: {
+export async function readCatalogPublicAnchors(
+  metadata: CatalogAnchorMetadataProvider,
+  rawPins: {
     commit: string;
     root: { path: string; bytes: number; sha256: string };
     offline_targets: { path: string; bytes: number; sha256: string };
   },
   deadline: number,
 ) {
-  const get = (route: string) => {
-    remaining({ deadline });
-    const response = api.request("GET", `repos/boburning/portcove/${route}`);
-    remaining({ deadline });
-    if (response.status !== 200) throw new Error("catalog public source unavailable");
-    return response.body;
-  };
-  const commit = inspectRemoteCommitObject(get(`git/commits/${pins.commit}`), pins.commit),
-    tree = inspectReleaseSourceTree(get(`git/trees/${commit.tree}?recursive=1`), commit.tree);
+  const pins = structuredClone(rawPins);
+  remaining({ deadline });
+  const commit = inspectRemoteCommitObject(await metadata.commit(pins.commit), pins.commit);
+  remaining({ deadline });
+  const tree = inspectReleaseSourceTree(await metadata.tree(commit.tree), commit.tree);
+  remaining({ deadline });
   const result = new Map<string, Buffer>();
   for (const [name, pin] of [
     ["trusted-root.json", pins.root],
@@ -155,7 +165,9 @@ export function readCatalogPublicAnchors(
       pin.bytes > 128 * 1024
     )
       throw new Error("catalog anchor is not bounded regular Git input");
-    const body = get(`git/blobs/${entry.oid}`);
+    remaining({ deadline });
+    const body = await metadata.blob(entry.oid);
+    remaining({ deadline });
     if (
       !isRecord(body) ||
       body.sha !== entry.oid ||
@@ -237,7 +249,9 @@ async function prepareContext(session: Session, parent: string) {
     directory = path.join(work, "context");
   await mkdir(directory, { mode: 0o700 });
   const partial = { work, directory, deadline },
-    api = apiFor(partial),
+    chargeRead = readAllowance(),
+    token = process.env.GH_TOKEN,
+    api = apiFor(partial, chargeRead, token),
     authorities = await requireControllerCatalogJobAuthorities("coordinator"),
     pins = authorities.catalog.public_source;
   if (
@@ -246,7 +260,12 @@ async function prepareContext(session: Session, parent: string) {
     session.descriptor.prior.catalog_root_sha256 !== pins.root.sha256
   )
     throw new Error("catalog context ratified authority differs");
-  const files = readCatalogPublicAnchors(api, pins, deadline),
+  const metadata = await createReleaseCustodyProvider({
+    token: token ?? "",
+    deadline,
+    chargeRead,
+  });
+  const files = await readCatalogPublicAnchors(metadata, pins, deadline),
     bundle = await readCatalogPublicationBundle(session.inspection.bundle, deadline);
   assertControllerCatalogPublisherScope(
     authorities.configuration,

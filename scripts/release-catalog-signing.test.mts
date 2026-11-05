@@ -8,6 +8,8 @@ import { execFileSync } from "node:child_process";
 import { stripTypeScriptTypes } from "node:module";
 import { runInNewContext } from "node:vm";
 import { isRecord } from "./runtime-values.mts";
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
+import { readCatalogPublicAnchors } from "./release-catalog-signing-context.mts";
 import { capacityFixture } from "./fixtures/release-capacity-fixture.mts";
 import {
   checkpointReleaseOpportunity,
@@ -1116,4 +1118,92 @@ void test("large descriptive directory crosses catalog signing preflight, archiv
       assertCatalogListingClassification(falseReport, f.facts.semantic_opportunity.classification),
     /classification/,
   );
+});
+
+void test("locked SDK authenticates catalog anchor bytes through the exact commit, tree and blobs", async () => {
+  const objectId = (kind: string, bytes: Buffer) =>
+    createHash("sha1").update(`${kind} ${bytes.length}\0`).update(bytes).digest("hex");
+  const anchors = [
+    { path: "offline.json", bytes: Buffer.from("offline fixture") },
+    { path: "root.json", bytes: Buffer.from("root fixture") },
+  ].map((item) => ({ ...item, sha: objectId("blob", item.bytes) }));
+  const [offline, root] = anchors as [(typeof anchors)[number], (typeof anchors)[number]];
+  const tree = objectId(
+    "tree",
+    Buffer.concat(
+      anchors.flatMap((a) => [Buffer.from(`100644 ${a.path}\0`), Buffer.from(a.sha, "hex")]),
+    ),
+  );
+  const actor = { name: "Fixture", email: "fixture@example.invalid", date: "2026-01-01T00:00:00Z" };
+  const person = `${actor.name} <${actor.email}> ${Date.parse(actor.date) / 1000} +0000`;
+  const message = "catalog fixture";
+  const commit = objectId(
+    "commit",
+    Buffer.from(`tree ${tree}\nauthor ${person}\ncommitter ${person}\n\n${message}`),
+  );
+  const pin = (a: typeof root) => ({
+    path: a.path,
+    bytes: a.bytes.length,
+    sha256: createHash("sha256").update(a.bytes).digest("hex"),
+  });
+  const pins = { commit, root: pin(root), offline_targets: pin(offline) };
+  let truncated = false;
+  const calls: string[] = [];
+  const deadline = performance.now() + 15000;
+  const provider = await createReleaseCustodyProvider({
+    token: "inert-catalog-anchor",
+    deadline,
+    fetch: async (input, init) => {
+      const request = new Request(input, init);
+      const url = new URL(request.url),
+        prefix = "/repos/boburning/portcove/git";
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(request.method, "GET");
+      assert.equal(request.headers.get("authorization"), "token inert-catalog-anchor");
+      calls.push(url.pathname);
+      if (url.pathname === `${prefix}/commits/${commit}`)
+        return Response.json({
+          sha: commit,
+          tree: { sha: tree },
+          parents: [],
+          author: actor,
+          committer: actor,
+          message,
+        });
+      if (url.pathname === `${prefix}/trees/${tree}`) {
+        assert.equal(url.search, "?recursive=1");
+        return Response.json({
+          sha: tree,
+          truncated,
+          tree: anchors.map((a) => ({ path: a.path, mode: "100644", type: "blob", sha: a.sha })),
+        });
+      }
+      const item = anchors.find((a) => url.pathname === `${prefix}/blobs/${a.sha}`);
+      assert.ok(item);
+      return Response.json({
+        sha: item.sha,
+        size: item.bytes.length,
+        encoding: "base64",
+        content: item.bytes.toString("base64"),
+      });
+    },
+  });
+  assert.deepEqual(
+    [...(await readCatalogPublicAnchors(provider, pins, deadline))],
+    [
+      ["trusted-root.json", root.bytes],
+      ["offline-targets.json", offline.bytes],
+    ],
+  );
+  const prefix = "/repos/boburning/portcove/git";
+  assert.deepEqual(calls, [
+    `${prefix}/commits/${commit}`,
+    `${prefix}/trees/${tree}`,
+    `${prefix}/blobs/${root.sha}`,
+    `${prefix}/blobs/${offline.sha}`,
+  ]);
+  truncated = true;
+  calls.length = 0;
+  await assert.rejects(readCatalogPublicAnchors(provider, pins, deadline), /truncated/u);
+  assert.deepEqual(calls, [`${prefix}/commits/${commit}`, `${prefix}/trees/${tree}`]);
 });
