@@ -2,7 +2,6 @@
  * immutable publisher. This transfers settled-result provenance, never a live
  * reservation, site deployment permission or completed public updater journey. */
 import { createHash } from "node:crypto";
-import { spawnSync } from "node:child_process";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { crc32, inflateRawSync } from "node:zlib";
@@ -13,7 +12,9 @@ import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import type { ReleaseArtifactMetadataProvider } from "./release-custody-provider.mts";
 import type { RetainedGitHubSpawn } from "./github-cli.mts";
 import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
-import { readGitHubArtifactArchive } from "./github-binary.mts";
+import { downloadGitHubArtifactArchive } from "./github-artifact-download.mts";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { verifyControllerArtifactStatement } from "./github-controller-attestation.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import {
@@ -52,6 +53,30 @@ function remaining(deadline: number, maximum = 15000) {
   if (!Number.isFinite(deadline) || value < 1)
     throw new Error("publication result deadline exhausted");
   return Math.min(value, maximum);
+}
+async function downloadResultArchive(
+  id: number,
+  bytes: number,
+  deadline: number,
+  token: string,
+  isolated: boolean,
+) {
+  remaining(deadline);
+  return downloadGitHubArtifactArchive(`${repository}actions/artifacts/${id}/zip`, {
+    credential: { kind: "explicit", token },
+    deadline: Math.min(
+      deadline,
+      coordinatorCommandDeadline() ?? Infinity,
+      performance.now() + 30000,
+    ),
+    maxBytes: bytes,
+    ...(isolated && {
+      fetch: (input, init) => {
+        assertTrustedDirectNode("publication result archive");
+        return globalThis.fetch(input, init);
+      },
+    }),
+  });
 }
 function exact(raw: unknown, keys: string): asserts raw is Record<string, unknown> {
   if (!isRecord(raw) || Object.keys(raw).sort().join(",") !== keys)
@@ -279,7 +304,8 @@ export async function preparePublicationResultPredicate(
 ) {
   remaining(deadline);
   uploaded = structuredClone(uploaded);
-  const token = (readOnlyReleaseChildEnvironment() ?? process.env).GH_TOKEN ?? "";
+  const reader = readOnlyReleaseChildEnvironment();
+  const token = (reader ?? process.env).GH_TOKEN ?? "";
   const actual = await requireOwnedPublicationResult(receipt);
   const raw = actual.record.controller;
   if (!isRecord(raw)) throw new Error("actual publisher controller missing");
@@ -297,11 +323,13 @@ export async function preparePublicationResultPredicate(
   const metadata = await createReleaseCustodyProvider({ token, deadline, maxBytes: 128 * 1024 });
   const source = provider(metadata, controller, () => deadline),
     before = await source.artifact(uploaded, false);
-  const archive = readGitHubArtifactArchive(`${repository}actions/artifacts/${before.id}/zip`, {
-    cwd: actual.directory,
-    maxBytes: before.bytes,
-    timeoutMs: remaining(deadline, 30000),
-  });
+  const archive = await downloadResultArchive(
+    before.id,
+    before.bytes,
+    deadline,
+    token,
+    reader !== undefined,
+  );
   remaining(deadline);
   if (archive.length !== before.bytes || hash(archive) !== before.sha256)
     throw new Error("uploaded result ZIP differs");
@@ -389,7 +417,7 @@ export async function receivePublicationResultArtifact(
   deadline: number,
   options: {
     metadata?: ReleaseArtifactMetadataProvider;
-    download?: typeof readGitHubArtifactArchive;
+    download?: (id: number, bytes: number, deadline: number) => Promise<Buffer>;
     spawn?: RetainedGitHubSpawn;
   } = {},
 ) {
@@ -459,23 +487,18 @@ export async function receivePublicationResultArtifact(
       };
     };
     const before = await snapshot();
-    const download = options.download ?? readGitHubArtifactArchive;
-    const acquire = (item: { id: number; bytes: number; sha256: string }) => {
-      const archive = download(`${repository}actions/artifacts/${item.id}/zip`, {
-        cwd: directory,
-        maxBytes: item.bytes,
-        timeoutMs: remaining(deadline, 30000),
-        spawn: (command, argv, settings) =>
-          spawnSync(command, argv, { ...settings, env: environment }),
-      });
+    const acquire = async (item: { id: number; bytes: number; sha256: string }) => {
+      const archive = options.download
+        ? await options.download(item.id, item.bytes, deadline)
+        : await downloadResultArchive(item.id, item.bytes, deadline, token, true);
       remaining(deadline);
       if (archive.length !== item.bytes || hash(archive) !== item.sha256)
         throw new Error("publication result opaque archive differs");
       return archive;
     };
     phase = "bounded-archives";
-    const archive = acquire(before.artifact),
-      bundleArchive = acquire(before.bundle);
+    const archive = await acquire(before.artifact),
+      bundleArchive = await acquire(before.bundle);
     const bytes = inspectPublicationResultArchive(archive),
       bundle = inspectPublicationResultArchive(bundleArchive, true);
     if (hash(bytes) !== expected.report_sha256)
