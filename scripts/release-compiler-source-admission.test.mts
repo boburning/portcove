@@ -67,6 +67,7 @@ void test("verified admission reads the exact tree with the appointed reader and
   const receipt = {};
   const order: string[] = [];
   let changed = false;
+  let treeStatus = 200;
   let stalled: "preparation" | "tree" | undefined;
   let enableProxyAfterPreparation = false;
   let cancelled = false;
@@ -130,11 +131,14 @@ void test("verified admission reads the exact tree with the appointed reader and
         );
       }
       if (preparation) return Response.json({});
-      return Response.json({
-        sha: tree,
-        truncated: false,
-        tree: [{ path: "unrelated.txt", mode: "100644", type: "blob", sha: blob }],
-      });
+      return Response.json(
+        {
+          sha: tree,
+          truncated: false,
+          tree: [{ path: "unrelated.txt", mode: "100644", type: "blob", sha: blob }],
+        },
+        { status: treeStatus },
+      );
     },
   );
   const result = await compare(receipt, candidate, controller, "appointed-compiler-token");
@@ -149,6 +153,14 @@ void test("verified admission reads the exact tree with the appointed reader and
     assert.equal(scoped.evidence_scope, "github.com");
   });
   assert.deepEqual(order, ["receipt", "preparation", "tree", "receipt"]);
+  order.length = 0;
+  treeStatus = 201;
+  await assert.rejects(
+    compare(receipt, candidate, controller, "appointed-compiler-token"),
+    /unexpected HTTP status 201/u,
+  );
+  assert.deepEqual(order, ["receipt", "preparation", "tree"]);
+  treeStatus = 200;
   order.length = 0;
   enableProxyAfterPreparation = true;
   const originalProxySetting = process.env.NODE_USE_ENV_PROXY;

@@ -126,7 +126,7 @@ void test("default compiler comparison uses the locked SDK for exact one-shot tr
       );
       assert.ok(match);
       dispatches.push(match[1]!);
-      return Response.json(status === 200 ? await f.readTree(match[1]!) : {}, { status });
+      return Response.json(status < 300 ? await f.readTree(match[1]!) : {}, { status });
     },
   );
   const result = await compareReleaseCompilerSource(f.root, tree);
@@ -134,10 +134,14 @@ void test("default compiler comparison uses the locked SDK for exact one-shot tr
   assert.equal(dispatches[0], tree);
   assert.ok(dispatches.length > 1);
   assert.equal(new Set(dispatches).size, dispatches.length);
-  status = 503;
-  dispatches.length = 0;
-  await assert.rejects(compareReleaseCompilerSource(f.root, tree));
-  assert.deepEqual(dispatches, [tree]);
+  for (status of [201, 503]) {
+    dispatches.length = 0;
+    await assert.rejects(
+      compareReleaseCompilerSource(f.root, tree),
+      status === 201 ? /unexpected HTTP status 201/u : { status: 503 },
+    );
+    assert.deepEqual(dispatches, [tree]);
+  }
 });
 void test("indirect helper, action, workflow and previously absent Cargo configuration changes refuse", async (t) => {
   const f = await fixture(t);

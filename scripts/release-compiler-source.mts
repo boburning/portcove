@@ -129,6 +129,10 @@ export async function createCompilerSourceReader(options: {
     const policy: GitHubRequestPolicy = { replay: "once", attempts: 0, deadline };
     try {
       const response = await client.request(`GET ${allowed}`, { request: { portcove: policy } });
+      if (response.status !== 200)
+        throw new Error(
+          `compiler source provider returned unexpected HTTP status ${response.status}`,
+        );
       const link = response.headers.link;
       return {
         status: response.status,
