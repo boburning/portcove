@@ -1721,6 +1721,37 @@ void test("caller opportunity clamps GitHub fetch and refuses late retry without
   );
 });
 
+void test("fair observer admission deferrals preserve the provider read allowance", async () => {
+  const server = fixture();
+  const githubScope = {
+    deadline: performance.now() + 5000,
+    failedReads: new Map<string, import("./github-client.mts").GitHubRequestPolicy>(),
+    deferral: { primary: new Map<string, number>(), secondary: 0 },
+  };
+  let calls = 0;
+  const options = {
+    githubScope,
+    fetch: (...args: Parameters<typeof server.fetch>) => {
+      calls++;
+      return server.fetch(...args);
+    },
+  };
+  for (let turn = 0; turn < 4; turn++) {
+    await assert.rejects(
+      observeUpstream(config, {
+        ...options,
+        admitRequest: () => {
+          throw new ObservationFailure("budget", "fair turn deferred");
+        },
+      }),
+      (error: unknown) => error instanceof ObservationFailure && error.rule === "budget",
+    );
+  }
+  assert.equal(calls, 0);
+  await observeUpstream(config, options);
+  assert.ok(calls > 0);
+});
+
 void test("continued command cannot renew an exhausted SDK read allowance", async () => {
   const githubScope = {
     deadline: performance.now() + 5000,

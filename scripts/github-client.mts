@@ -273,7 +273,6 @@ export async function createGitHubClient(options: GitHubClientOptions) {
         if (now() >= deadline)
           throw new GitHubApiError("deadline_exceeded", "GitHub operation deadline exhausted");
         await waitUntil(Math.max(deferral.secondary, deferral.primary.get(resource) ?? 0));
-        policy.attempts++;
         const started = now();
         let localFailure: unknown;
         let transportFailure: unknown;
@@ -281,7 +280,7 @@ export async function createGitHubClient(options: GitHubClientOptions) {
         let retryAt = 0;
         let retryDetails: ConstructorParameters<typeof GitHubApiError>[2] = {};
         const observation: GitHubAttemptObservation = {
-          attempt: policy.attempts,
+          attempt: policy.attempts + 1,
           dispatched: false,
           bytes: 0,
           elapsedMs: 0,
@@ -463,6 +462,13 @@ export async function createGitHubClient(options: GitHubClientOptions) {
           // Earlier hooks (notably token auth) bind this original options object.
           // Replacing it here would let that hook discard the bounded fetch.
           parameters.request = { ...parameters.request, fetch: boundedFetch, signal };
+          // Admission may yield while another caller charges this same policy.
+          if (policy.attempts >= maximum)
+            throw new GitHubApiError(
+              "retry_exhausted",
+              "GitHub logical request attempt allowance is exhausted",
+            );
+          observation.attempt = ++policy.attempts;
           const result = await request(parameters);
           requireJsonValues(result.data as unknown);
           const body: unknown = result.data;
