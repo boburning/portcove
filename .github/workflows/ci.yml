@@ -1450,7 +1450,7 @@ jobs:
       - name: Test bounded release run evidence
         run: |
           # node-suite: catalog-full-3
-          node --test --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/release-run-evidence.test.mts scripts/node-platform-skips.test.mts
+          node --test --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/release-run-evidence.test.mts scripts/node-platform-skips.test.mts scripts/application-release-artifacts.test.mts scripts/application-release-budget.test.mts scripts/application-release-context.test.mts scripts/application-release-feed.test.mts scripts/application-release-native.test.mts scripts/application-release-policy.test.mts scripts/application-release-publication.test.mts scripts/application-release-qualification.test.mts scripts/application-release-run.test.mts scripts/application-release-site.test.mts
       - name: Validate local RetComM mappings
         run: node scripts/check-retcomm-upstreams.mts --offline
 

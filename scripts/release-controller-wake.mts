@@ -1,3 +1,12 @@
+import {
+  inspectApplicationPublicationPause,
+  inspectApplicationSpendingAppointment,
+} from "./application-release-policy.mts";
+import {
+  readWindowsApplicationQualification,
+  selectWindowsApplicationQualificationRun,
+} from "./application-release-qualification.mts";
+import { applicationOpportunityFromRunTitle } from "./application-release-run-title.mts";
 import { applicationMetadataMaintenancePriority } from "./release-metadata-contract.mts";
 import { constants } from "node:fs";
 import { createHash } from "node:crypto";
@@ -18,6 +27,7 @@ import timers from "node:timers/promises";
 const repository = "boburning/portcove";
 const prefix = `repos/${repository}`;
 const workflow = ".github/workflows/application-update-wake.yml";
+const nativeWorkflow = ".github/workflows/release.yml";
 export const jobTokenDispatchActor = "41898282";
 export const jobTokenDispatchTransport = "github-actions-job-v1";
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
@@ -31,9 +41,11 @@ type DispatchRunExpectation = {
 
 function inspectDispatchRunExpectation(expected: DispatchRunExpectation) {
   if (
-    ![productionControllerWorkflow, ".github/workflows/job-token-dispatch-fixture.yml"].includes(
-      expected.workflow,
-    ) ||
+    ![
+      productionControllerWorkflow,
+      nativeWorkflow,
+      ".github/workflows/job-token-dispatch-fixture.yml",
+    ].includes(expected.workflow) ||
     !/^[a-f0-9]{40}$/u.test(expected.revision) ||
     !/^[1-9][0-9]{0,15}$/u.test(expected.run_id) ||
     typeof expected.display_title !== "string" ||
@@ -164,21 +176,48 @@ function sourceBytes(raw: unknown, filename: string) {
     throw new Error("wake workflow source identity differs");
   return bytes;
 }
+type WakeConfiguration = ReturnType<typeof inspectControllerWakeConfiguration>;
+const destinationWorkflow = (config: WakeConfiguration) =>
+  config.schema_version === 5 ? nativeWorkflow : productionControllerWorkflow;
+const destinationWorkflowName = (config: WakeConfiguration) =>
+  config.schema_version === 5 ? "release.yml" : "application-update-production.yml";
+const destinationTitle = (config: WakeConfiguration, wakeRun: string, source?: string) =>
+  config.schema_version === 5
+    ? `Application ${source} wake ${wakeRun}`
+    : `Portcove ${config.publication_purpose === "catalog-publication" ? "catalog publication" : "application release"} wake ${wakeRun}`;
+
 function dispatchIntent(
-  config: ReturnType<typeof inspectControllerWakeConfiguration>,
+  config: WakeConfiguration,
   wakeRun: string,
   wakeRevision: string,
+  qualificationRun?: string,
+  qualificationAttempt?: string,
 ) {
+  const native = config.schema_version === 5;
+  if (native && !/^[1-9][0-9]{0,15}$/u.test(qualificationRun ?? ""))
+    throw new Error("native wake requires the exact qualification run identity");
+  if (native && !/^[1-9][0-9]{0,5}$/u.test(qualificationAttempt ?? ""))
+    throw new Error("native wake requires the exact qualification attempt");
   return {
     schema_version: 1,
     controller: config,
-    endpoint: `${prefix}/actions/workflows/application-update-production.yml/dispatches`,
+    endpoint: `${prefix}/actions/workflows/${destinationWorkflowName(config)}/dispatches`,
     body: {
       ref: config.execution_ref.slice("refs/tags/".length),
-      inputs: {
-        wake_run_id: wakeRun,
-        ...(config.schema_version >= 3 ? { publication_purpose: config.publication_purpose } : {}),
-      },
+      inputs: native
+        ? {
+            mode: "prepare",
+            opportunity: wakeRevision,
+            qualification_run: qualificationRun,
+            qualification_attempt: qualificationAttempt,
+            wake_run_id: wakeRun,
+          }
+        : {
+            wake_run_id: wakeRun,
+            ...(config.schema_version >= 3
+              ? { publication_purpose: config.publication_purpose }
+              : {}),
+          },
       return_run_details: true,
     },
     wake_run_id: wakeRun,
@@ -193,13 +232,14 @@ export function inspectWakeControllerRun(
   config: ReturnType<typeof inspectControllerWakeConfiguration>,
   wakeRun: string,
   expectedRun: string,
+  wakeRevision?: string,
 ) {
-  if (config.schema_version === 4)
+  if (config.schema_version >= 4)
     inspectJobTokenDispatchRun(raw, {
       run_id: expectedRun,
       revision: config.revision,
-      workflow: productionControllerWorkflow,
-      display_title: `Portcove ${config.publication_purpose === "catalog-publication" ? "catalog publication" : "application release"} wake ${wakeRun}`,
+      workflow: destinationWorkflow(config),
+      display_title: destinationTitle(config, wakeRun, wakeRevision),
     });
   if (
     !isRecord(raw) ||
@@ -207,11 +247,10 @@ export function inspectWakeControllerRun(
     Number(raw.id) < 1 ||
     String(raw.id) !== expectedRun ||
     raw.head_sha !== config.revision ||
-    raw.path !== productionControllerWorkflow ||
+    raw.path !== destinationWorkflow(config) ||
     raw.event !== "workflow_dispatch" ||
     raw.run_attempt !== 1 ||
-    raw.display_title !==
-      `Portcove ${config.schema_version >= 3 && config.publication_purpose === "catalog-publication" ? "catalog publication" : "application release"} wake ${wakeRun}` ||
+    raw.display_title !== destinationTitle(config, wakeRun, wakeRevision) ||
     !isRecord(raw.actor) ||
     String(raw.actor.id) !== config.dispatch_actor_id ||
     !isRecord(raw.triggering_actor) ||
@@ -299,15 +338,38 @@ async function verifyWakeIntentUpload(
       entry.method === 0
         ? Buffer.from(compressed)
         : inflateRawSync(compressed, { maxOutputLength: entry.bytes });
-  const matchedConfiguration = options.approved_configurations?.find((config) =>
-    bytes.equals(
+  const matchedConfiguration = options.approved_configurations?.find((config) => {
+    let qualificationRun: string | undefined;
+    let qualificationAttempt: string | undefined;
+    if (config.schema_version === 5) {
+      const raw: unknown = JSON.parse(bytes.toString("utf8"));
+      if (
+        !isRecord(raw) ||
+        !isRecord(raw.body) ||
+        !isRecord(raw.body.inputs) ||
+        typeof raw.body.inputs.qualification_run !== "string" ||
+        !/^[1-9][0-9]{0,15}$/u.test(raw.body.inputs.qualification_run) ||
+        typeof raw.body.inputs.qualification_attempt !== "string" ||
+        !/^[1-9][0-9]{0,5}$/u.test(raw.body.inputs.qualification_attempt)
+      )
+        return false;
+      qualificationRun = raw.body.inputs.qualification_run;
+      qualificationAttempt = raw.body.inputs.qualification_attempt;
+    }
+    return bytes.equals(
       Buffer.from(
         JSON.stringify(
-          dispatchIntent(config, environment.GITHUB_RUN_ID!, environment.GITHUB_SHA!),
+          dispatchIntent(
+            config,
+            environment.GITHUB_RUN_ID!,
+            environment.GITHUB_SHA!,
+            qualificationRun,
+            qualificationAttempt,
+          ),
         ) + "\n",
       ),
-    ),
-  );
+    );
+  });
   if (
     bytes.length !== entry.bytes ||
     crc32(bytes) !== entry.crc ||
@@ -417,6 +479,38 @@ export async function reconcilePreviousWakes(
       config.wake_workflow_sha256
     )
       throw new Error("prior wake source differs; reconcile activation history");
+    const readDispatchStep = async () => {
+      const jobs = await api.jobs(String(run.id));
+      if (
+        !isRecord(jobs) ||
+        jobs.total_count !== 1 ||
+        !Array.isArray(jobs.jobs) ||
+        jobs.jobs.length !== 1 ||
+        !isRecord(jobs.jobs[0]) ||
+        jobs.jobs[0].name !== "Wake fixed application controller" ||
+        String(jobs.jobs[0].run_id) !== String(run.id) ||
+        jobs.jobs[0].run_attempt !== 1 ||
+        jobs.jobs[0].head_sha !== run.head_sha ||
+        jobs.jobs[0].status !== "completed" ||
+        !Array.isArray(jobs.jobs[0].steps)
+      )
+        throw new Error("prior wake fixed job readback unavailable");
+      const steps = jobs.jobs[0].steps.filter(
+        (step: unknown) =>
+          isRecord(step) && step.name === "Dispatch retained immutable controller intent",
+      );
+      if (steps.length !== 1 || !isRecord(steps[0]) || steps[0].status !== "completed")
+        throw new Error("prior wake dispatch step identity unavailable");
+      return steps[0];
+    };
+    const nativeStep = config.schema_version === 5 ? await readDispatchStep() : undefined;
+    if (nativeStep?.conclusion === "skipped" && run.conclusion === "success") {
+      await record("prior-wake-boundary-observed", {
+        wake_run_id: run.id,
+        scope: "positively skipped native dispatch after history reconciliation",
+      });
+      return;
+    }
     if (run.conclusion === "success") {
       const artifacts = await api.artifacts(String(run.id));
       if (
@@ -459,13 +553,15 @@ export async function reconcilePreviousWakes(
       const originalConfiguration = await verifyWakeIntentUpload(
         api,
         { ...environment, GITHUB_RUN_ID: String(run.id), GITHUB_SHA: run.head_sha },
-        dispatchIntent(config, String(run.id), run.head_sha),
+        config.schema_version === 5 ? null : dispatchIntent(config, String(run.id), run.head_sha),
         {
           artifact: { id: matches[0].id, sha256: matches[0].digest.slice(7) },
           directory: options.directory ?? process.cwd(),
-          ...(options.approved_configurations === undefined
-            ? {}
-            : { approved_configurations: options.approved_configurations }),
+          ...(config.schema_version === 5
+            ? { approved_configurations: options.approved_configurations ?? [config] }
+            : options.approved_configurations === undefined
+              ? {}
+              : { approved_configurations: options.approved_configurations }),
           ...(options.download ? { download: options.download } : {}),
           ...(options.deadline === undefined ? {} : { deadline: options.deadline }),
         },
@@ -479,37 +575,17 @@ export async function reconcilePreviousWakes(
       });
       return;
     }
-    const jobs = await api.jobs(String(run.id));
-    if (
-      !isRecord(jobs) ||
-      jobs.total_count !== 1 ||
-      !Array.isArray(jobs.jobs) ||
-      jobs.jobs.length !== 1 ||
-      !isRecord(jobs.jobs[0]) ||
-      jobs.jobs[0].name !== "Wake fixed application controller" ||
-      String(jobs.jobs[0].run_id) !== String(run.id) ||
-      jobs.jobs[0].run_attempt !== 1 ||
-      jobs.jobs[0].head_sha !== run.head_sha ||
-      jobs.jobs[0].status !== "completed" ||
-      !Array.isArray(jobs.jobs[0].steps)
-    )
-      throw new Error("prior wake fixed job readback unavailable");
-    const steps = jobs.jobs[0].steps.filter(
-      (step: unknown) =>
-        isRecord(step) && step.name === "Dispatch retained immutable controller intent",
-    );
-    if (steps.length !== 1 || !isRecord(steps[0]) || steps[0].status !== "completed")
-      throw new Error("prior wake dispatch step identity unavailable");
-    if (steps[0].conclusion === "skipped") {
+    const step = nativeStep ?? (await readDispatchStep());
+    if (step.conclusion === "skipped") {
       await record("prior-wake-no-dispatch-observed", {
         wake_run_id: run.id,
-        provider_step: steps[0],
+        provider_step: step,
       });
       continue;
     }
     if (typeof run.created_at !== "string" || !Number.isFinite(Date.parse(run.created_at)))
       throw new Error("prior wake creation identity unavailable");
-    const production = await collect("application-update-production.yml", {
+    const production = await collect(destinationWorkflowName(config), {
       event: "workflow_dispatch",
       head_sha: config.revision,
       created: `>=${run.created_at}`,
@@ -518,8 +594,7 @@ export async function reconcilePreviousWakes(
     const matches = production.filter((item) =>
       approved.some(
         (config) =>
-          item.display_title ===
-          `Portcove ${config.schema_version >= 3 && config.publication_purpose === "catalog-publication" ? "catalog publication" : "application release"} wake ${String(run.id)}`,
+          item.display_title === destinationTitle(config, String(run.id), String(run.head_sha)),
       ),
     );
     if (matches.length !== 1)
@@ -529,10 +604,11 @@ export async function reconcilePreviousWakes(
       approved.find(
         (config) =>
           matches[0]!.display_title ===
-          `Portcove ${config.schema_version >= 3 && config.publication_purpose === "catalog-publication" ? "catalog publication" : "application release"} wake ${String(run.id)}`,
+          destinationTitle(config, String(run.id), String(run.head_sha)),
       )!,
       String(run.id),
       String(matches[0]!.id),
+      run.head_sha,
     );
     await record("prior-wake-dispatch-readback", observed);
   }
@@ -556,9 +632,9 @@ export function inspectControllerWakeConfiguration(value: unknown) {
   if (
     !isRecord(value) ||
     typeof value.schema_version !== "number" ||
-    ![2, 3, 4].includes(value.schema_version) ||
+    ![2, 3, 4, 5].includes(value.schema_version) ||
     Object.keys(value).sort().join(",") !==
-      (value.schema_version === 4
+      (value.schema_version >= 4
         ? "activation_started_at,dispatch_actor_id,dispatch_transport,execution_ref,namespace,publication_purpose,revision,schema_version,wake_workflow_sha256,workflow_sha256"
         : value.schema_version === 3
           ? "activation_started_at,dispatch_actor_id,execution_ref,namespace,publication_purpose,revision,schema_version,wake_workflow_sha256,workflow_sha256"
@@ -588,7 +664,7 @@ export function inspectControllerWakeConfiguration(value: unknown) {
   )
     throw new Error("fixed shared wake namespace required");
   if (
-    value.schema_version === 4 &&
+    value.schema_version >= 4 &&
     (value.dispatch_transport !== jobTokenDispatchTransport ||
       value.dispatch_actor_id !== jobTokenDispatchActor)
   )
@@ -597,12 +673,25 @@ export function inspectControllerWakeConfiguration(value: unknown) {
     Number(value.schema_version) >= 3
       ? inspectControllerExecutionPurpose(value.publication_purpose)
       : "application";
+  if (
+    value.schema_version === 5 &&
+    (purpose !== "application" ||
+      !value.execution_ref.startsWith("refs/tags/portcove-production-controller-windows-"))
+  )
+    throw new Error("native wake requires its fixed Windows application controller");
   return {
-    schema_version: value.schema_version === 4 ? 4 : value.schema_version === 3 ? 3 : 2,
+    schema_version:
+      value.schema_version === 5
+        ? 5
+        : value.schema_version === 4
+          ? 4
+          : value.schema_version === 3
+            ? 3
+            : 2,
     ...(Number(value.schema_version) >= 3
       ? { publication_purpose: purpose, namespace: String(value.namespace) }
       : {}),
-    ...(value.schema_version === 4 ? { dispatch_transport: jobTokenDispatchTransport } : {}),
+    ...(value.schema_version >= 4 ? { dispatch_transport: jobTokenDispatchTransport } : {}),
     execution_ref: value.execution_ref,
     revision: value.revision,
     workflow_sha256: value.workflow_sha256,
@@ -616,7 +705,7 @@ export function inspectControllerWakeConfiguration(value: unknown) {
  * for original-intent recovery, but cannot acquire a new credential or dispatch. */
 export function requireJobTokenWakeConfiguration(raw: unknown) {
   const value = inspectControllerWakeConfiguration(raw);
-  if (value.schema_version !== 4 || value.dispatch_transport !== jobTokenDispatchTransport)
+  if (value.schema_version < 4 || value.dispatch_transport !== jobTokenDispatchTransport)
     throw new Error("current wake requires the explicitly ratified job-token configuration");
   return value;
 }
@@ -633,6 +722,7 @@ export async function wakeRatifiedController(
   options:
     | {
         mode: "prepare";
+        download?: typeof readGitHubArtifactArchive;
         deadline?: number;
         approved_configurations?: readonly ReturnType<typeof inspectControllerWakeConfiguration>[];
       }
@@ -667,7 +757,7 @@ export async function wakeRatifiedController(
   api = {
     repository: () => read(() => provider.repository()),
     run: (id, retain) => read(() => provider.run(id, retain), retain !== undefined),
-    jobs: (id) => read(() => provider.jobs(id)),
+    jobs: (id, attempt) => read(() => provider.jobs(id, attempt)),
     ref: (name) => read(() => provider.ref(name)),
     file: (filename, revision) => read(() => provider.file(filename, revision)),
     runs: (workflow, filters, page) => read(() => provider.runs(workflow, filters, page)),
@@ -701,7 +791,7 @@ export async function wakeRatifiedController(
   let requests = 0;
   const started = performance.now();
   const get = async (operation: () => Promise<unknown>) => {
-    if (++requests > 12 || performance.now() - started > 55000)
+    if (++requests > (config.schema_version === 5 ? 22 : 12) || performance.now() - started > 55000)
       throw new Error("wake-up collection bound exhausted");
     const result = await operation();
     if (performance.now() - started > 55000)
@@ -717,7 +807,7 @@ export async function wakeRatifiedController(
     identity.private !== false
   )
     throw new Error("wake-up fixed public repository identity differs");
-  if (config.schema_version === 4) {
+  if (config.schema_version >= 4) {
     const jobs = await get(() => api.jobs(environment.GITHUB_RUN_ID!));
     const job = isRecord(jobs) && Array.isArray(jobs.jobs) ? (jobs.jobs[0] as unknown) : null;
     if (
@@ -762,17 +852,19 @@ export async function wakeRatifiedController(
       throw new Error("wake-up source/controller ref changed or unsupported");
   };
   await readRefs();
-  const source = await get(() => api.file(productionControllerWorkflow, config.revision));
+  const target = destinationWorkflow(config);
+  const maximumWorkflowBytes = config.schema_version === 5 ? 128 * 1024 : 65536;
+  const source = await get(() => api.file(target, config.revision));
   if (
     !isRecord(source) ||
     source.type !== "file" ||
-    source.path !== productionControllerWorkflow ||
+    source.path !== target ||
     source.encoding !== "base64" ||
     typeof source.content !== "string" ||
-    source.content.length > 90000 ||
+    source.content.length > Math.ceil(maximumWorkflowBytes / 3) * 4 + 4096 ||
     typeof source.size !== "number" ||
     source.size < 1 ||
-    source.size > 65536 ||
+    source.size > maximumWorkflowBytes ||
     typeof source.sha !== "string" ||
     !/^[a-f0-9]{40}$/u.test(source.sha)
   )
@@ -792,8 +884,140 @@ export async function wakeRatifiedController(
   )
     throw new Error("automatic wake workflow bytes differ from selected setup");
   await readRefs();
-  const intent = dispatchIntent(config, environment.GITHUB_RUN_ID!, environment.GITHUB_SHA!);
+  const nativeSelection = async () => {
+    if (environment.PORTCOVE_APPLICATION_RELEASE_ACTIVE !== "true")
+      return { decision: "activation-held" as const };
+    if (
+      environment.PORTCOVE_APPLICATION_RELEASE_REF !== config.execution_ref ||
+      environment.PORTCOVE_APPLICATION_RELEASE_REVISION !== config.revision ||
+      environment.PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256 !== config.workflow_sha256
+    )
+      throw new Error("native wake differs from appointed application release source");
+    inspectApplicationSpendingAppointment(environment);
+    // Routing observation only. Source admission independently verifies the
+    // full owner-controlled Git object closure before any production write.
+    const pauseRef = async () => {
+      const ref = await get(() => api.ref("heads/portcove-release-pause"));
+      if (
+        !isRecord(ref) ||
+        ref.ref !== "refs/heads/portcove-release-pause" ||
+        !isRecord(ref.object) ||
+        ref.object.type !== "commit" ||
+        typeof ref.object.sha !== "string" ||
+        !/^[a-f0-9]{40}$/u.test(ref.object.sha)
+      )
+        throw new Error("native wake publication pause ref unavailable");
+      return ref.object.sha;
+    };
+    const pauseCommit = await pauseRef();
+    const pause = inspectApplicationPublicationPause(
+      JSON.parse(
+        sourceBytes(
+          await get(() => api.file("publication.json", pauseCommit)),
+          "publication.json",
+        ).toString("utf8"),
+      ),
+    );
+    if ((await pauseRef()) !== pauseCommit)
+      throw new Error("native wake publication pause changed during readback");
+    if (pause.paused) return { decision: "publication-paused" as const };
+
+    const source = environment.GITHUB_SHA!;
+    const selected = selectWindowsApplicationQualificationRun(
+      await get(() =>
+        api.runs(
+          "release.yml",
+          {
+            branch: "main",
+            event: "workflow_dispatch",
+            head_sha: source,
+          },
+          1,
+        ),
+      ),
+      source,
+    );
+    if (selected.decision !== "candidate") return selected;
+    const previous = await get(() =>
+      api.runs(
+        "release.yml",
+        {
+          event: "workflow_dispatch",
+          head_sha: config.revision,
+          created: `>=${config.activation_started_at}`,
+        },
+        1,
+      ),
+    );
+    if (
+      !isRecord(previous) ||
+      !Array.isArray(previous.workflow_runs) ||
+      previous.total_count !== previous.workflow_runs.length ||
+      previous.workflow_runs.length >= 100
+    )
+      throw new Error("native production run inventory incomplete");
+    const ids = new Set<number>();
+    let existing = false;
+    for (const run of previous.workflow_runs as unknown[]) {
+      if (
+        !isRecord(run) ||
+        typeof run.id !== "number" ||
+        !Number.isSafeInteger(run.id) ||
+        run.id < 1 ||
+        ids.has(run.id) ||
+        run.head_sha !== config.revision ||
+        run.path !== nativeWorkflow ||
+        run.event !== "workflow_dispatch" ||
+        !isRecord(run.repository) ||
+        run.repository.id !== 1354613114 ||
+        !isRecord(run.head_repository) ||
+        run.head_repository.id !== 1354613114 ||
+        typeof run.created_at !== "string" ||
+        !Number.isFinite(Date.parse(run.created_at)) ||
+        Date.parse(run.created_at) < Date.parse(config.activation_started_at) ||
+        typeof run.display_title !== "string"
+      )
+        throw new Error("native production run inventory identity differs");
+      ids.add(run.id);
+      if (applicationOpportunityFromRunTitle(run.display_title) === source) existing = true;
+    }
+    if (existing) return { decision: "existing-run" as const };
+    return selected;
+  };
+  const selection = config.schema_version === 5 ? await nativeSelection() : undefined;
+  if (selection && selection.decision !== "candidate") {
+    if (options.mode !== "prepare")
+      throw new Error("native wake selection changed before dispatch");
+    await reconcilePreviousWakes(config, environment, api, record, { ...options, deadline });
+    await readRefs();
+    await record("native-wake-no-intent", selection);
+    return { authority: "none", decision: "no-intent" as const };
+  }
+  const qualificationRun =
+    selection?.decision === "candidate" ? String(selection.run_id) : undefined;
+  const qualificationAttempt =
+    selection?.decision === "candidate" ? String(selection.run_attempt) : undefined;
+  const intent = dispatchIntent(
+    config,
+    environment.GITHUB_RUN_ID!,
+    environment.GITHUB_SHA!,
+    qualificationRun,
+    qualificationAttempt,
+  );
   const { body } = intent;
+  const verifyQualification = async () => {
+    if (selection?.decision !== "candidate") return;
+    const proof = await readWindowsApplicationQualification(
+      api,
+      selection.run_id,
+      environment.GITHUB_SHA!,
+      { deadline, ...(options.download ? { download: options.download } : {}) },
+    );
+    if (proof.workflow !== nativeWorkflow || proof.attempt !== selection.run_attempt)
+      throw new Error("native wake exact qualification proof changed");
+    await record("native-wake-qualification", proof);
+  };
+  if (options.mode === "prepare") await verifyQualification();
   await record("dispatch-intent", intent);
   if (options.mode === "prepare")
     return { authority: "none", decision: "intent-prepared-only" as const, intent };
@@ -804,13 +1028,16 @@ export async function wakeRatifiedController(
     deadline,
   });
   await reconcilePreviousWakes(config, environment, api, record, { ...options, deadline });
+  await verifyQualification();
+  if (selection && digest(await nativeSelection()) !== digest(selection))
+    throw new Error("native wake selection changed after retained intent; no POST");
   await readRefs();
   if (performance.now() - started > 55000)
     throw new Error("wake-up deadline elapsed before dispatch; no POST");
   // No retry and no replacement destination after an ambiguous provider effect.
   let response: WakeResponse;
   try {
-    response = await api.dispatch("application-update-production.yml", body, async (received) => {
+    response = await api.dispatch(destinationWorkflowName(config), body, async (received) => {
       await record("dispatch-response", received);
     });
   } catch {
@@ -836,20 +1063,30 @@ export async function wakeRatifiedController(
     endpoint: response.body.run_url,
   });
   const observed =
-    config.schema_version === 4
+    config.schema_version >= 4
       ? await observeJobTokenDispatchRun(
           api,
           {
             run_id: runId,
             revision: config.revision,
-            workflow: productionControllerWorkflow,
-            display_title: `Portcove ${config.publication_purpose === "catalog-publication" ? "catalog publication" : "application release"} wake ${environment.GITHUB_RUN_ID}`,
+            workflow: destinationWorkflow(config),
+            display_title: destinationTitle(
+              config,
+              environment.GITHUB_RUN_ID!,
+              environment.GITHUB_SHA,
+            ),
           },
           record,
           deadline,
         )
       : await api.run(runId);
-  inspectWakeControllerRun(observed, config, environment.GITHUB_RUN_ID!, runId);
+  inspectWakeControllerRun(
+    observed,
+    config,
+    environment.GITHUB_RUN_ID!,
+    runId,
+    environment.GITHUB_SHA,
+  );
   const result = {
     authority: "none",
     decision: "dispatch-acknowledged-only" as const,
@@ -1106,6 +1343,13 @@ async function main() {
             },
           },
     );
+    if (mode === "--prepare") {
+      if (!process.env.GITHUB_OUTPUT) throw new Error("wake intent output unavailable");
+      await appendFile(
+        process.env.GITHUB_OUTPUT,
+        `intent_ready=${result.decision === "intent-prepared-only"}\n`,
+      );
+    }
     if (result.decision === "intent-prepared-only") {
       const intent = await open(path.join(temp, "controller-wake-intent.json"), "wx", 0o600);
       try {

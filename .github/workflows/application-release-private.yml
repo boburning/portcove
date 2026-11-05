@@ -1,0 +1,224 @@
+# Native reusable job for the fixed application worker. Incoming packages are
+# data; the compiler never supplies tools or code to these environments.
+name: Isolated application release role
+on:
+  workflow_call:
+    inputs:
+      operation:
+        type: string
+        required: true
+      phase:
+        type: string
+        required: true
+      role:
+        type: string
+        default: ""
+      timeout_minutes:
+        type: number
+        required: true
+      opportunity:
+        type: string
+        required: true
+      source_artifact:
+        type: string
+        required: true
+      source_attempt:
+        type: string
+        required: true
+      tools_artifact:
+        type: string
+        required: true
+      tools_attempt:
+        type: string
+        required: true
+      protection_artifact:
+        type: string
+        default: ""
+      protection_attempt:
+        type: string
+        default: ""
+      context_artifact:
+        type: string
+        default: ""
+      context_attempt:
+        type: string
+        default: ""
+      signed_roles:
+        type: string
+        default: "{}"
+      unsigned_artifact:
+        type: string
+        default: ""
+      package_attempt:
+        type: string
+        default: ""
+      provenance_attempt:
+        type: string
+        default: ""
+      signature_artifact:
+        type: string
+        default: ""
+      signature_attempt:
+        type: string
+        default: ""
+      native_artifact:
+        type: string
+        default: ""
+      native_attempt:
+        type: string
+        default: ""
+      native_attestation_attempt:
+        type: string
+        default: ""
+      native_host:
+        type: string
+        default: ""
+      native_invocation:
+        type: string
+        default: ""
+      known_runs:
+        type: string
+        required: true
+    outputs:
+      artifact:
+        value: ${{ jobs.execute.outputs.artifact }}
+      attempt:
+        value: ${{ jobs.execute.outputs.attempt }}
+      repository_artifact:
+        value: ${{ jobs.execute.outputs.repository_artifact }}
+      site_artifact:
+        value: ${{ jobs.execute.outputs.site_artifact }}
+permissions:
+  contents: read
+  actions: read
+  checks: read
+jobs:
+  execute:
+    runs-on: ubuntu-22.04
+    timeout-minutes: ${{ inputs.timeout_minutes }}
+    environment: ${{ inputs.operation == 'observe' && 'production-release-protection-observer' || inputs.operation == 'payload' && 'production-payload-signing' || inputs.operation == 'role-targets' && 'production-tuf-targets' || inputs.operation == 'role-releases' && 'production-tuf-releases' || inputs.operation == 'role-preview' && 'production-tuf-preview' || inputs.operation == 'role-stable' && 'production-tuf-stable' || inputs.operation == 'role-snapshot' && 'production-tuf-snapshot' || inputs.operation == 'role-timestamp' && 'production-tuf-timestamp' || 'production-release-admission' }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PORTCOVE_APPLICATION_RELEASE_REVISION: ${{ vars.PORTCOVE_APPLICATION_RELEASE_REVISION }}
+      PORTCOVE_APPLICATION_RELEASE_REF: ${{ vars.PORTCOVE_APPLICATION_RELEASE_REF }}
+      PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256: ${{ vars.PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256 }}
+      PORTCOVE_APPLICATION_RELEASE_ACTIVE: ${{ vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE }}
+      PORTCOVE_APPLICATION_RELEASE_SPENDING: ${{ vars.PORTCOVE_APPLICATION_RELEASE_SPENDING }}
+      PORTCOVE_APPLICATION_RELEASE_PROTECTION_SHA256: ${{ vars.PORTCOVE_APPLICATION_RELEASE_PROTECTION_SHA256 }}
+      PORTCOVE_APPLICATION_INITIAL_SITE_PREIMAGE_SHA256: ${{ vars.PORTCOVE_APPLICATION_INITIAL_SITE_PREIMAGE_SHA256 }}
+      PORTCOVE_APPLICATION_BOOTSTRAP_DESCRIPTOR_SHA256: ${{ vars.PORTCOVE_APPLICATION_BOOTSTRAP_DESCRIPTOR_SHA256 }}
+      PORTCOVE_APPLICATION_SETUP_PLAN_SHA256: ${{ vars.PORTCOVE_APPLICATION_SETUP_PLAN_SHA256 }}
+      PORTCOVE_APPLICATION_RELEASE_OPPORTUNITY: ${{ inputs.opportunity }}
+      PORTCOVE_KNOWN_RELEASE_RUNS: ${{ inputs.known_runs }}
+      PORTCOVE_SOURCE_ARTIFACT: ${{ inputs.source_artifact }}
+      PORTCOVE_SOURCE_ATTEMPT: ${{ inputs.source_attempt }}
+      PORTCOVE_TOOLS_ARTIFACT: ${{ inputs.tools_artifact }}
+      PORTCOVE_TOOLS_ATTEMPT: ${{ inputs.tools_attempt }}
+      PORTCOVE_PROTECTION_ARTIFACT: ${{ inputs.protection_artifact }}
+      PORTCOVE_PROTECTION_ATTEMPT: ${{ inputs.protection_attempt }}
+      PORTCOVE_PROTECTION_PHASE: ${{ inputs.phase }}
+      PORTCOVE_CONTEXT_ARTIFACT: ${{ inputs.context_artifact }}
+      PORTCOVE_CONTEXT_ATTEMPT: ${{ inputs.context_attempt }}
+      PORTCOVE_SIGNED_ROLE_ARTIFACTS: ${{ inputs.signed_roles }}
+      PORTCOVE_UNSIGNED_ARTIFACT: ${{ inputs.unsigned_artifact }}
+      PORTCOVE_PACKAGE_ATTEMPT: ${{ inputs.package_attempt }}
+      PORTCOVE_PROVENANCE_ATTEMPT: ${{ inputs.provenance_attempt }}
+      PORTCOVE_SIGNATURE_ARTIFACT: ${{ inputs.signature_artifact }}
+      PORTCOVE_SIGNATURE_ATTEMPT: ${{ inputs.signature_attempt }}
+      PORTCOVE_NATIVE_ARTIFACT: ${{ inputs.native_artifact }}
+      PORTCOVE_NATIVE_ATTEMPT: ${{ inputs.native_attempt }}
+      PORTCOVE_NATIVE_ATTESTATION_ATTEMPT: ${{ inputs.native_attestation_attempt }}
+      PORTCOVE_NATIVE_HOST: ${{ inputs.native_host }}
+      PORTCOVE_NATIVE_INVOCATION_ID: ${{ inputs.native_invocation }}
+      PORTCOVE_APPLICATION_NATIVE_MINIMUM_PLATFORM: ${{ vars.PORTCOVE_APPLICATION_NATIVE_MINIMUM_PLATFORM }}
+    outputs:
+      artifact: ${{ steps.upload.outputs.artifact-id }}
+      attempt: ${{ steps.producer.outputs.attempt }}
+      repository_artifact: ${{ steps.repository.outputs.artifact-id }}
+      site_artifact: ${{ steps.site.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - name: Bind fixed caller before receiving tools or releasing credentials
+        env:
+          PORTCOVE_OPERATION: ${{ inputs.operation }}
+          PORTCOVE_ROLE: ${{ inputs.role }}
+        run: |-
+          node --input-type=module - <<'JS'
+          import assert from 'node:assert/strict';
+          import { inspectApplicationReleaseExecution } from './scripts/application-release-policy.mts';
+          inspectApplicationReleaseExecution(process.env);
+          assert.ok(['observe','payload','assemble','role-targets','role-releases','role-preview','role-stable','role-snapshot','role-timestamp'].includes(process.env.PORTCOVE_OPERATION));
+          if (process.env.PORTCOVE_OPERATION.startsWith('role-')) assert.equal(process.env.PORTCOVE_OPERATION,'role-'+process.env.PORTCOVE_ROLE);
+          else assert.equal(process.env.PORTCOVE_ROLE,'');
+          if (process.env.PORTCOVE_OPERATION === 'observe') assert.ok(['payload','metadata','snapshot','timestamp','draft-recovery','publication','feed'].includes(process.env.PORTCOVE_PROTECTION_PHASE));
+          else assert.equal(process.env.PORTCOVE_PROTECTION_PHASE,process.env.PORTCOVE_OPERATION === 'payload' ? 'payload' : process.env.PORTCOVE_OPERATION === 'role-snapshot' ? 'snapshot' : process.env.PORTCOVE_OPERATION === 'role-timestamp' ? 'timestamp' : 'metadata');
+          JS
+      - name: Install existing hash-pinned attestation verifier
+        shell: bash
+        run: |-
+          set -euo pipefail
+          curl --fail --location --max-time 120 --max-filesize 16000000 --output "$RUNNER_TEMP/gh.tar.gz" https://github.com/cli/cli/releases/download/v2.102.0/gh_2.102.0_linux_amd64.tar.gz
+          echo "bb766f710eef8ede859c18578c72c327597cd4c8a85b06001b1f3843c6019386  $RUNNER_TEMP/gh.tar.gz" | sha256sum --check --strict
+          tar -xzf "$RUNNER_TEMP/gh.tar.gz" -C "$RUNNER_TEMP" gh_2.102.0_linux_amd64/bin/gh
+          echo "$RUNNER_TEMP/gh_2.102.0_linux_amd64/bin" >> "$GITHUB_PATH"
+      - name: Verify fixed tools and provenance before execution
+        run: node scripts/application-release-tools.mts receive
+      - if: inputs.operation == 'observe'
+        id: observer
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
+        with:
+          app-id: "5555718"
+          private-key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
+          owner: boburning
+          repositories: portcove
+          permission-administration: write
+      - if: inputs.operation == 'observe'
+        name: Bind the existing observer installation
+        env:
+          PORTCOVE_OBSERVED_INSTALLATION: ${{ steps.observer.outputs.installation-id }}
+        run: node -e "require('node:assert/strict').equal(process.env.PORTCOVE_OBSERVED_INSTALLATION,'177226788')"
+      - id: worker
+        name: Execute only the attested fixed role worker
+        env:
+          PORTCOVE_OPERATION: ${{ inputs.operation }}
+          PORTCOVE_OBSERVER_TOKEN: ${{ steps.observer.outputs.token }}
+          PORTCOVE_OBSERVER_INSTALLATION_ID: "177226788"
+          PORTCOVE_SIGNING_KEY: ${{ inputs.operation == 'payload' && secrets.TAURI_SIGNING_PRIVATE_KEY || inputs.operation == 'role-targets' && secrets.PORTCOVE_TUF_TARGETS_KEY || inputs.operation == 'role-releases' && secrets.PORTCOVE_TUF_RELEASES_KEY || inputs.operation == 'role-preview' && secrets.PORTCOVE_TUF_PREVIEW_KEY || inputs.operation == 'role-stable' && secrets.PORTCOVE_TUF_STABLE_KEY || inputs.operation == 'role-snapshot' && secrets.PORTCOVE_TUF_SNAPSHOT_KEY || inputs.operation == 'role-timestamp' && secrets.PORTCOVE_TUF_TIMESTAMP_KEY || '' }}
+        run: node scripts/application-release-private.bundle.mjs "$PORTCOVE_OPERATION"
+      - id: producer
+        run: echo "attempt=$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
+      - id: upload
+        if: steps.worker.outputs.changed != 'false'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ inputs.operation == 'observe' && format('application-protection-{0}-{1}-{2}', inputs.phase, github.run_id, github.run_attempt) || startsWith(inputs.operation, 'role-') && format('application-role-{0}-{1}-{2}', inputs.role, github.run_id, github.run_attempt) || inputs.operation == 'payload' && format('application-signature-{0}-{1}', github.run_id, github.run_attempt) || format('application-assembly-{0}-{1}', github.run_id, github.run_attempt) }}
+          path: ${{ inputs.operation == 'observe' && 'work/application-protection/protection.json' || startsWith(inputs.operation, 'role-') && format('work/application-role-{0}/{0}.json', inputs.role) || inputs.operation == 'payload' && 'work/application-signature/*' || 'work/application-assembly/*.json' }}
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: false
+      - id: repository
+        if: inputs.operation == 'assemble'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: application-repository-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/application-repository/
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: false
+      - id: site
+        if: inputs.operation == 'assemble' && steps.worker.outputs.site_directory != ''
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: application-site-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ steps.worker.outputs.site_directory }}
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: false

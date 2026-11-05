@@ -62,6 +62,17 @@ export async function bundleWindowsSourcePreparation(sourceRoot: string, outputR
   ]);
 }
 
+/** Reuse the maintained dependency-free Node packaging for the native release
+ * worker. The compiler job never produces this trusted executable. */
+export async function bundleApplicationReleasePrivate(sourceRoot: string, outputRoot: string) {
+  return bundleFixedControllerEntries(sourceRoot, outputRoot, [
+    {
+      source: "scripts/application-release-private.mts",
+      output: "application-release-private.bundle.mjs",
+    },
+  ]);
+}
+
 async function bundleFixedControllerEntries(
   sourceRoot: string,
   outputRoot: string,

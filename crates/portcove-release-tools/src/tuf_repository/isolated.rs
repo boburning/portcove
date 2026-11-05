@@ -81,6 +81,8 @@ struct ContextConfig {
     initial_root_profile: InitialRootProfile,
     #[serde(default)]
     top_level_targets_profile: TargetsProfile,
+    #[serde(default)]
+    prior_expiration_policy: Option<PriorExpirationPolicy>,
     generated_at: String,
     trusted_root: String,
     offline_targets: String,
@@ -92,6 +94,12 @@ struct ContextConfig {
     initial_bootstrap: Option<String>,
     versions: RoleVersions,
     expires: RoleExpirations,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+enum PriorExpirationPolicy {
+    HistoricalOnlineExpiredV1,
 }
 
 #[derive(Deserialize)]
@@ -125,7 +133,70 @@ pub struct RoleReport {
     pub authority: &'static str,
 }
 
+/// The same authenticated public-input validation used by the isolated signer,
+/// exposed before the caller materializes its sole operational private key.
+#[derive(Debug, Serialize)]
+pub struct ContextInspection {
+    pub schema_version: u32,
+    pub context_sha256: String,
+    pub root_sha256: String,
+    pub payload_key_registry_sha256: String,
+    pub records: usize,
+    pub records_unchanged: bool,
+    pub authority: &'static str,
+}
+
+pub async fn inspect_tuf_context(path: &Path) -> Result<ContextInspection, TufRepositoryError> {
+    let bytes = read_regular_bounded(path, MAX_CONFIG_BYTES, "public TUF context")?;
+    let context = load_context(path).await?;
+    Ok(ContextInspection {
+        schema_version: 1,
+        context_sha256: sha256(&bytes),
+        root_sha256: sha256(&context.root_bytes),
+        payload_key_registry_sha256: sha256(bytes_at(&context.targets, "keys/payload.json")?),
+        records: context.records,
+        records_unchanged: unchanged_context_records(&context)?,
+        authority: "none",
+    })
+}
+
+fn unchanged_context_records(context: &Context) -> Result<bool, TufRepositoryError> {
+    if context.prior_files.is_empty() {
+        return Ok(context.records == 0);
+    }
+    let timestamp: Signed<tough::schema::Timestamp> =
+        serde_json::from_slice(bytes_at(&context.prior_files, "metadata/timestamp.json")?)?;
+    let snapshot_version = timestamp
+        .signed
+        .meta
+        .get("snapshot.json")
+        .ok_or_else(|| TufRepositoryError::Invalid("prior snapshot missing".into()))?
+        .version;
+    let prior: Signed<Snapshot> = serde_json::from_slice(bytes_at(
+        &context.prior_files,
+        &format!("metadata/{snapshot_version}.snapshot.json"),
+    )?)?;
+    for (delegation, role) in DELEGATED {
+        let version = prior
+            .signed
+            .meta
+            .get(&format!("{}.json", role.name()))
+            .ok_or_else(|| TufRepositoryError::Invalid("prior delegation missing".into()))?
+            .version;
+        let old: Signed<Targets> = serde_json::from_slice(bytes_at(
+            &context.prior_files,
+            &format!("metadata/{version}.{}.json", role.name()),
+        )?)?;
+        let expected = expected_targets(context, delegation)?;
+        if serde_json::to_value(old.signed.targets)? != serde_json::to_value(expected.targets)? {
+            return Ok(false);
+        }
+    }
+    Ok(true)
+}
+
 struct Context {
+    prior_expiration_policy: Option<PriorExpirationPolicy>,
     root_bytes: Vec<u8>,
     root: Signed<Root>,
     top_bytes: Vec<u8>,
@@ -663,23 +734,29 @@ async fn verify_prior(
     );
     let staged = tempfile::tempdir()?;
     write_files(staged.path(), &projection)?;
-    // Safe Tough expiration/signature/target verification over one bounded
-    // immutable public snapshot; expired state requires separate recovery.
-    validate_existing_repository(
-        staged.path(),
-        ExpectedRepository {
-            trusted_root: &context.root_bytes,
-            targets: &logical,
-            versions: &versions,
-            expirations: &expires,
-            record_count: logical.len() - 1,
-            root_version: context.root.signed.version,
-            signing_key_ids: &context.ids,
-            namespace_delegations: true,
-            offline_targets: Some(&context.top_bytes),
-        },
-    )
-    .await?;
+    let expected = ExpectedRepository {
+        trusted_root: &context.root_bytes,
+        targets: &logical,
+        versions: &versions,
+        expirations: &expires,
+        record_count: logical.len() - 1,
+        root_version: context.root.signed.version,
+        signing_key_ids: &context.ids,
+        namespace_delegations: true,
+        offline_targets: Some(&context.top_bytes),
+    };
+    if context.prior_expiration_policy.is_some() {
+        if context.targets != logical {
+            return invalid(
+                "historical renewal cannot change authenticated records or payload registry",
+            );
+        }
+        // Historical authentication is not admission of an expired update.
+        // Root and pinned Targets remain fresh; assembly below stays Safe.
+        validate_historical_repository(staged.path(), expected).await?;
+    } else {
+        validate_existing_repository(staged.path(), expected).await?;
+    }
     for (prior, proposed) in versions.iter().zip(&context.versions).skip(1) {
         if proposed <= prior {
             return invalid("routine role version must advance its authenticated prior floor");
@@ -703,6 +780,16 @@ async fn load_context(path: &Path) -> Result<Context, TufRepositoryError> {
     }
     let online_targets =
         config.top_level_targets_profile == TargetsProfile::OnlineUnchangedAuthorityV1;
+    if config.prior_expiration_policy.is_some()
+        && (config.initial_root_profile != InitialRootProfile::SingleOwnerOneOfOneV1
+            || online_targets
+            || config.previous_repository.is_none()
+            || config.initial_bootstrap.is_some())
+    {
+        return invalid(
+            "historical prior requires single-owner, pinned Targets and an existing repository",
+        );
+    }
     if online_targets
         && (config.initial_root_profile != InitialRootProfile::SingleOwnerOneOfOneV1
             || config.previous_repository.is_none()
@@ -837,6 +924,7 @@ async fn load_context(path: &Path) -> Result<Context, TufRepositoryError> {
         targets.insert(record.path, bytes);
     }
     let mut context = Context {
+        prior_expiration_policy: config.prior_expiration_policy,
         root_bytes,
         root,
         top_bytes,

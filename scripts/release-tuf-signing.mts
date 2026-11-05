@@ -15,6 +15,10 @@ import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import type { TufSigningRole } from "./release-control-phases.mts";
 import { isRecord } from "./runtime-values.mts";
 import {
+  inspectInitialRootProfile,
+  inspectTopLevelTargetsProfile,
+} from "./release-initial-root-profile.mts";
+import {
   catalogRoleName,
   catalogRoleDependencies,
   inspectCatalogContextPaths,
@@ -71,13 +75,20 @@ export function inspectTufContextPaths(bytes: Buffer) {
     throw new Error("bounded UTF-8 TUF context required");
   const value: unknown = JSON.parse(bytes.toString("utf8"));
   const bootstrap = isRecord(value) && Object.hasOwn(value, "initial_bootstrap");
+  const profileKeys = isRecord(value)
+    ? ["initial_root_profile", "top_level_targets_profile", "prior_expiration_policy"].filter(
+        (name) => Object.hasOwn(value, name),
+      )
+    : [];
+  const expectedKeys = (
+    bootstrap
+      ? "expires,generated_at,initial_bootstrap,offline_targets,payload_key_registry,reconstructed_records,schema_version,trusted_root,versions"
+      : "expires,generated_at,offline_targets,payload_key_registry,previous_repository,reconstructed_records,schema_version,trusted_root,versions"
+  ).split(",");
   if (
     !isRecord(value) ||
     value.schema_version !== 1 ||
-    Object.keys(value).sort().join(",") !==
-      (bootstrap
-        ? "expires,generated_at,initial_bootstrap,offline_targets,payload_key_registry,reconstructed_records,schema_version,trusted_root,versions"
-        : "expires,generated_at,offline_targets,payload_key_registry,previous_repository,reconstructed_records,schema_version,trusted_root,versions") ||
+    Object.keys(value).sort().join(",") !== [...expectedKeys, ...profileKeys].sort().join(",") ||
     value.trusted_root !== "trusted-root.json" ||
     value.offline_targets !== "offline-targets.json" ||
     value.payload_key_registry !== "payload.json" ||
@@ -87,6 +98,31 @@ export function inspectTufContextPaths(bytes: Buffer) {
       : value.previous_repository !== "prior")
   )
     throw new Error("fixed TUF context paths required");
+  const initial = inspectInitialRootProfile(
+    Object.hasOwn(value, "initial_root_profile")
+      ? value.initial_root_profile
+      : "legacy-two-of-three-v1",
+  );
+  const targets = inspectTopLevelTargetsProfile(
+    Object.hasOwn(value, "top_level_targets_profile")
+      ? value.top_level_targets_profile
+      : "offline-pinned-v1",
+  );
+  if (
+    targets === "online-unchanged-authority-v1" &&
+    (bootstrap || initial !== "single-owner-one-of-one-v1")
+  )
+    throw new Error(
+      "online Targets requires an existing repository and explicit single-owner Root profile",
+    );
+  if (
+    Object.hasOwn(value, "prior_expiration_policy") &&
+    (value.prior_expiration_policy !== "historical-online-expired-v1" ||
+      bootstrap ||
+      initial !== "single-owner-one-of-one-v1" ||
+      targets !== "offline-pinned-v1")
+  )
+    throw new Error("historical prior requires existing single-owner offline-pinned context");
   return Object.freeze({ kind: bootstrap ? ("initial-bootstrap" as const) : ("routine" as const) });
 }
 

@@ -1,4 +1,7 @@
-import { inspectSiteGeneration } from "./release-site-generation.mts";
+import {
+  inspectSiteGeneration,
+  isRetainedApplicationRehearsalPath,
+} from "./release-site-generation.mts";
 import { createHash } from "node:crypto";
 import { capacityDigest } from "./release-capacity.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -352,13 +355,13 @@ function marker(value: unknown, expected: string) {
   }
 }
 
-function publicReader(deadline: number) {
+function publicReader(deadline: number, fetcher: typeof fetch = fetch) {
   let consumed = 0;
   return async (name: string, limit: number) => {
     const timeout = Math.floor(Math.min(30_000, deadline - performance.now()));
     if (timeout <= 0) throw new Error("public site readback deadline exceeded");
     const url = new URL(name, origin).href;
-    const response = await fetch(url, {
+    const response = await fetcher(url, {
       redirect: "error",
       credentials: "omit",
       cache: "no-store",
@@ -400,6 +403,166 @@ function publicReader(deadline: number) {
     }
     return Buffer.concat(chunks);
   };
+}
+
+/** Retain an independently appointed exact publisher inventory before the first
+ * production marker exists. The caller must establish the descriptor from the
+ * reviewed publisher artifact; three absent URLs cannot establish an inventory.
+ * This GET-only reader grants neither Root trust nor publication authority. */
+export async function materializeInitialApplicationRehearsal(
+  raw: unknown,
+  expectedDescriptorSha256: string,
+  privateParent: string,
+  options: { api?: GitHubRestReader; fetch?: typeof fetch } = {},
+) {
+  if (
+    !digest(expectedDescriptorSha256) ||
+    capacityDigest(raw) !== expectedDescriptorSha256 ||
+    !isRecord(raw) ||
+    Object.keys(raw).sort().join(",") !== "files,inventory_sha256,kind,provider,schema_version" ||
+    raw.schema_version !== 1 ||
+    raw.kind !== "retained-application-rehearsal-preimage" ||
+    !digest(raw.inventory_sha256) ||
+    !isRecord(raw.provider) ||
+    !Array.isArray(raw.files) ||
+    raw.files.length < 2 ||
+    raw.files.length > 64 ||
+    capacityDigest(raw.files) !== raw.inventory_sha256
+  )
+    throw new Error("independently appointed initial rehearsal descriptor required");
+  const identities: { path: string; bytes: number; sha256: string }[] = [];
+  let total = 0;
+  for (const file of raw.files) {
+    if (
+      !isRecord(file) ||
+      Object.keys(file).sort().join(",") !== "bytes,path,sha256" ||
+      typeof file.path !== "string" ||
+      !(file.path === ".nojekyll" || isRetainedApplicationRehearsalPath(file.path)) ||
+      typeof file.bytes !== "number" ||
+      !Number.isSafeInteger(file.bytes) ||
+      file.bytes < (file.path === ".nojekyll" ? 0 : 1) ||
+      file.bytes > 2 * 1024 ** 2 ||
+      !digest(file.sha256)
+    )
+      throw new Error("bounded initial rehearsal file inventory required");
+    total += file.bytes;
+    identities.push({ path: file.path, bytes: file.bytes, sha256: file.sha256 });
+  }
+  const names = identities.map((file) => file.path);
+  if (
+    total > 4 * 1024 ** 2 ||
+    !names.includes(".nojekyll") ||
+    new Set(names).size !== names.length ||
+    JSON.stringify(names) !== JSON.stringify([...names].sort())
+  )
+    throw new Error("initial rehearsal inventory count/order/size differs");
+  if (!path.isAbsolute(privateParent)) throw new Error("absolute initial site parent required");
+  const parent = await lstat(privateParent);
+  if (
+    !parent.isDirectory() ||
+    parent.isSymbolicLink() ||
+    (await realpath(privateParent)) !== privateParent
+  )
+    throw new Error("initial site parent is linked or unavailable");
+  const deadline = performance.now() + 120000;
+  const api = options.api ?? new GitHubApiClient(createGitHubRunner({ timeoutMs: 30000 }));
+  let requests = 0;
+  const get = (suffix: string) => {
+    if (++requests > 7 || performance.now() >= deadline)
+      throw new Error("initial rehearsal provider observation bound exhausted");
+    const response = api.request("GET", `repos/boburning/portcove${suffix}`);
+    if (
+      response.status !== 200 ||
+      performance.now() >= deadline ||
+      Buffer.byteLength(JSON.stringify(response.body)) > 65536
+    )
+      throw new Error("initial rehearsal provider observation unavailable");
+    return response.body;
+  };
+  const repository = get("");
+  if (
+    !isRecord(repository) ||
+    repository.id !== 1354613114 ||
+    repository.full_name !== "boburning/portcove"
+  )
+    throw new Error("initial rehearsal repository differs");
+  const provider = () => {
+    const pages = get("/pages");
+    const deployments = get("/deployments?environment=github-pages&per_page=1");
+    if (
+      !isRecord(pages) ||
+      pages.html_url !== origin ||
+      pages.build_type !== "workflow" ||
+      pages.cname !== null ||
+      pages.https_enforced !== true ||
+      !Array.isArray(deployments) ||
+      deployments.length !== 1
+    )
+      throw new Error("initial rehearsal Pages provider unavailable");
+    const deployment: unknown = deployments[0];
+    if (
+      !isRecord(deployment) ||
+      typeof deployment.id !== "number" ||
+      !Number.isSafeInteger(deployment.id) ||
+      deployment.id < 1
+    )
+      throw new Error("initial rehearsal deployment unavailable");
+    const statuses = get(`/deployments/${deployment.id}/statuses?per_page=1`);
+    const status: unknown = Array.isArray(statuses) && statuses.length === 1 ? statuses[0] : null;
+    if (!isRecord(status) || status.state !== "success")
+      throw new Error("initial rehearsal latest deployment has not succeeded");
+    const observed = {
+      deployment_id: deployment.id,
+      source_commit: deployment.sha,
+      ref: deployment.ref,
+      environment: deployment.environment,
+      status_id: status.id,
+      log_url: status.log_url,
+      pages: {
+        html_url: pages.html_url,
+        build_type: pages.build_type,
+        cname: pages.cname,
+        https_enforced: pages.https_enforced,
+      },
+    };
+    if (capacityDigest(observed) !== capacityDigest(raw.provider))
+      throw new Error("initial rehearsal Pages preimage changed");
+  };
+  provider();
+  const read = publicReader(deadline, options.fetch);
+  const files = new Map<string, Buffer>();
+  for (const file of identities) {
+    const bytes = await read(file.path, file.bytes);
+    if (bytes.length !== file.bytes || hash(bytes) !== file.sha256)
+      throw new Error("initial rehearsal public bytes differ");
+    files.set(file.path, bytes);
+  }
+  for (const name of [
+    "publication.json",
+    "application/metadata/timestamp.json",
+    "catalog/metadata/timestamp.json",
+  ]) {
+    const url = new URL(name, origin).href;
+    const remaining = Math.floor(Math.min(30000, deadline - performance.now()));
+    if (remaining <= 0) throw new Error("initial rehearsal readback deadline exhausted");
+    const response = await (options.fetch ?? fetch)(url, {
+      redirect: "error",
+      credentials: "omit",
+      cache: "no-store",
+      signal: AbortSignal.timeout(remaining),
+    });
+    await response.body?.cancel();
+    if (response.status !== 404 || response.url !== url || performance.now() >= deadline)
+      throw new Error("initial production route is present or unavailable");
+  }
+  provider();
+  const directory = await mkdtemp(path.join(privateParent, "retained-rehearsal-"));
+  for (const [name, bytes] of files) {
+    const destination = path.join(directory, name);
+    await mkdir(path.dirname(destination), { recursive: true });
+    await writeFile(destination, bytes, { flag: "wx", mode: 0o600 });
+  }
+  return { directory, inventory_sha256: raw.inventory_sha256, authority: "none" as const };
 }
 
 /** Independent credential-free HTTP readback of the exact already-authenticated

@@ -1,0 +1,127 @@
+# Key-free assembly attester. No operational signing keys or Contents write.
+name: Attested application bootstrap assembly
+on:
+  workflow_call:
+    inputs:
+      opportunity:
+        type: string
+        required: true
+      source_artifact:
+        type: string
+        required: true
+      source_attempt:
+        type: string
+        required: true
+      tools_artifact:
+        type: string
+        required: true
+      tools_attempt:
+        type: string
+        required: true
+      context_artifact:
+        type: string
+        required: true
+      context_attempt:
+        type: string
+        required: true
+      known_runs:
+        type: string
+        required: true
+      signed_roles:
+        type: string
+        required: true
+    outputs:
+      artifact:
+        value: ${{ jobs.execute.outputs.artifact }}
+      attempt:
+        value: ${{ jobs.execute.outputs.attempt }}
+permissions:
+  contents: read
+  actions: read
+  checks: read
+  id-token: write
+  attestations: write
+jobs:
+  execute:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    environment: production-release-admission
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PORTCOVE_APPLICATION_RELEASE_REVISION: ${{ vars.PORTCOVE_APPLICATION_RELEASE_REVISION }}
+      PORTCOVE_APPLICATION_RELEASE_REF: ${{ vars.PORTCOVE_APPLICATION_RELEASE_REF }}
+      PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256: ${{ vars.PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256 }}
+      PORTCOVE_APPLICATION_RELEASE_ACTIVE: ${{ vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE }}
+      PORTCOVE_APPLICATION_RELEASE_SPENDING: ${{ vars.PORTCOVE_APPLICATION_RELEASE_SPENDING }}
+      PORTCOVE_APPLICATION_RELEASE_PROTECTION_SHA256: ${{ vars.PORTCOVE_APPLICATION_RELEASE_PROTECTION_SHA256 }}
+      PORTCOVE_APPLICATION_INITIAL_SITE_PREIMAGE_SHA256: ${{ vars.PORTCOVE_APPLICATION_INITIAL_SITE_PREIMAGE_SHA256 }}
+      PORTCOVE_APPLICATION_BOOTSTRAP_DESCRIPTOR_SHA256: ${{ vars.PORTCOVE_APPLICATION_BOOTSTRAP_DESCRIPTOR_SHA256 }}
+      PORTCOVE_APPLICATION_SETUP_PLAN_SHA256: ${{ vars.PORTCOVE_APPLICATION_SETUP_PLAN_SHA256 }}
+      PORTCOVE_APPLICATION_RELEASE_OPPORTUNITY: ${{ inputs.opportunity }}
+      PORTCOVE_KNOWN_RELEASE_RUNS: ${{ inputs.known_runs }}
+      PORTCOVE_SOURCE_ARTIFACT: ${{ inputs.source_artifact }}
+      PORTCOVE_SOURCE_ATTEMPT: ${{ inputs.source_attempt }}
+      PORTCOVE_TOOLS_ARTIFACT: ${{ inputs.tools_artifact }}
+      PORTCOVE_TOOLS_ATTEMPT: ${{ inputs.tools_attempt }}
+      PORTCOVE_PROTECTION_PHASE: metadata
+      PORTCOVE_CONTEXT_ARTIFACT: ${{ inputs.context_artifact }}
+      PORTCOVE_CONTEXT_ATTEMPT: ${{ inputs.context_attempt }}
+      PORTCOVE_SIGNED_ROLE_ARTIFACTS: ${{ inputs.signed_roles }}
+    outputs:
+      artifact: ${{ steps.upload.outputs.artifact-id }}
+      attempt: ${{ steps.producer.outputs.attempt }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - name: Bind fixed caller before receiving attested tools
+        run: node --input-type=module -e "import { inspectApplicationReleaseExecution } from './scripts/application-release-policy.mts'; inspectApplicationReleaseExecution(process.env)"
+      - name: Install existing hash-pinned attestation verifier
+        shell: bash
+        run: |-
+          set -euo pipefail
+          curl --fail --location --max-time 120 --max-filesize 16000000 --output "$RUNNER_TEMP/gh.tar.gz" https://github.com/cli/cli/releases/download/v2.102.0/gh_2.102.0_linux_amd64.tar.gz
+          echo "bb766f710eef8ede859c18578c72c327597cd4c8a85b06001b1f3843c6019386  $RUNNER_TEMP/gh.tar.gz" | sha256sum --check --strict
+          tar -xzf "$RUNNER_TEMP/gh.tar.gz" -C "$RUNNER_TEMP" gh_2.102.0_linux_amd64/bin/gh
+          echo "$RUNNER_TEMP/gh_2.102.0_linux_amd64/bin" >> "$GITHUB_PATH"
+      - name: Verify fixed tools and provenance before execution
+        run: node scripts/application-release-tools.mts receive
+      - id: worker
+        name: Assemble authenticated application metadata and complete site
+        run: node scripts/application-release-private.bundle.mjs assemble
+      - id: site
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: application-site-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ steps.worker.outputs.site_directory }}
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: false
+      - name: Validate exact provider ZIP and stage closed publication subjects
+        env:
+          PORTCOVE_SITE_ARTIFACT: ${{ steps.site.outputs.artifact-id }}
+        run: node scripts/application-release-private.bundle.mjs stage-site
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: work/application-publication-assets/*
+      - name: Attest compact draft recovery proof
+        if: ${{ hashFiles('work/application-draft-assembly-proof/application-draft-assembly.json') != '' }}
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: work/application-draft-assembly-proof/application-draft-assembly.json
+      - id: producer
+        run: echo "attempt=$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
+      - id: upload
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: application-publication-input-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/application-publication-assets/*
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: false

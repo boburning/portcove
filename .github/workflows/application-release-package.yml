@@ -1,0 +1,203 @@
+# Reusable secret-free compiler and fresh provenance producer. No publication.
+name: Windows application packages
+on:
+  workflow_call:
+    inputs:
+      source:
+        type: string
+        required: true
+      source_tree:
+        type: string
+        required: true
+      version:
+        type: string
+        required: true
+      prepared_source:
+        type: string
+        required: true
+      prepared_tree:
+        type: string
+        required: true
+      qualification:
+        type: boolean
+        default: false
+      classification:
+        type: string
+        default: "null"
+      published_versions:
+        type: string
+        default: "[]"
+    outputs:
+      artifact:
+        value: ${{ jobs.provenance.outputs.artifact }}
+      package_attempt:
+        value: ${{ jobs.package.outputs.attempt }}
+      provenance_attempt:
+        value: ${{ jobs.provenance.outputs.attempt }}
+permissions:
+  contents: read
+jobs:
+  package:
+    env:
+      PORTCOVE_APPLICATION_PACKAGE_MODE: ${{ inputs.qualification && 'qualification' || 'release' }}
+    runs-on: windows-2025
+    timeout-minutes: 30
+    outputs:
+      artifact: ${{ steps.upload.outputs.artifact-id }}
+      attempt: ${{ steps.producer.outputs.attempt }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.source }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: package.json
+      - uses: ./.github/actions/setup-rust
+      - name: Bind requested product bytes before candidate execution
+        shell: pwsh
+        env:
+          EXPECTED_SOURCE: ${{ inputs.source }}
+          EXPECTED_TREE: ${{ inputs.source_tree }}
+          EXPECTED_VERSION: ${{ inputs.version }}
+        run: |
+          if ((git rev-parse HEAD).Trim() -cne $env:EXPECTED_SOURCE) { throw 'Product source differs' }
+          if ((git rev-parse 'HEAD^{tree}').Trim() -cne $env:EXPECTED_TREE) { throw 'Product tree differs' }
+          if ($env:TAURI_SIGNING_PRIVATE_KEY -or $env:TAURI_SIGNING_PRIVATE_KEY_PATH) { throw 'Signing input present in compiler' }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          path: work/control
+          persist-credentials: false
+      - name: Install only fixed public preparation dependencies without hooks
+        run: pnpm -C work/control install --frozen-lockfile --ignore-scripts
+      - name: Reproduce and bind only the maintained mechanical version child
+        env:
+          PORTCOVE_ORIGINAL_SOURCE: ${{ inputs.source }}
+          PORTCOVE_PREPARED_SOURCE: ${{ inputs.prepared_source }}
+          PORTCOVE_PREPARED_TREE: ${{ inputs.prepared_tree }}
+          PORTCOVE_CLASSIFICATION: ${{ inputs.classification }}
+          PORTCOVE_PUBLISHED_VERSIONS: ${{ inputs.published_versions }}
+        run: node work/control/scripts/application-release-source.mts prepare-compiler
+      - name: Check the exact prepared package version
+        shell: pwsh
+        env:
+          EXPECTED_VERSION: ${{ inputs.version }}
+          EXPECTED_SOURCE: ${{ inputs.prepared_source }}
+          EXPECTED_TREE: ${{ inputs.prepared_tree }}
+        run: |
+          if ((git rev-parse HEAD).Trim() -cne $env:EXPECTED_SOURCE) { throw 'Prepared source differs' }
+          if ((git rev-parse 'HEAD^{tree}').Trim() -cne $env:EXPECTED_TREE) { throw 'Prepared tree differs' }
+          if ((node scripts/check-release-metadata.mts --print-version).Trim() -cne $env:EXPECTED_VERSION) { throw 'Product version differs' }
+      - name: Prepare the existing appointed public bytes from fixed control
+        env:
+          PORTCOVE_APPLICATION_RELEASE_REVISION: ${{ vars.PORTCOVE_APPLICATION_RELEASE_REVISION }}
+          PORTCOVE_APPLICATION_RELEASE_REF: ${{ vars.PORTCOVE_APPLICATION_RELEASE_REF }}
+        run: node work/control/scripts/application-release-build-inputs.mts
+      - run: pnpm install --frozen-lockfile
+      - name: Build normal CLI
+        run: cargo build --release -p portcove-cli
+      - name: Package and smoke-test normal CLI
+        shell: pwsh
+        env:
+          PRODUCT_VERSION: ${{ inputs.version }}
+        run: |
+          ./scripts/package-cli.ps1 -PlatformLabel windows-x86_64 -TargetRoot target
+          ./scripts/smoke-test-cli-archive.ps1 -ArchivePath "release-assets/portcove-cli-$env:PRODUCT_VERSION-windows-x86_64.zip" -PlatformLabel windows-x86_64 -Version $env:PRODUCT_VERSION
+      - name: Build normal updater-capable desktop without signing
+        working-directory: apps/desktop
+        shell: pwsh
+        run: |
+          & pnpm tauri build --bundles nsis --no-sign --config $env:PORTCOVE_RELEASE_PUBLIC_TAURI_CONFIGURATION
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Produce maintained SPDX SBOM
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+        with:
+          path: .
+          format: spdx-json
+          output-file: work/sbom.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+      - name: Stage only the two packages, native executable and public evidence
+        shell: pwsh
+        env:
+          PRODUCT_VERSION: ${{ inputs.version }}
+        run: |
+          $out = 'work/application-unsigned'
+          New-Item -ItemType Directory -Path $out -ErrorAction Stop | Out-Null
+          Copy-Item -LiteralPath "target/release/bundle/nsis/Portcove_$($env:PRODUCT_VERSION)_x64-setup.exe" -Destination $out -ErrorAction Stop
+          Copy-Item -LiteralPath "release-assets/portcove-cli-$($env:PRODUCT_VERSION)-windows-x86_64.zip" -Destination $out -ErrorAction Stop
+          Copy-Item -LiteralPath 'target/release/portcove-desktop.exe' -Destination $out -ErrorAction Stop
+          Copy-Item -LiteralPath 'work/sbom.spdx.json' -Destination $out -ErrorAction Stop
+          Copy-Item -LiteralPath $env:PORTCOVE_RELEASE_PUBLIC_BUILD_RECEIPT -Destination "$out/build-inputs.json" -ErrorAction Stop
+      - id: producer
+        shell: pwsh
+        run: '"attempt=$env:GITHUB_RUN_ATTEMPT" >> $env:GITHUB_OUTPUT'
+      - id: upload
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: application-compiler-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/application-unsigned/*
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: false
+  provenance:
+    env:
+      PORTCOVE_APPLICATION_PACKAGE_MODE: ${{ inputs.qualification && 'qualification' || 'release' }}
+    needs: package
+    runs-on: ubuntu-22.04
+    timeout-minutes: 2
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+      attestations: write
+    outputs:
+      artifact: ${{ steps.upload.outputs.artifact-id }}
+      attempt: ${{ steps.producer.outputs.attempt }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - name: Bound compiler archive and declarations before any extraction
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PORTCOVE_APPLICATION_RELEASE_REVISION: ${{ vars.PORTCOVE_APPLICATION_RELEASE_REVISION }}
+          PORTCOVE_APPLICATION_RELEASE_REF: ${{ vars.PORTCOVE_APPLICATION_RELEASE_REF }}
+          PORTCOVE_PRODUCT_SOURCE: ${{ inputs.prepared_source }}
+          PORTCOVE_PRODUCT_TREE: ${{ inputs.prepared_tree }}
+          PORTCOVE_PRODUCT_VERSION: ${{ inputs.version }}
+          PORTCOVE_PACKAGE_ATTEMPT: ${{ needs.package.outputs.attempt }}
+          PORTCOVE_COMPILER_ARTIFACT: ${{ needs.package.outputs.artifact }}
+        run: node scripts/application-release-transfer.mts compiler
+      - name: Construct the data manifest in the fresh trusted environment
+        env:
+          PORTCOVE_APPLICATION_RELEASE_REVISION: ${{ vars.PORTCOVE_APPLICATION_RELEASE_REVISION }}
+          PORTCOVE_APPLICATION_RELEASE_REF: ${{ vars.PORTCOVE_APPLICATION_RELEASE_REF }}
+          PORTCOVE_PRODUCT_SOURCE: ${{ inputs.prepared_source }}
+          PORTCOVE_PRODUCT_TREE: ${{ inputs.prepared_tree }}
+          PORTCOVE_PRODUCT_VERSION: ${{ inputs.version }}
+          PORTCOVE_PACKAGE_ATTEMPT: ${{ needs.package.outputs.attempt }}
+        run: node scripts/application-release-artifacts.mts
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: work/application-unsigned/*
+      - id: producer
+        run: echo "attempt=$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
+      - id: upload
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: application-unsigned-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/application-unsigned/*
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: false

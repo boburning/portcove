@@ -1,9 +1,9 @@
-param([Parameter(Mandatory)][string]$ContextBase64,[Parameter(Mandatory)][ValidateSet('Production','Diagnostic')][string]$OwnerProfile,[Parameter(Mandatory)][string]$OwnerScriptsRoot)
+param([Parameter(Mandatory)][string]$ContextBase64,[Parameter(Mandatory)][ValidateSet('Production','Diagnostic','Application')][string]$OwnerProfile,[Parameter(Mandatory)][string]$OwnerScriptsRoot)
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
 # Shared effects are entered only by a source-gated, manifest-pinned wrapper.
 if($MyInvocation.InvocationName -cne '.'){throw 'Source-gated owner wrapper required'}
-if(($OwnerProfile -ceq 'Production' -and -not $hostedSessionExecutionAuthorized) -or
+if(($OwnerProfile -cne 'Diagnostic' -and -not $hostedSessionExecutionAuthorized) -or
     ($OwnerProfile -ceq 'Diagnostic' -and -not $hostedDiagnosticExecutionAuthorized)){throw 'Original owner execution scope remains held'}
 
 function Assert-OwnerMembers($Value,[string]$Keys) {
@@ -78,8 +78,16 @@ function Disable-OriginalAccount {
 if($ContextBase64.Length -gt 16384){throw 'Owner context exceeds bound'}
 $context=[Text.UTF8Encoding]::new($false,$true).GetString([Convert]::FromBase64String($ContextBase64))|ConvertFrom-Json
 Assert-OwnerMembers $context 'binding,node_created_filetime,node_pid,root,run_attempt,run_id,schema_version,source_commit,source_root,source_tree,tools_root'
+$applicationPublicJob=$OwnerProfile -ceq 'Application' -and $env:GITHUB_JOB -ceq 'public_installed'
 $fixedOwnerContext=if($OwnerProfile -ceq 'Production') {
     $env:GITHUB_JOB -ceq 'native_windows' -and $env:GITHUB_WORKFLOW_REF -cmatch '^boburning/portcove/[.]github/workflows/application-update-production[.]yml@refs/tags/[^/]+$'
+}elseif($OwnerProfile -ceq 'Application') {
+    ($env:GITHUB_JOB -ceq 'execute' -or $applicationPublicJob) -and $env:GITHUB_EVENT_NAME -ceq 'workflow_dispatch' -and
+    $env:GITHUB_WORKFLOW_REF -cmatch '^boburning/portcove/[.]github/workflows/release[.]yml@refs/tags/portcove-production-controller-windows-[A-Za-z0-9._-]{1,64}$' -and
+    $env:GITHUB_SHA -ceq $context.source_commit -and $context.run_attempt -ge 1 -and $context.run_attempt -le 3 -and
+    $env:GITHUB_RUN_ATTEMPT -ceq [string]$context.run_attempt -and
+    $context.root -ceq (Join-Path $context.source_root $(if($applicationPublicJob){'work/application-public-native-owner'}else{'work/application-native-owner'})) -and
+    $context.tools_root -ceq (Join-Path $context.source_root $(if($applicationPublicJob){'work/application-public-native-tools'}else{'work/application-native-tools'}))
 }else {
     $env:GITHUB_JOB -ceq 'installed-prerequisite' -and $env:GITHUB_EVENT_NAME -ceq 'workflow_dispatch' -and
     $env:GITHUB_WORKFLOW_REF -cmatch '^boburning/portcove/[.]github/workflows/hosted-native-continuity[.]yml@refs/heads/(main|feature/534-[A-Za-z0-9-]+)$' -and
@@ -89,10 +97,10 @@ $fixedOwnerContext=if($OwnerProfile -ceq 'Production') {
 }
 if($context.schema_version -ne 1 -or $context.binding -cnotmatch '^[a-f0-9]{64}$' -or $context.source_commit -cnotmatch '^[a-f0-9]{40}$' -or
     $context.source_tree -cnotmatch '^[a-f0-9]{40}$' -or $context.node_pid -lt 1 -or $context.node_pid -gt [int]::MaxValue -or
-    $context.node_created_filetime -cnotmatch '^[1-9][0-9]{0,19}$' -or $context.run_id -cnotmatch '^[1-9][0-9]{0,19}$' -or $context.run_attempt -ne 1 -or
+    $context.node_created_filetime -cnotmatch '^[1-9][0-9]{0,19}$' -or $context.run_id -cnotmatch '^[1-9][0-9]{0,19}$' -or ($OwnerProfile -cne 'Application' -and $context.run_attempt -ne 1) -or
     $env:GITHUB_ACTIONS -cne 'true' -or $env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or $env:GITHUB_REPOSITORY -cne 'boburning/portcove' -or
     (-not $fixedOwnerContext) -or
-    $env:GITHUB_RUN_ID -cne $context.run_id -or $env:GITHUB_RUN_ATTEMPT -cne '1'){throw 'Fixed held hosted owner context differs'}
+    $env:GITHUB_RUN_ID -cne $context.run_id -or ($OwnerProfile -cne 'Application' -and $env:GITHUB_RUN_ATTEMPT -cne '1')){throw 'Fixed held hosted owner context differs'}
 foreach($root in @($context.root,$context.source_root,$context.tools_root)) {
     if($root -isnot [string] -or $root -cnotmatch '^[A-Za-z]:\\' -or $root.Substring(2).Contains(':') -or [IO.Path]::GetFullPath($root) -cne $root){throw 'Fixed local owner root required'}
 }
@@ -107,7 +115,9 @@ $manifest=$ownerUtf8.GetString((Read-OwnerWrapperBytes (Join-Path $context.tools
 $helper=Join-Path $OwnerScriptsRoot 'native-qualification-account.cs.txt'
 $bridgeRoot=Join-Path $context.root 'bridge'
 $bridge=Join-Path $bridgeRoot 'scripts/native-qualification-account-bridge.ps1'
-foreach($name in @('release-hosted-native-windows-owner.ps1','release-hosted-native-windows-owner-mechanism.ps1','release-hosted-native-windows-diagnostic-owner.ps1','release-hosted-native-windows-setup.cs.txt','native-qualification-account.cs.txt','native-qualification-account-bridge.ps1','native-qualification-account-registry.ps1')) {
+$ownerFiles=@('release-hosted-native-windows-owner.ps1','release-hosted-native-windows-owner-mechanism.ps1','release-hosted-native-windows-diagnostic-owner.ps1','release-hosted-native-windows-setup.cs.txt','native-qualification-account.cs.txt','native-qualification-account-bridge.ps1','native-qualification-account-registry.ps1')
+if($OwnerProfile -ceq 'Application'){$ownerFiles+=@('application-release-native-owner.ps1')}
+foreach($name in $ownerFiles) {
     $entry=@($manifest.files|Where-Object path -CEQ ('scripts/'+$name));$file=Join-Path $OwnerScriptsRoot $name
     if($entry.Count -ne 1 -or $entry[0].bytes -lt 1 -or $entry[0].bytes -gt 131072 -or (Get-Item -LiteralPath $file).Length -ne $entry[0].bytes -or
         (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash.ToLowerInvariant() -cne $entry[0].sha256){throw 'Original owner tool source differs'}
@@ -117,7 +127,7 @@ $sourceHelper=Join-Path $context.source_root 'scripts/native-qualification-accou
 if((Get-FileHash -LiteralPath $sourceHelper -Algorithm SHA256).Hash.ToLowerInvariant() -cne $helperSha){throw 'Selected B and original A helper ABI differ before account effects'}
 Add-Type -TypeDefinition (Get-Content -LiteralPath (Join-Path $OwnerScriptsRoot 'release-hosted-native-windows-setup.cs.txt') -Raw)
 Add-Type -TypeDefinition (Get-Content -LiteralPath $helper -Raw)
-if($OwnerProfile -ceq 'Production') {
+if($OwnerProfile -cne 'Diagnostic') {
     if(-not [Portcove.NativeQualification.AccountLauncher]::HostedCandidateExecutionAuthorized -or
         -not [Portcove.HostedNative.HostedDesktop]::HostedCandidateRecoveryAuthorized){throw 'Candidate/recovery helpers remain held before account effects'}
 }else {
@@ -150,7 +160,7 @@ try {
     $accountProfile=[Portcove.HostedNative.Setup]::Profile($account.SID.Value)
     Write-OwnerRecord 'account-ready.json' ([ordered]@{binding=$context.binding;sid=$account.SID.Value;profile_root=$accountProfile;credential='memory-only';authority='none'})
     $sequence=3L
-    foreach($stage in @('payload-signing','release-publication')) {
+    foreach($stage in $(if($applicationPublicJob){@('ordinary-public-initial')}elseif($OwnerProfile -ceq 'Application'){@('payload-signing')}else{@('payload-signing','release-publication')})) {
         $prepare=Read-OwnerRequest ($stage+'-prepare.json') $sequence 'active_deadline_ticks,binding,owner_created_filetime,owner_pid,sequence'
         if($prepare.active_deadline_ticks -cnotmatch '^[1-9][0-9]{0,18}$' -or [long]$prepare.active_deadline_ticks -gt $activeDeadlineTicks -or [long]$prepare.active_deadline_ticks -le [Diagnostics.Stopwatch]::GetTimestamp()){throw 'Stage cannot renew the original owner deadline'}
         $activeDeadlineTicks=[long]$prepare.active_deadline_ticks
@@ -201,7 +211,7 @@ try {
             $startInfo.FileName=$workerNode;$startInfo.WorkingDirectory=$context.source_root
             $startInfo.UseShellExecute=$false;$startInfo.CreateNoWindow=$true
             $startInfo.RedirectStandardOutput=$true;$startInfo.RedirectStandardError=$true
-            $workerMode=if($OwnerProfile -ceq 'Production'){'--hosted-windows-stage'}else{'--hosted-windows-diagnostic-stage'}
+            $workerMode=if($OwnerProfile -cne 'Diagnostic'){'--hosted-windows-stage'}else{'--hosted-windows-diagnostic-stage'}
             foreach($argument in @($workerEntry,$workerMode,$workerInput,$request.worker_request_sha256)){$startInfo.ArgumentList.Add($argument)}
             $startInfo.Environment.Clear()
             $system=[Environment]::GetFolderPath([Environment+SpecialFolder]::Windows)

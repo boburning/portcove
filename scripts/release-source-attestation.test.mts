@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { mock } from "node:test";
+import childProcess from "node:child_process";
+import { syncBuiltinESMExports } from "node:module";
 import { mkdtemp, rm, access } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
+import { isRecord } from "./runtime-values.mts";
 import {
   inspectReleaseSourceAttestation,
   verifyReleaseSourceAttestation,
@@ -19,6 +22,44 @@ const expected = {
   run_attempt: 2,
   subjects: [{ filename: "compiler-result-cli-linux-x86_64.json", sha256: "b".repeat(64) }],
 };
+
+void test("default verifier process honors the private reader environment and excludes operational signing keys", async () => {
+  assert.ok(
+    !Object.hasOwn(process.env, "PORTCOVE_SIGNING_KEY"),
+    "test requires a credential-free parent",
+  );
+  const token = process.env.GH_TOKEN;
+  const directory = await mkdtemp(path.join(tmpdir(), "attestation-reader-environment-"));
+  process.env.GH_TOKEN = "inert-reader-token";
+  process.env.PORTCOVE_SIGNING_KEY = "inert-signing-sentinel";
+  let calls = 0;
+  const subprocess = mock.method(childProcess, "spawnSync", (...parameters: unknown[]) => {
+    calls++;
+    assert.equal(parameters[0], "gh");
+    const settings = parameters[2];
+    assert.ok(isRecord(settings) && isRecord(settings.env));
+    assert.equal(settings.env.GH_TOKEN, "inert-reader-token");
+    assert.equal(settings.env.GH_HOST, "github.com");
+    assert.equal(Object.hasOwn(settings.env, "PORTCOVE_SIGNING_KEY"), false);
+    assert.equal(Object.hasOwn(settings.env, "NODE_OPTIONS"), false);
+    const stdout = JSON.stringify(fixture());
+    return { pid: 1, output: [null, stdout, ""], stdout, stderr: "", status: 0, signal: null };
+  });
+  syncBuiltinESMExports();
+  try {
+    await withReadOnlyReleaseChildren(directory, () =>
+      verifyReleaseSourceAttestation(directory, expected.subjects[0]!.filename, expected),
+    );
+    assert.equal(calls, 1);
+  } finally {
+    subprocess.mock.restore();
+    syncBuiltinESMExports();
+    delete process.env.PORTCOVE_SIGNING_KEY;
+    if (token === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = token;
+    await rm(directory, { recursive: true, force: true });
+  }
+});
 function fixture() {
   return [
     {
@@ -50,6 +91,109 @@ function fixture() {
     },
   ];
 }
+void test("bootstrap assembly attestation binds both fixed subjects and selects only the appointed producer attempt", () => {
+  const input = {
+    ...expected,
+    subjects: [
+      { filename: "application-site.zip", sha256: "c".repeat(64) },
+      { filename: "application-metadata.json", sha256: "d".repeat(64) },
+    ],
+  };
+  const wanted = fixture();
+  wanted[0]!.verificationResult.signature.certificate.buildSignerURI = `https://github.com/boburning/portcove/.github/workflows/application-release-assembly.yml@${expected.ref}`;
+  wanted[0]!.verificationResult.statement.subject = input.subjects.map((entry) => ({
+    name: entry.filename,
+    digest: { sha256: entry.sha256 },
+  }));
+  const prior = structuredClone(wanted);
+  prior[0]!.verificationResult.signature.certificate.runInvocationURI = `https://github.com/boburning/portcove/actions/runs/${expected.run_id}/attempts/1`;
+  assert.equal(
+    inspectReleaseSourceAttestation([prior[0], wanted[0]], input, "application-assembly").authority,
+    "none",
+  );
+  assert.throws(() => inspectReleaseSourceAttestation(wanted, input, "application-package"));
+  assert.throws(() =>
+    inspectReleaseSourceAttestation([wanted[0], wanted[0]], input, "application-assembly"),
+  );
+  assert.throws(() =>
+    inspectReleaseSourceAttestation(
+      wanted,
+      { ...input, subjects: [input.subjects[0]!] },
+      "application-assembly",
+    ),
+  );
+});
+void test("application package provenance requires the reusable attester identity", () => {
+  const raw = fixture();
+  raw[0]!.verificationResult.signature.certificate.buildSignerURI = `https://github.com/boburning/portcove/.github/workflows/application-release-package.yml@${expected.ref}`;
+  assert.equal(
+    inspectReleaseSourceAttestation(raw, expected, "application-package").authority,
+    "none",
+  );
+  assert.throws(() => inspectReleaseSourceAttestation(raw, expected));
+  assert.throws(() => inspectReleaseSourceAttestation(fixture(), expected, "application-package"));
+});
+
+void test("native evidence requires its fixed reusable attester and complete three-subject matrix", () => {
+  const input = {
+    ...expected,
+    subjects: [
+      { filename: "native-qualification.json", sha256: "c".repeat(64) },
+      { filename: "native-capture.json", sha256: "d".repeat(64) },
+      { filename: "native-evidence.json", sha256: "e".repeat(64) },
+    ],
+  };
+  const raw = fixture();
+  raw[0]!.verificationResult.signature.certificate.buildSignerURI = `https://github.com/boburning/portcove/.github/workflows/application-release-native.yml@${expected.ref}`;
+  raw[0]!.verificationResult.statement.subject = input.subjects.map((subject) => ({
+    name: subject.filename,
+    digest: { sha256: subject.sha256 },
+  }));
+  assert.equal(inspectReleaseSourceAttestation(raw, input, "application-native").authority, "none");
+  assert.throws(() => inspectReleaseSourceAttestation(raw, input, "application-package"));
+  assert.throws(() =>
+    inspectReleaseSourceAttestation(
+      raw,
+      { ...input, subjects: input.subjects.slice(0, 1) },
+      "application-native",
+    ),
+  );
+  const prior = structuredClone(raw);
+  prior[0]!.verificationResult.signature.certificate.runInvocationURI = `https://github.com/boburning/portcove/actions/runs/${expected.run_id}/attempts/1`;
+  assert.equal(
+    inspectReleaseSourceAttestation([prior[0], raw[0]], input, "application-native").authority,
+    "none",
+  );
+  assert.throws(() =>
+    inspectReleaseSourceAttestation([raw[0], raw[0]], input, "application-native"),
+  );
+});
+
+void test("package re-attestation after failed artifact upload selects the expected original attempt", () => {
+  const wanted = fixture();
+  wanted[0]!.verificationResult.signature.certificate.buildSignerURI = `https://github.com/boburning/portcove/.github/workflows/application-release-package.yml@${expected.ref}`;
+  const earlier = structuredClone(wanted);
+  earlier[0]!.verificationResult.signature.certificate.runInvocationURI = `https://github.com/boburning/portcove/actions/runs/${expected.run_id}/attempts/1`;
+  const result = inspectReleaseSourceAttestation(
+    [earlier[0], wanted[0]],
+    expected,
+    "application-package",
+  );
+  assert.equal(result.authority, "none");
+  assert.equal(
+    result.certificate.runInvocationURI,
+    wanted[0]!.verificationResult.signature.certificate.runInvocationURI,
+  );
+  assert.throws(
+    () => inspectReleaseSourceAttestation([wanted[0], wanted[0]], expected, "application-package"),
+    /ambiguous/u,
+  );
+  assert.throws(
+    () =>
+      inspectReleaseSourceAttestation([earlier[0], earlier[0]], expected, "application-package"),
+    /ambiguous/u,
+  );
+});
 void test("source report parser binds complete exact subjects and workflow/source/run/attempt without minting authority", () => {
   const result = inspectReleaseSourceAttestation(fixture(), expected);
   assert.equal(result.authority, "none");
