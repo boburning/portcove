@@ -377,7 +377,14 @@ legacy/unknown-value handling; this planning contract adds no command or field.
 
 The CLI API schema version is independent of the Portcove release version.
 
-The catalog listing document has its own format version. Readers accept format 1
+The catalog listing document has its own format version. Formats1–6 retain their
+existing readers; format8 adds GitLab descriptive observations using the existing
+provider-qualified project/tag identity. `catalog listings --format-version 8`
+exports that format; exporting GitLab observations to5/6 refuses. CLI, Tauri and
+independent listing refresh validate the same Core document. A reader that only
+understands format6 cannot consume8; failed refresh retains its previous accepted
+directory. Command capabilities and document format negotiation remain separate.
+Readers accept format 1
 descriptive directories and format 2 directories with optional
 `download_block_reason`. A restriction requires format 2; unknown formats and
 invalid reasons are refused. Core uses the restriction for fresh self-service

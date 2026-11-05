@@ -74,7 +74,7 @@ pub(crate) enum CatalogCommand {
     },
     /// Export every descriptive listing, including projects without a managed integration.
     Listings {
-        /// Listing document format; 5 preserves references as legacy flat steps.
+        /// Listing format: 5 keeps legacy flat references; 8 supports GitLab observations.
         #[arg(long)]
         format_version: Option<u32>,
     },

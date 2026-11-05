@@ -30373,7 +30373,6 @@
           }
         }
       },
-      "runtime_subdirectory": "Marathon2-20260930",
       "executable_hints": {
         "windows-x86-64": [
           "Classic Marathon 2.exe"
@@ -30436,7 +30435,6 @@
           }
         }
       },
-      "runtime_subdirectory": "Marathon-20260930",
       "executable_hints": {
         "windows-x86-64": [
           "Classic Marathon.exe"
@@ -30498,7 +30496,6 @@
           }
         }
       },
-      "runtime_subdirectory": "MarathonInfinity-20260930",
       "executable_hints": {
         "windows-x86-64": [
           "Classic Marathon Infinity.exe"

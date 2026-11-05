@@ -2662,3 +2662,241 @@ void test(
       });
   },
 );
+
+void test("GitLab descriptive listings reuse the provider collector and export native tags plus exact registry candidates", async () => {
+  const h = harness();
+  const listing = {
+    id: "lab-description",
+    project_url: "https://gitlab.com/owner/subgroup/lab",
+    release_url: "https://gitlab.com/owner/subgroup/lab/-/releases",
+    availability: "unknown",
+    download_asset_hints: { "windows-x86-64": ["windows", "x64"] },
+  };
+  const catalog = { ports: [], listings: [listing] };
+  const calls: string[] = [];
+  let exported: unknown[] = [];
+  const result = await advanceCatalogObservations(catalog, null, {
+    ...h.options,
+    projectProvider: async () => {
+      throw new Error("Descriptive listing must never enter managed Core policy");
+    },
+    providerFetch: async (input, init) => {
+      const url = new URL(input instanceof Request ? input.url : input);
+      calls.push(url.href);
+      assert.equal(new Headers(init?.headers).get("authorization"), null);
+      const body = url.pathname.endsWith("/releases")
+        ? [
+            {
+              tag_name: "v1.2.0",
+              upcoming_release: false,
+              released_at: "2026-10-26T00:00:00Z",
+              assets: {
+                links: [
+                  {
+                    id: 5,
+                    url: "https://gitlab.com/owner/subgroup/lab/-/package_files/301/download",
+                  },
+                ],
+              },
+            },
+          ]
+        : url.pathname.endsWith("/packages")
+          ? [{ id: 101, name: "game", version: "1.2.0" }]
+          : url.pathname.endsWith("/package_files")
+            ? [
+                {
+                  id: 301,
+                  file_name: "game-windows-x64.zip",
+                  size: 42,
+                  file_sha256: "a".repeat(64),
+                },
+              ]
+            : { id: 27, path_with_namespace: "owner/subgroup/lab", archived: false };
+      return new Response(JSON.stringify(body), {
+        headers: { "x-page": "1", "x-per-page": "100", "x-next-page": "" },
+      });
+    },
+    exportProvider: async (_source, _observations, policies) => {
+      exported = policies;
+    },
+  });
+  assert.deepEqual(result.report.failures, []);
+  assert.equal(result.report.completed_source_keys.length, 1);
+  assert.equal(calls.length, 4);
+  assert.equal(exported.length, 1);
+  assert.ok(isRecord(exported[0]));
+  const policy = exported[0];
+  assert.equal(policy.authority, "descriptive-listing-observation-only");
+  assert.deepEqual(policy.projections, []);
+  assert.ok(isRecord(policy.listing_update));
+  assert.equal(policy.listing_update.availability, "unknown");
+  const observation = policy.listing_update.upstream_observation as Record<string, unknown>;
+  assert.equal(observation.provider, "gitlab");
+  assert.equal(observation.repository_id, 27);
+  assert.equal(observation.status, "complete");
+  const release = (observation.releases as Record<string, unknown>[])[0]!;
+  assert.deepEqual(release.id, { provider: "gitlab", project_id: 27, tag: "v1.2.0" });
+  assert.equal(release.release_url, "https://gitlab.com/owner/subgroup/lab/-/releases/v1.2.0");
+  assert.deepEqual(release.assets, [
+    {
+      id: 301,
+      name: "game-windows-x64.zip",
+      size: 42,
+      sha256: "a".repeat(64),
+      platform_hints: ["windows-x86-64"],
+      url: "https://gitlab.com/api/v4/projects/27/packages/generic/game/1.2.0/game-windows-x64.zip",
+    },
+  ]);
+});
+
+void test("descriptive provider identity refuses arbitrary hosts and reports unsupported observation without release absence", async () => {
+  const { listingProviderIdentity } = await import("./listing-upstream-observation.mts");
+  for (const project_url of [
+    "https://gitlab.com/owner/lab",
+    "https://gitlab.com/owner/lab.git",
+    "https://gitlab.com/owner/lab/-/releases/v1.0",
+  ]) {
+    assert.deepEqual(listingProviderIdentity({ project_url }), {
+      provider: "gitlab",
+      repository: "owner/lab",
+    });
+  }
+  assert.deepEqual(
+    listingProviderIdentity({ project_url: "https://gitlab.com/owner/subgroup/lab/-/releases/v1" }),
+    { provider: "gitlab", repository: "owner/subgroup/lab" },
+  );
+  for (const project_url of [
+    "https://gitlab.example.com/owner/lab",
+    "https://gitlab.com/owner/.git",
+    "https://gitlab.com.evil.test/owner/lab",
+    "https://user:pass@gitlab.com/owner/lab",
+    "https://gitlab.com:8443/owner/lab",
+    "https://gitlab.com/owner/lab?token=secret",
+    "https://gitlab.com/owner/lab/-/blob/main/file",
+  ]) {
+    assert.equal(listingProviderIdentity({ project_url }), null);
+    const result = catalogObservationSources({
+      ports: [],
+      listings: [{ id: "unsupported", project_url }],
+    });
+    assert.equal(result.sources.length, 0);
+    assert.equal(result.held[0]?.reason, "listing-provider-observation-unsupported");
+  }
+});
+
+void test("GitLab listing failures preserve last-good freshness and unsupported release links remain incomplete", async () => {
+  const { projectGitLabListingObservation, listingUpdatesForReport } =
+    await import("./listing-upstream-observation.mts");
+  const listing = {
+    id: "lab-description",
+    project_url: "https://gitlab.com/owner/lab",
+    availability: "unknown",
+  };
+  const facts = {
+    project: { id: 27, path_with_namespace: "owner/lab" },
+    releases: [
+      {
+        tag_name: "v1",
+        upcoming_release: false,
+        released_at: "2026-10-26T00:00:00Z",
+        assets: { links: [] },
+      },
+    ],
+    packages: [],
+    package_files: {},
+    coverage: { releases: true, packages: true },
+  };
+  const observation = {
+    format: 3,
+    authority: "provider-observation-only",
+    provider: "gitlab",
+    started_at: "2026-10-27T00:00:00Z",
+    completed_at: "2026-10-27T00:01:00Z",
+    facts,
+    facts_sha256: observationHash(facts),
+  };
+  for (const badRelease of [
+    null,
+    { ...facts.releases[0], upcoming_release: undefined },
+    { ...facts.releases[0], assets: {} },
+  ]) {
+    const badFacts = { ...facts, releases: [badRelease] };
+    assert.throws(
+      () =>
+        projectGitLabListingObservation(
+          listing,
+          { ...observation, facts: badFacts, facts_sha256: observationHash(badFacts) },
+          12,
+        ),
+      /invalid native/,
+    );
+  }
+  const policy = projectGitLabListingObservation(listing, observation, 12);
+  const current = policy.listing_update;
+  for (const rule of ["provider-transport", "provider-pagination", "provider-stale"]) {
+    const updates = listingUpdatesForReport(
+      [policy],
+      { exception: { rule } },
+      "2026-10-28T00:00:00Z",
+      { provider: "gitlab", repository: "owner/lab", ports: [{ listing: current }] },
+    );
+    assert.equal(updates[0]?.upstream_observation.provider, "gitlab");
+    assert.equal(updates[0]?.upstream_observation.observed_at, "2026-10-27T00:00:00Z");
+    assert.equal(updates[0]?.upstream_observation.fresh_until, "2026-10-27T12:00:00.000Z");
+    assert.equal(updates[0]?.availability, "unknown");
+  }
+  const incompleteFacts = structuredClone(facts);
+  (incompleteFacts.releases[0]!.assets.links as unknown[]).push({
+    id: 5,
+    url: "https://unknown.test/game.zip",
+  });
+  const incomplete = projectGitLabListingObservation(
+    listing,
+    { ...observation, facts: incompleteFacts, facts_sha256: observationHash(incompleteFacts) },
+    12,
+  );
+  assert.equal(incomplete.listing_update.upstream_observation.status, "incomplete");
+  assert.deepEqual(
+    (incomplete.listing_update.upstream_observation.releases as Record<string, unknown>[])[0]!
+      .assets,
+    [],
+  );
+  assert.throws(
+    () =>
+      projectGitLabListingObservation(
+        listing,
+        {
+          ...observation,
+          facts: { ...facts, coverage: {} },
+          facts_sha256: observationHash({ ...facts, coverage: {} }),
+        },
+        12,
+      ),
+    /Exact covered/,
+  );
+});
+
+void test("GitLab provider failures export a descriptive failure candidate without refreshing successful facts", async () => {
+  const h = harness();
+  const listing = {
+    id: "lab-description",
+    project_url: "https://gitlab.com/owner/lab",
+    availability: "unknown",
+  };
+  const failures: unknown[] = [];
+  const result = await advanceCatalogObservations({ ports: [], listings: [listing] }, null, {
+    ...h.options,
+    providerFetch: async () => {
+      throw new Error("bounded provider failure");
+    },
+    exportProvider: async (_source, observations, _policies, report) => {
+      assert.deepEqual(observations, []);
+      failures.push(report);
+    },
+  });
+  assert.equal(result.report.failures[0]?.rule, "provider-transport");
+  assert.deepEqual(failures, [{ exception: { rule: "provider-transport" } }]);
+  const state = Object.values(result.checkpoint.sources)[0]!;
+  assert.equal(state.freshness_observed_at, null);
+  assert.equal(state.last_complete_facts_sha256, null);
+});
