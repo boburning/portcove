@@ -288,19 +288,69 @@ void test("hosted native parent default path retains original source and issuer 
     ),
   );
   const sourceRequests: string[] = [];
+  const catalog = sourceInputs.get(nativeCompatibilitySourcePaths[2])!;
+  const catalogBlob = createHash("sha1")
+    .update(Buffer.from(`blob ${catalog.length}\0`))
+    .update(catalog)
+    .digest("hex");
+  let catalogBlobReads = 0;
+
   let tokenCalls = 0,
     metadataCalls = 0;
-  t.mock.method(globalThis, "fetch", async (endpoint: string | URL | Request) => {
-    const endpointUrl = endpoint instanceof Request ? endpoint.url : endpoint.toString();
-    if (endpointUrl.includes("/.well-known/jwks"))
-      return new Response(JSON.stringify({ keys: [jwk] }));
-    assert.equal(
-      new URL(endpointUrl).searchParams.get("audience"),
-      "portcove-hosted-native-linux-v1",
-    );
-    tokenCalls++;
-    return new Response(JSON.stringify({ value: good.token }));
-  });
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (endpoint: string | URL | Request, init?: RequestInit) => {
+      const url = new URL(endpoint instanceof Request ? endpoint.url : endpoint.toString());
+      if (url.origin === "https://api.github.com") {
+        const prefix = "/repos/boburning/portcove/contents/";
+        assert.equal(init?.method, "GET");
+        const headers = new Headers(init?.headers);
+        assert.equal(headers.get("authorization"), "token inert-reader-only");
+        assert.equal(headers.get("x-github-api-version"), "2022-11-28");
+        if (url.pathname === `/repos/boburning/portcove/git/blobs/${catalogBlob}`) {
+          assert.equal(url.search, "");
+          catalogBlobReads++;
+          return Response.json({
+            sha: catalogBlob,
+            size: catalog.length,
+            encoding: "base64",
+            content: catalog.toString("base64"),
+          });
+        }
+        assert.ok(url.pathname.startsWith(prefix));
+        const pathname = decodeURIComponent(url.pathname.slice(prefix.length));
+        const bytes = sourceInputs.get(pathname as (typeof nativeCompatibilitySourcePaths)[number]);
+        assert.ok(bytes);
+        sourceRequests.push(pathname + url.search);
+        if (pathname === nativeCompatibilitySourcePaths[2])
+          return Response.json({
+            type: "file",
+            path: pathname,
+            encoding: "none",
+            size: bytes.length,
+            content: "",
+            sha: catalogBlob,
+          });
+        return Response.json({
+          type: "file",
+          path: pathname,
+          encoding: "base64",
+          size: bytes.length,
+          content: bytes.toString("base64"),
+          sha: createHash("sha1")
+            .update(Buffer.from(`blob ${bytes.length}\0`))
+            .update(bytes)
+            .digest("hex"),
+        });
+      }
+      if (url.pathname.includes("/.well-known/jwks"))
+        return new Response(JSON.stringify({ keys: [jwk] }));
+      assert.equal(url.searchParams.get("audience"), "portcove-hosted-native-linux-v1");
+      tokenCalls++;
+      return new Response(JSON.stringify({ value: good.token }));
+    },
+  );
   t.mock.method(
     childProcess,
     "spawnSync",
@@ -313,31 +363,6 @@ void test("hosted native parent default path retains original source and issuer 
       assert.equal(options?.env?.GH_TOKEN, "inert-reader-only");
       for (const key of ["ACTIONS_ID_TOKEN_REQUEST_TOKEN", "PORTCOVE_SEMANTIC_APP_KEY"])
         assert.equal(options?.env?.[key], undefined);
-      const endpoint = args.find((value) => value.startsWith("repos/boburning/portcove/contents/"));
-      if (endpoint) {
-        sourceRequests.push(endpoint);
-        const pathname = endpoint
-          .slice("repos/boburning/portcove/contents/".length)
-          .split("?ref=")[0]!;
-        const bytes = sourceInputs.get(pathname as (typeof nativeCompatibilitySourcePaths)[number]);
-        assert.ok(bytes);
-        const body = {
-          type: "file",
-          path: pathname,
-          encoding: "base64",
-          size: bytes.length,
-          content: bytes.toString("base64"),
-          sha: createHash("sha1")
-            .update(Buffer.from(`blob ${bytes.length}\0`))
-            .update(bytes)
-            .digest("hex"),
-        };
-        return {
-          status: 0,
-          stdout: `HTTP/2.0 200 Fixture\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(body)}`,
-          stderr: "",
-        } as ReturnType<typeof childProcess.spawnSync>;
-      }
       return good.transport.spawn(command, args, options) as ReturnType<
         typeof childProcess.spawnSync
       >;
@@ -467,11 +492,11 @@ void test("hosted native parent default path retains original source and issuer 
   assert.equal(readOnlyReleaseChildEnvironment(), undefined);
   const declarations = await hostedCandidate.readActualHostedNativeSourceDeclarations(selected);
   assert.deepEqual(declarations.candidate, selectedValue.candidate);
+  assert.equal(catalogBlobReads, 1);
   assert.deepEqual(
     sourceRequests,
     nativeCompatibilitySourcePaths.map(
-      (pathname) =>
-        `repos/boburning/portcove/contents/${pathname}?ref=${selectedValue.candidate.source_commit}`,
+      (pathname) => `${pathname}?ref=${selectedValue.candidate.source_commit}`,
     ),
   );
   assert.equal(readOnlyReleaseChildEnvironment(), undefined);

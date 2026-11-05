@@ -4651,6 +4651,7 @@ void test("GitHub dependency changes select actual SDK and REST integration cont
     assert.ok(selected.nodeTests.has("scripts/github-client.test.mts"), file);
     assert.ok(selected.nodeTests.has("scripts/roadmap-rest-intake.test.mts"), file);
     for (const consumer of [
+      "scripts/production-controller-admission.test.mts",
       "scripts/release-bootstrap-preparation.test.mts",
       "scripts/application-release-budget.test.mts",
       "scripts/application-release-native.test.mts",
@@ -4679,12 +4680,18 @@ void test("GitHub dependency changes select actual SDK and REST integration cont
       assert.ok(existsSync(new URL(`../${consumer}`, import.meta.url)));
     }
   }
+  const hostedCandidate = classifyChanges(
+    [{ status: "M", path: "scripts/release-hosted-native-candidate.mts" }],
+    { fileExists: () => false },
+  );
+  assert.ok(hostedCandidate.nodeTests.has("scripts/production-controller-admission.test.mts"));
   const custodyChange = classifyChanges(
     [{ status: "M", path: "scripts/release-custody-provider.mts" }],
     { fileExists: () => false },
   );
   assert.ok(custodyChange.nodeTests.has("scripts/application-release-native.test.mts"));
   assert.ok(custodyChange.nodeTests.has("scripts/release-bootstrap-preparation.test.mts"));
+  assert.ok(custodyChange.nodeTests.has("scripts/production-controller-admission.test.mts"));
   assert.ok(custodyChange.nodeTests.has("scripts/release-signing-handoff.test.mts"));
   assert.ok(custodyChange.nodeTests.has("scripts/release-immutable-publication.test.mts"));
   assert.ok(custodyChange.nodeTests.has("scripts/release-candidate-signing-recovery.test.mts"));
