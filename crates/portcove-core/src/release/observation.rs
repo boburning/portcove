@@ -252,7 +252,7 @@ fn validate_facts(facts: &Value, port: &PortDefinition, repository_id: u64) -> R
             total = total.saturating_add(text.len());
             if sidecar.as_object().is_none_or(|o| o.len() != 3)
                 || !identities.insert(asset_id)
-                || text.len() > super::CHECKSUM_MAX_BYTES as usize
+                || text.len() > super::CHECKSUM_MAX_BYTES
                 || total > 16 * 1024 * 1024
                 || !releases.iter().any(|release| {
                     release["id"] == release_id

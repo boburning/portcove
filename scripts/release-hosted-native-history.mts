@@ -8,6 +8,7 @@ import { performance } from "node:perf_hooks";
 import { isRecord } from "./runtime-values.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-namespace.mts";
+import type { HistoricalJobProvider } from "./release-custody-provider.mts";
 import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
 import { hydrateRetainedCoordinatorCheckpointExport } from "./release-coordinator-recovery.mts";
 import { readCoordinatorCheckpointEvidence } from "./release-coordinator-checkpoint-evidence.mts";
@@ -265,6 +266,13 @@ async function collectHostedNativePredecessors(
   const records = structuredClone(rawRecords),
     namespace = inspectCoordinatorRemoteNamespace(rawConfiguration);
   const configuration = { schema_version: 1, namespace };
+  const captureJobProvider = (provider: HistoricalJobProvider): HistoricalJobProvider => ({
+    attempt: provider.attempt.bind(provider),
+    jobs: provider.jobs.bind(provider),
+    job: provider.job.bind(provider),
+  });
+  const checkpointProvider = options.checkpoint?.job?.provider;
+  const nativeProvider = options.native?.provider;
   const checkpointOptions =
     options.checkpoint === undefined
       ? undefined
@@ -284,14 +292,8 @@ async function collectHostedNativePredecessors(
             ? {
                 job: {
                   ...options.checkpoint.job,
-                  ...(options.checkpoint.job.api
-                    ? {
-                        api: {
-                          request: options.checkpoint.job.api.request.bind(
-                            options.checkpoint.job.api,
-                          ),
-                        },
-                      }
+                  ...(checkpointProvider
+                    ? { provider: captureJobProvider(checkpointProvider) }
                     : {}),
                 },
               }
@@ -312,8 +314,14 @@ async function collectHostedNativePredecessors(
                 },
               }
             : {}),
-          ...(options.native.api
-            ? { api: { request: options.native.api.request.bind(options.native.api) } }
+          ...(nativeProvider
+            ? {
+                provider: {
+                  ...captureJobProvider(nativeProvider),
+                  commit: nativeProvider.commit.bind(nativeProvider),
+                  file: nativeProvider.file.bind(nativeProvider),
+                },
+              }
             : {}),
         };
   const provider: CoordinatorRemoteApi = {

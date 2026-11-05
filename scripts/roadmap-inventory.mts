@@ -3,7 +3,7 @@ import {
   readCompleteConnection,
 } from "./repository-issue-inventory.mts";
 import { isRecord } from "./runtime-values.mts";
-import { observationHash } from "./upstream-observer.mts";
+import { orderedJsonSha256 as observationHash } from "./json-values.mts";
 import { GitHubApiError } from "./github-operation.mts";
 import type { RoadmapClient } from "./roadmap.mts";
 

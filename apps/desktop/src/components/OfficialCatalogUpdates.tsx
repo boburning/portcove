@@ -176,13 +176,8 @@ function OfficialCatalogControls({ generation, disabled, onChanged }: OfficialCa
       ) : review ? (
         <p>Official catalog updates are unavailable in this release.</p>
       ) : null}
-      {working && busy && !confirmation && <p role="status">{busy}</p>}
-      {operationId && !confirmation && (
-        <OperationCancellation
-          key={operationId}
-          operationId={operationId}
-          label="Cancel catalog refresh"
-        />
+      {!confirmation && (
+        <CatalogRefreshProgress busy={busy} working={working} operationId={operationId} />
       )}
       {notice && <p role="status">{notice}</p>}
       {error && (
@@ -213,14 +208,7 @@ function OfficialCatalogControls({ generation, disabled, onChanged }: OfficialCa
             new listings. Game installations continue through their usual review and permission
             checks.
           </DialogDescription>
-          {working && busy && <p role="status">{busy}</p>}
-          {operationId && (
-            <OperationCancellation
-              key={operationId}
-              operationId={operationId}
-              label="Cancel catalog refresh"
-            />
-          )}
+          <CatalogRefreshProgress busy={busy} working={working} operationId={operationId} />
           <DialogFooter>
             <Button
               variant="outline"
@@ -243,5 +231,28 @@ function OfficialCatalogControls({ generation, disabled, onChanged }: OfficialCa
         </DialogContent>
       </Dialog>
     </SettingsRow>
+  );
+}
+
+function CatalogRefreshProgress({
+  busy,
+  working,
+  operationId,
+}: {
+  busy: ReturnType<typeof useOperationState>["busy"];
+  working: boolean;
+  operationId: string | undefined;
+}) {
+  return (
+    <>
+      {working && busy && <p role="status">{busy}</p>}
+      {operationId && (
+        <OperationCancellation
+          key={operationId}
+          operationId={operationId}
+          label="Cancel catalog refresh"
+        />
+      )}
+    </>
   );
 }

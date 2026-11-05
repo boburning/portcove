@@ -48,6 +48,7 @@
     "scripts/daily-discovery.mts",
     "scripts/qualify-semantic-isolation.mts",
     "scripts/release-reviewed-inputs.mts",
+    "scripts/application-release-build-inputs.mts",
     "scripts/windows-rust-tests.mts",
     "scripts/run-actionlint.mts",
     "scripts/qualify-dialog-gtk.mts",

@@ -30,6 +30,7 @@ import {
 import { performance } from "node:perf_hooks";
 import {
   checkpointProofFixture,
+  releaseCustodyFetch,
   fixedJobJournalAuthoritiesFixture,
   selectedPublicationAuthoritiesFixture,
 } from "./fixtures/checkpoint-proof-fixture.mts";
@@ -254,6 +255,9 @@ async function selectedEffectFixture(
     { ...capacityExecutorJobProfile("coordinator"), runAttempt: 1 },
   );
   const proof = checkpointProofFixture(undefined, undefined, { run_attempt: 1 });
+  const custodyFetch = releaseCustodyFetch(proof.provider, (_url, init) => {
+    assert.equal(new Headers(init?.headers).get("authorization"), "token inert-selected-job-token");
+  });
   const remote = f.fixture;
   remote.refs.clear();
   remote.refs.set(remote.stateRef, f.seed.checkpoint);
@@ -269,8 +273,10 @@ async function selectedEffectFixture(
     globalThis,
     "fetch",
     async (raw: Parameters<typeof fetch>[0], settings?: RequestInit) => {
-      traffic.calls++;
       const url = typeof raw === "string" ? raw : raw instanceof URL ? raw.href : raw.url;
+      traffic.calls++;
+      if (url.startsWith("https://api.github.com/repos/boburning/portcove/actions/"))
+        return custodyFetch(raw, settings);
       if (url === "https://fixture.actions.githubusercontent.com/oidc?audience=sigstore")
         return json({ value: sigstore.token });
       if (url === "https://fulcio.sigstore.dev/api/v2/signingCert") {
@@ -355,14 +361,6 @@ async function selectedEffectFixture(
         return {
           status: 0,
           stdout: JSON.stringify([{ verificationResult: { ...proof.verification, statement } }]),
-          stderr: "",
-        };
-      }
-      if (String(options.cwd).includes("checkpoint-verification-")) {
-        const response = proof.api.request("GET", args[2]!);
-        return {
-          status: 0,
-          stdout: `HTTP/2.0 200 Fixture\r\n\r\n${JSON.stringify(response.body)}`,
           stderr: "",
         };
       }

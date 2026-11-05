@@ -1141,6 +1141,8 @@ fn plan_source_import_for(
         .map_err(Into::into)
 }
 
+// Tauri binds these named IPC arguments and injects the app, state and event channel.
+#[allow(clippy::too_many_arguments)]
 #[tauri::command]
 async fn import_source(
     app: tauri::AppHandle,
@@ -2182,11 +2184,13 @@ fn resolve_source_evidence_url(
 fn validate_external_url(service: &PortcoveService, url: &str) -> DesktopResult<()> {
     let known = matches!(
         url,
-        "https://github.com/boburning/portcove" | "https://github.com/login/device"
+        "https://github.com/boburning/portcove"
+            | "https://github.com/login/device"
+            | "https://github.com/boburning/portcove/blob/main/docs/UPGRADING.md#upgrade-portcove"
     ) || service.is_reviewed_resource_url(url)?;
     if !known {
         return Err(PortcoveError::usage(
-            "only reviewed project, setup, release, artwork and GitHub sign-in links may be opened",
+            "only reviewed project, setup, upgrade, release, artwork and GitHub sign-in links may be opened",
         )
         .into());
     }
@@ -3416,6 +3420,7 @@ mod tests {
         for url in [
             "https://github.com/boburning/portcove",
             "https://github.com/login/device",
+            "https://github.com/boburning/portcove/blob/main/docs/UPGRADING.md#upgrade-portcove",
             &catalog.document().ports[0].project_url,
             "https://www.igdb.com/games/ship-of-harkinian",
         ] {
@@ -3427,6 +3432,7 @@ mod tests {
             "https://example.com",
             "https://github.com/login/device?redirect=elsewhere",
             "https://github.com/boburning/portcove.evil",
+            "https://github.com/boburning/portcove/blob/main/docs/UPGRADING.md?redirect=elsewhere#upgrade-portcove",
             "https://www.igdb.com/games/ship-of-harkinian?redirect=elsewhere",
             "https://www.igdb.com/games/unmapped-game",
         ] {

@@ -185,59 +185,60 @@ export function signingContextArtifactFixture(
     head_repository: { id: 1354613114 },
   };
   const options = {
-    api: {
-      request(method: string, endpoint: string) {
+    metadata: {
+      async commit(sha: string) {
         requests++;
-        assert.equal(method, "GET");
-        assert.ok(endpoint.startsWith("repos/boburning/portcove/"));
-        if (endpoint.includes("git/commits/"))
-          return {
-            status: 200,
-            headers: new Map<string, string>(),
-            body: { sha: controller.controller_revision, tree: { sha: controller.source_tree } },
-          };
-        if (endpoint.includes("actions/jobs/"))
-          return {
-            status: 200,
-            headers: new Map<string, string>(),
-            body: {
-              id: 501,
-              run_id: 123,
-              run_attempt: 1,
-              head_sha: controller.controller_revision,
-              name:
-                faults.value === "wrong-role-job"
-                  ? "Sign admitted updater payloads"
-                  : metadata
-                    ? "Coordinate application release"
-                    : "Sign admitted updater payloads",
-              status: "completed",
-              conclusion: faults.value === "job-failure" ? "failure" : "success",
-              check_run_url: `https://api.github.com/repos/boburning/portcove/check-runs/${faults.value === "job" ? "778" : "777"}`,
-            },
-          };
-        if (endpoint.includes("actions/artifacts/")) {
-          const isBundle = endpoint.endsWith("/202"),
-            bytes = isBundle ? bundle : archive;
-          return {
-            status: 200,
-            headers: new Map<string, string>(),
-            body: {
-              id: isBundle ? 202 : 101,
-              name: `trusted-${metadata ? "coordinator" : "payload"}-signing-context${isBundle ? "-attestation" : ""}-123-1`,
-              expired: false,
-              digest: `sha256:${faults.value === "drift" && requests > 7 ? "0".repeat(64) : hash(bytes)}`,
-              size_in_bytes: bytes.length,
-              workflow_run: {
-                id: 123,
-                repository_id: 1354613114,
-                head_repository_id: 1354613114,
-                head_sha: controller.controller_revision,
-              },
-            },
-          };
-        }
-        return { status: 200, headers: new Map<string, string>(), body: run };
+        assert.equal(sha, controller.controller_revision);
+        return { sha, tree: { sha: controller.source_tree } };
+      },
+      async job(id: number) {
+        requests++;
+        assert.equal(id, 501);
+        return {
+          id,
+          run_id: 123,
+          run_attempt: 1,
+          head_sha: controller.controller_revision,
+          name:
+            faults.value === "wrong-role-job"
+              ? "Sign admitted updater payloads"
+              : metadata
+                ? "Coordinate application release"
+                : "Sign admitted updater payloads",
+          status: "completed",
+          conclusion: faults.value === "job-failure" ? "failure" : "success",
+          check_run_url: `https://api.github.com/repos/boburning/portcove/check-runs/${faults.value === "job" ? "778" : "777"}`,
+        };
+      },
+      async artifact(id: number) {
+        requests++;
+        assert.ok(id === 101 || id === 202);
+        const isBundle = id === 202,
+          bytes = isBundle ? bundle : archive;
+        return {
+          id,
+          name: `trusted-${metadata ? "coordinator" : "payload"}-signing-context${isBundle ? "-attestation" : ""}-123-1`,
+          expired: false,
+          digest: `sha256:${faults.value === "drift" && requests > 7 ? "0".repeat(64) : hash(bytes)}`,
+          size_in_bytes: bytes.length,
+          workflow_run: {
+            id: 123,
+            repository_id: 1354613114,
+            head_repository_id: 1354613114,
+            head_sha: controller.controller_revision,
+          },
+        };
+      },
+      async run(id: string) {
+        requests++;
+        assert.equal(id, "123");
+        return structuredClone(run);
+      },
+      async attempt(id: string, attempt: number) {
+        requests++;
+        assert.equal(id, "123");
+        assert.equal(attempt, 1);
+        return structuredClone(run);
       },
     },
     download: (endpoint: string) => {
@@ -286,9 +287,7 @@ export function signingContextArtifactFixture(
 }
 
 /** Simulate only the default OS transport. Production still owns receiver joins. */
-export function signingContextDefaultTransport(
-  f: ReturnType<typeof signingContextArtifactFixture>,
-) {
+export function signingContextRetainedSpawn(f: ReturnType<typeof signingContextArtifactFixture>) {
   return (command: unknown, args: readonly string[]) => {
     assert.equal(command, "gh");
     let stdout: string | Buffer;
@@ -296,11 +295,8 @@ export function signingContextDefaultTransport(
     else {
       const endpoint = args.find((value) => value.startsWith("repos/boburning/portcove/"));
       assert.ok(endpoint);
-      if (endpoint.endsWith("/zip")) stdout = f.options.download(endpoint);
-      else {
-        const response = f.options.api.request("GET", endpoint);
-        stdout = `HTTP/2.0 200 OK\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(response.body)}`;
-      }
+      assert.ok(endpoint.endsWith("/zip"));
+      stdout = f.options.download(endpoint);
     }
     return {
       pid: 1,
@@ -310,5 +306,33 @@ export function signingContextDefaultTransport(
       stdout,
       stderr: typeof stdout === "string" ? "" : Buffer.alloc(0),
     };
+  };
+}
+
+export const signingContextFixtureToken = "ghs_SYNTHETIC_CONTEXT_READER";
+
+export function signingContextProviderFetch(
+  f: ReturnType<typeof signingContextArtifactFixture>,
+): typeof globalThis.fetch {
+  return async (input, init) => {
+    const request = new Request(input, init);
+    const url = new URL(request.url);
+    assert.equal(request.method, "GET");
+    assert.equal(url.origin, "https://api.github.com");
+    assert.equal(url.search, "");
+    assert.equal(request.headers.get("authorization"), `token ${signingContextFixtureToken}`);
+    assert.equal(request.headers.get("x-github-api-version"), "2022-11-28");
+    assert.equal(request.headers.get("accept"), "application/vnd.github+json");
+    const route = url.pathname,
+      base = "/repos/boburning/portcove";
+    const ops = f.options.metadata;
+    if (route === `${base}/actions/runs/123`) return Response.json(await ops.run("123"));
+    if (route === `${base}/actions/runs/123/attempts/1`)
+      return Response.json(await ops.attempt("123", 1));
+    if (route === `${base}/actions/jobs/501`) return Response.json(await ops.job(501));
+    if (route === `${base}/actions/artifacts/101`) return Response.json(await ops.artifact(101));
+    if (route === `${base}/actions/artifacts/202`) return Response.json(await ops.artifact(202));
+    assert.equal(route, `${base}/git/commits/${f.expected.controller_revision}`);
+    return Response.json(await ops.commit(f.expected.controller_revision));
   };
 }

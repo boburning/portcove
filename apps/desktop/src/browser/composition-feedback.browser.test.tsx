@@ -4,7 +4,9 @@ import { cleanup, render } from "vitest-browser-react";
 import { DirectionProvider } from "@base-ui/react/direction-provider";
 import { StatusLayer } from "../components/Chrome";
 import { UpdateCenter } from "../components/UpdateCenter";
-import { Tooltip } from "../components/ui/tooltip";
+import { act } from "react";
+import { Dialog, DialogContent, DialogTitle } from "../components/ui/dialog";
+import { Tooltip, TooltipProvider } from "../components/ui/tooltip";
 import { Button } from "../components/ui/button";
 import axe from "axe-core";
 import { portDefinition } from "../test-fixtures";
@@ -175,3 +177,93 @@ it.each(["main", "aside", "header"] as const)(
     expect(landmarks.incomplete).toEqual([]);
   },
 );
+
+it("coordinates initial hover delay and adjacent tooltips through one shared provider", async () => {
+  // Park the real pointer before mounting either trigger so an earlier test
+  // cannot start a hover on the real clock while this fixture is rendering.
+  const restingArea = <div>Pointer resting area</div>;
+  const view = await render(<main>{restingArea}</main>);
+  await userEvent.hover(page.getByText("Pointer resting area").element());
+
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  try {
+    await view.rerender(
+      <main>
+        {restingArea}
+        <TooltipProvider>
+          <Tooltip label="First help">
+            <Button>First action</Button>
+          </Tooltip>
+          <Tooltip label="Second help">
+            <Button>Second action</Button>
+          </Tooltip>
+        </TooltipProvider>
+      </main>,
+    );
+    const firstTrigger = page.getByRole("button", { name: "First action" }).element();
+    const secondTrigger = page.getByRole("button", { name: "Second action" }).element();
+
+    // Vitest advances fake timers while Playwright actions are pending. Dispatch
+    // hover events in the browser so only the explicit advances move the clock.
+    function enterTrigger(trigger: Element, from: Element | null) {
+      trigger.dispatchEvent(
+        new PointerEvent("pointerover", {
+          bubbles: true,
+          pointerType: "mouse",
+          relatedTarget: from,
+        }),
+      );
+      trigger.dispatchEvent(new MouseEvent("mouseenter", { relatedTarget: from }));
+      trigger.dispatchEvent(new MouseEvent("mousemove", { bubbles: true, relatedTarget: from }));
+    }
+
+    await act(async () => enterTrigger(firstTrigger, null));
+    expect(document.querySelector('[role="tooltip"]')).toBeNull();
+    await act(async () => vi.advanceTimersByTimeAsync(399));
+    expect(document.querySelector('[role="tooltip"]')).toBeNull();
+    await act(async () => vi.advanceTimersByTimeAsync(1));
+    expect(document.querySelector('[role="tooltip"]')?.textContent).toBe("First help");
+    await act(async () => {
+      firstTrigger.dispatchEvent(new MouseEvent("mouseleave", { relatedTarget: secondTrigger }));
+      enterTrigger(secondTrigger, firstTrigger);
+    });
+    await act(async () => vi.advanceTimersByTimeAsync(0));
+    expect(
+      [...document.querySelectorAll('[role="tooltip"]')].some(
+        (node) => node.textContent === "Second help",
+      ),
+    ).toBe(true);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it("retains the shared provider across a modal portal and preserves existing descriptions", async () => {
+  await render(
+    <TooltipProvider>
+      <Dialog open>
+        <DialogContent>
+          <DialogTitle>Tooltip modal</DialogTitle>
+          <p id="existing-help">Existing instructions</p>
+          <Tooltip label="Modal supplemental help">
+            <Button aria-describedby="existing-help">Modal action</Button>
+          </Tooltip>
+        </DialogContent>
+      </Dialog>
+    </TooltipProvider>,
+  );
+  const trigger = page.getByRole("button", { name: "Modal action" });
+  await expect.element(trigger).toHaveFocus();
+  const tooltip = page.getByRole("tooltip");
+  await expect.element(tooltip).toBeVisible();
+  expect(tooltip.element().closest('[role="dialog"]')).toBe(page.getByRole("dialog").element());
+  await expect
+    .element(trigger)
+    .toHaveAccessibleDescription("Existing instructions Modal supplemental help");
+  expect(trigger.element().getAttribute("aria-describedby")?.split(" ")).toEqual(
+    expect.arrayContaining(["existing-help", tooltip.element().id]),
+  );
+  await userEvent.keyboard("{Escape}");
+  await expect.element(tooltip).not.toBeInTheDocument();
+  await expect.element(trigger).toHaveAccessibleDescription("Existing instructions");
+});

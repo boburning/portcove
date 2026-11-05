@@ -52,7 +52,7 @@ async function click(label: string) {
 }
 function impact() {
   const result = document.body.querySelector<HTMLElement>(
-    '[aria-label="Saved-location removal impact"]',
+    '[aria-label="Review removal of the saved file location"]',
   );
   expect(result).not.toBeNull();
   return result!;
@@ -93,9 +93,13 @@ it("requires fresh intent after location identity changes and never opens render
   expect(document.body.querySelector('[role="dialog"]')).toBeNull();
   expect(impact().textContent).toContain(preview.source.path);
   await root.rerender(control({ ...preview.source, path: "新しい場所/game.bin" }));
-  expect(document.body.querySelector('[aria-label="Saved-location removal impact"]')).toBeNull();
+  expect(
+    document.body.querySelector('[aria-label="Review removal of the saved file location"]'),
+  ).toBeNull();
   await root.rerender(control());
-  expect(document.body.querySelector('[aria-label="Saved-location removal impact"]')).toBeNull();
+  expect(
+    document.body.querySelector('[aria-label="Review removal of the saved file location"]'),
+  ).toBeNull();
   expect(read).toHaveBeenCalledOnce();
   expect(remove).not.toHaveBeenCalled();
   await click("Review saved location removal");

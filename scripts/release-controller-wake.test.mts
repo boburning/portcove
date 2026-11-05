@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { windowsApplicationQualificationFixture } from "./fixtures/application-qualification-fixture.mts";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
@@ -144,7 +146,7 @@ void test("locked wake SDK retains the acknowledged run before refusing expiry",
   const f = fixture(true),
     records: { phase: string; evidence: unknown }[] = [];
   const api = await createWakeProvider({
-    token: "synthetic-wake-token",
+    credential: { kind: "explicit", token: "synthetic-wake-token" },
     deadline: 2000,
     remainingDeadline: () => 2000,
     apiVersion: "2026-03-10",
@@ -199,7 +201,7 @@ void test("locked wake SDK keeps dispatch one shot and never retains an incomple
     let sends = 0,
       retained = 0;
     const api = await createWakeProvider({
-      token: "synthetic-wake-token",
+      credential: { kind: "explicit", token: "synthetic-wake-token" },
       deadline: performance.now() + 5000,
       remainingDeadline: () => performance.now() + 5000,
       apiVersion: "2022-11-28",
@@ -1031,4 +1033,560 @@ void test("invalid and expired wake deadline refuses before collection", async (
   }
   const f = fixture();
   assert.ok(isRecord(f.config));
+});
+
+function nativeFixture(jobToken: boolean, native: boolean) {
+  const destination = native ? "application-release.yml" : "application-update-production.yml";
+  const bytes = Buffer.from("fixed inert controller workflow\n"),
+    wakeBytes = Buffer.from("fixed inert wake workflow\n");
+  const created = new Date().toISOString().replace(/\.\d{3}Z$/u, "Z");
+  const config = {
+    schema_version: native ? 5 : jobToken ? 4 : 2,
+    ...(jobToken
+      ? {
+          dispatch_transport: "github-actions-job-v1",
+          publication_purpose: "application",
+          namespace: "portcove-fixture",
+        }
+      : {}),
+    revision: "a".repeat(40),
+    execution_ref: native
+      ? "refs/tags/portcove-production-controller-windows-fixture"
+      : "refs/tags/portcove-production-controller-fixture",
+    workflow_sha256: hash(bytes),
+    wake_workflow_sha256: hash(wakeBytes),
+    dispatch_actor_id: jobToken ? "41898282" : "991",
+    activation_started_at: created,
+  };
+  const env: NodeJS.ProcessEnv = {
+    GITHUB_ACTIONS: "true",
+    GITHUB_SERVER_URL: "https://github.com",
+    GITHUB_API_URL: "https://api.github.com",
+    GITHUB_REPOSITORY: "boburning/portcove",
+    GITHUB_REPOSITORY_ID: "1354613114",
+    GITHUB_EVENT_NAME: "push",
+    GITHUB_REF: "refs/heads/main",
+    GITHUB_REF_TYPE: "branch",
+    GITHUB_REF_PROTECTED: "true",
+    GITHUB_SHA: "b".repeat(40),
+    GITHUB_WORKFLOW_SHA: "b".repeat(40),
+    GITHUB_WORKFLOW_REF:
+      "boburning/portcove/.github/workflows/application-update-wake.yml@refs/heads/main",
+    GITHUB_RUN_ATTEMPT: "1",
+    GITHUB_JOB: "wake",
+    RUNNER_ENVIRONMENT: "github-hosted",
+    GITHUB_RUN_ID: "42",
+  };
+  if (native) {
+    env.PORTCOVE_APPLICATION_RELEASE_ACTIVE = "true";
+    env.PORTCOVE_APPLICATION_RELEASE_REF = config.execution_ref;
+    env.PORTCOVE_APPLICATION_RELEASE_REVISION = config.revision;
+    env.PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256 = config.workflow_sha256;
+    env.PORTCOVE_APPLICATION_RELEASE_SPENDING = JSON.stringify({
+      budget_id: "4a6859d9-fdb7-4da2-afd3-acbdc9848eec",
+      scope: "account",
+      amount_usd: 0,
+      stop_usage: true,
+      operator_id: 43177418,
+      application_minutes: 140,
+      catalog_minutes: 40,
+      workflow_sha256: config.workflow_sha256,
+    });
+  }
+  const ownRun = {
+    id: 42,
+    run_number: 42,
+    run_attempt: 1,
+    head_sha: env.GITHUB_SHA,
+    head_branch: "main",
+    path: ".github/workflows/application-update-wake.yml",
+    event: "push",
+    created_at: created,
+    status: "in_progress",
+    conclusion: null,
+  };
+  const actualRun = (wake = "42") => ({
+    id: 900,
+    run_number: 900,
+    created_at: created,
+    head_sha: config.revision,
+    path: `.github/workflows/${destination}`,
+    event: "workflow_dispatch",
+    run_attempt: 1,
+    display_title: native
+      ? `Application ${env.GITHUB_SHA} wake ${wake}`
+      : `Portcove application release wake ${wake}`,
+    actor: { id: Number(config.dispatch_actor_id) },
+    triggering_actor: { id: Number(config.dispatch_actor_id) },
+    repository: { id: 1354613114, full_name: "boburning/portcove" },
+    head_repository: { id: 1354613114 },
+  });
+  const qualification = native ? windowsApplicationQualificationFixture(env.GITHUB_SHA!) : null;
+  const qualificationArchive = qualification
+    ? createAuditZip([["validation-plan.json", JSON.stringify(qualification.plan)]])
+    : Buffer.alloc(0);
+  const qualificationRun = () => ({
+    ...actualRun(),
+    id: 23,
+    head_branch: "main",
+    head_sha: env.GITHUB_SHA,
+    display_title: `Windows qualification ${env.GITHUB_SHA}`,
+    run_attempt: qualificationAttempt,
+    status: "completed",
+    conclusion: "success",
+  });
+  const calls: { method: string; endpoint: string; body?: unknown }[] = [],
+    records: { phase: string; evidence: unknown }[] = [];
+  let changed = false,
+    corrupt = false,
+    privateRepo = false,
+    postStatus: number | null = 200,
+    archive = Buffer.alloc(0),
+    priorArchive = Buffer.alloc(0),
+    prior: Record<string, unknown>[] = [],
+    recovered: Record<string, unknown>[] = [],
+    skipped = false,
+    wrongActor = false,
+    downloadCalls = 0,
+    qualificationAttempt = 1,
+    missingQualificationPlan = false,
+    publicationPaused = false;
+  const base = "repos/boburning/portcove";
+  const file = (filename: string, contents: Buffer) => ({
+    type: "file",
+    path: filename,
+    encoding: "base64",
+    content: contents.toString("base64") + "\n",
+    size: contents.length,
+    sha: corrupt
+      ? "d".repeat(40)
+      : createHash("sha1").update(`blob ${contents.length}\0`).update(contents).digest("hex"),
+  });
+  const transport = {
+    request(method: string, endpoint: string, body?: unknown) {
+      calls.push({ method, endpoint, body });
+      let result: unknown;
+      if (method === "POST") {
+        assert.equal(endpoint, `${base}/actions/workflows/${destination}/dispatches`);
+        if (postStatus === null) throw new Error("lost original response");
+        return {
+          status: postStatus,
+          headers: new Map<string, string>(),
+          body: {
+            workflow_run_id: 900,
+            run_url: `https://api.github.com/${base}/actions/runs/900`,
+            html_url: "https://github.com/boburning/portcove/actions/runs/900",
+          },
+        };
+      }
+      if (endpoint === base)
+        result = {
+          id: 1354613114,
+          full_name: "boburning/portcove",
+          default_branch: "main",
+          private: privateRepo,
+        };
+      else if (endpoint === `${base}/git/ref/heads/main`)
+        result = { ref: "refs/heads/main", object: { type: "commit", sha: env.GITHUB_SHA } };
+      else if (native && endpoint === `${base}/git/ref/heads/portcove-release-pause`)
+        result = {
+          ref: "refs/heads/portcove-release-pause",
+          object: { type: "commit", sha: "f".repeat(40) },
+        };
+      else if (native && endpoint === `${base}/contents/publication.json?ref=${"f".repeat(40)}`)
+        result = file(
+          "publication.json",
+          Buffer.from(JSON.stringify({ schema_version: 1, publication_paused: publicationPaused })),
+        );
+      else if (endpoint.includes("git/ref/tags/"))
+        result = {
+          ref: config.execution_ref,
+          object: {
+            type: "commit",
+            sha: changed && calls.length > 4 ? "c".repeat(40) : config.revision,
+          },
+        };
+      else if (
+        native &&
+        endpoint.includes("contents/.github/workflows/") &&
+        endpoint.endsWith(`ref=${env.GITHUB_SHA}`) &&
+        !endpoint.includes("application-update-wake.yml")
+      ) {
+        const filename = endpoint.slice(`${base}/contents/`.length).split("?")[0]!;
+        result = file(filename, readFileSync(new URL(`../${filename}`, import.meta.url)));
+      } else if (endpoint.includes(`contents/.github/workflows/${destination}`))
+        result = file(`.github/workflows/${destination}`, bytes);
+      else if (endpoint.includes("contents/.github/workflows/application-update-wake.yml"))
+        result = file(".github/workflows/application-update-wake.yml", wakeBytes);
+      else if (endpoint === `${base}/actions/runs/42`) result = ownRun;
+      else if (endpoint === `${base}/actions/runs/42/attempts/1/jobs?per_page=100`)
+        result = {
+          total_count: 1,
+          jobs: [
+            {
+              id: 77,
+              name: "Wake fixed application controller",
+              run_id: 42,
+              run_attempt: 1,
+              head_sha: env.GITHUB_SHA,
+              status: "in_progress",
+              started_at: created,
+            },
+          ],
+        };
+      else if (endpoint === `${base}/actions/runs/900`)
+        result = wrongActor
+          ? { ...actualRun(), actor: { id: 99 } }
+          : actualRun(prior.length ? "41" : "42");
+      else if (endpoint.includes("actions/workflows/application-update-wake.yml/runs?"))
+        result = { total_count: 1 + prior.length, workflow_runs: [ownRun, ...prior] };
+      else if (
+        native &&
+        endpoint.includes("application-release.yml/runs?branch=main&event=workflow_dispatch")
+      ) {
+        const runs = qualificationAttempt === 0 ? [] : [qualificationRun()];
+        result = { total_count: runs.length, workflow_runs: runs };
+      } else if (native && endpoint === `${base}/actions/runs/23`) result = qualificationRun();
+      else if (
+        native &&
+        endpoint === `${base}/actions/runs/23/attempts/${qualificationAttempt}/jobs?per_page=100`
+      ) {
+        const jobs = [
+          ...qualification!.jobs.jobs,
+          ...[
+            "selection",
+            "dependency-review",
+            "package_qualification / package",
+            "package_qualification / provenance",
+          ].map((name, index) => ({ ...qualification!.jobs.jobs[0]!, id: 99 + index, name })),
+        ].map((job) => ({ ...job, run_id: 23, run_attempt: qualificationAttempt }));
+        result = { total_count: jobs.length, jobs };
+      } else if (native && endpoint === `${base}/actions/runs/23/artifacts?per_page=100`) {
+        const artifacts = missingQualificationPlan
+          ? []
+          : [
+              {
+                id: 3,
+                name: `validation-plan-qualification-23-${qualificationAttempt}`,
+                digest: `sha256:${hash(qualificationArchive)}`,
+                size_in_bytes: qualificationArchive.length,
+                expired: false,
+                workflow_run: { id: 23, head_sha: env.GITHUB_SHA, repository_id: 1354613114 },
+              },
+            ];
+        result = { total_count: artifacts.length, artifacts };
+      } else if (endpoint.includes(`actions/workflows/${destination}/runs?`))
+        result = { total_count: recovered.length, workflow_runs: recovered };
+      else if (endpoint.includes("/actions/runs/41/attempts/1/jobs"))
+        result = {
+          total_count: 1,
+          jobs: [
+            {
+              name: "Wake fixed application controller",
+              run_id: 41,
+              run_attempt: 1,
+              head_sha: env.GITHUB_SHA,
+              status: "completed",
+              steps: [
+                {
+                  name: "Dispatch retained immutable controller intent",
+                  status: "completed",
+                  conclusion: skipped ? "skipped" : "failure",
+                },
+              ],
+            },
+          ],
+        };
+      else if (endpoint === `${base}/actions/artifacts/1`)
+        result = {
+          id: 1,
+          name: "controller-wake-intent-42-1",
+          digest: `sha256:${hash(archive)}`,
+          expired: false,
+          size_in_bytes: archive.length,
+          workflow_run: {
+            id: 42,
+            repository_id: 1354613114,
+            head_repository_id: 1354613114,
+            head_sha: env.GITHUB_SHA,
+          },
+        };
+      else if (endpoint === `${base}/actions/runs/41/artifacts?per_page=100`)
+        result = {
+          total_count: 1,
+          artifacts: [
+            { id: 2, name: "controller-wake-intent-41-1", digest: `sha256:${hash(priorArchive)}` },
+          ],
+        };
+      else if (endpoint === `${base}/actions/artifacts/2`)
+        result = {
+          id: 2,
+          name: "controller-wake-intent-41-1",
+          digest: `sha256:${hash(priorArchive)}`,
+          expired: false,
+          size_in_bytes: priorArchive.length,
+          workflow_run: {
+            id: 41,
+            repository_id: 1354613114,
+            head_repository_id: 1354613114,
+            head_sha: env.GITHUB_SHA,
+          },
+        };
+      else throw new Error(`unexpected route ${endpoint}`);
+      return { status: 200, headers: new Map<string, string>(), body: result };
+    },
+  };
+  const get = (route: string) => transport.request("GET", `${base}${route}`).body;
+  const api: WakeProvider = {
+    repository: async () => get(""),
+    run: async (id, retain) => {
+      const body = get(`/actions/runs/${id}`);
+      await retain?.({ status: 200, body });
+      return body;
+    },
+    jobs: async (id, attempt = 1) =>
+      get(`/actions/runs/${id}/attempts/${attempt}/jobs?per_page=100`),
+    ref: async (name) => get(`/git/ref/${name}`),
+    file: async (filename, revision) => get(`/contents/${filename}?ref=${revision}`),
+    runs: async (workflow, filters, page) =>
+      get(
+        `/actions/workflows/${workflow}/runs?${new URLSearchParams({ ...filters, per_page: "100", page: String(page) }).toString()}`,
+      ),
+    artifacts: async (id) => get(`/actions/runs/${id}/artifacts?per_page=100`),
+    artifact: async (id) => get(`/actions/artifacts/${id}`),
+    dispatch: async (workflow, body, retain) => {
+      const response = transport.request(
+        "POST",
+        `${base}/actions/workflows/${workflow}/dispatches`,
+        body,
+      );
+      await retain?.(response);
+      return response;
+    },
+  };
+  const record = async (phase: string, evidence: unknown) => {
+    records.push({ phase, evidence });
+  };
+  return {
+    config,
+    env,
+    calls,
+    records,
+    api,
+    record,
+    actualRun,
+    async prepare() {
+      const result = await wakeRatifiedController(config, env, api, record, {
+        mode: "prepare",
+        download: () => qualificationArchive,
+      });
+      assert.equal(result.decision, "intent-prepared-only");
+      assert.ok("intent" in result);
+      archive = createAuditZip([
+        ["controller-wake-intent.json", Buffer.from(JSON.stringify(result.intent) + "\n")],
+      ]);
+    },
+    dispatch() {
+      return wakeRatifiedController(config, env, api, record, {
+        mode: "dispatch",
+        artifact: { id: 1, sha256: hash(archive) },
+        directory: process.cwd(),
+        download: (endpoint) => {
+          if (endpoint.includes("/artifacts/3/")) return qualificationArchive;
+          downloadCalls++;
+          return endpoint.includes("/artifacts/2/") ? priorArchive : archive;
+        },
+      });
+    },
+    downloads: () => downloadCalls,
+    removeQualificationPlan: () => {
+      missingQualificationPlan = true;
+    },
+    qualificationAttempt: (attempt: number) => {
+      qualificationAttempt = attempt;
+    },
+    tamperIntent: () => {
+      archive = createAuditZip([["controller-wake-intent.json", "{}\n"]]);
+    },
+    changeRef: () => {
+      changed = true;
+    },
+    badDigest: () => {
+      corrupt = true;
+    },
+    privateRepo: () => {
+      privateRepo = true;
+    },
+    status: (status: number | null) => {
+      postStatus = status;
+    },
+    wrongActor: () => {
+      wrongActor = true;
+    },
+    priorFailure: () => {
+      prior = [{ ...ownRun, id: 41, run_number: 41, status: "completed", conclusion: "failure" }];
+    },
+    priorSuccess: (changes: Record<string, unknown> = {}) => {
+      prior = [{ ...ownRun, id: 41, run_number: 41, status: "completed", conclusion: "success" }];
+      const selected = inspectControllerWakeConfiguration({ ...config, ...changes });
+      const intent = {
+        schema_version: 1,
+        controller: selected,
+        endpoint: `${base}/actions/workflows/application-update-production.yml/dispatches`,
+        body: {
+          ref: selected.execution_ref.slice("refs/tags/".length),
+          inputs: { wake_run_id: "41" },
+          return_run_details: true,
+        },
+        wake_run_id: "41",
+        wake_revision: env.GITHUB_SHA,
+      };
+      priorArchive = createAuditZip([
+        ["controller-wake-intent.json", Buffer.from(JSON.stringify(intent) + "\n")],
+      ]);
+    },
+    pausePublication: () => {
+      publicationPaused = true;
+    },
+    nativeHistory: (...rows: Record<string, unknown>[]) => {
+      recovered = rows;
+    },
+    recovered: () => {
+      recovered = [actualRun("41")];
+    },
+    skipped: () => {
+      skipped = true;
+    },
+  };
+}
+
+void test("native wake dispatches one fixed release prepare with the exact qualification attempt", async () => {
+  const f = nativeFixture(true, true);
+  await f.prepare();
+  assert.equal((await f.dispatch()).decision, "dispatch-acknowledged-only");
+  const writes = f.calls.filter((call) => call.method === "POST");
+  assert.equal(writes.length, 1);
+  assert.deepEqual(writes[0]!.body, {
+    ref: "portcove-production-controller-windows-fixture",
+    inputs: {
+      mode: "prepare",
+      opportunity: f.env.GITHUB_SHA,
+      qualification_run: "23",
+      qualification_attempt: "1",
+      wake_run_id: "42",
+    },
+    return_run_details: true,
+  });
+});
+
+void test("native wake refuses to dispatch a retained intent after the qualification is rerun", async () => {
+  const f = nativeFixture(true, true);
+  await f.prepare();
+  f.qualificationAttempt(2);
+  await assert.rejects(f.dispatch(), /intent/u);
+  assert.equal(f.calls.filter((call) => call.method === "POST").length, 0);
+});
+
+void test("native wake with no current-main qualification leaves no dispatch intent", async () => {
+  const f = nativeFixture(true, true);
+  f.qualificationAttempt(0);
+  const result = await wakeRatifiedController(f.config, f.env, f.api, f.record, {
+    mode: "prepare",
+  });
+  assert.equal(result.decision, "no-intent");
+  assert.equal(f.calls.filter((call) => call.method === "POST").length, 0);
+  assert.equal(
+    f.records.some(({ phase }) => phase === "dispatch-intent"),
+    false,
+  );
+});
+
+void test("native wake refuses aggregate success without the retained qualification plan", async () => {
+  const f = nativeFixture(true, true);
+  f.removeQualificationPlan();
+  await assert.rejects(f.prepare());
+  assert.equal(
+    f.records.some(({ phase }) => phase === "dispatch-intent"),
+    false,
+  );
+  assert.equal(f.calls.filter((call) => call.method === "POST").length, 0);
+});
+
+void test("native wake holds before qualification lookup without active production appointment", async () => {
+  const f = nativeFixture(true, true);
+  f.env.PORTCOVE_APPLICATION_RELEASE_ACTIVE = "false";
+  const result = await wakeRatifiedController(f.config, f.env, f.api, f.record, {
+    mode: "prepare",
+  });
+  assert.equal(result.decision, "no-intent");
+  assert.equal(
+    f.calls.some(({ endpoint }) => endpoint.includes("application-release.yml/runs?")),
+    false,
+  );
+  assert.equal(
+    f.calls.some(({ method }) => method === "POST"),
+    false,
+  );
+});
+
+void test("native wake refuses changed source, spending or activation before dispatch", async () => {
+  for (const change of [
+    { PORTCOVE_APPLICATION_RELEASE_REVISION: "c".repeat(40) },
+    { PORTCOVE_APPLICATION_RELEASE_REF: "refs/tags/other" },
+    { PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256: "d".repeat(64) },
+    { PORTCOVE_APPLICATION_RELEASE_SPENDING: "{}" },
+    { PORTCOVE_APPLICATION_RELEASE_ACTIVE: "false" },
+  ]) {
+    const f = nativeFixture(true, true);
+    await f.prepare();
+    Object.assign(f.env, change);
+    await assert.rejects(f.dispatch());
+    assert.equal(
+      f.calls.some(({ method }) => method === "POST"),
+      false,
+    );
+  }
+});
+
+void test("native wake counts existing production once and rejects duplicate or foreign inventory rows", async () => {
+  const f = nativeFixture(true, true);
+  const row = f.actualRun();
+  f.nativeHistory(row);
+  assert.equal(
+    (await wakeRatifiedController(f.config, f.env, f.api, f.record, { mode: "prepare" })).decision,
+    "no-intent",
+  );
+  for (const invalid of [row, { ...row, id: 901, head_repository: { id: 99 } }]) {
+    f.nativeHistory(row, invalid);
+    await assert.rejects(f.prepare(), /inventory identity/u);
+  }
+  assert.equal(
+    f.calls.some(({ method }) => method === "POST"),
+    false,
+  );
+});
+
+void test("native wake leaves no intent during publication pause and refuses a pause after retention", async () => {
+  const paused = nativeFixture(true, true);
+  paused.pausePublication();
+  const result = await wakeRatifiedController(
+    paused.config,
+    paused.env,
+    paused.api,
+    paused.record,
+    { mode: "prepare" },
+  );
+  assert.equal(result.decision, "no-intent");
+  assert.equal(
+    paused.calls.some(({ endpoint }) => endpoint.includes("application-release.yml/runs?")),
+    false,
+  );
+  const retained = nativeFixture(true, true);
+  await retained.prepare();
+  retained.pausePublication();
+  await assert.rejects(retained.dispatch(), /selection changed/u);
+  assert.equal(
+    retained.calls.some(({ method }) => method === "POST"),
+    false,
+  );
 });

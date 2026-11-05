@@ -24,6 +24,7 @@ function fixture(overrides: Partial<TestCase> = {}): TestCase {
     options: { mode: "run" },
     location: { line: 10, column: 2 },
     result: () => ({ state: "passed", errors: undefined }),
+    attempts: () => [],
     diagnostic: () => ({ duration: 7, startTime: 1234, retryCount: 0, repeatCount: 0 }),
     ...overrides,
   } as TestCase;
@@ -66,6 +67,65 @@ function rows(lines: string[], context = false) {
 function end(reporter: Reporter, modules: TestModule[] = []) {
   return reporter.onTestRunEnd?.(modules, [], "passed");
 }
+
+it("retains bounded retry outcomes without adding attempt payloads to ordinary passes", async () => {
+  const { lines, reporter } = capture();
+  await reporter.onTestCaseResult?.(fixture());
+  const retried = fixture({
+    diagnostic: () => ({
+      duration: 7,
+      startTime: 100,
+      retryCount: 1,
+      repeatCount: 0,
+      slow: false,
+      heap: undefined,
+      flaky: true,
+    }),
+    attempts: () =>
+      [
+        {
+          state: "failed",
+          errors: [{ message: "first failure" }],
+          duration: 2,
+          startTime: 100,
+          retryIndex: 0,
+          repeatIndex: 0,
+        },
+        {
+          state: "passed",
+          errors: undefined,
+          duration: 5,
+          startTime: 102,
+          retryIndex: 1,
+          repeatIndex: 0,
+        },
+      ] as ReturnType<TestCase["attempts"]>,
+  });
+  await reporter.onTestCaseResult?.(retried);
+  const observations = rows(lines);
+  assert.equal(observations[0]!.attempts, undefined);
+  assert.deepEqual(observations[1]!.attempts, [
+    {
+      outcome: "failed",
+      retry_index: 0,
+      repeat_index: 0,
+      duration_ms: 2,
+      start_time_ms: 100,
+      errors: [{ message: "first failure" }],
+      omitted_errors: 0,
+    },
+    {
+      outcome: "passed",
+      retry_index: 1,
+      repeat_index: 0,
+      duration_ms: 5,
+      start_time_ms: 102,
+      errors: [],
+      omitted_errors: 0,
+    },
+  ]);
+  assert.equal(observations[1]!.omitted_attempts, 0);
+});
 
 it("reports the declared diagnostic route and flags a replacement skip without rewriting native outcomes", async () => {
   const file = path.join(root, "apps/desktop/src/browser/failure-probe.browser.test.tsx");

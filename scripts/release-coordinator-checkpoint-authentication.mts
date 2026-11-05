@@ -198,7 +198,7 @@ export async function authenticateCoordinatorCheckpointEvidence(
   deadline: number,
   options: {
     attestation?: NonNullable<Parameters<typeof verifyControllerArtifactVerification>[5]>;
-    job?: Pick<Parameters<typeof verifyHistoricalCheckpointJob>[3], "api" | "spawn">;
+    job?: Pick<Parameters<typeof verifyHistoricalCheckpointJob>[3], "provider">;
   } = {},
 ): Promise<AuthenticatedCheckpointEvidence> {
   // Copy bounded bytes and all independently selected metadata synchronously.
@@ -254,7 +254,8 @@ export async function authenticateCoordinatorCheckpointEvidence(
   if (!Buffer.isBuffer(evidence.subject) || !evidence.subject.equals(selected))
     throw new Error("checkpoint evidence differs from independently expected producer/inputs");
   inspectCoordinatorCheckpointEvidence(checkpoint, configuration, evidence);
-  const environment = attestationOptions?.environment ?? readOnlyReleaseChildEnvironment();
+  const readerEnvironment = readOnlyReleaseChildEnvironment();
+  const environment = attestationOptions?.environment ?? readerEnvironment;
   if (!environment)
     throw new Error("checkpoint verification requires isolated read-only child credentials");
   if (
@@ -315,7 +316,7 @@ export async function authenticateCoordinatorCheckpointEvidence(
     });
     phase = "historical-job";
     const producer = expected.producer;
-    const job = verifyHistoricalCheckpointJob(
+    const job = await verifyHistoricalCheckpointJob(
       expected.role,
       {
         controller_revision: producer.controller_revision,
@@ -327,7 +328,7 @@ export async function authenticateCoordinatorCheckpointEvidence(
         check_run_id: producer.check_run_id,
       },
       times[0]!,
-      { cwd: capture, deadline, ...jobOptions },
+      { token: readerEnvironment?.GH_TOKEN ?? "", deadline, ...jobOptions },
     );
     if (
       times.some((time) => time < job.witnessed_interval.start || time > job.witnessed_interval.end)

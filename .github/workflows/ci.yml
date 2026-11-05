@@ -264,6 +264,10 @@ jobs:
       - name: Compile workspace targets and archive balanced test partitions
         id: archive
         run: node scripts/run-rust-tests.mts --guard-command node scripts/windows-rust-tests.mts build
+      - name: Compile and test changed Playnite reference client
+        if: contains(needs.classify.outputs.files_json, '"integrations/playnite/') || fromJSON(needs.classify.outputs.files_json)[0] == null
+        shell: pwsh
+        run: ./integrations/playnite/check.ps1 -ContractsOnly
       - name: Upload this attempt's Windows test archive and manifest
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -1450,7 +1454,7 @@ jobs:
       - name: Test bounded release run evidence
         run: |
           # node-suite: catalog-full-3
-          node --test --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/release-run-evidence.test.mts scripts/node-platform-skips.test.mts
+          node --test --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/release-run-evidence.test.mts scripts/node-platform-skips.test.mts scripts/application-release-artifacts.test.mts scripts/application-release-budget.test.mts scripts/application-release-context.test.mts scripts/application-release-feed.test.mts scripts/application-release-native.test.mts scripts/application-release-policy.test.mts scripts/application-release-publication.test.mts scripts/application-release-qualification.test.mts scripts/application-release-run.test.mts scripts/application-release-site.test.mts
       - name: Validate local RetComM mappings
         run: node scripts/check-retcomm-upstreams.mts --offline
 

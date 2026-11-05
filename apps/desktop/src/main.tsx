@@ -1,3 +1,4 @@
+import { TooltipProvider } from "./components/ui/tooltip";
 import "./styles/index.css";
 import React from "react";
 import ReactDOM from "react-dom/client";
@@ -18,7 +19,9 @@ if (import.meta.env.VITE_PORTCOVE_DESIGN_COMPATIBILITY_FIXTURE === "1") {
       root.render(
         <React.StrictMode>
           <DirectionProvider direction="ltr">
-            <DesignCompatibilityFixture />
+            <TooltipProvider>
+              <DesignCompatibilityFixture />
+            </TooltipProvider>
           </DirectionProvider>
         </React.StrictMode>,
       );

@@ -1,0 +1,44 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "retropulse03-winback-n64recomp",
+    "project_url": "https://github.com/RetroPulse03/WinBackRecomp",
+    "name": "WinBack: Covert Operations (WinBack Recompiled)",
+    "summary": "A Windows port of WinBack: Covert Operations. Set it up with your original US Nintendo 64 game file.",
+    "issue_number": 4221,
+    "original_game_title": "WinBack: Covert Operations",
+    "availability": "unknown",
+    "platforms": [],
+    "setup_url": "https://github.com/RetroPulse03/WinBackRecomp/blob/83d35d08f0839e3084d915f1177dc70e8d03cb96/README.md",
+    "manual_setup": {
+      "help_url": "https://github.com/RetroPulse03/WinBackRecomp/blob/83d35d08f0839e3084d915f1177dc70e8d03cb96/README.md",
+      "steps": [
+        {
+          "title": "Prepare your Windows copy",
+          "instruction": "Extract the complete Windows x64 ZIP into a writable folder. Use Windows 10 or 11 with Vulkan support. Install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if needed. Open WinBackRecompiled.exe and select your own big-endian WinBack USA .z64 (SHA-1 fa04477b321a95e1f7a2edcac5c09bfa6ef72041). The game verifies and keeps a copy in its folder."
+        }
+      ],
+      "warnings": [
+        "Save through the game before quitting. The BASIC level-select option does not restore previously recorded checkpoint progress. The project reports limited testing beyond the first mission.",
+        "The project reports that this release can crash on exit."
+      ],
+      "references": [
+        {
+          "title": "Setup instructions for the inspected release",
+          "instruction": "https://github.com/RetroPulse03/WinBackRecomp/releases/tag/v0.2.0"
+        }
+      ]
+    }
+  },
+  "route_facts_v1": {
+    "format_version": 1,
+    "prepared_player": {
+      "executable": "WinBackRecompiled.exe",
+      "working_directory": "executable-parent",
+      "arguments": [],
+      "data_locations": [
+        "ROM copy, settings.json, saves/ including Controller Pak and checkpoints, mods and renderer data in the game folder"
+      ]
+    }
+  }
+}

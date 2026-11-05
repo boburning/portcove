@@ -20,6 +20,7 @@ import {
 } from "./release-controller-tool-build.mts";
 import {
   controllerToolAssets,
+  controllerToolBundler,
   controllerToolSourceAssetMaximumBytes,
   readControllerToolFile,
   controllerToolEntries,
@@ -383,6 +384,17 @@ void test("fixed source launcher loads without node_modules and rejects arbitrar
   );
   assert.deepEqual((await readdir(root)).sort(), ["scripts"]);
 });
+void test("fixed controller Pack identity matches the trusted workspace release", async () => {
+  const workspace = parseDocument(
+    await readFile(new URL("../pnpm-workspace.yaml", import.meta.url), "utf8"),
+    { uniqueKeys: true },
+  );
+  assert.deepEqual(workspace.errors, []);
+  const version: unknown = workspace.getIn(["catalog", "vite-plus"]);
+  assert.ok(typeof version === "string");
+  assert.equal(controllerToolBundler, `vite-plus@${version}`);
+});
+
 void test("actual pinned pack bundles fixed CLIs including semver; isolated execution needs no runtime node_modules", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "controller-tools-pack-"));
   t.after(() => rm(root, { recursive: true, force: true }));
@@ -925,7 +937,7 @@ function fixture(
     source_tree: "b".repeat(40),
     platform,
     node_version: controllerNodeVersion,
-    bundler: "vite-plus@1.4.0",
+    bundler: controllerToolBundler,
     tauri_cli_version: "2.12.2",
     files: [...bytes].map(([name, content]) => ({
       path: name,
@@ -1215,6 +1227,14 @@ void test("Windows tools require explicit platform selection and exact executabl
     }),
   );
   assert.throws(() => inspectControllerToolManifest(windows.manifest));
+  assert.throws(
+    () =>
+      inspectControllerToolManifest(
+        { ...windows.manifest, bundler: "vite-plus@1.4.0" },
+        "windows-x86_64",
+      ),
+    /fixed controller tool manifest differs/u,
+  );
   assert.throws(() => inspectControllerToolArchive(linux.archive, selected));
   assert.throws(() =>
     inspectControllerToolManifest({ ...windows.manifest, schema_version: 2 }, "windows-x86_64"),

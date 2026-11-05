@@ -132,6 +132,28 @@ function publicUrl(value: unknown, field: string) {
     throw new Error(`Listing ${field} requires a credential-free HTTPS URL.`);
 }
 
+function checkPlayerCopy(id: string, field: string, text: unknown) {
+  if (typeof text === "string" && /\bexecution\s+intent\b/iu.test(text))
+    throw new Error(
+      `${id} ${field}: explain the program and launch options instead of "execution intent".`,
+    );
+}
+
+function checkPlayerGuideCopy(id: string, field: string, value: unknown) {
+  if (!isRecord(value)) return;
+  // References carry optional exact terms and evidence. Primary actions and
+  // warnings are shown directly to players in Desktop and Playnite.
+  if (Array.isArray(value.steps))
+    for (const [index, step] of value.steps.entries()) {
+      if (!isRecord(step)) continue;
+      checkPlayerCopy(id, `${field}.steps[${index}].title`, step.title);
+      checkPlayerCopy(id, `${field}.steps[${index}].instruction`, step.instruction);
+    }
+  if (Array.isArray(value.warnings))
+    for (const [index, warning] of value.warnings.entries())
+      checkPlayerCopy(id, `${field}.warnings[${index}]`, warning);
+}
+
 export function checkedAuthoredPort(value: unknown, expectedId?: string): AuthoredPort {
   if (!isRecord(value) || value.format_version !== 1 || !isRecord(value.listing))
     throw new Error("An authored port requires format_version 1 and a listing.");
@@ -156,6 +178,8 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
     if (!boundedText(text, maximum))
       throw new Error(`Listing ${field} requires bounded nonempty text.`);
   }
+  checkPlayerCopy(listing.id, "listing.summary", listing.summary);
+  checkPlayerGuideCopy(listing.id, "listing.manual_setup", listing.manual_setup);
   publicUrl(listing.project_url, "project_url");
   for (const field of ["release_url", "setup_url"] as const)
     if (listing[field] !== undefined) publicUrl(listing[field], field);
@@ -296,6 +320,12 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
       );
     const integration = value.integration;
     const presentation = integration.presentation;
+    if (isRecord(presentation) && listing.manual_setup === undefined)
+      checkPlayerCopy(
+        listing.id,
+        "integration.presentation.manual_preparation",
+        presentation.manual_preparation,
+      );
     if (sharedPortFields.some((field) => Object.hasOwn(integration, field)))
       throw new Error(
         "Common port fields belong to the listing, not a second integration authority.",

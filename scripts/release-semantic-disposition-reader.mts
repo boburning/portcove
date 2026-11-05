@@ -342,6 +342,35 @@ export function readIndependentSemanticCheckInventory(
 ) {
   return readCheckInventory(api, configuration, sourceCommit, false);
 }
+
+/** Select from an already authenticated fixed-App inventory. Catalog decisions
+ * share the Check name, but cannot replace an application decision. Unknown
+ * namespaces hold instead of allowing fallback to an older application success.
+ * The caller must still authenticate the selected report and its outcome. */
+export function selectLatestApplicationSemanticCheck(records: readonly Record<string, unknown>[]) {
+  const application: Record<string, unknown>[] = [];
+  const ids = new Set<number>();
+  for (const record of records) {
+    if (
+      typeof record.id !== "number" ||
+      !Number.isSafeInteger(record.id) ||
+      record.id < 1 ||
+      ids.has(record.id) ||
+      typeof record.external_id !== "string"
+    )
+      throw new Error("semantic Check selection requires unique provider identities");
+    ids.add(record.id);
+    if (/^portcove-catalog-review(?:-negative)?-v1:[a-f0-9]{64}$/u.test(record.external_id))
+      continue;
+    if (!/^portcove-release-review(?:-v2|-negative-v1):[a-f0-9]{64}$/u.test(record.external_id))
+      throw new Error("unknown semantic Check namespace; application selection held");
+    application.push(record);
+  }
+  application.sort((left, right) => Number(right.id) - Number(left.id));
+  const latest = application[0];
+  if (!latest) throw new Error("no independent application classification for this source");
+  return latest;
+}
 export function readIndependentCatalogSemanticCheckInventory(
   api: GitHubRestReader,
   configuration: unknown,

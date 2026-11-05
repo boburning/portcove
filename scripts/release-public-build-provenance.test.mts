@@ -23,7 +23,9 @@ const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex")
 
 void test("Windows public provenance binds one complete immutable Windows archive to the explicit profile", async (t) => {
   const f = await releasePublicBuildProvenanceFixture(t, true, "initial-beta-windows-x86_64-v1");
-  const evidence = collectReleaseRunEvidence(f.expected, { api: f.api });
+  const evidence = await collectReleaseRunEvidence(f.expected, {
+    read: async (endpoint) => f.api.request("GET", endpoint),
+  });
   const binding = selectPublicBuildInputBinding(f.configuration, evidence);
   assert.deepEqual(binding, f.binding);
   assert.deepEqual(
@@ -55,7 +57,9 @@ void test("Windows public provenance binds one complete immutable Windows archiv
 
 void test("schema-2 appointed profile survives both immutable public archives and rejects a substituted recipe", async (t) => {
   const f = await releasePublicBuildProvenanceFixture(t, true);
-  let evidence = collectReleaseRunEvidence(f.expected, { api: f.api });
+  let evidence = await collectReleaseRunEvidence(f.expected, {
+    read: async (endpoint) => f.api.request("GET", endpoint),
+  });
   const result = await verifyReleasePublicBuildInputs(f.root, f.binding, evidence, f.options);
   assert.equal(result.receipts.length, 2);
   for (const receipt of result.receipts) {
@@ -69,7 +73,9 @@ void test("schema-2 appointed profile survives both immutable public archives an
   receipt.initial_root_profile = "legacy-two-of-three-v1";
   f.publicFiles.set("build-inputs.json", Buffer.from(JSON.stringify(receipt)));
   f.replacePublicArchive();
-  evidence = collectReleaseRunEvidence(f.expected, { api: f.api });
+  evidence = await collectReleaseRunEvidence(f.expected, {
+    read: async (endpoint) => f.api.request("GET", endpoint),
+  });
   await assert.rejects(
     verifyReleasePublicBuildInputs(f.root, f.binding, evidence, f.options),
     CoordinatorRemoteError,
@@ -80,7 +86,9 @@ void test("schema3 binds complete exact immutable public inputs through actual p
   const f = await releasePublicBuildProvenanceFixture(t);
   const { accepted } = await inspectTrustedAssemblyInput(f.request);
   assert.deepEqual(accepted.public_build_inputs, f.binding);
-  const evidence = collectReleaseRunEvidence(f.expected, { api: f.api });
+  const evidence = await collectReleaseRunEvidence(f.expected, {
+    read: async (endpoint) => f.api.request("GET", endpoint),
+  });
   assert.deepEqual(selectPublicBuildInputBinding(f.configuration, evidence), f.binding);
   const result = await assembleReleaseArtifacts(
     f.root,
@@ -116,7 +124,9 @@ void test("schema3 binds complete exact immutable public inputs through actual p
 
 void test("public matrix, numeric identity and attempt names must match independent complete provider evidence", async (t) => {
   const f = await releasePublicBuildProvenanceFixture(t);
-  const evidence = collectReleaseRunEvidence(f.expected, { api: f.api });
+  const evidence = await collectReleaseRunEvidence(f.expected, {
+    read: async (endpoint) => f.api.request("GET", endpoint),
+  });
   for (const binding of [
     { ...f.binding, artifacts: f.binding.artifacts.slice(1) },
     { ...f.binding, artifacts: [f.binding.artifacts[0], f.binding.artifacts[0]] },
@@ -156,7 +166,9 @@ void test("public matrix, numeric identity and attempt names must match independ
 
 void test("public inputs refuse manifest substitution and altered generated configuration or receipt even with matching ZIP identities", async (t) => {
   const f = await releasePublicBuildProvenanceFixture(t);
-  let evidence = collectReleaseRunEvidence(f.expected, { api: f.api });
+  let evidence = await collectReleaseRunEvidence(f.expected, {
+    read: async (endpoint) => f.api.request("GET", endpoint),
+  });
   await assert.rejects(
     verifyReleasePublicBuildInputs(
       f.root,
@@ -176,7 +188,9 @@ void test("public inputs refuse manifest substitution and altered generated conf
       ),
     );
     f.replacePublicArchive();
-    evidence = collectReleaseRunEvidence(f.expected, { api: f.api });
+    evidence = await collectReleaseRunEvidence(f.expected, {
+      read: async (endpoint) => f.api.request("GET", endpoint),
+    });
     await assert.rejects(
       verifyReleasePublicBuildInputs(f.root, f.binding, evidence, f.options),
       CoordinatorRemoteError,
@@ -211,7 +225,9 @@ void test("ZIP structural and represented-size refusals precede extraction and p
       item.sha256 = hash(bytes);
       f.blobs.set(item.artifact_id, bytes);
     }
-    const evidence = collectReleaseRunEvidence(f.expected, { api: f.api });
+    const evidence = await collectReleaseRunEvidence(f.expected, {
+      read: async (endpoint) => f.api.request("GET", endpoint),
+    });
     let failure: unknown;
     try {
       await verifyReleasePublicBuildInputs(f.root, f.binding, evidence, f.options);
@@ -229,9 +245,13 @@ void test("ZIP structural and represented-size refusals precede extraction and p
 
 void test("public provider drift refuses the integrated aggregate and preserves prior public collection", async (t) => {
   const f = await releasePublicBuildProvenanceFixture(t);
-  const before = collectReleaseRunEvidence(f.expected, { api: f.api });
+  const before = await collectReleaseRunEvidence(f.expected, {
+    read: async (endpoint) => f.api.request("GET", endpoint),
+  });
   f.state.drift = true;
-  const after = collectReleaseRunEvidence(f.expected, { api: f.api });
+  const after = await collectReleaseRunEvidence(f.expected, {
+    read: async (endpoint) => f.api.request("GET", endpoint),
+  });
   assert.throws(
     () => requireStablePublicBuildInputEvidence(f.binding, before, after),
     /provider inventory/,

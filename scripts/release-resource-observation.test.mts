@@ -76,7 +76,19 @@ void test("resource observations reconcile current purposes and keep provider, b
   assert.equal(result.accounting.application, 140);
   assert.equal(result.accounting.catalog_alternative, 40);
   assert.equal(result.accounting.policy_envelope, 140);
-  assert.equal(result.policy_matches_workflow, true);
+  assert.equal(result.policy_matches_workflow, false);
+  assert.equal(result.ratification_required_for_policy_change, true);
+  const appointedWake = await readFile(
+    new URL("../docs/qualification/application-update-wake.held.yml", import.meta.url),
+  );
+  assert.equal(
+    createHash("sha256").update(appointedWake).digest("hex"),
+    slice4CapacityResources.wake_workflow_sha256,
+  );
+  assert.equal(
+    observeReleaseResources(production, appointedWake, candidate).policy_matches_workflow,
+    true,
+  );
   assert.equal(result.accounting.measured_wall_seconds, null);
   assert.equal(result.accounting.account_headroom, "Unknown");
   assert.equal(result.accounting.reservation, null);

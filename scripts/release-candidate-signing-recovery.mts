@@ -6,6 +6,7 @@ import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import type { GitHubRestReader } from "./github-api.mts";
 import { readGitHubReleaseAsset, readGitHubArtifactArchive } from "./github-binary.mts";
@@ -57,7 +58,7 @@ import {
   requireRetainedActualTufPublication,
 } from "./release-tuf-publication.mts";
 import {
-  readCompleteRunArtifactInventory,
+  readCompleteRunArtifactInventoryAsync,
   inspectCompleteRunArtifactInventory,
 } from "./release-run-artifact-inventory.mts";
 import { releaseControlPhaseProfile } from "./release-control-phases.mts";
@@ -562,8 +563,11 @@ export async function recoverCandidateSigningCustody(
     let checkpoint = input.checkpoint,
       phase = "current-coordinator";
     let requests = 0;
-    const api: GitHubRestReader = new GitHubApiClient((args, body) => {
+    const chargeRead = () => {
       if (++requests > 128) throw new Error("candidate signing discovery read bound exhausted");
+    };
+    const api: GitHubRestReader = new GitHubApiClient((args, body) => {
+      chargeRead();
       const response = createGitHubRunner({
         cwd: directory,
         maxBuffer: 2 * 1024 ** 2,
@@ -573,11 +577,6 @@ export async function recoverCandidateSigningCustody(
       signingContextRemaining(deadline, 15000);
       return response;
     });
-    const get = (suffix: string) => {
-      const response = api.request("GET", `${base}/${suffix}`);
-      assert.equal(response.status, 200, "original signing provider read unavailable");
-      return response.body;
-    };
     try {
       await verifiedControllerToolPaths(toolsReceipt);
       assert.equal((await refreshCapacityExecutor(executor)).role, "coordinator");
@@ -628,21 +627,29 @@ export async function recoverCandidateSigningCustody(
         : await (
             pendingRelease ? readSigningOperationsForPendingRelease : readCandidateSigningOperations
           )(input.repository, state.input, active, api);
-      const observe = (operation: Operation, output: Exclude<Output, "payload">) => {
+      const metadata = await createReleaseCustodyProvider({
+        token: environment.GH_TOKEN ?? "",
+        deadline,
+        chargeRead,
+      });
+      const observe = async (operation: Operation, output: Exclude<Output, "payload">) => {
         const producer = operation.executor_identity!;
         return inspectCandidateSigningProvider(
-          get(`actions/runs/${String(producer.run_id)}`),
-          get(`actions/runs/${String(producer.run_id)}/attempts/1`),
-          get(`actions/jobs/${String(producer.job_id)}`),
-          readCompleteRunArtifactInventory((page) =>
-            get(`actions/runs/${String(producer.run_id)}/artifacts?per_page=100&page=${page}`),
+          await metadata.run(String(producer.run_id)),
+          await metadata.attempt(String(producer.run_id), 1),
+          await metadata.job(Number(producer.job_id)),
+          await readCompleteRunArtifactInventoryAsync((page) =>
+            metadata.runArtifacts(String(producer.run_id), page),
           ),
           operation,
           active,
           output,
         );
       };
-      const settle = async (operation: Operation, observation: ReturnType<typeof observe>) => {
+      const settle = async (
+        operation: Operation,
+        observation: Awaited<ReturnType<typeof observe>>,
+      ) => {
         await guard();
         if (settled(operation)) return;
         const result = await recoverOwnedCapacityEffect(
@@ -650,7 +657,7 @@ export async function recoverCandidateSigningCustody(
           { ...input, checkpoint },
           async (pending) => {
             assert.equal(digest(pending), digest(operation), "different pending signing effect");
-            const again = observe(
+            const again = await observe(
               operation,
               operation.destination.endsWith(":payload-signing-context")
                 ? "context"
@@ -677,7 +684,7 @@ export async function recoverCandidateSigningCustody(
       };
       phase = "original-context";
       const contextOperation = operations.get("context")!;
-      const contextBefore = observe(contextOperation, "context");
+      const contextBefore = await observe(contextOperation, "context");
       const bytes = readGitHubArtifactArchive(
         `${base}/actions/artifacts/${contextBefore.artifact.id}/zip`,
         {
@@ -725,7 +732,7 @@ export async function recoverCandidateSigningCustody(
       const context = await receiveSigningContextArtifact(directory, contextLocator, deadline);
       await requireReceivedSigningContext(context, deadline);
       assert.equal(
-        digest(observe(contextOperation, "context")),
+        digest(await observe(contextOperation, "context")),
         digest(contextBefore),
         "context provider drifted",
       );
@@ -736,7 +743,7 @@ export async function recoverCandidateSigningCustody(
         phase = `original-${role}`;
         await guard();
         const operation = operations.get(role)!,
-          before = observe(operation, role),
+          before = await observe(operation, role),
           original = operation.executor_identity!;
         const locator: TufRoleArtifactExpected = {
           role,
@@ -770,7 +777,11 @@ export async function recoverCandidateSigningCustody(
           "role output belongs to another intent",
         );
         assert.ok(typeof outputManifest.pending.checkpoint === "string");
-        assert.equal(digest(observe(operation, role)), digest(before), "role provider drifted");
+        assert.equal(
+          digest(await observe(operation, role)),
+          digest(before),
+          "role provider drifted",
+        );
         await settle(operation, before);
         roleLocators.push(locator);
         roleReceipts.push(receipt);
@@ -803,17 +814,17 @@ export async function recoverCandidateSigningCustody(
           deadline,
         );
         const producer = pendingResult.executor_identity!;
-        const observeProvider = () =>
+        const observeProvider = async () =>
           inspectPendingResultProvider(
-            get(`actions/runs/${String(producer.run_id)}`),
-            get(`actions/runs/${String(producer.run_id)}/attempts/1`),
-            get(`actions/jobs/${String(producer.job_id)}`),
-            readCompleteRunArtifactInventory((page) =>
-              get(`actions/runs/${String(producer.run_id)}/artifacts?per_page=100&page=${page}`),
+            await metadata.run(String(producer.run_id)),
+            await metadata.attempt(String(producer.run_id), 1),
+            await metadata.job(Number(producer.job_id)),
+            await readCompleteRunArtifactInventoryAsync((page) =>
+              metadata.runArtifacts(String(producer.run_id), page),
             ),
             pendingResult,
           );
-        const commit = get(`git/commits/${producer.controller_revision}`);
+        const commit = await metadata.commit(producer.controller_revision);
         assert.ok(
           isRecord(commit) &&
             commit.sha === producer.controller_revision &&
@@ -822,7 +833,7 @@ export async function recoverCandidateSigningCustody(
             /^[a-f0-9]{40}$/u.test(commit.tree.sha),
         );
         const controllerTree = commit.tree.sha;
-        const providerBefore = observeProvider();
+        const providerBefore = await observeProvider();
         const archive = readGitHubArtifactArchive(
           `${base}/actions/artifacts/${providerBefore.artifact.id}/zip`,
           {
@@ -864,7 +875,7 @@ export async function recoverCandidateSigningCustody(
             source_commit: expected.source_commit,
             assets,
           };
-          const raw = readImmutableReleaseState(api, identity);
+          const raw = await readImmutableReleaseState(metadata, identity);
           const transition = proposeImmutableReleaseTransition(identity, raw.release, raw.assets);
           assert.equal(
             transition.decision,
@@ -912,7 +923,7 @@ export async function recoverCandidateSigningCustody(
               const again = await observe();
               assert.equal(digest(again.projection), digest(before.projection));
               assert.equal(
-                digest(observeProvider()),
+                digest(await observeProvider()),
                 digest(providerBefore),
                 "original result provider drifted",
               );
@@ -1049,15 +1060,15 @@ export async function recoverCandidateSigningCustody(
           deadline,
         );
         const producer = pendingRelease.executor_identity!;
-        const originalProducer = () =>
+        const originalProducer = async () =>
           inspectPendingReleaseProducer(
-            get(`actions/runs/${String(producer.run_id)}`),
-            get(`actions/runs/${String(producer.run_id)}/attempts/1`),
-            get(`actions/jobs/${String(producer.job_id)}`),
+            await metadata.run(String(producer.run_id)),
+            await metadata.attempt(String(producer.run_id), 1),
+            await metadata.job(Number(producer.job_id)),
             pendingRelease,
           );
         const observeRelease = () =>
-          observePendingCandidateRelease(api, pendingRelease, expected, (id, maximum) =>
+          observePendingCandidateRelease(metadata, pendingRelease, expected, (id, maximum) =>
             readGitHubReleaseAsset(`${base}/releases/assets/${id}`, {
               cwd: directory,
               maxBytes: maximum,
@@ -1067,7 +1078,7 @@ export async function recoverCandidateSigningCustody(
             }),
           );
         await guard();
-        const producerBefore = originalProducer();
+        const producerBefore = await originalProducer();
         const before = await observeRelease();
         await guard();
         const recovered = await recoverOwnedCapacityEffect(
@@ -1088,7 +1099,7 @@ export async function recoverCandidateSigningCustody(
               "original Release readback drifted",
             );
             assert.equal(
-              digest(originalProducer()),
+              digest(await originalProducer()),
               digest(producerBefore),
               "original publisher changed around readback",
             );

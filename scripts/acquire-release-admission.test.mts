@@ -1,3 +1,4 @@
+import { collectReleaseRunEvidence } from "./release-run-evidence.mts";
 import { capacityDigest } from "./release-capacity.mts";
 import { capacityFixture } from "./fixtures/release-capacity-fixture.mts";
 import assert from "node:assert/strict";
@@ -112,10 +113,34 @@ void test("native preparatory collection reaches immutable facts while qualifyin
     // Deliberately return a forged success: the preparatory wrapper ignores it.
     return { decision: "admitted", holds: [] };
   };
+  let evidenceDispatches = 0;
+  const fixtureApi = f.options.api;
+  assert.ok(fixtureApi);
+  const sources = {
+    ...f.options,
+    collectEvidence: (request: unknown, options: Parameters<typeof collectReleaseRunEvidence>[1]) =>
+      collectReleaseRunEvidence(request, {
+        ...options,
+        credential: { kind: "explicit", token: "fixture-hosted-evidence" },
+        fetch: async (input, init) => {
+          assert.ok(typeof input === "string");
+          assert.equal(
+            new Headers(init?.headers).get("authorization"),
+            "token fixture-hosted-evidence",
+          );
+          const response = fixtureApi.request("GET", input);
+          evidenceDispatches++;
+          return Response.json(response.body, {
+            status: response.status ?? 200,
+            headers: [...response.headers],
+          });
+        },
+      }),
+  };
   for (const phase of ["qualifying", "building"]) {
     f.input.active_candidate.phase = phase;
     await assert.rejects(
-      acquireHostedNativePreparation(parent, f.root, f.config, f.options, receive),
+      acquireHostedNativePreparation(parent, f.root, f.config, sources, receive),
       (error: unknown) => {
         assert.ok(error instanceof CoordinatorRemoteError && isRecord(error.evidence));
         assert.equal(error.evidence.phase, "actual-stage-native-qualification");
@@ -124,13 +149,14 @@ void test("native preparatory collection reaches immutable facts while qualifyin
     );
   }
   assert.equal(calls, 2);
+  assert.ok(evidenceDispatches >= 14);
   f.input.active_candidate.phase = "publishing";
   await assert.rejects(
-    acquireHostedNativePreparation(parent, f.root, f.config, f.options, receive),
+    acquireHostedNativePreparation(parent, f.root, f.config, sources, receive),
     /repository-and-reservation/,
   );
   await assert.rejects(
-    acquireHostedNativePreparation({}, f.root, f.config, f.options, receive),
+    acquireHostedNativePreparation({}, f.root, f.config, sources, receive),
     /original parent/,
   );
   assert.equal(calls, 2);

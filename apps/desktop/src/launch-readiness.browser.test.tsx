@@ -397,7 +397,7 @@ it("keeps malformed current setup availability from opening an installation revi
     />,
   );
   expect(host.textContent).toContain(
-    "Setup availability could not be confirmed. Refresh the workspace to check again.",
+    "Portcove couldn’t check whether setup can continue. Refresh to check again.",
   );
   expect(
     [...host.querySelectorAll("button")].some(

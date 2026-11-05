@@ -210,7 +210,7 @@ physical controls, gameplay or production publication.
 React Server Components off, Lucide, the Tailwind entry and app-local aliases.
 The checked-in controls are app-owned source; preserve deliberately maintained
 exports and behavior fixes when comparing upstream changes. Current runtime
-inputs are Base UI 1.9.0, cn 0.5.0 and Tailwind 4.3.3 under Vite+ 1.4.0. The
+inputs are Base UI 1.9.0, cn 0.5.2 and Tailwind 4.3.4 under Vite+ 1.5.0. The
 [CSS architecture cutover](reference/css-architecture.md) uses Preflight,
 explicit layers and Base UI transitions; tw-animate-css is removed. The
 [initial generation inputs and bundle measurement](#initial-foundation-history)

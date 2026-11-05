@@ -71,7 +71,7 @@ describe("source identity presentation", () => {
   });
 
   it.each([
-    ["recognized_not_listed", "Recognized · not listed"],
+    ["recognized_not_listed", "Edition identified, but unlisted for this port"],
     ["release_inapplicable", "Not reviewed for this release"],
   ])("keeps %s as an application result without claiming a global match", (state, expected) => {
     const html = renderToStaticMarkup(<SourceIdentityPanel report={report(state)} />);
@@ -81,11 +81,11 @@ describe("source identity presentation", () => {
   });
 
   it.each([
-    ["supported", "Matches evaluated source requirements"],
+    ["supported", "Matches the listed file requirements"],
     ["unreviewed_for_release", "Not reviewed for this release"],
     ["not_evaluated", "Not evaluated"],
-    ["recognized_not_listed", "Recognized · not listed"],
-    ["known_incompatible", "Known mismatch · refused"],
+    ["recognized_not_listed", "Edition identified, but unlisted for this port"],
+    ["known_incompatible", "Files don’t match this port’s requirements"],
   ] as const)("scopes the %s application result to source requirements", (state, expected) => {
     const value = report(state === "known_incompatible" ? "known_mismatch" : "recognized_exact");
     value.applications[0].contract_result =

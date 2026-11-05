@@ -1,5 +1,4 @@
-import { Octokit } from "@octokit/core";
-import { composePaginateRest } from "@octokit/plugin-paginate-rest";
+import type { Octokit } from "@octokit/core";
 import {
   GitHubApiError,
   sanitizeOperationError,
@@ -179,6 +178,8 @@ export async function createGitHubClient(options: GitHubClientOptions) {
   const base = new URL(options.baseUrl ?? "https://api.github.com");
   if (base.username || base.password || base.protocol !== "https:")
     throw new GitHubApiError("invalid_configuration", "Invalid GitHub API origin");
+  // Offline commands share this module without installing the live transport.
+  const { Octokit } = await import("@octokit/core");
   const remaining = Math.ceil(options.deadline - now());
   if (remaining < 1)
     throw new GitHubApiError("deadline_exceeded", "GitHub operation deadline exhausted");
@@ -713,6 +714,7 @@ export async function* iterateGitHubPages(
     reserve?: GitHubClientOptions["reserve"];
   },
 ) {
+  const { composePaginateRest } = await import("@octokit/plugin-paginate-rest");
   type Response = Awaited<ReturnType<Octokit["request"]>>;
   const originals = new WeakMap<object, Response>();
   const seen = new Set<string>();

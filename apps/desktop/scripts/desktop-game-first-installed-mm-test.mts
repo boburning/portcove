@@ -12,7 +12,7 @@ import { fileIdentity } from "../../../scripts/development-evidence.mts";
 import { errorCode, errorMessage } from "../../../scripts/runtime-values.mts";
 import {
   fixtureSuccess,
-  ownedFixtureCommand,
+  ownedFixtureObservationCommand,
   requiredFixtureValue as required,
 } from "./desktop-scenario-state.mts";
 import { transportValue } from "./transport-values.mts";
@@ -152,6 +152,31 @@ async function userDataInventory(root: string) {
   return { exists: true as const, files: files.sort((a, b) => a.name.localeCompare(b.name, "en")) };
 }
 
+async function filterInstalledMM(
+  browser: MMInstalledContext["browser"],
+  click: (locator: Locator) => Promise<void>,
+  method: "portable-package" | "portable-recompilation",
+) {
+  await clearCatalogFilters(browser);
+  await openCatalogFilters(browser);
+  await click(By.css('button[aria-label^="Original system:"]'));
+  await click(By.css('label[for$=":originalSystems:nintendo-gamecube"] [role="checkbox"]'));
+  await click(By.css('button[aria-label="Close Original system choices"]'));
+  const advanced = await browser.findElement(
+    By.xpath(
+      '//section[@aria-label="Filter options"]//summary[normalize-space(.)="Advanced filters"]',
+    ),
+  );
+  if (
+    (await (await advanced.findElement(By.xpath("parent::details"))).getAttribute("open")) === null
+  )
+    await clickVisible(browser, advanced);
+  await click(By.css('button[aria-label^="Setup methods:"]'));
+  await click(By.css(`label[for$=":installationMethods:${method}"] [role="checkbox"]`));
+  await click(By.css('button[aria-label="Close Setup methods choices"]'));
+  await click(By.xpath('//button[normalize-space(.)="Done"]'));
+}
+
 export async function gameFirstInstalledMMScenario(context: MMInstalledContext) {
   const { invoke, scenario, library, cli, output, artifacts, inputBaseline, sourceDirectory } =
     context;
@@ -186,17 +211,11 @@ export async function gameFirstInstalledMMScenario(context: MMInstalledContext) 
     };
     const row = async (id: string) =>
       required((await read()).statuses.find((item) => item.port_id === id));
-    const coreRaw = ownedFixtureCommand({ cli, library, output });
-    const core = (args: readonly string[]) => {
-      assert.ok(
-        (args.length === 2 &&
-          ["status", "paths"].includes(String(args[0])) &&
-          pair.some((id) => id === args[1])) ||
-          (args.length === 3 && args[0] === "launch" && args[1] === "show"),
-        "Read-only normal CLI only",
-      );
-      return coreRaw(args);
-    };
+    const core = ownedFixtureObservationCommand(
+      { cli, library, output },
+      pair,
+      "Read-only normal CLI only",
+    );
     const button = (label: string) => By.xpath(`//button[normalize-space(.)="${label}"]`);
     const click = async (locator: Locator, timeout = 15_000) => {
       const element = await browser.wait(until.elementLocated(locator), timeout);
@@ -432,73 +451,81 @@ export async function gameFirstInstalledMMScenario(context: MMInstalledContext) 
       assert.equal(source.size, inputBaseline.source.bytes);
       report.registered_source = source;
       assertNoManagedLaunches(library);
-      let reusedSource = source;
-      for (const id of pair) {
-        await discover(id);
-        await revealDetailSection(browser, "Game files");
-        await click(button("Review installation"));
-        const dialog = await browser.wait(
-          until.elementLocated(By.css('[aria-labelledby="install-review-title"]')),
-          180_000,
-        );
-        // Core's actual read-only plan supplies identity, source admission and genuine release artifact.
-        const plan = transportValue(
-          "install_plan",
-          fixtureSuccess(
-            await invoke("plan_port", { portId: id, channel: (await row(id)).channel }),
-          ),
-        );
-        assert.equal(plan.port_id, id);
-        assert.ok(
-          plan.source_requirements.length > 0 &&
-            plan.source_requirements.every((item) => item.registered),
-        );
-        assert.ok(
-          plan.release.version &&
-            plan.release.asset.name &&
-            plan.release.asset.url.startsWith("https://") &&
-            plan.release.asset.size > 0,
-          "A real Core-selected upstream release/package is required",
-        );
-        report[`plan_${id}`] = plan;
-        const install = await dialog.findElement(By.css('button[data-variant="primary"]'));
-        await browser.wait(until.elementIsEnabled(install), 15_000);
-        await clickVisible(browser, install);
-        // MM uses ordinary InstallReviewDialog consent. Native destructive consent
-        // in install_port is ReGaiden-specific, and must not be fabricated here.
-        const active = await browser.wait(async () => (await row(id)).active || false, 600_000);
-        assert.ok(active);
-        await browser.wait(
-          async () =>
-            (await browser.findElements(By.css('[aria-labelledby="install-review-title"]')))
-              .length === 0,
-          15_000,
-          "Completed installation review did not close",
-        );
-        assert.equal(active.port_id, id);
-        assert.doesNotMatch(active.version, /^adopted-/u);
-        assert.equal(active.version, plan.release.version);
-        assert.equal(active.artifact.asset_name, plan.release.asset.name);
-        assert.equal(active.verified, true);
-        assert.match(active.artifact.sha256, /^[a-f0-9]{64}$/u);
-        if (plan.release.asset.sha256)
-          assert.equal(active.artifact.sha256, plan.release.asset.sha256);
-        assert.deepEqual(transportValue("status", core(["status", id])), await row(id));
-        report[`installed_${id}`] = await row(id);
-        reusedSource = requireReusedSource((await read()).workspace.sources, reusedSource);
-        report[`source_after_${id}`] = reusedSource;
-        assert.equal((await read()).organization.preferred_port_by_game?.[gameId], undefined);
-        assertNoManagedLaunches(library);
-        await libraryView();
-        if (id === pair[0]) {
-          const card = `[data-detail-origin="library:card:${id}"]`;
-          await browser.wait(until.elementLocated(By.css(card)), 15_000);
-          const directAction = `article:has(${card}) button.library-card-play`;
-          const label = await directLaunchLabel(id, directAction);
-          await captureInstalledState("implicit", `${card} .collection-title`, directAction, label);
-          report.single_installed_direct_play = active;
+      const installBothImplementations = async () => {
+        let reusedSource = source;
+        for (const id of pair) {
+          await discover(id);
+          await revealDetailSection(browser, "Game files");
+          await click(button("Review installation"));
+          const dialog = await browser.wait(
+            until.elementLocated(By.css('[aria-labelledby="install-review-title"]')),
+            180_000,
+          );
+          // Core's actual read-only plan supplies identity, source admission and genuine release artifact.
+          const plan = transportValue(
+            "install_plan",
+            fixtureSuccess(
+              await invoke("plan_port", { portId: id, channel: (await row(id)).channel }),
+            ),
+          );
+          assert.equal(plan.port_id, id);
+          assert.ok(
+            plan.source_requirements.length > 0 &&
+              plan.source_requirements.every((item) => item.registered),
+          );
+          assert.ok(
+            plan.release.version &&
+              plan.release.asset.name &&
+              plan.release.asset.url.startsWith("https://") &&
+              plan.release.asset.size > 0,
+            "A real Core-selected upstream release/package is required",
+          );
+          report[`plan_${id}`] = plan;
+          const install = await dialog.findElement(By.css('button[data-variant="primary"]'));
+          await browser.wait(until.elementIsEnabled(install), 15_000);
+          await clickVisible(browser, install);
+          // MM uses ordinary InstallReviewDialog consent. Native destructive consent
+          // in install_port is ReGaiden-specific, and must not be fabricated here.
+          const active = await browser.wait(async () => (await row(id)).active || false, 600_000);
+          assert.ok(active);
+          await browser.wait(
+            async () =>
+              (await browser.findElements(By.css('[aria-labelledby="install-review-title"]')))
+                .length === 0,
+            15_000,
+            "Completed installation review did not close",
+          );
+          assert.equal(active.port_id, id);
+          assert.doesNotMatch(active.version, /^adopted-/u);
+          assert.equal(active.version, plan.release.version);
+          assert.equal(active.artifact.asset_name, plan.release.asset.name);
+          assert.equal(active.verified, true);
+          assert.match(active.artifact.sha256, /^[a-f0-9]{64}$/u);
+          if (plan.release.asset.sha256)
+            assert.equal(active.artifact.sha256, plan.release.asset.sha256);
+          assert.deepEqual(transportValue("status", core(["status", id])), await row(id));
+          report[`installed_${id}`] = await row(id);
+          reusedSource = requireReusedSource((await read()).workspace.sources, reusedSource);
+          report[`source_after_${id}`] = reusedSource;
+          assert.equal((await read()).organization.preferred_port_by_game?.[gameId], undefined);
+          assertNoManagedLaunches(library);
+          await libraryView();
+          if (id === pair[0]) {
+            const card = `[data-detail-origin="library:card:${id}"]`;
+            await browser.wait(until.elementLocated(By.css(card)), 15_000);
+            const directAction = `article:has(${card}) button.library-card-play`;
+            const label = await directLaunchLabel(id, directAction);
+            await captureInstalledState(
+              "implicit",
+              `${card} .collection-title`,
+              directAction,
+              label,
+            );
+            report.single_installed_direct_play = active;
+          }
         }
-      }
+      };
+      await installBothImplementations();
       await libraryView();
       const group = await browser.findElement(By.css(groupSelector));
       assert.ok((await group.getText()).includes("Choose an implementation"));
@@ -557,27 +584,8 @@ export async function gameFirstInstalledMMScenario(context: MMInstalledContext) 
       await browser.wait(async () => (await favorites()).includes(portId), 15_000);
       const installedBeforeFilters = pair.map(async (id) => required((await row(id)).active));
       const activeRecords = await Promise.all(installedBeforeFilters);
-      const filter = async (method: "portable-package" | "portable-recompilation") => {
-        await clearCatalogFilters(browser);
-        await openCatalogFilters(browser);
-        await click(By.css('button[aria-label^="Original system:"]'));
-        await click(By.css('label[for$=":originalSystems:nintendo-gamecube"] [role="checkbox"]'));
-        await click(By.css('button[aria-label="Close Original system choices"]'));
-        const advanced = await browser.findElement(
-          By.xpath(
-            '//section[@aria-label="Filter options"]//summary[normalize-space(.)="Advanced filters"]',
-          ),
-        );
-        if (
-          (await (await advanced.findElement(By.xpath("parent::details"))).getAttribute("open")) ===
-          null
-        )
-          await clickVisible(browser, advanced);
-        await click(By.css('button[aria-label^="Setup methods:"]'));
-        await click(By.css(`label[for$=":installationMethods:${method}"] [role="checkbox"]`));
-        await click(By.css('button[aria-label="Close Setup methods choices"]'));
-        await click(button("Done"));
-      };
+      const filter = (method: "portable-package" | "portable-recompilation") =>
+        filterInstalledMM(browser, click, method);
       assertNoManagedLaunches(library);
       await filter("portable-recompilation");
       await browser.wait(

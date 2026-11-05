@@ -26,14 +26,14 @@ const reasonLabels = {
   invalid_record: "Invalid records were omitted.",
   unsafe_file: "A file could not be safely read and was omitted.",
   section_limit: "Some data was omitted to stay within the section size limit.",
-  total_limit: "Some data was omitted to stay within the bundle size limit.",
+  total_limit: "Some data was omitted to stay within the report size limit.",
   record_limit: "Some records were omitted to stay within the record limit.",
   deadline: "Collection stopped at the time limit.",
-  incomplete_record: "An incomplete trailing record was omitted.",
+  incomplete_record: "An unfinished log entry was left out.",
   capture_incomplete: "Some later setup messages may be missing.",
   capture_truncated: "Some captured output was omitted when the capture limit was reached.",
-  capture_not_collected: "Retained preparation output was not collected.",
-  bounded_snapshot: "Only a bounded snapshot was collected; older or later data may be missing.",
+  capture_not_collected: "Saved setup messages weren’t included.",
+  bounded_snapshot: "Only part of the log was included. Earlier or later entries may be missing.",
 } satisfies Record<BundleSection["reasons"][number], string>;
 
 export function SupportBundleExport({
@@ -84,7 +84,7 @@ export function SupportBundleExport({
       <p>
         Create a support report with available recent logs, operation history, and system details.
         Game-file contents and saved credentials are excluded, but paths, file names, and other
-        metadata may remain. Review the bundle before sharing it.
+        metadata may remain. Review the support report before sharing it.
       </p>
       <details>
         <summary data-focusable className="[scroll-margin-block:var(--space-2)]">

@@ -1,3 +1,5 @@
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
+import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
 import { applicationReleaseProfile } from "./release-authority-configuration-contract.mts";
 import {
   materializePublishedCatalogCompleteSite,
@@ -861,6 +863,18 @@ function coordinatorApi(
     })([...args, "--hostname", "github.com"], input);
     budget.check();
     return result;
+  });
+}
+function coordinatorBootstrapSourceProvider(
+  budget: ReturnType<typeof coordinatorDeadline>,
+  maxBytes: number,
+) {
+  return createReleaseCustodyProvider({
+    token: (readOnlyReleaseChildEnvironment() ?? process.env).GH_TOKEN ?? "",
+    deadline: budget.monotonicDeadline,
+    chargeRead: () => budget.check(),
+    currentDeadline: () => performance.now() + budget.remaining(15000),
+    maxBytes,
   });
 }
 function guardedCoordinatorJournal(
@@ -2248,12 +2262,14 @@ async function prepareTrustedCoordinatorBootstrapAt(
   )
     throw new Error("same actual initial bootstrap reader required");
   const initialIdentity = coordinatorMaintenanceIdentity(initialFacts);
-  const source = readBootstrapPublicSource(
-    api,
+  const bootstrapSource = await coordinatorBootstrapSourceProvider(budget, 16 * 1024 ** 2);
+  const source = await readBootstrapPublicSource(
+    bootstrapSource,
     authorities.publication,
     generatedAt,
     budget.monotonicDeadline,
   );
+  budget.check();
   const descriptor =
     oldDescriptor ??
     deriveMetadataBootstrapDescriptor(authorities.publication, source.files, generatedAt);
@@ -2293,12 +2309,13 @@ async function prepareTrustedCoordinatorBootstrapAt(
     : null;
   const configured = catalogSite
     ? await readConfiguredCatalogOnlyBootstrapSite(
-        api,
+        bootstrapSource,
         catalogPins,
         catalogSite.receipt,
         budget.monotonicDeadline,
       )
-    : await readConfiguredBootstrapSite(api, budget.monotonicDeadline);
+    : await readConfiguredBootstrapSite(bootstrapSource, budget.monotonicDeadline);
+  budget.check();
   await writeFile(
     path.join(directory, "bootstrap-configured-site-initial.json"),
     JSON.stringify(configured),
@@ -2390,23 +2407,25 @@ async function prepareTrustedCoordinatorBootstrapAt(
     throw new Error("bootstrap checkpoint or no-prior state changed");
   await verifiedControllerToolPaths(toolsReceipt);
   await inspectPreparedMetadataBootstrap(preparation);
-  const repeated = readBootstrapPublicSource(
-    api,
+  const repeated = await readBootstrapPublicSource(
+    bootstrapSource,
     authorities.publication,
     generatedAt,
     budget.monotonicDeadline,
   );
+  budget.check();
   if (capacityDigest(repeated.publication) !== capacityDigest(source.publication))
     throw new Error("bootstrap ratified public source changed");
   assertBootstrapSiteBaseline(catalogPins, current.input);
   const lateSite = catalogSite
     ? await readConfiguredCatalogOnlyBootstrapSite(
-        api,
+        bootstrapSource,
         catalogPins,
         catalogSite.receipt,
         budget.monotonicDeadline,
       )
-    : await readConfiguredBootstrapSite(api, budget.monotonicDeadline);
+    : await readConfiguredBootstrapSite(bootstrapSource, budget.monotonicDeadline);
+  budget.check();
   const siteObservedAt = performance.now();
   await writeFile(
     path.join(directory, "bootstrap-configured-site-before-cas.json"),
@@ -2525,14 +2544,21 @@ export async function requireActualCoordinatorBootstrapPreparation(
     assertBootstrapSiteBaseline(owned.catalog_pins, current.input);
     if (owned.catalog_site) await requirePublishedCatalogCompleteSite(owned.catalog_site);
     if (performance.now() - owned.site_observed_at >= 45000) {
+      const deadline = coordinatorContinuationDeadline(owned.deadline);
+      const provider = await createReleaseCustodyProvider({
+        token: (readOnlyReleaseChildEnvironment() ?? process.env).GH_TOKEN ?? "",
+        deadline,
+        maxBytes: 256 * 1024,
+        currentDeadline: () => coordinatorContinuationDeadline(owned.deadline),
+      });
       owned.fresh_configured_site = owned.catalog_site
         ? await readConfiguredCatalogOnlyBootstrapSite(
-            api,
+            provider,
             owned.catalog_pins,
             owned.catalog_site,
             owned.deadline,
           )
-        : await readConfiguredBootstrapSite(api, owned.deadline);
+        : await readConfiguredBootstrapSite(provider, deadline);
       owned.site_observed_at = performance.now();
     }
     const late = controls.readMaintenance(api);
@@ -2931,7 +2957,8 @@ async function recoverTrustedCoordinatorContext(
       checkpoint: recovered.checkpoint,
       operation_id: selected.operation.id,
     }),
-    api = coordinatorApi(directory, budget, 2 * 1024 ** 2);
+    contextReadMaximum = 2 * 1024 ** 2,
+    api = coordinatorApi(directory, budget, contextReadMaximum);
   let controls = await authenticateCoordinatorInitialControls(
       directory,
       factsSha,
@@ -2994,6 +3021,7 @@ async function recoverTrustedCoordinatorContext(
     .update(await readControllerToolFile(tools.rust))
     .digest("hex");
   const published = inspectPublishedMetadata(recovered.input.published_metadata);
+  let bootstrapSource: Awaited<ReturnType<typeof coordinatorBootstrapSourceProvider>> | undefined;
   let preparedRoot: string,
     preparedDescriptor: unknown,
     priorPins: unknown = null;
@@ -3007,12 +3035,14 @@ async function recoverTrustedCoordinatorContext(
     if (selected.descriptor.kind !== "application-tuf-initial-bootstrap")
       throw new Error("explicit initial context descriptor required");
     assertMetadataBootstrapBinding(selected.descriptor, published, new Date().toISOString());
-    const source = readBootstrapPublicSource(
-      api,
+    bootstrapSource = await coordinatorBootstrapSourceProvider(budget, contextReadMaximum);
+    const source = await readBootstrapPublicSource(
+      bootstrapSource,
       authorities.publication,
       selected.descriptor.generated_at,
       budget.monotonicDeadline,
     );
+    budget.check();
     const preparation = await prepareAuthenticatedMetadataBootstrap({
       verifier: tools.rust,
       verifier_sha256,
@@ -3047,13 +3077,13 @@ async function recoverTrustedCoordinatorContext(
       );
       bootstrapReadbackSha = capacityDigest(
         await readConfiguredCatalogOnlyBootstrapSite(
-          api,
+          bootstrapSource,
           pins,
           bootstrapCatalog.receipt,
           budget.monotonicDeadline,
         ),
       );
-    } else await readConfiguredBootstrapSite(api, budget.monotonicDeadline);
+    } else await readConfiguredBootstrapSite(bootstrapSource, budget.monotonicDeadline);
   } else {
     if (
       !published ||
@@ -3175,14 +3205,17 @@ async function recoverTrustedCoordinatorContext(
       if (currentSite) {
         const site = await requirePublishedCompleteSite(currentSite.receipt);
         await readPublicApplicationSiteMarker(site.generation, budget.monotonicDeadline);
-      } else if (bootstrapCatalog)
-        await readConfiguredCatalogOnlyBootstrapSite(
-          api,
-          priorPins,
-          bootstrapCatalog.receipt,
-          budget.monotonicDeadline,
-        );
-      else await readConfiguredBootstrapSite(api, budget.monotonicDeadline);
+      } else {
+        if (!bootstrapSource) throw new Error("original bootstrap readback provider unavailable");
+        if (bootstrapCatalog)
+          await readConfiguredCatalogOnlyBootstrapSite(
+            bootstrapSource,
+            priorPins,
+            bootstrapCatalog.receipt,
+            budget.monotonicDeadline,
+          );
+        else await readConfiguredBootstrapSite(bootstrapSource, budget.monotonicDeadline);
+      }
       await guard();
       return readback;
     },

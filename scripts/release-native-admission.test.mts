@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import { nativeQualificationFixture } from "./fixtures/native-qualification-fixture.mts";
 import { selectedPublicationAuthoritiesFixture } from "./fixtures/checkpoint-proof-fixture.mts";
 import {
@@ -394,7 +395,7 @@ void test("native proof archive preflights all members before bounded decoding a
   assert.throws(() => readHostedNativeProofArchive(small, performance.now() - 1), /deadline/);
 });
 
-void test("native proof artifact discovery brackets inert bytes with exact source-bound inventory and refuses drift", () => {
+void test("native proof artifact discovery brackets inert bytes with exact source-bound inventory and refuses drift", async () => {
   const expected = {
     controller_revision: "a".repeat(40),
     run_id: "123",
@@ -437,7 +438,7 @@ void test("native proof artifact discovery brackets inert bytes with exact sourc
       head_repository_id: 1354613114,
     },
   };
-  const run = (
+  const run = async (
     mode:
       | "ok"
       | "missing"
@@ -459,40 +460,53 @@ void test("native proof artifact discovery brackets inert bytes with exact sourc
       digest: `sha256:${createHash("sha256").update(bytes).digest("hex")}`,
       size_in_bytes: bytes.length,
     };
-    const api = {
-      request(method: string, endpoint: string) {
-        assert.equal(method, "GET");
-        assert.equal(
-          endpoint,
-          "repos/boburning/portcove/actions/runs/123/artifacts?per_page=100&page=1",
-        );
-        reads++;
-        const artifacts =
-          mode === "missing"
-            ? []
-            : mode === "duplicate"
-              ? [current, { ...current, id: 11 }]
-              : [
-                  {
-                    ...current,
-                    ...(mode === "drift" && reads === 2 ? { id: 11 } : {}),
-                    ...(mode === "source"
-                      ? { workflow_run: { ...current.workflow_run, head_sha: "b".repeat(40) } }
-                      : {}),
-                  },
-                ];
-        return {
-          status: mode === "unavailable" ? 403 : 200,
-          headers: new Map<string, string>(),
-          body: { total_count: artifacts.length, artifacts },
-        };
-      },
+    const page = async (run: string, page: number) => {
+      assert.equal(run, "123");
+      assert.equal(page, 1);
+      reads++;
+      const artifacts =
+        mode === "missing"
+          ? []
+          : mode === "duplicate"
+            ? [current, { ...current, id: 11 }]
+            : [
+                {
+                  ...current,
+                  ...(mode === "drift" && reads === 2 ? { id: 11 } : {}),
+                  ...(mode === "source"
+                    ? { workflow_run: { ...current.workflow_run, head_sha: "b".repeat(40) } }
+                    : {}),
+                },
+              ];
+      return { total_count: artifacts.length, artifacts };
     };
-    const result = readHostedNativeProofArtifact(
-      api,
+    const deadline = performance.now() + 10000;
+    const metadata =
+      mode === "ok" || mode === "unavailable"
+        ? await createReleaseCustodyProvider({
+            token: "inert-native-artifact",
+            deadline,
+            fetch: async (input, init) => {
+              const request = new Request(input, init);
+              const url = new URL(request.url);
+              assert.equal(url.origin, "https://api.github.com");
+              assert.equal(url.pathname, "/repos/boburning/portcove/actions/runs/123/artifacts");
+              assert.equal(url.searchParams.get("per_page"), "100");
+              assert.equal(url.searchParams.get("page"), "1");
+              assert.equal(request.method, "GET");
+              assert.equal(request.headers.get("authorization"), "token inert-native-artifact");
+              assert.equal(request.headers.get("x-github-api-version"), "2022-11-28");
+              if (mode === "unavailable")
+                return Response.json({ message: "forbidden" }, { status: 403 });
+              return Response.json(await page("123", 1));
+            },
+          })
+        : { runArtifacts: page };
+    const result = await readHostedNativeProofArtifact(
+      metadata,
       expected,
       process.cwd(),
-      performance.now() + 10000,
+      deadline,
       (endpoint, options) => {
         downloads++;
         assert.equal(endpoint, "repos/boburning/portcove/actions/artifacts/10/zip");
@@ -513,7 +527,7 @@ void test("native proof artifact discovery brackets inert bytes with exact sourc
     assert.equal(result.files.report.toString(), "{}");
     assert.equal(Object.hasOwn(result, "hosted_job"), false);
   };
-  run("ok");
+  await run("ok");
   for (const mode of [
     "missing",
     "duplicate",
@@ -523,7 +537,7 @@ void test("native proof artifact discovery brackets inert bytes with exact sourc
     "subject",
     "unavailable",
   ] as const)
-    assert.throws(() => run(mode));
+    await assert.rejects(run(mode));
   assert.throws(() => hostedNativeArtifactName({ ...expected, run_attempt: 2 }), /slot/);
 });
 

@@ -8,7 +8,10 @@ import {
 import { capacityExecutorJobProfile } from "../assembler-job-identity.mts";
 import type { CapacityExecutorRole } from "../assembler-job-identity.mts";
 import type { CheckpointProducerExpectation } from "../release-coordinator-checkpoint-authentication.mts";
-import type { GitHubRestReader } from "../github-api.mts";
+import type {
+  HistoricalJobProvider,
+  HostedNativeSourceProvider,
+} from "../release-custody-provider.mts";
 import { nativeQualificationFixture } from "./native-qualification-fixture.mts";
 
 type Checkpoint = Awaited<ReturnType<typeof exportCoordinatorCheckpoint>>;
@@ -120,32 +123,41 @@ export function checkpointProofFixture(
   const calls: string[] = [];
   const faults = { value: "" };
   let attemptReads = 0;
-  const api: GitHubRestReader = {
-    request(method, endpoint) {
-      assert.equal(method, "GET");
-      calls.push(endpoint);
-      let body: unknown;
-      if (endpoint.endsWith(`/attempts/${producer.run_attempt}`)) {
-        attemptReads++;
-        body = {
-          ...attempt,
-          ...(faults.value === "changed-attempt" && attemptReads > 1 ? { run_attempt: 3 } : {}),
-        };
-      } else if (endpoint.includes(`/attempts/${producer.run_attempt}/jobs?`)) {
-        if (faults.value === "duplicate") body = { total_count: 2, jobs: [job, job] };
-        else if (faults.value === "duplicate-check")
-          body = { total_count: 2, jobs: [job, { ...job, id: 502 }] };
-        else if (faults.value === "incomplete") body = { total_count: 101, jobs: [job] };
-        else body = { total_count: 1, jobs: [job] };
-      } else if (endpoint.endsWith("/actions/jobs/501"))
-        body = {
-          ...job,
-          ...(faults.value === "changed-job"
-            ? { check_run_url: "https://api.github.com/repos/boburning/portcove/check-runs/778" }
-            : {}),
-        };
-      else assert.fail(`Unexpected historical route ${endpoint}`);
-      return { status: 200, headers: new Map(), body };
+  const provider: HistoricalJobProvider = {
+    async attempt(run, selectedAttempt) {
+      assert.equal(run, producer.run_id);
+      assert.equal(selectedAttempt, producer.run_attempt);
+      calls.push(`repos/boburning/portcove/actions/runs/${run}/attempts/${selectedAttempt}`);
+      attemptReads++;
+      return {
+        ...attempt,
+        ...(faults.value === "changed-attempt" && attemptReads > 1 ? { run_attempt: 3 } : {}),
+      };
+    },
+    async jobs(run, selectedAttempt, page) {
+      assert.equal(run, producer.run_id);
+      assert.equal(selectedAttempt, producer.run_attempt);
+      assert.equal(page, 1);
+      calls.push(`repos/boburning/portcove/actions/runs/${run}/attempts/${selectedAttempt}/jobs`);
+      const body =
+        faults.value === "duplicate"
+          ? { total_count: 2, jobs: [job, job] }
+          : faults.value === "duplicate-check"
+            ? { total_count: 2, jobs: [job, { ...job, id: 502 }] }
+            : faults.value === "incomplete"
+              ? { total_count: 101, jobs: [job] }
+              : { total_count: 1, jobs: [job] };
+      return { body, next: null };
+    },
+    async job(id) {
+      assert.equal(id, job.id);
+      calls.push(`repos/boburning/portcove/actions/jobs/${id}`);
+      return {
+        ...job,
+        ...(faults.value === "changed-job"
+          ? { check_run_url: "https://api.github.com/repos/boburning/portcove/check-runs/778" }
+          : {}),
+      };
     },
   };
   return {
@@ -157,9 +169,50 @@ export function checkpointProofFixture(
     job,
     attempt,
     verification,
-    api,
+    provider,
     calls,
     faults,
+  };
+}
+
+/** Controlled HTTP peer for tests that exercise the actual locked SDK and
+ * private receipt path. Domain tests inject the operations directly. */
+export function releaseCustodyFetch(
+  provider: HistoricalJobProvider & Partial<HostedNativeSourceProvider>,
+  observe?: (url: URL, init?: RequestInit) => Response | void,
+): typeof fetch {
+  return async (input, init) => {
+    const url = new URL(input instanceof Request ? input.url : String(input));
+    assert.equal(url.origin, "https://api.github.com");
+    assert.equal(init?.method, "GET");
+    const override = observe?.(url, init);
+    if (override) return override;
+    const route = decodeURIComponent(url.pathname).replace(/^\/repos\/boburning\/portcove\//u, "");
+    const attempt = /^actions\/runs\/([1-9][0-9]*)\/attempts\/([1-9][0-9]*)(\/jobs)?$/u.exec(route);
+    if (attempt) {
+      if (!attempt[3])
+        return Response.json(await provider.attempt(attempt[1]!, Number(attempt[2])));
+      assert.equal(url.searchParams.get("per_page"), "100");
+      const result = await provider.jobs(
+        attempt[1]!,
+        Number(attempt[2]),
+        Number(url.searchParams.get("page")),
+      );
+      return Response.json(
+        result.body,
+        result.next ? { headers: { link: `<${result.next}>; rel="next"` } } : {},
+      );
+    }
+    const job = /^actions\/jobs\/([1-9][0-9]*)$/u.exec(route);
+    if (job) return Response.json(await provider.job(Number(job[1])));
+    if (provider.commit && route.startsWith("git/commits/"))
+      return Response.json(await provider.commit(route.slice("git/commits/".length)));
+    if (provider.file && route.startsWith("contents/")) {
+      const ref = url.searchParams.get("ref");
+      assert.ok(ref);
+      return Response.json(await provider.file(route.slice("contents/".length), ref));
+    }
+    assert.fail(`Unexpected custody route ${url.pathname}`);
   };
 }
 

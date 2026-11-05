@@ -463,22 +463,56 @@ pnpm build
 
 Choose test commands by their runner and evidence scope:
 
-| Command                                           | Runner and evidence                                                                                                                                                            |
-| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `pnpm test`                                       | Vite+ `unit` project in Node; frontend logic and pure tooling tests.                                                                                                           |
-| `pnpm test:browser`                               | Vite+ `browser`, `browser-locale` and `browser-forced-colors` projects in headless Chromium; real DOM interactions and browser fixtures. Requires the browser bootstrap above. |
-| `just test-ui <literal-test-file> ...`            | Exact maintained unit/browser files; reconciles every requested file with actual execution.                                                                                    |
-| `just test-ui-related <literal-source-file> ...`  | Import-related unit/browser tests; an empty related selection falls back to the maintained frontend projects.                                                                  |
-| `pnpm test:native-tools`                          | Node compiler/shell integration tests; Rust probe and platform shell prerequisites apply.                                                                                      |
-| `pnpm exec vp test`                               | All four frontend projects: Node unit, Chromium browser, French/Auckland locale contracts and forced colors.                                                                   |
-| `just desktop-verify --list-scenarios` / `--plan` | Native harness inventory or execution plan; does not build or launch the app.                                                                                                  |
-| `just desktop-verify --scenario <id>`             | Runs the selected scenario in the native Tauri/WebView harness with its declared fixture and observations.                                                                     |
+| Command                                              | Runner and evidence                                                                                                                                                            |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `pnpm test`                                          | Vite+ `unit` project in Node; frontend logic and pure tooling tests.                                                                                                           |
+| `pnpm test:browser`                                  | Vite+ `browser`, `browser-locale` and `browser-forced-colors` projects in headless Chromium; real DOM interactions and browser fixtures. Requires the browser bootstrap above. |
+| `just test-ui <literal-test-file> ...`               | Exact maintained unit/browser files; reconciles every requested file with actual execution.                                                                                    |
+| `just test-ui-related <literal-source-file> ...`     | Import-related unit/browser tests; an empty related selection falls back to the maintained frontend projects.                                                                  |
+| `just test-ui --last-failed [literal-test-file ...]` | Developer feedback: replay complete files with recent known failures, or the full requested scope when history is unavailable. Omit files to consider all four projects.       |
+| `pnpm test:native-tools`                             | Node compiler/shell integration tests; Rust probe and platform shell prerequisites apply.                                                                                      |
+| `pnpm exec vp test`                                  | All four frontend projects: Node unit, Chromium browser, French/Auckland locale contracts and forced colors.                                                                   |
+| `just desktop-verify --list-scenarios` / `--plan`    | Native harness inventory or execution plan; does not build or launch the app.                                                                                                  |
+| `just desktop-verify --scenario <id>`                | Runs the selected scenario in the native Tauri/WebView harness with its declared fixture and observations.                                                                     |
 
 `pnpm test` covers only the unit project. Browser fixtures, compiler/shell
 contracts and native scenario observations each establish their stated scope;
 they do not establish installed-package, physical-device or human acceptance.
 Native scenarios can use inert fixtures; inspect the selected scenario's plan.
 The [native smoke workflow](#native-desktop-smoke-tests) describes that harness.
+
+Failed-file feedback uses Vitest 5.1's native results cache through its public
+API, rather than the raw `--last-failed` flag's cached test-name filter. Replaying
+the whole file includes renamed cases. Missing, incompatible, incomplete or older
+than six-hour records select the full requested scope; checkout/commit and
+configuration changes also invalidate older history. Added or moved tests have
+no record and force that fallback. Deleted tests are excluded by current discovery;
+an empty failure selection falls back to full execution. Cache paths must remain
+physically inside this checkout, and the resource wrapper serializes participating
+writers in one worktree. Other worktrees retain their own dependency/cache roots.
+No additional test-history files or per-iteration cache namespaces are created.
+The native cache is disposable with `pnpm exec vp test --clearCache`; run this
+only after this worktree's runners stop. Failed-file feedback is rejected in CI
+and coverage collection. Use ordinary `pnpm test`, `pnpm test:browser` and the
+complete-diff validation plan for acceptance.
+
+Vitest 5.1 also supports `--since-last-run` (`--sinceLastRun` in native CLI help),
+but its modification-time selection misses backdated checkouts/copies and new
+resources not loaded by the preceding run. Portcove does not enable it. Use
+`just test-ui-related <changed-source-file> ...` for iterative import-related
+feedback, exact files for closed selections, and full tests for shared/unknown
+impact. The [1.5 evaluation](qualification/viteplus-1.5-2026-11-04.md) records
+the release investigation, comparisons and deliberate deferrals.
+
+Browser projects retain request interception: the 1.5 comparison found slower
+warm runs with experimental import-map mocking. To investigate import maps with
+the pinned Chromium runtime, prefix the usual command with
+`PORTCOVE_BROWSER_IMPORT_MAP_MOCKS=1` on Linux/macOS, or set
+`$env:PORTCOVE_BROWSER_IMPORT_MAP_MOCKS = '1'` in PowerShell. Unset it (or use
+`0`) to restore interception. Browser API ports and Vite test-server ports are allocated by the
+OS; Tauri's development server retains port 1420. Upstream failure-only trace
+timelines complement the existing retained Playwright traces, screenshots and
+bounded case/run observations, including individual retry/repeat outcomes.
 
 Preview affected work, then choose literal files for focused feedback:
 
@@ -757,11 +791,15 @@ Complete each proposal through the existing Codex issue/PR delivery process:
    Existing Vite+ projects take the upstream version-only migration, not --full.
    Inspect every manifest, catalog, alias and override. Match the directly consumed
    browser provider to the target's bundled Vitest; verify every upgrade even when
-   the migrator updates it automatically.
+   the migrator updates it automatically. Coordinate the trusted Pack identity
+   in `scripts/release-controller-tools.mts` and qualify the existing public
+   controller tool build fixtures on Linux and Windows. The builder, manifest
+   producer and validator require that exact identity.
 
 4. Preserve the 1440-minute/non-strict pnpm policy. Remove migrator-added
-   minimumReleaseAgeExclude entries for the bundle: non-strict resolution already
-   supports an explicit selection. Preserve allowBuilds restrictions and worktree
+   minimumReleaseAgeExclude entries for the bundle. pnpm 12's frozen-install
+   policy verification rejects even explicitly selected releases younger than
+   that window; wait for eligibility instead of bypassing it. Preserve allowBuilds restrictions and worktree
    hook/signing adapters. Frozen-install, inspect `pnpm exec vp toolchain`, then
    run checks, units/browser tests, build, affected cache/portability checks and
    invalidated native acceptance.
@@ -1046,6 +1084,25 @@ before credentialed scripts. Installation remains charged to the original provid
 55-second deadline. Complete acknowledged-run responses are retained before deadline
 refusal; incomplete streams supply no successful response evidence. Dispatch remains
 one attempt, with no automatic retry or release activation authority.
+Historical checkpoint and hosted native custody read exact attempt, job and
+source metadata through the SDK, retaining each proof's original deadline and
+the shared source/job request budget across later readback. Signature
+verification retains its separately bounded attestation subprocess.
+The verified publication controller uses SDK reads for its original provider job
+clock and retained upload locator, keeping the existing journal readback order.
+Publication result custody shares the bounded source, attempt, job and artifact
+metadata reader; refreshing its proof can only shorten the original deadline.
+Immutable Release custody also uses fixed SDK reads. The Release owner still
+requires the draft-inclusive inventory, exact version tag and asset readback
+before accepting an effect or reconciling an ambiguous mutation. Its fixed
+create, asset upload and publish effects use one SDK dispatch with the separate
+publication token. Redirects are refused, risk expiry is checked at dispatch,
+and a response alone never establishes settlement. Archive bytes remain with
+their existing owners.
+Signing-output and TUF role custody use the same SDK reader for sequential
+attempt, job and artifact checks around byte custody. A later role refresh
+can tighten the original deadline; archive reads and attestation keep their
+existing bounds and private execution environment.
 The maintained report
 publisher now uses SDK metadata operations and awaited replay/readback. Its trusted
 main checkout installs frozen dependencies before the credentialed steps. Existing

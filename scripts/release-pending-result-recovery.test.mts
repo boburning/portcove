@@ -148,7 +148,8 @@ void test("source-bound result continuation settles only the exact positive repo
   const { readFile } = await import("node:fs/promises");
   const { stripTypeScriptTypes } = await import("node:module");
   const { runInNewContext } = await import("node:vm");
-  const { readCompleteRunArtifactInventory } = await import("./release-run-artifact-inventory.mts");
+  const { readCompleteRunArtifactInventoryAsync } =
+    await import("./release-run-artifact-inventory.mts");
   const source = await readFile(
     new URL("./release-candidate-signing-recovery.mts", import.meta.url),
     "utf8",
@@ -209,16 +210,30 @@ void test("source-bound result continuation settles only the exact positive repo
       return {};
     },
     inspectPendingResultProvider,
-    readCompleteRunArtifactInventory,
-    get: (endpoint: string) => {
-      if (endpoint.startsWith("git/commits/"))
-        return {
-          sha: f.operation.executor_identity!.controller_revision,
-          tree: { sha: "3".repeat(40) },
-        };
-      if (endpoint.startsWith("actions/jobs/")) return f.job;
-      if (endpoint.includes("/artifacts?")) return { total_count: 1, artifacts: f.rows };
-      return f.run;
+    readCompleteRunArtifactInventoryAsync,
+    metadata: {
+      async commit(sha: string) {
+        assert.equal(sha, f.operation.executor_identity!.controller_revision);
+        return { sha, tree: { sha: "3".repeat(40) } };
+      },
+      async run(id: string) {
+        assert.equal(id, String(f.operation.executor_identity!.run_id));
+        return f.run;
+      },
+      async attempt(id: string, attempt: number) {
+        assert.equal(id, String(f.operation.executor_identity!.run_id));
+        assert.equal(attempt, 1);
+        return f.run;
+      },
+      async job(id: number) {
+        assert.equal(id, f.operation.executor_identity!.job_id);
+        return f.job;
+      },
+      async runArtifacts(id: string, page: number) {
+        assert.equal(id, String(f.operation.executor_identity!.run_id));
+        assert.equal(page, 1);
+        return { total_count: 1, artifacts: f.rows };
+      },
     },
     readGitHubArtifactArchive: () => {
       calls.push("GET-original-archive");

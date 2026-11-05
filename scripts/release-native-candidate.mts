@@ -1,3 +1,6 @@
+import { collectReleaseRunEvidence } from "./release-run-evidence.mts";
+import type { ReleaseEvidenceOptions } from "./release-run-evidence.mts";
+import { nativeCompatibilitySourcePaths } from "./release-native-source-contract.mts";
 import { nativePlatformsForReleaseProfile } from "./release-package-policy.mts";
 import { isInitialBetaReleaseProfile } from "./release-package-policy.mts";
 /** Actual local-parent candidate selection. Provider acquisition deliberately
@@ -19,6 +22,7 @@ import {
 } from "./release-native-parent.mts";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import { readGitHubArtifactArchive, readGitHubReleaseAsset } from "./github-binary.mts";
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import {
   recoverRemoteCoordinator,
   hydrateRetainedCoordinatorOperation,
@@ -497,7 +501,69 @@ async function sourceTransport(parent: Parent, directory: string) {
     };
     return spawn;
   };
-  return { api, download, downloadAsset, recover, recheck, verifier, releaseVerifier };
+  const metadata = (deadline: number, maxBytes = 2 * 1024 ** 2) =>
+    createReleaseCustodyProvider({
+      token,
+      deadline: Math.min(deadline, performance.now() + remainingNativeParentBudget(300000)),
+      maxBytes,
+    });
+  const collectEvidence = (request: unknown, options: ReleaseEvidenceOptions = {}) => {
+    checkToolIdentity();
+    return collectReleaseRunEvidence(request, {
+      ...options,
+      credential: { kind: "explicit", token },
+      async reserve(request) {
+        checkToolIdentity();
+        const outer = await options.reserve?.(request);
+        return {
+          consumeBytes(bytes) {
+            outer?.consumeBytes(bytes);
+          },
+          settle(observation) {
+            outer?.settle(observation);
+            checkToolIdentity();
+          },
+        };
+      },
+      deadline: Math.min(
+        options.deadline ?? Infinity,
+        performance.now() + remainingNativeParentBudget(),
+      ),
+    });
+  };
+  const declarations = async () => {
+    const deadline =
+      performance.now() +
+      remainingNativeParentBudget(2 * nativeCompatibilitySourcePaths.length * 15000);
+    const contents = await metadata(deadline);
+    let blobs: ReturnType<typeof metadata> | undefined;
+    const read = async (operation: () => Promise<unknown>) => {
+      checkToolIdentity();
+      const body = await operation();
+      checkToolIdentity();
+      return body;
+    };
+    return {
+      file: (pathname: string, revision: string) => read(() => contents.file(pathname, revision)),
+      blob: (sha: string) =>
+        read(async () => {
+          blobs ??= metadata(deadline, 8 * 1024 ** 2);
+          return (await blobs).blob(sha);
+        }),
+    };
+  };
+  return {
+    api,
+    collectEvidence,
+    metadata,
+    declarations,
+    download,
+    downloadAsset,
+    recover,
+    recheck,
+    verifier,
+    releaseVerifier,
+  };
 }
 
 /** The public journey uses the same installed parent's read-only source tool
@@ -561,6 +627,7 @@ const selections = new WeakMap<
     recover: Awaited<ReturnType<typeof sourceTransport>>["recover"];
     recheckSource: Awaited<ReturnType<typeof sourceTransport>>["recheck"];
     api: GitHubApiClient;
+    declarations: Awaited<ReturnType<typeof sourceTransport>>["declarations"];
   }
 >();
 
@@ -900,8 +967,9 @@ export async function readActualNativePostSignPublicInputs(controllerReceipt: ob
   };
   const cachedDownload: typeof readGitHubArtifactArchive = (endpoint, options) =>
     endpoint === zipEndpoint ? Buffer.from(contextArchive) : source.download(endpoint, options);
+  const metadata = await source.metadata(deadline);
   const context = await receiveSigningContextArtifact(directory, expected, deadline, {
-    api: source.api,
+    metadata,
     download: cachedDownload,
     spawn: source.verifier(controller),
   });
@@ -945,7 +1013,7 @@ export async function readActualNativePostSignPublicInputs(controllerReceipt: ob
           context_facts_sha256: expected.facts_sha256,
         },
         deadline,
-        { api: source.api, download: source.download, spawn: source.verifier(controller) },
+        { metadata, download: source.download, spawn: source.verifier(controller) },
       ),
     );
   }
@@ -1640,6 +1708,7 @@ export async function acquireActualNativePostSignCandidate(parentReceipt: object
         throw new Error("native signed repository changed after package selection");
     },
     api: original.source.api,
+    declarations: original.source.declarations,
   });
   await requireActualNativeCandidate(receipt);
   return receipt;
@@ -1747,6 +1816,7 @@ export async function acquireActualNativeCandidate(parentReceipt: object) {
       },
       {
         api: source.api,
+        collectEvidence: source.collectEvidence,
         download: source.download,
         recover: source.recover,
         controlPhase: "payload",
@@ -1849,6 +1919,7 @@ export async function acquireActualNativeCandidate(parentReceipt: object) {
     recover: source.recover,
     recheckSource: source.recheck,
     api: source.api,
+    declarations: source.declarations,
   });
   packages.clear();
   return receipt;
@@ -2065,14 +2136,12 @@ export async function readActualNativeSourceDeclarations(receipt: object) {
   const retained = selections.get(receipt);
   if (!retained) throw new Error("actual native source selection required");
   const selected = await requireActualNativeCandidate(receipt);
+  const provider = await retained.declarations();
+  const source = selected.request.request.candidate.source_commit;
   const declaration = await retainNativeSourceDeclarations(
     retained.directory,
-    (pathname) =>
-      retained.api.request(
-        "GET",
-        `repos/boburning/portcove/contents/${pathname}?ref=${selected.request.request.candidate.source_commit}`,
-      ),
-    (sha) => retained.api.request("GET", `repos/boburning/portcove/git/blobs/${sha}`),
+    (pathname) => provider.file(pathname, source),
+    (sha) => provider.blob(sha),
   );
   await requireActualNativeCandidate(receipt);
   return Object.freeze({

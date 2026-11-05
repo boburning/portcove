@@ -18,10 +18,16 @@ import type {
 // Source-bound proposed metadata exercises retained presentation independently
 // of live catalog adoption. See #2926 for the remaining production rollout.
 import proposals from "../../../../crates/portcove-core/tests/fixtures/installation-rollout-proposals-20261025.json";
-import { ExternalRuntimeControl, UserSelectedRuntimeControl } from "./ExternalRuntime";
+import listings from "../../../../crates/portcove-core/catalog/listings.json";
+import {
+  AuthoredPreparationGuidance,
+  ExternalRuntimeControl,
+  UserSelectedRuntimeControl,
+} from "./ExternalRuntime";
 import { catalogEntries } from "../features/browsing/catalog-entry";
 import { ActionReviewFailure } from "./ActionReviewFailure";
 import { DetailLayout } from "./DetailLayout";
+import { SelfServiceSetup } from "./SelfServiceSetup";
 
 vi.mock("../file-picker", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../file-picker")>()),
@@ -407,6 +413,74 @@ it("reviews explicit user launch details without accepted-package or file-manage
     7,
   );
   expect(changed).toHaveBeenCalledOnce();
+});
+
+it.each(["current", "older"] as const)(
+  "shows the Second Hunt startup warning before setup with the %s directory",
+  async (directory) => {
+    const entry = listings.listings.find(
+      (candidate) => candidate.id === "bountyhunterkanden-secondhunt",
+    )!;
+    const guide = entry.manual_setup!;
+    await root.rerender(
+      <AuthoredPreparationGuidance
+        port={{ ...port, id: entry.id }}
+        setup={{
+          manual_setup: {
+            ...guide,
+            help_url: guide.help_url ?? null,
+            warnings: directory === "current" ? guide.warnings : [],
+          },
+        }}
+      />,
+    );
+    const warning = page.getByText(/Before opening Second Hunt v0\.4\.2-beta/);
+    const firstAction = page.getByRole("heading", { name: "Set up Second Hunt" });
+    await expect.element(warning).toBeVisible();
+    await expect.element(warning).toMatchTextContent(/ending in \.old or \.old followed by digits/);
+    await expect.element(warning).toMatchTextContent(/including portable saves/);
+    expect(
+      warning.element().compareDocumentPosition(firstAction.element()) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  },
+);
+
+it("keeps the Second Hunt caution visible before Play for an attached copy", async () => {
+  const listing = listings.listings.find(
+    (candidate) => candidate.id === "bountyhunterkanden-secondhunt",
+  )!;
+  const status = {
+    ...portStatus(),
+    port_id: listing.id,
+    external_runtime: { ...record, port_id: listing.id },
+  };
+  const perform = vi.fn(async () => undefined);
+  await root.rerender(
+    <SelfServiceSetup
+      entry={{
+        ...port,
+        id: listing.id,
+        listingStatus: {
+          port_id: listing.id,
+          status,
+          actions: [{ action: "launch", allowed: true }],
+        },
+      }}
+      status={status}
+      generation={7}
+      perform={perform}
+      onChanged={vi.fn()}
+    />,
+  );
+  const warning = page.getByText(/Before opening Second Hunt v0\.4\.2-beta/);
+  const play = page.getByRole("button", { name: "Play", exact: true });
+  await expect.element(warning).toBeVisible();
+  await expect.element(play).toBeEnabled();
+  expect(
+    warning.element().compareDocumentPosition(play.element()) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+  expect(perform).not.toHaveBeenCalled();
 });
 
 it.each(["ghostship", "starship"])(
@@ -1252,7 +1326,9 @@ it.each(
   await click("Stop using this installation");
   expect(preview).not.toHaveBeenCalled();
   expect(document.body.querySelector('[role="dialog"]')).toBeNull();
-  expect(document.body.textContent).toContain("Current removal availability is unavailable");
+  expect(document.body.textContent).toContain(
+    "Portcove couldn’t check whether you can remove this installation",
+  );
 });
 
 it.each([

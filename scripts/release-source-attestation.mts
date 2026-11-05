@@ -20,10 +20,20 @@ export interface ReleaseSourceAttestationExpectation {
 }
 const repository = "boburning/portcove";
 const workflow = ".github/workflows/release.yml";
-type AttestationScope = "release" | "upstream-rehearsal";
+type AttestationScope =
+  | "release"
+  | "upstream-rehearsal"
+  | "application-controller"
+  | "application-package"
+  | "application-assembly"
+  | "application-native";
 function attestationWorkflow(scope: AttestationScope) {
   if (scope === "release") return workflow;
+  if (scope === "application-controller") return ".github/workflows/application-release.yml";
   if (scope === "upstream-rehearsal") return ".github/workflows/upstream-release-rehearsal.yml";
+  if (scope === "application-package") return ".github/workflows/application-release-package.yml";
+  if (scope === "application-assembly") return ".github/workflows/application-release-assembly.yml";
+  if (scope === "application-native") return ".github/workflows/application-release-native.yml";
   throw new Error("unknown source attestation scope");
 }
 export const releaseProcessPredicate = "https://slsa.dev/provenance/v1";
@@ -39,7 +49,15 @@ export function inspectReleaseSourceAttestation(
   // Native failed-only reruns can legitimately attest the same original bytes
   // in another attempt. Select the explicitly expected authenticated attempt;
   // duplicate attestations for that exact identity still refuse as ambiguous.
-  if (scope === "upstream-rehearsal" && Array.isArray(raw) && raw.length > 1) {
+  if (
+    (scope === "upstream-rehearsal" ||
+      scope === "application-controller" ||
+      scope === "application-package" ||
+      scope === "application-assembly" ||
+      scope === "application-native") &&
+    Array.isArray(raw) &&
+    raw.length > 1
+  ) {
     const uri = `https://github.com/${repository}/actions/runs/${expected.run_id}/attempts/${expected.run_attempt}`;
     raw = raw.filter((value: unknown) => {
       if (

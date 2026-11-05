@@ -44,6 +44,7 @@ describe("installed browser package compatibility", () => {
         vite: "npm:@voidzero-dev/vite-plus-core@1.2.0",
         vitest: "5.0.4",
         "@vitest/browser-playwright": "5.0.4",
+        "@vitest/coverage-v8": "5.0.4",
       },
       overrides: { "vite@*": "catalog:", "vitest@*": "catalog:" },
     };
@@ -52,15 +53,32 @@ describe("installed browser package compatibility", () => {
       vite: { name: "@voidzero-dev/vite-plus-core", version: "1.2.0" },
       vitest: { version: "5.0.4" },
       "@vitest/browser-playwright": { version: "5.0.4" },
+      "@vitest/coverage-v8": { name: "@vitest/coverage-v8", version: "5.0.4" },
     };
     assertVitePlusCompatibility(workspace, manifests, { vitest: "5.0.4" });
-    for (const key of ["vite-plus", "vite", "vitest", "@vitest/browser-playwright"] as const) {
+    for (const key of [
+      "vite-plus",
+      "vite",
+      "vitest",
+      "@vitest/browser-playwright",
+      "@vitest/coverage-v8",
+    ] as const) {
       const proposal = { ...workspace, catalog: { ...workspace.catalog } };
       proposal.catalog[key] = "9.0.0";
       expect(() => assertVitePlusCompatibility(proposal, manifests, { vitest: "5.0.4" })).toThrow(
         /coordinated migration/,
       );
     }
+    expect(() =>
+      assertVitePlusCompatibility(
+        workspace,
+        {
+          ...manifests,
+          "@vitest/coverage-v8": { name: "@vitest/coverage-v8", version: "5.0.5" },
+        },
+        { vitest: "5.0.4" },
+      ),
+    ).toThrow(/coordinated migration/);
     expect(() => assertVitePlusCompatibility(workspace, manifests, { vitest: "5.0.5" })).toThrow(
       /coordinated migration/,
     );
@@ -103,6 +121,7 @@ describe("installed browser package compatibility", () => {
     );
     expect(versions.vitest).toBe(bundled.vitest);
     expect(versions["@vitest/browser-playwright"]).toBe(versions.vitest);
+    expect(versions["@vitest/coverage-v8"]).toBe(versions.vitest);
   });
 
   it("refuses a newer core permitted by its declared range but incompatible with the exact provider peer", () => {

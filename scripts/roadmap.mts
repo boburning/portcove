@@ -9,7 +9,7 @@ import {
   roadmapQuotaDeferred,
   retainRoadmapQuotaDeferral,
 } from "./roadmap-capacity-continuation.mts";
-import { observationHash } from "./upstream-observer.mts";
+import { orderedJsonSha256 as observationHash } from "./json-values.mts";
 import {
   qualifiedPlatforms,
   validatePortStageSemantics,

@@ -72,7 +72,7 @@ export function GameAlternatives({
   return (
     <details ref={root} className="min-w-0 basis-full text-sm">
       <summary data-focusable className="cursor-pointer py-2">
-        Implementations ({ports.length})
+        Other ports for this game ({ports.length})
       </summary>
       <p className="mb-2 text-xs text-pc-muted-foreground">
         Each project keeps its own files and installation. Choosing one does not transfer saves or

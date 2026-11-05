@@ -16,7 +16,7 @@ jobs:
   wake:
     if: >-
       ${{ (vars.PORTCOVE_CONTROLLER_WAKE != '' || vars.PORTCOVE_CATALOG_CONTROLLER_WAKE != '') &&
-      (vars.PORTCOVE_CONTROLLER_WAKE == '' || fromJSON(vars.PORTCOVE_CONTROLLER_WAKE).schema_version == 4) &&
+      (vars.PORTCOVE_CONTROLLER_WAKE == '' || (fromJSON(vars.PORTCOVE_CONTROLLER_WAKE).schema_version == 4 || fromJSON(vars.PORTCOVE_CONTROLLER_WAKE).schema_version == 5)) &&
       (vars.PORTCOVE_CATALOG_CONTROLLER_WAKE == '' || fromJSON(vars.PORTCOVE_CATALOG_CONTROLLER_WAKE).schema_version == 4) }}
     name: Wake fixed application controller
     runs-on: ubuntu-22.04
@@ -45,10 +45,16 @@ jobs:
           GH_HOST: github.com
           GH_TOKEN: ${{ github.token }}
           PORTCOVE_CONTROLLER_WAKE: ${{ vars.PORTCOVE_CONTROLLER_WAKE }}
+          PORTCOVE_APPLICATION_RELEASE_ACTIVE: ${{ vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE }}
+          PORTCOVE_APPLICATION_RELEASE_REF: ${{ vars.PORTCOVE_APPLICATION_RELEASE_REF }}
+          PORTCOVE_APPLICATION_RELEASE_REVISION: ${{ vars.PORTCOVE_APPLICATION_RELEASE_REVISION }}
+          PORTCOVE_APPLICATION_RELEASE_SPENDING: ${{ vars.PORTCOVE_APPLICATION_RELEASE_SPENDING }}
+          PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256: ${{ vars.PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256 }}
           PORTCOVE_CATALOG_CONTROLLER_WAKE: ${{ vars.PORTCOVE_CATALOG_CONTROLLER_WAKE }}
         run: node scripts/release-controller-wake.mts --prepare
         id: prepare
       - name: Retain intent before any dispatch
+        if: steps.prepare.outputs.intent_ready != 'false'
         id: intent
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
@@ -58,10 +64,16 @@ jobs:
           overwrite: false
           retention-days: 7
       - name: Dispatch retained immutable controller intent
+        if: steps.prepare.outputs.intent_ready != 'false'
         env:
           GH_HOST: github.com
           GH_TOKEN: ${{ github.token }}
           PORTCOVE_CONTROLLER_WAKE: ${{ vars.PORTCOVE_CONTROLLER_WAKE }}
+          PORTCOVE_APPLICATION_RELEASE_ACTIVE: ${{ vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE }}
+          PORTCOVE_APPLICATION_RELEASE_REF: ${{ vars.PORTCOVE_APPLICATION_RELEASE_REF }}
+          PORTCOVE_APPLICATION_RELEASE_REVISION: ${{ vars.PORTCOVE_APPLICATION_RELEASE_REVISION }}
+          PORTCOVE_APPLICATION_RELEASE_SPENDING: ${{ vars.PORTCOVE_APPLICATION_RELEASE_SPENDING }}
+          PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256: ${{ vars.PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256 }}
           PORTCOVE_WAKE_INTENT_ARTIFACT_ID: ${{ steps.intent.outputs.artifact-id }}
           PORTCOVE_WAKE_INTENT_ARTIFACT_SHA256: ${{ steps.intent.outputs.artifact-digest }}
           PORTCOVE_CATALOG_CONTROLLER_WAKE: ${{ vars.PORTCOVE_CATALOG_CONTROLLER_WAKE }}

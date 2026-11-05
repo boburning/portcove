@@ -6,7 +6,11 @@ import { promisify } from "node:util";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
-import { inspectMetadataRenewalDescriptor, metadataInstant } from "./release-metadata-contract.mts";
+import {
+  inspectMetadataRenewalDescriptor,
+  inspectMetadataRoleVersions,
+  metadataInstant,
+} from "./release-metadata-contract.mts";
 import { assertOwnedUnlinkedPath, releasePathContains } from "./release-path-safety.mts";
 import { isRecord } from "./runtime-values.mts";
 import {
@@ -170,6 +174,8 @@ function validateOutput(
     prior_sha256: string;
     initial_root_profile: InitialRootProfile;
     top_level_targets_profile: TopLevelTargetsProfile;
+    prior_expiration_policy?: "historical-online-expired-v1";
+    previous_reserved_versions?: ReturnType<typeof inspectMetadataRoleVersions>;
   },
 ) {
   const required = (name: string) => {
@@ -193,6 +199,12 @@ function validateOutput(
     sha(required("offline-targets.json")) !== descriptor.offline_targets_sha256
   )
     throw new Error("prepared renewal descriptor differs from fixed public input");
+  if (
+    descriptor.prior_expiration_policy !== expected.prior_expiration_policy ||
+    digest(descriptor.reserved_version_floors ?? null) !==
+      digest(expected.previous_reserved_versions ?? null)
+  )
+    throw new Error("prepared prior expiration policy differs from explicit request");
   const context = publicContext(required("context.json"));
   exact(
     context,
@@ -208,12 +220,14 @@ function validateOutput(
       "versions",
       ...Object.keys(initialRootProfileFields(expected.initial_root_profile)),
       ...Object.keys(topLevelTargetsProfileFields(expected.top_level_targets_profile)),
+      ...(expected.prior_expiration_policy ? ["prior_expiration_policy"] : []),
     ]
       .sort()
       .join(","),
   );
   if (
     context.schema_version !== "1" ||
+    context.prior_expiration_policy !== expected.prior_expiration_policy ||
     (expected.initial_root_profile === "single-owner-one-of-one-v1" &&
       context.initial_root_profile !== expected.initial_root_profile) ||
     (expected.top_level_targets_profile === "online-unchanged-authority-v1" &&
@@ -248,12 +262,14 @@ function validateOutput(
 }
 
 /** Uses only independently ratified fixed tool/root pins and public inputs.
- * Actual safe-expiry Tough authentication happens in that qualified executable;
+ * Actual profile-bound Tough authentication happens in that qualified executable;
  * JSON reports and hash equality alone grant no publisher or execution authority.
  */
 export async function prepareAuthenticatedMetadataRenewal(request: {
   initial_root_profile?: InitialRootProfile;
   top_level_targets_profile?: TopLevelTargetsProfile;
+  prior_expiration_policy?: "historical-online-expired-v1";
+  previous_reserved_versions?: ReturnType<typeof inspectMetadataRoleVersions>;
   verifier: string;
   verifier_sha256: string;
   trusted_root: string;
@@ -278,6 +294,23 @@ export async function prepareAuthenticatedMetadataRenewal(request: {
     selected.initial_root_profile !== "single-owner-one-of-one-v1"
   )
     throw new Error("online Targets requires explicit single-owner profile");
+  if (
+    selected.prior_expiration_policy !== undefined &&
+    (selected.prior_expiration_policy !== "historical-online-expired-v1" ||
+      selected.initial_root_profile !== "single-owner-one-of-one-v1" ||
+      selected.top_level_targets_profile !== "offline-pinned-v1")
+  )
+    throw new Error("historical prior requires explicit single-owner offline-pinned profile");
+  if (selected.previous_reserved_versions !== undefined) {
+    selected.previous_reserved_versions = inspectMetadataRoleVersions(
+      selected.previous_reserved_versions,
+    );
+    if (
+      selected.initial_root_profile !== "single-owner-one-of-one-v1" ||
+      selected.top_level_targets_profile !== "offline-pinned-v1"
+    )
+      throw new Error("native reserved floors require single-owner offline-pinned profile");
+  }
   const remaining = () => {
     const timeout =
       selected.deadline === undefined
@@ -324,6 +357,12 @@ export async function prepareAuthenticatedMetadataRenewal(request: {
     await writeFile(verifier, tool, { mode: 0o700, flag: "wx" });
     await writeFile(path.join(work, "trusted-root.json"), root, { mode: 0o600, flag: "wx" });
     await copy(path.join(work, "prior"), prior);
+    const reservedNumbers =
+      selected.previous_reserved_versions === undefined
+        ? undefined
+        : `{${Object.entries(selected.previous_reserved_versions)
+            .map(([role, value]) => `${JSON.stringify(role)}:${value}`)
+            .join(",")}}`;
     const config = path.join(work, "request.json");
     await writeFile(
       config,
@@ -331,11 +370,17 @@ export async function prepareAuthenticatedMetadataRenewal(request: {
         schema_version: 1,
         ...initialRootProfileFields(selected.initial_root_profile),
         ...topLevelTargetsProfileFields(selected.top_level_targets_profile),
+        ...(selected.prior_expiration_policy
+          ? { prior_expiration_policy: selected.prior_expiration_policy }
+          : {}),
         generated_at: selected.generated_at,
         trusted_root: "trusted-root.json",
         previous_repository: "prior",
         output: "prepared",
-      }),
+      }).replace(
+        /\}$/u,
+        reservedNumbers === undefined ? "}" : `,"previous_reserved_versions":${reservedNumbers}}`,
+      ),
       { mode: 0o600, flag: "wx" },
     );
     const result = await run(verifier, ["prepare-tuf-renewal", config], {
@@ -366,9 +411,15 @@ export async function prepareAuthenticatedMetadataRenewal(request: {
     const descriptor = validateOutput(files, {
       initial_root_profile: selected.initial_root_profile,
       top_level_targets_profile: selected.top_level_targets_profile,
+      ...(selected.prior_expiration_policy
+        ? { prior_expiration_policy: selected.prior_expiration_policy }
+        : {}),
       generated_at: selected.generated_at,
       root_sha256: selected.trusted_root_sha256,
       prior_sha256: selected.prior_repository_sha256,
+      ...(selected.previous_reserved_versions
+        ? { previous_reserved_versions: selected.previous_reserved_versions }
+        : {}),
     });
     const report: unknown = JSON.parse(result.stdout);
     exact(report, "authority,changed,context_sha256,descriptor_sha256,files,output,schema_version");
@@ -391,6 +442,12 @@ export async function prepareAuthenticatedMetadataRenewal(request: {
     const inputManifest = digest({
       ...initialRootProfileFields(selected.initial_root_profile),
       ...topLevelTargetsProfileFields(selected.top_level_targets_profile),
+      ...(selected.prior_expiration_policy
+        ? { prior_expiration_policy: selected.prior_expiration_policy }
+        : {}),
+      ...(selected.previous_reserved_versions
+        ? { previous_reserved_versions: selected.previous_reserved_versions }
+        : {}),
       generated_at: selected.generated_at,
       tool_sha256: selected.verifier_sha256,
       root_sha256: selected.trusted_root_sha256,

@@ -49,9 +49,48 @@ export async function publishPreparedCoordinatorCheckpoint(
     intent_sha256: string("intent_sha256"),
     version: string("version"),
   });
+  const observations: { kind: string; oid: string; mutation_error: unknown }[] = [];
+  try {
+    await publishPreparedGitObjects(prepared, api, observations, expected);
+    // Revalidate current local state and both immutable receipts before the
+    // existing transport performs its own remote preimage/atomic CAS/readback.
+    await exportCoordinatorCheckpoint(repository, expected);
+    const published = await publishCoordinatorCheckpoint(repository, expected, config, { api });
+    return {
+      checkpoint: expected,
+      prepared_commit: prepared.prepared_commit,
+      prepared_tree: prepared.prepared_tree,
+      objects: observations,
+      published,
+      authority: "none",
+    };
+  } catch (error) {
+    throw new CoordinatorRemoteError(
+      "prepared application custody stopped; retain exact local allocation and reconcile",
+      {
+        checkpoint: expected,
+        prepared_commit: prepared.prepared_commit,
+        prepared_tree: prepared.prepared_tree,
+        objects: observations,
+        cause:
+          error instanceof CoordinatorRemoteError ? error.evidence : sanitizeOperationError(error),
+        retry: "forbidden",
+        authority: "none",
+      },
+    );
+  }
+}
+
+/** Bounded inert Git-object transport shared by native Releases and the retained
+ * coordinator. It never creates a ref, release, journal, or execution grant. */
+async function publishPreparedGitObjects(
+  prepared: ReturnType<typeof exportPreparedReleaseVersion>,
+  api: Pick<CoordinatorRemoteApi, "request">,
+  observations: { kind: string; oid: string; mutation_error: unknown }[],
+  expected: string | null,
+) {
   const started = performance.now();
   let requests = 0;
-  const observations: { kind: string; oid: string; mutation_error: unknown }[] = [];
   const request = (
     method: "GET" | "POST",
     endpoint: string,
@@ -109,85 +148,92 @@ export async function publishPreparedCoordinatorCheckpoint(
     }
     observations.push({ kind, oid, mutation_error: mutationError });
   };
+  const identity = request("GET", "");
+  if (
+    identity.status !== 200 ||
+    !isRecord(identity.body) ||
+    identity.body.id !== 1354613114 ||
+    identity.body.full_name !== "boburning/portcove"
+  )
+    throw new Error("prepared transport repository identity differs");
+  const source = request("GET", `git/commits/${prepared.source_commit}`);
+  if (
+    source.status !== 200 ||
+    !isRecord(source.body) ||
+    source.body.sha !== prepared.source_commit ||
+    !isRecord(source.body.tree) ||
+    source.body.tree.sha !== prepared.source_tree
+  )
+    throw new Error("exact source commit/tree must already exist remotely");
+  const existing = request("GET", `git/commits/${prepared.prepared_commit}`);
+  if (existing.status === 200) inspectCommit(existing.body);
+  else {
+    if (existing.status !== 404) throw new Error("prepared commit availability unknown");
+    for (const blob of prepared.blobs)
+      post("blobs", { encoding: "base64", content: blob.contents }, blob.oid, (value) => {
+        if (
+          !isRecord(value) ||
+          value.sha !== blob.oid ||
+          value.encoding !== "base64" ||
+          typeof value.content !== "string" ||
+          value.content.replaceAll("\n", "") !== blob.contents
+        )
+          throw new Error("prepared blob readback differs");
+      });
+    post(
+      "trees",
+      {
+        base_tree: prepared.source_tree,
+        tree: prepared.blobs.map((blob) => ({
+          path: blob.path,
+          mode: "100644",
+          type: "blob",
+          sha: blob.oid,
+        })),
+      },
+      prepared.prepared_tree,
+      (value) => {
+        if (!isRecord(value) || value.sha !== prepared.prepared_tree)
+          throw new Error("prepared tree readback differs");
+      },
+    );
+    post("commits", prepared.commit, prepared.prepared_commit, inspectCommit);
+    const readback = request("GET", `git/commits/${prepared.prepared_commit}`);
+    if (readback.status !== 200) throw new Error("prepared commit fresh readback unavailable");
+    inspectCommit(readback.body);
+  }
+}
+
+/** The fixed native source job supplies its fresh authority checks. Export
+ * authenticates the existing mechanical transform from inert local objects; no
+ * checkout, hooks, allocator, ref mutation or coordinator initialization occurs. */
+export async function publishPreparedReleaseObjects(
+  repository: string,
+  candidate: Parameters<typeof exportPreparedReleaseVersion>[1],
+  options: { api: Pick<CoordinatorRemoteApi, "request">; beforeWrite: () => Promise<void> },
+) {
+  await options.beforeWrite();
+  const prepared = exportPreparedReleaseVersion(repository, candidate);
+  const observations: { kind: string; oid: string; mutation_error: unknown }[] = [];
   try {
-    const identity = request("GET", "");
-    if (
-      identity.status !== 200 ||
-      !isRecord(identity.body) ||
-      identity.body.id !== 1354613114 ||
-      identity.body.full_name !== "boburning/portcove"
-    )
-      throw new Error("prepared transport repository identity differs");
-    const source = request("GET", `git/commits/${prepared.source_commit}`);
-    if (
-      source.status !== 200 ||
-      !isRecord(source.body) ||
-      source.body.sha !== prepared.source_commit ||
-      !isRecord(source.body.tree) ||
-      source.body.tree.sha !== prepared.source_tree
-    )
-      throw new Error("exact source commit/tree must already exist remotely");
-    const existing = request("GET", `git/commits/${prepared.prepared_commit}`);
-    if (existing.status === 200) inspectCommit(existing.body);
-    else {
-      if (existing.status !== 404) throw new Error("prepared commit availability unknown");
-      for (const blob of prepared.blobs)
-        post("blobs", { encoding: "base64", content: blob.contents }, blob.oid, (value) => {
-          if (
-            !isRecord(value) ||
-            value.sha !== blob.oid ||
-            value.encoding !== "base64" ||
-            typeof value.content !== "string" ||
-            value.content.replaceAll("\n", "") !== blob.contents
-          )
-            throw new Error("prepared blob readback differs");
-        });
-      post(
-        "trees",
-        {
-          base_tree: prepared.source_tree,
-          tree: prepared.blobs.map((blob) => ({
-            path: blob.path,
-            mode: "100644",
-            type: "blob",
-            sha: blob.oid,
-          })),
-        },
-        prepared.prepared_tree,
-        (value) => {
-          if (!isRecord(value) || value.sha !== prepared.prepared_tree)
-            throw new Error("prepared tree readback differs");
-        },
-      );
-      post("commits", prepared.commit, prepared.prepared_commit, inspectCommit);
-      const readback = request("GET", `git/commits/${prepared.prepared_commit}`);
-      if (readback.status !== 200) throw new Error("prepared commit fresh readback unavailable");
-      inspectCommit(readback.body);
-    }
-    // Revalidate current local state and both immutable receipts before the
-    // existing transport performs its own remote preimage/atomic CAS/readback.
-    await exportCoordinatorCheckpoint(repository, expected);
-    const published = await publishCoordinatorCheckpoint(repository, expected, config, { api });
+    await publishPreparedGitObjects(prepared, options.api, observations, null);
     return {
-      checkpoint: expected,
       prepared_commit: prepared.prepared_commit,
       prepared_tree: prepared.prepared_tree,
       objects: observations,
-      published,
-      authority: "none",
+      authority: "none" as const,
     };
   } catch (error) {
     throw new CoordinatorRemoteError(
-      "prepared application custody stopped; retain exact local allocation and reconcile",
+      "prepared native release objects stopped; retain exact allocation and reconcile",
       {
-        checkpoint: expected,
         prepared_commit: prepared.prepared_commit,
         prepared_tree: prepared.prepared_tree,
         objects: observations,
-        cause:
-          error instanceof CoordinatorRemoteError ? error.evidence : sanitizeOperationError(error),
         retry: "forbidden",
         authority: "none",
+        cause:
+          error instanceof CoordinatorRemoteError ? error.evidence : sanitizeOperationError(error),
       },
     );
   }

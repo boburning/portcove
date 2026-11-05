@@ -1,0 +1,44 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "scottjco-wetrix-n64-usa-rev0-recomp",
+    "project_url": "https://github.com/scottjco/Wetrix_Recomp",
+    "name": "Wetrix (Wetrix Recompiled)",
+    "summary": "A Windows port of Wetrix. Set it up with your original US Nintendo 64 game file.",
+    "issue_number": 4262,
+    "original_game_title": "Wetrix",
+    "availability": "unknown",
+    "platforms": [],
+    "setup_url": "https://github.com/scottjco/Wetrix_Recomp/blob/6b496f8f9f695003b0f246128eac474aa6aa85da/README.md",
+    "manual_setup": {
+      "help_url": "https://github.com/scottjco/Wetrix_Recomp/blob/6b496f8f9f695003b0f246128eac474aa6aa85da/README.md",
+      "steps": [
+        {
+          "title": "Prepare your Windows copy",
+          "instruction": "Keep your complete permitted Windows x64 copy in a writable folder. Open Wetrix.exe and select your own 8 MiB, big-endian Wetrix USA revision 0 .z64 (SHA-256 790f36a3ddd64e4dcd08c479b0b66f9080d0191473e92fa895f53d15706167bb). The game verifies and imports it to Assets/data.z64."
+        }
+      ],
+      "warnings": [
+        "Keep the original and Controller Pak save before replacing the program. The project credits bundled HD artwork separately. Use only components you are permitted to use."
+      ],
+      "references": [
+        {
+          "title": "Setup instructions for the inspected release",
+          "instruction": "https://github.com/scottjco/Wetrix_Recomp/releases/tag/v0.1.1"
+        }
+      ]
+    },
+    "download_block_reason": "The upstream Windows archive bundles translated game code and derived HD artwork without documented permission from the game rights holders. You can add a complete copy you are permitted to use."
+  },
+  "route_facts_v1": {
+    "format_version": 1,
+    "prepared_player": {
+      "executable": "Wetrix.exe",
+      "working_directory": "executable-parent",
+      "arguments": [],
+      "data_locations": [
+        "Assets/data.z64, config/user/ and saves/controller1.mpk in the game folder"
+      ]
+    }
+  }
+}

@@ -8,8 +8,11 @@ import path from "node:path";
 import { crc32, inflateRawSync } from "node:zlib";
 import { performance } from "node:perf_hooks";
 import { inspectBoundedZip } from "./bounded-zip.mts";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
-import type { GitHubRestReader } from "./github-api.mts";
+import {
+  createReleaseCustodyProvider,
+  type SigningOutputMetadataProvider,
+} from "./release-custody-provider.mts";
+import type { RetainedGitHubSpawn } from "./github-cli.mts";
 import { readGitHubArtifactArchive } from "./github-binary.mts";
 import { verifyControllerArtifactStatement } from "./github-controller-attestation.mts";
 import { inspectCapacityExecutorIdentity } from "./release-capacity.mts";
@@ -137,11 +140,12 @@ function unpack(raw: Buffer, allowed: ReadonlySet<string>, maximum = 2 * 1024 * 
 
 /** Read-only public verification. Injected boundaries can never populate the
  * actual outer receiver's private map. No POST/retry/candidate execution. */
-const refreshReaders = new WeakMap<object, (phaseDeadline?: number) => void>();
+const refreshReaders = new WeakMap<object, (phaseDeadline?: number) => Promise<void>>();
 type RoleReaderOptions = {
-  api?: GitHubRestReader;
+  metadata?: SigningOutputMetadataProvider;
+  fetch?: typeof globalThis.fetch;
   download?: typeof readGitHubArtifactArchive;
-  spawn?: NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"];
+  spawn?: RetainedGitHubSpawn;
   archiveSpawn?: NonNullable<Parameters<typeof readGitHubArtifactArchive>[1]>["spawn"];
 };
 export async function readAttestedTufRoleArtifact(
@@ -184,8 +188,20 @@ async function readAttestedRoleArtifact<
   const wireRole = purpose === "catalog" ? catalogRoleName(expected.role) : expected.role,
     producerRole = `${purpose === "catalog" ? "catalog" : "tuf"}-${expected.role}`,
     predicateType = purpose === "catalog" ? catalogRolePredicateType : tufRolePredicateType,
-    injected = !!(options.api || options.download || options.spawn || options.archiveSpawn),
+    injected = !!(
+      options.metadata ||
+      options.fetch ||
+      options.download ||
+      options.spawn ||
+      options.archiveSpawn
+    ),
     selected = { ...options };
+  const injectedMetadata = selected.metadata;
+  const metadataOption = injectedMetadata && {
+    attempt: injectedMetadata.attempt.bind(injectedMetadata),
+    job: injectedMetadata.job.bind(injectedMetadata),
+    artifact: injectedMetadata.artifact.bind(injectedMetadata),
+  };
   const remaining = (max = 15000) => {
     const left = Math.floor(deadline - performance.now());
     if (!Number.isFinite(deadline) || left < 1 || left > 600000)
@@ -194,10 +210,11 @@ async function readAttestedRoleArtifact<
   };
   remaining();
   if (!path.isAbsolute(parent)) throw new Error("TUF role output parent must be absolute");
+  const credentialEnvironment = { ...process.env };
   const directory = await mkdtemp(path.join(parent, "tuf-role-custody-"));
   let phase = "provider-before";
   const environment = Object.fromEntries(
-    Object.entries(process.env).filter(([name]) =>
+    Object.entries(credentialEnvironment).filter(([name]) =>
       ["PATH", "Path", "SystemRoot", "WINDIR", "GH_TOKEN"].includes(name),
     ),
   );
@@ -209,26 +226,14 @@ async function readAttestedRoleArtifact<
     GH_HOST: "github.com",
     GH_PROMPT_DISABLED: "1",
   });
-  const api =
-    selected.api ??
-    new GitHubApiClient((args, input) =>
-      createGitHubRunner({
-        cwd: directory,
-        timeoutMs: remaining(),
-        maxBuffer: 128 * 1024,
-        spawn: (command, argv, settings) =>
-          (selected.spawn ?? spawnSync)(command, argv, { ...settings, env: environment }),
-      })([...args, "--hostname", "github.com"], input),
-    );
-  const get = (route: string) => {
+  const artifact = async (
+    metadata: SigningOutputMetadataProvider,
+    item: Artifact,
+    bundle: boolean,
+  ) => {
     remaining();
-    const result = api.request("GET", `${base}/${route}`);
+    const value = await metadata.artifact(item.id);
     remaining();
-    if (result.status !== 200) throw new Error("TUF role provider unavailable");
-    return result.body;
-  };
-  const artifact = (item: Artifact, bundle: boolean) => {
-    const value = get(`actions/artifacts/${item.id}`);
     const name = `trusted-${producerRole}-${bundle ? "attestation" : "output"}-${expected.controller.run_id}-1`;
     if (
       !isRecord(value) ||
@@ -267,9 +272,18 @@ async function readAttestedRoleArtifact<
     return bytes;
   };
   try {
+    const metadata =
+      metadataOption ??
+      (await createReleaseCustodyProvider({
+        token: environment.GH_TOKEN ?? "",
+        deadline,
+        currentDeadline: () => deadline,
+        maxBytes: 128 * 1024,
+        ...(selected.fetch ? { fetch: selected.fetch } : {}),
+      }));
     const before = {
-      artifact: artifact(expected.artifact, false),
-      bundle: artifact(expected.bundle, true),
+      artifact: await artifact(metadata, expected.artifact, false),
+      bundle: await artifact(metadata, expected.bundle, true),
     };
     await writeFile(path.join(directory, "provider-before.json"), JSON.stringify(before), {
       flag: "wx",
@@ -402,14 +416,16 @@ async function readAttestedRoleArtifact<
       {
         deadline,
         producerState: "completed",
-        ...(selected.api ? { api: selected.api } : {}),
+        ...(metadataOption ? { metadata: metadataOption } : {}),
+        ...(selected.fetch ? { fetch: selected.fetch } : {}),
         ...(selected.download ? { download: selected.download } : {}),
-        ...(selected.spawn ? { spawn: selected.spawn } : {}),
         ...(selected.archiveSpawn ? { archiveSpawn: selected.archiveSpawn } : {}),
       },
     );
-    const readJob = () => {
-      const job = get(`actions/jobs/${Number(producer.job_id)}`);
+    const readJob = async () => {
+      remaining();
+      const job = await metadata.job(Number(producer.job_id));
+      remaining();
       if (
         !isRecord(job) ||
         job.id !== producer.job_id ||
@@ -425,10 +441,10 @@ async function readAttestedRoleArtifact<
         throw new Error("TUF role fixed completed job role differs");
       return job;
     };
-    const job = readJob();
+    const job = await readJob();
     const after = {
-      artifact: artifact(expected.artifact, false),
-      bundle: artifact(expected.bundle, true),
+      artifact: await artifact(metadata, expected.artifact, false),
+      bundle: await artifact(metadata, expected.bundle, true),
     };
     if (digest(after) !== digest(before)) throw new Error("TUF role provider drifted");
     await writeFile(path.join(directory, "provider-after.json"), JSON.stringify(after), {
@@ -445,7 +461,7 @@ async function readAttestedRoleArtifact<
       evidence_scope: injected ? "injected-provider" : "github.com",
       authority: "none",
     });
-    refreshReaders.set(result, (phaseDeadline) => {
+    refreshReaders.set(result, async (phaseDeadline) => {
       if (phaseDeadline !== undefined) {
         if (!Number.isFinite(phaseDeadline) || phaseDeadline <= performance.now())
           throw new Error("TUF role receiver deadline exhausted");
@@ -453,10 +469,10 @@ async function readAttestedRoleArtifact<
       }
       remaining();
       const fresh = {
-        artifact: artifact(expected.artifact, false),
-        bundle: artifact(expected.bundle, true),
+        artifact: await artifact(metadata, expected.artifact, false),
+        bundle: await artifact(metadata, expected.bundle, true),
       };
-      if (digest(fresh) !== digest(before) || digest(readJob()) !== digest(job))
+      if (digest(fresh) !== digest(before) || digest(await readJob()) !== digest(job))
         throw new Error("TUF role provider custody changed before use");
     });
     return result;
@@ -482,10 +498,10 @@ const received = new WeakMap<
 >();
 /** Refreshes provider custody only. This cannot mint a received-role brand. A
  * tighter deadline permanently bounds this data session's live transports. */
-export function recheckTufRoleArtifactCustody(data: object, phaseDeadline?: number) {
+export async function recheckTufRoleArtifactCustody(data: object, phaseDeadline?: number) {
   const refresh = refreshReaders.get(data);
   if (!refresh) throw new Error("known TUF role custody session required");
-  refresh(phaseDeadline);
+  await refresh(phaseDeadline);
 }
 async function assertRoleProofInventory(directory: string, files: readonly { path: string }[]) {
   const rootNames = [
@@ -622,7 +638,7 @@ async function readReceivedTufRoleArtifact(
     if (bytes.length !== file.bytes || hash(bytes) !== file.sha256)
       throw new Error("TUF role retained proof changed");
   }
-  if (provider === "fresh") recheckTufRoleArtifactCustody(actual.data, actual.deadline);
+  if (provider === "fresh") await recheckTufRoleArtifactCustody(actual.data, actual.deadline);
   if (performance.now() >= actual.deadline) throw new Error("TUF role phase deadline exhausted");
   return Object.freeze({
     role: actual.data.expected.role,

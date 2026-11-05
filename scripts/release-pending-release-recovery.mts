@@ -6,7 +6,7 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 import { isRecord } from "./runtime-values.mts";
 import { inspectCapacityOperation, capacityDigest as digest } from "./release-capacity.mts";
-import type { GitHubRestReader } from "./github-api.mts";
+import type { ImmutableReleaseMetadataProvider } from "./release-custody-provider.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import { releaseControlPhaseProfile } from "./release-control-phases.mts";
 import { requireRetainedSigningContext } from "./release-signing-context-artifact.mts";
@@ -198,7 +198,7 @@ export function planPendingReleaseAssets(
 /** Pure/injected provider observations remain data. Missing/partial target
  * effects refuse; no 404 or current absence is converted into non-application. */
 export async function observePendingCandidateRelease(
-  api: GitHubRestReader,
+  metadata: ImmutableReleaseMetadataProvider,
   operation: Operation,
   expected: PendingReleaseAssets,
   readSbom: (id: number, maximum: number) => Promise<Buffer> | Buffer,
@@ -216,7 +216,7 @@ export async function observePendingCandidateRelease(
   assert.ok(intendedSbom && intendedSbom.sha256 === expected.sbom_sha256);
   assert.equal(intent.identity.assets.length, expected.assets.length + 1);
   const names = [...expected.assets.map((entry) => entry.filename), releaseSbomName];
-  const actual = readImmutableReleaseCustodyState(api, {
+  const actual = await readImmutableReleaseCustodyState(metadata, {
     version: expected.version,
     source_commit: expected.source_commit,
     asset_names: names,

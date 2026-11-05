@@ -21,6 +21,9 @@ const ALLOWED_DIRECT_COMMAND_FILES = new Set([
   "crates/portcove-cli/tests/machine_contract/self_service.rs",
   "crates/portcove-core/src/definition_publication_connected_tests.rs",
   "crates/portcove-diagnostics/src/writer_tests.rs",
+  // These integration tests invoke the Cargo-built release CLI as a separate process.
+  "crates/portcove-release-tools/tests/cli.rs",
+  "crates/portcove-release-tools/tests/verification.rs",
   // Temporary repository/compiled-client qualification, never production adapters.
   "crates/portcove-release-tools/tests/tuf_repository/isolated/renewal.rs",
   "crates/portcove-release-tools/tests/tuf_repository/isolated.rs",

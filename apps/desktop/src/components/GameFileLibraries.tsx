@@ -1,3 +1,4 @@
+import { countMessage } from "../localization";
 import { SettingsRow } from "./ui/patterns";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
@@ -20,7 +21,7 @@ import type {
   SourceProfile,
   SourceRecord,
 } from "../types";
-import { errorText, formatBytes, formatCountMessage, isCancellation } from "../view-model";
+import { errorText, formatBytes, isCancellation } from "../view-model";
 import { OperationCancellation } from "./OperationCancellation";
 import { PreliminarySourceSelections } from "./PreliminarySourceSelections";
 import {
@@ -343,38 +344,22 @@ function CompletedScan({
       </p>
       {coverage && (
         <p>
-          {formatCountMessage(coverage.batches, {
-            zero: "No scan batches were recorded.",
-            one: "These totals cover 1 scan batch.",
-            other: "These totals cover {count} scan batches.",
-            unknown: "The number of scan batches is unavailable.",
-          })}{" "}
+          {countMessage(coverage.batches, "scanBatches")}{" "}
           {coverage.restart_required
             ? "The saved scan cannot continue. Start a new scan to check the current folders."
             : coverage.frontier_exhausted
               ? "No more entries remain in this scan's folder list. Skipped files and search limits still apply."
               : coverage.remaining_entries === null
                 ? "The number of remaining entries is unknown."
-                : formatCountMessage(coverage.remaining_entries, {
-                    zero: "No remaining entries were reported.",
-                    one: "1 entry remains to be checked.",
-                    other: "{count} entries remain to be checked.",
-                    unknown: "The number of remaining entries is unknown.",
-                  })}{" "}
+                : countMessage(coverage.remaining_entries, "remainingEntries")}{" "}
           {canContinue &&
             "Continue the scan to check another bounded batch without moving your files."}
         </p>
       )}
       <p>
         Checked {report.entries_examined} entries in {report.searched_roots.length} available
-        folders.{" "}
-        {formatCountMessage(report.candidates.length, {
-          zero: "Found no exact matches.",
-          one: "Found 1 exact match.",
-          other: "Found {count} exact matches.",
-          unknown: "Exact match count is unavailable.",
-        })}{" "}
-        This scan does not assess every source format or establish gameplay support.
+        folders. {countMessage(report.candidates.length, "exactMatches")} This scan does not assess
+        every source format or establish gameplay support.
       </p>
       {roots?.some((root) => root.availability === "unavailable") && (
         <p>Unavailable saved folders were not searched.</p>
@@ -639,6 +624,7 @@ function useSavedFolderView(generation: number, setError: (error: string) => voi
       })
       .catch(() => {});
     return () => {
+      // oxlint-disable-next-line react/immutability -- oxc#28401: effect-local binding.
       observing = false;
       reads.begin();
     };

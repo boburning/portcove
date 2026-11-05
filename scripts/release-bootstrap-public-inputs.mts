@@ -3,7 +3,10 @@
  * capability or relabel the historical preimage as a fresh owner observation. */
 import { createHash } from "node:crypto";
 import { performance } from "node:perf_hooks";
-import type { GitHubRestReader } from "./github-api.mts";
+import type {
+  BootstrapSiteMetadataProvider,
+  CatalogAnchorMetadataProvider,
+} from "./release-custody-provider.mts";
 import {
   inspectPublicationAuthorities,
   inspectCatalogAuthorityConfiguration,
@@ -148,27 +151,26 @@ export function bootstrapPreimageCatalogPins(bytes: Buffer, generatedAt: string)
   inspectHistoricalBootstrapPreimage(bytes, generatedAt);
   return null;
 }
+async function readConfiguredProvider(provider: BootstrapSiteMetadataProvider, deadline: number) {
+  check(deadline);
+  const repository = await provider.repository(deadline);
+  check(deadline);
+  const pages = await provider.pages(deadline);
+  check(deadline);
+  return inspectConfiguredBootstrapProvider(repository, pages);
+}
+
 /** Fresh complete fixed-origin bytes and provider bracket from an actual retained
  * catalog receipt. This does not appoint Root, infer historical absence or mint admission. */
 export async function readConfiguredCatalogOnlyBootstrapSite(
-  api: GitHubRestReader,
+  provider: BootstrapSiteMetadataProvider,
   rawPins: unknown,
   receipt: object,
   deadline: number,
 ) {
   check(deadline);
   const pins = inspectBootstrapCatalogPins(rawPins);
-  const provider = () => {
-    const get = (endpoint: string) => {
-      check(deadline);
-      const response = api.request("GET", endpoint);
-      check(deadline);
-      if (response.status !== 200) throw new Error("catalog-only bootstrap provider unavailable");
-      return response.body;
-    };
-    return inspectConfiguredBootstrapProvider(get(base), get(`${base}/pages`));
-  };
-  const before = provider();
+  const before = await readConfiguredProvider(provider, deadline);
   const site = await requirePublishedCatalogCompleteSite(receipt);
   if (
     site.generation.application_root_sha256 !== null ||
@@ -188,7 +190,7 @@ export async function readConfiguredCatalogOnlyBootstrapSite(
     throw new Error("catalog prior leaves insufficient bounded complete-site bootstrap headroom");
   const publicReadback = await readPublicApplicationSite(site.generation, deadline);
   await requirePublishedCatalogCompleteSite(receipt);
-  const after = provider();
+  const after = await readConfiguredProvider(provider, deadline);
   check(deadline);
   if (digest(before) !== digest(after))
     throw new Error("catalog-only provider changed during public readback");
@@ -197,8 +199,8 @@ export async function readConfiguredCatalogOnlyBootstrapSite(
 
 /** The complete bounded tree and raw objects authenticate the configured commit
  * paths. A JSON hash alone is never substituted for that path/commit custody. */
-export function readBootstrapPublicSource(
-  api: GitHubRestReader,
+export async function readBootstrapPublicSource(
+  provider: CatalogAnchorMetadataProvider,
   rawPublication: unknown,
   generatedAt: string,
   deadline: number,
@@ -207,8 +209,8 @@ export function readBootstrapPublicSource(
   const pins = publication.public_source;
   if (!pins.initial_site_preimage)
     throw new Error("explicit schema2 historical setup locator required");
-  const result = readPinnedBootstrapSource(
-    api,
+  const result = await readPinnedBootstrapSource(
+    provider,
     pins.commit,
     {
       root: pins.root,
@@ -225,8 +227,8 @@ export function readBootstrapPublicSource(
 
 /** Catalog bootstrap has its own explicit setup pin and never requires an
  * application Root, payload registry or application authority appointment. */
-export function readCatalogBootstrapPublicSource(
-  api: GitHubRestReader,
+export async function readCatalogBootstrapPublicSource(
+  provider: CatalogAnchorMetadataProvider,
   rawAuthorities: unknown,
   generatedAt: string,
   deadline: number,
@@ -244,8 +246,8 @@ export function readCatalogBootstrapPublicSource(
     throw new Error("explicit catalog historical whole-site preimage locator required");
   return {
     authorities,
-    ...readPinnedBootstrapSource(
-      api,
+    ...(await readPinnedBootstrapSource(
+      provider,
       pins.commit,
       {
         root: pins.root,
@@ -254,12 +256,12 @@ export function readCatalogBootstrapPublicSource(
       },
       generatedAt,
       deadline,
-    ),
+    )),
   };
 }
 
-function readPinnedBootstrapSource(
-  api: GitHubRestReader,
+async function readPinnedBootstrapSource(
+  provider: CatalogAnchorMetadataProvider,
   sourceCommit: string,
   pins: Record<string, { path: string; bytes: number; sha256: string }>,
   generatedAt: string,
@@ -267,30 +269,26 @@ function readPinnedBootstrapSource(
   allowCatalogOnly = false,
 ) {
   let reads = 0;
-  const get = (endpoint: string) => {
+  const get = async (read: () => Promise<unknown>) => {
     check(deadline);
     if (++reads > Object.keys(pins).length + 2)
       throw new Error("bootstrap public source read bound exhausted");
-    const response = api.request("GET", endpoint);
+    const body = await read();
     check(deadline);
-    if (response.status !== 200) throw new Error("bootstrap public source unavailable");
-    return response.body;
+    return body;
   };
   const commit = inspectRemoteCommitObject(
-    get(`${base}/git/commits/${sourceCommit}`),
+    await get(() => provider.commit(sourceCommit)),
     sourceCommit,
   );
-  const tree = inspectReleaseSourceTree(
-    get(`${base}/git/trees/${commit.tree}?recursive=1`),
-    commit.tree,
-  );
+  const tree = inspectReleaseSourceTree(await get(() => provider.tree(commit.tree)), commit.tree);
   const files = new Map<string, Buffer>();
   for (const name of Object.keys(pins)) {
     const pin = pins[name]!;
     const entry = tree.entries.get(pin.path);
     if (!entry || entry.type !== "blob" || entry.mode !== "100644" || pin.bytes > 128 * 1024)
       throw new Error("bootstrap public input is not a supported bounded regular Git blob");
-    const body = get(`${base}/git/blobs/${entry.oid}`);
+    const body = await get(() => provider.blob(entry.oid));
     if (
       !isRecord(body) ||
       body.sha !== entry.oid ||
@@ -330,7 +328,7 @@ function readPinnedBootstrapSource(
  * This is retained input evidence only, never a publication capability. Call
  * again immediately before the sole Pages effect; absence is not reusable. */
 export async function readConfiguredCatalogBootstrapSite(
-  api: GitHubRestReader,
+  provider: BootstrapSiteMetadataProvider & CatalogAnchorMetadataProvider,
   generatedAt: string,
   phaseDeadline: number,
 ) {
@@ -343,8 +341,13 @@ export async function readConfiguredCatalogBootstrapSite(
   const configuration = Object.fromEntries(
     Object.entries(authorities.configuration).filter(([key]) => key !== "configuration_sha256"),
   );
-  const source = readCatalogBootstrapPublicSource(api, configuration, generatedAt, phaseDeadline);
-  const current = await readConfiguredBootstrapSite(api, phaseDeadline);
+  const source = await readCatalogBootstrapPublicSource(
+    provider,
+    configuration,
+    generatedAt,
+    phaseDeadline,
+  );
+  const current = await readConfiguredBootstrapSite(provider, phaseDeadline);
   check(phaseDeadline);
   return {
     configuration_sha256,
@@ -390,24 +393,13 @@ export function inspectConfiguredBootstrapProvider(repo: unknown, pages: unknown
 /** Fresh configured project state only. This intentionally does not query the
  * owner account or claim a new user-site absence observation. */
 export async function readConfiguredBootstrapSite(
-  api: GitHubRestReader,
+  provider: BootstrapSiteMetadataProvider,
   phaseDeadline: number,
   options: { fetch?: typeof fetch } = {},
 ) {
   const deadline = Math.min(phaseDeadline, performance.now() + 30000);
   check(deadline);
-  const provider = () => {
-    const get = (endpoint: string) => {
-      check(deadline);
-      const response = api.request("GET", endpoint);
-      check(deadline);
-      if (response.status !== 200)
-        throw new Error("configured bootstrap Pages provider unavailable");
-      return response.body;
-    };
-    return inspectConfiguredBootstrapProvider(get(base), get(`${base}/pages`));
-  };
-  const before = provider();
+  const before = await readConfiguredProvider(provider, deadline);
   const observations: unknown[] = [];
   for (const route of routes) {
     check(deadline);
@@ -427,7 +419,7 @@ export async function readConfiguredBootstrapSite(
       throw new Error("configured bootstrap public route is present, redirected or unavailable");
     observations.push({ url, status: response.status });
   }
-  const after = provider();
+  const after = await readConfiguredProvider(provider, deadline);
   if (digest(before) !== digest(after))
     throw new Error("configured bootstrap provider changed during public bracket");
   return {

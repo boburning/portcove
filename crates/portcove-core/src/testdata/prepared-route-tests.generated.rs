@@ -3,8 +3,12 @@
 const DECLARED_PREPARED_ROUTE_TEST_IDS: &[&str] = &[
     "mother-3-mother-3-recomp",
     "mstan-tetrisgbrecomp",
+    "n64hub-rayman-2-recomp-n64-usa",
     "n64hub-super-mario-64-recomp",
+    "n64hub-super-smash-bros-n64-usa-recomp",
     "nhl-94-genesis-ninety-four",
+    "retropulse03-winback-n64recomp",
+    "scottjco-wetrix-n64-usa-rev0-recomp",
 ];
 
 #[test]
@@ -18,11 +22,31 @@ fn prepared_guide_adoption_declared_mstan_tetrisgbrecomp() {
 }
 
 #[test]
+fn prepared_guide_adoption_declared_n64hub_rayman_2_recomp_n64_usa() {
+    assert_declarative_prepared_player_route("n64hub-rayman-2-recomp-n64-usa");
+}
+
+#[test]
 fn prepared_guide_adoption_declared_n64hub_super_mario_64_recomp() {
     assert_declarative_prepared_player_route("n64hub-super-mario-64-recomp");
 }
 
 #[test]
+fn prepared_guide_adoption_declared_n64hub_super_smash_bros_n64_usa_recomp() {
+    assert_declarative_prepared_player_route("n64hub-super-smash-bros-n64-usa-recomp");
+}
+
+#[test]
 fn prepared_guide_adoption_declared_nhl_94_genesis_ninety_four() {
     assert_declarative_prepared_player_route("nhl-94-genesis-ninety-four");
+}
+
+#[test]
+fn prepared_guide_adoption_declared_retropulse03_winback_n64recomp() {
+    assert_declarative_prepared_player_route("retropulse03-winback-n64recomp");
+}
+
+#[test]
+fn prepared_guide_adoption_declared_scottjco_wetrix_n64_usa_rev0_recomp() {
+    assert_declarative_prepared_player_route("scottjco-wetrix-n64-usa-rev0-recomp");
 }

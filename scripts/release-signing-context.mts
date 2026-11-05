@@ -137,6 +137,8 @@ export function releaseSigningContextBytes(
     profile !== "single-owner-one-of-one-v1"
   )
     throw new Error("online Targets requires explicit single-owner profile");
+  if (descriptor.schema_version === 3 && profile !== "single-owner-one-of-one-v1")
+    throw new Error("historical prior requires explicit single-owner profile");
   const versions = Object.fromEntries(
     roles.map((role) => {
       const version = descriptor.next_versions[role];
@@ -149,6 +151,9 @@ export function releaseSigningContextBytes(
     schema_version: 1,
     ...initialRootProfileFields(profile),
     ...topLevelTargetsProfileFields(targetsProfile),
+    ...(descriptor.schema_version === 3
+      ? { prior_expiration_policy: descriptor.prior_expiration_policy }
+      : {}),
     generated_at: descriptor.generated_at,
     trusted_root: "trusted-root.json",
     offline_targets: "offline-targets.json",

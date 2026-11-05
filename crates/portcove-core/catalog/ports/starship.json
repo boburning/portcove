@@ -23,7 +23,7 @@
       "steps": [
         {
           "title": "Download from the official Starship project",
-          "instruction": "Use HarbourMasters/Starship on GitHub, open its v2.0.0 release and download Starship-Barnard-Alfa-Windows.zip. Extract every file into a new folder outside your Portcove library. Keep existing originals, installations and saves in place. This upstream download is an alternative when automatic managed acquisition is held."
+          "instruction": "Use HarbourMasters/Starship on GitHub, open its v2.0.0 release and download Starship-Barnard-Alfa-Windows.zip. Extract every file into a new folder outside your Portcove library. Keep existing originals, installations and saves in place."
         },
         {
           "title": "Prepare the supported Star Fox 64 original",
@@ -36,17 +36,23 @@
         {
           "title": "Select the prepared game in Portcove",
           "instruction": "Open this game’s Files tab, expand Use an existing installation · Installation options, then choose Use an existing installation. Choose game executable and select Starship.exe from the prepared folder. Set Start in folder to that folder and leave launch arguments empty. Review launch details and confirm the registration, then choose Play. Selecting this executable records your intent to run it; it does not authenticate it as an official publisher package."
-        },
-        {
-          "title": "Manage updates and protect the prepared copy",
-          "instruction": "You and upstream own updates for this external copy. Close the game and helpers, preserve the whole working folder including sf64.o2r, mods, saves, starship.cfg.json and any legacy config.json, then prepare an update separately before changing launch details. Portcove offers launch and registration removal; it does not offer managed updates, backups, rollback, migration or deletion for these external files. Removing the registration preserves them. Any existing managed installation retains its own management and integrity checks."
         }
       ],
       "warnings": [
-        "The selected v2.0.0 Windows package has no published SHA-256 in the inspected release metadata. Automatic managed acquisition keeps its integrity hold. A user-selected executable is not publisher authentication; a locally computed hash does not supply it.",
+        "Portcove cannot automatically install the v2.0.0 Windows package because the expected download check is missing. Choosing Starship.exe yourself does not confirm who published it.",
         "If the game crashes with DirectX 11, upstream documents switching to OpenGL through Settings or starship.cfg.json, then restarting. Preserve the configuration before editing it. This guide covers Windows; it does not qualify other platforms."
       ],
-      "help_url": "https://github.com/HarbourMasters/Starship/blob/cb19785b51698185a688e17ba1a34c7889195bdb/README.md"
+      "help_url": "https://github.com/HarbourMasters/Starship/blob/cb19785b51698185a688e17ba1a34c7889195bdb/README.md",
+      "references": [
+        {
+          "title": "Download check",
+          "instruction": "The inspected v2.0.0 release metadata did not publish a SHA-256 for Starship-Barnard-Alfa-Windows.zip. A locally calculated hash identifies the file but does not confirm who published it."
+        },
+        {
+          "title": "Updates and backups",
+          "instruction": "Use the project’s tools to update this copy. Close the game and helpers, preserve the whole working folder including sf64.o2r, mods, saves, starship.cfg.json and any legacy config.json, then prepare an update separately before changing launch details. Portcove offers launch and registration removal; it does not offer managed updates, backups, rollback, migration or deletion for these external files. Removing the registration preserves them. Any existing managed installation retains its own management and integrity checks."
+        }
+      ]
     }
   },
   "integration": {

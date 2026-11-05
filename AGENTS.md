@@ -99,6 +99,12 @@ fixture synchronization and outer command/supervisor/CI limits. Follow
 distinguish harness waits from product deadlines, preserve failures/assertions
 and cleanup, validate the change and continue the original task.
 
+## Player copy
+
+Follow [Content design](docs/CONTENT-DESIGN.md) when changing player-facing
+text or its producers. Check the underlying state first, then write the player
+explanation and keep supporting evidence in the existing details or references.
+
 ## Frontend workflow
 
 Use the repository-pinned Vite+ CLI through the package scripts or `pnpm exec vp`.

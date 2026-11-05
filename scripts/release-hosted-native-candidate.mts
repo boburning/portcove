@@ -1,3 +1,6 @@
+import { collectReleaseRunEvidence } from "./release-run-evidence.mts";
+import type { ReleaseEvidenceOptions } from "./release-run-evidence.mts";
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import { applicationPublicBuildInputs } from "./release-authority-configuration.mts";
 import { nativePlatformsForReleaseProfile } from "./release-package-policy.mts";
 import { applicationReleaseProfile } from "./release-authority-configuration.mts";
@@ -146,7 +149,62 @@ async function hostedNativeSourceTransport(parentReceipt: object, directory: str
     remaining(1);
     return current;
   });
-  return { parent, deadline, remaining, api, download, downloadAsset, recover };
+  const collectEvidence = (request: unknown, options: ReleaseEvidenceOptions = {}) => {
+    remaining(1);
+    return collectReleaseRunEvidence(request, {
+      ...options,
+      credential: { kind: "explicit", token: childEnvironment.GH_TOKEN ?? "" },
+      async reserve(request) {
+        remaining(1);
+        const outer = await options.reserve?.(request);
+        return {
+          consumeBytes(bytes) {
+            outer?.consumeBytes(bytes);
+          },
+          settle(observation) {
+            outer?.settle(observation);
+            remaining(1);
+          },
+        };
+      },
+      deadline: Math.min(options.deadline ?? Infinity, deadline),
+    });
+  };
+  const declarationProvider = async () => {
+    const scoped = (maxBytes: number) =>
+      createReleaseCustodyProvider({
+        token: childEnvironment.GH_TOKEN ?? "",
+        deadline,
+        maxBytes,
+        currentDeadline: () => performance.now() + remaining(15000),
+      });
+    const contents = await scoped(2 * 1024 ** 2);
+    let blobs: ReturnType<typeof scoped> | undefined;
+    return {
+      async file(pathname: string, revision: string) {
+        const body = await contents.file(pathname, revision);
+        remaining(1);
+        return body;
+      },
+      async blob(sha: string) {
+        blobs ??= scoped(8 * 1024 ** 2);
+        const body = await (await blobs).blob(sha);
+        remaining(1);
+        return body;
+      },
+    };
+  };
+  return {
+    parent,
+    deadline,
+    remaining,
+    api,
+    collectEvidence,
+    download,
+    downloadAsset,
+    recover,
+    declarationProvider,
+  };
 }
 
 export async function acquireActualHostedNativeCandidate(parentReceipt: object) {
@@ -164,10 +222,8 @@ export async function acquireActualHostedNativeCandidate(parentReceipt: object) 
   try {
     return await withCoordinatorDeadline(Math.min(acquisitionDeadline, parent.deadline), () =>
       withReadOnlyReleaseChildren(directory, async () => {
-        const { remaining, api, download, recover } = await hostedNativeSourceTransport(
-          parentReceipt,
-          directory,
-        );
+        const { remaining, api, collectEvidence, download, recover, declarationProvider } =
+          await hostedNativeSourceTransport(parentReceipt, directory);
         const before = await recover();
         if (inspectHostedNativePreparationStage(before.input) !== "payload-signing")
           throw new Error("original reservation is not at the native pre-sign stage");
@@ -189,6 +245,7 @@ export async function acquireActualHostedNativeCandidate(parentReceipt: object) 
             },
             {
               api,
+              collectEvidence,
               download,
               recover,
               retainDesktopPackage: async (identity, bytes) => {
@@ -271,11 +328,11 @@ export async function acquireActualHostedNativeCandidate(parentReceipt: object) 
           readDeclarations: bindReadOnlyReleaseChildren(async () => {
             await requireActualHostedNativeParentSource(parentReceipt);
             remaining(1);
-            const declaration = await retainNativeSourceDeclarations(directory, (pathname) =>
-              api.request(
-                "GET",
-                `repos/boburning/portcove/contents/${pathname}?ref=${selection.identity.candidate.source_commit}`,
-              ),
+            const provider = await declarationProvider();
+            const declaration = await retainNativeSourceDeclarations(
+              directory,
+              (pathname) => provider.file(pathname, selection.identity.candidate.source_commit),
+              (sha) => provider.blob(sha),
             );
             await requireActualHostedNativeParentSource(parentReceipt);
             remaining(1);
@@ -1139,13 +1196,12 @@ export async function readActualHostedNativePostSignSourceDeclarations(packageRe
   const original = postSignSources.get(inputs.source_receipt);
   if (!original) throw new Error("original post-sign source reader absent");
   return await withReadOnlyReleaseChildren(selected.directory, async () => {
-    const declaration = await retainNativeSourceDeclarations(selected.directory, (pathname) => {
-      original.source.remaining(1);
-      return original.source.api.request(
-        "GET",
-        `repos/boburning/portcove/contents/${pathname}?ref=${selected.candidate.source_commit}`,
-      );
-    });
+    const provider = await original.source.declarationProvider();
+    const declaration = await retainNativeSourceDeclarations(
+      selected.directory,
+      (pathname) => provider.file(pathname, selected.candidate.source_commit),
+      (sha) => provider.blob(sha),
+    );
     await requireActualHostedNativePostSignPackage(packageReceipt);
     return Object.freeze({
       declaration,

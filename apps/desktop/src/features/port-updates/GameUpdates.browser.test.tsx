@@ -241,7 +241,7 @@ it("reviews without execution and submits the exact download-only plan on confir
   expect(apply).not.toHaveBeenCalled();
   expect(desktopApi.planGameUpdateAcquisition).toHaveBeenCalledExactlyOnceWith("sample", 9);
   expect(dialog()?.textContent).toContain("to download");
-  expect(dialog()?.textContent).toContain("Download only the immutable archive");
+  expect(dialog()?.textContent).toContain("Download this update for later");
   expect(dialog()?.textContent).not.toContain(plan.plan.output_location.user_data_root);
   await expect
     .poll(() => document.activeElement)
@@ -345,11 +345,11 @@ it("reviews an immediate update in place and obtains new consent before keeping 
   await click("Update now");
   expect(review).toHaveBeenNthCalledWith(1, "sample", true, 9);
   expect(dialog()?.textContent).toContain("Original Game · Sample Project update");
-  expect(dialog()?.textContent).toContain("current version remains available for rollback");
+  expect(dialog()?.textContent).toContain("Portcove keeps the previous version");
   expect(apply).not.toHaveBeenCalled();
   await click("Download for later");
   expect(archiveReview).toHaveBeenCalledExactlyOnceWith("sample", 9);
-  expect(dialog()?.textContent).toContain("Download only the immutable archive");
+  expect(dialog()?.textContent).toContain("Download this update for later");
   await click("Download archive for later");
   expect(acquire).toHaveBeenCalledExactlyOnceWith(
     "sample",
@@ -400,8 +400,8 @@ it("does not submit duplicate reviews or apply a stale plan after a failed chang
   await click("Download for later");
   expect(dialog()?.textContent).toContain("Checking update…");
   expect(dialog()?.textContent).not.toContain("Updating…");
-  expect(dialog()?.textContent).toContain("current version remains available for rollback");
-  expect(dialog()?.textContent).not.toContain("Download only the immutable archive");
+  expect(dialog()?.textContent).toContain("Portcove keeps the previous version");
+  expect(dialog()?.textContent).not.toContain("Download this update for later");
   expect(apply).not.toHaveBeenCalled();
   expect(archiveReview).toHaveBeenCalledExactlyOnceWith("sample", 9);
   const confirmation = [...document.querySelectorAll<HTMLButtonElement>("button")].find(
@@ -572,12 +572,12 @@ it("requires another review when the chosen action changes and binds activation 
   expect(apply).not.toHaveBeenCalled();
   await click("Download for later");
   expect(dialog()?.textContent).toContain("2.0");
-  expect(dialog()?.textContent).toContain("active version stay unchanged");
+  expect(dialog()?.textContent).toContain("installed version and saves stay as they are");
   await click("Update now");
   expect(archiveReview).toHaveBeenCalledExactlyOnceWith("sample", 9);
   expect(review).toHaveBeenCalledExactlyOnceWith("sample", true, 9);
   expect(apply).not.toHaveBeenCalled();
-  expect(dialog()?.textContent).toContain("current version remains available for rollback");
+  expect(dialog()?.textContent).toContain("Portcove keeps the previous version");
   await click("Download and install update");
   expect(apply).toHaveBeenCalledExactlyOnceWith(
     "sample",
@@ -792,7 +792,7 @@ it.each(["use_staged", "reuse_retained"] as const)(
     await click("Update now");
     expect(apply).not.toHaveBeenCalled();
     expect(dialog()?.textContent).toContain("No download; use the verified local release.");
-    expect(dialog()?.textContent).toContain("This keeps the prepared update for later.");
+    expect(dialog()?.textContent).toContain("Set up the update for later");
     await click("Keep saved update for later");
     expect(apply).toHaveBeenCalledExactlyOnceWith(
       "sample",
@@ -1082,7 +1082,7 @@ it("shows the reviewed data location and compatibility unknown for a saved updat
     />,
   );
   await click("Update now");
-  expect(dialog()?.textContent).toContain("Current version: 1.0");
+  expect(dialog()?.textContent).toContain("Version you’re using: 1.0");
   expect(dialog()?.textContent).toContain(plan.plan.output_location.user_data_root);
   expect(dialog()?.textContent).toContain(
     "Save compatibility between versions is not checked here",
@@ -1098,7 +1098,7 @@ it("shows the reviewed data location and compatibility unknown for a saved updat
     ["sample", true, 9],
     ["sample", false, 9],
   ]);
-  expect(dialog()?.textContent).toContain("Your current version stays unchanged");
+  expect(dialog()?.textContent).toContain("keep using your current version");
   expect(dialog()?.textContent).toContain("Keep saved update for later");
   expect(dialog()?.textContent).toContain(notice);
   expect(apply).not.toHaveBeenCalled();
@@ -1270,7 +1270,7 @@ it.each([false, true])(
       await page.getByRole("button", { name: "Prepare for later", exact: true }).click();
     } else await click("Update now");
     expect(review).toHaveBeenCalledExactlyOnceWith("sample", activate, 9);
-    expect(dialog()?.textContent).toContain("No new archive download is planned");
+    expect(dialog()?.textContent).toContain("Portcove will check and reuse the downloaded update.");
     expect(dialog()?.textContent).toContain(acquisition.id);
     expect(acquire).not.toHaveBeenCalled();
     expect(archiveReview).not.toHaveBeenCalled();
@@ -1314,20 +1314,27 @@ it.each(["acquired", "attention_required"] as const)(
     await captureParityState(`game-update-archive-discard-${phase}-review-fixture`);
     await show(next);
     await expect
-      .element(page.getByRole("button", { name: "Discard archive", exact: true }))
+      .element(page.getByRole("button", { name: "Delete download", exact: true }))
       .toBeDisabled();
-    await click("Discard archive");
+    await expect
+      .element(
+        page.getByText(
+          "The download changed. Close this dialog and review the current download before deleting it.",
+        ),
+      )
+      .toBeVisible();
+    await click("Delete download");
     expect(discard).not.toHaveBeenCalled();
     await captureParityState(`game-update-archive-discard-${phase}-stale-fixture`);
-    await click("Keep archive");
+    await click("Keep download");
     await click("Delete downloaded update…");
     expect(document.querySelector("[data-game-update-discard-review]")?.textContent).toContain(
       next.id,
     );
-    await click("Discard archive");
+    await click("Delete download");
     expect(discard).toHaveBeenCalledExactlyOnceWith("sample", next.id, 9);
     expect(apply).not.toHaveBeenCalled();
-    expect(container.querySelector('[aria-label="Retained update archive"]')).toBeNull();
+    expect(container.querySelector('[aria-label="Downloaded update"]')).toBeNull();
     expect(container.textContent).toContain(
       "Downloaded update deleted. Installed versions and saved data are unchanged.",
     );
@@ -1367,8 +1374,8 @@ it("distinguishes acquired archives from prepared updates in Activity and keeps 
     container.querySelector(".update-state")?.textContent ??
       container.querySelector(".update-row")?.textContent,
   ).toContain("Update downloaded, not installed");
-  expect(container.querySelector('[aria-label="Retained update archive"]')?.textContent).toContain(
-    "separate from a prepared update",
+  expect(container.querySelector('[aria-label="Downloaded update"]')?.textContent).toContain(
+    "Prepare or install the update separately",
   );
   expect(container.textContent).not.toContain("Update saved for later");
   const prepared = [...container.querySelectorAll(".update-stat")].find((stat) =>
@@ -1378,7 +1385,7 @@ it("distinguishes acquired archives from prepared updates in Activity and keeps 
   const header = container.querySelector<HTMLElement>(".update-entry > .update-row")!;
   const actions = container.querySelector<HTMLElement>('.update-entry > [role="group"]')!;
   const title = header.querySelector<HTMLElement>(".update-title")!;
-  const archive = actions.querySelector<HTMLElement>('[aria-label="Retained update archive"]')!;
+  const archive = actions.querySelector<HTMLElement>('[aria-label="Downloaded update"]')!;
   expect(actions.getBoundingClientRect().top).toBeGreaterThanOrEqual(
     header.getBoundingClientRect().bottom,
   );
@@ -1473,7 +1480,7 @@ it("keeps acquisition completion as a receipt until a fresh status replaces it",
   expect(container.textContent).toContain(
     "The operation finished, but library status could not be refreshed",
   );
-  expect(container.querySelector('[aria-label="Retained update archive"]')).toBeNull();
+  expect(container.querySelector('[aria-label="Downloaded update"]')).toBeNull();
   await captureParityState("game-update-acquisition-receipt-stale-status-fixture");
   expect(
     [...container.querySelectorAll("button")].some(
@@ -1740,7 +1747,7 @@ it.each([
       return result;
     };
     await show();
-    const archives = page.getByRole("region", { name: "Retained update archives", exact: true });
+    const archives = page.getByRole("region", { name: "Downloaded updates", exact: true });
     await expect.element(archives).toBeVisible();
     await expect
       .element(
@@ -1769,7 +1776,7 @@ it.each([
     await captureParityState(
       `game-update-removed-runtime-discard-${phase}-${hasMetadata ? "metadata" : "no-metadata"}-fixture`,
     );
-    await confirmation.getByRole("button", { name: "Discard archive", exact: true }).click();
+    await confirmation.getByRole("button", { name: "Delete download", exact: true }).click();
     expect(discard).toHaveBeenCalledExactlyOnceWith(retainedId, archive.id, 9);
     await expect.element(archives).not.toBeInTheDocument();
     expect(snapshot.acquisition).toBeNull();

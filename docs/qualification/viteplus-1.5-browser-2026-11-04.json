@@ -1,0 +1,720 @@
+{
+  "recorded_on": "2026-11-04 America/New_York",
+  "baseline_commit": "84844da3b55a7464a22e2ab363a2e9c57675e06a",
+  "baseline_configuration_sha256": {
+    "scripts/frontend-tests.ts": "b4867c6bc79fca92e7584978d8aca82415d73128aacc2eae2d0160c40fb33b35",
+    "scripts/run-ui-tests.mts": "9ba738e2be473a2f3151c76d774964f1078e9c35a15905a60b8a23f6e2689e78",
+    "scripts/frontend-case-observations.ts": "cbc2d5c2ccf91c51d89f747b939c6068526efb2724d8211de81e027b3dda8c16",
+    "vite.config.ts": "de6d9ab726bb17062072097688b817bad093883960f58d871ba6a50755f871de",
+    "apps/desktop/vite.config.ts": "c7ec82d2eb08f78b12e34d1686e09904b7bf13a5f04b670773fcfccacc1e7668"
+  },
+  "conditions": {
+    "platform": "WSL Linux x64; shared Windows host",
+    "node": "26.13.0",
+    "pnpm": "12.16.1",
+    "playwright": "1.64.1",
+    "chromium": "156.0.8078.4",
+    "browser_workers": 4,
+    "cold": "Fresh optimizer caches; operating-system caches not flushed",
+    "warm": "Three separate subsequent processes reusing optimizer caches",
+    "resource_queue": "Excluded from recorded wall and runner phases",
+    "selection": "Four literal browser files reconciled against execution; 105 cases every run",
+    "configuration": "1.4 baseline used unchanged baseline source. Both 1.5 modes used the same candidate and differed only by import-map selection. Later changes default that option off and add local lint exceptions."
+  },
+  "command": "node scripts/run-ui-tests.mts exact src/components/CatalogDownload.browser.test.tsx src/features/workspace/workspace-refresh.browser.test.tsx src/browser/locale-input.browser.test.tsx src/browser/forced-colors.browser.test.tsx",
+  "reports": {
+    "baseline": {
+      "variant": "baseline",
+      "versions": {
+        "vite-plus": "1.4.0",
+        "vitest": "5.0.5",
+        "playwright": "1.64.1"
+      },
+      "node": "v26.13.0",
+      "platform": "linux",
+      "arch": "x64",
+      "files": [
+        {
+          "file": "src/components/CatalogDownload.browser.test.tsx",
+          "sha256": "2865f9c68be0eeb9841d7b32725570f62719495fd94127aad116d0d48cfb7e52"
+        },
+        {
+          "file": "src/features/workspace/workspace-refresh.browser.test.tsx",
+          "sha256": "752e61b61075e620d6db86f253fc755e5a10346e109cb5d1bf2e01dfcd9c563b"
+        },
+        {
+          "file": "src/browser/locale-input.browser.test.tsx",
+          "sha256": "091fa9435bf70800e2ec14c5a8e77cf37e411819ac600acf8ecfdfa9ad150f47"
+        },
+        {
+          "file": "src/browser/forced-colors.browser.test.tsx",
+          "sha256": "f13a9138f9231769e9b7beddffb48caf66e73791a2a57698d5f3f8d3713e606d"
+        }
+      ],
+      "runs": [
+        {
+          "i": 0,
+          "cache": "cold-optimizer",
+          "status": 0,
+          "signal": null,
+          "wall_ms": 17095,
+          "phases": [
+            {
+              "phase": "ui-runner-close",
+              "elapsed_ms": 90,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-runner-configuration",
+              "elapsed_ms": 541,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-project-initialization",
+              "elapsed_ms": 22,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-runner-import",
+              "elapsed_ms": 154,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-selection-reconciliation",
+              "elapsed_ms": 0,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-test-execution",
+              "elapsed_ms": 15942,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-specification-selection",
+              "elapsed_ms": 4,
+              "outcome": "completed"
+            }
+          ],
+          "summary": [
+            " Test Files  4 passed (4)",
+            "      Tests  105 passed (105)",
+            "   Duration  15.94s (tests 53%, worker 21%, import 17%, setup 9%)",
+            "UI files: requested 4, discovered 4, executed 4; passed 105, skipped 0"
+          ]
+        },
+        {
+          "i": 1,
+          "cache": "warm-optimizer",
+          "status": 0,
+          "signal": null,
+          "wall_ms": 15543,
+          "phases": [
+            {
+              "phase": "ui-runner-close",
+              "elapsed_ms": 77,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-selection-reconciliation",
+              "elapsed_ms": 0,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-runner-import",
+              "elapsed_ms": 1003,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-project-initialization",
+              "elapsed_ms": 13,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-test-execution",
+              "elapsed_ms": 12928,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-specification-selection",
+              "elapsed_ms": 3,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-runner-configuration",
+              "elapsed_ms": 1185,
+              "outcome": "completed"
+            }
+          ],
+          "summary": [
+            " Test Files  4 passed (4)",
+            "      Tests  105 passed (105)",
+            "   Duration  12.92s (tests 62%, import 23%, setup 12%, worker 3%)",
+            "UI files: requested 4, discovered 4, executed 4; passed 105, skipped 0"
+          ]
+        },
+        {
+          "i": 2,
+          "cache": "warm-optimizer",
+          "status": 0,
+          "signal": null,
+          "wall_ms": 14646,
+          "phases": [
+            {
+              "phase": "ui-runner-import",
+              "elapsed_ms": 164,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-project-initialization",
+              "elapsed_ms": 26,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-runner-configuration",
+              "elapsed_ms": 768,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-runner-close",
+              "elapsed_ms": 90,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-selection-reconciliation",
+              "elapsed_ms": 1,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-specification-selection",
+              "elapsed_ms": 6,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-test-execution",
+              "elapsed_ms": 13242,
+              "outcome": "completed"
+            }
+          ],
+          "summary": [
+            " Test Files  4 passed (4)",
+            "      Tests  105 passed (105)",
+            "   Duration  13.24s (tests 63%, import 20%, setup 13%, worker 3%)",
+            "UI files: requested 4, discovered 4, executed 4; passed 105, skipped 0"
+          ]
+        },
+        {
+          "i": 3,
+          "cache": "warm-optimizer",
+          "status": 0,
+          "signal": null,
+          "wall_ms": 15777,
+          "phases": [
+            {
+              "phase": "ui-runner-close",
+              "elapsed_ms": 83,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-specification-selection",
+              "elapsed_ms": 6,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-runner-configuration",
+              "elapsed_ms": 635,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-test-execution",
+              "elapsed_ms": 14493,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-selection-reconciliation",
+              "elapsed_ms": 0,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-runner-import",
+              "elapsed_ms": 172,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-project-initialization",
+              "elapsed_ms": 23,
+              "outcome": "completed"
+            }
+          ],
+          "summary": [
+            " Test Files  4 passed (4)",
+            "      Tests  105 passed (105)",
+            "   Duration  14.49s (tests 63%, import 22%, setup 12%, worker 3%)",
+            "UI files: requested 4, discovered 4, executed 4; passed 105, skipped 0"
+          ]
+        }
+      ]
+    },
+    "importmaps": {
+      "variant": "importmaps",
+      "versions": {
+        "vite-plus": "1.5.0",
+        "vitest": "5.1.0",
+        "playwright": "1.64.1"
+      },
+      "node": "v26.13.0",
+      "platform": "linux",
+      "arch": "x64",
+      "files": [
+        {
+          "file": "src/components/CatalogDownload.browser.test.tsx",
+          "sha256": "2865f9c68be0eeb9841d7b32725570f62719495fd94127aad116d0d48cfb7e52"
+        },
+        {
+          "file": "src/features/workspace/workspace-refresh.browser.test.tsx",
+          "sha256": "752e61b61075e620d6db86f253fc755e5a10346e109cb5d1bf2e01dfcd9c563b"
+        },
+        {
+          "file": "src/browser/locale-input.browser.test.tsx",
+          "sha256": "091fa9435bf70800e2ec14c5a8e77cf37e411819ac600acf8ecfdfa9ad150f47"
+        },
+        {
+          "file": "src/browser/forced-colors.browser.test.tsx",
+          "sha256": "f13a9138f9231769e9b7beddffb48caf66e73791a2a57698d5f3f8d3713e606d"
+        }
+      ],
+      "runs": [
+        {
+          "i": 0,
+          "cache": "cold-optimizer",
+          "status": 0,
+          "signal": null,
+          "wall_ms": 17662,
+          "phases": [
+            {
+              "phase": "ui-selection-reconciliation",
+              "elapsed_ms": 0,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-runner-close",
+              "elapsed_ms": 86,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-runner-configuration",
+              "elapsed_ms": 1859,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-test-execution",
+              "elapsed_ms": 14947,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-specification-selection",
+              "elapsed_ms": 2,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-runner-import",
+              "elapsed_ms": 397,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-project-initialization",
+              "elapsed_ms": 14,
+              "outcome": "completed"
+            }
+          ],
+          "summary": [
+            " Test Files  4 passed (4)",
+            "      Tests  105 passed (105)",
+            "   Duration  14.94s (tests 59%, import 19%, setup 13%, worker 8%)",
+            "UI files: requested 4, discovered 4, executed 4; passed 105, skipped 0"
+          ]
+        },
+        {
+          "i": 1,
+          "cache": "warm-optimizer",
+          "status": 0,
+          "signal": null,
+          "wall_ms": 16279,
+          "phases": [
+            {
+              "phase": "ui-runner-configuration",
+              "elapsed_ms": 721,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-selection-reconciliation",
+              "elapsed_ms": 1,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-project-initialization",
+              "elapsed_ms": 17,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-specification-selection",
+              "elapsed_ms": 3,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-runner-close",
+              "elapsed_ms": 92,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-test-execution",
+              "elapsed_ms": 14940,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-runner-import",
+              "elapsed_ms": 150,
+              "outcome": "completed"
+            }
+          ],
+          "summary": [
+            " Test Files  4 passed (4)",
+            "      Tests  105 passed (105)",
+            "   Duration  14.94s (tests 57%, import 20%, worker 12%, setup 11%)",
+            "UI files: requested 4, discovered 4, executed 4; passed 105, skipped 0"
+          ]
+        },
+        {
+          "i": 2,
+          "cache": "warm-optimizer",
+          "status": 0,
+          "signal": null,
+          "wall_ms": 17316,
+          "phases": [
+            {
+              "phase": "ui-runner-configuration",
+              "elapsed_ms": 944,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-runner-close",
+              "elapsed_ms": 86,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-test-execution",
+              "elapsed_ms": 15440,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-runner-import",
+              "elapsed_ms": 342,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-project-initialization",
+              "elapsed_ms": 35,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-specification-selection",
+              "elapsed_ms": 5,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-selection-reconciliation",
+              "elapsed_ms": 1,
+              "outcome": "completed"
+            }
+          ],
+          "summary": [
+            " Test Files  4 passed (4)",
+            "      Tests  105 passed (105)",
+            "   Duration  15.44s (tests 62%, import 16%, worker 13%, setup 9%)",
+            "UI files: requested 4, discovered 4, executed 4; passed 105, skipped 0"
+          ]
+        },
+        {
+          "i": 3,
+          "cache": "warm-optimizer",
+          "status": 0,
+          "signal": null,
+          "wall_ms": 17287,
+          "phases": [
+            {
+              "phase": "ui-project-initialization",
+              "elapsed_ms": 22,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-specification-selection",
+              "elapsed_ms": 6,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-runner-import",
+              "elapsed_ms": 158,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-runner-close",
+              "elapsed_ms": 172,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-runner-configuration",
+              "elapsed_ms": 894,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-selection-reconciliation",
+              "elapsed_ms": 1,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-test-execution",
+              "elapsed_ms": 15645,
+              "outcome": "completed"
+            }
+          ],
+          "summary": [
+            " Test Files  4 passed (4)",
+            "      Tests  105 passed (105)",
+            "   Duration  15.64s (tests 58%, import 16%, worker 14%, setup 12%)",
+            "UI files: requested 4, discovered 4, executed 4; passed 105, skipped 0"
+          ]
+        }
+      ]
+    },
+    "interception": {
+      "variant": "interception",
+      "versions": {
+        "vite-plus": "1.5.0",
+        "vitest": "5.1.0",
+        "playwright": "1.64.1"
+      },
+      "node": "v26.13.0",
+      "platform": "linux",
+      "arch": "x64",
+      "files": [
+        {
+          "file": "src/components/CatalogDownload.browser.test.tsx",
+          "sha256": "2865f9c68be0eeb9841d7b32725570f62719495fd94127aad116d0d48cfb7e52"
+        },
+        {
+          "file": "src/features/workspace/workspace-refresh.browser.test.tsx",
+          "sha256": "752e61b61075e620d6db86f253fc755e5a10346e109cb5d1bf2e01dfcd9c563b"
+        },
+        {
+          "file": "src/browser/locale-input.browser.test.tsx",
+          "sha256": "091fa9435bf70800e2ec14c5a8e77cf37e411819ac600acf8ecfdfa9ad150f47"
+        },
+        {
+          "file": "src/browser/forced-colors.browser.test.tsx",
+          "sha256": "f13a9138f9231769e9b7beddffb48caf66e73791a2a57698d5f3f8d3713e606d"
+        }
+      ],
+      "runs": [
+        {
+          "i": 0,
+          "cache": "cold-optimizer",
+          "status": 0,
+          "signal": null,
+          "wall_ms": 18457,
+          "phases": [
+            {
+              "phase": "ui-runner-import",
+              "elapsed_ms": 141,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-test-execution",
+              "elapsed_ms": 16129,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-specification-selection",
+              "elapsed_ms": 3,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-runner-close",
+              "elapsed_ms": 93,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-project-initialization",
+              "elapsed_ms": 46,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-runner-configuration",
+              "elapsed_ms": 1694,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-selection-reconciliation",
+              "elapsed_ms": 0,
+              "outcome": "completed"
+            }
+          ],
+          "summary": [
+            " Test Files  4 passed (4)",
+            "      Tests  105 passed (105)",
+            "   Duration  16.13s (tests 57%, import 26%, worker 9%, setup 9%)",
+            "UI files: requested 4, discovered 4, executed 4; passed 105, skipped 0"
+          ]
+        },
+        {
+          "i": 1,
+          "cache": "warm-optimizer",
+          "status": 0,
+          "signal": null,
+          "wall_ms": 15886,
+          "phases": [
+            {
+              "phase": "ui-runner-import",
+              "elapsed_ms": 163,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-project-initialization",
+              "elapsed_ms": 23,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-runner-close",
+              "elapsed_ms": 93,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-selection-reconciliation",
+              "elapsed_ms": 0,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-runner-configuration",
+              "elapsed_ms": 788,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-specification-selection",
+              "elapsed_ms": 5,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-test-execution",
+              "elapsed_ms": 14458,
+              "outcome": "completed"
+            }
+          ],
+          "summary": [
+            " Test Files  4 passed (4)",
+            "      Tests  105 passed (105)",
+            "   Duration  14.45s (tests 58%, import 19%, worker 12%, setup 11%)",
+            "UI files: requested 4, discovered 4, executed 4; passed 105, skipped 0"
+          ]
+        },
+        {
+          "i": 2,
+          "cache": "warm-optimizer",
+          "status": 0,
+          "signal": null,
+          "wall_ms": 15862,
+          "phases": [
+            {
+              "phase": "ui-project-initialization",
+              "elapsed_ms": 19,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-selection-reconciliation",
+              "elapsed_ms": 0,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-test-execution",
+              "elapsed_ms": 14536,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-runner-configuration",
+              "elapsed_ms": 730,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-runner-import",
+              "elapsed_ms": 145,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-specification-selection",
+              "elapsed_ms": 3,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-runner-close",
+              "elapsed_ms": 95,
+              "outcome": "completed"
+            }
+          ],
+          "summary": [
+            " Test Files  4 passed (4)",
+            "      Tests  105 passed (105)",
+            "   Duration  14.53s (tests 59%, import 19%, worker 11%, setup 10%)",
+            "UI files: requested 4, discovered 4, executed 4; passed 105, skipped 0"
+          ]
+        },
+        {
+          "i": 3,
+          "cache": "warm-optimizer",
+          "status": 0,
+          "signal": null,
+          "wall_ms": 15356,
+          "phases": [
+            {
+              "phase": "ui-runner-close",
+              "elapsed_ms": 84,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-specification-selection",
+              "elapsed_ms": 3,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-selection-reconciliation",
+              "elapsed_ms": 0,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-runner-import",
+              "elapsed_ms": 158,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-project-initialization",
+              "elapsed_ms": 19,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-runner-configuration",
+              "elapsed_ms": 747,
+              "outcome": "completed"
+            },
+            {
+              "phase": "ui-test-execution",
+              "elapsed_ms": 14015,
+              "outcome": "completed"
+            }
+          ],
+          "summary": [
+            " Test Files  4 passed (4)",
+            "      Tests  105 passed (105)",
+            "   Duration  14.01s (tests 61%, import 18%, worker 12%, setup 10%)",
+            "UI files: requested 4, discovered 4, executed 4; passed 105, skipped 0"
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -49,3 +49,7 @@ for one complete replacement inventory; it does not start a new delivery budget.
 This workflow researches metadata and applies authorized neutral intake or
 material factual updates. It does not implement, install, admit, qualify or
 publish ports, change release commitments, reverse deferrals or assign work.
+
+When drafting a listing summary or setup guide, collect precise evidence first.
+Write the player explanation separately. Use the existing warning and reference
+fields and follow [Content design](../../../docs/CONTENT-DESIGN.md).

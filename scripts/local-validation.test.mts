@@ -44,6 +44,16 @@ import { buildValidationPlan } from "./validation-plan.mts";
 import { resolveUiSelection } from "./ui-test-selection.mts";
 import { nativeCompatibilitySourcePaths } from "./release-native-source-contract.mts";
 
+void test("failed-test feedback is an explicit focused UI operation", () => {
+  assert.doesNotThrow(() => requireFocusedArguments("test-ui", ["--last-failed"]));
+  assert.doesNotThrow(() =>
+    requireFocusedArguments("test-ui", ["--last-failed", "src/example.test.ts"]),
+  );
+  assert.throws(() => requireFocusedArguments("test-ui", []), /explicit/);
+  assert.throws(() => requireFocusedArguments("test-ui-related", ["--last-failed"]), /explicit/);
+  assert.throws(() => requireFocusedArguments("test-node", ["--last-failed"]), /explicit/);
+});
+
 void test("maintenance registry and TOML sources retain explicit focused owners", () => {
   const consumer = "scripts/lock-maintenance-policy.test.mts";
   for (const file of [
@@ -2169,6 +2179,30 @@ void test("production controller admission source and workflow retain their requ
   ]) {
     const { selection } = planFor([file]);
     assert.ok(selection.nodeTests.has("scripts/production-controller-admission.test.mts"), file);
+  }
+});
+
+void test("Windows application release workflow and fixed owner changes select their ordinary contracts", () => {
+  for (const file of [
+    ".github/workflows/application-release.yml",
+    ".github/workflows/application-release-native.yml",
+    ".github/workflows/application-release-private.yml",
+    "scripts/application-release-build-inputs.mts",
+    "scripts/application-release-io.mts",
+    "scripts/application-release-run-title.mts",
+    "scripts/application-release-transfer.mts",
+    "scripts/application-release-private.mts",
+    "scripts/release-hosted-native-windows-owner-mechanism.ps1",
+    "scripts/native-qualification-account.cs.txt",
+  ]) {
+    const { selection } = planFor([file]);
+    for (const test of [
+      "scripts/application-release-native.test.mts",
+      "scripts/application-release-qualification.test.mts",
+      "scripts/application-release-publication.test.mts",
+      "scripts/application-release-site.test.mts",
+    ])
+      assert.ok(selection.nodeTests.has(test), `${file}: ${test}`);
   }
 });
 
@@ -4533,6 +4567,9 @@ void test("native runtime owners retain direct behavior and caller contracts on 
       for (const consumer of [
         "scripts/desktop-real-runtime.test.mts",
         "scripts/desktop-boundary-wiring.test.mts",
+        ...(file === "apps/desktop/scripts/desktop-test.mts"
+          ? ["scripts/desktop-linux-stop.test.mts"]
+          : []),
         ...(file !== "apps/desktop/scripts/desktop-real-runtime-test.mts"
           ? ["apps/desktop/scripts/desktop-native-observations.native.test.mts"]
           : []),
@@ -4598,6 +4635,11 @@ void test("GitHub dependency changes select actual SDK and REST integration cont
     assert.ok(selected.nodeTests.has("scripts/release-controller-wake.test.mts"), file);
     assert.ok(selected.nodeTests.has("scripts/release-production-dag.test.mts"), file);
   }
+  const wakeProviderChange = classifyChanges(
+    [{ status: "M", path: "scripts/release-wake-provider.mts" }],
+    { fileExists: () => false },
+  );
+  assert.ok(wakeProviderChange.nodeTests.has("scripts/application-release-qualification.test.mts"));
   for (const file of [
     "package.json",
     "pnpm-lock.yaml",
@@ -4609,18 +4651,58 @@ void test("GitHub dependency changes select actual SDK and REST integration cont
     assert.ok(selected.nodeTests.has("scripts/github-client.test.mts"), file);
     assert.ok(selected.nodeTests.has("scripts/roadmap-rest-intake.test.mts"), file);
     for (const consumer of [
+      "scripts/release-artifact-archive.test.mts",
+      "scripts/release-run-evidence.test.mts",
+      "scripts/acquire-release-admission.test.mts",
+      "scripts/production-controller-admission.test.mts",
+      "scripts/release-bootstrap-preparation.test.mts",
+      "scripts/application-release-budget.test.mts",
+      "scripts/application-release-native.test.mts",
+      "scripts/application-release-qualification.test.mts",
       "scripts/roadmap-sdk.test.mts",
       "scripts/roadmap-provider-inventory.test.mts",
       "scripts/discovery-github.test.mts",
       "scripts/discovery-primary-progress.test.mts",
       "scripts/release-native-check-discovery.test.mts",
       "scripts/release-pages-provider.test.mts",
+      "scripts/release-publication-controller.test.mts",
+      "scripts/release-publication-result-artifact.test.mts",
+      "scripts/release-immutable-publication.test.mts",
+      "scripts/release-candidate-signing-recovery.test.mts",
+      "scripts/release-catalog-signing.test.mts",
+      "scripts/release-native-admission.test.mts",
+      "scripts/release-admitted-aggregate-controller.test.mts",
+      "scripts/release-signing-handoff.test.mts",
+      "scripts/release-signing-context-artifact.test.mts",
+      "scripts/release-tuf-role-artifact.test.mts",
       "scripts/release-controller-wake.test.mts",
+      "scripts/release-coordinator-checkpoint-authentication.test.mts",
+      "scripts/release-hosted-native-acceptance.test.mts",
     ]) {
       assert.ok(selected.nodeTests.has(consumer), file);
       assert.ok(existsSync(new URL(`../${consumer}`, import.meta.url)));
     }
   }
+  const hostedCandidate = classifyChanges(
+    [{ status: "M", path: "scripts/release-hosted-native-candidate.mts" }],
+    { fileExists: () => false },
+  );
+  assert.ok(hostedCandidate.nodeTests.has("scripts/production-controller-admission.test.mts"));
+  const custodyChange = classifyChanges(
+    [{ status: "M", path: "scripts/release-custody-provider.mts" }],
+    { fileExists: () => false },
+  );
+  assert.ok(custodyChange.nodeTests.has("scripts/application-release-native.test.mts"));
+  assert.ok(custodyChange.nodeTests.has("scripts/release-bootstrap-preparation.test.mts"));
+  assert.ok(custodyChange.nodeTests.has("scripts/production-controller-admission.test.mts"));
+  assert.ok(custodyChange.nodeTests.has("scripts/release-signing-handoff.test.mts"));
+  assert.ok(custodyChange.nodeTests.has("scripts/release-immutable-publication.test.mts"));
+  assert.ok(custodyChange.nodeTests.has("scripts/release-candidate-signing-recovery.test.mts"));
+  assert.ok(custodyChange.nodeTests.has("scripts/release-catalog-signing.test.mts"));
+  assert.ok(custodyChange.nodeTests.has("scripts/release-native-admission.test.mts"));
+  assert.ok(custodyChange.nodeTests.has("scripts/release-admitted-aggregate-controller.test.mts"));
+  assert.ok(custodyChange.nodeTests.has("scripts/release-signing-context-artifact.test.mts"));
+  assert.ok(custodyChange.nodeTests.has("scripts/release-tuf-role-artifact.test.mts"));
   for (const name of ["ci-health", "handoff-evidence", "postmerge-ci"]) {
     const file = `scripts/${name}.mts`;
     const selected = classifyChanges([{ status: "M", path: file }], { fileExists: () => false });

@@ -49,6 +49,33 @@ Explain an individual route's limitations at its controls. Avoid promotional
 claims such as “verified ports” or an implication that every port has automatic
 installation, saved-data management or completed gameplay testing.
 
+## Write from the evidence
+
+Gather the facts first. Record the actual state, file effects, permissions and
+version scope with their evidence. Then write what the player needs to know at
+that decision. Keep required warnings visible before the affected action. Keep
+build times, test history, hashes and internal state codes in the appropriate
+reference or details. Keep exact filenames, paths, commands and arguments in
+the instructions when the player needs them there.
+
+Use **original game files** for a ROM, disc image or assets, **game program** or
+**installed game files** for runnable software, and **saves and settings** for
+player data. Name BIOS, mods and caches separately when they have different
+requirements. A saved file location is a reference. A port is a project for a
+game. A version is a release of that project. Describe a copy outside
+Portcove’s management as an **installation you maintain**.
+
+| Situation                                       | Wording to replace                                                           | Wording supported by the example state                                                                  |
+| ----------------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| A normal port needs the original game           | A long release-inspection report in the summary                              | “A native port of the original adventure. You’ll need the original game files to set it up.”            |
+| An experimental project is listed for reference | Build times, keys and unmeasured performance estimates in the browse summary | “An experimental Linux port built from your own game files. Build and run it with the project’s tools.” |
+| An existing installation needs to be added      | “Consent to the execution intent.”                                           | “Review the program, start folder and launch options. Add the game to Portcove, then choose Play.”      |
+| Basic checks passed and the edition is unknown  | “Source admitted.”                                                           | “Basic file checks passed. Portcove couldn’t identify the edition.”                                     |
+| A preference write lost its reply               | “Your choice was not saved.”                                                 | “Portcove couldn’t confirm that your choice was saved. Refresh choices to check.”                       |
+
+Treat the examples as explanations of specific facts. Use the actual project,
+file, version and available controls for each task.
+
 ## Name the property checked
 
 Use the object, checked property and relevant scope together. “Verified” or
@@ -230,6 +257,26 @@ a mockup is labeled as such. Preserve quoted prompts, legal text, hashes and
 generated provenance records verbatim; new terminology guidance belongs outside
 those records. Stable docs describe shipped behavior; an explicitly labeled ADR
 can record a future decision without presenting it as an implemented command.
+
+## Where to edit copy
+
+- Desktop components and presentation helpers own controls, tooltips, accessible
+  names and state-specific explanations. Update the feature’s existing resources
+  and engineering locale when the message is localized.
+- Core owns file check, reuse, and shared failure outcomes. Follow a message to
+  its Desktop and CLI consumers when it is shown directly. The CLI human
+  renderer and Tauri host own their additional summaries and native prompts.
+- Author browse summaries and setup guides in the per-port catalog record.
+  Generate the catalogs from those records. Playnite reads those guides and
+  owns its additional wording in the C# management window.
+- Player docs describe the controls and release they apply to. Keep literal
+  commands, documented option spellings and machine contracts compatible.
+
+Static checks can flag a few phrases with a reliably better player equivalent.
+Review the rendered task for meaning, warning order, keyboard access and narrow
+layouts. Check that unavailable, empty and previously loaded results remain
+distinct. Where an action can lose its acknowledgement, verify the readback
+path and make sure the UI does not claim that the operation failed.
 
 ## Review a changed task path
 

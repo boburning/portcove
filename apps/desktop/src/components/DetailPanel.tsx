@@ -404,6 +404,33 @@ interface DetailState {
   updateAttention?: string;
 }
 
+function detailBodyAvailability(
+  model: Parameters<typeof DetailBody>[0],
+  external: boolean,
+  promoteAlternative: boolean,
+) {
+  const directInstall =
+    !promoteAlternative &&
+    !portActionPresentation(model.status, "install").blocked &&
+    !model.installed &&
+    !model.status?.staged &&
+    !external &&
+    model.sourceReady &&
+    model.biosReady;
+  const initialSection = initialDetailSection({
+    destination: model.opening?.destination,
+    needsFiles:
+      !model.installed ||
+      !model.status?.readiness ||
+      !model.status.readiness.launchable ||
+      model.pendingSetup ||
+      !model.sourceReady ||
+      !model.biosReady,
+    hasUpdate: model.runtimeUpdateAvailable || Boolean(model.stagedVersion),
+  });
+  return { directInstall, initialSection };
+}
+
 function DetailBody(model: {
   backLabel?: string | undefined;
   favoriteControl?: ReactNode;
@@ -458,25 +485,11 @@ function DetailBody(model: {
     model.displayPort ?? { ...model.port, definition: model.port },
     model.status,
   );
-  const directInstall =
-    !setupRoutes.promoteAlternative &&
-    !portActionPresentation(model.status, "install").blocked &&
-    !model.installed &&
-    !model.status?.staged &&
-    !external &&
-    model.sourceReady &&
-    model.biosReady;
-  const initialSection = initialDetailSection({
-    destination: model.opening?.destination,
-    needsFiles:
-      !model.installed ||
-      !model.status?.readiness ||
-      !model.status.readiness.launchable ||
-      model.pendingSetup ||
-      !model.sourceReady ||
-      !model.biosReady,
-    hasUpdate: model.runtimeUpdateAvailable || Boolean(model.stagedVersion),
-  });
+  const { directInstall, initialSection } = detailBodyAvailability(
+    model,
+    external,
+    setupRoutes.promoteAlternative,
+  );
   return (
     <DetailLayout
       backLabel={model.backLabel}
@@ -540,43 +553,7 @@ function DetailBody(model: {
         )
       }
       attention={(reveal) => (
-        <>
-          {model.cancellations}
-          {busy ? (
-            <div role="status" className="detail-notice-row">
-              <Icon glyph={RefreshCw} />
-              <span>
-                Working: {busy}.{" "}
-                <Button variant="link" onClick={() => reveal(detailWorkSection(busy))}>
-                  View work <Icon glyph={ArrowRight} />
-                </Button>
-              </span>
-            </div>
-          ) : model.state.tone !== "ready" ? (
-            <div className="detail-notice-row">
-              <Icon glyph={Info} />
-              <span data-detail-reason>
-                {setupRoutes.promoteAlternative
-                  ? `Manual setup is available. Managed setup: ${setupRoutes.managedReason}`
-                  : model.state.description}
-              </span>
-            </div>
-          ) : null}
-          {(model.runtimeUpdateAvailable || model.stagedVersion) && (
-            <div data-update-attention className="detail-notice-row">
-              <Icon glyph={Download} />
-              <span>
-                {model.stagedVersion
-                  ? "Update saved for later · " + model.stagedVersion
-                  : (model.state.updateAttention ??
-                    "An update was available at the last check.")}{" "}
-                <Button variant="link" onClick={() => reveal("versions")}>
-                  Review update <Icon glyph={ArrowRight} />
-                </Button>
-              </span>
-            </div>
-          )}
-        </>
+        <DetailAttention model={model} setupRoutes={setupRoutes} reveal={reveal} />
       )}
     >
       {(reveal) => ({
@@ -587,6 +564,59 @@ function DetailBody(model: {
         manage: <DetailManageSection {...{ model, external, reveal }} />,
       })}
     </DetailLayout>
+  );
+}
+
+function DetailAttention({
+  model,
+  setupRoutes,
+  reveal,
+}: {
+  model: Pick<
+    Parameters<typeof DetailBody>[0],
+    "busy" | "cancellations" | "state" | "runtimeUpdateAvailable" | "stagedVersion"
+  >;
+  setupRoutes: ReturnType<typeof setupRoutePresentation>;
+  reveal: import("./DetailLayout").RevealDetailSection;
+}) {
+  const { busy } = model;
+  return (
+    <>
+      {model.cancellations}
+      {busy ? (
+        <div role="status" className="detail-notice-row">
+          <Icon glyph={RefreshCw} />
+          <span>
+            Working: {busy}.{" "}
+            <Button variant="link" onClick={() => reveal(detailWorkSection(busy))}>
+              View work <Icon glyph={ArrowRight} />
+            </Button>
+          </span>
+        </div>
+      ) : model.state.tone !== "ready" ? (
+        <div className="detail-notice-row">
+          <Icon glyph={Info} />
+          <span data-detail-reason>
+            {setupRoutes.promoteAlternative
+              ? `Manual setup is available. Managed setup: ${setupRoutes.managedReason}`
+              : model.state.description}
+          </span>
+        </div>
+      ) : null}
+      {(model.runtimeUpdateAvailable || model.stagedVersion) && (
+        <div data-update-attention className="detail-notice-row">
+          <Icon glyph={Download} />
+          <span>
+            {model.stagedVersion
+              ? "Update saved for later · " + model.stagedVersion
+              : (model.state.updateAttention ?? "An update was available at the last check.")}{" "}
+            <Button variant="link" onClick={() => reveal("versions")}>
+              Review update <Icon glyph={ArrowRight} />
+            </Button>
+          </span>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -1545,58 +1575,62 @@ function detailReadiness(
   biosPath: string | undefined,
 ) {
   const installed = Boolean(status?.active || status?.external_runtime);
-  const coreAllowsLaunch = installed && status?.readiness?.launchable === true;
-  // A draft can request a review; Core still validates it before installation.
-  // Only missing registration is bypassed, never a known failure or installed refusal.
-  const selectedUnregisteredSource =
-    !installed &&
-    !source &&
-    status?.readiness?.source === "unregistered" &&
-    Boolean(sourcePath.trim());
-  const selectedUnregisteredBios =
-    !installed && !bios && status?.readiness?.bios === "unregistered" && Boolean(biosPath?.trim());
-  const sourceReady =
-    !status?.readiness?.blockers.some(
-      (blocker) =>
-        SOURCE_BLOCKERS.includes(blocker) &&
-        !(blocker === "missing_source" && selectedUnregisteredSource),
-    ) &&
-    (coreAllowsLaunch ||
-      sourceRequirementReady(
-        Boolean(port.source_profile),
-        installed,
-        status?.readiness?.source,
-        Boolean(source || sourcePath.trim()),
-      ));
-  const biosReady =
-    !status?.readiness?.blockers.some(
-      (blocker) =>
-        BIOS_BLOCKERS.includes(blocker) &&
-        !(blocker === "missing_bios" && selectedUnregisteredBios),
-    ) &&
-    (coreAllowsLaunch ||
-      sourceRequirementReady(
-        Boolean(port.bios_source_profile),
-        installed,
-        status?.readiness?.bios,
-        Boolean(bios || biosPath?.trim()),
-      ));
+  const readiness = status?.readiness;
+  const sourceReady = detailInputReady({
+    kind: "source",
+    required: Boolean(port.source_profile),
+    installed,
+    readiness,
+    registered: Boolean(source),
+    draftPath: sourcePath,
+  });
+  const biosReady = detailInputReady({
+    kind: "bios",
+    required: Boolean(port.bios_source_profile),
+    installed,
+    readiness,
+    registered: Boolean(bios),
+    draftPath: biosPath,
+  });
   return {
     sourceReady,
     biosReady,
-    launchReady: installed ? status?.readiness?.launchable === true : sourceReady && biosReady,
+    launchReady: installed ? readiness?.launchable === true : sourceReady && biosReady,
     installed,
-    pendingSetup: Boolean(status?.readiness?.pending_setup),
+    pendingSetup: Boolean(readiness?.pending_setup),
   };
 }
 
-function sourceRequirementReady(
-  required: boolean,
-  installed: boolean,
-  health: SourceHealth | null | undefined,
-  selected: boolean,
-) {
-  if (!required) return true;
+function detailInputReady({
+  kind,
+  required,
+  installed,
+  readiness,
+  registered,
+  draftPath,
+}: {
+  kind: "source" | "bios";
+  required: boolean;
+  installed: boolean;
+  readiness: PortStatus["readiness"];
+  registered: boolean;
+  draftPath: string | undefined;
+}) {
+  const health = readiness?.[kind];
+  const blockers = kind === "source" ? SOURCE_BLOCKERS : BIOS_BLOCKERS;
+  const missing = kind === "source" ? "missing_source" : "missing_bios";
+  const draftSelected = Boolean(draftPath?.trim());
+  // Drafts can request review only for missing registration. Core still validates the input.
+  const reviewDraft = !installed && !registered && health === "unregistered" && draftSelected;
+  if (
+    readiness?.blockers.some(
+      (blocker) => blockers.includes(blocker) && !(blocker === missing && reviewDraft),
+    )
+  ) {
+    return false;
+  }
+  if ((installed && readiness?.launchable === true) || !required) return true;
+  const selected = registered || draftSelected;
   if (!installed || health == null) return selected;
   // Registered inputs are verified by Core during explicit Play, not browsing.
   return health === "current" || (health === "not_checked" && selected);

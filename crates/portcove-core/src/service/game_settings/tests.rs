@@ -129,11 +129,7 @@ fn fixture(port_id: &str) -> Fixture {
         canonical,
         runtime,
         original,
-        proposed: if port_id == SHIP {
-            json!(70)
-        } else {
-            json!(70)
-        },
+        proposed: json!(70),
     }
 }
 
@@ -537,7 +533,8 @@ fn read_only_configuration_refuses_review_without_journal_or_staging() {
     let _integrity = crate::game_settings::windows::MediumIntegrityTest::enter();
     for port_id in [SHIP, GOLDEN] {
         let fixture = fixture(port_id);
-        let mut permissions = fs::metadata(&fixture.canonical).unwrap().permissions();
+        let original_permissions = fs::metadata(&fixture.canonical).unwrap().permissions();
+        let mut permissions = original_permissions.clone();
         permissions.set_readonly(true);
         fs::set_permissions(&fixture.canonical, permissions).unwrap();
         let error = fixture
@@ -567,9 +564,7 @@ fn read_only_configuration_refuses_review_without_journal_or_staging() {
                     .to_string_lossy()
                     .starts_with(".portcove-settings-"))
         );
-        let mut permissions = fs::metadata(&fixture.canonical).unwrap().permissions();
-        permissions.set_readonly(false);
-        fs::set_permissions(&fixture.canonical, permissions).unwrap();
+        fs::set_permissions(&fixture.canonical, original_permissions).unwrap();
     }
 }
 

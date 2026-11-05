@@ -11,7 +11,6 @@ import {
   inspectTrustedAssemblyInput,
 } from "./trusted-release-assembly.mts";
 import { isRecord } from "./runtime-values.mts";
-import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import {
   requireStablePublicBuildInputEvidence,
   verifyReleasePublicBuildInputs,
@@ -85,14 +84,11 @@ export async function assembleReleaseArtifacts(
     archives.reduce((sum, a) => sum + a.bytes, 0) > 2 * 1024 * 1024 * 1024
   )
     throw new Error("artifact matrix is duplicated or exceeds total bytes");
-  const runner = createGitHubRunner({ cwd: privateRoot, maxBuffer: 2 * 1024 * 1024 });
-  const evidenceOptions = options.evidence ?? {
-    api: new GitHubApiClient((args, input) => {
-      if (args[0] !== "api") throw new Error("artifact evidence is API-only");
-      return runner(["api", "--hostname", "github.com", ...args.slice(1)], input);
-    }),
+  const evidenceOptions = {
+    ...options.evidence,
+    deadline: Math.min(deadline, options.evidence?.deadline ?? Infinity),
   };
-  const before = collectReleaseRunEvidence(evidenceRequest, evidenceOptions);
+  const before = await collectReleaseRunEvidence(evidenceRequest, evidenceOptions);
   const check = (evidence: typeof before) => {
     for (const archive of archives) {
       const matched = evidence.artifacts.filter((a) => a.id === archive.artifact_id);
@@ -153,7 +149,7 @@ export async function assembleReleaseArtifacts(
         { exactProducerAttempt: true },
       );
     }
-    const after = collectReleaseRunEvidence(evidenceRequest, evidenceOptions);
+    const after = await collectReleaseRunEvidence(evidenceRequest, evidenceOptions);
     check(after);
     if (accepted.public_build_inputs)
       requireStablePublicBuildInputEvidence(accepted.public_build_inputs, before, after);

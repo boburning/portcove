@@ -606,12 +606,11 @@ function Get-RecursiveFileManifest([string]$Root) {
         })
 }
 
-function Get-PreservationManifest([string]$LibraryRoot) {
-    $preferences = [System.Environment]::GetEnvironmentVariable("PORTCOVE_PREFERENCES", "Process")
+function Get-PreservationManifest([string]$LibraryRoot, [string]$Preferences = [System.Environment]::GetEnvironmentVariable("PORTCOVE_PREFERENCES", "Process")) {
     [ordered]@{
         library = @(Get-RecursiveFileManifest $LibraryRoot)
-        preferences = if ($preferences -and [System.IO.File]::Exists($preferences)) {
-            [ordered]@{ present = $true; bytes = (Get-Item -LiteralPath $preferences).Length; sha256 = (Get-FileHash -LiteralPath $preferences -Algorithm SHA256).Hash.ToLowerInvariant() }
+        preferences = if ($Preferences -and [System.IO.File]::Exists($Preferences)) {
+            [ordered]@{ present = $true; bytes = (Get-Item -LiteralPath $Preferences).Length; sha256 = (Get-FileHash -LiteralPath $Preferences -Algorithm SHA256).Hash.ToLowerInvariant() }
         } else { [ordered]@{ present = $false; bytes = $null; sha256 = $null } }
     }
 }
@@ -1987,6 +1986,7 @@ try {
 
     }
     $isolatedAccountBoundary=$null
+    $journeyProfilePreservation=$null
     if ($nativeAccount) {
         # Exercise the maintained ordinary client before uninstalling its actual
         # installed image. Every driver/application/WebView root uses the same
@@ -2083,6 +2083,24 @@ try {
         $beforeUninstallManifest=$packageRollback.manifest_after_launch
         Write-InstallerEvidence 'package_rollback_verified' $packageRollback
     }
+    if ($ordinaryPublicMode) {
+        # Derive the same fixed profile used by DesktopNativeAccountSession.runtimeRoot.
+        $journeyRuntime = Join-Path $nativeAccount.binding.work_root ('desktop-' + [IO.Path]::GetFileName($publicOutput))
+        $journeyLibrary = Join-Path $journeyRuntime 'library'
+        $journeyPreferences = Join-Path $journeyRuntime 'preferences.json'
+        Assert-NoReparseAncestry $journeyLibrary
+        Assert-NoReparseAncestry $journeyPreferences
+        if (-not [IO.File]::Exists((Join-Path $journeyLibrary 'portcove.sqlite3'))) {
+            throw 'Ordinary public update profile database is missing before uninstall'
+        }
+        $journeyProfilePreservation = [ordered]@{
+            library_root = $journeyLibrary
+            preferences_path = $journeyPreferences
+            before = Get-PreservationManifest $journeyLibrary $journeyPreferences
+            after = $null
+        }
+        $evidence.journey_profile_preservation = $journeyProfilePreservation
+    }
     Write-InstallerEvidence "uninstalling"
     # NSIS may continue from an exact self-copy below TEMP. The original bytes
     # are journaled before launch; permit only that same image below this run.
@@ -2119,6 +2137,15 @@ try {
     if ((Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash -ne $sentinelHash -or
         -not [System.IO.File]::Exists((Join-Path $libraryRoot "portcove.sqlite3"))) {
         throw "Uninstall did not preserve the isolated library and persistent-data marker"
+    }
+    if ($journeyProfilePreservation) {
+        Assert-NoReparseAncestry $journeyLibrary
+        Assert-NoReparseAncestry $journeyPreferences
+        $journeyProfilePreservation.after = Get-PreservationManifest $journeyLibrary $journeyPreferences
+        if (($journeyProfilePreservation.before | ConvertTo-Json -Depth 6 -Compress) -cne
+            ($journeyProfilePreservation.after | ConvertTo-Json -Depth 6 -Compress)) {
+            throw 'Uninstall changed the ordinary public update library or preferences'
+        }
     }
     $afterUninstallManifest = Get-PreservationManifest $libraryRoot
     if (($beforeUninstallManifest | ConvertTo-Json -Depth 6 -Compress) -ne
@@ -2166,6 +2193,9 @@ try {
         current_installed_boundary = $normalBoundary
         isolated_account_boundary = $isolatedAccountBoundary
         package_rollback = $packageRollback
+    }
+    if ($journeyProfilePreservation) {
+        $result | Add-Member -NotePropertyName journey_profile_preservation -NotePropertyValue $journeyProfilePreservation
     }
     Write-InstallerEvidence "complete" $result
     $result | ConvertTo-Json -Depth 10 -Compress

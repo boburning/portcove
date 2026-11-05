@@ -105,21 +105,21 @@ impl PortcoveService {
         let review = self.review_source_reuse(&reference.profile_id)?;
         if review.reference.reference_sha256 != reference.reference_sha256 {
             return Err(PortcoveError::conflict(
-                "The saved game files or their requirements changed. Review setup again.",
+                "The saved files or the port’s requirements changed. Review setup again.",
             ));
         }
-        if let Some(path) = selected_path {
-            if std::fs::canonicalize(path)? != std::fs::canonicalize(&review.registration.path)? {
-                return Err(PortcoveError::conflict(
-                    "The selected location differs from the saved-source review. Repair its location or review the new selection separately.",
-                ));
-            }
+        if let Some(path) = selected_path
+            && std::fs::canonicalize(path)? != std::fs::canonicalize(&review.registration.path)?
+        {
+            return Err(PortcoveError::conflict(
+                "The selected location differs from the saved-source review. Repair its location or review the new selection separately.",
+            ));
         }
         if self.catalog().port(port_id)?.source_profile.as_deref()
             != Some(reference.profile_id.as_str())
         {
             return Err(PortcoveError::source(
-                "These saved files cannot be reused for this integration. Check its required edition and repair or select the game-file location.",
+                "These saved files can’t be reused for this port. Check the required edition and select the right original files.",
             ));
         }
         let application = review
@@ -128,7 +128,7 @@ impl PortcoveService {
             .find(|app| app.port_id == port_id && app.role == PortSourceRole::Game)
             .ok_or_else(|| {
                 PortcoveError::source(
-                    "These files have no original-game contract for the selected integration.",
+                    "Portcove has no original file requirements to check for this port.",
                 )
             })?;
         if !application.can_review_setup {
@@ -237,21 +237,21 @@ fn application_review(
         .is_some_and(|i| matches!(i.assessment.admission, SourceAdmission::Admitted { .. }));
     let mut additional_checks = Vec::new();
     if app.contract.admission_mode == CatalogAdmissionMode::Informational {
-        additional_checks.push("This integration retains informational source admission; a listed identity does not remove its legacy evidence gap.".into());
+        additional_checks.push("You can review setup with these files. Portcove has not confirmed their compatibility with this port.".into());
     }
     if compatibility == SourceReuseCompatibility::Potential {
         additional_checks.push("Confirm the required edition, region, revision and complete input during setup; compatibility has not been established.".into());
     }
     if app.contract.validator_contract_id.is_some() {
-        additional_checks.push(
-            "The integration's required input validator must still pass during preparation.".into(),
-        );
+        additional_checks.push("The project’s setup tool still needs to check these files.".into());
     }
-    additional_checks.push("Review this integration's platform, release, preparation and any other required files. This source check does not install or qualify the game.".into());
+    additional_checks.push(
+        "Open the port’s setup instructions to check its system and file requirements.".into(),
+    );
     let mut summary = match compatibility {
-        SourceReuseCompatibility::ListedIdentity => "The observed edition is listed by this integration's source contract.",
-        SourceReuseCompatibility::Potential => "These files are associated with this integration; compatible input is not yet confirmed.",
-        SourceReuseCompatibility::Incompatible => "This edition is not listed for this integration. Choose its supported edition instead.",
+        SourceReuseCompatibility::ListedIdentity => "This port lists the edition Portcove found.",
+        SourceReuseCompatibility::Potential => "These files may work with this port. Check its setup instructions before continuing.",
+        SourceReuseCompatibility::Incompatible => "This port does not list this edition. Check which editions it accepts.",
         SourceReuseCompatibility::Unavailable => "The saved files are missing, changed, unreadable or ambiguous. Check or repair their location before setup.",
     }.to_string();
     if compatibility == SourceReuseCompatibility::Incompatible {
@@ -377,7 +377,7 @@ pub(crate) mod tests {
             assert!(
                 app.additional_checks
                     .iter()
-                    .any(|s| s.contains("informational"))
+                    .any(|s| s.contains("has not confirmed their compatibility with this port"))
             );
         }
         assert_eq!(

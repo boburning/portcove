@@ -10,6 +10,10 @@ struct RenewalConfig {
     initial_root_profile: InitialRootProfile,
     #[serde(default)]
     top_level_targets_profile: TargetsProfile,
+    #[serde(default)]
+    prior_expiration_policy: Option<PriorExpirationPolicy>,
+    #[serde(default)]
+    previous_reserved_versions: Option<RoleVersions>,
     generated_at: String,
     trusted_root: String,
     previous_repository: String,
@@ -204,7 +208,9 @@ fn read_prepared_output(root: &Path) -> Result<BTreeMap<String, Vec<u8>>, TufRep
 
 /// The fixed caller independently ratifies the root and authenticates complete
 /// current public feed/readback provenance. This routine verifies TUF itself,
-/// including current expiry and all retained signed history, before returning.
+/// including all retained signed history, before returning. Historical online
+/// expiry is allowed only by the explicit bounded prior policy; Root, pinned
+/// Targets and proposed output must still be fresh.
 /// `generated_at` is a frozen controller clock input, never an expiry override.
 pub async fn prepare_tuf_renewal(config_path: &Path) -> Result<RenewalReport, TufRepositoryError> {
     let config: RenewalConfig = parse_file(config_path, "public renewal config")?;
@@ -213,6 +219,12 @@ pub async fn prepare_tuf_renewal(config_path: &Path) -> Result<RenewalReport, Tu
     }
     let online_targets =
         config.top_level_targets_profile == TargetsProfile::OnlineUnchangedAuthorityV1;
+    if (config.prior_expiration_policy.is_some() || config.previous_reserved_versions.is_some())
+        && (config.initial_root_profile != InitialRootProfile::SingleOwnerOneOfOneV1
+            || online_targets)
+    {
+        return invalid("historical renewal requires single-owner and offline-pinned Targets");
+    }
     if online_targets && config.initial_root_profile != InitialRootProfile::SingleOwnerOneOfOneV1 {
         return invalid("online Targets requires explicit single-owner profile");
     }
@@ -343,11 +355,30 @@ pub async fn prepare_tuf_renewal(config_path: &Path) -> Result<RenewalReport, Tu
             return invalid("Targets renewal cannot advance within the unchanged Root expiry");
         }
     }
+    let reserved_floors = config.previous_reserved_versions.as_ref().map(|value| {
+        [
+            value.targets,
+            value.snapshot,
+            value.timestamp,
+            value.releases,
+            value.preview,
+            value.stable,
+        ]
+    });
+    if let Some(floors) = reserved_floors
+        && (floors[0] != versions[0].get() || floors.contains(&0))
+    {
+        return invalid("reserved floors require positive versions and unchanged pinned Targets");
+    }
     for (index, days) in [(1, 7), (2, 2), (3, 90), (4, 7), (5, 7)] {
         next_versions[index] = nonzero(
-            versions[index].get().checked_add(1).ok_or_else(|| {
-                TufRepositoryError::Invalid("online role version exhausted".into())
-            })?,
+            versions[index]
+                .get()
+                .max(reserved_floors.map_or(0, |floors| floors[index]))
+                .checked_add(1)
+                .ok_or_else(|| {
+                    TufRepositoryError::Invalid("online role version exhausted".into())
+                })?,
             "next role",
         )?;
         next_expires[index] = generated
@@ -390,6 +421,9 @@ pub async fn prepare_tuf_renewal(config_path: &Path) -> Result<RenewalReport, Tu
     if config.initial_root_profile == InitialRootProfile::SingleOwnerOneOfOneV1 {
         context["initial_root_profile"] = serde_json::to_value(config.initial_root_profile)?;
     }
+    if let Some(policy) = config.prior_expiration_policy {
+        context["prior_expiration_policy"] = serde_json::to_value(policy)?;
+    }
     if online_targets {
         context["top_level_targets_profile"] =
             serde_json::to_value(config.top_level_targets_profile)?;
@@ -412,6 +446,16 @@ pub async fn prepare_tuf_renewal(config_path: &Path) -> Result<RenewalReport, Tu
         })
         .collect();
     let mut descriptor = serde_json::json!({"schema_version":1,"kind":"application-tuf-metadata-renewal","generated_at":generated.to_string(),"root_sha256":sha256(&root_bytes),"offline_targets_sha256":sha256(&top_bytes),"prior_repository_sha256":public_prior_digest,"prior_timestamp_sha256":timestamp_sha,"prior_snapshot_sha256":snapshot_sha,"current_versions":string_versions(&versions),"next_versions":string_versions(&next_versions),"current_expires":expiry_values(&expires),"next_expires":expiry_values(&next_expires),"unchanged_records_sha256":sha256(&canonical_bytes(serde_json::to_value(&record_identities)?)?)});
+    if let Some(policy) = config.prior_expiration_policy {
+        descriptor["schema_version"] = serde_json::json!(3);
+        descriptor["prior_expiration_policy"] = serde_json::to_value(policy)?;
+    }
+    if let Some(floors) = reserved_floors {
+        descriptor["schema_version"] = serde_json::json!(3);
+        descriptor["reserved_version_floors"] = serde_json::json!({
+            "targets":floors[0].to_string(), "snapshot":floors[1].to_string(), "timestamp":floors[2].to_string(),
+            "releases":floors[3].to_string(), "preview":floors[4].to_string(), "stable":floors[5].to_string()});
+    }
     if online_targets {
         // The old contract pins Targets bytes forever. Never present renewal
         // of those bytes as an ordinary schema-1 maintenance opportunity.

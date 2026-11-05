@@ -10,6 +10,7 @@ import {
 import type { Perform } from "../features/operations/use-operation-state";
 import { gameIdentityLabel } from "../port-identity";
 import type { PortStatus } from "../types";
+import { ExternalLaunchWarnings } from "./AuthoredSetupWarnings";
 import { CatalogDownloadControl, PendingSetupActions } from "./CatalogDownload";
 import { AuthoredPreparationGuidance, UserSelectedRuntimeControl } from "./ExternalRuntime";
 import { ExternalLink } from "./ExternalLink";
@@ -80,17 +81,20 @@ export function SelfServiceSetup({
     });
   };
   const playAction = registered ? (
-    <Button
-      data-focusable
-      variant="primary"
-      size="lg"
-      disabled={!launch.allowed || busy}
-      focusableWhenDisabled={launch.allowed && busy}
-      aria-busy={launch.allowed && busy}
-      onClick={play}
-    >
-      <Icon glyph={Play} className="fill-current" /> Play
-    </Button>
+    <div className="grid min-w-0 justify-items-start gap-2 wrap-anywhere">
+      <ExternalLaunchWarnings portId={entry.id} status={status} />
+      <Button
+        data-focusable
+        variant="primary"
+        size="lg"
+        disabled={!launch.allowed || busy}
+        focusableWhenDisabled={launch.allowed && busy}
+        aria-busy={launch.allowed && busy}
+        onClick={play}
+      >
+        <Icon glyph={Play} className="fill-current" /> Play
+      </Button>
+    </div>
   ) : null;
   const setup = (
     <section
@@ -125,9 +129,8 @@ export function SelfServiceSetup({
               </>
             ) : (
               <p>
-                Your download is saved. Confirm the game or launcher below to finish adding it. If
-                no launch target is available, open the download folder and follow the upstream
-                setup instructions, then return here. Nothing has been run yet.
+                Your download is ready for setup. If you still need to set it up, open the download
+                folder and follow the project’s guide. Then return here and choose the game program.
               </p>
             )}
             <code className="[overflow-wrap:anywhere]">{pending.path}</code>
@@ -184,8 +187,8 @@ export function SelfServiceSetup({
           <div className="grid gap-3 pt-2">
             <p>
               Keep using your current installation while preparing another copy. Downloading leaves
-              its files and launch details unchanged. Review the new executable before switching;
-              both copies and their saves stay where they are.
+              its files and launch details unchanged. Review the new game program before switching.
+              Check the project’s instructions for any shared save locations.
             </p>
             <CatalogDownloadControl
               libraryRoot={libraryRoot}
@@ -205,8 +208,8 @@ export function SelfServiceSetup({
       {registered && entry.listing && (
         <div className="grid gap-2 text-sm">
           <p>
-            Registered installation. You or upstream manage updates; the version you downloaded may
-            not be the version Portcove currently launches.
+            Portcove opens the program shown in Launch details. Use the project’s tools to update
+            this installation. Downloading another version leaves this choice as it is.
           </p>
           <ExternalLink href={updates!.url}>
             {updates!.releases

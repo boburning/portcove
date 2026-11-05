@@ -1,0 +1,1291 @@
+# One canonical Windows application path. Production remains held until its
+# separately appointed fixed source and private authority are reconciled.
+name: Windows application release
+run-name: ${{ inputs.mode == 'qualify' && format('Windows qualification {0}', github.sha) || (inputs.wake_run_id != '' && format('Application {0} wake {1}', inputs.opportunity, inputs.wake_run_id)) || format('Application {0}', inputs.opportunity) }}
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        type: choice
+        default: qualify
+        options: [qualify, prepare, bootstrap, recover, renew, recover-metadata, renew-unserved]
+        description: Qualification, application preparation, empty bootstrap, immutable executable/metadata feed recovery, or metadata renewal.
+      opportunity:
+        type: string
+        default: ""
+        description: Original source SHA, bootstrap descriptor, or canonical renewal basis digest; retained across retries.
+      pending_opportunity:
+        type: string
+        default: ""
+        description: Existing expired unserved source/metadata opportunity for forward renewal; not a new payload.
+      wake_run_id:
+        type: string
+        default: ""
+        description: Correlation for a fixed automatic wake; grants no admission.
+      qualification_attempt:
+        type: string
+        default: ""
+        description: Exact qualification attempt selected by the fixed automatic wake.
+      qualification_run:
+        type: string
+        default: ""
+        description: Actual original-source qualification run; never approval by itself.
+permissions:
+  contents: read
+concurrency:
+  group: application-update-production-controller
+  cancel-in-progress: false
+jobs:
+  selection:
+    if: ${{ inputs.mode == 'qualify' && github.repository == 'boburning/portcove' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 2
+    outputs:
+      source: ${{ steps.source.outputs.source }}
+      tree: ${{ steps.source.outputs.tree }}
+      version: ${{ steps.source.outputs.version }}
+      base: ${{ steps.source.outputs.base }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: package.json
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/application-release-source.mts select
+  qualify:
+    if: inputs.mode == 'qualify'
+    needs: selection
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+    uses: ./.github/workflows/ci.yml
+    with:
+      force_qualification: true
+      release_profile: initial-beta-windows-x86_64-v1
+      qualification_caller: release
+      caller_workflow: application-release.yml
+      provenance_scope: qualification
+  dependency-review:
+    if: inputs.mode == 'qualify'
+    needs: selection
+    runs-on: ubuntu-22.04
+    timeout-minutes: 2
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.selection.outputs.source }}
+          persist-credentials: false
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          base-ref: ${{ needs.selection.outputs.base }}
+          head-ref: ${{ needs.selection.outputs.source }}
+          fail-on-severity: high
+  source:
+    if: ${{ (inputs.mode == 'prepare' || inputs.mode == 'bootstrap' || (inputs.mode == 'recover' || inputs.mode == 'recover-metadata') || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved')) && github.repository == 'boburning/portcove' && github.ref_protected && github.sha == vars.PORTCOVE_APPLICATION_RELEASE_REVISION && github.ref == vars.PORTCOVE_APPLICATION_RELEASE_REF }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 2
+    environment: production-release-admission
+    permissions:
+      contents: write
+      actions: read
+      checks: read
+    outputs:
+      source: ${{ steps.prepare.outputs.source }}
+      source_attempt: ${{ steps.prepare.outputs.source_attempt }}
+      artifact: ${{ steps.source_upload.outputs.artifact-id }}
+      original_tree: ${{ steps.prepare.outputs.original_tree }}
+      prepared_source: ${{ steps.prepare.outputs.prepared_source }}
+      prepared_tree: ${{ steps.prepare.outputs.prepared_tree }}
+      version: ${{ steps.prepare.outputs.version }}
+      classification: ${{ steps.prepare.outputs.classification }}
+      published_versions: ${{ steps.prepare.outputs.published_versions }}
+      # The native draft reservation must register every opportunity run before
+      # private work. Missing registration remains a hold in the role worker.
+      known_runs: ${{ steps.prepare.outputs.known_runs }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: package.json
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Install existing hash-pinned attestation verifier
+        if: (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'recover-metadata'
+        shell: bash
+        run: |-
+          set -euo pipefail
+          curl --fail --location --max-time 120 --max-filesize 16000000 --output "$RUNNER_TEMP/gh.tar.gz" https://github.com/cli/cli/releases/download/v2.102.0/gh_2.102.0_linux_amd64.tar.gz
+          echo "bb766f710eef8ede859c18578c72c327597cd4c8a85b06001b1f3843c6019386  $RUNNER_TEMP/gh.tar.gz" | sha256sum --check --strict
+          tar -xzf "$RUNNER_TEMP/gh.tar.gz" -C "$RUNNER_TEMP" gh_2.102.0_linux_amd64/bin/gh
+          echo "$RUNNER_TEMP/gh_2.102.0_linux_amd64/bin" >> "$GITHUB_PATH"
+      - id: prepare
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PORTCOVE_APPLICATION_RELEASE_REVISION: ${{ vars.PORTCOVE_APPLICATION_RELEASE_REVISION }}
+          PORTCOVE_APPLICATION_RELEASE_REF: ${{ vars.PORTCOVE_APPLICATION_RELEASE_REF }}
+          PORTCOVE_APPLICATION_RELEASE_ACTIVE: ${{ vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE }}
+          PORTCOVE_APPLICATION_RELEASE_SPENDING: ${{ vars.PORTCOVE_APPLICATION_RELEASE_SPENDING }}
+          PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256: ${{ vars.PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256 }}
+          PORTCOVE_APPLICATION_BOOTSTRAP_DESCRIPTOR: ${{ vars.PORTCOVE_APPLICATION_BOOTSTRAP_DESCRIPTOR }}
+          PORTCOVE_APPLICATION_BOOTSTRAP_DESCRIPTOR_SHA256: ${{ vars.PORTCOVE_APPLICATION_BOOTSTRAP_DESCRIPTOR_SHA256 }}
+          PORTCOVE_APPLICATION_SETUP_PLAN_SHA256: ${{ vars.PORTCOVE_APPLICATION_SETUP_PLAN_SHA256 }}
+          PORTCOVE_APPLICATION_INITIAL_SITE_PREIMAGE_SHA256: ${{ vars.PORTCOVE_APPLICATION_INITIAL_SITE_PREIMAGE_SHA256 }}
+          PORTCOVE_APPLICATION_PENDING_OPPORTUNITY: ${{ inputs.pending_opportunity }}
+          PORTCOVE_SOURCE_OPERATION: ${{ inputs.mode == 'bootstrap' && 'bootstrap' || inputs.mode == 'recover' && 'recover' || inputs.mode == 'recover-metadata' && 'recover-metadata' || inputs.mode == 'renew-unserved' && 'renew-unserved' || inputs.mode == 'renew' && 'renew' || 'prepare' }}
+          PORTCOVE_WAKE_RUN_ID: ${{ inputs.wake_run_id }}
+          PORTCOVE_QUALIFICATION_ATTEMPT: ${{ inputs.qualification_attempt }}
+          PORTCOVE_QUALIFICATION_RUN: ${{ inputs.qualification_run }}
+          PORTCOVE_APPLICATION_RELEASE_OPPORTUNITY: ${{ inputs.opportunity }}
+        run: node scripts/application-release-source.mts "$PORTCOVE_SOURCE_OPERATION"
+      - id: source_upload
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: application-source-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/application-source/source.json
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: false
+  native:
+    if: ${{ inputs.mode == 'prepare' && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' }}
+    needs: [source, package, tools]
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+      id-token: write
+      attestations: write
+    uses: ./.github/workflows/application-release-native.yml
+    with:
+      opportunity: ${{ inputs.opportunity }}
+      source_artifact: ${{ needs.source.outputs.artifact }}
+      source_attempt: ${{ needs.source.outputs.source_attempt }}
+      tools_artifact: ${{ needs.tools.outputs.artifact }}
+      tools_attempt: ${{ needs.tools.outputs.attempt }}
+      known_runs: ${{ needs.source.outputs.known_runs }}
+      unsigned_artifact: ${{ needs.package.outputs.artifact }}
+      package_attempt: ${{ needs.package.outputs.package_attempt }}
+      provenance_attempt: ${{ needs.package.outputs.provenance_attempt }}
+  protection_payload:
+    if: ${{ inputs.mode == 'prepare' && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' }}
+    needs: [source, package, tools, native]
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+    uses: ./.github/workflows/application-release-private.yml
+    with:
+      operation: observe
+      phase: payload
+      timeout_minutes: 1
+      opportunity: ${{ inputs.opportunity }}
+      source_artifact: ${{ needs.source.outputs.artifact }}
+      source_attempt: ${{ needs.source.outputs.source_attempt }}
+      tools_artifact: ${{ needs.tools.outputs.artifact }}
+      tools_attempt: ${{ needs.tools.outputs.attempt }}
+      known_runs: ${{ needs.source.outputs.known_runs }}
+  payload:
+    if: ${{ inputs.mode == 'prepare' && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' }}
+    needs: [source, package, tools, native, protection_payload]
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+    uses: ./.github/workflows/application-release-private.yml
+    with:
+      operation: payload
+      phase: payload
+      timeout_minutes: 5
+      opportunity: ${{ inputs.opportunity }}
+      source_artifact: ${{ needs.source.outputs.artifact }}
+      source_attempt: ${{ needs.source.outputs.source_attempt }}
+      tools_artifact: ${{ needs.tools.outputs.artifact }}
+      tools_attempt: ${{ needs.tools.outputs.attempt }}
+      known_runs: ${{ needs.source.outputs.known_runs }}
+      unsigned_artifact: ${{ needs.package.outputs.artifact }}
+      package_attempt: ${{ needs.package.outputs.package_attempt }}
+      provenance_attempt: ${{ needs.package.outputs.provenance_attempt }}
+      native_artifact: ${{ needs.native.outputs.artifact }}
+      native_attempt: ${{ needs.native.outputs.native_attempt }}
+      native_attestation_attempt: ${{ needs.native.outputs.attestation_attempt }}
+      native_host: ${{ needs.native.outputs.host }}
+      native_invocation: ${{ needs.native.outputs.invocation }}
+      protection_artifact: ${{ needs.protection_payload.outputs.artifact }}
+      protection_attempt: ${{ needs.protection_payload.outputs.attempt }}
+  package_qualification:
+    if: inputs.mode == 'qualify'
+    needs: [selection, qualify, dependency-review]
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+      attestations: write
+    uses: ./.github/workflows/application-release-package.yml
+    with:
+      source: ${{ needs.selection.outputs.source }}
+      source_tree: ${{ needs.selection.outputs.tree }}
+      version: ${{ needs.selection.outputs.version }}
+      prepared_source: ${{ needs.selection.outputs.source }}
+      prepared_tree: ${{ needs.selection.outputs.tree }}
+      qualification: true
+  package:
+    if: inputs.mode == 'prepare'
+    needs: source
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+      attestations: write
+    uses: ./.github/workflows/application-release-package.yml
+    with:
+      source: ${{ needs.source.outputs.source }}
+      source_tree: ${{ needs.source.outputs.original_tree }}
+      prepared_source: ${{ needs.source.outputs.prepared_source }}
+      prepared_tree: ${{ needs.source.outputs.prepared_tree }}
+      version: ${{ needs.source.outputs.version }}
+      classification: ${{ needs.source.outputs.classification }}
+      published_versions: ${{ needs.source.outputs.published_versions }}
+  tools:
+    if: inputs.mode == 'prepare' || inputs.mode == 'bootstrap' || (inputs.mode == 'recover' || inputs.mode == 'recover-metadata') || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved')
+    needs: source
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    outputs:
+      artifact: ${{ steps.upload.outputs.artifact-id }}
+      attempt: ${{ steps.producer.outputs.attempt }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: package.json
+      - uses: ./.github/actions/setup-rust
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: cargo build --locked --release -p portcove-release-tools
+      - name: Stage only fixed signing tools and the maintained dependency-free worker
+        env:
+          PORTCOVE_APPLICATION_RELEASE_REVISION: ${{ vars.PORTCOVE_APPLICATION_RELEASE_REVISION }}
+          PORTCOVE_APPLICATION_RELEASE_REF: ${{ vars.PORTCOVE_APPLICATION_RELEASE_REF }}
+        run: node scripts/application-release-tools.mts build
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: work/application-tools/*
+      - id: producer
+        run: echo "attempt=$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
+      - id: upload
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: application-tools-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/application-tools/*
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: false
+  context:
+    if: ${{ always() && !cancelled() && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || (inputs.mode == 'prepare' && needs.package.result == 'success' && needs.native.result == 'success' && needs.payload.result == 'success')) }}
+    # Retain the existing native cost identity while keeping note-write
+    # permission in this key-free context job, away from every signer.
+    name: context / execute
+    needs: [source, tools, package, native, payload]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 2
+    environment: production-release-admission
+    permissions:
+      contents: write
+      actions: read
+      checks: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PORTCOVE_APPLICATION_RELEASE_REVISION: ${{ vars.PORTCOVE_APPLICATION_RELEASE_REVISION }}
+      PORTCOVE_APPLICATION_RELEASE_REF: ${{ vars.PORTCOVE_APPLICATION_RELEASE_REF }}
+      PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256: ${{ vars.PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256 }}
+      PORTCOVE_APPLICATION_RELEASE_ACTIVE: ${{ vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE }}
+      PORTCOVE_APPLICATION_RELEASE_SPENDING: ${{ vars.PORTCOVE_APPLICATION_RELEASE_SPENDING }}
+      PORTCOVE_APPLICATION_RELEASE_PROTECTION_SHA256: ${{ vars.PORTCOVE_APPLICATION_RELEASE_PROTECTION_SHA256 }}
+      PORTCOVE_APPLICATION_INITIAL_SITE_PREIMAGE_SHA256: ${{ vars.PORTCOVE_APPLICATION_INITIAL_SITE_PREIMAGE_SHA256 }}
+      PORTCOVE_APPLICATION_BOOTSTRAP_DESCRIPTOR_SHA256: ${{ vars.PORTCOVE_APPLICATION_BOOTSTRAP_DESCRIPTOR_SHA256 }}
+      PORTCOVE_APPLICATION_SETUP_PLAN_SHA256: ${{ vars.PORTCOVE_APPLICATION_SETUP_PLAN_SHA256 }}
+      PORTCOVE_APPLICATION_RELEASE_OPPORTUNITY: ${{ inputs.opportunity }}
+      PORTCOVE_KNOWN_RELEASE_RUNS: ${{ needs.source.outputs.known_runs }}
+      PORTCOVE_SOURCE_ARTIFACT: ${{ needs.source.outputs.artifact }}
+      PORTCOVE_SOURCE_ATTEMPT: ${{ needs.source.outputs.source_attempt }}
+      PORTCOVE_TOOLS_ARTIFACT: ${{ needs.tools.outputs.artifact }}
+      PORTCOVE_TOOLS_ATTEMPT: ${{ needs.tools.outputs.attempt }}
+      PORTCOVE_UNSIGNED_ARTIFACT: ${{ needs.package.outputs.artifact }}
+      PORTCOVE_PACKAGE_ATTEMPT: ${{ needs.package.outputs.package_attempt }}
+      PORTCOVE_PROVENANCE_ATTEMPT: ${{ needs.package.outputs.provenance_attempt }}
+      PORTCOVE_SIGNATURE_ARTIFACT: ${{ needs.payload.outputs.artifact }}
+      PORTCOVE_SIGNATURE_ATTEMPT: ${{ needs.payload.outputs.attempt }}
+      PORTCOVE_NATIVE_ARTIFACT: ${{ needs.native.outputs.artifact }}
+      PORTCOVE_NATIVE_ATTEMPT: ${{ needs.native.outputs.native_attempt }}
+      PORTCOVE_NATIVE_ATTESTATION_ATTEMPT: ${{ needs.native.outputs.attestation_attempt }}
+      PORTCOVE_NATIVE_HOST: ${{ needs.native.outputs.host }}
+      PORTCOVE_NATIVE_INVOCATION_ID: ${{ needs.native.outputs.invocation }}
+      PORTCOVE_APPLICATION_NATIVE_MINIMUM_PLATFORM: ${{ vars.PORTCOVE_APPLICATION_NATIVE_MINIMUM_PLATFORM }}
+    outputs:
+      artifact: ${{ steps.context_upload.outputs.artifact-id }}
+      attempt: ${{ steps.context_producer.outputs.attempt }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - name: Bind fixed caller before context preparation or native note writes
+        run: node --input-type=module -e "import { inspectApplicationReleaseExecution } from './scripts/application-release-policy.mts'; inspectApplicationReleaseExecution(process.env)"
+      - name: Install existing hash-pinned attestation verifier
+        shell: bash
+        run: |-
+          set -euo pipefail
+          curl --fail --location --max-time 120 --max-filesize 16000000 --output "$RUNNER_TEMP/gh.tar.gz" https://github.com/cli/cli/releases/download/v2.102.0/gh_2.102.0_linux_amd64.tar.gz
+          echo "bb766f710eef8ede859c18578c72c327597cd4c8a85b06001b1f3843c6019386  $RUNNER_TEMP/gh.tar.gz" | sha256sum --check --strict
+          tar -xzf "$RUNNER_TEMP/gh.tar.gz" -C "$RUNNER_TEMP" gh_2.102.0_linux_amd64/bin/gh
+          echo "$RUNNER_TEMP/gh_2.102.0_linux_amd64/bin" >> "$GITHUB_PATH"
+      - name: Verify fixed tools and provenance before execution
+        run: node scripts/application-release-tools.mts receive
+      - name: Prepare and retain the exact native metadata context reservation
+        run: node scripts/application-release-private.bundle.mjs context
+      - id: context_producer
+        run: echo "attempt=$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
+      - id: context_upload
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: application-context-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/application-context-output/context-bundle.json
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: false
+  protection_metadata:
+    if: ${{ (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' }}
+    needs: [source, tools, context]
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+    uses: ./.github/workflows/application-release-private.yml
+    with:
+      operation: observe
+      phase: metadata
+      timeout_minutes: 1
+      opportunity: ${{ inputs.opportunity }}
+      source_artifact: ${{ needs.source.outputs.artifact }}
+      source_attempt: ${{ needs.source.outputs.source_attempt }}
+      tools_artifact: ${{ needs.tools.outputs.artifact }}
+      tools_attempt: ${{ needs.tools.outputs.attempt }}
+      known_runs: ${{ needs.source.outputs.known_runs }}
+  releases:
+    if: ${{ (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' }}
+    needs: [source, tools, context, protection_metadata]
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+    uses: ./.github/workflows/application-release-private.yml
+    with:
+      operation: role-releases
+      phase: metadata
+      timeout_minutes: 2
+      opportunity: ${{ inputs.opportunity }}
+      source_artifact: ${{ needs.source.outputs.artifact }}
+      source_attempt: ${{ needs.source.outputs.source_attempt }}
+      tools_artifact: ${{ needs.tools.outputs.artifact }}
+      tools_attempt: ${{ needs.tools.outputs.attempt }}
+      known_runs: ${{ needs.source.outputs.known_runs }}
+      role: releases
+      context_artifact: ${{ needs.context.outputs.artifact }}
+      context_attempt: ${{ needs.context.outputs.attempt }}
+      protection_artifact: ${{ needs.protection_metadata.outputs.artifact }}
+      protection_attempt: ${{ needs.protection_metadata.outputs.attempt }}
+  preview:
+    if: ${{ (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' }}
+    needs: [source, tools, context, protection_metadata]
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+    uses: ./.github/workflows/application-release-private.yml
+    with:
+      operation: role-preview
+      phase: metadata
+      timeout_minutes: 2
+      opportunity: ${{ inputs.opportunity }}
+      source_artifact: ${{ needs.source.outputs.artifact }}
+      source_attempt: ${{ needs.source.outputs.source_attempt }}
+      tools_artifact: ${{ needs.tools.outputs.artifact }}
+      tools_attempt: ${{ needs.tools.outputs.attempt }}
+      known_runs: ${{ needs.source.outputs.known_runs }}
+      role: preview
+      context_artifact: ${{ needs.context.outputs.artifact }}
+      context_attempt: ${{ needs.context.outputs.attempt }}
+      protection_artifact: ${{ needs.protection_metadata.outputs.artifact }}
+      protection_attempt: ${{ needs.protection_metadata.outputs.attempt }}
+  stable:
+    if: ${{ (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' }}
+    needs: [source, tools, context, protection_metadata]
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+    uses: ./.github/workflows/application-release-private.yml
+    with:
+      operation: role-stable
+      phase: metadata
+      timeout_minutes: 2
+      opportunity: ${{ inputs.opportunity }}
+      source_artifact: ${{ needs.source.outputs.artifact }}
+      source_attempt: ${{ needs.source.outputs.source_attempt }}
+      tools_artifact: ${{ needs.tools.outputs.artifact }}
+      tools_attempt: ${{ needs.tools.outputs.attempt }}
+      known_runs: ${{ needs.source.outputs.known_runs }}
+      role: stable
+      context_artifact: ${{ needs.context.outputs.artifact }}
+      context_attempt: ${{ needs.context.outputs.attempt }}
+      protection_artifact: ${{ needs.protection_metadata.outputs.artifact }}
+      protection_attempt: ${{ needs.protection_metadata.outputs.attempt }}
+  protection_snapshot:
+    if: ${{ (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' }}
+    needs: [source, tools, context, releases, preview, stable]
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+    uses: ./.github/workflows/application-release-private.yml
+    with:
+      operation: observe
+      phase: snapshot
+      timeout_minutes: 1
+      opportunity: ${{ inputs.opportunity }}
+      source_artifact: ${{ needs.source.outputs.artifact }}
+      source_attempt: ${{ needs.source.outputs.source_attempt }}
+      tools_artifact: ${{ needs.tools.outputs.artifact }}
+      tools_attempt: ${{ needs.tools.outputs.attempt }}
+      known_runs: ${{ needs.source.outputs.known_runs }}
+  snapshot:
+    if: ${{ (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' }}
+    needs: [source, tools, context, releases, preview, stable, protection_snapshot]
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+    uses: ./.github/workflows/application-release-private.yml
+    with:
+      operation: role-snapshot
+      phase: snapshot
+      timeout_minutes: 2
+      opportunity: ${{ inputs.opportunity }}
+      source_artifact: ${{ needs.source.outputs.artifact }}
+      source_attempt: ${{ needs.source.outputs.source_attempt }}
+      tools_artifact: ${{ needs.tools.outputs.artifact }}
+      tools_attempt: ${{ needs.tools.outputs.attempt }}
+      known_runs: ${{ needs.source.outputs.known_runs }}
+      role: snapshot
+      context_artifact: ${{ needs.context.outputs.artifact }}
+      context_attempt: ${{ needs.context.outputs.attempt }}
+      protection_artifact: ${{ needs.protection_snapshot.outputs.artifact }}
+      protection_attempt: ${{ needs.protection_snapshot.outputs.attempt }}
+      signed_roles: >-
+        {"releases":{"id":"${{ needs.releases.outputs.artifact }}","attempt":${{ needs.releases.outputs.attempt }}},"preview":{"id":"${{ needs.preview.outputs.artifact }}","attempt":${{ needs.preview.outputs.attempt }}},"stable":{"id":"${{ needs.stable.outputs.artifact }}","attempt":${{ needs.stable.outputs.attempt }}}}
+  protection_timestamp:
+    if: ${{ (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' }}
+    needs: [source, tools, context, releases, preview, stable, snapshot]
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+    uses: ./.github/workflows/application-release-private.yml
+    with:
+      operation: observe
+      phase: timestamp
+      timeout_minutes: 1
+      opportunity: ${{ inputs.opportunity }}
+      source_artifact: ${{ needs.source.outputs.artifact }}
+      source_attempt: ${{ needs.source.outputs.source_attempt }}
+      tools_artifact: ${{ needs.tools.outputs.artifact }}
+      tools_attempt: ${{ needs.tools.outputs.attempt }}
+      known_runs: ${{ needs.source.outputs.known_runs }}
+  timestamp:
+    if: ${{ (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' }}
+    needs: [source, tools, context, releases, preview, stable, snapshot, protection_timestamp]
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+    uses: ./.github/workflows/application-release-private.yml
+    with:
+      operation: role-timestamp
+      phase: timestamp
+      timeout_minutes: 2
+      opportunity: ${{ inputs.opportunity }}
+      source_artifact: ${{ needs.source.outputs.artifact }}
+      source_attempt: ${{ needs.source.outputs.source_attempt }}
+      tools_artifact: ${{ needs.tools.outputs.artifact }}
+      tools_attempt: ${{ needs.tools.outputs.attempt }}
+      known_runs: ${{ needs.source.outputs.known_runs }}
+      role: timestamp
+      context_artifact: ${{ needs.context.outputs.artifact }}
+      context_attempt: ${{ needs.context.outputs.attempt }}
+      protection_artifact: ${{ needs.protection_timestamp.outputs.artifact }}
+      protection_attempt: ${{ needs.protection_timestamp.outputs.attempt }}
+      signed_roles: >-
+        {"releases":{"id":"${{ needs.releases.outputs.artifact }}","attempt":${{ needs.releases.outputs.attempt }}},"preview":{"id":"${{ needs.preview.outputs.artifact }}","attempt":${{ needs.preview.outputs.attempt }}},"stable":{"id":"${{ needs.stable.outputs.artifact }}","attempt":${{ needs.stable.outputs.attempt }}},"snapshot":{"id":"${{ needs.snapshot.outputs.artifact }}","attempt":${{ needs.snapshot.outputs.attempt }}}}
+  assemble:
+    if: ${{ (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' }}
+    needs: [source, tools, context, releases, preview, stable, snapshot, timestamp]
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+      id-token: write
+      attestations: write
+    uses: ./.github/workflows/application-release-assembly.yml
+    with:
+      opportunity: ${{ inputs.opportunity }}
+      source_artifact: ${{ needs.source.outputs.artifact }}
+      source_attempt: ${{ needs.source.outputs.source_attempt }}
+      tools_artifact: ${{ needs.tools.outputs.artifact }}
+      tools_attempt: ${{ needs.tools.outputs.attempt }}
+      known_runs: ${{ needs.source.outputs.known_runs }}
+      context_artifact: ${{ needs.context.outputs.artifact }}
+      context_attempt: ${{ needs.context.outputs.attempt }}
+      signed_roles: >-
+        {"releases":{"id":"${{ needs.releases.outputs.artifact }}","attempt":${{ needs.releases.outputs.attempt }}},"preview":{"id":"${{ needs.preview.outputs.artifact }}","attempt":${{ needs.preview.outputs.attempt }}},"stable":{"id":"${{ needs.stable.outputs.artifact }}","attempt":${{ needs.stable.outputs.attempt }}},"snapshot":{"id":"${{ needs.snapshot.outputs.artifact }}","attempt":${{ needs.snapshot.outputs.attempt }}},"timestamp":{"id":"${{ needs.timestamp.outputs.artifact }}","attempt":${{ needs.timestamp.outputs.attempt }}}}
+  draft_recovery:
+    if: ${{ (inputs.mode == 'prepare' || inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' }}
+    needs: [source, tools, assemble]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 2
+    environment: production-release-publication
+    permissions:
+      contents: write
+      actions: read
+      checks: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PORTCOVE_APPLICATION_RELEASE_REVISION: ${{ vars.PORTCOVE_APPLICATION_RELEASE_REVISION }}
+      PORTCOVE_APPLICATION_RELEASE_REF: ${{ vars.PORTCOVE_APPLICATION_RELEASE_REF }}
+      PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256: ${{ vars.PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256 }}
+      PORTCOVE_APPLICATION_RELEASE_ACTIVE: ${{ vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE }}
+      PORTCOVE_APPLICATION_RELEASE_SPENDING: ${{ vars.PORTCOVE_APPLICATION_RELEASE_SPENDING }}
+      PORTCOVE_APPLICATION_RELEASE_PROTECTION_SHA256: ${{ vars.PORTCOVE_APPLICATION_RELEASE_PROTECTION_SHA256 }}
+      PORTCOVE_APPLICATION_INITIAL_SITE_PREIMAGE_SHA256: ${{ vars.PORTCOVE_APPLICATION_INITIAL_SITE_PREIMAGE_SHA256 }}
+      PORTCOVE_APPLICATION_BOOTSTRAP_DESCRIPTOR_SHA256: ${{ vars.PORTCOVE_APPLICATION_BOOTSTRAP_DESCRIPTOR_SHA256 }}
+      PORTCOVE_APPLICATION_SETUP_PLAN_SHA256: ${{ vars.PORTCOVE_APPLICATION_SETUP_PLAN_SHA256 }}
+      PORTCOVE_APPLICATION_RELEASE_OPPORTUNITY: ${{ inputs.opportunity }}
+      PORTCOVE_KNOWN_RELEASE_RUNS: ${{ needs.source.outputs.known_runs }}
+      PORTCOVE_SOURCE_ARTIFACT: ${{ needs.source.outputs.artifact }}
+      PORTCOVE_SOURCE_ATTEMPT: ${{ needs.source.outputs.source_attempt }}
+      PORTCOVE_TOOLS_ARTIFACT: ${{ needs.tools.outputs.artifact }}
+      PORTCOVE_TOOLS_ATTEMPT: ${{ needs.tools.outputs.attempt }}
+      PORTCOVE_PUBLICATION_INPUT_ARTIFACT: ${{ needs.assemble.outputs.artifact }}
+      PORTCOVE_PUBLICATION_INPUT_ATTEMPT: ${{ needs.assemble.outputs.attempt }}
+    outputs:
+      needed: ${{ steps.stage.outputs.recovery_needed }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - name: Bind fixed caller before receiving attested tools
+        run: node --input-type=module -e "import { inspectApplicationReleaseExecution } from './scripts/application-release-policy.mts'; inspectApplicationReleaseExecution(process.env)"
+      - name: Install existing hash-pinned attestation verifier
+        shell: bash
+        run: |-
+          set -euo pipefail
+          curl --fail --location --max-time 120 --max-filesize 16000000 --output "$RUNNER_TEMP/gh.tar.gz" https://github.com/cli/cli/releases/download/v2.102.0/gh_2.102.0_linux_amd64.tar.gz
+          echo "bb766f710eef8ede859c18578c72c327597cd4c8a85b06001b1f3843c6019386  $RUNNER_TEMP/gh.tar.gz" | sha256sum --check --strict
+          tar -xzf "$RUNNER_TEMP/gh.tar.gz" -C "$RUNNER_TEMP" gh_2.102.0_linux_amd64/bin/gh
+          echo "$RUNNER_TEMP/gh_2.102.0_linux_amd64/bin" >> "$GITHUB_PATH"
+      - name: Verify fixed tools and provenance before execution
+        run: node scripts/application-release-tools.mts receive
+      - id: stage
+        name: Verify both assemblies and stage the original draft bytes
+        run: node scripts/application-release-private.bundle.mjs draft-recovery-stage
+      - id: backup
+        if: steps.stage.outputs.backup_directory != ''
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: application-draft-recovery-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ steps.stage.outputs.backup_directory }}
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: false
+          compression-level: 0
+      - name: Read back the exact backup before retaining its provider identity
+        if: steps.stage.outputs.backup_directory != ''
+        env:
+          PORTCOVE_DRAFT_BACKUP_ARTIFACT: ${{ steps.backup.outputs.artifact-id }}
+          PORTCOVE_DRAFT_BACKUP_DRAFT_SHA256: ${{ steps.stage.outputs.draft_sha256 }}
+          PORTCOVE_DRAFT_BACKUP_OWNER_SHA256: ${{ steps.stage.outputs.owner_sha256 }}
+          PORTCOVE_DRAFT_BACKUP_OLD_CONTEXT_SHA256: ${{ steps.stage.outputs.old_context_sha256 }}
+          PORTCOVE_DRAFT_BACKUP_REPLACEMENT_CONTEXT_SHA256: ${{ steps.stage.outputs.replacement_context_sha256 }}
+        run: node scripts/application-release-private.bundle.mjs draft-recovery-retain
+  protection_draft_recovery:
+    if: ${{ inputs.mode == 'prepare' && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.draft_recovery.outputs.needed == 'true' }}
+    needs: [source, tools, draft_recovery]
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+    uses: ./.github/workflows/application-release-private.yml
+    with:
+      operation: observe
+      phase: draft-recovery
+      timeout_minutes: 1
+      opportunity: ${{ inputs.opportunity }}
+      source_artifact: ${{ needs.source.outputs.artifact }}
+      source_attempt: ${{ needs.source.outputs.source_attempt }}
+      tools_artifact: ${{ needs.tools.outputs.artifact }}
+      tools_attempt: ${{ needs.tools.outputs.attempt }}
+      known_runs: ${{ needs.source.outputs.known_runs }}
+  publication_prepare:
+    if: ${{ always() && !cancelled() && inputs.mode == 'prepare' && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.assemble.result == 'success' && needs.draft_recovery.result == 'success' && needs.context.result == 'success' && needs.package.result == 'success' && needs.native.result == 'success' && needs.payload.result == 'success' && (needs.draft_recovery.outputs.needed != 'true' || needs.protection_draft_recovery.result == 'success') }}
+    needs:
+      [
+        source,
+        tools,
+        assemble,
+        draft_recovery,
+        protection_draft_recovery,
+        context,
+        package,
+        native,
+        payload,
+      ]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 3
+    environment: production-release-publication
+    permissions:
+      contents: write
+      actions: read
+      checks: read
+      id-token: write
+      attestations: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PORTCOVE_APPLICATION_RELEASE_REVISION: ${{ vars.PORTCOVE_APPLICATION_RELEASE_REVISION }}
+      PORTCOVE_APPLICATION_RELEASE_REF: ${{ vars.PORTCOVE_APPLICATION_RELEASE_REF }}
+      PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256: ${{ vars.PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256 }}
+      PORTCOVE_APPLICATION_RELEASE_ACTIVE: ${{ vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE }}
+      PORTCOVE_APPLICATION_RELEASE_SPENDING: ${{ vars.PORTCOVE_APPLICATION_RELEASE_SPENDING }}
+      PORTCOVE_APPLICATION_RELEASE_PROTECTION_SHA256: ${{ vars.PORTCOVE_APPLICATION_RELEASE_PROTECTION_SHA256 }}
+      PORTCOVE_APPLICATION_INITIAL_SITE_PREIMAGE_SHA256: ${{ vars.PORTCOVE_APPLICATION_INITIAL_SITE_PREIMAGE_SHA256 }}
+      PORTCOVE_APPLICATION_BOOTSTRAP_DESCRIPTOR_SHA256: ${{ vars.PORTCOVE_APPLICATION_BOOTSTRAP_DESCRIPTOR_SHA256 }}
+      PORTCOVE_APPLICATION_SETUP_PLAN_SHA256: ${{ vars.PORTCOVE_APPLICATION_SETUP_PLAN_SHA256 }}
+      PORTCOVE_APPLICATION_RELEASE_OPPORTUNITY: ${{ inputs.opportunity }}
+      PORTCOVE_KNOWN_RELEASE_RUNS: ${{ needs.source.outputs.known_runs }}
+      PORTCOVE_SOURCE_ARTIFACT: ${{ needs.source.outputs.artifact }}
+      PORTCOVE_SOURCE_ATTEMPT: ${{ needs.source.outputs.source_attempt }}
+      PORTCOVE_TOOLS_ARTIFACT: ${{ needs.tools.outputs.artifact }}
+      PORTCOVE_TOOLS_ATTEMPT: ${{ needs.tools.outputs.attempt }}
+      PORTCOVE_PUBLICATION_INPUT_ARTIFACT: ${{ needs.assemble.outputs.artifact }}
+      PORTCOVE_PUBLICATION_INPUT_ATTEMPT: ${{ needs.assemble.outputs.attempt }}
+      PORTCOVE_PROTECTION_PHASE: draft-recovery
+      PORTCOVE_PROTECTION_ARTIFACT: ${{ needs.protection_draft_recovery.outputs.artifact }}
+      PORTCOVE_PROTECTION_ATTEMPT: ${{ needs.protection_draft_recovery.outputs.attempt }}
+      PORTCOVE_CONTEXT_ARTIFACT: ${{ needs.context.outputs.artifact }}
+      PORTCOVE_CONTEXT_ATTEMPT: ${{ needs.context.outputs.attempt }}
+      PORTCOVE_UNSIGNED_ARTIFACT: ${{ needs.package.outputs.artifact }}
+      PORTCOVE_PACKAGE_ATTEMPT: ${{ needs.package.outputs.package_attempt }}
+      PORTCOVE_PROVENANCE_ATTEMPT: ${{ needs.package.outputs.provenance_attempt }}
+      PORTCOVE_SIGNATURE_ARTIFACT: ${{ needs.payload.outputs.artifact }}
+      PORTCOVE_SIGNATURE_ATTEMPT: ${{ needs.payload.outputs.attempt }}
+      PORTCOVE_NATIVE_ARTIFACT: ${{ needs.native.outputs.artifact }}
+      PORTCOVE_NATIVE_ATTEMPT: ${{ needs.native.outputs.native_attempt }}
+      PORTCOVE_NATIVE_ATTESTATION_ATTEMPT: ${{ needs.native.outputs.attestation_attempt }}
+      PORTCOVE_NATIVE_HOST: ${{ needs.native.outputs.host }}
+      PORTCOVE_NATIVE_INVOCATION_ID: ${{ needs.native.outputs.invocation }}
+      PORTCOVE_APPLICATION_NATIVE_MINIMUM_PLATFORM: ${{ vars.PORTCOVE_APPLICATION_NATIVE_MINIMUM_PLATFORM }}
+    outputs:
+      artifact: ${{ steps.upload.outputs.artifact-id }}
+      attempt: ${{ steps.worker.outputs.attempt }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - name: Bind fixed caller before receiving attested tools
+        run: node --input-type=module -e "import { inspectApplicationReleaseExecution } from './scripts/application-release-policy.mts'; inspectApplicationReleaseExecution(process.env)"
+      - name: Install existing hash-pinned attestation verifier
+        shell: bash
+        run: |-
+          set -euo pipefail
+          curl --fail --location --max-time 120 --max-filesize 16000000 --output "$RUNNER_TEMP/gh.tar.gz" https://github.com/cli/cli/releases/download/v2.102.0/gh_2.102.0_linux_amd64.tar.gz
+          echo "bb766f710eef8ede859c18578c72c327597cd4c8a85b06001b1f3843c6019386  $RUNNER_TEMP/gh.tar.gz" | sha256sum --check --strict
+          tar -xzf "$RUNNER_TEMP/gh.tar.gz" -C "$RUNNER_TEMP" gh_2.102.0_linux_amd64/bin/gh
+          echo "$RUNNER_TEMP/gh_2.102.0_linux_amd64/bin" >> "$GITHUB_PATH"
+      - name: Verify fixed tools and provenance before execution
+        run: node scripts/application-release-tools.mts receive
+      - id: worker
+        name: Verify actual inputs and every draft asset byte before final protection
+        run: node scripts/application-release-private.bundle.mjs publication-prepare
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: work/application-draft-prepared/*.json
+      - id: upload
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: application-draft-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/application-draft-prepared/*.json
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: false
+  protection_publication:
+    if: ${{ always() && !cancelled() && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.assemble.result == 'success' && (inputs.mode == 'bootstrap' || ((inputs.mode == 'renew' || inputs.mode == 'renew-unserved') && needs.draft_recovery.result == 'success') || (inputs.mode == 'prepare' && needs.publication_prepare.result == 'success')) }}
+    needs: [source, tools, assemble, draft_recovery, publication_prepare]
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+    uses: ./.github/workflows/application-release-private.yml
+    with:
+      operation: observe
+      phase: publication
+      timeout_minutes: 1
+      opportunity: ${{ inputs.opportunity }}
+      source_artifact: ${{ needs.source.outputs.artifact }}
+      source_attempt: ${{ needs.source.outputs.source_attempt }}
+      tools_artifact: ${{ needs.tools.outputs.artifact }}
+      tools_attempt: ${{ needs.tools.outputs.attempt }}
+      known_runs: ${{ needs.source.outputs.known_runs }}
+  publication:
+    if: ${{ always() && !cancelled() && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.assemble.result == 'success' && needs.protection_publication.result == 'success' && (inputs.mode == 'bootstrap' || needs.draft_recovery.result == 'success') && (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || (inputs.mode == 'prepare' && needs.publication_prepare.result == 'success')) }}
+    needs: [source, tools, assemble, draft_recovery, publication_prepare, protection_publication]
+    runs-on: ubuntu-22.04
+    timeout-minutes: ${{ inputs.mode == 'prepare' && 2 || 5 }}
+    environment: production-release-publication
+    permissions:
+      contents: write
+      actions: read
+      checks: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PORTCOVE_APPLICATION_RELEASE_REVISION: ${{ vars.PORTCOVE_APPLICATION_RELEASE_REVISION }}
+      PORTCOVE_APPLICATION_RELEASE_REF: ${{ vars.PORTCOVE_APPLICATION_RELEASE_REF }}
+      PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256: ${{ vars.PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256 }}
+      PORTCOVE_APPLICATION_RELEASE_ACTIVE: ${{ vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE }}
+      PORTCOVE_APPLICATION_RELEASE_SPENDING: ${{ vars.PORTCOVE_APPLICATION_RELEASE_SPENDING }}
+      PORTCOVE_APPLICATION_RELEASE_PROTECTION_SHA256: ${{ vars.PORTCOVE_APPLICATION_RELEASE_PROTECTION_SHA256 }}
+      PORTCOVE_APPLICATION_INITIAL_SITE_PREIMAGE_SHA256: ${{ vars.PORTCOVE_APPLICATION_INITIAL_SITE_PREIMAGE_SHA256 }}
+      PORTCOVE_APPLICATION_BOOTSTRAP_DESCRIPTOR_SHA256: ${{ vars.PORTCOVE_APPLICATION_BOOTSTRAP_DESCRIPTOR_SHA256 }}
+      PORTCOVE_APPLICATION_SETUP_PLAN_SHA256: ${{ vars.PORTCOVE_APPLICATION_SETUP_PLAN_SHA256 }}
+      PORTCOVE_APPLICATION_RELEASE_OPPORTUNITY: ${{ inputs.opportunity }}
+      PORTCOVE_KNOWN_RELEASE_RUNS: ${{ needs.source.outputs.known_runs }}
+      PORTCOVE_SOURCE_ARTIFACT: ${{ needs.source.outputs.artifact }}
+      PORTCOVE_SOURCE_ATTEMPT: ${{ needs.source.outputs.source_attempt }}
+      PORTCOVE_TOOLS_ARTIFACT: ${{ needs.tools.outputs.artifact }}
+      PORTCOVE_TOOLS_ATTEMPT: ${{ needs.tools.outputs.attempt }}
+      PORTCOVE_PROTECTION_PHASE: publication
+      PORTCOVE_PROTECTION_ARTIFACT: ${{ needs.protection_publication.outputs.artifact }}
+      PORTCOVE_PROTECTION_ATTEMPT: ${{ needs.protection_publication.outputs.attempt }}
+      PORTCOVE_PUBLICATION_INPUT_ARTIFACT: ${{ needs.assemble.outputs.artifact }}
+      PORTCOVE_PUBLICATION_INPUT_ATTEMPT: ${{ needs.assemble.outputs.attempt }}
+      PORTCOVE_DRAFT_ARTIFACT: ${{ needs.publication_prepare.outputs.artifact }}
+      PORTCOVE_DRAFT_ATTEMPT: ${{ needs.publication_prepare.outputs.attempt }}
+    outputs:
+      release_id: ${{ steps.worker.outputs.release_id }}
+      site_generation: ${{ steps.worker.outputs.site_generation }}
+      pages_artifact: ${{ steps.pages.outputs.artifact_id }}
+      receipt_artifact: ${{ steps.receipt.outputs.artifact-id || steps.application_receipt.outputs.artifact-id }}
+      attempt: ${{ steps.worker.outputs.attempt }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - name: Bind fixed caller before receiving attested tools
+        run: node --input-type=module -e "import { inspectApplicationReleaseExecution } from './scripts/application-release-policy.mts'; inspectApplicationReleaseExecution(process.env)"
+      - name: Install existing hash-pinned attestation verifier
+        shell: bash
+        run: |-
+          set -euo pipefail
+          curl --fail --location --max-time 120 --max-filesize 16000000 --output "$RUNNER_TEMP/gh.tar.gz" https://github.com/cli/cli/releases/download/v2.102.0/gh_2.102.0_linux_amd64.tar.gz
+          echo "bb766f710eef8ede859c18578c72c327597cd4c8a85b06001b1f3843c6019386  $RUNNER_TEMP/gh.tar.gz" | sha256sum --check --strict
+          tar -xzf "$RUNNER_TEMP/gh.tar.gz" -C "$RUNNER_TEMP" gh_2.102.0_linux_amd64/bin/gh
+          echo "$RUNNER_TEMP/gh_2.102.0_linux_amd64/bin" >> "$GITHUB_PATH"
+      - name: Verify fixed tools and provenance before execution
+        run: node scripts/application-release-tools.mts receive
+      - id: worker
+        name: Authenticate completed byte preparation and publish once behind fresh protection
+        run: node scripts/application-release-private.bundle.mjs publication
+      - id: feed
+        if: inputs.mode == 'bootstrap'
+        name: Re-fetch immutable assets and verify assembly provenance before feed staging
+        run: node scripts/application-release-private.bundle.mjs prepare-feed
+      - id: pages
+        if: inputs.mode == 'bootstrap'
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          name: application-pages-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ steps.feed.outputs.feed_directory }}
+          include-hidden-files: true
+          retention-days: 7
+      - id: capture
+        if: inputs.mode == 'bootstrap'
+        name: Verify provider Pages ZIP equals the actual fixed uploader TAR
+        env:
+          PORTCOVE_PAGES_ARTIFACT: ${{ steps.pages.outputs.artifact_id }}
+        run: node scripts/application-release-private.bundle.mjs capture-pages
+      - id: receipt
+        if: inputs.mode == 'bootstrap'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: application-publication-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |-
+            work/application-publication/result.json
+            work/application-feed/receipt.json
+            work/application-feed/pages.json
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: false
+      - id: application_receipt
+        if: inputs.mode == 'prepare'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: application-publication-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/application-publication/result.json
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: false
+  feed_prepare:
+    if: ${{ always() && !cancelled() && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && ((inputs.mode == 'recover' || inputs.mode == 'recover-metadata') || ((inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare') && needs.assemble.result == 'success' && needs.publication.result == 'success')) }}
+    needs: [source, tools, assemble, publication]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 3
+    environment: production-release-admission
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PORTCOVE_APPLICATION_RELEASE_REVISION: ${{ vars.PORTCOVE_APPLICATION_RELEASE_REVISION }}
+      PORTCOVE_APPLICATION_RELEASE_REF: ${{ vars.PORTCOVE_APPLICATION_RELEASE_REF }}
+      PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256: ${{ vars.PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256 }}
+      PORTCOVE_APPLICATION_RELEASE_ACTIVE: ${{ vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE }}
+      PORTCOVE_APPLICATION_RELEASE_SPENDING: ${{ vars.PORTCOVE_APPLICATION_RELEASE_SPENDING }}
+      PORTCOVE_APPLICATION_RELEASE_PROTECTION_SHA256: ${{ vars.PORTCOVE_APPLICATION_RELEASE_PROTECTION_SHA256 }}
+      PORTCOVE_APPLICATION_INITIAL_SITE_PREIMAGE_SHA256: ${{ vars.PORTCOVE_APPLICATION_INITIAL_SITE_PREIMAGE_SHA256 }}
+      PORTCOVE_APPLICATION_BOOTSTRAP_DESCRIPTOR_SHA256: ${{ vars.PORTCOVE_APPLICATION_BOOTSTRAP_DESCRIPTOR_SHA256 }}
+      PORTCOVE_APPLICATION_SETUP_PLAN_SHA256: ${{ vars.PORTCOVE_APPLICATION_SETUP_PLAN_SHA256 }}
+      PORTCOVE_APPLICATION_RELEASE_OPPORTUNITY: ${{ inputs.opportunity }}
+      PORTCOVE_KNOWN_RELEASE_RUNS: ${{ needs.source.outputs.known_runs }}
+      PORTCOVE_SOURCE_ARTIFACT: ${{ needs.source.outputs.artifact }}
+      PORTCOVE_SOURCE_ATTEMPT: ${{ needs.source.outputs.source_attempt }}
+      PORTCOVE_TOOLS_ARTIFACT: ${{ needs.tools.outputs.artifact }}
+      PORTCOVE_TOOLS_ATTEMPT: ${{ needs.tools.outputs.attempt }}
+      PORTCOVE_PROTECTION_PHASE: publication
+      PORTCOVE_PUBLICATION_INPUT_ATTEMPT: ${{ needs.assemble.outputs.attempt }}
+      PORTCOVE_PUBLICATION_RECEIPT_ARTIFACT: ${{ needs.publication.outputs.receipt_artifact }}
+      PORTCOVE_PUBLICATION_ATTEMPT: ${{ needs.publication.outputs.attempt }}
+      PORTCOVE_PAGES_ARTIFACT: ${{ needs.publication.outputs.pages_artifact }}
+    outputs:
+      artifact: ${{ steps.upload.outputs.artifact-id }}
+      attempt: ${{ steps.worker.outputs.attempt }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - name: Bind fixed caller before receiving attested tools
+        run: node --input-type=module -e "import { inspectApplicationReleaseExecution } from './scripts/application-release-policy.mts'; inspectApplicationReleaseExecution(process.env)"
+      - name: Install existing hash-pinned attestation verifier
+        shell: bash
+        run: |-
+          set -euo pipefail
+          curl --fail --location --max-time 120 --max-filesize 16000000 --output "$RUNNER_TEMP/gh.tar.gz" https://github.com/cli/cli/releases/download/v2.102.0/gh_2.102.0_linux_amd64.tar.gz
+          echo "bb766f710eef8ede859c18578c72c327597cd4c8a85b06001b1f3843c6019386  $RUNNER_TEMP/gh.tar.gz" | sha256sum --check --strict
+          tar -xzf "$RUNNER_TEMP/gh.tar.gz" -C "$RUNNER_TEMP" gh_2.102.0_linux_amd64/bin/gh
+          echo "$RUNNER_TEMP/gh_2.102.0_linux_amd64/bin" >> "$GITHUB_PATH"
+      - name: Verify fixed tools and provenance before execution
+        run: node scripts/application-release-tools.mts receive
+      - id: ordinary_feed
+        if: inputs.mode == 'prepare' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || (inputs.mode == 'recover' || inputs.mode == 'recover-metadata')
+        name: Verify all immutable public assets and authenticated assembly before feed staging
+        run: node scripts/application-release-private.bundle.mjs prepare-feed
+      - id: ordinary_pages
+        if: inputs.mode == 'prepare' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || (inputs.mode == 'recover' || inputs.mode == 'recover-metadata')
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          name: application-pages-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ steps.ordinary_feed.outputs.feed_directory }}
+          include-hidden-files: true
+          retention-days: 7
+      - if: inputs.mode == 'prepare' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || (inputs.mode == 'recover' || inputs.mode == 'recover-metadata')
+        name: Verify the official Pages uploader TAR and provider ZIP
+        env:
+          PORTCOVE_PAGES_ARTIFACT: ${{ steps.ordinary_pages.outputs.artifact_id }}
+        run: node scripts/application-release-private.bundle.mjs capture-pages
+      - id: worker
+        name: Verify immutable cohort, exact Pages artifact and usable public preimage
+        env:
+          PORTCOVE_PAGES_ARTIFACT: ${{ (inputs.mode == 'prepare' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || (inputs.mode == 'recover' || inputs.mode == 'recover-metadata')) && steps.ordinary_pages.outputs.artifact_id || needs.publication.outputs.pages_artifact }}
+        run: node scripts/application-release-private.bundle.mjs site-preflight
+      - id: upload
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: application-site-preflight-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/application-site-preflight/plan.json
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: false
+  protection_feed:
+    if: ${{ always() && !cancelled() && (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare' || (inputs.mode == 'recover' || inputs.mode == 'recover-metadata')) && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.feed_prepare.result == 'success' }}
+    needs: [source, tools, feed_prepare]
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+    uses: ./.github/workflows/application-release-private.yml
+    with:
+      operation: observe
+      phase: feed
+      timeout_minutes: 1
+      opportunity: ${{ inputs.opportunity }}
+      source_artifact: ${{ needs.source.outputs.artifact }}
+      source_attempt: ${{ needs.source.outputs.source_attempt }}
+      tools_artifact: ${{ needs.tools.outputs.artifact }}
+      tools_attempt: ${{ needs.tools.outputs.attempt }}
+      known_runs: ${{ needs.source.outputs.known_runs }}
+  feed:
+    if: ${{ always() && !cancelled() && (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare' || (inputs.mode == 'recover' || inputs.mode == 'recover-metadata')) && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.feed_prepare.result == 'success' && needs.protection_feed.result == 'success' }}
+    needs: [source, tools, feed_prepare, protection_feed]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 2
+    environment: github-pages
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+      pages: write
+      id-token: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PORTCOVE_APPLICATION_RELEASE_REVISION: ${{ vars.PORTCOVE_APPLICATION_RELEASE_REVISION }}
+      PORTCOVE_APPLICATION_RELEASE_REF: ${{ vars.PORTCOVE_APPLICATION_RELEASE_REF }}
+      PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256: ${{ vars.PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256 }}
+      PORTCOVE_APPLICATION_RELEASE_ACTIVE: ${{ vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE }}
+      PORTCOVE_APPLICATION_RELEASE_SPENDING: ${{ vars.PORTCOVE_APPLICATION_RELEASE_SPENDING }}
+      PORTCOVE_APPLICATION_RELEASE_PROTECTION_SHA256: ${{ vars.PORTCOVE_APPLICATION_RELEASE_PROTECTION_SHA256 }}
+      PORTCOVE_APPLICATION_INITIAL_SITE_PREIMAGE_SHA256: ${{ vars.PORTCOVE_APPLICATION_INITIAL_SITE_PREIMAGE_SHA256 }}
+      PORTCOVE_APPLICATION_BOOTSTRAP_DESCRIPTOR_SHA256: ${{ vars.PORTCOVE_APPLICATION_BOOTSTRAP_DESCRIPTOR_SHA256 }}
+      PORTCOVE_APPLICATION_SETUP_PLAN_SHA256: ${{ vars.PORTCOVE_APPLICATION_SETUP_PLAN_SHA256 }}
+      PORTCOVE_APPLICATION_RELEASE_OPPORTUNITY: ${{ inputs.opportunity }}
+      PORTCOVE_KNOWN_RELEASE_RUNS: ${{ needs.source.outputs.known_runs }}
+      PORTCOVE_SOURCE_ARTIFACT: ${{ needs.source.outputs.artifact }}
+      PORTCOVE_SOURCE_ATTEMPT: ${{ needs.source.outputs.source_attempt }}
+      PORTCOVE_TOOLS_ARTIFACT: ${{ needs.tools.outputs.artifact }}
+      PORTCOVE_TOOLS_ATTEMPT: ${{ needs.tools.outputs.attempt }}
+      PORTCOVE_PROTECTION_PHASE: feed
+      PORTCOVE_SITE_PREFLIGHT_ARTIFACT: ${{ needs.feed_prepare.outputs.artifact }}
+      PORTCOVE_SITE_PREFLIGHT_ATTEMPT: ${{ needs.feed_prepare.outputs.attempt }}
+      PORTCOVE_PROTECTION_ARTIFACT: ${{ needs.protection_feed.outputs.artifact }}
+      PORTCOVE_PROTECTION_ATTEMPT: ${{ needs.protection_feed.outputs.attempt }}
+    outputs:
+      artifact: ${{ steps.upload.outputs.artifact-id }}
+      attempt: ${{ steps.worker.outputs.attempt }}
+      site_generation: ${{ steps.worker.outputs.site_generation }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - name: Bind fixed caller before receiving attested tools
+        run: node --input-type=module -e "import { inspectApplicationReleaseExecution } from './scripts/application-release-policy.mts'; inspectApplicationReleaseExecution(process.env)"
+      - name: Install existing hash-pinned attestation verifier
+        shell: bash
+        run: |-
+          set -euo pipefail
+          curl --fail --location --max-time 120 --max-filesize 16000000 --output "$RUNNER_TEMP/gh.tar.gz" https://github.com/cli/cli/releases/download/v2.102.0/gh_2.102.0_linux_amd64.tar.gz
+          echo "bb766f710eef8ede859c18578c72c327597cd4c8a85b06001b1f3843c6019386  $RUNNER_TEMP/gh.tar.gz" | sha256sum --check --strict
+          tar -xzf "$RUNNER_TEMP/gh.tar.gz" -C "$RUNNER_TEMP" gh_2.102.0_linux_amd64/bin/gh
+          echo "$RUNNER_TEMP/gh_2.102.0_linux_amd64/bin" >> "$GITHUB_PATH"
+      - name: Verify fixed tools and provenance before execution
+        run: node scripts/application-release-tools.mts receive
+      - id: worker
+        name: Deploy once behind post-OIDC fresh guards and verify exact public bytes
+        run: node scripts/application-release-private.bundle.mjs feed
+      - id: upload
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: application-site-publication-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/application-site-publication/result.json
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: false
+  readback:
+    if: ${{ always() && !cancelled() && (inputs.mode == 'bootstrap' || (inputs.mode == 'renew' || inputs.mode == 'renew-unserved') || inputs.mode == 'prepare' || (inputs.mode == 'recover' || inputs.mode == 'recover-metadata')) && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.feed_prepare.result == 'success' && needs.feed.result == 'success' }}
+    needs: [source, tools, feed_prepare, feed]
+    runs-on: ubuntu-22.04
+    timeout-minutes: ${{ (inputs.mode == 'prepare' || inputs.mode == 'recover') && 3 || 5 }}
+    environment: production-release-admission
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PORTCOVE_APPLICATION_RELEASE_REVISION: ${{ vars.PORTCOVE_APPLICATION_RELEASE_REVISION }}
+      PORTCOVE_APPLICATION_RELEASE_REF: ${{ vars.PORTCOVE_APPLICATION_RELEASE_REF }}
+      PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256: ${{ vars.PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256 }}
+      PORTCOVE_APPLICATION_RELEASE_ACTIVE: ${{ vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE }}
+      PORTCOVE_APPLICATION_RELEASE_SPENDING: ${{ vars.PORTCOVE_APPLICATION_RELEASE_SPENDING }}
+      PORTCOVE_APPLICATION_RELEASE_PROTECTION_SHA256: ${{ vars.PORTCOVE_APPLICATION_RELEASE_PROTECTION_SHA256 }}
+      PORTCOVE_APPLICATION_INITIAL_SITE_PREIMAGE_SHA256: ${{ vars.PORTCOVE_APPLICATION_INITIAL_SITE_PREIMAGE_SHA256 }}
+      PORTCOVE_APPLICATION_BOOTSTRAP_DESCRIPTOR_SHA256: ${{ vars.PORTCOVE_APPLICATION_BOOTSTRAP_DESCRIPTOR_SHA256 }}
+      PORTCOVE_APPLICATION_SETUP_PLAN_SHA256: ${{ vars.PORTCOVE_APPLICATION_SETUP_PLAN_SHA256 }}
+      PORTCOVE_APPLICATION_RELEASE_OPPORTUNITY: ${{ inputs.opportunity }}
+      PORTCOVE_KNOWN_RELEASE_RUNS: ${{ needs.source.outputs.known_runs }}
+      PORTCOVE_SOURCE_ARTIFACT: ${{ needs.source.outputs.artifact }}
+      PORTCOVE_SOURCE_ATTEMPT: ${{ needs.source.outputs.source_attempt }}
+      PORTCOVE_TOOLS_ARTIFACT: ${{ needs.tools.outputs.artifact }}
+      PORTCOVE_TOOLS_ATTEMPT: ${{ needs.tools.outputs.attempt }}
+      PORTCOVE_PROTECTION_PHASE: feed
+      PORTCOVE_SITE_PREFLIGHT_ARTIFACT: ${{ needs.feed_prepare.outputs.artifact }}
+      PORTCOVE_SITE_PREFLIGHT_ATTEMPT: ${{ needs.feed_prepare.outputs.attempt }}
+    outputs:
+      artifact: ${{ steps.upload.outputs.artifact-id }}
+      windows_has_predecessor: ${{ steps.worker.outputs.windows_has_predecessor }}
+      windows_candidate: ${{ steps.windows_candidate.outputs.artifact-id }}
+      attempt: ${{ steps.worker.outputs.attempt }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - name: Bind fixed caller before receiving attested tools
+        run: node --input-type=module -e "import { inspectApplicationReleaseExecution } from './scripts/application-release-policy.mts'; inspectApplicationReleaseExecution(process.env)"
+      - name: Install existing hash-pinned attestation verifier
+        shell: bash
+        run: |-
+          set -euo pipefail
+          curl --fail --location --max-time 120 --max-filesize 16000000 --output "$RUNNER_TEMP/gh.tar.gz" https://github.com/cli/cli/releases/download/v2.102.0/gh_2.102.0_linux_amd64.tar.gz
+          echo "bb766f710eef8ede859c18578c72c327597cd4c8a85b06001b1f3843c6019386  $RUNNER_TEMP/gh.tar.gz" | sha256sum --check --strict
+          tar -xzf "$RUNNER_TEMP/gh.tar.gz" -C "$RUNNER_TEMP" gh_2.102.0_linux_amd64/bin/gh
+          echo "$RUNNER_TEMP/gh_2.102.0_linux_amd64/bin" >> "$GITHUB_PATH"
+      - name: Verify fixed tools and provenance before execution
+        run: node scripts/application-release-tools.mts receive
+      - id: worker
+        name: Independently read back qualified Pages actor and complete public bytes
+        run: node scripts/application-release-private.bundle.mjs site-readback
+      - id: upload
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: application-site-readback-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/application-site-publication/result.json
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: false
+      - id: windows_candidate
+        if: inputs.mode == 'prepare' || inputs.mode == 'recover'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: application-windows-candidate-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/application-site-publication/windows-candidate.json
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: false
+  public_installed:
+    if: ${{ always() && !cancelled() && (inputs.mode == 'prepare' || inputs.mode == 'recover') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.readback.result == 'success' && needs.readback.outputs.windows_has_predecessor == 'true' }}
+    needs: [source, readback]
+    runs-on: windows-2022
+    timeout-minutes: 15
+    environment: production-release-admission
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PORTCOVE_APPLICATION_RELEASE_REVISION: ${{ vars.PORTCOVE_APPLICATION_RELEASE_REVISION }}
+      PORTCOVE_APPLICATION_RELEASE_REF: ${{ vars.PORTCOVE_APPLICATION_RELEASE_REF }}
+      PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256: ${{ vars.PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256 }}
+      PORTCOVE_APPLICATION_RELEASE_ACTIVE: ${{ vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE }}
+      PORTCOVE_APPLICATION_RELEASE_SPENDING: ${{ vars.PORTCOVE_APPLICATION_RELEASE_SPENDING }}
+      PORTCOVE_APPLICATION_RELEASE_PROTECTION_SHA256: ${{ vars.PORTCOVE_APPLICATION_RELEASE_PROTECTION_SHA256 }}
+      PORTCOVE_APPLICATION_INITIAL_SITE_PREIMAGE_SHA256: ${{ vars.PORTCOVE_APPLICATION_INITIAL_SITE_PREIMAGE_SHA256 }}
+      PORTCOVE_APPLICATION_BOOTSTRAP_DESCRIPTOR_SHA256: ${{ vars.PORTCOVE_APPLICATION_BOOTSTRAP_DESCRIPTOR_SHA256 }}
+      PORTCOVE_APPLICATION_SETUP_PLAN_SHA256: ${{ vars.PORTCOVE_APPLICATION_SETUP_PLAN_SHA256 }}
+      PORTCOVE_APPLICATION_RELEASE_OPPORTUNITY: ${{ inputs.opportunity }}
+      PORTCOVE_KNOWN_RELEASE_RUNS: ${{ needs.source.outputs.known_runs }}
+      PORTCOVE_SOURCE_ARTIFACT: ${{ needs.source.outputs.artifact }}
+      PORTCOVE_SOURCE_ATTEMPT: ${{ needs.source.outputs.source_attempt }}
+      PORTCOVE_APPLICATION_NATIVE_MINIMUM_PLATFORM: ${{ vars.PORTCOVE_APPLICATION_NATIVE_MINIMUM_PLATFORM }}
+      PORTCOVE_WINDOWS_CANDIDATE_ARTIFACT: ${{ needs.readback.outputs.windows_candidate }}
+      PORTCOVE_WINDOWS_READBACK_ARTIFACT: ${{ needs.readback.outputs.artifact }}
+      PORTCOVE_WINDOWS_CANDIDATE_ATTEMPT: ${{ needs.readback.outputs.attempt }}
+    outputs:
+      artifact: ${{ steps.upload.outputs.artifact-id }}
+      attempt: ${{ steps.worker.outputs.attempt }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - name: Bind fixed source and reject private authority before setup
+        run: node --input-type=module -e "import { inspectApplicationReleaseExecution } from './scripts/application-release-policy.mts'; inspectApplicationReleaseExecution(process.env)"
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: package.json
+      - uses: ./.github/actions/setup-rust
+      - name: Install fixed trusted control dependencies without hooks
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Install existing hash-pinned attestation verifier
+        shell: pwsh
+        run: |
+          $archive = Join-Path $env:RUNNER_TEMP 'gh.zip'
+          & curl.exe --fail --location --max-time 120 --max-filesize 16000000 --output $archive https://github.com/cli/cli/releases/download/v2.102.0/gh_2.102.0_windows_amd64.zip
+          if ($LASTEXITCODE -ne 0) { throw 'Pinned GitHub verifier download failed' }
+          if ((Get-FileHash $archive -Algorithm SHA256).Hash -cne 'AE64E556ECC240B200F7EBA60D550E4BB60D78E860E69DD88C449405B86067F4') { throw 'Pinned GitHub verifier archive changed' }
+          $destination = Join-Path $env:RUNNER_TEMP 'gh'
+          Expand-Archive -LiteralPath $archive -DestinationPath $destination
+          $bin = Join-Path $destination 'bin'
+          if (-not (Test-Path (Join-Path $bin 'gh.exe'))) { throw 'Pinned GitHub verifier layout differs' }
+          $bin | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+      - id: worker
+        name: Verify the production pair and exercise the installed update under the isolated account
+        run: node scripts/application-release-native-execution.mts
+      - id: upload
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: application-public-installed-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            work/application-public-native-produced/public-installed.json
+            work/application-public-native-produced/installer.json
+            work/application-public-native-produced/public-update-journey.json
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: false
+      - name: Retain failed original public installed observation
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: application-public-installed-failure-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            work/application-public-native-produced/producer-failure.json
+            work/application-public-native-owner/owner-final.json
+            work/application-public-native-owner/ordinary-public-initial/capture/installer.json
+            work/application-public-native-owner/ordinary-public-initial/capture/ordinary-public-update/public-update-journey.json
+          if-no-files-found: ignore
+          retention-days: 7
+          overwrite: false
+  public_installed_readback:
+    if: ${{ always() && !cancelled() && (inputs.mode == 'prepare' || inputs.mode == 'recover') && vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE == 'true' && needs.source.result == 'success' && needs.tools.result == 'success' && needs.readback.result == 'success' && needs.public_installed.result == 'success' && needs.readback.outputs.windows_has_predecessor == 'true' }}
+    needs: [source, tools, readback, public_installed]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 2
+    environment: production-release-admission
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PORTCOVE_APPLICATION_RELEASE_REVISION: ${{ vars.PORTCOVE_APPLICATION_RELEASE_REVISION }}
+      PORTCOVE_APPLICATION_RELEASE_REF: ${{ vars.PORTCOVE_APPLICATION_RELEASE_REF }}
+      PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256: ${{ vars.PORTCOVE_APPLICATION_RELEASE_WORKFLOW_SHA256 }}
+      PORTCOVE_APPLICATION_RELEASE_ACTIVE: ${{ vars.PORTCOVE_APPLICATION_RELEASE_ACTIVE }}
+      PORTCOVE_APPLICATION_RELEASE_SPENDING: ${{ vars.PORTCOVE_APPLICATION_RELEASE_SPENDING }}
+      PORTCOVE_APPLICATION_RELEASE_PROTECTION_SHA256: ${{ vars.PORTCOVE_APPLICATION_RELEASE_PROTECTION_SHA256 }}
+      PORTCOVE_APPLICATION_INITIAL_SITE_PREIMAGE_SHA256: ${{ vars.PORTCOVE_APPLICATION_INITIAL_SITE_PREIMAGE_SHA256 }}
+      PORTCOVE_APPLICATION_BOOTSTRAP_DESCRIPTOR_SHA256: ${{ vars.PORTCOVE_APPLICATION_BOOTSTRAP_DESCRIPTOR_SHA256 }}
+      PORTCOVE_APPLICATION_SETUP_PLAN_SHA256: ${{ vars.PORTCOVE_APPLICATION_SETUP_PLAN_SHA256 }}
+      PORTCOVE_APPLICATION_RELEASE_OPPORTUNITY: ${{ inputs.opportunity }}
+      PORTCOVE_KNOWN_RELEASE_RUNS: ${{ needs.source.outputs.known_runs }}
+      PORTCOVE_SOURCE_ARTIFACT: ${{ needs.source.outputs.artifact }}
+      PORTCOVE_SOURCE_ATTEMPT: ${{ needs.source.outputs.source_attempt }}
+      PORTCOVE_TOOLS_ARTIFACT: ${{ needs.tools.outputs.artifact }}
+      PORTCOVE_TOOLS_ATTEMPT: ${{ needs.tools.outputs.attempt }}
+      PORTCOVE_APPLICATION_NATIVE_MINIMUM_PLATFORM: ${{ vars.PORTCOVE_APPLICATION_NATIVE_MINIMUM_PLATFORM }}
+      PORTCOVE_WINDOWS_CANDIDATE_ARTIFACT: ${{ needs.readback.outputs.windows_candidate }}
+      PORTCOVE_WINDOWS_READBACK_ARTIFACT: ${{ needs.readback.outputs.artifact }}
+      PORTCOVE_WINDOWS_CANDIDATE_ATTEMPT: ${{ needs.readback.outputs.attempt }}
+      PORTCOVE_WINDOWS_PROOF_ARTIFACT: ${{ needs.public_installed.outputs.artifact }}
+      PORTCOVE_WINDOWS_PROOF_ATTEMPT: ${{ needs.public_installed.outputs.attempt }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - name: Bind fixed caller before receiving attested tools
+        run: node --input-type=module -e "import { inspectApplicationReleaseExecution } from './scripts/application-release-policy.mts'; inspectApplicationReleaseExecution(process.env)"
+      - name: Install existing hash-pinned attestation verifier
+        shell: bash
+        run: |-
+          set -euo pipefail
+          curl --fail --location --max-time 30 --max-filesize 16000000 --output "$RUNNER_TEMP/gh.tar.gz" https://github.com/cli/cli/releases/download/v2.102.0/gh_2.102.0_linux_amd64.tar.gz
+          echo "bb766f710eef8ede859c18578c72c327597cd4c8a85b06001b1f3843c6019386  $RUNNER_TEMP/gh.tar.gz" | sha256sum --check --strict
+          tar -xzf "$RUNNER_TEMP/gh.tar.gz" -C "$RUNNER_TEMP" gh_2.102.0_linux_amd64/bin/gh
+          echo "$RUNNER_TEMP/gh_2.102.0_linux_amd64/bin" >> "$GITHUB_PATH"
+      - name: Verify fixed tools and provenance before execution
+        run: node scripts/application-release-tools.mts receive
+      - name: Independently verify the exact installed Windows proof and current public release
+        run: node scripts/application-release-private.bundle.mjs windows-proof
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: application-public-installed-readback-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/application-public-installed-verified/result.json
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: false

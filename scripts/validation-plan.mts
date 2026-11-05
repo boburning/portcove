@@ -275,6 +275,7 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-hosted-native-proof-contract.mts",
   "scripts/release-hosted-native-proof-producer.mts",
   "scripts/release-hosted-native-job.mts",
+  "scripts/release-hosted-native-artifact.mts",
   "scripts/release-hosted-native-runner.mts",
   "scripts/release-hosted-native-bootstrap.mts",
   "scripts/release-hosted-native-launcher.mts",
@@ -305,6 +306,7 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-routing-marker.mts",
   "scripts/release-owned-capture-store.mts",
   "scripts/release-hosted-native-acceptance.mts",
+  "scripts/release-custody-provider.mts",
   "scripts/release-hosted-native-admission.mts",
   "scripts/release-hosted-native-linux-capture.mts",
   "scripts/release-hosted-native-linux-capture.test.py",
@@ -576,6 +578,7 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-native-public-signature.mts",
   "scripts/release-native-public-attempt-contract.mts",
   "scripts/release-controller-wake.mts",
+  "scripts/release-wake-provider.mts",
   "scripts/release-publication-result.mts",
   "scripts/release-publication-result-artifact.mts",
   "scripts/release-signing-controller.mts",
@@ -837,6 +840,12 @@ function classifyPath(file: string): PathOwnership {
       "platform",
       ["catalog", "rust-quality", ...(rust ? ["rust" as const] : [])],
       "platform-contract",
+    );
+    match(
+      file.startsWith("integrations/playnite/") && /\.(?:cs|csproj|ps1|json)$/u.test(file),
+      "policy",
+      ["rust"],
+      "playnite-reference-client",
     );
     match(
       file.startsWith("scripts/") ||

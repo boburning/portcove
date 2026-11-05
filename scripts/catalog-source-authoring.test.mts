@@ -655,3 +655,52 @@ void test("GitLab descriptive observations derive listing format8 without changi
   );
   assert.deepEqual(combined.catalog, accepted.catalog);
 });
+
+void test("catalog player copy catches engineering handoffs and preserves technical references", () => {
+  const fixture = {
+    format_version: 1,
+    listing: {
+      id: "prose-fixture",
+      name: "Game port",
+      project_url: "https://example.org/port",
+      summary: "Set up this port with your original game files.",
+      manual_setup: {
+        steps: [
+          {
+            title: "Choose the game program",
+            instruction: "Choose player.exe and keep firmware.bin beside it.",
+          },
+        ],
+        warnings: ["Back up save.old1 before opening the game."],
+        references: [
+          {
+            title: "Technical details",
+            instruction: "The runtime writes an execution intent to the developer log.",
+          },
+        ],
+      },
+    },
+  };
+  assert.doesNotThrow(() => checkedAuthoredPort(fixture));
+  for (const field of ["summary", "instruction", "warning"] as const) {
+    const bad = structuredClone(fixture);
+    const text = "Review this execution intent before continuing.";
+    if (field === "summary") bad.listing.summary = text;
+    else if (field === "instruction") bad.listing.manual_setup.steps[0]!.instruction = text;
+    else bad.listing.manual_setup.warnings[0] = text;
+    assert.throws(() => checkedAuthoredPort(bad), /prose-fixture.*execution intent/i);
+  }
+});
+
+void test("Second Hunt keeps its version-scoped cleanup warning in the pre-action warnings", () => {
+  const source = readCatalogSource(catalogRoot);
+  const listing = source.directory.listings.find(
+    (entry) => entry.id === "bountyhunterkanden-secondhunt",
+  );
+  const guide = fixtureRecord(listing?.manual_setup);
+  const warnings = guide.warnings;
+  assert.ok(Array.isArray(warnings));
+  assert.match(String(warnings[0]), /Before opening Second Hunt v0\.4\.2-beta on Windows/);
+  assert.match(String(warnings[0]), /ending in \.old or \.old followed by digits/);
+  assert.match(String(warnings[0]), /outside its entire program folder.*including portable saves/);
+});

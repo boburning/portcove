@@ -23,7 +23,7 @@ export function ImplementationChoice({
   organization: Organization | undefined;
   onSelected: (trigger: HTMLButtonElement) => void;
 }) {
-  const [failed, setFailed] = useState(false);
+  const [failedSnapshot, setFailedSnapshot] = useState<Organization["snapshot"]>();
   const mounted = useRef(false);
   const pending = useRef(false);
   useEffect(() => {
@@ -34,7 +34,9 @@ export function ImplementationChoice({
   }, []);
   const game = originalGame(port);
   if (!game) return null;
-  const selected = organization?.snapshot?.preferred_port_by_game?.[game.id] === port.id;
+  const snapshot = organization?.snapshot;
+  const selected = snapshot?.preferred_port_by_game?.[game.id] === port.id;
+  const failed = failedSnapshot !== undefined && failedSnapshot === snapshot;
   return (
     <div className="grid justify-items-start gap-2">
       <Button
@@ -42,14 +44,14 @@ export function ImplementationChoice({
         size="sm"
         data-focusable
         aria-pressed={selected}
-        disabled={!organization?.snapshot || organization.busy}
+        disabled={!organization?.snapshot || organization.busy || failed}
         focusableWhenDisabled={Boolean(organization?.snapshot && organization.busy)}
         aria-busy={organization?.busy}
         onClick={(event) => {
           if (pending.current || organization?.busy) return;
           const trigger = event.currentTarget;
           pending.current = true;
-          setFailed(false);
+          setFailedSnapshot(undefined);
           void (async () => {
             try {
               const accepted = await organization?.commit({
@@ -58,26 +60,30 @@ export function ImplementationChoice({
                 port_id: port.id,
               });
               if (accepted) onSelected(trigger);
-              else if (mounted.current) setFailed(true);
+              else if (mounted.current) setFailedSnapshot(snapshot);
             } finally {
               pending.current = false;
             }
           })();
         }}
       >
-        {selected ? "Chosen: " : "Use "}
+        {selected ? "Preferred: " : "Choose "}
         {gameProjectLabel(port) || port.name}
       </Button>
       {failed && (
-        <p role="alert">Your choice was not saved. Refresh choices before trying again.</p>
+        <p role="alert">
+          Portcove couldn’t confirm that your choice was saved. Refresh choices to check.
+        </p>
       )}
-      {(failed || organization?.failure) && organization && (
+      {(failed || organization?.failure === "read") && organization && (
         <Button
           variant="ghost"
           size="sm"
           data-focusable
           onClick={() => {
-            void organization.refresh();
+            void organization.refresh().then((refreshed) => {
+              if (refreshed && mounted.current) setFailedSnapshot(undefined);
+            });
           }}
         >
           Refresh choices

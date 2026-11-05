@@ -297,7 +297,11 @@ export async function prepareAggregateAttestation(
     throw new Error("aggregate candidate artifact matrix is incomplete");
   if (accepted.run_id === expected.run_id)
     throw new Error("candidate run cannot impersonate its trusted assembler run");
-  let publicBefore: ReturnType<typeof collectReleaseRunEvidence> | null = null;
+  const evidenceOptions = {
+    ...options.evidence,
+    deadline: Math.min(options.deadline ?? Infinity, options.evidence?.deadline ?? Infinity),
+  };
+  let publicBefore: Awaited<ReturnType<typeof collectReleaseRunEvidence>> | null = null;
   let publicRequest: ReleaseEvidenceRequest | null = null;
   let publicVerification: Awaited<ReturnType<typeof verifyReleasePublicBuildInputs>> | null = null;
   if (accepted.public_build_inputs) {
@@ -318,7 +322,7 @@ export async function prepareAggregateAttestation(
       publicRequest.repository_id !== 1354613114
     )
       throw new Error("public input source and independently expected Release evidence differ");
-    publicBefore = collectReleaseRunEvidence(publicRequest, options.evidence);
+    publicBefore = await collectReleaseRunEvidence(publicRequest, evidenceOptions);
     publicVerification = await verifyReleasePublicBuildInputs(
       options.cwd,
       accepted.public_build_inputs,
@@ -371,7 +375,7 @@ export async function prepareAggregateAttestation(
     requireStablePublicBuildInputEvidence(
       accepted.public_build_inputs,
       publicBefore,
-      collectReleaseRunEvidence(publicRequest, options.evidence),
+      await collectReleaseRunEvidence(publicRequest, evidenceOptions),
     );
   if (Date.now() >= Date.parse(identity.expires_at))
     throw new Error("assembler identity expired before binding completed");

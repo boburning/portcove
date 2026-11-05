@@ -24,8 +24,12 @@ import { inspectMetadataSigningBinding } from "./release-metadata-signing-contra
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 import { isRecord } from "./runtime-values.mts";
 import { inspectHostedNativeTransportIdentities } from "./release-hosted-native-proof-contract.mts";
-import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
-import type { GitHubRestReader } from "./github-api.mts";
+import {
+  createReleaseCustodyProvider,
+  type ReleaseArtifactMetadataProvider,
+} from "./release-custody-provider.mts";
+import type { RetainedGitHubSpawn } from "./github-cli.mts";
+import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
 import { readGitHubArtifactArchive } from "./github-binary.mts";
 import {
   inspectAssemblerIdentityExpectation,
@@ -612,6 +616,7 @@ export async function prepareSigningContextPredicate(
   deadline: number,
 ) {
   signingContextRemaining(deadline, 15000);
+  const readerToken = (readOnlyReleaseChildEnvironment() ?? process.env).GH_TOKEN ?? "";
   const owned = prepared.get(receipt);
   if (!owned) throw new Error("actual private signing context upload required");
   const uploaded = structuredClone(rawUploaded),
@@ -630,23 +635,16 @@ export async function prepareSigningContextPredicate(
     expectedIdentity.run_attempt !== controller.run_attempt
   )
     throw new Error("context producer identity differs from fixed controller tools");
-  const api = new GitHubApiClient((args, input) =>
-    createGitHubRunner({
-      cwd: owned.directory,
-      timeoutMs: signingContextRemaining(deadline, 15000),
-      maxBuffer: 128 * 1024,
-    })([...args, "--hostname", "github.com"], input),
-  );
-  const read = () => {
+  const metadata = await createReleaseCustodyProvider({
+    token: readerToken,
+    deadline,
+    maxBytes: 128 * 1024,
+  });
+  const read = async () => {
     signingContextRemaining(deadline, 15000);
-    const response = api.request(
-      "GET",
-      `repos/boburning/portcove/actions/artifacts/${uploaded.artifact_id}`,
-    );
+    const raw = await metadata.artifact(uploaded.artifact_id);
     signingContextRemaining(deadline, 15000);
-    const raw = response.body;
     if (
-      response.status !== 200 ||
       !isRecord(raw) ||
       raw.id !== uploaded.artifact_id ||
       raw.name !==
@@ -666,7 +664,7 @@ export async function prepareSigningContextPredicate(
       throw new Error("context uploaded artifact identity differs");
     return { id: raw.id, bytes: raw.size_in_bytes, sha256: uploaded.sha256 };
   };
-  const before = read();
+  const before = await read();
   const archive = readGitHubArtifactArchive(
     `repos/boburning/portcove/actions/artifacts/${before.id}/zip`,
     {
@@ -706,7 +704,8 @@ export async function prepareSigningContextPredicate(
   if (
     identity.evidence_scope !== "github.com" ||
     Date.now() >= Date.parse(identity.expires_at) ||
-    digest(before) !== digest(read())
+    digest(before) !== digest(await read()) ||
+    Date.now() >= Date.parse(identity.expires_at)
   )
     throw new Error("context producer or uploaded custody changed");
   const predicate = {
@@ -793,7 +792,7 @@ type Received = {
   files: { path: string; bytes: number; sha256: string }[];
   public_evidence: { path: string; bytes: number; sha256: string }[];
   active: () => void;
-  refresh: () => void;
+  refresh: () => Promise<void>;
   tighten: (deadline: number) => void;
 };
 const received = new WeakMap<object, Received>();
@@ -801,9 +800,10 @@ const received = new WeakMap<object, Received>();
 /** Actual fixed-controller attestation + complete byte custody. This transfers
  * pre-sign context provenance only, never an imported release-admitted brand. */
 type ContextReceiverOptions = {
-  api?: GitHubRestReader;
+  metadata?: ReleaseArtifactMetadataProvider;
+  fetch?: typeof globalThis.fetch;
   download?: typeof readGitHubArtifactArchive;
-  spawn?: NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"];
+  spawn?: RetainedGitHubSpawn;
 };
 export function receiveSigningContextArtifact(
   parent: string,
@@ -838,49 +838,55 @@ async function receiveContextArtifact(
 ) {
   const expected = expectedInput(rawExpected);
   signingContextRemaining(deadline, 15000);
-  const injected =
-    options.api !== undefined || options.download !== undefined || options.spawn !== undefined;
-  const apiOption = options.api ? { request: options.api.request.bind(options.api) } : undefined,
-    download = options.download ?? readGitHubArtifactArchive,
-    verifierSpawn = options.spawn;
+  const {
+    metadata: injectedMetadata,
+    download = readGitHubArtifactArchive,
+    spawn: verifierSpawn,
+    fetch,
+  } = options;
+  const injected = !!(injectedMetadata || options.download || verifierSpawn || fetch);
+  const metadataOption = injectedMetadata && {
+    commit: injectedMetadata.commit.bind(injectedMetadata),
+    run: injectedMetadata.run.bind(injectedMetadata),
+    attempt: injectedMetadata.attempt.bind(injectedMetadata),
+    job: injectedMetadata.job.bind(injectedMetadata),
+    artifact: injectedMetadata.artifact.bind(injectedMetadata),
+  };
+  const { PATH, SystemRoot, GH_TOKEN } = process.env;
   const directory = await mkdtemp(path.join(parent, "signing-context-receiver-"));
   let phase = "provider-before";
   try {
     const home = path.join(directory, "reader-home");
     await mkdir(home, { mode: 0o700 });
     const environment = {
-      PATH: process.env.PATH,
-      SystemRoot: process.env.SystemRoot,
+      PATH,
+      SystemRoot,
       HOME: home,
       USERPROFILE: home,
       TEMP: home,
       TMP: home,
-      GH_TOKEN: process.env.GH_TOKEN,
+      GH_TOKEN,
       GH_HOST: "github.com",
       GH_PROMPT_DISABLED: "1",
     };
     let requests = 0;
-    const api =
-      apiOption ??
-      new GitHubApiClient((args, input) =>
-        createGitHubRunner({
-          cwd: directory,
-          timeoutMs: signingContextRemaining(deadline, 15000),
-          maxBuffer: 2 * 1024 * 1024,
-          spawn: (command, argv, settings) =>
-            spawnSync(command, argv, { ...settings, env: environment }),
-        })([...args, "--hostname", "github.com"], input),
-      );
-    const get = (suffix: string) => {
+    const metadata =
+      metadataOption ??
+      (await createReleaseCustodyProvider({
+        token: GH_TOKEN ?? "",
+        deadline,
+        currentDeadline: () => deadline,
+        ...(fetch ? { fetch } : {}),
+      }));
+    const get = async (read: () => Promise<unknown>) => {
       signingContextRemaining(deadline, 15000);
       // One original phase only: initial12 + at most62 six-GET refreshes. The
       // fixed five-role/assembly/native/Release graph requires more than48;
       // neither later getters nor retained-proof reads reset this counter.
       if (++requests > 384) throw new Error("context complete provider readback budget exceeded");
-      const response = api.request("GET", `repos/boburning/portcove/${suffix}`);
+      const raw = await read();
       signingContextRemaining(deadline, 15000);
-      if (response.status !== 200) throw new Error("context provider response unavailable");
-      return response.body;
+      return raw;
     };
     const controller = {
       controller_revision: expected.controller_revision,
@@ -920,8 +926,8 @@ async function receiveContextArtifact(
         throw new Error("context controller run/source/attempt differs");
       return { id: raw.id, attempt: raw.run_attempt, source: raw.head_sha };
     };
-    const artifact = (item: { id: number; sha256: string }, bundle: boolean) => {
-      const raw = get(`actions/artifacts/${item.id}`);
+    const artifact = async (item: { id: number; sha256: string }, bundle: boolean) => {
+      const raw = await get(() => metadata.artifact(item.id));
       if (
         !isRecord(raw) ||
         raw.id !== item.id ||
@@ -943,8 +949,8 @@ async function receiveContextArtifact(
         throw new Error("context artifact provider identity differs");
       return { id: item.id, bytes: raw.size_in_bytes, sha256: item.sha256 };
     };
-    const snapshot = () => {
-      const source = get(`git/commits/${expected.controller_revision}`);
+    const snapshot = async () => {
+      const source = await get(() => metadata.commit(expected.controller_revision));
       if (
         !isRecord(source) ||
         source.sha !== expected.controller_revision ||
@@ -954,13 +960,13 @@ async function receiveContextArtifact(
         throw new Error("context controller source tree differs");
       return {
         source: { commit: source.sha, tree: source.tree.sha },
-        run: run(get(`actions/runs/${expected.run_id}`)),
-        attempt: run(get(`actions/runs/${expected.run_id}/attempts/${expected.run_attempt}`)),
-        artifact: artifact(expected.artifact, false),
-        bundle: artifact(expected.bundle, true),
+        run: run(await get(() => metadata.run(expected.run_id))),
+        attempt: run(await get(() => metadata.attempt(expected.run_id, expected.run_attempt))),
+        artifact: await artifact(expected.artifact, false),
+        bundle: await artifact(expected.bundle, true),
       };
     };
-    const before = snapshot();
+    const before = await snapshot();
     await writeFile(path.join(directory, "provider-before.json"), JSON.stringify(before), {
       flag: "wx",
       mode: 0o600,
@@ -1065,8 +1071,8 @@ async function receiveContextArtifact(
     };
     if (digest(statement.predicate) !== digest(wanted))
       throw new Error("context signed predicate association differs");
-    const readJob = () => {
-      const job = get(`actions/jobs/${String(producer.job_id)}`);
+    const readJob = async () => {
+      const job = await get(() => metadata.job(Number(producer.job_id)));
       if (
         !isRecord(job) ||
         job.id !== producer.job_id ||
@@ -1082,15 +1088,15 @@ async function receiveContextArtifact(
         throw new Error("context completed payload producer identity differs");
       return job;
     };
-    const job = readJob();
-    const refresh = () => {
-      const current = snapshot(),
-        currentJob = readJob();
+    const job = await readJob();
+    const refresh = async () => {
+      const current = await snapshot(),
+        currentJob = await readJob();
       if (digest(current) !== digest(before) || digest(currentJob) !== digest(job))
         throw new Error("context provider custody changed");
       return { ...current, producer: currentJob };
     };
-    const after = refresh();
+    const after = await refresh();
     const statementBytes = Buffer.from(JSON.stringify(statement)),
       providerBytes = Buffer.from(JSON.stringify(after));
     await writeFile(path.join(directory, "verified-statement.json"), statementBytes, {
@@ -1147,7 +1153,9 @@ async function receiveContextArtifact(
         active: () => {
           signingContextRemaining(deadline, 15000);
         },
-        refresh,
+        refresh: async () => {
+          await refresh();
+        },
         tighten: (phaseDeadline) => {
           signingContextRemaining(phaseDeadline, 15000);
           deadline = Math.min(deadline, phaseDeadline);
@@ -1193,7 +1201,7 @@ async function readReceivedSigningContext(
     digest(actual.files)
   )
     throw new Error("authenticated signing context retained inventory changed");
-  if (provider === "fresh") actual.refresh();
+  if (provider === "fresh") await actual.refresh();
   actual.active();
   return Object.freeze({
     directory: actual.directory,

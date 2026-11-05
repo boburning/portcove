@@ -10,7 +10,9 @@ import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 import {
   signingContextArtifactFixture as fixture,
-  signingContextDefaultTransport,
+  signingContextRetainedSpawn,
+  signingContextProviderFetch,
+  signingContextFixtureToken,
 } from "./fixtures/signing-context-artifact-fixture.mts";
 import { syncBuiltinESMExports } from "node:module";
 import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
@@ -336,7 +338,10 @@ void test("the fixed default transport shares one finite context read budget acr
   // Simulated provider at the OS transport boundary only. The maintained
   // default receiver still performs all archive/certificate/producer joins;
   // production has no imported-proof or test-only constructor.
-  const mocked = t.mock.method(childProcess, "spawnSync", signingContextDefaultTransport(f));
+  const previousToken = process.env.GH_TOKEN;
+  process.env.GH_TOKEN = signingContextFixtureToken;
+  const mocked = t.mock.method(childProcess, "spawnSync", signingContextRetainedSpawn(f));
+  const fetchMock = t.mock.method(globalThis, "fetch", signingContextProviderFetch(f));
   syncBuiltinESMExports();
   try {
     const receipt = await receiveSigningContextArtifact(
@@ -351,6 +356,9 @@ void test("the fixed default transport shares one finite context read budget acr
     assert.deepEqual(f.counts(), { requests: 384, downloads: 2 });
   } finally {
     mocked.mock.restore();
+    fetchMock.mock.restore();
+    if (previousToken === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = previousToken;
     syncBuiltinESMExports();
   }
 });

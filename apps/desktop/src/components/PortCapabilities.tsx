@@ -88,6 +88,7 @@ export function PortCapabilities({
       },
     );
     return () => {
+      // oxlint-disable-next-line react/immutability -- oxc#28401: effect-local cleanup binding.
       current = false;
     };
   }, [entry.id, generation, key, status, installation, busy]);

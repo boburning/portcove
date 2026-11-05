@@ -212,7 +212,10 @@ export async function releasePublicBuildProvenanceFixture(
     blobs,
     publicFiles,
     prepared,
-    options: { evidence: { api }, download },
+    options: {
+      evidence: { read: async (endpoint: string) => api.request("GET", endpoint) },
+      download,
+    },
     api,
     download,
     state,

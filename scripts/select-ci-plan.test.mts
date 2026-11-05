@@ -724,3 +724,22 @@ void test("release qualification profile connects bounded matrices and skips onl
   ])
     assert.match(body, /if: needs\.classify\.outputs\.mode == 'qualification'/);
 });
+
+void test("held application release can request only dispatched Windows qualification", () => {
+  const options = {
+    eventName: "workflow_dispatch",
+    checkoutSha: "a".repeat(40),
+    forceQualification: true,
+    qualificationCaller: "release",
+    callerWorkflow: "application-release.yml",
+    releaseProfile: "initial-beta-windows-x86_64-v1",
+  };
+  assert.equal(discoverCiPlan(options).release_profile, options.releaseProfile);
+  for (const changed of [
+    { eventName: "push" },
+    { releaseProfile: "initial-beta-win-linux" },
+    { forceQualification: false },
+    { qualificationCaller: "schedule" },
+  ])
+    assert.throws(() => discoverCiPlan({ ...options, ...changed }), /forced release reusable/u);
+});

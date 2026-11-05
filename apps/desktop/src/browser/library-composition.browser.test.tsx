@@ -325,7 +325,10 @@ it("names exact port choices from their visible identity and readiness inside gr
     .toHaveTextContent("Mario modern port · Modern renderer");
   await expect
     .element(
-      dialog.getByRole("button", { name: "Use Mario modern port · Modern renderer", exact: true }),
+      dialog.getByRole("button", {
+        name: "Choose Mario modern port · Modern renderer",
+        exact: true,
+      }),
     )
     .toBeEnabled();
   await expect.element(row).toMatchTextContent("Stable");
@@ -836,7 +839,7 @@ it("creates and removes a collection through its editor while retaining a failed
   await create.click();
   await expect
     .poll(() => document.body.textContent)
-    .toContain("These choices could not be saved. Your previous choices were kept.");
+    .toContain("Portcove couldn’t confirm the changes. Showing your last confirmed choices.");
   await expect.element(name).toHaveValue("  Weekend sessions  ");
   await expect
     .element(page.getByRole("button", { name: "Collection: Weekend sessions", exact: true }))
@@ -1044,7 +1047,9 @@ it("keeps a grouped Discover Save unselected while pending and after a rejected 
     .element(
       page.getByRole("group", { name: "Discover collections", exact: true }).getByRole("alert"),
     )
-    .toMatchTextContent("These choices could not be saved. Your previous choices were kept.");
+    .toMatchTextContent(
+      "Portcove couldn’t confirm the changes. Showing your last confirmed choices.",
+    );
   await expect
     .element(
       page.getByRole("group", { name: "Discover collections", exact: true }).getByRole("alert"),
