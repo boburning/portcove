@@ -19,8 +19,9 @@ native portable versions 2–7, managed PS1 version 2, N64 portable versions 2�
 and staged-source portable versions 2–5, 8, 10–12 and 15–28. The inventory owner is
 `EngineTemplateCapability::current()` in
 [`definition_capabilities.rs`](../crates/portcove-core/src/definition_capabilities.rs);
-the version semantics and admission limits below remain part of each contract. Staged-source creation
-versions 6, 7, 9, 13 and 14 are absent from that inventory. Serialized identifiers
+the version semantics and admission limits below remain part of each contract.
+
+Staged-source creation versions 6, 7, 9, 13 and 14 are absent from that inventory. Serialized identifiers
 and historical meanings are preserved; version numbers are not reused.
 
 Capability negotiation, new-definition admission and retained-state interpretation

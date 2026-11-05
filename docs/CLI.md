@@ -102,8 +102,8 @@ are refused; use a supported native executable or native upstream launcher.
 projects without managed definitions. `catalog list`, `catalog show` and
 `catalog export` inspect the narrower strict operational definitions. Contributors
 edit [per-ID records](CATALOG.md#adding-or-changing-a-port); the descriptive
-`listings.json` and strict `catalog.json` aggregates are generated outputs. Unknown platform or package facts in
-a listing do not establish support. Desktop uses the same directory and lets the
+`listings.json` and strict `catalog.json` aggregates are generated outputs. Unknown platform or package facts in a listing
+do not establish support. Desktop uses the same directory and lets the
 player reset catalog filters with **All ports**.
 
 For a GitHub-hosted upstream project:
@@ -157,9 +157,8 @@ collision and expansion limits. The 7z route accepts supported codecs only;
 encrypted archives, unsupported methods, links and special entries are refused.
 CRC failure or cancellation cannot publish a completed extraction. This does not
 add 7z to every managed adapter or support arbitrary self-extracting executables.
-See [Core's acquisition and extraction boundary](ARCHITECTURE.md#find-the-owning-boundary).
-Publication
-creates a fresh child folder outside the entire Library root and managed output
+See [Core's acquisition and extraction boundary](ARCHITECTURE.md#discovery-listings-and-user-owned-setup).
+Publication creates a fresh child folder outside the entire Library root and managed output
 locations, with atomic refusal to replace an existing destination.
 
 The downloaded folder becomes user-owned. Its durable **Downloaded—finish setup**

@@ -257,7 +257,9 @@ Their descriptive `listing` and optional strict `integration` generate
 [`listings.json`](crates/portcove-core/catalog/listings.json) and
 [`catalog.json`](crates/portcove-core/catalog/catalog.json); edit the records rather
 than these aggregates. Operational definitions record platforms, channels,
-required local files, executable layout, user-data paths and qualification facts. Stable, Preview, and Rolling are game-port release channels—not quality ratings. Preview retains the `beta` command and serialized value. See [docs/CATALOG.md](docs/CATALOG.md) for the full policy.
+required local files, executable layout, user-data paths and qualification facts.
+
+Stable, Preview, and Rolling are game-port release channels—not quality ratings. Preview retains the `beta` command and serialized value. See [docs/CATALOG.md](docs/CATALOG.md) for the full policy.
 
 ### Compare implementations of a game
 

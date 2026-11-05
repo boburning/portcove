@@ -360,13 +360,12 @@ neither an agent nor a candidate may change its own protected acceptance rules.
 Routine authorized work follows mandatory CI, [applicable review under Quality](QUALITY.md#review-scope),
 substantive finding repair, current-revision and authority confirmation, then the
 guarded normal merge path. [Contribution conventions](CONTRIBUTION-CONVENTIONS.md#review-and-merge)
-owns the delivery operations. An
-implementation or continuation request authorizes that routine workflow within
+owns the delivery operations. An implementation or continuation request authorizes that routine workflow within
 its scope without repeated owner approval. Ask the owner only for an unresolved
 blocker, intrinsically required manual participation, or authority not already
 granted, and continue unrelated authorized work. When independent review is
-required, unavailable delegation holds the affected merge, not every other lane. A timeout, cancellation, empty
-response, or absence of comments is not a successful review. Administrator
+required, unavailable delegation holds the affected merge, not every other lane.
+A timeout, cancellation, empty response, or absence of comments is not a successful review. Administrator
 bypass is emergency-only. Protected
 acceptance, merge authority, signing/publication permission, credentials, and
 other meaningful boundaries require separate owner authorization; candidates
