@@ -60,6 +60,13 @@ fn grammar_errors_preserve_failure_exit_and_stderr_contract() {
         assert_eq!(output.status.code(), Some(1), "{args:?}");
         assert!(output.stdout.is_empty(), "{args:?}");
         assert!(!output.stderr.is_empty(), "{args:?}");
+        if args.is_empty() {
+            assert!(
+                String::from_utf8(output.stderr)
+                    .unwrap()
+                    .contains("usage: portcove-release-tools")
+            );
+        }
     }
 }
 

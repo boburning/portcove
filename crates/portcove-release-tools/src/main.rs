@@ -89,7 +89,17 @@ fn main() {
             // Existing automation expects errors on stderr and status 1, rather
             // than Clap's default status 2. Generated help is successful stdout.
             let failed = error.use_stderr();
-            let _ = error.print();
+            if error.kind() == clap::error::ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand {
+                // Both controller build fixtures consume the lowercase usage marker.
+                let usage = error.render().to_string().replacen(
+                    "\nUsage: portcove-release-tools",
+                    "\nusage: portcove-release-tools",
+                    1,
+                );
+                eprint!("{usage}");
+            } else {
+                let _ = error.print();
+            }
             std::process::exit(i32::from(failed));
         }
     };
