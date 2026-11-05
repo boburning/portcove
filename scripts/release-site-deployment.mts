@@ -1365,7 +1365,7 @@ export async function publishPreparedSiteDeployment(
       throw new Error("fresh actual publication controls hold the site attempt");
     return structuredClone(facts.capacity_source.capacity.boundary);
   };
-  const provider = createPagesProviderTransport(prepared.directory, {}, prepared.deadline);
+  const provider = createPagesProviderTransport({}, prepared.deadline);
   if (provider.evidence_scope !== "github.com")
     throw new Error("actual Pages provider transport required");
   const result = await executeOwnedCapacityEffect(
@@ -1434,11 +1434,11 @@ export async function publishPreparedSiteDeployment(
         );
         await write("acknowledgement.json", accepted);
         const deadline = Math.min(performance.now() + 150_000, prepared.deadline ?? Infinity);
-        let status: ReturnType<typeof provider.observe> | null = null;
+        let status: Awaited<ReturnType<typeof provider.observe>> | null = null;
         for (let count = 0; count < 30; count++) {
           if (performance.now() >= deadline)
             throw new Error("Pages observation deadline exhausted; retain pending intent");
-          status = provider.observe({
+          status = await provider.observe({
             id: accepted.id,
             artifact_id: accepted.artifact_id,
             controller_revision: accepted.controller_revision,

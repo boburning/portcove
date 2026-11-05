@@ -612,13 +612,13 @@ export async function continueActualCatalogPublication(
       if (!settled(pages)) {
         const expected = pages.catalog_site_expectation;
         const readback = async () => {
-          const provider = createPagesProviderTransport(directory, {}, originalDeadline),
+          const provider = createPagesProviderTransport({}, originalDeadline),
             identity = {
               artifact_id: expected.artifact_id,
               generation: String(expected.site_generation_sha256),
               controller_revision: pages.executor_identity!.controller_revision,
             };
-          const before = provider.observeByGeneration(identity);
+          const before = await provider.observeByGeneration(identity);
           if (before.status !== "succeed")
             throw new Error("original catalog Pages completion unavailable; no absence inference");
           const current = await materializePublishedCatalogCompleteSite(
@@ -631,7 +631,7 @@ export async function continueActualCatalogPublication(
               originalDeadline,
             ),
             verified = await requirePublishedCatalogCompleteSite(current.receipt);
-          const after = provider.observeByGeneration(identity);
+          const after = await provider.observeByGeneration(identity);
           if (digest(before) !== digest(after)) throw new Error("original Pages provider drifted");
           await guard();
           return {
