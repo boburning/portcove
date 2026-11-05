@@ -322,8 +322,8 @@ it("re-enables an unsaved choice after a shared reload confirms the same revisio
   await reload.click();
   await expect
     .element(collections.getByRole("alert"))
-    .toHaveTextContent(
-      "Saved choices could not be refreshed. Showing your last confirmed choices.",
+    .toMatchTextContent(
+      /^Saved choices could not be refreshed\. Showing your last confirmed choices\./,
     );
   await expect.element(choice).toBeDisabled();
   await reload.click();
