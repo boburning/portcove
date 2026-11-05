@@ -13,12 +13,32 @@ import {
   importAuditReceipts,
   validateAuditProducer,
   discoverAuditReceipts,
+  createAuditOperations,
   describeAuditReuse,
 } from "./audit-reuse.mts";
 
 import { firstAuditBaseline } from "./fixtures/audit-baseline-fixture.mts";
 import { isRecord } from "./runtime-values.mts";
-import type { AuditRequestOptions } from "./audit-reuse.mts";
+import type { AuditOperations } from "./audit-reuse.mts";
+interface AuditRequestOptions {
+  binary: boolean;
+  timeoutMs: number;
+  cwd: string;
+}
+function operationsFrom(
+  request: (endpoint: string, options: AuditRequestOptions) => unknown,
+): AuditOperations {
+  return {
+    async metadata(endpoint, timeoutMs) {
+      return request(endpoint, { binary: false, timeoutMs, cwd: process.cwd() });
+    },
+    async archive(endpoint, timeoutMs) {
+      const value = request(endpoint, { binary: true, timeoutMs, cwd: process.cwd() });
+      assert.ok(Buffer.isBuffer(value));
+      return value;
+    },
+  };
+}
 
 function required<T>(value: T | null | undefined): T {
   assert.ok(value !== null && value !== undefined);
@@ -365,28 +385,28 @@ void test("tampered files and partial bundle coverage are rejected", () => {
   }
 });
 
-void test("unavailable discovery and budget exhaustion are cache misses without dispatch or mutation", () => {
+void test("unavailable discovery and budget exhaustion are cache misses without dispatch or mutation", async () => {
   const f = fixture();
   let calls = 0;
-  const result = discoverAuditReceipts(f.currentPlan, {
+  const result = await discoverAuditReceipts(f.currentPlan, {
     workflowDigest: f.proof.workflowDigest,
-    request: () => {
+    operations: operationsFrom(() => {
       calls++;
       throw Error("inert unavailable");
-    },
+    }),
   });
   assert.equal(result.status, "cache-miss");
   assert.equal(result.reason, "provider-unavailable");
   assert.equal(calls, 1);
   let now = 0;
-  const expired = discoverAuditReceipts(f.currentPlan, {
+  const expired = await discoverAuditReceipts(f.currentPlan, {
     clock: () => {
       now += 60001;
       return now;
     },
-    request: () => {
+    operations: operationsFrom(() => {
       throw Error("must not dispatch");
-    },
+    }),
   });
   assert.equal(expired.status, "cache-miss");
   assert.equal(expired.reason, "collection-deadline");
@@ -499,13 +519,13 @@ function transportFixture({ count = 1, mutate, invalidDigest = false }: Transpor
   return { ...f, bytes, calls, request };
 }
 
-void test("API discovery imports a real digest-bound ZIP and replanning reuses deterministic stages only", () => {
+void test("API discovery imports a real digest-bound ZIP and replanning reuses deterministic stages only", async () => {
   const f = transportFixture();
   const root = mkdtempSync(path.join(os.tmpdir(), "audit-discovery-"));
   try {
     f.currentPlan.receiptRoot = root;
-    const result = discoverAuditReceipts(f.currentPlan, {
-      request: f.request,
+    const result = await discoverAuditReceipts(f.currentPlan, {
+      operations: operationsFrom(f.request),
       workflowDigest: f.proof.workflowDigest,
     });
     assert.equal(result.status, "imported");
@@ -526,8 +546,12 @@ void test("API discovery imports a real digest-bound ZIP and replanning reuses d
     });
     assert.ok(fresh.stages.every((s) => s.action === "run"));
     assert.equal(
-      discoverAuditReceipts(fresh, { fresh: true, request: () => assert.fail("fresh discovery") })
-        .reason,
+      (
+        await discoverAuditReceipts(fresh, {
+          fresh: true,
+          operations: operationsFrom(() => assert.fail("fresh discovery")),
+        })
+      ).reason,
       "fresh-required",
     );
     assert.equal(f.calls.filter((c) => c.endpoint.endsWith("/actions/runs/123")).length, 2);
@@ -541,10 +565,10 @@ void test("API discovery imports a real digest-bound ZIP and replanning reuses d
   }
 });
 
-void test("newest twenty runs and at most three downloads bound failed discovery", () => {
+void test("newest twenty runs and at most three downloads bound failed discovery", async () => {
   const f = transportFixture({ count: 20, invalidDigest: true });
-  const result = discoverAuditReceipts(f.currentPlan, {
-    request: f.request,
+  const result = await discoverAuditReceipts(f.currentPlan, {
+    operations: operationsFrom(f.request),
     workflowDigest: f.proof.workflowDigest,
   });
   assert.equal(result.status, "cache-miss");
@@ -555,7 +579,7 @@ void test("newest twenty runs and at most three downloads bound failed discovery
   assert.ok(f.calls.some((c) => c.endpoint.endsWith("branch=main&status=completed&per_page=20")));
 });
 
-void test("truncated collections, changed readback and unsafe ZIP fail without publishing receipts", () => {
+void test("truncated collections, changed readback and unsafe ZIP fail without publishing receipts", async () => {
   for (const mode of ["jobs", "artifacts", "run", "main", "zip", "window"]) {
     const root = mkdtempSync(path.join(os.tmpdir(), "audit-reject-"));
     const f = transportFixture({
@@ -596,8 +620,8 @@ void test("truncated collections, changed readback and unsafe ZIP fail without p
     }
     try {
       f.currentPlan.receiptRoot = root;
-      const result = discoverAuditReceipts(f.currentPlan, {
-        request: f.request,
+      const result = await discoverAuditReceipts(f.currentPlan, {
+        operations: operationsFrom(f.request),
         workflowDigest: f.proof.workflowDigest,
       });
       assert.equal(result.status, "cache-miss", mode);
@@ -668,5 +692,65 @@ void test("completed raw failed producer imports passed deterministic stages and
     assert.ok(result.provenance);
   } finally {
     rmSync(root, { recursive: true, force: true });
+  }
+});
+
+void test("audit metadata uses the actual configured SDK with fixed authority and one attempt", async () => {
+  let sends = 0;
+  const operations = await createAuditOperations({
+    root: process.cwd(),
+    deadline: performance.now() + 5000,
+    environment: { GH_TOKEN: "ghs_SYNTHETIC_AUDIT_ONLY", GITHUB_TOKEN: "unused-authority" },
+    fetch: async (url, init) => {
+      sends++;
+      assert.equal(url, "https://api.github.com/repos/boburning/portcove");
+      assert.equal(init?.redirect, "manual");
+      const headers = new Headers(init?.headers);
+      assert.match(
+        headers.get("authorization") ?? "",
+        /^(?:token|Bearer) ghs_SYNTHETIC_AUDIT_ONLY$/u,
+      );
+      assert.equal(headers.get("x-github-api-version"), "2022-11-28");
+      assert.equal(headers.get("accept"), "application/vnd.github+json");
+      return Response.json({ id: 123, full_name: "boburning/portcove" });
+    },
+  });
+  assert.deepEqual(await operations.metadata("repos/boburning/portcove", 15000), {
+    id: 123,
+    full_name: "boburning/portcove",
+  });
+  assert.equal(sends, 1);
+  for (const endpoint of [
+    "repos/other/repo",
+    "repos/boburning/portcove/../../other/repo",
+    "repos/boburning/portcove/actions/artifacts/1/zip",
+  ])
+    await assert.rejects(operations.metadata(endpoint, 15000));
+  await assert.rejects(operations.metadata("repos/boburning/portcove", 0));
+  assert.equal(sends, 1);
+});
+
+void test("audit metadata refuses failed streams and oversized responses without retry", async () => {
+  for (const mode of ["transient", "oversize", "stream"] as const) {
+    let sends = 0;
+    const operations = await createAuditOperations({
+      root: process.cwd(),
+      deadline: performance.now() + 5000,
+      environment: { GH_TOKEN: "fixture-token" },
+      fetch: async () => {
+        sends++;
+        if (mode === "transient") return Response.json({ message: "unavailable" }, { status: 503 });
+        if (mode === "oversize") return new Response("x".repeat(2 * 1024 * 1024 + 1));
+        return new Response(
+          new ReadableStream({
+            start(controller) {
+              controller.error(new Error("read failed"));
+            },
+          }),
+        );
+      },
+    });
+    await assert.rejects(operations.metadata("repos/boburning/portcove", 15000));
+    assert.equal(sends, 1);
   }
 });

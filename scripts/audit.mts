@@ -551,7 +551,7 @@ export async function main(argv = process.argv.slice(2)) {
   }
   if (!options.fresh && options.profile !== "transition") {
     const { discoverAuditReceipts, describeAuditReuse } = await import("./audit-reuse.mts");
-    const reuse = discoverAuditReceipts(plan);
+    const reuse = await discoverAuditReceipts(plan);
     console.log(describeAuditReuse(reuse));
     plan = planAudit({ stages: selection.stages, profile: selection.profile });
   }
