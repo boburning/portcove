@@ -82,6 +82,8 @@ fn entry(document: &Value, contract: &[u8], port_index: usize) -> Value {
     let typed: crate::PortDefinition = serde_json::from_value(port.clone()).unwrap();
     let version = if crate::preparation::source::native(&typed) {
         6
+    } else if typed.windows_shipwright_persistence {
+        3
     } else if typed.windows_temp_directory.is_some() {
         5
     } else if typed.adapter == crate::AdapterKind::NativePortable
@@ -490,6 +492,11 @@ fn supported_new_id_needs_no_per_port_dispatch_and_does_not_mutate_embedded_cata
         .unwrap()
         .to_owned();
     document["catalog"]["ports"][0]["id"] = json!("redistributable-definition-fixture");
+    // The synthetic ID has no official Shipwright persistence authority.
+    document["catalog"]["ports"][0]
+        .as_object_mut()
+        .unwrap()
+        .remove("windows_shipwright_persistence");
     for collection in ["contracts", "qualification"] {
         for record in document["catalog"]["source_catalog"][collection]
             .as_array_mut()

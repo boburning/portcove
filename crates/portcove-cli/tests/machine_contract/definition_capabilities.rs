@@ -134,6 +134,7 @@ fn advertised_engine_templates_match_negotiation_and_exported_schemas() {
     }
     for capability in [
         ("libultraship-portable", 2),
+        ("libultraship-portable", 3),
         ("n64-recomp-portable", 2),
         ("n64-recomp-portable", 3),
         ("n64-recomp-portable", 4),

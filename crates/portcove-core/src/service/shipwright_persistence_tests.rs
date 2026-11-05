@@ -1165,30 +1165,25 @@ fn optional_current_settings_preserve_only_the_retained_artifact_save_correction
                 .persistent_paths
                 .contains(&"current-only-unreviewed".into())
         );
-        assert_eq!(
-            interpreted.persistent_paths.contains(&"Save".into()),
-            !other_operational_drift
+        // The exact historical correction derives from the retained package,
+        // including when the current definition contains unrelated drift.
+        assert!(interpreted.persistent_paths.contains(&"Save".into()));
+        assert!(
+            interpreted
+                .runtime_mutable_paths
+                .contains(&"logs/Ship of Harkinian.log".into())
         );
-        if !other_operational_drift {
-            assert!(
-                interpreted
-                    .runtime_mutable_paths
-                    .contains(&"logs/Ship of Harkinian.log".into())
-            );
-            let backup = service.create_backup(PORT).unwrap();
-            assert_eq!(
-                fs::read(backup.path.join("data/Save/file1.sav")).unwrap(),
-                b"runtime progress after optional settings appeared"
-            );
-            assert_eq!(
-                fs::read(backup.path.join("data/SoHTimeSplitData.json")).unwrap(),
-                SPLITS_A
-            );
-        } else {
-            let spec = service.prepare_launch(PORT, None).unwrap();
-            assert!(!spec.arguments.contains(&"--unreviewed".into()));
-            assert!(!service.library.user_dir(PORT).join("Save").exists());
-        }
+        let backup = service.create_backup(PORT).unwrap();
+        assert_eq!(
+            fs::read(backup.path.join("data/Save/file1.sav")).unwrap(),
+            b"runtime progress after optional settings appeared"
+        );
+        assert_eq!(
+            fs::read(backup.path.join("data/SoHTimeSplitData.json")).unwrap(),
+            SPLITS_A
+        );
+        let spec = service.prepare_launch(PORT, None).unwrap();
+        assert!(!spec.arguments.contains(&"--unreviewed".into()));
         assert_eq!(
             fs::read(active.path.join(".portcove-manifest.json")).unwrap(),
             manifest

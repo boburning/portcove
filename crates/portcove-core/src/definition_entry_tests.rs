@@ -406,7 +406,14 @@ fn runtime_credential_policy_requires_the_exact_new_reader_floor() {
 }
 
 fn catalog_fixture() -> Value {
-    entry_for_port(&crate::Catalog::embedded().unwrap().ports()[0])
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = &catalog.ports()[0];
+    let mut entry = entry_for_port(port);
+    if port.windows_shipwright_persistence {
+        entry["required_capabilities"][0]["minimum_version"] = json!(3);
+        entry["required_capabilities"][0]["maximum_version"] = json!(3);
+    }
+    entry
 }
 
 fn entry_for_port(port: &crate::PortDefinition) -> Value {
@@ -806,8 +813,8 @@ fn entry_schema_and_exact_index_identity_are_independent_checks() {
 fn unsupported_capabilities_remain_reportable_and_the_adapter_is_required() {
     let baseline = fixture();
     let mut value = baseline.clone();
-    value["required_capabilities"][0]["minimum_version"] = json!(3);
-    value["required_capabilities"][0]["maximum_version"] = json!(3);
+    value["required_capabilities"][0]["minimum_version"] = json!(4);
+    value["required_capabilities"][0]["maximum_version"] = json!(4);
     assert!(!inspect(&value).unwrap().capabilities().compatible);
     value["required_capabilities"]
         .as_array_mut()

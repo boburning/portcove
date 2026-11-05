@@ -618,6 +618,8 @@ pub(crate) fn post_client_catalog() -> (crate::Catalog, String) {
     source.contracts.push(contract);
 
     port.id = port_id.clone();
+    // The synthetic port does not inherit the official Shipwright package route.
+    port.windows_shipwright_persistence = false;
     port.name = "Post-client definition fixture".to_string();
     port.summary = "A valid port definition published after this client was built.".to_string();
     port.source_profile = Some(profile_id);
