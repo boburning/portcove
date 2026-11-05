@@ -41,6 +41,11 @@ describe("general upstream navigation", () => {
     "https://gitlab.com/group/game/-/blob/main/README.md",
     "https://gitlab.com/group/%2e%2e/game/-/releases/v2",
     "javascript:alert(1)",
+    " https://github.com/owner/game",
+    "https://github.com/owner/game\n",
+    `https://github.com/owner/game/releases?note=${"x".repeat(4096)}`,
+    `https://github.com/owner/game/releases?note=${"🎮".repeat(2000)}`,
+    "https://github.com/owner/game/releases/\u0085",
   ])("does not reinterpret an unrelated or unsafe URL as provider identity: %s", (release) => {
     expect(upstreamUpdatesDestination("https://example.org/game", release)).toEqual({
       url: "https://example.org/game",

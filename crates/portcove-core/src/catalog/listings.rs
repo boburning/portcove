@@ -12,6 +12,7 @@ impl From<&PortDefinition> for PortListing {
         let presentation = port.presentation.as_ref();
         Self {
             id: port.id.clone(),
+            compatibility: None,
             upstream_observation: None,
             availability_override_reason: None,
             release_maintenance: None,
@@ -58,13 +59,19 @@ fn has_extended_media(listing: &PortListing) -> bool {
 impl CatalogListingDocument {
     /// Format 5 retains every reference paragraph in the original flat guide.
     pub fn export_format(&self, format_version: u32) -> Result<Self> {
-        if !matches!(format_version, 5 | 6 | 8) {
+        if !matches!(format_version, 5..=8) {
             return Err(PortcoveError::unsupported(
-                "listing export supports formats 5, 6 and 8",
+                "listing export supports formats 5, 6, 7 and 8",
             ));
         }
         let mut document = self.clone();
         document.format_version = format_version;
+        if format_version < 7 {
+            for listing in &mut document.listings {
+                // Only inert notices are omitted. Acquisition restrictions stay intact.
+                listing.compatibility = None;
+            }
+        }
         if format_version == 5 {
             for listing in &mut document.listings {
                 if let Some(guide) = &mut listing.manual_setup {
@@ -79,6 +86,13 @@ impl CatalogListingDocument {
     /// Only already accepted facts may be promoted; raw authored documents keep
     /// their declared version and pass the ordinary version checks unchanged.
     pub(super) fn promote_projected_format(&mut self) {
+        if self
+            .listings
+            .iter()
+            .any(|listing| listing.compatibility.is_some())
+        {
+            self.format_version = self.format_version.max(7);
+        }
         if self.format_version == 1
             && self
                 .listings
@@ -112,7 +126,7 @@ impl CatalogListingDocument {
             self.format_version = 6;
         }
         if self.has_gitlab_observations() {
-            self.format_version = 8;
+            self.format_version = self.format_version.max(8);
         }
     }
 
@@ -154,11 +168,21 @@ impl CatalogListingDocument {
     }
 
     fn validate_identity_set(&self) -> Result<()> {
-        if !matches!(self.format_version, 1..=6 | 8) {
+        if !matches!(self.format_version, 1..=8) {
             return Err(PortcoveError::unsupported(format!(
                 "listing format {} is not supported",
                 self.format_version
             )));
+        }
+        if self.format_version < 7
+            && self
+                .listings
+                .iter()
+                .any(|listing| listing.compatibility.is_some())
+        {
+            return Err(PortcoveError::unsupported(
+                "optional compatibility advisories require listing format 7",
+            ));
         }
         if self.format_version < 8 && self.has_gitlab_observations() {
             return Err(PortcoveError::unsupported(
@@ -707,6 +731,7 @@ impl Catalog {
                 let release_url = listing.release_url.clone();
                 let setup_url = listing.setup_url.clone().or(projected.setup_url.clone());
                 *listing = PortListing {
+                    compatibility: listing.compatibility.clone(),
                     upstream_observation: listing.upstream_observation.clone(),
                     availability_override_reason: listing.availability_override_reason.clone(),
                     release_maintenance: listing.release_maintenance.clone(),
@@ -1029,7 +1054,7 @@ mod tests {
         let mut operational_listing = listing();
         operational_listing["launch_arguments"] = json!(["--run-script"]);
         for document in [
-            json!({"format_version":7,"listings":[]}),
+            json!({"format_version":9,"listings":[]}),
             json!({"format_version":1,"listings":[listing(),listing()]}),
             json!({"format_version":1,"listings":[unsafe_listing]}),
             json!({"format_version":1,"listings":[operational_listing]}),
@@ -1371,6 +1396,32 @@ mod observation_metadata_tests {
             assert!(parse(&changed, 8).is_err(), "{change}");
         }
     }
+    #[test]
+    fn combined_advice_and_gitlab_observations_keep_independent_reader_gates() {
+        let mut value = listing();
+        value["project_url"] = "https://gitlab.com/example/game".into();
+        value["upstream_observation"] = crate::test_fixture::gitlab_listing_observation();
+        value["compatibility"] = json!({"format_version":99,"future":true});
+        assert!(parse(&value, 7).is_err());
+        let document = parse(&value, 8).unwrap();
+        for format in [5, 6, 7] {
+            assert!(document.export_format(format).is_err());
+        }
+        assert_eq!(
+            document.export_format(8).unwrap().listings[0],
+            document.listings[0]
+        );
+        let retained = Catalog::for_user_selected_listing(document.listings[0].clone()).unwrap();
+        assert_eq!(retained.listing_document().format_version, 8);
+        assert!(retained.port("observed-project").is_err());
+        let mut future = document;
+        future.format_version = 9;
+        future.promote_projected_format();
+        assert_eq!(future.format_version, 9);
+        assert!(future.validate().is_err());
+        assert!(parse(&value, 9).is_err());
+    }
+
     #[test]
     fn descriptive_first_failure_and_last_good_facts_remain_distinct() {
         let mut value = listing();

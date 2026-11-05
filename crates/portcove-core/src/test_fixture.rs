@@ -4,6 +4,22 @@ use std::{
     path::{Path, PathBuf},
 };
 
+#[cfg(test)]
+pub(crate) fn gitlab_listing_observation() -> serde_json::Value {
+    serde_json::json!({
+        "provider":"gitlab", "repository":"example/game", "repository_id":7,
+        "status":"complete", "attempted_at":"2026-10-27T00:01:00Z",
+        "observed_at":"2026-10-27T00:00:00Z", "fresh_until":"2026-10-27T12:00:00Z",
+        "facts_sha256":"a".repeat(64), "release_limit":4,
+        "releases":[{
+            "id":{"provider":"gitlab","project_id":7,"tag":"v1.2.0"},
+            "version":"v1.2.0", "release_url":"https://gitlab.com/example/game/-/releases/v1.2.0",
+            "published_at":"2026-10-26T00:00:00Z", "provider_prerelease":false,
+            "assets_complete":true, "assets":[]
+        }]
+    })
+}
+
 pub(crate) fn v26_diagnostic_port(id: &str) -> crate::PortDefinition {
     let value: serde_json::Value =
         serde_json::from_str(include_str!("../tests/fixtures/direct-diagnostic-v26.json")).unwrap();

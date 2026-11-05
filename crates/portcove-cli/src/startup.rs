@@ -211,7 +211,8 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
         Commands::Policy { command } => match command {
             PolicyCommand::Set { .. } => Recovering,
         },
-        Commands::Status { .. }
+        Commands::PortCapabilities { .. }
+        | Commands::Status { .. }
         | Commands::Storage
         | Commands::Doctor
         | Commands::Plan { .. }

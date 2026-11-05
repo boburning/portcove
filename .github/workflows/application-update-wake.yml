@@ -31,10 +31,15 @@ jobs:
             ${{ vars.PORTCOVE_CONTROLLER_WAKE != '' && fromJSON(vars.PORTCOVE_CONTROLLER_WAKE).revision ||
             fromJSON(vars.PORTCOVE_CATALOG_CONTROLLER_WAKE).revision }}
           persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115
+        with:
+          package_json_file: package.json
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version-file: .node-version
           package-manager-cache: false
+      - name: Install locked wake dependencies before credentials
+        run: pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile
       - name: Prepare immutable controller intent
         env:
           GH_HOST: github.com

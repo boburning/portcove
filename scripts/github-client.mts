@@ -24,6 +24,14 @@ export interface GitHubRequestPolicy {
   readRedirectBodyFor?: readonly number[];
   /** Request-owned evidence; no mutable client-wide last response. */
   observe?: (observation: GitHubAttemptObservation) => void;
+  /** Retain a complete response before the final deadline check.
+   * This is request-owned recovery evidence, never permission to accept a late
+   * result. Failed or incomplete bodies are never published here. */
+  retainResponse?: (response: {
+    status: number;
+    data: unknown;
+    headers: Readonly<Record<string, string>>;
+  }) => Promise<void>;
   deadline?: number;
   secondaryFailures?: number;
   /** An aborted admission may still own cleanup; command owners join this before terminal evidence. */
@@ -80,6 +88,21 @@ export interface GitHubReservation {
 
 const transientStatuses = new Set([408, 500, 502, 503, 504]);
 const transientCauses = new Set(["ECONNRESET", "ETIMEDOUT", "EAI_AGAIN", "ECONNREFUSED"]);
+const retainedHeaderNames = new Set([
+  "content-type",
+  "date",
+  "etag",
+  "link",
+  "retry-after",
+  "x-github-request-id",
+  "x-ratelimit-limit",
+  "x-ratelimit-remaining",
+  "x-ratelimit-reset",
+  "x-ratelimit-resource",
+  "x-ratelimit-used",
+]);
+const retainedHeaders = (headers: Record<string, string>) =>
+  Object.fromEntries(Object.entries(headers).filter(([name]) => retainedHeaderNames.has(name)));
 
 /** Reject values that cannot pass through existing JSON/hash contracts exactly. */
 function requireJsonValues(value: unknown) {
@@ -466,6 +489,18 @@ export async function createGitHubClient(options: GitHubClientOptions) {
                 response: result,
               },
             );
+          if (policy.retainResponse) {
+            try {
+              await policy.retainResponse({
+                status: result.status,
+                data: body,
+                headers: retainedHeaders(observation.headers),
+              });
+            } catch (error) {
+              localFailure = error;
+              throw error;
+            }
+          }
           if (now() >= deadline)
             throw new GitHubApiError(
               "deadline_exceeded",
@@ -475,7 +510,7 @@ export async function createGitHubClient(options: GitHubClientOptions) {
           return result;
         } catch (error) {
           requestFailed = true;
-          if (localFailure || signal.aborted) {
+          if (localFailure) {
             const safe = sanitizeOperationError(localFailure ?? signal.reason, {
               secrets: token ? [token] : [],
             });
@@ -545,6 +580,35 @@ export async function createGitHubClient(options: GitHubClientOptions) {
             if (replayable && !errors.length && policy.attempts < maximum) {
               retryAt = until;
             }
+          }
+          if (
+            policy.retainResponse &&
+            observation.status !== null &&
+            isRecord(response) &&
+            Object.hasOwn(response, "data")
+          ) {
+            try {
+              requireJsonValues(body);
+              await policy.retainResponse({
+                status: observation.status,
+                data: body,
+                headers: retainedHeaders(observation.headers),
+              });
+            } catch (retentionError) {
+              const safe = sanitizeOperationError(retentionError, {
+                secrets: token ? [token] : [],
+              });
+              throw new GitHubApiError(safe.code, safe.message);
+            }
+          }
+          if (signal.aborted) {
+            const safe = sanitizeOperationError(signal.reason, {
+              secrets: token ? [token] : [],
+            });
+            throw new GitHubApiError(
+              requestTimedOut() ? "deadline_exceeded" : "cancelled",
+              safe.message,
+            );
           }
           if (
             observation.status === 304 &&

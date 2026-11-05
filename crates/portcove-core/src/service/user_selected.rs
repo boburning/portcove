@@ -2314,6 +2314,26 @@ mod tests {
         service.catalog = Catalog::embedded().unwrap();
         let before = serde_json::to_value(service.catalog.port("shipwright").unwrap()).unwrap();
         let record = register(&service, "shipwright", &executable, &working);
+        let report = service.port_capabilities("shipwright").unwrap();
+        let current = report.routes.last().unwrap();
+        assert_eq!(current.install_id.as_deref(), Some(record.id.as_str()));
+        assert_eq!(current.route, "user-selected");
+        let updates = current
+            .features
+            .iter()
+            .find(|row| row.feature == crate::CapabilityFeature::Updates)
+            .unwrap();
+        assert_eq!(updates.mode, crate::CapabilityMode::Manual);
+        assert!(updates.action.is_some());
+        assert_eq!(
+            service
+                .status("shipwright")
+                .unwrap()
+                .external_runtime
+                .as_ref()
+                .map(|r| &r.id),
+            Some(&record.id)
+        );
         let status = service.status("shipwright").unwrap();
         assert!(status.readiness.unwrap().launchable);
         assert!(

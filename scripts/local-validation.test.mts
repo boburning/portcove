@@ -788,6 +788,7 @@ void test("fixture module closure edits retain all independent policy and constr
     "scripts/production-aggregate-steps.test.mts",
     "scripts/release-control-inputs.test.mts",
     "scripts/release-controller-tools.test.mts",
+    "scripts/release-controller-wake.test.mts",
     "scripts/release-windows-webview-driver.test.mts",
     "scripts/renovate-engine-probe.test.mts",
     "scripts/repository-settings.test.mts",
@@ -4590,6 +4591,14 @@ void test("POSIX qualification identity module retains its public caller tests o
 
 void test("GitHub dependency changes select actual SDK and REST integration contracts", () => {
   for (const file of [
+    "scripts/release-wake-provider.mts",
+    "scripts/qualify-job-token-dispatch.mts",
+  ]) {
+    const selected = classifyChanges([{ status: "M", path: file }], { fileExists: () => false });
+    assert.ok(selected.nodeTests.has("scripts/release-controller-wake.test.mts"), file);
+    assert.ok(selected.nodeTests.has("scripts/release-production-dag.test.mts"), file);
+  }
+  for (const file of [
     "package.json",
     "pnpm-lock.yaml",
     "scripts/github-client.mts",
@@ -4606,6 +4615,7 @@ void test("GitHub dependency changes select actual SDK and REST integration cont
       "scripts/discovery-primary-progress.test.mts",
       "scripts/release-native-check-discovery.test.mts",
       "scripts/release-pages-provider.test.mts",
+      "scripts/release-controller-wake.test.mts",
     ]) {
       assert.ok(selected.nodeTests.has(consumer), file);
       assert.ok(existsSync(new URL(`../${consumer}`, import.meta.url)));
