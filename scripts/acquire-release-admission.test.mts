@@ -615,6 +615,63 @@ async function fixture(t: test.TestContext, profile: "full" | "initial-beta-win-
   };
 }
 
+void test("actual admission package transfer uses the scoped SDK with signed delivery before final readback", async (t) => {
+  const f = await fixture(t);
+  const download = f.options.download;
+  assert.ok(download);
+  const options = { ...f.options };
+  delete options.download;
+  const previous = process.env.GH_TOKEN;
+  const token = "ghs_SYNTHETIC_ADMISSION_PACKAGE_READER";
+  process.env.GH_TOKEN = token;
+  t.after(() => {
+    if (previous === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = previous;
+  });
+  const lookups: string[] = [],
+    deliveries: string[] = [];
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const url = new URL(input instanceof Request ? input.url : input);
+      const headers = new Headers(init?.headers);
+      if (url.origin === "https://api.github.com") {
+        assert.equal(init?.method, "GET");
+        assert.equal(headers.get("authorization"), `token ${token}`);
+        const id = /^\/repos\/boburning\/portcove\/actions\/artifacts\/([1-9][0-9]*)\/zip$/u.exec(
+          url.pathname,
+        )?.[1];
+        assert.ok(id);
+        lookups.push(id);
+        return new Response(null, {
+          status: 302,
+          headers: {
+            location: `https://productionresultssa10.blob.core.windows.net/actions-results/${id}?sig=synthetic`,
+          },
+        });
+      }
+      assert.equal(init?.credentials, "omit");
+      assert.equal(headers.has("authorization"), false);
+      const id = /^\/actions-results\/([1-9][0-9]*)$/u.exec(url.pathname)?.[1];
+      assert.ok(id);
+      deliveries.push(id);
+      const archive = download(`repos/boburning/portcove/actions/artifacts/${id}/zip`, {
+        cwd: f.root,
+        maxBytes: 512 * 1024 ** 2,
+        timeoutMs: 120000,
+      });
+      return new Response(Uint8Array.from(archive));
+    },
+  );
+  const result = await acquireReleaseAdmission(f.root, f.config, options);
+  assert.equal(result.decision, "hold");
+  assert.equal(result.descriptor, null);
+  assert.equal(lookups.length, 4);
+  assert.deepEqual(deliveries, lookups);
+  assert.ok(!(await readdir(result.directory)).some((name) => /^package-.*[.]zip$/u.test(name)));
+});
+
 void test("actual admission authenticates frozen semantic producer, owner pause and spending source without clearing independent holds", async (t) => {
   const f = await fixture(t);
   const frozen = {

@@ -168,7 +168,11 @@ export async function assembleReleaseArtifacts(
             archive,
             credential!,
             transferDeadline,
-            evidenceOptions,
+            {
+              ...(evidenceOptions.signal ? { signal: evidenceOptions.signal } : {}),
+              ...(evidenceOptions.fetch ? { fetch: evidenceOptions.fetch } : {}),
+              ...(evidenceOptions.reserve ? { lookup: { reserve: evidenceOptions.reserve } } : {}),
+            },
             scoped,
           );
       active();
@@ -220,13 +224,16 @@ export async function assembleReleaseArtifacts(
   }
 }
 
-async function acquirePackageArchive(
+export async function acquirePackageArchive(
   directory: string,
   endpoint: string,
   archive: { artifact_id: number; bytes: number },
   credential: NonNullable<ReleaseEvidenceOptions["credential"]>,
   deadline: number,
-  evidence: ReleaseEvidenceOptions,
+  delivery: Pick<
+    Parameters<typeof downloadGitHubArtifactArchiveFile>[2],
+    "signal" | "fetch" | "lookup"
+  >,
   scoped: boolean,
 ) {
   const filename = path.join(directory, `package-${archive.artifact_id}.zip`);
@@ -234,17 +241,18 @@ async function acquirePackageArchive(
     credential,
     deadline,
     maxBytes: archive.bytes,
-    ...(evidence.signal ? { signal: evidence.signal } : {}),
-    ...(evidence.fetch || scoped
+    ...(delivery.signal ? { signal: delivery.signal } : {}),
+    ...(delivery.fetch || scoped
       ? {
           fetch(input, init) {
             if (scoped) assertTrustedDirectNode("release package archive");
-            return (evidence.fetch ?? globalThis.fetch)(input, init);
+            return (delivery.fetch ?? globalThis.fetch)(input, init);
           },
         }
       : {}),
-    ...(evidence.reserve ? { lookup: { reserve: evidence.reserve } } : {}),
+    ...(delivery.lookup ? { lookup: delivery.lookup } : {}),
   });
+  let bytes: Buffer;
   try {
     const file = await open(
       filename,
@@ -254,10 +262,10 @@ async function acquirePackageArchive(
       const metadata = await file.stat();
       if (!metadata.isFile() || metadata.size !== archive.bytes)
         throw new Error("release package archive byte count changed");
-      const bytes = Buffer.allocUnsafe(archive.bytes);
+      bytes = Buffer.allocUnsafe(archive.bytes);
       let offset = 0;
       while (offset < bytes.length) {
-        if (evidence.signal?.aborted) throw new Error("release package archive cancelled");
+        if (delivery.signal?.aborted) throw new Error("release package archive cancelled");
         if (performance.now() >= deadline)
           throw new Error("release package archive deadline exhausted");
         const { bytesRead } = await file.read(
@@ -276,11 +284,13 @@ async function acquirePackageArchive(
         final.ctimeMs !== metadata.ctimeMs
       )
         throw new Error("release package archive changed during staging");
-      return bytes;
     } finally {
       await file.close();
     }
   } finally {
     await unlink(filename);
   }
+  if (delivery.signal?.aborted) throw new Error("release package archive cancelled");
+  if (performance.now() >= deadline) throw new Error("release package archive deadline exhausted");
+  return bytes;
 }

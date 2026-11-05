@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { parseDocument } from "yaml";
 import { isRecord } from "./runtime-values.mts";
 import { createHash } from "node:crypto";
@@ -243,8 +243,45 @@ void test("actual bounded ZIP + verifier transport validates fixture document bu
     name: filename,
     digest: { sha256 },
   }));
+  const routes: string[] = [];
+  let dispatches = 0;
+  let settled = 0;
   const result = await collectReleaseSbomEvidence(f.root, f.request, evidence, {
-    download: () => archive,
+    credential: { kind: "explicit", token: "ghs_SYNTHETIC_SBOM_READER" },
+    lookup: {
+      reserve() {
+        dispatches++;
+        return {
+          consumeBytes() {},
+          settle(observation) {
+            assert.equal(observation.dispatched, true);
+            assert.equal(observation.status, 302);
+            assert.equal(observation.headers.location, undefined);
+            settled++;
+          },
+        };
+      },
+    },
+    async fetch(input, init) {
+      const url = new URL(input instanceof Request ? input.url : input);
+      routes.push(url.origin + url.pathname);
+      const headers = new Headers(init?.headers);
+      if (url.origin === "https://api.github.com") {
+        assert.equal(url.pathname, "/repos/boburning/portcove/actions/artifacts/987/zip");
+        assert.equal(headers.get("authorization"), "token ghs_SYNTHETIC_SBOM_READER");
+        return new Response(null, {
+          status: 302,
+          headers: {
+            location:
+              "https://productionresultssa10.blob.core.windows.net/actions-results/sbom?sig=synthetic",
+          },
+        });
+      }
+      assert.equal(init?.credentials, "omit");
+      assert.equal(headers.has("authorization"), false);
+      assert.equal(settled, 1);
+      return new Response(Uint8Array.from(archive));
+    },
     spawn: (command, args) => {
       assert.equal(command, "gh");
       assert.ok(args.includes("--deny-self-hosted-runners"));
@@ -252,6 +289,13 @@ void test("actual bounded ZIP + verifier transport validates fixture document bu
       return { status: 0, stdout: JSON.stringify(value), stderr: "" };
     },
   });
+  assert.deepEqual(routes, [
+    "https://api.github.com/repos/boburning/portcove/actions/artifacts/987/zip",
+    "https://productionresultssa10.blob.core.windows.net/actions-results/sbom",
+  ]);
+  assert.equal(dispatches, 1);
+  assert.equal(settled, 1);
+  assert.ok(!(await readdir(f.root)).some((name) => name.startsWith("release-spdx-download-")));
   assert.equal(result.state, "verified-document");
   assert.equal(result.evidence_scope, "injected-provider");
   assert.equal(result.authority, "none");

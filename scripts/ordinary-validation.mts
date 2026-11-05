@@ -263,7 +263,10 @@ for (const [file, tests] of [
     "scripts/release-run-evidence.mts",
     ["scripts/release-run-evidence.test.mts", "scripts/release-artifact-archive.test.mts"],
   ],
-  ["scripts/release-artifact-assembly.mts", ["scripts/release-artifact-archive.test.mts"]],
+  [
+    "scripts/release-artifact-assembly.mts",
+    ["scripts/release-artifact-archive.test.mts", "scripts/acquire-release-admission.test.mts"],
+  ],
   ...[
     "scripts/lock-maintenance-policy.mts",
     "scripts/lock-maintenance-registry.mts",
@@ -2437,8 +2440,10 @@ explicitNodeTests.set("scripts/release-direct-node-transport.mts", [
 ]);
 
 explicitNodeTests.set("scripts/github-artifact-download.mts", [
+  "scripts/release-compiler-evidence.test.mts",
   "scripts/release-controller-tools.test.mts",
   "scripts/release-catalog-site-controller.test.mts",
+  "scripts/release-acceptance-evidence.test.mts",
   "scripts/release-artifact-archive.test.mts",
   "scripts/release-public-build-provenance.test.mts",
   "scripts/application-release-qualification.test.mts",
