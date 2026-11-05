@@ -1,7 +1,6 @@
 /** Existing pinned GitHub/Sigstore verification shared by fixed controller artifacts.
  * This returns verified data; each owning consumer binds its own exact subject,
  * predicate and provider custody. No imported JSON can replace the gh execution. */
-import { spawnSync } from "node:child_process";
 import { verifyGitHubAttestation } from "./github-cli.mts";
 import type { RetainedGitHubSpawn } from "./github-cli.mts";
 import {
@@ -39,13 +38,8 @@ export function verifyControllerArtifactVerification(
     throw new Error("controller attestation phase deadline exhausted");
   const settings: Parameters<typeof verifyGitHubAttestation>[1] = {
     cwd: directory,
-    spawn:
-      options.spawn ??
-      ((command, args, settings) =>
-        spawnSync(command, args, {
-          ...settings,
-          env: { ...(options.environment ?? process.env), GH_HOST: "github.com" },
-        })),
+    ...(options.spawn ? { spawn: options.spawn } : {}),
+    environment: { ...(options.environment ?? process.env), GH_HOST: "github.com" },
     maxBytes: 1024 * 1024,
     timeoutMs: coordinatorCommandTimeout(Math.min(30000, remaining)),
   };

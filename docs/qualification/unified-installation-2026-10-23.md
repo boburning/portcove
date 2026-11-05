@@ -38,6 +38,10 @@ JSON supplies older published artifact facts with an independently expected dige
 the next release uses the normal GitHub provider. Both use production Core
 download, extraction, installation, staged activation, verification and rollback.
 The probe refuses an existing destination and never launches the game.
+The maintained probe now requires positive nonempty verification reports bound to
+the updated and rolled-back installation IDs, and retains both reports in its
+JSON result. Earlier receipts that omitted those reports keep their original
+scope: a zero process exit alone does not establish positive verification.
 
 CorsixTH completed the following real transition, with both version directories
 retained and the older version active after the explicit rollback:

@@ -6,7 +6,7 @@ import { observationHash } from "./upstream-observer.mts";
 import type { ProviderObservation } from "./upstream-observer.mts";
 
 // A bounded descriptive window, never a complete-history or compatibility claim.
-export const listingObservationPolicy = "github-listing-window-v1";
+export const listingObservationPolicy = "provider-listing-window-v2";
 export const listingReleaseLimit = 4;
 // Reprojection follows actual implementation and schema-inventory changes too.
 export const listingProjectionHash = observationHash({
@@ -22,6 +22,60 @@ export function listingDeclarationHash(listing: Record<string, unknown>) {
   return observationHash(declaration);
 }
 const packageLimit = 32;
+
+/** Only already-supported public provider hosts can become observation sources. */
+export function listingProviderIdentity(
+  listing: Record<string, unknown>,
+): { provider: "github" | "gitlab"; repository: string } | null {
+  let url: URL;
+  try {
+    url = new URL(
+      typeof listing.release_url === "string" ? listing.release_url : String(listing.project_url),
+    );
+  } catch {
+    return null;
+  }
+  if (
+    url.protocol !== "https:" ||
+    url.username ||
+    url.password ||
+    url.port ||
+    url.search ||
+    url.hash
+  )
+    return null;
+  const provider =
+    url.hostname === "github.com" ? "github" : url.hostname === "gitlab.com" ? "gitlab" : null;
+  if (!provider) return null;
+  if (provider === "gitlab") {
+    const parts = url.pathname.split("/").slice(1);
+    const separator = parts.indexOf("-");
+    const repositoryParts = separator < 0 ? parts : parts.slice(0, separator);
+    if (repositoryParts.at(-1) === "") repositoryParts.pop();
+    if (
+      repositoryParts.length < 2 ||
+      repositoryParts.some(
+        (part) =>
+          !part ||
+          part === "." ||
+          part === ".." ||
+          part.length > 255 ||
+          !/^[A-Za-z0-9_.-]+$/u.test(part),
+      ) ||
+      (separator >= 0 && parts[separator + 1] !== "releases")
+    )
+      return null;
+    repositoryParts[repositoryParts.length - 1] = repositoryParts.at(-1)!.replace(/\.git$/u, "");
+    if (!repositoryParts.at(-1)) return null;
+    return { provider, repository: repositoryParts.join("/") };
+  }
+  const match =
+    /^\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+?)(?:\.git)?(?:\/releases(?:\/.*)?)?\/?$/u.exec(
+      url.pathname,
+    );
+  if (!match || match.slice(1).some((part) => part === "." || part === "..")) return null;
+  return { provider, repository: `${match[1]}/${match[2]}` };
+}
 
 export function listingObservationReleaseIds(observation: ProviderObservation): number[] {
   if (
@@ -118,22 +172,227 @@ export function projectListingObservation<Listing extends Record<string, unknown
         sha256: asset.digest?.replace(/^sha256:/iu, "").toLowerCase() ?? null,
       })),
     }));
+  return projectDescriptiveListing(
+    listing,
+    {
+      format: 1,
+      provider: "github",
+      repository: observation.facts.repository.full_name,
+      repositoryId: observation.facts.repository.id,
+      completedAt: observation.completed_at,
+      observedAt,
+      factsHash: observation.facts_sha256,
+      complete,
+      releases,
+    },
+    staleAfterHours,
+  );
+}
+interface DescriptiveRelease {
+  id: number | { provider: "gitlab"; project_id: number; tag: string };
+  version: string;
+  release_url: string;
+  published_at: string | null;
+  provider_prerelease: boolean;
+  assets_complete: boolean;
+  assets: {
+    platform_hints: string[];
+    id: number;
+    name: string;
+    url: string;
+    size: number;
+    sha256: string | null;
+  }[];
+}
+/** GitLab's native release identity is its tag, not an invented numeric GitHub ID. */
+export function projectGitLabListingObservation<Listing extends Record<string, unknown>>(
+  listing: Listing,
+  observation: Record<string, unknown>,
+  staleAfterHours: number,
+) {
+  const facts = observation.facts;
+  const identity = listingProviderIdentity(listing);
+  if (
+    !identity ||
+    identity.provider !== "gitlab" ||
+    observation.format !== 3 ||
+    observation.provider !== "gitlab" ||
+    observation.authority !== "provider-observation-only" ||
+    !isRecord(facts) ||
+    observation.facts_sha256 !== observationHash(facts) ||
+    !isRecord(facts.project) ||
+    facts.project.path_with_namespace !== identity.repository ||
+    !Number.isSafeInteger(facts.project.id) ||
+    Number(facts.project.id) < 1 ||
+    !Array.isArray(facts.releases) ||
+    !Array.isArray(facts.packages) ||
+    !isRecord(facts.package_files) ||
+    !isRecord(facts.coverage) ||
+    facts.coverage.releases !== true ||
+    facts.coverage.packages !== true ||
+    typeof observation.started_at !== "string" ||
+    !Number.isFinite(Date.parse(observation.started_at)) ||
+    typeof observation.completed_at !== "string" ||
+    !Number.isFinite(Date.parse(observation.completed_at)) ||
+    !Number.isInteger(staleAfterHours) ||
+    staleAfterHours < 1 ||
+    staleAfterHours > 48
+  )
+    throw new Error("Exact covered GitLab facts and listing identity are required");
+  if (
+    facts.releases.some(
+      (release) =>
+        !isRecord(release) ||
+        typeof release.upcoming_release !== "boolean" ||
+        typeof release.tag_name !== "string" ||
+        !release.tag_name ||
+        release.tag_name.length > 255 ||
+        /\p{Cc}/u.test(release.tag_name) ||
+        !isRecord(release.assets) ||
+        !Array.isArray(release.assets.links),
+    ) ||
+    facts.packages.some(
+      (item) =>
+        !isRecord(item) ||
+        !Number.isSafeInteger(item.id) ||
+        Number(item.id) < 1 ||
+        typeof item.name !== "string" ||
+        !item.name ||
+        typeof item.version !== "string" ||
+        !item.version,
+    )
+  )
+    throw new Error("GitLab descriptive rows have invalid native identities or coverage");
+  const releases = (facts.releases as Record<string, unknown>[]).filter(
+    (release) => release.upcoming_release === false,
+  );
+  const projectId = Number(facts.project.id);
+  if (
+    releases.some(
+      (release) =>
+        typeof release.tag_name !== "string" ||
+        typeof release.released_at !== "string" ||
+        !Number.isFinite(Date.parse(release.released_at)),
+    )
+  )
+    throw new Error("Published descriptive release has no valid identity or publication clock");
+  const projected: DescriptiveRelease[] = releases
+    .toSorted(
+      (a, b) =>
+        Date.parse(String(b.released_at)) - Date.parse(String(a.released_at)) ||
+        String(a.tag_name).localeCompare(String(b.tag_name)),
+    )
+    .slice(0, listingReleaseLimit)
+    .map((release) => {
+      const version = String(release.tag_name);
+      const packages = facts.packages as unknown[];
+      const files = facts.package_files as Record<string, unknown>;
+      const candidates = packages
+        .filter(isRecord)
+        .filter((item) => item.version === version || item.version === version.replace(/^v/u, ""));
+      const assets = candidates.flatMap((item) => {
+        const rows = files[String(item.id)];
+        if (!Array.isArray(rows)) throw new Error("GitLab package file coverage is missing");
+        return rows.map((raw) => {
+          if (
+            !isRecord(raw) ||
+            !Number.isSafeInteger(raw.id) ||
+            Number(raw.id) < 1 ||
+            typeof raw.file_name !== "string" ||
+            !Number.isSafeInteger(raw.size) ||
+            Number(raw.size) < 1 ||
+            typeof raw.file_sha256 !== "string" ||
+            !/^[a-f0-9]{64}$/iu.test(raw.file_sha256)
+          )
+            throw new Error("GitLab package file metadata is invalid");
+          const name = raw.file_name;
+          return {
+            id: Number(raw.id),
+            name,
+            size: Number(raw.size),
+            sha256: raw.file_sha256.toLowerCase(),
+            platform_hints: platformHints(listing, name),
+            url: `https://gitlab.com/api/v4/projects/${projectId}/packages/generic/${encodeURIComponent(String(item.name))}/${encodeURIComponent(String(item.version))}/${encodeURIComponent(name)}`,
+          };
+        });
+      });
+      // Release links outside the supported generic registry are observed but not
+      // promoted to packages with guessed sizes or integrity facts.
+      const links =
+        isRecord(release.assets) && Array.isArray(release.assets.links) ? release.assets.links : [];
+      const assetsComplete =
+        assets.length <= packageLimit &&
+        links.every(
+          (link) =>
+            isRecord(link) &&
+            assets.some((asset) => {
+              const fileLink = `https://gitlab.com/${identity.repository}/-/package_files/${asset.id}/download`;
+              return (
+                link.url === asset.url ||
+                link.direct_asset_url === asset.url ||
+                link.url === fileLink ||
+                link.direct_asset_url === fileLink
+              );
+            }),
+        );
+      return {
+        id: { provider: "gitlab", project_id: projectId, tag: version },
+        version,
+        published_at: String(release.released_at),
+        release_url: `https://gitlab.com/${identity.repository}/-/releases/${encodeURIComponent(version)}`,
+        provider_prerelease: false,
+        assets_complete: assetsComplete,
+        assets: assets.slice(0, packageLimit),
+      };
+    });
+  return projectDescriptiveListing(
+    listing,
+    {
+      format: 2,
+      provider: "gitlab",
+      repository: identity.repository,
+      repositoryId: Number(facts.project.id),
+      completedAt: observation.completed_at,
+      observedAt: observation.started_at,
+      factsHash: String(observation.facts_sha256),
+      complete: projected.every((release) => release.assets_complete),
+      releases: projected,
+    },
+    staleAfterHours,
+  );
+}
+function projectDescriptiveListing<Listing extends Record<string, unknown>>(
+  listing: Listing,
+  input: {
+    format: 1 | 2;
+    provider: "github" | "gitlab";
+    repository: string;
+    repositoryId: number;
+    completedAt: string;
+    observedAt: string;
+    factsHash: string;
+    complete: boolean;
+    releases: DescriptiveRelease[];
+  },
+  staleAfterHours: number,
+) {
+  const { complete, observedAt, releases } = input;
   let upstream_observation: Record<string, unknown> = {
-    provider: "github",
-    repository: observation.facts.repository.full_name,
-    repository_id: observation.facts.repository.id,
+    provider: input.provider,
+    repository: input.repository,
+    repository_id: input.repositoryId,
     status: complete ? "complete" : "incomplete",
-    attempted_at: observation.completed_at,
+    attempted_at: input.completedAt,
     observed_at: observedAt,
     fresh_until: new Date(Date.parse(observedAt) + staleAfterHours * 3600000).toISOString(),
-    facts_sha256: observation.facts_sha256,
+    facts_sha256: input.factsHash,
     release_limit: listingReleaseLimit,
     releases,
   };
   if (!complete && isRecord(listing.upstream_observation))
     upstream_observation = {
       ...currentDerivedLabels(listing.upstream_observation, listing),
-      attempted_at: observation.completed_at,
+      attempted_at: input.completedAt,
       status: "incomplete",
     };
   const maintenance = isRecord(listing.release_maintenance)
@@ -171,13 +430,13 @@ export function projectListingObservation<Listing extends Record<string, unknown
           },
         }
       : {}),
-    format: 1,
+    format: input.format,
     authority: "descriptive-listing-observation-only",
     projection_policy: listingObservationPolicy,
     projection_input_sha256: listingProjectionHash,
     port_id: listing.id,
-    repository_id: observation.facts.repository.id,
-    facts_sha256: observation.facts_sha256,
+    repository_id: input.repositoryId,
+    facts_sha256: input.factsHash,
     catalog_definition_sha256: listingDeclarationHash(listing),
     // Deliberately no managed channel/artifact eligibility projection.
     projections: [],
@@ -190,7 +449,7 @@ export function listingUpdatesForReport(
   policies: readonly unknown[],
   report: unknown,
   attemptedAt: string,
-  source: { repository: string; ports: { listing?: Record<string, unknown> }[] },
+  source: { provider?: string; repository: string; ports: { listing?: Record<string, unknown> }[] },
 ): (Record<string, unknown> & { upstream_observation: Record<string, unknown> })[] {
   const exception = isRecord(report) && isRecord(report.exception) ? report.exception : undefined;
   const rule = typeof exception?.rule === "string" ? exception.rule : "failed";
@@ -218,7 +477,9 @@ export function listingUpdatesForReport(
           ? current.upstream_observation
           : proposed;
     const observation =
-      isRecord(retained) && retained.repository === source.repository
+      isRecord(retained) &&
+      retained.repository === source.repository &&
+      (retained.provider ?? "github") === (source.provider ?? "github")
         ? currentDerivedLabels(retained, current)
         : undefined;
     if (!exception) return observation ? [{ ...current, upstream_observation: observation }] : [];
@@ -227,7 +488,7 @@ export function listingUpdatesForReport(
         ...current,
         upstream_observation: {
           ...(observation ?? {
-            provider: "github",
+            provider: source.provider ?? "github",
             repository: source.repository,
             repository_id: null,
             observed_at: null,

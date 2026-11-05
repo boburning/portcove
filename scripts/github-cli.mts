@@ -2,7 +2,7 @@
 import { execFile, spawnSync } from "node:child_process";
 import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
 import { promisify } from "node:util";
-import { GitHubApiError } from "./github-operation.mts";
+import { GitHubApiError, sanitizeOperationError } from "./github-operation.mts";
 import { errorCode } from "./runtime-values.mts";
 import type { GitHubCredential } from "./github-client.mts";
 
@@ -31,13 +31,15 @@ export function verifyGitHubAttestation(
   if (
     !Number.isSafeInteger(options.timeoutMs) ||
     options.timeoutMs < 1 ||
+    options.timeoutMs > 2_147_483_647 ||
     !Number.isSafeInteger(options.maxBytes) ||
     options.maxBytes < 1
   )
     throw new GitHubApiError("invalid_configuration", "Invalid retained verifier bounds");
+  const environment = options.environment ?? process.env;
   const result = (options.spawn ?? spawnSync)("gh", args, {
     cwd: options.cwd,
-    env: options.environment,
+    env: environment,
     encoding: "utf8",
     timeout: options.timeoutMs,
     maxBuffer: options.maxBytes,
@@ -45,12 +47,38 @@ export function verifyGitHubAttestation(
     windowsHide: true,
     stdio: ["ignore", "pipe", "pipe"],
   });
-  if (result.error || result.status !== 0)
-    throw new GitHubApiError("command_failed", "Bounded GitHub attestation verification failed", {
-      cause: Object.assign(new Error("Verifier execution failed"), {
-        code: errorCode(result.error),
-      }),
+  const malformed = typeof result.stdout !== "string" || typeof result.stderr !== "string";
+  const exceeded =
+    (!malformed &&
+      (Buffer.byteLength(result.stdout) > options.maxBytes ||
+        Buffer.byteLength(result.stderr) > options.maxBytes)) ||
+    errorCode(result.error) === "ENOBUFS";
+  if (result.error || result.status !== 0 || malformed || exceeded) {
+    const code = exceeded ? "ENOBUFS" : errorCode(result.error);
+    const reason = exceeded
+      ? "Verifier output limit exceeded (ENOBUFS)"
+      : code === "ETIMEDOUT"
+        ? "Verifier execution timed out (ETIMEDOUT)"
+        : result.error
+          ? result.error.message
+          : malformed
+            ? "Verifier output is unavailable"
+            : result.stderr.trim() || `Verifier exited ${result.status}`;
+    const safe = sanitizeOperationError(reason, {
+      secrets: [environment.GH_TOKEN, environment.GITHUB_TOKEN].filter(
+        (value): value is string => typeof value === "string" && value.length > 0,
+      ),
     });
+    throw new GitHubApiError(
+      "command_failed",
+      `Bounded GitHub attestation verification failed: ${safe.message}`.slice(0, 1024),
+      {
+        cause: Object.assign(new Error("Verifier execution failed"), {
+          code,
+        }),
+      },
+    );
+  }
   return result.stdout.trim();
 }
 

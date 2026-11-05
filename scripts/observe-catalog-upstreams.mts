@@ -376,7 +376,7 @@ export async function runCatalogUpstreams(
         await assertCoreEntry();
         return report;
       },
-      exportProvider: async (source, observations, policies) => {
+      exportProvider: async (source, observations, policies, failure) => {
         const filename = path.join(handoffDirectory, `${source.key}.json`);
         const report = {
           format: 2,
@@ -391,8 +391,26 @@ export async function runCatalogUpstreams(
           source_port_ids: source.ports.map((p) => p.id),
           observations,
           catalog_policies: policies,
-          catalog_policies_scope: "complete-current-Core-projections",
-          unassessed_current_port_ids: [],
+          descriptive_listing_candidates: listingUpdatesForReport(
+            policies,
+            failure ?? {},
+            new Date(now()).toISOString(),
+            source,
+          ),
+          descriptive_listing_preimages: Object.fromEntries(
+            source.ports.flatMap((consumer) =>
+              consumer.listing
+                ? [[consumer.id, observationHash(consumer.listing.upstream_observation ?? null)]]
+                : [],
+            ),
+          ),
+          descriptive_candidate_scope:
+            "Unaccepted descriptive corrections only; existing protected acceptance and signed listing delivery are required. No managed eligibility is granted.",
+          catalog_policies_scope: failure
+            ? "retained-historical-projections"
+            : "complete-current-Core-projections",
+          unassessed_current_port_ids: failure ? source.ports.map((port) => port.id) : [],
+          ...(failure ?? {}),
           artifact_bytes_verified: false,
           catalog_admission_assessed: false,
           player_update_eligibility_assessed: false,
