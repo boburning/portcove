@@ -772,6 +772,7 @@ for (const [file, tests] of [
   [
     "scripts/release-custody-provider.mts",
     [
+      "scripts/release-bootstrap-preparation.test.mts",
       "scripts/application-release-native.test.mts",
       "scripts/release-publication-result-artifact.test.mts",
       "scripts/release-immutable-publication.test.mts",
@@ -2241,6 +2242,7 @@ for (const file of [
   explicitNodeTests.set(file, [
     ...(explicitNodeTests.get(file) ?? []),
     "scripts/github-client.test.mts",
+    "scripts/release-bootstrap-preparation.test.mts",
     "scripts/application-release-budget.test.mts",
     "scripts/application-release-native.test.mts",
     "scripts/application-release-qualification.test.mts",
