@@ -1,10 +1,9 @@
-import { isRecord } from "./runtime-values.mts";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
-import { assemblerIdentityFixture, expected } from "./fixtures/assembler-identity-fixture.mts";
+import { assemblerIdentityFixture, expected, jwk } from "./fixtures/assembler-identity-fixture.mts";
 import { trustedAssemblyFixture } from "./fixtures/trusted-assembly-fixture.mts";
 import { releasePublicBuildProvenanceFixture } from "./fixtures/release-public-build-provenance-fixture.mts";
 import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
@@ -95,14 +94,13 @@ void test("current admitted custodian binds original failed-run artifact without
     {
       ...f.options,
       identity: current,
-      spawn: (...args) => {
-        const response = f.options.spawn(...args);
-        const split = response.stdout.indexOf("\r\n\r\n") + 4;
-        const body: unknown = JSON.parse(response.stdout.slice(split));
-        assert.ok(isRecord(body) && isRecord(body.workflow_run));
-        body.name = "trusted-release-final-7777-1";
-        body.workflow_run.id = 7777;
-        return { ...response, stdout: response.stdout.slice(0, split) + JSON.stringify(body) };
+      async readArtifact(id) {
+        const body = await f.options.readArtifact(id);
+        return {
+          ...body,
+          name: "trusted-release-final-7777-1",
+          workflow_run: { ...body.workflow_run, id: 7777 },
+        };
       },
     },
   );
@@ -241,28 +239,10 @@ async function fixture(t: test.TestContext, profile: "full" | "initial-beta-win-
     cwd: f.root,
     identity,
     download: () => state.payload,
-    spawn: (
-      _command: string,
-      args: readonly string[],
-      settings: SpawnSyncOptionsWithStringEncoding,
-    ) => {
+    async readArtifact(id: number) {
+      assert.equal(id, 99);
       state.reads++;
-      assert.deepEqual(args, [
-        "api",
-        "repos/boburning/portcove/actions/artifacts/99",
-        "--include",
-        "--method",
-        "GET",
-        "--hostname",
-        "github.com",
-      ]);
-      assert.equal(settings.maxBuffer, 128 * 1024);
-      assert.equal(settings.timeout, 15000);
-      return {
-        status: 0,
-        stdout: `HTTP/2.0 200 OK\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(metadata())}`,
-        stderr: "",
-      };
+      return metadata();
     },
   };
   return { ...f, aggregate, archive, entries, upload, identity, state, options };
@@ -292,6 +272,77 @@ void test("new opaque aggregate members bind fresh signed own-job identity witho
   assert.deepEqual(
     result.predicate.output_files,
     f.aggregate.output_files.sort((a, b) => a.filename.localeCompare(b.filename)),
+  );
+});
+
+void test("actual aggregate sender uses one captured reader for locked SDK custody and fresh numeric job identity", async (t) => {
+  const f = await fixture(t);
+  const previous = process.env.GH_TOKEN;
+  process.env.GH_TOKEN = "fixed-aggregate-sender-fixture";
+  t.after(() => {
+    if (previous === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = previous;
+  });
+  const routes: string[] = [];
+  const fetcher: typeof globalThis.fetch = async (input, init) => {
+    const url = new URL(input instanceof Request ? input.url : input);
+    routes.push(url.pathname);
+    const headers = new Headers(init?.headers);
+    if (url.origin === "https://token.actions.githubusercontent.com") {
+      assert.equal(url.pathname, "/.well-known/jwks");
+      assert.equal(headers.has("authorization"), false);
+      return Response.json({ keys: [jwk] });
+    }
+    if (url.origin === "https://productionresultssa1.blob.core.windows.net") {
+      assert.equal(init?.credentials, "omit");
+      assert.equal(init.redirect, "manual");
+      assert.equal(headers.has("authorization"), false);
+      return new Response(f.archive);
+    }
+    assert.equal(url.origin, "https://api.github.com");
+    assert.equal(headers.get("authorization"), "token fixed-aggregate-sender-fixture");
+    if (url.pathname === "/repos/boburning/portcove/actions/artifacts/99") {
+      process.env.GH_TOKEN = "unrelated-mutated-token";
+      return Response.json(await f.options.readArtifact(99));
+    }
+    if (url.pathname === "/repos/boburning/portcove/actions/artifacts/99/zip")
+      return new Response(null, {
+        status: 302,
+        headers: {
+          location:
+            "https://productionresultssa1.blob.core.windows.net/actions-results/99?sig=fixture",
+        },
+      });
+    return Response.json(f.identity.metadata(url.pathname + url.search));
+  };
+  t.mock.method(globalThis, "fetch", fetcher);
+  const receipt = await prepareAggregateAttestation(
+    f.identity.token,
+    expected,
+    f.request,
+    [1, 2, 3, 4],
+    f.upload,
+    { cwd: f.root },
+  );
+  assert.equal(receipt.predicate.assembler.job_id, 501);
+  assert.equal(receipt.predicate.assembler.check_run_id, "777");
+  assert.equal(receipt.authority, "none");
+  assert.equal(receipt.subject_digest, `sha256:${f.upload.sha256}`);
+  const actions = "/repos/boburning/portcove/actions";
+  assert.deepEqual(routes, [
+    `${actions}/artifacts/99`,
+    `${actions}/artifacts/99/zip`,
+    "/actions-results/99",
+    "/.well-known/jwks",
+    `${actions}/runs/9988`,
+    `${actions}/runs/9988/attempts/2/jobs`,
+    `${actions}/runs/9988/attempts/2/jobs`,
+    `${actions}/jobs/501`,
+    `${actions}/runs/9988`,
+    `${actions}/artifacts/99`,
+  ]);
+  assert.ok(
+    !(await readdir(f.root)).some((entry) => entry.startsWith("aggregate-upload-readback-")),
   );
 });
 

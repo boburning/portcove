@@ -2664,6 +2664,7 @@ explicitNodeTests.set("scripts/github-artifact-download.mts", [
   "scripts/release-catalog-continuation.test.mts",
   "scripts/release-metadata-context-recovery.test.mts",
   "scripts/release-control-handshake.test.mts",
+  "scripts/trusted-aggregate-attestation.test.mts",
   "scripts/release-controller-tools.test.mts",
   "scripts/release-catalog-site-controller.test.mts",
   "scripts/release-acceptance-evidence.test.mts",
