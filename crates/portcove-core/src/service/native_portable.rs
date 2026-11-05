@@ -4258,6 +4258,18 @@ mod tests {
                 serde_json::to_vec(&restarted.catalog.authoritative_document()).unwrap(),
                 definition
             );
+            let definition_after =
+                serde_json::to_vec(&restarted.catalog.authoritative_document()).unwrap();
+            let definition_sha256_after = hex::encode(Sha256::digest(&definition_after));
+            assert_eq!(definition_sha256_after, definition_sha256);
+            let client_sha256_after = crate::external_runtime::hash_stable_regular(
+                &client_path,
+                1024 * 1024 * 1024,
+                &|| Ok(()),
+            )
+            .unwrap()
+            .0;
+            assert_eq!(client_sha256_after, client_sha256);
             if id == "super-metroid-recomp" {
                 let removal = restarted.preview_removal(id).unwrap();
                 let removal_consent = restarted
@@ -4333,6 +4345,12 @@ mod tests {
                 "{}",
                 serde_json::json!({"kind":"compiled-core-controlled-release", "port_id":id,
                 "client_sha256":client_sha256, "authored_definition_sha256":definition_sha256,
+                "identity_measurement":"after release lifecycle; before separate opaque-restore catalog-drift negative control",
+                "client_sha256_before":client_sha256,"client_sha256_after":client_sha256_after,
+                "authored_definition_sha256_before":definition_sha256,"authored_definition_sha256_after":definition_sha256_after,
+                "upstream_changes":["release metadata","archive bytes","checksum sidecar","ambiguous candidate corrected"],
+                "player_choices":["stage candidate","explicit activation","backup restore and retained-runtime rollback"],
+                "authored_release_or_applicability_edits":definition_sha256 != definition_sha256_after,
                 "from_archive":first.artifact.sha256,"to_archive":second.artifact.sha256,
                 "provider":"actual-github-release-resolver-with-controlled-http",
                 "next_integrity":"controlled-upstream-sha256-sidecar",

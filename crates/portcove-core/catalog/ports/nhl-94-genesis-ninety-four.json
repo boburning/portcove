@@ -3,10 +3,9 @@
   "listing": {
     "id": "nhl-94-genesis-ninety-four",
     "name": "NHL '94 (Genesis) (ninety-four)",
-    "summary": "Attach an independently permitted, prepared Ninety Four Windows player using your own retail NHL ’94 US/Europe Genesis ROM. Preserve its working-directory settings, cartridge saves, states and roster data; online sessions and modified rosters retain separate compatibility requirements.",
+    "summary": "Attach an independently permitted, prepared Ninety Four Windows player using your own retail NHL \u201994 US/Europe Genesis ROM. Preserve its working-directory settings, cartridge saves, states and roster data; online sessions and modified rosters retain separate compatibility requirements.",
     "original_game_title": "NHL '94 (Genesis)",
     "project_url": "https://github.com/1nputs/ninety-four",
-    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/1nputs/ninety-four",
     "artwork": {
@@ -23,27 +22,23 @@
       "steps": [
         {
           "title": "Prepare the exact original upstream",
-          "instruction": "Use a complete player and components you are independently permitted to use, with your own 1 MiB retail NHL ’94 Genesis US/Europe ROM. Finish the upstream first-launch ROM picker and saved settings before attachment; retain the independent original. Optional larger ROM hacks and roster imports are separate upstream operations, not another accepted retail revision by title alone. This guide obtains or executes no ROM, converter, helper or game."
+          "instruction": "Use a complete player and components you are independently permitted to use, with your own 1 MiB retail NHL \u201994 Genesis US/Europe ROM. Finish the upstream first-launch ROM picker and saved settings before attachment; retain the independent original. Optional larger ROM hacks and roster imports are separate upstream operations, not another accepted retail revision by title alone. This guide obtains or executes no ROM, converter, helper or game."
         },
         {
           "title": "Keep the complete Windows package",
-          "instruction": "The inspected official 0.3.6 ZIP contains ninety-four-windows-x86_64/nhl94.exe as an AMD64 native player with matching library and notices. Keep that complete directory. This is the native rewrite using the linked pulseman hardware/audio/frontend facilities; it is not an original Genesis executable or a generic emulator admission. A source build and another platform’s application are separate artifacts."
-        },
-        {
-          "title": "Add the prepared native player",
-          "instruction": "Select nhl94.exe, use the complete extracted ninety-four-windows-x86_64 folder as working directory and leave arguments empty. Review the exact intent and request Play separately. Upstream documents the remembered ROM picker for normal windowed starts; the native entry runs the game in the selected process. Complete a missing-ROM prompt outside the attached attempt. Do not add headless, finite-frame, trace, ROM-extraction or network-server arguments as normal Play."
+          "instruction": "The inspected official 0.3.6 ZIP contains ninety-four-windows-x86_64/nhl94.exe as an AMD64 native player with matching library and notices. Keep that complete directory. This is the native rewrite using the linked pulseman hardware/audio/frontend facilities; it is not an original Genesis executable or a generic emulator admission. A source build and another platform\u2019s application are separate artifacts. Upstream documents the remembered ROM picker for normal windowed starts; the native entry runs the game in the selected process. Complete a missing-ROM prompt outside the attached attempt. Do not add headless, finite-frame, trace, ROM-extraction or network-server arguments as normal Play."
         },
         {
           "title": "Preserve the actual working-directory data",
-          "instruction": "Keep settings.ini, out/nhl94.srm cartridge save RAM, states/ with slots and Autosave, roster sets, recordings, screenshots, videos and all already configured external ROM/save paths. Preserve any older working-directory data before choosing a different folder. SRAM and whole-machine states are different objects; the source checks a session state against its roster set, which does not prove observed restore or cross-version compatibility. This guide performs no import, migration, backup or deletion."
+          "instruction": "Preserve any older working-directory data before choosing a different folder. SRAM and whole-machine states are different objects; the source checks a session state against its roster set, which does not prove observed restore or cross-version compatibility. This guide performs no import, migration, backup or deletion."
         },
         {
           "title": "Keep original, roster and component terms separate",
-          "instruction": "Retain the project MIT notice and pulseman/component notices, including Nuked-OPN2 LGPL-2.1, ymfm BSD-3 and the separately credited upscalers. They grant nothing over the original NHL ’94 name or game data. Use only originals, roster art and modified content you are independently permitted to use. Online peers need matching releases and applicable roster/state data; no account, relay/server, real multiplayer or full user-content corpus qualification is provided."
+          "instruction": "Retain the project MIT notice and pulseman/component notices, including Nuked-OPN2 LGPL-2.1, ymfm BSD-3 and the separately credited upscalers. They grant nothing over the original NHL \u201994 name or game data. Use only originals, roster art and modified content you are independently permitted to use. Online peers need matching releases and applicable roster/state data; no account, relay/server, real multiplayer or full user-content corpus qualification is provided."
         },
         {
           "title": "Maintain the external player explicitly",
-          "instruction": "Quit the actual game normally before upstream replacement, restoring SRAM/states or changing roster sets. Keep independent recovery copies and review/relink changed executable bytes; forced termination is not a save-flush guarantee. Upstream whole-game, 60 FPS, rewind and online reports remain upstream claims. No native/installed-app, gameplay, save/reload or Supported acceptance is asserted. Removing registration preserves external files; managed installation, update, rollback, backup and removal remain unavailable."
+          "instruction": "Quit the actual game normally before upstream replacement, restoring SRAM/states or changing roster sets. Keep independent recovery copies and review/relink changed executable bytes; forced termination is not a save-flush guarantee. Upstream whole-game, 60 FPS, rewind and online reports remain upstream claims. No native/installed-app, gameplay, save/reload or Supported acceptance is asserted."
         }
       ],
       "warnings": [
@@ -62,5 +57,42 @@
       }
     },
     "decisions": []
+  },
+  "route_facts_v1": {
+    "format_version": 1,
+    "prepared_player": {
+      "executable": "nhl94.exe",
+      "working_directory": "executable-parent",
+      "arguments": [],
+      "data_locations": [
+        "settings.ini; out/nhl94.srm cartridge SRAM; states/ including Autosave; rosters, recordings, screenshots, videos and configured external ROM/save paths"
+      ]
+    }
+  },
+  "package_observation_v1": {
+    "format_version": 1,
+    "port_id": "nhl-94-genesis-ninety-four",
+    "repository": "1nputs/ninety-four",
+    "source_revision": "1b0b30e7bf6ee4e66ab33ef10acbeec55442b021",
+    "selection_sha256": "049adc8122d6a0cf2369c594f59f91398a80c79044b38b16fd7161cd477b4021",
+    "artifact": {
+      "id": 666486981,
+      "name": "ninety-four-0.3.6-windows-x86_64.zip",
+      "url": "https://github.com/1nputs/ninety-four/releases/download/v0.3.6/ninety-four-0.3.6-windows-x86_64.zip",
+      "bytes": 1360727,
+      "sha256": "8be18b749f68f6e9718666cf0c08b203fef281b95f46369fcb6a1da8d7153423"
+    },
+    "player": {
+      "path": "ninety-four-windows-x86_64/nhl94.exe",
+      "bytes": 1375744,
+      "sha256": "ecb88fe82794f00ce6f9d71af5156151125ce2827e3acc0f600926103daa719e",
+      "machine": "0x8664",
+      "header_bytes": 65560
+    },
+    "provenance": {
+      "receipt_sha256": "95f16e1eaab58588c76c9370c49c20b79817e04078316425f0708e4427869546",
+      "reference": "docs/qualification/prepared-player-cohort-r40-2026-11-01.json"
+    },
+    "scope_sha256": "c3a77269a9edda2a105856eb2321abea0e1cfc651f09566566f246070360aefa"
   }
 }

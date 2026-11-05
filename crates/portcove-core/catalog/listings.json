@@ -33070,9 +33070,6 @@
       "summary": "Attach an independently permitted, prepared Ninety Four Windows player using your own retail NHL ’94 US/Europe Genesis ROM. Preserve its working-directory settings, cartridge saves, states and roster data; online sessions and modified rosters retain separate compatibility requirements.",
       "original_game_title": "NHL '94 (Genesis)",
       "project_url": "https://github.com/1nputs/ninety-four",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "unknown",
       "setup_url": "https://github.com/1nputs/ninety-four",
       "artwork": {
@@ -33093,15 +33090,11 @@
           },
           {
             "title": "Keep the complete Windows package",
-            "instruction": "The inspected official 0.3.6 ZIP contains ninety-four-windows-x86_64/nhl94.exe as an AMD64 native player with matching library and notices. Keep that complete directory. This is the native rewrite using the linked pulseman hardware/audio/frontend facilities; it is not an original Genesis executable or a generic emulator admission. A source build and another platform’s application are separate artifacts."
-          },
-          {
-            "title": "Add the prepared native player",
-            "instruction": "Select nhl94.exe, use the complete extracted ninety-four-windows-x86_64 folder as working directory and leave arguments empty. Review the exact intent and request Play separately. Upstream documents the remembered ROM picker for normal windowed starts; the native entry runs the game in the selected process. Complete a missing-ROM prompt outside the attached attempt. Do not add headless, finite-frame, trace, ROM-extraction or network-server arguments as normal Play."
+            "instruction": "The inspected official 0.3.6 ZIP contains ninety-four-windows-x86_64/nhl94.exe as an AMD64 native player with matching library and notices. Keep that complete directory. This is the native rewrite using the linked pulseman hardware/audio/frontend facilities; it is not an original Genesis executable or a generic emulator admission. A source build and another platform’s application are separate artifacts. Upstream documents the remembered ROM picker for normal windowed starts; the native entry runs the game in the selected process. Complete a missing-ROM prompt outside the attached attempt. Do not add headless, finite-frame, trace, ROM-extraction or network-server arguments as normal Play."
           },
           {
             "title": "Preserve the actual working-directory data",
-            "instruction": "Keep settings.ini, out/nhl94.srm cartridge save RAM, states/ with slots and Autosave, roster sets, recordings, screenshots, videos and all already configured external ROM/save paths. Preserve any older working-directory data before choosing a different folder. SRAM and whole-machine states are different objects; the source checks a session state against its roster set, which does not prove observed restore or cross-version compatibility. This guide performs no import, migration, backup or deletion."
+            "instruction": "Preserve any older working-directory data before choosing a different folder. SRAM and whole-machine states are different objects; the source checks a session state against its roster set, which does not prove observed restore or cross-version compatibility. This guide performs no import, migration, backup or deletion."
           },
           {
             "title": "Keep original, roster and component terms separate",
@@ -33109,13 +33102,30 @@
           },
           {
             "title": "Maintain the external player explicitly",
-            "instruction": "Quit the actual game normally before upstream replacement, restoring SRAM/states or changing roster sets. Keep independent recovery copies and review/relink changed executable bytes; forced termination is not a save-flush guarantee. Upstream whole-game, 60 FPS, rewind and online reports remain upstream claims. No native/installed-app, gameplay, save/reload or Supported acceptance is asserted. Removing registration preserves external files; managed installation, update, rollback, backup and removal remain unavailable."
+            "instruction": "Quit the actual game normally before upstream replacement, restoring SRAM/states or changing roster sets. Keep independent recovery copies and review/relink changed executable bytes; forced termination is not a save-flush guarantee. Upstream whole-game, 60 FPS, rewind and online reports remain upstream claims. No native/installed-app, gameplay, save/reload or Supported acceptance is asserted."
+          },
+          {
+            "title": "Select the prepared player",
+            "instruction": "Select nhl94.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
           }
         ],
         "warnings": [
           "Keep the original retail ROM and actual working-directory data. Cartridge SRAM, states, modified rosters and online session compatibility are separate."
+        ],
+        "references": [
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          },
+          {
+            "title": "Player-data ownership",
+            "instruction": "You and upstream own the external copy's data: settings.ini; out/nhl94.srm cartridge SRAM; states/ including Autosave; rosters, recordings, screenshots, videos and configured external ROM/save paths. Back up these locations separately; registration does not migrate or certify their compatibility."
+          }
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "nhl-legacy-recomp-puckhead73-nhl-legacy-edition",
