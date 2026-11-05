@@ -193,7 +193,7 @@ export function OrganizationControls({
         <p role="alert" className="basis-full text-sm text-pc-warning-foreground">
           {organization.failure === "read"
             ? "Organization choices could not be read. Games are shown without hidden or collection choices."
-            : "These choices could not be saved. Your previous choices were kept."}
+            : "Portcove couldn’t confirm the changes. Showing your last confirmed choices."}
           <Button
             variant="link"
             size="sm"
@@ -307,7 +307,7 @@ export function SidebarCollections({
         <p className="sidebar-collections-empty" role="status">
           {organization.failure === "read"
             ? "Collections could not be refreshed. Open Manage collections to retry."
-            : "Collection changes could not be saved. Your previous choices were kept."}
+            : "Portcove couldn’t confirm the collection changes. Showing your last confirmed collections."}
         </p>
       )}
     </section>

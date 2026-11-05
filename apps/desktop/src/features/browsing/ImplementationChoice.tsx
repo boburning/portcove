@@ -73,7 +73,7 @@ export function ImplementationChoice({
           Portcove couldn’t confirm that your choice was saved. Refresh choices to check.
         </p>
       )}
-      {(failed || organization?.failure) && organization && (
+      {(failed || organization?.failure === "read") && organization && (
         <Button
           variant="ghost"
           size="sm"

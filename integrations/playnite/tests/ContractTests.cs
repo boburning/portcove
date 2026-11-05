@@ -339,8 +339,13 @@ internal static class ContractTests
         descriptive88["schema_version"] = 88;
         descriptive88["port_capability_schema"] = 1;
         descriptive88["listing_formats"] = new[] { 5, 6, 7, 8 };
-        Check(ProtocolStream.Negotiate(descriptive88, ConsumerCapability.Library) == 3,
-            "API88 additive feature reports do not change independently negotiated event3 or client operation eligibility");
+        descriptive88["operation_event_schema_version"] = 3;
+        descriptive88["commands"] = Json.Array(Json.Field(descriptive88, "commands")).Cast<string>()
+            .Concat(new[] { "remove.preview", "remove", "installation.review" }).ToArray();
+        Check(ProtocolStream.Negotiate(descriptive88, ConsumerCapability.Library) == 2,
+            "API88 library negotiation ignores the event channel and additive feature reports");
+        Check(ProtocolStream.Negotiate(descriptive88, ConsumerCapability.Lifecycle) == 3,
+            "API88 lifecycle negotiates event3 independently of additive feature reports");
         var independent83 = Json.Object(Json.Parse(Json.Print(Capabilities())));
         independent83["schema_version"] = 83;
         independent83["operation_event_schema_version"] = 3;
