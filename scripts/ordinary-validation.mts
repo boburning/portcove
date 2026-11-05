@@ -631,6 +631,8 @@ for (const [file, tests] of [
     "scripts/release-coordinator-journal-api.mts",
     [
       "scripts/release-coordinator-capacity-effects.test.mts",
+      "scripts/release-coordinator-owned-executor.test.mts",
+      "scripts/release-coordinator-signing-exchange.test.mts",
       "scripts/release-coordinator-journal-api.test.mts",
       "scripts/release-coordinator-remote.test.mts",
     ],
@@ -2316,6 +2318,8 @@ for (const file of [
     "scripts/check-catalog-repositories.test.mts",
     "scripts/cleanup-intel-artifacts.test.mts",
     ...upstreamHealthContractTests,
+    "scripts/release-coordinator-owned-executor.test.mts",
+    "scripts/release-coordinator-signing-exchange.test.mts",
   ]);
 
 // Preparation's accepted-observation reuse and lineage refusals also consume

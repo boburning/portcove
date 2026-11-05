@@ -43,9 +43,9 @@ export async function withCoordinatorDeadline<T>(
   });
 }
 
-/** Synchronous collection ONLY in the fixed transport's already-attempted CAS
+/** Collection only in the fixed transport's already-attempted CAS
  * tuple query. That transport independently refuses every mutation and other
- * route after execution expiry. This is the existing absolute30s allowance,
+ * route after execution expiry. This is the existing absolute 30s allowance,
  * never a retry, execution extension or renewable/nestable clock. */
 export function withCoordinatorReadback<T>(original: number, read: () => T): T {
   const inherited = deadlines.getStore()?.execution;

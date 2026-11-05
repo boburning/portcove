@@ -269,12 +269,79 @@ async function selectedEffectFixture(
       status,
       headers: { "content-type": "application/json" },
     });
+  const journalReply = (method: string, route: string, raw: unknown) => {
+    let body: unknown,
+      status = 200;
+    if (route !== "/graphql") {
+      const reply = remote.api.request(method, route.slice(1), raw);
+      body = reply.body;
+      status = reply.status!;
+    } else {
+      assert.ok(isRecord(raw) && typeof raw.query === "string" && isRecord(raw.variables));
+      const variables = raw.variables;
+      if (raw.query.startsWith("mutation")) {
+        assert.ok(isRecord(variables.input) && Array.isArray(variables.input.refUpdates));
+        const input = variables.input;
+        const updates = input.refUpdates;
+        assert.ok(Array.isArray(updates));
+        assert.equal(input.repositoryId, "R_fixture");
+        for (const update of updates) {
+          assert.ok(isRecord(update));
+          assert.equal(update.force, false);
+          assert.equal(remote.refs.get(String(update.name)) ?? "0".repeat(40), update.beforeOid);
+        }
+        for (const update of updates) {
+          assert.ok(isRecord(update));
+          if (!faults.ambiguousFinal || !String(update.name).includes("checkpoint-proof/"))
+            remote.refs.set(String(update.name), String(update.afterOid));
+        }
+        if (faults.ambiguousFinal && updates.length > 2)
+          throw new Error("partial final CAS response lost");
+        body = { data: { updateRefs: { clientMutationId: input.clientMutationId } } };
+      } else {
+        const node: Record<string, unknown> = {
+          __typename: "Repository",
+          id: "R_fixture",
+          databaseId: 1354613114,
+          nameWithOwner: "boburning/portcove",
+        };
+        for (const [alias, name] of Object.entries(variables)) {
+          if (typeof name !== "string" || !name.startsWith("refs/")) continue;
+          const split = name.indexOf("/", 5) + 1,
+            oid = remote.refs.get(name);
+          node[alias] = oid
+            ? {
+                name: name.slice(split),
+                prefix: name.slice(0, split),
+                target: { __typename: "Commit", oid },
+              }
+            : null;
+        }
+        body = { data: { [raw.query.includes("node(id:") ? "node" : "repository"]: node } };
+      }
+    }
+    return { body, status };
+  };
   t.mock.method(
     globalThis,
     "fetch",
     async (raw: Parameters<typeof fetch>[0], settings?: RequestInit) => {
       const url = typeof raw === "string" ? raw : raw instanceof URL ? raw.href : raw.url;
       traffic.calls++;
+      if (
+        url === "https://api.github.com/graphql" ||
+        url.startsWith("https://api.github.com/repos/boburning/portcove/git/")
+      ) {
+        assert.equal(
+          new Headers(settings?.headers).get("authorization"),
+          "token inert-selected-job-token",
+        );
+        assert.ok(settings?.method);
+        const payload: unknown =
+          typeof settings.body === "string" ? JSON.parse(settings.body) : undefined;
+        const { body, status } = journalReply(settings.method, new URL(url).pathname, payload);
+        return json(body, status);
+      }
       if (url.startsWith("https://api.github.com/repos/boburning/portcove/actions/"))
         return custodyFetch(raw, settings);
       if (url === "https://fixture.actions.githubusercontent.com/oidc?audience=sigstore")
@@ -370,56 +437,14 @@ async function selectedEffectFixture(
       assert.equal(options.env?.PORTCOVE_COORDINATOR_JOURNAL_TOKEN, undefined);
       assert.ok(typeof options.input === "string" || options.input === undefined);
       const raw: unknown = options.input === undefined ? undefined : JSON.parse(options.input);
-      let body: unknown,
-        status = 200;
-      if (args[1] !== "graphql") {
-        const reply = remote.api.request(args[args.indexOf("--method") + 1]!, args[2]!, raw);
-        body = reply.body;
-        status = reply.status!;
-      } else {
-        assert.ok(isRecord(raw) && typeof raw.query === "string" && isRecord(raw.variables));
-        const variables = raw.variables;
-        if (raw.query.startsWith("mutation")) {
-          assert.ok(isRecord(variables.input) && Array.isArray(variables.input.refUpdates));
-          const input = variables.input;
-          const updates = input.refUpdates;
-          assert.ok(Array.isArray(updates));
-          assert.equal(input.repositoryId, "R_fixture");
-          for (const update of updates) {
-            assert.ok(isRecord(update));
-            assert.equal(update.force, false);
-            assert.equal(remote.refs.get(String(update.name)) ?? "0".repeat(40), update.beforeOid);
-          }
-          for (const update of updates) {
-            assert.ok(isRecord(update));
-            if (!faults.ambiguousFinal || !String(update.name).includes("checkpoint-proof/"))
-              remote.refs.set(String(update.name), String(update.afterOid));
-          }
-          if (faults.ambiguousFinal && updates.length > 2)
-            throw new Error("partial final CAS response lost");
-          body = { data: { updateRefs: { clientMutationId: input.clientMutationId } } };
-        } else {
-          const node: Record<string, unknown> = {
-            __typename: "Repository",
-            id: "R_fixture",
-            databaseId: 1354613114,
-            nameWithOwner: "boburning/portcove",
-          };
-          for (const [alias, name] of Object.entries(variables)) {
-            if (typeof name !== "string" || !name.startsWith("refs/")) continue;
-            const split = name.indexOf("/", 5) + 1,
-              oid = remote.refs.get(name);
-            node[alias] = oid
-              ? {
-                  name: name.slice(split),
-                  prefix: name.slice(0, split),
-                  target: { __typename: "Commit", oid },
-                }
-              : null;
-          }
-          body = { data: { [raw.query.includes("node(id:") ? "node" : "repository"]: node } };
-        }
-      }
+      assert.ok(args[1] === "graphql" || args[args.indexOf("--method") + 1] === "GET");
+      if (isRecord(raw) && typeof raw.query === "string")
+        assert.ok(!raw.query.startsWith("mutation"));
+      const { body, status } = journalReply(
+        args[1] === "graphql" ? "POST" : "GET",
+        args[1] === "graphql" ? "/graphql" : `/${args[2]!}`,
+        raw,
+      );
       return {
         status: 0,
         stdout: `HTTP/2.0 ${status} Fixture\r\n\r\n${JSON.stringify(body)}`,

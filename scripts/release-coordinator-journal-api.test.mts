@@ -224,50 +224,32 @@ async function jobFixture(t: test.TestContext) {
   ]);
   let calls = 0;
   const controls = { advance: () => {}, repositoryId: 1354613114 };
-  t.mock.method(
-    childProcess,
-    "spawnSync",
-    (_command: string, args: readonly string[], options: SpawnSyncOptionsWithStringEncoding) => {
-      calls++;
-      assert.equal(options.env?.GH_TOKEN, "inert-fixed-job-secret");
-      for (const key of [
-        "PORTCOVE_COORDINATOR_JOURNAL_TOKEN",
-        "PORTCOVE_PROTECTION_OBSERVER_TOKEN",
-        "PORTCOVE_SEMANTIC_TOKEN",
-        "ACTIONS_ID_TOKEN_REQUEST_TOKEN",
-      ])
-        assert.equal(options.env?.[key], undefined);
-      assert.equal(path.dirname(options.env.GH_CONFIG_DIR!), root);
-      assert.equal(options.maxBuffer, 2 * 1024 * 1024);
-      assert.ok(options.timeout! > 0 && options.timeout! <= 15000);
-      assert.equal(inspect(args).includes("inert-fixed-job-secret"), false);
-      controls.advance();
-      let body: unknown = { sha: "d".repeat(40) };
-      if (args[1] === "graphql") {
-        assert.equal(typeof options.input, "string");
-        assert.ok(typeof options.input === "string");
-        const input = JSON.parse(options.input) as {
-          query: string;
-          variables: { input?: { clientMutationId: string } };
-        };
-        body = {
-          data:
-            input.query === mutation
-              ? { updateRefs: { clientMutationId: input.variables.input!.clientMutationId } }
-              : {
-                  [input.query === initial ? "repository" : "node"]: {
-                    __typename: "Repository",
-                    id: "R_fixture",
-                    databaseId: controls.repositoryId,
-                    nameWithOwner: "boburning/portcove",
-                  },
-                },
-        };
-      }
-      return { status: 0, stdout: `HTTP/2.0 200 OK\r\n\r\n${JSON.stringify(body)}`, stderr: "" };
-    },
-  );
-  syncBuiltinESMExports();
+  t.mock.method(globalThis, "fetch", async (input: string | URL | Request, init?: RequestInit) => {
+    calls++;
+    const url = new URL(input instanceof Request ? input.url : input);
+    assert.equal(url.origin, "https://api.github.com");
+    assert.equal(new Headers(init?.headers).get("authorization"), "token inert-fixed-job-secret");
+    controls.advance();
+    if (url.pathname !== "/graphql") return Response.json({ sha: "d".repeat(40) });
+    assert.ok(typeof init?.body === "string");
+    const payload = JSON.parse(init.body) as {
+      query: string;
+      variables: { input?: { clientMutationId: string } };
+    };
+    return Response.json({
+      data:
+        payload.query === mutation
+          ? { updateRefs: { clientMutationId: payload.variables.input!.clientMutationId } }
+          : {
+              [payload.query === initial ? "repository" : "node"]: {
+                __typename: "Repository",
+                id: "R_fixture",
+                databaseId: controls.repositoryId,
+                nameWithOwner: "boburning/portcove",
+              },
+            },
+    });
+  });
   return {
     root,
     checkpoint,
@@ -306,7 +288,7 @@ void test("fixed-job journal freezes its credential and exact tuple; foreign rea
   process.env.GH_TOKEN = "changed-after-capture";
   f.checkpoint.required_commits[0]!.oid = "9".repeat(40);
   assert.equal(
-    api.request("GET", `repos/boburning/portcove/git/commits/${"f".repeat(40)}`).status,
+    (await api.request("GET", `repos/boburning/portcove/git/commits/${"f".repeat(40)}`)).status,
     200,
   );
   for (const endpoint of [
@@ -315,17 +297,17 @@ void test("fixed-job journal freezes its credential and exact tuple; foreign rea
     `repos/boburning/portcove/git/commits/${"9".repeat(40)}`,
     "repos/boburning/portcove/git/refs",
   ])
-    assert.throws(() => api.request("GET", endpoint), /outside exact checkpoint/);
-  assert.throws(
+    await assert.rejects(() => api.request("GET", endpoint), /outside exact checkpoint/);
+  await assert.rejects(
     () => api.graphql(f.initial.replace('name:"portcove"', 'name:"other"'), f.refs),
     /outside exact checkpoint/,
   );
-  assert.throws(
+  await assert.rejects(
     () => api.graphql(f.initial, { ...f.refs, r3: "refs/heads/main" }),
     /outside exact checkpoint/,
   );
-  api.graphql(f.initial, f.refs);
-  assert.throws(
+  await api.graphql(f.initial, f.refs);
+  await assert.rejects(
     () => api.graphql(f.next, { id: "foreign", ...f.refs }),
     /outside exact checkpoint/,
   );
@@ -342,52 +324,53 @@ void test("fixed-job journal freezes its credential and exact tuple; foreign rea
     f.claim.input.refUpdates.map((ref) => ({ ...ref, afterOid: "0".repeat(40) })),
     [...f.claim.input.refUpdates, f.claim.input.refUpdates[0]!],
   ])
-    assert.throws(() => api.graphql(f.mutation, f.cas(changes)), /exact state/);
+    await assert.rejects(() => api.graphql(f.mutation, f.cas(changes)), /exact state/);
   assert.equal(f.calls(), 2);
-  assert.throws(
+  await assert.rejects(
     () =>
       api.request("POST", "repos/boburning/portcove/git/blobs", {
         content: "x".repeat(2 * 1024 * 1024),
       }),
     /bounded encoding/,
   );
-  assert.throws(
+  await assert.rejects(
     () => api.request("POST", "repos/boburning/portcove/git/blobs"),
     /bounded encoding/,
   );
   assert.equal(f.calls(), 2);
-  api.graphql(f.mutation, f.claim);
+  await api.graphql(f.mutation, f.claim);
   assert.equal(f.calls(), 3);
 });
 
-void test("fixed-job journal retains late CAS acknowledgment, then permits only original bounded tuple readback", async (t) => {
+void test("fixed-job journal stops late CAS acknowledgment and permits only original bounded tuple readback", async (t) => {
   const f = await jobFixture(t);
   let clock = performance.now();
   t.mock.method(performance, "now", () => clock);
   const deadline = clock + 1000;
   const api = createCheckpointJobTokenApi(f.root, f.checkpoint, f.configuration, deadline);
-  api.graphql(f.initial, f.refs);
+  await api.graphql(f.initial, f.refs);
   f.controls.advance = () => {
     clock = deadline + 1;
   };
-  assert.ok(
-    api.graphql(f.mutation, f.claim).data,
-    "late acknowledgment remains available to exchange",
-  );
+  await assert.rejects(api.graphql(f.mutation, f.claim), { code: "deadline_exceeded" });
   f.controls.advance = () => {};
-  assert.throws(() => api.graphql(f.mutation, f.claim), /original deadline/);
-  assert.throws(
+  await assert.rejects(() => api.graphql(f.mutation, f.claim), /original deadline/);
+  await assert.rejects(
     () => api.request("POST", "repos/boburning/portcove/git/blobs", {}),
     /original deadline/,
   );
-  assert.throws(
+  await assert.rejects(
     () => api.request("GET", `repos/boburning/portcove/git/commits/${"f".repeat(40)}`),
     /original deadline/,
   );
-  api.graphql(f.next, { id: "R_fixture", ...f.refs });
+  await assert.rejects(api.graphql(f.next, { id: "R_fixture", ...f.refs }), /original deadline/);
+  await api.graphql(f.next, { id: "R_fixture", ...f.refs }, { deadline, collecting: true });
   assert.equal(f.calls(), 3);
   clock = deadline + 30000;
-  assert.throws(() => api.graphql(f.next, { id: "R_fixture", ...f.refs }), /original deadline/);
+  await assert.rejects(
+    api.graphql(f.next, { id: "R_fixture", ...f.refs }, { deadline, collecting: true }),
+    /collection bound/,
+  );
   assert.equal(f.calls(), 3);
 });
 
@@ -396,9 +379,13 @@ void test("fixed-job journal never opens collection time before a CAS attempt", 
   let clock = performance.now();
   t.mock.method(performance, "now", () => clock);
   const api = createCheckpointJobTokenApi(f.root, f.checkpoint, f.configuration, clock + 1000);
-  api.graphql(f.initial, f.refs);
+  await api.graphql(f.initial, f.refs);
+  const deadline = clock + 1000;
   clock += 1001;
-  assert.throws(() => api.graphql(f.next, { id: "R_fixture", ...f.refs }), /original deadline/);
+  await assert.rejects(
+    api.graphql(f.next, { id: "R_fixture", ...f.refs }, { deadline, collecting: true }),
+    /attempted CAS/,
+  );
   assert.equal(f.calls(), 1);
 });
 
@@ -411,11 +398,11 @@ void test("fixed-job journal refuses foreign repository observation and enforces
     performance.now() + 10000,
   );
   f.controls.repositoryId = 1;
-  assert.throws(() => api.graphql(f.initial, f.refs), /repository identity/);
+  await assert.rejects(() => api.graphql(f.initial, f.refs), /repository identity/);
   f.controls.repositoryId = 1354613114;
-  api.graphql(f.initial, f.refs);
-  for (let n = 2; n < 16; n++) api.graphql(f.next, { id: "R_fixture", ...f.refs });
-  assert.throws(() => api.graphql(f.next, { id: "R_fixture", ...f.refs }), /request bound/);
+  await api.graphql(f.initial, f.refs);
+  for (let n = 2; n < 16; n++) await api.graphql(f.next, { id: "R_fixture", ...f.refs });
+  await assert.rejects(() => api.graphql(f.next, { id: "R_fixture", ...f.refs }), /request bound/);
   assert.equal(f.calls(), 16);
 });
 void test("journal SDK captures only its dedicated credential and refuses other routes", async (t) => {
@@ -497,16 +484,16 @@ void test("fixed-job collection survives inherited execution expiry only for exa
   const api = createCheckpointJobTokenApi(f.root, f.checkpoint, f.configuration, deadline);
   await assert.rejects(
     withCoordinatorDeadline(deadline, async () => {
-      api.graphql(f.initial, f.refs);
-      api.graphql(f.mutation, f.claim);
+      await api.graphql(f.initial, f.refs);
+      await api.graphql(f.mutation, f.claim);
       clock = deadline + 1;
-      assert.throws(() => api.graphql(f.mutation, f.claim), /original deadline/);
-      assert.throws(
+      await assert.rejects(() => api.graphql(f.mutation, f.claim), /original deadline/);
+      await assert.rejects(
         () => api.request("GET", `repos/boburning/portcove/git/commits/${"f".repeat(40)}`),
         /original deadline/,
       );
-      api.graphql(f.next, { id: "R_fixture", ...f.refs });
-      assert.equal(f.calls(), 3, "exact collection query reached the fixed child");
+      await api.graphql(f.next, { id: "R_fixture", ...f.refs }, { deadline, collecting: true });
+      assert.equal(f.calls(), 3, "exact collection query dispatched through the SDK");
     }),
     /phase deadline/,
   );
@@ -556,6 +543,11 @@ void test("dedicated storage checkpoint adapter isolates the new token and prese
     },
   );
   syncBuiltinESMExports();
+  t.mock.method(globalThis, "fetch", async (_input: unknown, init?: RequestInit) => {
+    calls++;
+    assert.equal(new Headers(init?.headers).get("authorization"), "token dedicated-storage-token");
+    return Response.json({ observed: true }, { status: 201 });
+  });
   const api = createCheckpointJobTokenApi(
     root,
     checkpoint,
@@ -568,9 +560,9 @@ void test("dedicated storage checkpoint adapter isolates the new token and prese
     "repos/other/repo/git/blobs",
     "repos/boburning/portcove/actions/jobs/1",
   ])
-    assert.throws(() => api.request("POST", route, {}));
+    await assert.rejects(() => api.request("POST", route, {}));
   assert.equal(calls, 0);
-  api.request("POST", "repos/boburning/portcove/git/blobs", { content: "public" });
+  await api.request("POST", "repos/boburning/portcove/git/blobs", { content: "public" });
   assert.equal(calls, 1);
   const prepared = createPreparedCheckpointObjectApi(root, performance.now() + 1000, {
     app_id: 90001,
