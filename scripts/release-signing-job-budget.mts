@@ -13,7 +13,7 @@ import type { CatalogControlPhase } from "./release-control-phases.mts";
 import { applicationProtectionObserver } from "./release-control-phases.mts";
 import { isRecord } from "./runtime-values.mts";
 import { hostedNativeJobProfile } from "./assembler-job-identity.mts";
-import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
+import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
 
 type SigningRole = "payload" | TufSigningRole;
 type ClockRole =
@@ -418,8 +418,7 @@ async function currentSdkJobDeadline(
   processDeadline: number,
 ) {
   requireOriginalJobIdentity(identity);
-  const reader = readOnlyReleaseChildEnvironment();
-  const token = (reader === undefined ? process.env.GH_TOKEN : reader.GH_TOKEN) ?? "";
+  const token = fixedReleaseReaderToken();
   const { createReleaseCustodyProvider } = await import("./release-custody-provider.mts");
   const provider = await createReleaseCustodyProvider({ token, deadline: processDeadline });
   const response = await provider.jobs(identity.run_id, 1, 1);

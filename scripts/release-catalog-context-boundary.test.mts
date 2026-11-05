@@ -405,6 +405,7 @@ void test("actual catalog role guard puts delayed Check and checkpoint reads bef
       manifest: { facts_sha256: "facts", previous_site_pins: {} },
       admitted: { control_facts: { pause: {}, capacity: {} } },
       coordinator: {},
+      transport: { credential: { token: "inert-catalog-reader" }, deadline: 115000 },
       active: () => {
         assert.ok(now < 115000);
         return 15000;
@@ -416,7 +417,17 @@ void test("actual catalog role guard puts delayed Check and checkpoint reads bef
       requireControllerCatalogJobAuthorities: async () => ({
         configuration_sha256: "fixed",
       }),
-      readRemoteCoordinatorSnapshot: async () => {
+      readRemoteCoordinatorSnapshot: async (
+        _directory: string,
+        _coordinator: unknown,
+        options: unknown,
+      ) => {
+        assert.equal(
+          JSON.stringify(options),
+          JSON.stringify({
+            transport: { credential: { token: "inert-catalog-reader" }, deadline: 115000 },
+          }),
+        );
         events.push("checkpoint");
         now = 61000;
         return {};

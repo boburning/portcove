@@ -606,7 +606,10 @@ for (const [file, tests] of [
   ],
   [
     "scripts/release-readonly-child-environment.mts",
-    ["scripts/release-admitted-aggregate-controller.test.mts"],
+    [
+      "scripts/release-admitted-aggregate-controller.test.mts",
+      "scripts/release-tuf-controller.test.mts",
+    ],
   ],
 
   [
@@ -671,6 +674,10 @@ for (const [file, tests] of [
   ],
   ["scripts/release-catalog-inspection.mts", ["scripts/release-catalog-inspection.test.mts"]],
   ["scripts/release-catalog-semantic.mts", ["scripts/release-catalog-semantic.test.mts"]],
+  [
+    "scripts/release-signing-controller.mts",
+    ["scripts/release-payload-preparation.test.mts", "scripts/release-signing-context.test.mts"],
+  ],
   [
     "scripts/release-catalog-signing.mts",
     [

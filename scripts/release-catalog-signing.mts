@@ -58,6 +58,7 @@ import {
   readIndependentCatalogSemanticReview,
   releaseControlRefQuery,
 } from "./release-control-inputs.mts";
+import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import { receiveIsolatedRoleKey } from "./release-role-key-channel.mts";
 import { handoffSigningOutput } from "./release-signing-handoff.mts";
@@ -301,8 +302,9 @@ async function runRole(
   let progress = "current-catalog-reservation";
   try {
     const coordinator = { schema_version: 1, namespace: authorities.namespace },
+      transport = { credential: { token: fixedReleaseReaderToken() }, deadline },
       recovered = await recoverRemoteCoordinator(directory, coordinator, {
-        transport: { cwd: directory, deadline },
+        transport,
       });
     let checkpoint = recovered.checkpoint;
     const reservation = (
@@ -361,7 +363,7 @@ async function runRole(
         throw new Error("catalog role authority changed");
       reservation(
         await readRemoteCoordinatorSnapshot(directory, coordinator, {
-          transport: { cwd: directory, deadline },
+          transport,
         }),
       );
       await fresh();
@@ -664,9 +666,9 @@ async function verifyPublishedRepositoryForRecovery(
     scratch = path.join(directory, "work");
   await mkdir(scratch, { mode: 0o700 });
   const remote = { schema_version: 1, namespace: admitted.authorities.namespace };
-  const readIntent = async () => {
+  const readIntent = async (token: string) => {
     const state = await readRemoteCoordinatorSnapshot(directory, remote, {
-      transport: { cwd: directory, deadline },
+      transport: { credential: { token }, deadline },
     });
     const controller = state.input.controller,
       operation = inspectCapacityOperation(
@@ -696,7 +698,8 @@ async function verifyPublishedRepositoryForRecovery(
     };
   };
   try {
-    const intent = await readIntent(),
+    const token = fixedReleaseReaderToken(),
+      intent = await readIntent(token),
       publicSite = await materializePublishedCatalogCompleteSite(
         {
           root_sha256: String(intent.expected.catalog_root_sha256),
@@ -792,7 +795,7 @@ async function verifyPublishedRepositoryForRecovery(
       admitted.manifest.previous_site_pins,
     );
     await requirePublishedCatalogCompleteSite(publicSite.receipt);
-    if (digest(await readIntent()) !== digest(intent))
+    if (digest(await readIntent(token)) !== digest(intent))
       throw new Error("catalog recovery intent changed during public verification");
     const proof_files = [];
     for (const name of ["stdout.json", "stderr.txt", "verification.json"]) {

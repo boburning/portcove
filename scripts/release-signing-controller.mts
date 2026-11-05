@@ -32,6 +32,7 @@ import type { ControllerToolArtifactExpected } from "./release-controller-tool-a
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import { inspectPayloadPreparationConfiguration } from "./release-payload-preparation.mts";
 import { authenticateReleaseControlRound } from "./release-live-control-admission.mts";
+import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import { releaseControlRefQuery } from "./release-control-inputs.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
@@ -128,10 +129,11 @@ export async function runPayloadSigningAndContextController(
       throw new Error("current context controls differ from actual admission");
     return current;
   };
+  const transport = { credential: { token: fixedReleaseReaderToken() }, deadline };
   const guard = async () => {
     await fresh();
     const snapshot = await readRemoteCoordinatorSnapshot(directory, coordinator, {
-      transport: { cwd: directory, deadline },
+      transport,
     });
     await requireReservedAggregate(
       JSON.stringify({
