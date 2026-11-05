@@ -1,3 +1,4 @@
+import { releaseKey } from "../features/browsing/download-identity";
 import { ArrowRight, FolderOpen, Save } from "lucide-react";
 import type { ReactNode } from "react";
 import { SaveGameButton } from "../features/organization/OrganizationControls";
@@ -46,7 +47,7 @@ function renderListingEvidence(listing: CatalogEntry["listing"]) {
             <details>
               <summary>Release window and package candidates</summary>
               {listing.upstream_observation.releases.map((release) => (
-                <div key={release.id}>
+                <div key={releaseKey(release.id)}>
                   <ExternalLink href={release.release_url}>{release.version}</ExternalLink>
                   <ul>
                     {release.assets.map((asset) => (

@@ -878,7 +878,7 @@ pub struct ListingUpstreamObservation {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ListingObservedRelease {
-    pub id: u64,
+    pub id: crate::CatalogDownloadReleaseId,
     pub version: String,
     pub release_url: String,
     pub published_at: String,

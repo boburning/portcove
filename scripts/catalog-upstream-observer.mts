@@ -1,5 +1,7 @@
 import {
   projectListingObservation,
+  projectGitLabListingObservation,
+  listingProviderIdentity,
   listingObservationReleaseIds,
   listingProjectionHash,
   listingDeclarationHash,
@@ -177,34 +179,22 @@ export function catalogObservationSources(input: unknown) {
     )
       throw new Error("Listing observation requires unique stable identities");
     listingIds.add(listing.id);
-    let url: URL;
-    try {
-      url = new URL(
-        typeof listing.release_url === "string" ? listing.release_url : String(listing.project_url),
-      );
-    } catch {
+    const identity = listingProviderIdentity(listing);
+    if (!identity) {
+      held.push({
+        port_id: listing.id,
+        reason: "listing-provider-observation-unsupported",
+        resume_condition:
+          "Provide a reviewed supported GitHub/GitLab repository identity; no release absence or acquisition authority is inferred.",
+      });
+      seen.add(listing.id);
       continue;
     }
-    const match =
-      /^\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+?)(?:\.git)?(?:\/releases(?:\/.*)?)?\/?$/u.exec(
-        url.pathname,
-      );
-    if (
-      url.protocol !== "https:" ||
-      url.hostname !== "github.com" ||
-      url.username ||
-      url.password ||
-      url.port ||
-      url.search ||
-      url.hash ||
-      !match
-    )
-      continue;
-    const repository = `${match[1]}/${match[2]}`;
-    const key = observationHash({ provider: "github", repository });
+    const { provider, repository } = identity;
+    const key = observationHash({ provider, repository });
     const source: ObservableSource = sources.get(key) ?? {
       key,
-      provider: "github",
+      provider,
       repository,
       ports: [],
       scope_sha256: "",
@@ -447,6 +437,7 @@ export interface CatalogObservationOptions extends Pick<
     source: ObservableSource,
     observations: Record<string, unknown>[],
     policies: unknown[],
+    report?: { exception: { rule: string } },
   ) => Promise<void>;
   config: ObserverConfig;
   policyIdentity: string;
@@ -778,7 +769,7 @@ export async function advanceCatalogObservations(
             },
             project: async (portId, observation) => {
               const port = source.ports.find((consumer) => consumer.id === portId)!;
-              if (!options.projectProvider)
+              if (port.kind !== "listing" && !options.projectProvider)
                 throw new ObservationFailure(
                   "core-provider-capability",
                   "Provider Core projection capability is unavailable",
@@ -803,7 +794,25 @@ export async function advanceCatalogObservations(
                 retained.format === 2
               )
                 return retained;
-              const policy = await options.projectProvider(portId, observation);
+              const projected =
+                port.kind === "listing"
+                  ? projectGitLabListingObservation(
+                      port.listing!,
+                      observation,
+                      template.stale_after_hours,
+                    )
+                  : await options.projectProvider!(portId, observation);
+              const policy =
+                port.kind !== "listing" && port.listing && source.provider === "gitlab"
+                  ? {
+                      ...(projected as Record<string, unknown>),
+                      listing_update: projectGitLabListingObservation(
+                        port.listing,
+                        observation,
+                        template.stale_after_hours,
+                      ).listing_update,
+                    }
+                  : projected;
               if (
                 !isRecord(policy) ||
                 policy.format !== 2 ||
@@ -888,6 +897,23 @@ export async function advanceCatalogObservations(
           rule,
           details: error instanceof Error ? error.message : "Provider operation failed",
         });
+        if (source.ports.some((port) => port.listing) && options.exportProvider) {
+          try {
+            await options.exportProvider(source, [], progress.last_complete_policies, {
+              exception: { rule },
+            });
+          } catch (handoffError) {
+            failures.push({
+              source: source.key,
+              repository: source.repository,
+              rule: "provider-failure-handoff",
+              details:
+                handoffError instanceof Error
+                  ? handoffError.message
+                  : "Provider failure handoff unavailable",
+            });
+          }
+        }
         if (
           rule === "budget" &&
           before !==

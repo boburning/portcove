@@ -58,9 +58,9 @@ fn has_extended_media(listing: &PortListing) -> bool {
 impl CatalogListingDocument {
     /// Format 5 retains every reference paragraph in the original flat guide.
     pub fn export_format(&self, format_version: u32) -> Result<Self> {
-        if !matches!(format_version, 5 | 6) {
+        if !matches!(format_version, 5 | 6 | 8) {
             return Err(PortcoveError::unsupported(
-                "listing export supports formats 5 and 6",
+                "listing export supports formats 5, 6 and 8",
             ));
         }
         let mut document = self.clone();
@@ -111,6 +111,18 @@ impl CatalogListingDocument {
         {
             self.format_version = 6;
         }
+        if self.has_gitlab_observations() {
+            self.format_version = 8;
+        }
+    }
+
+    fn has_gitlab_observations(&self) -> bool {
+        self.listings.iter().any(|listing| {
+            listing
+                .upstream_observation
+                .as_ref()
+                .is_some_and(|observation| observation.provider == "gitlab")
+        })
     }
 
     fn has_observation_fields(&self) -> bool {
@@ -142,11 +154,16 @@ impl CatalogListingDocument {
     }
 
     fn validate_identity_set(&self) -> Result<()> {
-        if !matches!(self.format_version, 1..=6) {
+        if !matches!(self.format_version, 1..=6 | 8) {
             return Err(PortcoveError::unsupported(format!(
                 "listing format {} is not supported",
                 self.format_version
             )));
+        }
+        if self.format_version < 8 && self.has_gitlab_observations() {
+            return Err(PortcoveError::unsupported(
+                "GitLab descriptive observations require listing format 8",
+            ));
         }
         if self.format_version == 1
             && self
@@ -230,12 +247,19 @@ fn observed_release_link(
     repository: &str,
     version: &str,
     asset: Option<&str>,
+    provider: &str,
+    repository_id: Option<u64>,
 ) -> bool {
     let Ok(url) = reqwest::Url::parse(value) else {
         return false;
     };
     if url.scheme() != "https"
-        || url.host_str() != Some("github.com")
+        || url.host_str()
+            != Some(if provider == "gitlab" {
+                "gitlab.com"
+            } else {
+                "github.com"
+            })
         || !url.username().is_empty()
         || url.password().is_some()
         || url.port().is_some()
@@ -243,6 +267,28 @@ fn observed_release_link(
         || url.fragment().is_some()
     {
         return false;
+    }
+    if provider == "gitlab" {
+        if let Some(name) = asset {
+            let parts = url.path().split('/').skip(1).collect::<Vec<_>>();
+            return parts.len() == 9
+                && parts[..3] == ["api", "v4", "projects"]
+                && repository_id.is_some_and(|id| parts[3] == id.to_string())
+                && parts[4..6] == ["packages", "generic"]
+                && !parts[6].is_empty()
+                && (crate::release::observed_url_segment_matches(parts[7], version)
+                    || crate::release::observed_url_segment_matches(
+                        parts[7],
+                        version.strip_prefix('v').unwrap_or(version),
+                    ))
+                && crate::release::observed_url_segment_matches(parts[8], name);
+        }
+        return url
+            .path()
+            .strip_prefix(&format!("/{repository}/-/releases/"))
+            .is_some_and(|tag| {
+                !tag.contains('/') && crate::release::observed_url_segment_matches(tag, version)
+            });
     }
     let prefix = format!(
         "/{repository}/releases/{}",
@@ -333,12 +379,25 @@ impl PortListing {
         let Some(observation) = &self.upstream_observation else {
             return Ok(());
         };
-        let repository = crate::release::catalog_download_repository(
-            self.release_url.as_deref().unwrap_or(&self.project_url),
-        )?;
+        let source_url = self.release_url.as_deref().unwrap_or(&self.project_url);
+        use crate::service::CatalogDownloadRepository;
+        let parsed = CatalogDownloadRepository::parse(source_url)?;
+        let provider_matches = matches!(
+            (&parsed, observation.provider.as_str()),
+            (CatalogDownloadRepository::Github(_), "github")
+                | (CatalogDownloadRepository::Gitlab(_), "gitlab")
+        );
+        if !provider_matches {
+            return Err(invalid());
+        }
+        let repository = parsed.name();
         let identity = |id: u64| id > 0 && id <= 9_007_199_254_740_991;
-        if observation.provider != "github"
-            || !observation.repository.eq_ignore_ascii_case(&repository)
+        if !matches!(observation.provider.as_str(), "github" | "gitlab")
+            || if observation.provider == "gitlab" {
+                observation.repository != repository
+            } else {
+                !observation.repository.eq_ignore_ascii_case(repository)
+            }
             || observation.repository_id.is_some_and(|id| !identity(id))
             || !(1..=4).contains(&observation.release_limit)
             || observation.releases.len() > observation.release_limit
@@ -369,12 +428,22 @@ impl PortListing {
                     && observation.releases.is_empty() => {}
             _ => return Err(invalid()),
         }
-        let mut releases = HashSet::new();
+        let mut releases = std::collections::BTreeSet::new();
         let mut tags = HashSet::new();
         let mut packages = HashSet::new();
         for release in &observation.releases {
-            if !identity(release.id)
-                || !releases.insert(release.id)
+            let valid_identity = match (&release.id, observation.provider.as_str()) {
+                (crate::CatalogDownloadReleaseId::Github(id), "github") => identity(*id),
+                (
+                    crate::CatalogDownloadReleaseId::Foreign(
+                        crate::CatalogForeignReleaseId::Gitlab { project_id, tag },
+                    ),
+                    "gitlab",
+                ) => Some(*project_id) == observation.repository_id && tag == &release.version,
+                _ => false,
+            };
+            if !valid_identity
+                || !releases.insert(&release.id)
                 || !valid_text(&release.version, 255)
                 || !tags.insert(&release.version)
                 || !valid_url(&release.release_url)
@@ -383,6 +452,8 @@ impl PortListing {
                     &observation.repository,
                     &release.version,
                     None,
+                    &observation.provider,
+                    observation.repository_id,
                 )
                 || clock(&release.published_at)? > attempted
                 || release.assets.len() > 32
@@ -417,6 +488,8 @@ impl PortListing {
                         &observation.repository,
                         &release.version,
                         Some(&package.name),
+                        &observation.provider,
+                        observation.repository_id,
                     )
                     || package.sha256.as_ref().is_some_and(|hash| {
                         hash.len() != 64 || !hash.bytes().all(|byte| byte.is_ascii_hexdigit())
@@ -1249,6 +1322,53 @@ mod observation_metadata_tests {
                 _ => unreachable!(),
             }
             assert!(parse(&value, 4).is_err(), "{change}");
+        }
+    }
+    #[test]
+    fn gitlab_observations_retain_native_tags_and_project_bound_registry_candidates() {
+        let mut value = listing();
+        value["project_url"] = "https://gitlab.com/example/game".into();
+        value["upstream_observation"]["provider"] = "gitlab".into();
+        value["upstream_observation"]["releases"][0]["id"] =
+            json!({"provider":"gitlab","project_id":7,"tag":"v1.2.0"});
+        value["upstream_observation"]["releases"][0]["release_url"] =
+            "https://gitlab.com/example/game/-/releases/v1.2.0".into();
+        value["upstream_observation"]["releases"][0]["assets"][0]["url"] =
+            "https://gitlab.com/api/v4/projects/7/packages/generic/game/1.2.0/game-windows-x64.zip"
+                .into();
+        for format in 1..=7 {
+            assert!(parse(&value, format).is_err());
+        }
+        let document = parse(&value, 8).unwrap();
+        assert!(document.export_format(6).is_err());
+        let catalog = Catalog::for_user_selected_listing(document.listings[0].clone()).unwrap();
+        assert_eq!(catalog.listing_document().format_version, 8);
+        assert!(catalog.port("observed-project").is_err());
+        let mut subgroup = value.clone();
+        subgroup["project_url"] = "https://gitlab.com/example/subgroup/game".into();
+        subgroup["upstream_observation"]["repository"] = "example/subgroup/game".into();
+        subgroup["upstream_observation"]["releases"][0]["release_url"] =
+            "https://gitlab.com/example/subgroup/game/-/releases/v1.2.0".into();
+        assert!(parse(&subgroup, 8).is_ok());
+        for change in [
+            "numeric-tag",
+            "wrong-tag",
+            "wrong-project",
+            "foreign-host",
+            "wrong-version",
+            "wrong-file",
+        ] {
+            let mut changed = value.clone();
+            match change {
+                "numeric-tag" => changed["upstream_observation"]["releases"][0]["id"] = 11.into(),
+                "wrong-tag" => changed["upstream_observation"]["releases"][0]["id"]["tag"] = "v2".into(),
+                "wrong-project" => changed["upstream_observation"]["repository_id"] = 8.into(),
+                "foreign-host" => changed["upstream_observation"]["releases"][0]["assets"][0]["url"] = "https://other.test/api/v4/projects/7/packages/generic/game/1.2.0/game-windows-x64.zip".into(),
+                "wrong-version" => changed["upstream_observation"]["releases"][0]["assets"][0]["url"] = "https://gitlab.com/api/v4/projects/7/packages/generic/game/2.0/game-windows-x64.zip".into(),
+                "wrong-file" => changed["upstream_observation"]["releases"][0]["assets"][0]["url"] = "https://gitlab.com/api/v4/projects/7/packages/generic/game/1.2.0/other.zip".into(),
+                _ => unreachable!(),
+            }
+            assert!(parse(&changed, 8).is_err(), "{change}");
         }
     }
     #[test]

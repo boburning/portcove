@@ -6345,9 +6345,7 @@
             "type": "boolean"
           },
           "id": {
-            "format": "uint64",
-            "minimum": 0,
-            "type": "integer"
+            "$ref": "#/$defs/CatalogDownloadReleaseId"
           },
           "provider_prerelease": {
             "type": "boolean"
@@ -14561,9 +14559,7 @@
             "type": "boolean"
           },
           "id": {
-            "format": "uint64",
-            "minimum": 0,
-            "type": "integer"
+            "$ref": "#/$defs/CatalogDownloadReleaseId"
           },
           "provider_prerelease": {
             "type": "boolean"

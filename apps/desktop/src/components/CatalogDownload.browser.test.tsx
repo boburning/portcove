@@ -1327,3 +1327,63 @@ it("keeps authored save warnings visible before reviewing a download", async () 
   expect(warning.element().closest("ol")).toBeNull();
   expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
 });
+
+it("renders accepted GitLab listing observations through the shared descriptive detail", async () => {
+  const observedAt = new Date().toISOString();
+  const observedListing: PortListing = {
+    ...listing,
+    project_url: "https://gitlab.com/example/subgroup/game",
+    release_url: "https://gitlab.com/example/subgroup/game/-/releases",
+    download_asset_hints: { "windows-x86-64": ["windows", "x64"] },
+    upstream_observation: {
+      provider: "gitlab",
+      repository: "example/subgroup/game",
+      repository_id: 7,
+      status: "complete",
+      attempted_at: observedAt,
+      observed_at: observedAt,
+      fresh_until: new Date(Date.now() + 3600000).toISOString(),
+      facts_sha256: "a".repeat(64),
+      release_limit: 4,
+      releases: [
+        {
+          id: { provider: "gitlab", project_id: 7, tag: "v1" },
+          version: "v1",
+          release_url: "https://gitlab.com/example/subgroup/game/-/releases/v1",
+          published_at: "2026-10-26T00:00:00Z",
+          provider_prerelease: false,
+          assets_complete: true,
+          assets: [
+            {
+              id: 21,
+              name: "game-windows-x64.zip",
+              url: "https://gitlab.com/api/v4/projects/7/packages/generic/game/1/game-windows-x64.zip",
+              size: 42,
+              sha256: "b".repeat(64),
+              platform_hints: ["windows-x86-64"],
+            },
+          ],
+        },
+      ],
+    },
+  };
+  await root.rerender(
+    <ListingDetailPanel
+      entry={{ ...entry, listing: observedListing }}
+      status={status}
+      generation={9}
+      perform={perform}
+      onChanged={changed}
+      close={vi.fn()}
+    />,
+  );
+  await expect
+    .element(page.getByText("Package candidates observed", { exact: true }))
+    .toBeVisible();
+  await page.getByText("Release window and package candidates", { exact: true }).click();
+  await expect
+    .element(page.getByRole("link", { name: "v1", exact: true }))
+    .toHaveAttribute("href", "https://gitlab.com/example/subgroup/game/-/releases/v1");
+  await expect.element(page.getByText("game-windows-x64.zip", { exact: false })).toBeVisible();
+  expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
+});
