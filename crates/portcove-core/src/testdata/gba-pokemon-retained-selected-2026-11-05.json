@@ -145,5 +145,12 @@
         }
       }
     }
-  ]
+  ],
+  "source_catalog": {
+    "evidence": [],
+    "identities": [],
+    "contracts": [],
+    "validators": [],
+    "qualification": []
+  }
 }

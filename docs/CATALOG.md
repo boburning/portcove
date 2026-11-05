@@ -2047,7 +2047,7 @@ runtime uses versioned mod packages. The projection supplies the shared
 local paths, diagnostic names and mod policy. Keep the repository, channel,
 asset and executable hints, original-file and BIOS requirements, and external
 save locations explicit. Use a full integration for a different layout, such
-as a player that writes variant-prefixed configuration or stores credentials.
+as a player that writes variant-specific configuration or stores credentials.
 Settings qualification also requires the explicit integration form.
 The projection refuses duplicate path and mod policy fields. Core receives
 and validates the same concrete contract as before.
