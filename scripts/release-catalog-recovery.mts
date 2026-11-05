@@ -8,6 +8,7 @@ import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { isRecord } from "./runtime-values.mts";
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import type { GitHubRestReader } from "./github-api.mts";
 import { readGitHubArtifactArchive } from "./github-binary.mts";
@@ -56,7 +57,7 @@ import { catalogCoordinatorMaintenanceIdentity } from "./release-coordinator-dri
 import { prepareControlReadiness, waitForControlArtifact } from "./release-control-handshake.mts";
 import { retainControlStepLocator } from "./release-control-step-bridge.mts";
 import {
-  readCompleteRunArtifactInventory,
+  readCompleteRunArtifactInventoryAsync,
   inspectCompleteRunArtifactInventory,
 } from "./release-run-artifact-inventory.mts";
 import {
@@ -300,8 +301,11 @@ export async function continueActualCatalogPublication(
       settings,
     ) => spawnSync(command, args, { ...settings, env: environment });
     let reads = 0;
-    const api = new GitHubApiClient((args, body) => {
+    const chargeRead = () => {
       if (++reads > 160) throw new Error("catalog continuation read budget exhausted");
+    };
+    const api = new GitHubApiClient((args, body) => {
+      chargeRead();
       const response = createGitHubRunner({
         cwd: directory,
         maxBuffer: 4 * 1024 ** 2,
@@ -314,11 +318,6 @@ export async function continueActualCatalogPublication(
       signingContextRemaining(originalDeadline, 15000);
       return response;
     });
-    const get = (route: string) => {
-      const response = api.request("GET", `${base}/${route}`);
-      if (response.status !== 200) throw new Error("catalog original provider read unavailable");
-      return response.body;
-    };
     let phase = "actual-coordinator";
     try {
       const authorities = await requireControllerCatalogJobAuthorities("coordinator");
@@ -496,22 +495,31 @@ export async function continueActualCatalogPublication(
         api,
         originalDeadline,
       );
-      const observe = (op: Operation, output: Output) => {
+      const metadata = await createReleaseCustodyProvider({
+        token: environment.GH_TOKEN ?? "",
+        deadline: originalDeadline,
+        maxBytes: 4 * 1024 ** 2,
+        chargeRead,
+        currentDeadline: () => performance.now() + signingContextRemaining(originalDeadline, 15000),
+      });
+      const observe = async (op: Operation, output: Output) => {
         const p = op.executor_identity!;
-        return inspectCatalogContinuationProvider(
-          get(`actions/runs/${String(p.run_id)}`),
-          get(`actions/runs/${String(p.run_id)}/attempts/1`),
-          get(`actions/jobs/${String(p.job_id)}`),
-          readCompleteRunArtifactInventory((page) =>
-            get(`actions/runs/${String(p.run_id)}/artifacts?per_page=100&page=${page}`),
-          ),
+        const run = String(p.run_id);
+        assert.ok(typeof p.job_id === "number" && Number.isSafeInteger(p.job_id));
+        const result = inspectCatalogContinuationProvider(
+          await metadata.run(run),
+          await metadata.attempt(run, 1),
+          await metadata.job(p.job_id),
+          await readCompleteRunArtifactInventoryAsync((page) => metadata.runArtifacts(run, page)),
           op,
           descriptor,
           output,
         );
+        signingContextRemaining(originalDeadline, 15000);
+        return result;
       };
       const contextOp = operations.get("context")!,
-        before = observe(contextOp, "context");
+        before = await observe(contextOp, "context");
       const archive = readGitHubArtifactArchive(
         `${base}/actions/artifacts/${before.artifact.id}/zip`,
         {
@@ -562,13 +570,13 @@ export async function continueActualCatalogPublication(
         originalDeadline,
       );
       await requireReceivedCatalogSigningContext(context, originalDeadline);
-      if (digest(observe(contextOp, "context")) !== digest(before))
+      if (digest(await observe(contextOp, "context")) !== digest(before))
         throw new Error("catalog context provider drifted");
       const roleReceipts: object[] = [];
       for (const role of catalogSigningRoles) {
         await guard();
         const op = operations.get(role)!,
-          provider = observe(op, role),
+          provider = await observe(op, role),
           p = op.executor_identity!;
         const locator: CatalogRoleArtifactExpected = {
           purpose: "catalog",
@@ -603,7 +611,7 @@ export async function continueActualCatalogPublication(
         );
         if (!isRecord(raw) || !isRecord(raw.pending) || raw.pending.operation_id !== op.id)
           throw new Error("catalog role belongs to another upload intent");
-        if (digest(observe(op, role)) !== digest(provider))
+        if (digest(await observe(op, role)) !== digest(provider))
           throw new Error("catalog role provider drifted");
         roleReceipts.push(receipt);
       }
