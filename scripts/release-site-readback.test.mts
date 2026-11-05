@@ -7,7 +7,7 @@ import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { isRecord } from "./runtime-values.mts";
 import { capacityDigest } from "./release-capacity.mts";
-import { GitHubApiError } from "./github-api.mts";
+import { GitHubApiError } from "./github-operation.mts";
 import { composeSiteFiles, readComposedSite } from "./release-site-composer.mts";
 import {
   readPublicApplicationSite,
@@ -21,8 +21,15 @@ import {
 
 const origin = "https://boburning.github.io/portcove/";
 
-void test("initial production composition retains an appointed rehearsal inventory with bracketed Pages readback", async () => {
+void test("initial production composition retains an appointed rehearsal inventory with bracketed Pages readback", async (t) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "initial-rehearsal-test-"));
+  const token = "ghs_SYNTHETIC_REHEARSAL_READER";
+  const previous = process.env.GH_TOKEN;
+  process.env.GH_TOKEN = token;
+  t.after(() => {
+    if (previous === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = previous;
+  });
   try {
     for (const mode of ["valid", "provider-drift", "bytes", "present", "redirect", "unavailable"]) {
       const retained = "rehearsal/41788540335-1/application/metadata/1.root.json";
@@ -52,28 +59,25 @@ void test("initial production composition retains an appointed rehearsal invento
         inventory_sha256: capacityDigest(identities),
       };
       let observations = 0;
-      const api = {
-        request(method: string, endpoint: string) {
-          assert.equal(method, "GET");
-          const prefix = "repos/boburning/portcove";
-          let body: unknown;
-          if (endpoint === prefix) body = { id: 1354613114, full_name: "boburning/portcove" };
-          else if (endpoint === `${prefix}/pages`) body = provider.pages;
-          else if (endpoint === `${prefix}/deployments?environment=github-pages&per_page=1`) {
-            observations++;
-            body = [
-              {
-                id: mode === "provider-drift" && observations > 1 ? 124 : 123,
-                sha: provider.source_commit,
-                ref: provider.ref,
-                environment: provider.environment,
-              },
-            ];
-          } else if (endpoint.endsWith("/statuses?per_page=1"))
-            body = [{ id: 456, state: "success", log_url: provider.log_url }];
-          else throw new Error(`unexpected provider route ${endpoint}`);
-          return { status: 200, headers: new Map<string, string>(), body };
-        },
+      const read = async (endpoint: string) => {
+        const prefix = "repos/boburning/portcove";
+        let body: unknown;
+        if (endpoint === prefix) body = { id: 1354613114, full_name: "boburning/portcove" };
+        else if (endpoint === `${prefix}/pages`) body = provider.pages;
+        else if (endpoint === `${prefix}/deployments?environment=github-pages&per_page=1`) {
+          observations++;
+          body = [
+            {
+              id: mode === "provider-drift" && observations > 1 ? 124 : 123,
+              sha: provider.source_commit,
+              ref: provider.ref,
+              environment: provider.environment,
+            },
+          ];
+        } else if (endpoint.endsWith("/statuses?per_page=1"))
+          body = [{ id: 456, state: "success", log_url: provider.log_url }];
+        else throw new Error(`unexpected provider route ${endpoint}`);
+        return { status: 200, oauthScopes: null, body };
       };
       const fetcher = (async (input: string) => {
         assert.ok(input.startsWith(origin));
@@ -90,25 +94,46 @@ void test("initial production composition retains an appointed rehearsal invento
           mode === "present" ? 200 : mode === "unavailable" ? 503 : 404,
         );
       }) as typeof fetch;
-      const expected = materializeInitialApplicationRehearsal(
-        descriptor,
-        capacityDigest(descriptor),
-        directory,
-        { api, fetch: fetcher },
-      );
       if (mode === "valid") {
-        const observed = await expected;
+        const providerFetch = t.mock.method(
+          globalThis,
+          "fetch",
+          async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+            const url = new URL(input instanceof Request ? input.url : input);
+            assert.equal(url.origin, "https://api.github.com");
+            assert.equal(init?.method, "GET");
+            assert.equal(new Headers(init.headers).get("authorization"), `token ${token}`);
+            const result = await read(url.pathname.slice(1) + url.search);
+            return Response.json(result.body, { status: result.status });
+          },
+        );
+        const observed = await materializeInitialApplicationRehearsal(
+          descriptor,
+          capacityDigest(descriptor),
+          directory,
+          { fetch: fetcher },
+        ).finally(() => providerFetch.mock.restore());
+        assert.equal(providerFetch.mock.callCount(), 7);
         assert.equal(observed.authority, "none");
         assert.equal(observed.inventory_sha256, descriptor.inventory_sha256);
         for (const [name, bytes] of files)
           assert.deepEqual(await readFile(path.join(observed.directory, name)), bytes);
         assert.equal(observations, 2);
         await rm(observed.directory, { recursive: true });
-      } else await assert.rejects(expected);
+      } else {
+        await assert.rejects(
+          materializeInitialApplicationRehearsal(
+            descriptor,
+            capacityDigest(descriptor),
+            directory,
+            { read, fetch: fetcher },
+          ),
+        );
+      }
       assert.deepEqual(await readdir(directory), []);
       await assert.rejects(
         materializeInitialApplicationRehearsal(descriptor, "f".repeat(64), directory, {
-          api,
+          read,
           fetch: fetcher,
         }),
       );
@@ -174,40 +199,37 @@ async function initialFixture(t: test.TestContext) {
   t.after(() => rm(root, { recursive: true, force: true }));
   const calls: string[] = [];
   const state = { owner: true, scope: "repo", project: 404, parent: 404, change: false };
-  const api = {
-    request(method: string, endpoint: string) {
-      assert.equal(method, "GET");
-      calls.push(endpoint);
-      const headers = new Map([["x-oauth-scopes", state.scope]]);
-      if (endpoint === "user")
-        return {
-          status: 200,
-          headers,
-          body: { id: state.owner ? 43177418 : 1, login: "boburning" },
-        };
-      if (endpoint === "repos/boburning/portcove")
-        return {
-          status: 200,
-          headers,
-          body: {
-            id: 1354613114,
-            full_name: "boburning/portcove",
-            private: false,
-            owner: { id: 43177418 },
-            permissions: { admin: true },
-          },
-        };
-      const status =
-        endpoint === "repos/boburning/portcove/pages"
-          ? state.change && calls.length > 4
-            ? 200
-            : state.project
-          : endpoint === "repos/boburning/boburning.github.io"
-            ? state.parent
-            : 500;
-      if (status === 404) throw new GitHubApiError("command_failed", "Not Found", { status });
-      return { status, headers, body: {} };
-    },
+  const read = async (endpoint: string) => {
+    calls.push(endpoint);
+    const oauthScopes = state.scope;
+    if (endpoint === "user")
+      return {
+        status: 200,
+        oauthScopes,
+        body: { id: state.owner ? 43177418 : 1, login: "boburning" },
+      };
+    if (endpoint === "repos/boburning/portcove")
+      return {
+        status: 200,
+        oauthScopes,
+        body: {
+          id: 1354613114,
+          full_name: "boburning/portcove",
+          private: false,
+          owner: { id: 43177418 },
+          permissions: { admin: true },
+        },
+      };
+    const status =
+      endpoint === "repos/boburning/portcove/pages"
+        ? state.change && calls.length > 4
+          ? 200
+          : state.project
+        : endpoint === "repos/boburning/boburning.github.io"
+          ? state.parent
+          : 500;
+    if (status === 404) throw new GitHubApiError("command_failed", "Not Found", { status });
+    return { status, oauthScopes, body: {} };
   };
   const fetcher = (async (url, options) => {
     assert.ok(typeof url === "string");
@@ -220,12 +242,39 @@ async function initialFixture(t: test.TestContext) {
     );
     return response(url, Buffer.from("not found"), 404);
   }) as typeof fetch;
-  return { root, calls, state, api, fetcher };
+  return { root, calls, state, read, fetcher };
 }
 
 void test("initial setup observes owner-visible unconfigured project and parent namespace around fixed credential-free 404 routes", async (t) => {
   const f = await initialFixture(t);
-  const result = await observeInitialApplicationSite(f.root, { api: f.api, fetch: f.fetcher });
+  const previous = process.env.GH_TOKEN;
+  const token = "ghs_SYNTHETIC_INITIAL_SITE_READER";
+  process.env.GH_TOKEN = token;
+  t.after(() => {
+    if (previous === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = previous;
+  });
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const url = new URL(input instanceof Request ? input.url : input);
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(init?.method, "GET");
+      assert.equal(new Headers(init.headers).get("authorization"), `token ${token}`);
+      try {
+        const response = await f.read(url.pathname.slice(1));
+        return Response.json(response.body, {
+          status: response.status,
+          headers: { "x-oauth-scopes": response.oauthScopes ?? "" },
+        });
+      } catch (error) {
+        if (!(error instanceof GitHubApiError) || error.status !== 404) throw error;
+        return Response.json({ message: "Not Found" }, { status: 404 });
+      }
+    },
+  );
+  const result = await observeInitialApplicationSite(f.root, { fetch: f.fetcher });
   assert.equal(result.receipt.authority, "none");
   assert.equal(result.receipt.evidence_scope, "injected-provider");
   assert.equal(result.receipt.observations.length, 6);
@@ -247,7 +296,7 @@ void test("public 404 alone cannot appoint an empty site: wrong owner, limited v
     else f.state[kind] = 200;
     await assert.rejects(
       observeInitialApplicationSite(f.root, {
-        api: f.api,
+        read: f.read,
         fetch: async () => assert.fail("provider preimage refused before HTTP"),
       }),
       /initial site observation refused/,
@@ -258,9 +307,9 @@ void test("public 404 alone cannot appoint an empty site: wrong owner, limited v
 
 void test("changing injected setup options while awaiting cannot relabel evidence or replace the fixed reader", async (t) => {
   const f = await initialFixture(t);
-  const options: Parameters<typeof observeInitialApplicationSite>[1] = { api: f.api };
+  const options: Parameters<typeof observeInitialApplicationSite>[1] = { read: f.read };
   options.fetch = async (...args) => {
-    delete options.api;
+    delete options.read;
     delete options.fetch;
     return f.fetcher(...args);
   };
@@ -274,7 +323,7 @@ void test("initial observation retains partial facts and refuses present routes,
   for (const status of [200, 301, 403, 500]) {
     await assert.rejects(
       observeInitialApplicationSite(f.root, {
-        api: f.api,
+        read: f.read,
         fetch: async (url) => {
           assert.ok(typeof url === "string");
           return response(url, Buffer.alloc(0), status);
@@ -286,7 +335,7 @@ void test("initial observation retains partial facts and refuses present routes,
   f.calls.length = 0;
   f.state.change = true;
   await assert.rejects(
-    observeInitialApplicationSite(f.root, { api: f.api, fetch: f.fetcher }),
+    observeInitialApplicationSite(f.root, { read: f.read, fetch: f.fetcher }),
     /refused/,
   );
   const records = await readdir(f.root);

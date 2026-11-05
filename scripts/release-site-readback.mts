@@ -9,8 +9,11 @@ import { performance } from "node:perf_hooks";
 import { readComposedSite, readComposedCatalogSite } from "./release-site-composer.mts";
 import { lstat, mkdir, mkdtemp, realpath, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { GitHubApiClient, GitHubApiError, createGitHubRunner } from "./github-api.mts";
-import type { GitHubRestReader } from "./github-api.mts";
+import { GitHubApiError } from "./github-operation.mts";
+import { localDeveloperCredential } from "./github-cli.mts";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
+import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 
 const origin = "https://boburning.github.io/portcove/";
 const maximumFiles = 6000;
@@ -215,6 +218,47 @@ export async function materializePublishedCatalogCompleteSite(
   return { ...observed, catalog: component_directory };
 }
 
+type InitialSiteRead = (
+  endpoint: string,
+) => Promise<{ status: number; body: unknown; oauthScopes: string | null }>;
+
+async function createInitialSiteReader(
+  deadline: number,
+  requestTimeoutMs: number,
+  maxBytes: number,
+): Promise<InitialSiteRead> {
+  const scoped = readOnlyReleaseChildEnvironment();
+  const credential = scoped
+    ? { kind: "explicit" as const, token: scoped.GH_TOKEN ?? "" }
+    : localDeveloperCredential({ environment: { ...process.env }, deadline });
+  const { createGitHubClient } = await import("./github-client.mts");
+  const client = await createGitHubClient({
+    credential,
+    deadline,
+    requestTimeoutMs,
+    maxBytes,
+    ...(scoped
+      ? {
+          fetch(input, init) {
+            assertTrustedDirectNode("initial Pages observation");
+            return globalThis.fetch(input, init);
+          },
+        }
+      : {}),
+  });
+  return async (endpoint) => {
+    const result = await client.request(`GET /${endpoint}`, {
+      request: { portcove: { replay: "once", attempts: 0 } },
+    });
+    const scopes = result.headers["x-oauth-scopes"];
+    return {
+      status: result.status,
+      body: result.data as unknown,
+      oauthScopes: typeof scopes === "string" ? scopes : null,
+    };
+  };
+}
+
 /** One-time setup preimage, not routine admission or publication authority.
  * A marker 404 alone cannot prove absence: require the actual owner with full
  * repository visibility, no configured project site or user-site repository,
@@ -222,11 +266,10 @@ export async function materializePublishedCatalogCompleteSite(
  * Existing sites require their real preserved inventory, never this path. */
 export async function observeInitialApplicationSite(
   privateParent: string,
-  options: { api?: GitHubRestReader; fetch?: typeof fetch } = {},
+  options: { read?: InitialSiteRead; fetch?: typeof fetch } = {},
 ) {
-  const apiOverride = options.api,
-    fetchOverride = options.fetch;
-  const injected = apiOverride !== undefined || fetchOverride !== undefined;
+  const { read: readOverride, fetch: fetchOverride } = options;
+  const injected = readOverride !== undefined || fetchOverride !== undefined;
   if (!path.isAbsolute(privateParent)) throw new Error("private setup parent required");
   const parent = await lstat(privateParent);
   if (
@@ -236,35 +279,28 @@ export async function observeInitialApplicationSite(
   )
     throw new Error("private setup parent is linked or unavailable");
   const directory = await mkdtemp(path.join(privateParent, "initial-site-readback-"));
-  const deadline = performance.now() + 60_000;
-  const runner = createGitHubRunner({ cwd: directory, timeoutMs: 5000, maxBuffer: 128 * 1024 });
-  const api =
-    apiOverride ??
-    new GitHubApiClient((args, input) => runner([...args, "--hostname", "github.com"], input));
+  const deadline = Math.min(performance.now() + 60_000, coordinatorCommandDeadline() ?? Infinity);
   const observations: unknown[] = [];
   const withinBudget = () => {
     if (performance.now() >= deadline) throw new Error("initial site observation deadline expired");
   };
-  const get = (endpoint: string) => {
+  const get = async (read: InitialSiteRead, endpoint: string) => {
     withinBudget();
     try {
-      const response = api.request("GET", endpoint);
+      const response = await read(endpoint);
       withinBudget();
       return response;
     } catch (error) {
       // Collected 404 only; timeout discards even a partly received response.
       if (!(error instanceof GitHubApiError) || error.status !== 404) throw error;
       withinBudget();
-      return { status: 404, body: null, headers: new Map<string, string>() };
+      return { status: 404, body: null, oauthScopes: null };
     }
   };
-  const provider = () => {
-    const viewer = get("user");
-    const repo = get("repos/boburning/portcove");
-    const scopes = repo.headers
-      .get("x-oauth-scopes")
-      ?.split(",")
-      .map((value) => value.trim());
+  const provider = async (read: InitialSiteRead) => {
+    const viewer = await get(read, "user");
+    const repo = await get(read, "repos/boburning/portcove");
+    const scopes = repo.oauthScopes?.split(",").map((value) => value.trim());
     if (
       viewer.status !== 200 ||
       !isRecord(viewer.body) ||
@@ -282,8 +318,8 @@ export async function observeInitialApplicationSite(
       !scopes?.includes("repo")
     )
       throw new Error("initial absence requires actual owner and full repository visibility");
-    const projectSite = get("repos/boburning/portcove/pages");
-    const userSite = get("repos/boburning/boburning.github.io");
+    const projectSite = await get(read, "repos/boburning/portcove/pages");
+    const userSite = await get(read, "repos/boburning/boburning.github.io");
     if (projectSite.status !== 404 || userSite.status !== 404)
       throw new Error("existing or unavailable Pages origin requires preserved site inventory");
     return {
@@ -295,7 +331,8 @@ export async function observeInitialApplicationSite(
     };
   };
   try {
-    const before = provider();
+    const read = readOverride ?? (await createInitialSiteReader(deadline, 5000, 128 * 1024));
+    const before = await provider(read);
     observations.push({ phase: "provider-before", ...before });
     for (const route of [
       "",
@@ -319,7 +356,7 @@ export async function observeInitialApplicationSite(
       if (response.url !== url || response.status !== 404)
         throw new Error("initial fixed public route is present, redirected or unavailable");
     }
-    const after = provider();
+    const after = await provider(read);
     observations.push({ phase: "provider-after", ...after });
     if (capacityDigest(before) !== capacityDigest(after))
       throw new Error("initial site provider state changed during observation");
@@ -413,7 +450,7 @@ export async function materializeInitialApplicationRehearsal(
   raw: unknown,
   expectedDescriptorSha256: string,
   privateParent: string,
-  options: { api?: GitHubRestReader; fetch?: typeof fetch } = {},
+  options: { read?: InitialSiteRead; fetch?: typeof fetch } = {},
 ) {
   if (
     !digest(expectedDescriptorSha256) ||
@@ -464,13 +501,13 @@ export async function materializeInitialApplicationRehearsal(
     (await realpath(privateParent)) !== privateParent
   )
     throw new Error("initial site parent is linked or unavailable");
-  const deadline = performance.now() + 120000;
-  const api = options.api ?? new GitHubApiClient(createGitHubRunner({ timeoutMs: 30000 }));
+  const deadline = Math.min(performance.now() + 120000, coordinatorCommandDeadline() ?? Infinity);
+  const readMetadata = options.read ?? (await createInitialSiteReader(deadline, 30000, 65536));
   let requests = 0;
-  const get = (suffix: string) => {
+  const get = async (suffix: string) => {
     if (++requests > 7 || performance.now() >= deadline)
       throw new Error("initial rehearsal provider observation bound exhausted");
-    const response = api.request("GET", `repos/boburning/portcove${suffix}`);
+    const response = await readMetadata(`repos/boburning/portcove${suffix}`);
     if (
       response.status !== 200 ||
       performance.now() >= deadline ||
@@ -479,16 +516,16 @@ export async function materializeInitialApplicationRehearsal(
       throw new Error("initial rehearsal provider observation unavailable");
     return response.body;
   };
-  const repository = get("");
+  const repository = await get("");
   if (
     !isRecord(repository) ||
     repository.id !== 1354613114 ||
     repository.full_name !== "boburning/portcove"
   )
     throw new Error("initial rehearsal repository differs");
-  const provider = () => {
-    const pages = get("/pages");
-    const deployments = get("/deployments?environment=github-pages&per_page=1");
+  const provider = async () => {
+    const pages = await get("/pages");
+    const deployments = await get("/deployments?environment=github-pages&per_page=1");
     if (
       !isRecord(pages) ||
       pages.html_url !== origin ||
@@ -507,7 +544,7 @@ export async function materializeInitialApplicationRehearsal(
       deployment.id < 1
     )
       throw new Error("initial rehearsal deployment unavailable");
-    const statuses = get(`/deployments/${deployment.id}/statuses?per_page=1`);
+    const statuses = await get(`/deployments/${deployment.id}/statuses?per_page=1`);
     const status: unknown = Array.isArray(statuses) && statuses.length === 1 ? statuses[0] : null;
     if (!isRecord(status) || status.state !== "success")
       throw new Error("initial rehearsal latest deployment has not succeeded");
@@ -528,7 +565,7 @@ export async function materializeInitialApplicationRehearsal(
     if (capacityDigest(observed) !== capacityDigest(raw.provider))
       throw new Error("initial rehearsal Pages preimage changed");
   };
-  provider();
+  await provider();
   const read = publicReader(deadline, options.fetch);
   const files = new Map<string, Buffer>();
   for (const file of identities) {
@@ -555,7 +592,7 @@ export async function materializeInitialApplicationRehearsal(
     if (response.status !== 404 || response.url !== url || performance.now() >= deadline)
       throw new Error("initial production route is present or unavailable");
   }
-  provider();
+  await provider();
   const directory = await mkdtemp(path.join(privateParent, "retained-rehearsal-"));
   for (const [name, bytes] of files) {
     const destination = path.join(directory, name);
