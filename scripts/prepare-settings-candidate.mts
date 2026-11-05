@@ -361,7 +361,7 @@ export async function prepareSettingsCandidate(options: {
       await json(join(checkpoint, "before-update.json"), before);
       if (!isRecord(before)) throw new Error("Core settings candidate status is absent.");
       if (planned && before.active === null && before.staged === null && before.previous === null) {
-        const args = ["install", record.listing.id, "--yes"];
+        const args = ["install", record.listing.id, "--channel", "stable"];
         if (typeof record.integration?.source_profile === "string")
           args.push("--source", copiedOriginal);
         await run(args);
@@ -369,7 +369,7 @@ export async function prepareSettingsCandidate(options: {
         if (!isRecord(before.active) || !isRecord(before.active.artifact))
           throw new Error("Settings candidate library has no retained managed baseline.");
         if (before.active.artifact.sha256 !== asset.sha256)
-          await run(["update", record.listing.id, "--yes"]);
+          await run(["update", record.listing.id]);
       }
     } else {
       const baseline = await json(join(checkpoint, "baseline-release.json"), release);
