@@ -128,6 +128,94 @@ export async function recoveryFixture(
   const faults = { value: "" };
   let reads = 0;
   let refReads = 0;
+  const readRef = (id: string, ref: string) => {
+    assert.equal(id, "R_fixture");
+
+    refReads++;
+    const prefix = ref.startsWith("refs/heads/") ? "refs/heads/" : "refs/tags/";
+    return {
+      data: {
+        node: {
+          __typename: "Repository",
+          id: "R_fixture",
+          databaseId: faults.value === "repository" && refReads > 1 ? 1 : 1354613114,
+          nameWithOwner: "boburning/portcove",
+          ref: {
+            name: ref.slice(prefix.length),
+            prefix,
+            target: {
+              __typename: "Commit",
+              oid: faults.value === "changed" && refReads > 4 ? "9".repeat(40) : refs.get(ref),
+            },
+          },
+        },
+      },
+    };
+  };
+  const readObject = (endpoint: string) => {
+    const id = endpoint.split("/").at(-1)!;
+    if (endpoint.includes("/git/commits/")) {
+      const raw = execFileSync("git", ["-C", local.repository, "cat-file", "commit", id], {
+        encoding: "utf8",
+        windowsHide: true,
+      });
+      const boundary = raw.indexOf("\n\n");
+      const header = raw.slice(0, boundary);
+      const field = (name: string) =>
+        header
+          .split("\n")
+          .find((line) => line.startsWith(`${name} `))!
+          .slice(name.length + 1);
+      const actor = (name: string) => {
+        const match = /^(.*) <(.*)> (\d+) [+-]\d{4}$/u.exec(field(name))!;
+        return {
+          name: match[1],
+          email: match[2],
+          date: new Date(Number(match[3]) * 1000).toISOString().replace(".000Z", "Z"),
+        };
+      };
+      const signatureStart = header.indexOf("\ngpgsig ");
+      const signature =
+        signatureStart < 0 ? null : `${header.slice(signatureStart + 8).replaceAll("\n ", "\n")}\n`;
+      const payload =
+        signatureStart < 0 ? null : `${header.slice(0, signatureStart)}${raw.slice(boundary)}`;
+      return {
+        sha: id,
+        tree: { sha: field("tree") },
+        parents: header
+          .split("\n")
+          .filter((line) => line.startsWith("parent "))
+          .map((line) => ({ sha: line.slice(7) })),
+        author: actor("author"),
+        committer: actor("committer"),
+        message: faults.value === "message" ? "substitution" : raw.slice(boundary + 2),
+        verification: { signature, payload },
+      };
+    } else if (endpoint.includes("/git/trees/")) {
+      const entry = local.git("ls-tree", id).match(/^100644 blob ([a-f0-9]{40})\tstate.json$/u)!;
+      return {
+        sha: id,
+        truncated: faults.value === "truncated",
+        tree: [{ path: "state.json", mode: "100644", type: "blob", sha: entry[1] }],
+      };
+    } else {
+      assert.ok(endpoint.includes("/git/blobs/"));
+      const bytes = execFileSync("git", ["-C", local.repository, "cat-file", "blob", id], {
+        windowsHide: true,
+      });
+      return {
+        sha: id,
+        encoding: "base64",
+        size: faults.value === "size" ? 65537 : bytes.length,
+        content: bytes.toString("base64"),
+      };
+    }
+  };
+  const readRepository = () => ({
+    id: 1354613114,
+    full_name: "boburning/portcove",
+    node_id: "R_fixture",
+  });
   const transport = {
     cwd: parent,
     spawn: (
@@ -155,94 +243,12 @@ export async function recoveryFixture(
         const input = JSON.parse(options.input as string) as {
           variables: { id: string; ref: string };
         };
-        assert.equal(input.variables.id, "R_fixture");
-        const ref = input.variables.ref;
-        refReads++;
-        const prefix = ref.startsWith("refs/heads/") ? "refs/heads/" : "refs/tags/";
-        body = {
-          data: {
-            node: {
-              __typename: "Repository",
-              id: "R_fixture",
-              databaseId: faults.value === "repository" && refReads > 1 ? 1 : 1354613114,
-              nameWithOwner: "boburning/portcove",
-              ref: {
-                name: ref.slice(prefix.length),
-                prefix,
-                target: {
-                  __typename: "Commit",
-                  oid: faults.value === "changed" && refReads > 4 ? "9".repeat(40) : refs.get(ref),
-                },
-              },
-            },
-          },
-        };
-      } else if (endpoint === "repos/boburning/portcove")
-        body = { id: 1354613114, full_name: "boburning/portcove", node_id: "R_fixture" };
+        body = readRef(input.variables.id, input.variables.ref);
+      } else if (endpoint === "repos/boburning/portcove") body = readRepository();
       else {
         assert.deepEqual(args.slice(-2), ["--method", "GET"]);
         assert.equal(options.input, undefined);
-        const id = endpoint.split("/").at(-1)!;
-        if (endpoint.includes("/git/commits/")) {
-          const raw = execFileSync("git", ["-C", local.repository, "cat-file", "commit", id], {
-            encoding: "utf8",
-            windowsHide: true,
-          });
-          const boundary = raw.indexOf("\n\n");
-          const header = raw.slice(0, boundary);
-          const field = (name: string) =>
-            header
-              .split("\n")
-              .find((line) => line.startsWith(`${name} `))!
-              .slice(name.length + 1);
-          const actor = (name: string) => {
-            const match = /^(.*) <(.*)> (\d+) [+-]\d{4}$/u.exec(field(name))!;
-            return {
-              name: match[1],
-              email: match[2],
-              date: new Date(Number(match[3]) * 1000).toISOString().replace(".000Z", "Z"),
-            };
-          };
-          const signatureStart = header.indexOf("\ngpgsig ");
-          const signature =
-            signatureStart < 0
-              ? null
-              : `${header.slice(signatureStart + 8).replaceAll("\n ", "\n")}\n`;
-          const payload =
-            signatureStart < 0 ? null : `${header.slice(0, signatureStart)}${raw.slice(boundary)}`;
-          body = {
-            sha: id,
-            tree: { sha: field("tree") },
-            parents: header
-              .split("\n")
-              .filter((line) => line.startsWith("parent "))
-              .map((line) => ({ sha: line.slice(7) })),
-            author: actor("author"),
-            committer: actor("committer"),
-            message: faults.value === "message" ? "substitution" : raw.slice(boundary + 2),
-            verification: { signature, payload },
-          };
-        } else if (endpoint.includes("/git/trees/")) {
-          const entry = local
-            .git("ls-tree", id)
-            .match(/^100644 blob ([a-f0-9]{40})\tstate.json$/u)!;
-          body = {
-            sha: id,
-            truncated: faults.value === "truncated",
-            tree: [{ path: "state.json", mode: "100644", type: "blob", sha: entry[1] }],
-          };
-        } else {
-          assert.ok(endpoint.includes("/git/blobs/"));
-          const bytes = execFileSync("git", ["-C", local.repository, "cat-file", "blob", id], {
-            windowsHide: true,
-          });
-          body = {
-            sha: id,
-            encoding: "base64",
-            size: faults.value === "size" ? 65537 : bytes.length,
-            content: bytes.toString("base64"),
-          };
-        }
+        body = readObject(endpoint);
       }
       return {
         status: 0,
@@ -251,7 +257,18 @@ export async function recoveryFixture(
       };
     },
   };
-  return { ...local, saved, parent, refs, faults, transport, reads: () => reads };
+  return {
+    ...local,
+    saved,
+    parent,
+    refs,
+    faults,
+    transport,
+    readRepository,
+    readObject,
+    readRef,
+    reads: () => reads,
+  };
 }
 
 export function gitObject(kind: string, bytes: Buffer) {
