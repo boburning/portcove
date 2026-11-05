@@ -4628,6 +4628,7 @@ void test("GitHub dependency changes select actual SDK and REST integration cont
       "scripts/release-publication-controller.test.mts",
       "scripts/release-publication-result-artifact.test.mts",
       "scripts/release-immutable-publication.test.mts",
+      "scripts/release-candidate-signing-recovery.test.mts",
       "scripts/release-signing-handoff.test.mts",
       "scripts/release-signing-context-artifact.test.mts",
       "scripts/release-tuf-role-artifact.test.mts",
@@ -4645,6 +4646,7 @@ void test("GitHub dependency changes select actual SDK and REST integration cont
   );
   assert.ok(custodyChange.nodeTests.has("scripts/release-signing-handoff.test.mts"));
   assert.ok(custodyChange.nodeTests.has("scripts/release-immutable-publication.test.mts"));
+  assert.ok(custodyChange.nodeTests.has("scripts/release-candidate-signing-recovery.test.mts"));
   assert.ok(custodyChange.nodeTests.has("scripts/release-signing-context-artifact.test.mts"));
   assert.ok(custodyChange.nodeTests.has("scripts/release-tuf-role-artifact.test.mts"));
   for (const name of ["ci-health", "handoff-evidence", "postmerge-ci"]) {

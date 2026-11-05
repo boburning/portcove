@@ -26,6 +26,7 @@ type ReleaseCustodyProvider = HistoricalJobProvider &
   ImmutableReleaseMetadataProvider & {
     run(id: string): Promise<unknown>;
     artifact(id: number): Promise<unknown>;
+    runArtifacts(id: string, page: number): Promise<unknown>;
   };
 export type SigningOutputMetadataProvider = Pick<
   ReleaseCustodyProvider,
@@ -119,6 +120,15 @@ export async function createReleaseCustodyProvider(options: {
     async run(id) {
       return (await get("/repos/{owner}/{repo}/actions/runs/{run_id}", { run_id: id }))
         .data as unknown;
+    },
+    async runArtifacts(id, page) {
+      return (
+        await get("/repos/{owner}/{repo}/actions/runs/{run_id}/artifacts", {
+          run_id: id,
+          page,
+          per_page: 100,
+        })
+      ).data as unknown;
     },
     async artifact(id) {
       return (

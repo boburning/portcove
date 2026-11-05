@@ -525,7 +525,11 @@ for (const [file, tests] of [
   ],
   [
     "scripts/release-candidate-signing-recovery.mts",
-    ["scripts/release-candidate-signing-recovery.test.mts"],
+    [
+      "scripts/release-candidate-signing-recovery.test.mts",
+      "scripts/release-pending-release-recovery.test.mts",
+      "scripts/release-pending-result-recovery.test.mts",
+    ],
   ],
   [
     "scripts/release-pending-release-recovery.mts",
@@ -770,6 +774,7 @@ for (const [file, tests] of [
     [
       "scripts/release-publication-result-artifact.test.mts",
       "scripts/release-immutable-publication.test.mts",
+      "scripts/release-candidate-signing-recovery.test.mts",
       "scripts/release-signing-handoff.test.mts",
       "scripts/release-signing-context-artifact.test.mts",
       "scripts/release-tuf-role-artifact.test.mts",
@@ -2208,6 +2213,7 @@ for (const file of [
     "scripts/release-publication-controller.test.mts",
     "scripts/release-publication-result-artifact.test.mts",
     "scripts/release-immutable-publication.test.mts",
+    "scripts/release-candidate-signing-recovery.test.mts",
     "scripts/release-signing-handoff.test.mts",
     "scripts/release-signing-context-artifact.test.mts",
     "scripts/release-tuf-role-artifact.test.mts",
