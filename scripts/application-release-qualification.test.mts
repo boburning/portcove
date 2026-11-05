@@ -226,17 +226,28 @@ void test("locked SDK reads exact qualification recipes and rechecks the run aft
     deadline,
     remainingDeadline: () => deadline,
     maxBytes: 2 * 1024 ** 2,
+    maxRequests: 7,
     apiVersion: "2022-11-28",
     fetch: async (input, init) => {
-      assert.ok(typeof input === "string");
-      const url = new URL(input);
-      assert.equal(url.origin, "https://api.github.com");
+      const url = new URL(input instanceof Request ? input.url : input);
+      const signed =
+        "https://productionresultssa1.blob.core.windows.net/actions-results/qualification?sig=fixture";
       assert.equal(init?.method, "GET");
+      assert.equal(init.redirect, "manual");
+      if (url.href === signed) {
+        assert.equal(init.credentials, "omit");
+        assert.equal(new Headers(init.headers).has("authorization"), false);
+        seen.push("signed qualification body");
+        return new Response(archive);
+      }
+      assert.equal(url.origin, "https://api.github.com");
       assert.equal(
         new Headers(init?.headers).get("authorization"),
         "token synthetic-qualification-reader",
       );
       seen.push(url.pathname + url.search);
+      if (url.pathname === `${root}/actions/artifacts/91/zip`)
+        return new Response(null, { status: 302, headers: { location: signed } });
       if (url.pathname === runRoute) return Response.json(run);
       if (url.pathname === `${runRoute}/attempts/${run.run_attempt}/jobs`)
         return Response.json(jobs);
@@ -256,15 +267,8 @@ void test("locked SDK reads exact qualification recipes and rechecks the run aft
       });
     },
   });
-  const result = await readWindowsApplicationQualification(provider, run.id, source, {
-    deadline,
-    download(route, options) {
-      assert.equal(route, "repos/boburning/portcove/actions/artifacts/91/zip");
-      assert.equal(options.maxBytes, 1024 ** 2);
-      assert.equal(seen.length, 5);
-      return archive;
-    },
-  });
+  const result = await readWindowsApplicationQualification(provider, run.id, source, { deadline });
+  await assert.rejects(provider.artifact(91), /request budget exhausted/u);
   assert.equal(result.plan_artifact_sha256, sha);
   assert.deepEqual(seen, [
     runRoute,
@@ -272,6 +276,8 @@ void test("locked SDK reads exact qualification recipes and rechecks the run aft
     `${root}/contents/${encodeURIComponent(".github/workflows/qualification.yml")}?ref=${source}`,
     `${runRoute}/attempts/${run.run_attempt}/jobs?per_page=100`,
     `${runRoute}/artifacts?per_page=100`,
+    `${root}/actions/artifacts/91/zip`,
+    "signed qualification body",
     runRoute,
   ]);
 });
