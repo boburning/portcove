@@ -8,7 +8,6 @@
     "issue_number": 4221,
     "original_game_title": "WinBack: Covert Operations",
     "availability": "unknown",
-    "platforms": [],
     "setup_url": "https://github.com/RetroPulse03/WinBackRecomp/blob/83d35d08f0839e3084d915f1177dc70e8d03cb96/README.md",
     "manual_setup": {
       "help_url": "https://github.com/RetroPulse03/WinBackRecomp/blob/83d35d08f0839e3084d915f1177dc70e8d03cb96/README.md",
@@ -39,6 +38,70 @@
       "data_locations": [
         "ROM copy, settings.json, saves/ including Controller Pak and checkpoints, mods and renderer data in the game folder"
       ]
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": [
+      "stable"
+    ],
+    "platforms": [
+      "windows-x86-64"
+    ],
+    "adapter": "staged-source-portable",
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "release": {
+      "provider": "github",
+      "repository": "RetroPulse03/WinBackRecomp",
+      "asset_hints": {
+        "windows-x86-64": [
+          "WinBackRecompiled-",
+          "-Windows-x64.zip"
+        ]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": [
+        "WinBackRecompiled.exe"
+      ]
+    },
+    "launch_environment": {
+      "RECOMPLAUNCHER": "1"
+    },
+    "persistent_paths": [
+      "winback.us.z64",
+      "settings.json",
+      "saves",
+      "mods",
+      "mods.json",
+      "mods.json.tmp",
+      "mod_config",
+      "rt64"
+    ],
+    "runtime_mutable_paths": [
+      "logs/winback.log",
+      "logs/winback.previous.log"
+    ],
+    "archive_data_compatibility_v1": {
+      "contract_id": "winback-recomp-conventional-v1",
+      "shared_paths": [
+        "winback.us.z64",
+        "settings.json",
+        "saves/controller_pak_1.bin",
+        "saves/controller_pak_2.bin",
+        "saves/controller_pak_3.bin",
+        "saves/controller_pak_4.bin"
+      ],
+      "build_specific_progress_paths": [
+        "saves/checkpoints"
+      ]
+    },
+    "presentation": {
+      "installation_method": "portable-recompilation",
+      "source_requirements": [],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "On first Play, select your own US WinBack Nintendo 64 game file in big-endian .z64 format. The game verifies and stores its copy inside the managed installation. Portcove preserves that copy, display settings and Controller Pak saves across compatible updates. Recorded checkpoints, mod files and renderer data stay with the runtime that created them. Runtime rollback carries current shared saves and does not rewind progress. Use Windows 10 or 11 with Vulkan and the x64 Microsoft Visual C++ 2015–2022 Redistributable."
     }
   }
 }

@@ -2013,7 +2013,9 @@ Core source profile is not evidence that no original files are required: keep
 upstream preparation and original-file ownership explicit. Common
 registration/ownership/removal, declared managed preservation and rollback
 explanations come from `scripts/catalog-route-facts.mts`. Bespoke guide actions,
-source/edition requirements and immediate warnings remain explicit. No guide
+source/edition requirements and immediate warnings remain explicit. A staged-source
+archive can use prepared-player facts for its independent external route. Its
+managed presentation and source/data contract remain explicitly authored. No guide
 paragraph or descriptive fact authorizes execution or data ownership.
 Literal arguments preserve empty values, whitespace, repeated flags and order.
 They use Core's existing limit of 64 arguments and 32 KiB total UTF-8, with NUL

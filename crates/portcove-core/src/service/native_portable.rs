@@ -4068,6 +4068,14 @@ mod tests {
                 "saves/save1.sav",
                 Some("saves/save.srm"),
             ),
+            (
+                "retropulse03-winback-n64recomp",
+                "WinBackRecompiled.exe",
+                "WinBackRecompiled-",
+                "settings.json",
+                "saves/checkpoints/mission-1.bin",
+                Some("saves/controller_pak_1.bin"),
+            ),
         ];
         let mut completed = std::collections::BTreeSet::new();
         for (id, executable, prefix, settings, state, sram) in cases {
@@ -4084,13 +4092,19 @@ mod tests {
                 [executable]
             );
             let original = b"lawful fixed first-party original fixture";
-            let fixed = compatible_archive_fixture_catalog(declared.clone(), original);
+            let fixed = if declared.source_profile.is_some() {
+                compatible_archive_fixture_catalog(declared.clone(), original)
+            } else {
+                embedded
+            };
             let definition = serde_json::to_vec(&fixed.authoritative_document()).unwrap();
             let definition_sha256 = hex::encode(Sha256::digest(&definition));
             let package = |version: &str, revision| {
                 let mut release = server.release_in_folder(version, revision, "", executable);
                 release.asset.name = if id == "super-metroid-recomp" {
                     format!("{prefix}{version}-windows-x64.zip")
+                } else if id == "retropulse03-winback-n64recomp" {
+                    format!("{prefix}{version}-Windows-x64.zip")
                 } else {
                     format!("{prefix}{version}.zip")
                 };
@@ -4167,14 +4181,18 @@ mod tests {
                 "owned.sfc"
             });
             fs::write(&source, original).unwrap();
-            service
-                .register_source(declared.source_profile.as_ref().unwrap(), &source)
-                .unwrap();
+            if let Some(profile) = &declared.source_profile {
+                service.register_source(profile, &source).unwrap();
+            }
             let first = service
                 .install(id, None, None, None, true, |_| {})
                 .await
                 .unwrap();
-            service.prepare_launch(id, None).unwrap();
+            let launch = service.prepare_launch(id, None).unwrap();
+            if id == "retropulse03-winback-n64recomp" {
+                assert_eq!(launch.environment["RECOMPLAUNCHER"], "1");
+                fs::write(first.path.join("winback.us.z64"), original).unwrap();
+            }
             fs::write(first.path.join(settings), b"player settings from N").unwrap();
             fs::create_dir_all(first.path.join(state).parent().unwrap()).unwrap();
             fs::write(first.path.join(state), b"N-only host snapshot").unwrap();
@@ -4206,18 +4224,20 @@ mod tests {
             assert_eq!(update.release.version, "fixture-next");
             assert_eq!(update.release.asset.sha256, next_release.asset.sha256);
             assert!(update.update_available);
-            let source_contract = fixed
-                .source_catalog()
-                .unwrap()
-                .contracts
-                .iter()
-                .find(|c| c.port_id == id)
-                .unwrap();
-            assert!(
-                source_contract
-                    .applies_to_release(&update.release.version, &update.release.asset.sha256),
-                "the unchanged reusable source policy must cover the newly resolved artifact"
-            );
+            if declared.source_profile.is_some() {
+                let source_contract = fixed
+                    .source_catalog()
+                    .unwrap()
+                    .contracts
+                    .iter()
+                    .find(|c| c.port_id == id)
+                    .unwrap();
+                assert!(
+                    source_contract
+                        .applies_to_release(&update.release.version, &update.release.asset.sha256),
+                    "the unchanged reusable source policy must cover the newly resolved artifact"
+                );
+            }
             let plan = service.plan_install(id, None).await.unwrap();
             assert!(
                 plan.preservation_notices
@@ -4236,6 +4256,12 @@ mod tests {
             );
             assert_eq!(service.status(id).unwrap().active.unwrap().id, first.id);
             let second = service.activate_staged(id).unwrap();
+            if id == "retropulse03-winback-n64recomp" {
+                assert_eq!(
+                    fs::read(second.path.join("winback.us.z64")).unwrap(),
+                    original
+                );
+            }
             assert_eq!(
                 fs::read(second.path.join(settings)).unwrap(),
                 b"player settings from N"
@@ -4406,7 +4432,7 @@ mod tests {
         }
         assert_eq!(
             completed.len(),
-            3,
+            4,
             "every declared representative must execute exactly once"
         );
         assert_eq!(
