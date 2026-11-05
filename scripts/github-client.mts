@@ -20,6 +20,8 @@ export interface GitHubRequestPolicy {
   attempts: number;
   /** A caller may reduce the shared three-attempt allowance. */
   maxAttempts?: number;
+  /** When redirects are observed, read bodies only for these diagnostic statuses. */
+  readRedirectBodyFor?: readonly number[];
   /** Request-owned evidence; no mutable client-wide last response. */
   observe?: (observation: GitHubAttemptObservation) => void;
   deadline?: number;
@@ -48,6 +50,8 @@ export interface GitHubClientOptions {
   deadline: number;
   signal?: AbortSignal;
   maxBytes?: number;
+  /** Return bounded redirect metadata as an HTTP fact; redirects are never followed. */
+  observeRedirects?: boolean;
   headers?: Readonly<Record<string, string>>;
   baseUrl?: string;
   fetch?: typeof globalThis.fetch;
@@ -316,8 +320,21 @@ export async function createGitHubClient(options: GitHubClientOptions) {
             observation.status = response.status;
             observation.headers = Object.fromEntries(response.headers);
             if (response.status >= 300 && response.status < 400 && response.status !== 304) {
-              await response.body?.cancel();
-              throw new GitHubApiError("redirect_refused", "GitHub API redirect was refused");
+              if (!options.observeRedirects) {
+                await response.body?.cancel();
+                throw new GitHubApiError("redirect_refused", "GitHub API redirect was refused");
+              }
+              if (
+                policy.readRedirectBodyFor &&
+                !policy.readRedirectBodyFor.includes(response.status)
+              ) {
+                await response.body?.cancel();
+                return new Response(null, {
+                  status: response.status,
+                  statusText: response.statusText,
+                  headers: response.headers,
+                });
+              }
             }
             const chunks: Uint8Array[] = [];
             const reader = response.body?.getReader();

@@ -20,7 +20,9 @@ export function setupRoutePresentation(entry: CatalogEntry, status?: PortStatus)
   );
   const promoteAlternative = !occupied && !entry.pendingSetup && existing && !preferredManaged;
   const routes = [
-    ...(entry.definition ? managed.routes : []),
+    // Some maintained callers pass a bare definition. Keep every supplied Core
+    // assessment visible without requiring the optional display wrapper.
+    ...managed.routes,
     ...(entry.listing?.manual_setup || entry.listing?.setup_url
       ? [
           {

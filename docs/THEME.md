@@ -81,9 +81,13 @@ text/state/focus contrast pairs and affected accessibility checks.
 | Unknown/disabled            | Neutral; never inferred success                                                |
 | Artwork                     | Separate surfaces suitable for letterboxing and fallback lettering             |
 
-Stable game-port channels are green, Preview (`beta`) blue and Rolling attention
-gold. A channel does not establish support, readiness, qualification or upstream
-health. Current/completed application updates are green, availability gold,
+Game-port identity chips use Stable green (`#22C55E`), Preview (`beta`) amber
+(`#F59E0B`) and Rolling blue (`#3B82F6`), owned by
+[`identity-style.ts`](../apps/desktop/src/features/identity/identity-style.ts).
+This decorative identity palette is separate from semantic status badges and the
+selection, gold keyboard/controller focus, success and danger roles owned by the
+shared tokens and controls. Preserve labels and non-color cues. A channel does
+not establish support, readiness, qualification or upstream health. Current/completed application updates are green, availability gold,
 verified/staged blue, and failure/recovery red. Source support, informational,
 unreviewed and incompatible facts remain separate labeled states. Core owns
 those facts; controls do not invent eligibility or storage thresholds.

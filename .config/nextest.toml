@@ -8,6 +8,27 @@ status-level = "pass"
 final-status-level = "slow"
 
 
+# CI 41934461132/a1 Windows partition5 retained this exact 30.059s cutoff
+# after admission, two installs, transition/startup and preservation at29.042s.
+# Give only this Windows fixture finite90s completion. Keep every assertion,
+# product/child deadline, worker setting, cleanup and zero retries.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_activation_recovery_withdrawal_permits_local_commit$/)'
+slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
+success-output = "immediate"
+
+# The same partition retained this complete three-version Tails fixture's
+# 90.350s cutoff. It includes backup, rollback, consented restore and interrupted
+# activation/recovery. Give only this Windows case finite180s completion and
+# phase observations; preserve all assertions, product deadlines and zero retries.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::native_portable::tests::tails_nativeportable_progression_rollback_backup_restore_recovery_1895$/)'
+slow-timeout = { period = "5s", terminate-after = 36, grace-period = "0s" }
+success-output = "immediate"
+
+
 # CI 41868332544/a1 Windows 6 retained a 30.190s cutoff in this unchanged
 # inert prepared-manifest/catalog/backup fixture; the same case passed in
 # 8.274s in 41855177445/a1. Allow only this Windows case finite 60s completion.

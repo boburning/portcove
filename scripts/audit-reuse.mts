@@ -16,7 +16,6 @@ import { AUDIT_STAGES } from "./audit-contract.mts";
 import { fingerprintStage } from "./validation-evidence.mts";
 import { AUDIT_BUNDLE_LIMITS, buildAuditBundle } from "./audit-evidence.mts";
 import { parseAuditArchive } from "./audit-archive.mts";
-import { createGitHubRunner } from "./github-api.mts";
 import { renderBoundedSummary } from "./report-summary.mts";
 
 import {
@@ -42,17 +41,16 @@ interface ReuseResult {
   examinedRuns?: number;
   downloads?: number;
 }
-export interface AuditRequestOptions {
-  binary: boolean;
-  timeoutMs: number;
-  cwd: string;
+export interface AuditOperations {
+  metadata(endpoint: string, timeoutMs: number): Promise<unknown>;
+  archive(endpoint: string, timeoutMs: number): Promise<Buffer>;
 }
 export interface AuditReuseOptions {
   workflowDigest?: string;
   fresh?: boolean;
   clock?: () => number;
   root?: string;
-  request?: (endpoint: string, options: AuditRequestOptions) => unknown;
+  operations?: AuditOperations;
 }
 function record(value: unknown, reason = "invalid-bundle") {
   requireValid(isRecord(value), reason);
@@ -479,36 +477,88 @@ export function importAuditReceipts(
   return { imported, misses, provenance };
 }
 
-function defaultRequest(
-  endpoint: string,
-  { binary, timeoutMs, cwd }: AuditRequestOptions,
-): unknown {
-  if (!binary)
-    return JSON.parse(
-      createGitHubRunner({ cwd, timeoutMs, maxBuffer: 2 * 1024 * 1024 })(["api", endpoint]),
-    );
-  try {
-    return readGitHubArtifactArchive(endpoint, {
-      cwd,
-      timeoutMs,
-      maxBytes: AUDIT_BUNDLE_LIMITS.compressedBytes,
-    });
-  } catch {
-    return reject("provider-unavailable");
-  }
+/** One audit-command metadata scope. Artifact bytes remain on the identified
+ * bounded acquisition path until the release byte-reader cohort migrates. */
+export async function createAuditOperations(options: {
+  root: string;
+  deadline: number;
+  environment?: NodeJS.ProcessEnv;
+  fetch?: typeof globalThis.fetch;
+}): Promise<AuditOperations> {
+  const { createGitHubClient } = await import("./github-client.mts");
+  const { localDeveloperCredential } = await import("./github-cli.mts");
+  const prefix = `/repos/${repositoryName}`;
+  let requests = 0,
+    received = 0;
+  const sdk = await createGitHubClient({
+    credential: localDeveloperCredential({
+      deadline: options.deadline,
+      ...(options.environment ? { environment: options.environment } : {}),
+    }),
+    deadline: options.deadline,
+    maxBytes: 2 * 1024 * 1024,
+    ...(options.fetch ? { fetch: options.fetch } : {}),
+    headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
+    allowRequest: (method, url) =>
+      method === "GET" &&
+      (url.pathname === prefix || url.pathname.startsWith(`${prefix}/`)) &&
+      !url.pathname.endsWith("/zip"),
+    reserve() {
+      requireValid(++requests <= 512, "provider-coverage-unavailable");
+      return {
+        consumeBytes(bytes) {
+          received += bytes;
+          requireValid(received <= 64 * 1024 * 1024, "provider-coverage-unavailable");
+        },
+        settle() {},
+      };
+    },
+  });
+  return {
+    async metadata(endpoint, timeoutMs) {
+      requireValid(
+        endpoint === route || endpoint.startsWith(`${route}/`),
+        "provider-identity-unavailable",
+      );
+      requireValid(
+        Number.isSafeInteger(timeoutMs) && timeoutMs > 0 && timeoutMs <= 15000,
+        "collection-deadline",
+      );
+      return (
+        await sdk.request({
+          method: "GET",
+          url: `https://api.github.com/${endpoint}`,
+          request: {
+            portcove: {
+              replay: "once",
+              attempts: 0,
+              deadline: Math.min(options.deadline, performance.now() + timeoutMs),
+            },
+          },
+        })
+      ).data as unknown;
+    },
+    async archive(endpoint, timeoutMs) {
+      return readGitHubArtifactArchive(endpoint, {
+        cwd: options.root,
+        timeoutMs,
+        maxBytes: AUDIT_BUNDLE_LIMITS.compressedBytes,
+      });
+    },
+  };
 }
 
-export function discoverAuditReceipts(
+export async function discoverAuditReceipts(
   currentPlan: CurrentPlan,
   options: AuditReuseOptions = {},
-): ReuseResult {
+): Promise<ReuseResult> {
   if (options.fresh || currentPlan.profile === "transition")
     return { status: "skipped", reason: "fresh-required", imported: [] };
   const needed = new Set(
     currentPlan.stages.filter((s) => s.reusable && s.action !== "reuse").map((s) => s.id),
   );
   if (!needed.size) return { status: "skipped", reason: "existing-local-evidence", imported: [] };
-  const clock = options.clock ?? Date.now,
+  const clock = options.clock ?? (() => performance.now()),
     deadline = clock() + 60000;
   const misses: AuditMiss[] = [],
     imported: string[] = [];
@@ -517,23 +567,31 @@ export function discoverAuditReceipts(
   const active = () => {
     requireValid(clock() < deadline, "collection-deadline");
   };
-  const request = (endpoint: string, binary = false) => {
+  let operations: Promise<AuditOperations> | undefined;
+  const request = async (endpoint: string, binary = false) => {
     active();
-    const value = (options.request ?? defaultRequest)(endpoint, {
-      binary,
-      timeoutMs: Math.min(15000, Math.max(1, deadline - clock())),
-      cwd: options.root ?? process.cwd(),
-    });
+    operations ??= options.operations
+      ? Promise.resolve(options.operations)
+      : createAuditOperations({
+          root: options.root ?? process.cwd(),
+          deadline: performance.now() + Math.max(0, deadline - clock()),
+        });
+    const provider = await operations;
+    active();
+    const timeoutMs = Math.min(15000, Math.max(1, Math.ceil(deadline - clock())));
+    const value = await (binary
+      ? provider.archive(endpoint, timeoutMs)
+      : provider.metadata(endpoint, timeoutMs));
     active();
     return value;
   };
-  const requestRecord = (endpoint: string) =>
-    record(request(endpoint), "provider-coverage-unavailable");
-  const collection = (endpoint: string, key: string) => {
+  const requestRecord = async (endpoint: string) =>
+    record(await request(endpoint), "provider-coverage-unavailable");
+  const collection = async (endpoint: string, key: string) => {
     const entries: Record<string, unknown>[] = [];
     let total: number | null = null;
     for (let page = 1; page <= 10; page++) {
-      const data = requestRecord(`${endpoint}?per_page=100&page=${page}`);
+      const data = await requestRecord(`${endpoint}?per_page=100&page=${page}`);
       const pageEntries = data[key];
       requireValid(
         typeof data.total_count === "number" &&
@@ -560,16 +618,16 @@ export function discoverAuditReceipts(
     reject("provider-coverage-unavailable");
   };
   try {
-    const repository = requestRecord(route),
+    const repository = await requestRecord(route),
       mainSha = record(
-        requestRecord(`${route}/git/ref/heads/main`).object,
+        (await requestRecord(`${route}/git/ref/heads/main`)).object,
         "provider-identity-unavailable",
       ).sha;
     requireValid(
       repository.full_name === repositoryName && typeof mainSha === "string" && sha.test(mainSha),
       "provider-identity-unavailable",
     );
-    const workflow = requestRecord(`${route}/actions/workflows/deep-quality.yml`);
+    const workflow = await requestRecord(`${route}/actions/workflows/deep-quality.yml`);
     requireValid(
       workflow.path === workflowPath && Number.isSafeInteger(workflow.id),
       "provider-identity-unavailable",
@@ -577,7 +635,7 @@ export function discoverAuditReceipts(
     const localDigest =
       options.workflowDigest ??
       hash(readFileSync(path.join(options.root ?? process.cwd(), workflowPath)));
-    const mainWorkflow = requestRecord(`${route}/contents/${workflowPath}?ref=${mainSha}`);
+    const mainWorkflow = await requestRecord(`${route}/contents/${workflowPath}?ref=${mainSha}`);
     requireValid(
       mainWorkflow.encoding === "base64" &&
         mainWorkflow.type === "file" &&
@@ -587,7 +645,7 @@ export function discoverAuditReceipts(
         hash(Buffer.from(text(mainWorkflow.content, "changed-contract"), "base64")) === localDigest,
       "changed-contract",
     );
-    const window = requestRecord(
+    const window = await requestRecord(
       `${route}/actions/workflows/deep-quality.yml/runs?branch=main&status=completed&per_page=20`,
     );
     const runs = window.workflow_runs;
@@ -618,7 +676,7 @@ export function discoverAuditReceipts(
             candidate.id > 0,
           "unsuccessful-main-producer",
         );
-        const run = requestRecord(`${route}/actions/runs/${candidate.id}`);
+        const run = await requestRecord(`${route}/actions/runs/${candidate.id}`);
         requireValid(
           typeof run.id === "number" &&
             run.id === candidate.id &&
@@ -637,7 +695,7 @@ export function discoverAuditReceipts(
             ["success", "failure"].includes(text(run.conclusion, "unsuccessful-main-producer")),
           "provider-identity-unavailable",
         );
-        const jobs = collection(
+        const jobs = await collection(
           `${route}/actions/runs/${run.id}/attempts/${run.run_attempt}/jobs`,
           "jobs",
         );
@@ -649,9 +707,8 @@ export function discoverAuditReceipts(
           "unsuccessful-audit-job",
         );
         const artifactName = `audit-evidence-${run.id}-${run.run_attempt}`;
-        const artifacts = collection(
-          `${route}/actions/runs/${run.id}/artifacts`,
-          "artifacts",
+        const artifacts = (
+          await collection(`${route}/actions/runs/${run.id}/artifacts`, "artifacts")
         ).filter((a) => a.name === artifactName);
         requireValid(
           artifacts.length === 1 &&
@@ -661,7 +718,7 @@ export function discoverAuditReceipts(
             artifacts[0].id > 0,
           "artifact-unavailable",
         );
-        const artifact = requestRecord(`${route}/actions/artifacts/${artifacts[0].id}`);
+        const artifact = await requestRecord(`${route}/actions/artifacts/${artifacts[0].id}`);
         requireValid(
           artifact.id === artifacts[0].id &&
             artifact.expired === false &&
@@ -671,13 +728,15 @@ export function discoverAuditReceipts(
             /^sha256:[a-f0-9]{64}$/.test(text(artifact.digest, "invalid-artifact")),
           "invalid-artifact",
         );
-        const ancestry = requestRecord(`${route}/compare/${run.head_sha}...${mainSha}`);
+        const ancestry = await requestRecord(`${route}/compare/${run.head_sha}...${mainSha}`);
         requireValid(
           record(ancestry.merge_base_commit, "not-merged-main").sha === run.head_sha &&
             ["ahead", "identical"].includes(text(ancestry.status, "not-merged-main")),
           "not-merged-main",
         );
-        const content = requestRecord(`${route}/contents/${workflowPath}?ref=${run.head_sha}`);
+        const content = await requestRecord(
+          `${route}/contents/${workflowPath}?ref=${run.head_sha}`,
+        );
         requireValid(
           content.encoding === "base64" &&
             content.type === "file" &&
@@ -691,7 +750,7 @@ export function discoverAuditReceipts(
         requireValid(workflowDigest === localDigest, "changed-contract");
         if (downloads >= 3) break;
         downloads++;
-        const bytes = request(`${route}/actions/artifacts/${artifact.id}/zip`, true);
+        const bytes = await request(`${route}/actions/artifacts/${artifact.id}/zip`, true);
         requireValid(
           Buffer.isBuffer(bytes) &&
             bytes.length <= AUDIT_BUNDLE_LIMITS.compressedBytes &&
@@ -699,9 +758,9 @@ export function discoverAuditReceipts(
           "artifact-digest-mismatch",
         );
         const files = parseAuditArchive(bytes, { deadline, clock });
-        const finalRun = requestRecord(`${route}/actions/runs/${run.id}`),
+        const finalRun = await requestRecord(`${route}/actions/runs/${run.id}`),
           finalMain = record(
-            requestRecord(`${route}/git/ref/heads/main`).object,
+            (await requestRecord(`${route}/git/ref/heads/main`)).object,
             "provider-identity-unavailable",
           ).sha;
         requireValid(

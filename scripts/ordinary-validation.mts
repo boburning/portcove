@@ -2195,6 +2195,7 @@ for (const file of [
   explicitNodeTests.set(file, [
     ...(explicitNodeTests.get(file) ?? []),
     "scripts/github-client.test.mts",
+    "scripts/audit-reuse.test.mts",
     "scripts/roadmap-rest-intake.test.mts",
     "scripts/roadmap-sdk.test.mts",
     "scripts/discovery-github.test.mts",
@@ -2203,6 +2204,9 @@ for (const file of [
     "scripts/upstream-observer.test.mts",
     "scripts/catalog-upstream-observer.test.mts",
     "scripts/observer-checkpoint-artifact.test.mts",
+    "scripts/check-catalog-repositories.test.mts",
+    "scripts/cleanup-intel-artifacts.test.mts",
+    ...upstreamHealthContractTests,
   ]);
 
 // Preparation's accepted-observation reuse and lineage refusals also consume

@@ -1,19 +1,131 @@
-import { errorMessage, isRecord } from "./runtime-values.mts";
+import { isRecord } from "./runtime-values.mts";
 import { fileURLToPath } from "node:url";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
+import { createGitHubClient, iterateGitHubPages } from "./github-client.mts";
+import type { GitHubClientOptions } from "./github-client.mts";
+import { GitHubApiError, sanitizeOperationError } from "./github-operation.mts";
 
 const repository = "boburning/portcove";
-const root = `repos/${repository}`;
+const root = `https://api.github.com/repos/${repository}`;
 // The hourly recovery sweep is intentionally limited to typical rerun attempts.
 // All attempts, including higher ones, are supported by the exact-run event/manual path.
 const recoveryAttempts = [1, 2, 3, 4] as const;
 
-interface CleanupApi {
-  paginateRest(
-    endpoint: string,
-    options: Parameters<GitHubApiClient["paginateRest"]>[1],
-  ): unknown[];
-  request(method: string, endpoint: string): { body: unknown };
+export interface CleanupOperations {
+  artifacts(scope: { runId: number } | { attempt: number }): Promise<unknown[]>;
+  jobs(runId: number, attempt: number): Promise<unknown[]>;
+  run(id: number): Promise<unknown>;
+  artifact(id: number): Promise<unknown>;
+  removeArtifact(id: number): Promise<void>;
+}
+
+/** Transport stays private to this command; domain fakes implement operations. */
+export async function createCleanupOperations(options: {
+  token: string;
+  fetch?: typeof globalThis.fetch;
+  deadline?: number;
+}): Promise<CleanupOperations> {
+  let requests = 0,
+    bytes = 0;
+  const reserve: NonNullable<GitHubClientOptions["reserve"]> = () => {
+    if (++requests > 512)
+      throw new GitHubApiError("budget_exhausted", "Intel cleanup request budget exhausted");
+    return {
+      consumeBytes(count) {
+        bytes += count;
+        if (bytes > 64 * 1024 * 1024)
+          throw new GitHubApiError("budget_exhausted", "Intel cleanup byte budget exhausted");
+      },
+      settle() {},
+    };
+  };
+  const sdk = await createGitHubClient({
+    credential: { kind: "explicit", token: options.token },
+    deadline: options.deadline ?? performance.now() + 10 * 60_000,
+    maxBytes: 16 * 1024 * 1024,
+    headers: { accept: "application/vnd.github+json", "x-github-api-version": "2022-11-28" },
+    ...(options.fetch ? { fetch: options.fetch } : {}),
+    allowRequest: (method, url) =>
+      ["GET", "DELETE"].includes(method) &&
+      url.pathname.startsWith(`/repos/${repository}/actions/`),
+    reserve,
+  });
+  const list = async (endpoint: string, key: "artifacts" | "jobs") => {
+    const expected = new URL(endpoint, "https://api.github.com/");
+    const values: unknown[] = [],
+      ids = new Set<number>();
+    let total: number | undefined;
+    for await (const response of iterateGitHubPages(sdk, {
+      url: expected.href,
+      reserve(request) {
+        const actual = request.url;
+        const keys = [...actual.searchParams.keys()];
+        if (
+          actual.origin !== expected.origin ||
+          actual.pathname !== expected.pathname ||
+          new Set(keys).size !== keys.length ||
+          keys.some(
+            (name) =>
+              name !== "page" && actual.searchParams.get(name) !== expected.searchParams.get(name),
+          ) ||
+          [...expected.searchParams].some(
+            ([name, value]) => actual.searchParams.get(name) !== value,
+          ) ||
+          (actual.searchParams.has("page") &&
+            !/^[1-9][0-9]*$/u.test(actual.searchParams.get("page") ?? ""))
+        )
+          throw new GitHubApiError(
+            "request_refused",
+            "Intel cleanup pagination escaped its collection",
+          );
+        return reserve(request);
+      },
+    })) {
+      const body = object(response.data);
+      const count = integer(body.total_count, "collection");
+      if (count < 0 || (total !== undefined && total !== count) || !Array.isArray(body[key]))
+        throw new Error("Intel transfer collection is incomplete or changed");
+      total = count;
+      for (const item of body[key]) {
+        const id = integer(object(item).id, key);
+        if (id <= 0 || ids.has(id))
+          throw new Error("Intel transfer collection contains a duplicate or invalid ID");
+        ids.add(id);
+        values.push(item);
+      }
+      if (values.length > total) throw new Error("Intel transfer count exceeds reported total");
+    }
+    if (values.length !== total)
+      throw new Error("Intel transfer count does not match reported total");
+    return values;
+  };
+  const get = async (endpoint: string) =>
+    (
+      await sdk.request({
+        method: "GET",
+        url: endpoint,
+        request: { portcove: { replay: "safe-read", attempts: 0 } },
+      })
+    ).data as unknown;
+  return {
+    artifacts: (scope) =>
+      list(
+        "runId" in scope
+          ? `${root}/actions/runs/${scope.runId}/artifacts?per_page=100`
+          : `${root}/actions/artifacts?name=intel-rust-tests-${scope.attempt}&per_page=100`,
+        "artifacts",
+      ),
+    jobs: (id, attempt) =>
+      list(`${root}/actions/runs/${id}/attempts/${attempt}/jobs?per_page=100`, "jobs"),
+    run: (id) => get(`${root}/actions/runs/${id}`),
+    artifact: (id) => get(`${root}/actions/artifacts/${id}`),
+    async removeArtifact(id) {
+      await sdk.request({
+        method: "DELETE",
+        url: `${root}/actions/artifacts/${id}`,
+        request: { portcove: { replay: "once", attempts: 0 } },
+      });
+    },
+  };
 }
 function object(value: unknown): Record<string, unknown> {
   if (!isRecord(value)) throw new Error("Intel transfer provider returned a malformed object");
@@ -61,8 +173,8 @@ export function consumedTransfer(artifact: unknown, run: unknown, jobs: unknown)
   });
 }
 
-export function cleanup(
-  api: CleanupApi,
+export async function cleanup(
+  api: CleanupOperations,
   { apply = false, runId = null }: { apply?: boolean; runId?: number | null } = {},
 ) {
   if (runId !== null && (!Number.isSafeInteger(runId) || runId <= 0))
@@ -70,20 +182,10 @@ export function cleanup(
   // GitHub retains Intel transfers for one day. Avoid the large and changing
   // repository-wide artifact collection: completion events inspect only their
   // own run; hourly/manual catch-up reads exact artifact names with full pagination.
-  const endpoints =
-    runId === null
-      ? recoveryAttempts.map(
-          (attempt) => `${root}/actions/artifacts?name=intel-rust-tests-${attempt}&per_page=100`,
-        )
-      : [`${root}/actions/runs/${runId}/artifacts?per_page=100`];
-  const artifacts = endpoints.flatMap((endpoint) =>
-    api.paginateRest(endpoint, {
-      select: (body) => object(body).artifacts,
-      identity: (item) => String(integer(object(item).id, "artifact")),
-      totalCount: (body) => integer(object(body).total_count, "collection"),
-      label: "Intel transfer artifact inventory",
-    }),
-  );
+  const artifacts: unknown[] = [];
+  if (runId === null) {
+    for (const attempt of recoveryAttempts) artifacts.push(...(await api.artifacts({ attempt })));
+  } else artifacts.push(...(await api.artifacts({ runId })));
   // Complete every collection and reject overlap before considering a DELETE.
   const seen = new Set<number>();
   for (const candidate of artifacts) {
@@ -117,26 +219,18 @@ export function cleanup(
       "artifact run",
     );
     const artifactId = integer(artifact.id, "artifact");
-    const readRun = () => object(api.request("GET", `${root}/actions/runs/${id}`).body);
-    const run = readRun();
+    const readRun = async () => object(await api.run(id));
+    const run = await readRun();
     const attempt = integer(run.run_attempt, "run attempt");
-    const jobs = api.paginateRest(
-      `${root}/actions/runs/${id}/attempts/${attempt}/jobs?per_page=100`,
-      {
-        select: (body) => object(body).jobs,
-        identity: (job) => String(integer(object(job).id, "job")),
-        totalCount: (body) => integer(object(body).total_count, "collection"),
-        label: "Intel consumer job inventory",
-      },
-    );
+    const jobs = await api.jobs(id, attempt);
     if (!consumedTransfer(artifact, run, jobs)) {
       result.preserved += 1;
       continue;
     }
     result.eligible.push(artifactId);
     if (!apply) continue;
-    const current = object(api.request("GET", `${root}/actions/artifacts/${artifactId}`).body);
-    const currentRun = readRun();
+    const current = object(await api.artifact(artifactId));
+    const currentRun = await readRun();
     if (
       current.name !== artifact.name ||
       current.id !== artifact.id ||
@@ -147,12 +241,12 @@ export function cleanup(
     // An uncertain DELETE is never retried. Readback establishes whether it applied.
     let deletionFailure: { error: unknown } | undefined;
     try {
-      api.request("DELETE", `${root}/actions/artifacts/${artifactId}`);
+      await api.removeArtifact(artifactId);
     } catch (error) {
       deletionFailure = { error };
     }
     try {
-      api.request("GET", `${root}/actions/artifacts/${artifactId}`);
+      await api.artifact(artifactId);
     } catch (error) {
       if (isRecord(error) && error.status === 404) {
         result.deleted.push(artifactId);
@@ -194,10 +288,25 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     if (process.env.GITHUB_REPOSITORY && process.env.GITHUB_REPOSITORY !== repository)
       throw new Error("cleanup is restricted to boburning/portcove");
     console.log(
-      JSON.stringify(cleanup(new GitHubApiClient(createGitHubRunner()), options), null, 2),
+      JSON.stringify(
+        await cleanup(
+          await createCleanupOperations({
+            token: process.env.GH_TOKEN || process.env.GITHUB_TOKEN || "",
+          }),
+          options,
+        ),
+        null,
+        2,
+      ),
     );
   } catch (error) {
-    console.error(errorMessage(error));
+    console.error(
+      sanitizeOperationError(error, {
+        secrets: [process.env.GH_TOKEN, process.env.GITHUB_TOKEN].filter((value): value is string =>
+          Boolean(value),
+        ),
+      }).message,
+    );
     process.exitCode = 1;
   }
 }

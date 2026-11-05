@@ -122,18 +122,18 @@ pipeline needed to keep testers current. Compiling packages or manual reinstall
 instructions cannot complete this updater commitment. Incremental previews need
 their applicable candidate safety checks; they need not complete the milestone.
 
-The #917 design-system foundation follows the same separation between permission
-to implement and permission to publish. Its checked-in compatibility fixture and
-non-publishing qualification work may merge while #993 remains open. Broad screen
-migration begins only after the nested Dialog/Select portal, dismissal, and focus
-case passes in the actual Tauri application on an available native host. A Public
-Windows beta package containing the redesign still requires #993's applicable
-Windows native-family and claimed-minimum evidence; retained Linux evidence is
-separate from later Linux application qualification; a current hosted runner does not
-prove a historical minimum. Missing beta-critical evidence stays with #993 rather
-than moving to #45, while #45 retains broader 1.0 qualification. No automatic
-release path may convert foundation merge authority into publication authority for
-an unqualified platform.
+The delivered [design system](DESIGN-SYSTEM.md#checked-in-foundation) preserves
+the separation between implementation and publication. [#917](https://github.com/boburning/portcove/issues/917)
+completed its current redesign contract on October 18, 2026; [#993](https://github.com/boburning/portcove/issues/993)
+completed its amended initial-beta stack/minimum acceptance on October 19.
+The original foundation's nested Dialog/Select portal, dismissal and focus gate
+was satisfied before broad migration; its [historical inputs and measurements](DESIGN-SYSTEM.md#initial-foundation-history)
+remain evidence at their original scope. These completed owners are not new
+migration prerequisites. New Windows candidates still require applicable
+exact-candidate release qualification. Retained Linux evidence remains separate
+from later Linux application qualification, and #45 retains broader 1.0 work.
+Neither an ordinary merge nor these historical completions authorizes publication
+or certifies new package bytes or an unqualified platform.
 
 The initial beta retains the complete preparation boundary (#31), coherent
 design system (#917), development-agility/domain consolidation (#921/#925),
@@ -150,6 +150,26 @@ Starship #61, Ghostship #53, Lighthouse #62 and the existing PaperBoat integrati
 beta, consume completed admissions and evidence at their actual scope, and keep
 optional gameplay/save/device observations separate. Do not reopen completed
 admissions or extend this set to future projects, forks, libraries or releases.
+
+The November 4, 2026 owner decision defines #53 and #61’s **Required / Public
+beta** minimum as day-one availability: discover the game, follow official
+upstream/original-file preparation instructions, explicitly add the prepared
+executable and launch it, with clear operation ownership and limitations. Preserve
+the best working managed route and all credited Ghostship installation, startup
+and qualified recovery evidence. When managed acquisition or distribution is held,
+use the existing non-owning registration/launch route; Starship does not wait for
+a publisher checksum to offer this alternative. User selection is execution
+intent, never publisher authentication. A listing alone is insufficient.
+
+Protected per-title catalog delivery, automatic acquisition, advanced maintenance
+and later-version acceptance remain unfinished follow-up under #53/#61 and the
+existing #315/#246/#534 owners where applicable, with no promised release; they do
+not gate these two titles’ revised minimum through #1422/#2510/#2926 or another
+parent. Shared application security, trust, production and release acceptance
+remain independently required at their existing scope. Known issues hold only
+the affected operation; preserve originals, installations and saves. Reuse accepted
+evidence and validate the offered setup/launch route without adding gameplay,
+all-version, populated-save, automatic-update or other-platform campaigns.
 
 Other port expansion, title-specific qualification under this rollout and whole historical/all-port
 completion are ongoing Planned / Unscheduled work with no promised release.

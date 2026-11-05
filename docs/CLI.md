@@ -42,9 +42,11 @@ applicable one as `PROFILE_ID`. Substitute paths on your machine. Use `--library
 the saved default. These examples are human-output commands; automation should
 use the [reference below](#automation-and-integration-reference).
 
-1. Browse available ports with `portcove catalog list`, then read a port's game
+1. Browse the full descriptive directory with `portcove catalog listings`.
+   For managed definitions, use `portcove catalog list`, then read a port's game
    file and BIOS requirements with `portcove catalog show PORT_ID`. Use
-   `portcove plan PORT_ID` to review what an installation would do.
+   `portcove plan PORT_ID` to review what an installation would do. Listing
+   visibility alone does not offer managed installation or establish support.
 2. If that port needs your game files, save the required file location with
    `portcove source add PROFILE_ID PATH`. Portcove checks the expected file and
    saves its location; it does not copy, move, or upload it. Use
@@ -97,9 +99,11 @@ are refused; use a supported native executable or native upstream launcher.
 ### Download and finish setup
 
 `portcove catalog listings` returns the complete descriptive directory, including
-projects without managed definitions. `catalog list` and `catalog export` retain
-their strict managed-definition contracts. Unknown platform or package facts in
-a listing do not establish support. Desktop uses the same directory and lets the
+projects without managed definitions. `catalog list`, `catalog show` and
+`catalog export` inspect the narrower strict operational definitions. Contributors
+edit [per-ID records](CATALOG.md#adding-or-changing-a-port); the descriptive
+`listings.json` and strict `catalog.json` aggregates are generated outputs. Unknown platform or package facts in a listing
+do not establish support. Desktop uses the same directory and lets the
 player reset catalog filters with **All ports**.
 
 For a GitHub-hosted upstream project:
@@ -147,9 +151,14 @@ complete its upstream setup or establish a playable installation.
 
 Core re-reads the selected release/asset and binds the review to the destination.
 A supplied checksum must match. Without an upstream checksum the observed
-download hash is recorded with that limitation. Supported ZIP/tar.gz extraction
-uses the existing traversal, symlink, collision and expansion bounds. Publication
-creates a fresh child folder outside the entire Library root and managed output
+download hash is recorded with that limitation. Generic setup download supports
+bounded ZIP, tar.gz and 7z extraction under the existing traversal, symlink,
+collision and expansion limits. The 7z route accepts supported codecs only;
+encrypted archives, unsupported methods, links and special entries are refused.
+CRC failure or cancellation cannot publish a completed extraction. This does not
+add 7z to every managed adapter or support arbitrary self-extracting executables.
+See [Core's acquisition and extraction boundary](ARCHITECTURE.md#discovery-listings-and-user-owned-setup).
+Publication creates a fresh child folder outside the entire Library root and managed output
 locations, with atomic refusal to replace an existing destination.
 
 The downloaded folder becomes user-owned. Its durable **Downloaded—finish setup**
@@ -372,7 +381,7 @@ The CLI API schema version is independent of the Portcove release version.
 current or retained listing. `capabilities` advertises `port_capability_schema`
 and `listing_formats` independently from API schema 88 and event schema 3.
 Clients may ignore these additive descriptive fields; missing reports never
-override operation assessments. Cheap reports on `catalog listing-status` use
+override operation assessments. Cheap reports on workspace `PortListingStatus` use
 already loaded status/action facts. The focused command additionally reads the
 existing backup and retained settings inventories for the selected managed
 installation, without refreshing upstream or recommendation history. A changed

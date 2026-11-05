@@ -1,5 +1,10 @@
 # Architecture
 
+For a change, start at [Find the owning boundary](#find-the-owning-boundary),
+then read the affected subsystem. Core owns durable policy; adapters and
+presentation consume it. Detailed implementation and dated evidence below retain
+their stated scopes; live acceptance belongs to the owning issue.
+
 Library collection layout is a profile-local React preference scoped by the
 canonical library browsing key. `useCollectionLayout` owns covers/rows persistence
 separately from existing browsing envelopes. Invalid/missing values start at
@@ -3760,7 +3765,7 @@ acceptance.
 
 Settings > Library & storage owns one Library recovery composition: prepare a
 manual recovery copy, checked restore, and Move as distinct tasks. The guide links
-to Tasks & history and each installed entry’s existing Saves and storage page;
+to Activity’s Tasks and History sections and each installed entry’s existing Saves and storage page;
 only that page’s current Core assessment grants save-backup eligibility. An empty
 or idle Activity view cannot prove process quiescence. Export metadata after
 applicable backups; then close games, Portcove and all other clients before copying.

@@ -759,13 +759,15 @@ mod tests {
                 &arguments,
             )
             .unwrap();
+        let mut changed_arguments = arguments.clone();
+        changed_arguments.push("--unreviewed-argument".into());
         assert!(
             service
                 .authorize_user_selected_runtime_relink(
                     id,
                     &replacement_executable,
                     &replacement,
-                    &[],
+                    &changed_arguments,
                     &preview.preview_sha256,
                 )
                 .is_err()
@@ -907,6 +909,37 @@ mod tests {
                 .map(|port| serde_json::to_value(port).unwrap()),
             expected_definition
         );
+    }
+
+    // Actual catalog identities with an owned inert probe, never game execution.
+    // Keep the managed definition while exercising the independent external route.
+    fn assert_harbour_day_one_route(id: &str) {
+        let (temporary, mut service, executable, working) = fixture(id);
+        service.catalog = Catalog::embedded().unwrap();
+        assert_eq!(
+            service.catalog.port(id).unwrap().adapter,
+            crate::AdapterKind::LibultrashipPortable
+        );
+        assert!(service.catalog.listing(id).unwrap().manual_setup.is_some());
+        assert_selected_listing_lifecycle_with_arguments(
+            temporary,
+            service,
+            executable,
+            working,
+            id,
+            Vec::new(),
+            None,
+        );
+    }
+
+    #[test]
+    fn prepared_guide_adoption_ghostship_day_one_preserves_managed_route() {
+        assert_harbour_day_one_route("ghostship");
+    }
+
+    #[test]
+    fn prepared_guide_adoption_starship_day_one_preserves_managed_route() {
+        assert_harbour_day_one_route("starship");
     }
 
     #[test]

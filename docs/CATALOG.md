@@ -1,5 +1,11 @@
 # Catalog policy
 
+Start with [Integration ownership](#integration-ownership) for the management
+boundary and [Adding or changing a port](#adding-or-changing-a-port) for per-ID
+authoring. The [definition contract](DEFINITION-DELIVERY.md#implemented-engine-capability-negotiation)
+owns engine negotiation; detailed port examples and dated receipts below retain
+their original scope and do not establish another port's admission or support.
+
 ## Descriptive compatibility advisories
 
 The optional `listing.compatibility` format-1 envelope belongs to the existing
