@@ -1,6 +1,6 @@
-import { lstatSync, writeFileSync, renameSync } from "node:fs";
+import { lstatSync, readFileSync, writeFileSync, renameSync } from "node:fs";
 import { join } from "node:path";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { isRecord, errorCode } from "./runtime-values.mts";
 import { observationHash } from "./upstream-observer.mts";
 import {
@@ -78,9 +78,13 @@ function replaceOwned(root: string, name: string, value: unknown) {
   writeFileSync(temporary, bytes, { flag: "wx", mode: 0o600 });
   renameSync(temporary, filename);
 }
-function itemState(root: string, id: string, now: number): ItemState | null {
+function itemStateName(id: string, refresh: boolean) {
+  return refresh ? `artwork-refresh-progress-${id}.json` : `artwork-progress-${id}.json`;
+}
+
+function itemState(root: string, id: string, now: number, refresh: boolean): ItemState | null {
   if (!safeId(id)) throw new Error("Artwork continuation requires a stable port identity");
-  const value = readOwned(root, `artwork-progress-${id}.json`);
+  const value = readOwned(root, itemStateName(id, refresh));
   if (value === null) return null;
   if (
     !isRecord(value) ||
@@ -230,6 +234,7 @@ export async function prepareArtworkWorkset(
   catalog: ArtworkCatalog,
   options: {
     root: string;
+    acceptedCatalog?: ArtworkCatalog;
     inspector: Inspector;
     identities: unknown;
     validatorIdentity: string | null;
@@ -271,7 +276,6 @@ export async function prepareArtworkWorkset(
     inspectedIds.some((id) => !ports.has(id))
   )
     throw new Error("Artwork work requires unique known identities");
-  const states = new Map(inspectedIds.map((id) => [id, itemState(options.root, id, now())]));
   const goneDocument = readOwned(options.root, "artwork-gone.json");
   if (
     goneDocument !== null &&
@@ -285,13 +289,47 @@ export async function prepareArtworkWorkset(
   )
     throw new Error("Invalid retained exact-image Gone observations");
   const gone = new Set<string>(isRecord(goneDocument) ? (goneDocument.image_ids as string[]) : []);
-  const baseKey = (id: string, refresh: boolean) =>
-    observationHash({
-      input: artworkPreparationInput(ports.get(id)!, catalog, options.identities),
+  const accepted = options.acceptedCatalog ?? catalog;
+  const tool = createHash("sha256");
+  for (const file of [
+    "./artwork-preparation-progress.mts",
+    "./inspect-igdb-artwork.mts",
+    "./maintainer-config.mts",
+    "./runtime-values.mts",
+  ]) {
+    tool.update(
+      createHash("sha256")
+        .update(readFileSync(new URL(file, import.meta.url)))
+        .digest(),
+    );
+  }
+  const toolIdentity = tool.digest("hex");
+  const inputs = new Map<string, ReturnType<typeof artworkPreparationInput>>();
+  const baseKey = (id: string, refresh: boolean) => {
+    let input = inputs.get(id);
+    if (input === undefined) {
+      input = artworkPreparationInput(ports.get(id)!, accepted, options.identities);
+      inputs.set(id, input);
+    }
+    return observationHash({
+      input,
       refresh,
       validator: options.validatorIdentity,
+      tool: toolIdentity,
+      // A newly verified image can restore an otherwise ambiguous original mapping.
+      gone_original_candidates: input.accepted_original_candidates.filter(
+        (mapping) => validArtworkMapping(mapping) && gone.has(mapping.image_id),
+      ),
     });
+  };
   const explicitRefresh = new Set(options.refreshPortIds ?? []);
+  const refresh = (id: string) =>
+    options.maintenance === true ||
+    explicitRefresh.has(id) ||
+    gone.has(mappingImage(ports.get(id)!) ?? "");
+  const states = new Map(
+    inspectedIds.map((id) => [id, itemState(options.root, id, now(), refresh(id))]),
+  );
   const due = (id: string) => {
     const state = states.get(id);
     const image = mappingImage(
@@ -328,10 +366,6 @@ export async function prepareArtworkWorkset(
   const records = new Map<string, ArtworkRecord>();
   const output = structuredClone(catalog);
   const outputPorts = new Map(output.ports.map((port) => [port.id, port]));
-  const refresh = (id: string) =>
-    options.maintenance === true ||
-    explicitRefresh.has(id) ||
-    gone.has(mappingImage(ports.get(id)!) ?? "");
   const apply = (id: string, result: ItemResult) => {
     outputPorts.set(id, structuredClone(result.port));
     records.set(id, structuredClone(result.record));
@@ -386,11 +420,15 @@ export async function prepareArtworkWorkset(
     const started = now();
     options.inspector.beginBatch?.();
     batches++;
+    const identities = options.identities;
+    const refreshing = new Set(batch.filter(refresh));
     const result = await prepareCatalogArtwork(catalog, {
-      acceptedCatalog: catalog,
+      acceptedCatalog: accepted,
       selectedPortIds: batch,
-      refreshPortIds: batch.filter(refresh),
-      identities: options.identities,
+      refreshPortIds: [...refreshing],
+      identities: isRecord(identities)
+        ? Object.fromEntries(batch.map((id) => [id, identities[id]]))
+        : undefined,
       ...memo.options,
       ...(options.signal ? { signal: options.signal } : {}),
       knownGoneImageIds: [...gone],
@@ -416,10 +454,11 @@ export async function prepareArtworkWorkset(
         const value = { port, record };
         const complete = finished(record, gone);
         const live = complete && isRecord(record.checks) && Object.hasOwn(record.checks, "content");
+        const refreshed = refreshing.has(record.port_id);
         const state: ItemState = {
           format: 1,
           port_id: record.port_id,
-          input_sha256: baseKey(record.port_id, refresh(record.port_id)),
+          input_sha256: baseKey(record.port_id, refreshed),
           result_sha256: observationHash(value),
           result: value,
           complete,
@@ -427,17 +466,14 @@ export async function prepareArtworkWorkset(
           last_live_observation_at: live ? memo.observationClock(record) : null,
           retry_at: providerStatus?.retry_at ?? null,
         };
-        replaceOwned(options.root, `artwork-progress-${record.port_id}.json`, state);
-        states.set(record.port_id, state);
+        replaceOwned(options.root, itemStateName(record.port_id, refreshed), state);
         apply(record.port_id, value);
         await options.onProgress?.(record.port_id);
       },
     });
+    const resultPorts = new Map(result.catalog.ports.map((port) => [port.id, port]));
     for (const record of result.records)
-      apply(record.port_id, {
-        record,
-        port: result.catalog.ports.find((port) => port.id === record.port_id)!,
-      });
+      apply(record.port_id, { record, port: resultPorts.get(record.port_id)! });
     const elapsed = Math.max(1, now() - started);
     const count = Math.max(1, batch.length);
     const capacity = (limit: number, used: number) =>
@@ -497,6 +533,7 @@ export async function prepareArtworkWorkset(
     catalog: output,
     records: values,
     metrics,
+    gone_image_ids: [...gone].sort(),
     workset: {
       catalog_ports: catalog.ports.length,
       selected_port_ids: selected,
