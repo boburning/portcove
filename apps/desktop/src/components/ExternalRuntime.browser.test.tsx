@@ -415,27 +415,36 @@ it("reviews explicit user launch details without accepted-package or file-manage
   expect(changed).toHaveBeenCalledOnce();
 });
 
-it("shows the actual Second Hunt startup warning before the setup steps", async () => {
-  const entry = listings.listings.find(
-    (candidate) => candidate.id === "bountyhunterkanden-secondhunt",
-  )!;
-  const guide = entry.manual_setup!;
-  await root.rerender(
-    <AuthoredPreparationGuidance
-      port={port}
-      setup={{ manual_setup: { ...guide, help_url: guide.help_url ?? null } }}
-    />,
-  );
-  const warning = page.getByText(/Before opening Second Hunt v0\.4\.2-beta/);
-  const firstAction = page.getByRole("heading", { name: "Set up Second Hunt" });
-  await expect.element(warning).toBeVisible();
-  await expect.element(warning).toMatchTextContent(/ending in \.old or \.old followed by digits/);
-  await expect.element(warning).toMatchTextContent(/including portable saves/);
-  expect(
-    warning.element().compareDocumentPosition(firstAction.element()) &
-      Node.DOCUMENT_POSITION_FOLLOWING,
-  ).toBeTruthy();
-});
+it.each(["current", "older"] as const)(
+  "shows the Second Hunt startup warning before setup with the %s directory",
+  async (directory) => {
+    const entry = listings.listings.find(
+      (candidate) => candidate.id === "bountyhunterkanden-secondhunt",
+    )!;
+    const guide = entry.manual_setup!;
+    await root.rerender(
+      <AuthoredPreparationGuidance
+        port={{ ...port, id: entry.id }}
+        setup={{
+          manual_setup: {
+            ...guide,
+            help_url: guide.help_url ?? null,
+            warnings: directory === "current" ? guide.warnings : [],
+          },
+        }}
+      />,
+    );
+    const warning = page.getByText(/Before opening Second Hunt v0\.4\.2-beta/);
+    const firstAction = page.getByRole("heading", { name: "Set up Second Hunt" });
+    await expect.element(warning).toBeVisible();
+    await expect.element(warning).toMatchTextContent(/ending in \.old or \.old followed by digits/);
+    await expect.element(warning).toMatchTextContent(/including portable saves/);
+    expect(
+      warning.element().compareDocumentPosition(firstAction.element()) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  },
+);
 
 it("keeps the Second Hunt caution visible before Play for an attached copy", async () => {
   const listing = listings.listings.find(
