@@ -969,6 +969,7 @@ void test("a resumed opportunity gives untouched sources a turn before retrying 
   );
   assert.equal(sources.length, 2);
   const [attempted, untouched] = sources;
+  assert.ok(attempted && untouched);
   const first = await advanceCatalogObservations(h.input, null, {
     ...h.options,
     excludedSources: new Set([untouched.key]),
