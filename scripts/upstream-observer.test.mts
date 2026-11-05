@@ -258,6 +258,8 @@ void test("checksum redirects make progress with one physical request per turn",
 
 void test("checksum dependency changes reset validation without discarding bounded evidence", async () => {
   const bounded = validateObserverConfig({ ...config, budget: { ...config.budget, requests: 5 } });
+  // This exercises request-budget continuation, independently of wall-clock adjustments.
+  const now = () => Date.parse(time);
   const server = checksumFixture();
   const assets = arrayFixture(
     server.replies.get(`${root}/releases/1/assets?per_page=100&page=1`).body,
@@ -273,7 +275,11 @@ void test("checksum dependency changes reset validation without discarding bound
       : server.fetch(...args);
   let continuation;
   try {
-    await observeUpstream(bounded, { fetch: fetcher, selectChecksumSources: checksumSelection });
+    await observeUpstream(bounded, {
+      now,
+      fetch: fetcher,
+      selectChecksumSources: checksumSelection,
+    });
     assert.fail("expected a finite validation interruption");
   } catch (error) {
     assert.ok(error instanceof ObservationFailure);
@@ -285,6 +291,7 @@ void test("checksum dependency changes reset validation without discarding bound
   for (let turn = 0; turn < 4 && !result; turn++) {
     try {
       result = await observeUpstream(bounded, {
+        now,
         fetch: fetcher,
         continuation,
         selectChecksumSources: async () => [{ release_id: 1, asset_id: 4 }],
