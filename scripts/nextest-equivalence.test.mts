@@ -143,9 +143,11 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     return value;
   });
   // Filters are execution identities, so exact values remain contractual.
-  const overrideFor = (filter: string, platform?: string) => {
+  const overrideFor = (filter: string, platform?: string | null) => {
     const values = overrides.filter(
-      (value) => value.filter === filter && (platform === undefined || value.platform === platform),
+      (value) =>
+        value.filter === filter &&
+        (platform === undefined || (value.platform ?? null) === platform),
     );
     assert.equal(values.length, 1, filter);
     const value = values[0];
@@ -787,6 +789,20 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     "slow-timeout": { period: "5s", "terminate-after": 18, "grace-period": "0s" },
     "success-output": "immediate",
   });
+  const windowsPreparationFixtureFilter =
+    "package(portcove-core) & (test(/^preparation::tests::execution_tests::completed_legacy_setup_keeps_working_without_repeating_setup$/) | test(/^preparation::tests::execution_tests::preparation_is_explicit_and_play_never_runs_setup_or_recreates_inputs$/))";
+  assert.deepEqual(overrideFor(windowsPreparationFixtureFilter, "x86_64-pc-windows-msvc"), {
+    platform: "x86_64-pc-windows-msvc",
+    filter: windowsPreparationFixtureFilter,
+    "slow-timeout": { period: "5s", "terminate-after": 12, "grace-period": "0s" },
+  });
+  const windowsManagedCorrectionFilter = publicationFilters[0]!.filter;
+  assert.deepEqual(overrideFor(windowsManagedCorrectionFilter, "x86_64-pc-windows-msvc"), {
+    platform: "x86_64-pc-windows-msvc",
+    filter: windowsManagedCorrectionFilter,
+    "slow-timeout": { period: "5s", "terminate-after": 18, "grace-period": "0s" },
+    "success-output": "immediate",
+  });
   const windowsTrackedCancellationFilter =
     "package(portcove-core) & test(/^game_file_query::tests::tracked_refresh_settles_cancellation_only_after_worker_exit$/)";
   const outputIdentity = (value: Readonly<Record<string, unknown>>) =>
@@ -817,6 +833,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       { platform: "x86_64-pc-windows-msvc", filter: windowsCopyingResumeFilter },
       ...currentFullBaselineBudgets.map(({ platform, filter }) => ({ platform, filter })),
       { platform: "x86_64-pc-windows-msvc", filter: windowsCuratedActivationRecoveryFilter },
+      { platform: "x86_64-pc-windows-msvc", filter: windowsManagedCorrectionFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsTrackedCancellationFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsPublishedMoveFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsSuccessorMoveFilter },
@@ -1038,7 +1055,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
   for (const field of ["success-output", "retries", "threads-required", "priority"])
     assert.equal(cacheRetention[field], undefined);
   for (const { filter, platform } of publicationFilters) {
-    const override = overrideFor(filter);
+    const override = overrideFor(filter, platform ?? null);
     assert.equal(override.platform, platform);
     assert.equal(override["success-output"], "immediate");
     for (const field of ["retries", "threads-required", "priority"])
