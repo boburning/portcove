@@ -1,11 +1,12 @@
 import type { GitHubAttemptObservation, GitHubRequestPolicy } from "./github-client.mts";
 import { GitHubApiError } from "./github-operation.mts";
-import { spawnSync } from "node:child_process";
 import { requireStorageAppToken } from "./release-storage-credential.mts";
-import { lstatSync, mkdtempSync, realpathSync } from "node:fs";
+import { lstatSync, realpathSync } from "node:fs";
 import path from "node:path";
-import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
-import type { CoordinatorSigningApi, CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
+import type {
+  CoordinatorCheckpointApi,
+  CoordinatorSigningApi,
+} from "./release-coordinator-remote.mts";
 import { performance } from "node:perf_hooks";
 import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
@@ -45,7 +46,7 @@ function createJournalSdk(
   token: string,
   clientDeadline: number,
   remaining?: () => void,
-  preserveLateObjectEvidence = false,
+  policy?: { preserveLateObjectEvidence?: true; allowHistoricalJobRead?: true },
 ) {
   assertOwnedJournalDirectory(directory);
   assertTrustedDirectNode();
@@ -77,7 +78,7 @@ function createJournalSdk(
   };
   return {
     async request(method: string, endpoint: string, body?: unknown, deadline?: number) {
-      assertJournalRoute(method, endpoint);
+      assertJournalRoute(method, endpoint, policy?.allowHistoricalJobRead);
       remaining?.();
       const sdk = await configured();
       let retained: { status: number; body: unknown } | undefined;
@@ -89,7 +90,7 @@ function createJournalSdk(
               replay: "once",
               attempts: 0,
               deadline: requestDeadline(deadline),
-              ...(preserveLateObjectEvidence && method === "POST"
+              ...(policy?.preserveLateObjectEvidence && method === "POST"
                 ? {
                     async retainResponse(
                       value: Parameters<NonNullable<GitHubRequestPolicy["retainResponse"]>>[0],
@@ -163,7 +164,7 @@ export function createPreparedCheckpointObjectApi(
   directory: string,
   deadline: number,
   storageWriter?: { app_id: number; installation_id: number },
-): CoordinatorRemoteApi {
+) {
   const remaining = () => {
     const left = Math.floor(Math.min(15000, deadline - performance.now()));
     if (!Number.isFinite(deadline) || left < 1)
@@ -173,10 +174,10 @@ export function createPreparedCheckpointObjectApi(
   remaining();
   const token =
     storageWriter === undefined ? process.env.GH_TOKEN : requireStorageAppToken(storageWriter);
-  const api = isolatedJournalClient(directory, token, remaining, remaining);
+  const api = createJournalSdk(directory, journalCredential(token), deadline, remaining);
   return {
     request: api.request.bind(api),
-    graphql() {
+    graphql(_query: string, _variables: Readonly<Record<string, unknown>>) {
       throw new Error("prepared source object transport cannot mutate or query refs");
     },
   };
@@ -235,7 +236,9 @@ export function createCheckpointJobTokenApi(
       throw new Error("job journal original deadline exhausted");
     if (++requests > 16) throw new Error("job journal request bound exhausted");
   };
-  const api = createJournalSdk(directory, token, deadline + 30000, undefined, true);
+  const api = createJournalSdk(directory, token, deadline + 30000, undefined, {
+    preserveLateObjectEvidence: true,
+  });
   return {
     async request(method: string, endpoint: string, body?: unknown, inherited?: number) {
       const read =
@@ -369,7 +372,9 @@ export function createCheckpointHistoryReader(
   };
   const token = process.env.GH_TOKEN;
   if (!token) throw new Error("fixed-job history credential unavailable");
-  const transport = isolatedJournalClient(directory, token, remaining, remaining, true);
+  const transport = createJournalSdk(directory, journalCredential(token), deadline, remaining, {
+    allowHistoricalJobRead: true,
+  });
   const proofQuery =
     'query($name:String!){repository(owner:"boburning",name:"portcove"){databaseId nameWithOwner ref(qualifiedName:$name){name prefix target{__typename oid}}}}';
   const headQuery =
@@ -383,8 +388,8 @@ export function createCheckpointHistoryReader(
     remaining();
     if (++requests > 9) throw new Error("history reader request bound exhausted");
   };
-  const api: CoordinatorRemoteApi = {
-    request(method, endpoint, body) {
+  const api = {
+    async request(method: string, endpoint: string, body?: unknown) {
       if (
         method !== "GET" ||
         body !== undefined ||
@@ -396,7 +401,7 @@ export function createCheckpointHistoryReader(
       admit();
       return transport.request(method, endpoint);
     },
-    graphql(query, variables) {
+    async graphql(query: string, variables: Readonly<Record<string, unknown>>) {
       if (
         !(
           (query === headQuery && isDeepStrictEqual(variables, names)) ||
@@ -410,11 +415,11 @@ export function createCheckpointHistoryReader(
       admit();
       return transport.graphql(query, variables);
     },
-  };
+  } satisfies CoordinatorCheckpointApi;
   return {
     api,
-    assertCurrentUnclaimedHead() {
-      const result = api.graphql(headQuery, names);
+    async assertCurrentUnclaimedHead() {
+      const result = await api.graphql(headQuery, names);
       const repository =
         isRecord(result.data) && isRecord(result.data.repository) ? result.data.repository : null;
       const state = repository && isRecord(repository.state) ? repository.state : null;
@@ -448,7 +453,7 @@ function assertTrustedDirectNode() {
     process.env.NODE_TLS_REJECT_UNAUTHORIZED === "0" ||
     process.env.NODE_EXTRA_CA_CERTS
   )
-    throw new Error("dedicated journal requires the trusted direct Node runtime");
+    throw new Error("journal requires the trusted direct Node runtime");
 }
 
 function journalCredential(token: unknown): string {
@@ -472,86 +477,6 @@ function assertOwnedJournalDirectory(directory: string) {
     realpathSync(directory) !== path.resolve(directory)
   )
     throw new Error("journal transport requires a private owned directory");
-}
-
-function isolatedJournalClient(
-  directory: string,
-  token: unknown,
-  remaining: () => number,
-  afterCall?: () => number,
-  allowHistoricalJobRead = false,
-): CoordinatorRemoteApi {
-  const credential = journalCredential(token);
-  assertOwnedJournalDirectory(directory);
-  const home = mkdtempSync(path.join(directory, "journal-api-"));
-  const environment: NodeJS.ProcessEnv = {};
-  for (const key of [
-    "PATH",
-    "Path",
-    "SystemRoot",
-    "SYSTEMROOT",
-    "WINDIR",
-    "windir",
-    "COMSPEC",
-    "PATHEXT",
-  ])
-    if (process.env[key] !== undefined) environment[key] = process.env[key];
-  Object.assign(environment, {
-    GH_TOKEN: credential,
-    GH_HOST: "github.com",
-    GH_CONFIG_DIR: home,
-    HOME: home,
-    USERPROFILE: home,
-    XDG_CONFIG_HOME: home,
-    APPDATA: home,
-    LOCALAPPDATA: home,
-    GH_PROMPT_DISABLED: "1",
-    GH_NO_UPDATE_NOTIFIER: "1",
-    GH_NO_EXTENSION_UPDATE_NOTIFIER: "1",
-    NO_COLOR: "1",
-  });
-  const redact = (value: string) => value.replaceAll(credential, "[redacted]");
-  const runner = createGitHubRunner({
-    cwd: directory,
-    timeoutMs: 15000,
-    maxBuffer: 2 * 1024 * 1024,
-    spawn(command, args, options) {
-      const result = spawnSync(command, args, {
-        ...options,
-        timeout: remaining(),
-        env: environment,
-      });
-      const error = result.error
-        ? Object.assign(new Error("journal subprocess failed"), {
-            code:
-              "code" in result.error && result.error.code === "ETIMEDOUT"
-                ? "ETIMEDOUT"
-                : "JOURNAL_PROCESS_FAILED",
-          })
-        : null;
-      return {
-        status: result.status,
-        stdout: redact(String(result.stdout ?? "")),
-        stderr: redact(String(result.stderr ?? "")),
-        error,
-      };
-    },
-  });
-  const api = new GitHubApiClient((args, body) => {
-    remaining();
-    const result = runner([...args, "--hostname", "github.com"], body);
-    afterCall?.();
-    return result;
-  });
-  return {
-    request(method, endpoint, body) {
-      assertJournalRoute(method, endpoint, allowHistoricalJobRead);
-      return api.request(method, endpoint, body);
-    },
-    graphql(query, variables) {
-      return api.graphql(query, variables);
-    },
-  };
 }
 
 function assertJournalRoute(method: string, endpoint: string, allowHistoricalJobRead = false) {

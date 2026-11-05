@@ -396,7 +396,7 @@ async function collectHostedNativePredecessors(
         { api: provider },
       );
       phase = "checkpoint-proof";
-      const evidence = readCoordinatorCheckpointEvidence(
+      const evidence = await readCoordinatorCheckpointEvidence(
         checkpoint,
         configuration,
         provider,

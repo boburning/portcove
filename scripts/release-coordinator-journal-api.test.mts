@@ -1,7 +1,6 @@
 import { requireStorageAppToken } from "./release-storage-credential.mts";
 import assert from "node:assert/strict";
 import childProcess from "node:child_process";
-import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
 import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { syncBuiltinESMExports } from "node:module";
 import os from "node:os";
@@ -26,11 +25,11 @@ void test("history transport admits only bounded GET evidence and never opens co
   let clock = performance.now(),
     calls = 0;
   t.mock.method(performance, "now", () => clock);
-  t.mock.method(childProcess, "spawnSync", () => {
+  t.mock.method(globalThis, "fetch", async (_input: unknown, init?: RequestInit) => {
     calls++;
-    return { status: 0, stdout: 'HTTP/2.0 200 OK\r\n\r\n{"observed":true}', stderr: "" };
+    assert.equal(new Headers(init?.headers).get("authorization"), "token inert-fixed-history-only");
+    return Response.json({ observed: true });
   });
-  syncBuiltinESMExports();
   const deadline = clock + 1000;
   const reader = createCheckpointHistoryReader(
     root,
@@ -44,11 +43,12 @@ void test("history transport admits only bounded GET evidence and never opens co
     ["GET", "repos/other/repo/actions/jobs/1"],
     ["GET", "repos/boburning/portcove/actions/runs/1"],
   ] as const)
-    assert.throws(() => reader.api.request(method, route), /only fixed repository GET/);
-  assert.throws(() => reader.api.graphql("mutation{}", {}), /only exact/);
+    await assert.rejects(() => reader.api.request(method, route), /only fixed repository GET/);
+  await assert.rejects(() => reader.api.graphql("mutation{}", {}), /only exact/);
   assert.equal(calls, 0);
-  for (let n = 0; n < 9; n++) reader.api.request("GET", "repos/boburning/portcove/actions/jobs/1");
-  assert.throws(
+  for (let n = 0; n < 9; n++)
+    await reader.api.request("GET", "repos/boburning/portcove/actions/jobs/1");
+  await assert.rejects(
     () => reader.api.request("GET", "repos/boburning/portcove/actions/jobs/1"),
     /request bound/,
   );
@@ -60,7 +60,7 @@ void test("history transport admits only bounded GET evidence and never opens co
     deadline,
   );
   clock = deadline + 1;
-  assert.throws(
+  await assert.rejects(
     () => expiring.api.request("GET", "repos/boburning/portcove/actions/jobs/1"),
     /original deadline/,
   );
@@ -530,19 +530,6 @@ void test("dedicated storage checkpoint adapter isolates the new token and prese
   process.env.PORTCOVE_STORAGE_APP_ID = "90001";
   process.env.PORTCOVE_STORAGE_INSTALLATION_ID = "90002";
   let calls = 0;
-  t.mock.method(
-    childProcess,
-    "spawnSync",
-    (_command: string, _args: readonly string[], options: SpawnSyncOptionsWithStringEncoding) => {
-      calls++;
-      assert.equal(options.env!.GH_TOKEN, "dedicated-storage-token");
-      assert.equal(options.env!.PORTCOVE_STORAGE_APP_TOKEN, undefined);
-      assert.equal(options.env!.GITHUB_TOKEN, undefined);
-      assert.equal(options.env!.ACTIONS_ID_TOKEN_REQUEST_TOKEN, undefined);
-      return { status: 0, stdout: 'HTTP/2.0 201 Created\r\n\r\n{"observed":true}', stderr: "" };
-    },
-  );
-  syncBuiltinESMExports();
   t.mock.method(globalThis, "fetch", async (_input: unknown, init?: RequestInit) => {
     calls++;
     assert.equal(new Headers(init?.headers).get("authorization"), "token dedicated-storage-token");
@@ -568,10 +555,10 @@ void test("dedicated storage checkpoint adapter isolates the new token and prese
     app_id: 90001,
     installation_id: 90002,
   });
-  assert.throws(() => prepared.request("POST", "repos/boburning/portcove/git/refs", {}));
+  await assert.rejects(() => prepared.request("POST", "repos/boburning/portcove/git/refs", {}));
   assert.throws(() => prepared.graphql("mutation { updateRefs }", {}));
   assert.equal(calls, 1);
-  prepared.request("POST", "repos/boburning/portcove/git/blobs", { content: "public" });
+  await prepared.request("POST", "repos/boburning/portcove/git/blobs", { content: "public" });
   assert.equal(calls, 2);
   assert.equal(process.env.GH_TOKEN, "job-read-only-here");
 });

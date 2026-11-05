@@ -26,7 +26,7 @@ void test("checkpoint proof travels in the existing CAS and reads back exact byt
   assert.equal(result.updates.length, 4);
   assert.deepEqual(f.counts(), { posts: 7, mutations: 1, snapshots: 2 });
   assert.equal(f.refs.get(checked.update.name), checked.update.afterOid);
-  const read = readCoordinatorCheckpointEvidence(
+  const read = await readCoordinatorCheckpointEvidence(
     f.checkpoint,
     f.config,
     f.api,
@@ -94,7 +94,7 @@ void test("checkpoint proof readback refuses changed refs, malformed objects and
       },
     };
     try {
-      assert.throws(
+      await assert.rejects(
         () => readCoordinatorCheckpointEvidence(f.checkpoint, f.config, api, clock + 60000),
         /checkpoint evidence/,
       );
@@ -111,7 +111,7 @@ void test("checkpoint proof readback refuses changed refs, malformed objects and
   const clockMock = t.mock.method(performance, "now", () => fixedTime);
   try {
     for (const deadline of [fixedTime - 1, Infinity, fixedTime + 120001])
-      assert.throws(
+      await assert.rejects(
         () => readCoordinatorCheckpointEvidence(f.checkpoint, f.config, f.api, deadline),
         /original bounded read deadline/,
       );

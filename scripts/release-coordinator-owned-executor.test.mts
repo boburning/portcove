@@ -167,37 +167,53 @@ async function selectedOwnedHistoryFixture(
     t.mock.restoreAll();
     syncBuiltinESMExports();
   });
-  t.mock.method(globalThis, "fetch", async (raw: Parameters<typeof fetch>[0]) => {
-    assert.ok(typeof raw === "string" || raw instanceof URL);
-    const url = typeof raw === "string" ? raw : raw.href;
-    if (url === "https://token.actions.githubusercontent.com/.well-known/jwks")
-      return new Response(JSON.stringify({ keys: [identityJwk] }));
-    assert.equal(
-      url,
-      "https://fixture.actions.githubusercontent.com/oidc?audience=portcove-capacity-executor",
-    );
-    return new Response(JSON.stringify({ value: identity.token }));
-  });
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (raw: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const url = new URL(raw instanceof Request ? raw.url : raw);
+      if (url.href === "https://api.github.com/graphql") {
+        heads++;
+        assert.equal(
+          new Headers(init?.headers).get("authorization"),
+          "token inert-selected-job-token",
+        );
+        assert.ok(typeof init?.body === "string");
+        const query: unknown = JSON.parse(init.body);
+        assert.ok(
+          isRecord(query) && typeof query.query === "string" && query.query.startsWith("query("),
+        );
+        return Response.json({
+          data: {
+            repository: {
+              databaseId: 1354613114,
+              nameWithOwner: "boburning/portcove",
+              state: {
+                prefix: "refs/heads/",
+                name: "portcove-fixture-coordinator-state",
+                target: { __typename: "Commit", oid: seed.checkpoint },
+              },
+              intent: null,
+            },
+          },
+        });
+      }
+      if (url.href === "https://token.actions.githubusercontent.com/.well-known/jwks")
+        return new Response(JSON.stringify({ keys: [identityJwk] }));
+      assert.equal(
+        url.href,
+        "https://fixture.actions.githubusercontent.com/oidc?audience=portcove-capacity-executor",
+      );
+      return new Response(JSON.stringify({ value: identity.token }));
+    },
+  );
   t.mock.method(
     childProcess,
     "spawnSync",
-    (command: string, args: readonly string[], options: SpawnSyncOptionsWithStringEncoding) => {
-      if (command !== "gh") return actualSpawn(command, args, options);
-      if (args[1] !== "graphql") return identity.transport.spawn(command, args, options);
-      heads++;
-      assert.equal(options.env?.GH_TOKEN, "inert-selected-job-token");
-      assert.equal(options.env?.ACTIONS_ID_TOKEN_REQUEST_TOKEN, undefined);
-      assert.ok(typeof options.input === "string");
-      const query: unknown = JSON.parse(options.input);
-      assert.ok(
-        isRecord(query) && typeof query.query === "string" && query.query.startsWith("query("),
-      );
-      return {
-        status: 0,
-        stdout: `HTTP/2.0 200 Fixture\r\n\r\n${JSON.stringify({ data: { repository: { databaseId: 1354613114, nameWithOwner: "boburning/portcove", state: { prefix: "refs/heads/", name: "portcove-fixture-coordinator-state", target: { __typename: "Commit", oid: seed.checkpoint } }, intent: null } } })}`,
-        stderr: "",
-      };
-    },
+    (command: string, args: readonly string[], options: SpawnSyncOptionsWithStringEncoding) =>
+      command === "gh"
+        ? identity.transport.spawn(command, args, options)
+        : actualSpawn(command, args, options),
   );
   syncBuiltinESMExports();
   const deadline = performance.now() + jobBudget;
@@ -431,25 +447,7 @@ async function selectedEffectFixture(
           stderr: "",
         };
       }
-      if (!String(options.env?.GH_CONFIG_DIR).includes("journal-api-"))
-        return f.identity.transport.spawn(command, args, options);
-      assert.equal(options.env?.GH_TOKEN, "inert-selected-job-token");
-      assert.equal(options.env?.PORTCOVE_COORDINATOR_JOURNAL_TOKEN, undefined);
-      assert.ok(typeof options.input === "string" || options.input === undefined);
-      const raw: unknown = options.input === undefined ? undefined : JSON.parse(options.input);
-      assert.ok(args[1] === "graphql" || args[args.indexOf("--method") + 1] === "GET");
-      if (isRecord(raw) && typeof raw.query === "string")
-        assert.ok(!raw.query.startsWith("mutation"));
-      const { body, status } = journalReply(
-        args[1] === "graphql" ? "POST" : "GET",
-        args[1] === "graphql" ? "/graphql" : `/${args[2]!}`,
-        raw,
-      );
-      return {
-        status: 0,
-        stdout: `HTTP/2.0 ${status} Fixture\r\n\r\n${JSON.stringify(body)}`,
-        stderr: "",
-      };
+      return f.identity.transport.spawn(command, args, options);
     },
   );
   syncBuiltinESMExports();
