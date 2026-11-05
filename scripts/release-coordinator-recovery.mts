@@ -16,6 +16,7 @@ import {
 import type { CoordinatorGitObject } from "./release-coordinator-state.mts";
 import { isRecord } from "./runtime-values.mts";
 import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import {
   withCoordinatorDeadline,
   coordinatorCommandTimeout,
@@ -420,6 +421,7 @@ export async function readRemoteCoordinatorSnapshot(
       };
     }
     const token = transport.credential.token;
+    const direct = readOnlyReleaseChildEnvironment() !== undefined;
     const { createGitHubClient } = await import("./github-client.mts");
     const client = await createGitHubClient({
       credential: { kind: "explicit", token },
@@ -429,6 +431,12 @@ export async function readRemoteCoordinatorSnapshot(
         coordinatorCommandDeadline() ?? Infinity,
       ),
       maxBytes: maximumResponseBytes,
+      ...(direct && {
+        allowRequest() {
+          assertTrustedDirectNode("isolated coordinator snapshot");
+          return true;
+        },
+      }),
       headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
     });
     return {

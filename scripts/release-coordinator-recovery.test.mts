@@ -266,6 +266,39 @@ void test("configured SDK recovers the exact bracketed snapshot and refuses a Gr
   ]);
 });
 
+void test("isolated SDK coordinator snapshot refuses a late proxy override before dispatch", async (t) => {
+  const f = await recoveryFixture(t, false, true);
+  const originalToken = process.env.GH_TOKEN;
+  const originalProxy = process.env.NODE_USE_ENV_PROXY;
+  process.env.GH_TOKEN = "ghs_isolated_journal_fixture";
+  t.after(() => {
+    if (originalToken === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = originalToken;
+    if (originalProxy === undefined) delete process.env.NODE_USE_ENV_PROXY;
+    else process.env.NODE_USE_ENV_PROXY = originalProxy;
+  });
+  const fetcher = t.mock.method(globalThis, "fetch", async () => {
+    throw new Error("isolated reader must not dispatch");
+  });
+  await withReadOnlyReleaseChildren(f.parent, async () => {
+    process.env.NODE_USE_ENV_PROXY = "1";
+    await assert.rejects(
+      readRemoteCoordinatorSnapshot(
+        f.parent,
+        { schema_version: 1, namespace: "portcove-fixture" },
+        {
+          transport: {
+            credential: { token: "ghs_isolated_journal_fixture" },
+            deadline: performance.now() + 15000,
+          },
+        },
+      ),
+      /trusted direct Node runtime/u,
+    );
+  });
+  assert.equal(fetcher.mock.callCount(), 0);
+});
+
 for (const scenario of ["seeded", "changed", "unseeded", "pending-context"] as const)
   void test(
     `trusted coordinator ${scenario === "changed" ? "refuses changed remote recovery before reading main" : scenario === "seeded" ? "recovers active candidate then requires actual resumption authority before reading main" : scenario === "pending-context" ? "routes unresolved context to GET-only recovery before bootstrap preparation" : "holds an unseeded active candidate at bootstrap before resumption or main"}`,

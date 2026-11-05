@@ -19,6 +19,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { performance } from "node:perf_hooks";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
+import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
 import { isRecord } from "./runtime-values.mts";
 import { capacityDigest, inspectCapacityOperation } from "./release-capacity.mts";
 import {
@@ -239,6 +240,7 @@ export async function runFixedCatalogCoordinatorConfiguration(
       return client.graphql(query, variables);
     },
   };
+  const readerToken = fixedReleaseReaderToken();
   deadline = Math.min(
     deadline,
     await readOriginalCoordinatorJobDeadline(
@@ -246,6 +248,7 @@ export async function runFixedCatalogCoordinatorConfiguration(
       16 * 1024 ** 2,
     ),
   );
+  const journalTransport = { credential: { token: readerToken }, deadline };
   check();
   return withCoordinatorDeadline(deadline, async () => {
     let stage = "actual-catalog-admission";
@@ -275,7 +278,7 @@ export async function runFixedCatalogCoordinatorConfiguration(
       )
         throw new Error("catalog tools/actual job association differs");
       const recovered = await recoverRemoteCoordinator(directory, selected.remote_configuration, {
-          transport: { cwd: directory, deadline },
+          transport: journalTransport,
         }),
         input = recovered.input;
       const pending = inspectCatalogReviewRequest(input.catalog_review_request),
@@ -571,7 +574,7 @@ export async function runFixedCatalogCoordinatorConfiguration(
           );
       }
       const fresh = await readRemoteCoordinatorSnapshot(directory, selected.remote_configuration, {
-        transport: { cwd: directory, deadline },
+        transport: journalTransport,
       });
       if (fresh.checkpoint !== recovered.checkpoint)
         throw new Error("catalog journal advanced before neutral request CAS");
@@ -689,7 +692,7 @@ export async function runFixedCatalogCoordinatorConfiguration(
       const readback = await readRemoteCoordinatorSnapshot(
         directory,
         selected.remote_configuration,
-        { transport: { cwd: directory, deadline } },
+        { transport: journalTransport },
       );
       if (
         readback.checkpoint !== persisted.checkpoint ||

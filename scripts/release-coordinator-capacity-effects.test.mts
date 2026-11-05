@@ -22,9 +22,6 @@ import {
   CoordinatorRemoteError,
 } from "./release-coordinator-remote.mts";
 import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
-import childProcess from "node:child_process";
-import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
-import { syncBuiltinESMExports } from "node:module";
 import {
   authenticateCapacityExecutor,
   executeOwnedCapacityEffect,
@@ -280,6 +277,16 @@ for (const lost of [false, true])
             if (authorization === "token inert-provider-read-only-token") {
               assert.equal(init?.method, "GET");
               assert.equal(init.redirect, "manual");
+              if (activeIdentity !== signed && url.pathname.endsWith("/actions/jobs/501"))
+                return Response.json({
+                  id: 501,
+                  run_id: 9988,
+                  run_attempt: 2,
+                  head_sha: identityExpected.controller_revision,
+                  status: publisherTerminal ? "completed" : "in_progress",
+                  conclusion: publisherTerminal ? "failure" : null,
+                  check_run_url: "https://api.github.com/repos/boburning/portcove/check-runs/777",
+                });
               return Response.json(activeIdentity.metadata(url.pathname + url.search));
             }
             assert.equal(authorization, "token inert-dedicated-journal-token");
@@ -306,36 +313,7 @@ for (const lost of [false, true])
           return new Response(JSON.stringify({ value: activeIdentity.token }));
         },
       );
-      const original = childProcess.spawnSync;
-      const command = t.mock.method(
-        childProcess,
-        "spawnSync",
-        (name: string, args: readonly string[], options: SpawnSyncOptionsWithStringEncoding) => {
-          if (name !== "gh") return original(name, args, options);
-          assert.deepEqual(args.slice(-2), ["--hostname", "github.com"]);
-          if (activeIdentity !== signed && args[2]?.endsWith("/actions/jobs/501"))
-            return {
-              status: 0,
-              stdout: `HTTP/2 200\r\n\r\n${JSON.stringify({
-                id: 501,
-                run_id: 9988,
-                run_attempt: 2,
-                head_sha: identityExpected.controller_revision,
-                status: publisherTerminal ? "completed" : "in_progress",
-                conclusion: publisherTerminal ? "failure" : null,
-                check_run_url: "https://api.github.com/repos/boburning/portcove/check-runs/777",
-              })}`,
-              stderr: "",
-            };
-          throw new Error("dedicated journal API should use the configured SDK");
-        },
-      );
-      syncBuiltinESMExports();
-      t.after(() => {
-        command.mock.restore();
-        http.mock.restore();
-        syncBuiltinESMExports();
-      });
+      t.after(() => http.mock.restore());
       const executor = await authenticateCapacityExecutor(
         "site-publication",
         {

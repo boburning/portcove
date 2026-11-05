@@ -18,7 +18,6 @@ import {
   inspectSitePublicationExpectation,
   inspectCapacityOperation,
 } from "./release-capacity.mts";
-import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import { publishCoordinatorCheckpoint } from "./release-coordinator-remote.mts";
 import {
   recoverReleaseOpportunity,
@@ -44,7 +43,12 @@ import {
   createCheckpointJobTokenApi,
   createCheckpointHistoryReader,
 } from "./release-coordinator-journal-api.mts";
-import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
+import {
+  coordinatorCommandDeadline,
+  withCoordinatorDeadline,
+} from "./release-coordinator-deadline.mts";
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { inspectControllerExecutionPurpose } from "./release-control-phases.mts";
 import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-namespace.mts";
 import {
@@ -1159,26 +1163,36 @@ async function executeOwnedCapacityEffectWithinScope(
  * immutable controller must positively establish the requested resolution. */
 /** Provider reads share the actual executor's original phase clock. This
  * transport carries no executor authority and never extends a retained session. */
-export function capacityRecoveryProviderApi(value: { directory: string; deadline?: number }) {
-  const remaining = () => {
-    if (value.deadline !== undefined && !Number.isFinite(value.deadline))
-      throw new Error("capacity recovery phase deadline invalid");
-    const timeout =
-      value.deadline === undefined
-        ? 15000
-        : Math.floor(Math.min(15000, value.deadline - performance.now()));
-    if (timeout < 1) throw new Error("capacity recovery phase deadline exhausted");
-    return timeout;
+export function capacityRecoveryJobReader(value: { deadline?: number }) {
+  const original = value.deadline;
+  if (original !== undefined && !Number.isFinite(original))
+    throw new Error("capacity recovery phase deadline invalid");
+  const token = fixedReleaseReaderToken();
+  const direct = readOnlyReleaseChildEnvironment() !== undefined;
+  return async (job: number) => {
+    if (!Number.isSafeInteger(job) || job < 1)
+      throw new Error("exact capacity recovery job required");
+    const deadline = Math.min(
+      original ?? Infinity,
+      coordinatorCommandDeadline() ?? Infinity,
+      performance.now() + 15000,
+    );
+    if (deadline <= performance.now())
+      throw new Error("capacity recovery phase deadline exhausted");
+    const provider = await createReleaseCustodyProvider({
+      token,
+      deadline,
+      ...(direct
+        ? {
+            fetch(input, init) {
+              assertTrustedDirectNode("capacity recovery reader");
+              return globalThis.fetch(input, init);
+            },
+          }
+        : {}),
+    });
+    return provider.job(job);
   };
-  return new GitHubApiClient((args, body) => {
-    const result = createGitHubRunner({
-      cwd: value.directory,
-      timeoutMs: remaining(),
-      maxBuffer: 2 * 1024 * 1024,
-    })([...args, "--hostname", "github.com"], body);
-    remaining();
-    return result;
-  });
 }
 
 /** The actual caller supplies a synchronous recheck of its current authenticated
@@ -1258,7 +1272,7 @@ async function recoverOwnedCapacityEffectWithinScope(
     throw new Error("executor is busy or stopped; retain original recovery evidence");
   state.busy = true;
   try {
-    const api = capacityRecoveryProviderApi(value);
+    const readJob = capacityRecoveryJobReader(value);
     const { remote, publish } = await ownedCheckpointTransport(
       session,
       input,
@@ -1296,14 +1310,9 @@ async function recoverOwnedCapacityEffectWithinScope(
       throw new Error("admitted aggregate recovery cannot resolve another effect");
     if (original.job_id === executorIdentity.job_id && original.run_id === executorIdentity.run_id)
       throw new Error("live executor cannot appoint itself as terminal-job recovery");
-    const terminal = () => {
-      const response = api.request(
-        "GET",
-        `repos/boburning/portcove/actions/jobs/${String(original.job_id)}`,
-      );
-      const job = response.body;
+    const terminal = async () => {
+      const job = await readJob(Number(original.job_id));
       if (
-        response.status !== 200 ||
         !isRecord(job) ||
         job.id !== original.job_id ||
         String(job.run_id) !== original.run_id ||
@@ -1317,7 +1326,7 @@ async function recoverOwnedCapacityEffectWithinScope(
       )
         throw new Error("original exact executor is not observed terminal; recovery remains held");
     };
-    terminal();
+    await terminal();
     const resolution = structuredClone(await readback(structuredClone(operation)));
     if (
       !["evidence_sha256,resolution", "completed_effect,evidence_sha256,resolution"].includes(
@@ -1338,7 +1347,7 @@ async function recoverOwnedCapacityEffectWithinScope(
     )
       throw new Error("actual recovery readback is incomplete");
     await refreshCapacityExecutor(session);
-    terminal();
+    await terminal();
     await publish(input.checkpoint);
     const settled = await recordCapacityReadback(
       input.repository,
@@ -1428,7 +1437,7 @@ async function recoverOwnedPublishedMetadataWithinScope(
   if (state.busy || state.failed) throw new Error("recovery executor is busy or stopped");
   state.busy = true;
   try {
-    const api = capacityRecoveryProviderApi(value);
+    const readJob = capacityRecoveryJobReader(value);
     const { remote, publish } = await ownedCheckpointTransport(
       session,
       input,
@@ -1469,14 +1478,9 @@ async function recoverOwnedPublishedMetadataWithinScope(
       (original.run_id === current.run_id && original.job_id === current.job_id)
     )
       throw new Error("separate terminal site publisher required");
-    const terminal = () => {
-      const result = api.request(
-        "GET",
-        `repos/boburning/portcove/actions/jobs/${String(original.job_id)}`,
-      );
-      const job = result.body;
+    const terminal = async () => {
+      const job = await readJob(Number(original.job_id));
       if (
-        result.status !== 200 ||
         !isRecord(job) ||
         job.id !== original.job_id ||
         String(job.run_id) !== original.run_id ||
@@ -1490,7 +1494,7 @@ async function recoverOwnedPublishedMetadataWithinScope(
       )
         throw new Error("original exact publisher is not observed terminal");
     };
-    terminal();
+    await terminal();
     const observed = await readback(structuredClone(operation));
     if (
       component === "catalog" &&
@@ -1528,7 +1532,7 @@ async function recoverOwnedPublishedMetadataWithinScope(
     )
       throw new Error("public readback differs from exact settled effect");
     await refreshCapacityExecutor(session);
-    terminal();
+    await terminal();
     await publish(input.checkpoint);
     const recovered =
       component === "catalog"
