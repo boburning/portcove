@@ -4,10 +4,15 @@ import { spawnSync } from "node:child_process";
 import { mkdtemp, mkdir, writeFile, readFile, rm, access } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
-import { materializePublicationSourceRepository } from "./release-publication-source.mts";
+import {
+  materializePublicationSourceRepository,
+  createPublicationSourceOperations,
+} from "./release-publication-source.mts";
+import type { PublicationSourceOperations } from "./release-publication-source.mts";
+import { isRecord } from "./runtime-values.mts";
 import { materializeReleaseQualificationSource } from "./release-candidate-qualification.mts";
-import type { GitHubApiClient } from "./github-api.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
+import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
 import { prepareReleaseVersion } from "../apps/desktop/scripts/prepare-release-version.mts";
 import { inspectRiskVersionPreparation706 } from "./linux-beta-risk-706-preparation.mts";
 
@@ -92,85 +97,91 @@ async function fixture(t: test.TestContext, prepare = false) {
     tree = git("rev-parse", `${candidate}^{tree}`).toString().trim();
   let mutate = false,
     truncated = false;
-  const api = {
-    request(method: string, endpoint: string) {
-      assert.equal(method, "GET");
-      const id = /\/([a-f0-9]{40})(?:\?recursive=1)?$/u.exec(endpoint)?.[1];
-      assert.ok(id);
-      let body: unknown;
-      if (endpoint.includes("/git/commits/")) {
-        const raw = git("cat-file", "commit", id).toString(),
-          split = raw.indexOf("\n\n"),
-          headers = raw.slice(0, split).split("\n");
-        const actor = (role: string) => {
-          const match = new RegExp(`^${role} (.+) <([^>]+)> ([0-9]+) \\+0000$`, "u").exec(
-            headers.find((line) => line.startsWith(role + " "))!,
-          );
-          assert.ok(match);
-          return {
-            name: match[1],
-            email: match[2],
-            date: new Date(Number(match[3]) * 1000).toISOString().replace(".000Z", "Z"),
-          };
+  const readObject = (kind: "commits" | "trees" | "blobs", id: string) => {
+    let body: unknown;
+    if (kind === "commits") {
+      const raw = git("cat-file", "commit", id).toString(),
+        split = raw.indexOf("\n\n"),
+        headers = raw.slice(0, split).split("\n");
+      const actor = (role: string) => {
+        const match = new RegExp(`^${role} (.+) <([^>]+)> ([0-9]+) \\+0000$`, "u").exec(
+          headers.find((line) => line.startsWith(role + " "))!,
+        );
+        assert.ok(match);
+        return {
+          name: match[1],
+          email: match[2],
+          date: new Date(Number(match[3]) * 1000).toISOString().replace(".000Z", "Z"),
         };
-        body = {
-          sha: id,
-          tree: { sha: headers[0]!.slice(5) },
-          parents: headers
-            .filter((line) => line.startsWith("parent "))
-            .map((line) => ({ sha: line.slice(7) })),
-          author: actor("author"),
-          committer: actor("committer"),
-          message: raw.slice(split + 2),
-          verification: { payload: null, signature: null },
-        };
-      } else if (endpoint.includes("/git/trees/")) {
-        body = {
-          sha: id,
-          truncated,
-          tree: git("ls-tree", "-r", "-t", "-l", "-z", id)
-            .toString()
-            .split("\0")
-            .filter(Boolean)
-            .map((line) => {
-              const match = /^(\d+) (\w+) ([a-f0-9]{40})\s+(\d+|-)\t(.+)$/u.exec(line);
-              assert.ok(match);
-              return {
-                mode: match[1],
-                type: match[2],
-                sha: match[3],
-                path: match[5],
-                ...(match[4] === "-" ? {} : { size: Number(match[4]) }),
-              };
-            }),
-        };
-      } else if (endpoint.includes("/git/blobs/")) {
-        const bytes = git("cat-file", "blob", id);
-        body = {
-          sha: id,
-          encoding: "base64",
-          size: bytes.length,
-          content: bytes.toString("base64"),
-        };
-      } else assert.fail(endpoint);
-      return { status: 200, headers: new Map(), body };
+      };
+      body = {
+        sha: id,
+        tree: { sha: headers[0]!.slice(5) },
+        parents: headers
+          .filter((line) => line.startsWith("parent "))
+          .map((line) => ({ sha: line.slice(7) })),
+        author: actor("author"),
+        committer: actor("committer"),
+        message: raw.slice(split + 2),
+        verification: { payload: null, signature: null },
+      };
+    } else if (kind === "trees") {
+      body = {
+        sha: id,
+        truncated,
+        tree: git("ls-tree", "-r", "-t", "-l", "-z", id)
+          .toString()
+          .split("\0")
+          .filter(Boolean)
+          .map((line) => {
+            const match = /^(\d+) (\w+) ([a-f0-9]{40})\s+(\d+|-)\t(.+)$/u.exec(line);
+            assert.ok(match);
+            return {
+              mode: match[1],
+              type: match[2],
+              sha: match[3],
+              path: match[5],
+              ...(match[4] === "-" ? {} : { size: Number(match[4]) }),
+            };
+          }),
+      };
+    } else if (kind === "blobs") {
+      const bytes = git("cat-file", "blob", id);
+      body = {
+        sha: id,
+        encoding: "base64",
+        size: bytes.length,
+        content: bytes.toString("base64"),
+      };
+    } else assert.fail(kind);
+    return body;
+  };
+  const operations: PublicationSourceOperations = {
+    async commit(id) {
+      return readObject("commits", id);
     },
-    graphql(query: string) {
+    async tree(id) {
+      return readObject("trees", id);
+    },
+    async blob(id) {
+      return readObject("blobs", id);
+    },
+    async blobs(ids) {
       const repository: Record<string, unknown> = { id: "fixture-inert", databaseId: 1354613114 };
-      for (const match of query.matchAll(/b(\d+):object\(expression:"([a-f0-9]{40})"\)/gu)) {
-        const bytes = git("cat-file", "blob", match[2]!);
+      for (const [index, id] of ids.entries()) {
+        const bytes = git("cat-file", "blob", id);
         const binary = bytes.includes(0);
-        repository[`b${match[1]}`] = {
+        repository[`b${index}`] = {
           __typename: "Blob",
-          oid: match[2],
+          oid: id,
           byteSize: bytes.length,
           isBinary: binary,
           text: binary ? null : bytes.toString("utf8") + (mutate ? "changed" : ""),
         };
       }
-      return { data: { repository } };
+      return { repository };
     },
-  } as unknown as Pick<GitHubApiClient, "request" | "graphql">;
+  };
   return {
     root,
     source,
@@ -181,7 +192,7 @@ async function fixture(t: test.TestContext, prepare = false) {
     candidate,
     tree,
     canary,
-    api,
+    operations,
     git,
     setMutation: () => {
       mutate = true;
@@ -197,7 +208,7 @@ void test("bounded provider objects recreate actual Git qualification input incl
     const imported = await materializePublicationSourceRepository(
       f.scratch,
       { controller_commit: f.baseline, candidate_commit: f.candidate, candidate_tree: f.tree },
-      { api: f.api },
+      { operations: f.operations },
     );
     assert.notEqual(
       spawnSync("git", ["cat-file", "-e", f.originalParent], {
@@ -234,7 +245,7 @@ void test("actual prepared source survives bounded provider import and depth-one
         candidate_commit: f.candidate,
         candidate_tree: f.tree,
       },
-      { api: f.api },
+      { operations: f.operations },
     );
     const result = await materializeReleaseQualificationSource(
       imported.repository,
@@ -274,7 +285,7 @@ void test("truncated tree and changed GraphQL source bytes refuse before qualifi
     materializePublicationSourceRepository(
       f.scratch,
       { controller_commit: f.baseline, candidate_commit: f.candidate, candidate_tree: f.tree },
-      { api: f.api },
+      { operations: f.operations },
     ),
     /bytes differ|object differs/,
   );
@@ -284,10 +295,138 @@ void test("truncated tree and changed GraphQL source bytes refuse before qualifi
     materializePublicationSourceRepository(
       g.scratch,
       { controller_commit: g.baseline, candidate_commit: g.candidate, candidate_tree: g.tree },
-      { api: g.api },
+      { operations: g.operations },
     ),
     /truncated/,
   );
   await assert.rejects(access(f.canary));
   await assert.rejects(access(g.canary));
+});
+
+void test("actual SDK reconstructs inert source through REST and GraphQL with exact wire accounting", async (t) => {
+  const f = await fixture(t);
+  let sends = 0;
+  const operations = await createPublicationSourceOperations({
+    deadline: performance.now() + 60000,
+    environment: { GH_TOKEN: "ghs_SYNTHETIC_SOURCE_ONLY" },
+    fetch: async (input, init) => {
+      if (typeof input !== "string") assert.fail("SDK must use a fixed URL");
+      const url = new URL(input);
+      sends++;
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(init?.redirect, "manual");
+      const headers = new Headers(init?.headers);
+      assert.match(
+        headers.get("authorization") ?? "",
+        /^(?:token|Bearer) ghs_SYNTHETIC_SOURCE_ONLY$/u,
+      );
+      assert.equal(headers.get("x-github-api-version"), "2022-11-28");
+      if (url.pathname === "/graphql") {
+        assert.equal(init?.method, "POST");
+        assert.equal(typeof init?.body, "string");
+        const payload: unknown = JSON.parse(typeof init?.body === "string" ? init.body : "null");
+        assert.ok(isRecord(payload) && typeof payload.query === "string");
+        const ids = [...payload.query.matchAll(/b\d+:object\(expression:"([a-f0-9]{40})"\)/gu)].map(
+          (match) => match[1]!,
+        );
+        return Response.json({ data: await f.operations.blobs(ids) });
+      }
+      assert.equal(init?.method, "GET");
+      const match =
+        /^\/repos\/boburning\/portcove\/git\/(commits|trees|blobs)\/([a-f0-9]{40})$/u.exec(
+          url.pathname,
+        );
+      assert.ok(match);
+      const id = match[2]!;
+      const data =
+        match[1] === "commits"
+          ? await f.operations.commit(id)
+          : match[1] === "trees"
+            ? await f.operations.tree(id)
+            : await f.operations.blob(id);
+      return Response.json(data);
+    },
+  });
+  const result = await withCoordinatorDeadline(performance.now() + 60000, () =>
+    materializePublicationSourceRepository(
+      f.scratch,
+      {
+        controller_commit: f.baseline,
+        candidate_commit: f.candidate,
+        candidate_tree: f.tree,
+      },
+      { operations },
+    ),
+  );
+  assert.equal(result.calls, sends);
+  assert.ok(sends > 0 && sends <= 180);
+  const imported = spawnSync(
+    "git",
+    ["--git-dir", result.repository, "cat-file", "blob", `${f.candidate}:binary.dat`],
+    { timeout: 10000 },
+  );
+  assert.equal(imported.status, 0, imported.stderr.toString());
+  assert.deepEqual(imported.stdout, Buffer.from([0, 255, 1, 2]));
+  await assert.rejects(access(f.canary));
+});
+
+void test("publication source refuses missing role credentials, invalid objects and failed streams before retry", async () => {
+  await assert.rejects(
+    createPublicationSourceOperations({
+      deadline: performance.now() + 5000,
+      environment: { GITHUB_TOKEN: "unapproved-fallback" },
+    }),
+    /explicit.*credential/u,
+  );
+  for (const mode of ["transient", "stream", "oversize"] as const) {
+    let sends = 0;
+    const operations = await createPublicationSourceOperations({
+      deadline: performance.now() + 5000,
+      environment: { GH_TOKEN: "fixture-token" },
+      fetch: async () => {
+        sends++;
+        if (mode === "transient") return Response.json({ message: "unavailable" }, { status: 503 });
+        if (mode === "oversize") return new Response(new Uint8Array(24 * 1024 ** 2 + 1));
+        return new Response(
+          new ReadableStream({
+            start(controller) {
+              controller.error(new Error("failed body"));
+            },
+          }),
+        );
+      },
+    });
+    await assert.rejects(operations.commit("../../other"));
+    await assert.rejects(operations.blobs([]));
+    await assert.rejects(operations.blobs(["invalid"]));
+    assert.equal(sends, 0);
+    await assert.rejects(operations.commit("a".repeat(40)));
+    assert.equal(sends, 1);
+  }
+});
+
+void test("SDK source reads retain the captured job reader token after its scope exits", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "publication-reader-role-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const prior = process.env.GH_TOKEN;
+  try {
+    process.env.GH_TOKEN = "ghs_SYNTHETIC_READER_ONLY";
+    const operations = await withReadOnlyReleaseChildren(directory, async () => {
+      process.env.GH_TOKEN = "ghs_SYNTHETIC_OTHER_ROLE";
+      return createPublicationSourceOperations({
+        deadline: performance.now() + 5000,
+        fetch: async (_input, init) => {
+          assert.match(
+            new Headers(init?.headers).get("authorization") ?? "",
+            /^(?:token|Bearer) ghs_SYNTHETIC_READER_ONLY$/u,
+          );
+          return Response.json({ sha: "a".repeat(40) });
+        },
+      });
+    });
+    await operations.commit("a".repeat(40));
+  } finally {
+    if (prior === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = prior;
+  }
 });

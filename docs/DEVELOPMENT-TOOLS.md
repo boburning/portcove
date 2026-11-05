@@ -1055,7 +1055,11 @@ before deletion, rereads identity and sends one DELETE followed by authoritative
 readback. Its trusted main workflow installs the locked packages before the token
 step. Existing cleanup eligibility and workflow permissions remain authoritative.
 Audit receipt discovery uses command-scoped SDK metadata reads and awaited
-identity/readback before importing evidence. Artifact-byte acquisition
+identity/readback before importing evidence. Publication-source custody uses
+fixed SDK Git-object reads and pure queries with the captured job-reader token;
+exact object hashes, source closure and candidate-execution restrictions remain
+with the materializer. Trusted controller bundles include the locked SDK and
+refuse external runtime package imports. Artifact-byte acquisition
 retains its existing bounded helper until its caller family migrates. The discovery
 worker now admits GitHub only for its original artifact ZIP byte route; external
 GET/HEAD provider reads remain separate from GitHub metadata.
