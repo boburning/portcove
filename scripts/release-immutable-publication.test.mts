@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
 import { performance } from "node:perf_hooks";
-import { createGitHubRunner, GitHubApiClient, GitHubApiError } from "./github-api.mts";
+import { GitHubApiError } from "./github-operation.mts";
+import {
+  createReleaseCustodyProvider,
+  type ImmutableReleaseMetadataProvider,
+} from "./release-custody-provider.mts";
 import {
   inspectImmutableReleaseSettlement,
   proposeImmutableReleaseTransition,
@@ -97,8 +101,8 @@ void test("owned publication refuses copied publication or signing-stage claims 
   }
 });
 
-void test("feed prerequisite cannot import a serialized release preparation or acceptance receipt", () => {
-  assert.throws(
+void test("feed prerequisite cannot import a serialized release preparation or acceptance receipt", async () => {
+  await assert.rejects(
     () =>
       verifyPreparedImmutableRelease({ identity: fixture().identity } as never, {
         prepared_commit: "a".repeat(40),
@@ -197,96 +201,199 @@ void test("published mutable/incomplete, starter, corrupt, unexpected and duplic
   }
 });
 
-void test("complete inventory finds a retained draft and verifies actual version tag without relying on tag lookup", () => {
+void test("complete inventory finds a retained draft and verifies actual version tag without relying on tag lookup", async () => {
   const f = fixture();
   const calls: string[] = [];
-  const api = {
-    request(method: string, endpoint: string) {
-      calls.push(endpoint);
-      assert.equal(method, "GET");
-      const body: unknown = endpoint.includes("/releases?")
-        ? [f.release]
-        : endpoint.includes("/assets?")
-          ? f.assets
-          : f.release;
-      if (endpoint.includes("/git/ref/"))
-        return { status: 404, headers: new Map<string, string>(), body: null };
-      return { status: 200, headers: new Map<string, string>(), body };
+  const metadata: ImmutableReleaseMetadataProvider = {
+    async releases(page) {
+      assert.equal(page, 1);
+      calls.push("releases");
+      return [f.release];
+    },
+    async versionTag(tag) {
+      assert.equal(tag, `v${f.identity.version}`);
+      calls.push("version tag");
+      return { kind: "absent" };
+    },
+    async annotatedTag() {
+      assert.fail("no annotated tag");
+    },
+    async releaseAssets(id, page) {
+      assert.equal(id, f.release.id);
+      assert.equal(page, 1);
+      calls.push("assets");
+      return f.assets;
+    },
+    async release(id) {
+      assert.equal(id, f.release.id);
+      calls.push("detail");
+      return f.release;
     },
   };
-  assert.equal(readImmutableReleaseState(api, f.identity).assets.length, f.assets.length);
-  assert.ok(calls.every((call) => !call.includes("releases/tags/")));
+  assert.equal(
+    (await readImmutableReleaseState(metadata, f.identity)).assets.length,
+    f.assets.length,
+  );
+  assert.deepEqual(calls, ["releases", "version tag", "assets", "detail"]);
   f.publish();
-  assert.throws(() => readImmutableReleaseState(api, f.identity), /actual version tag/u);
+  await assert.rejects(readImmutableReleaseState(metadata, f.identity), /actual version tag/u);
 });
 
-void test("actual gh nonzero missing-tag response permits only the absent draft-first transition", () => {
+void test("locked SDK only treats a complete exact tag 404 as absence after the full Release list", async () => {
   const f = fixture();
   let responseStatus = 404;
-  let timeout = false;
-  const api = new GitHubApiClient(
-    createGitHubRunner({
-      spawn: (_command, args) => {
-        assert.equal(args[0], "api");
-        assert.equal(args[4], "GET");
-        const endpoint = args[2]!;
-        const missingTag = endpoint.includes("/git/ref/tags/");
-        const status = missingTag ? responseStatus : 200;
-        const body = missingTag ? { message: "Not Found" } : [];
-        return {
-          status: status === 200 ? 0 : 1,
-          stdout: `HTTP/2.0 ${status} Response\r\n\r\n${JSON.stringify(body)}`,
-          stderr: status === 200 ? "" : "gh: provider refused request",
-          ...(timeout && missingTag
-            ? { error: Object.assign(new Error("request timed out"), { code: "ETIMEDOUT" }) }
-            : {}),
-        };
-      },
-    }),
-  );
-  const absent = readImmutableReleaseState(api, f.identity);
+  const paths: string[] = [];
+  const metadata = await createReleaseCustodyProvider({
+    token: "inert-immutable-reader",
+    deadline: performance.now() + 15000,
+    fetch: async (input, init) => {
+      const request = new Request(input, init);
+      const url = new URL(request.url),
+        prefix = "/repos/boburning/portcove";
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(request.method, "GET");
+      assert.equal(request.headers.get("authorization"), "token inert-immutable-reader");
+      assert.equal(request.headers.get("x-github-api-version"), "2022-11-28");
+      paths.push(url.pathname);
+      if (url.pathname === `${prefix}/releases`) {
+        assert.equal(url.searchParams.get("per_page"), "100");
+        assert.equal(url.searchParams.get("page"), "1");
+        return Response.json([]);
+      }
+      assert.equal(url.pathname, `${prefix}/git/ref/tags/v${f.identity.version}`);
+      return Response.json({ message: "Tag unavailable" }, { status: responseStatus });
+    },
+  });
+  const absent = await readImmutableReleaseState(metadata, f.identity);
   assert.deepEqual(absent, { release: null, assets: [], tag_commit: null });
   const proposed = proposeImmutableReleaseTransition(f.identity, absent.release, absent.assets);
   assert.ok(proposed.decision === "effect" && proposed.effect.kind === "create-draft");
-  for (const status of [401, 403, 429, 500]) {
+  for (const status of [401, 403, 500, 429]) {
     responseStatus = status;
-    assert.throws(
-      () => readImmutableReleaseState(api, f.identity),
+    await assert.rejects(
+      readImmutableReleaseState(metadata, f.identity),
       (error) => error instanceof GitHubApiError && error.status === status,
     );
   }
-  responseStatus = 404;
-  timeout = true;
-  assert.throws(
-    () => readImmutableReleaseState(api, f.identity),
+  assert.equal(paths.length, 10);
+  // A new client keeps the previous 429 deferral from hiding the broken body case.
+  const truncated = await createReleaseCustodyProvider({
+    token: "inert-immutable-reader",
+    deadline: performance.now() + 15000,
+    fetch: async (input) => {
+      const url = new URL(input instanceof Request ? input.url : input);
+      return url.pathname.endsWith("/releases")
+        ? Response.json([])
+        : new Response(
+            new ReadableStream({
+              start(controller) {
+                controller.error(new Error("incomplete tag metadata"));
+              },
+            }),
+            { status: 404, headers: { "content-type": "application/json" } },
+          );
+    },
+  });
+  await assert.rejects(
+    readImmutableReleaseState(truncated, f.identity),
     (error) => error instanceof GitHubApiError && error.status === null,
   );
 });
 
-void test("fixed write transport sends one bounded binary effect and never follows a redirect or retries refusal", async () => {
+void test("locked SDK sends unchanged upload bytes once and refuses redirects or server errors", async () => {
   const f = fixture();
   const step = proposeImmutableReleaseTransition(f.identity, f.release, []);
   assert.ok(step.decision === "effect" && step.effect.kind === "upload-asset");
-  let calls = 0;
-  const fetcher = (async (input: string | URL | Request, options?: RequestInit) => {
-    calls++;
-    assert.equal(typeof input, "string");
-    assert.match(input as string, /^https:\/\/uploads.github.com\/repos\/boburning\/portcove\//u);
-    assert.equal(options?.method, "POST");
-    assert.equal(options?.redirect, "error");
-    assert.equal(options?.credentials, "omit");
-    return new Response(null, { status: 502 });
-  }) as typeof fetch;
+  const { effect } = step;
+  const bytes = f.data.get(effect.asset.filename)!;
+  for (const status of [302, 502]) {
+    let calls = 0;
+    const fetcher: typeof globalThis.fetch = async (input, options) => {
+      calls++;
+      assert.equal(input, effect.endpoint);
+      assert.equal(options?.method, "POST");
+      assert.equal(options?.redirect, "manual");
+      assert.equal(options?.credentials, "omit");
+      const headers = new Headers(options?.headers);
+      assert.equal(headers.get("authorization"), "token inert-fixture-token");
+      assert.equal(headers.get("x-github-api-version"), "2026-03-10");
+      assert.equal(headers.get("content-type"), "application/octet-stream");
+      assert.ok(options?.body instanceof Uint8Array);
+      assert.deepEqual(Buffer.from(options.body), bytes);
+      return new Response(null, { status, headers: { location: "https://untrusted.invalid/" } });
+    };
+    await assert.rejects(
+      performImmutableReleaseEffect(effect, bytes, "inert-fixture-token", fetcher),
+      /readback\/recovery/u,
+    );
+    assert.equal(calls, 1);
+  }
+});
+
+void test("locked SDK sends exact draft creation and publish JSON to the fixed API origin", async () => {
+  const f = fixture();
+  const create = proposeImmutableReleaseTransition(f.identity, null, []);
+  const publish = proposeImmutableReleaseTransition(f.identity, f.release, f.assets);
+  assert.ok(create.decision === "effect" && create.effect.kind === "create-draft");
+  assert.ok(publish.decision === "effect" && publish.effect.kind === "publish-draft");
+  const expected = [
+    {
+      effect: create.effect,
+      method: "POST",
+      route: "/repos/boburning/portcove/releases",
+      status: 201,
+    },
+    {
+      effect: publish.effect,
+      method: "PATCH",
+      route: `/repos/boburning/portcove/releases/${f.release.id}`,
+      status: 200,
+    },
+  ];
+  const calls: string[] = [];
+  for (const { effect, method, route, status } of expected) {
+    const result = await performImmutableReleaseEffect(
+      effect,
+      null,
+      "inert-publication",
+      async (input, init) => {
+        const request = new Request(input, init);
+        assert.equal(request.url, `https://api.github.com${route}`);
+        assert.equal(request.method, method);
+        assert.equal(request.headers.get("authorization"), "token inert-publication");
+        assert.equal(request.headers.get("content-type"), "application/json");
+        assert.equal(await request.text(), JSON.stringify(effect.body));
+        calls.push(method);
+        return Response.json({ ignored: true }, { status });
+      },
+    );
+    assert.deepEqual(result, { status });
+  }
+  assert.deepEqual(calls, ["POST", "PATCH"]);
+});
+
+void test("risk expiry during SDK setup prevents dispatch even after the initial gate passed", async (t) => {
+  const next = proposeImmutableReleaseTransition(fixture().identity, null, []);
+  assert.ok(next.decision === "effect" && next.effect.kind === "create-draft");
+  let clockReads = 0,
+    sends = 0;
+  t.mock.method(Date, "now", () => (++clockReads === 1 ? 1000 : 2000));
   await assert.rejects(
     performImmutableReleaseEffect(
-      step.effect,
-      f.data.get(step.effect.asset.filename)!,
-      "inert-fixture-token",
-      fetcher,
+      next.effect,
+      null,
+      "inert",
+      async () => {
+        sends++;
+        return new Response(null, { status: 201 });
+      },
+      performance.now() + 5000,
+      1500,
     ),
-    /readback\/recovery/u,
+    /risk authorization expired/u,
   );
-  assert.equal(calls, 1);
+  assert.ok(clockReads > 1);
+  assert.equal(sends, 0);
 });
 
 void test("imported accepted receipts cannot execute a Release operation", async () => {
@@ -305,6 +412,78 @@ void test("imported accepted receipts cannot execute a Release operation", async
     ),
     /actual release preparation/u,
   );
+});
+
+void test("overlapping executor callbacks can dispatch only one immutable Release effect", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const { stripTypeScriptTypes } = await import("node:module");
+  const { runInNewContext } = await import("node:vm");
+  const { CoordinatorRemoteError } = await import("./release-coordinator-errors.mts");
+  const { isRecord } = await import("./runtime-values.mts");
+  const source = await readFile(
+    new URL("./release-immutable-publication.mts", import.meta.url),
+    "utf8",
+  );
+  const first = source.indexOf("export async function advanceImmutableReleasePublication(");
+  const last = source.indexOf("/** One next logical Release effect", first);
+  assert.ok(first >= 0 && last > first);
+  const session = { identity: fixture().identity, directory: "private" };
+  const prepared = new WeakMap([
+    [session, { session, descriptor: "unused", checkpoint: "a".repeat(40) }],
+  ]);
+  const beganRead = Promise.withResolvers<void>(),
+    allowRead = Promise.withResolvers<void>();
+  let reads = 0,
+    sends = 0;
+  const run = runInNewContext(
+    stripTypeScriptTypes(`(${source.slice(first + "export ".length, last).trim()})`),
+    {
+      prepared,
+      active: new WeakSet(),
+      completionOnlySessions: new WeakSet(),
+      publicationRemaining: () => 1000,
+      requireReservedAggregate: async () => {},
+      inspectReleaseEffectExpectation: () => ({}),
+      structuredClone,
+      isRecord,
+      capacityDigest,
+      proposeImmutableReleaseTransition,
+      CoordinatorRemoteError,
+      assets: () => [],
+      readImmutableReleaseState: async () => {
+        if (++reads > 1) {
+          beganRead.resolve();
+          await allowRead.promise;
+        }
+        return { release: null, assets: [], tag_commit: null };
+      },
+      performImmutableReleaseEffect: async () => {
+        sends++;
+        throw new Error("ambiguous provider acknowledgement");
+      },
+    },
+  ) as (session: object, options: object) => Promise<unknown>;
+  await assert.rejects(
+    run(session, {
+      metadata: {},
+      recover: async () => ({ input: { active_candidate: null } }),
+      effect: async (_effect: unknown, callback: () => Promise<unknown>) => {
+        const one = callback();
+        await beganRead.promise;
+        const both = Promise.allSettled([one, callback()]);
+        allowRead.resolve();
+        const [first, second] = await both;
+        assert.equal(first?.status, "rejected");
+        assert.equal(second?.status, "rejected");
+        if (second?.status === "rejected") assert.match(String(second.reason), /only once/u);
+        throw new Error("effect remains unresolved");
+      },
+    }),
+    /ambiguous or refused/u,
+  );
+  assert.equal(reads, 2);
+  assert.equal(sends, 1);
+  assert.equal(prepared.has(session), false);
 });
 
 void test("settlement binds the actual recovered capacity intent, checkpoint and callback evidence", () => {

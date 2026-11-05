@@ -906,8 +906,9 @@ export async function readActualNativePostSignPublicInputs(controllerReceipt: ob
   };
   const cachedDownload: typeof readGitHubArtifactArchive = (endpoint, options) =>
     endpoint === zipEndpoint ? Buffer.from(contextArchive) : source.download(endpoint, options);
+  const metadata = await source.metadata(deadline);
   const context = await receiveSigningContextArtifact(directory, expected, deadline, {
-    api: source.api,
+    metadata,
     download: cachedDownload,
     spawn: source.verifier(controller),
   });
@@ -928,7 +929,6 @@ export async function readActualNativePostSignPublicInputs(controllerReceipt: ob
     throw new Error(
       "native signed context differs from exact reserved compiler run/prepared source",
     );
-  const metadata = await source.metadata(deadline);
   const roles = [];
   for (const role of before.roles) {
     const { bytes: _artifactBytes, ...artifact } = role.artifact,

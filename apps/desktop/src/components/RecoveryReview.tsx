@@ -1,9 +1,10 @@
+import { countMessage } from "../localization";
 import { ActionReviewFailure } from "./ActionReviewFailure";
 import { useRef, useState } from "react";
 import { desktopApi } from "../api";
 import type { DoctorReport, PortDefinition, PreparationCleanupPreview } from "../types";
 import { useActionReview } from "../use-action-review";
-import { errorText, formatBytes, formatCountMessage } from "../view-model";
+import { errorText, formatBytes } from "../view-model";
 import type { DetailDestination } from "../view-model";
 import { gameIdentityLabel } from "../port-identity";
 import { Button } from "./ui/button";
@@ -20,12 +21,6 @@ const labels: Record<Item["kind"], string> = {
   missing_registered_path: "Registered game folder is missing",
   degraded_backup: "Backup needs attention",
   backup_recovery_required: "Backup recovery needs review",
-};
-const countMessages = {
-  zero: "No recovery items were recorded in the last check.",
-  one: "1 recorded item needs review.",
-  other: "{count} recorded items need review.",
-  unknown: "Recovery information is unavailable.",
 };
 
 export function RecoveryReview({
@@ -83,7 +78,7 @@ export function RecoveryReview({
         </h2>
         {(!stale || repair) && (
           <p className="mb-0 text-sm text-pc-muted-foreground">
-            {formatCountMessage(repair?.items.length, countMessages)}
+            {countMessage(repair?.items.length, "recoveryItems")}
           </p>
         )}
       </header>
@@ -432,14 +427,8 @@ function PreparationCleanupDetails({
       }
     >
       <p className="[overflow-wrap:anywhere]">
-        <strong>{name}</strong> ·{" "}
-        {formatCountMessage(preview.retained.files.length, {
-          zero: "0 files",
-          one: "1 file",
-          other: "{count} files",
-          unknown: "File count unavailable",
-        })}{" "}
-        · {formatBytes(preview.retained.total_bytes)}
+        <strong>{name}</strong> · {countMessage(preview.retained.files.length, "retainedFiles")} ·{" "}
+        {formatBytes(preview.retained.total_bytes)}
       </p>
       {readOnly && (
         <div className="mb-4">

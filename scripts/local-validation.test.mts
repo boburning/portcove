@@ -2187,6 +2187,10 @@ void test("Windows application release workflow and fixed owner changes select t
     ".github/workflows/application-release.yml",
     ".github/workflows/application-release-native.yml",
     ".github/workflows/application-release-private.yml",
+    "scripts/application-release-build-inputs.mts",
+    "scripts/application-release-io.mts",
+    "scripts/application-release-run-title.mts",
+    "scripts/application-release-transfer.mts",
     "scripts/application-release-private.mts",
     "scripts/release-hosted-native-windows-owner-mechanism.ps1",
     "scripts/native-qualification-account.cs.txt",
@@ -4647,7 +4651,9 @@ void test("GitHub dependency changes select actual SDK and REST integration cont
       "scripts/release-pages-provider.test.mts",
       "scripts/release-publication-controller.test.mts",
       "scripts/release-publication-result-artifact.test.mts",
+      "scripts/release-immutable-publication.test.mts",
       "scripts/release-signing-handoff.test.mts",
+      "scripts/release-signing-context-artifact.test.mts",
       "scripts/release-tuf-role-artifact.test.mts",
       "scripts/release-controller-wake.test.mts",
       "scripts/release-coordinator-checkpoint-authentication.test.mts",
@@ -4662,6 +4668,8 @@ void test("GitHub dependency changes select actual SDK and REST integration cont
     { fileExists: () => false },
   );
   assert.ok(custodyChange.nodeTests.has("scripts/release-signing-handoff.test.mts"));
+  assert.ok(custodyChange.nodeTests.has("scripts/release-immutable-publication.test.mts"));
+  assert.ok(custodyChange.nodeTests.has("scripts/release-signing-context-artifact.test.mts"));
   assert.ok(custodyChange.nodeTests.has("scripts/release-tuf-role-artifact.test.mts"));
   for (const name of ["ci-health", "handoff-evidence", "postmerge-ci"]) {
     const file = `scripts/${name}.mts`;

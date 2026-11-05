@@ -6,11 +6,13 @@ import { mock } from "node:test";
 import { registerHooks, syncBuiltinESMExports } from "node:module";
 import childProcess from "node:child_process";
 import * as children from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import os from "node:os";
 import { performance } from "node:perf_hooks";
 import * as contextFiles from "../release-signing-context.mts";
+import * as assemblerIdentity from "../assembler-job-identity.mts";
 
 type Subject = Pick<
   typeof import("../release-signing-context-artifact.mts"),
@@ -23,7 +25,11 @@ Object.defineProperty(performance, "now", { configurable: true, value: () => clo
 const forbidden = () => {
   throw new Error("Uncontrolled context provider/process work is forbidden");
 };
-globalThis.fetch = forbidden;
+let controlledFetch: typeof globalThis.fetch | undefined;
+globalThis.fetch = (input, init) => {
+  assert.ok(controlledFetch, "The inert SDK provider must be installed");
+  return controlledFetch(input, init);
+};
 process.kill = forbidden;
 let transport: ((command: unknown, args: readonly string[]) => unknown) | undefined;
 const controlledSpawn = (command: unknown, args: readonly string[]) => {
@@ -50,10 +56,56 @@ interface ReadControl {
   files: Map<string, Buffer>;
   context: string;
 }
+let producer:
+  | {
+      receipt: object;
+      fixture: ReturnType<
+        typeof import("./signing-context-artifact-fixture.mts").signingContextArtifactFixture
+      >;
+      expiresAt: number;
+    }
+  | undefined;
+mock.module(new URL("../assembler-job-identity.mts", import.meta.url).href, {
+  namedExports: {
+    ...assemblerIdentity,
+    inspectAssemblerIdentityExpectation: (value: unknown) => value,
+    requestAssemblerToken: async () => {
+      assert.ok(producer);
+      return "inert-oidc";
+    },
+    verifyPayloadSignerJobIdentity: async (token: unknown) => {
+      assert.ok(producer);
+      assert.equal(token, "inert-oidc");
+      return {
+        evidence_scope: "github.com",
+        expires_at: new Date(producer.expiresAt).toISOString(),
+        job_id: 501,
+        check_run_id: "777",
+      };
+    },
+  },
+});
 let armed: ReadControl | undefined;
 mock.module(new URL("../release-signing-context.mts", import.meta.url).href, {
   namedExports: {
     ...contextFiles,
+    requireReleaseSigningContext: async (receipt: object) => {
+      assert.ok(producer);
+      assert.equal(receipt, producer.receipt);
+      const { manifest } = producer.fixture;
+      return {
+        tools: { identity: manifest.controller },
+        previous_site: { pins: manifest.previous_site_pins },
+        binding: manifest.binding,
+        facts: manifest.facts,
+        control_facts: manifest.control_facts,
+      };
+    },
+    readReleaseSigningContextFiles: async (receipt: object) => {
+      assert.ok(producer);
+      assert.equal(receipt, producer.receipt);
+      return producer.fixture.files;
+    },
     readBoundedReleaseContextFiles: async (
       ...args: Parameters<typeof contextFiles.readBoundedReleaseContextFiles>
     ) => {
@@ -87,8 +139,12 @@ registerHooks({
     };
   },
 });
-const { signingContextArtifactFixture, signingContextDefaultTransport } =
-  await import("./signing-context-artifact-fixture.mts");
+const {
+  signingContextArtifactFixture,
+  signingContextRetainedSpawn,
+  signingContextProviderFetch,
+  signingContextFixtureToken,
+} = await import("./signing-context-artifact-fixture.mts");
 function subject(value: unknown): Subject {
   assert.ok(value && typeof value === "object");
   for (const name of [
@@ -103,7 +159,9 @@ async function scenario(actual: Subject, provider: "fresh" | "retained") {
   armed = undefined;
   clock = 1000;
   const f = signingContextArtifactFixture();
-  transport = signingContextDefaultTransport(f);
+  transport = signingContextRetainedSpawn(f);
+  controlledFetch = signingContextProviderFetch(f);
+  process.env.GH_TOKEN = signingContextFixtureToken;
   const root = await mkdtemp(path.join(os.tmpdir(), "portcove-context-getter-"));
   const deadline = clock + 15000;
   try {
@@ -165,6 +223,8 @@ async function scenario(actual: Subject, provider: "fresh" | "retained") {
   } finally {
     armed = undefined;
     transport = undefined;
+    controlledFetch = undefined;
+    delete process.env.GH_TOKEN;
     await rm(root, { recursive: true, force: true });
   }
 }
@@ -178,4 +238,70 @@ await assert.rejects(
   scenario({ ...actual, requireRetainedSigningContext: async () => retained }, "retained"),
   /CONTEXT_FULL_TREE_CALLER/u,
 );
+// Exercise the same producer entry and real locked SDK without granting a
+// fixture a private receipt. The real preparation owns the upload receipt.
+const producerEntry = (await import(
+  entry.href
+)) as typeof import("../release-signing-context-artifact.mts");
+const producerRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-context-expiry-"));
+const savedWallNow = Date.now;
+try {
+  for (const crossesExpiry of [false, true]) {
+    const f = signingContextArtifactFixture();
+    const receipt = {};
+    const started = savedWallNow();
+    let wallNow = started;
+    Date.now = () => wallNow;
+    clock = 1000;
+    producer = { receipt, fixture: f, expiresAt: started + 1000 };
+    process.env.GH_TOKEN = signingContextFixtureToken;
+    const prepared = await producerEntry.prepareSigningContextArtifact(receipt, producerRoot);
+    const archive = f.archiveFor(
+      await readFile(path.join(prepared.directory, "signing-context-manifest.json")),
+      await readFile(path.join(prepared.directory, "signing-context-bytes.bin")),
+    );
+    const archiveSha = createHash("sha256").update(archive).digest("hex");
+    const route = producerEntry.signingContextArtifactRoute("release-signing-context");
+    const read = signingContextProviderFetch(f);
+    let calls = 0;
+    controlledFetch = async (input, init) => {
+      const response = await read(input, init);
+      if (++calls === 2 && crossesExpiry) wallNow = started + 1000;
+      const data = (await response.json()) as Record<string, unknown>;
+      return Response.json({
+        ...data,
+        size_in_bytes: archive.length,
+        digest: `sha256:${archiveSha}`,
+      });
+    };
+    transport = (command, args) => {
+      assert.equal(command, "gh");
+      assert.equal(args.at(-1), "repos/boburning/portcove/actions/artifacts/101/zip");
+      return { status: 0, stdout: archive };
+    };
+    const work = producerEntry.prepareSigningContextPredicate(
+      prepared,
+      { artifact_id: 101, sha256: archiveSha },
+      { ...f.manifest.controller, audience: route.audience },
+      clock + 15000,
+    );
+    if (crossesExpiry) {
+      await assert.rejects(work, /producer or uploaded custody changed/u);
+      assert.ok(!(await readdir(prepared.directory)).includes("signing-context-predicate.json"));
+      assert.ok(!(await readdir(prepared.directory)).includes("uploaded-context.zip"));
+    } else {
+      const result = await work;
+      assert.equal(result.authority, "none");
+      assert.ok((await readdir(prepared.directory)).includes("signing-context-predicate.json"));
+    }
+    assert.equal(calls, 2);
+  }
+} finally {
+  Date.now = savedWallNow;
+  delete process.env.GH_TOKEN;
+  producer = undefined;
+  controlledFetch = undefined;
+  transport = undefined;
+  await rm(producerRoot, { recursive: true, force: true });
+}
 console.log("actual receiver deadline PASS; controlled provider, no hosted authority");

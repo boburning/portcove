@@ -573,7 +573,13 @@ for (const [file, tests] of [
   ],
   ["scripts/release-preparation-source.mts", ["scripts/release-preparation-source.test.mts"]],
   ["scripts/release-coordinator-driver.mts", ["scripts/release-coordinator-driver.test.mts"]],
-  ["scripts/release-coordinator-deadline.mts", ["scripts/release-coordinator-deadline.test.mts"]],
+  [
+    "scripts/release-coordinator-deadline.mts",
+    [
+      "scripts/release-coordinator-deadline.test.mts",
+      "scripts/release-publication-result-artifact.test.mts",
+    ],
+  ],
   ["scripts/release-review-request.mts", ["scripts/release-review-request.test.mts"]],
   ["scripts/release-candidate-dispatch.mts", ["scripts/release-candidate-dispatch.test.mts"]],
   ["scripts/release-candidate-progress.mts", ["scripts/release-candidate-progress.test.mts"]],
@@ -763,7 +769,9 @@ for (const [file, tests] of [
     "scripts/release-custody-provider.mts",
     [
       "scripts/release-publication-result-artifact.test.mts",
+      "scripts/release-immutable-publication.test.mts",
       "scripts/release-signing-handoff.test.mts",
+      "scripts/release-signing-context-artifact.test.mts",
       "scripts/release-tuf-role-artifact.test.mts",
       "scripts/release-coordinator-checkpoint-authentication.test.mts",
       "scripts/release-hosted-native-acceptance.test.mts",
@@ -2076,6 +2084,10 @@ for (const file of ["scripts/release-resource-observation.mts", "scripts/release
   ]);
 const applicationReleaseTests = ordinaryFamily("application-release-contract-tests");
 for (const file of [
+  "scripts/application-release-build-inputs.mts",
+  "scripts/application-release-io.mts",
+  "scripts/application-release-run-title.mts",
+  "scripts/application-release-transfer.mts",
   "scripts/application-release-source.mts",
   "scripts/application-release-private.mts",
   "scripts/application-release-native-execution.mts",
@@ -2217,7 +2229,9 @@ for (const file of [
     "scripts/release-publication-source.test.mts",
     "scripts/release-publication-controller.test.mts",
     "scripts/release-publication-result-artifact.test.mts",
+    "scripts/release-immutable-publication.test.mts",
     "scripts/release-signing-handoff.test.mts",
+    "scripts/release-signing-context-artifact.test.mts",
     "scripts/release-tuf-role-artifact.test.mts",
     "scripts/release-native-check-discovery.test.mts",
     "scripts/release-pages-provider.test.mts",

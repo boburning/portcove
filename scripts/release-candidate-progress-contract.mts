@@ -6,7 +6,7 @@ import type { verifyPreparedImmutableRelease } from "./release-immutable-publica
  * selects only the already-verified immutable identity, never authenticates it. */
 export function immutableReleaseProgressDigest(
   value: Pick<
-    ReturnType<typeof verifyPreparedImmutableRelease>,
+    Awaited<ReturnType<typeof verifyPreparedImmutableRelease>>,
     "release_id" | "immutable" | "source_commit" | "version" | "assets"
   >,
 ) {

@@ -740,3 +740,36 @@ void test("optional bot debug metadata fails closed and update hints require act
     null,
   );
 });
+
+void test("strict SemVer and stable forward eligibility through the fast-lane classifier", () => {
+  for (const [currentVersion, newVersion, updateType, eligible] of [
+    ["1.2.3", "1.2.4", "patch", true],
+    ["v1.2.3", "v1.3.0", "minor", true],
+    ["1.2.3+old.01", "1.2.4+new.02", "patch", true],
+    ["1.2.3", "1.3.0+build", "minor", true],
+    ["01.2.3", "1.2.4", "patch", false],
+    ["1.2.3", "1.02.4", "patch", false],
+    ["1.2.3", "1.2.04", "patch", false],
+    ["1.2.3+foo..bar", "1.2.4", "patch", false],
+    ["1.2.3", "1.2.4+foo..bar", "patch", false],
+    ["1.2.3", "1.2.4+", "patch", false],
+    ["1.2", "1.2.4", "patch", false],
+    ["=1.2.3", "1.2.4", "patch", false],
+    ["1.2.3-beta", "1.2.4", "patch", false],
+    ["1.2.3", "1.3.0-rc.1", "minor", false],
+    ["1.2.3+one", "1.2.3+two", "patch", false],
+    ["1.2.3", "1.2.3", "patch", false],
+    ["1.2.3", "1.2.2", "patch", false],
+    ["1.2.3", "1.1.9", "minor", false],
+    ["1.2.3", "2.0.0", "minor", false],
+    ["1.2.3", "1.3.0", "patch", false],
+    ["1.2.3", "1.2.4", "minor", false],
+    ["1.2.3", "9007199254740992.0.0", "minor", false],
+  ] as const) {
+    assert.equal(
+      classify({ pull: { body: body({ currentVersion, newVersion, updateType }) } }).verdict,
+      eligible ? "metadata-required" : "manual-review-required",
+      `${currentVersion} -> ${newVersion} (${updateType})`,
+    );
+  }
+});

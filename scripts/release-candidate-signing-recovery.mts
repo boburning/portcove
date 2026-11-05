@@ -6,6 +6,7 @@ import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import type { GitHubRestReader } from "./github-api.mts";
 import { readGitHubReleaseAsset, readGitHubArtifactArchive } from "./github-binary.mts";
@@ -562,8 +563,11 @@ export async function recoverCandidateSigningCustody(
     let checkpoint = input.checkpoint,
       phase = "current-coordinator";
     let requests = 0;
-    const api: GitHubRestReader = new GitHubApiClient((args, body) => {
+    const chargeRead = () => {
       if (++requests > 128) throw new Error("candidate signing discovery read bound exhausted");
+    };
+    const api: GitHubRestReader = new GitHubApiClient((args, body) => {
+      chargeRead();
       const response = createGitHubRunner({
         cwd: directory,
         maxBuffer: 2 * 1024 ** 2,
@@ -579,6 +583,12 @@ export async function recoverCandidateSigningCustody(
       return response.body;
     };
     try {
+      const releaseMetadata = () =>
+        createReleaseCustodyProvider({
+          token: environment.GH_TOKEN ?? "",
+          deadline,
+          chargeRead,
+        });
       await verifiedControllerToolPaths(toolsReceipt);
       assert.equal((await refreshCapacityExecutor(executor)).role, "coordinator");
       const state = await recoverReleaseOpportunity(input.repository, checkpoint);
@@ -864,7 +874,7 @@ export async function recoverCandidateSigningCustody(
             source_commit: expected.source_commit,
             assets,
           };
-          const raw = readImmutableReleaseState(api, identity);
+          const raw = await readImmutableReleaseState(await releaseMetadata(), identity);
           const transition = proposeImmutableReleaseTransition(identity, raw.release, raw.assets);
           assert.equal(
             transition.decision,
@@ -1056,8 +1066,9 @@ export async function recoverCandidateSigningCustody(
             get(`actions/jobs/${String(producer.job_id)}`),
             pendingRelease,
           );
+        const metadata = await releaseMetadata();
         const observeRelease = () =>
-          observePendingCandidateRelease(api, pendingRelease, expected, (id, maximum) =>
+          observePendingCandidateRelease(metadata, pendingRelease, expected, (id, maximum) =>
             readGitHubReleaseAsset(`${base}/releases/assets/${id}`, {
               cwd: directory,
               maxBytes: maximum,

@@ -1,3 +1,4 @@
+import { TooltipProvider } from "./components/ui/tooltip";
 import { Heart } from "lucide-react";
 import { gameGroupId } from "./features/browsing/original-game";
 import {
@@ -141,11 +142,13 @@ export const missingBootstrapError = {
 
 export default function App() {
   return (
-    <InterfaceSizeProvider>
-      <InvocationOwnerProvider>
-        <PortcoveApp />
-      </InvocationOwnerProvider>
-    </InterfaceSizeProvider>
+    <TooltipProvider>
+      <InterfaceSizeProvider>
+        <InvocationOwnerProvider>
+          <PortcoveApp />
+        </InvocationOwnerProvider>
+      </InterfaceSizeProvider>
+    </TooltipProvider>
   );
 }
 
@@ -448,6 +451,7 @@ function useWorkspace(props: WorkspaceProps) {
     data.sources,
     inspectionProfiles,
     `${bootstrap.generation}|${JSON.stringify(data.catalog?.source_catalog ?? null)}`,
+    data.queryClient,
   );
   const appearance = useThemePreference();
   const gameFileQuery = useGameFileFilterContext({

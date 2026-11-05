@@ -36,6 +36,15 @@ Using Vite's production report from the unchanged pre-foundation checkpoint, Jav
 
 `ar-XB` remains an offline right-to-left engineering locale for Arabic plural categories, interpolation, safe rich text, logical layout, accessibility text, and direction changes. It is not a supported Arabic product language and cannot be newly selected in the production picker. A previously saved `ar-XB` choice remains visible only as a labeled preview so the current choice and direction are not hidden; the panel explains that the rest of Portcove remains in English. Development and native fixtures may still load `ar-XB` directly.
 
+The bounded `counts` namespace also contains library-move, recovery, discovery,
+output-relocation, navigation-update and determinate-progress messages. It is
+bundled in English and falls back to that catalog in the engineering preview.
+The existing i18next instance owns pluralization, zero overrides, named
+interpolation and number formatting, including view-model calls outside React.
+`countMessage` validates count availability only: missing, negative, fractional
+and unsafe counts select explicit unavailable phrases. It accepts resource keys,
+not inline message dictionaries. This adds no supported product language.
+
 ## Runtime ownership
 
 - A saved `null` locale means `System default`; explicit supported values are canonical BCP 47 tags. Core validates bounded tag syntax but does not decide which product locales exist.

@@ -469,6 +469,7 @@ export function usePortcoveData(libraryGeneration = 0) {
 
   const activities = activityFeed.records;
   return {
+    queryClient,
     catalog,
     statuses,
     sources,
