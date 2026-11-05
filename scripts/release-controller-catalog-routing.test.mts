@@ -621,12 +621,56 @@ void test("production secret selection never falls back across purposes and job-
     const bytes = await readFile(new URL(file, import.meta.url), "utf8");
     const expression = /\$\{\{([\s\S]*?)\}\}/gu;
     let count = 0;
+    let combinedStorage = 0;
     for (const match of bytes.matchAll(expression)) {
       // YAML folding may wrap a closed expression without changing its tokens.
       const body = match[1]!.replace(/\s+/gu, " ");
-      // The production DAG contract exercises the dedicated and legacy storage
-      // transport selectors separately. This fixture evaluates two-purpose selectors.
-      if (body.includes("secrets.PORTCOVE_STORAGE_APP_PRIVATE_KEY")) continue;
+      if (body.includes("secrets.PORTCOVE_STORAGE_APP_PRIVATE_KEY")) {
+        if (!body.includes("publication_purpose")) continue;
+        const selected = body
+          .replace(/needs\.admission\.outputs\.publication_purpose/gu, "purpose")
+          .replace(/steps\.authorities\.outputs\.storage_transport/gu, "storageTransport")
+          .replace(/steps\.authorities\.outputs\.credential_transport/gu, "credentialTransport")
+          .replace(/secrets\.PORTCOVE_STORAGE_APP_PRIVATE_KEY/gu, "storage")
+          .replace(/secrets\.PORTCOVE_CATALOG_COORDINATOR_JOURNAL_APP_PRIVATE_KEY/gu, "catalog")
+          .replace(/secrets\.PORTCOVE_COORDINATOR_JOURNAL_APP_PRIVATE_KEY/gu, "app");
+        const evaluate = (
+          purpose: string,
+          storageTransport: string,
+          credentialTransport: string,
+          storage: string,
+          catalog: string,
+          app: string,
+        ): unknown =>
+          runInNewContext(
+            selected,
+            { purpose, storageTransport, credentialTransport, storage, catalog, app },
+            { timeout: 1000 },
+          );
+        for (const [purpose, catalog, app, expected] of [
+          ["catalog-publication", "CATALOG", "APP", "CATALOG"],
+          ["application", "CATALOG", "APP", "APP"],
+          ["catalog-publication", "", "APP", false],
+          ["application", "CATALOG", "", false],
+        ] as const) {
+          assert.equal(
+            evaluate(purpose, "legacy-app", "legacy-app", "", catalog, app) || false,
+            expected,
+          );
+        }
+        for (const purpose of ["application", "catalog-publication"]) {
+          assert.equal(
+            evaluate(purpose, "dedicated-app", "fixed-job", "STORAGE", "CATALOG", "APP"),
+            "STORAGE",
+          );
+          assert.equal(
+            Boolean(evaluate(purpose, "dedicated-app", "fixed-job", "", "CATALOG", "APP")),
+            false,
+          );
+        }
+        combinedStorage++;
+        continue;
+      }
       if (!body.includes("secrets.PORTCOVE_CATALOG_") || !body.includes("||")) continue;
       assert.match(
         body,
@@ -653,7 +697,10 @@ void test("production secret selection never falls back across purposes and job-
       assert.equal(count, 0);
       assert.doesNotMatch(bytes, /secrets\.|create-github-app-token/u);
       assert.match(bytes, /GH_TOKEN: \$\{\{ github\.token \}\}/u);
-    } else assert.ok(count > 0);
+    } else {
+      assert.ok(count > 0);
+      assert.equal(combinedStorage, 1);
+    }
   }
 });
 
