@@ -1,0 +1,13 @@
+# GitLab descriptive listing observation
+
+Baseline: `5d9310dba5e7f20cd8a0d1de5067fbc0a1a77a4d`. Owner: [#3943](https://github.com/boburning/portcove/issues/3943).
+
+The existing provider collector observed the authored `mario-kart-64-mariokart64recomp` listing at `2026-11-05T01:30:32.810Z` (November4 in the working timezone). Eight bounded credential-free requests collected10,349bytes from GitLab project84098210, `sonicdcer/MarioKart64Recomp`. The [retained public facts and read proofs](gitlab-listing-observation-2026-11-04.json) bind facts digest `f6fde3a4c4c8188d60a0d3969241870e192891dac6be4cb31280500845dc72ec`.
+
+Release `v0.9.2` exposes five exact generic registry files. Their native file IDs, names, sizes and provider SHA-256 claims project into the same bounded descriptive window as GitHub. Release links using `/-/package_files/ID/download` are matched to those exact collected file IDs. Project/tag release references reuse the existing download identity type; no numeric GitHub ID is invented. Current projection reports complete relevant coverage without changing the observation clock or claiming complete release history.
+
+The existing Chiaro font acquisition restriction remains unchanged. Observation creates no managed definition, download permission, execution authority or settings grant. No package was downloaded or executed. Provider hashes remain claims rather than independently verified bytes. These are live metadata and retained-input projection observations; authenticated delivery regression fixtures are separate from protected production publication.
+
+Reproduce with `observeProviderSource` from `scripts/provider-release-observation.mts`, the current authored listing and its explicit `gitlab`/repository identity, then `projectGitLabListingObservation` from `scripts/listing-upstream-observation.mts`. Use the collector's existing finite request/byte/deadline controls, checkpoint, identity binding and conditional pagination proofs. Reprojection of the retained input makes no network request and does not renew freshness. Ordinary `observe-catalog-upstreams.mts` discovers this listing automatically; its existing handoff feeds `prepare-port.mts --listing-observations` and the existing accepted signed-listing route.
+
+Regression coverage includes nested GitLab namespaces, provider-host and identity refusal, exact registry candidates and aliases, missing/contradictory pagination proofs, malformed native rows, unavailable/stale observations, retained last-good clocks, GitHub compatibility, descriptive Desktop labels and authenticated format8 delivery followed by unsupported-format recovery. Protected #246/#534 production acceptance remains with those owners.

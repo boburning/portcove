@@ -1429,6 +1429,12 @@ selection, revision, target and authority digests, expiry, counts, withdrawals
 and fallback reason. An expired tombstone is not an indefinite new authority over
 the bundled fallback. There is no startup fetch or unsigned GitHub JSON fallback.
 
+The existing target can carry listing format8 for supported GitLab descriptive
+observations. Exact native tag identities use the existing project/tag reference; GitHub numeric
+IDs retain their shape, and older incapable readers refuse the directory while
+retaining their last-good selection. This is data compatibility, not a publisher
+grant or permission to acquire or execute a package.
+
 CLI `catalog listing-refresh --metadata-base-url <https-base>
 --targets-base-url <https-base>` performs an explicit refresh under the installed
 authority. `catalog listing-status` reports its selection. Tauri delegates the

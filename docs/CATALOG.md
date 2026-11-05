@@ -2584,6 +2584,13 @@ retains the same publisher, revision, integrity, atomic selection and recovery
 boundary. Unsupported or invalid replacement data does not replace last-good
 cached listings or grant managed operations.
 
+Listing format8 adds supported GitLab descriptive observations with existing provider-qualified
+project/tag release identities and numeric generic registry file identities. GitHub IDs
+and serialized observations remain unchanged. Exporting a GitLab-bearing directory
+to an older format refuses; unknown formats retain existing last-good delivery
+behavior. Authored format derivation selects8 only when these fields occur. This
+adds no managed GitLab authority and leaves unsupported package layouts incomplete.
+
 Authored availability remains attributable. An explicit availability override
 requires its reason and takes display precedence. Otherwise accepted observations
 show package candidates or release assets with their provenance, original fact

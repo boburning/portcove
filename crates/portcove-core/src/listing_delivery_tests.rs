@@ -398,3 +398,56 @@ async fn authenticated_descriptive_observation_updates_and_failed_refresh_keep_l
     );
     assert!(offline.port("new-unmanaged-port").is_err());
 }
+
+#[tokio::test]
+async fn authenticated_gitlab_listing_observations_and_unknown_format_recovery_stay_descriptive() {
+    let fixture = authority_provisioning::separated_fixture();
+    let key = Key::new(fixture._directory.path());
+    let (_temp, library) = library();
+    let mut candidate = feed(1);
+    candidate["directory"]["format_version"] = json!(8);
+    let listing = &mut candidate["directory"]["listings"][0];
+    listing["project_url"] = json!("https://gitlab.com/example/game");
+    listing["upstream_observation"] = json!({
+        "provider":"gitlab","repository":"example/game","repository_id":7,
+        "status":"complete","attempted_at":"2026-10-27T00:01:00Z",
+        "observed_at":"2026-10-27T00:00:00Z","fresh_until":"2026-10-27T12:00:00Z",
+        "facts_sha256":"a".repeat(64),"release_limit":4,
+        "releases":[{"id":{"provider":"gitlab","project_id":7,"tag":"v1"},"version":"v1","release_url":"https://gitlab.com/example/game/-/releases/v1",
+            "published_at":"2026-10-26T00:00:00Z","provider_prerelease":false,"assets_complete":true,"assets":[]}]
+    });
+    let root = publish(&fixture, &key, 1, &candidate).await;
+    provision(&library, &root);
+    assert!(refresh(&library, &fixture, &root).await.unwrap().selected);
+    let original = library.listing_delivery_status().unwrap().target_sha256;
+    let (catalog, _) = library.load_catalog().unwrap();
+    assert_eq!(catalog.listing_document().format_version, 8);
+    assert_eq!(
+        catalog
+            .listing("new-unmanaged-port")
+            .unwrap()
+            .upstream_observation
+            .as_ref()
+            .unwrap()
+            .provider,
+        "gitlab"
+    );
+    assert!(catalog.port("new-unmanaged-port").is_err());
+    candidate["revision"] = json!(2);
+    candidate["directory"]["format_version"] = json!(9);
+    let next_root = publish(&fixture, &key, 2, &candidate).await;
+    assert!(refresh(&library, &fixture, &next_root).await.is_err());
+    assert_eq!(
+        library.listing_delivery_status().unwrap().target_sha256,
+        original
+    );
+    assert_eq!(
+        library
+            .load_catalog()
+            .unwrap()
+            .0
+            .listing_document()
+            .format_version,
+        8
+    );
+}

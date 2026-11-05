@@ -557,3 +557,28 @@ void test("reference guides select strict new formats and retain actions and war
     ),
   );
 });
+
+void test("GitLab descriptive observations derive listing format8 without changing operational output", () => {
+  const accepted = readCatalogSource(catalogRoot);
+  const records = structuredClone(accepted.records);
+  const record = records.find(
+    (entry) => entry.listing.project_url === "https://gitlab.com/sonicdcer/MarioKart64Recomp",
+  );
+  assert.ok(record);
+  record.listing.upstream_observation = {
+    provider: "gitlab",
+    repository: "sonicdcer/MarioKart64Recomp",
+    repository_id: null,
+    status: "failed",
+    attempted_at: "2026-11-04T00:00:00Z",
+    observed_at: null,
+    fresh_until: null,
+    facts_sha256: null,
+    release_limit: 4,
+    releases: [],
+  };
+  const { ports: _ports, ...shared } = accepted.catalog;
+  const assembled = assembleCatalogRecords(shared, records);
+  assert.equal(assembled.directory.format_version, 8);
+  assert.deepEqual(assembled.catalog, accepted.catalog);
+});
