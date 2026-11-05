@@ -1060,7 +1060,8 @@ an explicit-credential workflow client: it completes each scoped SDK inventory
 before deletion, rereads identity and sends one DELETE followed by authoritative
 readback. Its trusted main workflow installs the locked packages before the token
 step. Existing cleanup eligibility and workflow permissions remain authoritative.
-Artifact-byte acquisition
+Audit receipt discovery uses command-scoped SDK metadata reads and awaited
+identity/readback before importing evidence. Artifact-byte acquisition
 retains its existing bounded helper until its caller family migrates. The discovery
 worker now admits GitHub only for its original artifact ZIP byte route; external
 GET/HEAD provider reads remain separate from GitHub metadata.
