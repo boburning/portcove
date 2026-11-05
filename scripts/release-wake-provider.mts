@@ -1,3 +1,4 @@
+import { downloadGitHubArtifactArchive } from "./github-artifact-download.mts";
 import { createGitHubClient } from "./github-client.mts";
 import type { GitHubCredential, GitHubRequestPolicy } from "./github-client.mts";
 
@@ -22,6 +23,7 @@ export interface WakeProvider {
   runs(workflow: WakeWorkflow, filters: Record<string, string>, page: number): Promise<unknown>;
   artifacts(run: string): Promise<unknown>;
   artifact(id: number): Promise<unknown>;
+  intentArchive?(id: number, bytes: number, deadline: number): Promise<Buffer>;
   dispatch(
     workflow: WakeWorkflow,
     body: WakeDispatch,
@@ -42,8 +44,9 @@ export async function createWakeProvider(options: {
   fetch?: typeof globalThis.fetch;
   now?: () => number;
 }): Promise<WakeProvider> {
+  const credential = { ...options.credential };
   const client = await createGitHubClient({
-    credential: options.credential,
+    credential,
     deadline: options.deadline,
     maxBytes: options.maxBytes,
     requestTimeoutMs: options.requestTimeoutMs ?? 10000,
@@ -52,9 +55,12 @@ export async function createWakeProvider(options: {
     ...(options.now ? { now: options.now } : {}),
   });
   let requests = 0;
-  const policy = (retain?: RetainWakeResponse): GitHubRequestPolicy => {
+  const chargeRequest = () => {
     if (++requests > (options.maxRequests ?? Infinity))
       throw new Error("wake provider request budget exhausted");
+  };
+  const policy = (retain?: RetainWakeResponse): GitHubRequestPolicy => {
+    chargeRequest();
     return {
       replay: "once",
       attempts: 0,
@@ -101,6 +107,23 @@ export async function createWakeProvider(options: {
       get("/repos/{owner}/{repo}/actions/runs/{run_id}/artifacts", { run_id: id, per_page: 100 }),
     artifact: (id) =>
       get("/repos/{owner}/{repo}/actions/artifacts/{artifact_id}", { artifact_id: id }),
+    async intentArchive(id, bytes, deadline) {
+      if (
+        !Number.isSafeInteger(id) ||
+        id < 1 ||
+        !Number.isSafeInteger(bytes) ||
+        bytes < 22 ||
+        bytes > 1024 ** 2
+      )
+        throw new Error("wake intent archive lookup requires exact bounded identity");
+      chargeRequest();
+      return downloadGitHubArtifactArchive(`repos/boburning/portcove/actions/artifacts/${id}/zip`, {
+        credential,
+        deadline: Math.min(deadline, options.deadline, options.remainingDeadline()),
+        maxBytes: bytes,
+        ...(options.fetch ? { fetch: options.fetch } : {}),
+      });
+    },
     async dispatch(workflow, body, retain) {
       const parameters = structuredClone(body);
       const response = await client.request(

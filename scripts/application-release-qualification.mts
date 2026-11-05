@@ -5,7 +5,8 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { crc32, inflateRawSync } from "node:zlib";
-import { readGitHubArtifactArchive } from "./github-binary.mts";
+import type { SigningArchiveDownload } from "./release-signing-handoff.mts";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
 import { inspectBoundedZip } from "./bounded-zip.mts";
 import { isRecord } from "./runtime-values.mts";
 import { validateValidationPlan } from "./validation-plan.mts";
@@ -195,15 +196,20 @@ export function selectWindowsApplicationQualificationRun(raw: unknown, source: s
  * copies, then reads the exact source/run/attempt and bounded retained plan.
  * Missing/expired evidence holds; old successful source is never substituted. */
 export async function readWindowsApplicationQualification(
-  reader: Pick<WakeProvider, "run" | "file" | "jobs" | "artifacts">,
+  reader: Pick<WakeProvider, "run" | "file" | "jobs" | "artifacts" | "intentArchive">,
   runId: number,
   source: string,
-  options: { deadline?: number; download?: typeof readGitHubArtifactArchive } = {},
+  options: { deadline?: number; download?: SigningArchiveDownload } = {},
 ) {
   assert.ok(Number.isSafeInteger(runId) && runId > 0);
   assert.match(source, /^[a-f0-9]{40}$/u);
+  const download = options.download;
   let requests = 0;
-  const deadline = Math.min(performance.now() + 90000, options.deadline ?? Infinity);
+  const deadline = Math.min(
+    performance.now() + 90000,
+    options.deadline ?? Infinity,
+    coordinatorCommandDeadline() ?? Infinity,
+  );
   const get = async (read: () => Promise<unknown>) => {
     assert.ok(++requests <= 8 && performance.now() < deadline);
     const raw = await read();
@@ -267,16 +273,22 @@ export async function readWindowsApplicationQualification(
       artifact.workflow_run.head_sha === source &&
       artifact.workflow_run.repository_id === 1354613114,
   );
-  const timeoutMs = Math.min(30000, Math.floor(deadline - performance.now()));
-  assert.ok(timeoutMs > 0);
-  const archive = (options.download ?? readGitHubArtifactArchive)(
-    `${repository}/actions/artifacts/${Number(artifact.id)}/zip`,
-    {
-      cwd: process.cwd(),
-      maxBytes: 1024 * 1024,
-      timeoutMs,
-    },
-  );
+  const transferStarted = performance.now();
+  const transferDeadline = Math.min(transferStarted + 30000, deadline);
+  const timeoutMs = Math.floor(transferDeadline - transferStarted);
+  assert.ok(++requests <= 8 && timeoutMs > 0);
+  const artifactId = Number(artifact.id);
+  const maxBytes = Number(artifact.size_in_bytes);
+  if (!download && !reader.intentArchive)
+    throw new Error("qualification archive reader unavailable");
+  const archive = download
+    ? await download(`${repository}/actions/artifacts/${artifactId}/zip`, {
+        cwd: process.cwd(),
+        maxBytes: 1024 * 1024,
+        timeoutMs,
+      })
+    : await reader.intentArchive!(artifactId, maxBytes, transferDeadline);
+  assert.ok(performance.now() < transferDeadline, "qualification archive deadline exhausted");
   assert.equal(archive.length, artifact.size_in_bytes);
   assert.equal(createHash("sha256").update(archive).digest("hex"), artifact.digest.slice(7));
   const plan = readApplicationQualificationPlan(archive);
