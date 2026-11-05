@@ -4639,3 +4639,61 @@ void test("retained GitHub CLI and attestation changes select their actual guard
     }
   }
 });
+
+void test("ordinary package identity follows complete Cargo workspace metadata and moves", async () => {
+  const { workspacePackagePrefixes } = await import("./ordinary-validation.mts");
+  const root = path.resolve("/workspace");
+  const pkg = (name: string, location: string) => ({
+    id: name + "-id",
+    name,
+    manifest_path: path.join(root, location, "Cargo.toml"),
+  });
+  const metadata = {
+    workspace_members: ["fresh-package-id"],
+    packages: [pkg("fresh-package", "components/moved")],
+  };
+  assert.deepEqual(
+    [...workspacePackagePrefixes(metadata, root)!],
+    [["components/moved/", "fresh-package"]],
+  );
+  for (const bad of [
+    { ...metadata, workspace_members: [...metadata.workspace_members, "absent"] },
+    {
+      ...metadata,
+      workspace_members: [...metadata.workspace_members, ...metadata.workspace_members],
+    },
+    { ...metadata, packages: [pkg("fresh-package", "../outside")] },
+    { ...metadata, packages: [...metadata.packages, ...metadata.packages] },
+  ])
+    assert.equal(workspacePackagePrefixes(bad, root), null);
+  const currentRoot = fileURLToPath(new URL("../", import.meta.url));
+  const selected = classifyChanges([{ path: "components/moved/src/lib.rs", status: "A" }], {
+    workspaceMetadata: () => ({
+      ...metadata,
+      packages: [
+        {
+          ...metadata.packages[0],
+          manifest_path: path.join(currentRoot, "components/moved/Cargo.toml"),
+        },
+      ],
+    }),
+  });
+  assert.ok(selected.packages.has("fresh-package"));
+  const uncertain = classifyChanges([{ path: "crates/unknown/src/lib.rs", status: "M" }], {
+    workspaceMetadata: () => null,
+  });
+  assert.ok(uncertain.workspaceRust);
+  assert.ok(
+    buildPlan(
+      uncertain,
+      fallbackContext([{ path: "crates/unknown/src/lib.rs", status: "M" }]),
+    ).some((command) => command.id === "rust-workspace-tests"),
+  );
+  assert.doesNotThrow(() =>
+    classifyChanges([{ path: "docs/README.md", status: "M" }], {
+      workspaceMetadata: () => {
+        throw new Error("prose must not load Cargo");
+      },
+    }),
+  );
+});
