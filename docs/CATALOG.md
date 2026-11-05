@@ -1624,6 +1624,10 @@ The authenticated package and full immutable manifest still bind expected
 contents; a missing or ambiguous player is refused. The installation retains
 its exact selected relative player path and creating definition, so later
 catalog observations do not reinterpret older working coordinates.
+The existing transition guard recognizes the omission only for native runtimes
+without owned data or source preparation, when an explicit root equals the
+authenticated retained player’s parent. Reverse rollback needs the retained
+target’s own coordinate. Changed roots or data ownership remain held.
 
 Marathon’s three official Windows integrations use that existing rule. Their
 full-scenario artifact pins remain separate: full-game and engine-only package

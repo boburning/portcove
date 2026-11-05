@@ -490,41 +490,43 @@ fn native_marathon_historical_root_is_retained_when_the_live_layout_changes() {
         crate::Catalog::from_json(&serde_json::to_string(&historical).unwrap()).unwrap();
     let old = InstallQualification::from_catalog(&historical, id, Platform::WindowsX86_64).unwrap();
     let new = InstallQualification::from_catalog(&current, id, Platform::WindowsX86_64).unwrap();
-    let register = |label: &str, qualification: &InstallQualification| {
-        let root = library.versions_dir().join(id).join(label);
-        let working = root.join("Marathon-20260930");
-        fs::create_dir_all(&working).unwrap();
-        fs::write(
-            working.join("Classic Marathon.exe"),
-            b"inert retained player",
-        )
-        .unwrap();
-        fs::write(working.join("Map.scen"), b"immutable retained scenario").unwrap();
-        let artifact = ArtifactIdentity {
-            asset_name: "Marathon-20260930-Win.zip".into(),
-            sha256: "a".repeat(64),
-            size: 1,
+    let register =
+        |label: &str, qualification: &InstallQualification, player_subdirectory: &str| {
+            let root = library.versions_dir().join(id).join(label);
+            let working = root.join("Marathon-20260930");
+            let player_directory = working.join(player_subdirectory);
+            fs::create_dir_all(&player_directory).unwrap();
+            fs::write(
+                player_directory.join("Classic Marathon.exe"),
+                b"inert retained player",
+            )
+            .unwrap();
+            fs::write(working.join("Map.scen"), b"immutable retained scenario").unwrap();
+            let artifact = ArtifactIdentity {
+                asset_name: "Marathon-20260930-Win.zip".into(),
+                sha256: "a".repeat(64),
+                size: 1,
+            };
+            let (manifest_sha256, selected_executable, runtime) =
+                write_manifest(label, id, label, &artifact, qualification, &root).unwrap();
+            let install = InstallRecord {
+                id: label.into(),
+                port_id: id.into(),
+                version: label.into(),
+                path: root,
+                channel: crate::ReleaseChannel::Stable,
+                installed_at: 0,
+                verified: true,
+                staged: false,
+                artifact,
+                runtime,
+                manifest_sha256,
+                selected_executable,
+            };
+            library.register_install(&install, true).unwrap();
+            install
         };
-        let (manifest_sha256, selected_executable, runtime) =
-            write_manifest(label, id, label, &artifact, qualification, &root).unwrap();
-        let install = InstallRecord {
-            id: label.into(),
-            port_id: id.into(),
-            version: label.into(),
-            path: root,
-            channel: crate::ReleaseChannel::Stable,
-            installed_at: 0,
-            verified: true,
-            staged: false,
-            artifact,
-            runtime,
-            manifest_sha256,
-            selected_executable,
-        };
-        library.register_install(&install, true).unwrap();
-        install
-    };
-    let old_install = register("historical-wrapper", &old);
+    let old_install = register("historical-wrapper", &old, "");
     let before = fs::read(old_install.path.join(".portcove-manifest.json")).unwrap();
     let installer = Installer::new(library.clone()).unwrap();
     let service = crate::PortcoveService::new(library.clone()).unwrap();
@@ -568,7 +570,7 @@ fn native_marathon_historical_root_is_retained_when_the_live_layout_changes() {
             launch.working_directory,
             old_install.path.join("Marathon-20260930")
         );
-        let _fresh = register("derived-wrapper", &new);
+        let _fresh = register("derived-wrapper", &new, "");
         let rolled_back = service.rollback(id).unwrap();
         assert_eq!(rolled_back.id, old_install.id);
         let launch = service.prepare_launch(id, None).unwrap();
@@ -580,6 +582,17 @@ fn native_marathon_historical_root_is_retained_when_the_live_layout_changes() {
             fs::read(old_install.path.join(".portcove-manifest.json")).unwrap(),
             before
         );
+        // A deliberate working root above the player is not the default
+        // player-parent rule. Preserve the active copy rather than normalize it.
+        let different = register("explicit-above-player", &old, "bin");
+        let active = register("another-derived-wrapper", &new, "");
+        let error = service.rollback(id).unwrap_err();
+        assert_eq!(
+            error.failure.known_cause,
+            Some(crate::failure::KnownFailureCause::PortableDataContractChanged)
+        );
+        assert_eq!(service.status(id).unwrap().active.unwrap().id, active.id);
+        assert!(different.path.join("Marathon-20260930/Map.scen").is_file());
     }
     #[cfg(not(windows))]
     let _ = new;
