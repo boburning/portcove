@@ -303,8 +303,8 @@ async function collectConfiguredHostedNativePair(
               platform_label: opportunity.platform_label,
               stage: opportunity.stage,
             },
-            outputParent,
             deadline,
+            { token },
           ),
         );
       }

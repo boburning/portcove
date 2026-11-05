@@ -3,7 +3,8 @@ import { createHash } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import { crc32, inflateRawSync } from "node:zlib";
 import { inspectBoundedZip } from "./bounded-zip.mts";
-import { readGitHubArtifactArchive } from "./github-binary.mts";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import type { RunArtifactInventoryProvider } from "./release-custody-provider.mts";
 import { readCompleteRunArtifactInventoryAsync } from "./release-run-artifact-inventory.mts";
 import { hostedNativeProofLimits } from "./release-hosted-native-proof-contract.mts";
@@ -84,10 +85,15 @@ export function readHostedNativeProofArchive(raw: Buffer, deadline: number) {
 export async function readHostedNativeProofArtifact(
   metadata: RunArtifactInventoryProvider,
   rawSlot: Slot,
-  directory: string,
-  deadline: number,
-  download: typeof readGitHubArtifactArchive = readGitHubArtifactArchive,
+  phaseDeadline: number,
+  options: {
+    token: string;
+    download?: (artifact: { id: number; bytes: number }, deadline: number) => Promise<Buffer>;
+    fetch?: typeof globalThis.fetch;
+  },
 ) {
+  const { token, download, fetch: fetcher = globalThis.fetch } = options;
+  const deadline = Math.min(phaseDeadline, coordinatorCommandDeadline() ?? Infinity);
   const expected = slot(rawSlot),
     readPage = metadata.runArtifacts.bind(metadata);
   const remaining = () => {
@@ -125,11 +131,22 @@ export async function readHostedNativeProofArtifact(
     return { id: Number(row.id), sha256: row.digest.slice(7), bytes: row.size_in_bytes, name };
   };
   const before = await inventory();
-  const archive = download(`repos/boburning/portcove/actions/artifacts/${before.id}/zip`, {
-    cwd: directory,
-    maxBytes: before.bytes,
-    timeoutMs: remaining(),
-  });
+  const archive = download
+    ? await download({ id: before.id, bytes: before.bytes }, deadline)
+    : await (
+        await import("./github-artifact-download.mts")
+      ).downloadGitHubArtifactArchive(
+        `repos/boburning/portcove/actions/artifacts/${before.id}/zip`,
+        {
+          credential: { kind: "explicit", token },
+          deadline,
+          maxBytes: before.bytes,
+          fetch(input, init) {
+            assertTrustedDirectNode("hosted native proof archive");
+            return fetcher(input, init);
+          },
+        },
+      );
   remaining();
   if (
     archive.length !== before.bytes ||

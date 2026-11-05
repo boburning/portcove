@@ -243,10 +243,8 @@ async function readBackUpload(
     phase = "provider-readback";
     const result = await withReadOnlyReleaseChildren(original.directory, async () => {
       active();
-      const metadata = await createReleaseCustodyProvider({
-        token: readOnlyReleaseChildEnvironment()?.GH_TOKEN ?? "",
-        deadline,
-      });
+      const token = readOnlyReleaseChildEnvironment()?.GH_TOKEN ?? "";
+      const metadata = await createReleaseCustodyProvider({ token, deadline });
       return readHostedNativeProofArtifact(
         metadata,
         {
@@ -256,8 +254,8 @@ async function readBackUpload(
           platform_label: platform,
           stage,
         },
-        original.directory,
         deadline,
+        { token },
       );
     });
     assert.equal(result.artifact.id, artifactId);
