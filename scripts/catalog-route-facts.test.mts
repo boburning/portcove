@@ -98,7 +98,7 @@ void test("unknown, conflicting and unbounded route facts refuse before projecti
       (object(facts.prepared_player).working_directory = "arbitrary-script"),
     (facts: Record<string, unknown>) => (object(facts.prepared_player).execute = true),
     (facts: Record<string, unknown>) =>
-      (object(facts.prepared_player).arguments = ["x".repeat(5000)]),
+      (object(facts.prepared_player).arguments = ["x".repeat(32 * 1024 + 1)]),
     (facts: Record<string, unknown>) => (facts.format_version = 2),
     (facts: Record<string, unknown>) =>
       (facts.managed_native = { preparation: { title: "x", instruction: "x" }, warnings: [] }),
@@ -173,6 +173,71 @@ void test("literal argument presentation preserves empty vectors, boundaries and
       (step) => isRecord(step) && String(step.instruction).includes(JSON.stringify(arguments_)),
     ),
   );
+});
+
+void test("literal argument facts retain repeated flags, empty values and Core vector bounds", () => {
+  for (const arguments_ of [
+    ["--define", "a", "--define", "b"],
+    ["--name", "", "  literal spaces  ", "line\nbreak", "\t"],
+    Array<string>(64).fill(""),
+    ["é".repeat(1024)],
+  ]) {
+    const raw = input("mstan-tetrisgbrecomp");
+    raw.route_facts_v1!.prepared_player.arguments = arguments_;
+    const checked = checkedAuthoredPort(raw);
+    assert.deepEqual(routeEnrollment([checked]).cases[0]!.prepared_player.arguments, arguments_);
+    assert.ok(
+      guide(projectRouteFacts(checked)).steps.some(
+        (step) => isRecord(step) && String(step.instruction).includes(JSON.stringify(arguments_)),
+      ),
+    );
+  }
+  for (const arguments_ of [
+    Array<string>(65).fill(""),
+    ["é".repeat(16 * 1024), "x"],
+    ["contains\0nul"],
+    ["\ud800"],
+    [null],
+    new Array(1),
+  ]) {
+    const raw = input("mstan-tetrisgbrecomp");
+    (raw.route_facts_v1!.prepared_player as { arguments: unknown }).arguments = arguments_;
+    assert.throws(() => checkedAuthoredPort(raw));
+  }
+});
+
+void test("rendered literal arguments preserve Core-readable guide bytes and escaped controls", () => {
+  const raw = input("mstan-tetrisgbrecomp");
+  const selector = (value: typeof raw) => {
+    const step = guide(projectRouteFacts(value)).steps.find(
+      (step) => isRecord(step) && step.title === "Select the prepared player",
+    );
+    assert.ok(isRecord(step) && typeof step.instruction === "string");
+    return step.instruction;
+  };
+  raw.route_facts_v1!.prepared_player.arguments = [""];
+  const room = 4096 - Buffer.byteLength(selector(raw));
+  const boundary = "é".repeat(Math.floor(room / 2)) + "x".repeat(room % 2);
+  raw.route_facts_v1!.prepared_player.arguments = [boundary];
+  assert.equal(Buffer.byteLength(selector(checkedAuthoredPort(raw))), 4096);
+  raw.route_facts_v1!.prepared_player.arguments = [boundary + "x"];
+  assert.throws(() => checkedAuthoredPort(raw), /4096-byte instruction bound/);
+  for (const arguments_ of [["é".repeat(16 * 1024)], ["\n".repeat(2048)]]) {
+    raw.route_facts_v1!.prepared_player.arguments = arguments_;
+    assert.throws(() => checkedAuthoredPort(raw), /4096-byte instruction bound/);
+  }
+  raw.route_facts_v1!.prepared_player.arguments = ["\u007f", "\u0085"];
+  const checked = checkedAuthoredPort(raw);
+  const rendered = selector(checked);
+  assert.ok(rendered.includes('"\\u007f","\\u0085"'));
+  for (const character of rendered) {
+    const code = character.charCodeAt(0);
+    assert.ok(code >= 32 && (code < 127 || code > 159));
+  }
+  assert.deepEqual(routeEnrollment([checked]).cases[0]!.prepared_player.arguments, [
+    "\u007f",
+    "\u0085",
+  ]);
 });
 
 void test("ordinary declarations generate distinct bounded title tests without authored Rust", () => {

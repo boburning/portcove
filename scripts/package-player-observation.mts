@@ -206,13 +206,15 @@ export function acceptPackagePlayerObservation(
   reference: string,
   retained = record.package_observation_v1,
 ): PackagePlayerObservationV1 {
+  if (retained) checkPackagePlayerObservation(retained);
   const chosen = selection(record);
   if (
     !chosen ||
     !chosen.repository ||
     !isRecord(raw) ||
     raw.id !== record.listing.id ||
-    raw.source_repository !== chosen.repository ||
+    typeof raw.source_repository !== "string" ||
+    raw.source_repository.toLowerCase() !== chosen.repository.toLowerCase() ||
     typeof raw.source_revision !== "string" ||
     !isRecord(raw.official_asset) ||
     !Array.isArray(raw.selected_executables) ||
@@ -243,12 +245,21 @@ export function acceptPackagePlayerObservation(
     raw.raw_preparser.raw_names_bound_before_parser !== true
   )
     throw new Error("Selected player/archive coverage is incomplete.");
+  // An existing receipt's spelling and selection hash remain exact historical
+  // bindings. Only GitHub identity comparison is case-insensitive.
+  const boundSelection = {
+    ...chosen,
+    repository:
+      retained?.repository.toLowerCase() === chosen.repository.toLowerCase()
+        ? retained.repository
+        : raw.source_repository,
+  };
   const observation = {
     format_version: 1 as const,
     port_id: record.listing.id,
-    repository: chosen.repository,
+    repository: boundSelection.repository,
     source_revision: raw.source_revision,
-    selection_sha256: hash(chosen),
+    selection_sha256: hash(boundSelection),
     artifact: {
       id: raw.official_asset.id,
       name: raw.official_asset.name,
@@ -301,7 +312,12 @@ export function packagePlayerProjectionKey(
   validator = packageProjectionValidator,
 ) {
   checkPackagePlayerObservation(observation);
-  return hash({ scope: observation.scope_sha256, selection: selection(record), validator });
+  const chosen = selection(record);
+  return hash({
+    scope: observation.scope_sha256,
+    selection: chosen && { ...chosen, repository: chosen.repository?.toLowerCase() },
+    validator,
+  });
 }
 
 /** Describes the observed selected executable, never dependency/gameplay/support qualification. */
@@ -316,8 +332,8 @@ export function packagePlayerProjection(
   if (
     !chosen ||
     observation.port_id !== record.listing.id ||
-    observation.repository !== chosen.repository ||
-    observation.selection_sha256 !== hash(chosen)
+    observation.repository.toLowerCase() !== chosen.repository?.toLowerCase() ||
+    observation.selection_sha256 !== hash({ ...chosen, repository: observation.repository })
   )
     return {
       platforms: [] as string[],
