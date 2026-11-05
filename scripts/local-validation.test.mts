@@ -4635,6 +4635,17 @@ void test("GitHub dependency changes select actual SDK and REST integration cont
     assert.ok(selected.nodeTests.has("scripts/release-controller-wake.test.mts"), file);
     assert.ok(selected.nodeTests.has("scripts/release-production-dag.test.mts"), file);
   }
+  for (const file of [
+    "scripts/assembler-job-identity.mts",
+    "scripts/release-windows-bootstrap-runtime.mts",
+  ]) {
+    const selected = classifyChanges([{ status: "M", path: file }], { fileExists: () => false });
+    assert.ok(selected.nodeTests.has("scripts/assembler-job-identity.test.mts"), file);
+    assert.ok(
+      selected.nodeTests.has("scripts/release-hosted-native-windows-bootstrap.test.mts"),
+      file,
+    );
+  }
   const wakeProviderChange = classifyChanges(
     [{ status: "M", path: "scripts/release-wake-provider.mts" }],
     { fileExists: () => false },
@@ -4665,6 +4676,8 @@ void test("GitHub dependency changes select actual SDK and REST integration cont
       "scripts/release-coordinator-recovery.test.mts",
       "scripts/release-metadata-context-recovery.test.mts",
       "scripts/production-controller-admission.test.mts",
+      "scripts/assembler-job-identity.test.mts",
+      "scripts/release-hosted-native-windows-bootstrap.test.mts",
       "scripts/release-bootstrap-preparation.test.mts",
       "scripts/application-release-budget.test.mts",
       "scripts/application-release-native.test.mts",

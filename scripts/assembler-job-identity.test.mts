@@ -10,6 +10,8 @@ import { withReadOnlyReleaseChildren } from "./release-readonly-child-environmen
 import { performance } from "node:perf_hooks";
 import {
   verifyAssemblerJobIdentity,
+  controllerToolBootstrapProfile,
+  verifyControllerToolBootstrapJobIdentity,
   verifyHostedNativeJobIdentity,
   verifyHostedNativeAttestationIdentity,
   requireVerifiedHostedNativeJobIdentity,
@@ -937,4 +939,187 @@ void test("fixed identity provider receives only the reader token when the worke
   );
   assert.equal(result.job_id, 501);
   assert.ok(f.counts().requests > 0);
+});
+
+void test("fixed Windows runtime verifiers use the configured SDK and preserve original job custody", async (t) => {
+  const token = "inert-windows-runtime-reader";
+  let routes: string[] = [];
+  let activeFixture: ReturnType<typeof fixture>;
+  t.mock.method(globalThis, "fetch", async (input: string | URL | Request, init?: RequestInit) => {
+    const url = new URL(input instanceof Request ? input.url : input);
+    const headers = new Headers(init?.headers);
+    if (url.origin === "https://token.actions.githubusercontent.com") {
+      assert.equal(url.pathname, "/.well-known/jwks");
+      assert.equal(headers.has("authorization"), false);
+      routes.push("jwks");
+      return Response.json({ keys: [jwk] });
+    }
+    assert.equal(url.origin, "https://api.github.com");
+    assert.equal(init?.redirect, "manual");
+    assert.equal(headers.get("authorization"), `token ${token}`);
+    const page = url.searchParams.get("page");
+    if (page) assert.equal(url.searchParams.get("per_page"), "100");
+    const route = page ? `${url.pathname}?per_page=100&page=${page}` : url.pathname;
+    routes.push(route);
+    return Response.json(activeFixture.metadata(route));
+  });
+  for (const role of ["bootstrap", "native"] as const) {
+    const native = role === "native";
+    const profile = native
+      ? {
+          audience: "portcove-hosted-native-windows-v1",
+          job: "Qualify hosted Windows installed continuity",
+        }
+      : controllerToolBootstrapProfile("windows-x86_64");
+    const environment = native ? "production-native-windows" : undefined;
+    const wanted = {
+      ...expected,
+      run_attempt: 1,
+      audience: profile.audience,
+      subject: controllerOidcSubject(expected.controller_ref, environment),
+    };
+    activeFixture = fixture(
+      {
+        aud: wanted.audience,
+        sub: wanted.subject,
+        ...(environment ? { environment } : {}),
+      },
+      {},
+      {
+        workflow: productionControllerWorkflow,
+        job: profile.job,
+        runAttempt: 1,
+        ...(!native ? { labels: ["windows-2022"] } : {}),
+      },
+    );
+    routes = [];
+    const transport = { sdkToken: token, deadline: performance.now() + 10000 };
+    const actual = native
+      ? await verifyHostedNativeJobIdentity("windows-x86_64", activeFixture.token, wanted, {
+          transport,
+        })
+      : await verifyControllerToolBootstrapJobIdentity(
+          activeFixture.token,
+          wanted,
+          { transport },
+          "windows-x86_64",
+        );
+    assert.equal(actual.evidence_scope, "github.com");
+    assert.equal(actual.authority, "none");
+    assert.equal(actual.job_id, 501);
+    assert.equal(actual.check_run_id, "777");
+    assert.equal(actual.api_requests, 5);
+    const run = "/repos/boburning/portcove/actions/runs/9988";
+    assert.deepEqual(routes, [
+      "jwks",
+      run,
+      `${run}/attempts/1/jobs?per_page=100&page=1`,
+      `${run}/attempts/1/jobs?per_page=100&page=2`,
+      "/repos/boburning/portcove/actions/jobs/501",
+      run,
+    ]);
+  }
+});
+
+void test("async identity operations refuse incomplete pages, contradictory Check identity and changed readback", async () => {
+  const profile = controllerToolBootstrapProfile("windows-x86_64");
+  const wanted = { ...expected, run_attempt: 1, audience: profile.audience };
+  for (const fault of ["", "missing", "count", "name-only", "job-completed", "drift"]) {
+    const f = fixture(
+      { aud: wanted.audience },
+      {},
+      {
+        workflow: productionControllerWorkflow,
+        job: profile.job,
+        runAttempt: 1,
+        labels: ["windows-2022"],
+      },
+    );
+    f.faults.value = fault;
+    const deadline = performance.now() + 10000;
+    const pending = verifyControllerToolBootstrapJobIdentity(
+      f.token,
+      wanted,
+      {
+        readKeys: f.readKeys,
+        transport: {
+          sdkToken: "inert-windows-runtime-reader",
+          deadline,
+          async read(route, bound) {
+            assert.equal(bound, deadline);
+            return f.metadata(route);
+          },
+        },
+      },
+      "windows-x86_64",
+    );
+    if (fault) await assert.rejects(pending);
+    else {
+      const result = await pending;
+      assert.equal(result.evidence_scope, "injected-provider");
+      assert.equal(result.api_requests, 5);
+    }
+  }
+});
+
+void test("Windows SDK collection cancels a stalled body at issuer expiry", async (t) => {
+  const profile = controllerToolBootstrapProfile("windows-x86_64");
+  const wanted = { ...expected, run_attempt: 1, audience: profile.audience };
+  const now = Math.floor(Date.now() / 1000);
+  t.mock.method(Date, "now", () => now * 1000);
+  const f = fixture(
+    { aud: wanted.audience, exp: now + 1 },
+    {},
+    {
+      workflow: productionControllerWorkflow,
+      job: profile.job,
+      runAttempt: 1,
+      labels: ["windows-2022"],
+    },
+  );
+  let dispatched = 0;
+  let cancelled = false;
+  t.mock.method(globalThis, "fetch", async () => {
+    dispatched++;
+    return new Response(
+      new ReadableStream({
+        cancel() {
+          cancelled = true;
+        },
+      }),
+      {
+        headers: { "content-type": "application/json" },
+      },
+    );
+  });
+  const keepAlive = setTimeout(() => {}, 1500);
+  t.after(() => clearTimeout(keepAlive));
+  await assert.rejects(
+    verifyControllerToolBootstrapJobIdentity(
+      f.token,
+      wanted,
+      {
+        readKeys: f.readKeys,
+        transport: {
+          sdkToken: "inert-windows-runtime-reader",
+          deadline: performance.now() + 10000,
+        },
+      },
+      "windows-x86_64",
+    ),
+  );
+  assert.equal(dispatched, 1);
+  assert.equal(cancelled, true);
+  await assert.rejects(
+    verifyControllerToolBootstrapJobIdentity(
+      f.token,
+      wanted,
+      {
+        readKeys: f.readKeys,
+        transport: { sdkToken: "", deadline: performance.now() + 10000 },
+      },
+      "windows-x86_64",
+    ),
+  );
+  assert.equal(dispatched, 1);
 });

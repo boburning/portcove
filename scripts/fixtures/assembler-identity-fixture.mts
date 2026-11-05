@@ -85,6 +85,50 @@ export function assemblerIdentityFixture(
     labels: [...(profile.labels ?? [])],
     check_run_url: `https://api.github.com/repos/boburning/portcove/check-runs/${1000 + id}`,
   });
+  const metadata = (endpoint: string) => {
+    requests++;
+    let body: unknown;
+    if (endpoint.endsWith("/actions/runs/9988")) {
+      runReads++;
+      body = {
+        id: 9988,
+        run_attempt: faults.value === "attempt" ? runAttempt + 1 : runAttempt,
+        head_sha:
+          faults.value === "drift" && runReads > 1 ? "b".repeat(40) : expected.controller_revision,
+        path: profile.workflow,
+        event: "workflow_dispatch",
+        status: "in_progress",
+        repository: { id: 1354613114, full_name: "boburning/portcove" },
+        head_repository: { id: 1354613114 },
+      };
+    } else if (endpoint.endsWith(`/actions/jobs/${jobId}`)) {
+      body = {
+        ...job(jobId),
+        status: faults.value === "job-completed" ? "completed" : "in_progress",
+        name: profile.job,
+        check_run_url: `https://api.github.com/repos/boburning/portcove/check-runs/${checkRunId}`,
+      };
+    } else {
+      assert.ok(endpoint.includes(`/attempts/${runAttempt}/jobs?per_page=100&page=`));
+      const second = endpoint.endsWith("page=2");
+      const selected = {
+        ...job(faults.value === "duplicate" ? 1 : jobId),
+        head_sha: faults.value === "job-source" ? "b".repeat(40) : expected.controller_revision,
+        status: "in_progress",
+        name: profile.job,
+        check_run_url: `https://api.github.com/repos/boburning/portcove/check-runs/${faults.value === "name-only" ? checkRunId + 1 : checkRunId}`,
+      };
+      body = {
+        total_count: faults.value === "count" && second ? 102 : 101,
+        jobs: second
+          ? faults.value === "missing"
+            ? []
+            : [selected]
+          : Array.from({ length: 100 }, (_, index) => job(index + 1)),
+      };
+    }
+    return body;
+  };
   const transport = {
     cwd: process.cwd(),
     spawn: (
@@ -97,50 +141,7 @@ export function assemblerIdentityFixture(
       assert.equal(options.maxBuffer, 2 * 1024 * 1024);
       assert.ok(options.timeout && options.timeout > 0 && options.timeout <= 15_000);
       assert.equal(options.input, undefined);
-      requests++;
-      const endpoint = args[2]!;
-      let body: unknown;
-      if (endpoint.endsWith("/actions/runs/9988")) {
-        runReads++;
-        body = {
-          id: 9988,
-          run_attempt: faults.value === "attempt" ? runAttempt + 1 : runAttempt,
-          head_sha:
-            faults.value === "drift" && runReads > 1
-              ? "b".repeat(40)
-              : expected.controller_revision,
-          path: profile.workflow,
-          event: "workflow_dispatch",
-          status: "in_progress",
-          repository: { id: 1354613114, full_name: "boburning/portcove" },
-          head_repository: { id: 1354613114 },
-        };
-      } else if (endpoint.endsWith(`/actions/jobs/${jobId}`)) {
-        body = {
-          ...job(jobId),
-          status: faults.value === "job-completed" ? "completed" : "in_progress",
-          name: profile.job,
-          check_run_url: `https://api.github.com/repos/boburning/portcove/check-runs/${checkRunId}`,
-        };
-      } else {
-        assert.ok(endpoint.includes(`/attempts/${runAttempt}/jobs?per_page=100&page=`));
-        const second = endpoint.endsWith("page=2");
-        const selected = {
-          ...job(faults.value === "duplicate" ? 1 : jobId),
-          head_sha: faults.value === "job-source" ? "b".repeat(40) : expected.controller_revision,
-          status: "in_progress",
-          name: profile.job,
-          check_run_url: `https://api.github.com/repos/boburning/portcove/check-runs/${faults.value === "name-only" ? checkRunId + 1 : checkRunId}`,
-        };
-        body = {
-          total_count: faults.value === "count" && second ? 102 : 101,
-          jobs: second
-            ? faults.value === "missing"
-              ? []
-              : [selected]
-            : Array.from({ length: 100 }, (_, index) => job(index + 1)),
-        };
-      }
+      const body = metadata(args[2]!);
       return {
         status: 0,
         stdout: `HTTP/2.0 ${faults.value === "api-status" ? 503 : 200} Fixture\r\nContent-Type: application/json\r\n\r\n${faults.value === "api-json" ? "{malformed" : JSON.stringify(body)}`,
@@ -148,5 +149,5 @@ export function assemblerIdentityFixture(
       };
     },
   };
-  return { token, faults, readKeys, transport, counts: () => ({ requests, keyReads }) };
+  return { token, faults, readKeys, transport, metadata, counts: () => ({ requests, keyReads }) };
 }
