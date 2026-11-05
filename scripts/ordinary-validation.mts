@@ -2426,6 +2426,8 @@ for (const file of [
     "scripts/release-artifact-archive.test.mts",
     "scripts/acquire-release-admission.test.mts",
     "scripts/release-compiler-evidence.test.mts",
+    "scripts/release-compiler-source.test.mts",
+    "scripts/release-compiler-source-admission.test.mts",
     "scripts/release-acceptance-evidence.test.mts",
     "scripts/release-public-build-provenance.test.mts",
     "scripts/production-aggregate-steps.test.mts",

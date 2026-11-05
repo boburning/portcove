@@ -2,9 +2,10 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { execFileSync } from "node:child_process";
-import { spawnSync } from "node:child_process";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import type { GitHubRestReader } from "./github-api.mts";
+import type { GitHubCredential, GitHubRequestPolicy } from "./github-client.mts";
+import { localDeveloperCredential } from "./github-cli.mts";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
 import { isRecord } from "./runtime-values.mts";
 import { collectReleaseSourceChanges } from "./release-source-changes.mts";
 import { reproducePreparedReleaseVersionFiles } from "../apps/desktop/scripts/prepare-release-version.mts";
@@ -82,13 +83,17 @@ export async function prepareReleaseCompilerSourceClosure(
   });
 }
 
+type CompilerTreeReader = (sha: string) => Promise<unknown>;
+const compilerTreeRequestLimit = 32;
+const compilerTreeTimeoutMs = 15_000;
+
 /** Authenticated source equality is one necessary compiler condition. This
  * does not authenticate execution, outputs, compatibility or native behavior.
  * The fixed controller chooses this inventory; candidate files are never run. */
 export async function compareReleaseCompilerSource(
   trustedRoot: string,
   candidateTree: string,
-  options: { api?: GitHubRestReader } = {},
+  options: { readTree?: CompilerTreeReader } = {},
 ) {
   if (!/^[a-f0-9]{40}$/u.test(candidateTree))
     throw new Error("compiler source tree identity unavailable");
@@ -116,7 +121,7 @@ export async function compareReleaseCompilerSource(
     source_commit: controllerCommit,
     source_tree: git(["rev-parse", "HEAD^{tree}"]).trim(),
   });
-  const result = await compareCompilerClosure(closure, trustedRoot, candidateTree, options);
+  const result = await compareCompilerClosure(closure, candidateTree, options);
   if (git(["rev-parse", "HEAD"]).trim() !== controllerCommit)
     throw new Error("fixed controller changed during compiler source comparison");
   return result;
@@ -124,34 +129,61 @@ export async function compareReleaseCompilerSource(
 
 export async function compareCompilerClosure(
   closure: CompilerSourceClosure,
-  trustedRoot: string,
   candidateTree: string,
-  options: { api?: GitHubRestReader },
+  options: {
+    readTree?: CompilerTreeReader;
+    credential?: GitHubCredential;
+    deadline?: number;
+    maxBytes?: number;
+  },
 ) {
   if (!/^[a-f0-9]{40}$/u.test(candidateTree))
     throw new Error("compiler candidate tree unavailable");
   const controllerCommit = closure.source_commit;
   const local = new Map(closure.paths.map((entry) => [entry.path, entry.entry]));
-  const runner = createGitHubRunner({
-    cwd: trustedRoot,
-    maxBuffer: 2 * 1024 * 1024,
-    timeoutMs: 15000,
-    spawn: (command, args, settings) =>
-      spawnSync(command, args, { ...settings, env: { ...process.env, GH_HOST: "github.com" } }),
-  });
-  const api =
-    options.api ??
-    new GitHubApiClient((args, input) => runner([...args, "--hostname", "github.com"], input));
+  const deadline = Math.min(
+    options.deadline ?? Infinity,
+    coordinatorCommandDeadline() ?? Infinity,
+    performance.now() + compilerTreeRequestLimit * compilerTreeTimeoutMs,
+  );
+  let provider = options.readTree;
+  if (!provider) {
+    const { createGitHubClient } = await import("./github-client.mts");
+    const client = await createGitHubClient({
+      credential: options.credential ?? localDeveloperCredential({ deadline }),
+      deadline,
+      maxBytes: options.maxBytes ?? 2 * 1024 * 1024,
+      requestTimeoutMs: compilerTreeTimeoutMs,
+      allowRequest: (method, url) =>
+        method === "GET" &&
+        !url.search &&
+        /^\/repos\/boburning\/portcove\/git\/trees\/[a-f0-9]{40}$/u.test(url.pathname),
+    });
+    provider = async (sha) => {
+      const policy: GitHubRequestPolicy = { replay: "once", attempts: 0 };
+      try {
+        const response = await client.request("GET /repos/boburning/portcove/git/trees/{sha}", {
+          sha,
+          request: { portcove: policy },
+        });
+        if (response.status !== 200)
+          throw new Error("complete authenticated compiler source tree unavailable");
+        return response.data as unknown;
+      } finally {
+        await policy.admissionSettled;
+      }
+    };
+  }
+  const fetchTree = provider;
   const trees = new Map<string, Map<string, { mode: string; type: string; sha: string }>>();
   let requests = 0;
-  const readTree = (sha: string) => {
+  const readTree = async (sha: string) => {
     const cached = trees.get(sha);
     if (cached) return cached;
-    if (++requests > 32) throw new Error("compiler source tree request bound exhausted");
-    const response = api.request("GET", `repos/boburning/portcove/git/trees/${sha}`);
-    const body = response.body;
+    if (++requests > compilerTreeRequestLimit)
+      throw new Error("compiler source tree request bound exhausted");
+    const body = await fetchTree(sha);
     if (
-      response.status !== 200 ||
       !isRecord(body) ||
       body.sha !== sha ||
       body.truncated !== false ||
@@ -208,12 +240,13 @@ export async function compareCompilerClosure(
     trees.set(sha, entries);
     return entries;
   };
-  const observed = compilerProducerPaths.map((filename) => {
+  const observed = [];
+  for (const filename of compilerProducerPaths) {
     let tree = candidateTree;
     let found: { mode: string; type: string; sha: string } | undefined;
     const parts = filename.split("/");
     for (const [index, part] of parts.entries()) {
-      found = readTree(tree).get(part);
+      found = (await readTree(tree)).get(part);
       if (!found) break;
       if (index < parts.length - 1) {
         if (found.type !== "tree" || found.mode !== "040000")
@@ -224,10 +257,10 @@ export async function compareCompilerClosure(
     const expected = local.get(filename);
     if (JSON.stringify(expected ?? null) !== JSON.stringify(found ?? null))
       throw new Error(`candidate compiler workflow/helper/configuration differs: ${filename}`);
-    return { path: filename, ...(found ?? { absent: true }) };
-  });
+    observed.push({ path: filename, ...(found ?? { absent: true }) });
+  }
   return Object.freeze({
-    evidence_scope: options.api ? "injected-provider" : "github.com",
+    evidence_scope: options.readTree ? "injected-provider" : "github.com",
     authority: "none",
     controller_commit: controllerCommit,
     candidate_tree: candidateTree,

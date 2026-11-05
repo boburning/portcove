@@ -58,31 +58,27 @@ async function fixture(t: test.TestContext) {
       }) => void)
     | undefined;
   let requests = 0;
-  const api = {
-    request(method: string, endpoint: string) {
-      requests++;
-      assert.equal(method, "GET");
-      const match = /^repos\/boburning\/portcove\/git\/trees\/([a-f0-9]{40})$/u.exec(endpoint);
-      assert.ok(match);
-      const tree = git(["ls-tree", "-z", match[1]!])
-        .split("\0")
-        .filter(Boolean)
-        .map((entry) => {
-          const parsed = /^(\d+) (\w+) ([a-f0-9]{40})\t(.+)$/u.exec(entry);
-          assert.ok(parsed);
-          return { mode: parsed[1]!, type: parsed[2]!, sha: parsed[3]!, path: parsed[4]! };
-        });
-      const body = { sha: match[1]!, truncated: false, tree };
-      mutate?.(body);
-      return { status: 200, headers: new Map<string, string>(), body };
-    },
+  const readTree = async (sha: string) => {
+    requests++;
+    assert.match(sha, /^[a-f0-9]{40}$/u);
+    const tree = git(["ls-tree", "-z", sha])
+      .split("\0")
+      .filter(Boolean)
+      .map((entry) => {
+        const parsed = /^(\d+) (\w+) ([a-f0-9]{40})\t(.+)$/u.exec(entry);
+        assert.ok(parsed);
+        return { mode: parsed[1]!, type: parsed[2]!, sha: parsed[3]!, path: parsed[4]! };
+      });
+    const body = { sha, truncated: false, tree };
+    mutate?.(body);
+    return body;
   };
   return {
     root,
     git,
     commit,
     trusted,
-    api,
+    readTree,
     setMutation(value: typeof mutate) {
       mutate = value;
     },
@@ -95,12 +91,51 @@ void test("complete fixed helper/action/workflow tree matches while unrelated ca
   f.commit();
   const tree = f.git(["rev-parse", "HEAD^{tree}"]);
   f.git(["checkout", "--quiet", f.trusted]);
-  const result = await compareReleaseCompilerSource(f.root, tree, { api: f.api });
+  const result = await compareReleaseCompilerSource(f.root, tree, { readTree: f.readTree });
   assert.equal(result.evidence_scope, "injected-provider");
   assert.equal(result.authority, "none");
   assert.equal(result.controller_commit, f.trusted);
   assert.ok(f.requests() < 16);
   assert.ok(result.paths.some((entry) => entry.path === ".cargo" && "absent" in entry));
+});
+void test("default compiler comparison uses the locked SDK for exact one-shot tree reads", async (t) => {
+  const f = await fixture(t);
+  const tree = f.git(["rev-parse", "HEAD^{tree}"]);
+  const originalToken = process.env.GH_TOKEN;
+  process.env.GH_TOKEN = "fixture-compiler-tree-reader";
+  t.after(() => {
+    if (originalToken === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = originalToken;
+  });
+  const dispatches: string[] = [];
+  let status = 200;
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const request = new Request(input, init);
+      assert.equal(request.method, "GET");
+      assert.equal(request.headers.get("authorization"), "token fixture-compiler-tree-reader");
+      const url = new URL(request.url);
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(url.search, "");
+      const match = /^\/repos\/boburning\/portcove\/git\/trees\/([a-f0-9]{40})$/u.exec(
+        url.pathname,
+      );
+      assert.ok(match);
+      dispatches.push(match[1]!);
+      return Response.json(status === 200 ? await f.readTree(match[1]!) : {}, { status });
+    },
+  );
+  const result = await compareReleaseCompilerSource(f.root, tree);
+  assert.equal(result.evidence_scope, "github.com");
+  assert.equal(dispatches[0], tree);
+  assert.ok(dispatches.length > 1);
+  assert.equal(new Set(dispatches).size, dispatches.length);
+  status = 503;
+  dispatches.length = 0;
+  await assert.rejects(compareReleaseCompilerSource(f.root, tree));
+  assert.deepEqual(dispatches, [tree]);
 });
 void test("indirect helper, action, workflow and previously absent Cargo configuration changes refuse", async (t) => {
   const f = await fixture(t);
@@ -116,7 +151,10 @@ void test("indirect helper, action, workflow and previously absent Cargo configu
     f.commit();
     const tree = f.git(["rev-parse", "HEAD^{tree}"]);
     f.git(["checkout", "--quiet", f.trusted]);
-    await assert.rejects(compareReleaseCompilerSource(f.root, tree, { api: f.api }), /differs/);
+    await assert.rejects(
+      compareReleaseCompilerSource(f.root, tree, { readTree: f.readTree }),
+      /differs/,
+    );
   }
 });
 void test("truncated, duplicate, wrong-object and malformed authenticated tree responses refuse", async (t) => {
@@ -138,7 +176,7 @@ void test("truncated, duplicate, wrong-object and malformed authenticated tree r
   ]) {
     f.setMutation(mutation);
     await assert.rejects(
-      compareReleaseCompilerSource(f.root, tree, { api: f.api }),
+      compareReleaseCompilerSource(f.root, tree, { readTree: f.readTree }),
       /unavailable|malformed/,
     );
   }

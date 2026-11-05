@@ -172,8 +172,16 @@ export async function collectActualPublicWindowsCompilerIdentity(
   );
   await retain("compiler-source-closure.json", Buffer.from(JSON.stringify(closure)));
   inspectPreparedCompilerSource(selected.source.api, identity.allocation);
-  await compareCompilerClosure(closure, directory, identity.allocation.source_tree, {
-    api: selected.source.api,
+  await compareCompilerClosure(closure, identity.allocation.source_tree, {
+    readTree: async (sha) => {
+      const response = selected.source.api.request(
+        "GET",
+        `repos/boburning/portcove/git/trees/${sha}`,
+      );
+      if (response.status !== 200)
+        throw new Error("complete authenticated compiler source tree unavailable");
+      return response.body;
+    },
   });
   const capture = await readBoundedPublicBuildInputFile(
     selected.parent.controller_root,

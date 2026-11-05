@@ -1,5 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createHash } from "node:crypto";
+import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import * as compiler from "./release-compiler-source.mts";
 import {
   compareVerifiedReleaseCompilerSource,
   requireVerifiedReleaseCompilerSource,
@@ -32,5 +38,117 @@ void test("imported tools, raw generated closures and source summaries cannot es
       requireVerifiedReleaseCompilerSource(forged, candidate.prepared_tree),
       /actual same-process exact compiler/,
     );
+  }
+});
+
+void test("verified admission reads the exact tree with the appointed reader and rejoins tool custody", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "compiler-source-admission-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const blob = "b".repeat(40);
+  const rawTree = Buffer.concat([Buffer.from("100644 unrelated.txt\0"), Buffer.from(blob, "hex")]);
+  const tree = createHash("sha1").update(`tree ${rawTree.length}\0`).update(rawTree).digest("hex");
+  const controller = { source_commit: "a".repeat(40), source_tree: tree };
+  const candidate = {
+    ...controller,
+    prepared_commit: "c".repeat(40),
+    prepared_tree: "d".repeat(40),
+    version: "0.2.0",
+  };
+  const closureFile = path.join(root, "compiler-source-closure.json");
+  await writeFile(
+    closureFile,
+    JSON.stringify({
+      schema_version: 1,
+      ...controller,
+      paths: compiler.compilerProducerPaths.map((name) => ({ path: name, entry: null })),
+    }),
+  );
+  const receipt = {};
+  const order: string[] = [];
+  let changed = false;
+  let stalled = false;
+  let cancelled = false;
+  t.mock.module("./release-controller-tool-admission.mts", {
+    exports: {
+      async verifiedControllerToolPaths(value: object) {
+        assert.equal(value, receipt);
+        order.push("receipt");
+        if (changed && order.length > 1) throw new Error("verified tool manifest changed");
+        return { compiler_source_closure: closureFile };
+      },
+    },
+  });
+  t.mock.module("./release-compiler-source.mts", {
+    exports: {
+      ...compiler,
+      inspectPreparedCompilerSource() {
+        order.push("preparation");
+        return { authority: "none" };
+      },
+    },
+  });
+  const { compareVerifiedReleaseCompilerSource: compare } = (await import(
+    new URL("./release-compiler-source-admission.mts?compiler-tree-sdk", import.meta.url).href
+  )) as typeof import("./release-compiler-source-admission.mts");
+  const ambientToken = process.env.GH_TOKEN;
+  process.env.GH_TOKEN = "different-ambient-compiler-token";
+  t.after(() => {
+    if (ambientToken === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = ambientToken;
+  });
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const request = new Request(input, init);
+      assert.equal(request.method, "GET");
+      assert.equal(
+        request.url,
+        `https://api.github.com/repos/boburning/portcove/git/trees/${tree}`,
+      );
+      assert.equal(request.headers.get("authorization"), "token appointed-compiler-token");
+      order.push("tree");
+      if (stalled) {
+        return new Response(
+          new ReadableStream({
+            cancel() {
+              cancelled = true;
+            },
+          }),
+        );
+      }
+      return Response.json({
+        sha: tree,
+        truncated: false,
+        tree: [{ path: "unrelated.txt", mode: "100644", type: "blob", sha: blob }],
+      });
+    },
+  );
+  const result = await compare(receipt, candidate, controller, "appointed-compiler-token");
+  assert.equal(result.candidate_tree, candidate.prepared_tree);
+  assert.equal(result.evidence_scope, "github.com");
+  assert.deepEqual(order, ["receipt", "preparation", "tree", "receipt"]);
+  order.length = 0;
+  changed = true;
+  await assert.rejects(
+    compare(receipt, candidate, controller, "appointed-compiler-token"),
+    /manifest changed/,
+  );
+  assert.deepEqual(order, ["receipt", "preparation", "tree", "receipt"]);
+  order.length = 0;
+  changed = false;
+  stalled = true;
+  const keepAlive = setTimeout(() => {}, 1000);
+  try {
+    await assert.rejects(
+      withCoordinatorDeadline(performance.now() + 100, () =>
+        compare(receipt, candidate, controller, "appointed-compiler-token"),
+      ),
+      { code: "deadline_exceeded" },
+    );
+    assert.equal(cancelled, true);
+    assert.deepEqual(order, ["receipt", "preparation", "tree"]);
+  } finally {
+    clearTimeout(keepAlive);
   }
 });

@@ -2,6 +2,12 @@ import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
+import { localDeveloperCredential } from "./github-cli.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
+import {
+  checkCoordinatorDeadline,
+  coordinatorCommandDeadline,
+} from "./release-coordinator-deadline.mts";
 import { verifiedControllerToolPaths } from "./release-controller-tool-admission.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import {
@@ -25,11 +31,16 @@ const actualCompilerSource = new WeakMap<
  * in this process, including its full original artifact/Sigstore binding. */
 export async function compareVerifiedReleaseCompilerSource(
   toolsReceipt: object,
-  candidate: PreparedCompilerSource,
-  controller: { source_commit: string; source_tree: string },
+  rawCandidate: PreparedCompilerSource,
+  rawController: { source_commit: string; source_tree: string },
   readToken?: string,
 ) {
+  const candidate = structuredClone(rawCandidate);
+  const controller = structuredClone(rawController);
+  const environment = { ...process.env };
+  const deadline = coordinatorCommandDeadline() ?? performance.now() + 32 * 15_000;
   const tools = await verifiedControllerToolPaths(toolsReceipt);
+  checkCoordinatorDeadline();
   if (!("compiler_source_closure" in tools) || typeof tools.compiler_source_closure !== "string")
     throw new Error("authenticated controller tools lack generated compiler source closure");
   const closureBytes = await readControllerToolFile(tools.compiler_source_closure, 64 * 1024);
@@ -55,7 +66,7 @@ export async function compareVerifiedReleaseCompilerSource(
     "TMP",
     "TEMP",
   ])
-    if (process.env[key] !== undefined) readEnvironment[key] = process.env[key];
+    if (environment[key] !== undefined) readEnvironment[key] = environment[key];
   Object.assign(readEnvironment, {
     GH_TOKEN: readToken,
     GH_HOST: "github.com",
@@ -83,8 +94,17 @@ export async function compareVerifiedReleaseCompilerSource(
   const api = new GitHubApiClient((args, input) =>
     runner([...args, "--hostname", "github.com"], input),
   );
+  if (readToken !== undefined) assertTrustedDirectNode("Fixed compiler source reader");
   const preparation = inspectPreparedCompilerSource(api, candidate);
-  const source = await compareCompilerClosure(closure, directory, candidate.source_tree, { api });
+  checkCoordinatorDeadline();
+  const source = await compareCompilerClosure(closure, candidate.source_tree, {
+    credential:
+      readToken === undefined
+        ? localDeveloperCredential({ deadline, environment })
+        : { kind: "explicit", token: readToken },
+    deadline,
+    maxBytes: 4 * 1024 * 1024,
+  });
   const result = Object.freeze({
     ...source,
     evidence_scope: "github.com",
@@ -92,12 +112,13 @@ export async function compareVerifiedReleaseCompilerSource(
     preparation,
   });
   await verifiedControllerToolPaths(toolsReceipt);
+  checkCoordinatorDeadline();
   actualCompilerSource.set(result, {
     candidate_tree: candidate.prepared_tree,
     tools: toolsReceipt,
     closure_sha256: createHash("sha256").update(closureBytes).digest("hex"),
-    preparation: structuredClone(candidate),
-    controller: structuredClone(controller),
+    preparation: candidate,
+    controller,
   });
   return result;
 }
