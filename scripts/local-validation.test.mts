@@ -4692,6 +4692,16 @@ void test("GitHub dependency changes select actual SDK and REST integration cont
     { fileExists: () => false },
   );
   assert.ok(hostedCandidate.nodeTests.has("scripts/production-controller-admission.test.mts"));
+  const coordinatorSnapshotChange = classifyChanges(
+    [{ status: "M", path: "scripts/release-coordinator-recovery.mts" }],
+    { fileExists: () => false },
+  );
+  assert.ok(
+    coordinatorSnapshotChange.nodeTests.has("scripts/release-catalog-continuation.test.mts"),
+  );
+  assert.ok(
+    coordinatorSnapshotChange.nodeTests.has("scripts/release-metadata-context-recovery.test.mts"),
+  );
   const custodyChange = classifyChanges(
     [{ status: "M", path: "scripts/release-custody-provider.mts" }],
     { fileExists: () => false },

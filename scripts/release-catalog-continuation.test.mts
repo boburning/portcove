@@ -355,6 +355,17 @@ async function catalogContinuationBehavior(
     const receivedRoles: object[] = [];
     let mutateEnvironment = false,
       roleIndex = 0;
+    let recoveryDeadline: number | undefined;
+    const assertRecoveryTransport = (options: unknown) => {
+      const transport = (
+        options as { transport: { credential: { token: string }; deadline: number } }
+      ).transport;
+      assert.deepEqual(Object.keys(transport).sort(), ["credential", "deadline"]);
+      assert.deepEqual(transport.credential, { token: "inert-catalog-continuation" });
+      assert.ok(Number.isFinite(transport.deadline));
+      recoveryDeadline ??= transport.deadline;
+      assert.equal(transport.deadline, recoveryDeadline);
+    };
     const peers = {
       assert,
       Buffer,
@@ -410,7 +421,11 @@ async function catalogContinuationBehavior(
           actor_id: "1",
         },
       }),
-      recoverRemoteCoordinator: async () => ({ repository: parent, checkpoint, input }),
+      recoverRemoteCoordinator: async (_parent: string, _scope: unknown, options: unknown) => {
+        recoveryDeadline = undefined;
+        assertRecoveryTransport(options);
+        return { repository: parent, checkpoint, input };
+      },
       inspectCatalogPublicationDescriptor: (raw: unknown) => raw,
       inspectCapacityOperation: (raw: unknown) => raw,
       prepareControlReadiness: () => ({}),
@@ -420,7 +435,10 @@ async function catalogContinuationBehavior(
       catalogCoordinatorMaintenanceIdentity: () => "same-controls",
       authenticateCapacityExecutor: async () => ({}),
       controllerOidcSubject: () => "fixed",
-      readRemoteCoordinatorSnapshot: async () => ({ checkpoint, input }),
+      readRemoteCoordinatorSnapshot: async (_parent: string, _scope: unknown, options: unknown) => {
+        assertRecoveryTransport(options);
+        return { checkpoint, input };
+      },
       refreshCapacityExecutor: async () => ({}),
       readGitHubArtifactArchive: () => archive,
       inspectSigningContextArchive: () => ({ manifest, manifest_sha256: "6".repeat(64) }),
@@ -949,7 +967,7 @@ void test("actual continuation guard renews and checks maintenance LAST after de
       descriptor,
       stable: "stable",
       api: {},
-      spawn: undefined,
+      recoveryTransport: {},
       digest,
       path,
       performance: { now: () => now },
