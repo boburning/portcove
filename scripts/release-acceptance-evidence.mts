@@ -1,12 +1,17 @@
 import { isInitialBetaReleaseProfile } from "./release-package-policy.mts";
 import { createHash } from "node:crypto";
-import { spawnSync } from "node:child_process";
 import { mkdtemp, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { crc32, inflateRawSync } from "node:zlib";
 import { inspectBoundedZip } from "./bounded-zip.mts";
-import { createGitHubRunner } from "./github-api.mts";
+import { verifyGitHubAttestation } from "./github-cli.mts";
+import type { RetainedGitHubSpawn } from "./github-cli.mts";
+import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
+import {
+  coordinatorCommandTimeout,
+  checkCoordinatorDeadline,
+} from "./release-coordinator-deadline.mts";
 import { readGitHubArtifactArchive } from "./github-binary.mts";
 import { inspectTrustedAssemblyInput } from "./trusted-release-assembly.mts";
 import { loadPackagePolicy } from "./release-package-policy.mts";
@@ -20,7 +25,6 @@ const workflow = ".github/workflows/release.yml";
 export const releaseSpdxPredicateType = "https://spdx.dev/Document/v2.3";
 const sha256 = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 type Evidence = ReturnType<typeof collectReleaseRunEvidence>;
-type Spawn = NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"];
 const verifiedSbomDocuments = new WeakMap<
   object,
   {
@@ -228,7 +232,7 @@ export async function collectReleaseSbomEvidence(
   evidence: Evidence,
   options: {
     download?: typeof readGitHubArtifactArchive | undefined;
-    spawn?: Spawn;
+    spawn?: RetainedGitHubSpawn | undefined;
     maximumArchiveBytes?: number;
     preparedNamespace?: string;
   } = {},
@@ -353,49 +357,50 @@ export async function collectReleaseSbomEvidence(
   });
   const document: unknown = JSON.parse(retained.get("Portcove-SBOM.spdx.json")!.toString("utf8"));
   inspectReleaseSpdx(document);
-  const runner = createGitHubRunner({
-    cwd: directory,
-    maxBuffer: 32 * 1024 * 1024,
-    timeoutMs: 60000,
-    spawn:
-      options.spawn ??
-      ((command, args, settings) =>
-        spawnSync(command, args, {
-          ...settings,
-          env: { ...process.env, GH_HOST: "github.com" },
-        })),
-  });
   const ref = selectedDispatch
     ? `refs/tags/${options.preparedNamespace}-prepared/v${accepted.version}`
     : `refs/tags/v${accepted.version}`;
-  const raw: unknown = JSON.parse(
-    runner([
-      "attestation",
-      "verify",
-      filename,
-      "--hostname",
-      "github.com",
-      "--repo",
-      repository,
-      "--signer-workflow",
-      `${repository}/${workflow}`,
-      "--signer-digest",
-      accepted.source_commit,
-      "--source-digest",
-      accepted.source_commit,
-      "--source-ref",
-      ref,
-      "--cert-oidc-issuer",
-      "https://token.actions.githubusercontent.com",
-      "--deny-self-hosted-runners",
-      "--predicate-type",
-      releaseSpdxPredicateType,
-      "--limit",
-      "5",
-      "--format",
-      "json",
-    ]),
-  );
+  let verified: string;
+  try {
+    verified = verifyGitHubAttestation(
+      [
+        "attestation",
+        "verify",
+        filename,
+        "--hostname",
+        "github.com",
+        "--repo",
+        repository,
+        "--signer-workflow",
+        `${repository}/${workflow}`,
+        "--signer-digest",
+        accepted.source_commit,
+        "--source-digest",
+        accepted.source_commit,
+        "--source-ref",
+        ref,
+        "--cert-oidc-issuer",
+        "https://token.actions.githubusercontent.com",
+        "--deny-self-hosted-runners",
+        "--predicate-type",
+        releaseSpdxPredicateType,
+        "--limit",
+        "5",
+        "--format",
+        "json",
+      ],
+      {
+        cwd: directory,
+        timeoutMs: coordinatorCommandTimeout(60000),
+        maxBytes: 32 * 1024 * 1024,
+        environment: readOnlyReleaseChildEnvironment() ?? { ...process.env, GH_HOST: "github.com" },
+        ...(options.spawn ? { spawn: options.spawn } : {}),
+      },
+    );
+  } finally {
+    checkCoordinatorDeadline();
+  }
+  const raw: unknown = JSON.parse(verified);
   await writeFile(path.join(directory, "verification.json"), `${JSON.stringify(raw)}\n`, {
     flag: "wx",
     mode: 0o600,
