@@ -614,6 +614,7 @@ for (const [file, tests] of [
   [
     "scripts/release-readonly-child-environment.mts",
     [
+      "scripts/release-catalog-site-controller.test.mts",
       "scripts/release-admitted-aggregate-controller.test.mts",
       "scripts/release-tuf-controller.test.mts",
     ],
@@ -648,7 +649,13 @@ for (const [file, tests] of [
       "scripts/release-coordinator-remote.test.mts",
     ],
   ],
-  ["scripts/release-site-deployment.mts", ["scripts/release-site-deployment.test.mts"]],
+  [
+    "scripts/release-site-deployment.mts",
+    [
+      "scripts/release-site-deployment.test.mts",
+      "scripts/release-catalog-site-controller.test.mts",
+    ],
+  ],
   ["scripts/release-site-controller.mts", ["scripts/release-site-controller.test.mts"]],
   [
     "scripts/release-site-launch.mts",
@@ -822,6 +829,7 @@ for (const [file, tests] of [
   [
     "scripts/release-custody-provider.mts",
     [
+      "scripts/release-catalog-site-controller.test.mts",
       "scripts/release-coordinator-recovery.test.mts",
       "scripts/release-hosted-native-history.test.mts",
       "scripts/release-catalog-recovery.test.mts",
@@ -2324,6 +2332,7 @@ for (const file of [
   explicitNodeTests.set(file, [
     ...(explicitNodeTests.get(file) ?? []),
     "scripts/github-client.test.mts",
+    "scripts/release-catalog-site-controller.test.mts",
     "scripts/release-catalog-recovery.test.mts",
     "scripts/release-site-controller.test.mts",
     "scripts/release-metadata-site-controller.test.mts",
@@ -2414,6 +2423,7 @@ for (const file of ["scripts/github-cli.mts", "scripts/github-controller-attesta
   ]);
 
 explicitNodeTests.set("scripts/release-direct-node-transport.mts", [
+  "scripts/release-catalog-site-controller.test.mts",
   "scripts/release-coordinator-journal-api.test.mts",
   "scripts/release-publication-result-artifact.test.mts",
   "scripts/release-signing-handoff.test.mts",
@@ -2422,6 +2432,7 @@ explicitNodeTests.set("scripts/release-direct-node-transport.mts", [
 
 explicitNodeTests.set("scripts/github-artifact-download.mts", [
   "scripts/release-controller-tools.test.mts",
+  "scripts/release-catalog-site-controller.test.mts",
   "scripts/release-artifact-archive.test.mts",
   "scripts/release-public-build-provenance.test.mts",
   "scripts/application-release-qualification.test.mts",
