@@ -234,7 +234,16 @@ bypass their checks or change a port's support evidence.
 
 ## Catalog and support
 
-The catalog changes too quickly for a hand-maintained count or title list here. Browse it in the desktop app, through the CLI, or directly in [`catalog.json`](crates/portcove-core/catalog/catalog.json).
+Browse the complete descriptive directory in Desktop's Discover or with:
+
+```text
+portcove catalog listings
+```
+
+Listings include projects without managed definitions. Visibility does not imply
+managed installation, compatible originals, gameplay qualification or supported
+update/backup ownership. Inspect a managed definition's declared requirements and
+current evidence through the narrower operational commands:
 
 ```text
 portcove catalog list
@@ -242,7 +251,41 @@ portcove catalog show <port-id>
 portcove --json catalog export
 ```
 
-Each entry records its upstream project, platforms, release channels, required local files, executable layout, user-data paths, and current test evidence. Stable, Preview, and Rolling are game-port release channels—not quality ratings. Preview retains the `beta` command and serialized value. See [docs/CATALOG.md](docs/CATALOG.md) for the full policy.
+Contributors author [per-ID records](crates/portcove-core/catalog/ports/) through
+the [catalog authoring workflow](docs/CATALOG.md#adding-or-changing-a-port).
+Their descriptive `listing` and optional strict `integration` generate
+[`listings.json`](crates/portcove-core/catalog/listings.json) and
+[`catalog.json`](crates/portcove-core/catalog/catalog.json); edit the records rather
+than these aggregates. Operational definitions record platforms, channels,
+required local files, executable layout, user-data paths and qualification facts. Stable, Preview, and Rolling are game-port release channels—not quality ratings. Preview retains the `beta` command and serialized value. See [docs/CATALOG.md](docs/CATALOG.md) for the full policy.
+
+### Compare implementations of a game
+
+Discover groups projects only through reviewed game identities. Open a comparison
+or **Why this port?** to inspect source editions, platform requirements, evidence
+and limitations. A recommended starting point appears only when scoped evidence
+supports it; sparse and single-project cases do not imply “best.” Changing the
+comparison never changes an installed project, original files, saves or channels.
+
+Search by the original game's title or a project's name. For games with several
+implementations, **Use** saves your deliberate project choice in the current
+library. Discover and Library keep the other implementations available; each
+retains its own original-file requirements, releases and installation. Viewing an
+alternative does not change your choice. A single implementation or an entry
+without a reviewed game identity opens directly.
+
+Library offers the chosen implementation's existing actions, or the sole installed
+implementation when the choice is unambiguous. If several installed alternatives
+need a choice, select one deliberately. Filters match an actual implementation;
+a saved choice outside those filters stays saved. A removed choice asks you to
+choose again. Missing optional comparison information does not prevent an
+installed game's supported offline Play path. Choosing a project never transfers
+saves or replaces another installation.
+
+Explicitly follow independent projects for locally deduplicated release notices
+when refreshed; use the **Followed** filter to find them. There is no mandatory
+account, telemetry or background notification service. CLI users can run
+`portcove --json catalog compare PORT_ID` for the same Core result.
 
 ## Build from source
 
@@ -350,31 +393,3 @@ scope; it does not guarantee every port, platform or personal library.
 
 See the [contributor workflow](CONTRIBUTING.md), [quality checks](docs/QUALITY.md),
 [architecture](docs/ARCHITECTURE.md) and [documentation index](docs/README.md).
-
-### Compare implementations of a game
-
-Discover groups projects only through reviewed game identities. Open a comparison
-or **Why this port?** to inspect source editions, platform requirements, evidence
-and limitations. A recommended starting point appears only when scoped evidence
-supports it; sparse and single-project cases do not imply “best.” Changing the
-comparison never changes an installed project, original files, saves or channels.
-
-Search by the original game's title or a project's name. For games with several
-implementations, **Use** saves your deliberate project choice in the current
-library. Discover and Library keep the other implementations available; each
-retains its own original-file requirements, releases and installation. Viewing an
-alternative does not change your choice. A single implementation or an entry
-without a reviewed game identity opens directly.
-
-Library offers the chosen implementation's existing actions, or the sole installed
-implementation when the choice is unambiguous. If several installed alternatives
-need a choice, select one deliberately. Filters match an actual implementation;
-a saved choice outside those filters stays saved. A removed choice asks you to
-choose again. Missing optional comparison information does not prevent an
-installed game's supported offline Play path. Choosing a project never transfers
-saves or replaces another installation.
-
-Explicitly follow independent projects for locally deduplicated release notices
-when refreshed; use the **Followed** filter to find them. There is no mandatory
-account, telemetry or background notification service. CLI users can run
-`portcove --json catalog compare PORT_ID` for the same Core result.

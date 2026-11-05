@@ -122,18 +122,18 @@ pipeline needed to keep testers current. Compiling packages or manual reinstall
 instructions cannot complete this updater commitment. Incremental previews need
 their applicable candidate safety checks; they need not complete the milestone.
 
-The #917 design-system foundation follows the same separation between permission
-to implement and permission to publish. Its checked-in compatibility fixture and
-non-publishing qualification work may merge while #993 remains open. Broad screen
-migration begins only after the nested Dialog/Select portal, dismissal, and focus
-case passes in the actual Tauri application on an available native host. A Public
-Windows beta package containing the redesign still requires #993's applicable
-Windows native-family and claimed-minimum evidence; retained Linux evidence is
-separate from later Linux application qualification; a current hosted runner does not
-prove a historical minimum. Missing beta-critical evidence stays with #993 rather
-than moving to #45, while #45 retains broader 1.0 qualification. No automatic
-release path may convert foundation merge authority into publication authority for
-an unqualified platform.
+The delivered [design system](DESIGN-SYSTEM.md#checked-in-foundation) preserves
+the separation between implementation and publication. [#917](https://github.com/boburning/portcove/issues/917)
+completed its current redesign contract on October 18, 2026; [#993](https://github.com/boburning/portcove/issues/993)
+completed its amended initial-beta stack/minimum acceptance on October 19.
+The original foundation's nested Dialog/Select portal, dismissal and focus gate
+was satisfied before broad migration; its [historical inputs and measurements](DESIGN-SYSTEM.md#initial-foundation-history)
+remain evidence at their original scope. These completed owners are not new
+migration prerequisites. New Windows candidates still require applicable
+exact-candidate release qualification. Retained Linux evidence remains separate
+from later Linux application qualification, and #45 retains broader 1.0 work.
+Neither an ordinary merge nor these historical completions authorizes publication
+or certifies new package bytes or an unqualified platform.
 
 The initial beta retains the complete preparation boundary (#31), coherent
 design system (#917), development-agility/domain consolidation (#921/#925),

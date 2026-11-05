@@ -15,7 +15,15 @@ evidence behind it. Live work remains in GitHub issues and the Roadmap Project.
 | Upgrade Portcove or recover an application update                  | [Upgrade procedure](UPGRADING.md) and [observed update/recovery journey](media/application-update/README.md)        |
 | Understand a term or a verification claim                          | [Glossary](../GLOSSARY.md) and [content-design rules](CONTENT-DESIGN.md)                                            |
 
-## Connect another launcher
+Discover in Desktop and `portcove catalog listings` show the full descriptive
+directory, including projects without managed definitions. `catalog list`,
+`show` and `export` inspect strict operational definitions; listing visibility
+alone does not establish installability, compatible game files, tested gameplay
+or managed update/backup ownership. See [catalog and support](../README.md#catalog-and-support).
+
+<a id="connect-another-launcher"></a>
+
+## Integration authors
 
 Start with [integration levels and boundaries](INTEGRATIONS.md), then follow the
 [external-author task path](INTEGRATION-AUTHOR.md): select a compatible packaged
@@ -35,14 +43,16 @@ boundaries. Published Alpha 2 has an older API than current source examples.
   remains available with its [reviewed notes](releases/0.1.0-alpha.1-release-notes.md)
   and frozen evidence.
 
-| Authority                                                         | Owns                                                                                                                                      | Does not own                                             |
-| ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| [Portcove Roadmap](https://github.com/users/boburning/projects/1) | Current work, priority, horizon, status, target release, blockers, deferred work, and new-port pipeline                                   | Durable implementation details or actual catalog support |
-| GitHub issues                                                     | Implementation-ready specifications, discussion, dependencies, acceptance criteria, and completion evidence                               | Priority or release forecasts                            |
-| [`catalog.json`](../crates/portcove-core/catalog/catalog.json)    | Actual ports, platforms, channels, sources, adapters, and qualification evidence                                                          | Product-level release scope                              |
-| Repository documentation                                          | Stable architecture, security, catalog admission, release-stage definitions, qualification policy, contributor rules, and dated snapshots | A mutable backlog                                        |
+| Authority                                                                                                                             | Owns                                                                                                                                                        | Does not own                                             |
+| ------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| [Portcove Roadmap](https://github.com/users/boburning/projects/1)                                                                     | Current work, priority, horizon, status, target release, blockers, deferred work, and new-port pipeline                                                     | Durable implementation details or actual catalog support |
+| GitHub issues                                                                                                                         | Implementation-ready specifications, discussion, dependencies, acceptance criteria, and completion evidence                                                 | Priority or release forecasts                            |
+| [Per-ID records](../crates/portcove-core/catalog/ports/) and generated [`catalog.json`](../crates/portcove-core/catalog/catalog.json) | Authored listing/integration facts and strict operational definitions, including declared platforms, channels, sources, adapters and qualification evidence | Product-level release scope                              |
+| Repository documentation                                                                                                              | Stable architecture, security, catalog admission, release-stage definitions, qualification policy, contributor rules, and dated snapshots                   | A mutable backlog                                        |
 
-## Start by task
+<a id="start-by-task"></a>
+
+## Contributors and maintainers
 
 For contributors and maintainers, these are current contracts. Proposed behavior belongs in its issue and live
 Project item until implemented; dated outcomes remain historical evidence.
@@ -55,14 +65,25 @@ Project item until implemented; dated outcomes remain historical evidence.
 | Focused tests, selected CI, protected-policy validation, or shared Rust contention | [Quality workflow](QUALITY.md)                                                                                                                                                                                    |
 | Tool bootstrap, repository skills, native desktop sessions, or retained evidence   | [Development tooling and repository skills](DEVELOPMENT-TOOLS.md)                                                                                                                                                 |
 | Workspace layout, caches, worktrees, or cleanup                                    | [Development storage](DEVELOPMENT-STORAGE.md)                                                                                                                                                                     |
-| Catalog admission, port qualification, or support facts                            | [Catalog admission and qualification](CATALOG.md)                                                                                                                                                                 |
+| Catalog admission, port qualification, or support facts                            | [Per-ID authoring, admission and qualification](CATALOG.md#adding-or-changing-a-port)                                                                                                                             |
 | Definition delivery or catalog signing                                             | [Definition delivery](DEFINITION-DELIVERY.md) and [signed catalog delivery](SIGNED-CATALOG.md)                                                                                                                    |
-| Release, packaging, application signing, publication, or rollback                  | [Release process](RELEASING.md), [future delivery contract](DELIVERY.md), [application updater trust](UPDATER-TRUST.md), and [upgrading](UPGRADING.md)                                                            |
 | CLI or external frontend integration                                               | [CLI machine contract](CLI.md), [integration contract](INTEGRATIONS.md), and [integration author guide](INTEGRATION-AUTHOR.md)                                                                                    |
 | Repository rules or hosted settings                                                | [Repository settings](REPOSITORY-SETTINGS.md)                                                                                                                                                                     |
 | Security reports or vulnerability boundaries                                       | [Security policy](../SECURITY.md)                                                                                                                                                                                 |
 | Product targets and release-stage vocabulary                                       | [Product roadmap and release stages](ROADMAP.md)                                                                                                                                                                  |
 | Domain terminology, content wording or a naming migration                          | [Glossary](../GLOSSARY.md), [content design](CONTENT-DESIGN.md), [domain guidance](agents/domain.md) and [source observation/registration decision](adr/0005-distinguish-source-observations-and-registration.md) |
+
+## Release and operations
+
+| Task                                                              | Current owner                                                                                                                                          |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Release, packaging, application signing, publication, or rollback | [Release process](RELEASING.md), [future delivery contract](DELIVERY.md), [application updater trust](UPDATER-TRUST.md), and [upgrading](UPGRADING.md) |
+| Daily port discovery and canonical intake                         | [Daily discovery](DAILY-PORT-DISCOVERY.md)                                                                                                             |
+| Observe upstream changes and retained release health              | [Upstream observations](UPSTREAM-OBSERVATIONS.md)                                                                                                      |
+| Run explicit on-demand hosted native acceptance                   | [Hosted native acceptance](NATIVE-HOSTED-ACCEPTANCE.md)                                                                                                |
+
+Discovery and observation do not admit a port or confer support. Native acceptance
+retains its exact scenario, candidate and host scope.
 
 `RELEASING.md` is the current protected release process. `DELIVERY.md` describes
 the approved future delivery contract; it does not activate production updating,
@@ -88,11 +109,10 @@ measured Node, frontend unit, or Chromium branches with retained source mappings
 
 - [Content-design contract](CONTENT-DESIGN.md)
 - [Domain glossary](../GLOSSARY.md)
-- [Design system](DESIGN-SYSTEM.md)
+- [Integrated UI composition](INTEGRATED-UI-DESIGN.md) and [design system](DESIGN-SYSTEM.md)
 - [Theme contract](THEME.md)
 - [Desktop localization and authoring](LOCALIZATION.md)
 - [Brand assets](BRAND-ASSETS.md)
-- [Competitive review](GUI-COMPETITIVE-REVIEW.md)
 - [Development storage](DEVELOPMENT-STORAGE.md)
 
 ## Historical evidence
@@ -102,6 +122,10 @@ remain useful live under [`docs/archive/`](archive/). Obsolete planning sources
 remain available through Git history and must not be treated as current
 authority. Release-readiness snapshots are immutable outputs under
 [`docs/releases/`](releases/) and do not replace the live Project.
+
+The [September 1 GUI competitive review](GUI-COMPETITIVE-REVIEW.md) and
+[former UI implementation contract](UI-UX-IMPLEMENTATION.md) preserve historical
+provenance; their wrappers link to current design owners.
 
 Representative historical starting points include the
 [September 2 independent re-audit](archive/2026-09-02-comprehensive-independent-reaudit.md),
