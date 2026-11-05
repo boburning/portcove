@@ -51,13 +51,13 @@ export async function readPendingPagesPublication(
       throw new Error("Pages recovery deadline exhausted; retain unresolved intent");
   };
   check();
-  const provider = options.provider ?? createPagesProviderTransport(directory, {}, phaseDeadline);
+  const provider = options.provider ?? createPagesProviderTransport({}, phaseDeadline);
   const identity = {
     artifact_id: expected.artifact_id,
     generation: expected.site_generation_sha256,
     controller_revision: operation.executor_identity!.controller_revision,
   };
-  const before = provider.observeByGeneration(identity);
+  const before = await provider.observeByGeneration(identity);
   if (before.status !== "succeed")
     throw new Error("Pages provider completion unavailable; no no-effect inference or retry");
   check();
@@ -80,7 +80,7 @@ export async function readPendingPagesPublication(
     publicProjection = { generation: verified.generation, pins: verified.pins };
   }
   check();
-  const after = provider.observeByGeneration(identity);
+  const after = await provider.observeByGeneration(identity);
   if (after.status !== "succeed")
     throw new Error("Pages provider status changed around complete public readback");
   check();
