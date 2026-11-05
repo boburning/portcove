@@ -77,14 +77,14 @@ void test("resource observations reconcile current purposes and keep provider, b
   assert.equal(result.accounting.application, 140);
   assert.equal(result.accounting.catalog_alternative, 40);
   assert.equal(result.accounting.policy_envelope, 140);
-  assert.equal(result.policy_matches_workflow, false);
+  assert.equal(result.policy_matches_workflow, true);
   assert.equal(result.ratification_required_for_policy_change, true);
   const appointedWake = await readFile(
     new URL("../docs/qualification/application-update-wake.held.yml", import.meta.url),
   );
   assert.equal(
     createHash("sha256").update(appointedWake).digest("hex"),
-    slice4CapacityResources.wake_workflow_sha256,
+    "7cbd3c4a2dec7380fd818a4e686b3563ee7a4ffe4381123acc80a39b339a6def",
   );
   const appointedProduction = Buffer.from(
     controllerWorkflowAtCurrentNode(
@@ -99,7 +99,7 @@ void test("resource observations reconcile current purposes and keep provider, b
   );
   assert.equal(
     observeReleaseResources(appointedProduction, appointedWake, candidate).policy_matches_workflow,
-    true,
+    false,
   );
   assert.equal(
     observeReleaseResources(production, appointedWake, candidate).policy_matches_workflow,

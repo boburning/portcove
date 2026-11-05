@@ -31,16 +31,16 @@ import {
   assertMetadataBootstrapBinding,
 } from "./release-metadata-contract.mts";
 
-// Complete held-controller proposal. Its changed digest requires initial owner
+// Exact delivered controller and wake policy. Its digest requires owner
 // ratification; historical observations do not cover this workflow. These are
 // ceilings/estimates, never remaining storage, a reservation or a billing quote.
 export const slice4CapacityResources = Object.freeze({
   contract: "slice4-no-spend-v1",
-  aggregate_workflow_sha256: "a57e277b51e00fd20b42f4e61a712c468cae523dd523930bc37cfc248b418aa4",
-  input_workflow_sha256: "a57e277b51e00fd20b42f4e61a712c468cae523dd523930bc37cfc248b418aa4",
+  aggregate_workflow_sha256: "090ee03a53dbc63e0166eba3de807adc8ccc2e4d2a7a842edb52f776c96c0951",
+  input_workflow_sha256: "090ee03a53dbc63e0166eba3de807adc8ccc2e4d2a7a842edb52f776c96c0951",
   aggregate_job_minutes: Object.freeze([1, 12, 2, 22, 3, 9, 2, 10, 2, 2, 2, 2, 2, 6, 5, 35]),
   input_job_minutes: Object.freeze([2, 2, 3, 10, 5]),
-  wake_workflow_sha256: "7cbd3c4a2dec7380fd818a4e686b3563ee7a4ffe4381123acc80a39b339a6def",
+  wake_workflow_sha256: "0fc8b75d259e737835f0d51e2a85cfe3411a69a1d1a6d1b7afc1e248f35258d9",
   wake_job_minutes: Object.freeze([1]),
   declared_job_minutes: 140,
   catalog_job_minutes: Object.freeze([1, 4, 2, 3, 2, 2, 2, 2, 5]),
