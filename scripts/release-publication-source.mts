@@ -58,14 +58,16 @@ export async function createPublicationSourceOperations(options: {
     if (!/^[a-f0-9]{40}$/u.test(value)) throw new Error("exact source Git object required");
     return value;
   };
-  const object = async (kind: "commits" | "trees" | "blobs", value: string) =>
-    (
-      await sdk.request({
-        method: "GET",
-        url: `https://api.github.com/${base}/git/${kind}/${id(value)}${kind === "trees" ? "?recursive=1" : ""}`,
-        request: { portcove: { replay: "once", attempts: 0 } },
-      })
-    ).data as unknown;
+  const object = async (kind: "commits" | "trees" | "blobs", value: string) => {
+    const response = await sdk.request({
+      method: "GET",
+      url: `https://api.github.com/${base}/git/${kind}/${id(value)}${kind === "trees" ? "?recursive=1" : ""}`,
+      request: { portcove: { replay: "once", attempts: 0 } },
+    });
+    if (response.status !== 200)
+      throw new Error(`publication source unavailable (HTTP ${response.status})`);
+    return response.data as unknown;
+  };
   return {
     commit: (value) => object("commits", value),
     tree: (value) => object("trees", value),
@@ -82,11 +84,12 @@ export async function createPublicationSourceOperations(options: {
       });
       const envelope: unknown = response.data;
       if (
+        response.status !== 200 ||
         !isRecord(envelope) ||
         (envelope.errors !== undefined &&
           (!Array.isArray(envelope.errors) || envelope.errors.length))
       )
-        throw new Error("publication source query is unavailable");
+        throw new Error(`publication source query is unavailable (HTTP ${response.status})`);
       return envelope.data;
     },
   };

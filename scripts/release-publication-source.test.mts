@@ -430,3 +430,29 @@ void test("SDK source reads retain the captured job reader token after its scope
     else process.env.GH_TOKEN = prior;
   }
 });
+
+void test("actual SDK source operations require HTTP 200 for both REST and GraphQL", async () => {
+  for (const kind of ["REST", "GraphQL"] as const) {
+    let sends = 0;
+    const operations = await createPublicationSourceOperations({
+      deadline: performance.now() + 5000,
+      environment: { GH_TOKEN: "fixture-token" },
+      fetch: async () => {
+        sends++;
+        return Response.json(
+          kind === "REST"
+            ? { sha: "a".repeat(40) }
+            : {
+                data: { repository: { databaseId: 1354613114 } },
+              },
+          { status: 201 },
+        );
+      },
+    });
+    await assert.rejects(
+      kind === "REST" ? operations.commit("a".repeat(40)) : operations.blobs(["a".repeat(40)]),
+      /HTTP 201/u,
+    );
+    assert.equal(sends, 1);
+  }
+});
