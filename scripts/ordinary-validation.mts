@@ -624,6 +624,8 @@ for (const [file, tests] of [
     [
       "scripts/release-catalog-site-controller.test.mts",
       "scripts/release-site-readback.test.mts",
+      "scripts/release-job-authorities.test.mts",
+      "scripts/release-catalog-authorities.test.mts",
       "scripts/release-coordinator-owned-executor.test.mts",
       "scripts/release-admitted-aggregate-controller.test.mts",
       "scripts/release-tuf-controller.test.mts",
@@ -1059,6 +1061,8 @@ for (const [file, tests] of [
   [
     "scripts/assembler-job-identity.mts",
     [
+      "scripts/release-job-authorities.test.mts",
+      "scripts/release-catalog-authorities.test.mts",
       "scripts/release-coordinator-owned-executor.test.mts",
       "scripts/assembler-job-identity.test.mts",
       "scripts/release-controller-tools.test.mts",
@@ -1306,6 +1310,7 @@ for (const [file, tests] of [
   [
     "scripts/release-authority-configuration.mts",
     [
+      "scripts/release-job-authorities.test.mts",
       "scripts/production-controller-admission.test.mts",
       "scripts/release-bootstrap-preparation.test.mts",
       "scripts/release-catalog-authorities.test.mts",
@@ -2372,6 +2377,8 @@ for (const file of [
     "scripts/github-client.test.mts",
     "scripts/release-catalog-site-controller.test.mts",
     "scripts/release-site-readback.test.mts",
+    "scripts/release-catalog-authorities.test.mts",
+    "scripts/release-job-authorities.test.mts",
     "scripts/release-catalog-recovery.test.mts",
     "scripts/release-site-controller.test.mts",
     "scripts/release-metadata-site-controller.test.mts",
