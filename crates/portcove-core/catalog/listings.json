@@ -42377,7 +42377,8 @@
             "instruction": "You and upstream own the external copy's data: Assets/data.z64, config/user/ and saves/controller1.mpk in the game folder. Back up these locations separately; registration does not migrate or certify their compatibility."
           }
         ]
-      }
+      },
+      "download_block_reason": "The upstream Windows archive bundles translated game code and derived HD artwork without documented permission from the game rights holders. You can add a complete copy you are permitted to use."
     },
     {
       "id": "scrabble-psx-pc-recomp-bitsandbreakpoints-scrabble-1999",

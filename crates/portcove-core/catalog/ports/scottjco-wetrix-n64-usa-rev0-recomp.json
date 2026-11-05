@@ -27,7 +27,8 @@
           "instruction": "https://github.com/scottjco/Wetrix_Recomp/releases/tag/v0.1.1"
         }
       ]
-    }
+    },
+    "download_block_reason": "The upstream Windows archive bundles translated game code and derived HD artwork without documented permission from the game rights holders. You can add a complete copy you are permitted to use."
   },
   "route_facts_v1": {
     "format_version": 1,

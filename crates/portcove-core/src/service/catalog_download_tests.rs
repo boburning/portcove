@@ -1943,6 +1943,11 @@ async fn ambermoon_bundled_content_acquisition_hold_keeps_permitted_copy_guide_b
 }
 
 #[tokio::test]
+async fn wetrix_bundled_content_acquisition_hold_keeps_permitted_copy_guide_before_network() {
+    assert_embedded_player_download_holds(&["scottjco-wetrix-n64-usa-rev0-recomp"]).await;
+}
+
+#[tokio::test]
 async fn embedded_metroid_prime_excluded_game_sdk_hold_keeps_prepared_guide_before_network() {
     assert_embedded_player_download_holds(&["odrannnn-metroidprimeport"]).await;
 }

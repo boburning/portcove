@@ -954,7 +954,6 @@ mod tests {
         service.catalog = Catalog::embedded().unwrap();
         let listing = service.catalog.listing(id).unwrap();
         assert!(listing.manual_setup.is_some());
-        assert!(listing.download_block_reason.is_none());
         assert!(service.catalog.port(id).is_err());
         // The prefix is the owned probe's recording ABI. The suffix is the
         // individually reviewed player argument vector, never a shell command.
