@@ -3475,6 +3475,15 @@ directly, and the former root `use-portcove.ts` compatibility module is removed
 without a re-export. None of this shell state is persisted or authoritative for
 domain behavior.
 
+Source inspection uses the workspace's QueryClient for result, error, loading
+state and in-flight sharing. Disabled query observers never start native work on
+mount, focus, reconnect or invalidation. Explicit requests use zero stale time,
+no retries and zero inactive retention; keys bind profile, hook lifetime and a
+fresh registration/catalog/selection baseline identity. Retiring a baseline
+removes its queries; abort checks reject frontend continuation after native IPC
+completes, without claiming native cancellation. Verification retains its
+separate operation and latest-request ownership.
+
 The `features/source-health` read owner records each requested saved-file
 inspection as idle, pending, current, failed or cancelled. Mounting, selection
 and automatic workspace refresh leave content inspection idle; the user starts a

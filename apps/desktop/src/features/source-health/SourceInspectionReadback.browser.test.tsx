@@ -1,3 +1,4 @@
+import { QueryClient } from "@tanstack/react-query";
 import { controlledAct as act } from "../../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { createElement } from "react";
@@ -37,6 +38,7 @@ const report: SourceInspectionReport = {
   evidence: [],
   legacy: { registration_identity_not_recorded: false, variant_unspecified_records: [] },
 };
+const queryClient = new QueryClient();
 let container: HTMLDivElement;
 let root: RenderResult;
 let state: ReturnType<typeof useSourceHealth>;
@@ -47,6 +49,7 @@ function Fixture({ sources = [source] }: { sources?: SourceRecord[] }) {
     sources,
     sources.map((item) => item.profile_id),
     "same-catalog",
+    queryClient,
   );
   return (
     <SettingsView

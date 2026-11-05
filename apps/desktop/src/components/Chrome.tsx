@@ -1,3 +1,4 @@
+import { countMessage } from "../localization";
 import {
   SidebarCollections,
   OrganizationControls,
@@ -77,7 +78,6 @@ import {
   errorText,
   failurePresentation,
   formatBytes,
-  formatCountMessage,
   navigationActivityState,
   progressPresentation,
   type NavigationActivityState,
@@ -326,15 +326,7 @@ function NavigationStatus({
       : activityState === "attention"
         ? "Activity needs attention"
         : undefined;
-  const updateLabel =
-    updateCount > 0
-      ? formatCountMessage(updateCount, {
-          zero: "No updates available",
-          one: "1 update available",
-          other: "{count} updates available",
-          unknown: "Update count unavailable",
-        })
-      : undefined;
+  const updateLabel = updateCount > 0 ? countMessage(updateCount, "updates") : undefined;
   const label = [activityLabel, updateLabel].filter(Boolean).join(", ");
   return (
     <b

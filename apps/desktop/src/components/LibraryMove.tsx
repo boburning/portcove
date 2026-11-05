@@ -1,10 +1,11 @@
+import { countMessage } from "../localization";
 import { useRef, useState } from "react";
 import { reloadWorkspace } from "../reload-workspace";
 import { join } from "@tauri-apps/api/path";
 import { desktopApi } from "../api";
 import { pickInstallFolder } from "../file-picker";
 import type { LibraryMovePlan } from "../types";
-import { errorText, formatBytes, formatCountMessage } from "../view-model";
+import { errorText, formatBytes } from "../view-model";
 import { ActionReviewFailure } from "./ActionReviewFailure";
 import { NavigationHints } from "./ui";
 import { Button } from "./ui/button";
@@ -335,12 +336,7 @@ export function LibraryCopySummary({
       ))}
       <h3>Saved file locations</h3>
       <p className="m-[0_0_var(--space-2)] text-[var(--color-text-secondary)]">
-        {formatCountMessage(plan.metadata.source_references.length, {
-          zero: "No saved file locations are included.",
-          one: "1 saved file location will stay unchanged.",
-          other: "{count} saved file locations will stay unchanged.",
-          unknown: "Saved file location count is unavailable.",
-        })}
+        {countMessage(plan.metadata.source_references.length, "savedLocations")}
       </p>
       {plan.metadata.source_references.length > 0 && (
         <details>
@@ -396,14 +392,7 @@ function LibraryCopyTree({ tree }: { tree: LibraryMovePlan["content"][number] })
           <p>
             Folder within both locations: <code>{tree.relative_path}</code>
           </p>
-          <p>
-            {formatCountMessage(tree.copy.files.length, {
-              zero: "No files are recorded in this folder.",
-              one: "1 file will be copied.",
-              other: "{count} files will be copied.",
-              unknown: "File count is unavailable.",
-            })}
-          </p>
+          <p>{countMessage(tree.copy.files.length, "copiedFiles")}</p>
           {tree.copy.files.length > 0 && (
             <ul aria-label={`Files in ${tree.relative_path}`}>
               {tree.copy.files.map((file) => (

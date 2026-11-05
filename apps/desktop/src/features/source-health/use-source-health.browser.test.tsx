@@ -1,4 +1,5 @@
-import { act, createElement } from "react";
+import { QueryClient, focusManager, onlineManager } from "@tanstack/react-query";
+import { act, createElement, StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { desktopApi } from "../../api";
@@ -23,7 +24,13 @@ const refresh = async () => undefined;
 let operation: ReturnType<typeof useOperationState>;
 function VerificationFixture() {
   operation = useOperationState({ refresh });
-  state = useSourceHealth(operation.perform, [source("current/game.z64")], ["game"], "catalog");
+  state = useSourceHealth(
+    operation.perform,
+    [source("current/game.z64")],
+    ["game"],
+    "catalog",
+    queryClient,
+  );
   return null;
 }
 const source = (path: string): SourceRecord => ({
@@ -51,6 +58,7 @@ const report = (path: string): SourceInspectionReport => ({
   },
 });
 
+let queryClient: QueryClient;
 let root: Root;
 let state: ReturnType<typeof useSourceHealth>;
 function Fixture({
@@ -62,7 +70,7 @@ function Fixture({
   catalog: string;
   requested?: boolean;
 }) {
-  state = useSourceHealth(perform, [source(path)], requested ? ["game"] : [], catalog);
+  state = useSourceHealth(perform, [source(path)], requested ? ["game"] : [], catalog, queryClient);
   return null;
 }
 async function renderAndRequestCheck(path: string, catalog: string) {
@@ -73,11 +81,15 @@ async function renderAndRequestCheck(path: string, catalog: string) {
 }
 
 beforeEach(() => {
+  queryClient = new QueryClient();
+  queryClient.mount();
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   root = createRoot(document.createElement("div"));
 });
 afterEach(async () => {
   await act(async () => root.unmount());
+  queryClient.unmount();
+  queryClient.clear();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
@@ -190,7 +202,7 @@ function HealthFixture({
   profiles: string[];
   catalog?: string;
 }) {
-  state = useSourceHealth(perform, sources, profiles, catalog);
+  state = useSourceHealth(perform, sources, profiles, catalog, queryClient);
   return null;
 }
 async function renderAndRequestHealthChecks(
@@ -221,12 +233,12 @@ it("records a settled failure separately from source verification and coalesces 
     first = state.inspectSource("game");
     second = state.inspectSource("game");
   });
-  expect(first).toBe(second);
+  // Query shares the native request; wrapper Promise identity is not an API contract.
   expect(inspect).toHaveBeenCalledTimes(2);
   expect(state.inspectionReads.get("game")?.status).toBe("pending");
   await act(async () => {
     next.resolve(report("current/game.z64"));
-    await first;
+    await Promise.all([first, second]);
   });
   expect(state.inspectionReads.get("game")?.status).toBe("current");
   expect(state.inspections.get("game")?.summary).toBe("current/game.z64");
@@ -421,3 +433,66 @@ it.each(["failed", "cancelled"])(
     expect(operation.error).toBeUndefined();
   },
 );
+
+it("reinspects after settled success, hides a later failure, and never refetches on focus/reconnect", async () => {
+  const pending = deferred<SourceInspectionReport>();
+  const inspect = vi
+    .spyOn(desktopApi, "inspectSource")
+    .mockResolvedValueOnce(report("first/game.z64"))
+    .mockReturnValueOnce(pending.promise)
+    .mockResolvedValueOnce(report("fresh/game.z64"));
+  await renderAndRequestHealthChecks();
+  await act(async () => {
+    focusManager.setFocused(false);
+    focusManager.setFocused(true);
+    onlineManager.setOnline(false);
+    onlineManager.setOnline(true);
+  });
+  expect(inspect).toHaveBeenCalledTimes(1);
+  let check!: Promise<void>;
+  await act(async () => {
+    check = state.inspectSource("game");
+  });
+  expect(state.inspectionReads.get("game")?.status).toBe("pending");
+  expect(state.inspections.get("game")?.summary).toBe("first/game.z64");
+  await act(async () => {
+    pending.reject({ code: "state" });
+    await check;
+  });
+  expect(state.inspectionReads.get("game")?.status).toBe("failed");
+  expect(state.inspections.size).toBe(0);
+  await act(async () => state.inspectSource("game"));
+  expect(inspect).toHaveBeenCalledTimes(3);
+  expect(state.inspections.get("game")?.summary).toBe("fresh/game.z64");
+});
+
+it("survives StrictMode effect replay and retires baseline queries before late native completion", async () => {
+  const late = deferred<SourceInspectionReport>();
+  const inspect = vi
+    .spyOn(desktopApi, "inspectSource")
+    .mockResolvedValueOnce(report("first/game.z64"))
+    .mockReturnValueOnce(late.promise)
+    .mockResolvedValueOnce(report("second/game.z64"));
+  const show = (path: string) =>
+    createElement(StrictMode, null, createElement(Fixture, { path, catalog: "strict-catalog" }));
+  await act(async () => root.render(show("first/game.z64")));
+  expect(inspect).not.toHaveBeenCalled();
+  await act(async () => state.inspectSource("game"));
+  expect(state.inspections.get("game")?.summary).toBe("first/game.z64");
+  let pending!: Promise<void>;
+  await act(async () => {
+    pending = state.inspectSource("game");
+  });
+  await act(async () => root.render(show("second/game.z64")));
+  expect(state.inspectionReads.get("game")?.status).toBe("idle");
+  await act(async () => state.inspectSource("game"));
+  expect(state.inspections.get("game")?.summary).toBe("second/game.z64");
+  await act(async () => {
+    late.resolve(report("old/game.z64"));
+    await pending;
+  });
+  expect(state.inspections.get("game")?.summary).toBe("second/game.z64");
+  await act(async () => root.unmount());
+  expect(queryClient.getQueryCache().getAll()).toHaveLength(0);
+  root = createRoot(document.createElement("div"));
+});
