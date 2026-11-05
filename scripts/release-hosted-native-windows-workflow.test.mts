@@ -133,7 +133,7 @@ const custody=files=>new Map(files.map(file=>{const s=lstatSync(file,{bigint:tru
 globalThis.windowsWorkflowPeer={
  scope:async()=>({identity,binding,temporary,artifact:{platform:'windows-x86_64'},bundle:{},unchanged(){}}),
  linux:async()=>assert.fail('Windows cannot select Linux source'),
- deadline:()=>performance.now()+30000,
+ deadline:async(expected,bound)=>{assert.equal(expected,identity);assert.ok(bound>performance.now());return performance.now()+30000},
  receive:async()=>token,
  paths:async value=>{assert.equal(value,token);return tools},
  profile:()=>({paths:['bin/node.exe','scripts/release-hosted-native-worker.bundle.mjs']}),
@@ -143,7 +143,7 @@ globalThis.windowsWorkflowPeer={
 };
 const routes={
  './release-hosted-native-bootstrap.mts':"export const hostedWindowsBootstrapExecutionAuthorized=true;export const readActualHostedWindowsBootstrapScope=globalThis.windowsWorkflowPeer.scope;export const readActualHostedLinuxBootstrapScope=globalThis.windowsWorkflowPeer.linux;",
- './release-signing-job-budget.mts':"export const currentNativeJobDeadline=globalThis.windowsWorkflowPeer.deadline;",
+ './release-signing-job-budget.mts':"export const currentNativeJobDeadline=globalThis.windowsWorkflowPeer.deadline;export const currentWindowsNativeJobDeadline=globalThis.windowsWorkflowPeer.deadline;",
  './release-controller-tool-admission.mts':"export const receiveControllerTools=globalThis.windowsWorkflowPeer.receive;export const verifiedControllerToolPaths=globalThis.windowsWorkflowPeer.paths;",
  './release-controller-tools.mts':"export const controllerToolPaths=[];export const controllerToolPlatformProfile=globalThis.windowsWorkflowPeer.profile;export const readControllerToolFile=globalThis.windowsWorkflowPeer.read;",
  './release-native-runtime-custody.mts':"export const inspectNativeRuntimeCustody=globalThis.windowsWorkflowPeer.custody;export const recheckNativeRuntimeCustody=globalThis.windowsWorkflowPeer.recheck;",

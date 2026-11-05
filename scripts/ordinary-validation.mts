@@ -510,12 +510,19 @@ for (const [file, tests] of [
     ["scripts/native-linux-isolated-init.test.mts"],
   ],
   ["scripts/native-linux-isolated-init.test.py", ["scripts/native-linux-isolated-init.test.mts"]],
-  ...["release-tuf-controller", "release-tuf-launch", "release-signing-job-budget"].map(
-    (name): [string, string[]] => [
-      `scripts/${name}.mts`,
-      ["scripts/release-tuf-controller.test.mts"],
+  ...["release-tuf-controller", "release-tuf-launch"].map((name): [string, string[]] => [
+    `scripts/${name}.mts`,
+    ["scripts/release-tuf-controller.test.mts"],
+  ]),
+  [
+    "scripts/release-signing-job-budget.mts",
+    [
+      "scripts/release-tuf-controller.test.mts",
+      "scripts/production-controller-admission.test.mts",
+      "scripts/release-hosted-native-windows-bootstrap.test.mts",
+      "scripts/release-hosted-native-windows-workflow.test.mts",
     ],
-  ),
+  ],
   ...[
     "release-metadata-signing-contract",
     "release-metadata-signing-context",
@@ -991,6 +998,10 @@ for (const [file, tests] of [
     ],
   ],
   [
+    "scripts/release-windows-bootstrap-runtime.mts",
+    ["scripts/release-hosted-native-windows-bootstrap.test.mts"],
+  ],
+  [
     "scripts/release-hosted-native-bootstrap.mts",
     [
       "scripts/release-hosted-native-runner.test.mts",
@@ -1008,7 +1019,11 @@ for (const [file, tests] of [
   ],
   [
     "scripts/release-hosted-native-workflow.mts",
-    ["scripts/release-hosted-native-runner.test.mts", "scripts/release-hosted-native-job.test.mts"],
+    [
+      "scripts/release-hosted-native-runner.test.mts",
+      "scripts/release-hosted-native-job.test.mts",
+      "scripts/release-hosted-native-windows-workflow.test.mts",
+    ],
   ],
   [
     "scripts/release-native-presign-readiness.mts",
@@ -2300,6 +2315,7 @@ for (const file of [
     "scripts/release-coordinator-recovery.test.mts",
     "scripts/release-metadata-context-recovery.test.mts",
     "scripts/production-controller-admission.test.mts",
+    "scripts/release-hosted-native-windows-bootstrap.test.mts",
     "scripts/release-bootstrap-preparation.test.mts",
     "scripts/application-release-budget.test.mts",
     "scripts/application-release-native.test.mts",

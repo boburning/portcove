@@ -2104,9 +2104,12 @@ void test("Windows source bootstrap retains the existing bounded source authorit
   );
 });
 
-void test("native provider allocation comes only from the original branded workflow literal and preserves the provider start", async () => {
-  const { admittedNativeProviderMaximumMilliseconds: maximum, nativeOriginalJobDeadline } =
-    await import("./release-signing-job-budget.mts");
+void test("native provider allocation comes only from the original branded workflow literal and preserves the provider start", async (t) => {
+  const {
+    admittedNativeProviderMaximumMilliseconds: maximum,
+    nativeOriginalJobDeadline,
+    currentWindowsNativeJobDeadline,
+  } = await import("./release-signing-job-budget.mts");
   const { stripTypeScriptTypes } = await import("node:module"),
     { runInNewContext } = await import("node:vm");
   const currentIdentity = {
@@ -2142,6 +2145,56 @@ void test("native provider allocation comes only from the original branded workf
       ),
     };
   };
+  const windows = fixture("windows-x86_64", 10);
+  const prior = new Map<string, string | undefined>();
+  for (const [key, value] of Object.entries({
+    GITHUB_RUN_ID: currentIdentity.run_id,
+    GITHUB_RUN_ATTEMPT: "1",
+    GITHUB_SHA: currentIdentity.controller_revision,
+    GITHUB_REF: currentIdentity.controller_ref,
+    GH_TOKEN: "inert-native-clock-reader",
+  })) {
+    prior.set(key, process.env[key]);
+    process.env[key] = value;
+  }
+  t.after(() => {
+    for (const [key, value] of prior) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  });
+  let dispatches = 0;
+  t.mock.method(globalThis, "fetch", async (input: string | URL | Request, init?: RequestInit) => {
+    dispatches++;
+    const url = new URL(input instanceof Request ? input.url : input);
+    assert.equal(url.origin, "https://api.github.com");
+    assert.equal(url.pathname, "/repos/boburning/portcove/actions/runs/987654/attempts/1/jobs");
+    assert.deepEqual(Object.fromEntries(url.searchParams), { page: "1", per_page: "100" });
+    assert.equal(
+      new Headers(init?.headers).get("authorization"),
+      "token inert-native-clock-reader",
+    );
+    return Response.json({
+      total_count: 1,
+      jobs: [
+        {
+          id: 1,
+          name: hostedNativeJobProfile("windows-x86_64").job,
+          run_id: 987654,
+          run_attempt: 1,
+          head_sha: policy.revision,
+          status: "in_progress",
+          started_at: new Date(Date.now() - 1000).toISOString(),
+        },
+      ],
+    });
+  });
+  const cap = performance.now() + 10000;
+  assert.equal(
+    await currentWindowsNativeJobDeadline(currentIdentity, cap, windows.source, windows.bytes),
+    cap,
+  );
+  assert.equal(dispatches, 1);
   const moduleText = await readFile(
       new URL("./release-signing-job-budget.mts", import.meta.url),
       "utf8",

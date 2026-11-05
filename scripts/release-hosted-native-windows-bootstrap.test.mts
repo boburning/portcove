@@ -58,7 +58,7 @@ globalThis.fixture={read:actual.readControllerToolFile,readNode:actual.readContr
  admit:(policy,env,bytes,platform,stage)=>{assert.equal(platform,'windows-x86_64');assert.equal(stage,'payload-signing');assert.equal(env.GITHUB_JOB,'native_windows');assert.equal(bytes,workflow);if(fault==='source')throw Error('refused source');return source},
  require:(value,job,purpose)=>{assert.equal(value,source);assert.equal(job,'native_windows');assert.equal(purpose,'application')},
  selected:()=>({configuration:{purpose:'application',fixed:'Windows'}}),
- deadline:(platform,identity,cwd,bound)=>{assert.equal(platform,'windows-x86_64');assert.equal(identity.run_id,'123');assert.equal(bound,571000);return providerBudget??budget},
+ deadline:async(identity,bound,admitted,bytes)=>{assert.equal(identity.run_id,'123');assert.equal(admitted,source);assert.equal(bytes,workflow);assert.ok(bound>clock&&bound<=571000);if(providerBudget===undefined)assert.equal(bound,571000);return Math.min(bound,providerBudget??budget)},
  receive:async(parent,artifact,bundle,options)=>{receives++;assert.equal(path.dirname(parent),home);assert.match(path.basename(parent),/^\.pcn-[a-f0-9]{32}$/);assert.equal(artifact.platform,'windows-x86_64');assert.equal(artifact.artifact_id,3);assert.equal(bundle.artifact_id,4);assert.equal(options.deadline,budget);if(fault==='tools')throw Error('tools refused');if(fault==='late')clock=10001;return token},
  paths:async value=>{pathReads++;if(fault==='late-final'&&pathReads===4)clock=10001;if(fault==='role-final'&&pathReads===4)process.env.PORTCOVE_TUF_ROOT_KEY='inert forbidden';assert.equal(value,token);if(fault==='environment')process.env.GH_TOKEN='changed';return {root:home,node:fault==='node'?path.join(home,'runner.mjs'):process.execPath,platform:fault==='platform'?'linux-x86_64':'windows-x86_64',entries:{'release-hosted-native-runner':path.join(home,'runner.mjs')}}},
  custody:files=>{if(files.length===1){if(fault==='custody')throw Error('foreign ACL');assert.equal((awaitableStat(files[0])).nlink,1)}return new Map(files.map(file=>[file,'fixed']))},
@@ -73,7 +73,7 @@ const routes={
  './release-controller-job-bootstrap.mts':{assertControllerBootstrapEnvironment:'guard'},
  './production-controller-admission.mts':{readProductionControllerWorkflowBytes:'workflow',admitProductionNativeParent:'admit',requireAdmittedProductionSource:'require'},
  './release-authority-configuration-contract.mts':{inspectBoundSelectedPublicationAuthorities:'selected'},
- './release-signing-job-budget.mts':{currentNativeJobDeadline:'deadline'},
+ './release-signing-job-budget.mts':{currentNativeJobDeadline:'deadline',currentWindowsNativeJobDeadline:'deadline'},
  './release-controller-tool-admission.mts':{receiveControllerTools:'receive',verifiedControllerToolPaths:'paths'},
  './release-controller-tools.mts':{controllerToolPaths:'linuxPaths',controllerToolPlatformProfile:'profile',readControllerToolFile:'read',readControllerNodeFile:'readNode'},
  './release-native-runtime-custody.mts':{inspectNativeRuntimeCustody:'custody',recheckNativeRuntimeCustody:'recheck'},
@@ -224,4 +224,49 @@ assert.equal(requests,0);assert.deepEqual(await readdir(process.argv[1]),[]);
 console.log('controlled Windows preparation passed; held connection refused before effects');
 `,
   );
+});
+
+void test("protected Windows runtime clock keeps exact provider Date and job identity on one SDK read", async (t) => {
+  const { readProtectedWindowsRuntimeDeadline } =
+    await import("./release-windows-bootstrap-runtime.mts");
+  const expected = {
+    jobId: 900,
+    revision: "a".repeat(40),
+    runId: "123",
+    jobName: "fixed Windows tool job",
+    minutes: 10,
+    readerToken: "inert-runtime-reader",
+  };
+  let requests = 0;
+  let mode: "current" | "missing-date" | "contradictory" = "current";
+  t.mock.method(globalThis, "fetch", async (input: string | URL | Request, init?: RequestInit) => {
+    requests++;
+    const url = new URL(input instanceof Request ? input.url : input);
+    assert.equal(url.href, "https://api.github.com/repos/boburning/portcove/actions/jobs/900");
+    assert.equal(init?.redirect, "manual");
+    assert.equal(new Headers(init?.headers).get("authorization"), "token inert-runtime-reader");
+    const date = new Date();
+    return Response.json(
+      {
+        id: expected.jobId,
+        head_sha: expected.revision,
+        run_id: Number(expected.runId),
+        run_attempt: mode === "contradictory" ? 2 : 1,
+        name: expected.jobName,
+        status: "in_progress",
+        started_at: new Date(date.valueOf() - 10000).toISOString(),
+      },
+      mode === "missing-date" ? {} : { headers: { date: date.toUTCString() } },
+    );
+  });
+  const { deadline, startedAt, providerObservedAt } =
+    await readProtectedWindowsRuntimeDeadline(expected);
+  assert.ok(Date.parse(startedAt) < Date.parse(providerObservedAt));
+  assert.ok(deadline - performance.now() >= 480000 && deadline - performance.now() < 600000);
+  mode = "missing-date";
+  await assert.rejects(readProtectedWindowsRuntimeDeadline(expected));
+  mode = "contradictory";
+  await assert.rejects(readProtectedWindowsRuntimeDeadline(expected), /job identity differs/u);
+  await assert.rejects(readProtectedWindowsRuntimeDeadline({ ...expected, readerToken: "" }));
+  assert.equal(requests, 3);
 });

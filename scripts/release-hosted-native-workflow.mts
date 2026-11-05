@@ -81,14 +81,19 @@ async function context(selected: Stage, platform: WorkflowPlatform = "linux-x86_
       ? `.pcn-${scope.binding.slice(0, 32)}`
       : `.portcove-native-${scope.identity.run_id}-${scope.identity.run_attempt}-${scope.identity.controller_revision}`,
   );
-  const deadline = currentNativeJobDeadline(
-    platform,
-    scope.identity,
-    repository,
-    performance.now() + 570000,
-    scope.source,
-    scope.workflow,
-  );
+  const ceiling = performance.now() + 570000;
+  const deadline = windows
+    ? await (
+        await import("./release-signing-job-budget.mts")
+      ).currentWindowsNativeJobDeadline(scope.identity, ceiling, scope.source, scope.workflow)
+    : currentNativeJobDeadline(
+        platform,
+        scope.identity,
+        repository,
+        ceiling,
+        scope.source,
+        scope.workflow,
+      );
   const prefix = windows ? "portcove-native-windows-workflow" : "portcove-native-workflow";
   const intent = path.join(scope.temporary, `${prefix}-start.json`);
   const started = path.join(scope.temporary, `${prefix}-started.json`);
