@@ -4686,7 +4686,9 @@ void test("ordinary package identity follows complete Cargo workspace metadata a
   assert.ok(
     buildPlan(
       uncertain,
-      fallbackContext([{ path: "crates/unknown/src/lib.rs", status: "M" }]),
+      fallbackContext([
+        { path: "crates/unknown/src/lib.rs", status: "M", oldMode: "100644", newMode: "100644" },
+      ]),
     ).some((command) => command.id === "rust-workspace-tests"),
   );
   assert.doesNotThrow(() =>
