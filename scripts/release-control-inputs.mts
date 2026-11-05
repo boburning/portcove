@@ -428,17 +428,14 @@ export function persistReviewedClassification(
   let acknowledged: string | null = null;
   // expectedHeadOid is GitHub's single-branch exact-preimage CAS. Never retry.
   try {
-    const response = api.graphql(
-      releaseClassificationCommitMutation,
-      {
-        input: {
-          branch: { id: io.refId(classificationBranch) },
-          expectedHeadOid: before,
-          message: { headline: `Persist reviewed classification ${opportunity.source_commit}` },
-          fileChanges: { additions: [{ path, contents: Buffer.from(text).toString("base64") }] },
-        },
+    const response = api.graphql(releaseClassificationCommitMutation, {
+      input: {
+        branch: { id: io.refId(classificationBranch) },
+        expectedHeadOid: before,
+        message: { headline: `Persist reviewed classification ${opportunity.source_commit}` },
+        fileChanges: { additions: [{ path, contents: Buffer.from(text).toString("base64") }] },
       },
-    );
+    });
     if (
       !isRecord(response.data) ||
       !isRecord(response.data.createCommitOnBranch) ||
