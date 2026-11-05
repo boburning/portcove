@@ -3,12 +3,12 @@
  * established by this module, a journal summary, or copied result JSON. */
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { spawnSync } from "node:child_process";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import type { CatalogAnchorMetadataProvider } from "./release-custody-provider.mts";
-import { readGitHubReleaseAsset } from "./github-binary.mts";
+import { downloadGitHubReleaseAsset } from "./github-artifact-download.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import {
   capacityDigest as digest,
   inspectCapacityOperation,
@@ -30,7 +30,10 @@ import {
   hydrateRetainedCoordinatorOperation,
   readRemoteCoordinatorSnapshot,
 } from "./release-coordinator-recovery.mts";
-import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
+import {
+  coordinatorCommandDeadline,
+  withCoordinatorDeadline,
+} from "./release-coordinator-deadline.mts";
 import {
   capacityExecutorIdentity,
   ensureOwnedCheckpointJournalHistory,
@@ -89,7 +92,6 @@ import {
   observePendingCandidateRelease,
 } from "./release-pending-release-recovery.mts";
 
-const base = "repos/boburning/portcove";
 const roles = ["releases", "preview", "stable", "snapshot", "timestamp"] as const;
 type Output = "payload" | "context" | (typeof roles)[number];
 type Operation = NonNullable<ReturnType<typeof inspectCapacityOperation>>;
@@ -565,6 +567,31 @@ export async function recoverCandidateSigningCustody(
         requests--;
       };
     };
+    const readReleaseAsset = (id: number, bytes: number) =>
+      downloadGitHubReleaseAsset(id, {
+        credential: { kind: "explicit", token: environment.GH_TOKEN ?? "" },
+        deadline: Math.min(
+          deadline,
+          coordinatorCommandDeadline() ?? Infinity,
+          performance.now() + 30000,
+        ),
+        maxBytes: bytes,
+        fetch(input, init) {
+          assertTrustedDirectNode("candidate recovery release asset");
+          return globalThis.fetch(input, init);
+        },
+        lookup: {
+          reserve() {
+            const release = chargeRead();
+            return {
+              consumeBytes() {},
+              settle(observation) {
+                if (!observation.dispatched) release();
+              },
+            };
+          },
+        },
+      });
     try {
       await verifiedControllerToolPaths(toolsReceipt);
       assert.equal((await refreshCapacityExecutor(executor)).role, "coordinator");
@@ -868,13 +895,7 @@ export async function recoverCandidateSigningCustody(
           );
           if (transition.decision !== "complete") throw new Error("complete Release required");
           const sbomAsset = transition.assets.find((a) => a.filename === sbom.filename)!;
-          const sbomBytes = readGitHubReleaseAsset(`${base}/releases/assets/${sbomAsset.id}`, {
-            cwd: directory,
-            maxBytes: sbom.bytes,
-            timeoutMs: signingContextRemaining(deadline, 30000),
-            spawn: (command, args, settings) =>
-              spawnSync(command, args, { ...settings, env: environment }),
-          });
+          const sbomBytes = await readReleaseAsset(sbomAsset.id, sbom.bytes);
           assert.equal(sbomBytes.length, sbom.bytes);
           assert.equal(hash(sbomBytes), sbom.sha256);
           return {
@@ -1068,15 +1089,7 @@ export async function recoverCandidateSigningCustody(
             pendingRelease,
           );
         const observeRelease = () =>
-          observePendingCandidateRelease(metadata, pendingRelease, expected, (id, maximum) =>
-            readGitHubReleaseAsset(`${base}/releases/assets/${id}`, {
-              cwd: directory,
-              maxBytes: maximum,
-              timeoutMs: signingContextRemaining(deadline, 30000),
-              spawn: (command, args, settings) =>
-                spawnSync(command, args, { ...settings, env: environment }),
-            }),
-          );
+          observePendingCandidateRelease(metadata, pendingRelease, expected, readReleaseAsset);
         await guard();
         const producerBefore = await originalProducer();
         const before = await observeRelease();

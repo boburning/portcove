@@ -296,6 +296,7 @@ void test("source-bound result continuation settles only the exact positive repo
       return f.archive;
     },
     signingContextRemaining: () => 15000,
+    readReleaseAsset: async () => Buffer.alloc(0),
     readPendingResultArchive: async () => {
       calls.push("actual-report-context-Release");
       observations++;
