@@ -4615,6 +4615,7 @@ void test("GitHub dependency changes select actual SDK and REST integration cont
       "scripts/discovery-primary-progress.test.mts",
       "scripts/release-native-check-discovery.test.mts",
       "scripts/release-pages-provider.test.mts",
+      "scripts/release-publication-controller.test.mts",
       "scripts/release-controller-wake.test.mts",
       "scripts/release-coordinator-checkpoint-authentication.test.mts",
       "scripts/release-hosted-native-acceptance.test.mts",
