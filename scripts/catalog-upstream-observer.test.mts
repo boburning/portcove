@@ -962,6 +962,26 @@ void test("unknown quota admits finite batches, durable turns prevent starvation
   assert.deepEqual(unchanged.report.attempted_source_keys, []);
 });
 
+void test("a resumed opportunity gives untouched sources a turn before retrying attempted sources", async () => {
+  const h = harness(2);
+  const sources = catalogObservationSources(h.input).sources.sort((a, b) =>
+    a.key.localeCompare(b.key),
+  );
+  assert.equal(sources.length, 2);
+  const [attempted, untouched] = sources;
+  const first = await advanceCatalogObservations(h.input, null, {
+    ...h.options,
+    excludedSources: new Set([untouched.key]),
+  });
+  assert.deepEqual(first.report.attempted_source_keys, [attempted.key]);
+  assert.equal(first.checkpoint.sources[untouched.key], undefined);
+  assert.equal(first.checkpoint.sources[attempted.key]?.completed_at, null);
+
+  const resumed = await advanceCatalogObservations(h.input, first.checkpoint, h.options);
+  assert.equal(resumed.report.attempted_source_keys[0], untouched.key);
+  assert.ok(resumed.report.requests <= 2);
+});
+
 void test("provider reserve stops work and later quota recovery resumes exact retained pages", async () => {
   const h = harness();
   h.setQuota(0);
