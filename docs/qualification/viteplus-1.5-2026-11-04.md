@@ -155,6 +155,16 @@ Local observations before delivery:
   A focused unchanged-source replay of both complete files passed all 50 cases in
   10.05 seconds of native execution. This does not prove a causal repair.
 
+After age eligibility, hosted catalog attempt 2 at
+`e9e8ac96cb648c074334e29344f1f837586fe442` exposed a pre-existing provisioning
+omission: `release-publication-source.test.mts` calls Desktop's release-version
+policy but its registered ownership lacked `desktop_dependencies: true`.
+The root-filtered install therefore could not resolve Desktop's `semver`.
+Declare that prerequisite through the existing registry and cover both direct
+selection and the workspace-pin fallback in the baseline contracts. This adds
+no dependency, job or release authority; the failure remains in
+[the original run](https://github.com/boburning/portcove/actions/runs/41963472820).
+
 Full exact-head CI, Windows/container qualification, final review and delivery
 readback remain separate observations recorded on the owning issue and its linked
 pull request. These local results do not establish native application or release
