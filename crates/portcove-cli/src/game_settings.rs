@@ -4,6 +4,8 @@ use portcove_core::{GameSettingChange, GameSettingReview, GameSettingsView};
 
 pub(crate) fn name(command: &GameSettingsCommand) -> &'static str {
     match command {
+        #[cfg(feature = "qualification-fixtures")]
+        GameSettingsCommand::QualificationScope { .. } => "game-settings.qualification-scope",
         GameSettingsCommand::List { .. } => "game-settings.list",
         GameSettingsCommand::Review(_) => "game-settings.review",
         GameSettingsCommand::Apply { .. } => "game-settings.apply",
@@ -41,6 +43,13 @@ pub(crate) fn execute(
 ) -> Result<()> {
     let command_name = name(&command);
     match command {
+        #[cfg(feature = "qualification-fixtures")]
+        GameSettingsCommand::QualificationScope { port_id } => render_read_success(
+            mode,
+            command_name,
+            service.inspect_settings_qualification_scope(&port_id)?,
+            |_| "Read-only retained qualification locations.".into(),
+        ),
         GameSettingsCommand::List { port_id } => render_read_success(
             mode,
             command_name,

@@ -2,7 +2,7 @@ import { constants } from "node:fs";
 import { copyFile, mkdir, readFile, writeFile, realpath, lstat } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { join, resolve, extname, relative, isAbsolute, dirname } from "node:path";
+import { join, resolve, extname, relative, isAbsolute, dirname, toNamespacedPath } from "node:path";
 import { promisify } from "node:util";
 import { isRecord } from "./runtime-values.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
@@ -22,6 +22,7 @@ import {
 import {
   qualifySettingsConsumer,
   requireSettingsVerification,
+  initializeSettingsProbeFiles,
 } from "./settings-consumer-qualification.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
 import type { collectPortFacts, PortFactsOptions } from "./port-upstream-facts.mts";
@@ -94,7 +95,7 @@ export async function prepareSettingsCandidate(options: {
       "Settings qualification needs its once-provisioned private source and compiled-installer profile.",
     );
   const original = { path: scope.original.path, sha256: scope.original.sha256 };
-  const root = await realpath(scope.isolation_root);
+  const root = toNamespacedPath(await realpath(scope.isolation_root));
   const markerPath = join(root, ".portcove-settings-qualification.json");
   const markerInfo = await lstat(markerPath);
   if (!markerInfo.isFile() || markerInfo.isSymbolicLink() || markerInfo.size > 4096)
@@ -330,7 +331,7 @@ export async function prepareSettingsCandidate(options: {
     )
       throw new Error("Installed settings candidate differs from the exact observed package.");
     install = status.active;
-    const userData = await realpath(status.user_data_root);
+    const userData = toNamespacedPath(await realpath(status.user_data_root));
     if (!contained(root, userData))
       throw new Error("Settings candidate user data escaped its marked root.");
     const inputRoot = await assertOwnedUnlinkedPath(
@@ -411,22 +412,20 @@ export async function prepareSettingsCandidate(options: {
     const file: unknown = files[0];
     if (!isRecord(file) || typeof file.path !== "string" || !Array.isArray(file.settings))
       throw new Error("Native settings declaration is incomplete.");
-    const configuration = await assertOwnedUnlinkedPath(
-      userData,
-      resolve(userData, file.path),
-      "Settings configuration",
+    if (typeof status.active.id !== "string" || typeof file.id !== "string")
+      throw new Error("Settings scope identity is absent.");
+    const retainedScope = await run(["game-settings", "qualification-scope", record.listing.id]);
+    const initialized = await initializeSettingsProbeFiles(
+      root,
+      retainedScope,
+      file.id,
+      status.active.id,
+      record.settings_qualification_v1.samples[0]!.document,
     );
-    if (!contained(userData, configuration))
-      throw new Error("Settings candidate configuration escaped its retained root.");
-    try {
-      await writeFile(configuration, record.settings_qualification_v1.samples[0]!.document, {
-        flag: "wx",
-      });
-    } catch (error) {
-      if (!isRecord(error) || error.code !== "EEXIST") throw error;
-    }
-    const executable = await realpath(
-      resolve(status.active.path, status.active.selected_executable),
+    const configuration = initialized.canonical;
+    await json(join(checkpoint, "retained-settings-scope.json"), retainedScope);
+    const executable = toNamespacedPath(
+      await realpath(resolve(status.active.path, status.active.selected_executable)),
     );
     if (!contained(root, executable))
       throw new Error("Settings candidate player escaped the marked root.");

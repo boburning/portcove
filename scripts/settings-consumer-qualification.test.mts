@@ -1,10 +1,16 @@
 import assert from "node:assert/strict";
+import { mkdtemp, mkdir, writeFile, readFile, link, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join, toNamespacedPath } from "node:path";
 import { once } from "node:events";
 import { connect } from "node:net";
 import test from "node:test";
 import {
   openSettingsProbeListener,
   requireSettingsVerification,
+  initializeSettingsProbeFiles,
+  writeSettingsProbeConfiguration,
+  readSettingsProbeConfiguration,
 } from "./settings-consumer-qualification.mts";
 
 void test("native settings verification requires positive exact-install evidence", () => {
@@ -78,4 +84,61 @@ void test("native probe drains but bounds an oversized upstream response before 
   assert.throws(() => listener.check(), /bounded response allowance/);
   peer.destroy();
   await listener.close();
+});
+
+void test("qualification initializes Core-retained mirrors and refuses later divergence", async (context) => {
+  const root = await mkdtemp(join(tmpdir(), "settings-mirrors-"));
+  context.after(() => rm(root, { recursive: true, force: true }));
+  const canonical = join(root, "user", "settings.json"),
+    runtime = join(root, "runtime", "settings.json");
+  const scope = {
+    install_id: "exact",
+    definition_sha256: "a".repeat(64),
+    files: [{ file_id: "preferences", canonical_path: canonical, runtime_path: runtime }],
+  };
+  const sample = '{"control":37,"unknown":{"keep":[true,3]}}';
+  const paths = await initializeSettingsProbeFiles(root, scope, "preferences", "exact", sample);
+  assert.deepEqual(paths.paths, [toNamespacedPath(canonical), toNamespacedPath(runtime)]);
+  assert.equal(await readFile(canonical, "utf8"), sample);
+  assert.equal(await readFile(runtime, "utf8"), sample);
+  await writeSettingsProbeConfiguration(runtime, '{"control":40,"unknown":{"keep":[true,3]}}');
+  await assert.rejects(
+    initializeSettingsProbeFiles(root, scope, "preferences", "exact", sample),
+    /mirrors differ/,
+  );
+  assert.equal(await readFile(canonical, "utf8"), sample);
+  const saved: unknown = JSON.parse(await readFile(runtime, "utf8"));
+  assert.deepEqual(saved, { control: 40, unknown: { keep: [true, 3] } });
+  await assert.rejects(
+    initializeSettingsProbeFiles(root, scope, "preferences", "foreign-install", sample),
+    /exact retained installation/,
+  );
+});
+
+void test("mutable qualification configuration refuses a hardlink without changing foreign bytes", async (context) => {
+  const temporary = await mkdtemp(join(tmpdir(), "settings-hardlink-"));
+  context.after(() => rm(temporary, { recursive: true, force: true }));
+  const root = join(temporary, "owned"),
+    foreign = join(temporary, "foreign.json");
+  await mkdir(root);
+  const bytes = '{"foreign":"preserve"}';
+  await writeFile(foreign, bytes);
+  const configuration = join(root, "settings.json");
+  await link(foreign, configuration);
+  await assert.rejects(
+    writeSettingsProbeConfiguration(configuration, '{"mutated":true}'),
+    /unlinked regular file/,
+  );
+  await assert.rejects(readSettingsProbeConfiguration(configuration), /one link/);
+  const scope = {
+    install_id: "exact",
+    definition_sha256: "a".repeat(64),
+    files: [{ file_id: "preferences", canonical_path: configuration, runtime_path: null }],
+  };
+  await assert.rejects(
+    initializeSettingsProbeFiles(root, scope, "preferences", "exact", "{}"),
+    /one link/,
+  );
+  assert.equal(await readFile(foreign, "utf8"), bytes);
+  assert.equal(await readFile(configuration, "utf8"), bytes);
 });

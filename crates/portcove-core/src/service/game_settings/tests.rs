@@ -867,3 +867,31 @@ interruption_cases! {
     runtime_preimage_retired: RuntimeRetired,
     journal_retired_before_response: JournalRetired,
 }
+
+#[test]
+fn qualification_scope_uses_retained_editor_mirrors_and_requires_quiescence() {
+    let fixture = fixture(SHIP);
+    let before = fs::read(&fixture.canonical).unwrap();
+    let scope = fixture
+        .service
+        .inspect_settings_qualification_scope(SHIP)
+        .unwrap();
+    assert_eq!(scope["install_id"], fixture.install.id);
+    assert_eq!(
+        scope["files"][0]["canonical_path"],
+        json!(fixture.canonical)
+    );
+    assert_eq!(scope["files"][0]["runtime_path"], json!(fixture.runtime));
+    assert_eq!(fs::read(&fixture.canonical).unwrap(), before);
+    let _lock = fixture
+        .service
+        .library
+        .try_lock_port(SHIP, "owned probe")
+        .unwrap();
+    assert!(
+        fixture
+            .service
+            .inspect_settings_qualification_scope(SHIP)
+            .is_err()
+    );
+}

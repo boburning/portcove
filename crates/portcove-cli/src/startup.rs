@@ -79,6 +79,8 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             | BackupCommand::GhostshipLegacyRecover { .. } => Recovering,
         },
         Commands::GameSettings { command } => match command {
+            #[cfg(feature = "qualification-fixtures")]
+            GameSettingsCommand::QualificationScope { .. } => ReadOnly,
             GameSettingsCommand::List { .. } | GameSettingsCommand::Review(_) => ReadOnly,
             GameSettingsCommand::Apply { .. } => Recovering,
         },

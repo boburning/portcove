@@ -732,10 +732,15 @@ and the same `token`. These are stable local input/ownership facts, not a new
 per-release package table. Preserve failed checkpoints and unsettled ownership;
 never reuse a player's library for this profile.
 `qualification-report.mts --settings-case FILE` uses normal Core review/apply,
-checks unrelated values, launches through a durable Core request and verifies
+reads the feature-only `game-settings qualification-scope` from the same retained
+Core editor context, initializes only missing canonical/runtime mirrors, refuses
+multi-link mutable files, checks unrelated values, launches through a durable Core request and verifies
 the socket peer against that exact child's PID, creation identity and executable.
 After loading value X it writes test-only disk value Y and requests a save through
-a fixed unrelated sentinel command; the real package must restore its loaded X.
+a fixed unrelated sentinel command; the real package must restore its loaded X
+in the actual runtime file. Positive normal Core launch completion must synchronize
+that file back to canonical storage before reset. The probe does not assume that
+canonical user data changes while the game runs.
 Only fixed sentinel and normal `quit` commands are sent. Positive Core exit,
 default reset and immutable verification are retained. This proves packaged
 configuration consumption, not audible amplitude or gameplay. It uses the

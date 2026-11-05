@@ -2,11 +2,13 @@
 // No daemon, background job, command interpreter or production authority.
 import { createHash, randomInt, randomUUID } from "node:crypto";
 import { execFile, spawn } from "node:child_process";
-import { lstat, readFile, writeFile, realpath, mkdir } from "node:fs/promises";
+import { lstat, readFile, writeFile, realpath, mkdir, open } from "node:fs/promises";
 import { createServer } from "node:net";
 import type { Socket } from "node:net";
-import { resolve, relative, join, isAbsolute, dirname } from "node:path";
+import { resolve, relative, join, isAbsolute, dirname, toNamespacedPath } from "node:path";
 import { promisify, isDeepStrictEqual } from "node:util";
+
+import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 
 const execute = promisify(execFile);
 const object = (value: unknown): value is Record<string, unknown> =>
@@ -49,6 +51,115 @@ async function bounded(file: string, limit = 1024 * 1024) {
   if (bytes.length > limit) throw new Error("Native settings evidence grew beyond its bound.");
   return bytes;
 }
+export async function readSettingsProbeConfiguration(file: string) {
+  const info = await lstat(file);
+  if (info.nlink !== 1)
+    throw new Error("Mutable settings qualification configuration must have one link.");
+  return bounded(file);
+}
+
+export async function writeSettingsProbeConfiguration(file: string, bytes: Buffer | string) {
+  if (Buffer.byteLength(bytes) > 1024 * 1024)
+    throw new Error("Settings probe document exceeds its bound.");
+  const before = await lstat(file, { bigint: true });
+  if (
+    !before.isFile() ||
+    before.isSymbolicLink() ||
+    before.nlink !== 1n ||
+    before.size > 1024n * 1024n
+  )
+    throw new Error(
+      "Mutable settings qualification configuration must be an unlinked regular file.",
+    );
+  const held = await open(file, "r+");
+  try {
+    const current = await held.stat({ bigint: true });
+    if (
+      !current.isFile() ||
+      current.nlink !== 1n ||
+      current.dev !== before.dev ||
+      current.ino !== before.ino
+    )
+      throw new Error("Mutable settings qualification configuration changed identity.");
+    await held.truncate(0);
+    await held.writeFile(bytes);
+  } finally {
+    await held.close();
+  }
+}
+
+/** Exact locations come from Core's retained editor context, never a JS runtime-root rule. */
+export async function settingsProbePaths(
+  root: string,
+  scope: unknown,
+  fileId: string,
+  installId: string,
+) {
+  if (
+    !object(scope) ||
+    scope.install_id !== installId ||
+    !sha(scope.definition_sha256) ||
+    !Array.isArray(scope.files) ||
+    scope.files.length > 8
+  )
+    throw new Error("Settings probe scope lacks the exact retained installation.");
+  const files: unknown[] = scope.files;
+  const matching = files.filter((file) => object(file) && file.file_id === fileId);
+  const file = matching[0];
+  if (
+    matching.length !== 1 ||
+    !object(file) ||
+    typeof file.canonical_path !== "string" ||
+    !(file.runtime_path === null || typeof file.runtime_path === "string")
+  )
+    throw new Error("Settings probe file scope is absent or ambiguous.");
+  root = toNamespacedPath(await realpath(root));
+  const canonical = await assertOwnedUnlinkedPath(
+    root,
+    toNamespacedPath(file.canonical_path),
+    "Canonical settings probe configuration",
+  );
+  const runtime =
+    file.runtime_path === null
+      ? canonical
+      : await assertOwnedUnlinkedPath(
+          root,
+          toNamespacedPath(file.runtime_path),
+          "Runtime settings probe configuration",
+        );
+  return { canonical, runtime, paths: [...new Set([canonical, runtime])] };
+}
+
+export async function initializeSettingsProbeFiles(
+  root: string,
+  scope: unknown,
+  fileId: string,
+  installId: string,
+  sample: string,
+) {
+  const result = await settingsProbePaths(root, scope, fileId, installId);
+  let document: Buffer | undefined;
+  const absent: string[] = [];
+  for (const file of result.paths) {
+    try {
+      const bytes = await readSettingsProbeConfiguration(file);
+      if (document && !document.equals(bytes))
+        throw new Error("Retained settings mirrors differ; preserve both before qualification.");
+      document = bytes;
+    } catch (error) {
+      if (!object(error) || error.code !== "ENOENT") throw error;
+      absent.push(file);
+    }
+  }
+  document ??= Buffer.from(sample);
+  if (document.length > 1024 * 1024) throw new Error("Settings probe seed exceeds its bound.");
+  for (const file of absent) {
+    await mkdir(dirname(file), { recursive: true });
+    await writeFile(file, document, { flag: "wx" });
+  }
+  return result;
+}
+
 function at(value: unknown, key: readonly string[]): unknown {
   let current = value;
   for (const part of key)
@@ -211,12 +322,12 @@ export async function qualifySettingsConsumer(options: {
   )
     throw new Error("Native settings case needs one bounded integer JSON probe.");
   const selected = probe as unknown as Probe;
-  const root = await realpath(value.isolation_root);
-  const library = await realpath(options.library);
-  const configuration = await realpath(value.configuration_path);
-  const output = resolve(options.output);
-  const outputParent = await realpath(dirname(output));
-  const cli = await realpath(options.cli);
+  const root = toNamespacedPath(await realpath(value.isolation_root));
+  const library = toNamespacedPath(await realpath(options.library));
+  const configuration = toNamespacedPath(await realpath(value.configuration_path));
+  const output = toNamespacedPath(resolve(options.output));
+  const outputParent = toNamespacedPath(await realpath(dirname(output)));
+  const cli = toNamespacedPath(await realpath(options.cli));
   const marker: unknown = JSON.parse(
     (await bounded(join(root, ".portcove-settings-qualification.json"), 4096)).toString("utf8"),
   );
@@ -249,7 +360,7 @@ export async function qualifySettingsConsumer(options: {
     delete environment[name];
   let qualificationCatalog: { path: string; sha256: string } | undefined;
   if (options.qualificationCatalog !== undefined) {
-    const file = await realpath(options.qualificationCatalog);
+    const file = toNamespacedPath(await realpath(options.qualificationCatalog));
     if (!contained(root, file))
       throw new Error("Native settings qualification catalog escaped its marked disposable scope.");
     qualificationCatalog = { path: file, sha256: hash(await bounded(file, 16 * 1024 * 1024)) };
@@ -298,13 +409,23 @@ export async function qualifySettingsConsumer(options: {
     typeof status.active.selected_executable !== "string"
   )
     throw new Error("Native settings install differs from the selected package.");
-  const executable = await realpath(join(status.active.path, status.active.selected_executable));
+  const executable = toNamespacedPath(
+    await realpath(join(status.active.path, status.active.selected_executable)),
+  );
   if (
     !contained(root, executable) ||
     hash(await bounded(executable, 512 * 1024 * 1024)) !== value.executable_sha256
   )
     throw new Error("Native settings executable is outside the selected exact package.");
-  const initial = await bounded(configuration);
+  const retainedScope = await run(["game-settings", "qualification-scope", value.port_id]);
+  const mutable = await settingsProbePaths(root, retainedScope, selected.file_id, status.active.id);
+  if ((await realpath(mutable.canonical)).toLowerCase() !== configuration.toLowerCase())
+    throw new Error("Native settings case differs from Core's retained canonical file.");
+  const initial = await readSettingsProbeConfiguration(configuration);
+  for (const file of mutable.paths) {
+    if (!(await readSettingsProbeConfiguration(file)).equals(initial))
+      throw new Error("Native retained settings mirrors differ before qualification.");
+  }
   const preservationKey = "PortcoveQualification_" + randomUUID().replaceAll("-", "");
   const preservationValue = {
     text: "keep this unrelated value",
@@ -331,7 +452,12 @@ export async function qualifySettingsConsumer(options: {
       const requestId = randomUUID();
       const deadline = performance.now() + 120000;
       try {
-        const before: unknown = JSON.parse((await bounded(configuration)).toString("utf8"));
+        const beforeBytes = await readSettingsProbeConfiguration(configuration);
+        for (const file of mutable.paths) {
+          if (!(await readSettingsProbeConfiguration(file)).equals(beforeBytes))
+            throw new Error("Retained settings mirrors changed before the next quiescent probe.");
+        }
+        const before: unknown = JSON.parse(beforeBytes.toString("utf8"));
         if (!object(before)) throw new Error("Native settings configuration must be an object.");
         before[preservationKey] = preservationValue;
         set(before, ["CVars", "gRemote", "Sail"], {
@@ -339,7 +465,8 @@ export async function qualifySettingsConsumer(options: {
           Host: "127.0.0.1",
           Port: listener.port,
         });
-        await writeFile(configuration, JSON.stringify(before));
+        for (const file of mutable.paths)
+          await writeSettingsProbeConfiguration(file, JSON.stringify(before));
         const intent = [
           value.port_id,
           selected.file_id,
@@ -351,7 +478,9 @@ export async function qualifySettingsConsumer(options: {
         if (!object(review) || !sha(review.review_sha256) || review.proposed_value !== requested)
           throw new Error("Native settings review differs from the requested integer.");
         await run(["game-settings", "apply", ...intent, "--expected-review", review.review_sha256]);
-        const applied: unknown = JSON.parse((await bounded(configuration)).toString("utf8"));
+        const applied: unknown = JSON.parse(
+          (await readSettingsProbeConfiguration(configuration)).toString("utf8"),
+        );
         const expected = structuredClone(before);
         set(expected, selected.key, requested);
         if (!isDeepStrictEqual(applied, expected))
@@ -416,16 +545,29 @@ export async function qualifySettingsConsumer(options: {
           identity.pid !== session.child_pid ||
           identity.identity !== session.child_identity ||
           typeof identity.path !== "string" ||
-          (await realpath(identity.path)).toLowerCase() !== executable.toLowerCase()
+          toNamespacedPath(await realpath(identity.path)).toLowerCase() !== executable.toLowerCase()
         )
           throw new Error("Native probe peer is not the exact Core game process.");
         ownerVerified = true;
-        const onDisk: unknown = JSON.parse((await bounded(configuration)).toString("utf8"));
+        const onDisk: unknown = JSON.parse(
+          (await readSettingsProbeConfiguration(mutable.runtime)).toString("utf8"),
+        );
         if (!object(onDisk)) throw new Error("Native configuration changed format.");
         // The game's next Save must restore its loaded X over test-only disk Y.
         const alternate = selected.values.find((number) => number !== requested)!;
         set(onDisk, selected.key, alternate);
-        await writeFile(configuration, JSON.stringify(onDisk));
+        await writeSettingsProbeConfiguration(mutable.runtime, JSON.stringify(onDisk));
+        const alternateBytes = await readSettingsProbeConfiguration(mutable.runtime);
+        const alternateDocument: unknown = JSON.parse(alternateBytes.toString("utf8"));
+        if (at(alternateDocument, selected.key) !== alternate)
+          throw new Error(
+            "Actual runtime path did not retain the deliberate test-only disk value.",
+          );
+        evidence.push({
+          requested_value: requested,
+          deliberate_runtime_value: alternate,
+          runtime_before_save_sha256: hash(alternateBytes),
+        });
         const nonce = randomInt(1, 1_000_000_000);
         socket.write(
           JSON.stringify({
@@ -437,7 +579,9 @@ export async function qualifySettingsConsumer(options: {
         let consumed = false;
         while (performance.now() < deadline) {
           listener.check();
-          const disk: unknown = JSON.parse((await bounded(configuration)).toString("utf8"));
+          const disk: unknown = JSON.parse(
+            (await readSettingsProbeConfiguration(mutable.runtime)).toString("utf8"),
+          );
           if (at(disk, ["CVars", "portcoveQualificationSentinel"]) === nonce) {
             if (at(disk, selected.key) !== requested)
               throw new Error("Actual packaged consumer did not retain the requested setting.");
@@ -472,6 +616,19 @@ export async function qualifySettingsConsumer(options: {
         )
           throw new Error("Native consumer did not produce positive Core exit evidence.");
         unsettled = false;
+        const canonicalAfter = await readSettingsProbeConfiguration(configuration);
+        const runtimeAfter = await readSettingsProbeConfiguration(mutable.runtime);
+        if (
+          !canonicalAfter.equals(runtimeAfter) ||
+          at(JSON.parse(canonicalAfter.toString("utf8")), selected.key) !== requested
+        )
+          throw new Error(
+            "Normal Core launch completion did not synchronize the actual saved settings.",
+          );
+        evidence.push({
+          synchronized_canonical_sha256: hash(canonicalAfter),
+          runtime_sha256: hash(runtimeAfter),
+        });
       } finally {
         if (child) {
           if (child.exitCode === null && ownerVerified && socket && !socket.destroyed) {
@@ -527,7 +684,10 @@ export async function qualifySettingsConsumer(options: {
       "--expected-review",
       reset.review_sha256,
     ]);
-    const resetDocument: unknown = JSON.parse((await bounded(configuration)).toString("utf8"));
+    const resetBytes = await readSettingsProbeConfiguration(configuration);
+    if (!(await readSettingsProbeConfiguration(mutable.runtime)).equals(resetBytes))
+      throw new Error("Reset left different canonical and runtime settings mirrors.");
+    const resetDocument: unknown = JSON.parse(resetBytes.toString("utf8"));
     if (
       at(resetDocument, selected.key) !== reset.proposed_value ||
       !isDeepStrictEqual(at(resetDocument, [preservationKey]), preservationValue)
@@ -555,6 +715,7 @@ export async function qualifySettingsConsumer(options: {
       input: value,
       initial_sha256: hash(initial),
       qualification_catalog: qualificationCatalog,
+      retained_settings_scope: retainedScope,
       preservation: { key: preservationKey, expected: preservationValue },
       observed_values: observedValues,
       evidence,
