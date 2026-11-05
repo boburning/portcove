@@ -1,3 +1,4 @@
+import { checkCatalogAdvisories } from "./catalog-advisories.mts";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -558,6 +559,55 @@ void test("reference guides select strict new formats and retain actions and war
   );
 });
 
+// Optional descriptive advice stays separate from operational authoring.
+{
+  const platforms = ["windows-x86-64"];
+  const record = {
+    id: "manual-runtime",
+    feature: "updates",
+    platform: platforms[0],
+    route: "existing-copy",
+    explanation: "Follow upstream instructions for updating this copy.",
+    provenance: "https://example.com/fixture",
+    observed_at: 1,
+    evidence: "manual-requirement",
+  };
+  const envelope = { format_version: 1, records: [record] };
+
+  await test("broad manual requirements need no invented artifact identity", () => {
+    checkCatalogAdvisories(envelope, platforms, 2);
+    checkedAuthoredPort({
+      format_version: 1,
+      listing: {
+        id: "fixture",
+        name: "Fixture",
+        summary: "Fixture project",
+        project_url: "https://example.com/fixture",
+        compatibility: envelope,
+      },
+    });
+  });
+
+  await test("authoring refuses future, malformed, duplicate, unsafe and unscoped advisory content", () => {
+    for (const value of [
+      { ...envelope, format_version: 2 },
+      { ...envelope, grants: true },
+      { ...envelope, records: [record, record] },
+      ...[
+        { command: "run" },
+        { feature: "grant" },
+        { route: "any" },
+        { observed_at: 3 },
+        { artifact_sha256: "a".repeat(64) },
+        { workaround: "Run `sh setup`" },
+        { workaround: "Open /home/player/game" },
+        { provenance: "https://user:secret@example.com" },
+      ].map((delta) => ({ ...envelope, records: [{ ...record, ...delta }] })),
+    ])
+      assert.throws(() => checkCatalogAdvisories(value, platforms, 2));
+  });
+}
+
 void test("GitLab descriptive observations derive listing format8 without changing operational output", () => {
   const accepted = readCatalogSource(catalogRoot);
   const records = structuredClone(accepted.records);
@@ -581,4 +631,27 @@ void test("GitLab descriptive observations derive listing format8 without changi
   const assembled = assembleCatalogRecords(shared, records);
   assert.equal(assembled.directory.format_version, 8);
   assert.deepEqual(assembled.catalog, accepted.catalog);
+  const compatibility = {
+    format_version: 1,
+    records: [
+      {
+        id: "manual-updates",
+        feature: "updates",
+        platform: "windows-x86-64",
+        route: "existing-copy",
+        explanation: "Follow upstream update instructions.",
+        provenance: "https://gitlab.com/sonicdcer/MarioKart64Recomp",
+        observed_at: 1,
+        evidence: "manual-requirement",
+      },
+    ],
+  };
+  record.listing.compatibility = compatibility;
+  const combined = assembleCatalogRecords(shared, records);
+  assert.equal(combined.directory.format_version, 8);
+  assert.deepEqual(
+    combined.directory.listings.find((listing) => listing.id === record.listing.id)?.compatibility,
+    compatibility,
+  );
+  assert.deepEqual(combined.catalog, accepted.catalog);
 });

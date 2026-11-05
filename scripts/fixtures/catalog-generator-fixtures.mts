@@ -108,6 +108,7 @@ export function isolatedGenerator() {
     "inspect-igdb-artwork.mts",
     "runtime-values.mts",
     "catalog-authoring.mts",
+    "catalog-advisories.mts",
     "catalog-route-facts.mts",
     "package-player-observation.mts",
     "upstream-lineage.mts",

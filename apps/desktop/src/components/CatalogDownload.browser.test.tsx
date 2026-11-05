@@ -8,7 +8,7 @@ import { desktopApi } from "../api";
 import { catalogEntries } from "../features/browsing/catalog-entry";
 import type { Perform, PerformOptions } from "../features/operations/use-operation-state";
 import { pickInstallFolder, pickHostToolExecutable } from "../file-picker";
-import { portStatus } from "../test-fixtures";
+import { portDefinition, portStatus } from "../test-fixtures";
 import type {
   CatalogDownloadCandidate,
   CatalogDownloadCandidates,
@@ -1326,6 +1326,85 @@ it("keeps authored save warnings visible before reviewing a download", async () 
   expect(warning.element().closest("details")).toBeNull();
   expect(warning.element().closest("ol")).toBeNull();
   expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
+});
+
+it("uses only explicit listing guidance inside non-owning download and executable selection", async () => {
+  const managed: ReturnType<typeof portDefinition> = {
+    ...portDefinition(),
+    id: listing.id,
+    presentation: {
+      installation_method: "portable-package",
+      saves_and_settings: "portcove-managed",
+      source_requirements: [],
+      manual_setup: {
+        steps: [
+          {
+            title: "Managed instructions",
+            instruction: "MANAGED CONTRACT MUST STAY IN MANAGED DETAILS",
+          },
+        ],
+        warnings: [],
+      },
+    },
+  };
+  const listed = {
+    ...listing,
+    manual_setup: {
+      steps: [
+        {
+          title: "Upstream instructions",
+          instruction: "Prepare the external copy using its official guide.",
+        },
+      ],
+      warnings: ["Protect external saves yourself."],
+    },
+  };
+  const status = { ...portStatus(), port_id: listing.id };
+  const ownEntry = {
+    ...managed,
+    definition: managed,
+    listing: listed,
+    listingStatus: {
+      port_id: listing.id,
+      status,
+      actions: [{ action: "attach-existing" as const, allowed: true }],
+    },
+  };
+  await root.rerender(
+    <SelfServiceSetup
+      entry={ownEntry}
+      status={status}
+      generation={9}
+      perform={perform}
+      onChanged={changed}
+    />,
+  );
+  await expect
+    .element(page.getByRole("button", { name: "Use an existing installation", exact: true }))
+    .toBeEnabled();
+  await click("Use an existing installation");
+  await expect
+    .element(page.getByRole("heading", { name: "Use your existing installation" }))
+    .toBeVisible();
+  expect(document.body.textContent).not.toContain("MANAGED CONTRACT MUST STAY IN MANAGED DETAILS");
+  expect(document.body.textContent).toContain(
+    "Prepare the external copy using its official guide.",
+  );
+  expect(managed.presentation?.manual_setup?.steps[0]?.instruction).toBe(
+    "MANAGED CONTRACT MUST STAY IN MANAGED DETAILS",
+  );
+  const withoutGuide: PortListing = { ...listed };
+  delete withoutGuide.manual_setup;
+  await root.rerender(
+    <SelfServiceSetup
+      entry={{ ...ownEntry, listing: withoutGuide }}
+      status={status}
+      generation={9}
+      perform={perform}
+      onChanged={changed}
+    />,
+  );
+  expect(document.body.textContent).not.toContain("MANAGED CONTRACT MUST STAY IN MANAGED DETAILS");
 });
 
 it("separates stable update navigation, selected-package notes and historical setup evidence", async () => {

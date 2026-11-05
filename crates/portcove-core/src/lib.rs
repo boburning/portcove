@@ -274,13 +274,15 @@ pub use retained_build::{
 };
 pub use service::{
     AdoptionCopyFile, AdoptionCopyPlan, AdoptionDestinationPreview, AdoptionPreview,
-    AdoptionSkippedEntry, BackupAction, BackupActionPreview, CatalogDownloadAssetId,
+    AdoptionSkippedEntry, AdvisoryApplicability, BackupAction, BackupActionPreview,
+    CapabilityAdvisory, CapabilityFeature, CapabilityMode, CatalogDownloadAssetId,
     CatalogDownloadCandidate, CatalogDownloadCandidates, CatalogDownloadCoverage,
     CatalogDownloadPreview, CatalogDownloadRelease, CatalogDownloadReleaseId,
     CatalogDownloadRequest, CatalogForeignAssetId, CatalogForeignReleaseId,
     CatalogPackageAssessment, IdentifiedLaunchRequest, InstallOverrides, InstallationProtection,
     ManagedRouteChangePreview, ManagedRouteChangeResult, PendingSetupRecord, PendingSetupState,
-    PlayerDataProtection, PortRemovalPreview, PortcoveService, ProtectionDeclaration,
+    PlayerDataProtection, PortCapabilityFeature, PortCapabilityNotice, PortCapabilityReport,
+    PortCapabilityRoute, PortRemovalPreview, PortcoveService, ProtectionDeclaration,
     SetupLaunchTarget, SetupLaunchTargets,
 };
 pub use signed_catalog::{
