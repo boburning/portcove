@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { spawnSync } from "node:child_process";
 import { createGitHubClient, iterateGitHubPages } from "./github-client.mts";
 import type { GitHubAttemptObservation, GitHubRequestPolicy } from "./github-client.mts";
 import { localDeveloperCredential, verifyGitHubAttestation } from "./github-cli.mts";
@@ -1119,5 +1120,108 @@ void test("status-only redirect observation cancels unread bodies without follow
     assert.equal(response.status, status);
     assert.equal(cancelled, true);
     assert.equal(dispatched, 1);
+  }
+});
+
+void test("retained verification rejects oversized and timed-out output before treating it as proof", () => {
+  for (const result of [
+    { status: 0, stdout: "x".repeat(9), stderr: "" },
+    { status: 0, stdout: "{}", stderr: "x".repeat(9) },
+    {
+      status: 0,
+      stdout: "{}",
+      stderr: "",
+      error: Object.assign(new Error("timed out"), { code: "ETIMEDOUT" }),
+    },
+  ]) {
+    assert.throws(
+      () =>
+        verifyGitHubAttestation(["attestation", "verify", "fixture"], {
+          cwd: process.cwd(),
+          timeoutMs: 1000,
+          maxBytes: 8,
+          environment: {},
+          spawn: (_command, _args, settings) => {
+            assert.equal(settings.maxBuffer, 8);
+            assert.equal(settings.timeout, 1000);
+            assert.equal(settings.killSignal, "SIGKILL");
+            return result;
+          },
+        }),
+      (error: unknown) =>
+        error instanceof GitHubApiError &&
+        error.code === "command_failed" &&
+        /ENOBUFS|ETIMEDOUT/u.test(error.message),
+    );
+  }
+  let calls = 0;
+  assert.throws(
+    () =>
+      verifyGitHubAttestation(["attestation", "verify", "fixture"], {
+        cwd: process.cwd(),
+        timeoutMs: 2_147_483_648,
+        maxBytes: 1024,
+        spawn: () => {
+          calls++;
+          throw new Error("unexpected launch");
+        },
+      }),
+    /bounds/u,
+  );
+  assert.equal(calls, 0);
+});
+
+void test("retained verifier diagnostics preserve the reason while redacting before truncation", () => {
+  const opaque = "opaque-synthetic-credential-without-a-recognized-prefix";
+  const stderr = `certificate issuer differs\n${".".repeat(920)} ${opaque}\nAuthorization: Bearer ghs_SYNTHETIC_APPID_JWT_ONLY\nrequest ID: SYNTHETIC`;
+  assert.throws(
+    () =>
+      verifyGitHubAttestation(["attestation", "verify", "fixture"], {
+        cwd: process.cwd(),
+        timeoutMs: 1000,
+        maxBytes: 8192,
+        environment: { GH_TOKEN: opaque },
+        spawn: () => ({ status: 1, stdout: "", stderr }),
+      }),
+    (error: unknown) => {
+      assert.ok(error instanceof GitHubApiError);
+      assert.equal(error.code, "command_failed");
+      assert.match(error.message, /certificate issuer differs/u);
+      assert.ok(error.message.length <= 1024);
+      assert.ok(!error.message.includes(opaque.slice(0, 12)));
+      assert.ok(!error.message.includes("ghs_SYNTHETIC"));
+      return true;
+    },
+  );
+});
+
+void test("retained verifier enforces real subprocess output and execution bounds", () => {
+  for (const mode of ["output", "timeout"] as const) {
+    assert.throws(
+      () =>
+        verifyGitHubAttestation(["attestation", "verify", "fixture"], {
+          cwd: process.cwd(),
+          timeoutMs: mode === "timeout" ? 100 : 5000,
+          maxBytes: 1024,
+          environment: {
+            ...(process.env.SystemRoot ? { SystemRoot: process.env.SystemRoot } : {}),
+          },
+          spawn: (_command, _args, settings) =>
+            spawnSync(
+              process.execPath,
+              [
+                "-e",
+                mode === "timeout"
+                  ? "setInterval(() => {}, 1000)"
+                  : "process.stdout.write('x'.repeat(8192))",
+              ],
+              settings,
+            ),
+        }),
+      (error: unknown) =>
+        error instanceof GitHubApiError &&
+        error.code === "command_failed" &&
+        error.message.includes(mode === "timeout" ? "ETIMEDOUT" : "ENOBUFS"),
+    );
   }
 });
