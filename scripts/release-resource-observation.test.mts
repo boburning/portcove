@@ -368,8 +368,26 @@ void test("complete source amendment projects application165/catalog40 without a
     createHash("sha256").update(result.proposedWorkflow).digest("hex"),
   );
   assert.equal(
+    result.proposal.proposed_resources.wake_workflow_sha256,
+    createHash("sha256").update(wake).digest("hex"),
+  );
+  // Reproduce the dated proposal's wake identity separately from the current
+  // proposal, which must bind the installed source bytes above.
+  const historicalPolicy: unknown = JSON.parse(
+    await readFile(
+      new URL("./fixtures/release-resource-baseline-20261103/policy.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  assert.ok(
+    isRecord(historicalPolicy) && typeof historicalPolicy.wake_workflow_sha256 === "string",
+  );
+  assert.equal(
     receipt.prepared_source.proposed_resource_digest,
-    result.proposal.proposed_resource_digest,
+    capacityDigest({
+      ...result.proposal.proposed_resources,
+      wake_workflow_sha256: historicalPolicy.wake_workflow_sha256,
+    }),
   );
   for (const row of receipt.jobs) {
     assert.ok(isRecord(row) && typeof row.job === "string");

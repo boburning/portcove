@@ -690,39 +690,30 @@ void test("ratified App bootstrap over a retained catalog refreezes only after e
     );
 });
 
-void test("wake prioritizes due and resumed App maintenance but never an accepted catalog subject or unresolved catalog effect", () => {
+void test("wake prioritizes due and resumed App maintenance but never an accepted catalog subject or unresolved catalog effect", async () => {
   const f = fixture(),
     request = f.request("1".repeat(40));
   const read = (input: Record<string, unknown>) => {
     const bytes = Buffer.from(JSON.stringify({ schema_version: 1, previous: null, input }));
     return readWakePurposePriority(
       {
-        request(method, endpoint) {
-          assert.equal(method, "GET");
-          if (endpoint.includes("/git/ref/"))
-            return {
-              status: 200,
-              body: {
-                ref: "refs/heads/fixture-coordinator-state",
-                object: { type: "commit", sha: "a".repeat(40) },
-              },
-              headers: new Map(),
-            };
-          assert.equal(
-            endpoint,
-            `repos/boburning/portcove/contents/state.json?ref=${"a".repeat(40)}`,
-          );
+        async ref(name) {
+          assert.equal(name, "heads/fixture-coordinator-state");
           return {
-            status: 200,
-            body: {
-              type: "file",
-              path: "state.json",
-              encoding: "base64",
-              content: bytes.toString("base64"),
-              size: bytes.length,
-              sha: createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex"),
-            },
-            headers: new Map(),
+            ref: "refs/heads/fixture-coordinator-state",
+            object: { type: "commit", sha: "a".repeat(40) },
+          };
+        },
+        async file(filename, revision) {
+          assert.equal(filename, "state.json");
+          assert.equal(revision, "a".repeat(40));
+          return {
+            type: "file",
+            path: "state.json",
+            encoding: "base64",
+            content: bytes.toString("base64"),
+            size: bytes.length,
+            sha: createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex"),
           };
         },
       },
@@ -734,9 +725,9 @@ void test("wake prioritizes due and resumed App maintenance but never an accepte
     catalog_review_request: request,
     controller: { capacity_attempt: { operation: null } },
   };
-  assert.equal(read(base), "application");
+  assert.equal(await read(base), "application");
   assert.equal(
-    read({
+    await read({
       ...base,
       catalog_review_request: null,
       catalog_review_disposition: negative(request, "2".repeat(40)),
@@ -745,18 +736,18 @@ void test("wake prioritizes due and resumed App maintenance but never an accepte
   );
   const future = metadataFixture(Date.now() + 86400000),
     seed = future.published;
-  assert.equal(read({ ...base, published_metadata: seed }), "catalog-publication");
+  assert.equal(await read({ ...base, published_metadata: seed }), "catalog-publication");
   assert.equal(
-    read({
+    await read({
       ...base,
       published_metadata: seed,
       metadata_renewal: future.descriptor,
     }),
     "application",
   );
-  assert.equal(read({ ...base, catalog_publication: {} }), "catalog-publication");
+  assert.equal(await read({ ...base, catalog_publication: {} }), "catalog-publication");
   assert.equal(
-    read({
+    await read({
       ...base,
       controller: {
         capacity_attempt: { operation: { outcome: "pending", catalog_publication: {} } },

@@ -1,12 +1,119 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { spawnSync } from "node:child_process";
 import { createGitHubClient, iterateGitHubPages } from "./github-client.mts";
 import type { GitHubAttemptObservation, GitHubRequestPolicy } from "./github-client.mts";
 import { localDeveloperCredential, verifyGitHubAttestation } from "./github-cli.mts";
 import { GitHubApiError } from "./github-operation.mts";
+import { verifyControllerArtifactVerification } from "./github-controller-attestation.mts";
 
 const once = (): GitHubRequestPolicy => ({ replay: "once", attempts: 0 });
 const read = (): GitHubRequestPolicy => ({ replay: "safe-read", attempts: 0 });
+
+void test("complete response retention is awaited before deadline or cancellation refusal", async () => {
+  for (const mode of ["deadline", "cancelled"] as const) {
+    let monotonic = 1000;
+    const abort = new AbortController();
+    let sends = 0;
+    const retained: unknown[] = [];
+    const client = await createGitHubClient({
+      credential: { kind: "anonymous" },
+      deadline: 2000,
+      now: () => monotonic,
+      signal: abort.signal,
+      fetch: async () => {
+        sends++;
+        return Response.json({ id: 900 }, { headers: { "x-github-request-id": "retained" } });
+      },
+    });
+    const policy: GitHubRequestPolicy = {
+      ...read(),
+      async retainResponse(response) {
+        await new Promise((resolve) => setImmediate(resolve));
+        retained.push(response);
+        if (mode === "deadline") monotonic = 2001;
+        else abort.abort(new Error("owner cancelled"));
+      },
+    };
+    await assert.rejects(
+      client.request("GET /rate_limit", { request: { portcove: policy } }),
+      (error: unknown) =>
+        error instanceof GitHubApiError &&
+        error.code === (mode === "deadline" ? "deadline_exceeded" : "cancelled"),
+    );
+    assert.equal(sends, 1);
+    assert.deepEqual(retained, [
+      {
+        status: 200,
+        data: { id: 900 },
+        headers: {
+          "content-type": "application/json",
+          "x-github-request-id": "retained",
+        },
+      },
+    ]);
+  }
+});
+
+void test("failed bodies never supply retained response evidence and retention failure cannot replay", async () => {
+  for (const mode of ["stream", "cap", "retention"] as const) {
+    let sends = 0,
+      retained = 0;
+    const client = await createGitHubClient({
+      credential: { kind: "anonymous" },
+      deadline: performance.now() + 5000,
+      maxBytes: mode === "cap" ? 1 : 1000,
+      fetch: async () => {
+        sends++;
+        return mode === "stream"
+          ? new Response(
+              new ReadableStream({
+                start(controller) {
+                  controller.error(new Error("broken body"));
+                },
+              }),
+            )
+          : Response.json({ id: 900 }, { status: 503 });
+      },
+    });
+    const policy: GitHubRequestPolicy = {
+      ...read(),
+      async retainResponse() {
+        retained++;
+        throw new Error("retention unavailable");
+      },
+    };
+    await assert.rejects(client.request("GET /rate_limit", { request: { portcove: policy } }));
+    assert.equal(sends, 1);
+    assert.equal(retained, mode === "retention" ? 1 : 0);
+  }
+});
+
+void test("rate-limit deferral survives failure to retain a complete refusal response", async () => {
+  const deferral = { primary: new Map<string, number>(), secondary: 0 };
+  let sends = 0;
+  const client = await createGitHubClient({
+    credential: { kind: "anonymous" },
+    deadline: performance.now() + 5000,
+    deferral,
+    wallNow: () => 1000,
+    fetch: async () => {
+      sends++;
+      return Response.json({ message: "secondary rate limit" }, { status: 403 });
+    },
+  });
+  const policy: GitHubRequestPolicy = {
+    ...once(),
+    async retainResponse(response) {
+      assert.equal(response.status, 403);
+      assert.deepEqual(response.data, { message: "secondary rate limit" });
+      throw new Error("retention unavailable");
+    },
+  };
+  await assert.rejects(client.request("GET /rate_limit", { request: { portcove: policy } }));
+  assert.equal(deferral.secondary, 61000);
+  assert.equal(sends, 1);
+});
 
 void test("configured SDK preserves metadata, headers and byte evidence without ambient auth", async () => {
   const observations: GitHubAttemptObservation[] = [];
@@ -1120,4 +1227,140 @@ void test("status-only redirect observation cancels unread bodies without follow
     assert.equal(cancelled, true);
     assert.equal(dispatched, 1);
   }
+});
+
+void test("retained verification rejects oversized and timed-out output before treating it as proof", () => {
+  for (const result of [
+    { status: 0, stdout: "x".repeat(9), stderr: "" },
+    { status: 0, stdout: "{}", stderr: "x".repeat(9) },
+    {
+      status: 0,
+      stdout: "{}",
+      stderr: "",
+      error: Object.assign(new Error("timed out"), { code: "ETIMEDOUT" }),
+    },
+  ]) {
+    assert.throws(
+      () =>
+        verifyGitHubAttestation(["attestation", "verify", "fixture"], {
+          cwd: process.cwd(),
+          timeoutMs: 1000,
+          maxBytes: 8,
+          environment: {},
+          spawn: (_command, _args, settings) => {
+            assert.equal(settings.maxBuffer, 8);
+            assert.equal(settings.timeout, 1000);
+            assert.equal(settings.killSignal, "SIGKILL");
+            return result;
+          },
+        }),
+      (error: unknown) =>
+        error instanceof GitHubApiError &&
+        error.code === "command_failed" &&
+        /ENOBUFS|ETIMEDOUT/u.test(error.message),
+    );
+  }
+  let calls = 0;
+  assert.throws(
+    () =>
+      verifyGitHubAttestation(["attestation", "verify", "fixture"], {
+        cwd: process.cwd(),
+        timeoutMs: 2_147_483_648,
+        maxBytes: 1024,
+        spawn: () => {
+          calls++;
+          throw new Error("unexpected launch");
+        },
+      }),
+    /bounds/u,
+  );
+  assert.equal(calls, 0);
+});
+
+void test("retained verifier diagnostics preserve the reason while redacting before truncation", () => {
+  const opaque = "opaque-synthetic-credential-without-a-recognized-prefix";
+  const stderr = `certificate issuer differs\n${".".repeat(920)} ${opaque}\nAuthorization: Bearer ghs_SYNTHETIC_APPID_JWT_ONLY\nrequest ID: SYNTHETIC`;
+  assert.throws(
+    () =>
+      verifyGitHubAttestation(["attestation", "verify", "fixture"], {
+        cwd: process.cwd(),
+        timeoutMs: 1000,
+        maxBytes: 8192,
+        environment: { GH_TOKEN: opaque },
+        spawn: () => ({ status: 1, stdout: "", stderr }),
+      }),
+    (error: unknown) => {
+      assert.ok(error instanceof GitHubApiError);
+      assert.equal(error.code, "command_failed");
+      assert.match(error.message, /certificate issuer differs/u);
+      assert.ok(error.message.length <= 1024);
+      assert.ok(!error.message.includes(opaque.slice(0, 12)));
+      assert.ok(!error.message.includes("ghs_SYNTHETIC"));
+      return true;
+    },
+  );
+});
+
+void test("retained verifier enforces real subprocess output and execution bounds", () => {
+  for (const mode of ["output", "timeout"] as const) {
+    assert.throws(
+      () =>
+        verifyGitHubAttestation(["attestation", "verify", "fixture"], {
+          cwd: process.cwd(),
+          timeoutMs: mode === "timeout" ? 100 : 5000,
+          maxBytes: 1024,
+          environment: {
+            ...(process.env.SystemRoot ? { SystemRoot: process.env.SystemRoot } : {}),
+          },
+          spawn: (_command, _args, settings) =>
+            spawnSync(
+              process.execPath,
+              [
+                "-e",
+                mode === "timeout"
+                  ? "setInterval(() => {}, 1000)"
+                  : "process.stdout.write('x'.repeat(8192))",
+              ],
+              settings,
+            ),
+        }),
+      (error: unknown) =>
+        error instanceof GitHubApiError &&
+        error.code === "command_failed" &&
+        error.message.includes(mode === "timeout" ? "ETIMEDOUT" : "ENOBUFS"),
+    );
+  }
+});
+
+void test("controller verifier redacts the actual custom child credential and retains useful diagnostics", () => {
+  const opaque = "opaque-synthetic-controller-reader-without-token-prefix";
+  assert.throws(
+    () =>
+      verifyControllerArtifactVerification(
+        process.cwd(),
+        "fixture.json",
+        "fixture.bundle",
+        {
+          controller_revision: "a".repeat(40),
+          controller_ref: "refs/tags/portcove-production-controller-fixture",
+          run_id: "12345",
+          run_attempt: 1,
+        },
+        "synthetic-predicate",
+        {
+          environment: { GH_TOKEN: opaque, GH_HOST: "ambient.invalid" },
+          spawn: (_command, _args, settings) => {
+            assert.equal(settings.env?.GH_TOKEN, opaque);
+            assert.equal(settings.env?.GH_HOST, "github.com");
+            return { status: 1, stdout: "", stderr: `certificate issuer differs: ${opaque}` };
+          },
+        },
+      ),
+    (error: unknown) => {
+      assert.ok(error instanceof GitHubApiError);
+      assert.match(error.message, /certificate issuer differs/u);
+      assert.ok(!error.message.includes(opaque));
+      return true;
+    },
+  );
 });

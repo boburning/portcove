@@ -76,11 +76,18 @@ mod ghostship_safety;
 mod shipwright_persistence_tests;
 mod user_selected;
 pub(crate) use backups::{BackupDeletionPhase, RestorePhase};
+mod advisories;
 mod archive_data_transition;
+mod capabilities;
 #[cfg(any(test, feature = "qualification-fixtures"))]
 mod forbidden_memories_qualification;
 mod launch_preparation;
 mod listings;
+pub use advisories::{AdvisoryApplicability, CapabilityAdvisory, PortCapabilityNotice};
+pub use capabilities::{
+    CapabilityFeature, CapabilityMode, PortCapabilityFeature, PortCapabilityReport,
+    PortCapabilityRoute,
+};
 mod psx_mod_data;
 pub(crate) use psx_mod_data::metadata_name as psx_data_metadata_name;
 mod removal;
@@ -1303,7 +1310,8 @@ impl PortcoveService {
                     .collect(),
                 &sources,
             )?;
-            let listing_statuses = self.listing_statuses_from(&catalog, &statuses, listing_raw)?;
+            let listing_statuses =
+                self.listing_statuses_from(&catalog, &statuses, listing_raw, &pending_setups)?;
             // Archive-only orphan rows belong to Activity, not accepted browsing membership.
             // Retain the browsing owner's exact current-definition identity invariant.
             let browsing_statuses = statuses
@@ -16354,6 +16362,104 @@ fn main() {
             )
             .unwrap();
         catalog
+    }
+
+    #[test]
+    fn held_managed_setup_keeps_explicit_existing_copy_registration_and_probe_launch() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let catalog = authenticated_indexed_catalog(&library);
+        let id = "zelda64-recomp";
+        let original = serde_json::to_value(catalog.port(id).unwrap()).unwrap();
+        // Existing private authenticated fixture only; no production key, publisher or feed changes.
+        library.connection().unwrap().execute(
+            "UPDATE definition_publisher_policy SET status='revoked' WHERE namespace='official' AND stable_id='zelda64-recomp'", [],
+        ).unwrap();
+        let mut service = PortcoveService::new_read_only(library).unwrap();
+        service.replace_catalog_for_test(catalog);
+        let before = service.listing_status(id).unwrap();
+        let managed = before
+            .status
+            .port_actions
+            .iter()
+            .find(|a| a.action == PortAction::Install)
+            .unwrap();
+        assert_eq!(managed.availability, PortActionAvailability::Held);
+        assert_eq!(
+            managed.definition.unwrap().reason,
+            crate::DefinitionEligibilityReason::PublisherRevoked
+        );
+        assert!(
+            before
+                .actions
+                .iter()
+                .any(|a| a.action == crate::ListingAction::AttachExisting && a.allowed)
+        );
+        let refusal = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+            .block_on(service.plan_install(id, None))
+            .unwrap_err();
+        assert_eq!(refusal.details["definition_reason"], "publisher_revoked");
+        let working = temporary.path().join("explicitly-selected-copy");
+        fs::create_dir(&working).unwrap();
+        let executable = crate::test_fixture::build_probe(&working);
+        fs::write(working.join("player-save.dat"), b"retained player save").unwrap();
+        let executable_before = fs::read(&executable).unwrap();
+        let arguments = vec![
+            "--record".into(),
+            "route-proof".into(),
+            "explicit existing copy".into(),
+        ];
+        let preview = service
+            .preview_user_selected_runtime(id, &executable, &working, &arguments)
+            .unwrap();
+        let authorization = service
+            .authorize_user_selected_runtime(
+                id,
+                &executable,
+                &working,
+                &arguments,
+                &preview.preview_sha256,
+            )
+            .unwrap();
+        let record = service
+            .register_user_selected_runtime(
+                id,
+                &executable,
+                &working,
+                &arguments,
+                &authorization.token,
+            )
+            .unwrap();
+        assert!(record.user_selected.is_some());
+        assert!(record.retained_definition.is_none());
+        let report = service.port_capabilities(id).unwrap();
+        assert_eq!(
+            report.routes.last().unwrap().install_id.as_deref(),
+            Some(record.id.as_str())
+        );
+        assert!(
+            service
+                .supervise_launch(id, None, &[], LaunchStdio::Null, |_| {})
+                .unwrap()
+                .successful
+        );
+        assert_eq!(
+            fs::read_to_string(working.join("route-proof")).unwrap(),
+            "explicit existing copy"
+        );
+        assert_eq!(fs::read(&executable).unwrap(), executable_before);
+        assert_eq!(
+            fs::read(working.join("player-save.dat")).unwrap(),
+            b"retained player save"
+        );
+        assert_eq!(
+            serde_json::to_value(service.catalog.port(id).unwrap()).unwrap(),
+            original
+        );
+        assert!(service.status(id).unwrap().active.is_none());
     }
 
     fn assert_catalog_contract_retention(retained_format: u32) {

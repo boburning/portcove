@@ -671,6 +671,22 @@ export type LibraryContentKind =
   "application_versions" | "user_data" | "source_inbox" | "backups" | "toolchains" | "local_artwork";
 export type LibrarySelectionSource = "invocation" | "saved" | "platform_default";
 export type ListingAction = "attach-existing" | "relink-existing" | "launch" | "remove-registration";
+export type AdvisoryApplicability = "current-route" | "historical" | "context-required";
+export type CapabilityFeature =
+  | "setup"
+  | "original-files"
+  | "launch"
+  | "updates"
+  | "settings"
+  | "backup"
+  | "restore"
+  | "previous-version"
+  | "gameplay"
+  | "controls"
+  | "audio"
+  | "performance"
+  | "save-compatibility";
+export type PendingSetupState = "downloaded" | "attention-required";
 export type OutputListingStatuses = PortListingStatus[];
 /**
  * Versioned best-effort progress envelope. Durable activity history remains
@@ -736,7 +752,6 @@ export type OutputDestinationOwnership =
   | "unrelated_content"
   | "invalid"
   | "unknown";
-export type PendingSetupState = "downloaded" | "attention-required";
 export type OutputPendingSetups = PendingSetupRecord[];
 /**
  * One documented outcome in the assessed scope, not a universal judgment about a project.
@@ -937,7 +952,7 @@ export interface TransportOutputs {
   game_setting_change: GameSettingChange;
   game_setting_review: OutputGameSettingReview;
   game_settings_contract: GameSettingsContract;
-  game_settings_view: OutputGameSettingsView;
+  game_settings_view: GameSettingsView;
   game_update_acquisition: GameUpdateAcquisition;
   game_update_plan: OutputGameUpdatePlan;
   ghostship_recovery_plan: OutputGhostshipRecoveryPlan;
@@ -970,6 +985,7 @@ export interface TransportOutputs {
   output_relocation_status: OutputOutputRelocationStatus;
   pending_setups: OutputPendingSetups;
   port: PortDefinition;
+  port_capability_report: PortCapabilityReport;
   port_output_location: PortOutputLocation;
   port_paths: OutputPortPaths;
   port_removal_preview: OutputPortRemovalPreview;
@@ -1700,12 +1716,14 @@ export interface OutputCapabilities {
    */
   engine_templates: EngineTemplateCapability[];
   failure_isolated_batches: string[];
+  listing_formats?: number[];
   machine_formats: string[];
   /**
    * Schema used by JSONL operation events, independently from result envelopes.
    */
   operation_event_schema_version: number;
   platforms: Platform[];
+  port_capability_schema?: number | null;
   port_operation_locking: string;
   product: string;
   product_version: string;
@@ -2331,6 +2349,11 @@ export interface PortListing {
    * Authored exception takes precedence over observations only with this reason.
    */
   availability_override_reason?: string | null;
+  /**
+   * Inert optional advisory envelope. Invalid/future content is unavailable as advice,
+   * never an acquisition restriction or an operation grant. Requires listing format 7.
+   */
+  compatibility?: unknown;
   /**
    * Advisory literal filename hints for an upstream-owned download. They do
    * not authenticate a package or grant installation/execution ownership.
@@ -3197,7 +3220,7 @@ export interface OutputGameSettingReview {
  * A missing optional capability is local to settings. It does not disable the
  * installation's independently assessed basic setup or launch capabilities.
  */
-export interface OutputGameSettingsView {
+export interface GameSettingsView {
   available: boolean;
   files: GameSettingsFileView[];
   install_id: string | null;
@@ -3501,6 +3524,10 @@ export interface OutputListingDeliveryStatus {
 }
 export interface PortListingStatus {
   actions: ListingActionAssessment[];
+  /**
+   * Optional inert read model; absence cannot suppress an independently allowed action.
+   */
+  capabilities?: PortCapabilityReport | null;
   port_id: string;
   status: PortStatus;
   [k: string]: unknown;
@@ -3509,6 +3536,67 @@ export interface ListingActionAssessment {
   action: ListingAction;
   allowed: boolean;
   reason?: string | null;
+  [k: string]: unknown;
+}
+export interface PortCapabilityReport {
+  advisories: PortCapabilityNotice[];
+  advisory_state: string;
+  /**
+   * Optional detail failures are local to this report, never action refusals.
+   */
+  detail_problems: string[];
+  format_version: number;
+  /**
+   * Matching observations are enriched only on a focused request. Absence is untested.
+   */
+  observations: RecommendationEvidence[];
+  pending_setup: PendingSetupState | null;
+  port_id: string;
+  protection: PlayerDataProtection | null;
+  routes: PortCapabilityRoute[];
+  settings: GameSettingsView | null;
+  setup_guide: ManualSetupGuide | null;
+  source_readiness: LaunchReadiness | null;
+  [k: string]: unknown;
+}
+export interface PortCapabilityNotice {
+  applicability: AdvisoryApplicability;
+  notice: CapabilityAdvisory;
+  [k: string]: unknown;
+}
+export interface CapabilityAdvisory {
+  artifact_sha256: string | null;
+  edition: string | null;
+  evidence: string;
+  explanation: string;
+  feature: CapabilityFeature;
+  id: string;
+  /**
+   * Unix seconds. A newer date never proves an earlier failure is fixed.
+   */
+  observed_at: number;
+  platform: Platform;
+  provenance: string;
+  release: string | null;
+  route: string;
+  workaround: string | null;
+}
+export interface PortCapabilityRoute {
+  features: PortCapabilityFeature[];
+  install_id: string | null;
+  route: string;
+  [k: string]: unknown;
+}
+export interface PortCapabilityFeature {
+  action: PortActionAssessment | null;
+  explanation: string;
+  feature: CapabilityFeature;
+  listing_action: ListingActionAssessment | null;
+  /**
+   * Management mode, separate from prerequisites and evidence of successful use.
+   */
+  mode: "automatic" | "manual" | "unavailable" | "unknown";
+  next_step: string;
   [k: string]: unknown;
 }
 export interface OutputManagedRouteChangePreview {

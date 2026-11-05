@@ -139,6 +139,21 @@ type Workflow = {
   jobs: Record<string, Job>;
 };
 const root = new URL("../", import.meta.url);
+function assertLockedDependenciesBeforeCredentials(job: Job, credentialed: number) {
+  const checkout = job.steps.findIndex((step) => step.uses?.startsWith("actions/checkout@"));
+  const pnpm = job.steps.findIndex((step) => step.uses?.startsWith("pnpm/action-setup@"));
+  const node = job.steps.findIndex((step) => step.uses?.startsWith("actions/setup-node@"));
+  const install = job.steps.findIndex(
+    (step) => step.run === "pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile",
+  );
+  assert.ok(
+    checkout >= 0 && checkout < pnpm && pnpm < node && node < install && install < credentialed,
+  );
+  assert.equal(job.steps[checkout]!.with?.["persist-credentials"], false);
+  assert.equal(job.steps[pnpm]!.with?.package_json_file, "package.json");
+  assert.equal(job.steps[node]!.with?.["node-version-file"], ".node-version");
+  for (const step of job.steps.slice(0, install + 1)) assert.equal(step.env?.GH_TOKEN, undefined);
+}
 void test("all fixed workers select credentials from their actual full source before minting and selected jobs receive no legacy App tokens", async () => {
   const workflow = parse(
     await readFile(new URL(".github/workflows/application-update-production.yml", root), "utf8"),
@@ -337,6 +352,7 @@ void test("held automatic wake uses one fixed job token without a dispatch App c
     (step) => step.run === "node scripts/release-controller-wake.mts --dispatch",
   );
   assert.ok(prepare >= 0 && prepare < intent && intent < dispatch);
+  assertLockedDependenciesBeforeCredentials(job, prepare);
   assert.equal(job.steps[dispatch]!.env?.GH_TOKEN, "${{ github.token }}");
   assert.equal(
     job.steps[prepare]!.env?.PORTCOVE_CONTROLLER_WAKE,
@@ -374,6 +390,10 @@ void test("dispatch qualification is a bounded secret-free sender and inert rece
       7,
     );
     assert.ok(job.steps.some((step) => step.run === "node scripts/qualify-job-token-dispatch.mts"));
+    assertLockedDependenciesBeforeCredentials(
+      job,
+      job.steps.findIndex((step) => step.run === "node scripts/qualify-job-token-dispatch.mts"),
+    );
   }
   assert.doesNotMatch(
     text,

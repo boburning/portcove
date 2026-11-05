@@ -336,6 +336,20 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
         state_sha256: "a".repeat(64),
       } satisfies Awaited<ReturnType<typeof desktopApi.catalogStatus>>;
     },
+    get_port_capabilities: (args) => {
+      const snapshot = workspace(journey);
+      if (
+        !(
+          snapshot.catalog.ports.some((port) => port.id === args?.portId) ||
+          snapshot.listing_catalog?.listings.some((listing) => listing.id === args?.portId)
+        )
+      )
+        return unsupported("get_port_capabilities");
+      requireArgs("get_port_capabilities", args, { portId: args?.portId, generation });
+      // Optional read failure is a supported fixture state, not an unsupported
+      // action. These journeys do not reproduce Core's capability assessment.
+      throw new Error("Feature details are unavailable in this browser fixture.");
+    },
     launch_port: (args) => {
       const status = workspace(journey).statuses.find((item) => item.port_id === args?.portId);
       if (

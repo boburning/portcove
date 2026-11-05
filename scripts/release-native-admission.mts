@@ -173,7 +173,7 @@ export async function collectConfiguredNativeReleaseQualificationPair(
   );
   const selectedLocators =
     capturedLocators === null
-      ? discoverNativeQualificationLocators(templates, deadline)
+      ? await discoverNativeQualificationLocators(templates, deadline)
       : capturedLocators;
   const expected = bindNativeQualificationLocators(selectedLocators, templates);
   return collectNativeReleaseQualificationPair(

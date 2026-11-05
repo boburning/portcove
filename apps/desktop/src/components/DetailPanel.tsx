@@ -1,4 +1,6 @@
 import { AuthoredSetupWarnings } from "./AuthoredSetupWarnings";
+import { PortCapabilities } from "./PortCapabilities";
+import { setupRoutePresentation } from "../features/port-actions/setup-route-presentation";
 import { Chip } from "./ui/chip";
 import { IdentityIcon } from "../features/identity/IdentityIcon";
 import { identityStyle } from "../features/identity/identity-style";
@@ -452,8 +454,18 @@ function DetailBody(model: {
   const { busy } = model;
   const managedPreparation = needsManagedPreparation(model.port, model.installed, model.status);
   const external = usesExternalRuntimeRoute(model.port, model.status);
+  const setupRoutes = setupRoutePresentation(
+    model.displayPort ?? { ...model.port, definition: model.port },
+    model.status,
+  );
   const directInstall =
-    !model.installed && !model.status?.staged && !external && model.sourceReady && model.biosReady;
+    !setupRoutes.promoteAlternative &&
+    !portActionPresentation(model.status, "install").blocked &&
+    !model.installed &&
+    !model.status?.staged &&
+    !external &&
+    model.sourceReady &&
+    model.biosReady;
   const initialSection = initialDetailSection({
     destination: model.opening?.destination,
     needsFiles:
@@ -492,7 +504,7 @@ function DetailBody(model: {
           )}
         >
           <Icon glyph={model.state.icon} />
-          {model.state.title}
+          {setupRoutes.promoteAlternative ? setupRoutes.label : model.state.title}
         </span>
       }
       installation={detailInstallationLabel(model.status, directInstall)}
@@ -508,15 +520,21 @@ function DetailBody(model: {
             onClick={() => {
               reveal(
                 "files",
-                "detail-game-actions",
-                external
+                setupRoutes.promoteAlternative
+                  ? "detail-self-service-setup"
+                  : "detail-game-actions",
+                external || setupRoutes.promoteAlternative
                   ? undefined
                   : ".primary-actions button:not(:disabled):not([aria-disabled=true]), .preparation-control button:not(:disabled)",
               );
               if (directInstall) void model.actions.reviewInstall();
             }}
           >
-            {directInstall ? "Install" : "Set up"}
+            {setupRoutes.promoteAlternative
+              ? "View setup options"
+              : directInstall
+                ? "Install"
+                : "Set up"}
             <Icon glyph={ArrowRight} />
           </Button>
         )
@@ -537,7 +555,11 @@ function DetailBody(model: {
           ) : model.state.tone !== "ready" ? (
             <div className="detail-notice-row">
               <Icon glyph={Info} />
-              <span data-detail-reason>{model.state.description}</span>
+              <span data-detail-reason>
+                {setupRoutes.promoteAlternative
+                  ? `Manual setup is available. Managed setup: ${setupRoutes.managedReason}`
+                  : model.state.description}
+              </span>
             </div>
           ) : null}
           {(model.runtimeUpdateAvailable || model.stagedVersion) && (
@@ -3522,6 +3544,18 @@ function DetailOverviewActions({
 }) {
   return (
     <>
+      {model.displayPort &&
+        setupRoutePresentation(model.displayPort, model.status).promoteAlternative && (
+          <Button
+            data-focusable
+            variant="primary"
+            onClick={() =>
+              reveal("files", "detail-self-service-setup", "[data-self-service-continue]")
+            }
+          >
+            Use an existing installation <Icon glyph={ArrowRight} />
+          </Button>
+        )}
       <div className="detail-journey-links">
         <Button
           variant="ghost"
@@ -3583,6 +3617,13 @@ function DetailOverviewSection({ model }: { model: Parameters<typeof DetailBody>
 function DetailOverviewEvidence({ model }: { model: Parameters<typeof DetailBody>[0] }) {
   return (
     <section className="detail-evidence" aria-label="Project information and checks">
+      <PortCapabilities
+        entry={model.displayPort ?? { ...model.port, definition: model.port }}
+        status={model.status}
+        generation={model.libraryGeneration}
+        busy={Boolean(model.busy)}
+        detailsContext={[model.backups, model.backupProtection, model.backupReadState]}
+      />
       <details className="mt-6">
         <summary data-focusable>Project status and release information</summary>
         <ProjectReleaseSummary port={model.port} />
@@ -3616,6 +3657,7 @@ function DetailFilesSection({
   return (
     <div className="detail-files-workspace">
       <div className="detail-files-stack">
+        {model.extraFiles}
         <StatusActionsGroup
           hidePlay={model.installed && model.launchReady}
 
@@ -3734,7 +3776,6 @@ function DetailManageSection({
           port={model.port}
         />
       </ManagementRow>
-      {model.extraFiles}
       {!external && (
         <ManagementRow
           title="Steam shortcut"

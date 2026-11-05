@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
-import { readFile } from "node:fs/promises";
+import { readFile, mkdtemp, rm } from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
@@ -15,8 +16,254 @@ import {
   observeJobTokenDispatchRun,
 } from "./release-controller-wake.mts";
 import { isRecord } from "./runtime-values.mts";
+import type { WakeProvider } from "./release-wake-provider.mts";
+import { createWakeProvider } from "./release-wake-provider.mts";
+import { readFixtureModuleClosure } from "./fixtures/module-closure.mts";
+import { isBuiltin } from "node:module";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
+
+void test(
+  "actual inert fixture charges setup to the original job and retains one refused dispatch",
+  { skip: process.platform !== "linux" },
+  async (context) => {
+    const before = { ...process.env };
+    for (const expired of [true, false]) {
+      const directory = await mkdtemp(path.join(os.tmpdir(), "sdk-dispatch-fixture-"));
+      let sends = 0,
+        posts = 0;
+      const source = "a".repeat(40);
+      Object.assign(process.env, {
+        PORTCOVE_DISPATCH_FIXTURE_MODE: "send",
+        PORTCOVE_DISPATCH_PARENT_RUN: "",
+        PORTCOVE_DISPATCH_PARENT_REVISION: "",
+        GITHUB_ACTIONS: "true",
+        RUNNER_ENVIRONMENT: "github-hosted",
+        GITHUB_SERVER_URL: "https://github.com",
+        GITHUB_API_URL: "https://api.github.com",
+        GITHUB_REPOSITORY: "boburning/portcove",
+        GITHUB_REPOSITORY_ID: "1354613114",
+        GITHUB_EVENT_NAME: "workflow_dispatch",
+        GITHUB_REF: "refs/heads/main",
+        GITHUB_REF_PROTECTED: "true",
+        GITHUB_RUN_ATTEMPT: "1",
+        GITHUB_JOB: "send",
+        GITHUB_SHA: source,
+        GITHUB_WORKFLOW_SHA: source,
+        GITHUB_WORKFLOW_REF:
+          "boburning/portcove/.github/workflows/job-token-dispatch-fixture.yml@refs/heads/main",
+        GITHUB_RUN_ID: "42",
+        RUNNER_TEMP: directory,
+        GH_TOKEN: "synthetic-fixture-token",
+      });
+      const mocked = context.mock.method(
+        globalThis,
+        "fetch",
+        async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+          sends++;
+          const url = new URL(input instanceof Request ? input.url : String(input));
+          assert.equal(new Headers(init?.headers).get("x-github-api-version"), "2022-11-28");
+          if (url.pathname.endsWith("/attempts/1/jobs"))
+            return Response.json({
+              total_count: 1,
+              jobs: [
+                {
+                  id: 77,
+                  name: "Send inert job-token dispatch",
+                  run_id: 42,
+                  run_attempt: 1,
+                  head_sha: source,
+                  status: "in_progress",
+                  started_at: new Date(Date.now() - (expired ? 60000 : 5000)).toISOString(),
+                },
+              ],
+            });
+          if (url.pathname.endsWith("/actions/runs/42"))
+            return Response.json({
+              id: 42,
+              path: ".github/workflows/job-token-dispatch-fixture.yml",
+              head_sha: source,
+              head_branch: "main",
+              event: "workflow_dispatch",
+              run_attempt: 1,
+              repository: { id: 1354613114, full_name: "boburning/portcove" },
+              head_repository: { id: 1354613114 },
+              actor: { id: 41898282 },
+              triggering_actor: { id: 41898282 },
+            });
+          assert.equal(
+            url.pathname,
+            "/repos/boburning/portcove/actions/workflows/job-token-dispatch-fixture.yml/dispatches",
+          );
+          assert.equal(init?.method, "POST");
+          posts++;
+          return Response.json({ message: "unavailable" }, { status: 503 });
+        },
+      );
+      try {
+        await assert.rejects(
+          import(
+            new URL(`./qualify-job-token-dispatch.mts?fixture=${expired}`, import.meta.url).href
+          ),
+          expired ? /original job budget exhausted/ : /retain original dispatch/,
+        );
+        const records = (
+          await readFile(path.join(directory, "job-token-dispatch-fixture/receipt.jsonl"), "utf8")
+        )
+          .trim()
+          .split("\n")
+          .map((line) => JSON.parse(line) as { phase: string; value: unknown });
+        assert.equal(posts, expired ? 0 : 1);
+        assert.equal(sends, expired ? 1 : 3);
+        if (!expired) {
+          const response = records.findIndex((row) => row.phase === "dispatch-response");
+          assert.ok(
+            response >= 0 &&
+              response < records.findIndex((row) => row.phase === "dispatch-ambiguous"),
+          );
+          assert.deepEqual(records[response]!.value, {
+            status: 503,
+            body: { message: "unavailable" },
+          });
+        }
+      } finally {
+        mocked.mock.restore();
+        for (const key of Object.keys(process.env))
+          if (!Object.hasOwn(before, key)) delete process.env[key];
+        Object.assign(process.env, before);
+        await rm(directory, { recursive: true, force: true });
+      }
+    }
+  },
+);
+
+void test("locked wake SDK retains the acknowledged run before refusing expiry", async (context) => {
+  let monotonic = 1000,
+    sends = 0;
+  context.mock.method(performance, "now", () => monotonic);
+  const f = fixture(true),
+    records: { phase: string; evidence: unknown }[] = [];
+  const api = await createWakeProvider({
+    token: "synthetic-wake-token",
+    deadline: 2000,
+    remainingDeadline: () => 2000,
+    apiVersion: "2026-03-10",
+    maxBytes: 2 * 1024 ** 2,
+    now: () => monotonic,
+    fetch: async (input, init) => {
+      sends++;
+      assert.equal(
+        input instanceof Request ? input.url : String(input),
+        "https://api.github.com/repos/boburning/portcove/actions/runs/900",
+      );
+      assert.equal(new Headers(init?.headers).get("authorization"), "token synthetic-wake-token");
+      assert.equal(new Headers(init?.headers).get("x-github-api-version"), "2026-03-10");
+      assert.equal(init?.redirect, "manual");
+      return Response.json(f.actualRun());
+    },
+  });
+  await assert.rejects(
+    observeJobTokenDispatchRun(
+      api,
+      {
+        run_id: "900",
+        revision: f.config.revision,
+        workflow: ".github/workflows/application-update-production.yml",
+        display_title: "Portcove application release wake 42",
+      },
+      async (phase, evidence) => {
+        await new Promise((resolve) => setImmediate(resolve));
+        records.push({ phase, evidence });
+        monotonic = 2001;
+      },
+      2000,
+    ),
+    /readback unavailable/,
+  );
+  assert.equal(sends, 1);
+  assert.deepEqual(records, [
+    {
+      phase: "dispatch-run-readback",
+      evidence: {
+        run_id: "900",
+        index: 1,
+        status: 200,
+        body: f.actualRun(),
+      },
+    },
+  ]);
+});
+
+void test("locked wake SDK keeps dispatch one shot and never retains an incomplete run", async () => {
+  for (const mode of ["dispatch", "stream", "cap", "redirect"] as const) {
+    let sends = 0,
+      retained = 0;
+    const api = await createWakeProvider({
+      token: "synthetic-wake-token",
+      deadline: performance.now() + 5000,
+      remainingDeadline: () => performance.now() + 5000,
+      apiVersion: "2022-11-28",
+      maxBytes: mode === "cap" ? 1 : 1024,
+      fetch: async (_input, init) => {
+        sends++;
+        if (mode === "dispatch") {
+          assert.equal(init?.method, "POST");
+          assert.equal(typeof init?.body, "string");
+          assert.deepEqual(JSON.parse(init?.body as string), {
+            ref: "main",
+            return_run_details: true,
+            inputs: { mode: "receive" },
+          });
+          return Response.json({ message: "unavailable" }, { status: 503 });
+        }
+        if (mode === "stream")
+          return new Response(
+            new ReadableStream({
+              start(controller) {
+                controller.error(new Error("broken stream"));
+              },
+            }),
+          );
+        if (mode === "redirect")
+          return new Response(null, {
+            status: 302,
+            headers: { location: "https://foreign.invalid" },
+          });
+        return Response.json({ id: 900 });
+      },
+    });
+    const retain = async () => {
+      retained++;
+    };
+    const body = { ref: "main", return_run_details: true, inputs: { mode: "receive" } };
+    const pending =
+      mode === "dispatch"
+        ? api.dispatch("job-token-dispatch-fixture.yml", body, retain)
+        : api.run("900", retain);
+    body.ref = "unapproved";
+    body.inputs.mode = "unapproved";
+    await assert.rejects(pending);
+    assert.equal(sends, 1);
+    assert.equal(retained, mode === "dispatch" ? 1 : 0);
+  }
+});
+
+void test("wake retains its original command identity across asynchronous reads", async () => {
+  const f = fixture(true),
+    repository = f.api.repository;
+  f.api.repository = async () => {
+    const result = await repository();
+    f.env.GITHUB_RUN_ID = "99";
+    return result;
+  };
+  const result = await wakeRatifiedController(f.config, f.env, f.api, f.record, {
+    mode: "prepare",
+  });
+  assert.ok("intent" in result);
+  assert.equal(result.intent.wake_run_id, "42");
+  assert.ok(f.calls.some((call) => call.endpoint.endsWith("/42/attempts/1/jobs?per_page=100")));
+  assert.equal(f.calls.filter((call) => call.method === "POST").length, 0);
+});
 function fixture(jobToken = false) {
   const bytes = Buffer.from("fixed inert controller workflow\n"),
     wakeBytes = Buffer.from("fixed inert wake workflow\n");
@@ -106,128 +353,136 @@ function fixture(jobToken = false) {
       ? "d".repeat(40)
       : createHash("sha1").update(`blob ${contents.length}\0`).update(contents).digest("hex"),
   });
-  const api = {
-    request(method: string, endpoint: string, body?: unknown) {
-      calls.push({ method, endpoint, body });
-      let result: unknown;
-      if (method === "POST") {
-        assert.equal(
-          endpoint,
-          `${base}/actions/workflows/application-update-production.yml/dispatches`,
-        );
-        if (postStatus === null) throw new Error("lost original response");
-        return {
-          status: postStatus,
-          headers: new Map<string, string>(),
-          body: {
-            workflow_run_id: 900,
-            run_url: `https://api.github.com/${base}/actions/runs/900`,
-            html_url: "https://github.com/boburning/portcove/actions/runs/900",
-          },
-        };
-      }
-      if (endpoint === base)
-        result = {
-          id: 1354613114,
-          full_name: "boburning/portcove",
-          default_branch: "main",
-          private: privateRepo,
-        };
-      else if (endpoint === `${base}/git/ref/heads/main`)
-        result = { ref: "refs/heads/main", object: { type: "commit", sha: env.GITHUB_SHA } };
-      else if (endpoint.includes("git/ref/tags/"))
-        result = {
-          ref: config.execution_ref,
-          object: {
-            type: "commit",
-            sha: changed && calls.length > 4 ? "c".repeat(40) : config.revision,
-          },
-        };
-      else if (endpoint.includes("contents/.github/workflows/application-update-production.yml"))
-        result = file(".github/workflows/application-update-production.yml", bytes);
-      else if (endpoint.includes("contents/.github/workflows/application-update-wake.yml"))
-        result = file(".github/workflows/application-update-wake.yml", wakeBytes);
-      else if (endpoint === `${base}/actions/runs/42`) result = ownRun;
-      else if (endpoint === `${base}/actions/runs/42/attempts/1/jobs?per_page=100`)
-        result = {
-          total_count: 1,
-          jobs: [
-            {
-              id: 77,
-              name: "Wake fixed application controller",
-              run_id: 42,
-              run_attempt: 1,
-              head_sha: env.GITHUB_SHA,
-              status: "in_progress",
-              started_at: created,
+  const seen = (endpoint: string) => calls.push({ method: "GET", endpoint });
+  const api: WakeProvider = {
+    async repository() {
+      seen(base);
+      return {
+        id: 1354613114,
+        full_name: "boburning/portcove",
+        default_branch: "main",
+        private: privateRepo,
+      };
+    },
+    async ref(name) {
+      seen(`${base}/git/ref/${name}`);
+      return name === "heads/main"
+        ? { ref: "refs/heads/main", object: { type: "commit", sha: env.GITHUB_SHA } }
+        : {
+            ref: config.execution_ref,
+            object: {
+              type: "commit",
+              sha: changed && calls.length > 4 ? "c".repeat(40) : config.revision,
             },
-          ],
-        };
-      else if (endpoint === `${base}/actions/runs/900`)
-        result = wrongActor
-          ? { ...actualRun(), actor: { id: 99 } }
-          : actualRun(prior.length ? "41" : "42");
-      else if (endpoint.includes("actions/workflows/application-update-wake.yml/runs?"))
-        result = { total_count: 1 + prior.length, workflow_runs: [ownRun, ...prior] };
-      else if (endpoint.includes("actions/workflows/application-update-production.yml/runs?"))
-        result = { total_count: recovered.length, workflow_runs: recovered };
-      else if (endpoint.includes("/actions/runs/41/attempts/1/jobs"))
-        result = {
-          total_count: 1,
-          jobs: [
-            {
-              name: "Wake fixed application controller",
-              run_id: 41,
-              run_attempt: 1,
-              head_sha: env.GITHUB_SHA,
-              status: "completed",
-              steps: [
-                {
-                  name: "Dispatch retained immutable controller intent",
-                  status: "completed",
-                  conclusion: skipped ? "skipped" : "failure",
-                },
-              ],
-            },
-          ],
-        };
-      else if (endpoint === `${base}/actions/artifacts/1`)
-        result = {
-          id: 1,
-          name: "controller-wake-intent-42-1",
-          digest: `sha256:${hash(archive)}`,
-          expired: false,
-          size_in_bytes: archive.length,
-          workflow_run: {
-            id: 42,
-            repository_id: 1354613114,
-            head_repository_id: 1354613114,
-            head_sha: env.GITHUB_SHA,
-          },
-        };
-      else if (endpoint === `${base}/actions/runs/41/artifacts?per_page=100`)
-        result = {
-          total_count: 1,
-          artifacts: [
-            { id: 2, name: "controller-wake-intent-41-1", digest: `sha256:${hash(priorArchive)}` },
-          ],
-        };
-      else if (endpoint === `${base}/actions/artifacts/2`)
-        result = {
-          id: 2,
-          name: "controller-wake-intent-41-1",
-          digest: `sha256:${hash(priorArchive)}`,
-          expired: false,
-          size_in_bytes: priorArchive.length,
-          workflow_run: {
-            id: 41,
-            repository_id: 1354613114,
-            head_repository_id: 1354613114,
-            head_sha: env.GITHUB_SHA,
-          },
-        };
-      else throw new Error(`unexpected route ${endpoint}`);
-      return { status: 200, headers: new Map<string, string>(), body: result };
+          };
+    },
+    async file(filename) {
+      seen(`${base}/contents/${filename}`);
+      assert.ok(
+        [
+          ".github/workflows/application-update-production.yml",
+          ".github/workflows/application-update-wake.yml",
+        ].includes(filename),
+      );
+      return file(filename, filename.endsWith("application-update-wake.yml") ? wakeBytes : bytes);
+    },
+    async run(id, retain) {
+      seen(`${base}/actions/runs/${id}`);
+      assert.ok(["42", "900"].includes(id));
+      const body =
+        id === "42"
+          ? ownRun
+          : wrongActor
+            ? { ...actualRun(), actor: { id: 99 } }
+            : actualRun(prior.length ? "41" : "42");
+      await retain?.({ status: 200, body });
+      return body;
+    },
+    async jobs(id) {
+      seen(`${base}/actions/runs/${id}/attempts/1/jobs?per_page=100`);
+      assert.ok(["42", "41"].includes(id));
+      return {
+        total_count: 1,
+        jobs: [
+          id === "42"
+            ? {
+                id: 77,
+                name: "Wake fixed application controller",
+                run_id: 42,
+                run_attempt: 1,
+                head_sha: env.GITHUB_SHA,
+                status: "in_progress",
+                started_at: created,
+              }
+            : {
+                name: "Wake fixed application controller",
+                run_id: 41,
+                run_attempt: 1,
+                head_sha: env.GITHUB_SHA,
+                status: "completed",
+                steps: [
+                  {
+                    name: "Dispatch retained immutable controller intent",
+                    status: "completed",
+                    conclusion: skipped ? "skipped" : "failure",
+                  },
+                ],
+              },
+        ],
+      };
+    },
+    async runs(workflow, _filters, page) {
+      seen(`${base}/actions/workflows/${workflow}/runs?page=${page}`);
+      return workflow === "application-update-wake.yml"
+        ? { total_count: 1 + prior.length, workflow_runs: [ownRun, ...prior] }
+        : { total_count: recovered.length, workflow_runs: recovered };
+    },
+    async artifacts(id) {
+      seen(`${base}/actions/runs/${id}/artifacts?per_page=100`);
+      assert.equal(id, "41");
+      return {
+        total_count: 1,
+        artifacts: [
+          { id: 2, name: "controller-wake-intent-41-1", digest: `sha256:${hash(priorArchive)}` },
+        ],
+      };
+    },
+    async artifact(id) {
+      seen(`${base}/actions/artifacts/${id}`);
+      assert.ok([1, 2].includes(id));
+      const selected = id === 1 ? archive : priorArchive;
+      return {
+        id,
+        name: `controller-wake-intent-${id === 1 ? "42" : "41"}-1`,
+        digest: `sha256:${hash(selected)}`,
+        expired: false,
+        size_in_bytes: selected.length,
+        workflow_run: {
+          id: id === 1 ? 42 : 41,
+          repository_id: 1354613114,
+          head_repository_id: 1354613114,
+          head_sha: env.GITHUB_SHA,
+        },
+      };
+    },
+    async dispatch(workflow, body, retain) {
+      assert.equal(workflow, "application-update-production.yml");
+      calls.push({
+        method: "POST",
+        endpoint: `${base}/actions/workflows/application-update-production.yml/dispatches`,
+        body,
+      });
+      if (postStatus === null) throw new Error("lost original response");
+      const response = {
+        status: postStatus,
+        body: {
+          workflow_run_id: 900,
+          run_url: `https://api.github.com/${base}/actions/runs/900`,
+          html_url: "https://github.com/boburning/portcove/actions/runs/900",
+        },
+      };
+      await retain?.(response);
+      return response;
     },
   };
   const record = async (phase: string, evidence: unknown) => {
@@ -341,14 +596,13 @@ void test("changed durable intent and incomplete or saturated previous-run cover
   for (const total of [2, 1000]) {
     const f = fixture();
     await f.prepare();
-    const original = f.api.request.bind(f.api);
-    f.api.request = (method, endpoint, body) => {
-      const response = original(method, endpoint, body);
-      if (endpoint.includes("application-update-wake.yml/runs?")) {
-        assert.ok(isRecord(response.body));
-        return { ...response, body: { ...response.body, total_count: total } };
-      }
-      return response;
+    const original = f.api.runs;
+    f.api.runs = async (...args) => {
+      const response = await original(...args);
+      assert.ok(isRecord(response));
+      return args[0] === "application-update-wake.yml"
+        ? { ...response, total_count: total }
+        : response;
     };
     await assert.rejects(f.dispatch(), /inventory|saturated/);
     assert.equal(f.calls.filter((call) => call.method === "POST").length, 0);
@@ -360,10 +614,8 @@ void test("a successful prior workflow cuts off history only with its exact dura
   await same.prepare();
   same.priorSuccess();
   // The actual current dispatch is not needed to prove the historical boundary.
-  const original = same.api.request.bind(same.api);
-  same.api.request = (method, endpoint, body) => {
-    if (method === "POST") throw new Error("stop after authenticated prior boundary");
-    return original(method, endpoint, body);
+  same.api.dispatch = async () => {
+    throw new Error("stop after authenticated prior boundary");
   };
   await assert.rejects(same.dispatch(), /requires controller-run readback/);
   assert.ok(same.records.some((row) => row.phase === "prior-wake-boundary-observed"));
@@ -381,24 +633,13 @@ void test("a successful prior workflow cuts off history only with its exact dura
 });
 
 void test("fixed wake uses its job token and retains intent before dispatch without any App secret", async () => {
-  const root = fileURLToPath(new URL("..", import.meta.url)),
-    seen = new Set<string>();
-  async function visit(filename: string) {
-    if (seen.has(filename)) return;
-    seen.add(filename);
-    const text = await readFile(filename, "utf8");
-    for (const match of text.matchAll(/\bfrom\s+["']([^"']+)["']/gu)) {
-      const specifier = match[1]!;
-      if (specifier.startsWith("node:")) continue;
-      assert.ok(
-        specifier.startsWith("./") && specifier.endsWith(".mts"),
-        `external wake dependency ${specifier}`,
-      );
-      await visit(path.resolve(path.dirname(filename), specifier));
-    }
-  }
-  await visit(path.join(root, "scripts/release-controller-wake.mts"));
-  assert.ok(seen.size > 5);
+  const root = fileURLToPath(new URL("..", import.meta.url));
+  const closure = readFixtureModuleClosure(root, ["scripts/release-controller-wake.mts"]);
+  assert.ok(closure.modules.length > 5);
+  assert.deepEqual(
+    closure.external.filter((name) => !isBuiltin(name)),
+    ["@octokit/core", "@octokit/plugin-paginate-rest"],
+  );
   const workflow = await readFile(
     path.join(root, "docs/qualification/application-update-wake.held.yml"),
     "utf8",
@@ -410,7 +651,7 @@ void test("fixed wake uses its job token and retains intent before dispatch with
   );
   assert.doesNotMatch(
     workflow,
-    /pnpm install|npm install|^\s+cache:|secrets\.|create-github-app-token/mu,
+    /\bnpm (?:ci|install)\b|^\s+cache:|secrets\.|create-github-app-token/mu,
   );
   assert.match(workflow, /    permissions:\n      contents: read\n      actions: write/u);
   assert.match(workflow, /fromJSON\(vars\.PORTCOVE_CONTROLLER_WAKE\)\.schema_version == 4/u);
@@ -461,18 +702,12 @@ void test("wrong or stale job-token producer and wrong dispatched actor refuse w
     { started_at: "2099-01-01T00:00:00Z" },
   ]) {
     const f = fixture(true),
-      original = f.api.request.bind(f.api);
-    f.api.request = (method, endpoint, body) => {
-      const response = original(method, endpoint, body);
-      if (endpoint.endsWith("/42/attempts/1/jobs?per_page=100")) {
-        assert.ok(isRecord(response.body) && Array.isArray(response.body.jobs));
-        assert.ok(isRecord(response.body.jobs[0]));
-        return {
-          ...response,
-          body: { ...response.body, jobs: [{ ...response.body.jobs[0], ...change }] },
-        };
-      }
-      return response;
+      original = f.api.jobs;
+    f.api.jobs = async (id) => {
+      const response = await original(id);
+      assert.ok(isRecord(response) && Array.isArray(response.jobs));
+      assert.ok(isRecord(response.jobs[0]));
+      return { ...response, jobs: [{ ...response.jobs[0], ...change }] };
     };
     await assert.rejects(f.prepare(), /exact live hosted job/);
     assert.equal(f.calls.filter((call) => call.method === "POST").length, 0);
@@ -523,16 +758,15 @@ void test("the shared job-token readback cannot turn a different workflow or gen
 void test("post-ack title settlement retains each original readback and never repeats dispatch", async (context) => {
   context.mock.timers.enable({ apis: ["setTimeout"] });
   const f = fixture(true),
-    original = f.api.request.bind(f.api);
+    original = f.api.run;
   let reads = 0;
-  f.api.request = (method, endpoint, body) => {
-    const response = original(method, endpoint, body);
-    if (endpoint.endsWith("/actions/runs/900") && ++reads === 1)
-      return {
-        ...response,
-        body: { ...f.actualRun(), status: "queued", display_title: "pending title" },
-      };
-    return response;
+  f.api.run = async (id, retain) => {
+    if (id === "900" && ++reads === 1) {
+      const body = { ...f.actualRun(), status: "queued", display_title: "pending title" };
+      await retain?.({ status: 200, body });
+      return body;
+    }
+    return original(id, retain);
   };
   await f.prepare();
   const pending = f.dispatch();
@@ -564,19 +798,12 @@ void test("unsettled correlation exhausts four GETs inside the original budget w
   const pending = assert.rejects(
     observeJobTokenDispatchRun(
       {
-        request(method, endpoint) {
-          assert.equal(method, "GET");
-          assert.equal(endpoint, "repos/boburning/portcove/actions/runs/900");
+        async run(id, retain) {
+          assert.equal(id, "900");
           reads++;
-          return {
-            status: 200,
-            headers: new Map(),
-            body: {
-              ...f.actualRun(),
-              status: "queued",
-              display_title: "pending title",
-            },
-          };
+          const body = { ...f.actualRun(), status: "queued", display_title: "pending title" };
+          await retain?.({ status: 200, body });
+          return body;
         },
       },
       expected,
@@ -600,10 +827,10 @@ void test("a production-wrapped GET crossing expiry retains its returned body be
   let monotonic = 1000;
   context.mock.method(performance, "now", () => monotonic);
   const f = fixture(true),
-    original = f.api.request.bind(f.api);
-  f.api.request = (method, endpoint, body) => {
-    const response = original(method, endpoint, body);
-    if (endpoint.endsWith("/actions/runs/900")) monotonic = 60000;
+    original = f.api.run;
+  f.api.run = async (id, retain) => {
+    const response = await original(id, retain);
+    if (id === "900") monotonic = 60000;
     return response;
   };
   await f.prepare();
@@ -635,10 +862,10 @@ void test("immutable identity failures, unavailable responses and deadline exhau
     await assert.rejects(
       observeJobTokenDispatchRun(
         {
-          request(method) {
-            assert.equal(method, "GET");
+          async run(_id, retain) {
             reads++;
-            return { status: 200, headers: new Map(), body };
+            await retain?.({ status: 200, body });
+            return body;
           },
         },
         expected,
@@ -654,7 +881,7 @@ void test("immutable identity failures, unavailable responses and deadline exhau
   let reads = 0;
   const records: { phase: string; evidence: unknown }[] = [],
     api = {
-      request() {
+      async run() {
         reads++;
         throw new Error("transport unavailable");
       },
@@ -676,13 +903,11 @@ void test("immutable identity failures, unavailable responses and deadline exhau
   await assert.rejects(
     observeJobTokenDispatchRun(
       {
-        request() {
+        async run(_id, retain) {
           reads++;
-          return {
-            status: 200,
-            headers: new Map(),
-            body: { ...f.actualRun(), status: "queued", display_title: "pending" },
-          };
+          const body = { ...f.actualRun(), status: "queued", display_title: "pending" };
+          await retain?.({ status: 200, body });
+          return body;
         },
       },
       expected,

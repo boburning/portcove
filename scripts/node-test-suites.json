@@ -3200,6 +3200,7 @@
     },
     {
       "file": "scripts/release-publication-source.test.mts",
+      "desktop_dependencies": true,
       "memberships": [
         ["catalog-full-2", 13100],
         ["release-check", 11100]

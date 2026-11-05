@@ -60,6 +60,49 @@ impl PortcoveService {
         self.require_portable_transition_to(from, &self.installed_port(previous)?, Some(previous))
     }
 
+    /// Omitting an incidental wrapper does not move any owned data. Normalize
+    /// only data-free native runtimes whose explicit root is already the parent
+    /// of the authenticated retained player; never search today's filesystem.
+    fn equivalent_native_player_root(
+        from: &InstallRecord,
+        retained: &PortDefinition,
+        to: &PortDefinition,
+        retained_target: Option<&InstallRecord>,
+    ) -> Result<bool> {
+        if retained.runtime_subdirectory == to.runtime_subdirectory {
+            return Ok(true);
+        }
+        for port in [retained, to] {
+            if port.adapter != AdapterKind::NativePortable
+                || port.launch_from_install_root
+                || !port.persistent_paths.is_empty()
+                || !port.persistent_file_patterns.is_empty()
+                || port.source_profile.is_some()
+                || port.bios_source_profile.is_some()
+                || port.runtime_source_filename.is_some()
+                || !port.runtime_source_set.is_empty()
+                || port.user_data_environment.is_some()
+                || port.windows_temp_directory.is_some()
+                || port.mod_package_policy.is_some()
+            {
+                return Ok(false);
+            }
+        }
+        let at_player_parent =
+            |port: &PortDefinition, install: Option<&InstallRecord>| -> Result<bool> {
+                let Some(root) = &port.runtime_subdirectory else {
+                    return Ok(true);
+                };
+                let Some(install) = install else {
+                    // A new explicit target has no authenticated resolved coordinate.
+                    return Ok(false);
+                };
+                let identity = crate::install::retained_build_identity_for_install(install)?;
+                Ok(identity.selected_executable.parent() == Some(Path::new(root)))
+            };
+        Ok(at_player_parent(retained, Some(from))? && at_player_parent(to, retained_target)?)
+    }
+
     fn require_portable_transition_to(
         &self,
         from: &InstallRecord,
@@ -86,7 +129,7 @@ impl PortcoveService {
             || retained.mod_package_policy != to.mod_package_policy
             || retained.persistent_file_patterns != to.persistent_file_patterns
             || retained.archive_data_compatibility_v1 != to.archive_data_compatibility_v1
-            || retained.runtime_subdirectory != to.runtime_subdirectory
+            || !Self::equivalent_native_player_root(from, &retained, to, retained_rollback)?
             || retained.windows_temp_directory != to.windows_temp_directory
             || retained.launch_from_install_root != to.launch_from_install_root
             || retained.executable_hints.get(&platform) != to.executable_hints.get(&platform)

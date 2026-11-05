@@ -6,6 +6,40 @@ authoring. The [definition contract](DEFINITION-DELIVERY.md#implemented-engine-c
 owns engine negotiation; detailed port examples and dated receipts below retain
 their original scope and do not establish another port's admission or support.
 
+## Descriptive compatibility advisories
+
+The optional `listing.compatibility` format-1 envelope belongs to the existing
+single per-port authored record. Use existing generated setup warnings and exact
+recommendation observations first; no bulk backfill is required. This envelope
+contains only remaining descriptive facts, never acquisition restrictions,
+execution grants, commands, signature overrides or private paths.
+
+Each of at most 64 records has a stable `id`, `feature`, `platform`, `route`,
+`explanation`, public HTTPS `provenance`, Unix-seconds `observed_at`, and `evidence`
+(`observed`, `upstream-reported` or `manual-requirement`). Optional `release`,
+`artifact_sha256`, `edition` and descriptive `workaround` narrow applicability.
+An artifact digest requires its actual release. The envelope is bounded to
+64 KiB and requires listing format 7 or later. A directory also carrying GitLab
+observations uses format 8. Authoring rejects malformed, future, unknown
+and command-bearing content. Runtime interpretation makes invalid or future
+optional content unavailable without changing operation eligibility.
+
+Route-wide management facts need no invented artifact identity. Version-specific
+failures retain their exact release/artifact/edition scope; a date or a missing
+later observation never establishes recovery. Existing recommendation evidence
+keeps its own exact-scope failure and correction semantics. The feature report
+shows those records as historical until the recommendation owner has a matching
+environment and identity; it does not produce another recommendation score.
+
+Legacy format-5/6 exports omit only inert compatibility advice and retain
+acquisition restrictions. GitLab-bearing directories refuse exports below format
+8; format 7 retains advice without accepting GitLab observation identities.
+A retained user-selected listing carrying advice uses
+envelope version 3 so earlier strict readers refuse unfamiliar content. Existing
+GitLab listings in envelopes 1/2 remain readable; a combined GitLab/advice envelope
+uses version 3 and projects to directory format 8. Managed definitions and retained
+managed instructions keep their original owners.
+
 ## Integration ownership
 
 The owner adopted this upstream-first boundary on October 22, 2026 in
@@ -1617,6 +1651,27 @@ cross-version update/rollback, or non-Windows behavior. The exact identities,
 methods, and remaining boundaries are recorded in
 [`docs/qualification/dr-mario-64-recompiled-windows-2026-09-15.md`](qualification/dr-mario-64-recompiled-windows-2026-09-15.md).
 
+Native portable archives normally derive the working directory from the unique
+exact declared player filename. Do not repeat an incidental dated wrapper in
+`runtime_subdirectory` when the player’s parent is the reviewed runtime root.
+The authenticated package and full immutable manifest still bind expected
+contents; a missing or ambiguous player is refused. The installation retains
+its exact selected relative player path and creating definition, so later
+catalog observations do not reinterpret older working coordinates.
+The existing transition guard recognizes the omission only for native runtimes
+without owned data or source preparation, when an explicit root equals the
+authenticated retained player’s parent. Reverse rollback needs the retained
+target’s own coordinate. Changed roots or data ownership remain held.
+
+Marathon’s three official Windows integrations use that existing rule. Their
+full-scenario artifact pins remain separate: full-game and engine-only package
+names overlap the current provider hints, and populated shared upstream profiles
+have no qualified cross-version transition. Wrapper naming is no longer a pin
+reason. [Two real package inspections and regression controls](qualification/marathon-derived-wrapper-2026-11-05.md)
+record the narrower removal of release-specific layout edits. OpenPete’s exact
+runtime/source/cards/states boundary remains independently explicit under #113;
+this layout change supplies no OpenPete upgrade or state-compatibility evidence.
+
 The optional `n64_windows_initial_d3d12` declaration seeds only
 `{"api_option":"D3D12"}` in a fresh Windows N64 portable working directory.
 Both `graphics.json` and `graphics.json.bak` must be declared persistent at that
@@ -1943,6 +1998,11 @@ selected-release notes. `setup_url`, manual setup help and historical qualificat
 links retain their deliberate version pins. Other providers fall back to a
 clearly labeled project page rather than treating a historical release as current.
 Do not edit release-specific evidence merely to refresh general navigation.
+Core permits native browser handoff to the one canonical GitHub or GitLab release
+index derived from an accepted project or release repository identity, including
+retained and pending listing projections. Comparison is exact: extra queries,
+fragments, download paths and foreign repositories need their own reviewed URL.
+This navigation rule grants no package acquisition, registration or launch action.
 
 Optional authoring-only `route_facts_v1` supplies a bounded Windows prepared
 player basename, executable-parent working folder, literal argument vector and

@@ -1,6 +1,6 @@
 import { isRecord } from "./runtime-values.mts";
 import type { PrerequisiteObservation } from "./local-validation.mts";
-import type { LocalChange, ValidationCommand } from "./ordinary-validation.mts";
+import type { ClassifyOptions, LocalChange, ValidationCommand } from "./ordinary-validation.mts";
 import type {
   RepositoryInventory,
   InventoryFile,
@@ -43,6 +43,16 @@ import {
 import { buildValidationPlan } from "./validation-plan.mts";
 import { resolveUiSelection } from "./ui-test-selection.mts";
 import { nativeCompatibilitySourcePaths } from "./release-native-source-contract.mts";
+
+void test("failed-test feedback is an explicit focused UI operation", () => {
+  assert.doesNotThrow(() => requireFocusedArguments("test-ui", ["--last-failed"]));
+  assert.doesNotThrow(() =>
+    requireFocusedArguments("test-ui", ["--last-failed", "src/example.test.ts"]),
+  );
+  assert.throws(() => requireFocusedArguments("test-ui", []), /explicit/);
+  assert.throws(() => requireFocusedArguments("test-ui-related", ["--last-failed"]), /explicit/);
+  assert.throws(() => requireFocusedArguments("test-node", ["--last-failed"]), /explicit/);
+});
 
 void test("maintenance registry and TOML sources retain explicit focused owners", () => {
   const consumer = "scripts/lock-maintenance-policy.test.mts";
@@ -788,6 +798,7 @@ void test("fixture module closure edits retain all independent policy and constr
     "scripts/production-aggregate-steps.test.mts",
     "scripts/release-control-inputs.test.mts",
     "scripts/release-controller-tools.test.mts",
+    "scripts/release-controller-wake.test.mts",
     "scripts/release-windows-webview-driver.test.mts",
     "scripts/renovate-engine-probe.test.mts",
     "scripts/repository-settings.test.mts",
@@ -1451,9 +1462,16 @@ const change = (path: string, options: Partial<LocalChange> = {}): LocalChange =
 });
 const ids = (plan: ValidationCommand[]) => plan.map((entry) => entry.id);
 
-function planFor(paths: (string | LocalChange)[]) {
+function packageMetadata(name: string, directory: string) {
+  const root = fileURLToPath(new URL("../", import.meta.url));
+  return () => ({
+    workspace_members: [name],
+    packages: [{ id: name, name, manifest_path: path.join(root, directory, "Cargo.toml") }],
+  });
+}
+function planFor(paths: (string | LocalChange)[], options: ClassifyOptions = {}) {
   const changes = paths.map((path) => (typeof path === "string" ? change(path) : path));
-  const selection = classifyChanges(changes, { fileExists: allFilesExist });
+  const selection = classifyChanges(changes, { fileExists: allFilesExist, ...options });
   return {
     selection,
     plan: buildPlan(selection, {
@@ -1777,7 +1795,9 @@ void test("shared diagnostics changes retain explicit ownership and complete wor
     change(source, { status: "R100", previousPath: "docs/moved-diagnostics.md" }),
   ];
   for (const changed of changes) {
-    const { selection, plan } = planFor([changed]);
+    const { selection, plan } = planFor([changed], {
+      workspaceMetadata: packageMetadata("portcove-diagnostics", "crates/portcove-diagnostics"),
+    });
     assert.deepEqual([...selection.unknown], [], changed.path);
     assert.deepEqual([...selection.packages], ["portcove-diagnostics"], changed.path);
     assert.equal(selection.rustfmt, true, changed.path);
@@ -1786,7 +1806,11 @@ void test("shared diagnostics changes retain explicit ownership and complete wor
     assert.ok(rust.args.includes("--guard-command"), changed.path);
   }
   const unowned = "crates/portcove-diagnostics-other/src/lib.rs";
-  assert.ok(classifyChanges([change(unowned)]).unknown.has(unowned));
+  assert.ok(
+    classifyChanges([change(unowned)], {
+      workspaceMetadata: packageMetadata("portcove-diagnostics", "crates/portcove-diagnostics"),
+    }).unknown.has(unowned),
+  );
 });
 
 void test("all optional workspace Rust execution remains behind the existing admission runner", () => {
@@ -2050,10 +2074,10 @@ void test("an exactly repeated stage id retains every selection reason", () => {
 });
 
 void test("transport changes select both language scopes and contract comparators", () => {
-  const { selection, plan } = planFor([
-    "apps/desktop/src/transport-types.generated.d.ts",
-    "crates/portcove-core/src/types.rs",
-  ]);
+  const { selection, plan } = planFor(
+    ["apps/desktop/src/transport-types.generated.d.ts", "crates/portcove-core/src/types.rs"],
+    { workspaceMetadata: packageMetadata("portcove-core", "crates/portcove-core") },
+  );
   assert.equal(selection.transport, true);
   assert.ok(selection.packages.has("portcove-core"));
   assert.ok(selection.nodeTests.has("scripts/transport-types.test.mts"));
@@ -2189,12 +2213,15 @@ void test("bootstrap manifest changes select cache, doctor, and quality contract
 });
 
 void test("renames classify both the old and new ownership paths", () => {
-  const { selection, plan } = planFor([
-    change("docs/moved.md", {
-      status: "R100",
-      previousPath: "crates/portcove-cli/src/removed.rs",
-    }),
-  ]);
+  const { selection, plan } = planFor(
+    [
+      change("docs/moved.md", {
+        status: "R100",
+        previousPath: "crates/portcove-cli/src/removed.rs",
+      }),
+    ],
+    { workspaceMetadata: packageMetadata("portcove-cli", "crates/portcove-cli") },
+  );
   assert.ok(selection.scopes.has("documentation"));
   assert.ok(selection.packages.has("portcove-cli"));
   assert.ok(selection.oxfmtFiles.has("docs/moved.md"));
@@ -4574,6 +4601,14 @@ void test("POSIX qualification identity module retains its public caller tests o
 
 void test("GitHub dependency changes select actual SDK and REST integration contracts", () => {
   for (const file of [
+    "scripts/release-wake-provider.mts",
+    "scripts/qualify-job-token-dispatch.mts",
+  ]) {
+    const selected = classifyChanges([{ status: "M", path: file }], { fileExists: () => false });
+    assert.ok(selected.nodeTests.has("scripts/release-controller-wake.test.mts"), file);
+    assert.ok(selected.nodeTests.has("scripts/release-production-dag.test.mts"), file);
+  }
+  for (const file of [
     "package.json",
     "pnpm-lock.yaml",
     "scripts/github-client.mts",
@@ -4588,6 +4623,12 @@ void test("GitHub dependency changes select actual SDK and REST integration cont
       "scripts/roadmap-provider-inventory.test.mts",
       "scripts/discovery-github.test.mts",
       "scripts/discovery-primary-progress.test.mts",
+      "scripts/release-native-check-discovery.test.mts",
+      "scripts/release-pages-provider.test.mts",
+      "scripts/release-publication-controller.test.mts",
+      "scripts/release-controller-wake.test.mts",
+      "scripts/release-coordinator-checkpoint-authentication.test.mts",
+      "scripts/release-hosted-native-acceptance.test.mts",
     ]) {
       assert.ok(selected.nodeTests.has(consumer), file);
       assert.ok(existsSync(new URL(`../${consumer}`, import.meta.url)));

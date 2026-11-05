@@ -93,6 +93,7 @@ export function useGithubAuth(perform: Perform, setError: ReportError, libraryGe
             acceptStatus(result.status ?? undefined);
             setDeviceLogin(undefined);
           } else {
+            // oxlint-disable-next-line react/immutability -- oxc#28401: effect-local binding.
             timer = window.setTimeout(poll, delay);
           }
         } catch (value) {
@@ -109,6 +110,7 @@ export function useGithubAuth(perform: Perform, setError: ReportError, libraryGe
     };
     timer = window.setTimeout(poll, delay);
     return () => {
+      // oxlint-disable-next-line react/immutability -- oxc#28401: effect-local binding.
       cancelled = true;
       window.clearTimeout(timer);
       if (deviceSession.current === session) deviceSession.current += 1;

@@ -1,7 +1,14 @@
 /** Navigation only. Provider facts and package permissions remain Core-owned. */
 export function upstreamUpdatesDestination(projectUrl: string, releaseUrl?: string | null) {
   for (const value of [releaseUrl, projectUrl]) {
-    if (!value) continue;
+    if (
+      !value ||
+      value.length > 4096 ||
+      new TextEncoder().encode(value).byteLength > 4096 ||
+      value.trim() !== value ||
+      /\p{Cc}/u.test(value)
+    )
+      continue;
     let url: URL;
     try {
       url = new URL(value);

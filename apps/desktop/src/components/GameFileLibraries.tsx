@@ -624,6 +624,7 @@ function useSavedFolderView(generation: number, setError: (error: string) => voi
       })
       .catch(() => {});
     return () => {
+      // oxlint-disable-next-line react/immutability -- oxc#28401: effect-local binding.
       observing = false;
       reads.begin();
     };

@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, access } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
+import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import {
   inspectReleaseSourceAttestation,
   verifyReleaseSourceAttestation,
@@ -202,4 +204,58 @@ void test("historical rehearsal attestations remain readable without allowing an
     /identities unavailable/u,
   );
   assert.equal(called, false);
+});
+
+void test("source attestation retains reader scope, original deadline and subprocess bounds", async (t) => {
+  const directory = await mkdtemp(path.join(tmpdir(), "source-attestation-reader-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const prior = process.env.GH_TOKEN;
+  try {
+    process.env.GH_TOKEN = "ghs_SYNTHETIC_READER_ONLY";
+    await withReadOnlyReleaseChildren(directory, async () => {
+      process.env.GH_TOKEN = "ghs_SYNTHETIC_OTHER_ROLE";
+      const result = await withCoordinatorDeadline(performance.now() + 5000, () =>
+        verifyReleaseSourceAttestation(directory, expected.subjects[0]!.filename, expected, {
+          spawn: (command, args, settings) => {
+            assert.equal(command, "gh");
+            assert.deepEqual(args.slice(0, 2), ["attestation", "verify"]);
+            assert.equal(settings.env?.GH_TOKEN, "ghs_SYNTHETIC_READER_ONLY");
+            assert.equal(settings.env?.GH_HOST, "github.com");
+            assert.equal(settings.maxBuffer, 4 * 1024 * 1024);
+            assert.ok(
+              typeof settings.timeout === "number" &&
+                settings.timeout > 0 &&
+                settings.timeout <= 5000,
+            );
+            assert.equal(settings.killSignal, "SIGKILL");
+            return { status: 0, stdout: JSON.stringify(fixture()), stderr: "" };
+          },
+        }),
+      );
+      assert.equal(result.authority, "none");
+      assert.equal(result.evidence_scope, "injected-provider");
+    });
+  } finally {
+    if (prior === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = prior;
+  }
+});
+
+void test("timed-out attestation cannot publish complete-looking partial proof", async (t) => {
+  const directory = await mkdtemp(path.join(tmpdir(), "source-attestation-timeout-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  await assert.rejects(
+    verifyReleaseSourceAttestation(directory, expected.subjects[0]!.filename, expected, {
+      spawn: () => ({
+        status: 0,
+        stdout: JSON.stringify(fixture()),
+        stderr: "",
+        error: Object.assign(new Error("timed out"), { code: "ETIMEDOUT" }),
+      }),
+    }),
+    /ETIMEDOUT/u,
+  );
+  await assert.rejects(access(path.join(directory, "source-attestation-verification.json")), {
+    code: "ENOENT",
+  });
 });

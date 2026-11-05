@@ -179,6 +179,7 @@ export function LocalizationProvider({
       }
     })();
     return () => {
+      // oxlint-disable-next-line react/immutability -- oxc#28401: effect-local binding.
       active = false;
     };
   }, [api, apply]);

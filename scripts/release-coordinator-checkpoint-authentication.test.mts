@@ -10,6 +10,7 @@ import { syncBuiltinESMExports } from "node:module";
 import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
 import {
   checkpointProofFixture,
+  releaseCustodyFetch,
   fixedJobJournalAuthoritiesFixture,
 } from "./fixtures/checkpoint-proof-fixture.mts";
 import {
@@ -26,7 +27,7 @@ import {
 import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
 import { inspectCoordinatorCheckpointEvidence } from "./release-coordinator-checkpoint-evidence.mts";
 import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
-import type { GitHubRestReader } from "./github-api.mts";
+import type { HistoricalJobProvider } from "./release-custody-provider.mts";
 import { releaseCanonicalDigest } from "./release-canonical.mts";
 import { capacityFixture } from "./fixtures/release-capacity-fixture.mts";
 import { createHash } from "node:crypto";
@@ -43,9 +44,59 @@ function historical(f: ReturnType<typeof checkpointProofFixture>) {
 }
 const witnessed = Date.parse("2026-10-23T12:00:30.123Z");
 
+void test("actual historical SDK refuses incomplete metadata in one attempt with the explicit reader credential", async (t) => {
+  const f = checkpointProofFixture();
+  const now = performance.now.bind(performance);
+  let shift = 0;
+  t.mock.method(performance, "now", () => now() + shift);
+  for (const fault of ["non-200", "transient", "stream", "redirect", "late"] as const) {
+    let sends = 0;
+    const fetch = t.mock.method(
+      globalThis,
+      "fetch",
+      releaseCustodyFetch(f.provider, (_url, init) => {
+        sends++;
+        assert.equal(new Headers(init?.headers).get("authorization"), "token inert-checkpoint-sdk");
+        assert.equal(new Headers(init?.headers).get("x-github-api-version"), "2022-11-28");
+        assert.equal(init?.redirect, "manual");
+        if (fault === "non-200") return Response.json(f.attempt, { status: 201 });
+        if (fault === "transient")
+          return Response.json({ message: "unavailable" }, { status: 503 });
+        if (fault === "stream")
+          return new Response(
+            new ReadableStream({
+              start(controller) {
+                controller.error(new Error("incomplete body"));
+              },
+            }),
+          );
+        if (fault === "redirect")
+          return new Response(null, {
+            status: 302,
+            headers: { location: "https://foreign.invalid" },
+          });
+        shift = 60001;
+        return Response.json(f.attempt);
+      }),
+    );
+    try {
+      await assert.rejects(
+        verifyHistoricalCheckpointJob("coordinator", historical(f), witnessed, {
+          deadline: performance.now() + 60000,
+          token: "inert-checkpoint-sdk",
+        }),
+      );
+      assert.equal(sends, 1);
+    } finally {
+      shift = 0;
+      fetch.mock.restore();
+    }
+  }
+});
+
 for (const platform of ["windows-x86_64", "linux-x86_64"] as const) {
   for (const state of ["live", "success", "failure", "contradictory", "future"] as const) {
-    void test(`${platform} signed-stage custody is separate from terminal native history: ${state}`, () => {
+    void test(`${platform} signed-stage custody is separate from terminal native history: ${state}`, async () => {
       const f = checkpointProofFixture();
       Object.assign(f.job, {
         name: hostedNativeJobProfile(platform).job,
@@ -64,17 +115,16 @@ for (const platform of ["windows-x86_64", "linux-x86_64"] as const) {
           historical(f),
           state === "future" ? Date.now() + 60000 : witnessed,
           {
-            cwd: process.cwd(),
             deadline: performance.now() + 60000,
-            api: f.api,
+            provider: f.provider,
           },
         );
       if (["failure", "contradictory", "future"].includes(state)) {
-        assert.throws(observe, /native phase|timestamp/);
+        await assert.rejects(observe, /native phase|timestamp/);
         return;
       }
-      const first = observe();
-      const second = observe();
+      const first = await observe();
+      const second = await observe();
       assert.deepEqual(first.witnessed_interval, {
         start: Date.parse(f.job.started_at),
         end: witnessed,
@@ -85,12 +135,11 @@ for (const platform of ["windows-x86_64", "linux-x86_64"] as const) {
       assert.equal(first.native_acceptance, "not-established");
       assert.equal(first.authority, "none");
       if (state === "live")
-        assert.throws(
+        await assert.rejects(
           () =>
             verifyHistoricalHostedNativeJob(platform, historical(f), witnessed, {
-              cwd: process.cwd(),
               deadline: performance.now() + 60000,
-              api: f.api,
+              provider: f.provider,
             }),
           /must complete successfully/,
         );
@@ -100,34 +149,30 @@ for (const platform of ["windows-x86_64", "linux-x86_64"] as const) {
 
 for (const platform of ["windows-x86_64", "linux-x86_64"] as const) {
   for (const attemptState of ["in_progress", "completed-success", "completed-failure"] as const) {
-    void test(`historical ${platform} completed-job custody remains usable in ${attemptState} attempt without native acceptance`, () => {
+    void test(`historical ${platform} completed-job custody remains usable in ${attemptState} attempt without native acceptance`, async () => {
       const f = checkpointProofFixture();
       f.job.name = hostedNativeJobProfile(platform).job;
       f.job.conclusion = "success";
-      const api: GitHubRestReader = {
-        request(method, route) {
-          const result = f.api.request(method, route);
-          return route.endsWith(`/attempts/${f.producer.run_attempt}`)
-            ? {
-                ...result,
-                body: {
-                  ...f.attempt,
-                  status: attemptState === "in_progress" ? "in_progress" : "completed",
-                  conclusion:
-                    attemptState === "completed-success"
-                      ? "success"
-                      : attemptState === "completed-failure"
-                        ? "failure"
-                        : null,
-                },
-              }
-            : result;
+      const provider: HistoricalJobProvider = {
+        ...f.provider,
+        async attempt(run, selectedAttempt) {
+          const result = await f.provider.attempt(run, selectedAttempt);
+          assert.ok(isRecord(result));
+          return {
+            ...result,
+            status: attemptState === "in_progress" ? "in_progress" : "completed",
+            conclusion:
+              attemptState === "completed-success"
+                ? "success"
+                : attemptState === "completed-failure"
+                  ? "failure"
+                  : null,
+          };
         },
       };
-      const result = verifyHistoricalHostedNativeJob(platform, historical(f), witnessed, {
-        cwd: process.cwd(),
+      const result = await verifyHistoricalHostedNativeJob(platform, historical(f), witnessed, {
         deadline: performance.now() + 60000,
-        api,
+        provider,
       });
       assert.equal(result.requests, 4);
       assert.equal(result.platform_label, platform);
@@ -150,7 +195,7 @@ for (const platform of ["windows-x86_64", "linux-x86_64"] as const) {
     "wrong-source",
     "wrong-actor",
   ] as const) {
-    void test(`historical ${platform} native custody refuses ${fault}`, () => {
+    void test(`historical ${platform} native custody refuses ${fault}`, async () => {
       const f = checkpointProofFixture();
       f.job.name = hostedNativeJobProfile(platform).job;
       f.job.conclusion = fault === "failed-job" ? "failure" : "success";
@@ -160,27 +205,19 @@ for (const platform of ["windows-x86_64", "linux-x86_64"] as const) {
       if (fault === "wrong-source") f.attempt.head_sha = "9".repeat(40);
       if (fault === "wrong-actor") f.attempt.actor.id = 99;
       f.faults.value = fault;
-      const api: GitHubRestReader = {
-        request(method, route) {
-          const result = f.api.request(method, route);
-          return route.endsWith(`/attempts/${f.producer.run_attempt}`)
-            ? {
-                ...result,
-                body: {
-                  ...(isRecord(result.body) ? result.body : {}),
-                  status: "in_progress",
-                  conclusion: null,
-                },
-              }
-            : result;
+      const provider: HistoricalJobProvider = {
+        ...f.provider,
+        async attempt(run, selectedAttempt) {
+          const result = await f.provider.attempt(run, selectedAttempt);
+          assert.ok(isRecord(result));
+          return { ...result, status: "in_progress", conclusion: null };
         },
       };
-      assert.throws(
+      await assert.rejects(
         () =>
           verifyHistoricalHostedNativeJob(platform, historical(f), witnessed, {
-            cwd: process.cwd(),
             deadline: performance.now() + 60000,
-            api,
+            provider,
           }),
         /historical|original/,
       );
@@ -204,18 +241,17 @@ function options(f: ReturnType<typeof checkpointProofFixture>) {
         };
       },
     },
-    job: { api: f.api },
+    job: { provider: f.provider },
   };
 }
 
 for (const conclusion of ["success", "failure", "cancelled", "timed_out"]) {
-  void test(`historical ${conclusion} job authenticates partial-effect provenance without successful-effect credit`, () => {
+  void test(`historical ${conclusion} job authenticates partial-effect provenance without successful-effect credit`, async () => {
     const f = checkpointProofFixture();
     f.job.conclusion = conclusion;
-    const result = verifyHistoricalCheckpointJob("coordinator", historical(f), witnessed, {
-      cwd: process.cwd(),
+    const result = await verifyHistoricalCheckpointJob("coordinator", historical(f), witnessed, {
       deadline: performance.now() + 60000,
-      api: f.api,
+      provider: f.provider,
     });
     assert.equal(result.requests, 4);
     assert.equal(result.effect_outcome, "not-established");
@@ -242,7 +278,7 @@ for (const fault of [
   "wrong-ref",
   "wrong-attempt",
 ]) {
-  void test(`historical checkpoint refuses ${fault} with bounded GET-only collection`, () => {
+  void test(`historical checkpoint refuses ${fault} with bounded GET-only collection`, async () => {
     const f = checkpointProofFixture();
     f.faults.value = fault;
     if (fault === "wrong-name") f.job.name = "Trusted package assembly";
@@ -253,39 +289,35 @@ for (const fault of [
     if (fault === "foreign-repository") f.attempt.repository.id = 99;
     if (fault === "wrong-ref") f.attempt.head_branch = "main";
     if (fault === "wrong-attempt") f.attempt.run_attempt = 3;
-    assert.throws(
+    await assert.rejects(
       () =>
         verifyHistoricalCheckpointJob("coordinator", historical(f), witnessed, {
-          cwd: process.cwd(),
           deadline: performance.now() + 60000,
-          api: f.api,
+          provider: f.provider,
         }),
       /historical|original/,
     );
     assert.ok(f.calls.length <= 4);
   });
 }
-void test("witnessed time must belong to the started original job, including its reported final-second precision", () => {
+void test("witnessed time must belong to the started original job, including its reported final-second precision", async () => {
   for (const time of ["2026-10-23T11:59:59.999Z", "2026-10-23T12:01:01Z"]) {
     const f = checkpointProofFixture();
-    assert.throws(
+    await assert.rejects(
       () =>
         verifyHistoricalCheckpointJob("coordinator", historical(f), Date.parse(time), {
-          cwd: process.cwd(),
           deadline: performance.now() + 60000,
-          api: f.api,
+          provider: f.provider,
         }),
       /outside the original/,
     );
   }
   const f = checkpointProofFixture();
-  assert.doesNotThrow(() =>
-    verifyHistoricalCheckpointJob(
-      "coordinator",
-      historical(f),
-      Date.parse("2026-10-23T12:01:00.999Z"),
-      { cwd: process.cwd(), deadline: performance.now() + 60000, api: f.api },
-    ),
+  await verifyHistoricalCheckpointJob(
+    "coordinator",
+    historical(f),
+    Date.parse("2026-10-23T12:01:00.999Z"),
+    { deadline: performance.now() + 60000, provider: f.provider },
   );
 });
 void test("injected signature/job verification retains original bytes but cannot mint actual-provider custody", async (t) => {
@@ -411,16 +443,18 @@ void test("default isolated verification mints only same-process evidence and re
       assert.equal(settings.env?.PORTCOVE_COORDINATOR_JOURNAL_TOKEN, undefined);
       assert.equal(settings.env?.ACTIONS_ID_TOKEN_REQUEST_TOKEN, undefined);
       assert.equal(settings.env?.NODE_OPTIONS, undefined);
-      if (args[0] === "attestation") return options(f).attestation.spawn(command, args);
-      const response = f.api.request("GET", args[2]!);
-      return {
-        status: 0,
-        stdout: `HTTP/2.0 200 OK\r\n\r\n${JSON.stringify(response.body)}`,
-        stderr: "",
-      };
+      assert.equal(args[0], "attestation");
+      return options(f).attestation.spawn(command, args);
     },
   );
   syncBuiltinESMExports();
+  t.mock.method(
+    globalThis,
+    "fetch",
+    releaseCustodyFetch(f.provider, (_url, init) => {
+      assert.equal(new Headers(init?.headers).get("authorization"), "token inert-read-only-token");
+    }),
+  );
   await withReadOnlyReleaseChildren(directory, async () => {
     const receipt = await authenticateCoordinatorCheckpointEvidence(
       directory,
@@ -513,7 +547,7 @@ for (const fault of [
   "cap",
   "over-cap",
 ]) {
-  void test(`historical checkpoint pagination ${fault} never substitutes a partial inventory`, () => {
+  void test(`historical checkpoint pagination ${fault} never substitutes a partial inventory`, async () => {
     const f = checkpointProofFixture();
     const count =
       fault === "cap" ? 1600 : fault === "over-cap" ? 1601 : fault === "empty" ? 0 : 101;
@@ -524,29 +558,19 @@ for (const fault of [
       check_run_url: `https://api.github.com/repos/boburning/portcove/check-runs/${index === count - 1 ? 777 : index + 10000}`,
     }));
     let pages = 0;
-    const api = {
-      request(method: string, endpoint: string) {
-        if (!endpoint.includes("/jobs?")) return f.api.request(method, endpoint);
-        assert.equal(method, "GET");
+    const provider: HistoricalJobProvider = {
+      ...f.provider,
+      async jobs(run, attempt, page) {
         pages++;
-        const page = Number(new URL(`https://api.github.com/${endpoint}`).searchParams.get("page"));
         const values = jobs.slice((page - 1) * 100, page * 100);
         if (fault === "duplicate-page" && page === 2) values[0] = jobs[0]!;
         const hasNext = page * 100 < count || fault === "terminal-link";
         const nextPage = fault === "stalled-link" ? page : page + 1;
         const host = fault === "foreign-link" ? "foreign.invalid" : "api.github.com";
         return {
-          status: 200,
-          headers: new Map(
-            hasNext
-              ? [
-                  [
-                    "link",
-                    `<https://${host}/repositories/1354613114/actions/runs/9988/attempts/2/jobs?per_page=100&page=${nextPage}>; rel="next"`,
-                  ],
-                ]
-              : [],
-          ),
+          next: hasNext
+            ? `https://${host}/repositories/1354613114/actions/runs/${run}/attempts/${attempt}/jobs?per_page=100&page=${nextPage}`
+            : null,
           body: {
             total_count: fault === "total-drift" && page === 2 ? count + 1 : count,
             jobs: values,
@@ -556,14 +580,13 @@ for (const fault of [
     };
     const run = () =>
       verifyHistoricalCheckpointJob("coordinator", historical(f), witnessed, {
-        cwd: process.cwd(),
         deadline: performance.now() + 60000,
-        api,
+        provider,
       });
     if (fault === "complete" || fault === "cap") {
-      const result = run();
+      const result = await run();
       assert.equal(result.requests, fault === "cap" ? 19 : 5);
-    } else assert.throws(run, /historical checkpoint/);
+    } else await assert.rejects(run, /historical checkpoint/);
     assert.ok(pages <= 16);
   });
 }
@@ -800,15 +823,20 @@ for (const fault of [
             stderr: "",
           };
         }
-        const response = f.api.request("GET", args[2]!);
-        return {
-          status: 0,
-          stdout: `HTTP/2.0 200 Fixture\r\n\r\n${JSON.stringify(response.body)}`,
-          stderr: "",
-        };
+        assert.fail("unexpected retained CLI route");
       },
     );
     syncBuiltinESMExports();
+    t.mock.method(
+      globalThis,
+      "fetch",
+      releaseCustodyFetch(f.provider, (_url, init) => {
+        assert.equal(
+          new Headers(init?.headers).get("authorization"),
+          "token inert-history-job-token",
+        );
+      }),
+    );
     await withReadOnlyReleaseChildren(directory, async () => {
       const deadline = performance.now() + 60000;
       const reader = createCheckpointHistoryReader(

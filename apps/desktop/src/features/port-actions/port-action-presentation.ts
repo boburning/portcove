@@ -114,6 +114,24 @@ const actionReasons: Record<string, string> = {
   invalid_installation: "Portcove could not verify the installed files.",
 };
 
+/** Wording only; the original assessment remains available as detailed evidence. */
+export function capabilityActionReason(assessment: Assessment): string {
+  if (assessment.definition && assessment.definition.outcome !== "eligible")
+    return definitionHoldReason(
+      assessment.action === "launch" ? "Launch" : "Setup",
+      assessment.definition.reason,
+    );
+  if (assessment.reason === "available")
+    return "No current prerequisite is outstanding. Execution checks again.";
+  if (assessment.reason === "review_required") return "Review the operation before continuing.";
+  if (assessment.reason === "not_installed")
+    return "The installation or retained version required for this operation is absent.";
+  return (
+    actionReasons[assessment.reason] ??
+    "Review this operation's current requirements in its own panel."
+  );
+}
+
 function sourceFormatReason(status: PortStatus | undefined): string {
   if (status?.readiness?.source_assessment?.contract.state === "recognized_not_listed")
     return "This game edition is not supported by the installed version. Select and check a supported edition before playing.";

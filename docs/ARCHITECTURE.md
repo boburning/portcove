@@ -152,6 +152,21 @@ it does not establish original-byte identity or compatibility.
 
 ## Discovery listings and user-owned setup
 
+`service/capabilities.rs` aggregates existing operation and listing assessments
+into an inert per-route feature report. Its cheap workspace projection performs
+no additional filesystem, settings, backup or provider reads. Focused detail
+reuses the existing backup/protection and retained settings services and checks
+installation identity again before returning. CLI and the generation-bound Tauri
+adapter expose the same report. Desktop route presentation keeps managed setup,
+accepted-package registration and explicit existing-copy selection distinct;
+installed Play and pending setup retain their own owners and priority.
+
+Optional recommendation observations and descriptive listing advisories never
+grant operations, change recommendation choice or refresh history. Missing or
+malformed advice cannot override an otherwise permitted action. A manual update
+route and external backup exclusion describe management ownership, not gameplay
+failure or the game's ability to save.
+
 Upstream observation, metadata eligibility, accepted artifact integrity,
 published definition, installed operability and qualification at a stated scope
 are separate evidence states. A later state requires its own evidence; an observed

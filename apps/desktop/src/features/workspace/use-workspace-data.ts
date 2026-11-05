@@ -450,6 +450,7 @@ export function usePortcoveData(libraryGeneration = 0) {
       setReadyGeneration(libraryGeneration);
     })();
     return () => {
+      // oxlint-disable-next-line react/immutability -- oxc#28401: effect-local binding.
       closed = true;
       activityRequests.begin();
       diagnosticRequests.begin();

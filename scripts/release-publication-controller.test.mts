@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mkdtemp, mkdir, writeFile, readFile, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile, readFile, readdir, rm } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import { createHash } from "node:crypto";
@@ -12,6 +12,7 @@ import {
   publicationOriginalJobDeadline,
   publicationResultDestination,
   inspectRetainedResultUpload,
+  runFixedPublicationConfiguration,
 } from "./release-publication-controller.mts";
 import { inspectCapacityOperation } from "./release-capacity.mts";
 import { releaseCanonicalDigest } from "./release-canonical.mts";
@@ -21,6 +22,127 @@ import {
   inspectPublicationUploadHandoff,
   publicationUploadCommand,
 } from "./release-publication-handoff.mts";
+
+void test("fixed publication reads its original job through the locked SDK before tool hydration", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "publication-metadata-fixture-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const revision = "a".repeat(40),
+    ref = "refs/tags/portcove-production-controller-fixture";
+  const environment = {
+    GITHUB_RUN_ID: "42",
+    GITHUB_RUN_ATTEMPT: "1",
+    GITHUB_SHA: revision,
+    GITHUB_REF: ref,
+    RUNNER_TEMP: directory,
+    GH_TOKEN: "inert-publication-reader",
+    GITHUB_TOKEN: "inert-forbidden-fallback",
+  };
+  const previous = Object.keys(environment).map((key) => [key, process.env[key]] as const);
+  Object.assign(process.env, environment);
+  t.after(() => {
+    for (const [key, value] of previous)
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+  });
+  const input = {
+    identity: {
+      audience: "publication",
+      subject: "fixture-publication",
+      actor_id: "1122",
+      controller_revision: revision,
+      controller_ref: ref,
+      run_id: "42",
+      run_attempt: 1,
+    },
+    configuration: {},
+    context: {},
+    tools: { artifact: {}, bundle: {} },
+    roles: [{}, {}, {}, {}, {}],
+  };
+  for (const fault of [
+    "non-200",
+    "unavailable",
+    "stream",
+    "redirect",
+    "expired",
+    "missing-token",
+    "expired-phase",
+  ] as const) {
+    let sends = 0;
+    process.env.GH_TOKEN = fault === "missing-token" ? "" : environment.GH_TOKEN;
+    const mocked = t.mock.method(
+      globalThis,
+      "fetch",
+      async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+        sends++;
+        const url = new URL(input instanceof Request ? input.url : String(input));
+        assert.equal(
+          url.href,
+          "https://api.github.com/repos/boburning/portcove/actions/runs/42/attempts/1/jobs?per_page=100",
+        );
+        const headers = new Headers(init?.headers);
+        assert.equal(headers.get("authorization"), "token inert-publication-reader");
+        assert.equal(headers.get("x-github-api-version"), "2022-11-28");
+        assert.equal(init?.method, "GET");
+        assert.equal(init?.redirect, "manual");
+        if (fault === "unavailable")
+          return Response.json({ message: "unavailable" }, { status: 503 });
+        if (fault === "stream")
+          return new Response(
+            new ReadableStream({
+              start(controller) {
+                controller.error(new Error("metadata stream incomplete"));
+              },
+            }),
+          );
+        if (fault === "redirect")
+          return new Response(null, {
+            status: 302,
+            headers: { location: "https://foreign.invalid" },
+          });
+        return Response.json(
+          {
+            total_count: 1,
+            jobs: [
+              {
+                id: 77,
+                name: "Publish immutable application release",
+                run_id: 42,
+                run_attempt: 1,
+                head_sha: revision,
+                status: "in_progress",
+                started_at: new Date(Date.now() - 351000).toISOString(),
+              },
+            ],
+          },
+          { status: fault === "non-200" ? 201 : 200 },
+        );
+      },
+    );
+    try {
+      const phase = fault === "expired-phase" ? performance.now() - 1 : undefined;
+      const expected =
+        fault === "non-200"
+          ? /publication original job budget unavailable/
+          : fault === "expired"
+            ? /original publication job budget exhausted/
+            : fault === "missing-token"
+              ? /Required GitHub credential is unavailable/
+              : fault === "expired-phase"
+                ? /deadline exhausted/
+                : fault === "stream"
+                  ? /metadata stream incomplete/
+                  : fault === "redirect"
+                    ? /redirect was refused/
+                    : /unavailable/;
+      await assert.rejects(runFixedPublicationConfiguration(input, phase), expected);
+      assert.equal(sends, fault === "missing-token" || fault === "expired-phase" ? 0 : 1);
+      assert.deepEqual(await readdir(directory), []);
+    } finally {
+      mocked.mock.restore();
+    }
+  }
+});
 
 void test("the fixed release sequence executes twelve distinct effects and stops on the first refusal or repeated purpose", async () => {
   const seen: number[] = [];
@@ -427,6 +549,7 @@ async function publicationConfigurationBehavior(
     GITHUB_SHA: identity.controller_revision,
     GITHUB_REF: identity.controller_ref,
     RUNNER_TEMP: root,
+    GH_TOKEN: "inert-publication-clock",
   });
   const roles = ["releases", "preview", "stable", "snapshot", "timestamp"].map((role) => ({
     role,
@@ -500,35 +623,6 @@ async function publicationConfigurationBehavior(
         throw boundary;
       },
     },
-    [new URL("github-api.mts", entry).href]: {
-      createGitHubRunner: () => forbidden,
-      GitHubApiClient: class {
-        request(method: string, endpoint: string) {
-          assert.equal(method, "GET");
-          assert.equal(
-            endpoint,
-            `repos/boburning/portcove/actions/runs/${identity.run_id}/attempts/1/jobs?per_page=100`,
-          );
-          return {
-            status: 200,
-            body: {
-              total_count: 1,
-              jobs: [
-                {
-                  id: 42,
-                  name: "Publish immutable application release",
-                  run_id: Number(identity.run_id),
-                  run_attempt: 1,
-                  head_sha: identity.controller_revision,
-                  status: "in_progress",
-                  started_at: new Date().toISOString(),
-                },
-              ],
-            },
-          };
-        }
-      },
-    },
   };
   for (const module of boundaries)
     mock.module(module.url, {
@@ -539,6 +633,37 @@ async function publicationConfigurationBehavior(
         ]),
       ),
     });
+  let clockReads = 0;
+  mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      clockReads++;
+      assert.equal(
+        input instanceof Request ? input.url : String(input),
+        `https://api.github.com/repos/boburning/portcove/actions/runs/${identity.run_id}/attempts/1/jobs?per_page=100`,
+      );
+      assert.equal(init?.method, "GET");
+      assert.equal(
+        new Headers(init?.headers).get("authorization"),
+        "token inert-publication-clock",
+      );
+      return Response.json({
+        total_count: 1,
+        jobs: [
+          {
+            id: 42,
+            name: "Publish immutable application release",
+            run_id: Number(identity.run_id),
+            run_attempt: 1,
+            head_sha: identity.controller_revision,
+            status: "in_progress",
+            started_at: new Date().toISOString(),
+          },
+        ],
+      });
+    },
+  );
   const actual: unknown = await import(entry);
   assert.ok(actual !== null && typeof actual === "object");
   const invoke: unknown = Reflect.get(actual, "runFixedPublicationConfiguration");
@@ -554,6 +679,7 @@ async function publicationConfigurationBehavior(
     reached.promise,
     pending.then(() => assert.fail("Publication entry skipped its first receiver")),
   ]);
+  assert.equal(clockReads, 1);
   input.context.marker = "changed-context";
   input.configuration.aggregate.marker = "changed-configuration";
   input.tools.artifact.marker = "changed-artifact";
@@ -582,7 +708,6 @@ void test("fixed publication source function freezes caller locators before the 
     "release-tuf-role-artifact.mts",
     "release-tuf-publication.mts",
     "release-payload-preparation.mts",
-    "github-api.mts",
   ]) {
     const url = new URL(name, entry).href;
     const namespace: unknown = await import(url);

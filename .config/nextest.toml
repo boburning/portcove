@@ -796,10 +796,15 @@ success-output = "immediate"
 # broader90s family rule. Keep every install/backup/staging/activation/rollback
 # and unknown-file refusal, both workers, cleanup and zero retries. Phase output
 # identifies the next stalled boundary; product and child deadlines stay unchanged.
+# CI 41949630750/attempt 1 Windows partition 1 retained a 120.369s cutoff after
+# progress through rollback at 102.289s and unknown-file refusal at 113.501s.
+# Allow only this Windows case 180s for final status/preservation checks
+# and cleanup; retain every assertion, both workers, zero retries and all
+# product/child deadlines. This is harness headroom, not a performance claim.
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
 filter = 'package(portcove-core) & test(/^service::native_portable::tests::ready_staged_archive_preserves_preplay_data_and_successor_cache_defaults$/)'
-slow-timeout = { period = "5s", terminate-after = 24, grace-period = "0s" }
+slow-timeout = { period = "5s", terminate-after = 36, grace-period = "0s" }
 success-output = "immediate"
 
 # CI41914595618/a1 Windows7 retained a90.327s harness cutoff in SDLPal's
