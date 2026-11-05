@@ -1064,23 +1064,26 @@ function fixture(
   ];
   const calls: string[] = [];
   const options = {
-    api: {
-      request(method: string, endpoint: string) {
-        assert.equal(method, "GET");
-        calls.push(endpoint);
-        return {
-          status: 200,
-          headers: new Map<string, string>(),
-          body: endpoint.includes("/git/commits/")
-            ? { sha: expected.controller_revision, tree: { sha: expected.source_tree } }
-            : endpoint.includes("/artifacts/")
-              ? endpoint.endsWith("/99")
-                ? toolArtifact
-                : bundleArtifact
-              : endpoint.includes("/jobs/")
-                ? job
-                : run,
-        };
+    metadata: {
+      async commit(sha: string) {
+        calls.push(`git/commits/${sha}`);
+        return { sha: expected.controller_revision, tree: { sha: expected.source_tree } };
+      },
+      async run(id: string) {
+        calls.push(`actions/runs/${id}`);
+        return run;
+      },
+      async attempt(id: string, attempt: number) {
+        calls.push(`actions/runs/${id}/attempts/${attempt}`);
+        return run;
+      },
+      async artifact(id: number) {
+        calls.push(`actions/artifacts/${id}`);
+        return id === 99 ? toolArtifact : bundleArtifact;
+      },
+      async job(id: number) {
+        calls.push(`actions/jobs/${id}`);
+        return job;
       },
     },
     download: (endpoint: string) => (endpoint.endsWith("/99/zip") ? archive : bundleArchive),
@@ -1163,7 +1166,7 @@ void test("fixed controller tool senders use the locked SDK before signing exact
       const prefix = "/repos/boburning/portcove";
       if (url.pathname === `${prefix}/actions/artifacts/99`) {
         process.env.GH_TOKEN = "unrelated-mutated-token";
-        return Response.json(f.options.api.request("GET", url.pathname).body);
+        return Response.json(await f.options.metadata.artifact(99));
       }
       if (url.pathname === `${prefix}/actions/artifacts/99/zip`) {
         assert.equal(init?.redirect, "manual");
@@ -1401,10 +1404,11 @@ void test("tool acquisition retains the phase deadline before outputs and after 
     receiveControllerTools(root, f.expected, f.bundle, {
       ...f.options,
       deadline: 2000,
-      api: {
-        request(method, endpoint) {
+      metadata: {
+        ...f.options.metadata,
+        async commit(sha) {
           calls++;
-          const result = f.options.api.request(method, endpoint);
+          const result = await f.options.metadata.commit(sha);
           clock = 2001;
           return result;
         },
@@ -1422,6 +1426,86 @@ void test("tool acquisition retains the phase deadline before outputs and after 
     true,
   );
   await assert.rejects(readdir(path.join(root, partial, "tools")));
+});
+
+void test("fixed tool receiver uses one locked SDK lookup per archive and preserves authenticated provider ordering", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "sdk-controller-tool-receiver-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const previous = process.env.GH_TOKEN;
+  t.after(() => {
+    if (previous === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = previous;
+  });
+  for (const platform of ["linux-x86_64", "windows-x86_64"] as const) {
+    process.env.GH_TOKEN = "fixture-fixed-receiver";
+    const f = fixture({}, platform);
+    const order: string[] = [];
+    const prefix = "/repos/boburning/portcove/";
+    const result = await receiveControllerTools(root, f.expected, f.bundle, {
+      deadline: performance.now() + 10000,
+      spawn: f.options.spawn,
+      async fetch(input, init) {
+        const url = new URL(input instanceof Request ? input.url : input);
+        const headers = new Headers(init?.headers);
+        assert.equal(init?.redirect, "manual");
+        if (url.origin === "https://productionresultssa1.blob.core.windows.net") {
+          order.push(url.pathname);
+          assert.equal(init.credentials, "omit");
+          assert.equal(headers.has("authorization"), false);
+          return new Response(
+            f.options.download(url.pathname.endsWith("/99") ? "/99/zip" : "/100/zip"),
+          );
+        }
+        assert.equal(url.origin, "https://api.github.com");
+        assert.equal(headers.get("authorization"), "token fixture-fixed-receiver");
+        assert.ok(url.pathname.startsWith(prefix));
+        const route = url.pathname.slice(prefix.length);
+        order.push(route);
+        if (route.endsWith("/zip")) {
+          const id = route.split("/").at(-2);
+          assert.ok(id === "99" || id === "100");
+          return new Response(null, {
+            status: 302,
+            headers: {
+              location: `https://productionresultssa1.blob.core.windows.net/actions-results/${id}?sig=fixture`,
+            },
+          });
+        }
+        process.env.GH_TOKEN = "unrelated-mutated-token";
+        const provider = f.options.metadata;
+        if (route === `git/commits/${f.expected.controller_revision}`)
+          return Response.json(await provider.commit(f.expected.controller_revision));
+        if (route === "actions/runs/9988") return Response.json(await provider.run("9988"));
+        if (route === "actions/runs/9988/attempts/1")
+          return Response.json(await provider.attempt("9988", 1));
+        if (route === "actions/jobs/501") return Response.json(await provider.job(501));
+        if (route === "actions/artifacts/99" || route === "actions/artifacts/100")
+          return Response.json(await provider.artifact(Number(route.split("/").at(-1))));
+        assert.fail("unexpected controller tool receiver route");
+      },
+    });
+    assert.equal(result.evidence_scope, "injected-provider");
+    assert.equal(result.manifest_sha256, f.predicate.manifest_sha256);
+    const snapshot = [
+      `git/commits/${f.expected.controller_revision}`,
+      "actions/runs/9988",
+      "actions/runs/9988/attempts/1",
+      "actions/artifacts/99",
+      "actions/artifacts/100",
+    ];
+    assert.deepEqual(order, [
+      ...snapshot,
+      "actions/artifacts/99/zip",
+      "/actions-results/99",
+      "actions/artifacts/100/zip",
+      "/actions-results/100",
+      "actions/jobs/501",
+      ...snapshot,
+      "actions/jobs/501",
+    ]);
+    assert.equal(f.calls.length, 12);
+    assert.ok(!(await readdir(result.directory)).some((name) => /^archive-/u.test(name)));
+  }
 });
 
 void test("injected verification boundary materializes exact bytes only after signed association and provider custody; never claims production", async (t) => {
