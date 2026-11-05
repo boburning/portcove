@@ -1939,3 +1939,35 @@ void test("prepared observations bind the accepted observation preimage and cann
     f.clean();
   }
 });
+
+void test("normal preparation feedback directs fitting declarations without inventing original-file authority", async () => {
+  const { declarativePreparationFeedback } = await import("./prepare-port.mts");
+  const { checkedAuthoredPort } = await import("./catalog-authoring.mts");
+  const record = checkedAuthoredPort(
+    JSON.parse(
+      readFileSync("crates/portcove-core/catalog/ports/nhl-94-genesis-ninety-four.json", "utf8"),
+    ),
+  );
+  assert.equal(declarativePreparationFeedback(record).status, "declared");
+  assert.match(declarativePreparationFeedback(record).original_files, /does not establish/);
+  const next = structuredClone(record);
+  delete next.route_facts_v1;
+  delete next.package_observation_v1;
+  assert.equal(
+    declarativePreparationFeedback(checkedAuthoredPort(next)).status,
+    "review-fitting-route",
+  );
+  const linux = structuredClone(next);
+  linux.listing.platforms = ["linux-x86-64"];
+  assert.equal(declarativePreparationFeedback(linux).status, "retain-existing-route");
+  const outside = {
+    ...record,
+    integration: {
+      adapter: "native-portable",
+      release: { provider: "github" },
+      source_profile: "required-original",
+      platforms: ["windows-x86-64"],
+    },
+  };
+  assert.equal(declarativePreparationFeedback(outside).status, "retain-existing-route");
+});

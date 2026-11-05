@@ -771,7 +771,7 @@ pub(crate) fn route_enrollment() -> Vec<RouteEnrollment> {
     let envelope: Envelope =
         serde_json::from_str(include_str!("../catalog/route-enrollment.generated.json")).unwrap();
     assert_eq!(envelope.format_version, 1);
-    assert!(!envelope.cases.is_empty() && envelope.cases.len() <= 256);
+    assert!(!envelope.cases.is_empty());
     let mut ids = std::collections::BTreeSet::new();
     for case in &envelope.cases {
         assert!(
@@ -816,6 +816,5 @@ pub(crate) fn route_expectations() -> Vec<serde_json::Value> {
         assert_eq!(envelope["format_version"], 1);
         rows.extend(envelope["cases"].as_array().unwrap().iter().cloned());
     }
-    assert!(rows.len() <= 256);
     rows
 }

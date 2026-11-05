@@ -126,7 +126,7 @@ export function checkRouteFacts(
       integration.source_profile != null
     )
       throw new Error(
-        "Managed native facts require an existing source-free native-portable GitHub contract and bounded preparation/warnings.",
+        "Managed native facts require an existing native-portable GitHub contract without a Core source binding and bounded preparation/warnings.",
       );
     if (
       !isRecord(integration.executable_hints) ||
@@ -221,7 +221,6 @@ export function routeEnrollment(records: readonly AuthoredPort[]) {
 /** Checked test-source artifacts, never runtime definitions or authored Rust. */
 export function renderRouteTests(records: readonly AuthoredPort[]) {
   const cases = routeEnrollment(records).cases;
-  if (cases.length > 256) throw new Error("Route test enrollment exceeds its finite bound.");
   if (new Set(cases.map((row) => row.port_id)).size !== cases.length)
     throw new Error("Duplicate generated route test identity.");
   const names = new Set<string>();

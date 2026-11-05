@@ -1932,9 +1932,11 @@ in `catalog-shared.json`, preserving their existing order and scope.
 
 Optional authoring-only `route_facts_v1` supplies a bounded Windows prepared
 player basename, executable-parent working folder, literal argument vector and
-actual external data locations. An existing source-free NativePortable GitHub
-route may additionally supply one managed preparation action and exceptional
-warnings; its executable must agree with the operational declaration. Common
+actual external data locations. An existing NativePortable GitHub integration
+without a Core source binding may additionally supply one managed preparation action and exceptional
+warnings; its executable must agree with the operational declaration. An absent
+Core source profile is not evidence that no original files are required: keep
+upstream preparation and original-file ownership explicit. Common
 registration/ownership/removal, declared managed preservation and rollback
 explanations come from `scripts/catalog-route-facts.mts`. Bespoke guide actions,
 source/edition requirements and immediate warnings remain explicit. No guide

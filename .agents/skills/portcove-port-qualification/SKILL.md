@@ -16,6 +16,25 @@ aggregates are outputs. Reuse the checkpoint for unchanged observations, retry
 failed enrichment independently, and regenerate after reviewing the proposed
 record. Do not mutate sources or publish merely because preparation succeeded.
 
+For fitting ordinary work, prefer authoring-only `route_facts_v1`: a Windows
+prepared player basename, executable-parent working directory, literal arguments
+and actual external data locations. Source-free here means no Core source binding,
+not that the game requires no originals. Preserve upstream original-file setup,
+bespoke actions and immediate warnings. Managed facts currently cover only the
+existing NativePortable GitHub shape without a Core source binding. Other shapes
+keep their working route and specific limitation; do not infer operational facts
+from prose or expand the schema to fit them.
+
+Use the existing `prepare-port.mts` feedback and reviewed per-ID record, followed
+by `generate-catalog.mts`; shared explanations and distinct lifecycle entrypoints
+are generated. Reuse accepted inspections with the existing paired package
+observation options to derive descriptive metadata and expected member facts.
+Independent initial acceptance remains necessary. Covered ordinary releases use
+the existing dynamic resolver and applicable integrity checks, with no new
+version/applicability row, guide rewrite, wrapper or routine agent approval.
+See `crates/portcove-core/catalog/ports/nhl-94-genesis-ninety-four.json` for a
+prepared route retaining explicit retail-ROM and save/state limitations.
+
 A discovery-only listing needs a stable implementation identity, truthful name,
 summary and attributable public origin. Unknown availability, missing artwork or
 unreviewed setup details do not require a full port investigation. Listing
