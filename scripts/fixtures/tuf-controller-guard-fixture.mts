@@ -13,6 +13,7 @@ const forbidden = () => {
   throw new Error("Uncontrolled TUF controller fixture capability");
 };
 globalThis.fetch = forbidden;
+process.env.GH_TOKEN = "inert-tuf-reader-token";
 process.kill = forbidden;
 for (const [name, value] of Object.entries(children))
   if (typeof value === "function") Reflect.set(children, name, forbidden);
@@ -161,11 +162,25 @@ dependency("github-api", {
   },
 });
 dependency("release-coordinator-recovery", {
-  recoverRemoteCoordinator: () => {
+  recoverRemoteCoordinator: async (
+    _directory: string,
+    _configuration: unknown,
+    options: unknown,
+  ) => {
+    assert.deepEqual(options, {
+      transport: { credential: { token: "inert-tuf-reader-token" }, deadline: 115000 },
+    });
     events.push("initial recovery");
     return snapshot;
   },
-  readRemoteCoordinatorSnapshot: () => {
+  readRemoteCoordinatorSnapshot: async (
+    _directory: string,
+    _configuration: unknown,
+    options: unknown,
+  ) => {
+    assert.deepEqual(options, {
+      transport: { credential: { token: "inert-tuf-reader-token" }, deadline: 115000 },
+    });
     if (mode === "stale-controls") clock = 61000;
     events.push(`guarded snapshot:${clock}`);
     return snapshot;

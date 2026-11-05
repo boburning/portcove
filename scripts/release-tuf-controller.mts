@@ -42,6 +42,7 @@ import {
   executeOwnedCapacityEffect,
 } from "./release-capacity-executor.mts";
 import { authenticateReleaseControlRound } from "./release-live-control-admission.mts";
+import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import { releaseControlRefQuery } from "./release-control-inputs.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
@@ -170,8 +171,9 @@ export async function runTufRoleController(
   let progress = "current-reservation";
   try {
     const coordinator = { schema_version: 1, namespace: authorities.namespace },
+      transport = { credential: { token: fixedReleaseReaderToken() }, deadline },
       recovered = await recoverRemoteCoordinator(directory, coordinator, {
-        transport: { cwd: directory, deadline },
+        transport,
       });
     let checkpoint = recovered.checkpoint;
     const descriptor = () =>
@@ -265,7 +267,7 @@ export async function runTufRoleController(
       for (const dependency of capturedDependencies)
         await requireRetainedTufRoleArtifact(dependency, deadline);
       const snapshot = await readRemoteCoordinatorSnapshot(directory, coordinator, {
-        transport: { cwd: directory, deadline },
+        transport,
       });
       await reservation(snapshot);
       await fresh();

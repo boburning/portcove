@@ -48,6 +48,15 @@ export function readOnlyReleaseChildEnvironment(): NodeJS.ProcessEnv | undefined
   return selected === undefined ? undefined : { ...selected };
 }
 
+/** Fixed SDK readers use the same authority as the scoped subprocesses. */
+export function fixedReleaseReaderToken() {
+  const environment = environments.getStore() ?? process.env;
+  const token = environment.GH_TOKEN;
+  if (!token || token.length > 16384 || /\s/u.test(token))
+    throw new Error("explicit fixed-job reader transport token required");
+  return token;
+}
+
 /** Retained parent callbacks must explicitly re-enter this exact reader scope.
  * Creating a closure inside AsyncLocalStorage.run does not bind later calls.
  * This captures only the existing private child environment, not other scopes. */

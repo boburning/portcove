@@ -141,13 +141,26 @@ void test("injected recovery join verifies existing public bytes and original ro
         inspectCatalogTufPublicationReport,
         assertCatalogSitePublicationBinding,
         inspectCapacityOperation: (raw: unknown) => raw,
-        readRemoteCoordinatorSnapshot: async () => ({
-          checkpoint: changedIntent && ++remoteReads > 1 ? "changed" : "original",
-          input: {
-            catalog_publication: descriptor,
-            controller: { capacity_attempt: { operation } },
-          },
-        }),
+        fixedReleaseReaderToken: () => "inert-catalog-recovery-reader",
+        readRemoteCoordinatorSnapshot: async (
+          _directory: string,
+          _remote: unknown,
+          options: unknown,
+        ) => {
+          assert.ok(isRecord(options) && isRecord(options.transport));
+          assert.equal(
+            JSON.stringify(options.transport.credential),
+            JSON.stringify({ token: "inert-catalog-recovery-reader" }),
+          );
+          assert.equal(typeof options.transport.deadline, "number");
+          return {
+            checkpoint: changedIntent && ++remoteReads > 1 ? "changed" : "original",
+            input: {
+              catalog_publication: descriptor,
+              controller: { capacity_attempt: { operation } },
+            },
+          };
+        },
         materializePublishedCatalogCompleteSite: async () => ({ receipt: {} }),
         requirePublishedCatalogCompleteSite: async () => ({ catalog: repository }),
         readControllerToolFile: async (file: string) => readFile(file),
