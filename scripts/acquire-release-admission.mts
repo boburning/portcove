@@ -665,10 +665,9 @@ export async function acquireReleaseAdmission(
       workflow_sha256: hash(workflow),
     };
     const admissionDeadline = started + 15 * 60 * 1000;
-    const publicBuildCredential =
-      config.public_build_inputs && !options.download
-        ? publicBuildReadCredential(admissionDeadline)
-        : undefined;
+    const evidenceCredential = options.download
+      ? undefined
+      : publicBuildReadCredential(admissionDeadline);
     const reserveProviderRequest = () => {
       budget();
       return {
@@ -691,7 +690,7 @@ export async function acquireReleaseAdmission(
       const evidenceOptions: ReleaseEvidenceOptions = {
         deadline,
         reserve: reserveProviderRequest,
-        ...(publicBuildCredential ? { credential: publicBuildCredential } : {}),
+        ...(evidenceCredential ? { credential: evidenceCredential } : {}),
       };
       try {
         return await (options.collectEvidence ?? collectReleaseRunEvidence)(
@@ -845,7 +844,7 @@ export async function acquireReleaseAdmission(
     const publicBuildInputs = publicBinding
       ? await verifyReleasePublicBuildInputs(root, publicBinding, evidence, {
           download: options.download,
-          credential: publicBuildCredential,
+          credential: evidenceCredential,
           deadline: admissionDeadline,
           lookup: () => ({
             deadline: Math.min(admissionDeadline, performance.now() + 120000 - apiMilliseconds),
@@ -913,6 +912,15 @@ export async function acquireReleaseAdmission(
     const sbomEvidence = await collectReleaseSbomEvidence(root, assembly, evidence, {
       download: options.download,
       preparedNamespace: config.namespace,
+      deadline: admissionDeadline,
+      ...(evidenceCredential ? { credential: evidenceCredential } : {}),
+      lookup: {
+        deadline: Math.min(admissionDeadline, performance.now() + 120000 - apiMilliseconds),
+        reserve: reserveProviderRequest,
+        elapsed(milliseconds) {
+          apiMilliseconds += milliseconds;
+        },
+      },
       maximumArchiveBytes: Math.min(
         512 * 1024 * 1024,
         2 * 1024 * 1024 * 1024 -
