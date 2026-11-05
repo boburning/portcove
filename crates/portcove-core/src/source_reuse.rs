@@ -108,12 +108,12 @@ impl PortcoveService {
                 "The saved files or the port’s requirements changed. Review setup again.",
             ));
         }
-        if let Some(path) = selected_path {
-            if std::fs::canonicalize(path)? != std::fs::canonicalize(&review.registration.path)? {
-                return Err(PortcoveError::conflict(
-                    "The selected location differs from the saved-source review. Repair its location or review the new selection separately.",
-                ));
-            }
+        if let Some(path) = selected_path
+            && std::fs::canonicalize(path)? != std::fs::canonicalize(&review.registration.path)?
+        {
+            return Err(PortcoveError::conflict(
+                "The selected location differs from the saved-source review. Repair its location or review the new selection separately.",
+            ));
         }
         if self.catalog().port(port_id)?.source_profile.as_deref()
             != Some(reference.profile_id.as_str())

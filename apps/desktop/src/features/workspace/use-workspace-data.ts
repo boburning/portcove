@@ -85,6 +85,18 @@ function shareWorkspaceRead(previous: unknown, next: unknown): WorkspaceRead {
   };
 }
 
+function workspaceDiagnosticInputsChanged(previous: WorkspaceSnapshot, next: WorkspaceSnapshot) {
+  return (
+    next.catalog !== previous.catalog ||
+    next.statuses !== previous.statuses ||
+    next.sources !== previous.sources ||
+    next.browsing !== previous.browsing ||
+    next.listing_catalog !== previous.listing_catalog ||
+    next.listing_statuses !== previous.listing_statuses ||
+    next.pending_setups !== previous.pending_setups
+  );
+}
+
 const emptyStatuses: PortStatus[] = [];
 const emptySources: SourceRecord[] = [];
 const emptyListingStatuses: PortListingStatus[] = [];
@@ -116,6 +128,18 @@ function useWorkspaceViewState() {
     setDiagnosticRevision,
     subscriptionFailure,
     setSubscriptionFailure,
+  };
+}
+
+function workspaceSnapshotView(snapshot: WorkspaceSnapshot | undefined) {
+  return {
+    catalog: snapshot?.catalog,
+    statuses: snapshot?.statuses ?? emptyStatuses,
+    sources: snapshot?.sources ?? emptySources,
+    browsing: snapshot?.browsing,
+    listingCatalog: snapshot?.listing_catalog ?? undefined,
+    listingStatuses: snapshot?.listing_statuses ?? emptyListingStatuses,
+    pendingSetups: snapshot?.pending_setups ?? emptyPendingSetups,
   };
 }
 
@@ -246,11 +270,6 @@ export function usePortcoveData(libraryGeneration = 0) {
     },
     queryClient,
   );
-  const snapshot = workspace.data?.snapshot;
-  const catalog = snapshot?.catalog;
-  const statuses = snapshot?.statuses ?? emptyStatuses;
-  const sources = snapshot?.sources ?? emptySources;
-  const browsing = snapshot?.browsing;
   const refreshFailure = workspace.isError ? { error: workspace.error } : undefined;
   const refreshing = workspace.isFetching;
   const previousSnapshot = useRef<WorkspaceSnapshot | undefined>(undefined);
@@ -258,17 +277,7 @@ export function usePortcoveData(libraryGeneration = 0) {
     if (!workspace.data) return;
     const next = workspace.data.snapshot;
     const previous = previousSnapshot.current;
-    if (
-      previous &&
-      (next.catalog !== previous.catalog ||
-        next.statuses !== previous.statuses ||
-        next.sources !== previous.sources ||
-        next.browsing !== previous.browsing ||
-        next.listing_catalog !== previous.listing_catalog ||
-        next.listing_statuses !== previous.listing_statuses ||
-        next.pending_setups !== previous.pending_setups)
-    )
-      invalidateDiagnostics();
+    if (previous && workspaceDiagnosticInputsChanged(previous, next)) invalidateDiagnostics();
     previousSnapshot.current = next;
     if (
       workspace.data.activityRequest !== null &&
@@ -470,15 +479,9 @@ export function usePortcoveData(libraryGeneration = 0) {
   const activities = activityFeed.records;
   return {
     queryClient,
-    catalog,
-    statuses,
-    sources,
-    browsing,
+    ...workspaceSnapshotView(workspace.data?.snapshot),
     refreshFailure,
     refreshing,
-    listingCatalog: snapshot?.listing_catalog ?? undefined,
-    listingStatuses: snapshot?.listing_statuses ?? emptyListingStatuses,
-    pendingSetups: snapshot?.pending_setups ?? emptyPendingSetups,
     activities,
     activityFeed,
     doctor,

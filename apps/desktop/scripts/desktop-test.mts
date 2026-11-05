@@ -1618,6 +1618,55 @@ async function requestApplicationShutdown(snapshot: string) {
   return driverStop;
 }
 
+async function restartHistoryApplication(
+  name: string,
+  prepareWhileStopped: (() => Promise<void>) | undefined,
+  childEnvironment: NodeJS.ProcessEnv,
+) {
+  const captured = await captureHistorySession(
+    required(required(driver).pid),
+    driverPath,
+    application,
+  );
+  assert.equal(captured.driver.start_ticks, required(historyInventory).driver.start_ticks);
+  const identities = new Map(
+    [...required(historyInventory).processes, ...captured.processes].map((entry) => [
+      `${entry.pid}:${entry.start_ticks}`,
+      entry,
+    ]),
+  );
+  historyInventory = { ...captured, processes: [...identities.values()] };
+  await required(browser).quit();
+  browser = undefined;
+  await stopDriver();
+  const cleanup = await waitHistorySessionExit(historyInventory);
+  driver = undefined;
+  const evidence = path.join(output, `${name}-restart.json`);
+  await writeFile(evidence, JSON.stringify(cleanup, null, 2) + "\n", { flag: "wx" });
+  artifacts.push(evidence);
+  if (prepareWhileStopped) await prepareWhileStopped();
+  await startDriver(childEnvironment);
+  await connect();
+  return driverBrowser();
+}
+
+function requiresReadOnlyRestart(name: string, acquisitionRestart: boolean) {
+  return (
+    !preferencesRecoverySession &&
+    !hostPublicationSession &&
+    !acquisitionRestart &&
+    !(
+      reviewedWorkflowSession &&
+      selection.selected_scenarios.includes("native-staged-update-composition") &&
+      name === "native-staged-update-composition"
+    ) &&
+    !(
+      interruptedPreparationSession &&
+      (name === "interrupted-preparation-fixture" || name === "journal-only-preparation-recovery")
+    )
+  );
+}
+
 async function restartApplication(
   name: string,
   prepareWhileStopped?: () => Promise<void>,
@@ -1640,33 +1689,8 @@ async function restartApplication(
     await connect();
     return driverBrowser();
   }
-  if (process.platform === "linux" && historySession) {
-    const captured = await captureHistorySession(
-      required(required(driver).pid),
-      driverPath,
-      application,
-    );
-    assert.equal(captured.driver.start_ticks, required(historyInventory).driver.start_ticks);
-    const identities = new Map(
-      [...required(historyInventory).processes, ...captured.processes].map((entry) => [
-        `${entry.pid}:${entry.start_ticks}`,
-        entry,
-      ]),
-    );
-    historyInventory = { ...captured, processes: [...identities.values()] };
-    await required(browser).quit();
-    browser = undefined;
-    await stopDriver();
-    const cleanup = await waitHistorySessionExit(historyInventory);
-    driver = undefined;
-    const evidence = path.join(output, `${name}-restart.json`);
-    await writeFile(evidence, JSON.stringify(cleanup, null, 2) + "\n", { flag: "wx" });
-    artifacts.push(evidence);
-    if (prepareWhileStopped) await prepareWhileStopped();
-    await startDriver(childEnvironment);
-    await connect();
-    return driverBrowser();
-  }
+  if (process.platform === "linux" && historySession)
+    return restartHistoryApplication(name, prepareWhileStopped, childEnvironment);
   const acquisitionRestart = Boolean(executionPlan.fixtures.acquisitionJourney);
   if (
     savedLibraryRecoverySession ||
@@ -1675,20 +1699,7 @@ async function restartApplication(
     acquisitionRestart ||
     (process.platform === "win32" && identityBoundSession)
   ) {
-    if (
-      !preferencesRecoverySession &&
-      !hostPublicationSession &&
-      !acquisitionRestart &&
-      !(
-        reviewedWorkflowSession &&
-        selection.selected_scenarios.includes("native-staged-update-composition") &&
-        name === "native-staged-update-composition"
-      ) &&
-      !(
-        interruptedPreparationSession &&
-        (name === "interrupted-preparation-fixture" || name === "journal-only-preparation-recovery")
-      )
-    )
+    if (requiresReadOnlyRestart(name, acquisitionRestart))
       assert.equal(
         prepareWhileStopped,
         undefined,

@@ -1801,6 +1801,7 @@ for (const [file, tests] of [
     "apps/desktop/scripts/desktop-test.mts",
     [
       "apps/desktop/scripts/desktop-harness.native.test.mts",
+      "scripts/desktop-linux-stop.test.mts",
       "scripts/desktop-real-runtime.test.mts",
       "scripts/desktop-source-reuse.test.mts",
       "scripts/desktop-boundary-wiring.test.mts",

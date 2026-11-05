@@ -1198,7 +1198,7 @@ mod tests {
         io::{Read, Write},
         net::TcpListener,
         sync::{
-            Arc,
+            Arc, Condvar, Mutex,
             atomic::{AtomicUsize, Ordering},
         },
         thread,
@@ -2326,11 +2326,18 @@ mod tests {
 
     #[tokio::test]
     async fn gitlab_package_file_requests_use_the_documented_concurrency_bound() {
+        #[derive(Default)]
+        struct LookupWindow {
+            arrivals: usize,
+            released: bool,
+        }
+
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let address = listener.local_addr().unwrap();
         let active = Arc::new(AtomicUsize::new(0));
         let maximum = Arc::new(AtomicUsize::new(0));
         let measured = maximum.clone();
+        let first_wave = Arc::new((Mutex::new(LookupWindow::default()), Condvar::new()));
         let server = thread::spawn(move || {
             let (mut stream, _) = listener.accept().unwrap();
             let mut request = [0_u8; 16 * 1024];
@@ -2347,21 +2354,41 @@ mod tests {
                 let (mut stream, _) = listener.accept().unwrap();
                 let active = active.clone();
                 let maximum = maximum.clone();
+                let first_wave = first_wave.clone();
                 workers.push(thread::spawn(move || {
                     let mut request = [0_u8; 16 * 1024];
                     let _ = stream.read(&mut request).unwrap();
+                    let (window, ready) = &*first_wave;
+                    let mut wave = window.lock().unwrap();
                     let current = active.fetch_add(1, Ordering::SeqCst) + 1;
                     maximum.fetch_max(current, Ordering::SeqCst);
-                    thread::sleep(Duration::from_millis(50));
+                    wave.arrivals += 1;
+                    if wave.arrivals == GITLAB_PACKAGE_LOOKUP_CONCURRENCY {
+                        // Observe overfill only after the expected window is full.
+                        drop(wave);
+                        thread::sleep(Duration::from_millis(50));
+                        wave = window.lock().unwrap();
+                        wave.released = true;
+                        ready.notify_all();
+                    }
+                    // Hold the initial responses until the client fills its request window.
+                    let (wave, _) = ready
+                        .wait_timeout_while(wave, Duration::from_secs(5), |wave| !wave.released)
+                        .unwrap();
+                    let filled_window = wave.released;
+                    drop(wave);
+                    active.fetch_sub(1, Ordering::SeqCst);
                     stream
                         .write_all(b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 2\r\nConnection: close\r\n\r\n[]")
                         .unwrap();
-                    active.fetch_sub(1, Ordering::SeqCst);
+                    filled_window
                 }));
             }
+            let mut filled_window = true;
             for worker in workers {
-                worker.join().unwrap();
+                filled_window &= worker.join().unwrap();
             }
+            assert!(filled_window, "initial package lookup window did not fill");
         });
         let server_root = format!("http://{address}");
         let provider =

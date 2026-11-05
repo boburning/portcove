@@ -146,70 +146,14 @@ export function RecoveryReview({
                     : undefined,
               });
               return (
-                <div
-                  className="recovery-review-item"
+                <RecoveryItem
                   key={origin}
-                  data-recovery-operation={item.operation_id ?? undefined}
-                >
-                  <details>
-                    <summary className="cursor-pointer" data-focusable>
-                      {item.port_id ? (names.get(item.port_id) ?? item.port_id) : "Library"} ·{" "}
-                      {Object.hasOwn(labels, item.kind)
-                        ? labels[item.kind]
-                        : "Recovery information needs review"}
-                    </summary>
-                    <dl className="text-xs">
-                      {item.kind === "malformed_journal" && (
-                        <>
-                          <dt>Diagnostic observation</dt>
-                          <dd className="mt-1 mb-3">{item.message}</dd>
-                        </>
-                      )}
-                      <dt>Recorded location</dt>
-                      <dd className="mt-1 mb-3">
-                        {item.path ? (
-                          <code className="whitespace-normal">{item.path}</code>
-                        ) : (
-                          "No location was recorded."
-                        )}
-                      </dd>
-                      <dt>Suggested next step</dt>
-                      <dd className="mt-1 mb-3">
-                        {item.proposed_action || "No recovery guidance was recorded."}
-                      </dd>
-                      {item.operation_id && (
-                        <>
-                          <dt>Operation reference</dt>
-                          <dd className="mt-1 mb-3">
-                            <code className="whitespace-normal">{item.operation_id}</code>
-                          </dd>
-                        </>
-                      )}
-                    </dl>
-                    {item.kind === "retained_preparation" && item.operation_id && (
-                      <Button
-                        data-focusable
-                        variant="outline"
-                        size="sm"
-                        className="mt-2"
-                        onClick={() => setCleanupOperation(item.operation_id ?? undefined)}
-                      >
-                        Review unfinished setup files
-                      </Button>
-                    )}
-                  </details>
-                  {action && (
-                    <Button
-                      data-focusable
-                      data-detail-origin={origin}
-                      variant={action.label === "View related task record" ? "link" : "outline"}
-                      size="sm"
-                      onClick={action.open}
-                    >
-                      {action.label}
-                    </Button>
-                  )}
-                </div>
+                  item={item}
+                  gameName={portId ? (names.get(portId) ?? portId) : "Library"}
+                  origin={origin}
+                  action={action}
+                  reviewCleanup={setCleanupOperation}
+                />
               );
             })}
           </div>
@@ -226,6 +170,83 @@ export function RecoveryReview({
         />
       )}
     </section>
+  );
+}
+
+function RecoveryItem({
+  item,
+  gameName,
+  origin,
+  action,
+  reviewCleanup,
+}: {
+  item: Item;
+  gameName: string;
+  origin: string;
+  action: ReturnType<typeof recoveryNavigation>;
+  reviewCleanup: (operationId: string | undefined) => void;
+}) {
+  return (
+    <div className="recovery-review-item" data-recovery-operation={item.operation_id ?? undefined}>
+      <details>
+        <summary className="cursor-pointer" data-focusable>
+          {gameName} ·{" "}
+          {Object.hasOwn(labels, item.kind)
+            ? labels[item.kind]
+            : "Recovery information needs review"}
+        </summary>
+        <dl className="text-xs">
+          {item.kind === "malformed_journal" && (
+            <>
+              <dt>Diagnostic observation</dt>
+              <dd className="mt-1 mb-3">{item.message}</dd>
+            </>
+          )}
+          <dt>Recorded location</dt>
+          <dd className="mt-1 mb-3">
+            {item.path ? (
+              <code className="whitespace-normal">{item.path}</code>
+            ) : (
+              "No location was recorded."
+            )}
+          </dd>
+          <dt>Suggested next step</dt>
+          <dd className="mt-1 mb-3">
+            {item.proposed_action || "No recovery guidance was recorded."}
+          </dd>
+          {item.operation_id && (
+            <>
+              <dt>Operation reference</dt>
+              <dd className="mt-1 mb-3">
+                <code className="whitespace-normal">{item.operation_id}</code>
+              </dd>
+            </>
+          )}
+        </dl>
+        {item.kind === "retained_preparation" && item.operation_id && (
+          <Button
+            data-focusable
+            variant="outline"
+            size="sm"
+            className="mt-2"
+            onClick={() => reviewCleanup(item.operation_id ?? undefined)}
+          >
+            Review unfinished setup files
+          </Button>
+        )}
+      </details>
+      {action && (
+        <Button
+          data-focusable
+          data-detail-origin={origin}
+          variant={action.label === "View related task record" ? "link" : "outline"}
+          size="sm"
+          onClick={action.open}
+        >
+          {action.label}
+        </Button>
+      )}
+    </div>
   );
 }
 

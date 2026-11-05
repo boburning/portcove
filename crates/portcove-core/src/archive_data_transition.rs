@@ -39,18 +39,17 @@ pub(crate) fn creating_fingerprint(catalog: &Catalog, id: &str) -> Result<String
 }
 
 pub(crate) fn validate_declaration(port: &PortDefinition) -> Result<()> {
-    if let Some(admission) = &port.archive_data_transition_v1 {
-        if port.archive_data_compatibility_v1.is_none()
+    if let Some(admission) = &port.archive_data_transition_v1
+        && (port.archive_data_compatibility_v1.is_none()
             || !digest(&admission.predecessor_archive_sha256)
             || !digest(&admission.creating_contract_sha256)
             || port.runtime_source_filename.is_none()
             || port.runtime_source_hashes.is_empty()
-            || port.source_profile.is_none()
-        {
-            return Err(PortcoveError::usage(
-                "archive data transition needs an exact predecessor and a reviewed original-bound data policy",
-            ));
-        }
+            || port.source_profile.is_none())
+    {
+        return Err(PortcoveError::usage(
+            "archive data transition needs an exact predecessor and a reviewed original-bound data policy",
+        ));
     }
     Ok(())
 }

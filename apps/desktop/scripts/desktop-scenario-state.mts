@@ -45,6 +45,24 @@ export function fixtureSuccess(value: unknown) {
   return reply.value;
 }
 
+export function ownedFixtureObservationCommand(
+  { cli, library, output }: Omit<OwnedFixtureContext, "catalogPath">,
+  portIds: readonly string[],
+  refusalMessage: string,
+) {
+  const core = ownedFixtureCommand({ cli, library, output });
+  return (args: readonly string[]) => {
+    assert.ok(
+      (args.length === 2 &&
+        ["status", "paths"].includes(String(args[0])) &&
+        portIds.some((id) => id === args[1])) ||
+        (args.length === 3 && args[0] === "launch" && args[1] === "show"),
+      refusalMessage,
+    );
+    return core(args);
+  };
+}
+
 // Optional native fixtures use their own CLI/library, never the application's adapter.
 export function ownedFixtureCommand(
   { cli, library, output, catalogPath }: OwnedFixtureContext,

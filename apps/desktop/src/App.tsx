@@ -402,6 +402,26 @@ type WorkspaceProps = {
   consumeLibrarySelectionReturn: () => void;
 };
 
+function workspaceDetailBackLabel(addGamesOpen: boolean, origin: string | undefined) {
+  if (addGamesOpen && origin?.startsWith("add-games:")) return "Back to Add games";
+  if (origin?.startsWith("library:")) return "Back to Library";
+  if (origin?.startsWith("catalog:")) return "Back to Discover";
+  return undefined;
+}
+
+function workspaceSourceIntakeReturnFocus(portId: string) {
+  const detail = [...document.querySelectorAll<HTMLElement>("[data-detail-port-id]")].find(
+    (element) => element.dataset.detailPortId === portId,
+  );
+  return (
+    detail?.querySelector<HTMLButtonElement>(".primary-actions button:not(:disabled)") ??
+    detail?.querySelector<HTMLButtonElement>(".detail-back") ??
+    document.querySelector<HTMLButtonElement>(
+      'section[aria-label="Add games workspace"]:not([hidden]) #add-games-check-files',
+    )
+  );
+}
+
 function useWorkspace(props: WorkspaceProps) {
   const { bootstrap, returnToSelection, consumeLibrarySelectionReturn } = props;
   const {
@@ -519,14 +539,7 @@ function useWorkspace(props: WorkspaceProps) {
     setAddGamesOpen(false);
     setPrimaryView("library");
   };
-  const detailBackLabel =
-    addGamesOpen && detailOpening?.originKey?.startsWith("add-games:")
-      ? "Back to Add games"
-      : detailOpening?.originKey?.startsWith("library:")
-        ? "Back to Library"
-        : detailOpening?.originKey?.startsWith("catalog:")
-          ? "Back to Discover"
-          : undefined;
+  const detailBackLabel = workspaceDetailBackLabel(addGamesOpen, detailOpening?.originKey);
   const addGamesReturn = useRef(0);
   const { setActivitySection } = ui;
   const setPrimaryView = useCallback(
@@ -860,19 +873,7 @@ function useWorkspace(props: WorkspaceProps) {
         request={sourceIntake}
         close={closeSourceIntake}
         onAdded={data.refreshAfterMutation}
-        returnFocus={() => {
-          const detail = [...document.querySelectorAll<HTMLElement>("[data-detail-port-id]")].find(
-            (element) => element.dataset.detailPortId === sourceIntake.portId,
-          );
-          return (
-            detail?.querySelector<HTMLButtonElement>(".primary-actions button:not(:disabled)") ??
-            detail?.querySelector<HTMLButtonElement>(".detail-back") ??
-            document.querySelector<HTMLButtonElement>(
-              'section[aria-label="Add games workspace"]:not([hidden]) #add-games-check-files',
-            ) ??
-            null
-          );
-        }}
+        returnFocus={() => workspaceSourceIntakeReturnFocus(sourceIntake.portId)}
         openEvidence={(evidenceId) => {
           void operations.perform(
             "open source evidence",
@@ -922,7 +923,49 @@ function Workspace(props: Parameters<typeof useWorkspace>[0]) {
   return <WorkspaceView {...useWorkspace(props)} />;
 }
 
-function WorkspaceView({ workspace, ...model }: ReturnType<typeof useWorkspace>) {
+type WorkspaceModel = ReturnType<typeof useWorkspace>;
+
+function WorkspaceSidebar({ model }: { model: Omit<WorkspaceModel, "workspace"> }) {
+  const steamBatchPorts = installedSteamBatchPorts(model.data, model.model);
+  return (
+    <Sidebar
+      view={model.ui.view}
+      setView={model.setPrimaryView}
+      controller={model.controller}
+      installedCount={model.model.overview.installed}
+      updateCount={
+        model.data.statuses.filter((status) => {
+          const check = currentUpdateSnapshot(status)?.check;
+          const release = check?.release;
+          return (
+            check?.update_available &&
+            !updateNoticeHidden(
+              model.organization.snapshot?.update_notices[status.port_id],
+              release?.asset.sha256
+                ? { version: release.version, artifact_sha256: release.asset.sha256 }
+                : undefined,
+            )
+          );
+        }).length
+      }
+      activities={model.data.activities}
+      organization={model.organization}
+      collectionView={model.organizationViews.library}
+      onSelectCollection={model.selectLibraryCollection}
+      libraryRoot={model.bootstrap.library_root ?? undefined}
+      collectionActions={
+        steamBatchPorts.length >= 2 ? (
+          <SteamBatchLibraryAction
+            ports={steamBatchPorts}
+            generation={model.bootstrap.generation}
+          />
+        ) : undefined
+      }
+    />
+  );
+}
+
+function WorkspaceView({ workspace, ...model }: WorkspaceModel) {
   return (
     <OperationPresentationProvider
       generation={model.bootstrap.generation}
@@ -934,40 +977,7 @@ function WorkspaceView({ workspace, ...model }: ReturnType<typeof useWorkspace>)
         listings={model.data.listingCatalog}
       >
         <div className="app-shell grid h-[100vh] grid-cols-[var(--layout-sidebar)_minmax(0,_1fr)] bg-[var(--color-bg)]">
-          <Sidebar
-            view={model.ui.view}
-            setView={model.setPrimaryView}
-            controller={model.controller}
-            installedCount={model.model.overview.installed}
-            updateCount={
-              model.data.statuses.filter((status) => {
-                const check = currentUpdateSnapshot(status)?.check;
-                const release = check?.release;
-                return (
-                  check?.update_available &&
-                  !updateNoticeHidden(
-                    model.organization.snapshot?.update_notices[status.port_id],
-                    release?.asset.sha256
-                      ? { version: release.version, artifact_sha256: release.asset.sha256 }
-                      : undefined,
-                  )
-                );
-              }).length
-            }
-            activities={model.data.activities}
-            organization={model.organization}
-            collectionView={model.organizationViews.library}
-            onSelectCollection={model.selectLibraryCollection}
-            libraryRoot={model.bootstrap.library_root ?? undefined}
-            collectionActions={
-              installedSteamBatchPorts(model.data, model.model).length >= 2 ? (
-                <SteamBatchLibraryAction
-                  ports={installedSteamBatchPorts(model.data, model.model)}
-                  generation={model.bootstrap.generation}
-                />
-              ) : undefined
-            }
-          />
+          <WorkspaceSidebar model={model} />
           <main
             className="workspace-main min-h-0 w-full min-w-0 overflow-auto pb-12 max-[75rem]:pb-10"
             ref={workspace}
