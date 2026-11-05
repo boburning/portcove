@@ -1121,7 +1121,11 @@ for (const [file, tests] of [
   ],
   [
     "scripts/release-native-postsign-readiness.mts",
-    ["scripts/release-hosted-native-runner.test.mts", "scripts/release-hosted-native-job.test.mts"],
+    [
+      "scripts/release-hosted-native-runner.test.mts",
+      "scripts/release-hosted-native-job.test.mts",
+      "scripts/release-hosted-native-windows-runner.test.mts",
+    ],
   ],
   [
     ".github/actions/release-native-linux/action.yml",
@@ -2390,6 +2394,7 @@ for (const file of [
     ...(explicitNodeTests.get(file) ?? []),
     "scripts/release-control-handshake.test.mts",
     "scripts/release-capacity-executor.test.mts",
+    "scripts/release-hosted-native-windows-runner.test.mts",
     "scripts/github-client.test.mts",
     "scripts/release-catalog-site-controller.test.mts",
     "scripts/release-site-readback.test.mts",

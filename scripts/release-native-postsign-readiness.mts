@@ -78,7 +78,7 @@ export async function createNativePostSignReader(
   run: string,
   deadline: number,
   active: () => void,
-  retainStatus: (status: number) => void,
+  retainStatus?: (status: number) => void,
 ) {
   assert.match(run, /^[1-9][0-9]{0,15}$/u);
   const token = fixedReleaseReaderToken();
@@ -102,7 +102,7 @@ export async function createNativePostSignReader(
       replay: "once",
       attempts: 0,
       observe(observation) {
-        if (observation.status !== null) retainStatus(observation.status);
+        if (observation.status !== null) retainStatus?.(observation.status);
         hasLink = Object.hasOwn(observation.headers, "link");
       },
     };
