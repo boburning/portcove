@@ -91,7 +91,8 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             | CatalogCommand::Show { .. }
             | CatalogCommand::Status
             | CatalogCommand::ListingStatus
-            | CatalogCommand::InspectProposal { .. } => ReadOnly,
+            | CatalogCommand::InspectProposal { .. }
+            | CatalogCommand::InspectSettingsQualification { .. } => ReadOnly,
             CatalogCommand::InspectDefinitionPublication { .. } => ReadOnly,
             CatalogCommand::DefinitionAuthority { apply, .. }
             | CatalogCommand::Update { apply, .. } => apply_mode(*apply),

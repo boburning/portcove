@@ -364,6 +364,24 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
         )?;
         return Ok(ExitCode::SUCCESS);
     }
+    if let Commands::Catalog {
+        command: CatalogCommand::InspectSettingsQualification { file },
+    } = &cli.command
+    {
+        let mut bytes = Vec::new();
+        std::fs::File::open(file)?
+            .take(4 * 1024 * 1024 + 1)
+            .read_to_end(&mut bytes)?;
+        render_read_success(
+            mode,
+            "catalog.inspect-settings-qualification",
+            portcove_core::inspect_game_settings_qualification(&bytes)?,
+            |_| {
+                "Settings document qualification passed; upstream and publication acceptance remain separate.".into()
+            },
+        )?;
+        return Ok(ExitCode::SUCCESS);
+    }
     let preferences = startup::observe(
         startup::DiagnosticPhase::Preferences,
         host_preference_store(),

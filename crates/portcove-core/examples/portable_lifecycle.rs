@@ -58,9 +58,10 @@ fn main() -> Result<()> {
 #[tokio::main]
 async fn run() -> Result<()> {
     let args = std::env::args_os().skip(1).collect::<Vec<_>>();
-    if args.len() != 3 {
+    let baseline_only = args.len() == 4 && args[3] == "--baseline-only";
+    if args.len() != 3 && !baseline_only {
         return Err(PortcoveError::usage(
-            "portable_lifecycle PORT_ID BASELINE_RELEASE_JSON NEW_LIBRARY",
+            "portable_lifecycle PORT_ID BASELINE_RELEASE_JSON NEW_LIBRARY [--baseline-only]",
         ));
     }
     let port_id = args[0]
@@ -86,6 +87,18 @@ async fn run() -> Result<()> {
     let first = initial
         .install(port_id, None, None, None, true, |_| {})
         .await?;
+    if baseline_only {
+        let verification = require_verification("baseline", &first.id, initial.verify(port_id)?)?;
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&serde_json::json!({
+                "evidence": "real explicitly selected baseline package through Core installation and positive immutable verification; no update or native execution",
+                "baseline": first,
+                "baseline_verification": verification,
+            }))?
+        );
+        return Ok(());
+    }
     // The replacement uses the normal GitHub provider and unchanged catalog facts.
     let current = PortcoveService::with_provider(
         library.clone(),

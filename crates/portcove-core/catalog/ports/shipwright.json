@@ -92,5 +92,153 @@
         }
       ]
     }
+  },
+  "settings_qualification_v1": {
+    "format_version": 1,
+    "regions": [
+      {
+        "role": "consumer",
+        "repository": "HarbourMasters/Shipwright",
+        "path": "soh/soh/Enhancements/audio/AudioSettings.cpp",
+        "start": "static std::atomic<float> sMasterVolume",
+        "end": "static RegisterShipInitFunc initAudioSettings",
+        "sha256": "b00d8a04a2e6eb37b8b252448fd9da9649b2bd335faffd6956198882025abe58"
+      },
+      {
+        "role": "consumer",
+        "repository": "HarbourMasters/Shipwright",
+        "path": "soh/soh/cvar_prefixes.h",
+        "start": "#define CVAR_SETTING(var)",
+        "end": "#define CVAR_WINDOW(var)",
+        "sha256": "8a4abde38020dc59e077e3f696970474969a076e2f5e493f3ae783aca48fdcd9"
+      },
+      {
+        "role": "build",
+        "repository": "HarbourMasters/Shipwright",
+        "path": "CMake/soh-cvars.cmake",
+        "start": "set(CVAR_PREFIX_SETTING",
+        "end": "set(CVAR_PREFIX_WINDOW",
+        "sha256": "a9c224bb74a522eb2b55b1dbb23e05709b16311931752dcbf2c1a44d1bb1887a"
+      },
+      {
+        "role": "build",
+        "repository": "HarbourMasters/Shipwright",
+        "path": "CMake/soh-cvars.cmake",
+        "start": "\tCVAR_PREFIX_SETTING=",
+        "end": "\tCVAR_PREFIX_WINDOW=",
+        "sha256": "7d27df79a8d0bfd0742034861a8c59c58ed93bf4863b14144de516f575623d78"
+      },
+      {
+        "role": "path",
+        "repository": "HarbourMasters/Shipwright",
+        "path": "soh/soh/OTRGlobals.cpp",
+        "start": "    context = Ship::Context::CreateUninitializedInstance",
+        "end": "\n\n    portArchivePath =",
+        "sha256": "bbc8ff19f9110d1f221b2125f23d1e375094364a3af72e8f871c6a5414c1a2dc"
+      },
+      {
+        "role": "path",
+        "repository": "kenix3/libultraship",
+        "path": "src/ship/Context.cpp",
+        "start": "bool Context::InitConfiguration()",
+        "end": "bool Context::InitConsoleVariables()",
+        "sha256": "953e1c771f19c96f50657869a1651be7380bf7dba4976c64148427cf72311d73",
+        "submodule_path": "libultraship"
+      },
+      {
+        "role": "path",
+        "repository": "kenix3/libultraship",
+        "path": "src/ship/Context.cpp",
+        "start": "std::string Context::GetAppDirectoryPath(",
+        "end": "std::string Context::GetPathRelativeToAppBundle(",
+        "sha256": "1fc4d516f108d3edd24d0505fa10c9371a8463a380f09904deb983ce519e7d70",
+        "submodule_path": "libultraship"
+      },
+      {
+        "role": "loader",
+        "repository": "kenix3/libultraship",
+        "path": "src/ship/config/ConsoleVariable.cpp",
+        "start": "int32_t ConsoleVariable::GetInteger(",
+        "end": "float ConsoleVariable::GetFloat(",
+        "sha256": "0f73ed6de0a35351f3f36a83a472f24c2bda8a92537130e2bbd5a35e87431598",
+        "submodule_path": "libultraship"
+      },
+      {
+        "role": "loader",
+        "repository": "kenix3/libultraship",
+        "path": "src/ship/config/ConsoleVariable.cpp",
+        "start": "void ConsoleVariable::Save()",
+        "end": "void ConsoleVariable::LoadLegacy()",
+        "sha256": "b76ebc1d1eb09d7c7baa34a9d69b940b55a72710256b07a573cc26e896b14e16",
+        "submodule_path": "libultraship"
+      },
+      {
+        "role": "storage",
+        "repository": "kenix3/libultraship",
+        "path": "src/ship/config/Config.cpp",
+        "start": "Config::Config(",
+        "end": "ConfigVersionUpdater::ConfigVersionUpdater(",
+        "sha256": "61b2bb44d443f0d3d4d990978e7827d9973f97f6043b8c6f5814868b11b66f63",
+        "submodule_path": "libultraship",
+        "reviewed_alternatives": [
+          "fe83fffa31a3b5b73c459998fd04657122d3f2d15a0e9d5e128a864e7f03f7cb"
+        ]
+      },
+      {
+        "role": "loader",
+        "repository": "HarbourMasters/Shipwright",
+        "path": "soh/soh/config/ConfigUpdaters.cpp",
+        "start": "    if (conf->GetNestedJson().contains(\"CVars\") && conf->GetNestedJson()[\"CVars\"].contains(\"gGameMasterVolume\"))",
+        "end": "    if (conf->GetNestedJson().contains(\"CVars\") && conf->GetNestedJson()[\"CVars\"].contains(\"gMainMusicVolume\"))",
+        "sha256": "8c05a9d34bd5c14a74fe03b0c3f77e509044b312424358edddc2eaee79843f15"
+      },
+      {
+        "role": "loader",
+        "repository": "kenix3/libultraship",
+        "path": "src/ship/window/gui/ConsoleWindow.cpp",
+        "start": "int32_t ConsoleWindow::SetCommand(",
+        "end": "int32_t ConsoleWindow::GetCommand(",
+        "sha256": "b736fcdfe002a611e15cdcc78512be86db42e44feaaa876c77ecaadb2fc256fd",
+        "submodule_path": "libultraship"
+      },
+      {
+        "role": "loader",
+        "repository": "HarbourMasters/Shipwright",
+        "path": "soh/soh/Network/Sail/Sail.cpp",
+        "start": "void Sail::OnIncomingJson(",
+        "end": "std::unique_ptr<GameInteractionEffectBase> Sail::EffectFromJson(",
+        "sha256": "4a67504bb48e0556042d9f9b31b62a98eb15ab1007869844df9436e7eae3ad9d"
+      },
+      {
+        "role": "loader",
+        "repository": "HarbourMasters/Shipwright",
+        "path": "soh/soh/Network/Network.cpp",
+        "start": "void Network::SendDataToRemote(",
+        "end": "void Network::HandleRemoteData(",
+        "sha256": "8efb14c591655266813b81664a405a7d009a897b3bc6c6fb255ed5c62afc517b"
+      },
+      {
+        "role": "consumer",
+        "repository": "HarbourMasters/Shipwright",
+        "path": "soh/soh/Enhancements/debugconsole.cpp",
+        "start": "static bool QuitHandler(",
+        "end": "static bool SaveStateHandler(",
+        "sha256": "9aba6d400db0cc1257cbeaa94eefa3e1708208428e081471c49229943c6969de"
+      },
+      {
+        "role": "build",
+        "repository": "HarbourMasters/Shipwright",
+        "path": ".github/workflows/generate-builds.yml",
+        "start": "  build-windows:\n",
+        "end": "    - name: Save Cache VCPKG folder\n",
+        "sha256": "a61b03e5172d0c1848ded6205f54b188067c16a0d9adcfb1c05065bacdcd38a8"
+      }
+    ],
+    "samples": [
+      {
+        "file_id": "preferences",
+        "document": "{\"ConfigVersion\":7,\"CVars\":{\"gSettings\":{\"Volume\":{\"Master\":37,\"Unrelated\":73}}},\"PortcoveQualification\":{\"keep\":[true,3,\"unknown\"]}}"
+      }
+    ]
   }
 }

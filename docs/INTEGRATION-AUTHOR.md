@@ -690,6 +690,56 @@ Unrelated lines and comments remain intact; this is not universal INI support.
 An installation must retain the declaration; a current catalog advertisement
 cannot grant new file access to an older retained install.
 
+Compatible settings releases can use the existing package observation and
+preparation route instead of editing `integration.game_settings.releases`.
+The Shipwright authoring record declares a stable `settings_qualification_v1`
+policy: bounded relevant source regions, source-provider/submodule identities
+and configuration samples. Collection resolves the actual release tag and
+submodule commits through the shared GitHub client. Missing, ambiguous or changed
+regions stop settings qualification; unrelated code outside those regions does
+not invalidate that contract. There is no unrestricted version range.
+The storage region explicitly retains the reviewed direct-save and atomic-save
+implementations used by the two real upstream packages; that write-behavior
+change receives its own review and native controls. A new implementation hash is
+not silently accepted as routine version churn.
+
+`prepare-port.mts --package-observation FILE --package-observation-reference REF`
+consumes the existing exact package inspection row. With the once-configured
+private `--settings-native-scope FILE`, it invokes Core's
+`catalog inspect-settings-qualification` and the existing qualification-report
+native route automatically. The generated `settings_observation_v1` retains
+the exact archive/source, policy, Core validator, complete probes and native
+evidence identities. Authoring projection adds its exact binding to generated
+definition data without changing the authored settings files or baseline release
+table. Replaying projection revalidates those same inputs and complete checks.
+The result remains an unsigned proposal for existing protected acceptance and
+definition publication. Only a normal accepted installation/update captures
+that declaration; current catalog refresh cannot enroll an old installation.
+
+The initial native adapter supports a Windows integer JSON control using the
+upstream Libultraship Sail loopback protocol. Its private scope identifies an
+already prepared **disposable qualification library**, configuration path and
+ownership marker. All paths and the CLI/archive/executable identities must match.
+`qualification-report.mts --settings-case FILE` uses normal Core review/apply,
+checks unrelated values, launches through a durable Core request and verifies
+the socket peer against that exact child's PID, creation identity and executable.
+After loading value X it writes test-only disk value Y and requests a save through
+a fixed unrelated sentinel command; the real package must restore its loaded X.
+Only fixed sentinel and normal `quit` commands are sent. Positive Core exit,
+default reset and immutable verification are retained. This proves packaged
+configuration consumption, not audible amplitude or gameplay. It uses the
+existing native-session lock and preserves uncertain cleanup ownership.
+
+Qualification-only candidate definitions and package facts are generated before
+testing, never hand-authored as accepted operational release entries. The
+existing portable lifecycle example's `--baseline-only` mode can prepare a real
+historical package with positive verification before the normal provider advances
+the same client. Private original/prepared data must already be lawfully provisioned;
+the probe does not acquire it. Unsupported controls, missing native prerequisites
+or insufficient evidence produce a settings-only qualification limitation;
+basic package visibility and operations retain their own assessments. No new
+scheduler, publication authority or additional release gate is introduced.
+
 The inspected examples deliberately distinguish consumer representations:
 Shipwright 9.3.1's `CVars.gSettings.Volume.Master` is an integer percentage from
 0 to 100, default 40. Its pinned Libultraship loader distinguishes integers from

@@ -1577,6 +1577,20 @@
       ]
     },
     {
+      "file": "scripts/settings-consumer-qualification.test.mts",
+      "memberships": [
+        ["catalog-full-2", 9104],
+        ["repository-tools-2", 4104]
+      ]
+    },
+    {
+      "file": "scripts/settings-qualification.test.mts",
+      "memberships": [
+        ["catalog-full-2", 9105],
+        ["repository-tools-2", 4105]
+      ]
+    },
+    {
       "file": "scripts/prepare-port.test.mts",
       "memberships": [
         ["catalog-full-2", 9100],
