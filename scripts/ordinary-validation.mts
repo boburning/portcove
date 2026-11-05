@@ -2488,6 +2488,7 @@ for (const file of ["scripts/github-cli.mts", "scripts/github-controller-attesta
   ]);
 
 explicitNodeTests.set("scripts/release-direct-node-transport.mts", [
+  "scripts/release-coordinator-recovery.test.mts",
   "scripts/release-catalog-site-controller.test.mts",
   "scripts/release-site-readback.test.mts",
   "scripts/release-coordinator-owned-executor.test.mts",
