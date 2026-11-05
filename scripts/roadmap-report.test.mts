@@ -49,10 +49,10 @@ void test("legacy failures migrate without losing unrelated scopes or reviving r
   assert.equal(state.observations["issue:3"], undefined);
 });
 
-void test("replay partitions the provider ceiling and deduplicates inclusive boundaries", () => {
+void test("replay partitions the provider ceiling and deduplicates inclusive boundaries", async () => {
   const start = "2026-10-24T00:00:00.000Z",
     end = "2026-10-24T02:00:00.000Z";
-  const values = collectReplayWindows(start, end, (since, until) => {
+  const values = await collectReplayWindows(start, end, (since, until) => {
     if (since === start && until === end) throw new ReplayWindowFull();
     return since === start ? [{ id: 1 }, { id: 2 }] : [{ id: 2 }, { id: 3 }];
   });
@@ -60,7 +60,7 @@ void test("replay partitions the provider ceiling and deduplicates inclusive bou
     values.map((value) => value.id),
     [1, 2, 3],
   );
-  assert.throws(
+  await assert.rejects(
     () =>
       collectReplayWindows(start, "2026-10-24T00:00:00.001Z", () => {
         throw new ReplayWindowFull();
@@ -69,7 +69,7 @@ void test("replay partitions the provider ceiling and deduplicates inclusive bou
   );
 });
 
-void test("queued or cancelled publisher journal entries recover reruns of old collectors", () => {
+void test("queued or cancelled publisher journal entries recover reruns of old collectors", async () => {
   const oldCollectorCreated = "2026-10-01T00:00:00Z";
   const journal = journalCollectorRun({
     path: ".github/workflows/roadmap-report.yml",
@@ -82,7 +82,7 @@ void test("queued or cancelled publisher journal entries recover reruns of old c
   });
   assert(journal);
   assert(Date.parse(oldCollectorCreated) < Date.parse(blank().cursor));
-  const state = replayRoadmapRuns(
+  const state = await replayRoadmapRuns(
     blank(),
     [{ ...journal, completed: true }],
     "2026-10-24T04:00:00Z",
@@ -107,22 +107,27 @@ void test("queued or cancelled publisher journal entries recover reruns of old c
   );
 });
 
-void test("a verified newer collector attempt resolves an interrupted artifact gap without relabeling the old run", () => {
+void test("a verified newer collector attempt resolves an interrupted artifact gap without relabeling the old run", async () => {
   const rows = [
     { run: 1, attempt: 1, created_at: "2026-10-24T01:00:00Z", completed: true },
     { run: 1, attempt: 2, created_at: "2026-10-24T02:00:00Z", completed: true },
   ];
   const attempts: number[] = [];
-  const state = replayRoadmapRuns(blank(), rows, "2026-10-24T04:00:00Z", ({ run, attempt }) => {
-    attempts.push(attempt);
-    assert.equal(attempt, 2, "The failed/interrupted prior attempt stays in Actions history");
-    return observationFromReceipt(
-      receipt(1, "passed", "2026-10-24T03:00:00Z"),
-      run,
-      attempt,
-      repository,
-    );
-  });
+  const state = await replayRoadmapRuns(
+    blank(),
+    rows,
+    "2026-10-24T04:00:00Z",
+    ({ run, attempt }) => {
+      attempts.push(attempt);
+      assert.equal(attempt, 2, "The failed/interrupted prior attempt stays in Actions history");
+      return observationFromReceipt(
+        receipt(1, "passed", "2026-10-24T03:00:00Z"),
+        run,
+        attempt,
+        repository,
+      );
+    },
+  );
   assert.deepEqual(attempts, [2]);
   assert.equal(state.observations["issue:1"]?.status, "passed");
   assert.deepEqual(state.publication_gaps, []);
@@ -325,7 +330,7 @@ void test("unavailable state changes the headline, preserves history and pointer
   assert.equal(unavailableRoadmapStateReport(body, "Artifact expired after retention"), body);
 });
 
-void test("interrupted/overflowed publication replays retained results and preserves missing coverage", () => {
+void test("interrupted/overflowed publication replays retained results and preserves missing coverage", async () => {
   const runs = Array.from({ length: 8 }, (_, index) => ({
     run: index + 1,
     attempt: 1,
@@ -338,11 +343,11 @@ void test("interrupted/overflowed publication replays retained results and prese
     if (run === 3) throw new Error("Missing retained artifact");
     return observationFromReceipt(receipt(run), run, 1, repository);
   };
-  const first = replayRoadmapRuns(blank(), runs, "2026-10-24T05:00:00Z", read, 4);
+  const first = await replayRoadmapRuns(blank(), runs, "2026-10-24T05:00:00Z", read, 4);
   assert.match(render(first), /\*\*Unable to verify\*\*/u);
   assert.equal(first.cursor, runs[2]?.created_at);
   assert.equal(Object.keys(first.observations).length, 3);
-  const second = replayRoadmapRuns(first, runs, "2026-10-24T05:00:00Z", ({ run }) =>
+  const second = await replayRoadmapRuns(first, runs, "2026-10-24T05:00:00Z", ({ run }) =>
     observationFromReceipt(receipt(run), run, 1, repository),
   );
   assert.equal(Object.keys(second.observations).length, 8);
@@ -351,7 +356,7 @@ void test("interrupted/overflowed publication replays retained results and prese
   assert.deepEqual(second.processed, {});
   // A publisher killed before updating the comment starts from the old snapshot;
   // replay is idempotent even when those artifact reads happened previously.
-  const recovered = replayRoadmapRuns(blank(), runs, "2026-10-24T05:00:00Z", ({ run }) =>
+  const recovered = await replayRoadmapRuns(blank(), runs, "2026-10-24T05:00:00Z", ({ run }) =>
     observationFromReceipt(receipt(run), run, 1, repository),
   );
   assert.deepEqual(recovered.observations, second.observations);

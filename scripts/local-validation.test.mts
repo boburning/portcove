@@ -69,6 +69,58 @@ void test("maintenance registry and TOML sources retain explicit focused owners"
 
 const allFilesExist = () => true;
 
+void test("SDK and preparation changes retain accepted-observation and lineage consumers", async () => {
+  const { baselineContractTests } = await import("./ci-baseline.mts");
+  const consumers = [
+    "scripts/prepare-port.test.mts",
+    "scripts/package-player-observation.test.mts",
+    "scripts/upstream-lineage.test.mts",
+  ];
+  for (const file of [
+    "scripts/prepare-port.mts",
+    "scripts/port-upstream-facts.mts",
+    "scripts/github-client.mts",
+    "scripts/github-operation.mts",
+    "package.json",
+    "pnpm-lock.yaml",
+  ]) {
+    for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
+      const change = {
+        status: variant.startsWith("R") ? "R100" : variant,
+        oldPath: variant === "R-new" ? "docs/moved.md" : file,
+        newPath: variant === "R-old" ? "docs/moved.md" : file,
+        oldMode: variant === "A" ? "000000" : "100644",
+        newMode: variant === "D" ? "000000" : "100644",
+      };
+      const local = classifyChanges(
+        [{ status: change.status, path: change.newPath, previousPath: change.oldPath }],
+        { fileExists: () => false },
+      );
+      const hosted = baselineContractTests(
+        buildValidationPlan({
+          changes: [change],
+          eventName: "pull_request",
+          base: "a".repeat(40),
+          mergeBase: "a".repeat(40),
+          head: "b".repeat(40),
+          checkout: "b".repeat(40),
+        }),
+        { fileExists: () => false },
+      );
+      for (const consumer of consumers) {
+        assert.ok(local.nodeTests.has(consumer), `${variant} ${file}: local ${consumer}`);
+        assert.equal(
+          hosted.filter((selected) => selected === consumer).length,
+          1,
+          `${variant} ${file}: hosted ${consumer}`,
+        );
+      }
+    }
+  }
+  const inert = classifyChanges([{ status: "M", path: "docs/README.md" }]);
+  for (const consumer of consumers) assert.ok(!inert.nodeTests.has(consumer));
+});
+
 void test("native helper consumers survive shared custody registration across lifecycle changes", async () => {
   const { baselineContractTests } = await import("./ci-baseline.mts");
   const consumers: [string, string[]][] = [
@@ -3285,6 +3337,60 @@ void test("Roadmap test families preserve shared owners and narrow the New Port 
       }
     }
   }
+});
+
+void test("route authoring modules retain actual generator integrity in local and hosted selection", async () => {
+  const { baselineContractTests, baselineIntegrityCommands } = await import("./ci-baseline.mts");
+  const identities = {
+    base: "a".repeat(40),
+    mergeBase: "a".repeat(40),
+    head: "b".repeat(40),
+    checkout: "b".repeat(40),
+  };
+  for (const name of ["catalog-route-facts", "package-player-observation"]) {
+    const file = `scripts/${name}.mts`;
+    for (const variant of ["M", "A", "D", "R-old", "R-new"]) {
+      const change = {
+        status: variant.startsWith("R") ? "R100" : variant,
+        oldPath: variant === "R-new" ? "docs/moved.md" : file,
+        newPath: variant === "R-old" ? "docs/moved.md" : file,
+        oldMode: variant === "A" ? "000000" : "100644",
+        newMode: variant === "D" ? "000000" : "100644",
+      };
+      const options = { fileExists: () => false };
+      const local = classifyChanges(
+        [{ status: change.status, path: change.newPath, previousPath: change.oldPath }],
+        options,
+      );
+      const plan = buildValidationPlan({
+        changes: [change],
+        eventName: "pull_request",
+        ...identities,
+      });
+      const hosted = baselineContractTests(plan, options);
+      for (const consumer of [`scripts/${name}.test.mts`, "scripts/generate-catalog.test.mts"]) {
+        assert.ok(local.nodeTests.has(consumer), `${variant} ${file}: local ${consumer}`);
+        assert.equal(hosted.filter((entry) => entry === consumer).length, 1);
+      }
+      assert.equal(
+        baselineIntegrityCommands(plan, options).filter(
+          (args) =>
+            JSON.stringify(args) === JSON.stringify(["scripts/generate-catalog.mts", "--check"]),
+        ).length,
+        1,
+        `${variant} ${file}: actual generated-output check`,
+      );
+    }
+  }
+  const file = "docs/README.md";
+  const plan = buildValidationPlan({
+    changes: [{ status: "M", oldPath: file, newPath: file, oldMode: "100644", newMode: "100644" }],
+    eventName: "pull_request",
+    ...identities,
+  });
+  assert.ok(
+    !baselineIntegrityCommands(plan).some((args) => args[0] === "scripts/generate-catalog.mts"),
+  );
 });
 
 void test("catalog generator families retain shared inputs and narrow authoring to its consumers", async () => {

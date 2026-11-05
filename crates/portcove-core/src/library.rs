@@ -945,6 +945,49 @@ impl Library {
         self.require_settings_recovery_owner(port_id, None)
     }
 
+    pub(crate) fn require_no_archive_data_transition(&self, port_id: &str) -> Result<()> {
+        self.require_archive_data_transition_owner(port_id, None)
+    }
+
+    fn require_archive_data_transition_owner(
+        &self,
+        port_id: &str,
+        allowed: Option<&str>,
+    ) -> Result<()> {
+        let blocked: bool = self.connection()?.query_row(
+            "SELECT EXISTS(SELECT 1 FROM lifecycle_operations WHERE port_id=?1 AND kind='archive_data_transition' AND (?2 IS NULL OR id<>?2))",
+            rusqlite::params![port_id, allowed], |row| row.get(0),
+        )?;
+        if blocked {
+            return Err(PortcoveError::conflict(
+                "player-data transition recovery must finish before another operation; preserve its runtime, receipts and recovery directory",
+            ));
+        }
+        Ok(())
+    }
+
+    pub(crate) fn try_lock_port_for_archive_data_transition(
+        &self,
+        port_id: &str,
+        operation_id: &str,
+    ) -> Result<PortOperationGuard> {
+        let owned: bool = self.connection()?.query_row(
+            "SELECT EXISTS(SELECT 1 FROM lifecycle_operations WHERE id=?1 AND port_id=?2 AND kind='archive_data_transition')",
+            rusqlite::params![operation_id, port_id], |row| row.get(0),
+        )?;
+        if !owned {
+            return Err(PortcoveError::verification(
+                "data transition recovery has no matching owner",
+            ));
+        }
+        self.lock_port(
+            port_id,
+            "archive-data-transition-recovery",
+            None,
+            Some(operation_id),
+        )
+    }
+
     fn require_settings_recovery_owner(&self, port_id: &str, allowed: Option<&str>) -> Result<()> {
         let blocked: bool = self.connection()?.query_row(
             "SELECT EXISTS(SELECT 1 FROM lifecycle_operations WHERE port_id=?1 AND kind='settings_change' AND (?2 IS NULL OR id<>?2))",
@@ -990,6 +1033,7 @@ impl Library {
             .map_err(|error| error.detail("port_id", port_id))?;
         self.require_ghostship_recovery_owner(port_id, allowed_operation_id)?;
         self.require_settings_recovery_owner(port_id, allowed_operation_id)?;
+        self.require_archive_data_transition_owner(port_id, allowed_operation_id)?;
         if let Some(session) = self.launch_session_for_port(port_id)?
             && Some(session.id.as_str()) != allowed_session_id
         {

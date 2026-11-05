@@ -1797,6 +1797,17 @@ runtime or source authority. This route requires staged-source capability 27;
 see [definition delivery](DEFINITION-DELIVERY.md) for reader fencing and reusable
 source applicability.
 
+For a reviewed historical predecessor, `archive_data_transition_v1` declares
+its exact archive and creating-contract digest once. The existing explicit update
+review offers the data transition with a distinct eligible successor and reports
+extra temporary library capacity. It preserves the working predecessor and binds
+its build-specific objects to their producing archive. Every retained copy must
+match the reviewed predecessor; an unexpected older contract or changed data is
+a specific hold, not an inferred compatibility grant. This optional transition
+requires staged-source capability 28. Its separate data-only admission retains the
+original source/execution authority and fences older readers; ordinary subsequent
+releases use the stable policy without new predecessor records.
+
 If fresh acquisition publishes a staged copy before its final data-compatibility
 check refuses, the error includes `staged_install_id`: that copy and its files stay
 registered, the active copy stays active, and activation and stage-only retries
@@ -1928,6 +1939,11 @@ registration/ownership/removal, declared managed preservation and rollback
 explanations come from `scripts/catalog-route-facts.mts`. Bespoke guide actions,
 source/edition requirements and immediate warnings remain explicit. No guide
 paragraph or descriptive fact authorizes execution or data ownership.
+Literal arguments preserve empty values, whitespace, repeated flags and order.
+They use Core's existing limit of 64 arguments and 32 KiB total UTF-8, with NUL
+refused. The fully escaped selector must also fit the existing concrete guide's
+4096-byte instruction bound; oversized vectors receive an authoring diagnostic
+before generation. Descriptive data-location labels keep separate validation.
 
 Generation expands those facts into the existing concrete versioned guides for
 Desktop, CLI and other consumers. Historical concrete guides remain exact; a new
@@ -1974,6 +1990,11 @@ needs a correspondingly accepted observation before authoring generation; it
 cannot accidentally disappear from the lifecycle inventory. Probe execution remains
 separate from upstream binary execution, dependency/gameplay and Supported
 qualification. Historical concrete definitions and prior receipts remain intact.
+GitHub owner/repository casing alone preserves applicable evidence and checkpoint
+reuse. Historical observations keep their exact repository spelling, selection
+hash and scope; a genuinely different repository or selected-player contract
+still needs newly applicable evidence. Changes to either shared authoring module
+select the existing generator's actual output-integrity check in local/hosted CI.
 
 Optional listing `original_game` is a version-1 descriptive identity: an explicitly
 reviewed stable `id`, one to eight public HTTPS `evidence_urls`, and up to sixteen

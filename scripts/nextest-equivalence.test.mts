@@ -404,6 +404,14 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     "slow-timeout": { period: "5s", "terminate-after": 180, "grace-period": "0s" },
     "success-output": "immediate",
   });
+  const windowsReviewedArchiveTransitionFilter =
+    "package(portcove-core) & test(/^service::native_portable::tests::reviewed_archive_transition_/)";
+  assert.deepEqual(overrideFor(windowsReviewedArchiveTransitionFilter, "x86_64-pc-windows-msvc"), {
+    platform: "x86_64-pc-windows-msvc",
+    filter: windowsReviewedArchiveTransitionFilter,
+    "slow-timeout": { period: "5s", "terminate-after": 60, "grace-period": "0s" },
+    "success-output": "immediate",
+  });
   const curatedInstalledWithdrawalFilter =
     "package(portcove-core) & (test(/^definition_repository::tests::publisher_policy_tests::curated_installed_withdrawal_allows_critical_verification_but_holds_fresh_acquisition$/) | test(/^definition_repository::tests::publisher_policy_tests::curated_installed_revocation_holds_critical_verification_and_fresh_acquisition$/))";
   const currentFullBaselineBudgets = [
@@ -568,6 +576,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     "success-output": "immediate",
   });
   const windowsLifecycleFilters = [
+    "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_activation_withdrawal_permits_exact_retained_target$/)",
     "package(portcove-core) & test(/^service::tests::staged_and_rollback_tamper_leave_install_pointers_unchanged$/)",
     "package(portcove-core) & test(/^service::tests::unavailable_artwork_does_not_block_reviewed_install_update_or_supervised_launch$/)",
     "package(portcove-core) & test(/^service::tests::additive_current_mutability_recovers_a_retained_install_and_survives_rollback$/)",
@@ -733,6 +742,12 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     },
     {
       filter:
+        "package(portcove-core) & test(/^service::native_portable::tests::native_engine_adoption_1878$/)",
+      periods: 36,
+      beforeFilter: "package(portcove-core) & test(/^service::native_portable::tests::/)",
+    },
+    {
+      filter:
         "package(portcove-core) & test(/^service::tests::backups::recovers_restore_published$/)",
       periods: 24,
       beforeFilter:
@@ -824,6 +839,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       { platform: "x86_64-pc-windows-msvc", filter: observedCoreFilter },
       { platform: "x86_64-pc-windows-msvc", filter: observedCliFilter },
       { platform: "x86_64-pc-windows-msvc", filter: windowsWholeMatrixFilter },
+      { platform: "x86_64-pc-windows-msvc", filter: windowsReviewedArchiveTransitionFilter },
       { platform: "x86_64-pc-windows-msvc", filter: curatedInstalledWithdrawalFilter },
       { platform: "x86_64-pc-windows-msvc", filter: replacementDownloadFilter },
       { platform: "x86_64-pc-windows-msvc", filter: namedSaveRestoreFilter },
@@ -959,11 +975,27 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
       overrides.indexOf(override) < overrides.indexOf(overrideFor(historicalByteOnlyBackupFilter)),
     );
   }
-  const ninetySecondWindowsLifecycles = new Set([
-    "package(portcove-cli) & test(/^artwork_contract::artwork_cli_keeps_cover_and_detail_independent_through_the_local_lifecycle$/)",
-    "package(portcove-core) & test(/^service::tests::backups::restore_remains_authoritative_after_launch_rollback_and_staged_activation$/)",
-    "package(portcove-core) & test(/^service::tests::authenticated_admission_survives_staging_rollback_activation_and_refresh$/)",
-    "package(portcove-core) & test(/^service::runtime_tests::reflectionhle_progression::reflectionhle_progression_(2683|2684|2685|2686|2687|2688|2689|2690|2692)$/)",
+  const calibratedWindowsLifecyclePeriods = new Map<string, number>([
+    [
+      "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_activation_withdrawal_permits_exact_retained_target$/)",
+      18,
+    ],
+    [
+      "package(portcove-cli) & test(/^artwork_contract::artwork_cli_keeps_cover_and_detail_independent_through_the_local_lifecycle$/)",
+      18,
+    ],
+    [
+      "package(portcove-core) & test(/^service::tests::backups::restore_remains_authoritative_after_launch_rollback_and_staged_activation$/)",
+      18,
+    ],
+    [
+      "package(portcove-core) & test(/^service::tests::authenticated_admission_survives_staging_rollback_activation_and_refresh$/)",
+      36,
+    ],
+    [
+      "package(portcove-core) & test(/^service::runtime_tests::reflectionhle_progression::reflectionhle_progression_(2683|2684|2685|2686|2687|2688|2689|2690|2692)$/)",
+      36,
+    ],
   ]);
   for (const filter of windowsLifecycleFilters) {
     const override = overrideFor(filter, "x86_64-pc-windows-msvc");
@@ -971,7 +1003,7 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
     assert.equal(override["success-output"], "immediate");
     assert.deepEqual(override["slow-timeout"], {
       period: "5s",
-      "terminate-after": ninetySecondWindowsLifecycles.has(filter) ? 18 : 12,
+      "terminate-after": calibratedWindowsLifecyclePeriods.get(filter) ?? 12,
       "grace-period": "0s",
     });
     for (const field of ["retries", "threads-required", "priority"])

@@ -813,7 +813,7 @@ void test("Node proposals update every maintained isolated pin without rewriting
     assert.equal(owns(filename), true, filename);
     for (const newline of ["\n", "\r\n"]) {
       const contents = (await read(filename)).replace(/\r?\n/gu, newline);
-      const matches = manager.matchStrings.flatMap((pattern) => [
+      const matches: RegExpExecArray[] = manager.matchStrings.flatMap((pattern) => [
         ...contents.matchAll(new RegExp(pattern, "gu")),
       ]);
       assert.equal(matches.length, count, filename);
@@ -896,6 +896,51 @@ void test("RFD backport retains the publisher closure and only the reviewed form
   assert.match(rfd, /^version = "0\.17\.2"$/mu);
   assert.doesNotMatch(rfd, /^(?:source|checksum) =/mu);
   assert.match(await read("vendor/rfd/LICENSE"), /Permission is hereby granted/u);
+});
+
+void test("Syft updates coordinate the release workflow and its independent expected pin", async () => {
+  const managers = renovateConfig.customManagers.filter(
+    (manager) => manager.depNameTemplate === "anchore/syft",
+  );
+  assert.equal(managers.length, 1);
+  const manager = required(managers[0]);
+  assert.equal(manager.datasourceTemplate, "github-releases");
+  assert.equal(manager.versioningTemplate, "semver");
+  const owns = (file: string) =>
+    manager.managerFilePatterns.some((pattern) => new RegExp(pattern.slice(1, -1), "u").test(file));
+  const pins = new Set<string>();
+  for (const file of [
+    ".github/workflows/release.yml",
+    "scripts/release-workflow.test.mts",
+    "scripts/release-acceptance-evidence.mts",
+  ]) {
+    assert.ok(owns(file), file);
+    const source = await read(file);
+    for (const text of [source, source.replaceAll("\n", "\r\n")]) {
+      const matches: RegExpExecArray[] = manager.matchStrings.flatMap((pattern) => [
+        ...text.matchAll(new RegExp(pattern, "gu")),
+      ]);
+      assert.equal(matches.length, 1, file);
+      const pin = required(required(matches[0]).groups).currentValue;
+      assert.match(required(pin), /^\d+\.\d+\.\d+$/u);
+      pins.add(required(pin));
+      const future = text.replace(required(pin), "1.57.0");
+      const next: RegExpExecArray[] = manager.matchStrings.flatMap((pattern) => [
+        ...future.matchAll(new RegExp(pattern, "gu")),
+      ]);
+      assert.equal(next.length, 1);
+      assert.equal(required(required(next[0]).groups).currentValue, "1.57.0");
+    }
+  }
+  assert.equal(pins.size, 1, "the independent expected pin must match the release input");
+  for (const file of [
+    "scripts/release-acceptance-evidence.test.mts",
+    "scripts/release-workflow.test.mts.bak",
+    "nested/scripts/release-workflow.test.mts",
+    "scripts/other-release-workflow.test.mts",
+    ".github/workflows/other-release.yml",
+  ])
+    assert.equal(owns(file), false, file);
 });
 
 void test("install-action updates keep all independent contract pins with their immutable workflow group", async () => {

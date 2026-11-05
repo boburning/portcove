@@ -1030,8 +1030,11 @@ Roadmap inventories and mutations, body edits, delivery checks, source provenanc
 discovery and upstream preparation use the same factory. Ordinary pagination uses the SDK iterator while
 preserving raw response/count evidence and refusing synthetic empty results for
 HTTP 409. API-version headers remain owned by each caller. Existing unmigrated
-callers, including the maintained report publisher and remaining release acquisition
-families, still use the bounded legacy runner during #4319.
+callers, including catalog observer recovery and remaining release acquisition
+families, still use the bounded legacy runner during #4319. The maintained report
+publisher now uses SDK metadata operations and awaited replay/readback. Its trusted
+main checkout installs frozen dependencies before the credentialed steps. Existing
+artifact-byte downloads remain staged acquisition work under the same owner.
 
 Eligible reads have at most three total attempts; writes run once and require
 authoritative reconciliation after ambiguity. Reusing a logical request policy

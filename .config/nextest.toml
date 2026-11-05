@@ -61,6 +61,18 @@ filter = 'package(portcove-core) & test(/^service::native_portable::tests::compa
 slow-timeout = { period = "5s", terminate-after = 180, grace-period = "0s" }
 success-output = "immediate"
 
+# The complete compatible-runtime fixture in41893774776/a1 Windows2 took
+# 183.584s for MMX2 and122.389s/113.682s for the other two consumers.
+# These explicit predecessor-transition cases include the same populated
+# two-runtime path plus one journal interruption/recovery per case. Give this
+# exact Windows family finite300s; preserve all assertions, production deadlines,
+# cleanup, workers and zero retries. This is harness calibration, not a speedup.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::native_portable::tests::reviewed_archive_transition_/)'
+slow-timeout = { period = "5s", terminate-after = 60, grace-period = "0s" }
+success-output = "immediate"
+
 # R64 CI 41786426031/a1 Windows 7 retained a 30.039s cutoff after signed
 # admission/install/baseline progress through 17.652s. This unchanged fixture
 # passed 14.635s/21.384s in the preceding two deliveries. Allow only this Windows
@@ -377,12 +389,14 @@ success-output = "immediate"
 # uses main's separately delivered exact-case calibration and phase output.
 # CI40803822488/a1 cut cases2685/2688 off at60.318/60.265s after
 # reviewed restore completed59.148/54.937s and preserving removal began.
-# Give this existing progression family finite90s; retain every assertion, phase
-# observations, worker slots and zero retries; no product deadline changes.
+# CI41920113994/a1 later cut case2689 at90.310s after reviewed restore
+# completed and preserving removal began85.318s. Give this same closed nine-case
+# progression family finite180s; retain every assertion, phase observation,
+# worker slot and zero retries. No product deadline or speedup claim changes.
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
 filter = 'package(portcove-core) & test(/^service::runtime_tests::reflectionhle_progression::reflectionhle_progression_(2683|2684|2685|2686|2687|2688|2689|2690|2692)$/)'
-slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
+slow-timeout = { period = "5s", terminate-after = 36, grace-period = "0s" }
 success-output = "immediate"
 
 # CI41001466846/a1 source09eba Windows1 retained three harness failures.
@@ -515,9 +529,27 @@ success-output = "immediate"
 # causal performance repair. CI40803822488/a1 then reached60.258s after
 # activation56.196s and retained verification57.108s. Extend only this exact
 # progressing harness to90s; preserve refresh/refusal and all assertions.
+# CI41924797014/a1 Windows1 reached the90.320s cutoff after activation
+# at71.830s and all retained contracts verified at73.563s. The remaining
+# status/refresh and revoked-publisher refusals still execute. Give only this
+# exact complete lifecycle finite180s room, keeping every assertion, cleanup,
+# product/child deadline, both workers and zero retries. This is harness
+# calibration, not evidence of a causal performance improvement.
 [[profile.default.overrides]]
 platform = 'x86_64-pc-windows-msvc'
 filter = 'package(portcove-core) & test(/^service::tests::authenticated_admission_survives_staging_rollback_activation_and_refresh$/)'
+slow-timeout = { period = "5s", terminate-after = 36, grace-period = "0s" }
+success-output = "immediate"
+
+# CI41924797014/a1 Windows3 cut this exact curated activation fixture at
+#30.024s after activation completed at29.047s, before retained verification
+# and the fresh reopen pass. Its existing phase diagnostics retain that
+# progress. Give this complete two-admission/two-runtime fixture finite90s
+# room, preserving all policy/refusal assertions, cleanup, workers, zero
+# retries and product/child deadlines; completion is not a speedup claim.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_activation_withdrawal_permits_exact_retained_target$/)'
 slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
 success-output = "immediate"
 
@@ -768,6 +800,17 @@ success-output = "immediate"
 platform = 'x86_64-pc-windows-msvc'
 filter = 'package(portcove-core) & test(/^service::native_portable::tests::ready_staged_archive_preserves_preplay_data_and_successor_cache_defaults$/)'
 slow-timeout = { period = "5s", terminate-after = 24, grace-period = "0s" }
+success-output = "immediate"
+
+# CI41914595618/a1 Windows7 retained a90.327s harness cutoff in SDLPal's
+# complete lifecycle. This case additionally exercises consented restore and
+# safety backup over six declared data probes. Give only this exact Windows
+# case finite180s with phase diagnostics; assertions, product/child deadlines,
+# cleanup, worker counts and zero retries stay unchanged. No speedup is claimed.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::native_portable::tests::native_engine_adoption_1878$/)'
+slow-timeout = { period = "5s", terminate-after = 36, grace-period = "0s" }
 success-output = "immediate"
 
 # The portable lifecycle fixtures perform several durable installs, activations

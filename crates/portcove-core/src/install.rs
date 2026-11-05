@@ -391,6 +391,8 @@ pub struct VerificationReport {
 struct InstallManifest {
     schema_version: u32,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    archive_data_admission: Option<crate::archive_data_transition::Admission>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     retained_contract: Option<crate::installed_contract::InstalledContract>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     shared_preferences: Option<crate::managed_shared_preferences::Acceptance>,
@@ -2234,6 +2236,134 @@ impl Installer {
         retained_catalog_for_install(install)
     }
 
+    pub(crate) fn archive_data_port(
+        &self,
+        install: &InstallRecord,
+    ) -> Result<Option<PortDefinition>> {
+        let manifest = verified_manifest(install)?;
+        let Some(admission) = &manifest.archive_data_admission else {
+            return Ok(None);
+        };
+        let creating = manifest
+            .retained_contract
+            .as_ref()
+            .ok_or_else(|| PortcoveError::verification("data admission has no creating contract"))?
+            .catalog(&install.port_id)?;
+        crate::archive_data_transition::effective_port(install, &creating, admission).map(Some)
+    }
+
+    /// Produce an explicit data-only wrapper; the creating contract, runtime and
+    /// artifact/member identities are retained verbatim in their original fields.
+    pub(crate) fn prepare_archive_data_admission(
+        &self,
+        install: &InstallRecord,
+        authority: &crate::Catalog,
+        operation_id: &str,
+    ) -> Result<Vec<u8>> {
+        let mut manifest = verified_manifest(install)?;
+        if manifest.archive_data_admission.is_some() || manifest.schema_version != 6 {
+            return Err(PortcoveError::conflict(
+                "only an exact retained ready-archive predecessor can enter this transition",
+            ));
+        }
+        let creating = manifest
+            .retained_contract
+            .as_ref()
+            .ok_or_else(|| {
+                PortcoveError::verification("data admission has no retained predecessor")
+            })?
+            .catalog(&install.port_id)?;
+        let admission = crate::archive_data_transition::Admission {
+            operation_id: operation_id.into(),
+            predecessor_manifest_sha256: install.manifest_sha256.clone(),
+            authority: crate::installed_contract::InstalledContract::capture(
+                authority,
+                &install.port_id,
+            )?,
+        };
+        crate::archive_data_transition::effective_port(install, &creating, &admission)?;
+        manifest.schema_version = 8;
+        manifest.archive_data_admission = Some(admission);
+        let bytes = serde_json::to_vec_pretty(&manifest)?;
+        if bytes.len() > 16 * 1024 * 1024 {
+            return Err(PortcoveError::unsupported(
+                "data admission manifest exceeds its finite bound",
+            ));
+        }
+        let old = crate::external_runtime::read_stable_metadata(
+            &install.path.join(".portcove-manifest.json"),
+            16 * 1024 * 1024,
+        )?;
+        Self::validate_archive_data_manifest_pair(install, &old, &bytes)?;
+        Ok(bytes)
+    }
+
+    pub(crate) fn validate_archive_data_manifest_pair(
+        install: &InstallRecord,
+        before: &[u8],
+        after: &[u8],
+    ) -> Result<InstallRecord> {
+        if before.len() > 16 * 1024 * 1024
+            || after.len() > 16 * 1024 * 1024
+            || hex::encode(Sha256::digest(before)) != install.manifest_sha256
+        {
+            return Err(PortcoveError::verification(
+                "data transition predecessor manifest differs from its recorded identity",
+            ));
+        }
+        let mut old: serde_json::Value = serde_json::from_slice(before)?;
+        let mut new: serde_json::Value = serde_json::from_slice(after)?;
+        if old["schema_version"] != 6
+            || old.get("archive_data_admission").is_some()
+            || new["schema_version"] != 8
+        {
+            return Err(PortcoveError::verification(
+                "data transition manifest envelope is outside its closed predecessor family",
+            ));
+        }
+        let decoded: InstallManifest = serde_json::from_slice(after)?;
+        let admission = decoded.archive_data_admission.as_ref().ok_or_else(|| {
+            PortcoveError::verification("data transition manifest has no admission")
+        })?;
+        if admission.predecessor_manifest_sha256 != install.manifest_sha256 {
+            return Err(PortcoveError::verification(
+                "data admission has a different original manifest",
+            ));
+        }
+        let creating = decoded
+            .retained_contract
+            .as_ref()
+            .ok_or_else(|| {
+                PortcoveError::verification("data transition lost its creating contract")
+            })?
+            .catalog(&install.port_id)?;
+        crate::archive_data_transition::effective_port(install, &creating, admission)?;
+        old.as_object_mut()
+            .ok_or_else(|| PortcoveError::verification("original manifest is not an object"))?
+            .remove("schema_version");
+        let new = new
+            .as_object_mut()
+            .ok_or_else(|| PortcoveError::verification("admitted manifest is not an object"))?;
+        new.remove("schema_version");
+        new.remove("archive_data_admission");
+        if old.as_object() != Some(&*new) {
+            return Err(PortcoveError::verification(
+                "data transition changed creating source, execution, artifact or member semantics",
+            ));
+        }
+        let mut admitted = install.clone();
+        admitted.manifest_sha256 = hex::encode(Sha256::digest(after));
+        Ok(admitted)
+    }
+
+    pub(crate) fn publish_archive_data_manifest(
+        install: &InstallRecord,
+        bytes: &[u8],
+    ) -> Result<()> {
+        crate::path::refuse_symlink_ancestors(&install.path.join(".portcove-manifest.json"))?;
+        replace_manifest(&install.path, bytes)
+    }
+
     pub(crate) fn require_github_artifact_identity(
         &self,
         port_id: &str,
@@ -2594,6 +2724,7 @@ mod legacy_dkr_tests {
             sha256: artifact.sha256.clone(),
         };
         let manifest = InstallManifest {
+            archive_data_admission: None,
             schema_version: schema,
             retained_contract: None,
             shared_preferences: None,
@@ -2949,6 +3080,7 @@ fn write_manifest(
         }
     }
     let manifest = InstallManifest {
+        archive_data_admission: None,
         schema_version: if qualification.shared_preferences.is_some() {
             7
         } else {
@@ -3205,6 +3337,10 @@ fn verified_manifest(install: &InstallRecord) -> Result<InstallManifest> {
     verified_manifest_with_limit(install, None)
 }
 
+pub(crate) fn has_archive_data_admission(install: &InstallRecord) -> Result<bool> {
+    Ok(verified_manifest(install)?.archive_data_admission.is_some())
+}
+
 fn verified_manifest_with_limit(
     install: &InstallRecord,
     maximum_bytes: Option<u64>,
@@ -3300,7 +3436,8 @@ fn verified_manifest_with_budget(
             ));
         }
     }
-    if !matches!(manifest.schema_version, 2..=7)
+    if !matches!(manifest.schema_version, 2..=8)
+        || (manifest.schema_version == 8) != manifest.archive_data_admission.is_some()
         || (manifest.schema_version == 7) != manifest.shared_preferences.is_some()
         || (manifest.schema_version < 6 && manifest.retained_contract.is_some())
         || (manifest.schema_version >= 6 && manifest.retained_contract.is_none())
@@ -3331,6 +3468,9 @@ fn verified_manifest_with_budget(
     validate_runtime_manifest(&manifest)?;
     if let Some(contract) = &manifest.retained_contract {
         let catalog = contract.catalog(&install.port_id)?;
+        if let Some(admission) = &manifest.archive_data_admission {
+            crate::archive_data_transition::effective_port(install, &catalog, admission)?;
+        }
         crate::managed_shared_preferences::require_artifact(
             catalog.port(&install.port_id)?,
             &install.version,

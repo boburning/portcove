@@ -21906,6 +21906,10 @@
           "native_save_8.bin",
           "native_save_9.bin"
         ]
+      },
+      "archive_data_transition_v1": {
+        "predecessor_archive_sha256": "54c73309c7bda1d030e4e8d4f3ec2108763ed2c539e275688fcfa602b6ceec38",
+        "creating_contract_sha256": "622fd2271b421c4e4b1987983f8b4ed23315fcb731c496b142241e0bdab4a542"
       }
     },
     {
@@ -22866,6 +22870,10 @@
         "build_specific_progress_paths": [
           "saves"
         ]
+      },
+      "archive_data_transition_v1": {
+        "predecessor_archive_sha256": "72b7c179b855fba9404eec07abdbacefaffa4c67898f5c5232f0b1444b73d531",
+        "creating_contract_sha256": "dbfb431248dd3126148a13d9e04e12aa371ecc042de09e0a2aac1fd1a5d6b02e"
       }
     },
     {
@@ -22970,6 +22978,10 @@
         "build_specific_progress_paths": [
           "saves"
         ]
+      },
+      "archive_data_transition_v1": {
+        "predecessor_archive_sha256": "f54bf04ea2975c338d62db5b4647082d8d1342f0378a861e15e42ddeb6d0e95a",
+        "creating_contract_sha256": "8d1aef60c763a9ccb3ee83e0f14434e22364d8a7ebf9b12b4b557ba8ea88167f"
       }
     },
     {

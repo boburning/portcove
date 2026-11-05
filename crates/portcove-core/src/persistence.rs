@@ -117,7 +117,9 @@ pub(crate) fn legacy_direct_reader(port_id: &str) -> Option<(&'static str, &'sta
 }
 
 pub(crate) fn fresh_direct_data_guard_capability(port: &crate::PortDefinition) -> Option<u32> {
-    if port.archive_data_compatibility_v1.is_some() {
+    if port.archive_data_transition_v1.is_some() {
+        Some(28)
+    } else if port.archive_data_compatibility_v1.is_some() {
         Some(27)
     } else {
         requires_fresh_direct_data_guard(port).then_some(26)
