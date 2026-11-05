@@ -957,7 +957,10 @@ for (const [file, tests] of [
   ],
   [
     "scripts/release-hosted-native-candidate.mts",
-    ["scripts/production-controller-admission.test.mts"],
+    [
+      "scripts/production-controller-admission.test.mts",
+      "scripts/release-hosted-native-job.test.mts",
+    ],
   ],
   [
     "scripts/release-native-candidate.mts",
@@ -2431,6 +2434,7 @@ for (const file of [
     "scripts/release-control-step-bridge.test.mts",
     "scripts/production-controller-admission.test.mts",
     "scripts/release-hosted-native-runner.test.mts",
+    "scripts/release-hosted-native-job.test.mts",
     "scripts/release-hosted-native-windows-bootstrap.test.mts",
     "scripts/assembler-job-identity.test.mts",
     "scripts/release-bootstrap-preparation.test.mts",
@@ -2510,6 +2514,7 @@ explicitNodeTests.set("scripts/release-direct-node-transport.mts", [
 ]);
 
 explicitNodeTests.set("scripts/github-artifact-download.mts", [
+  "scripts/release-hosted-native-job.test.mts",
   "scripts/release-compiler-evidence.test.mts",
   "scripts/release-candidate-signing-recovery.test.mts",
   "scripts/release-catalog-continuation.test.mts",
