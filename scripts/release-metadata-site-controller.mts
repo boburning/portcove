@@ -20,6 +20,7 @@ import { receiveControllerTools } from "./release-controller-tool-admission.mts"
 import type { ControllerToolArtifactExpected } from "./release-controller-tool-admission.mts";
 import { receiveTufRoleArtifact } from "./release-tuf-role-artifact.mts";
 import { inspectAssemblerIdentityExpectation } from "./assembler-job-identity.mts";
+import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
 import { currentControllerJobDeadline } from "./release-signing-job-budget.mts";
 import { requireControllerApplicationJobPublicationAuthorities } from "./release-authority-configuration.mts";
 import {
@@ -174,8 +175,9 @@ export async function runMetadataSitePublicationController(
     const directory = await mkdtemp(path.join(outputParent, "metadata-site-controller-"));
     let stage = "current-metadata-journal";
     try {
+      const transport = { credential: { token: fixedReleaseReaderToken() }, deadline };
       const recovered = await recoverRemoteCoordinator(directory, remote, {
-        transport: { cwd: directory, deadline },
+        transport,
       });
       let checkpoint = recovered.checkpoint;
       const selected = inspectMetadataSiteReservation(recovered.input, tuf.context.manifest);
@@ -279,7 +281,7 @@ export async function runMetadataSitePublicationController(
       };
       const boundary = async () => {
         const state = await readRemoteCoordinatorSnapshot(directory, remote, {
-          transport: { cwd: directory, deadline },
+          transport,
         });
         const current = inspectMetadataSiteReservation(state.input, tuf.context.manifest);
         if (current.candidate_sha256 !== selected.candidate_sha256)
@@ -361,7 +363,7 @@ export async function runMetadataSitePublicationController(
       );
       checkpoint = uploaded.checkpoint;
       const settled = await readRemoteCoordinatorSnapshot(directory, remote, {
-        transport: { cwd: directory, deadline },
+        transport,
       });
       if (settled.checkpoint !== checkpoint)
         throw new Error("metadata site upload settlement changed");
@@ -386,7 +388,7 @@ export async function runMetadataSitePublicationController(
       );
       remaining(deadline);
       const completed = await readRemoteCoordinatorSnapshot(directory, remote, {
-          transport: { cwd: directory, deadline },
+          transport,
         }),
         published = inspectPublishedMetadata(completed.input.published_metadata);
       if (

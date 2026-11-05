@@ -8,6 +8,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { isRecord } from "./runtime-values.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
+import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
 import { currentControllerJobDeadline } from "./release-signing-job-budget.mts";
 import { inspectAssemblerIdentityExpectation } from "./assembler-job-identity.mts";
 import {
@@ -229,8 +230,9 @@ export async function runCatalogSitePublicationController(
     const directory = await mkdtemp(path.join(parent, "catalog-site-controller-"));
     let stage = "current-journal-and-complete-site";
     try {
+      const transport = { credential: { token: fixedReleaseReaderToken() }, deadline };
       const state = await recoverRemoteCoordinator(directory, remote, {
-        transport: { cwd: directory, deadline },
+        transport,
       });
       let checkpoint = state.checkpoint;
       const subject = inspectCatalogPublicationDescriptor(state.input.catalog_publication);
@@ -291,7 +293,7 @@ export async function runCatalogSitePublicationController(
       const boundary: Parameters<typeof executeOwnedCapacityEffect>[2] = async (pendingReceipt) => {
         remaining(deadline);
         const snapshot = await readRemoteCoordinatorSnapshot(directory, remote, {
-          transport: { cwd: directory, deadline },
+          transport,
         });
         const pending = pendingReceipt
           ? requireOwnedCapacityPendingBoundary(executor, pendingReceipt)
@@ -406,7 +408,7 @@ export async function runCatalogSitePublicationController(
       );
       remaining(deadline);
       const completed = await readRemoteCoordinatorSnapshot(directory, remote, {
-        transport: { cwd: directory, deadline },
+        transport,
       });
       if (completed.checkpoint !== result.checkpoint || completed.input.catalog_publication != null)
         throw new Error("catalog site final durable cursor readback differs");

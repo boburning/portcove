@@ -727,6 +727,10 @@ for (const [file, tests] of [
     [
       "scripts/release-catalog-continuation.test.mts",
       "scripts/release-metadata-context-recovery.test.mts",
+      "scripts/release-site-controller.test.mts",
+      "scripts/release-metadata-site-controller.test.mts",
+      "scripts/release-catalog-site-controller.test.mts",
+      "scripts/release-publication-controller.test.mts",
     ],
   ],
   [

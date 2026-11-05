@@ -71,6 +71,7 @@ import { isRecord } from "./runtime-values.mts";
 import { candidateProgressIdentity } from "./release-candidate-progress-contract.mts";
 
 import { currentSiteJobDeadline } from "./release-site-job-budget.mts";
+import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
 import { currentControllerJobDeadline } from "./release-signing-job-budget.mts";
 const started = performance.now();
 function remaining(deadline: number, maximum = 15000) {
@@ -318,8 +319,9 @@ export async function runSitePublicationController(
     const directory = await mkdtemp(path.join(outputParent, "site-controller-"));
     let stage = "current-journal-and-whole-site";
     try {
+      const transport = { credential: { token: fixedReleaseReaderToken() }, deadline };
       const recovered = await recoverRemoteCoordinator(directory, remote, {
-        transport: { cwd: directory, deadline },
+        transport,
       });
       let checkpoint = recovered.checkpoint;
       inspectSitePublicationReservation(
@@ -411,7 +413,7 @@ export async function runSitePublicationController(
       const boundary = async () => {
         remaining(deadline);
         const state = await readRemoteCoordinatorSnapshot(directory, remote, {
-          transport: { cwd: directory, deadline },
+          transport,
         });
         inspectSitePublicationReservation(
           state.input,
@@ -499,7 +501,7 @@ export async function runSitePublicationController(
       );
       checkpoint = uploaded.checkpoint;
       const snapshot = await readRemoteCoordinatorSnapshot(directory, remote, {
-        transport: { cwd: directory, deadline },
+        transport,
       });
       if (snapshot.checkpoint !== checkpoint)
         throw new Error("site upload settlement changed; retain original artifact");
@@ -528,7 +530,7 @@ export async function runSitePublicationController(
       remaining(deadline);
       stage = "durable-candidate-completion";
       const completionSnapshot = await readRemoteCoordinatorSnapshot(directory, remote, {
-        transport: { cwd: directory, deadline },
+        transport,
       });
       if (completionSnapshot.checkpoint !== result.checkpoint)
         throw new Error("site metadata handoff changed before candidate completion");
@@ -624,7 +626,7 @@ export async function runSitePublicationController(
         : await publishLegacy();
       remaining(deadline);
       const completed = await readRemoteCoordinatorSnapshot(directory, remote, {
-        transport: { cwd: directory, deadline },
+        transport,
       });
       if (completed.checkpoint !== saved.checkpoint || completed.input.active_candidate !== null)
         throw new Error("candidate completion readback ambiguous; preserve published effects");
