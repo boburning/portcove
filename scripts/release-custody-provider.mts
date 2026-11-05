@@ -35,6 +35,7 @@ type ReleaseCustodyProvider = HistoricalJobProvider &
     artifact(id: number): Promise<unknown>;
     runArtifacts(id: string, page: number): Promise<unknown>;
   };
+export type RunArtifactInventoryProvider = Pick<ReleaseCustodyProvider, "runArtifacts">;
 export type SigningOutputMetadataProvider = Pick<
   ReleaseCustodyProvider,
   "attempt" | "job" | "artifact"

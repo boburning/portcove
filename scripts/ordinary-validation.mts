@@ -776,6 +776,7 @@ for (const [file, tests] of [
       "scripts/release-immutable-publication.test.mts",
       "scripts/release-candidate-signing-recovery.test.mts",
       "scripts/release-catalog-signing.test.mts",
+      "scripts/release-native-admission.test.mts",
       "scripts/release-signing-handoff.test.mts",
       "scripts/release-signing-context-artifact.test.mts",
       "scripts/release-tuf-role-artifact.test.mts",
@@ -883,6 +884,10 @@ for (const [file, tests] of [
     ],
   ],
   ["scripts/release-hosted-native-job.mts", ["scripts/release-hosted-native-job.test.mts"]],
+  [
+    "scripts/release-hosted-native-artifact.mts",
+    ["scripts/release-native-admission.test.mts", "scripts/release-hosted-native-job.test.mts"],
+  ],
   [
     "scripts/release-hosted-native-installation.mts",
     ["scripts/release-hosted-native-installation.test.mts"],
@@ -2238,6 +2243,7 @@ for (const file of [
     "scripts/release-immutable-publication.test.mts",
     "scripts/release-candidate-signing-recovery.test.mts",
     "scripts/release-catalog-signing.test.mts",
+    "scripts/release-native-admission.test.mts",
     "scripts/release-signing-handoff.test.mts",
     "scripts/release-signing-context-artifact.test.mts",
     "scripts/release-tuf-role-artifact.test.mts",

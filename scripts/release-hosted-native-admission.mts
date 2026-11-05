@@ -4,7 +4,6 @@ import { isInitialBetaReleaseProfile } from "./release-package-policy.mts";
 /** Selected source-bound pre-sign reader. The transferred proof is inert until
  * the actual receiver verifies it; no locator may appoint source or authority. */
 import { createHash } from "node:crypto";
-import { spawnSync } from "node:child_process";
 import { performance } from "node:perf_hooks";
 import { isDeepStrictEqual } from "node:util";
 import {
@@ -27,7 +26,7 @@ import { collectHostedNativeReleaseQualification } from "./release-hosted-native
 import { requireNativeReleaseQualificationPair } from "./release-native-admission.mts";
 import { coordinatorCommandTimeout } from "./release-coordinator-deadline.mts";
 import { isRecord } from "./runtime-values.mts";
-import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
 import { readHostedNativeProofArtifact } from "./release-hosted-native-artifact.mts";
 
@@ -280,40 +279,37 @@ async function collectConfiguredHostedNativePair(
   const workflowDigest = createHash("sha256").update(workflow).digest("hex");
   const captured =
     supplied ??
-    (() => {
+    (await (async () => {
       const runId = view.source.run_id;
       if (typeof runId !== "string")
         throw new Error("native artifact discovery requires the original source run");
-      const environment = readOnlyReleaseChildEnvironment();
-      if (!environment)
-        throw new Error("native artifact discovery requires isolated reader credentials");
-      const api = new GitHubApiClient((args, input) => {
-        active();
-        const result = createGitHubRunner({
-          cwd: outputParent,
-          timeoutMs: Math.max(1, Math.floor(Math.min(30000, deadline - performance.now()))),
-          maxBuffer: 2 * 1024 * 1024,
-          spawn: (command, values, settings) =>
-            spawnSync(command, values, { ...settings, env: environment }),
-        })([...args, "--hostname", "github.com"], input);
-        active();
-        return result;
+      const token = readOnlyReleaseChildEnvironment()?.GH_TOKEN;
+      if (!token) throw new Error("native artifact discovery requires isolated reader credentials");
+      const metadata = await createReleaseCustodyProvider({
+        token,
+        deadline,
+        requestTimeoutMs: 30000,
       });
-      return opportunities.map((opportunity) =>
-        readHostedNativeProofArtifact(
-          api,
-          {
-            controller_revision: view.source.controller_revision,
-            run_id: runId,
-            run_attempt: view.source.run_attempt,
-            platform_label: opportunity.platform_label,
-            stage: opportunity.stage,
-          },
-          outputParent,
-          deadline,
-        ),
-      );
-    })();
+      const found = [];
+      for (const opportunity of opportunities) {
+        active();
+        found.push(
+          await readHostedNativeProofArtifact(
+            metadata,
+            {
+              controller_revision: view.source.controller_revision,
+              run_id: runId,
+              run_attempt: view.source.run_attempt,
+              platform_label: opportunity.platform_label,
+              stage: opportunity.stage,
+            },
+            outputParent,
+            deadline,
+          ),
+        );
+      }
+      return found;
+    })());
   const receipts = [];
   for (const opportunity of opportunities) {
     const transfer = captured.find(

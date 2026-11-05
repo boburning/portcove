@@ -34,8 +34,11 @@ import { requireActualHostedWindowsStage } from "./release-hosted-native-windows
 import { captureActualHostedNativeWindowsInvocation } from "./release-hosted-native-windows-capture.mts";
 import { prepareActualHostedWindowsNativeStageReport } from "./release-native-pre-sign-report.mts";
 import { readHostedNativeProofArtifact } from "./release-hosted-native-artifact.mts";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
-import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
+import {
+  readOnlyReleaseChildEnvironment,
+  withReadOnlyReleaseChildren,
+} from "./release-readonly-child-environment.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import { isRecord } from "./runtime-values.mts";
 
@@ -232,22 +235,20 @@ async function readBackUpload(
       ).equals(state.ready),
     );
     const deadline = Math.min(original.deadline, performance.now() + 120000);
-    const remaining = () => {
-      const left = Math.floor(deadline - performance.now());
-      assert.ok(left > 0, "original native upload deadline exhausted");
-      return Math.min(left, 15000);
-    };
+    const active = () =>
+      assert.ok(
+        Math.floor(deadline - performance.now()) > 0,
+        "original native upload deadline exhausted",
+      );
     phase = "provider-readback";
     const result = await withReadOnlyReleaseChildren(original.directory, async () => {
-      const api = new GitHubApiClient((args, input) =>
-        createGitHubRunner({
-          cwd: original.directory,
-          timeoutMs: remaining(),
-          maxBuffer: 2 * 1024 * 1024,
-        })(args, input),
-      );
+      active();
+      const metadata = await createReleaseCustodyProvider({
+        token: readOnlyReleaseChildEnvironment()?.GH_TOKEN ?? "",
+        deadline,
+      });
       return readHostedNativeProofArtifact(
-        api,
+        metadata,
         {
           controller_revision: original.producer.controller_revision,
           run_id: original.producer.run_id,
@@ -269,7 +270,7 @@ async function readBackUpload(
         "uploaded native proof differs from original capture",
       );
     await originalProof(state.proof, platform);
-    remaining();
+    active();
     const readback = {
       schema_version: 1,
       artifact: result.artifact,
