@@ -12,7 +12,14 @@ const ROOT_COMMAND_GROUPS: &[(&str, &[&str])] = &[
     (
         "Everyday commands",
         &[
-            "setup", "install", "update", "exec", "verify", "remove", "status",
+            "setup",
+            "install",
+            "update",
+            "exec",
+            "verify",
+            "remove",
+            "status",
+            "port-capabilities",
         ],
     ),
     (
@@ -208,7 +215,7 @@ pub(crate) enum Commands {
         #[command(subcommand)]
         command: ToolCommand,
     },
-    /// Show installation, game-file, launch, and update readiness.
+    /// Show setup routes, feature availability, and scoped known issues.
     PortCapabilities {
         /// Stable catalog or retained listing identity.
         port_id: String,

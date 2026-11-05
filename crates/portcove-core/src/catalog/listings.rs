@@ -981,7 +981,7 @@ mod tests {
         let mut operational_listing = listing();
         operational_listing["launch_arguments"] = json!(["--run-script"]);
         for document in [
-            json!({"format_version":7,"listings":[]}),
+            json!({"format_version":8,"listings":[]}),
             json!({"format_version":1,"listings":[listing(),listing()]}),
             json!({"format_version":1,"listings":[unsafe_listing]}),
             json!({"format_version":1,"listings":[operational_listing]}),
