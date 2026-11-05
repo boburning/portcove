@@ -29,6 +29,7 @@ import {
 import type { ReleaseEvidenceRequest, ReleaseEvidenceOptions } from "./release-run-evidence.mts";
 import {
   requireStablePublicBuildInputEvidence,
+  publicBuildReadCredential,
   verifyReleasePublicBuildInputs,
 } from "./release-public-build-provenance.mts";
 
@@ -297,10 +298,16 @@ export async function prepareAggregateAttestation(
     throw new Error("aggregate candidate artifact matrix is incomplete");
   if (accepted.run_id === expected.run_id)
     throw new Error("candidate run cannot impersonate its trusted assembler run");
+  const publicBuildCredential =
+    accepted.public_build_inputs && !options.download
+      ? (options.evidence?.credential ?? publicBuildReadCredential(deadline))
+      : undefined;
   const evidenceOptions = {
     ...options.evidence,
+    ...(publicBuildCredential ? { credential: publicBuildCredential } : {}),
     deadline: Math.min(options.deadline ?? Infinity, options.evidence?.deadline ?? Infinity),
   };
+  const { reserve } = evidenceOptions;
   let publicBefore: Awaited<ReturnType<typeof collectReleaseRunEvidence>> | null = null;
   let publicRequest: ReleaseEvidenceRequest | null = null;
   let publicVerification: Awaited<ReturnType<typeof verifyReleasePublicBuildInputs>> | null = null;
@@ -327,7 +334,15 @@ export async function prepareAggregateAttestation(
       options.cwd,
       accepted.public_build_inputs,
       publicBefore,
-      { download: options.download },
+      {
+        download: options.download,
+        credential: publicBuildCredential,
+        deadline,
+        lookup: () => ({
+          deadline: evidenceOptions.deadline,
+          ...(reserve ? { reserve } : {}),
+        }),
+      },
     );
   }
   const runner = createGitHubRunner({

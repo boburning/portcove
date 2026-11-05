@@ -13,6 +13,7 @@ import {
 import { isRecord } from "./runtime-values.mts";
 import {
   requireStablePublicBuildInputEvidence,
+  publicBuildReadCredential,
   verifyReleasePublicBuildInputs,
 } from "./release-public-build-provenance.mts";
 
@@ -84,10 +85,16 @@ export async function assembleReleaseArtifacts(
     archives.reduce((sum, a) => sum + a.bytes, 0) > 2 * 1024 * 1024 * 1024
   )
     throw new Error("artifact matrix is duplicated or exceeds total bytes");
+  const publicBuildCredential =
+    accepted.public_build_inputs && !options.download
+      ? (options.evidence?.credential ?? publicBuildReadCredential(deadline))
+      : undefined;
   const evidenceOptions = {
     ...options.evidence,
+    ...(publicBuildCredential ? { credential: publicBuildCredential } : {}),
     deadline: Math.min(deadline, options.evidence?.deadline ?? Infinity),
   };
+  const { reserve } = evidenceOptions;
   const before = await collectReleaseRunEvidence(evidenceRequest, evidenceOptions);
   const check = (evidence: typeof before) => {
     for (const archive of archives) {
@@ -122,6 +129,12 @@ export async function assembleReleaseArtifacts(
     const publicBuildInputs = accepted.public_build_inputs
       ? await verifyReleasePublicBuildInputs(directory, accepted.public_build_inputs, before, {
           download: options.download,
+          credential: publicBuildCredential,
+          deadline,
+          lookup: () => ({
+            deadline: evidenceOptions.deadline,
+            ...(reserve ? { reserve } : {}),
+          }),
         })
       : null;
     const inputs = path.join(directory, "inputs");

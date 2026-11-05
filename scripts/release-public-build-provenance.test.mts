@@ -10,6 +10,8 @@ import { assembleReleaseArtifacts } from "./release-artifact-assembly.mts";
 import { inspectTrustedAssemblyInput } from "./trusted-release-assembly.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import { isRecord } from "./runtime-values.mts";
+import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
+import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import {
   inspectPublicBuildInputBinding,
   selectPublicBuildInputBinding,
@@ -262,4 +264,200 @@ void test("public provider drift refuses the integrated aggregate and preserves 
     /retain owned directory/,
   );
   assert.ok((await readdir(f.root)).some((name) => name.startsWith("artifact-assembly-")));
+});
+
+void test("the configured SDK reads public build archives with one accounted lookup each", async (t) => {
+  const f = await releasePublicBuildProvenanceFixture(t);
+  const evidence = await collectReleaseRunEvidence(f.expected, f.options.evidence);
+  const seen: string[] = [];
+  let reservations = 0;
+  let settlements = 0;
+  let elapsed = 0;
+  const oldToken = process.env.GH_TOKEN;
+  t.after(() => {
+    if (oldToken === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = oldToken;
+  });
+  process.env.GH_TOKEN = "inert-fixed-public-reader";
+  const deadline = performance.now() + 10000;
+  await withReadOnlyReleaseChildren(f.root, async () => {
+    process.env.GH_TOKEN = "inert-ambient-replacement";
+    t.mock.method(
+      globalThis,
+      "fetch",
+      async (input: string | URL | Request, init?: RequestInit) => {
+        const url = new URL(input instanceof Request ? input.url : input);
+        const headers = new Headers(init?.headers);
+        assert.equal(init?.redirect, "manual");
+        if (url.origin === "https://api.github.com") {
+          const id = Number(url.pathname.split("/").at(-2));
+          assert.equal(url.pathname, `/repos/boburning/portcove/actions/artifacts/${id}/zip`);
+          assert.equal(headers.get("authorization"), "token inert-fixed-public-reader");
+          seen.push(`lookup:${id}`);
+          return new Response(null, {
+            status: 302,
+            headers: {
+              location: `https://productionresultssa10.blob.core.windows.net/actions-results/${id}?sig=inert`,
+              link: "<https://productionresultssa10.blob.core.windows.net/actions-results/archive?sig=inert>",
+              "x-github-request-id": "inert-build-request",
+              "x-ratelimit-limit": "5000",
+              "x-untrusted": "inert-opaque-data",
+            },
+          });
+        }
+        assert.equal(url.origin, "https://productionresultssa10.blob.core.windows.net");
+        assert.equal(init?.credentials, "omit");
+        assert.equal(headers.has("authorization"), false);
+        const id = Number(url.pathname.split("/").at(-1));
+        seen.push(`delivery:${id}`);
+        return new Response(Uint8Array.from(f.blobs.get(id)!));
+      },
+    );
+    const result = await withCoordinatorDeadline(deadline, () =>
+      verifyReleasePublicBuildInputs(f.root, f.binding, evidence, {
+        deadline: deadline + 30000,
+        lookup: () => ({
+          reserve(request) {
+            assert.equal(request.replay, "once");
+            assert.equal(request.url.origin, "https://api.github.com");
+            reservations++;
+            return {
+              consumeBytes() {},
+              settle(observation) {
+                assert.equal(observation.dispatched, true);
+                assert.equal(observation.status, 302);
+                assert.equal(observation.bytes, 0);
+                assert.equal(observation.rate?.limit, 5000);
+                assert.deepEqual(observation.headers, {
+                  "x-github-request-id": "inert-build-request",
+                  "x-ratelimit-limit": "5000",
+                });
+                settlements++;
+              },
+            };
+          },
+          elapsed(milliseconds) {
+            assert.ok(milliseconds >= 0);
+            elapsed++;
+          },
+        }),
+      }),
+    );
+    await requireVerifiedReleasePublicBuildInputs(result);
+    assert.deepEqual(
+      seen,
+      f.binding.artifacts.flatMap(({ artifact_id: id }) => [`lookup:${id}`, `delivery:${id}`]),
+    );
+    assert.equal(reservations, f.binding.artifacts.length);
+    assert.equal(settlements, reservations);
+    assert.equal(elapsed, reservations);
+    const completedRequests = [...seen];
+    await assert.rejects(
+      verifyReleasePublicBuildInputs(f.root, f.binding, evidence, {
+        deadline,
+        lookup: () => ({
+          deadline: performance.now() - 1,
+          reserve: () => assert.fail("expired evidence scope must not reserve"),
+        }),
+      }),
+      CoordinatorRemoteError,
+    );
+    assert.deepEqual(seen, completedRequests);
+
+    await assert.rejects(
+      verifyReleasePublicBuildInputs(f.root, f.binding, evidence, {
+        deadline: performance.now() - 1,
+        download: async () => assert.fail("expired caller must not dispatch injected downloader"),
+      }),
+      CoordinatorRemoteError,
+    );
+  });
+});
+
+void test("a tighter coordinator deadline cancels public build delivery without opening a second lookup", async (t) => {
+  const f = await releasePublicBuildProvenanceFixture(t);
+  const evidence = await collectReleaseRunEvidence(f.expected, f.options.evidence);
+  let lookups = 0;
+  let transfers = 0;
+  let cancelled = false;
+  t.mock.method(globalThis, "fetch", async (input: string | URL | Request) => {
+    const url = new URL(input instanceof Request ? input.url : input);
+    if (url.origin === "https://api.github.com") {
+      lookups++;
+      return new Response(null, {
+        status: 302,
+        headers: {
+          location:
+            "https://productionresultssa10.blob.core.windows.net/actions-results/archive?sig=inert",
+        },
+      });
+    }
+    transfers++;
+    return new Response(
+      new ReadableStream({
+        cancel() {
+          cancelled = true;
+        },
+      }),
+    );
+  });
+  const keepAlive = setTimeout(() => {}, 1000);
+  t.after(() => clearTimeout(keepAlive));
+  const deadline = performance.now() + 150;
+  await assert.rejects(
+    withCoordinatorDeadline(deadline, () =>
+      verifyReleasePublicBuildInputs(f.root, f.binding, evidence, {
+        credential: { kind: "explicit", token: "inert-public-reader" },
+        deadline: deadline + 30000,
+      }),
+    ),
+    CoordinatorRemoteError,
+  );
+  assert.equal(lookups, 1);
+  assert.equal(transfers, 1);
+  assert.equal(cancelled, true);
+});
+
+void test("actual assembly uses the explicit evidence credential for public archives without ambient authentication", async (t) => {
+  const f = await releasePublicBuildProvenanceFixture(t);
+  for (const [name, value] of [
+    ["GH_TOKEN", undefined],
+    ["GITHUB_TOKEN", undefined],
+    ["CI", "true"],
+  ] as const) {
+    const prior = process.env[name];
+    if (value === undefined) delete process.env[name];
+    else process.env[name] = value;
+    t.after(() => {
+      if (prior === undefined) delete process.env[name];
+      else process.env[name] = prior;
+    });
+  }
+  let dispatched = 0;
+  let admitted = false;
+  t.mock.method(globalThis, "fetch", async (input: string | URL | Request, init?: RequestInit) => {
+    dispatched++;
+    const url = new URL(input instanceof Request ? input.url : input);
+    assert.equal(url.origin, "https://api.github.com");
+    assert.equal(
+      url.pathname,
+      `/repos/boburning/portcove/actions/artifacts/${f.binding.artifacts[0]!.artifact_id}/zip`,
+    );
+    assert.equal(
+      new Headers(init?.headers).get("authorization"),
+      "token inert-explicit-public-reader",
+    );
+    admitted = true;
+    return Response.json({ message: "refused inert lookup" }, { status: 503 });
+  });
+  await assert.rejects(
+    assembleReleaseArtifacts(f.root, f.request, f.archives, f.expected, {
+      evidence: {
+        ...f.options.evidence,
+        credential: { kind: "explicit", token: "inert-explicit-public-reader" },
+      },
+    }),
+  );
+  assert.equal(dispatched, 1);
+  assert.equal(admitted, true);
 });

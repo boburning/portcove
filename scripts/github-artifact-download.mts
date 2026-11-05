@@ -1,5 +1,9 @@
-import { createGitHubClient } from "./github-client.mts";
-import type { GitHubCredential } from "./github-client.mts";
+import { createGitHubClient, retainedGitHubHeaders } from "./github-client.mts";
+import type {
+  GitHubClientOptions,
+  GitHubCredential,
+  GitHubRequestPolicy,
+} from "./github-client.mts";
 import { GitHubApiError } from "./github-operation.mts";
 
 /** GitHub Actions redirects the authenticated API lookup to a short-lived
@@ -11,6 +15,12 @@ export async function downloadGitHubArtifactArchive(
     deadline: number;
     maxBytes: number;
     fetch?: typeof globalThis.fetch;
+    /** Accounting for the authenticated lookup only. The signed transfer uses
+     * the original delivery deadline and never enters the GitHub API budget. */
+    lookup?: Pick<GitHubRequestPolicy, "deadline"> &
+      Pick<GitHubClientOptions, "reserve"> & {
+        elapsed?: (milliseconds: number) => void;
+      };
   },
 ): Promise<Buffer> {
   const { credential, deadline, maxBytes, fetch: fetcher = globalThis.fetch } = options;
@@ -34,9 +44,36 @@ export async function downloadGitHubArtifactArchive(
     allowRequest: (method, url) =>
       method === "GET" && url.pathname === `/${endpoint}` && !url.search,
   });
-  const lookup = await api.request(`GET /${endpoint}`, {
-    request: { portcove: { replay: "once", attempts: 0, readRedirectBodyFor: [] } },
-  });
+  const { deadline: lookupDeadline, reserve, elapsed } = options.lookup ?? {};
+  const policy: GitHubRequestPolicy = {
+    ...(lookupDeadline === undefined ? {} : { deadline: lookupDeadline }),
+    ...(reserve
+      ? {
+          async reserve(request) {
+            const reservation = await reserve(request);
+            return {
+              consumeBytes: (bytes) => reservation.consumeBytes(bytes),
+              settle(observation) {
+                const headers = retainedGitHubHeaders(observation.headers);
+                // Artifact lookups have no pagination evidence.
+                delete headers.link;
+                reservation.settle({ ...observation, headers });
+              },
+            };
+          },
+        }
+      : {}),
+    ...(elapsed ? { observe: (observation) => elapsed(observation.elapsedMs) } : {}),
+    replay: "once",
+    attempts: 0,
+    readRedirectBodyFor: [],
+  };
+  let lookup;
+  try {
+    lookup = await api.request(`GET /${endpoint}`, { request: { portcove: policy } });
+  } finally {
+    await policy.admissionSettled;
+  }
   const location = lookup.headers.location;
   let delivery: URL | undefined;
   if (lookup.status === 302 && typeof location === "string" && location.length <= 8192) {
