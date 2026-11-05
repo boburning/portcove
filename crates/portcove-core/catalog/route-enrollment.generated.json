@@ -15,6 +15,20 @@
       "managed_native": true
     },
     {
+      "port_id": "gamebreaker20xx-fullrumble-ps1-slus01068",
+      "prepared_player": {
+        "executable": "FullRumble.exe",
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "carda.sav, cardb.sav, settings.json and interface.ini in the working folder",
+          "%APPDATA%/FullRumble for setup settings and the generated library",
+          "disc/ beside the program, or %LOCALAPPDATA%/FullRumble/disc if the program folder is not writable"
+        ]
+      },
+      "managed_native": false
+    },
+    {
       "port_id": "mother-3-mother-3-recomp",
       "prepared_player": {
         "executable": "Mother3Recomp.exe",
@@ -112,6 +126,22 @@
         "arguments": [],
         "data_locations": [
           "Assets/data.z64, config/user/ and saves/controller1.mpk in the game folder"
+        ]
+      },
+      "managed_native": false
+    },
+    {
+      "port_id": "tekrantgaming-muppet-racemania-recompiled",
+      "prepared_player": {
+        "executable": "MuppetRaceMania.exe",
+        "working_directory": "executable-parent",
+        "arguments": [
+          "--offline"
+        ],
+        "data_locations": [
+          "saves/muppet_racemania and save-backups/muppet_racemania beside the launcher",
+          "games/muppet_racemania for the staged disc and game settings",
+          "muppet_racemania.txt beside the launcher"
         ]
       },
       "managed_native": false

@@ -1952,6 +1952,11 @@ async fn n64hub_font_acquisition_holds_keep_permitted_copy_guides_before_network
 }
 
 #[tokio::test]
+async fn muppet_racemania_bundled_game_code_hold_keeps_prepared_guide_before_network() {
+    assert_embedded_player_download_holds(&["tekrantgaming-muppet-racemania-recompiled"]).await;
+}
+
+#[tokio::test]
 async fn wetrix_bundled_content_acquisition_hold_keeps_permitted_copy_guide_before_network() {
     assert_embedded_player_download_holds(&["scottjco-wetrix-n64-usa-rev0-recomp"]).await;
 }

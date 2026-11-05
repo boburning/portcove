@@ -22290,6 +22290,43 @@
       "issue_number": 3405
     },
     {
+      "id": "gamebreaker20xx-fullrumble-ps1-slus01068",
+      "project_url": "https://github.com/GameBreaker20XX/FullRumble",
+      "name": "NASCAR Rumble (Full Rumble)",
+      "summary": "A Windows port of NASCAR Rumble. Set it up with your own original PlayStation disc image.",
+      "issue_number": 4259,
+      "original_game_title": "NASCAR Rumble",
+      "availability": "unknown",
+      "platforms": [],
+      "setup_url": "https://github.com/GameBreaker20XX/FullRumble/blob/1089369f3a05916319524004977314af6a305703/README.md",
+      "manual_setup": {
+        "help_url": "https://github.com/GameBreaker20XX/FullRumble/blob/1089369f3a05916319524004977314af6a305703/README.md",
+        "steps": [
+          {
+            "title": "Prepare your Windows copy",
+            "instruction": "Use Windows x64 with OpenGL 4.5 support. Extract the Windows ZIP into a writable folder. Open FullRumble.exe and choose the disc image from your own USA or Canada PlayStation release (SLUS-01068). The setup accepts CUE/BIN, a supported standalone BIN, or ISO. Wait for the game to finish its local build before adding this copy to Portcove."
+          },
+          {
+            "title": "Select the prepared player",
+            "instruction": "Select FullRumble.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
+          }
+        ],
+        "warnings": [
+          "Keep your original disc image and the memory-card files. Use the game’s own updater outside a Portcove Play session, then review the changed program in Portcove."
+        ],
+        "references": [
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          },
+          {
+            "title": "Player-data ownership",
+            "instruction": "You and upstream own the external copy's data: carda.sav, cardb.sav, settings.json and interface.ini in the working folder; %APPDATA%/FullRumble for setup settings and the generated library; disc/ beside the program, or %LOCALAPPDATA%/FullRumble/disc if the program folder is not writable. Back up these locations separately; registration does not migrate or certify their compatibility."
+          }
+        ]
+      }
+    },
+    {
       "id": "gd-s-melee-gurekamdhillon-super-smash-bros-melee",
       "name": "Super Smash Bros. Melee — GD's Melee (GurekamDhillon)",
       "original_game_title": "Super Smash Bros. Melee",
@@ -47794,6 +47831,45 @@
           "Select the prepared earthworm_jim_hd.exe, retain game/ and the actual user root shown upstream. Complete setup, required restarts and updates separately; do not infer another game’s save location or qualification."
         ]
       }
+    },
+    {
+      "id": "tekrantgaming-muppet-racemania-recompiled",
+      "project_url": "https://github.com/TekRantGaming/muppet-racemania-recompiled",
+      "name": "Muppet RaceMania (TekRantGaming)",
+      "summary": "A Windows port of Muppet RaceMania. Set it up with your own original PlayStation disc image.",
+      "issue_number": 4130,
+      "original_game_title": "Muppet RaceMania",
+      "availability": "unknown",
+      "platforms": [],
+      "setup_url": "https://github.com/TekRantGaming/muppet-racemania-recompiled/blob/63caf5cfafe22a76cbcce5c91b055cbde861c957/README.md",
+      "manual_setup": {
+        "help_url": "https://github.com/TekRantGaming/muppet-racemania-recompiled/blob/63caf5cfafe22a76cbcce5c91b055cbde861c957/README.md",
+        "steps": [
+          {
+            "title": "Prepare your Windows copy",
+            "instruction": "Use a complete prepared copy you are permitted to use on Windows 10 or 11 (x64) with OpenGL 3.3 or newer. Optional upscalers require OpenGL 4.3. Use your own USA (SLUS-01237) or Europe (SCES-02008) PlayStation CUE/BIN with the matching regional game build. Open MuppetRaceMania.exe and choose Play to select your disc. Finish that setup before adding the launcher to Portcove. The launcher starts the player for the selected region."
+          },
+          {
+            "title": "Select the prepared player",
+            "instruction": "Select MuppetRaceMania.exe and use its containing folder as the working directory. Enter these literal argument values in order, one array item per argument: [\"--offline\"]. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
+          }
+        ],
+        "warnings": [
+          "Keep the launcher and its matching regional game files together. When Play returns you to the launcher, close the launcher to end the Portcove session.",
+          "Portcove opens the launcher without startup updates. To update, close the Portcove Play session, then open the upstream launcher separately. Use a copy you are permitted to use."
+        ],
+        "references": [
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          },
+          {
+            "title": "Player-data ownership",
+            "instruction": "You and upstream own the external copy's data: saves/muppet_racemania and save-backups/muppet_racemania beside the launcher; games/muppet_racemania for the staged disc and game settings; muppet_racemania.txt beside the launcher. Back up these locations separately; registration does not migrate or certify their compatibility."
+          }
+        ]
+      },
+      "download_block_reason": "Portcove downloads are paused until the applicable permission for the bundled translated game code is established or upstream supplies an appropriately licensed replacement package. You can add a complete copy you are permitted to use."
     },
     {
       "id": "tekrantgaming-outpost-kaloki-x-recompiled",
