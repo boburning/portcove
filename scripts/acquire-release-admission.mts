@@ -915,7 +915,18 @@ export async function acquireReleaseAdmission(
         publicBuildInputs,
         cliPackages,
         sourceBinding,
-        { preparedNamespace: config.namespace },
+        {
+          preparedNamespace: config.namespace,
+          ...(evidenceCredential
+            ? {
+                transport: {
+                  credential: evidenceCredential,
+                  deadline: admissionDeadline,
+                  lookup: archiveLookup,
+                },
+              }
+            : {}),
+        },
       );
       if (
         compilerEvidence.state === "verified-compiler-output-bindings" &&
