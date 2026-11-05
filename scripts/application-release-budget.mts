@@ -4,15 +4,12 @@ import { applicationOpportunityFromRunTitle } from "./application-release-run-ti
 import assert from "node:assert/strict";
 import { isDeepStrictEqual } from "node:util";
 import { isRecord } from "./runtime-values.mts";
-import {
-  applicationGet,
-  applicationApi,
-  applicationRepository,
-} from "./application-release-io.mts";
-import { GitHubApiClient } from "./github-api.mts";
+import { applicationApi, applicationRepository } from "./application-release-io.mts";
+import { createGitHubClient } from "./github-client.mts";
+import { nextLink } from "./github-operation.mts";
+import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
 import { readApplicationBudgetOwner } from "./application-release-run.mts";
 import type { ApplicationBudgetContext } from "./application-release-run.mts";
-import type { GitHubRestReader } from "./github-api.mts";
 import {
   inspectApplicationReleaseExecution,
   applicationReleaseBudgetMinutes,
@@ -153,10 +150,63 @@ export function inspectApplicationJobBudget(
   };
 }
 
+const applicationWorkflow = `${applicationRepository}/actions/workflows/application-release.yml`;
+
+interface ApplicationOpportunityProvider {
+  workflow(): Promise<unknown>;
+  runs(url: string, deadline: number): Promise<{ body: unknown; next: string | null }>;
+}
+
+async function createApplicationBudgetProvider() {
+  const { GH_TOKEN: token = "" } = readOnlyReleaseChildEnvironment() ?? process.env;
+  // One workflow read, up to 90 seconds of inventory, and up to six attempt/job reads.
+  const deadline = performance.now() + 300000;
+  const client = await createGitHubClient({
+    credential: { kind: "explicit", token },
+    deadline,
+    maxBytes: 8 * 1024 ** 2,
+    requestTimeoutMs: 30000,
+    headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
+  });
+  const get = async (endpoint: string, limit = deadline) => {
+    const response = await client.request({
+      method: "GET",
+      url: new URL(endpoint, "https://api.github.com/").href,
+      request: { portcove: { replay: "once", attempts: 0, deadline: limit } },
+    });
+    assert.equal(response.status, 200);
+    return response;
+  };
+  return {
+    async workflow() {
+      return (await get(applicationWorkflow)).data as unknown;
+    },
+    async runs(url: string, limit: number) {
+      const response = await get(url, limit);
+      const link = response.headers.link;
+      return {
+        body: response.data as unknown,
+        next: typeof link === "string" ? nextLink(new Map([["link", link]])) : null,
+      };
+    },
+    async attempt(run: number, attempt: number) {
+      return (await get(`${applicationRepository}/actions/runs/${run}/attempts/${attempt}`))
+        .data as unknown;
+    },
+    async jobs(run: number, attempt: number) {
+      const response = await get(
+        `${applicationRepository}/actions/runs/${run}/attempts/${attempt}/jobs?per_page=100`,
+      );
+      assert.ok(!response.headers.link || !nextLink(new Map([["link", response.headers.link]])));
+      return response.data as unknown;
+    },
+  };
+}
+
 /** Complete accessible provider inventory. A durable draft's known run IDs are
  * checked separately below, so deleted/expired prior runs cannot reset a slot. */
-export function readApplicationOpportunityRuns(
-  api: GitHubRestReader,
+export async function readApplicationOpportunityRuns(
+  provider: ApplicationOpportunityProvider,
   opportunity: string | readonly string[],
 ) {
   const rawOpportunities: readonly unknown[] =
@@ -171,86 +221,65 @@ export function readApplicationOpportunityRuns(
   });
   assert.equal(new Set(opportunities).size, opportunities.length);
   const scopes = new Set(opportunities);
-  const workflowResponse = api.request(
-    "GET",
-    `${applicationRepository}/actions/workflows/application-release.yml`,
-  );
-  assert.equal(workflowResponse.status, 200);
-  const workflow = workflowResponse.body;
+  const workflow = await provider.workflow();
   assert.ok(
     isRecord(workflow) &&
       workflow.path === ".github/workflows/application-release.yml" &&
       Number.isSafeInteger(workflow.id) &&
       Number(workflow.id) > 0,
   );
-  const route = `${applicationRepository}/actions/workflows/application-release.yml/runs`;
+  const route = `/${applicationWorkflow}/runs`;
   const aliases = new Set([
-    `/${route}`,
+    route,
     `/${applicationRepository}/actions/workflows/${Number(workflow.id)}/runs`,
     `/repositories/1354613114/actions/workflows/${Number(workflow.id)}/runs`,
   ]);
-  let requests = 0;
-  const started = performance.now();
-  const bounded: GitHubRestReader = {
-    request(method, endpoint) {
-      assert.equal(method, "GET");
-      assert.ok(++requests <= 10 && performance.now() - started < 90000);
-      const url = new URL(
-        endpoint.startsWith("https:") ? endpoint : `https://api.github.com/${endpoint}`,
-      );
-      assert.equal(url.origin, "https://api.github.com");
-      assert.ok(aliases.has(url.pathname));
-      assert.equal([...url.searchParams.keys()].length, new Set(url.searchParams.keys()).size);
-      assert.equal(url.searchParams.get("event"), "workflow_dispatch");
-      assert.equal(url.searchParams.get("per_page"), "100");
+  const deadline = performance.now() + 90000;
+  const rows: Record<string, unknown>[] = [];
+  const ids = new Set<number>();
+  let total: number | undefined;
+  let next: string | null = `https://api.github.com${route}?event=workflow_dispatch&per_page=100`;
+  for (let page = 1; next !== null; page++) {
+    assert.ok(page <= 10 && performance.now() < deadline);
+    const url = new URL(next);
+    assert.equal(url.origin, "https://api.github.com");
+    assert.ok(!url.username && !url.password && !url.hash && aliases.has(url.pathname));
+    const keys = [...url.searchParams.keys()];
+    assert.equal(keys.length, new Set(keys).size);
+    assert.ok(keys.every((key) => ["event", "per_page", "page"].includes(key)));
+    assert.equal(url.searchParams.get("event"), "workflow_dispatch");
+    assert.equal(url.searchParams.get("per_page"), "100");
+    assert.equal(url.searchParams.get("page") ?? "1", String(page));
+    const response = await provider.runs(url.href, deadline);
+    const raw = response.body;
+    assert.ok(performance.now() < deadline);
+    assert.ok(isRecord(raw) && Array.isArray(raw.workflow_runs) && raw.workflow_runs.length <= 100);
+    assert.ok(
+      typeof raw.total_count === "number" &&
+        Number.isSafeInteger(raw.total_count) &&
+        raw.total_count >= 0 &&
+        raw.total_count < 1000,
+      "provider run search at ceiling; completeness unknown",
+    );
+    total ??= raw.total_count;
+    assert.equal(raw.total_count, total);
+    for (const row of raw.workflow_runs as unknown[]) {
       assert.ok(
-        [...url.searchParams.keys()].every((key) => ["event", "per_page", "page"].includes(key)),
+        isRecord(row) && typeof row.id === "number" && Number.isSafeInteger(row.id) && row.id > 0,
       );
-      if (url.searchParams.has("page"))
-        assert.match(url.searchParams.get("page")!, /^(?:[1-9]|10)$/u);
-      const response = api.request("GET", endpoint);
-      assert.equal(response.status, 200);
-      assert.ok(Buffer.byteLength(JSON.stringify(response.body)) <= 8 * 1024 ** 2);
-      return response;
-    },
-  };
-  const rows = GitHubApiClient.prototype.paginateRest.call(
-    bounded,
-    `${route}?event=workflow_dispatch&per_page=100`,
-    {
-      select(raw: unknown) {
-        assert.ok(
-          isRecord(raw) && Array.isArray(raw.workflow_runs) && raw.workflow_runs.length <= 100,
-        );
-        const rows: unknown[] = raw.workflow_runs;
-        return rows;
-      },
-      totalCount(raw: unknown) {
-        assert.ok(
-          isRecord(raw) &&
-            Number.isSafeInteger(raw.total_count) &&
-            Number(raw.total_count) >= 0 &&
-            Number(raw.total_count) < 1000,
-          "provider run search at ceiling; completeness unknown",
-        );
-        return Number(raw.total_count);
-      },
-      identity(raw: unknown) {
-        assert.ok(isRecord(raw) && Number.isSafeInteger(raw.id) && Number(raw.id) > 0);
-        return Number(raw.id);
-      },
-      label: "native release opportunity runs",
-    },
-  );
+      assert.ok(!ids.has(row.id), "duplicate application run in provider inventory");
+      ids.add(row.id);
+      rows.push(row);
+    }
+    assert.ok(rows.length <= total);
+    next = response.next;
+  }
+  assert.equal(rows.length, total, "application run inventory is incomplete");
   return rows
-    .filter(
-      (raw: unknown) =>
-        isRecord(raw) && scopes.has(applicationOpportunityFromRunTitle(raw.display_title) ?? ""),
-    )
-    .map((raw: unknown) => {
+    .filter((raw) => scopes.has(applicationOpportunityFromRunTitle(raw.display_title) ?? ""))
+    .map((raw) => {
       assert.ok(
-        isRecord(raw) &&
-          raw.path === ".github/workflows/application-release.yml" &&
+        raw.path === ".github/workflows/application-release.yml" &&
           raw.event === "workflow_dispatch",
       );
       assert.ok(
@@ -264,7 +293,7 @@ export function readApplicationOpportunityRuns(
     });
 }
 
-export function readApplicationJobBudget(
+export async function readApplicationJobBudget(
   registeredRunIds: readonly string[] | undefined,
   purpose: unknown,
   executionPath: unknown = "ordinary",
@@ -287,7 +316,8 @@ export function readApplicationJobBudget(
         ]
       : [];
   const opportunities = [...new Set([opportunity, ...scopes.map((scope) => scope.opportunity)])];
-  const runs = readApplicationOpportunityRuns(applicationApi, opportunities);
+  const provider = await createApplicationBudgetProvider();
+  const runs = await readApplicationOpportunityRuns(provider, opportunities);
   for (const scope of scopes)
     for (const id of scope.run_ids)
       assert.ok(
@@ -347,10 +377,8 @@ export function readApplicationJobBudget(
     const observations = [];
     for (let attempt = 1; attempt <= Number(run.run_attempt); attempt++)
       observations.push({
-        context: applicationGet(`actions/runs/${Number(run.id)}/attempts/${attempt}`),
-        jobs: applicationGet(
-          `actions/runs/${Number(run.id)}/attempts/${attempt}/jobs?per_page=100`,
-        ),
+        context: await provider.attempt(Number(run.id), attempt),
+        jobs: await provider.jobs(Number(run.id), attempt),
       });
     const result = inspectApplicationJobBudget(
       observations,
