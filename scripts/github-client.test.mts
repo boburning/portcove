@@ -5,6 +5,7 @@ import { createGitHubClient, iterateGitHubPages } from "./github-client.mts";
 import type { GitHubAttemptObservation, GitHubRequestPolicy } from "./github-client.mts";
 import { localDeveloperCredential, verifyGitHubAttestation } from "./github-cli.mts";
 import { GitHubApiError } from "./github-operation.mts";
+import { verifyControllerArtifactVerification } from "./github-controller-attestation.mts";
 
 const once = (): GitHubRequestPolicy => ({ replay: "once", attempts: 0 });
 const read = (): GitHubRequestPolicy => ({ replay: "safe-read", attempts: 0 });
@@ -1224,4 +1225,37 @@ void test("retained verifier enforces real subprocess output and execution bound
         error.message.includes(mode === "timeout" ? "ETIMEDOUT" : "ENOBUFS"),
     );
   }
+});
+
+void test("controller verifier redacts the actual custom child credential and retains useful diagnostics", () => {
+  const opaque = "opaque-synthetic-controller-reader-without-token-prefix";
+  assert.throws(
+    () =>
+      verifyControllerArtifactVerification(
+        process.cwd(),
+        "fixture.json",
+        "fixture.bundle",
+        {
+          controller_revision: "a".repeat(40),
+          controller_ref: "refs/tags/portcove-production-controller-fixture",
+          run_id: "12345",
+          run_attempt: 1,
+        },
+        "synthetic-predicate",
+        {
+          environment: { GH_TOKEN: opaque, GH_HOST: "ambient.invalid" },
+          spawn: (_command, _args, settings) => {
+            assert.equal(settings.env?.GH_TOKEN, opaque);
+            assert.equal(settings.env?.GH_HOST, "github.com");
+            return { status: 1, stdout: "", stderr: `certificate issuer differs: ${opaque}` };
+          },
+        },
+      ),
+    (error: unknown) => {
+      assert.ok(error instanceof GitHubApiError);
+      assert.match(error.message, /certificate issuer differs/u);
+      assert.ok(!error.message.includes(opaque));
+      return true;
+    },
+  );
 });
