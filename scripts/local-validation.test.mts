@@ -4632,6 +4632,11 @@ void test("GitHub dependency changes select actual SDK and REST integration cont
     assert.ok(selected.nodeTests.has("scripts/release-controller-wake.test.mts"), file);
     assert.ok(selected.nodeTests.has("scripts/release-production-dag.test.mts"), file);
   }
+  const wakeProviderChange = classifyChanges(
+    [{ status: "M", path: "scripts/release-wake-provider.mts" }],
+    { fileExists: () => false },
+  );
+  assert.ok(wakeProviderChange.nodeTests.has("scripts/application-release-qualification.test.mts"));
   for (const file of [
     "package.json",
     "pnpm-lock.yaml",
@@ -4644,6 +4649,7 @@ void test("GitHub dependency changes select actual SDK and REST integration cont
     assert.ok(selected.nodeTests.has("scripts/roadmap-rest-intake.test.mts"), file);
     for (const consumer of [
       "scripts/application-release-native.test.mts",
+      "scripts/application-release-qualification.test.mts",
       "scripts/roadmap-sdk.test.mts",
       "scripts/roadmap-provider-inventory.test.mts",
       "scripts/discovery-github.test.mts",

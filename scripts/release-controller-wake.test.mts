@@ -146,7 +146,7 @@ void test("locked wake SDK retains the acknowledged run before refusing expiry",
   const f = fixture(true),
     records: { phase: string; evidence: unknown }[] = [];
   const api = await createWakeProvider({
-    token: "synthetic-wake-token",
+    credential: { kind: "explicit", token: "synthetic-wake-token" },
     deadline: 2000,
     remainingDeadline: () => 2000,
     apiVersion: "2026-03-10",
@@ -201,7 +201,7 @@ void test("locked wake SDK keeps dispatch one shot and never retains an incomple
     let sends = 0,
       retained = 0;
     const api = await createWakeProvider({
-      token: "synthetic-wake-token",
+      credential: { kind: "explicit", token: "synthetic-wake-token" },
       deadline: performance.now() + 5000,
       remainingDeadline: () => performance.now() + 5000,
       apiVersion: "2022-11-28",

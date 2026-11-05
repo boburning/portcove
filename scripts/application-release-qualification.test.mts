@@ -1,5 +1,8 @@
 import { windowsApplicationQualificationFixture } from "./fixtures/application-qualification-fixture.mts";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import { createWakeProvider } from "./release-wake-provider.mts";
 import { selectWindowsApplicationQualificationRun } from "./application-release-qualification.mts";
 import test from "node:test";
 import { digestValidationPlan } from "./validation-plan.mts";
@@ -7,6 +10,7 @@ import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
 import {
   inspectWindowsApplicationQualification,
   readApplicationQualificationPlan,
+  readWindowsApplicationQualification,
 } from "./application-release-qualification.mts";
 
 const source = "a".repeat(40);
@@ -199,4 +203,75 @@ void test("retained qualification plan archive is bounded before JSON decoding",
     createAuditZip([["validation-plan.json", "{}"]]),
   ])
     assert.throws(() => readApplicationQualificationPlan(invalid));
+});
+
+void test("locked SDK reads exact qualification recipes and rechecks the run after the bounded artifact", async () => {
+  const { run, jobs, plan } = fixture();
+  const archive = createAuditZip([["validation-plan.json", JSON.stringify(plan)]]);
+  const sha = createHash("sha256").update(archive).digest("hex");
+  const artifact = {
+    id: 91,
+    name: `validation-plan-qualification-${run.id}-${run.run_attempt}`,
+    expired: false,
+    size_in_bytes: archive.length,
+    digest: `sha256:${sha}`,
+    workflow_run: { id: run.id, head_sha: source, repository_id: 1354613114 },
+  };
+  const runRoute = `/repos/boburning/portcove/actions/runs/${run.id}`;
+  const root = "/repos/boburning/portcove";
+  const seen: string[] = [];
+  const deadline = performance.now() + 15000;
+  const provider = await createWakeProvider({
+    credential: { kind: "explicit", token: "synthetic-qualification-reader" },
+    deadline,
+    remainingDeadline: () => deadline,
+    maxBytes: 2 * 1024 ** 2,
+    apiVersion: "2022-11-28",
+    fetch: async (input, init) => {
+      assert.ok(typeof input === "string");
+      const url = new URL(input);
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(init?.method, "GET");
+      assert.equal(
+        new Headers(init?.headers).get("authorization"),
+        "token synthetic-qualification-reader",
+      );
+      seen.push(url.pathname + url.search);
+      if (url.pathname === runRoute) return Response.json(run);
+      if (url.pathname === `${runRoute}/attempts/${run.run_attempt}/jobs`)
+        return Response.json(jobs);
+      if (url.pathname === `${runRoute}/artifacts`)
+        return Response.json({ total_count: 1, artifacts: [artifact] });
+      const workflow = decodeURIComponent(url.pathname.slice(`${root}/contents/`.length));
+      assert.ok(
+        workflow === ".github/workflows/ci.yml" ||
+          workflow === ".github/workflows/qualification.yml",
+      );
+      const content = await readFile(new URL(`../${workflow}`, import.meta.url));
+      return Response.json({
+        type: "file",
+        encoding: "base64",
+        size: content.length,
+        content: content.toString("base64"),
+      });
+    },
+  });
+  const result = await readWindowsApplicationQualification(provider, run.id, source, {
+    deadline,
+    download(route, options) {
+      assert.equal(route, "repos/boburning/portcove/actions/artifacts/91/zip");
+      assert.equal(options.maxBytes, 1024 ** 2);
+      assert.equal(seen.length, 5);
+      return archive;
+    },
+  });
+  assert.equal(result.plan_artifact_sha256, sha);
+  assert.deepEqual(seen, [
+    runRoute,
+    `${root}/contents/${encodeURIComponent(".github/workflows/ci.yml")}?ref=${source}`,
+    `${root}/contents/${encodeURIComponent(".github/workflows/qualification.yml")}?ref=${source}`,
+    `${runRoute}/attempts/${run.run_attempt}/jobs?per_page=100`,
+    `${runRoute}/artifacts?per_page=100`,
+    runRoute,
+  ]);
 });
