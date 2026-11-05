@@ -60,7 +60,8 @@ function render(task: FixedTask) {
   assert.match(task.start, /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.000Z$/u);
   assert.equal(new Date(task.start).toISOString(), task.start);
   const taskPath = `\\Portcove\\${task.name}`;
-  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+  // Task Scheduler receives decoded XML as a COM string. A byte-encoding declaration conflicts with that input.
+  const xml = `<?xml version="1.0"?>
 <Task version="1.4" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
 <RegistrationInfo><URI>${taskPath}</URI></RegistrationInfo>
 <Triggers><LogonTrigger><Enabled>true</Enabled><UserId>${task.broker}</UserId><Delay>PT30S</Delay></LogonTrigger><CalendarTrigger><Repetition><Interval>PT5M</Interval><StopAtDurationEnd>false</StopAtDurationEnd></Repetition><StartBoundary>${task.start}</StartBoundary><Enabled>true</Enabled><ScheduleByDay><DaysInterval>1</DaysInterval></ScheduleByDay></CalendarTrigger></Triggers>
