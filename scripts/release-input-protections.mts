@@ -115,10 +115,11 @@ async function observeProtections(
   options: ProtectionObservationOptions,
   purpose: "application" | "catalog-publication",
 ) {
+  const { journalNamespace, releasePublication } = options;
   const journalBranch =
-    options.journalNamespace === undefined
+    journalNamespace === undefined
       ? undefined
-      : `${inspectCoordinatorRemoteNamespace({ schema_version: 1, namespace: options.journalNamespace })}-coordinator-state`;
+      : `${inspectCoordinatorRemoteNamespace({ schema_version: 1, namespace: journalNamespace })}-coordinator-state`;
   const selectedBranches = [
     ...(purpose === "catalog-publication" ? ["portcove-release-pause"] : refs),
     ...(journalBranch === undefined ? [] : [journalBranch]),
@@ -283,9 +284,9 @@ async function observeProtections(
     ) {
       throw new Error("catalog environment identities duplicated");
     }
-    const immutable = options.releasePublication ? await get("/immutable-releases") : undefined;
+    const immutable = releasePublication ? await get("/immutable-releases") : undefined;
     if (
-      options.releasePublication &&
+      releasePublication &&
       (!isRecord(immutable) ||
         Object.keys(immutable).sort().join(",") !== "enabled,enforced_by_owner" ||
         typeof immutable.enabled !== "boolean" ||
@@ -296,7 +297,7 @@ async function observeProtections(
       rulesets: rulesets.sort((a, b) => Number(a.id) - Number(b.id)),
       branches,
       ...(environments ? { environments } : {}),
-      ...(options.releasePublication ? { immutable_releases: immutable } : {}),
+      ...(releasePublication ? { immutable_releases: immutable } : {}),
     };
   };
   const before = await read();
@@ -313,7 +314,7 @@ async function observeProtections(
     coverage:
       purpose === "catalog-publication"
         ? "current-repository-catalog-maintenance-only"
-        : options.releasePublication
+        : releasePublication
           ? "current-repository-input-branches-and-release-immutability"
           : "current-repository-input-branches-only",
     enforcement: "uninterpreted",
