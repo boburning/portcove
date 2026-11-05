@@ -251,8 +251,8 @@ portcove catalog show <port-id>
 portcove --json catalog export
 ```
 
-Contributors author [per-ID records](crates/portcove-core/catalog/ports/) through
-the [catalog authoring workflow](docs/CATALOG.md#adding-or-changing-a-port).
+Contributors author `crates/portcove-core/catalog/ports/<stable-id>.json` through
+the [per-ID authoring workflow](docs/CATALOG.md#adding-or-changing-a-port).
 Their descriptive `listing` and optional strict `integration` generate
 [`listings.json`](crates/portcove-core/catalog/listings.json) and
 [`catalog.json`](crates/portcove-core/catalog/catalog.json); edit the records rather
