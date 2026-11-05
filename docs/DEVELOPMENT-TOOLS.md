@@ -1050,6 +1050,8 @@ Historical checkpoint and hosted native custody read exact attempt, job and
 source metadata through the SDK, retaining each proof's original deadline and
 the shared source/job request budget across later readback. Signature
 verification retains its separately bounded attestation subprocess.
+The verified publication controller uses SDK reads for its original provider job
+clock and retained upload locator, keeping the existing journal readback order.
 The maintained report
 publisher now uses SDK metadata operations and awaited replay/readback. Its trusted
 main checkout installs frozen dependencies before the credentialed steps. Existing
