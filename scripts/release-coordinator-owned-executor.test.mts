@@ -492,7 +492,10 @@ for (const route of ["operation", "application", "catalog"] as const) {
         : route === "application"
           ? recoverOwnedPublishedMetadata(f.session, input, readback)
           : recoverOwnedPublishedCatalogMetadata(f.session, input, readback);
-    await assert.rejects(work(), /exact bound journal/);
+    await assert.rejects(
+      work(),
+      /requires original live checkpoint controls before history binding/,
+    );
     assert.equal(readbacks, 0);
     assert.equal(f.heads(), 0);
     await assert.rejects(work(), /stopped/);
@@ -702,7 +705,7 @@ void test("selected source cannot fall back to a lingering App token before hist
         return { remote_identity: "must-not-run", evidence_sha256: "d".repeat(64) };
       },
     ),
-    /selected effect requires its exact bound journal/,
+    /requires original live checkpoint controls before history binding/,
   );
   assert.equal(effects, 0);
   assert.equal(f.heads(), 0, "no legacy journal request reached the provider");

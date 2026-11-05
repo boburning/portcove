@@ -477,7 +477,9 @@ void test("source-bound coordinator pending continuation verifies custody then r
       return { terminal: true };
     },
   });
+  const checkpointControls = async () => {};
   const context = {
+    checkpointControls,
     pendingRelease: pending,
     context: {},
     publication: {},
@@ -519,7 +521,11 @@ void test("source-bound coordinator pending continuation verifies custody then r
       _executor: unknown,
       input: { checkpoint: string },
       readback: (raw: unknown) => Promise<unknown>,
+      beforeMutation: unknown,
+      controls: unknown,
     ) => {
+      assert.equal(beforeMutation, undefined);
+      assert.equal(controls, checkpointControls);
       calls.push("actual-coordinator-exclusive-recovery");
       assert.equal(input.checkpoint, "before");
       const result = await readback(

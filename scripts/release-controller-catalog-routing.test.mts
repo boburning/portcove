@@ -490,20 +490,18 @@ void test("installed two-purpose workflow remains mutually exclusive under uncha
     ].sort((a, b) => String(a).localeCompare(String(b))),
     catalogProtectionEnvironments,
   );
-  assert.equal(hash(bytes), slice4CapacityResources.aggregate_workflow_sha256);
-  assert.equal(hash(bytes), slice4CapacityResources.input_workflow_sha256);
-  assert.equal(
-    controllerWorkflowAtCurrentNode(
-      await readFile(
-        new URL(
-          "../docs/qualification/application-update-production.windows-20261103.proposed.yml",
-          import.meta.url,
-        ),
-        "utf8",
+  const appointed = controllerWorkflowAtCurrentNode(
+    await readFile(
+      new URL(
+        "../docs/qualification/application-update-production.windows-20261103.proposed.yml",
+        import.meta.url,
       ),
+      "utf8",
     ),
-    bytes.toString(),
   );
+  assert.equal(hash(Buffer.from(appointed)), slice4CapacityResources.aggregate_workflow_sha256);
+  assert.equal(hash(Buffer.from(appointed)), slice4CapacityResources.input_workflow_sha256);
+  assert.notEqual(hash(bytes), slice4CapacityResources.aggregate_workflow_sha256);
   for (const role of ["definitions", "policy", "snapshot", "timestamp"]) {
     const job = jobs[`catalog_${role}`];
     assert.ok(isRecord(job));
@@ -626,6 +624,9 @@ void test("production secret selection never falls back across purposes and job-
     for (const match of bytes.matchAll(expression)) {
       // YAML folding may wrap a closed expression without changing its tokens.
       const body = match[1]!.replace(/\s+/gu, " ");
+      // The production DAG contract exercises the dedicated and legacy storage
+      // transport selectors separately. This fixture evaluates two-purpose selectors.
+      if (body.includes("secrets.PORTCOVE_STORAGE_APP_PRIVATE_KEY")) continue;
       if (!body.includes("secrets.PORTCOVE_CATALOG_") || !body.includes("||")) continue;
       assert.match(
         body,

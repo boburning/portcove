@@ -177,7 +177,9 @@ void test("source-bound result continuation settles only the exact positive repo
       evidence_sha256: "a".repeat(64),
     },
   };
+  const checkpointControls = async () => {};
   const context = {
+    checkpointControls,
     assert,
     structuredClone,
     digest,
@@ -262,7 +264,11 @@ void test("source-bound result continuation settles only the exact positive repo
       _executor: unknown,
       _input: unknown,
       readback: (pending: unknown) => Promise<{ resolution: string }>,
+      beforeMutation: unknown,
+      controls: unknown,
     ) => {
+      assert.equal(beforeMutation, undefined);
+      assert.equal(controls, checkpointControls);
       calls.push("actual-coordinator-readback");
       const value = await readback(
         mode === "wrong-intent" ? { ...f.operation, id: "f".repeat(64) } : f.operation,
@@ -290,6 +296,16 @@ void test("source-bound result continuation settles only the exact positive repo
       );
       calls.push("same-journal-technical-failure");
       return { checkpoint: "d".repeat(40) };
+    },
+    ensureOwnedCheckpointJournalHistory: async (
+      _executor: unknown,
+      _repository: string,
+      checkpoint: string,
+      controls: unknown,
+    ) => {
+      assert.equal(checkpoint, "c".repeat(40));
+      assert.equal(controls, checkpointControls);
+      return false;
     },
     refreshCapacityExecutor: async () => {},
     createCoordinatorJournalApi: () => ({ source: "dedicated-journal" }),
