@@ -1,3 +1,4 @@
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import { applicationPublicBuildInputs } from "./release-authority-configuration.mts";
 import { nativePlatformsForReleaseProfile } from "./release-package-policy.mts";
 import { applicationReleaseProfile } from "./release-authority-configuration.mts";
@@ -146,7 +147,22 @@ async function hostedNativeSourceTransport(parentReceipt: object, directory: str
     remaining(1);
     return current;
   });
-  return { parent, deadline, remaining, api, download, downloadAsset, recover };
+  const declarationProvider = () =>
+    createReleaseCustodyProvider({
+      token: childEnvironment.GH_TOKEN ?? "",
+      deadline,
+      currentDeadline: () => performance.now() + remaining(15000),
+    });
+  return {
+    parent,
+    deadline,
+    remaining,
+    api,
+    download,
+    downloadAsset,
+    recover,
+    declarationProvider,
+  };
 }
 
 export async function acquireActualHostedNativeCandidate(parentReceipt: object) {
@@ -164,10 +180,8 @@ export async function acquireActualHostedNativeCandidate(parentReceipt: object) 
   try {
     return await withCoordinatorDeadline(Math.min(acquisitionDeadline, parent.deadline), () =>
       withReadOnlyReleaseChildren(directory, async () => {
-        const { remaining, api, download, recover } = await hostedNativeSourceTransport(
-          parentReceipt,
-          directory,
-        );
+        const { remaining, api, download, recover, declarationProvider } =
+          await hostedNativeSourceTransport(parentReceipt, directory);
         const before = await recover();
         if (inspectHostedNativePreparationStage(before.input) !== "payload-signing")
           throw new Error("original reservation is not at the native pre-sign stage");
@@ -271,14 +285,16 @@ export async function acquireActualHostedNativeCandidate(parentReceipt: object) 
           readDeclarations: bindReadOnlyReleaseChildren(async () => {
             await requireActualHostedNativeParentSource(parentReceipt);
             remaining(1);
+            const provider = await declarationProvider();
             const declaration = await retainNativeSourceDeclarations(
               directory,
               async (pathname) => {
-                const response = api.request(
-                  "GET",
-                  `repos/boburning/portcove/contents/${pathname}?ref=${selection.identity.candidate.source_commit}`,
+                const body = await provider.file(
+                  pathname,
+                  selection.identity.candidate.source_commit,
                 );
-                return response.status === 200 ? response.body : undefined;
+                remaining(1);
+                return body;
               },
             );
             await requireActualHostedNativeParentSource(parentReceipt);
@@ -1143,15 +1159,13 @@ export async function readActualHostedNativePostSignSourceDeclarations(packageRe
   const original = postSignSources.get(inputs.source_receipt);
   if (!original) throw new Error("original post-sign source reader absent");
   return await withReadOnlyReleaseChildren(selected.directory, async () => {
+    const provider = await original.source.declarationProvider();
     const declaration = await retainNativeSourceDeclarations(
       selected.directory,
       async (pathname) => {
+        const body = await provider.file(pathname, selected.candidate.source_commit);
         original.source.remaining(1);
-        const response = original.source.api.request(
-          "GET",
-          `repos/boburning/portcove/contents/${pathname}?ref=${selected.candidate.source_commit}`,
-        );
-        return response.status === 200 ? response.body : undefined;
+        return body;
       },
     );
     await requireActualHostedNativePostSignPackage(packageReceipt);

@@ -1,3 +1,5 @@
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
+import { nativeCompatibilitySourcePaths } from "./release-native-source-contract.mts";
 /** Fixed trusted role commands, bundled on a separate secret-free runner.
  * Candidate packages remain data here. Only native acceptance jobs launch them. */
 import assert from "node:assert/strict";
@@ -34,7 +36,10 @@ import {
   observeReleaseInputProtections,
   requireReleaseImmutabilityPolicy,
 } from "./release-input-protections.mts";
-import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
+import {
+  readOnlyReleaseChildEnvironment,
+  withReadOnlyReleaseChildren,
+} from "./release-readonly-child-environment.mts";
 import { payloadSigningEnvironment } from "./release-payload-signing.mts";
 import { receiveApplicationPackages } from "./application-release-transfer.mts";
 import { createApplicationUpdaterInventory } from "./application-release-artifacts.mts";
@@ -2554,15 +2559,22 @@ async function readNativePayloadAcceptance(
       typeof source.prepared.prepared_tree === "string" &&
       typeof source.prepared.version === "string",
   );
-  const commit = applicationGet(`git/commits/${current.source}`);
+  const provider = await createReleaseCustodyProvider({
+    token: readOnlyReleaseChildEnvironment()?.GH_TOKEN ?? "",
+    deadline: performance.now() + (2 + 2 * nativeCompatibilitySourcePaths.length) * 30000,
+    requestTimeoutMs: 30000,
+    maxBytes: 8 * 1024 ** 2,
+  });
+  const commit = await provider.commit(current.source);
   assert.ok(
     isRecord(commit) &&
       commit.sha === current.source &&
       isRecord(commit.tree) &&
       typeof commit.tree.sha === "string",
   );
-  const configuration = applicationGet(
-    `contents/apps/desktop/src-tauri/tauri.conf.json?ref=${source.prepared.prepared_commit}`,
+  const configuration = await provider.file(
+    "apps/desktop/src-tauri/tauri.conf.json",
+    source.prepared.prepared_commit,
   );
   assert.ok(
     isRecord(configuration) &&
@@ -2585,17 +2597,8 @@ async function readNativePayloadAcceptance(
   const productSource = source.prepared.prepared_commit;
   const declarations = await retainNativeSourceDeclarations(
     directory,
-    async (pathname) => {
-      const response = applicationApi.request(
-        "GET",
-        `repos/boburning/portcove/contents/${pathname}?ref=${productSource}`,
-      );
-      return response.status === 200 ? response.body : undefined;
-    },
-    async (sha) => {
-      const response = applicationApi.request("GET", `repos/boburning/portcove/git/blobs/${sha}`);
-      return response.status === 200 ? response.body : undefined;
-    },
+    (pathname) => provider.file(pathname, productSource),
+    (sha) => provider.blob(sha),
   );
   const binding: ApplicationNativeBinding = {
     control_commit: current.source,
