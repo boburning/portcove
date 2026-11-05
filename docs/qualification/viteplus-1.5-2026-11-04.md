@@ -33,7 +33,7 @@ Tauri's explicit development-server port 1420 remains an application contract.
 
 `--last-failed` selects cached test names. Renaming a failed case can therefore
 omit it. The supported developer workflow must replay complete failed files,
-using the new public `cache.getTestSpecificationResult` API, with full fallback
+using the public `cache.getTestSpecificationResult` API, with full fallback
 when prior state cannot establish a useful current selection. This is diagnostic
 feedback, never a substitute for the ordinary complete-diff CI plan.
 
