@@ -10,6 +10,111 @@ import { verifyControllerArtifactVerification } from "./github-controller-attest
 const once = (): GitHubRequestPolicy => ({ replay: "once", attempts: 0 });
 const read = (): GitHubRequestPolicy => ({ replay: "safe-read", attempts: 0 });
 
+void test("complete response retention is awaited before deadline or cancellation refusal", async () => {
+  for (const mode of ["deadline", "cancelled"] as const) {
+    let monotonic = 1000;
+    const abort = new AbortController();
+    let sends = 0;
+    const retained: unknown[] = [];
+    const client = await createGitHubClient({
+      credential: { kind: "anonymous" },
+      deadline: 2000,
+      now: () => monotonic,
+      signal: abort.signal,
+      fetch: async () => {
+        sends++;
+        return Response.json({ id: 900 }, { headers: { "x-github-request-id": "retained" } });
+      },
+    });
+    const policy: GitHubRequestPolicy = {
+      ...read(),
+      async retainResponse(response) {
+        await new Promise((resolve) => setImmediate(resolve));
+        retained.push(response);
+        if (mode === "deadline") monotonic = 2001;
+        else abort.abort(new Error("owner cancelled"));
+      },
+    };
+    await assert.rejects(
+      client.request("GET /rate_limit", { request: { portcove: policy } }),
+      (error: unknown) =>
+        error instanceof GitHubApiError &&
+        error.code === (mode === "deadline" ? "deadline_exceeded" : "cancelled"),
+    );
+    assert.equal(sends, 1);
+    assert.deepEqual(retained, [
+      {
+        status: 200,
+        data: { id: 900 },
+        headers: {
+          "content-type": "application/json",
+          "x-github-request-id": "retained",
+        },
+      },
+    ]);
+  }
+});
+
+void test("failed bodies never supply retained response evidence and retention failure cannot replay", async () => {
+  for (const mode of ["stream", "cap", "retention"] as const) {
+    let sends = 0,
+      retained = 0;
+    const client = await createGitHubClient({
+      credential: { kind: "anonymous" },
+      deadline: performance.now() + 5000,
+      maxBytes: mode === "cap" ? 1 : 1000,
+      fetch: async () => {
+        sends++;
+        return mode === "stream"
+          ? new Response(
+              new ReadableStream({
+                start(controller) {
+                  controller.error(new Error("broken body"));
+                },
+              }),
+            )
+          : Response.json({ id: 900 }, { status: 503 });
+      },
+    });
+    const policy: GitHubRequestPolicy = {
+      ...read(),
+      async retainResponse() {
+        retained++;
+        throw new Error("retention unavailable");
+      },
+    };
+    await assert.rejects(client.request("GET /rate_limit", { request: { portcove: policy } }));
+    assert.equal(sends, 1);
+    assert.equal(retained, mode === "retention" ? 1 : 0);
+  }
+});
+
+void test("rate-limit deferral survives failure to retain a complete refusal response", async () => {
+  const deferral = { primary: new Map<string, number>(), secondary: 0 };
+  let sends = 0;
+  const client = await createGitHubClient({
+    credential: { kind: "anonymous" },
+    deadline: performance.now() + 5000,
+    deferral,
+    wallNow: () => 1000,
+    fetch: async () => {
+      sends++;
+      return Response.json({ message: "secondary rate limit" }, { status: 403 });
+    },
+  });
+  const policy: GitHubRequestPolicy = {
+    ...once(),
+    async retainResponse(response) {
+      assert.equal(response.status, 403);
+      assert.deepEqual(response.data, { message: "secondary rate limit" });
+      throw new Error("retention unavailable");
+    },
+  };
+  await assert.rejects(client.request("GET /rate_limit", { request: { portcove: policy } }));
+  assert.equal(deferral.secondary, 61000);
+  assert.equal(sends, 1);
+});
+
 void test("configured SDK preserves metadata, headers and byte evidence without ambient auth", async () => {
   const observations: GitHubAttemptObservation[] = [];
   const body = ' { "id": 17, "name": "é" }\n';

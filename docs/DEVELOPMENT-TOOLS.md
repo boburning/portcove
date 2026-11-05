@@ -1078,6 +1078,12 @@ observation, fresh repository identity and checkpoint recovery also use the SDK,
 retaining their existing cache and completeness owners. Catalog health uses that
 SDK factory; remaining release caller families retain their bounded transports
 during #4319.
+Controller wake and the inert job-token dispatch fixture use asynchronous fixed-repository
+SDK operations, with frozen dependencies installed from the trusted selected checkout
+before credentialed scripts. Installation remains charged to the original provider-job
+55-second deadline. Complete acknowledged-run responses are retained before deadline
+refusal; incomplete streams supply no successful response evidence. Dispatch remains
+one attempt, with no automatic retry or release activation authority.
 The maintained report
 publisher now uses SDK metadata operations and awaited replay/readback. Its trusted
 main checkout installs frozen dependencies before the credentialed steps. Existing

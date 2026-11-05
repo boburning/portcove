@@ -545,7 +545,7 @@ void test("installed two-purpose workflow remains mutually exclusive under uncha
   assert.equal(slice4CapacityResources.report_repair_maximum_job_minutes_per_candidate, 4);
 });
 
-void test("wake priority uses one stable bounded data snapshot and never turns malformed or missing state into fair absence", () => {
+void test("wake priority uses one stable bounded data snapshot and never turns malformed or missing state into fair absence", async () => {
   const namespace = "portcove-production";
   let input: Record<string, unknown> = {
     active_candidate: null,
@@ -554,60 +554,59 @@ void test("wake priority uses one stable bounded data snapshot and never turns m
   let drift = false;
   let reads = 0;
   const api = {
-    request(method: string, endpoint: string) {
-      assert.equal(method, "GET");
-      let body: unknown;
-      if (endpoint.includes("/git/ref/")) {
-        reads++;
-        body = {
-          ref: `refs/heads/${namespace}-coordinator-state`,
-          object: { type: "commit", sha: (drift && reads % 2 === 0 ? "b" : "a").repeat(40) },
-        };
-      } else {
-        assert.match(endpoint, /contents\/state.json\?ref=a{40}$/u);
-        const bytes = Buffer.from(JSON.stringify({ schema_version: 1, previous: null, input }));
-        body = {
-          type: "file",
-          path: "state.json",
-          encoding: "base64",
-          content: bytes.toString("base64"),
-          size: bytes.length,
-          sha: createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex"),
-        };
-      }
-      return { status: 200, headers: new Map<string, string>(), body };
+    async ref(name: string) {
+      assert.equal(name, `heads/${namespace}-coordinator-state`);
+      reads++;
+      return {
+        ref: `refs/heads/${namespace}-coordinator-state`,
+        object: { type: "commit", sha: (drift && reads % 2 === 0 ? "b" : "a").repeat(40) },
+      };
+    },
+    async file(filename: string, revision: string) {
+      assert.equal(filename, "state.json");
+      assert.equal(revision, "a".repeat(40));
+      const bytes = Buffer.from(JSON.stringify({ schema_version: 1, previous: null, input }));
+      return {
+        type: "file",
+        path: "state.json",
+        encoding: "base64",
+        content: bytes.toString("base64"),
+        size: bytes.length,
+        sha: createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex"),
+      };
     },
   };
-  assert.equal(readWakePurposePriority(api, namespace), null);
+  assert.equal(await readWakePurposePriority(api, namespace), null);
   input = { ...input, catalog_review_request: { kind: "inert routing" } };
-  assert.equal(readWakePurposePriority(api, namespace), "catalog-publication");
+  assert.equal(await readWakePurposePriority(api, namespace), "catalog-publication");
   input = { ...input, active_candidate: { phase: "promoting" } };
-  assert.equal(readWakePurposePriority(api, namespace), "application");
+  assert.equal(await readWakePurposePriority(api, namespace), "application");
   input = {
     active_candidate: null,
     controller: {
       capacity_attempt: { operation: { outcome: "ambiguous", catalog_publication: {} } },
     },
   };
-  assert.equal(readWakePurposePriority(api, namespace), "catalog-publication");
+  assert.equal(await readWakePurposePriority(api, namespace), "catalog-publication");
   for (const bad of [
     { controller: input.controller },
     { active_candidate: null, controller: {} },
     { active_candidate: null, controller: { capacity_attempt: { operation: "unreadable" } } },
   ]) {
     input = bad;
-    assert.throws(() => readWakePurposePriority(api, namespace));
+    await assert.rejects(() => readWakePurposePriority(api, namespace));
   }
   input = { active_candidate: null, controller: { capacity_attempt: { operation: null } } };
   drift = true;
   reads = 0;
-  assert.throws(() => readWakePurposePriority(api, namespace), /changed/);
-  assert.throws(
+  await assert.rejects(() => readWakePurposePriority(api, namespace), /changed/);
+  await assert.rejects(
     () =>
       readWakePurposePriority(
         {
-          request() {
-            return { status: 404, headers: new Map<string, string>(), body: {} };
+          ...api,
+          async ref() {
+            throw new Error("wake journal routing ref unavailable");
           },
         },
         namespace,
