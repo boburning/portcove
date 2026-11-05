@@ -909,3 +909,30 @@ void test("native file and consumer changes always select their inventory contra
         JSON.stringify(change),
       );
 });
+
+void test("ordinary families follow each registered test through additions and moves", () => {
+  const record = (file: string) => ({
+    file,
+    memberships: [["contracts", 0]],
+    ordinary_families: ["containment"],
+  });
+  const registry = (entry: unknown) =>
+    JSON.stringify({
+      format_version: 2,
+      suites: { contracts: { arguments: ["--test"] } },
+      tests: [entry],
+    });
+  assert.deepEqual(
+    { ...parseNodeTestSuites(registry(record("scripts/new-safety.test.mts"))).ordinaryFamilies },
+    { containment: ["scripts/new-safety.test.mts"] },
+  );
+  assert.deepEqual(
+    { ...parseNodeTestSuites(registry(record("scripts/moved-safety.test.mts"))).ordinaryFamilies },
+    { containment: ["scripts/moved-safety.test.mts"] },
+  );
+  for (const families of [[], ["bad family"], ["containment", "containment"], [42]])
+    assert.throws(
+      () => parseNodeTestSuites(registry({ ...record(first), ordinary_families: families })),
+      /ordinary validation family/,
+    );
+});

@@ -4639,3 +4639,93 @@ void test("retained GitHub CLI and attestation changes select their actual guard
     }
   }
 });
+
+void test("ordinary package identity follows complete Cargo workspace metadata and moves", async () => {
+  const { workspacePackagePrefixes } = await import("./ordinary-validation.mts");
+  const root = path.resolve("/workspace");
+  const pkg = (name: string, location: string) => ({
+    id: name + "-id",
+    name,
+    manifest_path: path.join(root, location, "Cargo.toml"),
+  });
+  const metadata = {
+    workspace_members: ["fresh-package-id"],
+    packages: [pkg("fresh-package", "components/moved")],
+  };
+  assert.deepEqual(
+    [...workspacePackagePrefixes(metadata, root)!],
+    [["components/moved/", "fresh-package"]],
+  );
+  for (const bad of [
+    { ...metadata, workspace_members: [...metadata.workspace_members, "absent"] },
+    {
+      ...metadata,
+      workspace_members: [...metadata.workspace_members, ...metadata.workspace_members],
+    },
+    { ...metadata, packages: [pkg("fresh-package", "../outside")] },
+    { ...metadata, packages: [...metadata.packages, ...metadata.packages] },
+  ])
+    assert.equal(workspacePackagePrefixes(bad, root), null);
+  const currentRoot = fileURLToPath(new URL("../", import.meta.url));
+  const selected = classifyChanges([{ path: "components/moved/src/lib.rs", status: "A" }], {
+    workspaceMetadata: () => ({
+      ...metadata,
+      packages: [
+        {
+          ...metadata.packages[0],
+          manifest_path: path.join(currentRoot, "components/moved/Cargo.toml"),
+        },
+      ],
+    }),
+  });
+  assert.ok(selected.packages.has("fresh-package"));
+  const uncertain = classifyChanges([{ path: "crates/unknown/src/lib.rs", status: "M" }], {
+    workspaceMetadata: () => null,
+  });
+  assert.ok(uncertain.workspaceRust);
+  assert.ok(
+    buildPlan(
+      uncertain,
+      fallbackContext([
+        { path: "crates/unknown/src/lib.rs", status: "M", oldMode: "100644", newMode: "100644" },
+      ]),
+    ).some((command) => command.id === "rust-workspace-tests"),
+  );
+  assert.doesNotThrow(() =>
+    classifyChanges([{ path: "docs/README.md", status: "M" }], {
+      workspaceMetadata: () => {
+        throw new Error("prose must not load Cargo");
+      },
+    }),
+  );
+});
+
+void test("ordinary metadata discovery cannot provision a missing Rust toolchain", async () => {
+  const { readWorkspaceMetadata } = await import("./ordinary-validation.mts");
+  assert.deepEqual(
+    readWorkspaceMetadata((command, args, options) => {
+      assert.equal(command, "cargo");
+      assert.deepEqual(args, [
+        "metadata",
+        "--offline",
+        "--locked",
+        "--no-deps",
+        "--format-version",
+        "1",
+      ]);
+      assert.equal(options.env?.RUSTUP_AUTO_INSTALL, "0");
+      assert.equal(options.timeout, 5000);
+      assert.equal(options.maxBuffer, 4 * 1024 * 1024);
+      return { status: 0, stdout: '{"observed":true}' };
+    }),
+    { observed: true },
+  );
+  assert.equal(
+    readWorkspaceMetadata(() => ({ status: 1, stdout: "" })),
+    null,
+  );
+  assert.equal(
+    readWorkspaceMetadata(() => ({ status: 0, stdout: "incomplete" })),
+    null,
+  );
+});
