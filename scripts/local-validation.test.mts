@@ -4697,3 +4697,33 @@ void test("ordinary package identity follows complete Cargo workspace metadata a
     }),
   );
 });
+
+void test("ordinary metadata discovery cannot provision a missing Rust toolchain", async () => {
+  const { readWorkspaceMetadata } = await import("./ordinary-validation.mts");
+  assert.deepEqual(
+    readWorkspaceMetadata((command, args, options) => {
+      assert.equal(command, "cargo");
+      assert.deepEqual(args, [
+        "metadata",
+        "--offline",
+        "--locked",
+        "--no-deps",
+        "--format-version",
+        "1",
+      ]);
+      assert.equal(options.env?.RUSTUP_AUTO_INSTALL, "0");
+      assert.equal(options.timeout, 5000);
+      assert.equal(options.maxBuffer, 4 * 1024 * 1024);
+      return { status: 0, stdout: '{"observed":true}' };
+    }),
+    { observed: true },
+  );
+  assert.equal(
+    readWorkspaceMetadata(() => ({ status: 1, stdout: "" })),
+    null,
+  );
+  assert.equal(
+    readWorkspaceMetadata(() => ({ status: 0, stdout: "incomplete" })),
+    null,
+  );
+});

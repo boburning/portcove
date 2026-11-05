@@ -2268,7 +2268,8 @@ ordinary selector's shared contract families. Add/move a test in the registry;
 do not synchronize another filename array in `ordinary-validation.mts`.
 Semantic safety input-to-family relationships (such as process containment) stay
 explicit in the selector. Cargo's bounded offline `metadata --no-deps` output
-supplies ordinary workspace package names and locations for Rust inputs; missing,
+supplies ordinary workspace package names and locations for Rust inputs, with
+`RUSTUP_AUTO_INSTALL=0` so selection never provisions a missing toolchain; missing,
 ambiguous or unavailable metadata retains conservative unknown/workspace coverage.
 Prose-only selection does not invoke Cargo, and no dependency graph crawl or
 persistent package cache is introduced. Legacy format-1 inputs remain readable for

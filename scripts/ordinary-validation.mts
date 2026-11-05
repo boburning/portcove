@@ -1,7 +1,11 @@
 import { spawnSync } from "node:child_process";
 import { isRecord } from "./runtime-values.mts";
 import { normalizeRepositoryPath as normalizePath } from "./repository-path.mts";
-import type { SpawnSyncOptions, SpawnSyncReturns } from "node:child_process";
+import type {
+  SpawnSyncOptions,
+  SpawnSyncOptionsWithStringEncoding,
+  SpawnSyncReturns,
+} from "node:child_process";
 import type { ValidationChangeInput, ValidationPlan } from "./validation-plan.mts";
 import { existsSync, readFileSync } from "node:fs";
 import { nodeTestPath, parseNodeTestSuites } from "./node-test-suites.mts";
@@ -150,13 +154,19 @@ export function workspacePackagePrefixes(
   }
   return ids.size === members.size ? prefixes : null;
 }
-function readWorkspaceMetadata(): unknown {
-  const result = spawnSync(
+type WorkspaceMetadataRunner = (
+  command: string,
+  args: string[],
+  options: SpawnSyncOptionsWithStringEncoding,
+) => Pick<SpawnSyncReturns<string>, "status" | "stdout" | "error">;
+export function readWorkspaceMetadata(runner: WorkspaceMetadataRunner = spawnSync): unknown {
+  const result = runner(
     "cargo",
     ["metadata", "--offline", "--locked", "--no-deps", "--format-version", "1"],
     {
       cwd: projectRoot,
       encoding: "utf8",
+      env: { ...process.env, RUSTUP_AUTO_INSTALL: "0" },
       timeout: 5000,
       maxBuffer: 4 * 1024 * 1024,
       windowsHide: true,
