@@ -777,6 +777,7 @@ for (const [file, tests] of [
   [
     "scripts/release-custody-provider.mts",
     [
+      "scripts/release-metadata-context-recovery.test.mts",
       "scripts/production-controller-admission.test.mts",
       "scripts/release-bootstrap-preparation.test.mts",
       "scripts/application-release-native.test.mts",
@@ -2260,6 +2261,7 @@ for (const file of [
     "scripts/release-public-build-provenance.test.mts",
     "scripts/production-aggregate-steps.test.mts",
     "scripts/trusted-aggregate-attestation.test.mts",
+    "scripts/release-metadata-context-recovery.test.mts",
     "scripts/production-controller-admission.test.mts",
     "scripts/release-bootstrap-preparation.test.mts",
     "scripts/application-release-budget.test.mts",
