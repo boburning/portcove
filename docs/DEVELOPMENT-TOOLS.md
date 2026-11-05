@@ -1,5 +1,11 @@
 # Development tools
 
+Start with [Frontend workflow](#frontend-workflow) for pinned tools and focused
+checks, [Warm single-session workflow](#warm-single-session-workflow) for pickup,
+and [Shared local resources](#shared-local-resources) before heavyweight work.
+[Quality](QUALITY.md#required-hosted-baseline) owns required validation and review;
+the detailed recipes and retained observations below do not add merge gates.
+
 ## Verification input and execution identities
 
 `native-rejected-listener-registration` is a standalone Windows qualification
