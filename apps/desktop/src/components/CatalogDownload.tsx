@@ -533,6 +533,7 @@ function PendingActions({
           await desktopApi.forgetPendingSetup(entry.id, pending.id, generation);
           return true;
         } catch (value) {
+          // oxlint-disable-next-line react/immutability -- oxc#28401: invocation-local binding.
           failure = value;
           throw value;
         }

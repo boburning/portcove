@@ -44,6 +44,16 @@ import { buildValidationPlan } from "./validation-plan.mts";
 import { resolveUiSelection } from "./ui-test-selection.mts";
 import { nativeCompatibilitySourcePaths } from "./release-native-source-contract.mts";
 
+void test("failed-test feedback is an explicit focused UI operation", () => {
+  assert.doesNotThrow(() => requireFocusedArguments("test-ui", ["--last-failed"]));
+  assert.doesNotThrow(() =>
+    requireFocusedArguments("test-ui", ["--last-failed", "src/example.test.ts"]),
+  );
+  assert.throws(() => requireFocusedArguments("test-ui", []), /explicit/);
+  assert.throws(() => requireFocusedArguments("test-ui-related", ["--last-failed"]), /explicit/);
+  assert.throws(() => requireFocusedArguments("test-node", ["--last-failed"]), /explicit/);
+});
+
 void test("maintenance registry and TOML sources retain explicit focused owners", () => {
   const consumer = "scripts/lock-maintenance-policy.test.mts";
   for (const file of [

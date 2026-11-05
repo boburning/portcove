@@ -463,22 +463,56 @@ pnpm build
 
 Choose test commands by their runner and evidence scope:
 
-| Command                                           | Runner and evidence                                                                                                                                                            |
-| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `pnpm test`                                       | Vite+ `unit` project in Node; frontend logic and pure tooling tests.                                                                                                           |
-| `pnpm test:browser`                               | Vite+ `browser`, `browser-locale` and `browser-forced-colors` projects in headless Chromium; real DOM interactions and browser fixtures. Requires the browser bootstrap above. |
-| `just test-ui <literal-test-file> ...`            | Exact maintained unit/browser files; reconciles every requested file with actual execution.                                                                                    |
-| `just test-ui-related <literal-source-file> ...`  | Import-related unit/browser tests; an empty related selection falls back to the maintained frontend projects.                                                                  |
-| `pnpm test:native-tools`                          | Node compiler/shell integration tests; Rust probe and platform shell prerequisites apply.                                                                                      |
-| `pnpm exec vp test`                               | All four frontend projects: Node unit, Chromium browser, French/Auckland locale contracts and forced colors.                                                                   |
-| `just desktop-verify --list-scenarios` / `--plan` | Native harness inventory or execution plan; does not build or launch the app.                                                                                                  |
-| `just desktop-verify --scenario <id>`             | Runs the selected scenario in the native Tauri/WebView harness with its declared fixture and observations.                                                                     |
+| Command                                              | Runner and evidence                                                                                                                                                            |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `pnpm test`                                          | Vite+ `unit` project in Node; frontend logic and pure tooling tests.                                                                                                           |
+| `pnpm test:browser`                                  | Vite+ `browser`, `browser-locale` and `browser-forced-colors` projects in headless Chromium; real DOM interactions and browser fixtures. Requires the browser bootstrap above. |
+| `just test-ui <literal-test-file> ...`               | Exact maintained unit/browser files; reconciles every requested file with actual execution.                                                                                    |
+| `just test-ui-related <literal-source-file> ...`     | Import-related unit/browser tests; an empty related selection falls back to the maintained frontend projects.                                                                  |
+| `just test-ui --last-failed [literal-test-file ...]` | Developer feedback: replay complete files with recent known failures, or the full requested scope when history is unavailable. Omit files to consider all four projects.       |
+| `pnpm test:native-tools`                             | Node compiler/shell integration tests; Rust probe and platform shell prerequisites apply.                                                                                      |
+| `pnpm exec vp test`                                  | All four frontend projects: Node unit, Chromium browser, French/Auckland locale contracts and forced colors.                                                                   |
+| `just desktop-verify --list-scenarios` / `--plan`    | Native harness inventory or execution plan; does not build or launch the app.                                                                                                  |
+| `just desktop-verify --scenario <id>`                | Runs the selected scenario in the native Tauri/WebView harness with its declared fixture and observations.                                                                     |
 
 `pnpm test` covers only the unit project. Browser fixtures, compiler/shell
 contracts and native scenario observations each establish their stated scope;
 they do not establish installed-package, physical-device or human acceptance.
 Native scenarios can use inert fixtures; inspect the selected scenario's plan.
 The [native smoke workflow](#native-desktop-smoke-tests) describes that harness.
+
+Failed-file feedback uses Vitest 5.1's native results cache through its public
+API, rather than the raw `--last-failed` flag's cached test-name filter. Replaying
+the whole file includes renamed cases. Missing, incompatible, incomplete or older
+than six-hour records select the full requested scope; checkout/commit and
+configuration changes also invalidate older history. Added or moved tests have
+no record and force that fallback. Deleted tests are excluded by current discovery;
+an empty failure selection falls back to full execution. Cache paths must remain
+physically inside this checkout, and the resource wrapper serializes participating
+writers in one worktree. Other worktrees retain their own dependency/cache roots.
+No additional test-history files or per-iteration cache namespaces are created.
+The native cache is disposable with `pnpm exec vp test --clearCache`; run this
+only after this worktree's runners stop. Failed-file feedback is rejected in CI
+and coverage collection. Use ordinary `pnpm test`, `pnpm test:browser` and the
+complete-diff validation plan for acceptance.
+
+Vitest 5.1 also supports `--since-last-run` (`--sinceLastRun` in native CLI help),
+but its modification-time selection misses backdated checkouts/copies and new
+resources not loaded by the preceding run. Portcove does not enable it. Use
+`just test-ui-related <changed-source-file> ...` for iterative import-related
+feedback, exact files for closed selections, and full tests for shared/unknown
+impact. The [1.5 evaluation](qualification/viteplus-1.5-2026-11-04.md) records
+the release investigation, comparisons and deliberate deferrals.
+
+Browser projects retain request interception: the 1.5 comparison found slower
+warm runs with experimental import-map mocking. To investigate import maps with
+the pinned Chromium runtime, prefix the usual command with
+`PORTCOVE_BROWSER_IMPORT_MAP_MOCKS=1` on Linux/macOS, or set
+`$env:PORTCOVE_BROWSER_IMPORT_MAP_MOCKS = '1'` in PowerShell. Unset it (or use
+`0`) to restore interception. Browser API ports and Vite test-server ports are allocated by the
+OS; Tauri's development server retains port 1420. Upstream failure-only trace
+timelines complement the existing retained Playwright traces, screenshots and
+bounded case/run observations, including individual retry/repeat outcomes.
 
 Preview affected work, then choose literal files for focused feedback:
 
@@ -760,8 +794,9 @@ Complete each proposal through the existing Codex issue/PR delivery process:
    the migrator updates it automatically.
 
 4. Preserve the 1440-minute/non-strict pnpm policy. Remove migrator-added
-   minimumReleaseAgeExclude entries for the bundle: non-strict resolution already
-   supports an explicit selection. Preserve allowBuilds restrictions and worktree
+   minimumReleaseAgeExclude entries for the bundle. pnpm 12's frozen-install
+   policy verification rejects even explicitly selected releases younger than
+   that window; wait for eligibility instead of bypassing it. Preserve allowBuilds restrictions and worktree
    hook/signing adapters. Frozen-install, inspect `pnpm exec vp toolchain`, then
    run checks, units/browser tests, build, affected cache/portability checks and
    invalidated native acceptance.

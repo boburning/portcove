@@ -180,6 +180,8 @@ export default defineConfig({
           "typescript/no-misused-promises": "error",
           "typescript/no-namespace": "error",
           "typescript/no-non-null-asserted-optional-chain": "error",
+          // Keep this useful check explicit after its move to suspicious.
+          "typescript/no-non-null-asserted-nullish-coalescing": "error",
           "typescript/no-redundant-type-constituents": "error",
           "typescript/no-require-imports": "error",
           "typescript/no-this-alias": "error",
@@ -190,6 +192,7 @@ export default defineConfig({
           "typescript/no-unsafe-call": "error",
           "typescript/no-unsafe-declaration-merging": "error",
           "typescript/no-unsafe-enum-comparison": "error",
+          "typescript/no-unsafe-enum-assignment": "error",
           "typescript/no-unsafe-function-type": "error",
           "typescript/no-unsafe-member-access": "error",
           "typescript/no-unsafe-return": "error",

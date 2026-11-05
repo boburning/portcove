@@ -42,11 +42,14 @@ export function assertVitePlusCompatibility(
     object(manifests.vitest).version !== bundled.vitest ||
     catalog["@vitest/browser-playwright"] !== bundled.vitest ||
     object(manifests["@vitest/browser-playwright"]).version !== bundled.vitest ||
+    catalog["@vitest/coverage-v8"] !== bundled.vitest ||
+    object(manifests["@vitest/coverage-v8"]).name !== "@vitest/coverage-v8" ||
+    object(manifests["@vitest/coverage-v8"]).version !== bundled.vitest ||
     overrides["vite@*"] !== "catalog:" ||
     overrides["vitest@*"] !== "catalog:"
   )
     throw new Error(
-      "Vite+ bundle, core alias, Vitest and browser provider require coordinated migration",
+      "Vite+ bundle, core alias, Vitest, browser provider and coverage require coordinated migration",
     );
 }
 
@@ -119,6 +122,9 @@ export function checkBrowserPackageCompatibility(packageFile: string) {
     ]),
   );
   manifests["vite-plus"] = read(repositoryRequire.resolve("vite-plus/package.json"));
+  manifests["@vitest/coverage-v8"] = read(
+    repositoryRequire.resolve("@vitest/coverage-v8/package.json"),
+  );
   const bundled = object(object(repositoryRequire("vite-plus/versions")).versions);
   assertVitePlusCompatibility(workspace, manifests, bundled);
   assertBrowserPackageCompatibility(declarations, manifests);
