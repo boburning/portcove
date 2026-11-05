@@ -119,6 +119,8 @@ export function portablePreparationFeedback(record: AuthoredPort, facts: Package
       completion_record: record.integration.setup_marker ?? null,
       next: "For manual preparation before Play, use an upstream atomically published JSON completion record beneath already declared player data when that contract exists. Core checks bounded structural progress only; upstream still owns edition/content validation. Native capability 2 is required. Do not invent a marker, execute a discovered helper, or add a marker for a game's own first-Play picker.",
     },
+    player_copy_review:
+      "Collect edition, package, platform and file-effect evidence first. Then write the browse summary and setup actions using docs/CONTENT-DESIGN.md. Put pre-action risks in warnings and preserve technical evidence in references.",
     launch_identity: {
       original_game_title: record.listing.original_game_title ?? null,
       next: record.listing.original_game_title

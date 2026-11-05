@@ -80,3 +80,7 @@ Optional focused catalog feedback: `just test-rust -p portcove-core embedded_cat
 Confirm the actual test name before use. Required checks follow
 [QUALITY](../../../docs/QUALITY.md#required-hosted-baseline); admission/lifecycle
 acceptance remains explicit and operation scoped.
+
+When drafting a listing summary or setup guide, collect precise evidence first.
+Write the player explanation separately. Use the existing warning and reference
+fields and follow [Content design](../../../docs/CONTENT-DESIGN.md).

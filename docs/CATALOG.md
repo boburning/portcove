@@ -2685,6 +2685,11 @@ ignore it. Accepted regression and correction authority remains with the existin
 reviewed catalog inputs, not arbitrary release notes. See the
 [recommendation contract](reference/port-recommendation-policy.md).
 
+Write browse summaries and setup guides using [Content design](CONTENT-DESIGN.md).
+Collect source and release evidence first. Write a short description of the
+project, its inputs and the setup route a player can use. Preserve dated
+technical findings in reference notes or the owning evidence document.
+
 ### Setup actions and reference notes
 
 Authored `manual_setup.steps` contains only setup actions. Put immediate edition,

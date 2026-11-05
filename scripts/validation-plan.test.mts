@@ -652,3 +652,14 @@ void test("both version runtime adapters inherit protected policy across lifecyc
     }
   }
 });
+
+void test("copy producers select their owned hosted contracts without a Desktop source edit", () => {
+  for (const [path, group] of [
+    ["integrations/playnite/ManagementWindow.cs", "rust"],
+    ["crates/portcove-core/src/failure.rs", "rust"],
+    ["crates/portcove-cli/src/human.rs", "rust"],
+    ["crates/portcove-core/catalog/ports/bountyhunterkanden-secondhunt.json", "catalog"],
+  ] as const) {
+    assert.ok(plan([change(path)]).groups.includes(group), path);
+  }
+});
