@@ -14,6 +14,11 @@ export interface CatalogAnchorMetadataProvider {
   blob(sha: string): Promise<unknown>;
 }
 
+export interface BootstrapSiteMetadataProvider {
+  repository(deadline: number): Promise<unknown>;
+  pages(deadline: number): Promise<unknown>;
+}
+
 export interface HostedNativeSourceProvider {
   commit(sha: string): Promise<unknown>;
   file(filename: string, revision: string): Promise<unknown>;
@@ -30,6 +35,7 @@ export interface ImmutableReleaseMetadataProvider {
 type ReleaseCustodyProvider = HistoricalJobProvider &
   HostedNativeSourceProvider &
   CatalogAnchorMetadataProvider &
+  BootstrapSiteMetadataProvider &
   ImmutableReleaseMetadataProvider & {
     run(id: string): Promise<unknown>;
     artifact(id: number): Promise<unknown>;
@@ -75,7 +81,11 @@ export async function createReleaseCustodyProvider(options: {
     headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
     ...(fetch ? { fetch } : {}),
   });
-  const get = async (route: string, parameters: Record<string, unknown>) => {
+  const get = async (
+    route: string,
+    parameters: Record<string, unknown>,
+    requestDeadline = deadline,
+  ) => {
     chargeRead?.();
     const response = await client.request(`GET ${route}`, {
       ...parameters,
@@ -86,6 +96,7 @@ export async function createReleaseCustodyProvider(options: {
           replay: "once",
           attempts: 0,
           deadline: Math.min(
+            requestDeadline,
             currentDeadline?.() ?? deadline,
             coordinatorCommandDeadline() ?? Infinity,
           ),
@@ -96,6 +107,12 @@ export async function createReleaseCustodyProvider(options: {
     return response;
   };
   return {
+    async repository(limit) {
+      return (await get("/repos/{owner}/{repo}", {}, limit)).data as unknown;
+    },
+    async pages(limit) {
+      return (await get("/repos/{owner}/{repo}/pages", {}, limit)).data as unknown;
+    },
     async releases(page) {
       return (await get("/repos/{owner}/{repo}/releases", { per_page: 100, page })).data as unknown;
     },

@@ -516,26 +516,37 @@ void test("fresh bootstrap bracket uses configured Pages plus public404s without
   };
   const calls: string[] = [];
   let fault = "";
-  const api = {
-    request(method: string, endpoint: string) {
-      assert.equal(method, "GET");
+  const sdk = await createReleaseCustodyProvider({
+    token: "synthetic-site-reader",
+    deadline: performance.now() + 10000,
+    fetch: async (input, init) => {
+      assert.ok(typeof input === "string");
+      const url = new URL(input);
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(url.search, "");
+      assert.equal(init?.method, "GET");
+      assert.equal(new Headers(init?.headers).get("authorization"), "token synthetic-site-reader");
+      const endpoint = url.pathname;
+      assert.ok(
+        ["/repos/boburning/portcove", "/repos/boburning/portcove/pages"].includes(endpoint),
+      );
       calls.push(endpoint);
-      assert(["repos/boburning/portcove", "repos/boburning/portcove/pages"].includes(endpoint));
-      const body = endpoint.endsWith("/pages")
-        ? {
-            ...pages,
-            ...(fault === "cname"
-              ? { cname: "other.invalid" }
-              : fault === "https"
-                ? { https_enforced: false }
-                : fault === "legacy"
-                  ? { build_type: "legacy" }
-                  : {}),
-          }
-        : repo;
-      return { status: 200, body, headers: new Map<string, string>() };
+      return Response.json(
+        endpoint.endsWith("/pages")
+          ? {
+              ...pages,
+              ...(fault === "cname"
+                ? { cname: "other.invalid" }
+                : fault === "https"
+                  ? { https_enforced: false }
+                  : fault === "legacy"
+                    ? { build_type: "legacy" }
+                    : {}),
+            }
+          : repo,
+      );
     },
-  };
+  });
   const fakeFetch: typeof fetch = async (url) => {
     const response = new Response(null, { status: fault === "present" ? 200 : 404 });
     Object.defineProperty(response, "url", {
@@ -543,18 +554,23 @@ void test("fresh bootstrap bracket uses configured Pages plus public404s without
     });
     return response;
   };
-  const result = await readConfiguredBootstrapSite(api, performance.now() + 10000, {
+  const result = await readConfiguredBootstrapSite(sdk, performance.now() + 10000, {
     fetch: fakeFetch,
   });
   assert.equal(result.public_routes.length, 4);
-  assert.equal(calls.length, 4);
+  assert.deepEqual(calls, [
+    "/repos/boburning/portcove",
+    "/repos/boburning/portcove/pages",
+    "/repos/boburning/portcove",
+    "/repos/boburning/portcove/pages",
+  ]);
   assert.match(result.scope, /remains historical/);
   for (fault of ["cname", "https", "legacy", "present"])
     await assert.rejects(
-      readConfiguredBootstrapSite(api, performance.now() + 10000, { fetch: fakeFetch }),
+      readConfiguredBootstrapSite(sdk, performance.now() + 10000, { fetch: fakeFetch }),
     );
   calls.length = 0;
-  await assert.rejects(readConfiguredBootstrapSite(api, NaN, { fetch: fakeFetch }), /deadline/);
+  await assert.rejects(readConfiguredBootstrapSite(sdk, NaN, { fetch: fakeFetch }), /deadline/);
   assert.equal(calls.length, 0);
 });
 
@@ -658,26 +674,22 @@ void test("catalog-only setup pins retain real complete public custody and sole 
     globalThis.fetch = actualFetch;
   });
   const api = {
-    request(method: string, endpoint: string) {
-      assert.equal(method, "GET");
+    async repository() {
       return {
-        status: 200,
-        body: endpoint.endsWith("/pages")
-          ? {
-              url: provider.url,
-              build_type: provider.build_type,
-              html_url: provider.html_url,
-              cname: null,
-              https_enforced: true,
-              public: true,
-            }
-          : {
-              id: 1354613114,
-              full_name: "boburning/portcove",
-              private: false,
-              owner: { id: 43177418, login: "boburning" },
-            },
-        headers: new Map<string, string>(),
+        id: 1354613114,
+        full_name: "boburning/portcove",
+        private: false,
+        owner: { id: 43177418, login: "boburning" },
+      };
+    },
+    async pages() {
+      return {
+        url: provider.url,
+        build_type: provider.build_type,
+        html_url: provider.html_url,
+        cname: null,
+        https_enforced: true,
+        public: true,
       };
     },
   };

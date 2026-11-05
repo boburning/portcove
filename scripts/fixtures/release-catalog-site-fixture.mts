@@ -11,6 +11,7 @@ import * as signing from "../release-catalog-signing.mts";
 import * as config from "../release-authority-configuration.mts";
 import * as journal from "../release-coordinator-state.mts";
 import * as bootstrap from "../release-bootstrap-public-inputs.mts";
+import * as custody from "../release-custody-provider.mts";
 import * as executors from "../release-capacity-executor.mts";
 import * as live from "../release-live-control-admission.mts";
 import * as github from "../github-api.mts";
@@ -136,9 +137,21 @@ try {
       },
     }),
   });
+  const bootstrapProvider = Object.freeze({});
+  install("release-custody-provider", {
+    ...custody,
+    createReleaseCustodyProvider: async (
+      options: Parameters<typeof custody.createReleaseCustodyProvider>[0],
+    ) => {
+      assert.equal(options.maxBytes, 512 * 1024);
+      assert.ok(options.deadline <= deadline);
+      return bootstrapProvider;
+    },
+  });
   install("release-bootstrap-public-inputs", {
     ...bootstrap,
-    readConfiguredCatalogBootstrapSite: async () => {
+    readConfiguredCatalogBootstrapSite: async (input: object) => {
+      assert.equal(input, bootstrapProvider);
       bootstrapReads++;
       if (bootstrapReads >= expireAtBootstrap) controlsClock = 61;
       return {

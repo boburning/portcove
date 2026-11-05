@@ -1,3 +1,5 @@
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
+import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
 import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -1054,15 +1056,13 @@ export async function verifyPriorPublicSite(session: DeploymentSession) {
     if (catalog.prior !== null)
       throw new Error("existing site cannot use catalog bootstrap absence");
     const deadline = prepared.deadline!;
-    const api = new GitHubApiClient((args, body) =>
-      createGitHubRunner({
-        cwd: prepared.directory,
-        timeoutMs: remaining(deadline, 15000),
-        maxBuffer: 512 * 1024,
-      })([...args, "--hostname", "github.com"], body),
-    );
+    const provider = await createReleaseCustodyProvider({
+      token: (readOnlyReleaseChildEnvironment() ?? process.env).GH_TOKEN ?? "",
+      deadline,
+      maxBytes: 512 * 1024,
+    });
     const readback = await readConfiguredCatalogBootstrapSite(
-      api,
+      provider,
       new Date().toISOString(),
       deadline,
     );
@@ -1089,24 +1089,19 @@ export async function verifyPriorPublicSite(session: DeploymentSession) {
     const { metadata } = await requireInitialSiteContext(prepared.bootstrap.tuf, deadline);
     if (capacityDigest(metadata.facts.descriptor) !== prepared.bootstrap.descriptor_sha256)
       throw new Error("initial site setup descriptor changed");
-    const api = new GitHubApiClient((args, body) => {
-      remaining(deadline, 15000);
-      const result = createGitHubRunner({
-        cwd: prepared.directory,
-        timeoutMs: remaining(deadline, 15000),
-        maxBuffer: 512 * 1024,
-      })([...args, "--hostname", "github.com"], body);
-      remaining(deadline, 15000);
-      return result;
+    const provider = await createReleaseCustodyProvider({
+      token: (readOnlyReleaseChildEnvironment() ?? process.env).GH_TOKEN ?? "",
+      deadline,
+      maxBytes: 512 * 1024,
     });
     const readback = prepared.bootstrap.catalog_site
       ? await readConfiguredCatalogOnlyBootstrapSite(
-          api,
+          provider,
           metadata.previous_site_pins,
           prepared.bootstrap.catalog_site,
           deadline,
         )
-      : await readConfiguredBootstrapSite(api, deadline);
+      : await readConfiguredBootstrapSite(provider, deadline);
     if (
       prepared.bootstrap.catalog_site &&
       (!("catalog_readback_sha256" in metadata.facts) ||

@@ -3,10 +3,10 @@
  * capability or relabel the historical preimage as a fresh owner observation. */
 import { createHash } from "node:crypto";
 import { performance } from "node:perf_hooks";
-import type { GitHubRestReader } from "./github-api.mts";
-import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
-import type { CatalogAnchorMetadataProvider } from "./release-custody-provider.mts";
-import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
+import type {
+  BootstrapSiteMetadataProvider,
+  CatalogAnchorMetadataProvider,
+} from "./release-custody-provider.mts";
 import {
   inspectPublicationAuthorities,
   inspectCatalogAuthorityConfiguration,
@@ -151,27 +151,26 @@ export function bootstrapPreimageCatalogPins(bytes: Buffer, generatedAt: string)
   inspectHistoricalBootstrapPreimage(bytes, generatedAt);
   return null;
 }
+async function readConfiguredProvider(provider: BootstrapSiteMetadataProvider, deadline: number) {
+  check(deadline);
+  const repository = await provider.repository(deadline);
+  check(deadline);
+  const pages = await provider.pages(deadline);
+  check(deadline);
+  return inspectConfiguredBootstrapProvider(repository, pages);
+}
+
 /** Fresh complete fixed-origin bytes and provider bracket from an actual retained
  * catalog receipt. This does not appoint Root, infer historical absence or mint admission. */
 export async function readConfiguredCatalogOnlyBootstrapSite(
-  api: GitHubRestReader,
+  provider: BootstrapSiteMetadataProvider,
   rawPins: unknown,
   receipt: object,
   deadline: number,
 ) {
   check(deadline);
   const pins = inspectBootstrapCatalogPins(rawPins);
-  const provider = () => {
-    const get = (endpoint: string) => {
-      check(deadline);
-      const response = api.request("GET", endpoint);
-      check(deadline);
-      if (response.status !== 200) throw new Error("catalog-only bootstrap provider unavailable");
-      return response.body;
-    };
-    return inspectConfiguredBootstrapProvider(get(base), get(`${base}/pages`));
-  };
-  const before = provider();
+  const before = await readConfiguredProvider(provider, deadline);
   const site = await requirePublishedCatalogCompleteSite(receipt);
   if (
     site.generation.application_root_sha256 !== null ||
@@ -191,7 +190,7 @@ export async function readConfiguredCatalogOnlyBootstrapSite(
     throw new Error("catalog prior leaves insufficient bounded complete-site bootstrap headroom");
   const publicReadback = await readPublicApplicationSite(site.generation, deadline);
   await requirePublishedCatalogCompleteSite(receipt);
-  const after = provider();
+  const after = await readConfiguredProvider(provider, deadline);
   check(deadline);
   if (digest(before) !== digest(after))
     throw new Error("catalog-only provider changed during public readback");
@@ -329,7 +328,7 @@ async function readPinnedBootstrapSource(
  * This is retained input evidence only, never a publication capability. Call
  * again immediately before the sole Pages effect; absence is not reusable. */
 export async function readConfiguredCatalogBootstrapSite(
-  api: GitHubRestReader,
+  provider: BootstrapSiteMetadataProvider & CatalogAnchorMetadataProvider,
   generatedAt: string,
   phaseDeadline: number,
 ) {
@@ -342,18 +341,13 @@ export async function readConfiguredCatalogBootstrapSite(
   const configuration = Object.fromEntries(
     Object.entries(authorities.configuration).filter(([key]) => key !== "configuration_sha256"),
   );
-  const provider = await createReleaseCustodyProvider({
-    token: (readOnlyReleaseChildEnvironment() ?? process.env).GH_TOKEN ?? "",
-    deadline: phaseDeadline,
-    maxBytes: 512 * 1024,
-  });
   const source = await readCatalogBootstrapPublicSource(
     provider,
     configuration,
     generatedAt,
     phaseDeadline,
   );
-  const current = await readConfiguredBootstrapSite(api, phaseDeadline);
+  const current = await readConfiguredBootstrapSite(provider, phaseDeadline);
   check(phaseDeadline);
   return {
     configuration_sha256,
@@ -399,24 +393,13 @@ export function inspectConfiguredBootstrapProvider(repo: unknown, pages: unknown
 /** Fresh configured project state only. This intentionally does not query the
  * owner account or claim a new user-site absence observation. */
 export async function readConfiguredBootstrapSite(
-  api: GitHubRestReader,
+  provider: BootstrapSiteMetadataProvider,
   phaseDeadline: number,
   options: { fetch?: typeof fetch } = {},
 ) {
   const deadline = Math.min(phaseDeadline, performance.now() + 30000);
   check(deadline);
-  const provider = () => {
-    const get = (endpoint: string) => {
-      check(deadline);
-      const response = api.request("GET", endpoint);
-      check(deadline);
-      if (response.status !== 200)
-        throw new Error("configured bootstrap Pages provider unavailable");
-      return response.body;
-    };
-    return inspectConfiguredBootstrapProvider(get(base), get(`${base}/pages`));
-  };
-  const before = provider();
+  const before = await readConfiguredProvider(provider, deadline);
   const observations: unknown[] = [];
   for (const route of routes) {
     check(deadline);
@@ -436,7 +419,7 @@ export async function readConfiguredBootstrapSite(
       throw new Error("configured bootstrap public route is present, redirected or unavailable");
     observations.push({ url, status: response.status });
   }
-  const after = provider();
+  const after = await readConfiguredProvider(provider, deadline);
   if (digest(before) !== digest(after))
     throw new Error("configured bootstrap provider changed during public bracket");
   return {
