@@ -11,6 +11,7 @@ import {
   coordinatorMaintenanceIdentity,
   coordinatorContinuationDeadline,
   coordinatorOriginalJobDeadline,
+  requestTrustedSemanticReview,
   selectCoordinatorPendingPagesRecovery,
   selectCoordinatorCandidateSigningRecovery,
   materializeCoordinatorPublishedSite,
@@ -743,58 +744,43 @@ void test("fixed bundled coordinator caller rejects imported routing and expired
     );
 });
 
-void test("coordinator inherited phase caps the original-job lookup and refuses a late response", async () => {
-  const source = await readFile(
-    new URL("./release-coordinator-driver.mts", import.meta.url),
-    "utf8",
-  );
-  const start = source.indexOf("function coordinatorDeadline("),
-    end = source.indexOf("function coordinatorApi(", start);
-  assert.ok(start >= 0 && end > start);
-  let now = 100,
-    reads = 0;
-  const timeouts: number[] = [];
-  const clock = runInNewContext(
-    stripTypeScriptTypes(source.slice(start, end)) + "\ncoordinatorDeadline",
-    {
-      performance: { now: () => now },
-      Date,
-      Number,
-      Math,
-      Error,
-      project: process.cwd(),
-      process: {
-        env: { GITHUB_RUN_ID: "123", GITHUB_SHA: "a".repeat(40), GITHUB_RUN_ATTEMPT: "1" },
-      },
-      coordinatorOriginalJobDeadline: () => 1000,
-      createGitHubRunner: (settings: { timeoutMs: number }) => {
-        timeouts.push(settings.timeoutMs);
-        return () => {
-          reads++;
-          now += 10;
-        };
-      },
-      GitHubApiClient: class {
-        private runner: (args: string[], input: unknown) => unknown;
-        constructor(runner: (args: string[], input: unknown) => unknown) {
-          this.runner = runner;
-        }
-        request() {
-          this.runner([], undefined);
-          return { status: 200, body: {} };
-        }
-      },
-    },
-  ) as (deadline?: number) => { monotonicDeadline: number };
-  assert.throws(() => clock(100), /inherited deadline/);
+void test("coordinator inherited phase caps the original job response body", async (t) => {
+  const env = {
+    GH_TOKEN: "ghs_coordinator_clock_fixture",
+    GITHUB_RUN_ID: "123",
+    GITHUB_SHA: "a".repeat(40),
+    GITHUB_RUN_ATTEMPT: "1",
+  };
+  const previous = Object.entries(env).map(([key]) => [key, process.env[key]] as const);
+  Object.assign(process.env, env);
+  t.after(() => {
+    for (const [key, value] of previous) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  });
+
+  let reads = 0;
+  let signal: AbortSignal | undefined;
+  t.mock.method(globalThis, "fetch", async (_url: string, init?: RequestInit) => {
+    reads++;
+    signal = init?.signal ?? undefined;
+    return new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode('{"jobs":['));
+        },
+      }),
+      { headers: { "content-type": "application/json" } },
+    );
+  });
+  const request = (deadline: number) =>
+    requestTrustedSemanticReview(process.cwd(), { remote_configuration: {} }, deadline);
+  await assert.rejects(request(performance.now() - 1), /inherited deadline/);
   assert.equal(reads, 0);
-  assert.throws(() => clock(105), /inherited deadline/);
-  assert.deepEqual(timeouts, [5]);
+  await assert.rejects(request(performance.now() + 500), { code: "deadline_exceeded" });
   assert.equal(reads, 1);
-  now = 200;
-  const current = clock(250);
-  assert.equal(current.monotonicDeadline, 250);
-  assert.deepEqual(timeouts, [5, 50]);
+  assert.equal(signal?.aborted, true);
 });
 
 void test("candidate signing wake routing selects only publishing and promoting without changing state", () => {
