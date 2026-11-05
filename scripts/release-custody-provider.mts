@@ -61,6 +61,7 @@ export async function createReleaseCustodyProvider(options: {
   maxBytes?: number;
   currentDeadline?: () => number;
   chargeRead?: () => void;
+  afterRead?: () => void;
   fetch?: typeof globalThis.fetch;
 }): Promise<ReleaseCustodyProvider> {
   const {
@@ -70,6 +71,7 @@ export async function createReleaseCustodyProvider(options: {
     maxBytes = 2 * 1024 ** 2,
     currentDeadline,
     chargeRead,
+    afterRead,
     fetch,
   } = options;
   const deadline = Math.min(phaseDeadline, coordinatorCommandDeadline() ?? Infinity);
@@ -87,22 +89,24 @@ export async function createReleaseCustodyProvider(options: {
     requestDeadline = deadline,
   ) => {
     chargeRead?.();
-    const response = await client.request(`GET ${route}`, {
-      ...parameters,
-      owner: "boburning",
-      repo: "portcove",
-      request: {
-        portcove: {
-          replay: "once",
-          attempts: 0,
-          deadline: Math.min(
-            requestDeadline,
-            currentDeadline?.() ?? deadline,
-            coordinatorCommandDeadline() ?? Infinity,
-          ),
+    const response = await client
+      .request(`GET ${route}`, {
+        ...parameters,
+        owner: "boburning",
+        repo: "portcove",
+        request: {
+          portcove: {
+            replay: "once",
+            attempts: 0,
+            deadline: Math.min(
+              requestDeadline,
+              currentDeadline?.() ?? deadline,
+              coordinatorCommandDeadline() ?? Infinity,
+            ),
+          },
         },
-      },
-    });
+      })
+      .finally(() => afterRead?.());
     if (response.status !== 200) throw new Error("release custody provider read unavailable");
     return response;
   };

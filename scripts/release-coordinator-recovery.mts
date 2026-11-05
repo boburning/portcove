@@ -331,39 +331,32 @@ function writeRetainedCoordinatorObjects(
 export async function hydrateRetainedCoordinatorCheckpointExport(
   repository: string,
   checkpoint: unknown,
-  options: { api?: GitHubRestReader } = {},
+  provider: CatalogAnchorMetadataProvider,
 ) {
   oid(checkpoint);
-  const provider =
-    options.api ??
-    new GitHubApiClient((args, input) =>
-      createGitHubRunner({
-        cwd: repository,
-        maxBuffer: 256 * 1024,
-        timeoutMs: coordinatorCommandTimeout(15000),
-      })([...args, "--hostname", "github.com"], input),
-    );
   let requests = 0;
-  const api: GitHubRestReader = {
-    request(method, route) {
-      checkCoordinatorDeadline();
-      if (method !== "GET" || ++requests > 8)
-        throw new Error("historical checkpoint closure read bound exhausted");
-      const response = provider.request(method, route);
-      checkCoordinatorDeadline();
-      return response;
-    },
+  const bounded = async (read: () => Promise<unknown>) => {
+    checkCoordinatorDeadline();
+    if (++requests > 8) throw new Error("historical checkpoint closure read bound exhausted");
+    const response = await read();
+    checkCoordinatorDeadline();
+    return response;
   };
-  const state = await hydrateRetainedCoordinatorCheckpoint(repository, checkpoint, { api });
+  const exact: CatalogAnchorMetadataProvider = {
+    commit: (sha) => bounded(() => provider.commit(sha)),
+    tree: (sha) => bounded(() => provider.tree(sha, false)),
+    blob: (sha) => bounded(() => provider.blob(sha)),
+  };
+  const state = await hydrateRetainedCoordinatorCheckpoint(repository, checkpoint, {
+    provider: exact,
+  });
   if (!state.previous || !isRecord(state.input.active_candidate))
     throw new Error("historical native carrier requires an original active transition");
   const candidate = structuredClone(state.input.active_candidate);
-  await hydrateRetainedCoordinatorCheckpoint(repository, state.previous, { api });
+  await hydrateRetainedCoordinatorCheckpoint(repository, state.previous, { provider: exact });
   for (const selected of [candidate.source_commit, candidate.prepared_commit]) {
     oid(selected);
-    const result = api.request("GET", `repos/boburning/portcove/git/commits/${selected}`);
-    if (result.status !== 200) throw new Error("original preparation commit unavailable");
-    const commit = inspectRemoteCommitObject(result.body, selected);
+    const commit = inspectRemoteCommitObject(await exact.commit(selected), selected);
     writeRetainedCoordinatorObjects(repository, [commit.object]);
   }
   checkCoordinatorDeadline();

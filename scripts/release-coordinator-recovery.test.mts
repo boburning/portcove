@@ -17,7 +17,7 @@ import {
   readRemoteCoordinatorSnapshot,
   hydrateRetainedCoordinatorCheckpointExport,
 } from "./release-coordinator-recovery.mts";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-remote.mts";
 import childProcess from "node:child_process";
 import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
@@ -127,24 +127,50 @@ void test(
     const f = await recoveryFixture(t);
     const bare = path.join(f.parent, "historical.git");
     execFileSync("git", ["init", "--bare", "--quiet", bare], { windowsHide: true });
-    const api = new GitHubApiClient((args, input) =>
-      createGitHubRunner({ ...f.transport, maxBuffer: 256 * 1024, timeoutMs: 15000 })(
-        [...args, "--hostname", "github.com"],
-        input,
-      ),
-    );
+    const token = "synthetic-historical-checkpoint";
+    const requests: string[] = [];
+    let admitted = 152,
+      settled = 0;
+    const provider = await createReleaseCustodyProvider({
+      token,
+      chargeRead() {
+        if (++admitted > 160) throw new Error("historical shared allowance exhausted");
+      },
+      afterRead() {
+        settled++;
+      },
+      deadline: performance.now() + 15000,
+      fetch: async (input, init) => {
+        const url = new URL(input instanceof Request ? input.url : input);
+        assert.equal(url.origin, "https://api.github.com");
+        assert.equal(url.search, "");
+        assert.equal(init?.method, "GET");
+        assert.equal(new Headers(init?.headers).get("authorization"), `token ${token}`);
+        requests.push(url.pathname);
+        return Response.json(f.readObject(url.pathname));
+      },
+    });
     const before = execFileSync("git", ["-C", bare, "for-each-ref"], {
       encoding: "utf8",
       windowsHide: true,
     });
-    const reads = f.reads();
-    const historical = await hydrateRetainedCoordinatorCheckpointExport(bare, f.saved.checkpoint, {
-      api,
-    });
+    const historical = await hydrateRetainedCoordinatorCheckpointExport(
+      bare,
+      f.saved.checkpoint,
+      provider,
+    );
     assert.equal(historical.checkpoint, f.saved.checkpoint);
     assert.equal(historical.previous, f.initial.checkpoint);
     assert.equal(historical.requests, 8);
-    assert.equal(f.reads() - reads, 8);
+    assert.equal(requests.length, 8);
+    assert.deepEqual(
+      requests.map((route) => route.split("/").at(-2)),
+      ["commits", "trees", "blobs", "commits", "trees", "blobs", "commits", "commits"],
+    );
+    assert.equal(settled, 8);
+    await assert.rejects(provider.commit(f.saved.checkpoint), /shared allowance exhausted/u);
+    assert.equal(requests.length, 8);
+    assert.equal(f.reads(), 0);
     assert.equal(historical.authority, "none");
     assert.deepEqual(
       exportRetainedCoordinatorCheckpoint(bare, f.saved.checkpoint),
