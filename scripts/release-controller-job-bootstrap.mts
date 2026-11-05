@@ -112,10 +112,9 @@ async function launchControllerWorker(rawOperation: unknown) {
     run_id: environment.GITHUB_RUN_ID ?? "",
     run_attempt: Number(environment.GITHUB_RUN_ATTEMPT),
   };
-  const deadline = currentControllerJobDeadline(
+  const deadline = await currentControllerJobDeadline(
     rawOperation,
     identity,
-    fileURLToPath(new URL("..", import.meta.url)),
     performance.now() + 570000,
   );
   const artifact = {

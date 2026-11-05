@@ -194,10 +194,11 @@ patchedDependencies:
 importers:
 
   .:
-    devDependencies:
+    dependencies:
       '@octokit/core':
         specifier: 7.0.8
         version: 7.0.8
+    devDependencies:
       '@octokit/plugin-paginate-rest':
         specifier: 16.0.0
         version: 16.0.0(@octokit/core@7.0.8)

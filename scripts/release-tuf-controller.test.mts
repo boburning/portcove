@@ -769,3 +769,68 @@ void test("actual TUF pre-key guard checks controls last after slow reservation 
     ["current", "stale-controls", "expired-after-controls"],
   );
 });
+
+void test("pre-tool controller clock uses the exact one-shot SDK jobs read and rejects pagination", async (t) => {
+  const { currentControllerJobDeadline } = await import("./release-signing-job-budget.mts");
+  const { releaseControlPhaseProfile } = await import("./release-control-phases.mts");
+  const identity = {
+    run_id: "123",
+    run_attempt: 1,
+    controller_revision: "a".repeat(40),
+    controller_ref: "refs/heads/main",
+  };
+  const environment = {
+    GITHUB_RUN_ID: identity.run_id,
+    GITHUB_RUN_ATTEMPT: "1",
+    GITHUB_SHA: identity.controller_revision,
+    GITHUB_REF: identity.controller_ref,
+    GH_TOKEN: "inert-clock-job-token",
+  };
+  const prior = new Map(Object.keys(environment).map((key) => [key, process.env[key]]));
+  Object.assign(process.env, environment);
+  t.after(() => {
+    for (const [key, value] of prior) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  });
+  let next = false;
+  let requests = 0;
+  const started = new Date(Date.now() - 1000).toISOString();
+  t.mock.method(globalThis, "fetch", async (input: string | URL | Request, init?: RequestInit) => {
+    requests++;
+    const url = new URL(input instanceof Request ? input.url : input);
+    assert.equal(url.origin, "https://api.github.com");
+    assert.equal(url.pathname, "/repos/boburning/portcove/actions/runs/123/attempts/1/jobs");
+    assert.deepEqual(Object.fromEntries(url.searchParams), { per_page: "100", page: "1" });
+    assert.equal(init?.method, "GET");
+    assert.equal(new Headers(init?.headers).get("authorization"), "token inert-clock-job-token");
+    return Response.json(
+      {
+        total_count: 1,
+        jobs: [
+          {
+            id: 1,
+            run_id: 123,
+            run_attempt: 1,
+            head_sha: identity.controller_revision,
+            status: "in_progress",
+            started_at: started,
+            name: releaseControlPhaseProfile("coordinator").reader_name,
+          },
+        ],
+      },
+      next ? { headers: { link: `<${url.href.replace("page=1", "page=2")}>; rel="next"` } } : {},
+    );
+  });
+  const deadline = performance.now() + 15000;
+  assert.equal(await currentControllerJobDeadline("coordinator", identity, deadline), deadline);
+  next = true;
+  await assert.rejects(
+    currentControllerJobDeadline("coordinator", identity, deadline),
+    /original controller job budget unavailable/u,
+  );
+  delete process.env.GH_TOKEN;
+  await assert.rejects(currentControllerJobDeadline("coordinator", identity, deadline));
+  assert.equal(requests, 2);
+});

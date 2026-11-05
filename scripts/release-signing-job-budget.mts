@@ -154,6 +154,19 @@ function signingOriginalJobDeadline(
   return monotonic + remaining;
 }
 
+function requireOriginalJobIdentity(identity: JobIdentity) {
+  if (
+    !/^[1-9][0-9]{0,15}$/u.test(identity.run_id) ||
+    !/^[a-f0-9]{40}$/u.test(identity.controller_revision) ||
+    identity.run_attempt !== 1 ||
+    identity.run_id !== process.env.GITHUB_RUN_ID ||
+    process.env.GITHUB_RUN_ATTEMPT !== "1" ||
+    identity.controller_revision !== process.env.GITHUB_SHA ||
+    identity.controller_ref !== process.env.GITHUB_REF
+  )
+    throw new Error("TUF invocation is not the original fixed job");
+}
+
 /** Reads the original fixed job BEFORE any tool receipt/download. No caller
  * supplied timestamp can reset the selected two-minute job's cleanup reserve. */
 function currentSigningJobDeadline(
@@ -168,16 +181,7 @@ function currentSigningJobDeadline(
   processDeadline: number,
   admittedNativeMaximum?: number,
 ) {
-  if (
-    !/^[1-9][0-9]{0,15}$/u.test(identity.run_id) ||
-    !/^[a-f0-9]{40}$/u.test(identity.controller_revision) ||
-    identity.run_attempt !== 1 ||
-    identity.run_id !== process.env.GITHUB_RUN_ID ||
-    process.env.GITHUB_RUN_ATTEMPT !== "1" ||
-    identity.controller_revision !== process.env.GITHUB_SHA ||
-    identity.controller_ref !== process.env.GITHUB_REF
-  )
-    throw new Error("TUF invocation is not the original fixed job");
+  requireOriginalJobIdentity(identity);
   const remaining = () => {
     const left = Math.floor(processDeadline - performance.now());
     if (!Number.isFinite(left) || left < 1) throw new Error("fixed TUF job deadline exhausted");
@@ -375,19 +379,37 @@ export function currentBuildingJobDeadline(...args: CurrentArguments) {
 }
 
 /** Resource clock for the closed job bootstrap only, never role authority. */
-export function currentControllerJobDeadline(operation: unknown, ...args: CurrentArguments) {
+export async function currentControllerJobDeadline(
+  operation: unknown,
+  identity: JobIdentity,
+  processDeadline: number,
+) {
   const role = operation === "building" ? "candidate-building" : operation;
+  let selected: ClockRole;
   if (
     role === "payload" ||
     role === "candidate-building" ||
     role === "coordinator" ||
     role === "release-publication" ||
     role === "site-publication"
-  )
-    return currentSigningJobDeadline(role, ...args);
-  if (typeof role === "string" && role.startsWith("tuf-"))
-    return currentTufJobDeadline(role.slice(4), ...args);
-  if (typeof role === "string" && role.startsWith("catalog-"))
-    return currentCatalogJobDeadline(role, ...args);
-  throw new Error("fixed controller job clock required");
+  ) {
+    selected = role;
+  } else if (
+    typeof role === "string" &&
+    ["tuf-releases", "tuf-preview", "tuf-stable", "tuf-snapshot", "tuf-timestamp"].includes(role)
+  ) {
+    selected = role.slice(4) as TufSigningRole;
+  } else if (typeof role === "string" && role.startsWith("catalog-")) {
+    selected = catalogClockRole(role);
+  } else {
+    throw new Error("fixed controller job clock required");
+  }
+  requireOriginalJobIdentity(identity);
+  const token = process.env.GH_TOKEN ?? "";
+  const { createReleaseCustodyProvider } = await import("./release-custody-provider.mts");
+  const provider = await createReleaseCustodyProvider({ token, deadline: processDeadline });
+  const response = await provider.jobs(identity.run_id, 1, 1);
+  if (response.next !== null || performance.now() >= processDeadline)
+    throw new Error("original controller job budget unavailable");
+  return Math.min(processDeadline, signingOriginalJobDeadline(selected, response.body, identity));
 }
