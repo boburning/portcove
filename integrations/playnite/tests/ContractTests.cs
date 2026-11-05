@@ -1282,8 +1282,10 @@ internal static class ContractTests
         Check(GuidedSetup.Choose(registerHeld, externalNeedsSource, @"C:\owned\game.rom", "").Kind == GuidedStepKind.ReviewProblem,
             "selected files cannot override a held external registration");
         var registeredExternal = Json.Parse("{\"active\":null,\"external_runtime\":{\"path\":\"C:\\\\owned\\\\runtime\",\"version\":\"1\"},\"readiness\":{\"launchable\":false,\"pending_setup\":false,\"blockers\":[\"invalid_installation\"]},\"port_actions\":[{\"action\":\"launch\",\"availability\":\"held\",\"reason\":\"invalid_installation\"}]}");
-        Check(GuidedSetup.Choose(registeredExternal, external, "", "").Detail.Contains("is registered"),
-            "registered but held external runtime receives its actual review path");
+        var heldLaunch = GuidedSetup.Choose(registeredExternal, external, "", "");
+        Check(heldLaunch.Kind == GuidedStepKind.ReviewProblem && heldLaunch.Label == "Review launch hold" &&
+            heldLaunch.Detail.Contains("can’t start this game") && heldLaunch.Detail.Contains("Open its page in Portcove"),
+            "registered but held external runtime explains why Play is unavailable and where to review it");
         var convertedCatalog = Json.Parse(Json.Print(new {
             source_profile = (string)null, bios_source_profile = (string)null,
             release = new { provider = "direct-manifest" },
