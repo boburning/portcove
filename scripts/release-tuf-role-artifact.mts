@@ -2,7 +2,6 @@
  * output. This is component custody; current role controls/journal admission
  * remain the caller's responsibility before its next key or provider effect. */
 import { createHash } from "node:crypto";
-import { spawnSync } from "node:child_process";
 import { mkdir, mkdtemp, writeFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { crc32, inflateRawSync } from "node:zlib";
@@ -13,7 +12,10 @@ import {
   type SigningOutputMetadataProvider,
 } from "./release-custody-provider.mts";
 import type { RetainedGitHubSpawn } from "./github-cli.mts";
-import { readGitHubArtifactArchive } from "./github-binary.mts";
+import { downloadGitHubArtifactArchive } from "./github-artifact-download.mts";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
+import type { SigningArchiveDownload } from "./release-signing-handoff.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { verifyControllerArtifactStatement } from "./github-controller-attestation.mts";
 import { inspectCapacityExecutorIdentity } from "./release-capacity.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
@@ -144,9 +146,8 @@ const refreshReaders = new WeakMap<object, (phaseDeadline?: number) => Promise<v
 type RoleReaderOptions = {
   metadata?: SigningOutputMetadataProvider;
   fetch?: typeof globalThis.fetch;
-  download?: typeof readGitHubArtifactArchive;
+  download?: SigningArchiveDownload;
   spawn?: RetainedGitHubSpawn;
-  archiveSpawn?: NonNullable<Parameters<typeof readGitHubArtifactArchive>[1]>["spawn"];
 };
 export async function readAttestedTufRoleArtifact(
   parent: string,
@@ -188,13 +189,7 @@ async function readAttestedRoleArtifact<
   const wireRole = purpose === "catalog" ? catalogRoleName(expected.role) : expected.role,
     producerRole = `${purpose === "catalog" ? "catalog" : "tuf"}-${expected.role}`,
     predicateType = purpose === "catalog" ? catalogRolePredicateType : tufRolePredicateType,
-    injected = !!(
-      options.metadata ||
-      options.fetch ||
-      options.download ||
-      options.spawn ||
-      options.archiveSpawn
-    ),
+    injected = !!(options.metadata || options.fetch || options.download || options.spawn),
     selected = { ...options };
   const injectedMetadata = selected.metadata;
   const metadataOption = injectedMetadata && {
@@ -254,18 +249,28 @@ async function readAttestedRoleArtifact<
       throw new Error("TUF role artifact association differs");
     return { id: item.id, bytes: value.size_in_bytes, sha256: item.sha256, name };
   };
-  const download = (item: { id: number; bytes: number; sha256: string }) => {
+  const download = async (item: { id: number; bytes: number; sha256: string }) => {
     remaining();
-    const bytes = (selected.download ?? readGitHubArtifactArchive)(
-      `${base}/actions/artifacts/${item.id}/zip`,
-      {
-        cwd: directory,
-        maxBytes: item.bytes,
-        timeoutMs: remaining(30000),
-        spawn: (command, argv, settings) =>
-          (selected.archiveSpawn ?? spawnSync)(command, argv, { ...settings, env: environment }),
-      },
-    );
+    const endpoint = `${base}/actions/artifacts/${item.id}/zip`;
+    const bytes = selected.download
+      ? await selected.download(endpoint, {
+          cwd: directory,
+          maxBytes: item.bytes,
+          timeoutMs: remaining(30000),
+        })
+      : await downloadGitHubArtifactArchive(endpoint, {
+          credential: { kind: "explicit", token: environment.GH_TOKEN ?? "" },
+          maxBytes: item.bytes,
+          deadline: Math.min(
+            deadline,
+            coordinatorCommandDeadline() ?? Infinity,
+            performance.now() + 30000,
+          ),
+          fetch(input, init) {
+            assertTrustedDirectNode("signing role archive");
+            return (selected.fetch ?? globalThis.fetch)(input, init);
+          },
+        });
     remaining();
     if (bytes.length !== item.bytes || hash(bytes) !== item.sha256)
       throw new Error("TUF role opaque archive differs");
@@ -290,8 +295,8 @@ async function readAttestedRoleArtifact<
       mode: 0o600,
     });
     phase = "opaque-inputs";
-    const archive = download(before.artifact),
-      bundleArchive = download(before.bundle);
+    const archive = await download(before.artifact),
+      bundleArchive = await download(before.bundle);
     await writeFile(path.join(directory, "original-output.zip"), archive, {
       flag: "wx",
       mode: 0o600,
@@ -419,7 +424,6 @@ async function readAttestedRoleArtifact<
         ...(metadataOption ? { metadata: metadataOption } : {}),
         ...(selected.fetch ? { fetch: selected.fetch } : {}),
         ...(selected.download ? { download: selected.download } : {}),
-        ...(selected.archiveSpawn ? { archiveSpawn: selected.archiveSpawn } : {}),
       },
     );
     const readJob = async () => {
