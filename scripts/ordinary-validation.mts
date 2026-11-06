@@ -872,6 +872,8 @@ for (const [file, tests] of [
       "scripts/release-catalog-source.test.mts",
       "scripts/release-catalog-coordinator.test.mts",
       "scripts/release-capacity-executor.test.mts",
+      "scripts/release-live-control-admission.test.mts",
+      "scripts/release-metadata-site-controller.test.mts",
       "scripts/release-catalog-site-controller.test.mts",
       "scripts/release-native-presign-readiness.test.mts",
       "scripts/release-coordinator-recovery.test.mts",
@@ -2517,6 +2519,8 @@ for (const file of ["scripts/github-cli.mts", "scripts/github-controller-attesta
   ]);
 
 explicitNodeTests.set("scripts/release-direct-node-transport.mts", [
+  "scripts/release-live-control-admission.test.mts",
+  "scripts/release-metadata-site-controller.test.mts",
   "scripts/release-coordinator-recovery.test.mts",
   "scripts/release-native-candidate.test.mts",
   "scripts/release-pending-result-recovery.test.mts",

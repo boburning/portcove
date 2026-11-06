@@ -49,7 +49,6 @@ import {
   refreshCapacityExecutor,
 } from "./release-capacity-executor.mts";
 import { authenticateReleaseControlRound } from "./release-live-control-admission.mts";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 
 function remaining(deadline: number, maximum = 15000) {
@@ -245,16 +244,6 @@ export async function runMetadataSitePublicationController(
           deadline,
         ),
         executorIdentity = capacityExecutorIdentity(executor);
-      const api = new GitHubApiClient((args, input) => {
-        remaining(deadline);
-        const result = createGitHubRunner({
-          cwd: directory,
-          timeoutMs: remaining(deadline),
-          maxBuffer: 2 * 1024 ** 2,
-        })([...args, "--hostname", "github.com"], input);
-        remaining(deadline);
-        return result;
-      });
       let round = 0;
       const fresh = async () => {
         if (++round > 5) throw new Error("metadata site control-round limit exhausted");
@@ -266,7 +255,7 @@ export async function runMetadataSitePublicationController(
           digest({ descriptor: selected.descriptor, generation: prepared.generation.generation }),
           "site-publication",
           round,
-          { deadline },
+          { deadline, siteMaintenanceSdk: true },
         );
         if (source.evidence_scope !== "github.com")
           throw new Error("actual metadata site controls required");
@@ -274,7 +263,7 @@ export async function runMetadataSitePublicationController(
       };
       let controls = await fresh();
       const checkpointControls = async () => {
-        const observed = controls.readMaintenance(api);
+        const observed = await controls.readSiteMaintenance();
         if (observed.pause.publication_paused || !observed.resource_policy_matches_controller)
           throw new Error("metadata publication held by current maintenance controls");
         remaining(deadline);
@@ -286,7 +275,7 @@ export async function runMetadataSitePublicationController(
         const current = inspectMetadataSiteReservation(state.input, tuf.context.manifest);
         if (current.candidate_sha256 !== selected.candidate_sha256)
           throw new Error("metadata renewal cannot change the active release candidate");
-        const observed = controls.readMaintenance(api);
+        const observed = await controls.readSiteMaintenance();
         if (observed.pause.publication_paused || !observed.resource_policy_matches_controller)
           throw new Error("metadata publication held by current maintenance controls");
         remaining(deadline);

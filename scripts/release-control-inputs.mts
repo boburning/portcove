@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { performance } from "node:perf_hooks";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
 import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
 import { parseVersionClassification } from "../apps/desktop/scripts/release-version-policy.mts";
 import { validateOpportunity } from "./release-coordinator.mts";
@@ -57,23 +58,65 @@ function releaseOpportunityDigest(value: unknown) {
     .update(canonical(validateOpportunity(value)))
     .digest("hex");
 }
+type ControlRead = { kind: "rest"; suffix: string } | { kind: "ref"; node: string; branch: string };
+type ControlResponse = { status: number | undefined; body: unknown };
+type ControlReads<T> = Generator<ControlRead, T, ControlResponse>;
+type ControlSession = {
+  get(suffix: string, missing?: boolean): ControlReads<unknown>;
+  ref(branch: string): ControlReads<string>;
+  contents(commit: string, path: string, missing?: boolean): ControlReads<string | null>;
+  bound(): void;
+  refId(branch: string): string | undefined;
+};
+
+function readWithLegacyApi<T>(api: CoordinatorRemoteApi, sequence: ControlReads<T>): T {
+  let step = sequence.next();
+  while (!step.done) {
+    const request = step.value;
+    if (request.kind === "rest") {
+      const response = api.request("GET", `repos/${repository}${request.suffix}`);
+      step = sequence.next({ status: response.status, body: response.body });
+    } else {
+      const response = api.graphql(releaseControlRefQuery, {
+        id: request.node,
+        ref: `refs/heads/${request.branch}`,
+      });
+      step = sequence.next({ status: 200, body: response.data });
+    }
+  }
+  return step.value;
+}
+
 function session(api: CoordinatorRemoteApi) {
+  const selected = readWithLegacyApi(api, controlSession());
+  return {
+    get: (...args: Parameters<ControlSession["get"]>) =>
+      readWithLegacyApi(api, selected.get(...args)),
+    ref: (branch: string) => readWithLegacyApi(api, selected.ref(branch)),
+    contents: (...args: Parameters<ControlSession["contents"]>) =>
+      readWithLegacyApi(api, selected.contents(...args)),
+    bound: () => selected.bound(),
+    refId: (branch: string) => selected.refId(branch),
+  };
+}
+
+function* controlSession(): ControlReads<ControlSession> {
   const started = performance.now();
   let requests = 0;
   const bound = () => {
     if (++requests > 80 || performance.now() - started > 120_000)
       throw new Error("release control request or duration bound exhausted");
   };
-  const get = (suffix: string, missing = false) => {
+  function* get(suffix: string, missing = false): ControlReads<unknown> {
     bound();
-    const response = api.request("GET", `repos/${repository}${suffix}`);
+    const response = yield { kind: "rest", suffix };
     if (performance.now() - started > 120_000) throw new Error("release control response late");
     if (response.status === 404 && missing) return null;
     if (response.status !== 200 || Buffer.byteLength(JSON.stringify(response.body)) > maximumBytes)
       throw new Error("release control response unavailable or oversized");
     return response.body;
-  };
-  const identity = get("");
+  }
+  const identity = yield* get("");
   if (
     !isRecord(identity) ||
     identity.id !== repositoryId ||
@@ -82,20 +125,19 @@ function session(api: CoordinatorRemoteApi) {
     !identity.node_id
   )
     throw new Error("release control repository differs");
+  const nodeId = identity.node_id;
   const refIds = new Map<string, string>();
-  const ref = (branch: string) => {
+  function* ref(branch: string): ControlReads<string> {
     bound();
-    const response = api.graphql(releaseControlRefQuery, {
-      id: identity.node_id,
-      ref: `refs/heads/${branch}`,
-    });
-    const node = isRecord(response.data) ? response.data.node : null;
+    const response = yield { kind: "ref", node: nodeId, branch };
+    const node = isRecord(response.body) ? response.body.node : null;
     const value = isRecord(node) ? node.ref : null;
     if (
       performance.now() - started > 120_000 ||
+      response.status !== 200 ||
       !isRecord(node) ||
       node.__typename !== "Repository" ||
-      node.id !== identity.node_id ||
+      node.id !== nodeId ||
       node.databaseId !== repositoryId ||
       node.nameWithOwner !== repository ||
       !isRecord(value) ||
@@ -112,13 +154,13 @@ function session(api: CoordinatorRemoteApi) {
       throw new Error("release control ref opaque identity changed");
     refIds.set(branch, value.id);
     return value.target.oid;
-  };
-  const contents = (commit: string, path: string, missing = false) => {
-    const closure = inspectRemoteCommitObject(get(`/git/commits/${commit}`), commit);
+  }
+  function* contents(commit: string, path: string, missing = false): ControlReads<string | null> {
+    const closure = inspectRemoteCommitObject(yield* get(`/git/commits/${commit}`), commit);
     let tree = closure.tree;
     const parts = path.split("/");
     for (let index = 0; index < parts.length; index++) {
-      const value = get(`/git/trees/${tree}`);
+      const value = yield* get(`/git/trees/${tree}`);
       if (
         !isRecord(value) ||
         value.sha !== tree ||
@@ -184,7 +226,7 @@ function session(api: CoordinatorRemoteApi) {
       }
       if (selected.type !== "blob" || selected.mode !== "100644")
         throw new Error("release control document is not an inert file");
-      const blob = get(`/git/blobs/${selected.sha}`);
+      const blob = yield* get(`/git/blobs/${selected.sha}`);
       if (
         !isRecord(blob) ||
         blob.sha !== selected.sha ||
@@ -207,7 +249,7 @@ function session(api: CoordinatorRemoteApi) {
       return bytes.toString("utf8");
     }
     throw new Error("release control path incomplete");
-  };
+  }
   return { get, ref, contents, bound, refId: (branch: string) => refIds.get(branch) };
 }
 
@@ -569,15 +611,20 @@ export function readReviewedClassificationForRequest(
 }
 
 export function readPublicationPause(api: CoordinatorRemoteApi) {
-  const io = session(api);
-  const before = io.ref(pauseBranch);
-  const text = io.contents(before, "publication.json");
+  return readWithLegacyApi(api, publicationPause());
+}
+
+function* publicationPause() {
+  const io = yield* controlSession();
+  const before = yield* io.ref(pauseBranch);
+  const text = yield* io.contents(before, "publication.json");
   if (text === null) throw new Error("publication pause is unavailable");
   const value: unknown = JSON.parse(text);
   exact(value, "publication_paused,schema_version");
   if (value.schema_version !== 1 || typeof value.publication_paused !== "boolean")
     throw new Error("publication pause is malformed");
-  if (io.ref(pauseBranch) !== before) throw new Error("publication pause changed during read");
+  if ((yield* io.ref(pauseBranch)) !== before)
+    throw new Error("publication pause changed during read");
   return {
     commit: before,
     publication_paused: value.publication_paused,
@@ -591,11 +638,15 @@ export function readPublicationPause(api: CoordinatorRemoteApi) {
  * This reads a revocable operator observation, not live billing availability.
  */
 export function readRatifiedCapacityConfiguration(api: CoordinatorRemoteApi, guard: () => void) {
+  return readWithLegacyApi(api, ratifiedCapacityConfiguration(guard));
+}
+
+function* ratifiedCapacityConfiguration(guard: () => void) {
   if (typeof guard !== "function") throw new Error("authenticated capacity source guard missing");
   guard();
-  const io = session(api);
-  const before = io.ref(pauseBranch);
-  const text = io.contents(before, "capacity.json", true);
+  const io = yield* controlSession();
+  const before = yield* io.ref(pauseBranch);
+  const text = yield* io.contents(before, "capacity.json", true);
   if (text === null) throw new Error("ratified capacity configuration unavailable");
   const value: unknown = JSON.parse(text);
   exact(value, "capacity,observation,schema_version");
@@ -616,7 +667,8 @@ export function readRatifiedCapacityConfiguration(api: CoordinatorRemoteApi, gua
   )
     throw new Error("capacity source cannot supply invented observation or reservation effects");
   const report = assessBoundedCapacity(value.capacity);
-  if (io.ref(pauseBranch) !== before) throw new Error("capacity configuration changed during read");
+  if ((yield* io.ref(pauseBranch)) !== before)
+    throw new Error("capacity configuration changed during read");
   guard();
   return {
     commit: before,
@@ -628,4 +680,57 @@ export function readRatifiedCapacityConfiguration(api: CoordinatorRemoteApi, gua
     authority: "none",
     qualification: "protected owner configuration; availability/headroom remain unknown",
   };
+}
+
+/** Use the same maintenance document checks with an awaited fixed read path. */
+export async function readMaintenanceControlsWithSdk(options: {
+  token: string;
+  deadline: number;
+  guard: () => void;
+  fetch?: typeof globalThis.fetch;
+}) {
+  const { token, guard, fetch } = options;
+  const { createGitHubClient } = await import("./github-client.mts");
+  const client = await createGitHubClient({
+    credential: { kind: "explicit", token },
+    deadline: Math.min(options.deadline, coordinatorCommandDeadline() ?? Infinity),
+    maxBytes: 2 * 1024 ** 2,
+    ...(fetch ? { fetch } : {}),
+  });
+  const once = () => ({ portcove: { replay: "once" as const, attempts: 0 } });
+  const read = async (effect: ControlRead): Promise<ControlResponse> => {
+    if (effect.kind === "ref") {
+      const response = await client.request("POST /graphql", {
+        query: releaseControlRefQuery,
+        variables: { id: effect.node, ref: `refs/heads/${effect.branch}` },
+        request: once(),
+      });
+      const envelope: unknown = response.data;
+      if (
+        !isRecord(envelope) ||
+        !("data" in envelope) ||
+        (envelope.errors !== undefined &&
+          (!Array.isArray(envelope.errors) || envelope.errors.length))
+      )
+        throw new Error("maintenance control GraphQL response unavailable");
+      return { status: response.status, body: envelope.data };
+    }
+    const response = await client.request(`GET /repos/${repository}${effect.suffix}`, {
+      request: once(),
+    });
+    return { status: response.status, body: response.data };
+  };
+  const run = async <T,>(sequence: ControlReads<T>) => {
+    let step = sequence.next();
+    while (!step.done) {
+      guard();
+      const result = await read(step.value);
+      guard();
+      step = sequence.next(result);
+    }
+    return step.value;
+  };
+  const pause = await run(publicationPause());
+  const capacity = await run(ratifiedCapacityConfiguration(guard));
+  return { pause, capacity };
 }
