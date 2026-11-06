@@ -150,6 +150,8 @@ void test("hosted post-sign source binds the original timestamp executor and per
   const capacity = new URL("./release-capacity.mts", import.meta.url).href;
   const deadlineModule = new URL("./release-coordinator-deadline.mts", import.meta.url).href;
   const nativeModule = new URL("./release-native-candidate.mts", import.meta.url).href;
+  const admissionModule = new URL("./release-native-publication-admission.mts", import.meta.url)
+    .href;
   const code = String.raw`
 import assert from 'node:assert/strict';
 import {registerHooks} from 'node:module';
@@ -192,7 +194,7 @@ let inputReceipt,inputValue,sourceReceipt,packageReads=0,contextReads=0,archiveR
 Object.assign(globalThis.postsignFixture,{
  inputs:async receipt=>{assert.equal(receipt,inputReceipt);if(holdInputs){holdInputs=false;gateStarted();await new Promise(resolve=>{gateRelease=resolve})}return inputValue},
  config:x=>x,
- derive:async(raw,dir,deadline,parent)=>{assert.equal(parent,parentReceipt);assert.equal(typeof raw.checkpointObjects,"function");assert.deepEqual(raw.platform_labels,['windows-x86_64','linux-x86_64']);assert.equal(raw.coordinator_input.active_candidate.prepared_commit,candidate.prepared_commit);assert.ok(deadline<=121000);if(scenario==='journey-refusal')throw Error('historical verification refused');const journey=scenario.startsWith('update')?{predecessor:{...packageCandidate,source_commit:'1'.repeat(40),source_tree:'2'.repeat(40),package:{...packageId,bytes:oldPayload.length,sha256:hash(oldPayload)}}}:{kind:'initial-empty-feed'};return [journey,journey].map(x=>({...x,signed_context_sha256:'3'.repeat(64),signatures_sha256:'4'.repeat(64)}))},
+ derive:async(raw,dir,deadline,read,proof,parent)=>{assert.equal(parent,parentReceipt);assert.equal(typeof read,'function');assert.equal(typeof proof.graphql,'function');assert.equal(Object.hasOwn(raw,'api'),false);await assert.rejects(()=>proof.request('POST','repos/boburning/portcove/git/commits'),/exact Git object GET/);assert.equal(typeof raw.checkpointObjects,"function");assert.deepEqual(raw.platform_labels,['windows-x86_64','linux-x86_64']);assert.equal(raw.coordinator_input.active_candidate.prepared_commit,candidate.prepared_commit);assert.ok(deadline<=121000);if(scenario==='journey-refusal')throw Error('historical verification refused');const journey=scenario.startsWith('update')?{predecessor:{...packageCandidate,source_commit:'1'.repeat(40),source_tree:'2'.repeat(40),package:{...packageId,bytes:oldPayload.length,sha256:hash(oldPayload)}}}:{kind:'initial-empty-feed'};return [journey,journey].map(x=>({...x,signed_context_sha256:'3'.repeat(64),signatures_sha256:'4'.repeat(64)}))},
  request:()=>{throw Error('unexpected legacy fixed endpoint')},
  metadata:async(facts,platform,raw)=>{assert.equal(platform,'linux-x86_64');assert.equal(raw.id,19);if(scenario==='wrong-package')throw Error('signed package metadata refused');return structuredClone(metadata)},
  selected:async(facts,platform,retained)=>{assert.equal(platform,'linux-x86_64');assert.equal(hash(retained.bytes),packageId.sha256);return {candidate:structuredClone(packageCandidate),version:candidate.version}},
@@ -238,7 +240,7 @@ globalThis.fetch=async(input,init)=>{
 const routes={'./release-hosted-native-parent.mts':"export const requireActualHostedNativeParentSource=globalThis.postsignFixture.parent;",'./release-coordinator-recovery.mts':"export const recoverRemoteCoordinator=globalThis.postsignFixture.recover; export const hydrateRetainedCoordinatorOperation=globalThis.postsignFixture.hydrate;",'node:fs/promises':"export {chmod,mkdtemp,rm} from 'node:fs/promises'; export const writeFile=globalThis.postsignFixture.write;",
  './release-hosted-native-postsign-inputs.mts':"export const requireActualHostedNativePostSignInputs=globalThis.postsignFixture.inputs;",
  './release-authority-configuration.mts':"export const inspectSelectedPublicationAuthorityConfiguration=globalThis.postsignFixture.config;export const applicationReleaseProfile=()=>'initial-beta-win-linux';export const applicationPublicBuildInputs=()=>undefined;",
- './release-native-publication-admission.mts':"export const deriveHostedNativePublicationJourneys=globalThis.postsignFixture.derive;",
+ './release-native-publication-admission.mts':"export {createNativePredecessorReader,createNativeCheckpointEvidenceReader} from "+JSON.stringify(${JSON.stringify(admissionModule)})+"; export const deriveHostedNativePublicationJourneys=globalThis.postsignFixture.derive;",
  './release-artifact-archive.mts':"export const discoverReleaseArtifactFiles=globalThis.postsignFixture.discover;",
  './github-api.mts':"export class GitHubApiClient{request(...args){return globalThis.postsignFixture.request(...args)}paginateRest(){throw Error('unexpected legacy pagination')}};export const createGitHubRunner=()=>()=>{throw Error('unexpected CLI')};",
  './github-binary.mts':"export const readGitHubArtifactArchive=()=>{throw Error('unexpected legacy archive');};",
