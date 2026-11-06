@@ -2038,6 +2038,25 @@ accepted member observations. An ordinary fitting title needs no production Rust
 or per-title test wrapper. Independent observations and custom behavioral tests
 remain necessary where their scope differs from the shared route.
 
+Optional authoring-only `gba_staged_archive_v1` expands the reviewed Windows
+staged GitHub archive layout used by the upstream GBA picker. Record the
+four-character game code used by the packaged diagnostics and whether the
+runtime uses versioned mod packages. The projection supplies the shared
+local paths, diagnostic names and mod policy. Keep the repository, channel,
+asset and executable hints, original-file and BIOS requirements, and external
+save locations explicit. Use a full integration for a different layout, such
+as a player that writes variant-specific configuration or stores credentials.
+Settings qualification also requires the explicit integration form.
+The projection refuses duplicate path and mod policy fields. Core receives
+and validates the same concrete contract as before.
+
+For a matching title, reuse the shared staging, preservation and rollback
+evidence and link the reviewed package and writer facts. Check the exact
+package selection, original edition, picker and process behavior, and any
+write or compatibility differences from the reviewed layout. A separate
+write-up or copy of the shared test campaign adds no new evidence. A change
+to the layout or update boundary still needs focused lifecycle verification.
+
 Optional authoring-only `package_observation_v1` retains an exact previously
 accepted package/player inspection. Ordinary `prepare-port` consumes its receipt
 with paired `--package-observation <json>` and

@@ -37548,7 +37548,7 @@
     {
       "id": "pokemon-firered-fireredleafgreenrecomp",
       "name": "Pokémon FireRed / FireRedLeafGreenRecomp",
-      "summary": "Use the upstream FireRedRecomp preview with matching owned GBA originals; runtime, compiler cache and player data stay upstream-owned.",
+      "summary": "Play FireRedRecomp with your own matching GBA original and BIOS. Portcove can manage a separate Windows copy or launch a copy you prepared yourself.",
       "project_url": "https://github.com/mstan/FireRedLeafGreenRecomp",
       "issue_number": 335,
       "availability": "packages",
@@ -37561,7 +37561,7 @@
         "game_slug": "pokemon-firered-version",
         "match_kind": "underlying-game"
       },
-      "release_url": "https://github.com/mstan/FireRedLeafGreenRecomp/releases/tag/v0.0.6",
+      "release_url": "https://github.com/mstan/FireRedLeafGreenRecomp/releases",
       "manual_setup": {
         "steps": [
           {
@@ -37569,8 +37569,8 @@
             "instruction": "Use your own unchanged Pokémon FireRed USA v1.0/rev0 GBA original, SHA-1 41cb23d8dccc8ebd7c649cd8fbb58eeace6e2fdc, and your own retail GBA system BIOS, 16384 bytes, SHA-1 300c20df6731a33952ded8c436f7f186d25d3492. The BIOS is a separate required input even though the short game quick-start omits it. No BIOS or game original is supplied or downloaded by these instructions. Keep originals unchanged outside the new player folder and use matching private copies in a separate writable folder before upstream preparation; do not select the original archive as a writable save location. Other revisions, patched games, other regions or another Pokémon game are different inputs. Do not override an upstream mismatch warning or infer that a warning authenticates a file."
           },
           {
-            "title": "Finish upstream setup and select this game player",
-            "instruction": "Open the linked official v0.0.6 release and extract its complete FireRedRecomp-windows-x64-v0.0.6.zip package into a separate writable folder for this exact game. Keep FireRedRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working FireRedRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification."
+            "title": "Choose a managed or prepared copy",
+            "instruction": "Install the official Windows package through Portcove, then choose Play to select your matching original and BIOS in the game’s picker. To prepare a copy yourself, extract the complete FireRedRecomp Windows x64 ZIP and finish upstream ROM and BIOS setup before registering FireRedRecomp.exe with its containing folder as the working directory. Keep any working launch arguments. Keep the libraries, assets, mods and compiler companions together."
           },
           {
             "title": "Keep the data and compiler paths",
@@ -37583,11 +37583,24 @@
         ],
         "warnings": [
           "Select your prepared game in Portcove, review its launch details, then choose Play. The automated process check did not run this game or use its original files.",
-          "Portcove-managed installation is not offered for this route. Support would require separate checks of this game’s original files, BIOS, generated code, saved data and update behavior. Do not import existing data or assume it is compatible with another Pokémon implementation."
+          "The upstream code uses PolyForm Noncommercial 1.0.0. Keep the component notices and use your own game and BIOS. Do not assume saves or states work with another implementation or an older runtime."
         ],
-        "help_url": "https://github.com/mstan/FireRedLeafGreenRecomp/releases/tag/v0.0.6"
+        "help_url": "https://github.com/mstan/FireRedLeafGreenRecomp/releases",
+        "references": [
+          {
+            "title": "Updates, backups and rollback",
+            "instruction": "Portcove updates its managed Windows copy and carries declared local settings, input pointers, game.toml, local saves and complete versioned mods. Generated compiler output stays with the runtime that created it. Originals, BIOS and default saves or states beside the selected game are outside Portcove backups. Runtime rollback carries current declared data and does not rewind saves. An external copy stays under your control."
+          }
+        ]
       },
       "original_game_title": "Pokémon FireRed",
+      "recommended_download_channel": "stable",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "FireRedRecomp-windows-x64-",
+          ".zip"
+        ]
+      },
       "platforms": [
         "windows-x86-64"
       ]
@@ -37671,7 +37684,7 @@
     {
       "id": "pokemon-leafgreen-fireredleafgreenrecomp",
       "name": "Pokémon LeafGreen / FireRedLeafGreenRecomp",
-      "summary": "Use the upstream LeafGreenRecomp preview with matching owned GBA originals; runtime, compiler cache and player data stay upstream-owned.",
+      "summary": "Play LeafGreenRecomp with your own matching GBA original and BIOS. Portcove can manage a separate Windows copy or launch a copy you prepared yourself.",
       "project_url": "https://github.com/mstan/FireRedLeafGreenRecomp",
       "issue_number": 336,
       "availability": "packages",
@@ -37684,7 +37697,7 @@
         "game_slug": "pokemon-leafgreen-version",
         "match_kind": "underlying-game"
       },
-      "release_url": "https://github.com/mstan/FireRedLeafGreenRecomp/releases/tag/v0.0.6",
+      "release_url": "https://github.com/mstan/FireRedLeafGreenRecomp/releases",
       "manual_setup": {
         "steps": [
           {
@@ -37692,8 +37705,8 @@
             "instruction": "Use your own unchanged Pokémon LeafGreen USA v1.0/rev0 GBA original, SHA-1 574fa542ffebb14be69902d1d36f1ec0a4afd71e, and your own retail GBA system BIOS, 16384 bytes, SHA-1 300c20df6731a33952ded8c436f7f186d25d3492. The BIOS is a separate required input even though the short game quick-start omits it. No BIOS or game original is supplied or downloaded by these instructions. Keep originals unchanged outside the new player folder and use matching private copies in a separate writable folder before upstream preparation; do not select the original archive as a writable save location. Other revisions, patched games, other regions or another Pokémon game are different inputs. Do not override an upstream mismatch warning or infer that a warning authenticates a file."
           },
           {
-            "title": "Finish upstream setup and select this game player",
-            "instruction": "Open the linked official v0.0.6 release and extract its complete LeafGreenRecomp-windows-x64-v0.0.6.zip package into a separate writable folder for this exact game. Keep LeafGreenRecomp.exe, DLLs, assets, mods and overlay_toolchain companions together. Finish normal upstream BIOS/ROM selection using the matching private copies, then register the already working LeafGreenRecomp.exe with its containing folder as working directory and preserve its already working literal arguments. The packaged tcc.exe and i386-win32-tcc.exe are compiler helpers, not game players. Keep the upstream PolyForm Noncommercial and dependency/attribution notices. These are in-development previews despite the release metadata flag; a package version is not gameplay qualification."
+            "title": "Choose a managed or prepared copy",
+            "instruction": "Install the official Windows package through Portcove, then choose Play to select your matching original and BIOS in the game’s picker. To prepare a copy yourself, extract the complete LeafGreenRecomp Windows x64 ZIP and finish upstream ROM and BIOS setup before registering LeafGreenRecomp.exe with its containing folder as the working directory. Keep any working launch arguments. Keep the libraries, assets, mods and compiler companions together."
           },
           {
             "title": "Keep the data and compiler paths",
@@ -37706,11 +37719,24 @@
         ],
         "warnings": [
           "Select your prepared game in Portcove, review its launch details, then choose Play. The automated process check did not run this game or use its original files.",
-          "Portcove-managed installation is not offered for this route. Support would require separate checks of this game’s original files, BIOS, generated code, saved data and update behavior. Do not import existing data or assume it is compatible with another Pokémon implementation."
+          "The upstream code uses PolyForm Noncommercial 1.0.0. Keep the component notices and use your own game and BIOS. Do not assume saves or states work with another implementation or an older runtime."
         ],
-        "help_url": "https://github.com/mstan/FireRedLeafGreenRecomp/releases/tag/v0.0.6"
+        "help_url": "https://github.com/mstan/FireRedLeafGreenRecomp/releases",
+        "references": [
+          {
+            "title": "Updates, backups and rollback",
+            "instruction": "Portcove updates its managed Windows copy and carries declared local settings, input pointers, game.toml, local saves and complete versioned mods. Generated compiler output stays with the runtime that created it. Originals, BIOS and default saves or states beside the selected game are outside Portcove backups. Runtime rollback carries current declared data and does not rewind saves. An external copy stays under your control."
+          }
+        ]
       },
       "original_game_title": "Pokémon LeafGreen",
+      "recommended_download_channel": "stable",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "LeafGreenRecomp-windows-x64-",
+          ".zip"
+        ]
+      },
       "platforms": [
         "windows-x86-64"
       ]
