@@ -244,7 +244,7 @@ void test("source-bound result continuation settles only the exact positive repo
     api: {},
     directory: "private",
     deadline: 170000,
-    environment: { GH_TOKEN: "fixture-token" },
+    token: "fixture-token",
     chargeRead: () => () => {},
     base: "repos/boburning/portcove",
     executor: {},
