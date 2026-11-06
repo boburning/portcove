@@ -13,7 +13,6 @@ import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
 import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import { isRecord } from "./runtime-values.mts";
 import {
-  applicationApi,
   applicationOutput,
   readApplicationJson,
   writeApplicationJson,
@@ -70,7 +69,10 @@ import {
   compareApplicationVersionPrecedence,
 } from "../apps/desktop/scripts/release-version-policy.mts";
 import { prepareReleaseVersion } from "../apps/desktop/scripts/prepare-release-version.mts";
-import { publishPreparedReleaseObjects } from "./release-prepared-transport.mts";
+import {
+  createNativePreparedObjectTransport,
+  publishPreparedReleaseObjects,
+} from "./release-prepared-transport.mts";
 import {
   readWindowsApplicationQualification,
   selectWindowsApplicationQualificationRun,
@@ -472,7 +474,7 @@ async function prepare() {
       intent_sha256: prepared.intent_sha256,
     },
     {
-      api: applicationApi,
+      open: (deadline) => createNativePreparedObjectTransport(fixedReleaseReaderToken(), deadline),
       beforeWrite: () =>
         beforeWrite(registration.known_run_ids, { release_id: registration.release_id, custody }),
     },
