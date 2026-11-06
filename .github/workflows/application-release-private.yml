@@ -79,6 +79,23 @@ on:
       known_runs:
         type: string
         required: true
+    secrets:
+      PORTCOVE_PROTECTION_APP_PRIVATE_KEY:
+        required: false
+      PORTCOVE_TUF_PREVIEW_KEY:
+        required: false
+      PORTCOVE_TUF_RELEASES_KEY:
+        required: false
+      PORTCOVE_TUF_SNAPSHOT_KEY:
+        required: false
+      PORTCOVE_TUF_STABLE_KEY:
+        required: false
+      PORTCOVE_TUF_TARGETS_KEY:
+        required: false
+      PORTCOVE_TUF_TIMESTAMP_KEY:
+        required: false
+      TAURI_SIGNING_PRIVATE_KEY:
+        required: false
     outputs:
       artifact:
         value: ${{ jobs.execute.outputs.artifact }}
