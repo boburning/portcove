@@ -2584,3 +2584,38 @@ void test("controller failure annotations expose bounded stage metadata while ex
   Object.assign(inner, { cause: outer, controllerBootstrapPhase: "PRIVATE" });
   assert.equal(controllerFixtureFailureAnnotation("source", outer, 0).includes("PRIVATE"), false);
 });
+
+void test(
+  "fixed controller bootstrap reports only the failed boundary",
+  {
+    skip: process.arch !== "x64" || !["linux", "win32"].includes(process.platform),
+  },
+  () => {
+    const entry = fileURLToPath(
+      new URL("./release-controller-tool-bootstrap.mts", import.meta.url),
+    );
+    const env = { RUNNER_TEMP: os.tmpdir(), PORTCOVE_EXECUTION_PURPOSE: "application" };
+    for (const [mode, additions, boundary] of [
+      ["private-invalid-mode", {}, "operation"],
+      ["build", { AZURE_PRIVATE_FIXTURE: "private-fixture-value" }, "credential-boundary"],
+      ["build", { PORTCOVE_CONTROLLER_REVISION: "private-invalid-revision" }, "source-revision"],
+      [
+        "build",
+        { PORTCOVE_CONTROLLER_REVISION: "a".repeat(40), GH_TOKEN: "private-fixture-token" },
+        "compiler-credential-boundary",
+      ],
+    ] as const) {
+      const result = spawnSync(process.execPath, [entry, mode], {
+        env: { ...env, ...additions },
+        encoding: "utf8",
+        timeout: 5000,
+      });
+      assert.equal(result.status, 2);
+      assert.equal(result.stdout, "");
+      assert.equal(
+        result.stderr.trim(),
+        `fixed controller bootstrap refused at ${boundary}; retain private build/acquisition evidence; no automatic retry`,
+      );
+    }
+  },
+);
