@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { readApplicationPagesStateAsync } from "./application-release-site.mts";
 import { readFileSync } from "node:fs";
 import { mkdtemp, readFile, readdir, rm, mkdir } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
@@ -1959,7 +1960,7 @@ void test("historical metadata reader authenticates both assembly subjects while
         https_enforced: true,
       },
     };
-    const discovered: ReturnType<typeof discoverPublishedApplicationCohort> = {
+    const discovered: Awaited<ReturnType<typeof discoverPublishedApplicationCohort>> = {
       release_id: 10,
       custody: f.custody,
       state,
@@ -1985,35 +1986,34 @@ void test("historical metadata reader authenticates both assembly subjects while
       f.remoteAssets.find((asset) => asset.name === "application-site.zip")!.digest =
         `sha256:${"f".repeat(64)}`;
     if (mode === "mutable") f.release.immutable = false;
+    const read = async (endpoint: string) => {
+      const reply = (body: unknown) => ({
+        status: 200,
+        headers: new Map<string, string>(),
+        body,
+      });
+      if (endpoint.endsWith("/pages")) return reply(state.pages);
+      if (endpoint.includes("deployments?"))
+        return reply([{ id: 40, sha: f.site.generation, ref, environment: "github-pages" }]);
+      if (endpoint.includes("deployments/40/statuses"))
+        return reply([
+          { id: mode === "actor-drift" ? 42 : 41, state: "success", log_url: state.log_url },
+        ]);
+      const response = f.transport.api.request("GET", endpoint);
+      if (mode === "pagination" && endpoint.includes("/assets?"))
+        return {
+          ...response,
+          headers: new Map([
+            ...response.headers,
+            ["link", '<https://api.github.com/next>; rel="next"'],
+          ]),
+        };
+      return response;
+    };
     const run = () =>
       readImmutableApplicationMetadata(discovered, {
-        api: {
-          request(method, endpoint) {
-            assert.equal(method, "GET");
-            const reply = (body: unknown) => ({
-              status: 200,
-              headers: new Map<string, string>(),
-              body,
-            });
-            if (endpoint.endsWith("/pages")) return reply(state.pages);
-            if (endpoint.includes("deployments?"))
-              return reply([{ id: 40, sha: f.site.generation, ref, environment: "github-pages" }]);
-            if (endpoint.includes("deployments/40/statuses"))
-              return reply([
-                { id: mode === "actor-drift" ? 42 : 41, state: "success", log_url: state.log_url },
-              ]);
-            const response = f.transport.api.request(method, endpoint);
-            if (mode === "pagination" && endpoint.includes("/assets?"))
-              return {
-                ...response,
-                headers: new Map([
-                  ...response.headers,
-                  ["link", '<https://api.github.com/next>; rel="next"'],
-                ]),
-              };
-            return response;
-          },
-        },
+        read,
+        readPages: () => readApplicationPagesStateAsync(read),
         async readAsset(id, maximum) {
           reads.push(id);
           return f.transport.readAsset(id, maximum);

@@ -870,7 +870,10 @@ for (const [file, tests] of [
       "scripts/release-compiler-evidence.test.mts",
     ],
   ],
-  ["scripts/release-publication-inventory.mts", ["scripts/acquire-release-admission.test.mts"]],
+  [
+    "scripts/release-publication-inventory.mts",
+    ["scripts/acquire-release-admission.test.mts", "scripts/application-release-feed.test.mts"],
+  ],
   ["scripts/release-site-composer.mts", ["scripts/release-site-composer.test.mts"]],
   ["scripts/release-pages-provider.mts", ["scripts/release-pages-provider.test.mts"]],
   [
@@ -2415,6 +2418,7 @@ for (const file of [
     ...(explicitNodeTests.get(file) ?? []),
     "scripts/application-release-context.test.mts",
     "scripts/application-release-feed.test.mts",
+    "scripts/application-release-site.test.mts",
     "scripts/application-release-publication.test.mts",
     "scripts/release-control-handshake.test.mts",
     "scripts/release-capacity-executor.test.mts",
@@ -2541,7 +2545,15 @@ for (const file of [
     "scripts/release-catalog-signing.test.mts",
   ]);
 
+explicitNodeTests.set("scripts/application-release-site.mts", [
+  ...(explicitNodeTests.get("scripts/application-release-site.mts") ?? []),
+  "scripts/application-release-site.test.mts",
+  "scripts/application-release-feed.test.mts",
+]);
+
 explicitNodeTests.set("scripts/release-direct-node-transport.mts", [
+  "scripts/application-release-feed.test.mts",
+  "scripts/application-release-site.test.mts",
   "scripts/release-catalog-authorities.test.mts",
   "scripts/release-catalog-signing.test.mts",
   "scripts/release-live-control-admission.test.mts",

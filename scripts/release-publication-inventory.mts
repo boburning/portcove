@@ -1,4 +1,6 @@
 import { GitHubApiClient } from "./github-api.mts";
+import { nextLink } from "./github-operation.mts";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
 import { inspectRemoteCommitObject } from "./release-coordinator-recovery.mts";
 import { inspectPreparationCommitBytes } from "./release-coordinator-state.mts";
 import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-remote.mts";
@@ -8,6 +10,7 @@ import { isRecord } from "./runtime-values.mts";
 import { performance } from "node:perf_hooks";
 const repository = "boburning/portcove";
 const base = `repos/${repository}`;
+const maximumPublicationRequests = 160;
 type Api = CoordinatorRemoteApi;
 const refsQuery = `query AdmissionRefs($cursor:String) {
  repository(owner:"boburning",name:"portcove") { id databaseId nameWithOwner
@@ -47,7 +50,7 @@ export function createReleasePublicationReader(rawApi: Api) {
   let requests = 0,
     milliseconds = 0;
   const bounded = <T,>(read: () => T): T => {
-    if (++requests > 160 || milliseconds > 120000)
+    if (++requests > maximumPublicationRequests || milliseconds > 120000)
       throw new Error("publication inventory budget exceeded");
     const started = performance.now();
     let result: T;
@@ -252,22 +255,108 @@ export function createReleasePublicationReader(rawApi: Api) {
 
     return { allocations, intents };
   };
-  const releaseNotes = () =>
-    page("releases?per_page=100").map((r) => {
-      integer(r.id);
-      if (
-        typeof r.tag_name !== "string" ||
-        r.tag_name.length > 128 ||
-        typeof r.draft !== "boolean" ||
-        typeof r.prerelease !== "boolean" ||
-        typeof r.immutable !== "boolean" ||
-        typeof r.target_commitish !== "string" ||
-        !(r.body === null || typeof r.body === "string") ||
-        (typeof r.body === "string" && Buffer.byteLength(r.body) > 65536)
-      )
-        throw new Error("native release notes inventory incomplete or oversized");
-      return r;
-    });
+  const releaseNotes = () => page("releases?per_page=100").map(inspectReleaseNotes);
   return { tags, releases, releaseNotes, readAllocations };
 }
+function inspectReleaseNotes(r: Record<string, unknown>) {
+  integer(r.id);
+  if (
+    typeof r.tag_name !== "string" ||
+    r.tag_name.length > 128 ||
+    typeof r.draft !== "boolean" ||
+    typeof r.prerelease !== "boolean" ||
+    typeof r.immutable !== "boolean" ||
+    typeof r.target_commitish !== "string" ||
+    !(r.body === null || typeof r.body === "string") ||
+    (typeof r.body === "string" && Buffer.byteLength(r.body) > 65536)
+  )
+    throw new Error("native release notes inventory incomplete or oversized");
+  return r;
+}
+
+/** Complete fixed repository Release inventory, without publication authority. */
+export async function readReleaseNotesWithSdk(options: {
+  token: string;
+  deadline: number;
+  guard: () => void;
+  fetch?: typeof globalThis.fetch;
+}) {
+  const { token, guard, fetch } = options;
+  const deadline = Math.min(
+    options.deadline,
+    coordinatorCommandDeadline() ?? Infinity,
+    performance.now() + 120000,
+  );
+  const { createGitHubClient } = await import("./github-client.mts");
+  let expected: string | undefined;
+  const client = await createGitHubClient({
+    credential: { kind: "explicit", token },
+    deadline,
+    maxBytes: 8 * 1024 ** 2,
+    requestTimeoutMs: 30000,
+    allowRequest(method, url) {
+      guard();
+      return method === "GET" && url.href === expected;
+    },
+    ...(fetch ? { fetch } : {}),
+  });
+  const read = async (endpoint: URL) => {
+    expected = endpoint.href;
+    guard();
+    const response = await client.request(`GET ${endpoint.pathname}${endpoint.search}`, {
+      request: { portcove: { replay: "once", attempts: 0 } },
+    });
+    guard();
+    if (response.status !== 200) throw new Error("release notes inventory provider unavailable");
+    return response;
+  };
+  const repo = record((await read(new URL(`https://api.github.com/${base}`))).data as unknown);
+  if (repo.id !== 1354613114 || repo.full_name !== repository || typeof repo.node_id !== "string")
+    throw new Error("admission repository identity differs");
+  let route = new URL(`https://api.github.com/${base}/releases?per_page=100`);
+  const ids = new Set<number>();
+  const rows: Record<string, unknown>[] = [];
+  for (let page = 1; page < maximumPublicationRequests; page++) {
+    const response = await read(route);
+    const body: unknown = response.data;
+    if (!Array.isArray(body) || body.length > 100 || rows.length + body.length > 1600)
+      throw new Error("release notes inventory exceeds record bound");
+    for (const raw of body as unknown[]) {
+      const row = inspectReleaseNotes(record(raw));
+      const id = row.id;
+      integer(id);
+      if (ids.has(id)) throw new Error("release notes inventory duplicates a Release ID");
+      ids.add(id);
+      rows.push(row);
+    }
+    const link: unknown = response.headers.link;
+    if (link === undefined) return rows;
+    if (typeof link !== "string") throw new Error("malformed release notes pagination relation");
+    const relation = /<([^>]+)>;\s*rel="([^"]+)"/gu;
+    const links = [...link.matchAll(relation)];
+    if (
+      !links.length ||
+      link.replace(relation, "").replace(/[,\s]/gu, "") ||
+      links.filter((match) => match[2]?.split(/\s/u).includes("next")).length > 1
+    )
+      throw new Error("malformed release notes pagination relation");
+    const next = nextLink(new Map([["link", link]]));
+    if (next === null) return rows;
+    route = new URL(next);
+    if (
+      route.origin !== "https://api.github.com" ||
+      route.username ||
+      route.password ||
+      route.hash ||
+      ![`/${base}/releases`, "/repositories/1354613114/releases"].includes(route.pathname) ||
+      route.searchParams.size !== 2 ||
+      route.searchParams.get("per_page") !== "100" ||
+      route.searchParams.get("page") !== String(page + 1) ||
+      body.length === 0
+    )
+      throw new Error("release notes inventory pagination changed scope or skipped a page");
+  }
+  throw new Error("release notes inventory exceeds page bound");
+}
+
 export { peel as peelReleaseReference, refsQuery as releasePublicationRefsQuery };

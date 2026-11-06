@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { performance } from "node:perf_hooks";
+import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { createPagesProviderTransport } from "./release-pages-provider.mts";
 import {
   executeBootstrapPages,
+  createApplicationFeedReader,
   readApplicationPagesState,
+  readActualApplicationPagesState,
   assertBootstrapPagesActor,
   readApplicationPagesExecution,
 } from "./application-release-site.mts";
@@ -139,7 +143,7 @@ void test("ordinary prior-site deployment preserves post-OIDC guards and uncerta
   assert.equal(lost.events.filter((event) => event === "POST").length, 1);
 });
 
-void test("prior Pages discovery checks the original feed attempt and refuses replayed deployment chronology", () => {
+void test("prior Pages discovery checks the original feed attempt and refuses replayed deployment chronology", async () => {
   const ref = "portcove-production-controller-windows-fixture";
   const state = {
     deployment_id: 10,
@@ -200,23 +204,20 @@ void test("prior Pages discovery checks the original feed attempt and refuses re
       pages: state.pages,
       "deployments?environment=github-pages&per_page=1": [deployment],
     };
-    const api = {
-      request(method: string, endpoint: string) {
-        assert.equal(method, "GET");
-        const suffix = endpoint.replace(/^repos\/boburning\/portcove\//u, "");
-        assert.ok(Object.hasOwn(replies, suffix), suffix);
-        calls.push(suffix);
-        return {
-          status: 200,
-          headers: new Map<string, string>(),
-          body: structuredClone(replies[suffix]),
-        };
-      },
+    const read = async (endpoint: string) => {
+      const suffix = endpoint.replace(/^repos\/boburning\/portcove\//u, "");
+      assert.ok(Object.hasOwn(replies, suffix), suffix);
+      calls.push(suffix);
+      return {
+        status: 200,
+        headers: new Map<string, string>(),
+        body: structuredClone(replies[suffix]),
+      };
     };
-    return { job, run, deployment, status, calls, api };
+    return { job, run, deployment, status, calls, read };
   };
   const positive = fixture();
-  const result = readApplicationPagesExecution(positive.api, state);
+  const result = await readApplicationPagesExecution(positive.read, state);
   assert.deepEqual(result.run, {
     id: "123",
     control_commit: control,
@@ -226,7 +227,7 @@ void test("prior Pages discovery checks the original feed attempt and refuses re
   assert.ok(positive.calls.includes("actions/runs/123/attempts/1"));
   const failedReadback = fixture();
   failedReadback.job.conclusion = "failure";
-  const recoveredActor = readApplicationPagesExecution(failedReadback.api, state);
+  const recoveredActor = await readApplicationPagesExecution(failedReadback.read, state);
   assert.equal(recoveredActor.conclusion, "failure");
   assert.equal(recoveredActor.authority, "none");
   assert.equal(recoveredActor.deployment_created_at, failedReadback.deployment.created_at);
@@ -265,7 +266,7 @@ void test("prior Pages discovery checks the original feed attempt and refuses re
   ]) {
     const negative = fixture();
     mutate(negative);
-    assert.throws(() => readApplicationPagesExecution(negative.api, state));
+    await assert.rejects(readApplicationPagesExecution(negative.read, state));
   }
 });
 void test("pause, missing OIDC, expired original receipt and changed public preimage cause zero Pages mutations", async () => {
@@ -334,4 +335,72 @@ void test("Pages actor projection binds latest successful deployment, fixed repo
     { log_url: "https://github.com/boburning/portcove/actions/runs/999/job/456" },
   ])
     assert.throws(() => assertBootstrapPagesActor({ ...state, ...change }, site.generation, runs));
+});
+
+void test("actual Pages observation aborts a stalled first response at the inherited deadline", async (t) => {
+  const originalToken = process.env.GH_TOKEN;
+  process.env.GH_TOKEN = "inert-pages-observation";
+  t.after(() => {
+    if (originalToken === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = originalToken;
+  });
+  // Keep package initialization outside the deadline used to test body cancellation.
+  await createApplicationFeedReader("inert-pages-observation", performance.now() + 5000);
+  let calls = 0;
+  let cancelled = false;
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const request = new Request(input, init);
+      assert.equal(request.url, "https://api.github.com/repos/boburning/portcove/pages");
+      assert.equal(request.method, "GET");
+      assert.equal(request.headers.get("authorization"), "token inert-pages-observation");
+      calls++;
+      return new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(Buffer.from("{"));
+          },
+          cancel() {
+            cancelled = true;
+          },
+        }),
+        { headers: { "content-type": "application/json" } },
+      );
+    },
+  );
+  await assert.rejects(
+    withCoordinatorDeadline(performance.now() + 500, () =>
+      readActualApplicationPagesState(performance.now() + 5000),
+    ),
+    { code: "deadline_exceeded" },
+  );
+  assert.equal(calls, 1);
+  assert.equal(cancelled, true);
+});
+
+void test("the exact feed tag route retains uppercase SemVer metadata", async (t) => {
+  const tag = "v1.2.3-beta.Build+Commit";
+  let calls = 0;
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const request = new Request(input, init);
+      assert.equal(
+        request.url,
+        `https://api.github.com/repos/boburning/portcove/git/ref/tags/${tag}`,
+      );
+      assert.equal(request.headers.get("authorization"), "token inert-feed-tag");
+      calls++;
+      return Response.json({ ref: `refs/tags/${tag}`, object: { type: "commit", sha: control } });
+    },
+  );
+  const read = await createApplicationFeedReader("inert-feed-tag", performance.now() + 5000);
+  assert.deepEqual((await read(`repos/boburning/portcove/git/ref/tags/${tag}`)).body, {
+    ref: `refs/tags/${tag}`,
+    object: { type: "commit", sha: control },
+  });
+  assert.equal(calls, 1);
 });
