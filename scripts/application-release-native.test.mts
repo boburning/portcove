@@ -503,6 +503,56 @@ void test("native attester inline SDK stages a verified archive for the no-netwo
         workerSteps.findIndex((entry) => entry.uses?.startsWith("actions/attest@")) > worker,
       );
   }
+  const topLevel = parse(
+    await readFile(
+      new URL("../.github/workflows/application-release.yml", import.meta.url),
+      "utf8",
+    ),
+  ) as {
+    jobs: Record<string, { steps?: ((typeof steps)[number] & { name?: string })[] }>;
+  };
+  const toolReceivers = [
+    "context",
+    "draft_recovery",
+    "publication_prepare",
+    "publication",
+    "feed_prepare",
+    "feed",
+    "readback",
+    "public_installed_readback",
+  ];
+  assert.deepEqual(
+    Object.entries(topLevel.jobs)
+      .filter(([, job]) => job.steps?.some((entry) => entry.uses === step.uses))
+      .map(([job]) => job),
+    toolReceivers,
+  );
+  for (const job of toolReceivers) {
+    const receiver = topLevel.jobs[job]?.steps;
+    assert.ok(receiver);
+    const acquire = receiver.findIndex((entry) => entry.uses === step.uses);
+    const fixed = receiver.findIndex((entry) => entry.name?.startsWith("Bind fixed caller"));
+    assert.ok(fixed >= 0 && acquire > fixed);
+    const withOptions = receiver[acquire]?.with;
+    assert.ok(withOptions?.script);
+    assert.deepEqual(
+      {
+        ...withOptions,
+        script: withOptions.script.replace(
+          "Application tools acquisition refused",
+          "Native attester tools acquisition refused",
+        ),
+      },
+      step.with,
+    );
+    assert.equal(
+      receiver[acquire + 1]?.run,
+      "node scripts/application-release-tools.mts receive-file",
+    );
+    assert.ok(
+      receiver.every((entry) => entry.run !== "node scripts/application-release-tools.mts receive"),
+    );
+  }
   const root = await mkdtemp(path.join(tmpdir(), "native-attester-tools-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const scratch = path.join(root, "portcove-native-attester-tools");

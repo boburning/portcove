@@ -9,8 +9,6 @@ import os from "node:os";
 import { performance } from "node:perf_hooks";
 import { crc32, inflateRawSync } from "node:zlib";
 import { inspectBoundedZip } from "./bounded-zip.mts";
-import { readGitHubArtifactArchive } from "./github-binary.mts";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import { isRecord } from "./runtime-values.mts";
 import { releasePathContains } from "./release-path-safety.mts";
 import {
@@ -20,15 +18,7 @@ import {
 import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
 import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 export const applicationRepository = "repos/boburning/portcove";
-const preToolApplicationApi = new GitHubApiClient(
-  createGitHubRunner({ timeoutMs: 30000, maxBuffer: 8 * 1024 ** 2 }),
-);
 export const sha256 = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
-const readPreToolApplicationMetadata = (suffix: string) => {
-  const response = preToolApplicationApi.request("GET", `${applicationRepository}/${suffix}`);
-  assert.equal(response.status, 200);
-  return response.body;
-};
 export async function writeApplicationJson(filename: string, value: unknown) {
   await mkdir(path.dirname(filename), { recursive: true });
   await writeFile(filename, `${JSON.stringify(value)}\n`, { flag: "wx", mode: 0o600 });
@@ -71,22 +61,9 @@ type ApplicationDataExpectation = {
   retain_archive?: string;
 };
 
-export function receiveApplicationData(directory: string, expected: ApplicationDataExpectation) {
-  return receiveApplicationDataFrom(directory, expected, false);
-}
-
-/** The unbundled receiver runs before the attested tool bundle is available. */
-export function receiveApplicationToolData(
-  directory: string,
-  expected: ApplicationDataExpectation,
-) {
-  return receiveApplicationDataFrom(directory, expected, true);
-}
-
-async function receiveApplicationDataFrom(
+export async function receiveApplicationData(
   directory: string,
   rawExpected: ApplicationDataExpectation,
-  preTool: boolean,
 ) {
   const expected = structuredClone(rawExpected);
   const maximum = validateDataExpectation(expected);
@@ -95,52 +72,38 @@ async function receiveApplicationDataFrom(
     assertTrustedDirectNode("fixed application artifact receiver");
     return globalThis.fetch(input, init);
   };
-  const token = preTool ? undefined : fixedReleaseReaderToken();
-  const metadataDeadline = Math.min(originalDeadline, performance.now() + 30000);
-  let metadata: unknown;
-  if (token === undefined) {
-    metadata = readPreToolApplicationMetadata(`actions/artifacts/${expected.id}`);
-  } else {
-    const { createReleaseCustodyProvider } = await import("./release-custody-provider.mts");
-    const provider = await createReleaseCustodyProvider({
-      token,
-      deadline: metadataDeadline,
-      requestTimeoutMs: 30000,
-      maxBytes: 8 * 1024 ** 2,
-      fetch: fetchDirect,
-    });
-    metadata = await provider.artifact(expected.id);
-  }
+  const token = fixedReleaseReaderToken();
+  const { createReleaseCustodyProvider } = await import("./release-custody-provider.mts");
+  const provider = await createReleaseCustodyProvider({
+    token,
+    deadline: Math.min(originalDeadline, performance.now() + 30000),
+    requestTimeoutMs: 30000,
+    maxBytes: 8 * 1024 ** 2,
+    fetch: fetchDirect,
+  });
+  const metadata = await provider.artifact(expected.id);
   const identity = inspectDataArchiveMetadata(metadata, expected, maximum);
   const endpoint = `${applicationRepository}/actions/artifacts/${expected.id}/zip`;
+  const deadline = Math.min(originalDeadline, performance.now() + 120000);
+  const scratch = await mkdtemp(path.join(os.tmpdir(), "application-data-archive-"));
   let archive: Buffer;
-  if (token === undefined) {
-    archive = readGitHubArtifactArchive(endpoint, {
-      cwd: process.cwd(),
-      maxBytes: maximum,
-      timeoutMs: 120000,
+  try {
+    const { downloadGitHubArtifactArchiveFile } = await import("./github-artifact-download.mts");
+    const { readBoundedPublicBuildInputFile } = await import("./release-public-build-inputs.mts");
+    const filename = "archive.zip";
+    const maxBytes = identity.bytes;
+    await downloadGitHubArtifactArchiveFile(endpoint, path.join(scratch, filename), {
+      credential: { kind: "explicit", token },
+      deadline,
+      maxBytes,
+      fetch: fetchDirect,
     });
-  } else {
-    const deadline = Math.min(originalDeadline, performance.now() + 120000);
-    const scratch = await mkdtemp(path.join(os.tmpdir(), "application-data-archive-"));
-    try {
-      const { downloadGitHubArtifactArchiveFile } = await import("./github-artifact-download.mts");
-      const { readBoundedPublicBuildInputFile } = await import("./release-public-build-inputs.mts");
-      const filename = "archive.zip";
-      const maxBytes = identity.bytes;
-      await downloadGitHubArtifactArchiveFile(endpoint, path.join(scratch, filename), {
-        credential: { kind: "explicit", token },
-        deadline,
-        maxBytes,
-        fetch: fetchDirect,
-      });
-      archive = await readBoundedPublicBuildInputFile(scratch, filename, maxBytes);
-    } finally {
-      await rm(scratch, { recursive: true, force: true });
-    }
-    if (performance.now() >= deadline)
-      throw new Error("application artifact transfer deadline exhausted");
+    archive = await readBoundedPublicBuildInputFile(scratch, filename, maxBytes);
+  } finally {
+    await rm(scratch, { recursive: true, force: true });
   }
+  if (performance.now() >= deadline)
+    throw new Error("application artifact transfer deadline exhausted");
   return extractApplicationArchive(directory, expected, maximum, identity, archive);
 }
 

@@ -7,7 +7,6 @@ import { fileURLToPath } from "node:url";
 import {
   applicationFileIdentity,
   readApplicationJson,
-  receiveApplicationToolData,
   receiveStagedApplicationToolData,
   writeApplicationJson,
 } from "./application-release-io.mts";
@@ -63,7 +62,7 @@ async function build() {
   });
 }
 
-export async function receiveApplicationTools(id: number, attempt: number, staged = false) {
+async function receiveApplicationTools(id: number, attempt: number) {
   const execution = inspectApplicationReleaseExecution(process.env);
   assert.ok(Number.isSafeInteger(attempt) && attempt >= 1 && attempt <= execution.run_attempt);
   const directory = path.resolve("work/application-tools");
@@ -76,16 +75,14 @@ export async function receiveApplicationTools(id: number, attempt: number, stage
     maximum_file_bytes: 128 * 1024 ** 2,
     maximum_archive_bytes: 320 * 1024 ** 2,
   };
-  if (staged) {
-    const parent = process.env.RUNNER_TEMP;
-    assert.ok(parent && path.isAbsolute(parent));
-    const scratch = path.join(parent, "portcove-native-attester-tools");
-    try {
-      await receiveStagedApplicationToolData(directory, expected, scratch);
-    } finally {
-      await rm(scratch, { recursive: true, force: true });
-    }
-  } else await receiveApplicationToolData(directory, expected);
+  const parent = process.env.RUNNER_TEMP;
+  assert.ok(parent && path.isAbsolute(parent));
+  const scratch = path.join(parent, "portcove-native-attester-tools");
+  try {
+    await receiveStagedApplicationToolData(directory, expected, scratch);
+  } finally {
+    await rm(scratch, { recursive: true, force: true });
+  }
   const manifest = await readApplicationJson(path.join(directory, "tools.json"), 65536);
   assert.ok(isRecord(manifest));
   assert.deepEqual(
@@ -125,11 +122,10 @@ export async function receiveApplicationTools(id: number, attempt: number, stage
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   if (process.argv[2] === "build") await build();
-  else if (process.argv[2] === "receive" || process.argv[2] === "receive-file")
+  else if (process.argv[2] === "receive-file")
     await receiveApplicationTools(
       Number(process.env.PORTCOVE_TOOLS_ARTIFACT),
       Number(process.env.PORTCOVE_TOOLS_ATTEMPT),
-      process.argv[2] === "receive-file",
     );
   else throw new Error("unknown fixed application tool operation");
 }
