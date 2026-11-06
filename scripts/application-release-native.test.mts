@@ -1725,6 +1725,36 @@ void test("ordinary publication prepares actual inputs before a separate fresh o
   }
 });
 
+void test("private reusable jobs pass only their own protected environment secret by name", async () => {
+  const caller: unknown = parse(
+    await readFile(".github/workflows/application-release.yml", "utf8"),
+  );
+  const worker: unknown = parse(
+    await readFile(".github/workflows/application-release-private.yml", "utf8"),
+  );
+  assert.ok(isRecord(caller) && isRecord(caller.jobs));
+  assert.ok(isRecord(worker) && isRecord(worker.on) && isRecord(worker.on.workflow_call));
+  const declared = worker.on.workflow_call.secrets;
+  assert.ok(isRecord(declared));
+  let checked = 0;
+  for (const job of Object.values(caller.jobs)) {
+    if (!isRecord(job) || job.uses !== "./.github/workflows/application-release-private.yml")
+      continue;
+    assert.ok(isRecord(job.with) && typeof job.with.operation === "string");
+    const operation = job.with.operation;
+    const key =
+      operation === "observe"
+        ? "PORTCOVE_PROTECTION_APP_PRIVATE_KEY"
+        : operation === "payload"
+          ? "TAURI_SIGNING_PRIVATE_KEY"
+          : "PORTCOVE_TUF_" + operation.slice("role-".length).toUpperCase() + "_KEY";
+    assert.ok(isRecord(declared[key]));
+    assert.deepEqual(job.secrets, { [key]: "$" + "{{ secrets." + key + " }}" });
+    checked++;
+  }
+  assert.equal(checked, 13);
+});
+
 void test("metadata jobs explicitly require each direct producer despite optional skipped ancestors", async () => {
   const workflow: unknown = parse(
     await readFile(".github/workflows/application-release.yml", "utf8"),

@@ -193,6 +193,8 @@ jobs:
       actions: read
       checks: read
     uses: ./.github/workflows/application-release-private.yml
+    secrets:
+      PORTCOVE_PROTECTION_APP_PRIVATE_KEY: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
     with:
       operation: observe
       phase: payload
@@ -211,6 +213,8 @@ jobs:
       actions: read
       checks: read
     uses: ./.github/workflows/application-release-private.yml
+    secrets:
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
     with:
       operation: payload
       phase: payload
@@ -514,6 +518,8 @@ jobs:
       actions: read
       checks: read
     uses: ./.github/workflows/application-release-private.yml
+    secrets:
+      PORTCOVE_PROTECTION_APP_PRIVATE_KEY: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
     with:
       operation: observe
       phase: metadata
@@ -532,6 +538,8 @@ jobs:
       actions: read
       checks: read
     uses: ./.github/workflows/application-release-private.yml
+    secrets:
+      PORTCOVE_TUF_RELEASES_KEY: ${{ secrets.PORTCOVE_TUF_RELEASES_KEY }}
     with:
       operation: role-releases
       phase: metadata
@@ -555,6 +563,8 @@ jobs:
       actions: read
       checks: read
     uses: ./.github/workflows/application-release-private.yml
+    secrets:
+      PORTCOVE_TUF_PREVIEW_KEY: ${{ secrets.PORTCOVE_TUF_PREVIEW_KEY }}
     with:
       operation: role-preview
       phase: metadata
@@ -578,6 +588,8 @@ jobs:
       actions: read
       checks: read
     uses: ./.github/workflows/application-release-private.yml
+    secrets:
+      PORTCOVE_TUF_STABLE_KEY: ${{ secrets.PORTCOVE_TUF_STABLE_KEY }}
     with:
       operation: role-stable
       phase: metadata
@@ -601,6 +613,8 @@ jobs:
       actions: read
       checks: read
     uses: ./.github/workflows/application-release-private.yml
+    secrets:
+      PORTCOVE_PROTECTION_APP_PRIVATE_KEY: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
     with:
       operation: observe
       phase: snapshot
@@ -619,6 +633,8 @@ jobs:
       actions: read
       checks: read
     uses: ./.github/workflows/application-release-private.yml
+    secrets:
+      PORTCOVE_TUF_SNAPSHOT_KEY: ${{ secrets.PORTCOVE_TUF_SNAPSHOT_KEY }}
     with:
       operation: role-snapshot
       phase: snapshot
@@ -644,6 +660,8 @@ jobs:
       actions: read
       checks: read
     uses: ./.github/workflows/application-release-private.yml
+    secrets:
+      PORTCOVE_PROTECTION_APP_PRIVATE_KEY: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
     with:
       operation: observe
       phase: timestamp
@@ -662,6 +680,8 @@ jobs:
       actions: read
       checks: read
     uses: ./.github/workflows/application-release-private.yml
+    secrets:
+      PORTCOVE_TUF_TIMESTAMP_KEY: ${{ secrets.PORTCOVE_TUF_TIMESTAMP_KEY }}
     with:
       operation: role-timestamp
       phase: timestamp
@@ -782,6 +802,8 @@ jobs:
       actions: read
       checks: read
     uses: ./.github/workflows/application-release-private.yml
+    secrets:
+      PORTCOVE_PROTECTION_APP_PRIVATE_KEY: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
     with:
       operation: observe
       phase: draft-recovery
@@ -896,6 +918,8 @@ jobs:
       actions: read
       checks: read
     uses: ./.github/workflows/application-release-private.yml
+    secrets:
+      PORTCOVE_PROTECTION_APP_PRIVATE_KEY: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
     with:
       operation: observe
       phase: publication
@@ -1103,6 +1127,8 @@ jobs:
       actions: read
       checks: read
     uses: ./.github/workflows/application-release-private.yml
+    secrets:
+      PORTCOVE_PROTECTION_APP_PRIVATE_KEY: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
     with:
       operation: observe
       phase: feed
