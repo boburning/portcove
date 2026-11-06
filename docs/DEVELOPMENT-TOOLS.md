@@ -3315,7 +3315,10 @@ custody. Windows process-identity inspection retains a finite 15-second harness
 budget under host I/O load; host release allows 65 seconds for its bounded
 remote cleanup probe and identity checks. Timeouts retain custody. The host adapter's --recover action consumes the original reference and
 invocation before using existing external-capacity recovery. Prelaunch recovery
-requires an explicit completion marker; PID absence alone is insufficient.
+requires an explicit completion marker. If registration is missing after launch,
+recovery requires positive Linux supervisor cleanup from the original pinned
+verifier, exit of the original Linux owner, and unchanged custody. The Windows
+reservation is released only after its original owner and lease are rechecked.
 
 Prepare the scoped [scratch profiles](DEVELOPMENT-STORAGE.md#machine-scratch-profiles),
 then run from the updated WSL checkout:
