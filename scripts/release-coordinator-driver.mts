@@ -2475,7 +2475,7 @@ async function prepareTrustedCoordinatorBootstrapAt(
   let refreshing = false,
     refused = false;
   let owned: BootstrapPreparation | undefined;
-  const controls = async (phaseDeadline?: number) => {
+  const controls = async (phaseDeadline?: number, controlReader?: "metadata-maintenance") => {
     const deadline = owned
       ? (owned.deadline = coordinatorContinuationDeadline(owned.deadline, phaseDeadline))
       : coordinatorContinuationDeadline(budget.monotonicDeadline, phaseDeadline);
@@ -2488,9 +2488,11 @@ async function prepareTrustedCoordinatorBootstrapAt(
         capacityDigest({ checkpoint: controlCheckpoint, descriptor }),
         "coordinator",
         round,
-        { deadline, controlReader: "metadata-maintenance" },
+        { deadline, ...(controlReader ? { controlReader } : {}) },
       );
-      const facts = await control.readSdkMaintenance(undefined, { deadline });
+      const facts = controlReader
+        ? await control.readSdkMaintenance(undefined, { deadline })
+        : control.readMaintenance(metadataContinuationApi(directory, () => deadline));
       if (
         control.evidence_scope !== "github.com" ||
         facts.reader.job_id !== reader.identity.job_id ||
@@ -2652,7 +2654,9 @@ async function prepareTrustedCoordinatorBootstrapAt(
     ...(catalogSite ? { catalog_site: catalogSite.receipt } : {}),
     fresh_configured_site: lateSite,
     site_observed_at: siteObservedAt,
-    next_controls: controls,
+    // Preparation and its synchronous CAS fence are complete. Later signing
+    // checks get their own scoped reader without changing the original writer.
+    next_controls: (phaseDeadline) => controls(phaseDeadline, "metadata-maintenance"),
   };
   bootstrapPreparations.set(result, owned);
   return result;
