@@ -452,6 +452,7 @@ void test("Aqua checksum entries reject absent, non-text and empty retained iden
 void test("bootstrap pins use verified official Windows download origins", () => {
   const pins = readToolPins();
   assert.ok(pins.bootstrap.aqua && pins.bootstrap.desktop);
+  assert.equal(pins.bootstrap.aqua.version, pins.aquaVersion);
   assert.equal(
     pins.bootstrap.aqua.release_base,
     "https://github.com/aquaproj/aqua/releases/download",
