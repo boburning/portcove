@@ -318,7 +318,7 @@ export async function acquireHostedNativePreparation(
   configuration: unknown,
   sources: Pick<
     NonNullable<Parameters<typeof acquireReleaseAdmission>[2]>,
-    "api" | "collectEvidence" | "recover" | "download" | "retainDesktopPackage"
+    "api" | "nativeSource" | "collectEvidence" | "recover" | "download" | "retainDesktopPackage"
   >,
   receiveFacts: (facts: Readonly<PreparedReleaseAdmissionFacts>) => Promise<unknown>,
 ) {
@@ -329,6 +329,7 @@ export async function acquireHostedNativePreparation(
     throw new Error("native preparation requires the original pre-sign source");
   const collection: NonNullable<Parameters<typeof acquireReleaseAdmission>[2]> = {
     ...(sources.api ? { api: sources.api } : {}),
+    ...(sources.nativeSource ? { nativeSource: sources.nativeSource } : {}),
     ...(sources.collectEvidence ? { collectEvidence: sources.collectEvidence } : {}),
     ...(sources.recover ? { recover: sources.recover } : {}),
     ...(sources.download ? { download: sources.download } : {}),
@@ -350,6 +351,7 @@ export async function acquireReleaseAdmission(
   rawConfiguration: unknown,
   rawOptions: {
     api?: Api;
+    nativeSource?: { token: string; deadline: number; guard: () => void };
     collectEvidence?: typeof collectReleaseRunEvidence;
     recover?: Recover;
     download?: SigningArchiveDownload;
@@ -376,8 +378,19 @@ export async function acquireReleaseAdmission(
     ) => Promise<AuthenticatedReleaseControlSource>;
   } = {},
 ) {
-  if (rawOptions.collectEvidence && !rawOptions.api)
+  if (rawOptions.collectEvidence && !rawOptions.api && !rawOptions.nativeSource)
     throw new Error("custom release evidence requires its original source reader");
+  if (
+    rawOptions.nativeSource &&
+    (rawOptions.api ||
+      rawOptions.controls ||
+      rawOptions.establishControls ||
+      rawOptions.compiler ||
+      !rawOptions.collectEvidence ||
+      !rawOptions.recover ||
+      !rawOptions.download)
+  )
+    throw new Error("native selection requires the original read-only admission sources");
   const qualifyingOnly = qualifyingCollections.has(rawOptions);
   const nativePreparation = nativePreparationCollections.has(rawOptions);
   const aggregateResume = aggregateCollections.has(rawOptions);
@@ -387,6 +400,9 @@ export async function acquireReleaseAdmission(
   // option after collection to obtain a production context.
   const options = Object.freeze({
     ...rawOptions,
+    ...(rawOptions.nativeSource
+      ? { nativeSource: Object.freeze({ ...rawOptions.nativeSource }) }
+      : {}),
     ...(rawOptions.compiler
       ? {
           compiler: Object.freeze({
@@ -415,7 +431,8 @@ export async function acquireReleaseAdmission(
     : undefined;
   const config = configuration(structuredClone(rawConfiguration));
   const started = performance.now();
-  const inventoryEnvironment = options.api ? undefined : { ...process.env };
+  const nativeSource = options.nativeSource;
+  const inventoryEnvironment = options.api || nativeSource ? undefined : { ...process.env };
   const root = await mkdtemp(path.join(path.resolve(privateRoot), "release-admission-"));
   let phase = "initialize";
   let checkpoint: string | null = null;
@@ -423,17 +440,20 @@ export async function acquireReleaseAdmission(
   try {
     const rawApi =
       options.api ??
-      new GitHubApiClient((args, input) =>
-        createGitHubRunner({ cwd: root, maxBuffer: 2 * 1024 * 1024, timeoutMs: 15000 })(
-          [...args, "--hostname", "github.com"],
-          input,
-        ),
-      );
+      (nativeSource
+        ? undefined
+        : new GitHubApiClient((args, input) =>
+            createGitHubRunner({ cwd: root, maxBuffer: 2 * 1024 * 1024, timeoutMs: 15000 })(
+              [...args, "--hostname", "github.com"],
+              input,
+            ),
+          ));
     let apiMilliseconds = 0;
     const admissionDeadline = Math.min(
       started + 15 * 60 * 1000,
       options.deadline ?? Infinity,
-      inventoryEnvironment === undefined ? Infinity : (coordinatorCommandDeadline() ?? Infinity),
+      nativeSource?.deadline ?? Infinity,
+      options.api ? Infinity : (coordinatorCommandDeadline() ?? Infinity),
     );
     const budget = () => {
       if (requests >= 160 || apiMilliseconds >= 120000 || performance.now() >= admissionDeadline)
@@ -511,6 +531,7 @@ export async function acquireReleaseAdmission(
           endpoint.startsWith("https:") ? endpoint : `https://api.github.com/${endpoint}`,
         );
         assertAdmissionRestRead(method, url, body);
+        if (!rawApi) throw new Error("native admission has no synchronous provider");
         budget();
         const requestStarted = performance.now();
         const response = rawApi.request("GET", endpoint);
@@ -526,6 +547,7 @@ export async function acquireReleaseAdmission(
       graphql(query, variables) {
         if (query !== refsQuery && query !== releaseControlRefQuery)
           throw new Error("admission permits only the fixed read-only ref query");
+        if (!rawApi) throw new Error("native admission has no synchronous provider");
         budget();
         const requestStarted = performance.now();
         const response = rawApi.graphql(query, variables);
@@ -536,8 +558,11 @@ export async function acquireReleaseAdmission(
       },
     };
     phase = "repository-and-reservation";
-    const inventoryToken = inventoryEnvironment && fixedReleaseReaderToken(inventoryEnvironment);
+    const inventoryToken =
+      nativeSource?.token ??
+      (inventoryEnvironment && fixedReleaseReaderToken(inventoryEnvironment));
     const checkReadTime = () => {
+      nativeSource?.guard();
       if (performance.now() >= archiveLookup().deadline)
         throw new Error("admission API acquisition bound exhausted");
     };
@@ -554,7 +579,9 @@ export async function acquireReleaseAdmission(
             async recheck() {
               checkReadTime();
             },
-            beforeDispatch() {
+            beforeDispatch(_method, url) {
+              if (nativeSource && url.pathname.startsWith("/repositories/"))
+                throw new Error("native source repository route refused");
               checkReadTime();
               assertTrustedDirectNode("fixed release admission inventory");
             },
@@ -1244,6 +1271,7 @@ export async function acquireReleaseAdmission(
       sbomEvidence.state !== "verified-document" ||
       sbomEvidence.evidence_scope !== "github.com" ||
       options.api ||
+      nativeSource ||
       options.recover ||
       options.download ||
       options.now
@@ -1292,6 +1320,7 @@ export async function acquireReleaseAdmission(
         : null;
     const evidenceScope =
       options.api ||
+      nativeSource ||
       options.recover ||
       options.download ||
       options.now ||

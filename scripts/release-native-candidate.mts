@@ -719,6 +719,14 @@ async function sourceTransport(parent: Parent, directory: string) {
         `/repos/boburning/portcove/${route}`,
         performance.now() + remainingNativeParentBudget(),
       ),
+    admissionSource: () => ({
+      token,
+      deadline: postSignDeadline(Infinity, 15 * 60 * 1000),
+      guard() {
+        checkToolIdentity();
+        assertTrustedDirectNode("installed native admission");
+      },
+    }),
     readPostSignInventory,
     readPostSignArtifact,
     downloadPostSignArchive,
@@ -2181,7 +2189,7 @@ export async function acquireActualNativeCandidate(parentReceipt: object) {
         release_profile: "initial-beta-win-linux",
       },
       {
-        api: source.api,
+        nativeSource: source.admissionSource(),
         collectEvidence: source.collectEvidence,
         download: source.download,
         recover: source.recover,

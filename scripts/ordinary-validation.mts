@@ -990,13 +990,18 @@ for (const [file, tests] of [
   [
     "scripts/release-hosted-native-candidate.mts",
     [
+      "scripts/acquire-release-admission.test.mts",
       "scripts/production-controller-admission.test.mts",
       "scripts/release-hosted-native-job.test.mts",
     ],
   ],
   [
     "scripts/release-native-candidate.mts",
-    ["scripts/release-native-candidate.test.mts", "scripts/release-native-attempt.test.mts"],
+    [
+      "scripts/acquire-release-admission.test.mts",
+      "scripts/release-native-candidate.test.mts",
+      "scripts/release-native-attempt.test.mts",
+    ],
   ],
   ["scripts/release-native-keyless-assembly.mts", ["scripts/release-native-candidate.test.mts"]],
   [

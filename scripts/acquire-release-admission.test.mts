@@ -121,8 +121,41 @@ void test("native preparatory collection reaches immutable facts while qualifyin
   let evidenceDispatches = 0;
   const fixtureApi = f.options.api;
   assert.ok(fixtureApi);
+  const metadataRoutes: string[] = [];
+  let sourceGuards = 0;
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const request = new Request(input, init);
+      const url = new URL(request.url);
+      assert.equal(request.headers.get("authorization"), "token original-native-source");
+      metadataRoutes.push(url.pathname);
+      if (url.pathname === "/graphql") {
+        const raw: unknown = await request.json();
+        assert.ok(
+          isRecord(raw) && raw.query === releasePublicationRefsQuery && isRecord(raw.variables),
+        );
+        return Response.json({
+          data: fixtureApi.graphql(releasePublicationRefsQuery, raw.variables).data,
+        });
+      }
+      const response = fixtureApi.request("GET", url.href);
+      return Response.json(response.body, { headers: [...response.headers] });
+    },
+  );
+  const { recover, download } = f.options;
+  assert.ok(recover && download);
   const sources = {
-    ...f.options,
+    recover,
+    download,
+    nativeSource: {
+      token: "original-native-source",
+      deadline: performance.now() + 5000,
+      guard() {
+        sourceGuards++;
+      },
+    },
     collectEvidence: (request: unknown, options: Parameters<typeof collectReleaseRunEvidence>[1]) =>
       collectReleaseRunEvidence(request, {
         ...options,
@@ -154,6 +187,10 @@ void test("native preparatory collection reaches immutable facts while qualifyin
     );
   }
   assert.equal(calls, 2);
+  assert.ok(metadataRoutes.some((route) => route.endsWith("/check-runs")));
+  assert.ok(metadataRoutes.some((route) => route.includes("/compare/")));
+  assert.ok(sourceGuards >= metadataRoutes.length);
+
   assert.ok(evidenceDispatches >= 14);
   f.input.active_candidate.phase = "publishing";
   await assert.rejects(

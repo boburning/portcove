@@ -291,6 +291,14 @@ async function hostedNativeSourceTransport(parentReceipt: object, directory: str
     api,
     collectEvidence,
     predecessorReaders,
+    admissionSource: {
+      token: credential.token,
+      deadline,
+      guard() {
+        remaining(1);
+        assertTrustedDirectNode("hosted native admission");
+      },
+    },
     download,
     readPostSignMetadata,
     downloadPostSignArchive,
@@ -324,8 +332,14 @@ export async function acquireActualHostedNativeCandidate(parentReceipt: object) 
   try {
     return await withCoordinatorDeadline(Math.min(acquisitionDeadline, parent.deadline), () =>
       withReadOnlyReleaseChildren(directory, async () => {
-        const { remaining, api, collectEvidence, download, recover, declarationProvider } =
-          await hostedNativeSourceTransport(parentReceipt, directory);
+        const {
+          remaining,
+          admissionSource,
+          collectEvidence,
+          download,
+          recover,
+          declarationProvider,
+        } = await hostedNativeSourceTransport(parentReceipt, directory);
         const before = await recover();
         if (inspectHostedNativePreparationStage(before.input) !== "payload-signing")
           throw new Error("original reservation is not at the native pre-sign stage");
@@ -346,7 +360,7 @@ export async function acquireActualHostedNativeCandidate(parentReceipt: object) 
               ...(publicInputs ? { public_build_inputs: publicInputs } : {}),
             },
             {
-              api,
+              nativeSource: admissionSource,
               collectEvidence,
               download,
               recover,

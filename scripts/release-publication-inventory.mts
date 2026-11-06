@@ -315,7 +315,7 @@ export async function createPublicationInventoryWithSdk(options: {
   deadline: number;
   fetch?: typeof globalThis.fetch;
   recheck: () => Promise<void>;
-  beforeDispatch?: () => void;
+  beforeDispatch?: (method: string, url: URL) => void;
   currentDeadline?: () => number;
   maxBytes?: number;
   requestTimeoutMs?: number;
@@ -346,7 +346,7 @@ export async function createPublicationInventoryWithSdk(options: {
       ? {}
       : { requestTimeoutMs: options.requestTimeoutMs }),
     allowRequest(method, url) {
-      options.beforeDispatch?.();
+      options.beforeDispatch?.(method, url);
       return expected !== undefined && method === expected.method && url.href === expected.url;
     },
     reserve:
