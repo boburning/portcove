@@ -1202,6 +1202,7 @@ for (const controlReader of [
     const priorMutations = control.mutations();
     const base = "https://api.github.com";
     const reads: string[] = [];
+    let riskScope = false;
     let expireOnObserver = false;
     let stallBody = false;
     t.mock.method(
@@ -1213,7 +1214,12 @@ for (const controlReader of [
         assert.ok(url.startsWith(base + "/"));
         const endpoint = url.slice(base.length);
         reads.push(endpoint);
-        assert.equal(new Headers(init?.headers).get("authorization"), "token synthetic-site");
+        assert.equal(
+          new Headers(init?.headers).get("authorization"),
+          riskScope && !endpoint.includes("/actions/jobs/")
+            ? "token synthetic-risk"
+            : "token synthetic-site",
+        );
         if (endpoint === "/graphql") {
           assert.equal(init?.method, "POST");
           assert.ok(typeof init.body === "string");
@@ -1249,7 +1255,11 @@ for (const controlReader of [
       },
     );
     const source = await authenticateReleaseControlSource(
-      { ...runtime.environment, GH_TOKEN: "synthetic-site" },
+      {
+        ...runtime.environment,
+        GH_TOKEN: "synthetic-site",
+        PORTCOVE_RELEASE_READ_TOKEN: "synthetic-risk",
+      },
       runtime.workflow,
       { ...options, deadline: performance.now() + 5000, controlReader },
     );
@@ -1277,6 +1287,29 @@ for (const controlReader of [
     assert.match(reads[0] ?? "", /\/actions\/jobs\//u);
     assert.equal(reads.at(-1), reads[0]);
     assert.equal(control.mutations(), priorMutations);
+    if (publication) {
+      const start = reads.length;
+      let reserved = 0;
+      let dispatched = 0;
+      riskScope = true;
+      const risk = await source.readSdkApplicationControls(opportunity, {
+        deadline: performance.now() + 1000,
+        reserve: () => {
+          reserved++;
+          return {
+            consumeBytes() {},
+            settle(value) {
+              if (value.dispatched) dispatched++;
+            },
+          };
+        },
+      });
+      riskScope = false;
+      assert.equal(risk.facts_sha256, expected.facts_sha256);
+      assert.equal(reserved, dispatched);
+      assert.equal(dispatched, reads.length - start - 1);
+      assert.equal(reads.at(-1), reads[0]);
+    }
     if (controlReader === "metadata-maintenance") {
       stallBody = true;
       const beforeStall = reads.length;

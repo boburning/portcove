@@ -755,19 +755,31 @@ async function authenticateControlSource(
         !readSdkProducer
       )
         throw new Error("actual scoped application reader unavailable");
+      const token = accounting === undefined ? sdkReaderToken : env.PORTCOVE_RELEASE_READ_TOKEN;
+      if (!token || token.length > 16384 || /\s/u.test(token))
+        throw new Error("fixed risk reader token unavailable");
+      const fetch: typeof globalThis.fetch =
+        accounting === undefined
+          ? fixedFetch
+          : (input, init) => {
+              assertTrustedDirectNode("fixed risk controls");
+              return fixedFetch(input, init);
+            };
       const protection = guard();
       const { classification, pause, capacity } = await readApplicationControlsWithSdk(
         {
-          token: sdkReaderToken,
+          token,
           deadline: Math.min(sdkDeadline, accounting?.deadline ?? Infinity),
           guard,
-          fetch: fixedFetch,
+          fetch,
         },
         config,
         opportunity,
         accounting?.reserve,
       );
       guard();
+      // The original observer readback had its own credential and scope. It
+      // stays outside the risk inventory allowance, with the same tighter cutoff.
       if ((await readSdkProducer(accounting?.deadline)) !== producerIdentity)
         throw new Error("observer job changed during source acquisition");
       return applicationFacts(protection, classification, pause, capacity);
