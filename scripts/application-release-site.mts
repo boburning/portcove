@@ -3,11 +3,67 @@
 import assert from "node:assert/strict";
 import { performance } from "node:perf_hooks";
 import { isRecord } from "./runtime-values.mts";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
+import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { inspectSiteGeneration } from "./release-site-generation.mts";
 import { isTerminalPagesFailure } from "./release-pages-provider.mts";
 import type { createPagesProviderTransport } from "./release-pages-provider.mts";
 import type { GitHubMetadataResponse, GitHubRestReader } from "./github-operation.mts";
+
+export async function createApplicationFeedReader(token: string, originalDeadline: number) {
+  const deadline = Math.min(originalDeadline, coordinatorCommandDeadline() ?? Infinity);
+  const base = "/repos/boburning/portcove/";
+  const allowed = (url: URL) => {
+    const suffix = url.pathname.slice(base.length);
+    if (suffix === "deployments") return url.search === "?environment=github-pages&per_page=1";
+    if (/^deployments\/[1-9][0-9]*\/statuses$/u.test(suffix)) return url.search === "?per_page=1";
+    return (
+      !url.search &&
+      (suffix === "pages" ||
+        /^deployments\/[1-9][0-9]*$/u.test(suffix) ||
+        /^actions\/(?:jobs\/[1-9][0-9]*|runs\/[1-9][0-9]*\/attempts\/[1-3])$/u.test(suffix) ||
+        /^git\/ref\/tags\/(?:portcove-production-candidate-(?:[a-f0-9]{40}|[a-f0-9]{64})|v[0-9][a-z0-9.+-]{1,127})$/u.test(
+          suffix,
+        ))
+    );
+  };
+  const { createGitHubClient } = await import("./github-client.mts");
+  let expected: string | undefined;
+  const client = await createGitHubClient({
+    credential: { kind: "explicit", token },
+    deadline,
+    requestTimeoutMs: 30000,
+    maxBytes: 8 * 1024 ** 2,
+    allowRequest(method, url) {
+      assertTrustedDirectNode("fixed application Pages observation");
+      return method === "GET" && url.href === expected;
+    },
+  });
+  return async (endpoint: string): Promise<GitHubMetadataResponse> => {
+    const url = new URL(endpoint, "https://api.github.com/");
+    if (
+      url.origin !== "https://api.github.com" ||
+      !url.pathname.startsWith(base) ||
+      url.username ||
+      url.password ||
+      url.hash ||
+      !allowed(url)
+    )
+      throw new Error("application feed observation route differs");
+    expected = url.href;
+    const response = await client.request(`GET ${url.pathname}${url.search}`, {
+      request: { portcove: { replay: "once", attempts: 0 } },
+    });
+    return { status: response.status, headers: new Map(), body: response.data as unknown };
+  };
+}
+
+export async function readActualApplicationPagesState(deadline = performance.now() + 120000) {
+  const read = await createApplicationFeedReader(fixedReleaseReaderToken(), deadline);
+  return readApplicationPagesStateAsync(read);
+}
 
 type PagesRead<T> = Generator<string, T, GitHubMetadataResponse>;
 

@@ -88,6 +88,7 @@ import { projectWindowsNsisExecutable } from "./release-compiler-desktop.mts";
 import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.mts";
 import {
   readApplicationPagesState,
+  readActualApplicationPagesState,
   assertBootstrapPagesActor,
   executeBootstrapPages,
 } from "./application-release-site.mts";
@@ -987,7 +988,7 @@ async function prepareOrdinaryPublication() {
   );
   await readPublicApplicationSiteMarker(prior.receipt.site);
   assert.deepEqual(
-    readApplicationPagesState(applicationApi),
+    await readActualApplicationPagesState(),
     discovered.state,
     "prior Pages actor changed before draft preparation",
   );
@@ -1130,7 +1131,7 @@ async function publishOrdinaryMetadata() {
       );
       await readPublicApplicationSiteMarker(prior.site);
       assert.deepEqual(
-        readApplicationPagesState(applicationApi),
+        await readActualApplicationPagesState(),
         prior.provider,
         "prior Pages actor changed during final marker bracket",
       );
@@ -1420,11 +1421,11 @@ async function prepareOrdinaryFeed() {
       await inspectPreparedMetadataRenewal(authenticated);
     },
   });
-  const before = readApplicationPagesState(applicationApi);
+  const before = await readActualApplicationPagesState();
   try {
     assertBootstrapPagesActor(before, input.site.generation, expected.custody.runs);
     await readPublicApplicationSite(input.site);
-    assert.deepEqual(readApplicationPagesState(applicationApi), before);
+    assert.deepEqual(await readActualApplicationPagesState(), before);
     // Desired bytes are already public. Preflight repeats the read-only bracket;
     // any later drift has no missing/initial preimage fallback.
   } catch {
@@ -1440,7 +1441,7 @@ async function prepareOrdinaryFeed() {
       input.metadata.prior_repository_sha256,
     );
     await readPublicApplicationSite(prior.receipt.site);
-    assert.deepEqual(readApplicationPagesState(applicationApi), discovered.state);
+    assert.deepEqual(await readActualApplicationPagesState(), discovered.state);
     await writeApplicationJson(path.join(directory, "prior-site.json"), {
       schema_version: 1,
       authority: "none",
@@ -1609,7 +1610,7 @@ async function prepareBootstrapFeed() {
   );
   if (source.purpose === "metadata-renewal") {
     await authenticateApplicationPublicRepository(input.files, input.publication, verifier);
-    const before = readApplicationPagesState(applicationApi);
+    const before = await readActualApplicationPagesState();
     try {
       assertBootstrapPagesActor(
         before,
@@ -1617,7 +1618,7 @@ async function prepareBootstrapFeed() {
         inspectApplicationRunCustody(source.run_custody.custody).runs,
       );
       await readPublicApplicationSite(input.site);
-      assert.deepEqual(readApplicationPagesState(applicationApi), before);
+      assert.deepEqual(await readActualApplicationPagesState(), before);
     } catch {
       const lineageDirectory = path.join(verifier, "pending-lineage");
       await mkdir(lineageDirectory);
@@ -1648,7 +1649,7 @@ async function prepareBootstrapFeed() {
         prior.receipt.publication,
       );
       await readPublicApplicationSite(prior.receipt.site);
-      assert.deepEqual(readApplicationPagesState(applicationApi), discovered.state);
+      assert.deepEqual(await readActualApplicationPagesState(), discovered.state);
       await writeApplicationJson(path.join(directory, "prior-site.json"), {
         schema_version: 1,
         authority: "none",
@@ -1765,10 +1766,10 @@ async function preflightBootstrapSite() {
       : undefined;
   let preimage;
   try {
-    const before = readApplicationPagesState(applicationApi);
+    const before = await readActualApplicationPagesState();
     assertBootstrapPagesActor(before, site.generation, custody.runs);
     await readPublicApplicationSite(site);
-    assert.deepEqual(readApplicationPagesState(applicationApi), before);
+    assert.deepEqual(await readActualApplicationPagesState(), before);
     preimage = { kind: "desired", provider: before };
   } catch {
     if (hasPrior) {
@@ -1776,10 +1777,10 @@ async function preflightBootstrapSite() {
       assert.ok(isRecord(prior) && isRecord(prior.site) && isRecord(prior.provider));
       assert.equal(prior.site.generation, site.previous_generation);
       const previous = inspectSiteGeneration(prior.site, site.previous_generation!);
-      assert.deepEqual(readApplicationPagesState(applicationApi), prior.provider);
+      assert.deepEqual(await readActualApplicationPagesState(), prior.provider);
       await readPublicApplicationSite(previous);
       assert.deepEqual(
-        readApplicationPagesState(applicationApi),
+        await readActualApplicationPagesState(),
         prior.provider,
         "prior site actor changed during ordinary preflight",
       );
@@ -1794,7 +1795,7 @@ async function preflightBootstrapSite() {
         bootstrapAppointment().site_preimage_sha256,
         path.resolve(process.env.RUNNER_TEMP ?? ""),
       );
-      const provider = readApplicationPagesState(applicationApi);
+      const provider = await readActualApplicationPagesState();
       assert.deepEqual(provider, descriptor.provider);
       preimage = { kind: "initial", provider };
     }
@@ -1921,7 +1922,7 @@ async function deployBootstrapSite(readOnly = false) {
       },
       async assertPreimage() {
         assert.deepEqual(
-          readApplicationPagesState(applicationApi),
+          await readActualApplicationPagesState(deadline),
           preimage.provider,
           "public deployment changed after preflight",
         );
@@ -1946,7 +1947,7 @@ async function deployBootstrapSite(readOnly = false) {
           const previous = inspectSiteGeneration(preimage.site, site.previous_generation!);
           await readPublicApplicationSite(previous, deadline);
           assert.deepEqual(
-            readApplicationPagesState(applicationApi),
+            await readActualApplicationPagesState(deadline),
             preimage.provider,
             "prior site actor changed before ordinary deployment",
           );
@@ -1964,7 +1965,7 @@ async function deployBootstrapSite(readOnly = false) {
         assert.equal(missing.status, 404, "bootstrap marker appeared after initial preflight");
       },
       async providerReadback() {
-        const state = readApplicationPagesState(applicationApi);
+        const state = await readActualApplicationPagesState(deadline);
         assertBootstrapPagesActor(state, site.generation, custody.runs);
         return state;
       },
@@ -2160,7 +2161,7 @@ export async function preparePublicWindowsCandidate(
   const assertCurrentSite = async () => {
     await guard(source, false);
     await readPublicApplicationSiteMarker(site);
-    assert.deepEqual(readApplicationPagesState(applicationApi), discovered.state);
+    assert.deepEqual(await readActualApplicationPagesState(), discovered.state);
     assertCurrentApplicationPublication(prior.receipt.publication);
   };
   await assertCurrentSite();

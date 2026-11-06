@@ -2418,6 +2418,7 @@ for (const file of [
     ...(explicitNodeTests.get(file) ?? []),
     "scripts/application-release-context.test.mts",
     "scripts/application-release-feed.test.mts",
+    "scripts/application-release-site.test.mts",
     "scripts/application-release-publication.test.mts",
     "scripts/release-control-handshake.test.mts",
     "scripts/release-capacity-executor.test.mts",
@@ -2552,6 +2553,7 @@ explicitNodeTests.set("scripts/application-release-site.mts", [
 
 explicitNodeTests.set("scripts/release-direct-node-transport.mts", [
   "scripts/application-release-feed.test.mts",
+  "scripts/application-release-site.test.mts",
   "scripts/release-catalog-authorities.test.mts",
   "scripts/release-catalog-signing.test.mts",
   "scripts/release-live-control-admission.test.mts",

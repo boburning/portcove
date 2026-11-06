@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { performance } from "node:perf_hooks";
+import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { createPagesProviderTransport } from "./release-pages-provider.mts";
 import {
   executeBootstrapPages,
   readApplicationPagesState,
+  readActualApplicationPagesState,
   assertBootstrapPagesActor,
   readApplicationPagesExecution,
 } from "./application-release-site.mts";
@@ -331,4 +334,45 @@ void test("Pages actor projection binds latest successful deployment, fixed repo
     { log_url: "https://github.com/boburning/portcove/actions/runs/999/job/456" },
   ])
     assert.throws(() => assertBootstrapPagesActor({ ...state, ...change }, site.generation, runs));
+});
+
+void test("actual Pages observation aborts a stalled first response at the inherited deadline", async (t) => {
+  const originalToken = process.env.GH_TOKEN;
+  process.env.GH_TOKEN = "inert-pages-observation";
+  t.after(() => {
+    if (originalToken === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = originalToken;
+  });
+  let calls = 0;
+  let cancelled = false;
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const request = new Request(input, init);
+      assert.equal(request.url, "https://api.github.com/repos/boburning/portcove/pages");
+      assert.equal(request.method, "GET");
+      assert.equal(request.headers.get("authorization"), "token inert-pages-observation");
+      calls++;
+      return new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(Buffer.from("{"));
+          },
+          cancel() {
+            cancelled = true;
+          },
+        }),
+        { headers: { "content-type": "application/json" } },
+      );
+    },
+  );
+  await assert.rejects(
+    withCoordinatorDeadline(performance.now() + 500, () =>
+      readActualApplicationPagesState(performance.now() + 5000),
+    ),
+    { code: "deadline_exceeded" },
+  );
+  assert.equal(calls, 1);
+  assert.equal(cancelled, true);
 });

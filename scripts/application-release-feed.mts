@@ -34,12 +34,12 @@ import {
 import type { BootstrapPublicationBinding } from "./application-release-publication.mts";
 import type { ApplicationMetadataPublicationBinding } from "./application-release-publication.mts";
 import type { ApplicationMetadataRenewalBasis } from "./application-release-publication.mts";
-import type { GitHubRestReader } from "./github-api.mts";
 import { inspectSiteArtifactArchive } from "./release-site-deployment.mts";
 import { readReleaseNotesWithSdk } from "./release-publication-inventory.mts";
 import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
 import {
-  readApplicationPagesState,
+  createApplicationFeedReader,
+  readActualApplicationPagesState,
   readApplicationPagesExecution,
   readApplicationPagesStateAsync,
   assertBootstrapPagesActor,
@@ -160,36 +160,10 @@ export async function discoverActualPublishedApplicationCohort(
   const token = fixedReleaseReaderToken();
   const deadline = Math.min(coordinatorCommandDeadline() ?? Infinity, performance.now() + 120000);
   const guard = () => assertTrustedDirectNode("fixed application feed discovery");
-  const { createGitHubClient } = await import("./github-client.mts");
-  let expected: string | undefined;
-  const client = await createGitHubClient({
-    credential: { kind: "explicit", token },
-    deadline,
-    requestTimeoutMs: 30000,
-    maxBytes: 8 * 1024 ** 2,
-    allowRequest(method, url) {
-      guard();
-      return method === "GET" && url.href === expected;
-    },
-  });
+  const read = await createApplicationFeedReader(token, deadline);
   return discoverPublishedApplicationCohort(
     {
-      async read(endpoint) {
-        const url = new URL(endpoint, "https://api.github.com/");
-        if (
-          url.origin !== "https://api.github.com" ||
-          !url.pathname.startsWith("/repos/boburning/portcove/") ||
-          url.username ||
-          url.password ||
-          url.hash
-        )
-          throw new Error("application feed discovery route differs");
-        expected = url.href;
-        const response = await client.request(`GET ${url.pathname}${url.search}`, {
-          request: { portcove: { replay: "once", attempts: 0 } },
-        });
-        return { status: response.status, headers: new Map(), body: response.data as unknown };
-      },
+      read,
       releaseNotes: () => readReleaseNotesWithSdk({ token, deadline, guard }),
     },
     pending,
@@ -317,19 +291,15 @@ export async function readRegisteredImmutableApplicationMetadata(
  * actor. Unserved recovery uses the registered immutable reader above instead. */
 export async function readImmutableApplicationMetadata(
   discovered: Awaited<ReturnType<typeof discoverPublishedApplicationCohort>>,
-  transport: Omit<Parameters<typeof readRegisteredImmutableApplicationMetadata>[1], "read"> & {
-    api: GitHubRestReader;
-    read?: Parameters<typeof readRegisteredImmutableApplicationMetadata>[1]["read"];
+  transport: Parameters<typeof readRegisteredImmutableApplicationMetadata>[1] & {
+    readPages: () => ReturnType<typeof readActualApplicationPagesState>;
   },
 ) {
   const started = performance.now();
-  assert.deepEqual(readApplicationPagesState(transport.api), discovered.state);
-  const prior = await readRegisteredImmutableApplicationMetadata(discovered, {
-    ...transport,
-    read: transport.read ?? (async (endpoint) => transport.api.request("GET", endpoint)),
-  });
+  assert.deepEqual(await transport.readPages(), discovered.state);
+  const prior = await readRegisteredImmutableApplicationMetadata(discovered, transport);
   assert.deepEqual(
-    readApplicationPagesState(transport.api),
+    await transport.readPages(),
     discovered.state,
     "prior Pages actor changed during metadata verification",
   );
@@ -770,9 +740,10 @@ export async function readApplicationPriorPublication(
   pending?: Parameters<typeof discoverPublishedApplicationCohort>[1],
 ) {
   const discovered = await discoverActualPublishedApplicationCohort(pending);
+  const transport = await applicationMetadataTransport(discovered, scratch);
   const prior = await readImmutableApplicationMetadata(discovered, {
-    api: applicationApi,
-    ...(await applicationMetadataTransport(discovered, scratch)),
+    ...transport,
+    readPages: () => readActualApplicationPagesState(transport.deadline),
   });
   return { discovered, prior };
 }
