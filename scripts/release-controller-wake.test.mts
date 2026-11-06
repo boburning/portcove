@@ -1107,8 +1107,23 @@ void test("prior provider-skipped workflow and fixed job establish no dispatch w
   }
 });
 
-void test("appointed predecessor verifies only its retained intent and terminal failed receiver", async () => {
-  for (const fault of [null, "archive", "running", "attempt", "omitted"] as const) {
+void test("appointed predecessor binds its intent and exact terminal receiver outcome", async () => {
+  for (const fault of [
+    null,
+    "archive",
+    "running",
+    "attempt",
+    "omitted",
+    "held",
+    "unappointed-success",
+    "protected-ran",
+    "missing-jobs",
+    "wrong-job-attempt",
+    "invalid-outcome",
+  ] as const) {
+    const held = ["held", "protected-ran", "missing-jobs", "wrong-job-attempt"].includes(
+      fault ?? "",
+    );
     const f = fixture(true);
     const previous = {
       ...f.config,
@@ -1131,8 +1146,18 @@ void test("appointed predecessor verifies only its retained intent and terminal 
         receiver_run_id: 900,
         intent_artifact_id: 2,
         intent_sha256: fault === "archive" ? "e".repeat(64) : sha,
+        ...(held ? { receiver_outcome: "held-tools-only" } : {}),
+        ...(fault === "invalid-outcome" ? { receiver_outcome: "success" } : {}),
       },
     };
+    if (fault === "invalid-outcome") {
+      assert.throws(
+        () =>
+          readControllerWakeSetupFromEnvironment({ PORTCOVE_CONTROLLER_WAKE: JSON.stringify(raw) }),
+        /invalid application wake predecessor appointment/u,
+      );
+      continue;
+    }
     const { choices, predecessor } = readControllerWakeSetupFromEnvironment({
       PORTCOVE_CONTROLLER_WAKE: JSON.stringify(raw),
     });
@@ -1161,16 +1186,48 @@ void test("appointed predecessor verifies only its retained intent and terminal 
         ...result,
         head_sha: previous.revision,
         status: fault === "running" ? "in_progress" : "completed",
-        conclusion: fault === "running" ? null : "failure",
+        conclusion:
+          fault === "running"
+            ? null
+            : held || fault === "unappointed-success"
+              ? "success"
+              : "failure",
         run_attempt: fault === "attempt" ? 2 : 1,
+      };
+    };
+    const jobs = f.api.jobs;
+    f.api.jobs = async (id, attempt) => {
+      if (id !== "900") return jobs(id, attempt);
+      assert.equal(attempt, 1);
+      const names = [
+        "admission",
+        "Prepare trusted application controller tools",
+        "Prepare trusted Windows controller tools",
+        "tool_attest",
+      ];
+      return {
+        total_count: fault === "missing-jobs" ? 5 : 4,
+        jobs: names.map((name, index) => ({
+          id: index + 1,
+          name,
+          run_id: 900,
+          run_attempt: fault === "wrong-job-attempt" ? 2 : 1,
+          head_sha: previous.revision,
+          status: "completed",
+          conclusion: name === "tool_attest" && fault !== "protected-ran" ? "skipped" : "success",
+        })),
       };
     };
     const result = reconcilePreviousWakes(choices[0]!, f.env, f.api, f.record, {
       predecessor,
       download: () => f.priorIntentBytes(),
     });
-    if (fault) {
+    if (fault && fault !== "held") {
       const expected = {
+        "unappointed-success": /receiver is not a terminal failure/u,
+        "protected-ran": /did not settle as tools only/u,
+        "wrong-job-attempt": /did not settle as tools only/u,
+        "missing-jobs": /job inventory is incomplete/u,
         archive: /predecessor artifact differs/u,
         running: /receiver is not a terminal failure/u,
         attempt: /dispatch run, source or actual Actions actor differs/u,

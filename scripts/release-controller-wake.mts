@@ -402,6 +402,46 @@ interface WakePredecessor {
   receiver_run_id: number;
   intent_artifact_id: number;
   intent_sha256: string;
+  receiver_outcome?: "held-tools-only";
+}
+
+function requireHeldToolJobs(raw: unknown, predecessor: WakePredecessor) {
+  if (
+    !isRecord(raw) ||
+    !Array.isArray(raw.jobs) ||
+    raw.total_count !== raw.jobs.length ||
+    raw.jobs.length > 100
+  )
+    throw new Error("held wake predecessor job inventory is incomplete");
+  const pending = new Set([
+    "admission",
+    "Prepare trusted application controller tools",
+    "Prepare trusted Windows controller tools",
+  ]);
+  const names = new Set<string>();
+  const ids = new Set<number>();
+  for (const job of raw.jobs) {
+    if (
+      !isRecord(job) ||
+      typeof job.id !== "number" ||
+      !Number.isSafeInteger(job.id) ||
+      job.id < 1 ||
+      ids.has(job.id) ||
+      typeof job.name !== "string" ||
+      job.name.length === 0 ||
+      names.has(job.name) ||
+      job.run_id !== predecessor.receiver_run_id ||
+      job.run_attempt !== 1 ||
+      job.head_sha !== predecessor.configuration.revision ||
+      job.status !== "completed" ||
+      job.conclusion !== (pending.delete(job.name) ? "success" : "skipped")
+    )
+      throw new Error("held wake predecessor did not settle as tools only");
+    names.add(job.name);
+    ids.add(job.id);
+  }
+  if (pending.size || !names.has("tool_attest"))
+    throw new Error("held wake predecessor job inventory is incomplete");
 }
 
 export async function reconcilePreviousWakes(
@@ -625,7 +665,15 @@ export async function reconcilePreviousWakes(
           String(predecessor.receiver_run_id),
           run.head_sha,
         );
-        if (
+        if (predecessor.receiver_outcome === "held-tools-only") {
+          if (
+            !isRecord(receiver) ||
+            receiver.status !== "completed" ||
+            receiver.conclusion !== "success"
+          )
+            throw new Error("held wake predecessor receiver is not a terminal success");
+          requireHeldToolJobs(await api.jobs(String(predecessor.receiver_run_id), 1), predecessor);
+        } else if (
           !isRecord(receiver) ||
           receiver.status !== "completed" ||
           receiver.conclusion !== "failure"
@@ -1198,7 +1246,10 @@ export function readControllerWakeSetupFromEnvironment(env: NodeJS.ProcessEnv = 
     current.schema_version < 4 ||
     !isRecord(raw) ||
     Object.keys(raw).sort().join(",") !==
-      "configuration,intent_artifact_id,intent_sha256,receiver_run_id,wake_run_id" ||
+      (Object.hasOwn(raw, "receiver_outcome")
+        ? "configuration,intent_artifact_id,intent_sha256,receiver_outcome,receiver_run_id,wake_run_id"
+        : "configuration,intent_artifact_id,intent_sha256,receiver_run_id,wake_run_id") ||
+    (Object.hasOwn(raw, "receiver_outcome") && raw.receiver_outcome !== "held-tools-only") ||
     typeof raw.intent_sha256 !== "string" ||
     !/^[a-f0-9]{64}$/u.test(raw.intent_sha256)
   )
@@ -1226,6 +1277,9 @@ export function readControllerWakeSetupFromEnvironment(env: NodeJS.ProcessEnv = 
     receiver_run_id: positiveId(raw.receiver_run_id),
     intent_artifact_id: positiveId(raw.intent_artifact_id),
     intent_sha256: raw.intent_sha256,
+    ...(raw.receiver_outcome === "held-tools-only"
+      ? { receiver_outcome: raw.receiver_outcome }
+      : {}),
   };
   return { choices, predecessor };
 }
