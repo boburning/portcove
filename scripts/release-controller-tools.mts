@@ -245,7 +245,8 @@ export function inspectControllerToolManifest(
     total += file.bytes;
     return { path: profile.paths[index]!, bytes: file.bytes, sha256: file.sha256 };
   });
-  if (total > controllerToolExpandedMaximumBytes) throw new Error("controller tool expanded bytes exceed bound");
+  if (total > controllerToolExpandedMaximumBytes)
+    throw new Error("controller tool expanded bytes exceed bound");
   return {
     schema_version: profile.schema_version,
     source_commit: value.source_commit,
