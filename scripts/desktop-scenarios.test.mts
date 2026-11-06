@@ -827,7 +827,47 @@ import {
   normalPackageBoundaryScenario,
   verifyLinuxPackageEvidence,
   assertMainWebviewContainment,
+  readBoundaryDiagnostics,
 } from "../apps/desktop/scripts/desktop-main-webview-boundary.mts";
+
+void test("WebView evidence reads only the active Desktop diagnostics session", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "pcv-boundary-diagnostics-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const preferences = path.join(root, "preferences.json");
+  const addSlot = async (name: string, sessionId: string, complete: boolean) => {
+    const directory = path.join(root, "diagnostics", name);
+    await mkdir(directory, { recursive: true });
+    await writeFile(
+      path.join(directory, ".portcove-session.json"),
+      JSON.stringify({
+        schema_version: 1,
+        session_id: sessionId,
+        surface: "desktop",
+        process_id: 123,
+        complete,
+      }),
+    );
+    return path.join(directory, "portcove-desktop.jsonl");
+  };
+  const stale = await addSlot("session-00", "prior", true);
+  await writeFile(stale, JSON.stringify({ session_id: "prior" }) + "\n");
+  const active = await addSlot("session-01", "active", false);
+  assert.deepEqual(await readBoundaryDiagnostics(preferences), []);
+  const event = {
+    session_id: "active",
+    process_id: 123,
+    fields: { operation_id: "webview-navigation", main_webview: true },
+  };
+  await writeFile(active, JSON.stringify(event) + "\n");
+  assert.deepEqual(await readBoundaryDiagnostics(preferences), [event]);
+  await writeFile(active, JSON.stringify({ ...event, session_id: "prior" }) + "\n");
+  await assert.rejects(readBoundaryDiagnostics(preferences), /belongs to another session/u);
+  await writeFile(active, JSON.stringify({ ...event, process_id: 456 }) + "\n");
+  await assert.rejects(readBoundaryDiagnostics(preferences), /belongs to another process/u);
+  await mkdir(path.join(root, "diagnostics", "session-03"));
+  await addSlot("session-02", "other", false);
+  await assert.rejects(readBoundaryDiagnostics(preferences), /Expected one active/u);
+});
 
 void test("failed permission command retains bounded redacted progress without acceptance or error replacement", async () => {
   async function run(mode: string) {

@@ -1,7 +1,7 @@
 import { errorCode, errorMessage, isRecord } from "../../../scripts/runtime-values.mts";
 import { executeBrowserScript } from "./browser-script.mts";
 import assert from "node:assert/strict";
-import { readFile, writeFile, mkdir, realpath } from "node:fs/promises";
+import { readFile, writeFile, mkdir, realpath, readdir } from "node:fs/promises";
 import { createServer } from "node:http";
 import { randomUUID } from "node:crypto";
 import { execFileSync } from "node:child_process";
@@ -783,18 +783,7 @@ export async function normalPackageBoundaryScenario({
       marker,
     );
     assert.equal(observations.remoteMarkerExecuted, false);
-    const diagnostics = (
-      await readFile(
-        path.join(path.dirname(preferencesPath), "diagnostics", "portcove-desktop.jsonl"),
-        "utf8",
-      )
-    )
-      .trim()
-      .split("\n")
-      .map((line) => {
-        const value: unknown = JSON.parse(line);
-        return object(value);
-      });
+    const diagnostics = await readBoundaryDiagnostics(preferencesPath);
     observations.nativePermissionDenials = diagnostics.filter(
       (entry) => object(entry.fields).operation_id === "webview-permission",
     );
@@ -1142,6 +1131,47 @@ export async function assertMainWebviewAccess({
   assert.equal(path.resolve(text(object(positive.value).library_root)), path.resolve(library));
 }
 
+export async function readBoundaryDiagnostics(preferencesPath: string) {
+  const directory = path.join(path.dirname(preferencesPath), "diagnostics");
+  const active = [];
+  for (const slot of await readdir(directory, { withFileTypes: true })) {
+    if (!slot.isDirectory() || !/^session-0[0-7]$/u.test(slot.name)) continue;
+    const root = path.join(directory, slot.name);
+    const marker = await readObject(path.join(root, ".portcove-session.json")).catch((error) => {
+      if (errorCode(error) === "ENOENT") return null;
+      throw error;
+    });
+    if (!marker) continue;
+    if (marker.surface === "desktop" && marker.complete === false) {
+      assert.equal(marker.schema_version, 1);
+      assert.ok(typeof marker.process_id === "number" && Number.isSafeInteger(marker.process_id));
+      assert.ok(marker.process_id > 0);
+      active.push({ root, sessionId: text(marker.session_id), processId: marker.process_id });
+    }
+  }
+  assert.equal(active.length, 1, "Expected one active Desktop diagnostics session");
+  const { root, sessionId, processId } = active[0]!;
+  let log: string;
+  try {
+    log = await readFile(path.join(root, "portcove-desktop.jsonl"), "utf8");
+  } catch (error) {
+    // The writer creates the log lazily when it receives the first event.
+    if (errorCode(error) === "ENOENT") return [];
+    throw error;
+  }
+  return log
+    .trimEnd()
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => {
+      const value: unknown = JSON.parse(line);
+      const entry = object(value);
+      assert.equal(entry.session_id, sessionId, "Diagnostic event belongs to another session");
+      assert.equal(entry.process_id, processId, "Diagnostic event belongs to another process");
+      return entry;
+    });
+}
+
 export async function assertMainWebviewContainment({
   browser,
   invoke,
@@ -1342,24 +1372,12 @@ export async function assertMainWebviewContainment({
   assert.equal(observations.permissionRequests.notifications, "denied");
   assert.equal(object(observations.permissionRequests.geolocation).code, 1);
   assert.notEqual(observations.permissionRequests.media, "unexpected-grant");
-  const diagnosticPath = path.join(
-    path.dirname(preferencesPath),
-    "diagnostics",
-    "portcove-desktop.jsonl",
-  );
   const navigationRefusals = async () =>
-    (await readFile(diagnosticPath, "utf8"))
-      .trim()
-      .split("\n")
-      .map((line) => {
-        const value: unknown = JSON.parse(line);
-        return object(value);
-      })
-      .filter(
-        (entry) =>
-          object(entry.fields).operation_id === "webview-navigation" &&
-          object(entry.fields).webview_label === "main",
-      );
+    (await readBoundaryDiagnostics(preferencesPath)).filter(
+      (entry) =>
+        object(entry.fields).operation_id === "webview-navigation" &&
+        object(entry.fields).main_webview === true,
+    );
   observations.navigationRefusals = [];
   observations.navigationRequests = [];
   const inactiveAlias =
