@@ -3,8 +3,10 @@ import { execFileSync } from "node:child_process";
 import { mkdtemp } from "node:fs/promises";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
-import { createGitHubRunner, GitHubApiClient, sanitizeOperationError } from "./github-api.mts";
-import type { GitHubRestReader } from "./github-api.mts";
+import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
+import { sanitizeOperationError } from "./github-operation.mts";
+import type { GitHubClientOptions } from "./github-client.mts";
+import type { GitHubRestReader } from "./github-operation.mts";
 import type { CatalogAnchorMetadataProvider } from "./release-custody-provider.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import {
@@ -376,7 +378,15 @@ export async function readRemoteCoordinatorSnapshot(
   options: {
     transport?:
       | { cwd: string; spawn?: Spawn; deadline?: number; credential?: never }
-      | { credential: { token: string }; deadline: number; cwd?: never; spawn?: never };
+      | {
+          credential: { token: string };
+          deadline: number;
+          requireDirect?: true;
+          checkSource?: () => void;
+          reserve?: GitHubClientOptions["reserve"];
+          cwd?: never;
+          spawn?: never;
+        };
   } = {},
 ) {
   if (
@@ -421,7 +431,10 @@ export async function readRemoteCoordinatorSnapshot(
       };
     }
     const token = transport.credential.token;
-    const direct = readOnlyReleaseChildEnvironment() !== undefined;
+    const direct =
+      transport.requireDirect === true || readOnlyReleaseChildEnvironment() !== undefined;
+    const checkSource = transport.checkSource;
+    const reserve = transport.reserve;
     const { createGitHubClient } = await import("./github-client.mts");
     const client = await createGitHubClient({
       credential: { kind: "explicit", token },
@@ -431,26 +444,34 @@ export async function readRemoteCoordinatorSnapshot(
         coordinatorCommandDeadline() ?? Infinity,
       ),
       maxBytes: maximumResponseBytes,
-      ...(direct && {
+      ...(reserve ? { reserve } : {}),
+      ...((direct || checkSource) && {
         allowRequest() {
-          assertTrustedDirectNode("isolated coordinator snapshot");
+          if (direct) assertTrustedDirectNode("isolated coordinator snapshot");
+          checkSource?.();
           return true;
         },
       }),
       headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
     });
     return {
-      get(route: string) {
-        return client.request(`GET ${route}`, {
-          request: { portcove: { replay: "once", attempts: 0 } },
-        });
+      async get(route: string) {
+        try {
+          return await client.request(`GET ${route}`, {
+            request: { portcove: { replay: "once", attempts: 0 } },
+          });
+        } finally {
+          checkSource?.();
+        }
       },
       async ref(variables: { id: string; ref: string }): Promise<unknown> {
-        const response = await client.request("POST /graphql", {
-          query: recoveryRefQuery,
-          variables,
-          request: { portcove: { replay: "once", attempts: 0 } },
-        });
+        const response = await client
+          .request("POST /graphql", {
+            query: recoveryRefQuery,
+            variables,
+            request: { portcove: { replay: "once", attempts: 0 } },
+          })
+          .finally(() => checkSource?.());
         const envelope: unknown = response.data;
         if (
           response.status !== 200 ||

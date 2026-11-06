@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readFileSync, mkdtempSync, rmSync } from "node:fs";
+import { readFileSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import { RoadmapBodyJournal, bodyOperationHash } from "./roadmap-body-progress.mts";
 import { continueRoadmapCapacity, roadmapQuotaDeferred } from "./roadmap-capacity-continuation.mts";
@@ -20,6 +22,44 @@ import { scopedIssueWithBlockers } from "./roadmap-scoped.mts";
 const config = validateConfig(
   JSON.parse(readFileSync(new URL("../.github/roadmap.json", import.meta.url), "utf8")),
 );
+
+void test("roadmap-edit check validates all local drafts before history publication", (t) => {
+  const directory = mkdtempSync(path.join(tmpdir(), "roadmap-body-check-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const spec = path.join(directory, "spec.json");
+  const valid = path.join(directory, "valid.md");
+  const invalid = path.join(directory, "invalid.md");
+  const changed = path.join(directory, "changed.md");
+  const { body } = issue();
+  writeFileSync(valid, body);
+  writeFileSync(invalid, body.replace("## Required tests", "## Legacy heading"));
+  writeFileSync(changed, body + "\n<!-- portcove-port-key: changed -->");
+  const entry = (target: number, body_file: string) => ({
+    target,
+    body_file,
+    previous_body_file: valid,
+  });
+  const run = () =>
+    spawnSync(
+      process.execPath,
+      [
+        fileURLToPath(new URL("./roadmap-edit.mts", import.meta.url)),
+        "--spec-file",
+        spec,
+        "--check",
+      ],
+      { encoding: "utf8" },
+    );
+  writeFileSync(spec, JSON.stringify([entry(21, invalid), entry(22, changed)]));
+  const refused = run();
+  assert.equal(refused.status, 1);
+  assert.match(refused.stderr, /Issue #21.*Required tests/u);
+  assert.match(refused.stderr, /Issue #22.*canonical identity markers/u);
+  writeFileSync(spec, JSON.stringify([entry(21, valid)]));
+  const accepted = run();
+  assert.equal(accepted.status, 0, accepted.stderr);
+  assert.match(accepted.stdout, /Checked 1 proposed issue bodies locally/u);
+});
 
 void test("live authoring consumes the same enriched blocker memberships as scoped doctor", () => {
   const { item, body } = issue();

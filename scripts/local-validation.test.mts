@@ -2182,6 +2182,19 @@ void test("production controller admission source and workflow retain their requ
   }
 });
 
+void test("locked SDK and provider changes select the fixed application package acquisition", () => {
+  for (const file of [
+    "package.json",
+    "pnpm-lock.yaml",
+    "scripts/github-client.mts",
+    "scripts/github-artifact-download.mts",
+    "scripts/release-custody-provider.mts",
+  ]) {
+    const { selection } = planFor([file]);
+    assert.ok(selection.nodeTests.has("scripts/application-release-artifacts.test.mts"), file);
+  }
+});
+
 void test("Windows application release workflow and fixed owner changes select their ordinary contracts", () => {
   for (const file of [
     ".github/workflows/application-release.yml",
@@ -4754,6 +4767,19 @@ void test("GitHub dependency changes select actual SDK and REST integration cont
     assert.ok(selected.nodeTests.has("scripts/github-client.test.mts"), file);
     assert.ok(selected.nodeTests.has(`scripts/${name}.test.mts`), file);
     assert.ok(existsSync(new URL(`../scripts/${name}.test.mts`, import.meta.url)));
+  }
+  const artifactDownload = classifyChanges(
+    [{ status: "M", path: "scripts/github-artifact-download.mts" }],
+    { fileExists: () => false },
+  );
+  assert.ok(artifactDownload.nodeTests.has("scripts/ci-health.test.mts"));
+  assert.ok(artifactDownload.nodeTests.has("scripts/observer-checkpoint-artifact.test.mts"));
+  for (const path of [
+    "scripts/observer-checkpoint-artifact.mts",
+    ".github/workflows/configured-upstream-observer.yml",
+  ]) {
+    const selected = classifyChanges([{ status: "M", path }], { fileExists: () => false });
+    assert.ok(selected.nodeTests.has("scripts/observer-checkpoint-artifact.test.mts"), path);
   }
   const aqua = classifyChanges([{ status: "M", path: "scripts/aqua-integrity.mts" }], {
     fileExists: () => false,

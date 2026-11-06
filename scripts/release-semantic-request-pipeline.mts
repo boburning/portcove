@@ -23,7 +23,7 @@ import {
   authenticateCapturedSemanticDisposition,
 } from "./release-semantic-issuer.mts";
 import type { SemanticIssuerCustody } from "./release-semantic-issuer.mts";
-import type { GitHubRestReader } from "./github-api.mts";
+import type { GitHubRestReader } from "./github-operation.mts";
 import { inspectReleaseReviewRequest } from "./release-review-request.mts";
 import { capacityDigest } from "./release-capacity.mts";
 

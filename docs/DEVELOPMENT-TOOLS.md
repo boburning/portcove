@@ -539,6 +539,14 @@ Selectors retain the deleted `apps/desktop/vitest.config.ts` and
 `apps/desktop/vitest.browser.config.ts` names for historical comparisons and both
 rename sides, so those changes still select full frontend tests and a build.
 
+For an exact browser timing assertion, dispatch the timed DOM events in the
+browser and advance the fake clock explicitly. Vitest Browser Mode advances
+fake timers while Playwright actions such as hover are pending, so an awaited
+hover can consume part of the interval being measured. The tooltip fixture
+parks the real pointer before mounting the triggers, then checks the 399 ms,
+400 ms, and adjacent-hover boundaries with controlled events. Run that fixture
+with `just test-ui src/browser/composition-feedback.browser.test.tsx`.
+
 For an opt-in ordering diagnostic, run a small literal family with an explicit
 unsigned 32-bit decimal seed:
 
@@ -614,6 +622,32 @@ Suite records retain nested hook failures; module records retain collection
 failures separately. A run context reports
 invalid/omitted diagnostics and unhandled errors. Diagnostics cannot replace the
 runner's original failure or exit.
+
+For a failed hosted frontend job, retain the complete log and inspect a compact
+excerpt before opening individual traces. With the run ID in `RUN_ID` and the
+failed producer job ID in `JOB_ID`, run this command from the repository root.
+
+```sh
+mkdir -p work
+log="work/frontend-${RUN_ID}-${JOB_ID}.log"
+gh run view "$RUN_ID" --job "$JOB_ID" --log > "$log" &&
+  jq -nRc '
+    def clip($n): (strings | .[:$n]) // "";
+    "Frontend test case observation: " as $marker
+    | limit(20; inputs
+      | index($marker) as $start
+      | select($start != null)
+      | .[($start + ($marker | length)):] | fromjson? | objects
+      | select(.outcome == "failed")
+      | {kind: (.kind | clip(16)), file: (.file | clip(160)), name: (.name | clip(160)),
+         message: ((.errors | arrays | .[0] | objects | .message) // "" | clip(240))})
+  ' "$log"
+```
+
+The excerpt shows up to 20 failed records and shortens displayed fields. If it
+is empty or lacks the cause, inspect the failing step, invocation context, and
+retained trace in the original evidence. Setup and collection can fail before
+a case record is emitted.
 
 Each invocation owns a fresh UUID; UUID plus observation index identifies a row.
 Definition hashes use project, repository-relative file, location and full name;
@@ -1306,6 +1340,12 @@ disjoint dependency ownership. Install from the repository root with
 `pnpm install --frozen-lockfile`. Root commands such as `pnpm
 format:check`, `pnpm lint`, `pnpm build`, and `pnpm
 test` forward to the desktop package without creating another lockfile.
+
+For a manifest or lockfile change, preview the complete diff with
+`just local-check --plan`. Run
+`just test-node scripts/dependency-automation.test.mts` for early feedback on
+the root and desktop dependency inventories and their shared dependency set.
+Run the changed consumer's tests alongside it before publishing the candidate.
 
 On Windows, run `./scripts/bootstrap-quality-tools.ps1`. It downloads the exact
 Aqua release named by `.aqua-version` from Aqua's official release origin, verifies
@@ -3275,7 +3315,10 @@ custody. Windows process-identity inspection retains a finite 15-second harness
 budget under host I/O load; host release allows 65 seconds for its bounded
 remote cleanup probe and identity checks. Timeouts retain custody. The host adapter's --recover action consumes the original reference and
 invocation before using existing external-capacity recovery. Prelaunch recovery
-requires an explicit completion marker; PID absence alone is insufficient.
+requires an explicit completion marker. If registration is missing after launch,
+recovery requires positive Linux supervisor cleanup from the original pinned
+verifier, exit of the original Linux owner, and unchanged custody. The Windows
+reservation is released only after its original owner and lease are rechecked.
 
 Prepare the scoped [scratch profiles](DEVELOPMENT-STORAGE.md#machine-scratch-profiles),
 then run from the updated WSL checkout:

@@ -790,6 +790,28 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
   assert.equal(requiredJob("independent_admission")["timeout-minutes"], 9);
   assert.equal(requiredJob("protection_observation")["timeout-minutes"], 10);
   assert.equal(requiredJob("attest")["timeout-minutes"], 2);
+  const fixedClockDependencyJobs = new Set([
+    "classification_protection_observation",
+    "classification_writer",
+    "coordinator",
+    "coordinator_protection_observation",
+    "independent_admission",
+    "protection_observation",
+    "payload_signing",
+    "tuf_releases",
+    "tuf_preview",
+    "tuf_stable",
+    "tuf_snapshot",
+    "tuf_timestamp",
+    "release_publication",
+    "site_publication",
+    "site_protection_observation",
+    "catalog_definitions",
+    "catalog_policy",
+    "catalog_snapshot",
+    "catalog_timestamp",
+    "catalog_metadata_protection_observation",
+  ]);
   for (const [name, job] of Object.entries(jobs)) {
     assert.equal(
       job["runs-on"],
@@ -811,7 +833,7 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
       );
     assert.ok(minutes(name, job) > 0);
     const dependencyInstalls = job.steps.filter((step) =>
-      /(?:npm|pnpm) (?:install|ci)/u.test(step.run ?? ""),
+      /(?:npm|pnpm)(?: --filter portcove-repository)? (?:install|ci)/u.test(step.run ?? ""),
     );
     if (name === "native_windows") {
       assert.equal(dependencyInstalls.length, 1);
@@ -855,6 +877,39 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
           step.with?.stage === "pre-sign",
       );
       assert.ok(runtimeIndex > installationIndex && ownerIndex > runtimeIndex);
+    } else if (fixedClockDependencyJobs.has(name)) {
+      assert.equal(dependencyInstalls.length, 1, name);
+      const install = dependencyInstalls[0]!;
+      assert.equal(job.steps.indexOf(install), 3, name);
+      const [checkout, pnpm, node] = job.steps;
+      assert.equal(checkout?.with?.ref, "${{ github.workflow_sha }}");
+      assert.equal(checkout?.with?.["persist-credentials"], false);
+      assert.equal(pnpm?.uses, "pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413");
+      assert.deepEqual(pnpm?.with, { package_json_file: "package.json", run_install: false });
+      assert.equal(node?.with?.["node-version-file"], ".node-version");
+      const scrubbed = { GH_TOKEN: "", GITHUB_TOKEN: "", PORTCOVE_RELEASE_READ_TOKEN: "" };
+      assert.deepEqual(pnpm?.env, scrubbed);
+      assert.deepEqual(install.env, scrubbed);
+      assert.match(install.run ?? "", /git rev-parse HEAD.*GITHUB_WORKFLOW_SHA/u);
+      assert.match(
+        install.run ?? "",
+        /git diff --quiet HEAD -- package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc patches\//u,
+      );
+      assert.match(
+        install.run ?? "",
+        /env -i .*--prod --frozen-lockfile --ignore-scripts --ignore-pnpmfile/u,
+      );
+      if (name === "classification_writer" || name === "classification_protection_observation") {
+        assert.equal(job["timeout-minutes"], 2);
+        assert.match(
+          job.steps[4]?.run ?? "",
+          /node scripts\/release-reviewed-inputs.mts probe-production-/u,
+        );
+        assert.ok(
+          job.steps.findIndex((step) => step.uses?.startsWith("actions/create-github-app-token@")) >
+            4,
+        );
+      }
     } else if (name !== "tool_bootstrap" && name !== "tool_bootstrap_windows") {
       assert.equal(dependencyInstalls.length, 0);
     }

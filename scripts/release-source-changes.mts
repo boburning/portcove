@@ -1,8 +1,9 @@
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
-import { GitHubApiClient } from "./github-api.mts";
-import type { GitHubRestReader } from "./github-api.mts";
+import { nextLink } from "./github-operation.mts";
+import type { GitHubMetadataResponse, GitHubRestReader } from "./github-operation.mts";
+import type { GitHubClientOptions } from "./github-client.mts";
 import {
   inspectRemoteCommitObject,
   inspectRemoteGitObject,
@@ -24,6 +25,7 @@ function oid(value: unknown): asserts value is string {
     throw new Error("release source needs exact Git identities");
 }
 type Entry = { mode: string; type: string; oid: string };
+export type ReleaseSourceRead = { endpoint: string; deadline: number };
 
 /** A complete provider comparison plus cryptographically reconstructed Git
  * trees. Net delta is consistency evidence, never semantic classification,
@@ -35,23 +37,92 @@ export function collectReleaseSourceChanges(
   rawOpportunity: unknown,
   options: { readCommitObject?: (oid: string) => Buffer } = {},
 ) {
+  const collection = releaseSourceChangeRequests(rawOpportunity, options);
+  let step = collection.next();
+  while (!step.done) step = collection.next(reader.request("GET", step.value.endpoint));
+  return step.value;
+}
+
+export async function collectReleaseSourceChangesWithSdk(
+  options: {
+    token: string;
+    deadline: number;
+    guard: () => void;
+    checkRoute?: (url: URL) => void;
+    reserve?: NonNullable<GitHubClientOptions["reserve"]>;
+    elapsed?: (milliseconds: number) => void;
+    currentDeadline?: () => number;
+    maxBytes?: number;
+    requestTimeoutMs?: number;
+  },
+  rawOpportunity: unknown,
+) {
+  const collection = releaseSourceChangeRequests(rawOpportunity, { deadline: options.deadline });
+  let step = collection.next();
+  let expected: string | undefined;
+  const { createGitHubClient } = await import("./github-client.mts");
+  const client = await createGitHubClient({
+    credential: { kind: "explicit", token: options.token },
+    deadline: options.deadline,
+    maxBytes: options.maxBytes ?? 8 * 1024 ** 2,
+    requestTimeoutMs: options.requestTimeoutMs ?? 30000,
+    ...(options.reserve ? { reserve: options.reserve } : {}),
+    ...(options.elapsed ? { observe: ({ elapsedMs }) => options.elapsed?.(elapsedMs) } : {}),
+    allowRequest(method, url) {
+      options.guard();
+      options.checkRoute?.(url);
+      return method === "GET" && url.href === expected;
+    },
+  });
+  while (!step.done) {
+    const url = new URL(step.value.endpoint, "https://api.github.com/");
+    expected = url.href;
+    const response = await client.request(`GET ${url.pathname}${url.search}`, {
+      request: {
+        portcove: {
+          replay: "once",
+          attempts: 0,
+          deadline: Math.min(step.value.deadline, options.currentDeadline?.() ?? Infinity),
+        },
+      },
+    });
+    options.guard();
+    const link: unknown = response.headers.link;
+    if (link !== undefined && typeof link !== "string")
+      throw new Error("release source comparison pagination unavailable");
+    step = collection.next({
+      status: response.status,
+      body: response.data,
+      headers: new Map(typeof link === "string" ? [["link", link]] : []),
+    });
+  }
+  return step.value;
+}
+
+/** Sequential exact reads and their single shared completeness validator. */
+export function* releaseSourceChangeRequests(
+  rawOpportunity: unknown,
+  options: { readCommitObject?: (oid: string) => Buffer; deadline?: number } = {},
+) {
   const opportunity = object(structuredClone(rawOpportunity));
   oid(opportunity.base_commit);
   oid(opportunity.source_commit);
   oid(opportunity.source_tree);
   const before = opportunity.base_commit;
   const source = opportunity.source_commit;
-  const started = performance.now();
+  const deadline = Math.min(performance.now() + 120000, options.deadline ?? Infinity);
   let requests = 0;
   const checkTime = () => {
-    if (performance.now() - started > 120000)
+    if (performance.now() >= deadline)
       throw new Error("release source collection deadline exhausted");
   };
-  const request = (endpoint: string) => {
+  const request = function* (
+    endpoint: string,
+  ): Generator<ReleaseSourceRead, GitHubMetadataResponse, GitHubMetadataResponse> {
     checkTime();
     if (++requests > maximumComparisonPages + 4)
       throw new Error("release source API read bound exhausted");
-    const response = reader.request("GET", endpoint);
+    const response = yield { endpoint, deadline };
     checkTime();
     if (response.status !== 200) throw new Error("release source provider unavailable");
     return response;
@@ -62,91 +133,83 @@ export function collectReleaseSourceChanges(
     checkTime();
     return result;
   };
-  const original = inspect(request(`${base}/git/commits/${source}`).body, source);
+  const original = inspect((yield* request(`${base}/git/commits/${source}`)).body, source);
   if (original.tree !== opportunity.source_tree) throw new Error("release source tree differs");
   const previous =
-    before === source ? original : inspect(request(`${base}/git/commits/${before}`).body, before);
+    before === source
+      ? original
+      : inspect((yield* request(`${base}/git/commits/${before}`)).body, before);
   const comparisonPath = `/${base}/compare/${before}...${source}`;
   const comparisonById = `/repositories/1354613114/compare/${before}...${source}`;
-  let baseline: string | null = null;
-  const commits = GitHubApiClient.prototype.paginateRest
-    .call(
-      {
-        request(method: string, endpoint: string) {
-          const url = new URL(
-            endpoint.startsWith("https:") ? endpoint : `https://api.github.com/${endpoint}`,
-          );
-          const keys = [...url.searchParams.keys()];
-          if (
-            method !== "GET" ||
-            url.origin !== "https://api.github.com" ||
-            url.username ||
-            url.password ||
-            url.hash ||
-            ![comparisonPath, comparisonById].includes(url.pathname) ||
-            keys.some((key) => !["per_page", "page"].includes(key)) ||
-            new Set(keys).size !== keys.length ||
-            url.searchParams.get("per_page") !== "100" ||
-            (url.searchParams.has("page") &&
-              (!/^[1-9][0-9]*$/u.test(url.searchParams.get("page") ?? "") ||
-                Number(url.searchParams.get("page")) > maximumComparisonPages))
-          )
-            throw new Error("release source pagination escaped its fixed comparison");
-          return request(endpoint);
-        },
-      },
-      `${comparisonPath.slice(1)}?per_page=100`,
-      {
-        select(raw: unknown) {
-          const value = object(raw);
-          if (
-            !Number.isSafeInteger(value.total_commits) ||
-            typeof value.total_commits !== "number" ||
-            value.total_commits < 0 ||
-            value.total_commits > maximumReleaseSourceCommits ||
-            value.ahead_by !== value.total_commits ||
-            value.behind_by !== 0 ||
-            value.status !== (before === source ? "identical" : "ahead") ||
-            object(value.base_commit).sha !== before ||
-            object(value.merge_base_commit).sha !== before ||
-            !Array.isArray(value.commits) ||
-            value.commits.length > 100
-          )
-            throw new Error("release source ancestry or comparison completeness differs");
-          const current = JSON.stringify([
-            value.total_commits,
-            value.ahead_by,
-            value.status,
-            before,
-            source,
-          ]);
-          baseline ??= current;
-          if (current !== baseline) throw new Error("release source comparison changed");
-          return value.commits as unknown[];
-        },
-        identity(raw: unknown) {
-          const sha = object(raw).sha;
-          oid(sha);
-          return sha;
-        },
-        totalCount(raw: unknown) {
-          const total = object(raw).total_commits;
-          return typeof total === "number" ? total : null;
-        },
-        label: "complete release source commit comparison",
-      },
+  let total: number | undefined;
+  const visitedPages = new Set<string>();
+  const identities = new Set<string>();
+  const rows: unknown[] = [];
+  let next: string | null = `${comparisonPath.slice(1)}?per_page=100`;
+  while (next) {
+    const url = URL.parse(next.startsWith("https:") ? next : `https://api.github.com/${next}`);
+    const keys = url ? [...url.searchParams.keys()] : [];
+    if (
+      !url ||
+      url.origin !== "https://api.github.com" ||
+      url.username ||
+      url.password ||
+      url.hash ||
+      ![comparisonPath, comparisonById].includes(url.pathname) ||
+      keys.some((key) => !["per_page", "page"].includes(key)) ||
+      new Set(keys).size !== keys.length ||
+      url.searchParams.get("per_page") !== "100" ||
+      (url.searchParams.has("page") &&
+        (!/^[1-9][0-9]*$/u.test(url.searchParams.get("page") ?? "") ||
+          Number(url.searchParams.get("page")) > maximumComparisonPages))
     )
-    .map((raw: unknown) => {
-      const value = object(raw);
-      oid(value.sha);
-      const parsed = inspect(
-        { ...object(value.commit), sha: value.sha, parents: value.parents },
-        value.sha,
-      );
-      if (parsed.parents.length > 32 || new Set(parsed.parents).size !== parsed.parents.length)
-        throw new Error("release comparison has unsupported parents");
-      return { oid: value.sha, tree: parsed.tree, parents: parsed.parents };
-    });
+      throw new Error("release source pagination escaped its fixed comparison");
+    if (visitedPages.has(next))
+      throw new Error("release source comparison pagination did not advance");
+    visitedPages.add(next);
+    const response = yield* request(next);
+    const value = object(response.body);
+    if (
+      typeof value.total_commits !== "number" ||
+      !Number.isSafeInteger(value.total_commits) ||
+      value.total_commits < 0 ||
+      value.total_commits > maximumReleaseSourceCommits ||
+      value.ahead_by !== value.total_commits ||
+      value.behind_by !== 0 ||
+      value.status !== (before === source ? "identical" : "ahead") ||
+      object(value.base_commit).sha !== before ||
+      object(value.merge_base_commit).sha !== before ||
+      !Array.isArray(value.commits) ||
+      value.commits.length > 100
+    )
+      throw new Error("release source ancestry or comparison completeness differs");
+    total ??= value.total_commits;
+    if (value.total_commits !== total) throw new Error("release source comparison changed");
+    for (const raw of value.commits as unknown[]) {
+      const entry = object(raw);
+      oid(entry.sha);
+      if (identities.has(entry.sha))
+        throw new Error("release source comparison contains a duplicate ID");
+      identities.add(entry.sha);
+      rows.push(raw);
+    }
+    if (rows.length > total)
+      throw new Error("release source comparison count exceeds reported total");
+    next = nextLink(response.headers);
+  }
+  if (rows.length !== total)
+    throw new Error("release source comparison count does not match reported total");
+  const commits = rows.map((raw) => {
+    const entry = object(raw);
+    oid(entry.sha);
+    const parsed = inspect(
+      { ...object(entry.commit), sha: entry.sha, parents: entry.parents },
+      entry.sha,
+    );
+    if (parsed.parents.length > 32 || new Set(parsed.parents).size !== parsed.parents.length)
+      throw new Error("release comparison has unsupported parents");
+    return { oid: entry.sha, tree: parsed.tree, parents: parsed.parents };
+  });
   if (before === source) {
     if (commits.length !== 0) throw new Error("identical source has an unexpected commit delta");
   } else {
@@ -171,10 +234,14 @@ export function collectReleaseSourceChanges(
     if (!reachesBase || visited.size !== commits.length)
       throw new Error("release comparison does not close over its complete source ancestry");
   }
-  const tree = (id: string) =>
-    inspectReleaseSourceTree(request(`${base}/git/trees/${id}?recursive=1`).body, id).entries;
-  const oldTree = tree(previous.tree);
-  const newTree = previous.tree === original.tree ? oldTree : tree(original.tree);
+  const tree = function* (id: string) {
+    return inspectReleaseSourceTree(
+      (yield* request(`${base}/git/trees/${id}?recursive=1`)).body,
+      id,
+    ).entries;
+  };
+  const oldTree = yield* tree(previous.tree);
+  const newTree = previous.tree === original.tree ? oldTree : yield* tree(original.tree);
   const changes = [...new Set([...oldTree.keys(), ...newTree.keys()])]
     .sort(byteOrder)
     .flatMap((name) => {

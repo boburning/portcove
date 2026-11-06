@@ -2,6 +2,18 @@
   "format_version": 1,
   "cases": [
     {
+      "port_id": "body-harvest-recompiled",
+      "prepared_player": {
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "the actual BodyHarvestRecompiled profile, normally %LOCALAPPDATA%\\BodyHarvestRecompiled on Windows; the working folder for a Windows portable.txt copy; the real custom or platform-specific profile for other copies"
+        ],
+        "executable": "BodyHarvestRecompiled.exe"
+      },
+      "managed_native": true
+    },
+    {
       "port_id": "doom-3-classic-dhewm3",
       "prepared_player": {
         "working_directory": "executable-parent",

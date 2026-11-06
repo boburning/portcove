@@ -15,21 +15,25 @@ import {
 } from "./assembler-job-identity.mts";
 import {
   requireReleaseInputWriterPolicy,
+  inputProtectionFreshnessMilliseconds,
   requireFixedClassificationStoragePolicy,
   requireCatalogMaintenancePolicy,
   requireReleaseImmutabilityPolicy,
 } from "./release-input-protections.mts";
 import {
+  createFixedControlReadAllowance,
   inspectReviewProducerConfiguration,
   inspectCatalogReviewProducerConfiguration,
   readPublicationPause,
+  readMaintenanceControlsWithSdk,
+  readApplicationControlsWithSdk,
   readRatifiedCapacityConfiguration,
   readReviewedClassification,
-  readReviewedClassificationForRequest,
+  readReviewedClassificationForRequestWithSdk,
 } from "./release-control-inputs.mts";
 import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
-import type { GitHubRestReader } from "./github-api.mts";
+import type { GitHubRestReader } from "./github-operation.mts";
 import {
   requireObservedControlArtifact,
   prepareControlReadiness,
@@ -42,6 +46,7 @@ import {
   readOnlyReleaseChildEnvironment,
 } from "./release-readonly-child-environment.mts";
 import { performance } from "node:perf_hooks";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import path from "node:path";
 import { inspectControlRound } from "./release-control-handshake.mts";
 import type { ObservedControlArtifact } from "./release-control-handshake.mts";
@@ -57,8 +62,8 @@ import {
   inspectBoundControllerAuthorities,
 } from "./release-authority-configuration.mts";
 import {
-  discoverIndependentSemanticDisposition,
-  readIndependentSemanticCheckInventory,
+  discoverIndependentSemanticDispositionWithSdk,
+  readIndependentSemanticCheckInventoryWithSdk,
   inspectSemanticRequestCheckMatches,
 } from "./release-semantic-disposition-reader.mts";
 import { semanticReviewCheckName } from "./release-semantic-review.mts";
@@ -89,6 +94,18 @@ function json(raw: string | undefined, maximum: number) {
   return JSON.parse(raw) as unknown;
 }
 
+type SdkControlReader =
+  | "admitted-aggregate"
+  | "diagnostic-admission"
+  | "coordinator-application"
+  | "site-application"
+  | "site-maintenance"
+  | "payload"
+  | "tuf-maintenance"
+  | "tuf-application"
+  | "publication-application"
+  | "catalog-maintenance"
+  | "metadata-maintenance";
 type ReaderIdentityOptions = Parameters<typeof verifyReleaseControlReaderJobIdentity>[3];
 type ReaderOptions = {
   phase?: ReleaseControlPhase;
@@ -191,6 +208,8 @@ async function authenticateControlSource(
     identity?: ReaderIdentityOptions;
     requestToken?: typeof requestAssemblerToken;
     observerApi?: GitHubRestReader;
+    controlReader?: SdkControlReader;
+    catalogRecoveryObserver?: true;
     observerTransport?: Pick<NonNullable<Parameters<typeof createGitHubRunner>[0]>, "spawn">;
     now?: () => number;
     observedArtifact?: ObservedControlArtifact;
@@ -209,12 +228,70 @@ async function authenticateControlSource(
   remaining();
   const env = { ...environment };
   const phase = inspectReleaseControlPhase(options.phase);
+  const controlReader = options.controlReader;
+  const sdkReaderToken = controlReader === undefined ? undefined : fixedReleaseReaderToken(env);
+  const aggregateAdmission = controlReader === "admitted-aggregate";
+  const admissionReader = aggregateAdmission || controlReader === "diagnostic-admission";
+  const catalogRecoveryObserver = options.catalogRecoveryObserver === true;
+  if (
+    catalogRecoveryObserver &&
+    (purpose !== "catalog-publication" ||
+      phase !== "coordinator" ||
+      phaseDeadline === undefined ||
+      controlReader !== undefined)
+  )
+    throw new Error("catalog recovery observer requires the fixed coordinator deadline");
+  const sdkObserverToken = catalogRecoveryObserver ? fixedReleaseReaderToken(env) : sdkReaderToken;
+
+  const catalogCoordinator = controlReader === "catalog-maintenance" && phase === "coordinator";
+  const coordinatorApplication = controlReader === "coordinator-application";
+  const coordinatorMaintenance = catalogCoordinator || controlReader === "metadata-maintenance";
+  const direct =
+    admissionReader ||
+    catalogRecoveryObserver ||
+    coordinatorMaintenance ||
+    readOnlyReleaseChildEnvironment() !== undefined;
+  const matchesSdkRole =
+    controlReader === "site-maintenance" || controlReader === "site-application"
+      ? phase === "site-publication" &&
+        (controlReader === "site-maintenance" || purpose === "application")
+      : controlReader === "metadata-maintenance" || coordinatorApplication
+        ? purpose === "application" && phase === "coordinator"
+        : controlReader === "catalog-maintenance"
+          ? purpose === "catalog-publication" &&
+            (catalogCoordinator ||
+              phase === "catalog-definitions" ||
+              phase === "catalog-policy" ||
+              phase === "catalog-snapshot" ||
+              phase === "catalog-timestamp")
+          : purpose === "application" &&
+            (admissionReader
+              ? phase === "admission"
+              : controlReader === "payload"
+                ? phase === "payload"
+                : controlReader === "publication-application"
+                  ? phase === "release-publication"
+                  : phase.startsWith("tuf-"));
+  if (
+    sdkReaderToken !== undefined &&
+    (!matchesSdkRole ||
+      phaseDeadline === undefined ||
+      options.observerApi ||
+      options.observerTransport)
+  )
+    throw new Error("scoped controls reader requires the fixed phase and deadline");
+  const fixedFetch: typeof globalThis.fetch = (input, init) => {
+    if (direct) assertTrustedDirectNode("fixed release controls");
+    return globalThis.fetch(input, init);
+  };
   const { admitted, identity } = await authenticateControlReaderJobForPurpose(
     purpose,
     env,
     workflowBytes,
     options,
   );
+  if (aggregateAdmission && admitted.mode !== "bounded-application-release")
+    throw new Error("aggregate controls require protected application admission");
   const applicationAuthorities = (() => {
     if (purpose !== "application" || admitted.mode === "admission-only") return null;
     const raw = json(env.PORTCOVE_RELEASE_AUTHORITIES, 32768);
@@ -314,27 +391,23 @@ async function authenticateControlSource(
   if (identity.job_id === producer.job_id || identity.check_run_id === producer.check_run_id)
     throw new Error("protection observer and control reader must be separate jobs");
   const observerApi =
-    options.observerApi ??
-    new GitHubApiClient((args, input) =>
-      createGitHubRunner({
-        ...options.observerTransport,
-        cwd: process.cwd(),
-        maxBuffer: 128 * 1024,
-        timeoutMs: remaining(),
-      })([...args, "--hostname", "github.com"], input),
-    );
+    sdkObserverToken === undefined
+      ? (options.observerApi ??
+        new GitHubApiClient((args, input) =>
+          createGitHubRunner({
+            ...options.observerTransport,
+            cwd: process.cwd(),
+            maxBuffer: 128 * 1024,
+            timeoutMs: remaining(),
+          })([...args, "--hostname", "github.com"], input),
+        ))
+      : undefined;
   const producerJobId = producer.job_id;
   const producerCheckRunId = producer.check_run_id;
-  const producerReadback = () => {
+  const inspectProducer = (status: number | undefined, job: unknown) => {
     remaining();
-    const response = observerApi.request(
-      "GET",
-      `repos/boburning/portcove/actions/jobs/${producerJobId}`,
-    );
-    remaining();
-    const job = response.body;
     if (
-      response.status !== 200 ||
+      status !== 200 ||
       Buffer.byteLength(JSON.stringify(job)) > 128 * 1024 ||
       !isRecord(job) ||
       job.id !== producer.job_id ||
@@ -361,7 +434,15 @@ async function authenticateControlSource(
       check_run_url: job.check_run_url,
     });
   };
-  const producerIdentity = producerReadback();
+  const producerReadback = () => {
+    remaining();
+    if (!observerApi) throw new Error("site observer requires awaited readback");
+    const response = observerApi.request(
+      "GET",
+      `repos/boburning/portcove/actions/jobs/${producerJobId}`,
+    );
+    return inspectProducer(response.status, response.body);
+  };
   const now = options.now ?? Date.now;
   const guard = () => {
     remaining();
@@ -408,6 +489,33 @@ async function authenticateControlSource(
         : {}),
     };
   };
+  let sdkDeadline: number | undefined;
+  let readSdkProducer: ((deadline?: number) => Promise<string>) | undefined;
+  let producerIdentity: string;
+  if (sdkObserverToken !== undefined && phaseDeadline !== undefined) {
+    const protection = guard();
+    const expiresAt = Math.min(
+      Date.parse(identity.expires_at),
+      Date.parse(protection.observed_at) + inputProtectionFreshnessMilliseconds,
+    );
+    sdkDeadline = Math.min(phaseDeadline, performance.now() + (expiresAt - now()));
+    const observer = await (
+      await import("./release-custody-provider.mts")
+    ).createReleaseCustodyProvider({
+      token: sdkObserverToken,
+      deadline: sdkDeadline,
+      maxBytes: 128 * 1024,
+      beforeDispatch: guard,
+      fetch: fixedFetch,
+    });
+    readSdkProducer = async (deadline) => {
+      guard();
+      return inspectProducer(200, await observer.job(producerJobId, deadline));
+    };
+    producerIdentity = await readSdkProducer();
+  } else {
+    producerIdentity = producerReadback();
+  }
   guard();
   const requireObservedRefs = (refs: readonly (readonly [string, string])[]) => {
     if (
@@ -440,6 +548,106 @@ async function authenticateControlSource(
     scope: "oidc-job-identity-only",
     ...(options.round ? { round: inspectControlRound(options.round) } : {}),
   });
+  const beginMaintenance = () => {
+    if (!(purpose === "catalog-publication" || isMaintenanceReleaseControlPhase(phase)))
+      throw new Error("metadata controls require a fixed maintenance signing/publication phase");
+    return guard();
+  };
+  const maintenanceFacts = (
+    protection: ReturnType<typeof guard>,
+    pause: ReturnType<typeof readPublicationPause>,
+    capacity: ReturnType<typeof readRatifiedCapacityConfiguration>,
+  ) => {
+    requireObservedRefs([["portcove-release-pause", pause.commit]]);
+    if (capacity.commit !== pause.commit)
+      throw new Error("pause and capacity configuration ref changed");
+    guard();
+    const facts = {
+      phase,
+      purpose:
+        purpose === "catalog-publication"
+          ? phase === "coordinator"
+            ? "catalog-coordinator-controls"
+            : phase === "site-publication"
+              ? "catalog-site-publication-controls"
+              : "catalog-signing-controls"
+          : phase === "site-publication"
+            ? "metadata-renewal"
+            : phase === "coordinator"
+              ? "metadata-coordinator-controls"
+              : "metadata-signing-controls",
+      reader: readerFacts,
+      pause: { commit: pause.commit, publication_paused: pause.publication_paused },
+      capacity: { commit: capacity.commit, document_sha256: capacity.document_sha256 },
+      protection,
+    };
+    return {
+      ...facts,
+      capacity_source: capacity,
+      resource_policy_matches_controller:
+        admitted.workflow_sha256 === slice4CapacityResources.aggregate_workflow_sha256,
+      facts_sha256: capacityDigest(facts),
+      authority: "none",
+    };
+  };
+  const applicationFacts = (
+    protection: ReturnType<typeof guard>,
+    classification: ReturnType<typeof readReviewedClassification>,
+    pause: ReturnType<typeof readPublicationPause>,
+    capacity: ReturnType<typeof readRatifiedCapacityConfiguration>,
+  ) => {
+    requireObservedRefs([
+      ["portcove-release-inputs", classification.commit],
+      ["portcove-release-pause", pause.commit],
+    ]);
+    if (capacity.commit !== pause.commit)
+      throw new Error("pause and capacity configuration ref changed");
+    // The final observer GET can itself cross the observation/identity window.
+    // Reusing this authenticated round never refreshes its original clock.
+    guard();
+    const facts = {
+      phase,
+      reader: readerFacts,
+      classification: {
+        commit: classification.commit,
+        opportunity: classification.opportunity,
+        review_check_id: classification.review_check_id,
+      },
+      pause: { commit: pause.commit, publication_paused: pause.publication_paused },
+      capacity: { commit: capacity.commit, document_sha256: capacity.document_sha256 },
+      protection,
+    };
+    return {
+      ...facts,
+      capacity_source: capacity,
+      resource_policy_matches_controller:
+        admitted.workflow_sha256 === slice4CapacityResources.aggregate_workflow_sha256,
+      facts_sha256: capacityDigest(facts),
+      authority: "none",
+    };
+  };
+  const readCoordinatorMaintenance = async (maxBytes: number) => {
+    const readProducer = readSdkProducer;
+    if (!coordinatorApplication || !sdkReaderToken || sdkDeadline === undefined || !readProducer)
+      throw new Error("actual scoped coordinator application reader unavailable");
+    const options = {
+      token: sdkReaderToken,
+      deadline: sdkDeadline,
+      guard,
+      maxBytes,
+      fetch: fixedFetch,
+    };
+    const verifyProducer = async () => {
+      guard();
+      if ((await readProducer()) !== producerIdentity)
+        throw new Error("observer changed during coordinator semantic readback");
+      guard();
+    };
+    const protection = beginMaintenance();
+    const { pause, capacity } = await readMaintenanceControlsWithSdk(options);
+    await verifyProducer();
+    return { options, maintenance: maintenanceFacts(protection, pause, capacity), verifyProducer };
+  };
   const source = Object.freeze({
     phase,
     evidence_scope:
@@ -453,76 +661,114 @@ async function authenticateControlSource(
         ? "injected-provider"
         : "github.com",
     readMaintenance(api: CoordinatorRemoteApi) {
-      if (!(purpose === "catalog-publication" || isMaintenanceReleaseControlPhase(phase)))
-        throw new Error("metadata controls require a fixed maintenance signing/publication phase");
-      const protection = guard();
+      const protection = beginMaintenance();
       const pause = readPublicationPause(api);
       const capacity = readRatifiedCapacityConfiguration(api, guard);
       guard();
       if (producerReadback() !== producerIdentity)
         throw new Error("observer job changed during maintenance acquisition");
-      requireObservedRefs([["portcove-release-pause", pause.commit]]);
-      if (capacity.commit !== pause.commit)
-        throw new Error("pause and capacity configuration ref changed");
-      guard();
-      const facts = {
-        phase,
-        purpose:
-          purpose === "catalog-publication"
-            ? phase === "coordinator"
-              ? "catalog-coordinator-controls"
-              : phase === "site-publication"
-                ? "catalog-site-publication-controls"
-                : "catalog-signing-controls"
-            : phase === "site-publication"
-              ? "metadata-renewal"
-              : phase === "coordinator"
-                ? "metadata-coordinator-controls"
-                : "metadata-signing-controls",
-        reader: readerFacts,
-        pause: { commit: pause.commit, publication_paused: pause.publication_paused },
-        capacity: { commit: capacity.commit, document_sha256: capacity.document_sha256 },
-        protection,
-      };
-      return {
-        ...facts,
-        capacity_source: capacity,
-        resource_policy_matches_controller:
-          admitted.workflow_sha256 === slice4CapacityResources.aggregate_workflow_sha256,
-        facts_sha256: capacityDigest(facts),
-        authority: "none",
-      };
+      return maintenanceFacts(protection, pause, capacity);
     },
-    readDisposition(api: CoordinatorRemoteApi, request: unknown) {
-      if (purpose !== "application")
-        throw new Error("catalog controls cannot persist application disposition");
-      if (phase !== "coordinator")
-        throw new Error("semantic retirement requires the fixed coordinator controls");
-      const maintenance = source.readMaintenance(api);
-      const disposition = discoverIndependentSemanticDisposition(api, config, request);
+    async readCatalogRecoveryMaintenance(
+      token: string,
+      reserve: ReturnType<typeof createFixedControlReadAllowance>,
+    ) {
+      if (
+        purpose !== "catalog-publication" ||
+        phase !== "coordinator" ||
+        phaseDeadline === undefined ||
+        !readSdkProducer ||
+        !catalogRecoveryObserver ||
+        !token ||
+        token !== env.GH_TOKEN
+      )
+        throw new Error("catalog recovery requires the original fixed maintenance reader");
+      const protection = beginMaintenance();
+      const deadline = Math.min(
+        phaseDeadline,
+        performance.now() +
+          (Math.min(
+            Date.parse(identity.expires_at),
+            Date.parse(protection.observed_at) + inputProtectionFreshnessMilliseconds,
+          ) -
+            now()),
+      );
+      const { pause, capacity } = await readMaintenanceControlsWithSdk(
+        {
+          token,
+          deadline,
+          guard() {
+            guard();
+            assertTrustedDirectNode("fixed catalog recovery controls");
+          },
+          maxBytes: 4 * 1024 ** 2,
+          requestTimeoutMs: 15000,
+        },
+        reserve,
+      );
       guard();
-      if (producerReadback() !== producerIdentity)
-        throw new Error("observer job changed during semantic disposition readback");
-      return {
-        ...maintenance,
-        disposition,
-        facts_sha256: capacityDigest({
-          control_facts_sha256: maintenance.facts_sha256,
-          disposition,
-        }),
-      };
+      if ((await readSdkProducer(deadline)) !== producerIdentity)
+        throw new Error("observer job changed during maintenance acquisition");
+      guard();
+      return maintenanceFacts(protection, pause, capacity);
     },
-    readRequest(api: CoordinatorRemoteApi, request: unknown) {
-      if (purpose !== "application")
-        throw new Error("catalog controls cannot classify application request");
-      if (phase !== "coordinator")
-        throw new Error("request classification requires fixed coordinator controls");
-      const maintenance = source.readMaintenance(api);
-      const classification = readReviewedClassificationForRequest(api, config, request);
+    async readSdkMaintenance(
+      catalogAllowance?: ReturnType<typeof createFixedControlReadAllowance>,
+      coordinator?: { deadline: number; signingContext?: true; maxBytes?: number },
+    ) {
+      if (
+        (controlReader !== "site-maintenance" &&
+          controlReader !== "tuf-maintenance" &&
+          controlReader !== "catalog-maintenance" &&
+          controlReader !== "metadata-maintenance") ||
+        coordinatorMaintenance !== (coordinator !== undefined) ||
+        (catalogCoordinator && coordinator?.signingContext && !catalogAllowance) ||
+        (!catalogCoordinator &&
+          (controlReader === "catalog-maintenance") !== (catalogAllowance !== undefined)) ||
+        sdkReaderToken === undefined ||
+        sdkDeadline === undefined ||
+        !readSdkProducer
+      )
+        throw new Error("actual scoped maintenance reader unavailable");
+      const protection = beginMaintenance();
+      const { pause, capacity } = await readMaintenanceControlsWithSdk(
+        {
+          token: sdkReaderToken,
+          deadline: Math.min(sdkDeadline, coordinator?.deadline ?? Infinity),
+          guard,
+          fetch: fixedFetch,
+          ...(coordinator
+            ? {
+                maxBytes:
+                  coordinator.maxBytes ??
+                  (coordinator.signingContext ? (catalogCoordinator ? 2048 : 512) : 256) * 1024,
+              }
+            : {}),
+          ...(catalogAllowance || coordinator ? { requestTimeoutMs: 15000 } : {}),
+        },
+        controlReader === "tuf-maintenance" || (!catalogCoordinator && coordinator?.signingContext)
+          ? createFixedControlReadAllowance()
+          : catalogAllowance,
+      );
+      guard();
+      if ((await readSdkProducer(coordinator?.deadline)) !== producerIdentity)
+        throw new Error("observer job changed during maintenance acquisition");
+      guard();
+      return maintenanceFacts(protection, pause, capacity);
+    },
+    async readSdkRequest(request: unknown, use: "admission" | "effect" = "admission") {
+      const { options, maintenance, verifyProducer } = await readCoordinatorMaintenance(
+        (use === "effect" ? 16 : 2) * 1024 ** 2,
+      );
+      const classification = await readReviewedClassificationForRequestWithSdk(
+        options,
+        config,
+        request,
+      );
       requireObservedRefs([["portcove-release-inputs", classification.commit]]);
       if (classification.status === "reviewed") {
-        const checks = readIndependentSemanticCheckInventory(
-          api,
+        const checks = await readIndependentSemanticCheckInventoryWithSdk(
+          options,
           config,
           classification.opportunity.source_commit,
         );
@@ -535,11 +781,9 @@ async function authenticateControlSource(
           throw new Error(
             "persisted request classification conflicts with complete independent Check inventory",
           );
-        checks.assertUnchanged();
+        await checks.assertUnchanged();
       }
-      guard();
-      if (producerReadback() !== producerIdentity)
-        throw new Error("observer changed during request classification read");
+      await verifyProducer();
       return {
         ...maintenance,
         classification,
@@ -548,12 +792,31 @@ async function authenticateControlSource(
           classification:
             classification.status === "reviewed"
               ? {
-                  status: classification.status,
+                  status: "reviewed",
                   commit: classification.commit,
                   opportunity: classification.opportunity,
                   review_check_id: classification.review_check_id,
                 }
               : classification,
+        }),
+      };
+    },
+    async readSdkDisposition(request: unknown) {
+      const { options, maintenance, verifyProducer } = await readCoordinatorMaintenance(
+        2 * 1024 ** 2,
+      );
+      const disposition = await discoverIndependentSemanticDispositionWithSdk(
+        options,
+        config,
+        request,
+      );
+      await verifyProducer();
+      return {
+        ...maintenance,
+        disposition,
+        facts_sha256: capacityDigest({
+          control_facts_sha256: maintenance.facts_sha256,
+          disposition,
         }),
       };
     },
@@ -567,35 +830,82 @@ async function authenticateControlSource(
       guard();
       if (producerReadback() !== producerIdentity)
         throw new Error("observer job changed during source acquisition");
-      requireObservedRefs([
-        ["portcove-release-inputs", classification.commit],
-        ["portcove-release-pause", pause.commit],
-      ]);
-      if (capacity.commit !== pause.commit)
-        throw new Error("pause and capacity configuration ref changed");
-      // The final observer GET can itself cross the observation/identity window.
-      // Reusing this authenticated round never refreshes its original clock.
-      guard();
-      const facts = {
-        phase,
-        reader: readerFacts,
-        classification: {
-          commit: classification.commit,
-          opportunity: classification.opportunity,
-          review_check_id: classification.review_check_id,
+      return applicationFacts(protection, classification, pause, capacity);
+    },
+    async readSdkApplicationControls(
+      opportunity: unknown,
+      limits:
+        | {
+            deadline: number;
+            reserve: NonNullable<Parameters<typeof readApplicationControlsWithSdk>[3]>;
+            maxBytes?: never;
+            admission?: never;
+          }
+        | {
+            deadline?: number;
+            reserve?: never;
+            maxBytes?: number;
+            admission?: Parameters<typeof readApplicationControlsWithSdk>[0]["accounting"];
+          } = {},
+    ) {
+      if (
+        (!admissionReader &&
+          controlReader !== "payload" &&
+          controlReader !== "tuf-application" &&
+          controlReader !== "publication-application" &&
+          controlReader !== "site-application" &&
+          !coordinatorApplication) ||
+        (coordinatorApplication &&
+          (limits.reserve !== undefined || limits.admission !== undefined)) ||
+        sdkReaderToken === undefined ||
+        sdkDeadline === undefined ||
+        !readSdkProducer
+      )
+        throw new Error("actual scoped application reader unavailable");
+      const risk = limits.reserve !== undefined;
+      const token = risk ? env.PORTCOVE_RELEASE_READ_TOKEN : sdkReaderToken;
+      if (!token || token.length > 16384 || /\s/u.test(token))
+        throw new Error("fixed risk reader token unavailable");
+      const fetch: typeof globalThis.fetch = risk
+        ? (input, init) => {
+            assertTrustedDirectNode("fixed risk controls");
+            return fixedFetch(input, init);
+          }
+        : fixedFetch;
+      const deadline = Math.min(sdkDeadline, limits.deadline ?? Infinity);
+      const requireCurrent = () => {
+        const protection = guard();
+        if (performance.now() >= deadline)
+          throw new Error("application controls read deadline exhausted");
+        return protection;
+      };
+      const protection = requireCurrent();
+      const maximumBytes = (coordinatorApplication ? 16 : 2) * 1024 ** 2;
+      const { classification, pause, capacity } = await readApplicationControlsWithSdk(
+        {
+          token,
+          deadline,
+          maxBytes: Math.min(limits.maxBytes ?? maximumBytes, maximumBytes),
+          requestTimeoutMs: 15000,
+          guard() {
+            requireCurrent();
+            if (limits.admission && performance.now() >= limits.admission.currentDeadline())
+              throw new Error("admission API acquisition bound exhausted");
+          },
+          fetch,
+          ...(limits.admission && { accounting: limits.admission }),
         },
-        pause: { commit: pause.commit, publication_paused: pause.publication_paused },
-        capacity: { commit: capacity.commit, document_sha256: capacity.document_sha256 },
-        protection,
-      };
-      return {
-        ...facts,
-        capacity_source: capacity,
-        resource_policy_matches_controller:
-          admitted.workflow_sha256 === slice4CapacityResources.aggregate_workflow_sha256,
-        facts_sha256: capacityDigest(facts),
-        authority: "none",
-      };
+        config,
+        opportunity,
+        limits.reserve,
+      );
+      requireCurrent();
+      // The observer readback has its own credential and scope. It does not
+      // consume the risk or admission inventory allowance.
+      if ((await readSdkProducer(deadline)) !== producerIdentity)
+        throw new Error("observer job changed during source acquisition");
+      requireCurrent();
+      return applicationFacts(protection, classification, pause, capacity);
     },
   });
   (purpose === "application" ? establishedSources : catalogSources).add(source);
@@ -629,15 +939,20 @@ async function authenticateControlRoundForPurpose(
   factsSha256: string,
   rawPhase: unknown,
   index: number,
-  options: { deadline?: number } = {},
+  options: {
+    deadline?: number;
+    controlReader?: SdkControlReader;
+    catalogRecoveryObserver?: true;
+  } = {},
 ) {
+  const { deadline, controlReader, catalogRecoveryObserver } = options;
   const phase = inspectReleaseControlPhase(rawPhase);
   const round = { index, nonce: randomBytes(32).toString("hex") };
   inspectControlRound(round);
   if (!path.isAbsolute(directory) || !/^[a-f0-9]{64}$/u.test(factsSha256))
     throw new Error("private round directory and exact prepared facts required");
   const env = { ...process.env };
-  const deadlineOption = options.deadline === undefined ? {} : { deadline: options.deadline };
+  const deadlineOption = deadline === undefined ? {} : { deadline };
   const workflow = await readProductionControllerWorkflowBytes();
   const reader = await authenticateControlReaderJobForPurpose(purpose, env, workflow, {
     phase,
@@ -664,12 +979,14 @@ async function authenticateControlRoundForPurpose(
       run_id: String(reader.admitted.run_id),
       run_attempt: reader.admitted.run_attempt,
     },
-    options.deadline === undefined ? {} : { phaseDeadline: options.deadline },
+    deadline === undefined ? {} : { phaseDeadline: deadline },
   );
   return authenticateControlSource(purpose, env, workflow, {
     phase,
     round,
     observedArtifact,
+    ...(controlReader === undefined ? {} : { controlReader }),
+    ...(catalogRecoveryObserver === undefined ? {} : { catalogRecoveryObserver }),
     ...deadlineOption,
   });
 }
@@ -678,7 +995,7 @@ export function authenticateReleaseControlRound(
   factsSha256: string,
   rawPhase: unknown,
   index: number,
-  options: { deadline?: number } = {},
+  options: { deadline?: number; controlReader?: SdkControlReader } = {},
 ) {
   return authenticateControlRoundForPurpose(
     "application",
@@ -694,7 +1011,11 @@ export function authenticateCatalogReleaseControlRound(
   factsSha256: string,
   rawPhase: unknown,
   index: number,
-  options: { deadline?: number } = {},
+  options: {
+    deadline?: number;
+    controlReader?: SdkControlReader;
+    catalogRecoveryObserver?: true;
+  } = {},
 ) {
   return authenticateControlRoundForPurpose(
     "catalog-publication",

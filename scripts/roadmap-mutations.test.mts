@@ -13,6 +13,8 @@ import test from "node:test";
 
 import {
   executeSetMany,
+  inspectSetManyRecovery,
+  parseArguments,
   executeCommitmentRename,
   maximumMutationChunkAssignments,
   planFieldReconciliation,
@@ -683,6 +685,117 @@ void test("ambiguous partial bulk writes stay held until their exact targets are
   assert.equal(mutations, 1);
 });
 
+void test("set-many recovery classifies exact field values without changing the applied journal", async (t) => {
+  assert.equal(
+    parseArguments(["set-many", "--spec-file", "plan.json", "--recover"]).options["--recover"],
+    true,
+  );
+  const root = mkdtempSync(path.join(tmpdir(), "roadmap-recovery-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const inputFile = path.join(root, "spec.json");
+  const journalFile = path.join(root, "journal.json");
+  const rows = adaptiveSetManyFixture(6).changes.map((row, index) => ({
+    ...row,
+    mutation_identity: { project_id: "PROJECT", field_id: "FIELD", option_id: "DONE" },
+    target_identity: { content_id: `ISSUE_${index + 1}`, kind: "Issue" },
+  }));
+  const spec = {
+    schema_version: 1,
+    updates: rows.map(({ target, from, to }) => ({
+      target,
+      fields: { Status: { from, to } },
+    })),
+  };
+  writeFileSync(inputFile, JSON.stringify(spec));
+  const journal = new SetManyJournal(journalFile, inputFile, readSetManyInput(inputFile), config);
+  const context = {
+    number: 1,
+    details: { id: "PROJECT" },
+    fields: [
+      {
+        id: "FIELD",
+        name: "Status",
+        options: [
+          { id: "READY", name: "Ready" },
+          { id: "DONE", name: "Done" },
+        ],
+      },
+    ],
+  };
+  journal.stagePlanning(rows.length, rows.length, context, rows);
+  journal.observe({ phase: "attempted", assignments: rows, changes: rows });
+  journal.observe({
+    phase: "readback",
+    assignments: rows,
+    changes: [{ ...rows[2]!, observed: "Done" }],
+  });
+  const before = readSetManyInput(journalFile);
+  const field = { id: "FIELD", name: "Status" };
+  const client = {
+    async sampleGraphqlRate(): Promise<never> {
+      throw Error("Recovery must not plan");
+    },
+    async planSetMany(): Promise<never> {
+      throw Error("Recovery must not plan");
+    },
+    async validateSetManyBindings() {
+      return context;
+    },
+    async readSetManyItems() {
+      return new Map([
+        ["ITEM_1", [{ field, name: "Done", optionId: "DONE" }]],
+        ["ITEM_2", [{ field, name: "Ready", optionId: "READY" }]],
+        ["ITEM_3", [{ field, name: "Ready", optionId: "READY" }]],
+        ["ITEM_4", [{ field, name: "Blocked", optionId: "BLOCKED" }]],
+        ["ITEM_5", [{ field, name: "Ready", optionId: "REPLACEMENT" }]],
+      ]);
+    },
+  };
+  const report = await inspectSetManyRecovery(client, config, spec, journal);
+  assert.equal(report.status, "partial");
+  assert.deepEqual(
+    report.fields.map(({ state }) => state),
+    ["desired", "original", "conflicting", "conflicting", "conflicting", "unreadable"],
+  );
+  assert.deepEqual(report.residual_spec, {
+    schema_version: 1,
+    updates: [
+      {
+        target: "ITEM_2",
+        expected_content: { content_id: "ISSUE_2", kind: "Issue" },
+        fields: {
+          Status: {
+            from: "Ready",
+            to: "Done",
+            expected_identity: {
+              project_id: "PROJECT",
+              field_id: "FIELD",
+              from_option_id: "READY",
+              option_id: "DONE",
+            },
+          },
+        },
+      },
+    ],
+  });
+  assert.equal(validateSetManySpec(config, report.residual_spec).assignments, 1);
+  assert.deepEqual(readSetManyInput(journalFile), before);
+  const unavailable = await inspectSetManyRecovery(
+    {
+      ...client,
+      async readSetManyItems() {
+        throw Error("Provider read failed");
+      },
+    },
+    config,
+    spec,
+    journal,
+  );
+  assert(unavailable.fields.every(({ state }) => state === "unreadable"));
+  assert.equal(unavailable.residual_spec, null);
+  assert.deepEqual(readSetManyInput(journalFile), before);
+});
+
 void test("bulk progress refuses changed resolved identities, malformed journals and oversized inputs", (t) => {
   const root = mkdtempSync(path.join(tmpdir(), "roadmap-bulk-input-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
@@ -1255,6 +1368,56 @@ void test("durable field readback binds exact field and option IDs despite dupli
       },
     ],
   });
+  const pinned = {
+    ...row,
+    expected_identity: { ...row.mutation_identity!, from_option_id: "READY" },
+  };
+  client.directProjectItem = async () => ({
+    id: row.itemId,
+    content: { id: contentId, __typename: "Issue" },
+    fieldValues: [values[1]!],
+  });
+  const spec = {
+    schema_version: 1,
+    updates: [
+      {
+        target: row.itemId,
+        expected_content: row.target_identity,
+        fields: {
+          Status: { from: row.from, to: row.to, expected_identity: pinned.expected_identity },
+        },
+      },
+    ],
+  };
+  assert.equal((await client.planSetMany(spec)).pending.length, 1);
+  await assert.rejects(
+    () =>
+      client.planSetMany({
+        ...spec,
+        updates: [
+          {
+            ...spec.updates[0],
+            fields: {
+              Status: {
+                from: row.from,
+                to: row.to,
+                expected_identity: {
+                  ...pinned.expected_identity,
+                  from_option_id: "SUPERSEDED_READY",
+                },
+              },
+            },
+          },
+        ],
+      }),
+    /expected field or option identity changed/,
+  );
+  values[1] = { ...values[1]!, optionId: "SAME_NAME_REPLACEMENT" };
+  await assert.rejects(
+    () => client.verifySetMany({ pending: [pinned], alreadyApplied: [] }),
+    /source option identity changed/,
+  );
+  values[1] = { ...values[1], optionId: "READY" };
   const initial = await client.verifySetMany({ pending: [row], alreadyApplied: [] });
   assert.equal(initial[0]!.observed, "Ready");
   assert.equal(initial[0]!.verified, false);

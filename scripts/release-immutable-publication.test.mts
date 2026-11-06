@@ -16,6 +16,7 @@ import {
   verifyPreparedImmutableRelease,
   advanceOwnedImmutableReleasePublication,
   observeOwnedImmutableReleaseCompletion,
+  requireTerminalImmutablePublisher,
   requireOwnedImmutableReleaseCompletion,
   rebindPreparedImmutableReleaseAfterPhase,
 } from "./release-immutable-publication.mts";
@@ -74,6 +75,71 @@ void test("copied completed releases cannot become owned settlement custody", as
     rebindPreparedImmutableReleaseAfterPhase({} as never, {}, 0),
     /phase deadline/,
   );
+});
+
+void test("terminal original publisher read uses the fixed SDK and aborts the response at its original deadline", async (t) => {
+  const identity = {
+    job_id: 11,
+    run_id: "12",
+    run_attempt: 1,
+    controller_revision: "a".repeat(40),
+    check_run_id: "13",
+  };
+  let mode = "valid";
+  let dispatches = 0;
+  let cancelled = false;
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const request = new Request(input, init);
+      dispatches++;
+      assert.equal(request.url, "https://api.github.com/repos/boburning/portcove/actions/jobs/11");
+      assert.equal(request.method, "GET");
+      assert.equal(request.headers.get("authorization"), "token inert-completion-reader");
+      if (mode === "stalled")
+        return new Response(
+          new ReadableStream({
+            cancel() {
+              cancelled = true;
+            },
+          }),
+          {
+            headers: { "content-type": "application/json" },
+          },
+        );
+      return Response.json({
+        id: 11,
+        run_id: 12,
+        run_attempt: 1,
+        head_sha: identity.controller_revision,
+        name: "Publish immutable application release",
+        status: mode === "valid" ? "completed" : "in_progress",
+        check_run_url: "https://api.github.com/repos/boburning/portcove/check-runs/13",
+      });
+    },
+  );
+  await requireTerminalImmutablePublisher(
+    identity,
+    "inert-completion-reader",
+    performance.now() + 5000,
+  );
+  mode = "active";
+  await assert.rejects(
+    requireTerminalImmutablePublisher(
+      identity,
+      "inert-completion-reader",
+      performance.now() + 5000,
+    ),
+    /not positively terminal/u,
+  );
+  mode = "stalled";
+  await assert.rejects(
+    requireTerminalImmutablePublisher(identity, "inert-completion-reader", performance.now() + 150),
+    { code: "deadline_exceeded" },
+  );
+  assert.equal(dispatches, 3);
+  assert.equal(cancelled, true);
 });
 
 void test("owned publication refuses copied publication or signing-stage claims before any provider request", async (t) => {

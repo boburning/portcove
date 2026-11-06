@@ -238,18 +238,14 @@ including when a qualification mode was selected.
 
 ## Authority and setup
 
-Read #177, current #1422 and its latest explicit owner amendment at setup;
-retain their body hashes and refresh when changed. The October 22, 2026
-upstream-first amendment preserves the historical 317 records / 316 distinct
-identities and October 14 deferrals, and replaces the obligation to engineer
-every feasible retained port into full management before Public beta. Apply
-[integration ownership](CATALOG.md#integration-ownership): inspect official
-packages and supported upstream setup before proposing engineering. Monitor
-existing-installation opportunities, upstream dependencies and precise product
-deferrals without reversing them or counting them as delivered integrations.
-Read reconsideration triggers on the affected canonical issues.
-Later intake does not expand Required beta scope. Preserve the approved
-OpenRCT2 #1854 then CorsixTH #1807 sequence and active ownership.
+Read #177 for current discovery acceptance and
+[integration ownership](CATALOG.md#integration-ownership) for route investigation.
+Inspect official packages and supported upstream setup before proposing engineering.
+Monitor existing-installation opportunities, upstream dependencies and precise
+product deferrals. Read reconsideration triggers on the affected canonical issues.
+Record new candidates with neutral release and scheduling fields. Selection from
+the full backlog is a separate [Project decision](PROJECT-GOVERNANCE.md#selecting-approved-work).
+Preserve active ownership.
 
 Reuse #398's configured-upstream observation reports first, checking exact
 source/event/time/completeness and stale/exception fields. Do not change its
@@ -847,9 +843,12 @@ facts and evidence before writing the player text. Follow the
 [Content design](CONTENT-DESIGN.md) standard for summaries, warnings, actions
 and references.
 
-The scheduler prompt should identify repo, this skill and durable checkpoint
+The scheduler prompt should identify the repository, this skill, checkpoint
 path, daily metadata-write authority, approved model policy and result location.
-Keep the detailed specification here. Do not launch a second product writer.
+At each run, load this contract and the linked
+[work selection policy](PROJECT-GOVERNANCE.md#selecting-approved-work) from
+current remote `main`. Keep one investigator and one product writer per
+existing ownership boundary.
 
 Primary research retains exact successful GET positions and collection links in
 `active-run.json` under `research_progress`, with a 32 MiB physical envelope.

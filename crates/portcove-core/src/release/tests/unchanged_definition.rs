@@ -2136,3 +2136,102 @@ async fn native_engine_selection_2612() {
     )
     .await;
 }
+
+#[tokio::test]
+async fn windows_archive_selection_advances_from_shared_release_inventories() {
+    #[derive(serde::Deserialize)]
+    struct Case {
+        inventory: String,
+        selected_assets: Vec<String>,
+    }
+
+    #[derive(serde::Deserialize)]
+    struct OtherZipAsset {
+        inventory: String,
+        release_index: usize,
+        asset: String,
+    }
+
+    #[derive(serde::Deserialize)]
+    struct Corpus {
+        cases: std::collections::BTreeMap<String, Case>,
+        inventories: std::collections::BTreeMap<String, Vec<serde_json::Value>>,
+        other_zip_assets: Vec<OtherZipAsset>,
+    }
+
+    let catalog = crate::Catalog::embedded().unwrap();
+    let Corpus {
+        cases,
+        inventories,
+        other_zip_assets,
+    } = serde_json::from_str(include_str!(
+        "../../testdata/windows-archive-release-selection.json"
+    ))
+    .unwrap();
+    assert!(!cases.is_empty());
+    let mut enrolled = std::collections::BTreeSet::new();
+    for (id, case) in cases {
+        let port = catalog.port(&id).unwrap();
+        let definition = serde_json::to_value(port).unwrap();
+        let observed = &inventories[&case.inventory];
+        assert!(observed.len() >= 2, "{id}");
+        assert_eq!(observed.len(), case.selected_assets.len(), "{id}");
+        for (index, name) in case.selected_assets.iter().enumerate() {
+            let release = &observed[index];
+            let tag = release["tag_name"].as_str().unwrap();
+            let expected = release["assets"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|asset| asset["name"].as_str() == Some(name))
+                .unwrap();
+            assert!(enrolled.insert((case.inventory.clone(), index, name.clone())));
+            let visible = observed[..=index].iter().rev().cloned().collect::<Vec<_>>();
+            let (root, requests, server) = serve_http(vec![metadata(), releases(&visible)]);
+            let selected = GithubReleaseProvider::with_api_root(root)
+                .unwrap()
+                .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+                .await
+                .unwrap();
+            assert_eq!(selected.version, tag, "{id}");
+            assert_eq!(&selected.asset.name, name, "{id}");
+            assert_eq!(
+                selected.asset.size,
+                expected["size"].as_u64().unwrap(),
+                "{id}"
+            );
+            assert_eq!(
+                selected.asset.sha256,
+                expected["digest"]
+                    .as_str()
+                    .unwrap()
+                    .strip_prefix("sha256:")
+                    .unwrap(),
+                "{id}"
+            );
+            server.join().unwrap();
+            assert_eq!(requests.try_iter().count(), 2, "{id}");
+        }
+        assert_eq!(serde_json::to_value(port).unwrap(), definition, "{id}");
+    }
+    let mut other_zips = std::collections::BTreeSet::new();
+    for asset in other_zip_assets {
+        assert!(other_zips.insert((asset.inventory, asset.release_index, asset.asset)));
+    }
+    for (group, observed) in inventories {
+        for (index, release) in observed.iter().enumerate() {
+            for asset in release["assets"].as_array().unwrap() {
+                let name = asset["name"].as_str().unwrap();
+                if name.ends_with(".zip") {
+                    let key = (group.clone(), index, name.to_owned());
+                    assert!(enrolled.remove(&key) ^ other_zips.remove(&key), "{key:?}");
+                }
+            }
+        }
+    }
+    assert!(enrolled.is_empty(), "unmatched selected ZIPs: {enrolled:?}");
+    assert!(
+        other_zips.is_empty(),
+        "unmatched other ZIPs: {other_zips:?}"
+    );
+}

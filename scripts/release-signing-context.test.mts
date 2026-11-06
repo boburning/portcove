@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createHash } from "node:crypto";
-import { mkdtemp, readdir, rm } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import { stripTypeScriptTypes } from "node:module";
+import { runInNewContext } from "node:vm";
 import path from "node:path";
 import os from "node:os";
 import {
@@ -15,6 +17,11 @@ import {
 import type { inspectPreparedMetadataRenewal } from "./release-metadata-renewal.mts";
 import { readRemoteCoordinatorSnapshot } from "./release-coordinator-recovery.mts";
 import { performance } from "node:perf_hooks";
+import { isRecord } from "./runtime-values.mts";
+import {
+  fixedReleaseReaderToken,
+  withReadOnlyReleaseChildren,
+} from "./release-readonly-child-environment.mts";
 
 void test("fixed current-baseline preparation refuses imported payload before configuration or output and honors finite deadline", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "release-context-controller-refusal-"));
@@ -29,7 +36,63 @@ void test("fixed current-baseline preparation refuses imported payload before co
   );
   assert.deepEqual(await readdir(root), []);
 });
-void test("current journal snapshot caps real default transport to remaining context phase before each request", async () => {
+void test("fixed current-baseline preparation reads the journal through its scoped SDK", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "release-context-controller-sdk-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const previous = process.env.GH_TOKEN;
+  t.after(() => {
+    if (previous === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = previous;
+  });
+  process.env.GH_TOKEN = "inert-fixed-payload-reader";
+  const source = await readFile(new URL("./release-signing-context.mts", import.meta.url), "utf8");
+  const start = source.indexOf("export async function prepareControllerReleaseSigningContext(");
+  const end = source.indexOf("\nexport async function prepareReleaseSigningContext(", start);
+  assert(start >= 0 && end > start);
+  const prepare = runInNewContext(
+    stripTypeScriptTypes(source.slice(start, end).replace(/^export /u, "")) +
+      "\nprepareControllerReleaseSigningContext",
+    {
+      performance,
+      isRecord,
+      fixedReleaseReaderToken,
+      readRemoteCoordinatorSnapshot,
+      requirePreparedPayloadSignatures: async () => {
+        process.env.GH_TOKEN = "inert-replaced-ambient-token";
+        return {
+          context: { facts: { configuration: { namespace: "portcove-production" } } },
+          settlement: { checkpoint: "unavailable" },
+        };
+      },
+      requireControllerApplicationJobPublicationAuthorities: async (role: string) => {
+        assert.equal(role, "payload");
+        return { namespace: "portcove-production" };
+      },
+    },
+  ) as typeof prepareControllerReleaseSigningContext;
+  const fetch = t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: string | URL, init?: RequestInit) => {
+      assert.equal(String(input), "https://api.github.com/repos/boburning/portcove");
+      assert.equal(init?.method, "GET");
+      assert.equal(
+        new Headers(init?.headers).get("authorization"),
+        "token inert-fixed-payload-reader",
+      );
+      assert.equal(init?.redirect, "manual");
+      return new Response("{}", { status: 503 });
+    },
+  );
+  await withReadOnlyReleaseChildren(root, async () => {
+    await assert.rejects(prepare({}, root, performance.now() - 1), /deadline/);
+    assert.equal(fetch.mock.callCount(), 0);
+    await assert.rejects(prepare({}, root, performance.now() + 1000), { status: 503 });
+    assert.equal(fetch.mock.callCount(), 1);
+  });
+});
+
+void test("held journal snapshot caps injected CLI transport to remaining context phase before each request", async () => {
   const configuration = { schema_version: 1, namespace: "portcove-fixture" };
   let calls = 0;
   const transport = {

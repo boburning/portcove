@@ -150,6 +150,7 @@
     "catalog-full-3": {
       "arguments": [
         "--test",
+        "--experimental-test-module-mocks",
         "--test-timeout=30000",
         "--test-reporter=./scripts/required-node-test-reporter.mts"
       ]
@@ -3646,30 +3647,6 @@
         ["catalog-full-2", 3500],
         ["release-check", 4300],
         ["macos-platform-contracts", 5]
-      ],
-      "platform_skips": [
-        {
-          "platform": ["linux", "darwin"],
-          "owner": "catalog-full-2",
-          "category": "platform",
-          "prerequisite": "Actual linux/darwin process/filesystem semantics",
-          "reason": "The original platform guard is retained; execute every declared case on its maintained platform route.",
-          "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full-2; Mac complement macos-platform-contracts",
-          "cases": [
-            "mock publisher restores private lookup after startup reorder and refuses functions"
-          ]
-        },
-        {
-          "platform": ["linux"],
-          "owner": "catalog-full-2",
-          "category": "platform",
-          "prerequisite": "The Ubuntu-only production publisher uses GNU date -d for authorization timestamps.",
-          "reason": "Execute the actual Ubuntu publisher fixture on Linux; BSD date on macOS does not implement its required GNU flags.",
-          "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full-2; local release-check",
-          "cases": [
-            "publisher retries and recovers an interrupted draft without touching a published release"
-          ]
-        }
       ],
       "ordinary_families": ["release-contract-tests"]
     },

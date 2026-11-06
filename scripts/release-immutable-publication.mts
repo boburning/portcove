@@ -39,14 +39,17 @@ import {
 import { parseReleaseChecksumManifest } from "./reconcile-release-assets.mts";
 import { prepareReleasePublicBuildInputs } from "./release-public-build-inputs.mts";
 import { verifyUpdaterInventory } from "./updater-artifact-inventory.mts";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import { createGitHubClient } from "./github-client.mts";
 import { GitHubApiError } from "./github-operation.mts";
 import {
   createReleaseCustodyProvider,
   type ImmutableReleaseMetadataProvider,
 } from "./release-custody-provider.mts";
-import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
+import {
+  fixedReleaseReaderToken,
+  readOnlyReleaseChildEnvironment,
+} from "./release-readonly-child-environment.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import {
   requireActualReleaseAdmissionContext,
   requireActualPublicationControllerContext,
@@ -63,7 +66,10 @@ import {
   readRemoteCoordinatorSnapshot,
   hydrateRetainedCoordinatorOperation,
 } from "./release-coordinator-recovery.mts";
-import { inspectCompactCapacityOperations } from "./release-capacity.mts";
+import {
+  inspectCompactCapacityOperations,
+  type ParsedCapacityOperation,
+} from "./release-capacity.mts";
 import { requireNativeReleaseQualificationPair } from "./release-native-admission.mts";
 import { requireVerifiedReleaseSbomDocument } from "./release-acceptance-evidence.mts";
 import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-remote.mts";
@@ -1417,19 +1423,10 @@ export async function advanceOwnedImmutableReleasePublication(
   const token = process.env.PORTCOVE_RELEASE_PUBLICATION_TOKEN;
   if (!token || token.length > 16384 || /\s/u.test(token))
     throw new Error("dedicated Release publication credential unavailable");
-  const api = new GitHubApiClient((args, body) => {
-    const result = createGitHubRunner({
-      cwd: state.session.directory,
-      timeoutMs: publicationRemaining(deadline),
-      maxBuffer: 2 * 1024 * 1024,
-    })([...args, "--hostname", "github.com"], body);
-    publicationRemaining(deadline);
-    return result;
-  });
   const readBoundary = async () => {
     publicationRemaining(deadline);
     requireAuthenticatedReleaseControlSource(controls, "release-publication");
-    const current = controls.read(api, admission.facts.opportunity);
+    const current = await controls.readSdkApplicationControls(admission.facts.opportunity);
     publicationRemaining(deadline);
     if (
       current.reader.job_id !== identity.job_id ||
@@ -1495,6 +1492,44 @@ export async function advanceOwnedImmutableReleasePublication(
   });
 }
 
+/** The exact publication job is provider evidence for a prior settled effect. */
+export async function requireTerminalImmutablePublisher(
+  original: Pick<
+    NonNullable<ParsedCapacityOperation["executor_identity"]>,
+    "job_id" | "run_id" | "run_attempt" | "controller_revision" | "check_run_id"
+  >,
+  token: string,
+  deadline: number,
+) {
+  const identity = { ...original };
+  if (
+    typeof identity.job_id !== "number" ||
+    !Number.isSafeInteger(identity.job_id) ||
+    identity.job_id < 1
+  )
+    throw new Error("original publisher job identity unavailable");
+  const metadata = await createReleaseCustodyProvider({
+    token,
+    deadline,
+    maxBytes: 2 * 1024 ** 2,
+    beforeDispatch: () => assertTrustedDirectNode("fixed original immutable publisher"),
+  });
+  const job = await metadata.job(identity.job_id);
+  publicationRemaining(deadline);
+  if (
+    !isRecord(job) ||
+    job.id !== identity.job_id ||
+    String(job.run_id) !== identity.run_id ||
+    job.run_attempt !== identity.run_attempt ||
+    job.head_sha !== identity.controller_revision ||
+    job.name !== "Publish immutable application release" ||
+    job.status !== "completed" ||
+    job.check_run_url !==
+      `https://api.github.com/${base}/check-runs/${String(identity.check_run_id)}`
+  )
+    throw new Error("original publisher is not positively terminal; preserve prior effect");
+}
+
 /** Actual publisher continuation, never an imported success or release-presence
  * shortcut. The existing actual admission/executor and the original settled
  * publish operation must all agree before this observation can enter custody.
@@ -1536,17 +1571,8 @@ export async function observeOwnedImmutableReleaseCompletion(
   );
   await requireVerifiedReleaseSbomDocument(admission.sbom_receipt);
   requireAuthenticatedReleaseControlSource(controls, "release-publication");
-  const api = new GitHubApiClient((args, input) => {
-    const result = createGitHubRunner({
-      cwd: state.session.directory,
-      timeoutMs: publicationRemaining(deadline),
-      maxBuffer: 2 * 1024 * 1024,
-    })([...args, "--hostname", "github.com"], input);
-    publicationRemaining(deadline);
-    return result;
-  });
-  const fresh = () => {
-    const current = controls.read(api, admission.facts.opportunity);
+  const fresh = async () => {
+    const current = await controls.readSdkApplicationControls(admission.facts.opportunity);
     const original = admission.admission.controls!;
     if (
       current.reader.job_id !== identity.job_id ||
@@ -1564,15 +1590,20 @@ export async function observeOwnedImmutableReleaseCompletion(
       throw new Error("owned publication completion controls changed or remain held");
     publicationRemaining(deadline);
   };
-  fresh();
+  await fresh();
   const namespace = admission.facts.configuration.namespace;
-  const snapshot = await readRemoteCoordinatorSnapshot(
-    state.session.directory,
-    { schema_version: 1, namespace },
-    {
-      transport: { cwd: state.session.directory, ...(deadline === undefined ? {} : { deadline }) },
-    },
-  );
+  const token = fixedReleaseReaderToken();
+  const evidenceDeadline = Math.min(deadline ?? Infinity, coordinatorCommandDeadline() ?? Infinity);
+  const readDeadline = Number.isFinite(evidenceDeadline)
+    ? evidenceDeadline
+    : performance.now() + 120000;
+  const readSnapshot = () =>
+    readRemoteCoordinatorSnapshot(
+      state.session.directory,
+      { schema_version: 1, namespace },
+      { transport: { credential: { token }, deadline: readDeadline, requireDirect: true } },
+    );
+  const snapshot = await readSnapshot();
   if (snapshot.checkpoint !== state.checkpoint)
     throw new Error(
       "immutable publisher settlement checkpoint changed; reconcile before completion",
@@ -1657,34 +1688,12 @@ export async function observeOwnedImmutableReleaseCompletion(
   )
     throw new Error("immutable Release lacks its exact settled owned publish operation");
   requireRetainedPublishCandidate(candidate, operation, readback);
-  if (original.job_id !== identity.job_id || original.run_id !== identity.run_id) {
-    const response = api.request("GET", `${base}/actions/jobs/${String(original.job_id)}`);
-    const job = response.body;
-    publicationRemaining(deadline);
-    if (
-      response.status !== 200 ||
-      !isRecord(job) ||
-      job.id !== original.job_id ||
-      String(job.run_id) !== original.run_id ||
-      job.run_attempt !== original.run_attempt ||
-      job.head_sha !== original.controller_revision ||
-      job.name !== "Publish immutable application release" ||
-      job.status !== "completed" ||
-      job.check_run_url !==
-        `https://api.github.com/${base}/check-runs/${String(original.check_run_id)}`
-    )
-      throw new Error("original publisher is not positively terminal; preserve prior effect");
-  }
-  const after = await readRemoteCoordinatorSnapshot(
-    state.session.directory,
-    { schema_version: 1, namespace },
-    {
-      transport: { cwd: state.session.directory, ...(deadline === undefined ? {} : { deadline }) },
-    },
-  );
+  if (original.job_id !== identity.job_id || original.run_id !== identity.run_id)
+    await requireTerminalImmutablePublisher(original, token, readDeadline);
+  const after = await readSnapshot();
   if (after.checkpoint !== snapshot.checkpoint)
     throw new Error("publisher settlement changed during independent completion readback");
-  fresh();
+  await fresh();
   publicationRemaining(deadline);
   const receipt = Object.freeze({
     kind: "actual-owned-immutable-release-completion",

@@ -268,10 +268,10 @@ async fn assert_reviewed_archive_transition(
         assert_eq!(serde_json::to_value(&mapped_target).unwrap(), serde_json::to_value(&expected_target).unwrap(), "data admission cannot hide any supplied target field");
         let mut changed = old_target.clone();
         changed.mod_package_policy = Some(crate::ModPackagePolicy::VersionedPackagesV1);
-        assert!(service.require_portable_transition_to(&admitted, &changed, Some(&admitted)).is_err(), "admitted data mapping cannot hide a changed mod ownership contract");
+        assert!(service.require_portable_transition_to(&admitted, &changed, Some(&admitted), None).is_err(), "admitted data mapping cannot hide a changed mod ownership contract");
         let mut changed = old_target.clone();
         changed.launch_arguments.push("changed-execution-contract".into());
-        assert!(service.require_portable_transition_to(&admitted, &changed, Some(&admitted)).is_err(), "admitted data mapping cannot hide changed execution arguments");
+        assert!(service.require_portable_transition_to(&admitted, &changed, Some(&admitted), None).is_err(), "admitted data mapping cannot hide changed execution arguments");
     }
     let mapped = crate::archive_data::entries(
         &effective,

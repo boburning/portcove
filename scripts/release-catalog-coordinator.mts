@@ -11,20 +11,19 @@ import {
   requireActualCatalogReviewDisposition,
   prepareActualCatalogReviewRetirement,
 } from "./release-catalog-review-disposition.mts";
-import { discoverIndependentCatalogSemanticDisposition } from "./release-semantic-disposition-reader.mts";
 /** Actual catalog coordinator entry. Candidate Git/JSON is inert; only existing
  * actual configuration, controls, tool/Core and semantic factories release keys. */
 import { mkdtemp, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { performance } from "node:perf_hooks";
-import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
 import { isRecord } from "./runtime-values.mts";
 import { capacityDigest, inspectCapacityOperation } from "./release-capacity.mts";
 import {
   withCoordinatorDeadline,
-  coordinatorCommandTimeout,
   coordinatorCommandDeadline,
 } from "./release-coordinator-deadline.mts";
 import {
@@ -52,7 +51,7 @@ import {
 import type { ControllerToolArtifactExpected } from "./release-controller-tool-admission.mts";
 import {
   materializeCatalogPublicationSource,
-  readCatalogPublicationSourceBytes,
+  readCatalogPublicationSourceBytesAsync,
 } from "./release-catalog-source.mts";
 import {
   inspectActualCatalogPublication,
@@ -81,18 +80,18 @@ import {
 } from "./release-coordinator-remote.mts";
 import { checkpointReleaseOpportunity } from "./release-coordinator-state.mts";
 import { planReleaseOpportunity } from "./release-coordinator.mts";
-import { collectReleaseSourceChanges } from "./release-source-changes.mts";
-import { createReleasePublicationReader } from "./release-publication-inventory.mts";
+import { collectReleaseSourceChangesWithSdk } from "./release-source-changes.mts";
+import { createPublicationInventoryWithSdk } from "./release-publication-inventory.mts";
 import { createCoordinatorJournalApi } from "./release-coordinator-journal-api.mts";
 import {
-  readIndependentCatalogSemanticCheckInventory,
+  readIndependentCatalogSemanticCheckInventoryWithSdk,
+  discoverIndependentCatalogSemanticDispositionWithSdk,
   inspectCatalogSemanticRequestCheckMatches,
 } from "./release-semantic-disposition-reader.mts";
 import { prepareControlReadiness, waitForControlArtifact } from "./release-control-handshake.mts";
 import { retainControlStepLocator } from "./release-control-step-bridge.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
-const project = fileURLToPath(new URL("..", import.meta.url)),
-  repository = "repos/boburning/portcove";
+const project = fileURLToPath(new URL("..", import.meta.url));
 function exact(raw: unknown, keys: string): asserts raw is Record<string, unknown> {
   if (!isRecord(raw) || Object.keys(raw).sort().join(",") !== keys)
     throw new Error("fixed catalog coordinator invocation fields differ");
@@ -215,31 +214,6 @@ export async function runFixedCatalogCoordinatorConfiguration(
   };
   await assertOwnedUnlinkedPath(project, parent, "catalog coordinator private parent");
   const directory = await mkdtemp(path.join(parent, "catalog-coordinator-"));
-  const client = new GitHubApiClient((args, body) => {
-    check();
-    const result = createGitHubRunner({
-      cwd: directory,
-      maxBuffer: 16 * 1024 ** 2,
-      timeoutMs: Math.max(
-        1,
-        Math.floor(Math.min(coordinatorCommandTimeout(15000), deadline - performance.now())),
-      ),
-    })([...args, "--hostname", "github.com"], body);
-    check();
-    return result;
-  });
-  const api = {
-    request(method: string, route: string, body?: unknown) {
-      if (method !== "GET" || body != null)
-        throw new Error("catalog source/Check transport is GET-only");
-      return client.request(method, route);
-    },
-    graphql(query: string, variables?: Record<string, unknown>) {
-      if (!/^\s*query\b/u.test(query))
-        throw new Error("catalog source transport admits queries only");
-      return client.graphql(query, variables);
-    },
-  };
   const readerToken = fixedReleaseReaderToken();
   deadline = Math.min(
     deadline,
@@ -309,30 +283,42 @@ export async function runFixedCatalogCoordinatorConfiguration(
           recovered.checkpoint,
           "unresolved effect requires its existing recovery",
         );
-      const mainHead = () => {
-        const repo = api.request("GET", repository),
-          ref = api.request("GET", `${repository}/git/ref/heads/main`);
+      const requireMainSource = (repo: unknown, ref: unknown) => {
         if (
-          repo.status !== 200 ||
-          !isRecord(repo.body) ||
-          repo.body.id !== 1354613114 ||
-          repo.body.full_name !== "boburning/portcove" ||
-          repo.body.default_branch !== "main" ||
-          ref.status !== 200 ||
-          !isRecord(ref.body) ||
-          ref.body.ref !== "refs/heads/main" ||
-          !isRecord(ref.body.object) ||
-          ref.body.object.type !== "commit" ||
-          typeof ref.body.object.sha !== "string" ||
-          !/^[a-f0-9]{40}$/u.test(ref.body.object.sha)
+          !isRecord(repo) ||
+          repo.id !== 1354613114 ||
+          repo.full_name !== "boburning/portcove" ||
+          repo.default_branch !== "main" ||
+          !isRecord(ref) ||
+          ref.ref !== "refs/heads/main" ||
+          !isRecord(ref.object) ||
+          ref.object.type !== "commit" ||
+          typeof ref.object.sha !== "string" ||
+          !/^[a-f0-9]{40}$/u.test(ref.object.sha)
         )
           throw new Error("fixed default-main catalog source unavailable");
-        return ref.body.object.sha;
+        return ref.object.sha;
       };
-      const sourceCommit = pending?.opportunity.source_commit ?? mainHead();
+      const checkDirectSource = () => {
+        check();
+        assertTrustedDirectNode("fixed catalog authoring source");
+      };
+      const sourceProvider = await createReleaseCustodyProvider({
+        token: readerToken,
+        deadline,
+        maxBytes: 16 * 1024 ** 2,
+        beforeDispatch: checkDirectSource,
+        afterRead: check,
+      });
+      const mainHead = async () =>
+        requireMainSource(
+          await sourceProvider.repository(deadline),
+          await sourceProvider.mainRef(),
+        );
+      const sourceCommit = pending?.opportunity.source_commit ?? (await mainHead());
       stage = "fixed-inert-source-and-Core";
       const source = await materializeCatalogPublicationSource(
-        api,
+        sourceProvider,
         sourceCommit,
         directory,
         deadline,
@@ -345,7 +331,11 @@ export async function runFixedCatalogCoordinatorConfiguration(
         );
       const published = inspectPublishedCatalogMetadata(input.published_catalog_metadata);
       if (!pending && published) {
-        const previous = readCatalogPublicationSourceBytes(api, published.source_commit, deadline);
+        const previous = await readCatalogPublicationSourceBytesAsync(
+          sourceProvider,
+          published.source_commit,
+          deadline,
+        );
         if (!previous.request || previous.source.tree !== published.source_tree)
           return held(
             directory,
@@ -377,11 +367,11 @@ export async function runFixedCatalogCoordinatorConfiguration(
         inspection.inspection,
         files,
       );
-      const pins = authorities.catalog.public_source,
-        initialRaw = api.request("GET", `${repository}/git/commits/${pins.commit}`);
-      if (initialRaw.status !== 200)
-        throw new Error("appointed initial catalog source unavailable");
-      const initialCommit = inspectRemoteCommitObject(initialRaw.body, pins.commit),
+      const pins = authorities.catalog.public_source;
+      const initialCommit = inspectRemoteCommitObject(
+          await sourceProvider.commit(pins.commit),
+          pins.commit,
+        ),
         initial = { commit: pins.commit, tree: initialCommit.tree, root_sha256: pins.root.sha256 },
         initialization = inspectCatalogInitialization(input.catalog_initialization),
         seed = inspectPublishedCatalogMetadata(input.published_catalog_metadata);
@@ -396,11 +386,20 @@ export async function runFixedCatalogCoordinatorConfiguration(
             initialization.initial_site_preimage_sha256 !== pins.initial_site_preimage?.sha256))
       )
         throw new Error("catalog initialization differs from actual protected setup/source");
-      const changes = collectReleaseSourceChanges(api, {
-        base_commit: seed?.source_commit ?? initial.commit,
-        source_commit: source.source.commit,
-        source_tree: source.source.tree,
-      });
+      const changes = await collectReleaseSourceChangesWithSdk(
+        {
+          token: readerToken,
+          deadline,
+          maxBytes: 16 * 1024 ** 2,
+          requestTimeoutMs: 15000,
+          guard: checkDirectSource,
+        },
+        {
+          base_commit: seed?.source_commit ?? initial.commit,
+          source_commit: source.source.commit,
+          source_tree: source.source.tree,
+        },
+      );
       if (changes.base_tree !== (seed?.source_tree ?? initial.tree))
         throw new Error("catalog baseline raw Git tree differs");
       const opportunity = deriveCatalogCoordinatorOpportunity(
@@ -432,9 +431,19 @@ export async function runFixedCatalogCoordinatorConfiguration(
           opportunity,
           core_inspection: core,
         });
-      const inventory = readIndependentCatalogSemanticCheckInventory(api, producer, sourceCommit),
+      const semanticReader = {
+        token: readerToken,
+        deadline,
+        guard: checkDirectSource,
+        maxBytes: 16 * 1024 ** 2,
+      };
+      const inventory = await readIndependentCatalogSemanticCheckInventoryWithSdk(
+          semanticReader,
+          producer,
+          sourceCommit,
+        ),
         matches = inspectCatalogSemanticRequestCheckMatches(inventory.records, request);
-      inventory.assertUnchanged();
+      await inventory.assertUnchanged();
       if (matches.negative.length && !pending)
         return held(
           directory,
@@ -483,25 +492,38 @@ export async function runFixedCatalogCoordinatorConfiguration(
           phaseDeadline: deadline,
         },
       );
-      const controls = await authenticateCatalogReleaseControlSource(process.env, workflow, {
-        phase: "coordinator",
-        deadline,
-        observedArtifact: observation,
-      });
+      const controls = await authenticateCatalogReleaseControlSource(
+        { ...process.env, GH_TOKEN: readerToken },
+        workflow,
+        {
+          phase: "coordinator",
+          deadline,
+          observedArtifact: observation,
+          controlReader: "catalog-maintenance",
+        },
+      );
       requireAuthenticatedCatalogControlSource(controls, "coordinator");
       if (controls.evidence_scope !== "github.com")
         throw new Error("actual catalog controls required");
-      const observed = controls.readMaintenance(api),
+      const readMaintenance = () =>
+        controls.readSdkMaintenance(undefined, { deadline, maxBytes: 16 * 1024 ** 2 });
+      const observed = await readMaintenance(),
         stable = catalogCoordinatorMaintenanceIdentity(observed);
       if (
         observed.reader.job_id !== reader.identity.job_id ||
         observed.reader.check_run_id !== reader.identity.check_run_id
       )
         throw new Error("catalog controls came from another job");
-      const publicationReader = createReleasePublicationReader(api),
-        tags = publicationReader.tags(),
-        releases = publicationReader.releases(),
-        allocations = publicationReader.readAllocations(tags, authorities.namespace).allocations;
+      const publicationReader = await createPublicationInventoryWithSdk({
+        token: readerToken,
+        deadline,
+        maxBytes: 16 * 1024 ** 2,
+        recheck: async () => check(),
+        beforeDispatch: checkDirectSource,
+      });
+      const tags = await publicationReader.tags();
+      const releases = await publicationReader.releases();
+      const { allocations } = await publicationReader.readAllocations(tags, authorities.namespace);
       const now = new Date().toISOString(),
         publication = deriveCoordinatorPublication(tags, releases, allocations, now);
       let frozen: NonNullable<ReturnType<typeof inspectCatalogReviewRequest>> | null = null,
@@ -587,20 +609,24 @@ export async function runFixedCatalogCoordinatorConfiguration(
         authority: process.env.PORTCOVE_CATALOG_AUTHORITIES,
         admission: process.env.PORTCOVE_CATALOG_CONTROLLER_ADMISSION,
       };
-      const beforeMutation = () => {
-        check();
+      const requireSelectedEnvironment = () => {
         if (
           process.env.PORTCOVE_CATALOG_AUTHORITIES !== environment.authority ||
-          process.env.PORTCOVE_CATALOG_CONTROLLER_ADMISSION !== environment.admission ||
-          (!pending && mainHead() !== sourceCommit)
+          process.env.PORTCOVE_CATALOG_CONTROLLER_ADMISSION !== environment.admission
         )
           throw new Error("catalog source/configuration changed before mutation");
-        const currentTags = publicationReader.tags(),
-          currentReleases = publicationReader.releases(),
-          currentAllocations = publicationReader.readAllocations(
+      };
+      const beforeMutation = async () => {
+        check();
+        requireSelectedEnvironment();
+        if (!pending && (await mainHead()) !== sourceCommit)
+          throw new Error("catalog source/configuration changed before mutation");
+        const currentTags = await publicationReader.tags(),
+          currentReleases = await publicationReader.releases(),
+          { allocations: currentAllocations } = await publicationReader.readAllocations(
             currentTags,
             authorities.namespace,
-          ).allocations;
+          );
         if (
           capacityDigest({
             tags: currentTags,
@@ -615,17 +641,22 @@ export async function runFixedCatalogCoordinatorConfiguration(
           if (
             !pending ||
             capacityDigest(
-              discoverIndependentCatalogSemanticDisposition(api, producer, pending),
+              await discoverIndependentCatalogSemanticDispositionWithSdk(
+                semanticReader,
+                producer,
+                pending,
+              ),
             ) !== negativeProof
           )
             throw new Error("catalog negative selected proof changed before mutation");
         }
-        if (catalogCoordinatorMaintenanceIdentity(controls.readMaintenance(api)) !== stable)
+        if (catalogCoordinatorMaintenanceIdentity(await readMaintenance()) !== stable)
           throw new Error("catalog maintenance changed before neutral request mutation");
+        requireSelectedEnvironment();
         check();
       };
       const checkpointControls = async () => {
-        beforeMutation();
+        await beforeMutation();
       };
       const executor = await authenticateCapacityExecutor(
         "coordinator",
@@ -655,14 +686,14 @@ export async function runFixedCatalogCoordinatorConfiguration(
           guarded = {
             request: async (...args: Parameters<typeof journal.request>) => {
               check();
-              if (args[0] !== "GET") beforeMutation();
+              if (args[0] !== "GET") await beforeMutation();
               const result = await journal.request(...args);
               check();
               return result;
             },
             graphql: async (...args: Parameters<typeof journal.graphql>) => {
               check();
-              if (/^\s*mutation\b/u.test(args[0])) beforeMutation();
+              if (/^\s*mutation\b/u.test(args[0])) await beforeMutation();
               const result = await journal.graphql(...args);
               check();
               return result;

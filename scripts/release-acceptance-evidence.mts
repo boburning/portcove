@@ -13,7 +13,7 @@ import {
   coordinatorCommandTimeout,
   checkCoordinatorDeadline,
 } from "./release-coordinator-deadline.mts";
-import type { readGitHubArtifactArchive } from "./github-binary.mts";
+import type { SigningArchiveDownload } from "./release-signing-handoff.mts";
 import type { GitHubCredential } from "./github-client.mts";
 import { downloadGitHubArtifactArchiveFile } from "./github-artifact-download.mts";
 import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
@@ -236,7 +236,7 @@ export async function collectReleaseSbomEvidence(
   rawAssembly: unknown,
   evidence: Evidence,
   options: {
-    download?: typeof readGitHubArtifactArchive | undefined;
+    download?: SigningArchiveDownload | undefined;
     spawn?: RetainedGitHubSpawn | undefined;
     maximumArchiveBytes?: number;
     preparedNamespace?: string;
@@ -307,10 +307,15 @@ export async function collectReleaseSbomEvidence(
   const endpoint = `repos/${repository}/actions/artifacts/${artifact.id}/zip`;
   let bytes: Buffer;
   if (options.download) {
-    bytes = options.download(endpoint, {
+    const timeoutMs = Math.floor(
+      Math.min(120000, (options.deadline ?? Infinity) - performance.now()),
+    );
+    if (timeoutMs < 1) throw new Error("SBOM archive acquisition deadline exhausted");
+    bytes = await options.download(endpoint, {
       cwd: privateRoot,
       maxBytes: artifact.bytes,
-      timeoutMs: 120000,
+      timeoutMs,
+      ...(options.lookup ? { lookup: options.lookup } : {}),
     });
   } else {
     const deadline = Math.min(

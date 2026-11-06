@@ -805,7 +805,7 @@ void test("fixed controller clocks use bounded one-shot SDK jobs reads and the s
     | "tuf-releases"
     | "site-publication" = "coordinator";
   let requests = 0;
-  const started = new Date(Date.now() - 1000).toISOString();
+  let started = new Date(Date.now() - 1000).toISOString();
   t.mock.method(globalThis, "fetch", async (input: string | URL | Request, init?: RequestInit) => {
     requests++;
     const url = new URL(input instanceof Request ? input.url : input);
@@ -853,8 +853,20 @@ void test("fixed controller clocks use bounded one-shot SDK jobs reads and the s
       role = operation;
       assert.equal(await currentControllerJobDeadline(operation, identity, deadline), deadline);
     }
+    role = "building";
+    const wall = Date.now();
+    started = new Date(wall - 500000).toISOString();
+    const before = performance.now();
+    const original = await currentControllerJobDeadline("building", identity, before + 405000);
+    assert.ok(original >= before + (wall + 25000 - Date.now()));
+    assert.ok(original <= performance.now() + 25000);
+    started = new Date(wall - 526000).toISOString();
+    await assert.rejects(
+      currentControllerJobDeadline("building", identity, performance.now() + 405000),
+      /original TUF job budget exhausted/u,
+    );
   });
   delete process.env.GH_TOKEN;
   await assert.rejects(currentControllerJobDeadline("coordinator", identity, deadline));
-  assert.equal(requests, 7);
+  assert.equal(requests, 9);
 });

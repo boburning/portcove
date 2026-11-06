@@ -13,21 +13,45 @@ export type RetainedGitHubSpawn = (
   options: SpawnSyncOptionsWithStringEncoding,
 ) => { status: number | null; stdout: string; stderr: string; error?: Error | null };
 
-export function verifyGitHubAttestation(
-  args: readonly string[],
-  options: {
-    cwd: string;
-    timeoutMs: number;
-    maxBytes: number;
-    environment?: NodeJS.ProcessEnv;
-    spawn?: RetainedGitHubSpawn;
-  },
-) {
+type GitHubVerifierOptions = {
+  cwd: string;
+  timeoutMs: number;
+  maxBytes: number;
+  environment?: NodeJS.ProcessEnv;
+  spawn?: RetainedGitHubSpawn;
+};
+
+export function verifyGitHubAttestation(args: readonly string[], options: GitHubVerifierOptions) {
   if (args[0] !== "attestation" || args[1] !== "verify")
     throw new GitHubApiError(
       "request_refused",
       "Only retained attestation verification is admitted",
     );
+  return runGitHubVerifier(args, options, "attestation");
+}
+
+export function verifyGitHubRelease(
+  repository: string,
+  tag: string,
+  options: GitHubVerifierOptions,
+) {
+  if (
+    !/^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/u.test(repository) ||
+    !/^v[0-9][a-zA-Z0-9.+-]*$/u.test(tag)
+  )
+    throw new GitHubApiError("request_refused", "Invalid retained Release verification target");
+  return runGitHubVerifier(
+    ["release", "verify", tag, "--repo", repository, "--format", "json"],
+    options,
+    "Release",
+  );
+}
+
+function runGitHubVerifier(
+  args: readonly string[],
+  options: GitHubVerifierOptions,
+  kind: "attestation" | "Release",
+) {
   if (
     !Number.isSafeInteger(options.timeoutMs) ||
     options.timeoutMs < 1 ||
@@ -71,7 +95,7 @@ export function verifyGitHubAttestation(
     });
     throw new GitHubApiError(
       "command_failed",
-      `Bounded GitHub attestation verification failed: ${safe.message}`.slice(0, 1024),
+      `Bounded GitHub ${kind} verification failed: ${safe.message}`.slice(0, 1024),
       {
         cause: Object.assign(new Error("Verifier execution failed"), {
           code,

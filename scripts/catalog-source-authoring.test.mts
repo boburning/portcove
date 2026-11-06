@@ -10,6 +10,7 @@ import {
   checkedAuthoredPort,
   checkedCurrentCatalog,
   parseCatalogSource,
+  projectAuthoredPort,
 } from "./catalog-authoring.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
 import { estimateHealthRequests } from "./check-catalog-repositories.mts";
@@ -245,6 +246,21 @@ void test("per-port source projects all accepted operations unchanged and listin
     () => checkedAuthoredPort({ ...listing, integration: { id: listing.listing.id } }),
     /second integration authority/,
   );
+});
+
+void test("upstream package platforms extend only the descriptive listing", () => {
+  const { records, catalog, directory } = readCatalogSource(catalogRoot);
+  const id = "body-harvest-recompiled";
+  assert.deepEqual(catalog.ports.find((port) => port.id === id)?.platforms, ["windows-x86-64"]);
+  assert.deepEqual(directory.listings.find((port) => port.id === id)?.platforms, [
+    "windows-x86-64",
+    "linux-x86-64",
+    "macos-x86-64",
+    "macos-aarch64",
+  ]);
+  const duplicate = structuredClone(records.find((record) => record.listing.id === id)!);
+  duplicate.listing.platforms = ["windows-x86-64"];
+  assert.throws(() => checkedAuthoredPort(duplicate), /platform must be declared once/);
 });
 
 void test("authored JSON refuses duplicate decoded keys while retaining nested data and native grammar", () => {
@@ -703,4 +719,30 @@ void test("Second Hunt keeps its version-scoped cleanup warning in the pre-actio
   assert.match(String(warnings[0]), /Before opening Second Hunt v0\.4\.2-beta on Windows/);
   assert.match(String(warnings[0]), /ending in \.old or \.old followed by digits/);
   assert.match(String(warnings[0]), /outside its entire program folder.*including portable saves/);
+});
+
+void test("reviewed GBA archive facts preserve both installed contract variants", () => {
+  const accepted = new Map(fixtureRecords(schema3Fixture.ports).map((port) => [port.id, port]));
+  for (const id of [
+    "mstan-dragonballzbuusfuryrecomp",
+    "mstan-dragonballzlegacyofgokuiirecomp",
+    "mstan-megamanzerorecomp",
+    "mstan-supermarioadvance2recomp",
+    "mstan-supermarioadvance4recomp",
+    "mstan-wariowaretwistedrecomp",
+  ]) {
+    const record = checkedAuthoredPort(
+      JSON.parse(readFileSync(join(catalogRoot, "ports", `${id}.json`), "utf8")),
+    );
+    assert.ok(record.gba_staged_archive_v1);
+    assert.equal(JSON.stringify(projectAuthoredPort(record)), JSON.stringify(accepted.get(id)));
+    for (const field of ["persistent_paths", "runtime_mutable_paths", "mod_package_policy"]) {
+      const duplicate = structuredClone(record);
+      duplicate.integration![field] = [];
+      assert.throws(() => checkedAuthoredPort(duplicate), /already own/u);
+    }
+    const unsafe = structuredClone(record);
+    unsafe.gba_staged_archive_v1!.game_code = "../X";
+    assert.throws(() => checkedAuthoredPort(unsafe), /reviewed Windows staged GitHub archive/u);
+  }
 });

@@ -9,6 +9,8 @@ import { fileURLToPath } from "node:url";
 import filesystem from "node:fs/promises";
 import { syncBuiltinESMExports } from "node:module";
 import test from "node:test";
+import { runInNewContext } from "node:vm";
+import { Octokit } from "@octokit/core";
 import { parse } from "yaml";
 import {
   admitProductionController,
@@ -307,6 +309,16 @@ void test("hosted native parent default path retains original source and issuer 
         assert.equal(init?.method, "GET");
         const headers = new Headers(init?.headers);
         assert.equal(headers.get("authorization"), "token inert-reader-only");
+        if (url.pathname.startsWith("/repos/boburning/portcove/actions/")) {
+          assert.equal(init?.redirect, "manual");
+          const captured = readOnlyReleaseChildEnvironment();
+          assert.equal(captured?.GH_TOKEN, "inert-reader-only");
+          assert.equal(captured?.ACTIONS_ID_TOKEN_REQUEST_TOKEN, undefined);
+          assert.equal(captured?.PORTCOVE_SEMANTIC_APP_KEY, undefined);
+          metadataCalls++;
+          return Response.json(good.metadata(url.pathname + url.search));
+        }
+
         assert.equal(headers.get("x-github-api-version"), "2022-11-28");
         if (url.pathname === `/repos/boburning/portcove/git/blobs/${catalogBlob}`) {
           assert.equal(url.search, "");
@@ -351,23 +363,9 @@ void test("hosted native parent default path retains original source and issuer 
       return new Response(JSON.stringify({ value: good.token }));
     },
   );
-  t.mock.method(
-    childProcess,
-    "spawnSync",
-    (
-      command: string,
-      args: readonly string[],
-      options: Parameters<typeof good.transport.spawn>[2],
-    ) => {
-      metadataCalls++;
-      assert.equal(options?.env?.GH_TOKEN, "inert-reader-only");
-      for (const key of ["ACTIONS_ID_TOKEN_REQUEST_TOKEN", "PORTCOVE_SEMANTIC_APP_KEY"])
-        assert.equal(options?.env?.[key], undefined);
-      return good.transport.spawn(command, args, options) as ReturnType<
-        typeof childProcess.spawnSync
-      >;
-    },
-  );
+  t.mock.method(childProcess, "spawnSync", () => {
+    throw new Error("Hosted native parent identity must use the scoped SDK");
+  });
   syncBuiltinESMExports();
   const configured = JSON.stringify(configuration);
   const pending = createActualHostedNativeParentSource(
@@ -382,6 +380,23 @@ void test("hosted native parent default path retains original source and issuer 
   assert.equal(metadataCalls, 0);
   assert.deepEqual(await readdir(parent), []);
   process.env.PORTCOVE_RELEASE_AUTHORITIES = configured;
+  process.env.NODE_USE_ENV_PROXY = "1";
+  try {
+    await assert.rejects(
+      createActualHostedNativeParentSource(
+        parent,
+        "linux-x86_64",
+        "payload-signing",
+        performance.now() + 10000,
+      ),
+      /hosted native parent source refused/u,
+    );
+    assert.equal(tokenCalls, 1);
+    assert.equal(metadataCalls, 0);
+  } finally {
+    if (before.NODE_USE_ENV_PROXY === undefined) delete process.env.NODE_USE_ENV_PROXY;
+    else process.env.NODE_USE_ENV_PROXY = before.NODE_USE_ENV_PROXY;
+  }
   const receipt = await createActualHostedNativeParentSource(
     parent,
     "linux-x86_64",
@@ -389,6 +404,8 @@ void test("hosted native parent default path retains original source and issuer 
     performance.now() + 10000,
   );
   const actual = await requireActualHostedNativeParentSource(receipt);
+  assert.equal(tokenCalls, 2);
+  assert.equal(metadataCalls, 5);
   assert.equal(actual.producer.run_id, nativeIdentityExpected.run_id);
   assert.equal(actual.producer.run_attempt, 1);
   assert.equal(actual.producer.configuration_sha256, releaseCanonicalDigest(configuration));
@@ -446,7 +463,10 @@ void test("hosted native parent default path retains original source and issuer 
         if (outcome === "prior-hold")
           throw new CoordinatorRemoteError("hold", { phase: "repository-and-reservation" });
         await requireActualHostedNativeParentSource(originalParent);
-        assert.ok(options.retainDesktopPackage);
+        assert.equal(options.api, undefined);
+        assert.ok(options.nativeSource && options.retainDesktopPackage);
+        assert.equal(options.nativeSource.token, "inert-reader-only");
+        options.nativeSource.guard();
         await options.retainDesktopPackage(
           file,
           outcome === "bad-bytes" ? Buffer.from("changed") : packageBytes,
@@ -1387,6 +1407,119 @@ const workflow = await readFile(
   new URL("../.github/workflows/application-update-production.yml", import.meta.url),
   "utf8",
 );
+
+void test("fixed pause step brackets the raw bounded document through locked Octokit", async () => {
+  const parsed = parse(workflow) as {
+    jobs: {
+      admission: { steps: { id?: string; uses?: string; with?: Record<string, unknown> }[] };
+    };
+  };
+  const pause = parsed.jobs.admission.steps.find((step) => step.id === "pause");
+  assert.equal(pause?.uses, "actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3");
+  assert.equal(pause.with?.retries, 0);
+  assert.equal(pause.with?.debug, false);
+  const script = pause.with?.script;
+  assert.ok(typeof script === "string" && !script.includes("${{"));
+  const base = "https://api.github.com/repos/boburning/portcove";
+  const ref = "/git/ref/heads/portcove-release-pause";
+  const sha = "a".repeat(40);
+  for (const scenario of [
+    "paused",
+    "unpaused",
+    "changed",
+    "oversized",
+    "failed-body",
+    "redirect",
+  ]) {
+    const calls: string[] = [];
+    const outputs: unknown[] = [];
+    const execute = runInNewContext(`(async () => {${script}})()`, {
+      github: new Octokit({ auth: "inert" }),
+      core: { setOutput: (...values: unknown[]) => outputs.push(values) },
+      AbortSignal,
+      Response,
+      Buffer,
+      fetch: async (input: string, init: RequestInit) => {
+        const suffix = input.slice(base.length);
+        assert.equal(input, base + suffix);
+        assert.equal(init.redirect, "manual");
+        assert.equal(new Headers(init.headers).get("authorization"), "token inert");
+        calls.push(suffix);
+        if (suffix === ref)
+          return Response.json({
+            ref: "refs/heads/portcove-release-pause",
+            object: {
+              type: "commit",
+              sha: scenario === "changed" && calls.length === 3 ? "b".repeat(40) : sha,
+            },
+          });
+        assert.equal(suffix, `/contents/publication.json?ref=${sha}`);
+        assert.equal(new Headers(init.headers).get("accept"), "application/vnd.github.raw+json");
+        if (scenario === "redirect")
+          return new Response(null, {
+            status: 302,
+            headers: { location: "https://example.invalid/" },
+          });
+        if (scenario === "oversized") return new Response(" ".repeat(4097));
+        if (scenario === "failed-body")
+          return new Response(
+            new ReadableStream({
+              pull(controller) {
+                controller.error(new Error("raw provider exception"));
+              },
+            }),
+          );
+        return Response.json({ publication_paused: scenario !== "unpaused", schema_version: 1 });
+      },
+    }) as Promise<void>;
+    if (scenario === "paused" || scenario === "unpaused") {
+      await execute;
+      assert.deepEqual(outputs, [["publication_paused", String(scenario === "paused")]]);
+    } else {
+      await assert.rejects(
+        execute,
+        /Fixed publication pause read failed|Publication pause ref changed/u,
+      );
+      assert.deepEqual(outputs, []);
+    }
+    assert.deepEqual(calls, [
+      ref,
+      `/contents/publication.json?ref=${sha}`,
+      ...(["paused", "unpaused", "changed"].includes(scenario) ? [ref] : []),
+    ]);
+  }
+});
+
+void test("held receiver leaves both tool producers available and fences protected consumers", () => {
+  const { jobs } = parse(workflow) as {
+    jobs: Record<
+      string,
+      {
+        needs?: string | string[];
+        if?: string;
+        outputs?: Record<string, string>;
+      }
+    >;
+  };
+  assert.equal(
+    jobs.admission?.outputs?.publication_paused,
+    "${{ steps.pause.outputs.publication_paused }}",
+  );
+  assert.equal(jobs.tool_bootstrap?.needs, "admission");
+  assert.equal(jobs.tool_bootstrap_windows?.needs, "admission");
+  assert.match(
+    jobs.tool_attest?.if ?? "",
+    /needs\.admission\.outputs\.publication_paused == 'false'/u,
+  );
+  for (const name of ["classification_protection_observation", "classification_writer"]) {
+    assert.ok(jobs[name]?.needs?.includes("tool_attest"));
+    assert.doesNotMatch(jobs[name]?.if ?? "", /always\(\)|!cancelled\(\)/u);
+  }
+  for (const name of ["coordinator", "coordinator_protection_observation"]) {
+    assert.ok(jobs[name]?.needs?.includes("tool_attest"));
+    assert.match(jobs[name]?.if ?? "", /needs\.tool_attest\.result == 'success'/u);
+  }
+});
 
 void test("configured held workflow enforces bootstrap identities before checkout or any credential role", () => {
   const parsed = parse(workflow) as {

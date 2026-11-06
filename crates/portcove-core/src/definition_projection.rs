@@ -181,6 +181,9 @@ impl DefinitionContentIndex {
             ));
         }
         let mut catalog = Catalog::from_json(&catalog_json)?;
+        for port in catalog.ports() {
+            crate::definition_entry::require_indexed_persistence(port)?;
+        }
         if serde_json::to_value(catalog.authoritative_document())? != document.catalog {
             return Err(PortcoveError::verification(
                 "catalog projection contains unsupported or incomplete semantics",

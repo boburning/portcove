@@ -5,6 +5,8 @@ import { artifactName } from "./release-package-policy.mts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createHash } from "node:crypto";
+import { downloadGitHubReleaseAsset } from "./github-artifact-download.mts";
+import type { GitHubAttemptObservation } from "./github-client.mts";
 import {
   capacityDigest as digest,
   inspectCapacityOperation,
@@ -30,6 +32,89 @@ import {
 import type { ImmutableReleaseMetadataProvider } from "./release-custody-provider.mts";
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const base = "repos/boburning/portcove";
+void test("locked release asset SDK accepts bounded direct bytes or anonymous signed bytes", async () => {
+  const token = "ghs_candidate_asset_fixture";
+  const bytes = new Uint8Array([0xff, 0x00, 0x80, 0x10]);
+  const origin = "https://release-assets.githubusercontent.com";
+  const delivery = `${origin}/github-production-release-asset-2e65be/123/456?sig=fixture`;
+  for (const mode of ["direct", "redirect", "unsafe", "oversize", "short", "stalled"] as const) {
+    const observations: GitHubAttemptObservation[] = [];
+    let signed = 0;
+    let lookup = 0;
+    let directSignal: AbortSignal | null | undefined;
+    const fetcher: typeof globalThis.fetch = async (input, init) => {
+      const url = new URL(input instanceof Request ? input.url : input);
+      if (url.origin === "https://api.github.com") {
+        lookup++;
+        directSignal = init?.signal;
+        assert.equal(url.pathname, `/${base}/releases/assets/700`);
+        assert.equal(new Headers(init?.headers).get("authorization"), `token ${token}`);
+        assert.equal(new Headers(init?.headers).get("accept"), "application/octet-stream");
+        assert.equal(init?.redirect, "manual");
+        if (mode === "redirect" || mode === "unsafe")
+          return new Response(null, {
+            status: 302,
+            headers: {
+              location:
+                mode === "redirect" ? delivery : "https://untrusted.example/path?sig=fixture",
+            },
+          });
+        if (mode === "stalled")
+          return new Response(
+            new ReadableStream({
+              start(controller) {
+                controller.enqueue(bytes.subarray(0, 1));
+              },
+            }),
+          );
+        return new Response(
+          mode === "oversize" ? new Uint8Array(5) : mode === "short" ? bytes.subarray(0, 2) : bytes,
+        );
+      }
+      assert.equal(url.href, delivery);
+      assert.equal(init?.redirect, "manual");
+      assert.equal(new Headers(init?.headers).has("authorization"), false);
+      signed++;
+      return new Response(bytes);
+    };
+    const keepAlive = setTimeout(() => {}, 2000);
+    try {
+      const read = downloadGitHubReleaseAsset(700, {
+        credential: { kind: "explicit", token },
+        deadline: performance.now() + (mode === "stalled" ? 250 : 5000),
+        maxBytes: 4,
+        fetch: fetcher,
+        lookup: {
+          reserve: () => ({
+            consumeBytes() {},
+            settle: (observation) => observations.push(observation),
+          }),
+        },
+      });
+      if (mode === "direct" || mode === "redirect")
+        assert.deepEqual(await read, Buffer.from(bytes));
+      else
+        await assert.rejects(read, {
+          code: {
+            unsafe: "redirect_refused",
+            oversize: "response_limit",
+            short: "invalid_response",
+            stalled: "deadline_exceeded",
+          }[mode],
+        });
+    } finally {
+      clearTimeout(keepAlive);
+    }
+    assert.equal(lookup, 1);
+    assert.equal(signed, mode === "redirect" ? 1 : 0);
+    assert.equal(observations.length, 1);
+    assert.equal(observations[0]?.dispatched, true);
+    assert.equal(observations[0]?.headers.location, undefined);
+    if (mode === "direct") assert.equal(observations[0]?.bytes, 4);
+    if (mode === "stalled") assert.equal(directSignal?.aborted, true);
+  }
+});
+
 const candidate = {
   phase: "publishing",
   version: "0.1.0-beta.1",
@@ -478,8 +563,10 @@ void test("source-bound coordinator pending continuation verifies custody then r
     },
   });
   const checkpointControls = async () => {};
+  const readReleaseAsset = async () => Buffer.alloc(0);
   const context = {
     checkpointControls,
+    readReleaseAsset,
     pendingRelease: pending,
     context: {},
     publication: {},
@@ -488,9 +575,6 @@ void test("source-bound coordinator pending continuation verifies custody then r
     deadline: 170000,
     metadata: provider,
     input: { repository: "bare", remote_configuration: {} },
-    directory: "private",
-    environment: {},
-    base,
     executor: {},
     assert,
     digest,
@@ -506,8 +590,14 @@ void test("source-bound coordinator pending continuation verifies custody then r
     requireRetainedActualTufPublication: async () => {
       calls.push("retained-Tough");
     },
-    observePendingCandidateRelease: async (metadata: unknown) => {
+    observePendingCandidateRelease: async (
+      metadata: unknown,
+      _operation: unknown,
+      _expected: unknown,
+      read: unknown,
+    ) => {
       assert.equal(metadata, provider);
+      assert.equal(read, readReleaseAsset);
       observations++;
       calls.push("GET-only-observation");
       if (mode === "missing") throw new Error("missing original target");

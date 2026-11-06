@@ -7,7 +7,7 @@ import {
 import { validateOpportunity } from "./release-coordinator.mts";
 import { capacityDigest } from "./release-capacity.mts";
 import { GitHubApiClient } from "./github-api.mts";
-import type { GitHubRestReader } from "./github-api.mts";
+import type { GitHubRestReader } from "./github-operation.mts";
 import { isRecord } from "./runtime-values.mts";
 import { parseVersionClassification } from "../apps/desktop/scripts/release-version-policy.mts";
 import { inspectReleaseReviewRequest } from "./release-review-request.mts";

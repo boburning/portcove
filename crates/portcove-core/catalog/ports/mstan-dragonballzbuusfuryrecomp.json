@@ -49,6 +49,7 @@
     },
     "original_game_title": "Dragon Ball Z: Buu's Fury"
   },
+  "gba_staged_archive_v1": { "game_code": "BG3E", "versioned_mods": true },
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -64,23 +65,6 @@
     "executable_hints": {
       "windows-x86-64": ["DragonBallZBuusFuryRecomp.exe"]
     },
-    "persistent_paths": [
-      "config.ini",
-      "keybinds.ini",
-      "rom.cfg",
-      "bios.cfg",
-      "game.toml",
-      "saves",
-      "mods"
-    ],
-    "mod_package_policy": "versioned-packages-v1",
-    "runtime_mutable_paths": [
-      "recomp_cache",
-      "diagnostics",
-      "recomp_master_misses_BG3E.toml.frag",
-      "recomp_coverage_BG3E.json",
-      "replay-divergence.state"
-    ],
     "presentation": {
       "installation_method": "portable-package",
       "source_requirements": [],

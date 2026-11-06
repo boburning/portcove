@@ -12,6 +12,7 @@ import { checkpointReleaseOpportunity, coordinatorStateRef } from "./release-coo
 import {
   publishPreparedCoordinatorCheckpoint,
   publishPreparedReleaseObjects,
+  createNativePreparedObjectTransport,
 } from "./release-prepared-transport.mts";
 import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
@@ -391,7 +392,7 @@ void test(
     const refs = [...f.refs];
     let guarded = 0;
     const options = {
-      api: f.api,
+      open: async () => f.api,
       beforeWrite: async () => {
         guarded++;
       },
@@ -422,7 +423,7 @@ void test(
     const f = await fixture(t);
     await assert.rejects(
       publishPreparedReleaseObjects(f.local, f.candidate, {
-        api: f.api,
+        open: async () => f.api,
         beforeWrite: async () => {
           throw new Error("fresh production guard refused");
         },
@@ -440,8 +441,22 @@ for (const kind of ["blobs", "trees", "commits"])
     async (t) => {
       const f = await fixture(t);
       f.faults.lose = kind;
+      t.mock.method(
+        globalThis,
+        "fetch",
+        async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+          const request = new Request(input, init);
+          const url = new URL(request.url);
+          assert.equal(url.origin, "https://api.github.com");
+          assert.equal(request.headers.get("authorization"), "token inert-prepared-object-writer");
+          const body: unknown = request.method === "GET" ? undefined : await request.json();
+          const result = f.api.request(request.method, url.pathname.slice(1), body);
+          return Response.json(result.body, { status: result.status ?? 200 });
+        },
+      );
       const result = await publishPreparedReleaseObjects(f.local, f.candidate, {
-        api: f.api,
+        open: (deadline) =>
+          createNativePreparedObjectTransport("inert-prepared-object-writer", deadline),
         beforeWrite: async () => {},
       });
       assert.ok(result.objects.some((object) => object.mutation_error));
@@ -459,7 +474,7 @@ void test(
     f.faults.readback = true;
     await assert.rejects(
       publishPreparedReleaseObjects(f.local, f.candidate, {
-        api: f.api,
+        open: async () => f.api,
         beforeWrite: async () => {},
       }),
       (error: unknown) => {

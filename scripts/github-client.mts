@@ -21,6 +21,8 @@ export interface GitHubRequestPolicy {
   maxAttempts?: number;
   /** When redirects are observed, read bodies only for these diagnostic statuses. */
   readRedirectBodyFor?: readonly number[];
+  /** Stream an exact one-shot binary GET on 200 without passing bytes to SDK JSON parsing. */
+  binaryResponse?: { maxBytes: number; receive: (chunk: Uint8Array) => void | Promise<void> };
   /** Request-owned evidence; no mutable client-wide last response. */
   observe?: (observation: GitHubAttemptObservation) => void;
   /** Retain a complete response before the final deadline check.
@@ -237,6 +239,21 @@ export async function createGitHubClient(options: GitHubClientOptions) {
       ]);
       requestTimedOut = () => timeout.aborted && signal.reason === timeout.reason;
       const path = new URL(parameters.url, base).pathname;
+      if (
+        policy.binaryResponse &&
+        (policy.replay !== "once" ||
+          parameters.method !== "GET" ||
+          !/^\/repos\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/releases\/assets\/[1-9][0-9]{0,15}$/u.test(
+            path,
+          ) ||
+          !Number.isSafeInteger(policy.binaryResponse.maxBytes) ||
+          policy.binaryResponse.maxBytes < 1 ||
+          policy.binaryResponse.maxBytes > 512 * 1024 * 1024)
+      )
+        throw new GitHubApiError(
+          "invalid_configuration",
+          "Bounded one-shot GitHub release asset required",
+        );
       const resource =
         path === "/graphql" ? "graphql" : path.startsWith("/search/") ? "search" : "core";
       const waitUntil = async (
@@ -328,6 +345,8 @@ export async function createGitHubClient(options: GitHubClientOptions) {
                 "request_refused",
                 "Anonymous GitHub request contains credentials",
               );
+            if (now() >= deadline)
+              throw new GitHubApiError("deadline_exceeded", "GitHub dispatch deadline exhausted");
             observation.dispatched = true;
             let response: Response;
             try {
@@ -359,6 +378,7 @@ export async function createGitHubClient(options: GitHubClientOptions) {
                 });
               }
             }
+            const binary = response.status === 200 ? policy.binaryResponse : undefined;
             const chunks: Uint8Array[] = [];
             const reader = response.body?.getReader();
             const cancel = () => {
@@ -378,18 +398,27 @@ export async function createGitHubClient(options: GitHubClientOptions) {
                   );
                 observation.bytes += bytes.byteLength;
                 reservation?.consumeBytes(bytes.byteLength);
-                if (observation.bytes > maxBytes)
+                if (observation.bytes > (binary?.maxBytes ?? maxBytes))
                   throw new GitHubApiError(
                     "response_limit",
-                    "GitHub metadata exceeds its byte limit",
+                    binary
+                      ? "GitHub binary response exceeds its byte limit"
+                      : "GitHub metadata exceeds its byte limit",
                   );
-                chunks.push(bytes);
+                if (binary) await binary.receive(bytes);
+                else chunks.push(bytes);
               }
             } finally {
               signal.removeEventListener("abort", cancel);
               await reader?.cancel().catch(() => {});
             }
             signal.throwIfAborted();
+            if (binary)
+              return new Response(null, {
+                status: response.status,
+                statusText: response.statusText,
+                headers: response.headers,
+              });
             const bodyBytes = Buffer.concat(chunks);
             try {
               new TextDecoder("utf-8", { fatal: true }).decode(bodyBytes);

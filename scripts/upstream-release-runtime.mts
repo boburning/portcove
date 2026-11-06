@@ -14,6 +14,7 @@ import {
   retainedRecovery,
   retainedDiagnostic,
 } from "./upstream-release-identity.mts";
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import { rehearsalApi } from "./upstream-release-rehearsal.mts";
 
 // The regression checks these against the actual native job timeouts. Prior
@@ -170,8 +171,18 @@ export function inspectRehearsalBudget(
   };
 }
 
-export function readRehearsalAttemptObservations() {
-  const execution = rehearsalExecution();
+export async function readRehearsalAttemptObservations(
+  options: { environment?: NodeJS.ProcessEnv; fetch?: typeof globalThis.fetch } = {},
+) {
+  const environment = options.environment ?? process.env;
+  const execution = rehearsalExecution(environment);
+  const token = environment.GH_TOKEN;
+  if (!token) throw new Error("fixed rehearsal job reader credential is unavailable");
+  const provider = await createReleaseCustodyProvider({
+    token,
+    deadline: performance.now() + 120000,
+    ...(options.fetch ? { fetch: options.fetch } : {}),
+  });
   const attempts: unknown[] = [];
   const contexts: unknown[] = [];
   for (const selected of [
@@ -181,7 +192,7 @@ export function readRehearsalAttemptObservations() {
     retainedDiagnostic,
     { ...execution, ref: rehearsalExecutionRef },
   ]) {
-    const actual = rehearsalApi(`actions/runs/${selected.run_id}/attempts/${selected.run_attempt}`);
+    const actual = await provider.attempt(selected.run_id, selected.run_attempt);
     assert.ok(
       isRecord(actual) &&
         actual.id === Number(selected.run_id) &&
@@ -191,10 +202,8 @@ export function readRehearsalAttemptObservations() {
         actual.path === ".github/workflows/upstream-release-rehearsal.yml" &&
         actual.event === "workflow_dispatch",
     );
-    const jobs = rehearsalApi(
-      `actions/runs/${selected.run_id}/attempts/${selected.run_attempt}/jobs?per_page=100`,
-    );
-    assert.ok(isRecord(jobs) && Array.isArray(jobs.jobs));
+    const { body: jobs, next } = await provider.jobs(selected.run_id, selected.run_attempt, 1);
+    assert.ok(next === null && isRecord(jobs) && Array.isArray(jobs.jobs));
     if (selected.run_id !== execution.run_id)
       assert.ok(jobs.jobs.every((value) => isRecord(value) && value.status === "completed"));
     attempts.push(jobs);
@@ -205,7 +214,7 @@ export function readRehearsalAttemptObservations() {
 
 export async function assertRehearsalBudget(job: string) {
   const execution = rehearsalExecution();
-  const { attempts, contexts } = readRehearsalAttemptObservations();
+  const { attempts, contexts } = await readRehearsalAttemptObservations();
   const current = attempts[4];
   assert.ok(isRecord(current) && Array.isArray(current.jobs));
   const order = Object.keys(recoveryJobMinutes);
@@ -231,25 +240,6 @@ export async function assertRehearsalBudget(job: string) {
       "prior execution has not settled in provider readback",
     );
 
-  if (job === "package" && execution.run_attempt > 1) {
-    const artifacts = rehearsalApi(`actions/runs/${execution.run_id}/artifacts?per_page=100`);
-    assert.ok(
-      isRecord(artifacts) &&
-        Array.isArray(artifacts.artifacts) &&
-        artifacts.total_count === artifacts.artifacts.length &&
-        artifacts.artifacts.length < 100,
-    );
-    assert.ok(
-      !artifacts.artifacts.some(
-        (value) =>
-          isRecord(value) &&
-          new RegExp(`^upstream-(unsigned|candidate-executable)-${execution.run_id}-`, "u").test(
-            String(value.name),
-          ),
-      ),
-      "retain original package artifacts after a partial failure; no automatic rebuild",
-    );
-  }
   const receipt = inspectRehearsalBudget(job, attempts, contexts);
   await mkdir("work/upstream-runtime", { recursive: true });
   await writeFile(

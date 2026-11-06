@@ -387,6 +387,7 @@ mod tests {
             .push(crate::PersistentFilePattern {
                 prefix: "state_".into(),
                 suffix: ".bin".into(),
+                allow_empty_middle: false,
             });
         for relative in ["settings.ini", "state_extra.bin", "GAME.SRM", "GAME.BIN"] {
             let temporary = tempfile::tempdir().unwrap();

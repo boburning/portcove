@@ -1608,6 +1608,7 @@ mod tests {
     fn assert_prepared_player_route(id: &str, selected_arguments: Option<&[&str]>) {
         let (_temporary, mut service, executable, working) = fixture(id);
         service.catalog = Catalog::embedded().unwrap();
+        let current_adapter = service.catalog.port(id).unwrap().adapter;
         // A new managed offer does not rewrite an existing registration's
         // creating contract. Unreplaced cases continue to bind current data.
         let retained_fixture = [
@@ -1617,14 +1618,16 @@ mod tests {
             include_str!("../testdata/bstone-retained-selected-2026-10-29.json"),
             include_str!("../testdata/devilution-retained-selected-2026-10-29.json"),
             include_str!("../testdata/native-engine-retained-selected-2026-11-02.json"),
+            include_str!("../testdata/gba-pokemon-retained-selected-2026-11-05.json"),
+            include_str!("../testdata/gba-ruby-sapphire-retained-selected-2026-11-06.json"),
         ]
         .into_iter()
         .find(|fixture| Catalog::from_json(fixture).unwrap().port(id).is_ok());
         if let Some(fixture) = retained_fixture {
-            assert_eq!(
-                service.catalog.port(id).unwrap().adapter,
-                crate::AdapterKind::NativePortable
-            );
+            assert!(matches!(
+                current_adapter,
+                crate::AdapterKind::NativePortable | crate::AdapterKind::StagedSourcePortable
+            ));
             service.catalog = Catalog::from_json(fixture)
                 .unwrap()
                 .with_embedded_listings()
@@ -1738,10 +1741,7 @@ mod tests {
         drop(service);
         let service = PortcoveService::new(Library::open(root).unwrap()).unwrap();
         if retained_fixture.is_some() {
-            assert_eq!(
-                service.catalog.port(id).unwrap().adapter,
-                crate::AdapterKind::NativePortable
-            );
+            assert_eq!(service.catalog.port(id).unwrap().adapter, current_adapter);
         }
         #[cfg(windows)]
         if let Some(fixture) = retained_fixture {
@@ -3143,7 +3143,23 @@ mod tests {
 
     #[test]
     fn body_harvest_recompiled_frontend_license_player_route_1448() {
-        assert_listing_only_player_route("body-harvest-recompiled", Some(false));
+        let id = "body-harvest-recompiled";
+        let (temporary, mut service, executable, working) = fixture(id);
+        service.catalog = Catalog::embedded().unwrap();
+        assert_eq!(
+            service.catalog.port(id).unwrap().adapter,
+            crate::AdapterKind::NativePortable
+        );
+        let listing = service.catalog.listing(id).unwrap();
+        assert!(listing.manual_setup.is_some());
+        assert!(listing.download_block_reason.is_none());
+        assert!(
+            service
+                .current_user_selected_definition(id)
+                .unwrap()
+                .is_none()
+        );
+        assert_selected_listing_lifecycle(temporary, service, executable, working, id);
     }
 
     #[test]

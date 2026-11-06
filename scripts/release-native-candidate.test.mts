@@ -2,23 +2,35 @@ import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { createRequire } from "node:module";
-import { mkdir, mkdtemp, readFile, writeFile, copyFile, cp, rm } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  writeFile,
+  copyFile,
+  cp,
+  readdir,
+  rename,
+  rm,
+  utimes,
+} from "node:fs/promises";
 import { performance } from "node:perf_hooks";
 import { disposableTufWorkerFixture } from "./fixtures/tuf-worker-fixture.mts";
 import { signIsolatedTufRole, tufRoleDependencies } from "./release-tuf-signing.mts";
 import { signReleasePayload } from "./release-payload-signing.mts";
-import { readGitHubReleaseAsset } from "./github-binary.mts";
+import os from "node:os";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { trustedAssemblyFixture } from "./fixtures/trusted-assembly-fixture.mts";
 import {
   inspectNativePredecessorReleaseAsset,
+  acquireNativePredecessorRelease,
+  readNativeImmutableReleaseSnapshot,
   inspectNativePostSignPackageMetadata,
   acquireActualNativePostSignCandidate,
   inspectSelectedNativeCandidate,
   acquireActualNativeCandidate,
   requireActualNativeCandidate,
-  inspectNativeSourceCommand,
   nativeInvocationIdentity,
   inspectNativePostSignController,
   inspectNativeCurrentStage,
@@ -42,6 +54,51 @@ import {
   inspectNativePayloadVerificationPlan,
   runNativePayloadVerificationPlan,
 } from "./release-native-keyless-assembly.mts";
+
+void test("public native Release assets use the locked SDK and exact next-page scope", async () => {
+  const origin = "https://api.github.com";
+  const first = "/repos/boburning/portcove/releases/17/assets?per_page=100";
+  const next = "/repositories/1354613114/releases/17/assets?per_page=100&page=2";
+  const tag = "/repos/boburning/portcove/releases/tags/v1.2.3";
+  const credential = { kind: "explicit", token: "synthetic-public-parent" } as const;
+  for (const hostile of [false, true]) {
+    const calls: string[] = [];
+    const observed = readNativeImmutableReleaseSnapshot(
+      "1.2.3",
+      {
+        credential,
+        deadline: performance.now() + 5000,
+        recheck() {},
+        async fetch(input, init) {
+          const url =
+            typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+          calls.push(url);
+          assert.equal(
+            new Headers(init?.headers).get("authorization"),
+            "token synthetic-public-parent",
+          );
+          if (url === origin + tag) return Response.json({ id: 17 });
+          if (url === origin + first)
+            return Response.json([{ id: 100 }], {
+              headers: {
+                link: `<${origin}${hostile ? next.replace("per_page=100", "per_page=1") : next}>; rel="next"`,
+              },
+            });
+          assert.equal(url, origin + next);
+          return Response.json([{ id: 101 }]);
+        },
+      },
+      true,
+    );
+    if (hostile) {
+      await assert.rejects(observed, /pagination changed scope/);
+      assert.deepEqual(calls, [origin + tag, origin + first]);
+    } else {
+      assert.deepEqual(await observed, { release: { id: 17 }, assets: [{ id: 100 }, { id: 101 }] });
+      assert.deepEqual(calls, [origin + tag, origin + first, origin + next]);
+    }
+  }
+});
 
 void test("native keyless plan fixes owned public input paths and the maintained local tool without minting execution authority", async () => {
   const root = path.resolve(fileURLToPath(new URL("..", import.meta.url))),
@@ -335,6 +392,84 @@ void test("post-sign source run comes from exact completed timestamp candidate o
   );
 });
 
+void test("actual installed post-sign source uses locked SDK for exact context and role proof archives", async (t) => {
+  const f = await trustedAssemblyFixture(t, "initial-beta-win-linux");
+  const entry = new URL("./release-native-candidate.mts", import.meta.url).href;
+  const capacity = new URL("./release-capacity.mts", import.meta.url).href;
+  const code = String.raw`
+import assert from 'node:assert/strict';
+import {registerHooks} from 'node:module';
+import {writeFile, readdir} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+import path from 'node:path';
+import {capacityDigest as digest} from ${JSON.stringify(capacity)};
+const root=process.argv[1],hash=b=>createHash('sha256').update(b).digest('hex'),bytes=Buffer.alloc(22),sha256=hash(bytes),revision='a'.repeat(40),ref='refs/tags/portcove-production-controller-fixture';
+const token='fixed_native_source_fixture_token', gh=path.join(root,'fixed-gh'), tokenFile=path.join(root,'source-token');
+await writeFile(gh,'inert verifier',{mode:0o700});await writeFile(tokenFile,token,{mode:0o600});
+process.env.GH_TOKEN='unrelated-ambient-token';
+const candidate={phase:'publishing',source_commit:'b'.repeat(40),prepared_commit:'c'.repeat(40),prepared_tree:'d'.repeat(40),frozen_opportunity:{fixed:true},version:'0.1.0-beta.1',transient_retries:0,substantive_repairs:0,release_run:{run_id:999,attempt:1,revision:'c'.repeat(40)}};
+const {phase,prepared_tree,frozen_opportunity,release_run,...subject}=candidate;
+const identity={before_checkpoint:'d'.repeat(40),candidate:subject,destination:'github-actions:boburning/portcove:0.1.0-beta.1:tuf-timestamp-envelope',executor_nonce:'e'.repeat(64),executor_identity:{actor_id:'123',check_run_id:'456',controller_revision:revision,execution_ref:ref,job_id:789,role:'tuf-timestamp',run_attempt:1,run_id:'12345',workflow:'.github/workflows/application-update-production.yml'},receipt_limit:1,kind:'upload',sequence:1,policy_sha256:'f'.repeat(64),ratification_sha256:'1'.repeat(64)};
+const operation={...identity,id:digest(identity),outcome:'succeeded',completed_effects:[{remote_identity:'artifact:fixture',evidence_sha256:'2'.repeat(64)}],recovery:null,failure_evidence:null};
+const parentReceipt={}, parent={descriptor:{capture_root:root,controller_revision:revision,namespace:'portcove-fixture'},transport_configuration:{github_cli:{path:gh,sha256:hash(Buffer.from('inert verifier'))},source_read_token:tokenFile},controller_tree:'e'.repeat(40),authority_configuration:{},recheck:async()=>{}};
+const roles=['releases','preview','stable','snapshot','timestamp'], files=new Map(['trusted-root.json','offline-targets.json','payload.json'].map(name=>[name,Buffer.from(name)]));
+const names=['trusted-payload-signing-context','trusted-payload-signing-context-attestation',...roles.flatMap(role=>['trusted-tuf-'+role+'-output','trusted-tuf-'+role+'-attestation'])];
+const rows=names.map((name,i)=>({id:i+100,name:name+'-12345-1',expired:false,size_in_bytes:22,digest:'sha256:'+sha256,workflow_run:{id:12345,repository_id:1354613114,head_repository_id:1354613114,head_sha:revision}}));
+let mode='',reads=0,wire=[],deliveries=[];
+const download=async(item,opts,directory)=>opts.download('repos/boburning/portcove/actions/artifacts/'+item.id+'/zip',{cwd:directory,maxBytes:22,timeoutMs:30000});
+globalThis.nativeProofFixture={
+ parent:async receipt=>{assert.equal(receipt,parentReceipt);return parent},
+ recover:async()=>({checkpoint:'7'.repeat(40),repository:root,input:{active_candidate:candidate,controller:{capacity_attempt:{schema_version:2,operation,prior_operations:[]}}}}),
+ pins:()=>({public_source:{root:{sha256:hash(files.get('trusted-root.json'))},offline_targets:{sha256:hash(files.get('offline-targets.json'))},payload_key_registry:{sha256:hash(files.get('payload.json'))}}}),
+ inspect:archive=>{assert.deepEqual(archive,bytes);return {files,manifest_sha256:'f'.repeat(64),manifest:{facts_sha256:'a'.repeat(64),binding:{fixed:true},facts:{opportunity:candidate.frozen_opportunity,assembly:{}}}}},
+ assembly:async()=>({accepted:{release_profile:'initial-beta-win-linux',source_commit:candidate.prepared_commit,source_tree:candidate.prepared_tree,version:candidate.version,run_id:'999',run_attempt:1}}),
+ context:async(directory,expected,_deadline,opts)=>{assert.equal(typeof opts.spawn,'function');assert.deepEqual(await download(expected.artifact,opts,directory),bytes);assert.deepEqual(await download(expected.bundle,opts,directory),bytes);return {directory}},
+ role:async(directory,expected,_deadline,opts)=>{assert.equal(typeof opts.spawn,'function');assert.deepEqual(await download(expected.artifact,opts,directory),bytes);assert.deepEqual(await download(expected.bundle,opts,directory),bytes);return {envelope:{role:expected.role}}},
+};
+const mocks={
+ './release-native-parent.mts':'export const requireActualNativeParent=globalThis.nativeProofFixture.parent;export const remainingNativeParentBudget=(cap=2070000)=>cap;',
+ './release-coordinator-recovery.mts':'export const recoverRemoteCoordinator=globalThis.nativeProofFixture.recover;export const hydrateRetainedCoordinatorOperation=()=>{throw Error("unexpected historical hydrate")};',
+ './release-authority-configuration.mts':'export const inspectNativePrepublicationAuthorities=()=>({});export const inspectPublicationAuthorities=globalThis.nativeProofFixture.pins;',
+ './release-signing-context-artifact.mts':'export const inspectSigningContextArchive=globalThis.nativeProofFixture.inspect;export const receiveSigningContextArtifact=globalThis.nativeProofFixture.context;',
+ './release-tuf-role-artifact.mts':'export const readAttestedTufRoleArtifact=globalThis.nativeProofFixture.role;',
+ './trusted-release-assembly.mts':'export const inspectTrustedAssemblyInput=globalThis.nativeProofFixture.assembly;',
+};
+registerHooks({resolve(specifier,context,next){if(context.parentURL===${JSON.stringify(entry)}&&mocks[specifier])return {url:'native-proof:'+specifier,shortCircuit:true};return next(specifier,context)},load(url,context,next){if(url.startsWith('native-proof:'))return {format:'module',source:mocks[url.slice('native-proof:'.length)],shortCircuit:true};return next(url,context)}});
+globalThis.fetch=async(input,init)=>{
+ const url=new URL(input instanceof Request?input.url:input),headers=new Headers(init.headers);assert.equal(init.redirect,'manual');
+ if(url.origin==='https://productionresultssa1.blob.core.windows.net'){assert.equal(init.credentials,'omit');assert.equal(headers.has('authorization'),false);deliveries.push(url.pathname);return new Response(mode==='short'?bytes.subarray(0,21):bytes)}
+ assert.equal(url.origin,'https://api.github.com');assert.equal(headers.get('authorization'),'token '+token);wire.push(url.pathname);
+ const endpoint='/repos/boburning/portcove/actions';
+ if(url.pathname===endpoint+'/runs/12345/artifacts'){
+  assert.equal(url.search,'?per_page=100');reads++;
+  const artifacts=structuredClone(rows);
+  if(mode==='drift'&&reads===2)artifacts[0].digest='sha256:'+'0'.repeat(64);
+  return Response.json({total_count:artifacts.length,artifacts});
+ }
+ const id=Number(url.pathname.split('/').at(-2));
+ assert.equal(url.pathname,endpoint+'/artifacts/'+id+'/zip');assert.ok(id>=100&&id<=111);
+ return new Response(null,{status:302,headers:{location:'https://productionresultssa1.blob.core.windows.net/actions-results/'+id+'?sig=fixture'}});
+};
+const api=await import(${JSON.stringify(entry)});
+for(const scenario of ['ok','drift','short']){
+ mode=scenario;reads=0;wire=[];deliveries=[];
+ const source=await api.readActualNativePostSignController(parentReceipt);
+ if(scenario==='ok'){
+  const result=await api.readActualNativePostSignPublicInputs(source);
+  assert.equal(result.authority,'none');assert.equal(result.roles.length,5);
+  assert.ok(!(await readdir(result.directory)).some(name=>name.startsWith('native-proof-archive-')));
+ }else await assert.rejects(api.readActualNativePostSignPublicInputs(source));
+ const count=scenario==='short'?1:12;
+ assert.equal(deliveries.length,count);assert.equal(new Set(deliveries).size,count);
+ assert.equal(reads,scenario==='short'?1:2);
+ assert.equal(wire.length,deliveries.length+reads);
+}
+`;
+  await promisify(execFile)(process.execPath, ["--input-type=module", "--eval", code, f.root], {
+    timeout: 15000,
+  });
+});
+
 void test("native duplicate identity binds the actual tuple and existing bounded recovery counters", () => {
   const report = nativeQualificationFixture();
   const prepare = (nonce: string) =>
@@ -415,39 +550,6 @@ void test("selection reconstructs exact package identities without native or adm
   }
 });
 
-void test("credentialled source routes admit only exact provider reads and query bodies", () => {
-  const args = [
-    "api",
-    "--include",
-    "repos/boburning/portcove/actions/runs/123",
-    "--method",
-    "GET",
-    "--hostname",
-    "github.com",
-  ];
-  assert.equal(inspectNativeSourceCommand(args).authority, "none");
-  const query = ["api", "graphql", "--include", "--input", "-", "--hostname", "github.com"];
-  inspectNativeSourceCommand(
-    query,
-    JSON.stringify({ query: "query($id:ID!){node(id:$id){id}}", variables: { id: "fixed" } }),
-  );
-  for (const changed of [
-    args.map((value) => (value === "GET" ? "POST" : value)),
-    args.map((value) => (value === "github.com" ? "foreign.invalid" : value)),
-    args.map((value) => (value.startsWith("repos/") ? "repos/foreign/portcove" : value)),
-    [...args, "--jq", ".token"],
-    ["auth", "token"],
-  ])
-    assert.throws(() => inspectNativeSourceCommand(changed));
-  assert.throws(() =>
-    inspectNativeSourceCommand(
-      query,
-      JSON.stringify({ query: "mutation{deleteRepository{clientMutationId}}" }),
-    ),
-  );
-  assert.throws(() => inspectNativeSourceCommand(args, "unexpected body"));
-});
-
 void test("imported parent and selected descriptors cannot start actual source collection", async () => {
   for (const raw of [{}, { kind: "actual-native-candidate-selection", accepted: true }]) {
     await assert.rejects(acquireActualNativeCandidate(raw), /actual installed native parent/);
@@ -503,9 +605,17 @@ void test("signed native package source binds the complete platform archive tupl
   await assert.rejects(acquireActualNativePostSignCandidate({}), /actual installed native parent/);
 });
 
-void test("predecessor materialization requires exact immutable Release and recorded package while binary transport stays bounded and fixed-host", () => {
-  const native = nativeQualificationFixture(),
-    candidate = native.candidate;
+void test("predecessor custody requires exact immutable Release and streams verified bytes around complete inventories", async (t) => {
+  const payload = Buffer.from("opaque exact predecessor");
+  const original = nativeQualificationFixture().candidate;
+  const candidate = {
+    ...original,
+    package: {
+      ...original.package,
+      bytes: payload.length,
+      sha256: createHash("sha256").update(payload).digest("hex"),
+    },
+  };
   const url = `https://github.com/boburning/portcove/releases/download/v0.1.0-beta.1/${candidate.package.filename}`;
   const record = {
     version: "0.1.0-beta.1",
@@ -548,42 +658,111 @@ void test("predecessor materialization requires exact immutable Release and reco
     [release, [{ ...asset, browser_download_url: url + "?other" }]],
   ] as const)
     assert.throws(() => inspectNativePredecessorReleaseAsset(record, candidate, r, assets));
-  let calls = 0;
-  const options: Parameters<typeof readGitHubReleaseAsset>[1] = {
-    cwd: process.cwd(),
-    maxBytes: 128,
-    timeoutMs: 1000,
-    spawn: (command, args, settings) => {
-      calls++;
-      assert.equal(command, "gh");
-      inspectNativeSourceCommand(args);
-      assert.equal(settings.maxBuffer, 128);
-      assert.equal(settings.shell, false);
-      return { status: 0, stdout: Buffer.from("opaque") };
-    },
-  };
-  assert.equal(
-    readGitHubReleaseAsset("repos/boburning/portcove/releases/assets/2", options).toString(),
-    "opaque",
-  );
-  assert.equal(calls, 1);
-  for (const endpoint of [
-    "repos/foreign/portcove/releases/assets/2",
-    "https://github.com/example",
-    "repos/boburning/portcove/releases/assets/0",
-  ])
-    assert.throws(() => readGitHubReleaseAsset(endpoint, options));
-  assert.equal(calls, 1);
-  assert.throws(() =>
-    inspectNativeSourceCommand([
-      "api",
-      "--hostname",
-      "github.com",
-      "-H",
-      "Accept: application/octet-stream",
-      "repos/boburning/portcove/issues",
-    ]),
-  );
+  const root = await mkdtemp(path.join(os.tmpdir(), "native-predecessor-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  let observations = 0;
+  let fault = "";
+  const routes: string[] = [];
+  const final = path.join(root, `predecessor-${asset.name}`);
+  const acquire = () =>
+    acquireNativePredecessorRelease(record, candidate, root, {
+      credential: { kind: "explicit", token: "fixed-fixture-native-reader" },
+      deadline: performance.now() + 5000,
+      async recheck() {
+        if (fault !== "cleanup-deadline" && fault !== "foreign-final") return;
+        if ((await readdir(root)).join(",") !== path.basename(final)) return;
+        if (fault === "cleanup-deadline") throw new Error("fixture parent expired after cleanup");
+        await rename(final, `${final}.original`);
+        await writeFile(final, "foreign final");
+      },
+      async fetch(input, init) {
+        const request = new Request(input, init);
+        const endpoint = new URL(request.url);
+        assert.equal(endpoint.origin, "https://api.github.com");
+        assert.equal(request.headers.get("authorization"), "token fixed-fixture-native-reader");
+        const route = endpoint.pathname + endpoint.search;
+        routes.push(route);
+        switch (route) {
+          case "/repos/boburning/portcove/releases/tags/v0.1.0-beta.1":
+            observations++;
+            if (observations === 2 && (fault === "replace" || fault === "rewrite")) {
+              const scratch = (await readdir(root)).find((name) =>
+                name.startsWith("native-predecessor-"),
+              );
+              assert.ok(scratch);
+              const file = path.join(root, scratch, "asset");
+              if (fault === "replace") await rename(file, `${file}.original`);
+              await writeFile(file, Buffer.alloc(payload.length, 1));
+              if (fault === "rewrite") {
+                // Make this metadata check independent of filesystem timestamp granularity.
+                await utimes(file, 1, 1);
+              }
+            }
+            return Response.json(release);
+          case "/repos/boburning/portcove/releases/1/assets":
+            return Response.json([{ id: 3 }], {
+              headers: {
+                link:
+                  fault === "malformed"
+                    ? "rel=next"
+                    : `<https://api.github.com/repositories/1354613114/releases/1/assets?page=${fault === "skip" ? 3 : 2}>; rel="next"`,
+              },
+            });
+          case "/repositories/1354613114/releases/1/assets?page=2":
+            return Response.json([
+              fault === "drift" && observations === 2 ? { ...asset, state: "new" } : asset,
+            ]);
+          case "/repos/boburning/portcove/releases/assets/2":
+            assert.equal(request.headers.get("accept"), "application/octet-stream");
+            return new Response(
+              new ReadableStream({
+                start(controller) {
+                  controller.enqueue(payload.subarray(0, 1));
+                  if (fault !== "short") controller.enqueue(payload.subarray(1));
+                  controller.close();
+                },
+              }),
+            );
+          default:
+            throw new Error("unexpected predecessor fixture route");
+        }
+      },
+    });
+  for (const refusal of ["skip", "malformed", "short", "drift", "replace", "rewrite"]) {
+    fault = refusal;
+    observations = 0;
+    if (fault === "replace" || fault === "rewrite") {
+      await assert.rejects(acquire(), /scratch file changed/u);
+      assert.equal(observations, 2);
+    } else {
+      await assert.rejects(acquire());
+    }
+    assert.deepEqual(await readdir(root), []);
+  }
+  fault = "cleanup-deadline";
+  await assert.rejects(acquire(), /parent expired after cleanup/u);
+  assert.deepEqual(await readdir(root), []);
+  fault = "foreign-final";
+  await assert.rejects(acquire(), /retained file or lifetime changed/u);
+  assert.equal(await readFile(final, "utf8"), "foreign final");
+  await rm(final);
+  await rm(`${final}.original`);
+  fault = "";
+  routes.length = 0;
+  const retained = await acquire();
+  assert.deepEqual(await readFile(retained.path), payload);
+  assert.deepEqual(routes, [
+    "/repos/boburning/portcove/releases/tags/v0.1.0-beta.1",
+    "/repos/boburning/portcove/releases/1/assets",
+    "/repositories/1354613114/releases/1/assets?page=2",
+    "/repos/boburning/portcove/releases/assets/2",
+    "/repos/boburning/portcove/releases/tags/v0.1.0-beta.1",
+    "/repos/boburning/portcove/releases/1/assets",
+    "/repositories/1354613114/releases/1/assets?page=2",
+  ]);
+  await assert.rejects(acquire(), { code: "EEXIST" });
+  assert.deepEqual(await readFile(retained.path), payload);
+  assert.deepEqual(await readdir(root), [path.basename(retained.path)]);
 });
 
 void test("native detached payload verifier uses the same pinned keyless tool with exact private paths and refuses credentials before reading", async () => {

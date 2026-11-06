@@ -12,7 +12,9 @@ import path from "node:path";
 import os from "node:os";
 import { performance } from "node:perf_hooks";
 import * as contextFiles from "../release-signing-context.mts";
+import * as metadataContextFiles from "../release-metadata-signing-context.mts";
 import * as assemblerIdentity from "../assembler-job-identity.mts";
+import { withReadOnlyReleaseChildren } from "../release-readonly-child-environment.mts";
 
 type Subject = Pick<
   typeof import("../release-signing-context-artifact.mts"),
@@ -63,8 +65,32 @@ let producer:
         typeof import("./signing-context-artifact-fixture.mts").signingContextArtifactFixture
       >;
       expiresAt: number;
+      privateReader: boolean;
     }
   | undefined;
+function verifyProducerIdentity(
+  role: "payload" | "coordinator",
+  token: string,
+  options: Parameters<typeof assemblerIdentity.verifyPayloadSignerJobIdentity>[2],
+) {
+  assert.ok(producer);
+  assert.equal(
+    role,
+    producer.fixture.manifest.kind === "release-signing-context" ? "payload" : "coordinator",
+  );
+  assert.equal(token, "inert-oidc");
+  assert.deepEqual(options?.transport, {
+    sdkToken: signingContextFixtureToken,
+    requireDirect: producer.privateReader,
+    deadline: clock + 15000,
+  });
+  return {
+    evidence_scope: "github.com",
+    expires_at: new Date(producer.expiresAt).toISOString(),
+    job_id: 501,
+    check_run_id: "777",
+  };
+}
 mock.module(new URL("../assembler-job-identity.mts", import.meta.url).href, {
   namedExports: {
     ...assemblerIdentity,
@@ -73,39 +99,49 @@ mock.module(new URL("../assembler-job-identity.mts", import.meta.url).href, {
       assert.ok(producer);
       return "inert-oidc";
     },
-    verifyPayloadSignerJobIdentity: async (token: unknown) => {
-      assert.ok(producer);
-      assert.equal(token, "inert-oidc");
-      return {
-        evidence_scope: "github.com",
-        expires_at: new Date(producer.expiresAt).toISOString(),
-        job_id: 501,
-        check_run_id: "777",
-      };
+    verifyPayloadSignerJobIdentity: async (
+      ...[token, , options]: Parameters<typeof assemblerIdentity.verifyPayloadSignerJobIdentity>
+    ) => verifyProducerIdentity("payload", token, options),
+    verifyCapacityExecutorJobIdentity: async (
+      ...[role, token, , options]: Parameters<
+        typeof assemblerIdentity.verifyCapacityExecutorJobIdentity
+      >
+    ) => {
+      assert.equal(role, "coordinator");
+      return verifyProducerIdentity(role, token, options);
     },
+  },
+});
+function producerContext(receipt: object) {
+  assert.ok(producer);
+  assert.equal(receipt, producer.receipt);
+  const { manifest } = producer.fixture;
+  return {
+    tools: { identity: manifest.controller },
+    previous_site: { pins: manifest.previous_site_pins },
+    binding: manifest.binding,
+    facts: manifest.facts,
+    control_facts: manifest.control_facts,
+  };
+}
+function producerFiles(receipt: object) {
+  assert.ok(producer);
+  assert.equal(receipt, producer.receipt);
+  return producer.fixture.files;
+}
+mock.module(new URL("../release-metadata-signing-context.mts", import.meta.url).href, {
+  namedExports: {
+    ...metadataContextFiles,
+    requireCoordinatorSigningContext: async (receipt: object) => producerContext(receipt),
+    readCoordinatorSigningContextFiles: async (receipt: object) => producerFiles(receipt),
   },
 });
 let armed: ReadControl | undefined;
 mock.module(new URL("../release-signing-context.mts", import.meta.url).href, {
   namedExports: {
     ...contextFiles,
-    requireReleaseSigningContext: async (receipt: object) => {
-      assert.ok(producer);
-      assert.equal(receipt, producer.receipt);
-      const { manifest } = producer.fixture;
-      return {
-        tools: { identity: manifest.controller },
-        previous_site: { pins: manifest.previous_site_pins },
-        binding: manifest.binding,
-        facts: manifest.facts,
-        control_facts: manifest.control_facts,
-      };
-    },
-    readReleaseSigningContextFiles: async (receipt: object) => {
-      assert.ok(producer);
-      assert.equal(receipt, producer.receipt);
-      return producer.fixture.files;
-    },
+    requireReleaseSigningContext: async (receipt: object) => producerContext(receipt),
+    readReleaseSigningContextFiles: async (receipt: object) => producerFiles(receipt),
     readBoundedReleaseContextFiles: async (
       ...args: Parameters<typeof contextFiles.readBoundedReleaseContextFiles>
     ) => {
@@ -246,22 +282,28 @@ const producerEntry = (await import(
 const producerRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-context-expiry-"));
 const savedWallNow = Date.now;
 try {
-  for (const crossesExpiry of [false, true]) {
-    const f = signingContextArtifactFixture();
+  for (const [kind, crossesExpiry] of [
+    ["release-signing-context", false],
+    ["release-signing-context", true],
+    ["metadata-signing-context", false],
+  ] as const) {
+    const f = signingContextArtifactFixture(kind);
     const receipt = {};
     const started = savedWallNow();
     let wallNow = started;
     Date.now = () => wallNow;
     clock = 1000;
-    producer = { receipt, fixture: f, expiresAt: started + 1000 };
+    producer = { receipt, fixture: f, expiresAt: started + 1000, privateReader: !crossesExpiry };
     process.env.GH_TOKEN = signingContextFixtureToken;
-    const prepared = await producerEntry.prepareSigningContextArtifact(receipt, producerRoot);
+    const prepared = await (kind === "release-signing-context"
+      ? producerEntry.prepareSigningContextArtifact(receipt, producerRoot)
+      : producerEntry.prepareMetadataSigningContextArtifact(receipt, producerRoot));
     const archive = f.archiveFor(
       await readFile(path.join(prepared.directory, "signing-context-manifest.json")),
       await readFile(path.join(prepared.directory, "signing-context-bytes.bin")),
     );
     const archiveSha = createHash("sha256").update(archive).digest("hex");
-    const route = producerEntry.signingContextArtifactRoute("release-signing-context");
+    const route = producerEntry.signingContextArtifactRoute(kind);
     const read = signingContextProviderFetch(f, () => archive);
     let calls = 0;
     controlledFetch = async (input, init) => {
@@ -276,12 +318,19 @@ try {
         digest: `sha256:${archiveSha}`,
       });
     };
-    const work = producerEntry.prepareSigningContextPredicate(
-      prepared,
-      { artifact_id: 101, sha256: archiveSha },
-      { ...f.manifest.controller, audience: route.audience },
-      clock + 15000,
-    );
+    const verify = () =>
+      producerEntry.prepareSigningContextPredicate(
+        prepared,
+        { artifact_id: 101, sha256: archiveSha },
+        { ...f.manifest.controller, audience: route.audience },
+        clock + 15000,
+      );
+    const work = crossesExpiry
+      ? verify()
+      : withReadOnlyReleaseChildren(producerRoot, async () => {
+          process.env.GH_TOKEN = "inert-unadmitted-ambient-reader";
+          return verify();
+        });
     if (crossesExpiry) {
       await assert.rejects(work, /producer or uploaded custody changed/u);
       assert.ok(!(await readdir(prepared.directory)).includes("signing-context-predicate.json"));

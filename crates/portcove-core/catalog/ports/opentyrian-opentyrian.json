@@ -51,43 +51,53 @@
     "persistent_file_patterns": [
       {
         "prefix": "demorec.",
-        "suffix": "0"
+        "suffix": "0",
+        "allow_empty_middle": true
       },
       {
         "prefix": "demorec.",
-        "suffix": "1"
+        "suffix": "1",
+        "allow_empty_middle": true
       },
       {
         "prefix": "demorec.",
-        "suffix": "2"
+        "suffix": "2",
+        "allow_empty_middle": true
       },
       {
         "prefix": "demorec.",
-        "suffix": "3"
+        "suffix": "3",
+        "allow_empty_middle": true
       },
       {
         "prefix": "demorec.",
-        "suffix": "4"
+        "suffix": "4",
+        "allow_empty_middle": true
       },
       {
         "prefix": "demorec.",
-        "suffix": "5"
+        "suffix": "5",
+        "allow_empty_middle": true
       },
       {
         "prefix": "demorec.",
-        "suffix": "6"
+        "suffix": "6",
+        "allow_empty_middle": true
       },
       {
         "prefix": "demorec.",
-        "suffix": "7"
+        "suffix": "7",
+        "allow_empty_middle": true
       },
       {
         "prefix": "demorec.",
-        "suffix": "8"
+        "suffix": "8",
+        "allow_empty_middle": true
       },
       {
         "prefix": "demorec.",
-        "suffix": "9"
+        "suffix": "9",
+        "allow_empty_middle": true
       }
     ],
     "presentation": {

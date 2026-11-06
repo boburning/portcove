@@ -45,7 +45,7 @@ impl PortcoveService {
         to: &PortDefinition,
     ) -> Result<()> {
         self.require_shipwright_persistence_transition(from, to, None)?;
-        self.require_portable_transition_to(from, to, None)
+        self.require_portable_transition_to(from, to, None, None)
     }
 
     pub(super) fn require_portable_rollback_transition(
@@ -60,7 +60,7 @@ impl PortcoveService {
         }
         let to = self.installed_port(previous)?;
         self.require_shipwright_persistence_transition(from, &to, Some(previous))?;
-        self.require_portable_transition_to(from, &to, Some(previous))
+        self.require_portable_transition_to(from, &to, Some(previous), None)
     }
 
     fn require_shipwright_persistence_transition(
@@ -141,6 +141,7 @@ impl PortcoveService {
         from: &InstallRecord,
         to: &PortDefinition,
         retained_rollback: Option<&InstallRecord>,
+        staged_target: Option<&InstallRecord>,
     ) -> Result<()> {
         let retained = self.effective_archive_data_port(from)?;
         let target = self.retained_archive_data_target(to, retained_rollback)?;
@@ -162,7 +163,6 @@ impl PortcoveService {
             || crate::persistence::ready_staged_archive(&retained)
                 != crate::persistence::ready_staged_archive(to)
             || retained.mod_package_policy != to.mod_package_policy
-            || retained.persistent_file_patterns != to.persistent_file_patterns
             || retained.archive_data_compatibility_v1 != to.archive_data_compatibility_v1
             || !Self::equivalent_native_player_root(from, &retained, to, retained_rollback)?
             || retained.windows_temp_directory != to.windows_temp_directory
@@ -186,6 +186,15 @@ impl PortcoveService {
                     && to.setup_marker.is_none()))
         {
             return Err(portable_data_change());
+        }
+        if retained.persistent_file_patterns != to.persistent_file_patterns {
+            self.require_empty_pattern_transition(
+                from,
+                &retained,
+                to,
+                retained_rollback,
+                staged_target,
+            )?;
         }
         if crate::preparation::source::native(&retained) {
             let installer = Installer::new(self.library.clone())?;
@@ -238,7 +247,7 @@ impl PortcoveService {
     ) -> Result<()> {
         let to = self.effective_archive_data_port(target)?;
         self.require_shipwright_persistence_transition(from, &to, Some(target))?;
-        self.require_portable_transition_to(from, &to, None)?;
+        self.require_portable_transition_to(from, &to, None, Some(target))?;
         self.require_direct_artifact_transition(from, &to, &target.artifact.sha256, Some(target))?;
         let retained = self.installed_port(from)?;
         if crate::preparation::source::native(&retained)
@@ -258,6 +267,49 @@ impl PortcoveService {
             && retained.persistent_paths != to.persistent_paths
         {
             self.require_empty_persistence_expansion(from, &to, Some(target))?;
+        }
+        Ok(())
+    }
+
+    /// A widened pattern claims one additional filename. A version switch may
+    /// cross that boundary only while the additional coordinates are empty.
+    fn require_empty_pattern_transition(
+        &self,
+        from: &InstallRecord,
+        retained: &PortDefinition,
+        to: &PortDefinition,
+        retained_rollback: Option<&InstallRecord>,
+        staged_target: Option<&InstallRecord>,
+    ) -> Result<()> {
+        let (narrow, narrow_install, names) = match pattern_names_added(retained, to) {
+            Some(names) => (retained, from, names),
+            None => (
+                to,
+                retained_rollback.ok_or_else(portable_data_change)?,
+                pattern_names_added(to, retained).ok_or_else(portable_data_change)?,
+            ),
+        };
+        let platform = Platform::current()?;
+        let original = InstallQualification::from_port(narrow, platform)?;
+        let mut expanded = narrow.clone();
+        expanded.persistent_paths.extend(names.iter().cloned());
+        let expanded = InstallQualification::from_port(&expanded, platform)?;
+        let installer = Installer::new(self.library.clone())?;
+        if !installer.permits_additive_mutability(narrow_install, &original, &expanded)? {
+            return Err(portable_data_change());
+        }
+        let mut roots = vec![
+            self.persistence_root(retained, &from.path)?,
+            self.library.user_dir(&from.port_id),
+        ];
+        if let Some(target) = retained_rollback.or(staged_target) {
+            roots.push(self.persistence_root(to, &target.path)?);
+        }
+        for name in names {
+            for root in &roots {
+                crate::persistence::require_absent_path(root, &name)
+                    .map_err(|_| portable_data_change().detail("path", name.as_str()))?;
+            }
         }
         Ok(())
     }
@@ -400,6 +452,27 @@ impl PortcoveService {
         }
         Ok(())
     }
+}
+
+fn pattern_names_added(narrow: &PortDefinition, broad: &PortDefinition) -> Option<Vec<String>> {
+    let old = &narrow.persistent_file_patterns;
+    let new = &broad.persistent_file_patterns;
+    if old.len() != new.len() {
+        return None;
+    }
+    let mut names = Vec::new();
+    for (old, new) in old.iter().zip(new) {
+        if old.prefix != new.prefix
+            || old.suffix != new.suffix
+            || (old.allow_empty_middle && !new.allow_empty_middle)
+        {
+            return None;
+        }
+        if old.allow_empty_middle != new.allow_empty_middle {
+            names.push(format!("{}{}", new.prefix, new.suffix));
+        }
+    }
+    (!names.is_empty()).then_some(names)
 }
 
 #[cfg(all(test, windows))]
@@ -1832,7 +1905,7 @@ mod tests {
         assert!(service.require_portable_transition(&first, to).is_err());
         assert!(
             service
-                .require_portable_transition_to(&first, to, Some(&staged))
+                .require_portable_transition_to(&first, to, Some(&staged), None)
                 .is_err()
         );
         // Current catalog changes do not reinterpret a retained runtime.
@@ -3258,16 +3331,28 @@ mod tests {
             );
         }
         phase("backup-begin");
-        let backup = service.create_backup(id).unwrap();
-        phase("backup-complete");
-        for path in &probes {
-            assert_eq!(
-                fs::read(backup.path.join("data").join(path)).unwrap(),
-                contents(path),
-                "{id}: backup {path}"
+        let backup = if probes.is_empty() {
+            let failure = service.create_backup(id).unwrap_err();
+            assert_eq!(failure.code, crate::ErrorCode::NotFound, "{id}");
+            assert!(
+                failure.message.contains("no persistent data to back up"),
+                "{id}: {failure}"
             );
-        }
+            None
+        } else {
+            let backup = service.create_backup(id).unwrap();
+            for path in &probes {
+                assert_eq!(
+                    fs::read(backup.path.join("data").join(path)).unwrap(),
+                    contents(path),
+                    "{id}: backup {path}"
+                );
+            }
+            Some(backup)
+        };
+        phase("backup-complete");
         if case["exercise_restore"] == true {
+            let backup = backup.as_ref().expect("restore needs a backup");
             phase("reviewed-restore-begin");
             for path in &probes {
                 fs::write(first_root.join(path), b"later owned data").unwrap();
@@ -3373,10 +3458,12 @@ mod tests {
                 "{id}: removal {path}"
             );
         }
-        assert!(
-            backup.path.exists(),
-            "{id}: backup survives runtime removal"
-        );
+        if let Some(backup) = backup {
+            assert!(
+                backup.path.exists(),
+                "{id}: backup survives runtime removal"
+            );
+        }
         assert_eq!(
             fs::read(temporary.path().join("retained-unknown-player-addition")).unwrap(),
             b"keep for review"

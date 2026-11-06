@@ -319,7 +319,7 @@ void test("screenshot-only diagnostic is manual, preserves failure guards and ve
       isRecord(step) && step.name === "Verify all three packets and original step outcomes",
   );
   assert.ok(isRecord(final) && typeof final.run === "string");
-  assert.match(final.run, /attempts\/\$GITHUB_RUN_ATTEMPT\/jobs\?per_page=100/u);
+  assert.match(final.run, /"\$RUNNER_TEMP\/browser-custody-jobs\.json"/u);
   assert.match(
     final.run,
     /browser-runtime\.mts verify-screenshot-only work\/downloaded-browser-custody/u,

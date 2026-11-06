@@ -87,7 +87,7 @@ try {
     executor = {},
     controls = {
       evidence_scope: "github.com",
-      readMaintenance: () => {
+      readSdkMaintenance: async () => {
         if (controlsClock >= 60) throw new Error("controlled original control window expired");
         return {
           pause: { publication_paused: false },
@@ -313,6 +313,7 @@ try {
   ]);
   // This fetch is another explicitly controlled byte boundary.
   const marker = Buffer.from(JSON.stringify(prepared.generation));
+  process.env.GH_TOKEN = token;
   globalThis.fetch = async (value) => {
     if (typeof value !== "string") throw new Error("controlled fixed URL string required");
     const url = value,
@@ -379,6 +380,8 @@ try {
     assert.equal(posts, 1);
   } finally {
     globalThis.fetch = originalFetch;
+    if (previousReader === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = previousReader;
   }
   console.log(
     "controlled catalog composition/archive/sole-pages/atomic-cursor PASS; no actual authority",

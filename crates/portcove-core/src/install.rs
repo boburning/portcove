@@ -176,6 +176,15 @@ impl InstallQualification {
     /// Build a verification projection. New manifests require `from_catalog`.
     pub fn from_port(port: &PortDefinition, platform: Platform) -> Result<Self> {
         crate::runtime::validate(port)?;
+        if port
+            .runtime_mutable_file_patterns
+            .iter()
+            .any(|pattern| pattern.allow_empty_middle)
+        {
+            return Err(PortcoveError::usage(
+                "disposable runtime patterns require a nonempty middle",
+            ));
+        }
         for pattern in port
             .persistent_file_patterns
             .iter()
@@ -5414,6 +5423,51 @@ mod tests {
     }
 
     #[test]
+    fn opted_in_empty_middle_remains_file_only_in_retained_manifest() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("payload");
+        fs::create_dir(&root).unwrap();
+        let executable = root.join("game.exe");
+        fs::write(&executable, b"trusted executable").unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(&executable, fs::Permissions::from_mode(0o755)).unwrap();
+        }
+        let mut qualification = InstallQualification::test("game.exe");
+        qualification.platform = Platform::current().unwrap();
+        qualification.persistent_file_patterns = vec![crate::PersistentFilePattern {
+            prefix: "demorec.".into(),
+            suffix: "1".into(),
+            allow_empty_middle: true,
+        }];
+        let (installer, install) = create_test_install(&root, &qualification);
+        let demo = root.join("demorec.1");
+        fs::write(&demo, b"first recording").unwrap();
+        assert!(installer.verify(&install).unwrap().valid);
+        assert!(installer.verify_critical(&install, &qualification).is_ok());
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(&demo, fs::Permissions::from_mode(0o755)).unwrap();
+            assert!(!installer.verify(&install).unwrap().valid);
+            assert!(installer.verify_critical(&install, &qualification).is_err());
+        }
+        fs::remove_file(&demo).unwrap();
+        fs::create_dir(&demo).unwrap();
+        fs::write(demo.join("injected.dll"), b"unreviewed").unwrap();
+        let report = installer.verify(&install).unwrap();
+        assert!(!report.valid);
+        assert!(
+            report
+                .failures
+                .iter()
+                .any(|failure| failure.contains("invalid mutable-pattern entry: demorec.1"))
+        );
+        assert!(installer.verify_critical(&install, &qualification).is_err());
+    }
+
+    #[test]
     fn runtime_file_patterns_ignore_only_reviewed_disposable_outputs() {
         let temporary = tempfile::tempdir().unwrap();
         let root = temporary.path().join("payload");
@@ -5425,6 +5479,7 @@ mod tests {
         qualification.runtime_mutable_file_patterns = vec![crate::PersistentFilePattern {
             prefix: "psx_freeze_dump_".into(),
             suffix: ".json".into(),
+            allow_empty_middle: false,
         }];
         let (installer, install) = create_test_install(&root, &qualification);
 
@@ -5470,10 +5525,12 @@ mod tests {
         qualification.persistent_file_patterns = vec![crate::PersistentFilePattern {
             prefix: "psx_freeze_dump_".into(),
             suffix: ".json".into(),
+            allow_empty_middle: false,
         }];
         qualification.runtime_mutable_file_patterns = vec![crate::PersistentFilePattern {
             prefix: "psx_freeze_dump_psx-runtime_".into(),
             suffix: "_1.json".into(),
+            allow_empty_middle: false,
         }];
 
         let error = qualification.file_patterns(root, &selected).unwrap_err();
@@ -5512,6 +5569,7 @@ mod tests {
         qualification.runtime_mutable_file_patterns = vec![crate::PersistentFilePattern {
             prefix: "baserom.".into(),
             suffix: ".z64".into(),
+            allow_empty_middle: false,
         }];
         let error =
             manifest_files(&root, &qualification, &root.join("G-Diffuser.exe")).unwrap_err();

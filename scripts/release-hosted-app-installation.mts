@@ -6,11 +6,13 @@ import {
   inspectHostedReleaseAppIdentity,
   type HostedReleaseAppRole,
 } from "./release-hosted-app-setup.mts";
-import type { AppRegistrationStore } from "./release-app-registration-capture.mts";
+import {
+  readPrivateAppSetupResponse,
+  type AppRegistrationStore,
+} from "./release-app-registration-capture.mts";
 import { releaseCanonicalDigest } from "./release-canonical.mts";
 import { isRecord } from "./runtime-values.mts";
 
-const origin = "https://api.github.com";
 const maximumBody = 64 * 1024;
 
 /** The caller supplies the selected role's private key and a fresh durable
@@ -52,19 +54,17 @@ export async function observeHostedAppInstallationScope(
     if (++requests > (role === "storage_writer" ? 9 : 8))
       throw new Error("installation observation request bound exhausted");
     const timeout = active(cleanup !== undefined);
-    let response: Response;
+    let response: Awaited<ReturnType<typeof readPrivateAppSetupResponse>>;
     try {
-      response = await (options.fetch ?? fetch)(`${origin}${endpoint}`, {
+      response = await readPrivateAppSetupResponse({
+        endpoint,
         method: cleanup ?? (payload ? "POST" : "GET"),
-        headers: {
-          Accept: "application/vnd.github+json",
-          Authorization: `Bearer ${bearer}`,
-          "X-GitHub-Api-Version": "2022-11-28",
-          ...(payload ? { "Content-Type": "application/json" } : {}),
-        },
-        ...(payload ? { body: JSON.stringify(payload) } : {}),
-        redirect: "error",
-        signal: AbortSignal.timeout(timeout),
+        bearer,
+        ...(payload ? { payload } : {}),
+        timeout,
+        maxBytes: maximumBody,
+        version: "2022-11-28",
+        ...(options.fetch ? { transport: options.fetch } : {}),
       });
     } catch {
       await store.write(
@@ -79,7 +79,6 @@ export async function observeHostedAppInstallationScope(
       throw new Error("installation observation transport unavailable; retain original attempt");
     }
     if (cleanup) {
-      await response.body?.cancel();
       await store.write(
         `${name}.json`,
         Buffer.from(
@@ -92,73 +91,50 @@ export async function observeHostedAppInstallationScope(
         ),
       );
       active(true);
-      if (response.status !== 204)
+      if (!response.accepted || response.status !== 204)
         throw new Error("metadata installation token revocation not acknowledged");
       return { revoked: true };
     }
-    const chunks: Buffer[] = [];
-    let length = 0,
-      complete = false;
-    const reader = response.body?.getReader();
-    try {
-      if (!reader) throw new Error("installation response body unavailable");
-      for (;;) {
-        const part = await reader.read();
-        if (part.done) {
-          complete = true;
-          break;
-        }
-        const chunk: unknown = part.value;
-        if (!(chunk instanceof Uint8Array))
-          throw new Error("installation response is not byte data");
-        const kept = chunk.subarray(0, maximumBody - length);
-        chunks.push(Buffer.from(kept));
-        length += kept.length;
-        if (kept.length !== chunk.length) break;
-        active();
+    const { body: raw, complete } = response;
+    let retained = raw;
+    if (role === "storage_writer" && name === "token-response") {
+      let projection: unknown = { unparsed: true, observed_bytes: raw.length };
+      try {
+        const value: unknown = JSON.parse(raw.toString("utf8"));
+        if (isRecord(value))
+          projection = {
+            expires_at: value.expires_at,
+            permissions: value.permissions,
+            token: "omitted",
+          };
+      } catch {
+        /* Do not retain a partial secret-bearing token response. */
       }
-    } catch {
-      // Preserve the available prefix before rejecting this response.
-    } finally {
-      if (!complete) await reader?.cancel().catch(() => {});
-      reader?.releaseLock();
-      const raw = Buffer.concat(chunks);
-      let retained = raw;
-      if (role === "storage_writer" && name === "token-response") {
-        let projection: unknown = { unparsed: true, observed_bytes: raw.length };
-        try {
-          const value: unknown = JSON.parse(raw.toString("utf8"));
-          if (isRecord(value))
-            projection = {
-              expires_at: value.expires_at,
-              permissions: value.permissions,
-              token: "omitted",
-            };
-        } catch {
-          /* Do not retain a partial secret-bearing token response. */
-        }
-        retained = Buffer.from(JSON.stringify(projection));
-      }
-      await store.write(
-        `${name}.json`,
-        Buffer.from(
-          JSON.stringify({
-            status: response.status,
-            complete,
-            link: response.headers.get("link"),
-            body_base64: retained.toString("base64"),
-            ...(retained === raw ? {} : { encoding: "metadata-token-omitted" }),
-          }),
-        ),
-      );
+      retained = Buffer.from(JSON.stringify(projection));
     }
+    await store.write(
+      `${name}.json`,
+      Buffer.from(
+        JSON.stringify({
+          status: response.status,
+          complete,
+          link: response.headers.get("link"),
+          body_base64: retained.toString("base64"),
+          ...(retained === raw ? {} : { encoding: "metadata-token-omitted" }),
+        }),
+      ),
+    );
     active();
-    if (!complete || response.status !== (payload ? 201 : 200) || response.headers.has("link"))
+    if (
+      !complete ||
+      !response.accepted ||
+      response.status !== (payload ? 201 : 200) ||
+      response.headers.has("link")
+    )
       throw new Error("installation observation incomplete, paginated or refused");
-    const bytes = Buffer.concat(chunks);
-    if (!Buffer.from(bytes.toString("utf8")).equals(bytes))
+    if (!Buffer.from(raw.toString("utf8")).equals(raw))
       throw new Error("installation response text differs");
-    return JSON.parse(bytes.toString("utf8")) as unknown;
+    return JSON.parse(raw.toString("utf8")) as unknown;
   };
   const app = await request("app", "/app", jwt);
   const identity = inspectHostedReleaseAppIdentity(role, expected.app_id, app);

@@ -3,11 +3,12 @@ import test from "node:test";
 import {
   inspectApplicationRunCustody,
   readApplicationRunNotes,
+  createApplicationRunRegistrationProvider,
   registerApplicationReleaseRun,
   retainApplicationPreparation,
   readRegisteredApplicationRuns,
   registerApplicationBudgetRun,
-  readApplicationBudgetOwner,
+  readApplicationBudgetOwnerAsync,
   readApplicationMetadataContextPlan,
   retainApplicationDraftAssembly,
   retainApplicationDraftRecovery,
@@ -83,7 +84,22 @@ function fixture(mode = "valid") {
   const guard = async (known: readonly string[]) => {
     guards.push([...known]);
   };
-  return { api, releases, mutations, guards, guard };
+  const registration = {
+    async releaseNotes() {
+      return structuredClone(releases);
+    },
+    async release(id: number) {
+      return api.request("GET", `repos/boburning/portcove/releases/${id}`);
+    },
+    async createDraft(body: Record<string, unknown>) {
+      return api.request("POST", "repos/boburning/portcove/releases", body);
+    },
+    async appendNotes(id: number, body: string) {
+      return api.request("PATCH", `repos/boburning/portcove/releases/${id}`, { body });
+    },
+  };
+  const readRelease = async (id: number) => (await registration.release(id)).body;
+  return { api, releases, mutations, guards, guard, registration, readRelease };
 }
 
 void test("immutable metadata recovery appends only its existing cohort and never creates or adopts a draft", async () => {
@@ -91,7 +107,7 @@ void test("immutable metadata recovery appends only its existing cohort and neve
   const f = fixture();
   const register = (id: string, mode: "create-or-resume" | "immutable-metadata-only") =>
     registerApplicationReleaseRun(
-      f.api,
+      f.registration,
       { ...execution, run_id: id },
       source,
       tree,
@@ -130,7 +146,7 @@ void test("immutable metadata recovery appends only its existing cohort and neve
 void test("native draft registration precedes private work and a same-run retry preserves its single record", async () => {
   const f = fixture();
   const first = await registerApplicationReleaseRun(
-    f.api,
+    f.registration,
     execution,
     source,
     tree,
@@ -141,7 +157,7 @@ void test("native draft registration precedes private work and a same-run retry 
   assert.equal(first.authority, "none");
   assert.deepEqual(f.guards, [[]]);
   const retry = await registerApplicationReleaseRun(
-    f.api,
+    f.registration,
     { ...execution, run_attempt: 2 },
     source,
     tree,
@@ -152,14 +168,14 @@ void test("native draft registration precedes private work and a same-run retry 
   assert.deepEqual(f.guards, [[], ["123"]]);
   assert.equal(f.mutations.length, 1);
   assert.deepEqual(
-    readRegisteredApplicationRuns(f.api, 10, source, source, tree, execution),
+    await readRegisteredApplicationRuns(f.registration, 10, source, source, tree, execution),
     first.custody,
   );
-  assert.throws(() =>
-    readRegisteredApplicationRuns(f.api, 10, source, source, "d".repeat(40), execution),
+  await assert.rejects(() =>
+    readRegisteredApplicationRuns(f.registration, 10, source, source, "d".repeat(40), execution),
   );
-  assert.throws(() =>
-    readRegisteredApplicationRuns(f.api, 10, source, source, tree, {
+  await assert.rejects(() =>
+    readRegisteredApplicationRuns(f.registration, 10, source, source, tree, {
       ...execution,
       source: "f".repeat(40),
     }),
@@ -168,7 +184,7 @@ void test("native draft registration precedes private work and a same-run retry 
 
 void test("recovery appends a bounded native run after immutable publication without changing assets or notes", async () => {
   const f = fixture("patch-lost");
-  await registerApplicationReleaseRun(f.api, execution, source, tree, source, f.guard);
+  await registerApplicationReleaseRun(f.registration, execution, source, tree, source, f.guard);
   Object.assign(f.releases[0]!, {
     tag_name: "v0.1.0-alpha.3",
     target_commitish: source,
@@ -178,7 +194,7 @@ void test("recovery appends a bounded native run after immutable publication wit
   });
   const prior = structuredClone(f.releases[0]);
   const second = await registerApplicationReleaseRun(
-    f.api,
+    f.registration,
     { ...execution, run_id: "124" },
     source,
     tree,
@@ -192,7 +208,7 @@ void test("recovery appends a bounded native run after immutable publication wit
     ["POST", "PATCH"],
   );
   await registerApplicationReleaseRun(
-    f.api,
+    f.registration,
     { ...execution, run_id: "125" },
     source,
     tree,
@@ -201,7 +217,7 @@ void test("recovery appends a bounded native run after immutable publication wit
   );
   await assert.rejects(
     registerApplicationReleaseRun(
-      f.api,
+      f.registration,
       { ...execution, run_id: "126" },
       source,
       tree,
@@ -211,7 +227,7 @@ void test("recovery appends a bounded native run after immutable publication wit
   );
   await assert.rejects(
     registerApplicationReleaseRun(
-      f.api,
+      f.registration,
       { ...execution, source: "f".repeat(40) },
       source,
       tree,
@@ -224,7 +240,14 @@ void test("recovery appends a bounded native run after immutable publication wit
 void test("ambiguous POST is reconciled once; absent, duplicate, damaged or refused custody never resets", async () => {
   for (const mode of ["lost-after-create", "lost-before-create"]) {
     const f = fixture(mode);
-    const pending = registerApplicationReleaseRun(f.api, execution, source, tree, source, f.guard);
+    const pending = registerApplicationReleaseRun(
+      f.registration,
+      execution,
+      source,
+      tree,
+      source,
+      f.guard,
+    );
     if (mode === "lost-after-create") assert.equal((await pending).release_id, 10);
     else await assert.rejects(pending);
     assert.equal(f.mutations.length, 1);
@@ -238,7 +261,7 @@ void test("ambiguous POST is reconciled once; absent, duplicate, damaged or refu
     "patch-refused",
   ]) {
     const f = fixture(mode);
-    await registerApplicationReleaseRun(f.api, execution, source, tree, source, f.guard);
+    await registerApplicationReleaseRun(f.registration, execution, source, tree, source, f.guard);
     if (mode === "duplicate") f.releases.push(structuredClone(f.releases[0]!));
     if (mode === "damaged") f.releases[0]!.body = "lost record";
     if (mode === "damaged-published")
@@ -252,7 +275,7 @@ void test("ambiguous POST is reconciled once; absent, duplicate, damaged or refu
     const before = f.mutations.length;
     await assert.rejects(
       registerApplicationReleaseRun(
-        f.api,
+        f.registration,
         { ...execution, run_id: "124" },
         source,
         tree,
@@ -271,7 +294,7 @@ void test("ambiguous POST is reconciled once; absent, duplicate, damaged or refu
 void test("one mechanical preparation is retained exactly and cannot be silently reallocated", async () => {
   const f = fixture("patch-lost");
   const registered = await registerApplicationReleaseRun(
-    f.api,
+    f.registration,
     execution,
     source,
     tree,
@@ -301,7 +324,7 @@ void test("one mechanical preparation is retained exactly and cannot be silently
     published_versions: ["0.1.0-alpha.2"],
   };
   const retained = await retainApplicationPreparation(
-    f.api,
+    f.registration,
     10,
     registered.custody,
     preparation,
@@ -311,13 +334,13 @@ void test("one mechanical preparation is retained exactly and cannot be silently
   assert.deepEqual(readApplicationRunNotes(f.releases[0]!.body)?.custody, retained);
   const writes = f.mutations.length;
   assert.deepEqual(
-    await retainApplicationPreparation(f.api, 10, retained, preparation, f.guard),
+    await retainApplicationPreparation(f.registration, 10, retained, preparation, f.guard),
     retained,
   );
   assert.equal(f.mutations.length, writes);
   await assert.rejects(
     retainApplicationPreparation(
-      f.api,
+      f.registration,
       10,
       retained,
       { ...preparation, version: "0.1.0-alpha.4" },
@@ -326,7 +349,7 @@ void test("one mechanical preparation is retained exactly and cannot be silently
   );
   await assert.rejects(
     retainApplicationPreparation(
-      f.api,
+      f.registration,
       10,
       retained,
       {
@@ -345,7 +368,7 @@ void test("one mechanical preparation is retained exactly and cannot be silently
   Object.assign(value, { draft: false, immutable: true, tag_name: `v${preparation.version}` });
   const immutable = structuredClone(value);
   const recovered = await registerApplicationReleaseRun(
-    f.api,
+    f.registration,
     { ...execution, run_id: "124" },
     source,
     tree,
@@ -362,7 +385,7 @@ void test("one mechanical preparation is retained exactly and cannot be silently
     Object.assign(value, change);
     await assert.rejects(
       registerApplicationReleaseRun(
-        f.api,
+        f.registration,
         { ...execution, run_id: "125" },
         source,
         tree,
@@ -380,7 +403,7 @@ void test("immutable-only recovery never creates a missing cohort or adopts an u
   const f = fixture();
   await assert.rejects(
     registerApplicationReleaseRun(
-      f.api,
+      f.registration,
       execution,
       source,
       tree,
@@ -391,11 +414,11 @@ void test("immutable-only recovery never creates a missing cohort or adopts an u
   );
   assert.equal(f.mutations.length, 0);
   assert.equal(f.guards.length, 0);
-  await registerApplicationReleaseRun(f.api, execution, source, tree, source, f.guard);
+  await registerApplicationReleaseRun(f.registration, execution, source, tree, source, f.guard);
   const writes = f.mutations.length;
   await assert.rejects(
     registerApplicationReleaseRun(
-      f.api,
+      f.registration,
       { ...execution, run_id: "124" },
       source,
       tree,
@@ -410,7 +433,7 @@ void test("immutable-only recovery never creates a missing cohort or adopts an u
 void test("forward renewal shares one native cost owner, preserves release bytes and cannot drop or duplicate earlier runs", async () => {
   const f = fixture("patch-lost");
   const initial = await registerApplicationReleaseRun(
-    f.api,
+    f.registration,
     execution,
     source,
     tree,
@@ -426,7 +449,7 @@ void test("forward renewal shares one native cost owner, preserves release bytes
   const memberOpportunity = "d".repeat(64);
   await assert.rejects(
     registerApplicationBudgetRun(
-      f.api,
+      f.registration,
       { release_id: 10, custody: initial.custody },
       memberOpportunity,
       { ...execution, run_id: "124" },
@@ -438,7 +461,7 @@ void test("forward renewal shares one native cost owner, preserves release bytes
   assert.equal(f.mutations.length, 1);
   assert.deepEqual(f.releases[0], before);
   const linked = await registerApplicationBudgetRun(
-    f.api,
+    f.registration,
     { release_id: 10, custody: initial.custody },
     memberOpportunity,
     { ...execution, run_id: "124" },
@@ -455,12 +478,15 @@ void test("forward renewal shares one native cost owner, preserves release bytes
     budget: linked.membership,
   });
   assert.deepEqual(
-    readApplicationBudgetOwner(f.api, { release_id: 11, custody: member }),
+    await readApplicationBudgetOwnerAsync(f.readRelease, {
+      release_id: 11,
+      custody: member,
+    }),
     linked.owner,
   );
   const writes = f.mutations.length;
   const repeated = await registerApplicationBudgetRun(
-    f.api,
+    f.registration,
     linked.owner,
     memberOpportunity,
     { ...execution, run_id: "124" },
@@ -474,9 +500,14 @@ void test("forward renewal shares one native cost owner, preserves release bytes
       budget: { kind: "owner", scopes: [{ opportunity: memberOpportunity, run_ids: ["123"] }] },
     }),
   );
-  assert.throws(() => readApplicationBudgetOwner(f.api, { release_id: 10, custody: member }));
-  assert.throws(() =>
-    readApplicationBudgetOwner(f.api, {
+  await assert.rejects(() =>
+    readApplicationBudgetOwnerAsync(f.readRelease, {
+      release_id: 10,
+      custody: member,
+    }),
+  );
+  await assert.rejects(() =>
+    readApplicationBudgetOwnerAsync(f.readRelease, {
       release_id: 11,
       custody: inspectApplicationRunCustody({
         ...member,
@@ -485,7 +516,7 @@ void test("forward renewal shares one native cost owner, preserves release bytes
     }),
   );
   const expanded = await registerApplicationBudgetRun(
-    f.api,
+    f.registration,
     linked.owner,
     "e".repeat(64),
     { ...execution, run_id: "125" },
@@ -494,7 +525,7 @@ void test("forward renewal shares one native cost owner, preserves release bytes
   const totalWrites = f.mutations.length;
   await assert.rejects(
     registerApplicationBudgetRun(
-      f.api,
+      f.registration,
       expanded.owner,
       "f".repeat(64),
       { ...execution, run_id: "126" },
@@ -507,7 +538,7 @@ void test("forward renewal shares one native cost owner, preserves release bytes
 void test("interrupted owner-before-member registration preserves every cost ID and completes only the authorized member append", async () => {
   const f = fixture();
   const owner = await registerApplicationReleaseRun(
-    f.api,
+    f.registration,
     execution,
     source,
     tree,
@@ -516,14 +547,14 @@ void test("interrupted owner-before-member registration preserves every cost ID 
   );
   const opportunity = "d".repeat(64);
   const firstLink = await registerApplicationBudgetRun(
-    f.api,
+    f.registration,
     owner,
     opportunity,
     { ...execution, run_id: "124" },
     async () => {},
   );
   const member = await registerApplicationReleaseRun(
-    f.api,
+    f.registration,
     { ...execution, run_id: "124" },
     source,
     tree,
@@ -540,7 +571,7 @@ void test("interrupted owner-before-member registration preserves every cost ID 
   const beforeMember = structuredClone(f.releases[1]);
   const recovery = { ...execution, run_id: "125" };
   const linked = await registerApplicationBudgetRun(
-    f.api,
+    f.registration,
     member,
     opportunity,
     recovery,
@@ -549,7 +580,7 @@ void test("interrupted owner-before-member registration preserves every cost ID 
   await assert.rejects(
     () =>
       registerApplicationReleaseRun(
-        f.api,
+        f.registration,
         recovery,
         source,
         tree,
@@ -563,10 +594,10 @@ void test("interrupted owner-before-member registration preserves every cost ID 
     /pause changed/u,
   );
   assert.deepEqual(f.releases[1], beforeMember);
-  assert.deepEqual(readApplicationBudgetOwner(f.api, member), linked.owner);
+  assert.deepEqual(await readApplicationBudgetOwnerAsync(f.readRelease, member), linked.owner);
   const writes = f.mutations.length;
   const retry = await registerApplicationBudgetRun(
-    f.api,
+    f.registration,
     member,
     opportunity,
     recovery,
@@ -575,25 +606,25 @@ void test("interrupted owner-before-member registration preserves every cost ID 
   assert.deepEqual(retry, linked);
   assert.equal(f.mutations.length, writes, "owner retry cannot repeat or erase accounting");
   const completed = await registerApplicationReleaseRun(
-    f.api,
+    f.registration,
     recovery,
     source,
     tree,
     opportunity,
     async (_known, context) => {
       assert.ok(context);
-      assert.deepEqual(readApplicationBudgetOwner(f.api, context), linked.owner);
+      assert.deepEqual(await readApplicationBudgetOwnerAsync(f.readRelease, context), linked.owner);
     },
     "immutable-metadata-only",
     firstLink.membership,
   );
   assert.deepEqual(completed.known_run_ids, ["124", "125"]);
-  assert.deepEqual(readApplicationBudgetOwner(f.api, completed), linked.owner);
+  assert.deepEqual(await readApplicationBudgetOwnerAsync(f.readRelease, completed), linked.owner);
   assert.equal(f.mutations.length, writes + 1);
   assert.deepEqual({ ...f.releases[1], body: beforeMember?.body }, beforeMember);
-  assert.throws(
+  await assert.rejects(
     () =>
-      readApplicationBudgetOwner(f.api, {
+      readApplicationBudgetOwnerAsync(f.readRelease, {
         ...member,
         custody: inspectApplicationRunCustody({
           ...member.custody,
@@ -604,7 +635,7 @@ void test("interrupted owner-before-member registration preserves every cost ID 
   );
   await assert.rejects(() =>
     registerApplicationBudgetRun(
-      f.api,
+      f.registration,
       completed,
       opportunity,
       { ...execution, run_id: "126" },
@@ -617,7 +648,7 @@ void test("interrupted owner-before-member registration preserves every cost ID 
 void test("unknown native cost registration keeps the old owner and never retries its PATCH", async () => {
   const f = fixture("patch-refused");
   const initial = await registerApplicationReleaseRun(
-    f.api,
+    f.registration,
     execution,
     source,
     tree,
@@ -627,7 +658,7 @@ void test("unknown native cost registration keeps the old owner and never retrie
   const before = structuredClone(f.releases[0]);
   await assert.rejects(
     registerApplicationBudgetRun(
-      f.api,
+      f.registration,
       { release_id: 10, custody: initial.custody },
       "d".repeat(64),
       { ...execution, run_id: "124" },
@@ -676,18 +707,18 @@ void test("native context reservations freeze full bytes and burn versions under
   const f = fixture(),
     opportunity = "d".repeat(64);
   const registered = await registerApplicationReleaseRun(
-    f.api,
+    f.registration,
     execution,
     source,
     tree,
     opportunity,
     async () => {},
   );
-  const plan = readApplicationMetadataContextPlan(f.api, registered, execution);
+  const plan = await readApplicationMetadataContextPlan(f.registration, registered, execution);
   assert.equal(plan.existing, undefined);
   const first = metadataReservation(opportunity, plan.generated_at, "2");
   const retained = await retainApplicationMetadataContext(
-    f.api,
+    f.registration,
     registered,
     execution,
     first,
@@ -711,12 +742,18 @@ void test("native context reservations freeze full bytes and burn versions under
     }),
   );
   const mutations = f.mutations.length;
-  await retainApplicationMetadataContext(f.api, registered, execution, first, async () => {});
+  await retainApplicationMetadataContext(
+    f.registration,
+    registered,
+    execution,
+    first,
+    async () => {},
+  );
   assert.equal(f.mutations.length, mutations, "exact producer reuse must not rewrite notes");
   // The context JSON can be identical while its referenced record bytes differ.
   await assert.rejects(
     retainApplicationMetadataContext(
-      f.api,
+      f.registration,
       registered,
       execution,
       { ...first, context_inventory_sha256: "f".repeat(64) },
@@ -726,7 +763,11 @@ void test("native context reservations freeze full bytes and burn versions under
   );
   assert.equal(f.mutations.length, mutations);
   const secondActor = { ...execution, run_attempt: 2 };
-  const secondPlan = readApplicationMetadataContextPlan(f.api, registered, secondActor);
+  const secondPlan = await readApplicationMetadataContextPlan(
+    f.registration,
+    registered,
+    secondActor,
+  );
   assert.deepEqual(secondPlan.previous_reserved_versions, first.versions);
   const second = metadataReservation(
     opportunity,
@@ -736,7 +777,7 @@ void test("native context reservations freeze full bytes and burn versions under
     "a".repeat(64),
   );
   const secondRetained = await retainApplicationMetadataContext(
-    f.api,
+    f.registration,
     registered,
     secondActor,
     second,
@@ -744,13 +785,13 @@ void test("native context reservations freeze full bytes and burn versions under
   );
   assert.deepEqual(secondRetained.custody.metadata_contexts, [first, second]);
   assert.deepEqual(secondRetained.custody.runs, registered.custody.runs);
-  assert.throws(
-    () => readApplicationMetadataContextPlan(f.api, registered, execution),
+  await assert.rejects(
+    () => readApplicationMetadataContextPlan(f.registration, registered, execution),
     /superseded/,
   );
   await assert.rejects(
     retainApplicationMetadataContext(
-      f.api,
+      f.registration,
       registered,
       { ...execution, run_attempt: 3 },
       { ...second, run_attempt: 3 },
@@ -764,20 +805,20 @@ void test("native context reservations freeze full bytes and burn versions under
 void test("related metadata contexts retain the original owner history and every registered run", async () => {
   const f = fixture("patch-clock");
   const owner = await registerApplicationReleaseRun(
-    f.api,
+    f.registration,
     execution,
     source,
     tree,
     source,
     async () => {},
   );
-  const firstPlan = readApplicationMetadataContextPlan(f.api, owner, execution);
+  const firstPlan = await readApplicationMetadataContextPlan(f.registration, owner, execution);
   const first = metadataReservation(source, firstPlan.generated_at, "2");
-  await retainApplicationMetadataContext(f.api, owner, execution, first, async () => {});
+  await retainApplicationMetadataContext(f.registration, owner, execution, first, async () => {});
   const memberActor = { ...execution, run_id: "124" },
     opportunity = "d".repeat(64);
   const linked = await registerApplicationBudgetRun(
-    f.api,
+    f.registration,
     {
       release_id: owner.release_id,
       custody: readApplicationRunNotes(f.releases[0]!.body)!.custody,
@@ -788,7 +829,7 @@ void test("related metadata contexts retain the original owner history and every
   );
   assert.deepEqual(linked.owner.custody.metadata_contexts, [first]);
   const member = await registerApplicationReleaseRun(
-    f.api,
+    f.registration,
     memberActor,
     source,
     tree,
@@ -797,7 +838,7 @@ void test("related metadata contexts retain the original owner history and every
     "create-or-resume",
     linked.membership,
   );
-  const plan = readApplicationMetadataContextPlan(f.api, member, memberActor);
+  const plan = await readApplicationMetadataContextPlan(f.registration, member, memberActor);
   assert.deepEqual(plan.previous_reserved_versions, first.versions);
   const second = metadataReservation(
     opportunity,
@@ -807,7 +848,7 @@ void test("related metadata contexts retain the original owner history and every
     "a".repeat(64),
   );
   const retained = await retainApplicationMetadataContext(
-    f.api,
+    f.registration,
     member,
     memberActor,
     second,
@@ -816,10 +857,10 @@ void test("related metadata contexts retain the original owner history and every
   assert.equal(retained.release_id, owner.release_id);
   assert.deepEqual(retained.custody.metadata_contexts, [first, second]);
   assert.equal(readApplicationRunNotes(f.releases[1]!.body)!.custody.metadata_contexts, undefined);
-  assert.deepEqual(readApplicationBudgetOwner(f.api, member).custody.metadata_contexts, [
-    first,
-    second,
-  ]);
+  assert.deepEqual(
+    (await readApplicationBudgetOwnerAsync(f.readRelease, member)).custody.metadata_contexts,
+    [first, second],
+  );
   const expires = Object.fromEntries(
     Object.keys(second.versions).map((role) => [role, "2027-01-01T00:00:00Z"]),
   ) as Record<keyof typeof second.versions, string>;
@@ -850,7 +891,7 @@ void test("related metadata contexts retain the original owner history and every
   const beforeAssembly = f.mutations.length;
   const previousEdit = f.releases[0]!.updated_at;
   const stored = await retainApplicationDraftAssembly(
-    f.api,
+    f.registration,
     member,
     memberActor,
     assembly,
@@ -858,13 +899,22 @@ void test("related metadata contexts retain the original owner history and every
   );
   assert.notEqual(f.releases[0]!.updated_at, previousEdit);
   assert.deepEqual(stored.custody.draft_assemblies, [assembly]);
-  assert.deepEqual(readApplicationBudgetOwner(f.api, member).custody, stored.custody);
+  assert.deepEqual(
+    (await readApplicationBudgetOwnerAsync(f.readRelease, member)).custody,
+    stored.custody,
+  );
   assert.equal(readApplicationRunNotes(f.releases[1]!.body)!.custody.draft_assemblies, undefined);
-  await retainApplicationDraftAssembly(f.api, member, memberActor, assembly, async () => {});
+  await retainApplicationDraftAssembly(
+    f.registration,
+    member,
+    memberActor,
+    assembly,
+    async () => {},
+  );
   assert.equal(f.mutations.length, beforeAssembly + 1);
   await assert.rejects(
     retainApplicationDraftAssembly(
-      f.api,
+      f.registration,
       member,
       memberActor,
       {
@@ -878,7 +928,7 @@ void test("related metadata contexts retain the original owner history and every
   assert.throws(() => assertApplicationCustodyMetadataExtension(stored.custody, retained.custody));
   assert.equal(f.mutations.length, beforeAssembly + 1);
   const nextActor = { ...memberActor, run_attempt: 2 };
-  const nextPlan = readApplicationMetadataContextPlan(f.api, member, nextActor);
+  const nextPlan = await readApplicationMetadataContextPlan(f.registration, member, nextActor);
   const replacement = metadataReservation(
     opportunity,
     nextPlan.generated_at,
@@ -886,9 +936,15 @@ void test("related metadata contexts retain the original owner history and every
     nextActor,
     "b".repeat(64),
   );
-  await retainApplicationMetadataContext(f.api, member, nextActor, replacement, async () => {});
+  await retainApplicationMetadataContext(
+    f.registration,
+    member,
+    nextActor,
+    replacement,
+    async () => {},
+  );
   const both = await retainApplicationDraftAssembly(
-    f.api,
+    f.registration,
     member,
     nextActor,
     {
@@ -909,28 +965,31 @@ void test("related metadata contexts retain the original owner history and every
   };
   const beforeRecovery = f.mutations.length;
   await assert.rejects(
-    retainApplicationDraftRecovery(f.api, member, nextActor, recovery, async () => {
+    retainApplicationDraftRecovery(f.registration, member, nextActor, recovery, async () => {
       throw new Error("backup or live draft guard failed");
     }),
     /guard failed/,
   );
   assert.equal(f.mutations.length, beforeRecovery);
   const committed = await retainApplicationDraftRecovery(
-    f.api,
+    f.registration,
     member,
     nextActor,
     recovery,
     async () => {},
   );
   assert.deepEqual(committed.custody.draft_recoveries, [recovery]);
-  assert.deepEqual(readApplicationBudgetOwner(f.api, member).custody, committed.custody);
+  assert.deepEqual(
+    (await readApplicationBudgetOwnerAsync(f.readRelease, member)).custody,
+    committed.custody,
+  );
   assertApplicationCustodyMetadataExtension(both.custody, committed.custody);
   assert.throws(() => assertApplicationCustodyMetadataExtension(committed.custody, both.custody));
-  await retainApplicationDraftRecovery(f.api, member, nextActor, recovery, async () => {});
+  await retainApplicationDraftRecovery(f.registration, member, nextActor, recovery, async () => {});
   assert.equal(f.mutations.length, beforeRecovery + 1);
   await assert.rejects(
     retainApplicationDraftRecovery(
-      f.api,
+      f.registration,
       member,
       nextActor,
       {
@@ -943,14 +1002,21 @@ void test("related metadata contexts retain the original owner history and every
   );
   assert.equal(f.mutations.length, beforeRecovery + 1);
   const claim = () =>
-    claimApplicationDraftAssetRemoval(f.api, member, nextActor, recovery, 29, async () => {});
+    claimApplicationDraftAssetRemoval(
+      f.registration,
+      member,
+      nextActor,
+      recovery,
+      29,
+      async () => {},
+    );
   assert.deepEqual(await claim(), {
     release_id: owner.release_id,
     notes: f.releases[0]!.body,
   });
   assert.equal(await claim(), undefined);
   assert.equal(f.mutations.length, beforeRecovery + 2);
-  const ownerWithClaim = readApplicationBudgetOwner(f.api, member).custody;
+  const ownerWithClaim = (await readApplicationBudgetOwnerAsync(f.readRelease, member)).custody;
   assert.deepEqual(ownerWithClaim.draft_removal_claims, [
     {
       asset_id: 29,
@@ -966,17 +1032,17 @@ void test("ambiguous native reservation PATCH is read back once and never reissu
     const f = fixture(mode),
       opportunity = "d".repeat(64);
     const registered = await registerApplicationReleaseRun(
-      f.api,
+      f.registration,
       execution,
       source,
       tree,
       opportunity,
       async () => {},
     );
-    const plan = readApplicationMetadataContextPlan(f.api, registered, execution);
+    const plan = await readApplicationMetadataContextPlan(f.registration, registered, execution);
     const reservation = metadataReservation(opportunity, plan.generated_at, "2");
     const pending = retainApplicationMetadataContext(
-      f.api,
+      f.registration,
       registered,
       execution,
       reservation,
@@ -990,5 +1056,101 @@ void test("ambiguous native reservation PATCH is read back once and never reissu
       readApplicationRunNotes(f.releases[0]!.body)!.custody.runs,
       registered.custody.runs,
     );
+  }
+});
+
+void test("fixed run registration uses the locked SDK for one-attempt drafts and exact recovery", async (t) => {
+  const previous = process.env.GH_TOKEN;
+  process.env.GH_TOKEN = "inert-run-registration";
+  t.after(() => {
+    if (previous === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = previous;
+  });
+  for (const mode of [
+    "valid",
+    "lost-after-create",
+    "lost-before-create",
+    "refused-guard",
+    "patch-lost",
+  ]) {
+    const f = fixture(mode);
+    const calls: string[] = [];
+    const mockedFetch = t.mock.method(
+      globalThis,
+      "fetch",
+      async (input: Parameters<typeof globalThis.fetch>[0], init?: RequestInit) => {
+        const request = new Request(input, init);
+        const url = new URL(request.url);
+        assert.equal(url.origin, "https://api.github.com");
+        assert.equal(request.headers.get("authorization"), "token inert-run-registration");
+        calls.push(request.method + " " + url.pathname + url.search);
+        const data: unknown = request.method === "GET" ? undefined : await request.json();
+        const response = f.api.request(request.method, url.pathname.slice(1) + url.search, data);
+        return Response.json(response.body, { status: response.status ?? 500 });
+      },
+    );
+    try {
+      const provider = await createApplicationRunRegistrationProvider();
+      const run = registerApplicationReleaseRun(
+        provider,
+        execution,
+        source,
+        tree,
+        source,
+        async (known) => {
+          assert.deepEqual(known, []);
+          if (mode === "refused-guard") throw new Error("fixture refused registration guard");
+        },
+      );
+      if (mode === "lost-before-create" || mode === "refused-guard") await assert.rejects(run);
+      else assert.equal((await run).release_id, 10);
+      assert.equal(
+        calls.filter((call) => call.startsWith("POST ")).length,
+        mode === "refused-guard" ? 0 : 1,
+      );
+      if (mode === "patch-lost") {
+        calls.length = 0;
+        const second = await registerApplicationReleaseRun(
+          await createApplicationRunRegistrationProvider(),
+          { ...execution, run_id: "124" },
+          source,
+          tree,
+          source,
+          async (known) => assert.deepEqual(known, ["123"]),
+        );
+        assert.deepEqual(second.known_run_ids, ["123", "124"]);
+        assert.equal(
+          calls.filter((call) => call === "PATCH /repos/boburning/portcove/releases/10").length,
+          1,
+        );
+        assert.equal(calls.at(-1), "GET /repos/boburning/portcove/releases/10");
+        const actor = { ...execution, run_id: "124" };
+        const plan = await readApplicationMetadataContextPlan(provider, second, actor);
+        const reservation = metadataReservation(source, plan.generated_at, "2", actor);
+        calls.length = 0;
+        const retained = await retainApplicationMetadataContext(
+          provider,
+          second,
+          actor,
+          reservation,
+          async () => {},
+        );
+        assert.deepEqual(retained.custody.metadata_contexts, [reservation]);
+        const route = "/repos/boburning/portcove/releases/10";
+        assert.deepEqual(calls, [
+          `GET ${route}`,
+          `GET ${route}`,
+          `GET ${route}`,
+          `PATCH ${route}`,
+          `GET ${route}`,
+        ]);
+      }
+      if (mode === "lost-after-create") {
+        assert.equal(calls.filter((call) => call.includes("/releases?per_page=100")).length, 3);
+        assert.equal(calls.at(-1), "GET /repos/boburning/portcove/releases/10");
+      }
+    } finally {
+      mockedFetch.mock.restore();
+    }
   }
 });

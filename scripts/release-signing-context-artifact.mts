@@ -684,7 +684,8 @@ export async function prepareSigningContextPredicate(
   deadline: number,
 ) {
   signingContextRemaining(deadline, 15000);
-  const readerToken = (readOnlyReleaseChildEnvironment() ?? process.env).GH_TOKEN ?? "";
+  const readerEnvironment = readOnlyReleaseChildEnvironment();
+  const readerToken = (readerEnvironment ?? process.env).GH_TOKEN ?? "";
   const owned = prepared.get(receipt);
   if (!owned) throw new Error("actual private signing context upload required");
   const uploaded = structuredClone(rawUploaded),
@@ -753,13 +754,12 @@ export async function prepareSigningContextPredicate(
         signal: AbortSignal.timeout(signingContextRemaining(deadline, 15000)),
       }),
   );
+  const options = {
+    transport: { sdkToken: readerToken, requireDirect: readerEnvironment !== undefined, deadline },
+  };
   const identity = await (owned.kind === "release-signing-context"
-    ? verifyPayloadSignerJobIdentity(token, expectedIdentity, {
-        transport: { cwd: owned.directory, deadline },
-      })
-    : verifyCapacityExecutorJobIdentity("coordinator", token, expectedIdentity, {
-        transport: { cwd: owned.directory, deadline },
-      }));
+    ? verifyPayloadSignerJobIdentity(token, expectedIdentity, options)
+    : verifyCapacityExecutorJobIdentity("coordinator", token, expectedIdentity, options));
   signingContextRemaining(deadline, 15000);
   await requireProducerContext(owned.kind, owned.context);
   if (

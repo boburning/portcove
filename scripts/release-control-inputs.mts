@@ -1,5 +1,12 @@
 import { createHash } from "node:crypto";
 import { performance } from "node:perf_hooks";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
+import type {
+  GitHubClientOptions,
+  GitHubRequestPolicy,
+  GitHubReservation,
+} from "./github-client.mts";
+import { GitHubApiError } from "./github-operation.mts";
 import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
 import { parseVersionClassification } from "../apps/desktop/scripts/release-version-policy.mts";
 import { validateOpportunity } from "./release-coordinator.mts";
@@ -57,23 +64,93 @@ function releaseOpportunityDigest(value: unknown) {
     .update(canonical(validateOpportunity(value)))
     .digest("hex");
 }
+type ControlRead =
+  | { kind: "rest"; suffix: string; missing: boolean }
+  | { kind: "ref"; node: string; branch: string }
+  | { kind: "before-classification-write" }
+  | { kind: "classification-write"; variables: Readonly<Record<string, unknown>> };
+type ControlResponse = { status: number | undefined; body: unknown };
+type ControlReads<T> = Generator<ControlRead, T, ControlResponse>;
+type ControlSession = {
+  get(suffix: string, missing?: boolean): ControlReads<unknown>;
+  ref(branch: string): ControlReads<string>;
+  contents(commit: string, path: string, missing?: boolean): ControlReads<string | null>;
+  bound(): void;
+  refId(branch: string): string | undefined;
+};
+
+function readWithLegacyApi<T>(
+  api: CoordinatorRemoteApi,
+  sequence: ControlReads<T>,
+  beforeMutation?: () => void,
+): T {
+  let step = sequence.next();
+  while (!step.done) {
+    const request = step.value;
+    let result: ControlResponse;
+    if (request.kind === "before-classification-write") {
+      if (!beforeMutation) throw new Error("fresh protected caller guard unavailable");
+      beforeMutation();
+      result = { status: 200, body: null };
+    } else if (request.kind === "classification-write") {
+      try {
+        const response = api.graphql(releaseClassificationCommitMutation, request.variables);
+        result = { status: 200, body: response.data };
+      } catch {
+        result = { status: undefined, body: null };
+      }
+    } else {
+      try {
+        if (request.kind === "rest") {
+          const response = api.request("GET", `repos/${repository}${request.suffix}`);
+          result = { status: response.status, body: response.body };
+        } else {
+          const response = api.graphql(releaseControlRefQuery, {
+            id: request.node,
+            ref: `refs/heads/${request.branch}`,
+          });
+          result = { status: 200, body: response.data };
+        }
+      } catch (error) {
+        step = sequence.throw(error);
+        continue;
+      }
+    }
+    step = sequence.next(result);
+  }
+  return step.value;
+}
+
 function session(api: CoordinatorRemoteApi) {
+  const selected = readWithLegacyApi(api, controlSession());
+  return {
+    get: (...args: Parameters<ControlSession["get"]>) =>
+      readWithLegacyApi(api, selected.get(...args)),
+    ref: (branch: string) => readWithLegacyApi(api, selected.ref(branch)),
+    contents: (...args: Parameters<ControlSession["contents"]>) =>
+      readWithLegacyApi(api, selected.contents(...args)),
+    bound: () => selected.bound(),
+    refId: (branch: string) => selected.refId(branch),
+  };
+}
+
+function* controlSession(): ControlReads<ControlSession> {
   const started = performance.now();
   let requests = 0;
   const bound = () => {
     if (++requests > 80 || performance.now() - started > 120_000)
       throw new Error("release control request or duration bound exhausted");
   };
-  const get = (suffix: string, missing = false) => {
+  function* get(suffix: string, missing = false): ControlReads<unknown> {
     bound();
-    const response = api.request("GET", `repos/${repository}${suffix}`);
+    const response = yield { kind: "rest", suffix, missing };
     if (performance.now() - started > 120_000) throw new Error("release control response late");
     if (response.status === 404 && missing) return null;
     if (response.status !== 200 || Buffer.byteLength(JSON.stringify(response.body)) > maximumBytes)
       throw new Error("release control response unavailable or oversized");
     return response.body;
-  };
-  const identity = get("");
+  }
+  const identity = yield* get("");
   if (
     !isRecord(identity) ||
     identity.id !== repositoryId ||
@@ -82,20 +159,19 @@ function session(api: CoordinatorRemoteApi) {
     !identity.node_id
   )
     throw new Error("release control repository differs");
+  const nodeId = identity.node_id;
   const refIds = new Map<string, string>();
-  const ref = (branch: string) => {
+  function* ref(branch: string): ControlReads<string> {
     bound();
-    const response = api.graphql(releaseControlRefQuery, {
-      id: identity.node_id,
-      ref: `refs/heads/${branch}`,
-    });
-    const node = isRecord(response.data) ? response.data.node : null;
+    const response = yield { kind: "ref", node: nodeId, branch };
+    const node = isRecord(response.body) ? response.body.node : null;
     const value = isRecord(node) ? node.ref : null;
     if (
       performance.now() - started > 120_000 ||
+      response.status !== 200 ||
       !isRecord(node) ||
       node.__typename !== "Repository" ||
-      node.id !== identity.node_id ||
+      node.id !== nodeId ||
       node.databaseId !== repositoryId ||
       node.nameWithOwner !== repository ||
       !isRecord(value) ||
@@ -112,13 +188,13 @@ function session(api: CoordinatorRemoteApi) {
       throw new Error("release control ref opaque identity changed");
     refIds.set(branch, value.id);
     return value.target.oid;
-  };
-  const contents = (commit: string, path: string, missing = false) => {
-    const closure = inspectRemoteCommitObject(get(`/git/commits/${commit}`), commit);
+  }
+  function* contents(commit: string, path: string, missing = false): ControlReads<string | null> {
+    const closure = inspectRemoteCommitObject(yield* get(`/git/commits/${commit}`), commit);
     let tree = closure.tree;
     const parts = path.split("/");
     for (let index = 0; index < parts.length; index++) {
-      const value = get(`/git/trees/${tree}`);
+      const value = yield* get(`/git/trees/${tree}`);
       if (
         !isRecord(value) ||
         value.sha !== tree ||
@@ -184,7 +260,7 @@ function session(api: CoordinatorRemoteApi) {
       }
       if (selected.type !== "blob" || selected.mode !== "100644")
         throw new Error("release control document is not an inert file");
-      const blob = get(`/git/blobs/${selected.sha}`);
+      const blob = yield* get(`/git/blobs/${selected.sha}`);
       if (
         !isRecord(blob) ||
         blob.sha !== selected.sha ||
@@ -207,7 +283,7 @@ function session(api: CoordinatorRemoteApi) {
       return bytes.toString("utf8");
     }
     throw new Error("release control path incomplete");
-  };
+  }
   return { get, ref, contents, bound, refId: (branch: string) => refIds.get(branch) };
 }
 
@@ -294,7 +370,18 @@ function review(
     | ReturnType<typeof inspectCatalogSemanticOpportunity>,
   purpose: "application" | "catalog-publication" = "application",
 ) {
-  const value = get(`/check-runs/${checkId}`);
+  return inspectReview(get(`/check-runs/${checkId}`), checkId, config, opportunity, purpose);
+}
+
+function inspectReview(
+  value: unknown,
+  checkId: number,
+  config: Pick<ReviewProducerConfiguration, "review_app_id" | "review_check_name">,
+  opportunity:
+    | ReturnType<typeof validateOpportunity>
+    | ReturnType<typeof inspectCatalogSemanticOpportunity>,
+  purpose: "application" | "catalog-publication" = "application",
+) {
   if (
     !isRecord(value) ||
     value.id !== checkId ||
@@ -385,10 +472,21 @@ export function readIndependentCatalogSemanticReview(
   rawOpportunity: unknown,
   checkId: number,
 ) {
+  return readWithLegacyApi(api, catalogSemanticReview(rawConfig, rawOpportunity, checkId));
+}
+
+function* catalogSemanticReview(rawConfig: unknown, rawOpportunity: unknown, checkId: number) {
   numeric(checkId);
   const config = inspectCatalogReviewProducerConfiguration(rawConfig);
   const opportunity = inspectCatalogSemanticOpportunity(rawOpportunity);
-  return review(session(api).get, checkId, config, opportunity, "catalog-publication");
+  const selected = yield* controlSession();
+  return inspectReview(
+    yield* selected.get(`/check-runs/${checkId}`),
+    checkId,
+    config,
+    opportunity,
+    "catalog-publication",
+  );
 }
 
 /** Persistence adapter, not a classifier or execution grant. An admitted fixed
@@ -403,62 +501,83 @@ export function persistReviewedClassification(
   checkId: number,
   beforeMutation: () => void,
 ) {
-  const config = configuration(rawConfig);
   if (typeof beforeMutation !== "function")
     throw new Error("fresh protected caller guard unavailable");
+  return readWithLegacyApi(
+    api,
+    persistClassification(rawConfig, rawOpportunity, checkId),
+    beforeMutation,
+  );
+}
+
+function* persistClassification(
+  rawConfig: unknown,
+  rawOpportunity: unknown,
+  checkId: number,
+): ControlReads<{
+  changed: boolean;
+  commit: string | null;
+  path: string;
+  recovered?: boolean;
+  authority: "none";
+}> {
+  const config = configuration(rawConfig);
   numeric(checkId);
   const opportunity = validateOpportunity(rawOpportunity);
   const path = classificationPath(opportunity);
-  const io = session(api);
-  const before = io.ref(classificationBranch);
-  const proof = review(io.get, checkId, config, opportunity);
+  const io = yield* controlSession();
+  const check = function* () {
+    return inspectReview(yield* io.get(`/check-runs/${checkId}`), checkId, config, opportunity);
+  };
+  const before = yield* io.ref(classificationBranch);
+  const proof = yield* check();
   const text = `${canonical({ schema_version: 2, opportunity, review_check_id: checkId, review_app_id: config.review_app_id, review_sha256: createHash("sha256").update(proof).digest("hex"), opportunity_sha256: releaseOpportunityDigest(opportunity) })}\n`;
-  const existing = io.contents(before, path, true);
+  const existing = yield* io.contents(before, path, true);
   if (existing !== null && existing !== text)
     throw new Error("immutable classification conflicts; no overwrite permitted");
-  if (
-    review(io.get, checkId, config, opportunity) !== proof ||
-    io.ref(classificationBranch) !== before
-  )
+  if ((yield* check()) !== proof || (yield* io.ref(classificationBranch)) !== before)
     throw new Error("release review or input ref changed before persistence");
   if (existing !== null) return { changed: false, commit: before, path, authority: "none" };
   io.bound();
-  beforeMutation();
+  yield { kind: "before-classification-write" } as const;
   let ambiguous = false;
   let acknowledged: string | null = null;
   // expectedHeadOid is GitHub's single-branch exact-preimage CAS. Never retry.
   try {
-    const response = api.graphql(releaseClassificationCommitMutation, {
-      input: {
-        branch: { id: io.refId(classificationBranch) },
-        expectedHeadOid: before,
-        message: { headline: `Persist reviewed classification ${opportunity.source_commit}` },
-        fileChanges: { additions: [{ path, contents: Buffer.from(text).toString("base64") }] },
+    const response = yield {
+      kind: "classification-write",
+      variables: {
+        input: {
+          branch: { id: io.refId(classificationBranch) },
+          expectedHeadOid: before,
+          message: { headline: `Persist reviewed classification ${opportunity.source_commit}` },
+          fileChanges: { additions: [{ path, contents: Buffer.from(text).toString("base64") }] },
+        },
       },
-    });
+    } as const;
     if (
-      !isRecord(response.data) ||
-      !isRecord(response.data.createCommitOnBranch) ||
-      !isRecord(response.data.createCommitOnBranch.commit)
+      !isRecord(response.body) ||
+      !isRecord(response.body.createCommitOnBranch) ||
+      !isRecord(response.body.createCommitOnBranch.commit)
     )
       throw new Error("classification CAS acknowledgment unavailable");
-    oid(response.data.createCommitOnBranch.commit.oid);
-    acknowledged = response.data.createCommitOnBranch.commit.oid;
+    oid(response.body.createCommitOnBranch.commit.oid);
+    acknowledged = response.body.createCommitOnBranch.commit.oid;
   } catch {
     ambiguous = true;
   }
   let after: string | null = null;
   try {
-    after = io.ref(classificationBranch);
+    after = yield* io.ref(classificationBranch);
     if (
       after === before ||
       (acknowledged !== null && acknowledged !== after) ||
-      io.contents(after, path) !== text
+      (yield* io.contents(after, path)) !== text
     )
       throw new Error(
         "classification mutation outcome unknown or conflicting; retain evidence and do not retry",
       );
-    if (review(io.get, checkId, config, opportunity) !== proof)
+    if ((yield* check()) !== proof)
       throw new Error("review changed after persistence; classification cannot admit");
   } catch {
     throw new CoordinatorRemoteError(
@@ -490,11 +609,15 @@ export function readReviewedClassification(
   rawConfig: unknown,
   rawOpportunity: unknown,
 ) {
+  return readWithLegacyApi(api, reviewedClassification(rawConfig, rawOpportunity));
+}
+
+function* reviewedClassification(rawConfig: unknown, rawOpportunity: unknown) {
   const config = configuration(rawConfig);
   const opportunity = validateOpportunity(rawOpportunity);
-  const io = session(api);
-  const before = io.ref(classificationBranch);
-  const text = io.contents(before, classificationPath(opportunity));
+  const io = yield* controlSession();
+  const before = yield* io.ref(classificationBranch);
+  const text = yield* io.contents(before, classificationPath(opportunity));
   if (text === null) throw new Error("classification is missing");
   const value: unknown = JSON.parse(text);
   exact(
@@ -509,12 +632,14 @@ export function readReviewedClassification(
     canonical(validateOpportunity(value.opportunity)) !== canonical(opportunity)
   )
     throw new Error("classification record differs from reviewed inputs");
-  const proof = review(io.get, value.review_check_id, config, opportunity);
+  const checkId = value.review_check_id;
+  const check = () => io.get(`/check-runs/${checkId}`);
+  const proof = inspectReview(yield* check(), value.review_check_id, config, opportunity);
   if (value.review_sha256 !== createHash("sha256").update(proof).digest("hex"))
     throw new Error("persisted semantic review report changed");
   if (
-    io.ref(classificationBranch) !== before ||
-    review(io.get, value.review_check_id, config, opportunity) !== proof
+    (yield* io.ref(classificationBranch)) !== before ||
+    inspectReview(yield* check(), value.review_check_id, config, opportunity) !== proof
   )
     throw new Error("classification or review changed during read");
   return {
@@ -534,18 +659,22 @@ export function readReviewedClassificationForRequest(
   rawConfig: unknown,
   rawRequest: unknown,
 ) {
+  return readWithLegacyApi(api, reviewedClassificationForRequest(rawConfig, rawRequest));
+}
+
+function* reviewedClassificationForRequest(rawConfig: unknown, rawRequest: unknown) {
   const config = configuration(rawConfig);
   const request = inspectReleaseReviewRequest(rawRequest);
   if (!request) throw new Error("classification extraction requires an exact neutral request");
-  const io = session(api);
-  const before = io.ref(classificationBranch);
-  const text = io.contents(
+  const io = yield* controlSession();
+  const before = yield* io.ref(classificationBranch);
+  const text = yield* io.contents(
     before,
     `classification/${request.source_commit}/${request.change_set_sha256}.json`,
     true,
   );
   if (text === null) {
-    if (io.ref(classificationBranch) !== before)
+    if ((yield* io.ref(classificationBranch)) !== before)
       throw new Error("classification ref changed while path was absent");
     return { status: "missing" as const, commit: before, authority: "none" as const };
   }
@@ -562,22 +691,27 @@ export function readReviewedClassificationForRequest(
     opportunity.classification.change_set_scope !== request.change_set_scope
   )
     throw new Error("persisted classification differs from exact neutral request");
-  const verified = readReviewedClassification(api, config, opportunity);
-  if (verified.commit !== before || io.ref(classificationBranch) !== before)
+  const verified = yield* reviewedClassification(config, opportunity);
+  if (verified.commit !== before || (yield* io.ref(classificationBranch)) !== before)
     throw new Error("request classification changed during independent reauthentication");
   return { ...verified, status: "reviewed" as const };
 }
 
 export function readPublicationPause(api: CoordinatorRemoteApi) {
-  const io = session(api);
-  const before = io.ref(pauseBranch);
-  const text = io.contents(before, "publication.json");
+  return readWithLegacyApi(api, publicationPause());
+}
+
+function* publicationPause() {
+  const io = yield* controlSession();
+  const before = yield* io.ref(pauseBranch);
+  const text = yield* io.contents(before, "publication.json");
   if (text === null) throw new Error("publication pause is unavailable");
   const value: unknown = JSON.parse(text);
   exact(value, "publication_paused,schema_version");
   if (value.schema_version !== 1 || typeof value.publication_paused !== "boolean")
     throw new Error("publication pause is malformed");
-  if (io.ref(pauseBranch) !== before) throw new Error("publication pause changed during read");
+  if ((yield* io.ref(pauseBranch)) !== before)
+    throw new Error("publication pause changed during read");
   return {
     commit: before,
     publication_paused: value.publication_paused,
@@ -591,11 +725,15 @@ export function readPublicationPause(api: CoordinatorRemoteApi) {
  * This reads a revocable operator observation, not live billing availability.
  */
 export function readRatifiedCapacityConfiguration(api: CoordinatorRemoteApi, guard: () => void) {
+  return readWithLegacyApi(api, ratifiedCapacityConfiguration(guard));
+}
+
+function* ratifiedCapacityConfiguration(guard: () => void) {
   if (typeof guard !== "function") throw new Error("authenticated capacity source guard missing");
   guard();
-  const io = session(api);
-  const before = io.ref(pauseBranch);
-  const text = io.contents(before, "capacity.json", true);
+  const io = yield* controlSession();
+  const before = yield* io.ref(pauseBranch);
+  const text = yield* io.contents(before, "capacity.json", true);
   if (text === null) throw new Error("ratified capacity configuration unavailable");
   const value: unknown = JSON.parse(text);
   exact(value, "capacity,observation,schema_version");
@@ -616,7 +754,8 @@ export function readRatifiedCapacityConfiguration(api: CoordinatorRemoteApi, gua
   )
     throw new Error("capacity source cannot supply invented observation or reservation effects");
   const report = assessBoundedCapacity(value.capacity);
-  if (io.ref(pauseBranch) !== before) throw new Error("capacity configuration changed during read");
+  if ((yield* io.ref(pauseBranch)) !== before)
+    throw new Error("capacity configuration changed during read");
   guard();
   return {
     commit: before,
@@ -628,4 +767,247 @@ export function readRatifiedCapacityConfiguration(api: CoordinatorRemoteApi, gua
     authority: "none",
     qualification: "protected owner configuration; availability/headroom remain unknown",
   };
+}
+
+type ControlSdkOptions = {
+  token: string;
+  checkToken?: string;
+  deadline: number;
+  guard: () => void;
+  requestTimeoutMs?: number;
+  maxBytes?: number;
+  fetch?: typeof globalThis.fetch;
+  accounting?: {
+    reserve: NonNullable<GitHubClientOptions["reserve"]>;
+    elapsed: (milliseconds: number) => void;
+    currentDeadline: () => number;
+  };
+};
+
+export function createFixedControlReadAllowance() {
+  let dispatches = 0;
+  return (): GitHubReservation => {
+    if (dispatches >= 32) throw new Error("fixed control read bound exhausted");
+    dispatches++;
+    return {
+      consumeBytes() {},
+      settle(observation) {
+        if (!observation.dispatched) dispatches--;
+      },
+    };
+  };
+}
+
+type ClassificationSdkWriter = {
+  token: string;
+  beforeMutation: () => Promise<void>;
+  requireFresh: () => void;
+};
+
+async function controlSdkReader(
+  options: ControlSdkOptions,
+  reserve?: ReturnType<typeof createFixedControlReadAllowance>,
+  writer?: ClassificationSdkWriter,
+) {
+  const { token, checkToken, guard, fetch, requestTimeoutMs, accounting } = options;
+  const reservation = accounting?.reserve ?? reserve;
+  const { createGitHubClient } = await import("./github-client.mts");
+  const createReader = (readerToken: string) =>
+    createGitHubClient({
+      credential: { kind: "explicit", token: readerToken },
+      deadline: Math.min(options.deadline, coordinatorCommandDeadline() ?? Infinity),
+      maxBytes: options.maxBytes ?? 2 * 1024 ** 2,
+      allowRequest() {
+        guard();
+        return true;
+      },
+      ...(fetch ? { fetch } : {}),
+      ...(reservation ? { reserve: reservation } : {}),
+      ...(accounting && {
+        observe(observation) {
+          accounting.elapsed(observation.elapsedMs);
+        },
+      }),
+      ...(requestTimeoutMs === undefined ? {} : { requestTimeoutMs }),
+    });
+  const client = await createReader(token);
+  const checks =
+    checkToken === undefined || checkToken === token ? client : await createReader(checkToken);
+  const writerClient =
+    writer === undefined
+      ? undefined
+      : await createGitHubClient({
+          credential: { kind: "explicit", token: writer.token },
+          deadline: Math.min(options.deadline, coordinatorCommandDeadline() ?? Infinity),
+          maxBytes: 2 * 1024 ** 2,
+          allowRequest(method, url) {
+            guard();
+            writer.requireFresh();
+            return method === "POST" && url.href === "https://api.github.com/graphql";
+          },
+          ...(fetch ? { fetch } : {}),
+          ...(requestTimeoutMs === undefined ? {} : { requestTimeoutMs }),
+        });
+  const once = () => ({
+    portcove: {
+      replay: "once" as const,
+      attempts: 0,
+      ...(accounting && { deadline: accounting.currentDeadline() }),
+    },
+  });
+  const read = async (
+    effect: Extract<ControlRead, { kind: "rest" | "ref" }>,
+  ): Promise<ControlResponse> => {
+    if (effect.kind === "ref") {
+      const response = await client.request("POST /graphql", {
+        query: releaseControlRefQuery,
+        variables: { id: effect.node, ref: `refs/heads/${effect.branch}` },
+        request: once(),
+      });
+      const envelope: unknown = response.data;
+      if (
+        !isRecord(envelope) ||
+        !("data" in envelope) ||
+        (envelope.errors !== undefined &&
+          (!Array.isArray(envelope.errors) || envelope.errors.length))
+      )
+        throw new Error("maintenance control GraphQL response unavailable");
+      return { status: response.status, body: envelope.data };
+    }
+    try {
+      const reader = effect.suffix.startsWith("/check-runs/") ? checks : client;
+      const response = await reader.request(`GET /repos/${repository}${effect.suffix}`, {
+        request: once(),
+      });
+      return { status: response.status, body: response.data };
+    } catch (error) {
+      if (!(effect.missing && error instanceof GitHubApiError && error.status === 404)) throw error;
+      return { status: 404, body: null };
+    }
+  };
+  return async <T,>(sequence: ControlReads<T>) => {
+    let step = sequence.next();
+    while (!step.done) {
+      const effect = step.value;
+      if (effect.kind === "before-classification-write") {
+        if (!writer) throw new Error("fresh protected caller guard unavailable");
+        await writer.beforeMutation();
+        step = sequence.next({ status: 200, body: null });
+        continue;
+      }
+      let result: ControlResponse;
+      let dispatched = false;
+      try {
+        guard();
+        if (effect.kind === "classification-write") {
+          if (!writerClient) throw new Error("fixed classification writer unavailable");
+          const policy: GitHubRequestPolicy = {
+            replay: "once",
+            attempts: 0,
+            observe(observation) {
+              dispatched = observation.dispatched;
+            },
+          };
+          const response = await writerClient.request("POST /graphql", {
+            query: releaseClassificationCommitMutation,
+            variables: effect.variables,
+            request: { portcove: policy },
+          });
+          const envelope: unknown = response.data;
+          result = { status: response.status, body: isRecord(envelope) ? envelope.data : null };
+        } else {
+          result = await read(effect);
+        }
+        guard();
+      } catch (error) {
+        if (effect.kind === "classification-write" && !dispatched) throw error;
+        step = sequence.throw(error);
+        continue;
+      }
+      step = sequence.next(result);
+    }
+    return step.value;
+  };
+}
+
+export async function readPublicationPauseWithSdk(options: ControlSdkOptions) {
+  const run = await controlSdkReader(options);
+  return run(publicationPause());
+}
+
+export async function readMaintenanceControlsWithSdk(
+  options: ControlSdkOptions,
+  reserve?: ReturnType<typeof createFixedControlReadAllowance>,
+) {
+  const run = await controlSdkReader(options, reserve);
+  const pause = await run(publicationPause());
+  const capacity = await run(ratifiedCapacityConfiguration(options.guard));
+  return { pause, capacity };
+}
+
+export async function readApplicationControlsWithSdk(
+  options: ControlSdkOptions,
+  configuration: unknown,
+  opportunity: unknown,
+  reserve = createFixedControlReadAllowance(),
+) {
+  const run = await controlSdkReader(options, reserve);
+  const classification = await run(reviewedClassification(configuration, opportunity));
+  const pause = await run(publicationPause());
+  const capacity = await run(ratifiedCapacityConfiguration(options.guard));
+  return { classification, pause, capacity };
+}
+
+export async function readIndependentApplicationSemanticReviewWithSdk(
+  options: ControlSdkOptions,
+  rawConfig: unknown,
+  rawOpportunity: unknown,
+  checkId: number,
+) {
+  numeric(checkId);
+  const config = inspectApplicationSemanticProducerConfiguration(rawConfig);
+  const opportunity = validateOpportunity(rawOpportunity);
+  const run = await controlSdkReader(options);
+  return run(
+    (function* () {
+      const selected = yield* controlSession();
+      return inspectReview(
+        yield* selected.get(`/check-runs/${checkId}`),
+        checkId,
+        config,
+        opportunity,
+      );
+    })(),
+  );
+}
+
+export async function readIndependentCatalogSemanticReviewWithSdk(
+  options: ControlSdkOptions,
+  rawConfig: unknown,
+  rawOpportunity: unknown,
+  checkId: number,
+  reserve = createFixedControlReadAllowance(),
+) {
+  const run = await controlSdkReader(options, reserve);
+  return run(catalogSemanticReview(rawConfig, rawOpportunity, checkId));
+}
+
+export async function readReviewedClassificationForRequestWithSdk(
+  options: ControlSdkOptions,
+  config: unknown,
+  request: unknown,
+) {
+  const run = await controlSdkReader(options);
+  return run(reviewedClassificationForRequest(config, request));
+}
+
+export async function persistReviewedClassificationWithSdk(
+  options: ControlSdkOptions,
+  writer: ClassificationSdkWriter,
+  rawConfig: unknown,
+  rawOpportunity: unknown,
+  checkId: number,
+) {
+  const run = await controlSdkReader(options, undefined, writer);
+  return run(persistClassification(rawConfig, rawOpportunity, checkId));
 }

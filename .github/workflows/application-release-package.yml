@@ -168,6 +168,10 @@ jobs:
         with:
           node-version-file: .node-version
           package-manager-cache: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: package.json
+      - run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Bound compiler archive and declarations before any extraction
         env:
           GH_TOKEN: ${{ github.token }}

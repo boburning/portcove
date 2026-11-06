@@ -4,7 +4,6 @@ import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
-import { spawnSync } from "node:child_process";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { isRecord } from "./runtime-values.mts";
 import {
@@ -29,7 +28,9 @@ import {
   inspectRemoteGitObject,
 } from "./release-coordinator-recovery.mts";
 import { inspectReleaseSourceTree } from "./release-source-changes.mts";
-import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
+import { createFixedControlReadAllowance } from "./release-control-inputs.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
+import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
 import {
   createReleaseCustodyProvider,
   type CatalogAnchorMetadataProvider,
@@ -80,8 +81,8 @@ type Executor = Parameters<typeof capacityExecutorIdentity>[0];
 type Owned = {
   session: Session;
   directory: string;
-  work: string;
   deadline: number;
+  credential: { token: string };
   files: ReturnType<typeof inventory>;
   facts: ReturnType<typeof inspectCatalogSigningFacts>;
   binding: ReturnType<typeof inspectCatalogSigningBinding>["binding"];
@@ -99,40 +100,6 @@ function remaining(owned: { deadline: number }, max = 15000) {
   if (!Number.isFinite(left) || left < 1)
     throw new Error("catalog context original deadline exhausted");
   return Math.min(left, max);
-}
-function readAllowance() {
-  let reads = 0;
-  return () => {
-    if (++reads > 32) throw new Error("catalog context bounded GET budget exhausted");
-  };
-}
-function apiFor(
-  owned: Pick<Owned, "directory" | "work" | "deadline">,
-  chargeRead = readAllowance(),
-  token = process.env.GH_TOKEN,
-) {
-  const env = {
-    PATH: process.env.PATH,
-    SystemRoot: process.env.SystemRoot,
-    HOME: owned.work,
-    USERPROFILE: owned.work,
-    GH_CONFIG_DIR: path.join(owned.work, "gh-config"),
-    GH_TOKEN: token,
-    GH_PROMPT_DISABLED: "1",
-    GH_NO_UPDATE_NOTIFIER: "1",
-    NO_COLOR: "1",
-  };
-  return new GitHubApiClient((args, input) => {
-    chargeRead();
-    const response = createGitHubRunner({
-      cwd: owned.directory,
-      maxBuffer: 2 * 1024 ** 2,
-      timeoutMs: remaining(owned),
-      spawn: (command, args, settings) => spawnSync(command, args, { ...settings, env }),
-    })([...args, "--hostname", "github.com"], input);
-    remaining(owned);
-    return response;
-  });
 }
 /** Fixed ratified Git paths, complete bounded raw tree and exact Git blob hash.
  * This authenticates public bytes, not a new publisher or trust root. */
@@ -194,7 +161,7 @@ async function snapshot(owned: Owned) {
   return readRemoteCoordinatorSnapshot(
     owned.directory,
     { schema_version: 1, namespace: owned.session.namespace },
-    { transport: { cwd: owned.directory, deadline: owned.deadline } },
+    { transport: { credential: owned.credential, deadline: owned.deadline, requireDirect: true } },
   );
 }
 async function verifyState(owned: Owned) {
@@ -248,10 +215,8 @@ async function prepareContext(session: Session, parent: string) {
   const work = await mkdtemp(path.join(parent, "catalog-signing-context-")),
     directory = path.join(work, "context");
   await mkdir(directory, { mode: 0o700 });
-  const partial = { work, directory, deadline },
-    chargeRead = readAllowance(),
-    token = process.env.GH_TOKEN,
-    api = apiFor(partial, chargeRead, token),
+  const reserve = createFixedControlReadAllowance(),
+    credential = { token: fixedReleaseReaderToken() },
     authorities = await requireControllerCatalogJobAuthorities("coordinator"),
     pins = authorities.catalog.public_source;
   if (
@@ -261,9 +226,10 @@ async function prepareContext(session: Session, parent: string) {
   )
     throw new Error("catalog context ratified authority differs");
   const metadata = await createReleaseCustodyProvider({
-    token: token ?? "",
+    token: credential.token,
     deadline,
-    chargeRead,
+    reserve,
+    beforeDispatch: () => assertTrustedDirectNode("fixed catalog signing context"),
   });
   const files = await readCatalogPublicAnchors(metadata, pins, deadline),
     bundle = await readCatalogPublicationBundle(session.inspection.bundle, deadline);
@@ -324,7 +290,7 @@ async function prepareContext(session: Session, parent: string) {
   const state = await readRemoteCoordinatorSnapshot(
       directory,
       { schema_version: 1, namespace: session.namespace },
-      { transport: { cwd: directory, deadline } },
+      { transport: { credential, deadline, requireDirect: true, reserve } },
     ),
     seed = inspectPublishedCatalogMetadata(state.input.published_catalog_metadata);
   if (
@@ -396,12 +362,15 @@ async function prepareContext(session: Session, parent: string) {
     },
     prior,
   ).binding;
-  const current = session.controls.readMaintenance(api),
+  const current = await session.controls.readSdkMaintenance(reserve, {
+      deadline,
+      signingContext: true,
+    }),
     owned: Owned = {
       session,
       directory,
-      work,
       deadline,
+      credential,
       files: inventory(files),
       facts,
       binding,
@@ -555,8 +524,7 @@ async function readContext(receipt: object, verifyCheckpointState = true) {
   if (authorities.configuration_sha256 !== owned.configuration_sha256)
     throw new Error("catalog protected authority changed");
   assertControllerCatalogPublisherScope(authorities.configuration, inspection.inspection, bundle);
-  const api = apiFor(owned),
-    semantic = await owned.session.recheck_semantic(owned.deadline);
+  const semantic = await owned.session.recheck_semantic(owned.deadline);
   if (
     semantic.proof_sha256 !== owned.facts.semantic_proof_sha256 ||
     inspection.tools_receipt !== owned.session.tools ||
@@ -578,7 +546,10 @@ async function readContext(receipt: object, verifyCheckpointState = true) {
     owned.source = await owned.session.next_controls(owned.deadline);
     owned.observed = performance.now();
   }
-  const current = owned.source.readMaintenance(api);
+  const current = await owned.source.readSdkMaintenance(createFixedControlReadAllowance(), {
+    deadline: owned.deadline,
+    signingContext: true,
+  });
   if (catalogCoordinatorMaintenanceIdentity(current) !== owned.control_identity)
     throw new Error("catalog actual controls changed");
   remaining(owned);

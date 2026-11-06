@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { performance } from "node:perf_hooks";
 import test from "node:test";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import os from "node:os";
@@ -434,6 +434,57 @@ void test("App registration directly captures one conversion and authenticates t
   assert.equal(f.calls.length, 2);
 });
 
+void test("App registration refuses a conversion redirect and retains no redirect address", async () => {
+  const f = appRegistrationFixture();
+  const redirect = "https://elsewhere.invalid/private-redirect?signature=inert";
+  let requests = 0;
+  const capture = createAppRegistrationCapture({
+    ...f.options,
+    transport: async (input, init) => {
+      requests++;
+      assert.equal(input, `https://api.github.com/app-manifests/${appCode}/conversions`);
+      assert.equal(init?.redirect, "error");
+      assert.equal(new Headers(init?.headers).has("authorization"), false);
+      return new Response(null, { status: 302, headers: { location: redirect } });
+    },
+  });
+  await assert.rejects(capture(appCallback), (error: unknown) => {
+    assert.ok(error instanceof Error);
+    assert.match(
+      error.message,
+      /registration body or private retention failed|registration response incomplete or refused/u,
+    );
+    assert.ok(!error.message.includes(redirect) && !error.message.includes(appCode));
+    return true;
+  });
+  assert.equal(requests, 1);
+  assert.equal(f.record("conversion-response.json").status, 302);
+  assert.ok(!f.privateFiles.has("result.json"));
+  for (const bytes of f.privateFiles.values()) assert.ok(!bytes.includes(Buffer.from(redirect)));
+  await assert.rejects(capture(appCallback), /already consumed/u);
+  assert.equal(requests, 1);
+});
+
+void test("registration retains exact provider status 300 body before refusing", async () => {
+  const f = appRegistrationFixture();
+  const body = Buffer.from(' {"message":"Multiple Choices"}\n');
+  let requests = 0;
+  const capture = createAppRegistrationCapture({
+    ...f.options,
+    transport: async (_input, init) => {
+      requests++;
+      assert.equal(init?.redirect, "error");
+      return new Response(body, { status: 300 });
+    },
+  });
+  await assert.rejects(capture(appCallback), /registration response incomplete or refused/u);
+  assert.equal(requests, 1);
+  assert.deepEqual(f.privateFiles.get("conversion.body"), body);
+  assert.equal(f.record("conversion-response.json").status, 300);
+  assert.equal(f.record("conversion-response.json").complete, true);
+  assert.equal(f.privateFiles.has("result.json"), false);
+});
+
 void test("App conversion retains wrong-owner or expanded-permission effects without installing or retrying", async () => {
   for (const change of [
     { owner: { id: 1, login: "other" } },
@@ -471,6 +522,54 @@ void test("ambiguous conversion preserves pending intent and refuses a second PO
   assert.equal(f.record("conversion-transport.json").effect, "unknown");
   await assert.rejects(capture(appCallback), /already consumed/u);
   assert.equal(posts, 1);
+});
+
+void test("registration timeout retains a partial body without certifying EOF", async (t) => {
+  const f = appRegistrationFixture();
+  const prefix = Buffer.from('{"id":123');
+  const now = Date.now.bind(Date);
+  const deadline = now() + 30000;
+  let offset = 0;
+  t.mock.method(Date, "now", () => now() + offset);
+  let calls = 0,
+    cancelled = false;
+  const capture = createAppRegistrationCapture({
+    ...f.options,
+    deadline,
+    store: {
+      ...f.options.store,
+      async write(name, bytes) {
+        await f.options.store.write(name, bytes);
+        if (name === "conversion-intent.json") offset = deadline - now() - 250;
+      },
+    },
+    transport: async () => {
+      calls++;
+      return new Response(
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(prefix);
+          },
+          cancel() {
+            cancelled = true;
+          },
+        }),
+        { status: 201 },
+      );
+    },
+  });
+  const keepAlive = setTimeout(() => {}, 5000);
+  try {
+    await assert.rejects(capture(appCallback), /deadline expired|response incomplete/u);
+  } finally {
+    clearTimeout(keepAlive);
+  }
+  assert.equal(calls, 1);
+  assert.equal(cancelled, true);
+  assert.deepEqual(f.privateFiles.get("conversion.body"), prefix);
+  assert.equal(f.record("conversion-response.json").status, 201);
+  assert.equal(f.record("conversion-response.json").complete, false);
+  assert.equal(f.privateFiles.has("result.json"), false);
 });
 
 void test("registration preserves incomplete and oversized private response prefixes and stops", async () => {
@@ -2209,6 +2308,59 @@ void test("storage-writer installation CLI reaches the source guard before priva
     { encoding: "utf8", timeout: 15000, windowsHide: true },
   );
   assert.equal(output.trim(), source);
+});
+
+void test("ordinary App setup CLIs load the SDK after source verification and before private setup", () => {
+  for (const name of ["register-hosted-release-app", "observe-hosted-release-app-installation"]) {
+    const entry = new URL(`./${name}.mts`, import.meta.url);
+    const registration = new URL("./register-hosted-release-app.mts", import.meta.url);
+    const source = "a".repeat(40);
+    const result = spawnSync(
+      process.execPath,
+      [
+        "--input-type=module",
+        "-e",
+        `
+      import { registerHooks } from "node:module";
+      import { fileURLToPath } from "node:url";
+      const entry = ${JSON.stringify(entry.href)};
+      const registration = ${JSON.stringify(registration.href)};
+      const source = ${JSON.stringify(source)};
+      const data = (module) => ({ url: "data:text/javascript," + encodeURIComponent(module), shortCircuit: true });
+      delete process.env.GITHUB_ACTIONS;
+      delete process.env.SUDO_UID;
+      Object.defineProperty(process, "platform", { value: "linux" });
+      process.getuid = () => 1000;
+      registerHooks({ resolve(spec, context, next) {
+        if (context.parentURL === registration) {
+          if (spec === "node:os") return data("export const userInfo = () => ({username:'boburning', homedir:'/home/boburning'});");
+          if (spec === "node:child_process") return data(
+            "export function execFileSync(_git, args) { if (args.includes('rev-parse')) return " + JSON.stringify(source) +
+            "; if (args.includes('status')) { console.log('source-verified'); return ''; } throw new Error('unexpected Git operation'); }");
+          if (spec === "node:http") return data("export function createServer() { console.log('listener-created'); throw new Error('unexpected listener'); }");
+        }
+        if (spec === "@octokit/core") {
+          console.log("sdk-import");
+          throw new Error("private package-loader diagnostic");
+        }
+        if (spec === "./release-owned-capture-store.mts") return data(
+          "export async function createAppRegistrationStore() { console.log('store-created'); throw new Error('unexpected store'); }" +
+          "export function createCheckpointSigningStore() {} export function createHostedNativeProofStore() {} export function syncRegistrationDirectory() {}");
+        return next(spec, context);
+      } });
+      process.argv = [process.execPath, fileURLToPath(entry), "--role", "storage_writer", "--expected-source", source,
+        ...(entry === registration ? [] : ["--registration-source", source])];
+      await import(entry);
+      `,
+      ],
+      { encoding: "utf8", timeout: 15000, windowsHide: true },
+    );
+    assert.ifError(result.error);
+    assert.equal(result.status, 1, result.stderr);
+    assert.deepEqual(result.stdout.trim().split("\n"), ["source-verified", "sdk-import"]);
+    assert.match(result.stderr, /^The locked GitHub SDK is unavailable\./u);
+    assert.doesNotMatch(result.stderr, /private package-loader diagnostic/u);
+  }
 });
 
 void test("selected actual broker control flow publishes and reconciles both purposes with controlled capture/provider boundaries only", async (t) => {

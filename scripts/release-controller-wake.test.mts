@@ -14,6 +14,7 @@ import {
   reconcilePreviousWakes,
   requireJobTokenWakeConfiguration,
   inspectControllerWakeChoices,
+  readControllerWakeSetupFromEnvironment,
   inspectJobTokenDispatchRun,
   observeJobTokenDispatchRun,
 } from "./release-controller-wake.mts";
@@ -549,6 +550,7 @@ function fixture(jobToken = false, bytes = Buffer.from("fixed inert controller w
     },
     downloads: () => downloadCalls,
     intentBytes: () => archive,
+    priorIntentBytes: () => priorArchive,
     tamperIntent: () => {
       archive = createAuditZip([["controller-wake-intent.json", "{}\n"]]);
     },
@@ -579,7 +581,12 @@ function fixture(jobToken = false, bytes = Buffer.from("fixed inert controller w
         endpoint: `${base}/actions/workflows/application-update-production.yml/dispatches`,
         body: {
           ref: selected.execution_ref.slice("refs/tags/".length),
-          inputs: { wake_run_id: "41" },
+          inputs: {
+            wake_run_id: "41",
+            ...(selected.schema_version >= 3
+              ? { publication_purpose: selected.publication_purpose }
+              : {}),
+          },
           return_run_details: true,
         },
         wake_run_id: "41",
@@ -1053,6 +1060,135 @@ void test("prior ambiguous dispatch requires exact readback before a later POST;
   );
   assert.equal(skipped.records[0]!.phase, "prior-wake-no-dispatch-observed");
 });
+void test("prior provider-skipped workflow and fixed job establish no dispatch without steps", async () => {
+  for (const [runConclusion, jobConclusion, provedAbsent] of [
+    ["skipped", "skipped", true],
+    ["failure", "skipped", false],
+    ["skipped", "failure", false],
+  ] as const) {
+    const f = fixture();
+    f.priorFailure();
+    const runs = f.api.runs;
+    f.api.runs = async (...args) => {
+      const result = await runs(...args);
+      assert.ok(isRecord(result) && Array.isArray(result.workflow_runs));
+      const rows: unknown[] = result.workflow_runs;
+      return {
+        ...result,
+        workflow_runs: rows.map((run) =>
+          isRecord(run) && run.id === 41 ? { ...run, conclusion: runConclusion } : run,
+        ),
+      };
+    };
+    const jobs = f.api.jobs;
+    f.api.jobs = async (id) => {
+      const result = await jobs(id);
+      if (id !== "41") return result;
+      assert.ok(isRecord(result) && Array.isArray(result.jobs));
+      const rows: unknown[] = result.jobs;
+      const job = rows[0];
+      assert.ok(isRecord(job));
+      return { ...result, jobs: [{ ...job, conclusion: jobConclusion, steps: [] }] };
+    };
+    const result = reconcilePreviousWakes(
+      inspectControllerWakeConfiguration(f.config),
+      f.env,
+      f.api,
+      f.record,
+    );
+    if (provedAbsent) {
+      await result;
+      assert.equal(f.records[0]!.phase, "prior-wake-no-dispatch-observed");
+    } else {
+      await assert.rejects(result, /prior wake dispatch step identity unavailable/u);
+      assert.deepEqual(f.records, []);
+    }
+    assert.equal(f.calls.filter((call) => call.method === "POST").length, 0);
+  }
+});
+
+void test("appointed predecessor verifies only its retained intent and terminal failed receiver", async () => {
+  for (const fault of [null, "archive", "running", "attempt", "omitted"] as const) {
+    const f = fixture(true);
+    const previous = {
+      ...f.config,
+      revision: "c".repeat(40),
+      execution_ref: "refs/tags/portcove-production-controller-predecessor",
+    };
+    if (fault !== "omitted") f.priorSuccess(previous);
+    const inventory = fault === "omitted" ? null : await f.api.artifacts("41");
+    const artifacts: unknown = isRecord(inventory) ? inventory.artifacts : null;
+    const artifact: unknown = Array.isArray(artifacts) ? artifacts[0] : null;
+    const sha =
+      isRecord(artifact) && typeof artifact.digest === "string"
+        ? artifact.digest.slice(7)
+        : "d".repeat(64);
+    const raw = {
+      ...f.config,
+      predecessor: {
+        configuration: previous,
+        wake_run_id: 41,
+        receiver_run_id: 900,
+        intent_artifact_id: 2,
+        intent_sha256: fault === "archive" ? "e".repeat(64) : sha,
+      },
+    };
+    const { choices, predecessor } = readControllerWakeSetupFromEnvironment({
+      PORTCOVE_CONTROLLER_WAKE: JSON.stringify(raw),
+    });
+    assert.equal(choices.length, 1);
+    assert.equal(choices[0]!.revision, f.config.revision);
+    assert.ok(predecessor);
+    assert.throws(
+      () =>
+        readControllerWakeSetupFromEnvironment({
+          PORTCOVE_CONTROLLER_WAKE: JSON.stringify({
+            ...raw,
+            predecessor: {
+              ...raw.predecessor,
+              configuration: { ...previous, activation_started_at: "2026-01-01T00:00:00Z" },
+            },
+          }),
+        }),
+      /appointed application boundary/u,
+    );
+    const run = f.api.run;
+    f.api.run = async (id) => {
+      const result = await run(id);
+      if (id !== "900") return result;
+      assert.ok(isRecord(result));
+      return {
+        ...result,
+        head_sha: previous.revision,
+        status: fault === "running" ? "in_progress" : "completed",
+        conclusion: fault === "running" ? null : "failure",
+        run_attempt: fault === "attempt" ? 2 : 1,
+      };
+    };
+    const result = reconcilePreviousWakes(choices[0]!, f.env, f.api, f.record, {
+      predecessor,
+      download: () => f.priorIntentBytes(),
+    });
+    if (fault) {
+      const expected = {
+        archive: /predecessor artifact differs/u,
+        running: /receiver is not a terminal failure/u,
+        attempt: /dispatch run, source or actual Actions actor differs/u,
+        omitted: /predecessor was not reconciled/u,
+      };
+      await assert.rejects(result, expected[fault]);
+      assert.equal(f.records.length, 0);
+    } else {
+      await result;
+      assert.deepEqual(
+        f.records.map(({ phase }) => phase),
+        ["prior-wake-predecessor-receiver-observed", "prior-wake-boundary-observed"],
+      );
+    }
+    assert.ok(!f.calls.some(({ method }) => method === "POST"));
+  }
+});
+
 void test("invalid and expired wake deadline refuses before collection", async () => {
   for (const deadline of [NaN, -1]) {
     const f = fixture();

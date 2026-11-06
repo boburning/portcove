@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { performance } from "node:perf_hooks";
-import type { IncludedResponse } from "./github-api.mts";
-import { sanitizeOperationError } from "./github-api.mts";
+import type { IncludedResponse } from "./github-operation.mts";
+import { sanitizeOperationError } from "./github-operation.mts";
 import { exportCoordinatorCheckpoint } from "./release-coordinator-state.mts";
 import { isRecord } from "./runtime-values.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";

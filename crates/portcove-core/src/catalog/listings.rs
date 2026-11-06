@@ -1,11 +1,23 @@
 //! The broad directory is descriptive. Strict managed definitions retain their
 //! original validator and are never synthesized from an incomplete listing.
 use super::*;
-use crate::{CatalogListingDocument, ListingAvailability, PortListing};
-use std::collections::BTreeMap;
+use crate::{CatalogListingDocument, ListingAvailability, Platform, PortListing};
+use std::{collections::BTreeMap, sync::LazyLock};
 
 const EMBEDDED_LISTINGS: &str = include_str!("../../catalog/listings.json");
 const MAX_LISTING_BYTES: usize = 8 * 1024 * 1024;
+
+// Keep the directory extras separate from platforms supplied by its embedded
+// managed baseline, so a newer selected definition can withdraw its own set.
+static EMBEDDED_MANAGED_PLATFORMS: LazyLock<serde_json::Result<BTreeMap<String, Vec<Platform>>>> =
+    LazyLock::new(|| {
+        let document: CatalogDocument = serde_json::from_str(EMBEDDED_CATALOG)?;
+        Ok(document
+            .ports
+            .into_iter()
+            .map(|port| (port.id, port.platforms))
+            .collect())
+    });
 
 impl From<&PortDefinition> for PortListing {
     fn from(port: &PortDefinition) -> Self {
@@ -688,6 +700,9 @@ impl Catalog {
 
     pub(crate) fn with_embedded_listings(self) -> Result<Self> {
         let mut document = CatalogListingDocument::from_json(EMBEDDED_LISTINGS)?;
+        let embedded_managed = EMBEDDED_MANAGED_PLATFORMS
+            .as_ref()
+            .map_err(|error| PortcoveError::usage(format!("bundled catalog platforms: {error}")))?;
         for port in self.ports() {
             let projected = PortListing::from(port);
             if let Some(listing) = document
@@ -723,6 +738,15 @@ impl Catalog {
                             .cloned()
                             .collect()
                     });
+                let previously_managed = embedded_managed
+                    .get(&port.id)
+                    .map_or(&[][..], Vec::as_slice);
+                let mut platforms = projected.platforms.clone();
+                for &platform in &listing.platforms {
+                    if !previously_managed.contains(&platform) && !platforms.contains(&platform) {
+                        platforms.push(platform);
+                    }
+                }
                 let issue_number = listing.issue_number;
                 let availability = listing.availability;
                 let download_block_reason = listing.download_block_reason.clone();
@@ -738,6 +762,7 @@ impl Catalog {
                     original_game,
                     media,
                     issue_number,
+                    platforms,
                     availability,
                     download_block_reason,
                     download_asset_hints,
@@ -1107,6 +1132,41 @@ mod tests {
             .listings[0]
                 .download_block_reason
                 .is_none()
+        );
+    }
+
+    #[test]
+    fn bundled_package_platforms_remain_separate_from_selected_managed_platforms() {
+        use Platform::{LinuxX86_64, MacosAarch64, MacosX86_64, WindowsX86_64};
+        let id = "body-harvest-recompiled";
+        let catalog = Catalog::embedded().unwrap();
+        assert_eq!(catalog.port(id).unwrap().platforms, [WindowsX86_64]);
+        assert_eq!(
+            catalog.listing(id).unwrap().platforms,
+            [WindowsX86_64, LinuxX86_64, MacosX86_64, MacosAarch64]
+        );
+        let mut accepted = catalog.authoritative_document();
+        let port = accepted
+            .ports
+            .iter_mut()
+            .find(|port| port.id == id)
+            .unwrap();
+        port.platforms = vec![LinuxX86_64];
+        port.release.asset_hints.clear();
+        port.release
+            .asset_hints
+            .insert(LinuxX86_64, vec!["-Linux-X64.tar.gz".into()]);
+        port.executable_hints.clear();
+        port.executable_hints
+            .insert(LinuxX86_64, vec!["BodyHarvestRecompiled".into()]);
+        let selected = Catalog::from_document(accepted)
+            .unwrap()
+            .with_embedded_listings()
+            .unwrap();
+        assert_eq!(selected.port(id).unwrap().platforms, [LinuxX86_64]);
+        assert_eq!(
+            selected.listing(id).unwrap().platforms,
+            [LinuxX86_64, MacosX86_64, MacosAarch64]
         );
     }
 

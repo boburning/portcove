@@ -27,7 +27,7 @@ import { projectFixedControllerJobOutputs } from "./release-controller-job-outpu
 import { assertControllerBootstrapEnvironment } from "./release-controller-job-bootstrap.mts";
 import {
   inspectControllerWakeChoices,
-  readControllerWakeChoicesFromEnvironment,
+  readControllerWakeSetupFromEnvironment,
   selectControllerWakePurpose,
   readWakePurposePriority,
 } from "./release-controller-wake.mts";
@@ -244,21 +244,21 @@ void test("automatic purpose fairness is fixed-data routing, with exact shared n
     catalog = { ...base, publication_purpose: "catalog-publication", dispatch_actor_id: "888" };
   const choices = inspectControllerWakeChoices(app, catalog);
   assert.deepEqual(
-    readControllerWakeChoicesFromEnvironment({
+    readControllerWakeSetupFromEnvironment({
       PORTCOVE_CONTROLLER_WAKE: JSON.stringify(app),
       PORTCOVE_CATALOG_CONTROLLER_WAKE: "",
-    }),
+    }).choices,
     inspectControllerWakeChoices(app, null),
   );
   assert.deepEqual(
-    readControllerWakeChoicesFromEnvironment({
+    readControllerWakeSetupFromEnvironment({
       PORTCOVE_CONTROLLER_WAKE: "",
       PORTCOVE_CATALOG_CONTROLLER_WAKE: JSON.stringify(catalog),
-    }),
+    }).choices,
     inspectControllerWakeChoices(null, catalog),
   );
   assert.throws(() =>
-    readControllerWakeChoicesFromEnvironment({
+    readControllerWakeSetupFromEnvironment({
       PORTCOVE_CONTROLLER_WAKE: " ",
       PORTCOVE_CATALOG_CONTROLLER_WAKE: JSON.stringify(catalog),
     }),
@@ -287,7 +287,7 @@ void test("automatic purpose fairness is fixed-data routing, with exact shared n
   assert.throws(() => inspectControllerWakeChoices(null, null));
   assert.throws(() => selectControllerWakePurpose(choices, NaN));
 });
-void test("catalog maintenance authenticates pause and exact catalog environments without application prerequisites", () => {
+void test("catalog maintenance authenticates pause and exact catalog environments without application prerequisites", async () => {
   const controllerRef = "refs/tags/portcove-production-controller-test";
   const environments = catalogEnvironmentFixture(controllerRef);
   const branch = "portcove-release-pause";
@@ -305,32 +305,29 @@ void test("catalog maintenance authenticates pause and exact catalog environment
     rule(2, ["creation", "deletion", "non_fast_forward"], []),
   ];
   const paths: string[] = [];
-  const api = {
-    request(method: string, endpoint: string) {
-      assert.equal(method, "GET");
-      paths.push(endpoint);
-      let body: unknown;
-      if (endpoint === "repos/boburning/portcove")
-        body = { id: 1354613114, full_name: "boburning/portcove" };
-      else if (endpoint.includes("/rulesets?")) body = rules;
-      else if (endpoint.includes("/rulesets/")) body = rules[endpoint.includes("/1?") ? 0 : 1];
-      else if (endpoint.includes("/git/ref/heads/")) {
-        assert.ok(endpoint.endsWith(branch));
-        body = { ref: `refs/heads/${branch}`, object: { type: "commit", sha: "a".repeat(40) } };
-      } else if (endpoint.includes("/rules/branches/"))
-        body = rules.flatMap((r) => r.rules.map((value) => ({ ...value, ruleset_id: r.id })));
-      else if (endpoint.includes("/environments/")) {
-        const name = endpoint.split("/environments/")[1]!.split("/")[0]!;
-        const row = environments.find((row) => row.name === name);
-        assert.ok(row);
-        body = endpoint.includes("/deployment-branch-policies?")
-          ? { total_count: row.policies.length, branch_policies: row.policies }
-          : row.environment;
-      } else throw new Error("unexpected path " + endpoint);
-      return { status: 200, headers: new Map<string, string>(), body };
-    },
+  const read = async (endpoint: string) => {
+    paths.push(endpoint);
+    let body: unknown;
+    if (endpoint === "repos/boburning/portcove")
+      body = { id: 1354613114, full_name: "boburning/portcove" };
+    else if (endpoint.includes("/rulesets?")) body = rules;
+    else if (endpoint.includes("/rulesets/")) body = rules[endpoint.includes("/1?") ? 0 : 1];
+    else if (endpoint.includes("/git/ref/heads/")) {
+      assert.ok(endpoint.endsWith(branch));
+      body = { ref: `refs/heads/${branch}`, object: { type: "commit", sha: "a".repeat(40) } };
+    } else if (endpoint.includes("/rules/branches/"))
+      body = rules.flatMap((r) => r.rules.map((value) => ({ ...value, ruleset_id: r.id })));
+    else if (endpoint.includes("/environments/")) {
+      const name = endpoint.split("/environments/")[1]!.split("/")[0]!;
+      const row = environments.find((row) => row.name === name);
+      assert.ok(row);
+      body = endpoint.includes("/deployment-branch-policies?")
+        ? { total_count: row.policies.length, branch_policies: row.policies }
+        : row.environment;
+    } else throw new Error("unexpected path " + endpoint);
+    return { status: 200, body };
   };
-  const observation = observeCatalogMaintenanceProtections(api);
+  const observation = await observeCatalogMaintenanceProtections(read);
   assert.equal(observation.coverage, "current-repository-catalog-maintenance-only");
   assert.equal(observation.inventory.branches.length, 1);
   requireCatalogMaintenancePolicy(observation, controllerRef);
@@ -387,7 +384,7 @@ void test("catalog maintenance authenticates pause and exact catalog environment
     // valid and refusal comes from policy interpretation, not a stale hash.
     const prior = structuredClone(environments[0]!);
     mutate(environments[0]!);
-    const drifted = observeCatalogMaintenanceProtections(api);
+    const drifted = await observeCatalogMaintenanceProtections(read);
     assert.throws(() => requireCatalogMaintenancePolicy(drifted, controllerRef));
     environments[0] = prior;
   }
@@ -415,44 +412,40 @@ void test("catalog maintenance authenticates pause and exact catalog environment
     assert.throws(() => requireCatalogMaintenancePolicy(changed, controllerRef));
   }
   for (const fault of ["short-total", "duplicate-pages", "nonterminal-pages"] as const) {
-    const faultyApi = {
-      request(method: string, endpoint: string) {
-        const result = api.request(method, endpoint);
-        if (!endpoint.includes("/deployment-branch-policies?")) return result;
-        const page = Number(new URL(`https://api.github.com/${endpoint}`).searchParams.get("page"));
-        const entries = Array.from({ length: 100 }, (_, index) => ({
-          id: index + 1,
-          name: `tag-${index}`,
-          type: "tag",
-        }));
-        return {
-          ...result,
-          body:
-            fault === "short-total"
-              ? { total_count: 2, branch_policies: environments[0]!.policies }
-              : {
-                  total_count: fault === "duplicate-pages" ? 200 : 800,
-                  branch_policies: fault === "duplicate-pages" && page > 2 ? [] : entries,
-                },
-        };
-      },
+    const faultyRead = async (endpoint: string) => {
+      const result = await read(endpoint);
+      if (!endpoint.includes("/deployment-branch-policies?")) return result;
+      const page = Number(new URL(`https://api.github.com/${endpoint}`).searchParams.get("page"));
+      const entries = Array.from({ length: 100 }, (_, index) => ({
+        id: index + 1,
+        name: `tag-${index}`,
+        type: "tag",
+      }));
+      return {
+        ...result,
+        body:
+          fault === "short-total"
+            ? { total_count: 2, branch_policies: environments[0]!.policies }
+            : {
+                total_count: fault === "duplicate-pages" ? 200 : 800,
+                branch_policies: fault === "duplicate-pages" && page > 2 ? [] : entries,
+              },
+      };
     };
-    assert.throws(() => observeCatalogMaintenanceProtections(faultyApi), /inventory/);
+    await assert.rejects(observeCatalogMaintenanceProtections(faultyRead), /inventory/);
   }
   let firstEnvironmentReads = 0;
-  const driftingApi = {
-    request(method: string, endpoint: string) {
-      if (
-        endpoint === "repos/boburning/portcove/environments/github-pages" &&
-        ++firstEnvironmentReads === 2
-      ) {
-        environments[0]!.environment.can_admins_bypass = true;
-      }
-      return api.request(method, endpoint);
-    },
+  const driftingRead = async (endpoint: string) => {
+    if (
+      endpoint === "repos/boburning/portcove/environments/github-pages" &&
+      ++firstEnvironmentReads === 2
+    ) {
+      environments[0]!.environment.can_admins_bypass = true;
+    }
+    return read(endpoint);
   };
-  assert.throws(
-    () => observeCatalogMaintenanceProtections(driftingApi),
+  await assert.rejects(
+    observeCatalogMaintenanceProtections(driftingRead),
     /changed during observation/,
   );
   environments[0]!.environment.can_admins_bypass = false;

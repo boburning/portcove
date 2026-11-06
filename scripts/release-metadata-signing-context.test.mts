@@ -629,14 +629,23 @@ void test("metadata context rechecks maintenance after slow current-state/public
     "utf8",
   );
   const start = source.indexOf("export async function requireCoordinatorSigningContext("),
-    end = source.indexOf("\nexport async function readCoordinatorSigningContextFiles", start);
-  assert(start > 0 && end > start);
+    end = source.indexOf("\nexport async function readCoordinatorSigningContextFiles", start),
+    snapshotStart = source.indexOf("async function snapshot("),
+    snapshotEnd = source.indexOf("\nasync function verifyState(", snapshotStart);
+  assert(start > 0 && end > start && snapshotStart > 0 && snapshotEnd > snapshotStart);
   let clock = 59000;
   const reads: number[] = [];
   const receipt = {},
+    credential = { token: "inert-retained-metadata-reader" },
     owned = {
       deadline: 100000,
-      session: { mode: "bootstrap", tools: {}, preparation: {} },
+      credential,
+      session: {
+        mode: "bootstrap",
+        namespace: "portcove-production",
+        tools: {},
+        preparation: {},
+      },
       descriptor: {},
       directory: "inert",
       files: [],
@@ -644,7 +653,10 @@ void test("metadata context rechecks maintenance after slow current-state/public
     };
   let stateReads = 0;
   const entry = runInNewContext(
-    stripTypeScriptTypes(source.slice(start, end).replaceAll(/^export /gmu, "")) +
+    stripTypeScriptTypes(
+      source.slice(snapshotStart, snapshotEnd) +
+        source.slice(start, end).replaceAll(/^export /gmu, ""),
+    ) +
       "\n({getter: requireCoordinatorSigningContext, checkpointControls: requireCoordinatorSigningCheckpointControls})",
     {
       contexts: new WeakMap([[receipt, owned]]),
@@ -660,7 +672,16 @@ void test("metadata context rechecks maintenance after slow current-state/public
         if (clock >= 60000) throw new Error("original maintenance observation expired");
         return {};
       },
-      snapshot: async () => {
+      readRemoteCoordinatorSnapshot: async (
+        directory: string,
+        configuration: { namespace: string },
+        options: { transport: { credential: unknown; deadline: number; cwd?: string } },
+      ) => {
+        assert.equal(directory, owned.directory);
+        assert.equal(configuration.namespace, owned.session.namespace);
+        assert.equal(options.transport.credential, credential);
+        assert.equal(options.transport.deadline, 80000);
+        assert.equal(options.transport.cwd, undefined);
         stateReads++;
         clock = 61000;
         return {};
@@ -670,10 +691,10 @@ void test("metadata context rechecks maintenance after slow current-state/public
       path,
     },
   ) as {
-    getter: (r: object) => Promise<unknown>;
+    getter: (r: object, deadline: number) => Promise<unknown>;
     checkpointControls: (r: object) => Promise<void>;
   };
-  await assert.rejects(entry.getter(receipt), /maintenance observation expired/);
+  await assert.rejects(entry.getter(receipt, 80000), /maintenance observation expired/);
   assert.deepEqual(reads, [59000, 61000]);
   assert.equal(stateReads, 1);
   clock = 59000;

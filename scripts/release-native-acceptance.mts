@@ -1,11 +1,11 @@
 import { createHash } from "node:crypto";
-import { spawnSync } from "node:child_process";
 import { chmod, mkdtemp, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { isDeepStrictEqual } from "node:util";
-import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
-import type { GitHubRestReader } from "./github-api.mts";
+import type { GitHubRestReader } from "./github-operation.mts";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { releaseCanonicalDigest } from "./release-canonical.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -57,7 +57,7 @@ type BoundReceipt = {
   report: NativeReleaseQualification;
   check_identity: unknown;
   suite_identity: unknown;
-  get: (route: string) => unknown;
+  get: (route: string) => Promise<unknown>;
   active: () => void;
 };
 const qualifications = new WeakMap<object, BoundReceipt>();
@@ -399,13 +399,18 @@ export async function collectNativeReleaseQualification(
   rawExpected: unknown,
   options: {
     api?: GitHubRestReader;
-    spawn?: NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"];
+    read?: (route: string) => Promise<unknown>;
     deadline?: number;
   } = {},
 ) {
-  const injectedApi = options.api,
-    injectedSpawn = options.spawn,
-    deadline = options.deadline;
+  const { api: injectedApi, read, deadline: requestedDeadline } = options;
+  if (requestedDeadline !== undefined && !Number.isFinite(requestedDeadline))
+    throw new Error("native qualification phase deadline exhausted");
+  const inherited = coordinatorCommandDeadline();
+  const deadline =
+    inherited === undefined
+      ? requestedDeadline
+      : Math.min(inherited, requestedDeadline ?? Infinity);
   const remaining = () => {
     if (deadline === undefined) return 15000;
     const left = Math.floor(deadline - performance.now());
@@ -414,39 +419,14 @@ export async function collectNativeReleaseQualification(
     return Math.min(15000, left);
   };
   remaining();
-  const injected = injectedApi !== undefined || injectedSpawn !== undefined;
+  const injected = injectedApi !== undefined || read !== undefined;
+  const credential = { kind: "explicit" as const, token: process.env.GH_TOKEN ?? "" };
   const expected = inspectNativeQualificationExpectation(rawExpected);
   if (!path.isAbsolute(outputParent))
     throw new Error("native evidence output parent must be absolute");
   const directory = await mkdtemp(path.join(outputParent, "native-qualification-"));
   await chmod(directory, 0o700);
-  const environment = {
-    PATH: process.env.PATH,
-    SystemRoot: process.env.SystemRoot,
-    HOME: directory,
-    USERPROFILE: directory,
-    TEMP: directory,
-    TMP: directory,
-    TMPDIR: directory,
-    GH_CONFIG_DIR: path.join(directory, "gh"),
-    GH_HOST: "github.com",
-    GH_TOKEN: process.env.GH_TOKEN,
-  };
-  const runner = createGitHubRunner({
-    cwd: directory,
-    timeoutMs: 15000,
-    maxBuffer: 512 * 1024,
-    spawn: (command, args, settings) =>
-      (injectedSpawn ?? spawnSync)(command, args, {
-        ...settings,
-        timeout: remaining(),
-        env: environment,
-      }),
-  });
-  const api =
-    injectedApi ??
-    new GitHubApiClient((args, input) => runner([...args, "--hostname", "github.com"], input));
-  const get = (route: string) => {
+  const get = async (route: string) => {
     remaining();
     if (
       route !==
@@ -456,11 +436,40 @@ export async function collectNativeReleaseQualification(
       )
     )
       throw new Error("native provider route is outside fixed read-only inputs");
-    const response = api.request("GET", `${repository}/${route}`);
+    let body: unknown;
+    if (read) body = await read(route);
+    else if (injectedApi) {
+      // The separately owned signed App writer still provides its exact GET
+      // readback capability. It does not mint an actual acceptance receipt.
+      const response = injectedApi.request("GET", `${repository}/${route}`);
+      if (response.status !== 200)
+        throw new Error("native provider readback is unavailable or oversized");
+      body = response.body;
+    } else {
+      const requestDeadline = Math.min(deadline ?? Infinity, performance.now() + 15000);
+      const { createGitHubClient } = await import("./github-client.mts");
+      const endpoint = `/${repository}/${route}`;
+      const client = await createGitHubClient({
+        credential,
+        deadline: requestDeadline,
+        maxBytes: 512 * 1024,
+        allowRequest: (method, url) => method === "GET" && url.pathname + url.search === endpoint,
+        fetch(input, init) {
+          assertTrustedDirectNode("native qualification");
+          return globalThis.fetch(input, init);
+        },
+      });
+      const response = await client.request(`GET ${endpoint}`, {
+        request: { portcove: { replay: "once", attempts: 0 } },
+      });
+      if (response.status !== 200)
+        throw new Error("native provider readback is unavailable or oversized");
+      body = response.data as unknown;
+    }
     remaining();
-    if (response.status !== 200 || Buffer.byteLength(JSON.stringify(response.body)) > 512 * 1024)
+    if (Buffer.byteLength(JSON.stringify(body)) > 512 * 1024)
       throw new Error("native provider readback is unavailable or oversized");
-    return structuredClone(response.body);
+    return structuredClone(body);
   };
   const files: BoundReceipt["files"] = [];
   const retainBytes = async (name: string, bytes: Buffer) => {
@@ -478,10 +487,10 @@ export async function collectNativeReleaseQualification(
   try {
     await retain("expected.json", expected);
     phase = "native-check";
-    const firstCheck = get(`check-runs/${expected.check_id}`);
+    const firstCheck = await get(`check-runs/${expected.check_id}`);
     await retain("check-before.json", firstCheck);
     const check = checkIdentity(firstCheck, expected);
-    const firstSuite = get(`check-suites/${check.suite_id}`);
+    const firstSuite = await get(`check-suites/${check.suite_id}`);
     await retain("suite-before.json", firstSuite);
     const suite = suiteIdentity(firstSuite, expected);
     if (suite.id !== check.suite_id) throw new Error("native Check suite association differs");
@@ -490,7 +499,7 @@ export async function collectNativeReleaseQualification(
       ["producer", expected.producer],
       ["candidate", expected.candidate],
     ] as const) {
-      const commit = get(`git/commits/${source.source_commit}`);
+      const commit = await get(`git/commits/${source.source_commit}`);
       await retain(`${kind}-source.json`, commit);
       if (
         !isRecord(commit) ||
@@ -501,7 +510,7 @@ export async function collectNativeReleaseQualification(
         throw new Error("native producer/candidate source tree differs");
     }
     phase = "exact-harness-source";
-    const harness = get(
+    const harness = await get(
       `contents/${expected.producer.harness.path}?ref=${expected.producer.source_commit}`,
     );
     await retain("harness-source.json", harness);
@@ -534,8 +543,8 @@ export async function collectNativeReleaseQualification(
       throw new Error("native exact harness bytes/source blob differ");
     await retainBytes("harness-source.ps1.txt", bytes);
     phase = "provider-bracket";
-    const finalCheck = get(`check-runs/${expected.check_id}`),
-      finalSuite = get(`check-suites/${check.suite_id}`);
+    const finalCheck = await get(`check-runs/${expected.check_id}`),
+      finalSuite = await get(`check-suites/${check.suite_id}`);
     await retain("check-after.json", finalCheck);
     await retain("suite-after.json", finalSuite);
     if (
@@ -587,19 +596,22 @@ export async function verifiedNativeReleaseQualification(
   if (!bound)
     throw new Error("native qualification was not authenticated by this actual provider process");
   bound.active();
+  const check = checkIdentity(
+    await bound.get(`check-runs/${bound.expected.check_id}`),
+    bound.expected,
+  );
+  const suite = suiteIdentity(await bound.get(`check-suites/${check.suite_id}`), bound.expected);
+  if (
+    !isDeepStrictEqual(check, bound.check_identity) ||
+    !isDeepStrictEqual(suite, bound.suite_identity)
+  )
+    throw new Error("native qualification changed before consumption");
   for (const file of bound.files) {
     const bytes = await readControllerToolFile(file.path, 512 * 1024);
     if (bytes.length !== file.bytes || hash(bytes) !== file.sha256)
       throw new Error("native retained proof changed");
     bound.active();
   }
-  const check = checkIdentity(bound.get(`check-runs/${bound.expected.check_id}`), bound.expected);
-  const suite = suiteIdentity(bound.get(`check-suites/${check.suite_id}`), bound.expected);
-  if (
-    !isDeepStrictEqual(check, bound.check_identity) ||
-    !isDeepStrictEqual(suite, bound.suite_identity)
-  )
-    throw new Error("native qualification changed before consumption");
   const result = structuredClone({
     ...bound.report,
     check: {

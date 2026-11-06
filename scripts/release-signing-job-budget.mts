@@ -13,6 +13,7 @@ import type { CatalogControlPhase } from "./release-control-phases.mts";
 import { applicationProtectionObserver } from "./release-control-phases.mts";
 import { isRecord } from "./runtime-values.mts";
 import { hostedNativeJobProfile } from "./assembler-job-identity.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
 
 type SigningRole = "payload" | TufSigningRole;
@@ -378,21 +379,29 @@ export function classificationOriginalJobDeadline(role: unknown, ...args: Budget
     throw new Error("fixed classification clock role required");
   return signingOriginalJobDeadline(`classification-${role}`, ...args);
 }
-export function currentClassificationJobDeadline(role: unknown, ...args: CurrentArguments) {
+export function currentClassificationJobDeadline(
+  role: unknown,
+  identity: JobIdentity,
+  processDeadline: number,
+  token: string,
+) {
   if (role !== "writer" && role !== "observer")
     throw new Error("fixed classification clock role required");
-  return currentSigningJobDeadline(`classification-${role}`, ...args);
+  return currentSdkJobDeadline(`classification-${role}`, identity, processDeadline, undefined, {
+    token,
+    fetch(input, init) {
+      assertTrustedDirectNode("fixed classification job clock");
+      return globalThis.fetch(input, init);
+    },
+  });
 }
 
 /** Admission clock only; this does not create an executor or signing role. */
 export function buildingOriginalJobDeadline(...args: BudgetArguments) {
   return signingOriginalJobDeadline("candidate-building", ...args);
 }
-export function currentBuildingJobDeadline(...args: CurrentArguments) {
-  return currentSigningJobDeadline("candidate-building", ...args);
-}
 
-/** Resource clock for the closed job bootstrap only, never role authority. */
+/** Resource clock for fixed controller jobs, never role authority. */
 export async function currentControllerJobDeadline(
   operation: unknown,
   identity: JobIdentity,
@@ -426,11 +435,16 @@ async function currentSdkJobDeadline(
   identity: JobIdentity,
   processDeadline: number,
   admittedNativeMaximum?: number,
+  transport?: { token: string; fetch: typeof globalThis.fetch },
 ) {
   requireOriginalJobIdentity(identity);
-  const token = fixedReleaseReaderToken();
+  const token = transport?.token ?? fixedReleaseReaderToken();
   const { createReleaseCustodyProvider } = await import("./release-custody-provider.mts");
-  const provider = await createReleaseCustodyProvider({ token, deadline: processDeadline });
+  const provider = await createReleaseCustodyProvider({
+    token,
+    deadline: processDeadline,
+    ...(transport ? { fetch: transport.fetch } : {}),
+  });
   const response = await provider.jobs(identity.run_id, 1, 1);
   if (response.next !== null || performance.now() >= processDeadline)
     throw new Error("original controller job budget unavailable");

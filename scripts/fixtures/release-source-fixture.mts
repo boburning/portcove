@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { IncludedResponse } from "../github-api.mts";
+import type { IncludedResponse } from "../github-operation.mts";
 
 const gitOid = (kind: string, bytes: Buffer) =>
   createHash("sha1").update(`${kind} ${bytes.length}\0`).update(bytes).digest("hex");

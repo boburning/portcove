@@ -34,3 +34,8 @@ client distinct from authenticated API access.
 This decision does not reopen #4306, change #534's retirement ownership or
 production pause, or authorize release activation. Native, workflow and remaining
 caller-family delivery are tracked by #4319, not implied by foundation tests.
+
+The [dated source inventory](../evidence/github-sdk-source-inventory-2026-11-04.md)
+records delivered source boundaries and the remaining appointed execution paths.
+Successor qualification and retirement stay with #534. The source guard checks for new legacy CLI API references while those
+dependencies are open.

@@ -45,6 +45,7 @@ on:
     paths:
       - .github/workflows/controller-tool-build-fixture.yml
       - scripts/release-controller-tool*.mts
+      - scripts/assembler-job-identity.mts
       - scripts/qualify-controller-tool-build.mts
       - scripts/qualify-controller-tools-windows.mts
       - scripts/prepare-hosted-windows-runtime.ps1

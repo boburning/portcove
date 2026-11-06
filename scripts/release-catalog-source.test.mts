@@ -3,7 +3,12 @@ import { createHash } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import test from "node:test";
 import { sourceFixtureCommit } from "./fixtures/release-source-fixture.mts";
-import { readCatalogPublicationSourceBytes } from "./release-catalog-source.mts";
+import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
+import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
+import {
+  readCatalogPublicationSourceBytes,
+  readCatalogPublicationSourceBytesAsync,
+} from "./release-catalog-source.mts";
 
 const oid = (kind: string, bytes: Buffer) =>
   createHash("sha1").update(`${kind} ${bytes.length}\0`).update(bytes).digest("hex");
@@ -138,6 +143,76 @@ void test("catalog authoring source freezes raw Git bundle without executing or 
     '{"index_schema":1,"definitions":[],"contents":[]}',
   );
 });
+void test("locked scoped SDK preserves catalog Git object evidence and refuses a non-200 blob", async () => {
+  const f = fixture();
+  const deadline = performance.now() + 5000;
+  let status = 200;
+  const provider = await createReleaseCustodyProvider({
+    token: "catalog-fixed-reader",
+    deadline,
+    maxBytes: 16 * 1024 ** 2,
+    async fetch(input, init) {
+      const request = new Request(input, init);
+      const url = new URL(request.url);
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(request.headers.get("authorization"), "token catalog-fixed-reader");
+      const route = url.pathname + url.search;
+      return Response.json(f.api.request(request.method, route).body, {
+        status: route.includes("/git/blobs/") ? status : 200,
+      });
+    },
+  });
+  const legacy = readCatalogPublicationSourceBytes(f.api, f.commit.sha, deadline);
+  f.calls.length = 0;
+  const read = () => readCatalogPublicationSourceBytesAsync(provider, f.commit.sha, deadline);
+  assert.deepEqual(await read(), legacy);
+  assert.equal(f.calls.length, 4);
+  status = 201;
+  f.calls.length = 0;
+  await assert.rejects(read(), /read unavailable/u);
+  assert.equal(f.calls.length, 3);
+  status = 200;
+  f.calls.length = 0;
+  f.fault("blob");
+  await assert.rejects(read(), /blob encoding differs/u);
+  assert.equal(f.calls.length, 3);
+});
+
+void test("catalog source SDK consumes the inherited phase deadline through stalled body cleanup", async () => {
+  const f = fixture();
+  const deadline = performance.now() + 5000;
+  let cancelled = false;
+  let requests = 0;
+  const keepAlive = setTimeout(() => {}, 1000);
+  try {
+    await assert.rejects(
+      withCoordinatorDeadline(performance.now() + 100, async () => {
+        const provider = await createReleaseCustodyProvider({
+          token: "catalog-fixed-reader",
+          deadline,
+          maxBytes: 16 * 1024 ** 2,
+          async fetch() {
+            requests++;
+            return new Response(
+              new ReadableStream({
+                cancel() {
+                  cancelled = true;
+                },
+              }),
+            );
+          },
+        });
+        return readCatalogPublicationSourceBytesAsync(provider, f.commit.sha, deadline);
+      }),
+      { code: "deadline_exceeded" },
+    );
+    assert.equal(requests, 1);
+    assert.equal(cancelled, true);
+  } finally {
+    clearTimeout(keepAlive);
+  }
+});
+
 void test("missing catalog authoring request is exact-tree absence; partial source and extra/executable files refuse", () => {
   const absent = fixture({ absent: true });
   const result = readCatalogPublicationSourceBytes(
