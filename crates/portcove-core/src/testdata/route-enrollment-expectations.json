@@ -4,6 +4,8 @@
   "cases": [
     {
       "port_id": "body-harvest-recompiled",
+      "executable": "BodyHarvestRecompiled.exe",
+      "arguments": [],
       "managed_native": true
     },
     {
@@ -20,6 +22,8 @@
     },
     {
       "port_id": "doom-3-classic-dhewm3",
+      "executable": "dhewm3.exe",
+      "arguments": [],
       "managed_native": true
     },
     {
@@ -66,14 +70,20 @@
     },
     {
       "port_id": "toy-story-2-buzz-lightyear-to-the-rescue-n64-spaceranger",
+      "executable": "SpaceRanger.exe",
+      "arguments": [],
       "managed_native": true
     },
     {
       "port_id": "dune-ii-dune-dynasty",
+      "executable": "dunedynasty.exe",
+      "arguments": [],
       "managed_native": true
     },
     {
       "port_id": "heroes-of-might-and-magic-ii-fheroes2",
+      "executable": "fheroes2.exe",
+      "arguments": [],
       "managed_native": true
     }
   ]
