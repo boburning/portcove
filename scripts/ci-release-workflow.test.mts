@@ -532,7 +532,7 @@ void test("deep audit evidence retains audit status without privilege changes", 
   assert.equal(bundle.with["if-no-files-found"], "error");
 });
 
-void test("ordinary controller tool rebuilds cover Windows driver acquisition and parser policy", async () => {
+void test("ordinary controller tool rebuilds cover Windows driver and bootstrap protection changes", async () => {
   const workflow = await readWorkflow(
     new URL("../.github/workflows/controller-tool-build-fixture.yml", import.meta.url),
   );
@@ -546,8 +546,14 @@ void test("ordinary controller tool rebuilds cover Windows driver acquisition an
       "scripts/release-windows-webview-driver.test.mts",
       "scripts/windows-webview-driver-policy.psm1",
       "scripts/bounded-zip.mts",
+      "scripts/application-release-private.mts",
     ])
       assert.ok(section.paths.includes(file), `${trigger}/${file}`);
+    assert.ok(
+      section.paths.includes("scripts/release-input-protections.mts") ||
+        section.paths.includes("scripts/release-*.mts"),
+      `${trigger}/scripts/release-input-protections.mts`,
+    );
   }
 });
 
