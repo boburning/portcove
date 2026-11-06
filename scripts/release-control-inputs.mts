@@ -336,7 +336,18 @@ function review(
     | ReturnType<typeof inspectCatalogSemanticOpportunity>,
   purpose: "application" | "catalog-publication" = "application",
 ) {
-  const value = get(`/check-runs/${checkId}`);
+  return inspectReview(get(`/check-runs/${checkId}`), checkId, config, opportunity, purpose);
+}
+
+function inspectReview(
+  value: unknown,
+  checkId: number,
+  config: Pick<ReviewProducerConfiguration, "review_app_id" | "review_check_name">,
+  opportunity:
+    | ReturnType<typeof validateOpportunity>
+    | ReturnType<typeof inspectCatalogSemanticOpportunity>,
+  purpose: "application" | "catalog-publication" = "application",
+) {
   if (
     !isRecord(value) ||
     value.id !== checkId ||
@@ -532,11 +543,15 @@ export function readReviewedClassification(
   rawConfig: unknown,
   rawOpportunity: unknown,
 ) {
+  return readWithLegacyApi(api, reviewedClassification(rawConfig, rawOpportunity));
+}
+
+function* reviewedClassification(rawConfig: unknown, rawOpportunity: unknown) {
   const config = configuration(rawConfig);
   const opportunity = validateOpportunity(rawOpportunity);
-  const io = session(api);
-  const before = io.ref(classificationBranch);
-  const text = io.contents(before, classificationPath(opportunity));
+  const io = yield* controlSession();
+  const before = yield* io.ref(classificationBranch);
+  const text = yield* io.contents(before, classificationPath(opportunity));
   if (text === null) throw new Error("classification is missing");
   const value: unknown = JSON.parse(text);
   exact(
@@ -551,12 +566,14 @@ export function readReviewedClassification(
     canonical(validateOpportunity(value.opportunity)) !== canonical(opportunity)
   )
     throw new Error("classification record differs from reviewed inputs");
-  const proof = review(io.get, value.review_check_id, config, opportunity);
+  const checkId = value.review_check_id;
+  const check = () => io.get(`/check-runs/${checkId}`);
+  const proof = inspectReview(yield* check(), value.review_check_id, config, opportunity);
   if (value.review_sha256 !== createHash("sha256").update(proof).digest("hex"))
     throw new Error("persisted semantic review report changed");
   if (
-    io.ref(classificationBranch) !== before ||
-    review(io.get, value.review_check_id, config, opportunity) !== proof
+    (yield* io.ref(classificationBranch)) !== before ||
+    inspectReview(yield* check(), value.review_check_id, config, opportunity) !== proof
   )
     throw new Error("classification or review changed during read");
   return {
@@ -682,15 +699,17 @@ function* ratifiedCapacityConfiguration(guard: () => void) {
   };
 }
 
-/** Use the same maintenance document checks with an awaited fixed read path. */
-export async function readMaintenanceControlsWithSdk(options: {
+type ControlSdkOptions = {
   token: string;
   deadline: number;
   guard: () => void;
   fetch?: typeof globalThis.fetch;
-}) {
+};
+
+async function controlSdkReader(options: ControlSdkOptions, maximumDispatches?: number) {
   const { token, guard, fetch } = options;
   const { createGitHubClient } = await import("./github-client.mts");
+  let dispatches = 0;
   const client = await createGitHubClient({
     credential: { kind: "explicit", token },
     deadline: Math.min(options.deadline, coordinatorCommandDeadline() ?? Infinity),
@@ -700,6 +719,21 @@ export async function readMaintenanceControlsWithSdk(options: {
       return true;
     },
     ...(fetch ? { fetch } : {}),
+    ...(maximumDispatches === undefined
+      ? {}
+      : {
+          reserve() {
+            if (dispatches >= maximumDispatches)
+              throw new Error("payload control read bound exhausted");
+            dispatches++;
+            return {
+              consumeBytes() {},
+              settle(observation) {
+                if (!observation.dispatched) dispatches--;
+              },
+            };
+          },
+        }),
   });
   const once = () => ({ portcove: { replay: "once" as const, attempts: 0 } });
   const read = async (effect: ControlRead): Promise<ControlResponse> => {
@@ -724,7 +758,7 @@ export async function readMaintenanceControlsWithSdk(options: {
     });
     return { status: response.status, body: response.data };
   };
-  const run = async <T,>(sequence: ControlReads<T>) => {
+  return async <T,>(sequence: ControlReads<T>) => {
     let step = sequence.next();
     while (!step.done) {
       guard();
@@ -734,7 +768,23 @@ export async function readMaintenanceControlsWithSdk(options: {
     }
     return step.value;
   };
+}
+
+export async function readMaintenanceControlsWithSdk(options: ControlSdkOptions) {
+  const run = await controlSdkReader(options);
   const pause = await run(publicationPause());
-  const capacity = await run(ratifiedCapacityConfiguration(guard));
+  const capacity = await run(ratifiedCapacityConfiguration(options.guard));
   return { pause, capacity };
+}
+
+export async function readPayloadControlsWithSdk(
+  options: ControlSdkOptions,
+  configuration: unknown,
+  opportunity: unknown,
+) {
+  const run = await controlSdkReader(options, 32);
+  const classification = await run(reviewedClassification(configuration, opportunity));
+  const pause = await run(publicationPause());
+  const capacity = await run(ratifiedCapacityConfiguration(options.guard));
+  return { classification, pause, capacity };
 }

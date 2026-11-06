@@ -255,7 +255,7 @@ export async function runMetadataSitePublicationController(
           digest({ descriptor: selected.descriptor, generation: prepared.generation.generation }),
           "site-publication",
           round,
-          { deadline, siteMaintenanceSdk: true },
+          { deadline, controlReader: "site-maintenance" },
         );
         if (source.evidence_scope !== "github.com")
           throw new Error("actual metadata site controls required");

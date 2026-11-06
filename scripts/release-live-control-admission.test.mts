@@ -1033,64 +1033,102 @@ function fixture(document: unknown = capacityDocumentFixture(), paused = false) 
   return { control, runtime };
 }
 
-void test("fixed site maintenance joins locked SDK ref, file and original observer reads", async (t) => {
-  const control = releaseControlInputsFixture(capacityDocumentFixture(), opportunity, config, true);
-  const runtime = liveControlRuntimeFixture(
-    protectionFixture(control.head()),
-    config,
-    "site-publication",
-  );
-  const { observerApi, ...options } = runtime.options;
-  const before = await runtime.create();
-  const expected = before.readMaintenance(control.api);
-  const base = "https://api.github.com";
-  const reads: string[] = [];
-  let expireOnObserver = false;
-  t.mock.method(globalThis, "fetch", async (input: string | URL | Request, init?: RequestInit) => {
-    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-    assert.ok(url.startsWith(base + "/"));
-    const endpoint = url.slice(base.length);
-    reads.push(endpoint);
-    assert.equal(new Headers(init?.headers).get("authorization"), "token synthetic-site");
-    if (endpoint === "/graphql") {
-      assert.equal(init?.method, "POST");
-      assert.ok(typeof init.body === "string");
-      const wire: unknown = JSON.parse(init.body);
-      assert.ok(isRecord(wire) && typeof wire.query === "string" && isRecord(wire.variables));
-      const { query, variables } = wire;
-      assert.equal(variables.ref, "refs/heads/portcove-release-pause");
-      return Response.json({ data: control.api.graphql(query, variables).data });
-    }
-    assert.equal(init?.method, "GET");
-    if (endpoint.startsWith("/repos/boburning/portcove/actions/jobs/")) {
-      if (expireOnObserver) runtime.advance(60001);
-      const result = observerApi.request("GET", endpoint.slice(1));
-      return Response.json(result.body, { status: result.status ?? 500 });
-    }
-    assert.match(
-      endpoint,
-      /^\/repos\/boburning\/portcove(?:\/git\/(?:commits|trees|blobs)\/[a-f0-9]{40})?$/u,
+for (const controlReader of ["site-maintenance", "payload"] as const)
+  void test(`fixed ${controlReader} joins locked SDK ref, file and original observer reads`, async (t) => {
+    const control = releaseControlInputsFixture(
+      capacityDocumentFixture(),
+      opportunity,
+      config,
+      true,
     );
-    const result = control.api.request("GET", endpoint.slice(1));
-    return Response.json(result.body, { status: result.status ?? 500 });
+    if (controlReader === "payload")
+      persistReviewedClassification(control.api, config, opportunity, 303, () => {});
+    const runtime = liveControlRuntimeFixture(
+      protectionFixture(control.head()),
+      config,
+      controlReader === "payload" ? "payload" : "site-publication",
+    );
+    const { observerApi, ...options } = runtime.options;
+    const before = await runtime.create();
+    const expected =
+      controlReader === "payload"
+        ? before.read(control.api, opportunity)
+        : before.readMaintenance(control.api);
+    const priorMutations = control.mutations();
+    const base = "https://api.github.com";
+    const reads: string[] = [];
+    let expireOnObserver = false;
+    t.mock.method(
+      globalThis,
+      "fetch",
+      async (input: string | URL | Request, init?: RequestInit) => {
+        const url =
+          typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+        assert.ok(url.startsWith(base + "/"));
+        const endpoint = url.slice(base.length);
+        reads.push(endpoint);
+        assert.equal(new Headers(init?.headers).get("authorization"), "token synthetic-site");
+        if (endpoint === "/graphql") {
+          assert.equal(init?.method, "POST");
+          assert.ok(typeof init.body === "string");
+          const wire: unknown = JSON.parse(init.body);
+          assert.ok(isRecord(wire) && typeof wire.query === "string" && isRecord(wire.variables));
+          const { query, variables } = wire;
+          assert.ok(
+            variables.ref === "refs/heads/portcove-release-pause" ||
+              (controlReader === "payload" &&
+                variables.ref === "refs/heads/portcove-release-inputs"),
+          );
+          return Response.json({ data: control.api.graphql(query, variables).data });
+        }
+        assert.equal(init?.method, "GET");
+        if (endpoint.startsWith("/repos/boburning/portcove/actions/jobs/")) {
+          if (expireOnObserver) runtime.advance(60001);
+          const result = observerApi.request("GET", endpoint.slice(1));
+          return Response.json(result.body, { status: result.status ?? 500 });
+        }
+        if (
+          controlReader === "payload" &&
+          endpoint === "/repos/boburning/portcove/check-runs/303"
+        ) {
+          const check = control.api.request("GET", endpoint.slice(1));
+          return Response.json(check.body, { status: check.status ?? 500 });
+        }
+        assert.match(
+          endpoint,
+          /^\/repos\/boburning\/portcove(?:\/git\/(?:commits|trees|blobs)\/[a-f0-9]{40})?$/u,
+        );
+        const result = control.api.request("GET", endpoint.slice(1));
+        return Response.json(result.body, { status: result.status ?? 500 });
+      },
+    );
+    const source = await authenticateReleaseControlSource(
+      { ...runtime.environment, GH_TOKEN: "synthetic-site" },
+      runtime.workflow,
+      { ...options, deadline: performance.now() + 5000, controlReader },
+    );
+    const read = () =>
+      controlReader === "payload"
+        ? source.readPayloadControls(opportunity)
+        : source.readSiteMaintenance();
+    const observed = await read();
+    assert.deepEqual(observed.pause, expected.pause);
+    assert.deepEqual(observed.capacity_source, expected.capacity_source);
+    assert.equal(observed.facts_sha256, expected.facts_sha256);
+    assert.equal(
+      reads.filter((endpoint) => endpoint === "/graphql").length,
+      controlReader === "payload" ? 6 : 4,
+    );
+    assert.equal(
+      reads.filter((endpoint) => endpoint === "/repos/boburning/portcove").length,
+      controlReader === "payload" ? 3 : 2,
+    );
+    assert.match(reads[0] ?? "", /\/actions\/jobs\//u);
+    assert.equal(reads.at(-1), reads[0]);
+    assert.equal(control.mutations(), priorMutations);
+    expireOnObserver = true;
+    await assert.rejects(read(), /fresh|expired/u);
   });
-  const source = await authenticateReleaseControlSource(
-    { ...runtime.environment, GH_TOKEN: "synthetic-site" },
-    runtime.workflow,
-    { ...options, deadline: performance.now() + 5000, siteMaintenanceSdk: true },
-  );
-  const observed = await source.readSiteMaintenance();
-  assert.deepEqual(observed.pause, expected.pause);
-  assert.deepEqual(observed.capacity_source, expected.capacity_source);
-  assert.equal(observed.facts_sha256, expected.facts_sha256);
-  assert.equal(reads.filter((endpoint) => endpoint === "/graphql").length, 4);
-  assert.equal(reads.filter((endpoint) => endpoint === "/repos/boburning/portcove").length, 2);
-  assert.match(reads[0] ?? "", /\/actions\/jobs\//u);
-  assert.equal(reads.at(-1), reads[0]);
-  assert.equal(control.mutations(), 0);
-  expireOnObserver = true;
-  await assert.rejects(source.readSiteMaintenance(), /fresh|expired/u);
-});
 
 void test("controls cap the actual observer subprocess and refuse its late response without minting a source", async (t) => {
   const f = fixture();

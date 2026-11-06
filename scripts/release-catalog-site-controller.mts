@@ -262,7 +262,7 @@ export async function runCatalogSitePublicationController(
           digest({ descriptor: actual.descriptor, generation: prepared.generation.generation }),
           "site-publication",
           round,
-          { deadline, siteMaintenanceSdk: true },
+          { deadline, controlReader: "site-maintenance" },
         );
         if (controls.evidence_scope !== "github.com")
           throw new Error("actual catalog site controls required");
