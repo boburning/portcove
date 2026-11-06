@@ -62,11 +62,33 @@ jobs:
           package-manager-cache: false
       - run: node scripts/production-controller-admission-cli.mts
         id: admit
+      - name: Observe exact publication pause before credential-bearing jobs
+        id: pause
+        shell: bash
+        run: |
+          set -euo pipefail
+          read_pause_ref() {
+            timeout 10s gh api --hostname github.com repos/boburning/portcove/git/ref/heads/portcove-release-pause \
+              --jq 'select(.ref == "refs/heads/portcove-release-pause" and .object.type == "commit") | .object.sha'
+          }
+          before="$(read_pause_ref)"
+          [[ "$before" =~ ^[a-f0-9]{40}$ ]]
+          pause_body="$(mktemp)"
+          trap 'rm -f "$pause_body"' EXIT
+          timeout 10s gh api --hostname github.com \
+            "repos/boburning/portcove/contents/publication.json?ref=$before" \
+            -H 'Accept: application/vnd.github.raw+json' | head -c 4097 > "$pause_body"
+          [[ "$(wc -c < "$pause_body")" -le 4096 ]]
+          paused="$(jq -ers 'select(length == 1) | .[0] | select(type == "object" and keys == ["publication_paused","schema_version"] and .schema_version == 1 and (.publication_paused | type) == "boolean") | .publication_paused | tostring' "$pause_body")"
+          [[ "$paused" == true || "$paused" == false ]]
+          [[ "$(read_pause_ref)" == "$before" ]]
+          printf 'publication_paused=%s\n' "$paused" >> "$GITHUB_OUTPUT"
     if: ${{ vars.PORTCOVE_CONTROLLER_REVISION == github.sha && vars.PORTCOVE_CONTROLLER_REF ==
       github.ref && ((inputs.publication_purpose == 'application' &&
       vars.PORTCOVE_CONTROLLER_ADMISSION != '') || (inputs.publication_purpose ==
       'catalog-publication' && vars.PORTCOVE_CATALOG_CONTROLLER_ADMISSION != '')) }}
     outputs:
+      publication_paused: ${{ steps.pause.outputs.publication_paused }}
       publication_purpose: ${{ steps.admit.outputs.publication_purpose }}
       classification_transport: ${{ steps.admit.outputs.classification_transport }}
       protection_app_id: ${{ steps.admit.outputs.protection_app_id }}
@@ -147,8 +169,8 @@ jobs:
       - admission
       - tool_bootstrap
       - tool_bootstrap_windows
-    if: ${{ !cancelled() && needs.admission.result == 'success' && needs.tool_bootstrap.result ==
-      'success' && ((needs.admission.outputs.publication_purpose == 'application' &&
+    if: ${{ !cancelled() && needs.admission.result == 'success' &&
+      needs.admission.outputs.publication_paused == 'false' && needs.tool_bootstrap.result == 'success' && ((needs.admission.outputs.publication_purpose == 'application' &&
       needs.tool_bootstrap_windows.result == 'success') ||
       (needs.admission.outputs.publication_purpose == 'catalog-publication' &&
       needs.tool_bootstrap_windows.result == 'skipped')) }}

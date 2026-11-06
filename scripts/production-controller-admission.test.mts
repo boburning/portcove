@@ -1388,6 +1388,37 @@ const workflow = await readFile(
   "utf8",
 );
 
+void test("held receiver leaves both tool producers available and fences protected consumers", () => {
+  const { jobs } = parse(workflow) as {
+    jobs: Record<
+      string,
+      {
+        needs?: string | string[];
+        if?: string;
+        outputs?: Record<string, string>;
+      }
+    >;
+  };
+  assert.equal(
+    jobs.admission?.outputs?.publication_paused,
+    "${{ steps.pause.outputs.publication_paused }}",
+  );
+  assert.equal(jobs.tool_bootstrap?.needs, "admission");
+  assert.equal(jobs.tool_bootstrap_windows?.needs, "admission");
+  assert.match(
+    jobs.tool_attest?.if ?? "",
+    /needs\.admission\.outputs\.publication_paused == 'false'/u,
+  );
+  for (const name of ["classification_protection_observation", "classification_writer"]) {
+    assert.ok(jobs[name]?.needs?.includes("tool_attest"));
+    assert.doesNotMatch(jobs[name]?.if ?? "", /always\(\)|!cancelled\(\)/u);
+  }
+  for (const name of ["coordinator", "coordinator_protection_observation"]) {
+    assert.ok(jobs[name]?.needs?.includes("tool_attest"));
+    assert.match(jobs[name]?.if ?? "", /needs\.tool_attest\.result == 'success'/u);
+  }
+});
+
 void test("configured held workflow enforces bootstrap identities before checkout or any credential role", () => {
   const parsed = parse(workflow) as {
     env: Record<string, string>;

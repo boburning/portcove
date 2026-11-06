@@ -1924,8 +1924,10 @@ void test("held Windows producer joins the exact platform artifact to an isolate
   assert.match(diagnostics.path, /controller-tools-windows-predicate\.json/u);
   assert.deepEqual(attester.needs, ["admission", "tool_bootstrap", "tool_bootstrap_windows"]);
   assert.ok(typeof attester.if === "string");
-  for (const [purpose, windows, linux, admission, cancelled, expected] of [
+  for (const [purpose, windows, linux, admission, cancelled, expected, paused = "false"] of [
     ["application", "success", "success", "success", false, true],
+    ["application", "success", "success", "success", false, false, "true"],
+    ["application", "success", "success", "success", false, false, ""],
     ["application", "success", "success", "success", true, false],
     ["application", "failure", "success", "success", false, false],
     ["application", "skipped", "success", "success", false, false],
@@ -1941,13 +1943,16 @@ void test("held Windows producer joins the exact platform artifact to an isolate
         always: () => true,
         cancelled: () => cancelled,
         needs: {
-          admission: { result: admission, outputs: { publication_purpose: purpose } },
+          admission: {
+            result: admission,
+            outputs: { publication_purpose: purpose, publication_paused: paused },
+          },
           tool_bootstrap: { result: linux },
           tool_bootstrap_windows: { result: windows },
         },
       }),
       expected,
-      `${purpose}/${windows}/${linux}/${admission}`,
+      `${purpose}/${windows}/${linux}/${admission}/${paused}`,
     );
   }
   assert.equal(attester["timeout-minutes"], 2);
