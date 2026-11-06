@@ -437,6 +437,7 @@ export async function continueActualCatalogPublication(
           phase: "coordinator",
           deadline: originalDeadline,
           observedArtifact: observation,
+          catalogRecoveryObserver: true,
         }),
         observed = performance.now(),
         round = 0;
@@ -482,7 +483,7 @@ export async function continueActualCatalogPublication(
             digest({ descriptor }),
             "coordinator",
             round,
-            { deadline: originalDeadline },
+            { deadline: originalDeadline, catalogRecoveryObserver: true },
           );
           observed = performance.now();
         }

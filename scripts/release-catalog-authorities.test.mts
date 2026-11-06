@@ -2,6 +2,10 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
 import { performance } from "node:perf_hooks";
+import { mkdtemp, rm } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { withReadOnlyReleaseChildren } from "./release-readonly-child-environment.mts";
 import { createFixedControlReadAllowance } from "./release-control-inputs.mts";
 import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -318,6 +322,7 @@ for (const phase of ["catalog-timestamp", "coordinator"] as const)
     );
     const expected = original.readMaintenance(f.control.api);
     const routes: string[] = [];
+    let jobToken = "inert-catalog-controls";
     let expireOnObserver = false;
     let stallObserver = false;
     t.mock.method(
@@ -327,7 +332,10 @@ for (const phase of ["catalog-timestamp", "coordinator"] as const)
         const request = new Request(input, init);
         const url = new URL(request.url);
         assert.equal(url.origin, "https://api.github.com");
-        assert.equal(request.headers.get("authorization"), "token inert-catalog-controls");
+        assert.equal(
+          request.headers.get("authorization"),
+          `token ${url.pathname.includes("/actions/jobs/") ? jobToken : "inert-catalog-controls"}`,
+        );
         routes.push(url.pathname);
         if (url.pathname === "/graphql") {
           assert.equal(request.method, "POST");
@@ -373,11 +381,30 @@ for (const phase of ["catalog-timestamp", "coordinator"] as const)
     assert.equal(routes.filter((route) => route === "/graphql").length, 4);
     assert.equal(f.control.mutations(), 0);
     if (coordinator) {
-      const mixed = await authenticateCatalogReleaseControlSource(
-        { ...f.environment, GH_TOKEN: "inert-catalog-controls" },
-        f.actual.workflow,
-        { ...f.actual.options, deadline: performance.now() + 3000 },
-      );
+      const scoped = await mkdtemp(path.join(os.tmpdir(), "catalog-observer-"));
+      t.after(() => rm(scoped, { recursive: true, force: true }));
+      const previousToken = process.env.GH_TOKEN;
+      const mixed = await (async () => {
+        jobToken = "original-observer-scope";
+        process.env.GH_TOKEN = jobToken;
+        try {
+          return await withReadOnlyReleaseChildren(scoped, () =>
+            authenticateCatalogReleaseControlSource(
+              { ...f.environment, GH_TOKEN: "inert-catalog-controls" },
+              f.actual.workflow,
+              {
+                ...f.actual.options,
+                deadline: performance.now() + 3000,
+                catalogRecoveryObserver: true,
+              },
+            ),
+          );
+        } finally {
+          if (previousToken === undefined) delete process.env.GH_TOKEN;
+          else process.env.GH_TOKEN = previousToken;
+        }
+      })();
+      assert.equal(routes.at(-1), "/repos/boburning/portcove/actions/jobs/600");
       const start = routes.length;
       let dispatched = 0;
       const reserveMixed = () => ({
@@ -396,9 +423,13 @@ for (const phase of ["catalog-timestamp", "coordinator"] as const)
         reserveMixed,
       );
       assert.equal(mixedFacts.facts_sha256, expected.facts_sha256);
-      assert.equal(dispatched, routes.length - start);
+      assert.equal(dispatched, routes.length - start - 1);
       assert.ok(dispatched > 0);
-      assert.ok(routes.slice(start).every((route) => !route.includes("/actions/jobs/")));
+      assert.equal(routes.at(-1), "/repos/boburning/portcove/actions/jobs/600");
+      assert.equal(
+        routes.slice(start).filter((route) => route.includes("/actions/jobs/")).length,
+        1,
+      );
       const beforeExhaustion = routes.length;
       await assert.rejects(
         mixed.readCatalogRecoveryMaintenance("inert-catalog-controls", () => {
@@ -408,6 +439,7 @@ for (const phase of ["catalog-timestamp", "coordinator"] as const)
       );
       assert.equal(routes.length, beforeExhaustion);
       assert.equal(mixed.readMaintenance(f.control.api).facts_sha256, expected.facts_sha256);
+      jobToken = "inert-catalog-controls";
       assert.equal(f.control.mutations(), 0);
       const shared = createFixedControlReadAllowance();
       const provider = await createReleaseCustodyProvider({

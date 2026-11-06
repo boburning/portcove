@@ -443,7 +443,14 @@ async function catalogContinuationBehavior(
       prepareControlReadiness: () => ({}),
       retainControlStepLocator: async () => {},
       waitForControlArtifact: async () => ({}),
-      authenticateCatalogReleaseControlSource: async () => controls,
+      authenticateCatalogReleaseControlSource: async (
+        _environment: unknown,
+        _workflow: unknown,
+        options: unknown,
+      ) => {
+        assert.ok(isRecord(options) && options.catalogRecoveryObserver === true);
+        return controls;
+      },
       catalogCoordinatorMaintenanceIdentity: () => "same-controls",
       authenticateCapacityExecutor: async () => ({}),
       ensureOwnedCheckpointJournalHistory: async () => false,
@@ -1007,10 +1014,18 @@ void test("actual continuation guard renews and checks maintenance LAST after de
       refreshCapacityExecutor: async () => {
         events.push("executor");
       },
-      authenticateCatalogReleaseControlRound: async () => {
+      authenticateCatalogReleaseControlRound: async (
+        _directory: string,
+        _facts: string,
+        _phase: string,
+        _round: number,
+        options: unknown,
+      ) => {
+        assert.ok(isRecord(options) && options.catalogRecoveryObserver === true);
         events.push("renew");
         return fresh;
       },
+      isRecord,
       catalogCoordinatorMaintenanceIdentity: (raw: unknown) => raw,
     },
   ) as () => Promise<void>;
