@@ -2609,7 +2609,10 @@ void test(
       ],
       [
         "build",
-        { AZURE_EXTENSION_DIR: "/runner/extensions", AZURE_PRIVATE_FIXTURE: "private-fixture-value" },
+        {
+          AZURE_EXTENSION_DIR: "/runner/extensions",
+          AZURE_PRIVATE_FIXTURE: "private-fixture-value",
+        },
         "credential-boundary",
       ],
       ["build", { PORTCOVE_CONTROLLER_REVISION: "private-invalid-revision" }, "source-revision"],
