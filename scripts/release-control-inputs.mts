@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
+import type { GitHubReservation } from "./github-client.mts";
 import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
 import { parseVersionClassification } from "../apps/desktop/scripts/release-version-policy.mts";
 import { validateOpportunity } from "./release-coordinator.mts";
@@ -438,10 +439,21 @@ export function readIndependentCatalogSemanticReview(
   rawOpportunity: unknown,
   checkId: number,
 ) {
+  return readWithLegacyApi(api, catalogSemanticReview(rawConfig, rawOpportunity, checkId));
+}
+
+function* catalogSemanticReview(rawConfig: unknown, rawOpportunity: unknown, checkId: number) {
   numeric(checkId);
   const config = inspectCatalogReviewProducerConfiguration(rawConfig);
   const opportunity = inspectCatalogSemanticOpportunity(rawOpportunity);
-  return review(session(api).get, checkId, config, opportunity, "catalog-publication");
+  const selected = yield* controlSession();
+  return inspectReview(
+    yield* selected.get(`/check-runs/${checkId}`),
+    checkId,
+    config,
+    opportunity,
+    "catalog-publication",
+  );
 }
 
 /** Persistence adapter, not a classifier or execution grant. An admitted fixed
@@ -703,13 +715,30 @@ type ControlSdkOptions = {
   token: string;
   deadline: number;
   guard: () => void;
+  requestTimeoutMs?: number;
   fetch?: typeof globalThis.fetch;
 };
 
-async function controlSdkReader(options: ControlSdkOptions, maximumDispatches?: number) {
-  const { token, guard, fetch } = options;
-  const { createGitHubClient } = await import("./github-client.mts");
+export function createFixedControlReadAllowance() {
   let dispatches = 0;
+  return (): GitHubReservation => {
+    if (dispatches >= 32) throw new Error("fixed control read bound exhausted");
+    dispatches++;
+    return {
+      consumeBytes() {},
+      settle(observation) {
+        if (!observation.dispatched) dispatches--;
+      },
+    };
+  };
+}
+
+async function controlSdkReader(
+  options: ControlSdkOptions,
+  reserve?: ReturnType<typeof createFixedControlReadAllowance>,
+) {
+  const { token, guard, fetch, requestTimeoutMs } = options;
+  const { createGitHubClient } = await import("./github-client.mts");
   const client = await createGitHubClient({
     credential: { kind: "explicit", token },
     deadline: Math.min(options.deadline, coordinatorCommandDeadline() ?? Infinity),
@@ -719,21 +748,8 @@ async function controlSdkReader(options: ControlSdkOptions, maximumDispatches?: 
       return true;
     },
     ...(fetch ? { fetch } : {}),
-    ...(maximumDispatches === undefined
-      ? {}
-      : {
-          reserve() {
-            if (dispatches >= maximumDispatches)
-              throw new Error("fixed control read bound exhausted");
-            dispatches++;
-            return {
-              consumeBytes() {},
-              settle(observation) {
-                if (!observation.dispatched) dispatches--;
-              },
-            };
-          },
-        }),
+    ...(reserve ? { reserve } : {}),
+    ...(requestTimeoutMs === undefined ? {} : { requestTimeoutMs }),
   });
   const once = () => ({ portcove: { replay: "once" as const, attempts: 0 } });
   const read = async (effect: ControlRead): Promise<ControlResponse> => {
@@ -772,9 +788,9 @@ async function controlSdkReader(options: ControlSdkOptions, maximumDispatches?: 
 
 export async function readMaintenanceControlsWithSdk(
   options: ControlSdkOptions,
-  maximumDispatches?: 32,
+  reserve?: ReturnType<typeof createFixedControlReadAllowance>,
 ) {
-  const run = await controlSdkReader(options, maximumDispatches);
+  const run = await controlSdkReader(options, reserve);
   const pause = await run(publicationPause());
   const capacity = await run(ratifiedCapacityConfiguration(options.guard));
   return { pause, capacity };
@@ -785,9 +801,20 @@ export async function readApplicationControlsWithSdk(
   configuration: unknown,
   opportunity: unknown,
 ) {
-  const run = await controlSdkReader(options, 32);
+  const run = await controlSdkReader(options, createFixedControlReadAllowance());
   const classification = await run(reviewedClassification(configuration, opportunity));
   const pause = await run(publicationPause());
   const capacity = await run(ratifiedCapacityConfiguration(options.guard));
   return { classification, pause, capacity };
+}
+
+export async function readIndependentCatalogSemanticReviewWithSdk(
+  options: ControlSdkOptions,
+  rawConfig: unknown,
+  rawOpportunity: unknown,
+  checkId: number,
+  reserve = createFixedControlReadAllowance(),
+) {
+  const run = await controlSdkReader(options, reserve);
+  return run(catalogSemanticReview(rawConfig, rawOpportunity, checkId));
 }

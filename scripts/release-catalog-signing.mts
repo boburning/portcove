@@ -55,11 +55,14 @@ import {
   inspectCatalogTufPublicationReport,
 } from "./release-catalog-metadata-contract.mts";
 import {
-  readIndependentCatalogSemanticReview,
-  releaseControlRefQuery,
+  createFixedControlReadAllowance,
+  readIndependentCatalogSemanticReviewWithSdk,
 } from "./release-control-inputs.mts";
-import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
-import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
+import {
+  fixedReleaseReaderToken,
+  readOnlyReleaseChildEnvironment,
+} from "./release-readonly-child-environment.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { receiveIsolatedRoleKey } from "./release-role-key-channel.mts";
 import { handoffSigningOutput } from "./release-signing-handoff.mts";
 import { currentCatalogJobDeadline } from "./release-signing-job-budget.mts";
@@ -91,50 +94,32 @@ export function catalogRoleControllerDeadline(raw?: number) {
     throw new Error("catalog role original deadline exhausted");
   return raw === undefined ? ceiling : Math.min(raw, ceiling);
 }
-function fixedApi(directory: string, deadline: number) {
-  let reads = 0;
-  const client = new GitHubApiClient((args, input) => {
-    if (++reads > 32) throw new Error("catalog control read budget exhausted");
-    const result = createGitHubRunner({
-      cwd: directory,
-      maxBuffer: 2 * 1024 ** 2,
-      timeoutMs: active(deadline),
-    })([...args, "--hostname", "github.com"], input);
-    active(deadline);
-    return result;
-  });
-  return {
-    request(method: string, endpoint: string, body?: unknown) {
-      if (
-        method !== "GET" ||
-        body !== undefined ||
-        !endpoint.startsWith("repos/boburning/portcove/")
-      )
-        throw new Error("catalog controller permits fixed GET reads only");
-      return client.request(method, endpoint);
-    },
-    graphql(query: string, variables: Record<string, unknown>) {
-      if (query !== releaseControlRefQuery) throw new Error("catalog control query differs");
-      return client.graphql(query, variables);
-    },
-  };
-}
-
-/** Later jobs reauthenticate the selected Check from their attested immutable
- * context. They do not import or pretend to reconstruct the producer capture. */
-export function recheckCatalogSemanticProof(
-  api: Parameters<typeof readIndependentCatalogSemanticReview>[0],
+/** Reauthenticate the selected Check against the exact retained context. */
+export async function recheckFixedCatalogSemanticProof(
+  deadline: number,
   authorities: { semantic_producer: unknown },
   rawFacts: unknown,
   rawBinding: unknown,
   prior: unknown,
+  reserve?: ReturnType<typeof createFixedControlReadAllowance>,
 ) {
   const { facts } = inspectCatalogSigningBinding(rawFacts, rawBinding, prior);
-  const proof = readIndependentCatalogSemanticReview(
-    api,
+  const token = fixedReleaseReaderToken();
+  const direct = readOnlyReleaseChildEnvironment() !== undefined;
+  const proof = await readIndependentCatalogSemanticReviewWithSdk(
+    {
+      token,
+      deadline,
+      requestTimeoutMs: 15000,
+      guard: () => {
+        active(deadline);
+        if (direct) assertTrustedDirectNode("fixed catalog semantic Check");
+      },
+    },
     authorities.semantic_producer,
     facts.semantic_opportunity,
     facts.semantic_check_id,
+    reserve,
   );
   if (digest(proof) !== facts.semantic_proof_sha256)
     throw new Error("catalog fresh semantic Check differs from actual producer proof");
@@ -326,8 +311,15 @@ async function runRole(
       source: Awaited<ReturnType<typeof authenticateCatalogReleaseControlRound>> | undefined;
     const fresh = async () => {
       active(deadline);
-      const api = fixedApi(directory, deadline);
-      recheckCatalogSemanticProof(api, authorities, facts, binding, manifest.previous_site_pins);
+      const reserve = createFixedControlReadAllowance();
+      await recheckFixedCatalogSemanticProof(
+        deadline,
+        authorities,
+        facts,
+        binding,
+        manifest.previous_site_pins,
+        reserve,
+      );
       if (!source || performance.now() - observed >= 45000) {
         if (++round > 3) throw new Error("catalog role control rounds exhausted");
         source = await authenticateCatalogReleaseControlRound(
@@ -335,13 +327,13 @@ async function runRole(
           String(manifest.facts_sha256),
           phase,
           round,
-          { deadline },
+          { deadline, controlReader: "catalog-maintenance" },
         );
         observed = performance.now();
       }
       if (source.evidence_scope !== "github.com")
         throw new Error("actual catalog control source required");
-      const current = source.readMaintenance(api);
+      const current = await source.readSdkMaintenance(reserve);
       if (
         current.purpose !== "catalog-signing-controls" ||
         current.pause.publication_paused ||
@@ -787,8 +779,8 @@ async function verifyPublishedRepositoryForRecovery(
       throw new Error("recovered catalog index differs from reviewed Core input");
     await admittedContext(contextReceipt, toolsReceipt, "coordinator", deadline);
     await roleInputs(contextReceipt, roles, catalogSigningRoles, admitted, deadline);
-    recheckCatalogSemanticProof(
-      fixedApi(directory, deadline),
+    await recheckFixedCatalogSemanticProof(
+      deadline,
       admitted.authorities,
       admitted.facts,
       admitted.binding,
@@ -859,8 +851,8 @@ async function assembleRepository(
     const current = await admittedContext(contextReceipt, toolsReceipt, phase, deadline);
     if (current.manifest_sha256 !== admitted.manifest_sha256)
       throw new Error("catalog assembly context changed");
-    recheckCatalogSemanticProof(
-      fixedApi(directory, deadline),
+    await recheckFixedCatalogSemanticProof(
+      deadline,
       current.authorities,
       current.facts,
       current.binding,
@@ -1010,8 +1002,8 @@ async function readRepository(receipt: object) {
     actual.deadline,
   );
   await roleInputs(actual.context, actual.roles, catalogSigningRoles, admitted, actual.deadline);
-  recheckCatalogSemanticProof(
-    fixedApi(actual.directory, actual.deadline),
+  await recheckFixedCatalogSemanticProof(
+    actual.deadline,
     admitted.authorities,
     admitted.facts,
     admitted.binding,

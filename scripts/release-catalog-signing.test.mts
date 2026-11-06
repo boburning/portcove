@@ -47,7 +47,7 @@ import {
   runCatalogRoleController,
   assembleActualCatalogRepository,
   catalogRoleControllerDeadline,
-  recheckCatalogSemanticProof,
+  recheckFixedCatalogSemanticProof,
 } from "./release-catalog-signing.mts";
 import { requireReceivedCatalogRoleArtifact } from "./release-tuf-role-artifact.mts";
 import {
@@ -69,7 +69,10 @@ import {
   prepareSemanticReviewHandoff,
   semanticReviewCheckName,
 } from "./release-semantic-review.mts";
-import { readIndependentCatalogSemanticReview } from "./release-control-inputs.mts";
+import {
+  createFixedControlReadAllowance,
+  readIndependentCatalogSemanticReviewWithSdk,
+} from "./release-control-inputs.mts";
 import { assertCatalogListingClassification } from "./release-catalog-publication-contract.mts";
 import { readBoundedReleaseContextFiles } from "./release-signing-context.mts";
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
@@ -824,7 +827,7 @@ void test("imported contexts, preparations, roles and assemblies cannot reach re
     ),
   );
 });
-void test("catalog same App Check receiver binds fresh exact proof without importing a local capture", () => {
+void test("catalog same App Check receiver binds fresh exact proof without importing a local capture", async (t) => {
   const f = fixture(),
     op = f.facts.semantic_opportunity,
     handoff = prepareSemanticReviewHandoff(op, {
@@ -842,32 +845,31 @@ void test("catalog same App Check receiver binds fresh exact proof without impor
     app: { id: 101 },
     output: { ...handoff.proposed_request.body.output, annotations_count: 0 },
   };
-  let observed = body,
-    reads = 0;
-  const api = {
-    request(method: string, route: string) {
-      reads++;
-      assert.equal(method, "GET");
-      return {
-        status: 200,
-        headers: new Map<string, string>(),
-        body: route.endsWith("check-runs/303")
-          ? observed
-          : { id: 1354613114, full_name: "boburning/portcove", node_id: "fixture" },
-      };
-    },
-    graphql() {
-      throw new Error("no mutation");
-    },
+  let observed = body;
+  const routes: string[] = [];
+  const fetch: typeof globalThis.fetch = async (input, init) => {
+    const request = new Request(input, init);
+    const url = new URL(request.url);
+    assert.equal(url.origin, "https://api.github.com");
+    assert.equal(request.method, "GET");
+    assert.equal(request.headers.get("authorization"), "token inert-catalog-reader");
+    routes.push(url.pathname);
+    return Response.json(
+      url.pathname.endsWith("/check-runs/303")
+        ? observed
+        : { id: 1354613114, full_name: "boburning/portcove", node_id: "fixture" },
+    );
   };
-  const proof = readIndependentCatalogSemanticReview(
-      api,
-      {
-        schema_version: 1,
-        review_app_id: 101,
-        writer_app_id: 202,
-        review_check_name: semanticReviewCheckName,
-      },
+  const deadline = performance.now() + 5000;
+  const legacyProducer = {
+    schema_version: 1,
+    review_app_id: 101,
+    writer_app_id: 202,
+    review_check_name: semanticReviewCheckName,
+  };
+  const proof = await readIndependentCatalogSemanticReviewWithSdk(
+      { token: "inert-catalog-reader", deadline, guard() {}, fetch },
+      legacyProducer,
       op,
       303,
     ),
@@ -890,26 +892,23 @@ void test("catalog same App Check receiver binds fresh exact proof without impor
       semantic_proof_sha256: proof_sha256,
       context_sha256: hash(catalogSigningContextBytes(facts)),
     },
-    authorities = {
-      semantic_producer: {
-        schema_version: 1,
-        review_app_id: 101,
-        writer_app_id: 202,
-        review_check_name: semanticReviewCheckName,
-      },
-    };
-  assert.equal(
-    recheckCatalogSemanticProof(api, authorities, facts, binding, descriptor.prior)
-      .semantic_check_id,
-    303,
+    authorities = { semantic_producer: legacyProducer };
+  const priorToken = process.env.GH_TOKEN;
+  process.env.GH_TOKEN = "inert-catalog-reader";
+  t.after(() => {
+    if (priorToken === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = priorToken;
+  });
+  t.mock.method(globalThis, "fetch", fetch);
+  const initial = await recheckFixedCatalogSemanticProof(
+    deadline,
+    authorities,
+    facts,
+    binding,
+    descriptor.prior,
   );
-  const before = reads;
-  assert.equal(
-    recheckCatalogSemanticProof(api, authorities, facts, binding, descriptor.prior)
-      .semantic_proof_sha256,
-    proof_sha256,
-  );
-  assert.ok(reads > before);
+  assert.equal(initial.semantic_check_id, 303);
+  assert.equal(initial.semantic_proof_sha256, proof_sha256);
   const selected = {
     semantic_producer: {
       schema_version: 2,
@@ -918,19 +917,16 @@ void test("catalog same App Check receiver binds fresh exact proof without impor
       review_check_name: semanticReviewCheckName,
     },
   };
-  assert.equal(
-    recheckCatalogSemanticProof(api, selected, facts, binding, descriptor.prior)
-      .semantic_proof_sha256,
-    proof_sha256,
-  );
-  assert.throws(() =>
-    recheckCatalogSemanticProof(
-      api,
-      { semantic_producer: { ...selected.semantic_producer, purpose: "application" } },
-      facts,
-      binding,
-      descriptor.prior,
-    ),
+  routes.length = 0;
+  const acquire = (authority: { semantic_producer: unknown }) =>
+    recheckFixedCatalogSemanticProof(deadline, authority, facts, binding, descriptor.prior);
+  assert.equal((await acquire(selected)).semantic_proof_sha256, proof_sha256);
+  assert.deepEqual(routes, [
+    "/repos/boburning/portcove",
+    "/repos/boburning/portcove/check-runs/303",
+  ]);
+  await assert.rejects(
+    acquire({ semantic_producer: { ...selected.semantic_producer, purpose: "application" } }),
   );
   for (const changed of [
     { app: { id: 202 } },
@@ -939,24 +935,44 @@ void test("catalog same App Check receiver binds fresh exact proof without impor
     { external_id: "wrong-purpose" },
   ]) {
     observed = { ...body, ...changed };
-    assert.throws(() =>
-      recheckCatalogSemanticProof(api, authorities, facts, binding, descriptor.prior),
-    );
-    assert.throws(() =>
-      recheckCatalogSemanticProof(api, selected, facts, binding, descriptor.prior),
-    );
+    await assert.rejects(acquire(authorities));
+    await assert.rejects(acquire(selected));
   }
   observed = body;
-  assert.throws(() =>
-    recheckCatalogSemanticProof(
-      api,
+  await assert.rejects(
+    recheckFixedCatalogSemanticProof(
+      deadline,
       authorities,
       { ...facts, semantic_proof_sha256: "8".repeat(64) },
       binding,
       descriptor.prior,
     ),
   );
+  routes.length = 0;
+  const reserve = createFixedControlReadAllowance();
+  for (let read = 0; read < 16; read++) {
+    await recheckFixedCatalogSemanticProof(
+      deadline,
+      authorities,
+      facts,
+      binding,
+      descriptor.prior,
+      reserve,
+    );
+  }
+  await assert.rejects(
+    recheckFixedCatalogSemanticProof(
+      deadline,
+      authorities,
+      facts,
+      binding,
+      descriptor.prior,
+      reserve,
+    ),
+  );
+  assert.equal(routes.length, 32);
 });
+
 void test("catalog context and role ready/predicate routes reach fixed upload and normalized attestation names", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "catalog-routing-"));
   t.after(() => rm(root, { recursive: true, force: true }));

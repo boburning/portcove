@@ -21,6 +21,7 @@ import {
   requireReleaseImmutabilityPolicy,
 } from "./release-input-protections.mts";
 import {
+  createFixedControlReadAllowance,
   inspectReviewProducerConfiguration,
   inspectCatalogReviewProducerConfiguration,
   readPublicationPause,
@@ -93,7 +94,12 @@ function json(raw: string | undefined, maximum: number) {
   return JSON.parse(raw) as unknown;
 }
 
-type SdkControlReader = "site-maintenance" | "payload" | "tuf-maintenance" | "tuf-application";
+type SdkControlReader =
+  | "site-maintenance"
+  | "payload"
+  | "tuf-maintenance"
+  | "tuf-application"
+  | "catalog-maintenance";
 type ReaderIdentityOptions = Parameters<typeof verifyReleaseControlReaderJobIdentity>[3];
 type ReaderOptions = {
   phase?: ReleaseControlPhase;
@@ -221,8 +227,14 @@ async function authenticateControlSource(
   const matchesSdkRole =
     controlReader === "site-maintenance"
       ? phase === "site-publication"
-      : purpose === "application" &&
-        (controlReader === "payload" ? phase === "payload" : phase.startsWith("tuf-"));
+      : controlReader === "catalog-maintenance"
+        ? purpose === "catalog-publication" &&
+          (phase === "catalog-definitions" ||
+            phase === "catalog-policy" ||
+            phase === "catalog-snapshot" ||
+            phase === "catalog-timestamp")
+        : purpose === "application" &&
+          (controlReader === "payload" ? phase === "payload" : phase.startsWith("tuf-"));
   if (
     sdkReaderToken !== undefined &&
     (!matchesSdkRole ||
@@ -596,9 +608,14 @@ async function authenticateControlSource(
         throw new Error("observer job changed during maintenance acquisition");
       return maintenanceFacts(protection, pause, capacity);
     },
-    async readSdkMaintenance() {
+    async readSdkMaintenance(
+      catalogAllowance?: ReturnType<typeof createFixedControlReadAllowance>,
+    ) {
       if (
-        (controlReader !== "site-maintenance" && controlReader !== "tuf-maintenance") ||
+        (controlReader !== "site-maintenance" &&
+          controlReader !== "tuf-maintenance" &&
+          controlReader !== "catalog-maintenance") ||
+        (controlReader === "catalog-maintenance") !== (catalogAllowance !== undefined) ||
         sdkReaderToken === undefined ||
         sdkDeadline === undefined ||
         !readSdkProducer
@@ -606,8 +623,14 @@ async function authenticateControlSource(
         throw new Error("actual scoped maintenance reader unavailable");
       const protection = beginMaintenance();
       const { pause, capacity } = await readMaintenanceControlsWithSdk(
-        { token: sdkReaderToken, deadline: sdkDeadline, guard, fetch: fixedFetch },
-        controlReader === "tuf-maintenance" ? 32 : undefined,
+        {
+          token: sdkReaderToken,
+          deadline: sdkDeadline,
+          guard,
+          fetch: fixedFetch,
+          ...(catalogAllowance ? { requestTimeoutMs: 15000 } : {}),
+        },
+        controlReader === "tuf-maintenance" ? createFixedControlReadAllowance() : catalogAllowance,
       );
       guard();
       if ((await readSdkProducer()) !== producerIdentity)
