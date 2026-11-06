@@ -2937,7 +2937,9 @@ mod tests {
 
     #[test]
     fn heroes_of_might_and_magic_ii_fheroes2_prepared_player_route_2582() {
-        assert_native_portable_with_independent_prepared_route("heroes-of-might-and-magic-ii-fheroes2");
+        assert_native_portable_with_independent_prepared_route(
+            "heroes-of-might-and-magic-ii-fheroes2",
+        );
     }
 
     #[test]
