@@ -498,6 +498,20 @@ const packages = new WeakMap<
     read: () => Promise<unknown>;
   }
 >();
+async function assertPublicPackageBytes(
+  filename: string,
+  expected: { bytes: number; sha256: string },
+  deadline: number,
+) {
+  const observed = await hashNativeCapturedFile(
+    path.dirname(filename),
+    path.basename(filename),
+    expected.bytes,
+    Math.min(deadline, coordinatorCommandDeadline() ?? Infinity),
+  );
+  assert.ok(observed.bytes === expected.bytes && observed.sha256 === expected.sha256);
+}
+
 /** Complete immutable Release association and opaque package acquisition only.
  * The fixed installed parent subsequently compares actual installed bytes. */
 export async function materializeActualPublicJourneyPackage(
@@ -548,13 +562,7 @@ export async function materializeActualPublicJourneyPackage(
     // Missing original input is not permission to reconstruct it by downloading
     // an expired or replacement artifact. Current immutable provider facts are
     // still checked independently before/after this original-byte read.
-    const bytes = await hashNativeCapturedFile(
-      root,
-      path.basename(file),
-      identity.package.bytes,
-      Math.min(retained.deadline, coordinatorCommandDeadline() ?? Infinity),
-    );
-    assert.ok(bytes.bytes === artifact.bytes && bytes.sha256 === artifact.sha256);
+    await assertPublicPackageBytes(file, artifact, retained.deadline);
     await assertUnchanged();
   } else {
     const acquired = await retained.session.source.retainPublicReleaseAsset(
@@ -567,6 +575,7 @@ export async function materializeActualPublicJourneyPackage(
     file = acquired.path;
   }
   await requireActualPublicJourneyPair(pairReceipt);
+  await assertPublicPackageBytes(file, artifact, retained.deadline);
   const receipt = Object.freeze({
     kind: "actual-public-journey-package",
     authority: "none",
@@ -586,22 +595,13 @@ export async function requireActualPublicJourneyPackage(receipt: object) {
           : undefined
         : selected.pair[retained.slot];
   assert.ok(identity);
-  const assertRetainedBytes = async () => {
-    const bytes = await hashNativeCapturedFile(
-      path.dirname(retained.path),
-      path.basename(retained.path),
-      identity.package.bytes,
-      Math.min(selected.deadline, coordinatorCommandDeadline() ?? Infinity),
-    );
-    assert.ok(bytes.bytes === identity.package.bytes && bytes.sha256 === identity.package.sha256);
-  };
-  await assertRetainedBytes();
+  await assertPublicPackageBytes(retained.path, identity.package, selected.deadline);
   assert.equal(
     digest(await retained.read()),
     retained.provider,
     "immutable public package provider changed before use",
   );
-  await assertRetainedBytes();
+  await assertPublicPackageBytes(retained.path, identity.package, selected.deadline);
   assert.ok(performance.now() < selected.deadline, "original public parent lifetime exhausted");
   return {
     pair_receipt: retained.pair,
