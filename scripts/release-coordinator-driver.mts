@@ -3576,6 +3576,7 @@ async function requestTrustedSemanticReviewAt(
         deadline: budget.monotonicDeadline,
         requireDirect: readOnlyReleaseChildEnvironment() !== undefined,
         guard: () => budget.check(),
+        currentDeadline: () => performance.now() + budget.remaining(15000),
       },
       selected.remote_configuration,
       {

@@ -48,6 +48,7 @@ export async function inspectPublishedApplicationSourceWithSdk(
     deadline: number;
     requireDirect: boolean;
     guard: () => void;
+    currentDeadline?: () => number;
     fetch?: typeof globalThis.fetch;
   },
   configuration: unknown,
@@ -81,6 +82,7 @@ export async function inspectPublishedApplicationSourceWithSdk(
     const policy: GitHubRequestPolicy = {
       replay: "once",
       attempts: 0,
+      deadline: Math.min(deadline, options.currentDeadline?.() ?? Infinity),
       observe: (observation) => {
         bodyBytes = observation.bytes;
       },

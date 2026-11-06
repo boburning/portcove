@@ -356,18 +356,19 @@ void test("valid raw intent and receipt pair cannot conceal extra application ch
   );
 });
 
-void test("published source proof aborts a stalled metadata body at the inherited deadline without replay", async () => {
+void test("published source proof aborts a stalled metadata body at the tighter current deadline without replay", async () => {
   let dispatches = 0;
   let cancelled = false;
   const deadline = performance.now() + 200;
   await assert.rejects(
-    withCoordinatorDeadline(deadline, () =>
+    withCoordinatorDeadline(performance.now() + 4500, () =>
       inspectPublishedApplicationSourceWithSdk(
         {
           token: "inert-published-source",
           deadline: performance.now() + 5000,
           requireDirect: false,
           guard() {},
+          currentDeadline: () => deadline,
           fetch: async (_input, init) => {
             assert.ok(init?.signal);
             dispatches++;
