@@ -10,6 +10,7 @@ import { withReadOnlyReleaseChildren } from "./release-readonly-child-environmen
 import { performance } from "node:perf_hooks";
 import {
   verifyAssemblerJobIdentity,
+  jobIdentityRefusalCode,
   controllerToolBootstrapProfile,
   verifyControllerToolBootstrapJobIdentity,
   verifyHostedNativeJobIdentity,
@@ -706,6 +707,25 @@ void test("production observer and reader profiles cannot reuse each other's job
     verifyProductionProtectionObserverJobIdentity(reader.token, expected, reader),
   );
   await assert.rejects(verifyProtectionObserverJobIdentity(observer.token, expected, observer));
+});
+
+void test("signed identity refusals expose only verifier-selected codes", async () => {
+  for (const [patch, code] of [
+    [{ sub: "private wrong subject" }, "claim-sub"],
+    [{ check_run_id: 501 }, "claim-check_run_id"],
+    [{ job_workflow_ref: "private reusable workflow" }, "claim-reusable-workflow"],
+  ] as const) {
+    const bad = fixture(patch);
+    await assert.rejects(verifyAssemblerJobIdentity(bad.token, expected, bad), (error) => {
+      assert.equal(jobIdentityRefusalCode(error), code);
+      return true;
+    });
+    assert.equal(bad.counts().requests, 0);
+  }
+  assert.equal(
+    jobIdentityRefusalCode(Object.assign(new Error("private"), { code: "claim-sub" })),
+    undefined,
+  );
 });
 
 void test("immutable owner/repository subjects and exact environment profiles refuse legacy and cross-role claims", async () => {

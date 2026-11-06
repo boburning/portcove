@@ -14,6 +14,7 @@ import { inspectControllerExecutionPurpose } from "./release-control-phases.mts"
 import { isRecord } from "./runtime-values.mts";
 import {
   controllerOidcSubject,
+  jobIdentityRefusalCode,
   controllerToolBootstrapProfile,
 } from "./assembler-job-identity.mts";
 const project = fileURLToPath(new URL("..", import.meta.url));
@@ -133,9 +134,11 @@ try {
       `predicate=${JSON.stringify(binding.predicate)}\nmanifest_sha256=${binding.manifest_sha256}\n`,
     );
   }
-} catch {
+} catch (error) {
+  const identityRefusal = jobIdentityRefusalCode(error);
+  const stage = identityRefusal ? `${boundary}/${identityRefusal}` : boundary;
   console.error(
-    `fixed controller bootstrap refused at ${boundary}; retain private build/acquisition evidence; no automatic retry`,
+    `fixed controller bootstrap refused at ${stage}; retain private build/acquisition evidence; no automatic retry`,
   );
   process.exitCode = 2;
 }

@@ -22,6 +22,7 @@ import {
 } from "./release-controller-tools.mts";
 import {
   requestAssemblerToken,
+  jobIdentityRefusalCode,
   verifyControllerToolBootstrapJobIdentity,
   inspectAssemblerIdentityExpectation,
   controllerToolBootstrapProfile,
@@ -334,10 +335,17 @@ export async function prepareControllerToolPredicate(
       directory: attempt,
       authority: "none",
     };
-  } catch {
+  } catch (error) {
+    const identityRefusal = jobIdentityRefusalCode(error);
     await writeFile(
       path.join(attempt, "refusal.json"),
-      JSON.stringify({ directory: attempt, phase, authority: "none", automatic_retry: false }),
+      JSON.stringify({
+        directory: attempt,
+        phase,
+        ...(identityRefusal ? { identity_refusal: identityRefusal } : {}),
+        authority: "none",
+        automatic_retry: false,
+      }),
       { flag: "wx", mode: 0o600 },
     ).catch(() => {});
     throw new Error(`controller tool binding refused; retain ${attempt}`);
