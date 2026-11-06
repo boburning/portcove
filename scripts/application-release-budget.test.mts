@@ -658,7 +658,7 @@ void test("forward metadata maintenance counts original executions, refuses miss
   );
 });
 
-void test("only the exact exhausted empty bootstrap can admit one protected successor", () => {
+void test("only the exact exhausted empty bootstrap can admit one protected successor", async (t) => {
   const opportunity = "ce5fc42d395494d6faff4a2b494b3649923c0b27f508e390667ab7ad46cc4509";
   const r10 = "9caa02ce98ccd5d6e3e8133735b373f779a0489c";
   const r11 = "5ab859841dcdf857572b67a4acce5126002dc1c3";
@@ -714,4 +714,98 @@ void test("only the exact exhausted empty bootstrap can admit one protected succ
   assert.equal(permit(runs, { ...execution, ref: "refs/tags/" + tag(13) }), false);
   assert.equal(permit(runs, execution, { ...owner, release_id: 436818192 }), false);
   assert.equal(permit(runs, execution, owner, "application-release"), false);
+  assert.equal(permit(runs, execution, { ...owner, custody: { ...custody, source } }), false);
+  assert.equal(
+    permit(runs, execution, { ...owner, custody: { ...custody, source_tree: source } }),
+    false,
+  );
+
+  const environment = {
+    GH_TOKEN: "synthetic-bootstrap-budget-reader",
+    PORTCOVE_APPLICATION_RELEASE_REVISION: execution.source,
+    PORTCOVE_APPLICATION_RELEASE_REF: execution.ref,
+    PORTCOVE_APPLICATION_RELEASE_OPPORTUNITY: opportunity,
+    GITHUB_REPOSITORY: "boburning/portcove",
+    GITHUB_REPOSITORY_ID: "1354613114",
+    GITHUB_EVENT_NAME: "workflow_dispatch",
+    GITHUB_REF: execution.ref,
+    GITHUB_REF_PROTECTED: "true",
+    GITHUB_SHA: execution.source,
+    GITHUB_WORKFLOW_SHA: execution.source,
+    GITHUB_WORKFLOW_REF: `boburning/portcove/.github/workflows/application-release.yml@${execution.ref}`,
+    GITHUB_RUN_ID: execution.run_id,
+    GITHUB_RUN_ATTEMPT: "1",
+  };
+  const previous = new Map(Object.keys(environment).map((key) => [key, process.env[key]]));
+  Object.assign(process.env, environment);
+  t.after(() => {
+    for (const [key, value] of previous) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  });
+  let drift = false;
+  let currentSourceDone = false;
+  const charged = new Set<number>();
+  t.mock.method(globalThis, "fetch", async (input: unknown, init: RequestInit) => {
+    assert.equal(init.method, "GET");
+    assert.equal(
+      new Headers(init.headers).get("authorization"),
+      "token synthetic-bootstrap-budget-reader",
+    );
+    assert.ok(typeof input === "string");
+    const url = new URL(input);
+    assert.equal(url.origin, "https://api.github.com");
+    const prefix = "/repos/boburning/portcove/actions/";
+    assert.ok(url.pathname.startsWith(prefix));
+    const endpoint = url.pathname.slice(prefix.length) + url.search;
+    if (endpoint === "workflows/application-release.yml")
+      return Response.json({ id: 7, path: ".github/workflows/application-release.yml" });
+    if (endpoint === "workflows/application-release.yml/runs?event=workflow_dispatch&per_page=100")
+      return Response.json({
+        total_count: runs.length,
+        workflow_runs: runs.map((row) => ({
+          ...runRow(row.id, `Application ${opportunity}`),
+          ...row,
+        })),
+      });
+    const match = /^runs\/(\d+)\/attempts\/1(\/jobs\?per_page=100)?$/u.exec(endpoint);
+    assert.ok(match, endpoint);
+    const id = Number(match[1]);
+    const row = runs.find((run) => run.id === id);
+    assert.ok(row);
+    if (!match[2]) return Response.json({ ...context(1), id, head_sha: row.head_sha });
+    charged.add(id);
+    const observedJob = (name: string, start: number, seconds: number, conclusion = "failure") => ({
+      ...job(name, start, seconds),
+      run_id: id,
+      head_sha: row.head_sha,
+      conclusion,
+    });
+    if (id === Number(execution.run_id))
+      return Response.json(jobs(currentSourceDone ? [observedJob("source", 0, 1, "success")] : []));
+    if (id === 42264854396)
+      return Response.json(
+        jobs([observedJob("source", 0, 34, "success"), observedJob("tools", 34, 137)]),
+      );
+    return Response.json(jobs([observedJob("source", 0, drift && id === 42262046049 ? 28 : 29)]));
+  });
+  const inspect = () =>
+    readApplicationJobBudget(
+      ["42264854396", "42273701261"],
+      "metadata-bootstrap",
+      "ordinary",
+      owner,
+    );
+  const sourceBudget = await inspect();
+  assert.equal(sourceBudget.attempts, 4);
+  assert.equal(sourceBudget.actual_milliseconds, 229_000);
+  assert.equal(sourceBudget.remaining_declared_minutes, 49);
+  assert.deepEqual(charged, new Set(runs.map((row) => row.id)));
+  currentSourceDone = true;
+  const privateBudget = await inspect();
+  assert.equal(privateBudget.actual_milliseconds, 230_000);
+  assert.equal(privateBudget.remaining_declared_minutes, 47);
+  drift = true;
+  await assert.rejects(inspect, /bootstrap predecessor cost changed/u);
 });

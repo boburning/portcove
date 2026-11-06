@@ -309,6 +309,8 @@ export async function readApplicationOpportunityRuns(
 const emptyBootstrapContinuation = {
   opportunity: "ce5fc42d395494d6faff4a2b494b3649923c0b27f508e390667ab7ad46cc4509",
   release_id: 436818191,
+  source: "9caa02ce98ccd5d6e3e8133735b373f779a0489c",
+  source_tree: "beac77d095fee337fe4ab495e1f73f7250e2464f",
   ref: "refs/tags/portcove-production-controller-windows-20261105r12",
   predecessors: [
     {
@@ -351,6 +353,8 @@ export function permitsEmptyBootstrapContinuation(
     execution.run_attempt !== 1 ||
     owner?.release_id !== expected.release_id ||
     owner.custody.opportunity !== opportunity ||
+    owner.custody.source !== expected.source ||
+    owner.custody.source_tree !== expected.source_tree ||
     owner.custody.preparation !== null ||
     owner.custody.budget !== undefined ||
     runs.length !== 4
