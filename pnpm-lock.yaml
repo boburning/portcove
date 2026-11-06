@@ -206,8 +206,8 @@ importers:
         specifier: 2.6.2
         version: 2.6.2
       '@sigstore/bundle':
-        specifier: 5.0.0
-        version: 5.0.0
+        specifier: 5.0.1
+        version: 5.0.1
       '@sigstore/sign':
         specifier: 5.0.0
         version: 5.0.0(patch_hash=fd8ea358e3f80a2ef13d3d332afcc77740c12a4f328d39d370cefaede2f14713)(supports-color@10.2.2)
@@ -1043,8 +1043,8 @@ packages:
   '@rolldown/pluginutils@1.0.1':
     resolution: {integrity: sha512-2j9bGt5Jh8hj+vPtgzPtl72j0yRxHAyumoo6TNfAjsLB04UtpSvPbPcDcBMxz7n+9CYB0c1GxQFxYRg2jimqGw==}
 
-  '@sigstore/bundle@5.0.0':
-    resolution: {integrity: sha512-wefjygudENbzbQMks1t5u34EP0fFoD0XvaEP7DOUP/sXKvogzEJYFw5E6pegGyp3onGWzVEYKVa3bNZWyTYX+A==}
+  '@sigstore/bundle@5.0.1':
+    resolution: {integrity: sha512-7q8DOObFzN+/eQrvL2O0cylDp95ssgBCAomQxSYfGAMO9+q4xceRbg0L3L0G2/8NyideoYCs7HuVxWKCdn/maQ==}
     engines: {node: ^22.22.2 || ^24.15.0 || >=26.0.0}
 
   '@sigstore/core@4.0.1':
@@ -3126,7 +3126,7 @@ snapshots:
 
   '@rolldown/pluginutils@1.0.1': {}
 
-  '@sigstore/bundle@5.0.0':
+  '@sigstore/bundle@5.0.1':
     dependencies:
       '@sigstore/protobuf-specs': 0.5.2
 
@@ -3137,7 +3137,7 @@ snapshots:
   '@sigstore/sign@5.0.0(patch_hash=fd8ea358e3f80a2ef13d3d332afcc77740c12a4f328d39d370cefaede2f14713)(supports-color@10.2.2)':
     dependencies:
       '@gar/promise-retry': 1.0.3
-      '@sigstore/bundle': 5.0.0
+      '@sigstore/bundle': 5.0.1
       '@sigstore/core': 4.0.1
       '@sigstore/protobuf-specs': 0.5.2
       make-fetch-happen: 16.0.1(supports-color@10.2.2)
