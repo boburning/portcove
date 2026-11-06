@@ -159,6 +159,7 @@ export async function runCatalogUpstreams(
     log?: (value: string) => void;
     deadline?: number;
     excludedSources?: ReadonlySet<string>;
+    prioritizeConfigured?: boolean;
     handoff?: { directory: string; sizes: Map<string, number>; bytes: number };
   } = {},
 ) {
@@ -276,6 +277,7 @@ export async function runCatalogUpstreams(
       now,
       deadline: operationDeadline,
       ...(runtime.excludedSources ? { excludedSources: runtime.excludedSources } : {}),
+      prioritizeConfigured: runtime.prioritizeConfigured === true,
       ...runtime.observer,
       githubScope,
       policyIdentity: coreIdentity.sha256,
@@ -647,6 +649,7 @@ export async function runCatalogOpportunity(
     await appendFile(process.env.GITHUB_OUTPUT, `catalog_handoff_directory=${handoff.directory}\n`);
   }
   try {
+    let prioritizeConfigured = true;
     const result = await continueCatalogBatches(
       async (excluded) => {
         await assertInputs();
@@ -660,9 +663,11 @@ export async function runCatalogOpportunity(
           repositoryMetadata,
           handoff,
           excludedSources: excluded,
+          prioritizeConfigured,
           log: () => {},
         });
         await assertInputs();
+        prioritizeConfigured = false;
         return batch;
       },
       {

@@ -431,6 +431,7 @@ export interface CatalogObservationOptions extends Pick<
   now?: () => number;
   deadline?: number;
   excludedSources?: ReadonlySet<string>;
+  prioritizeConfigured?: boolean;
   providerFetch?: typeof fetch;
   projectProvider?: (portId: string, observation: Record<string, unknown>) => Promise<unknown>;
   exportProvider?: (
@@ -556,6 +557,13 @@ export async function advanceCatalogObservations(
   const attempted: string[] = [];
   const completed: string[] = [];
   const failures: { source: string; repository: string; rule: string; details: string }[] = [];
+  const isConfigured = (source: (typeof sources)[number]) =>
+    source.repository === template.repository &&
+    source.ports.some((port) => port.id === template.port_id);
+  const configuredTurn = (source: (typeof sources)[number]) =>
+    options.prioritizeConfigured &&
+    isConfigured(source) &&
+    state.sources[source.key]?.attempted_sequence !== state.sequence;
   const pending = sources
     .filter((source) => {
       if (options.excludedSources?.has(source.key)) return false;
@@ -569,12 +577,14 @@ export async function advanceCatalogObservations(
           (!progress.retry_at || Date.parse(progress.retry_at) <= now()))
       );
     })
-    // A source without a checkpoint has never had a turn. Putting it at the
-    // current sequence lets each bounded opportunity retry the same prefix.
+    // Give the configured source an early turn without taking consecutive
+    // turns away from the catalog when hosted opportunities are short.
     .sort(
       (a, b) =>
+        Number(configuredTurn(b)) - Number(configuredTurn(a)) ||
         (state.sources[a.key]?.attempted_sequence ?? -1) -
-          (state.sources[b.key]?.attempted_sequence ?? -1) || a.key.localeCompare(b.key),
+          (state.sources[b.key]?.attempted_sequence ?? -1) ||
+        a.key.localeCompare(b.key),
     );
   const capacity = () =>
     state.provider_retry_at && Date.parse(state.provider_retry_at) > now()
@@ -927,9 +937,7 @@ export async function advanceCatalogObservations(
       continue;
     }
     try {
-      const legacy =
-        source.repository === template.repository &&
-        source.ports.some((port) => port.id === template.port_id);
+      const legacy = isConfigured(source);
       if (
         legacy &&
         progress.repository_id !== null &&

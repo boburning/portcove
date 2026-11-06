@@ -983,6 +983,44 @@ void test("a resumed opportunity gives untouched sources a turn before retrying 
   assert.ok(resumed.report.requests <= 2);
 });
 
+void test("the configured source gets an early bounded turn without starving untouched sources", async () => {
+  const h = harness(2);
+  const sources = catalogObservationSources(h.input).sources.sort((a, b) =>
+    a.key.localeCompare(b.key),
+  );
+  const [untouched, configured] = sources;
+  assert.ok(untouched && configured);
+  const options = {
+    ...h.options,
+    config: validateObserverConfig({
+      ...h.options.config,
+      port_id: configured.ports[0]!.id,
+      repository: configured.repository,
+      repository_id: configured.repository === "owner/shared" ? 7 : 8,
+    }),
+  };
+  const simultaneous = await advanceCatalogObservations(h.input, null, {
+    ...options,
+    prioritizeConfigured: true,
+  });
+  assert.equal(simultaneous.report.attempted_source_keys[0], configured.key);
+  const first = await advanceCatalogObservations(h.input, null, {
+    ...options,
+    excludedSources: new Set([untouched.key]),
+    prioritizeConfigured: true,
+  });
+  assert.equal(first.report.attempted_source_keys[0], configured.key);
+  assert.equal(first.checkpoint.sources[untouched.key], undefined);
+  assert.ok(first.report.requests <= 2);
+
+  const next = await advanceCatalogObservations(h.input, first.checkpoint, {
+    ...options,
+    prioritizeConfigured: true,
+  });
+  assert.equal(next.report.attempted_source_keys[0], untouched.key);
+  assert.ok(next.report.requests <= 2);
+});
+
 void test("provider reserve stops work and later quota recovery resumes exact retained pages", async () => {
   const h = harness();
   h.setQuota(0);
