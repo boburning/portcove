@@ -1619,6 +1619,7 @@ mod tests {
             include_str!("../testdata/devilution-retained-selected-2026-10-29.json"),
             include_str!("../testdata/native-engine-retained-selected-2026-11-02.json"),
             include_str!("../testdata/gba-pokemon-retained-selected-2026-11-05.json"),
+            include_str!("../testdata/gba-ruby-sapphire-retained-selected-2026-11-06.json"),
         ]
         .into_iter()
         .find(|fixture| Catalog::from_json(fixture).unwrap().port(id).is_ok());

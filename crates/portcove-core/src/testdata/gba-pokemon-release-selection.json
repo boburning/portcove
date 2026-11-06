@@ -1,0 +1,183 @@
+{
+  "cases": {
+    "pokemon-firered-fireredleafgreenrecomp": {
+      "inventory": "firered_leafgreen",
+      "selected_assets": [
+        "FireRedRecomp-windows-x64-v0.0.6.zip",
+        "FireRedRecomp-windows-x64-v0.0.8.zip"
+      ]
+    },
+    "pokemon-leafgreen-fireredleafgreenrecomp": {
+      "inventory": "firered_leafgreen",
+      "selected_assets": [
+        "LeafGreenRecomp-windows-x64-v0.0.6.zip",
+        "LeafGreenRecomp-windows-x64-v0.0.8.zip"
+      ]
+    },
+    "pokemon-ruby-rubysapphirerecomp": {
+      "inventory": "ruby_sapphire",
+      "selected_assets": ["RubyRecomp-windows-x64-v0.0.8.zip", "RubyRecomp-windows-x64-v0.0.9.zip"]
+    },
+    "pokemon-sapphire-rubysapphirerecomp": {
+      "inventory": "ruby_sapphire",
+      "selected_assets": [
+        "SapphireRecomp-windows-x64-v0.0.8.zip",
+        "SapphireRecomp-windows-x64-v0.0.9.zip"
+      ]
+    }
+  },
+  "inventories": {
+    "firered_leafgreen": [
+      {
+        "id": 425969707,
+        "tag_name": "v0.0.6",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-10-27T20:49:37Z",
+        "assets": [
+          {
+            "id": 682837775,
+            "name": "BUILDINFO.json",
+            "browser_download_url": "https://github.com/mstan/FireRedLeafGreenRecomp/releases/download/v0.0.6/BUILDINFO.json",
+            "size": 2450,
+            "digest": "sha256:6a1c580986917785f59ada7ad32868a8f57ce87c479f281241195c2c16d23724"
+          },
+          {
+            "id": 682837778,
+            "name": "FireRedRecomp-windows-x64-v0.0.6.zip",
+            "browser_download_url": "https://github.com/mstan/FireRedLeafGreenRecomp/releases/download/v0.0.6/FireRedRecomp-windows-x64-v0.0.6.zip",
+            "size": 63944552,
+            "digest": "sha256:7be028c42bb5e3fd17b211553ddb34ac915a95a5408eaa0dd3fca8ffbeb51d44"
+          },
+          {
+            "id": 682837782,
+            "name": "LeafGreenRecomp-windows-x64-v0.0.6.zip",
+            "browser_download_url": "https://github.com/mstan/FireRedLeafGreenRecomp/releases/download/v0.0.6/LeafGreenRecomp-windows-x64-v0.0.6.zip",
+            "size": 63939825,
+            "digest": "sha256:2b500dfc7fe97c95731d0374958d169c39d246c0f054f589d84cd760bf73b861"
+          },
+          {
+            "id": 682837779,
+            "name": "SHA256SUMS.txt",
+            "browser_download_url": "https://github.com/mstan/FireRedLeafGreenRecomp/releases/download/v0.0.6/SHA256SUMS.txt",
+            "size": 292,
+            "digest": "sha256:2f1589c22f30855e38a3dbc7af05c04e04e2fd62a91c3fbf83bb1fa7b2f0da61"
+          }
+        ]
+      },
+      {
+        "id": 430354589,
+        "tag_name": "v0.0.8",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-01T04:09:47Z",
+        "assets": [
+          {
+            "id": 697285177,
+            "name": "BUILDINFO.json",
+            "browser_download_url": "https://github.com/mstan/FireRedLeafGreenRecomp/releases/download/v0.0.8/BUILDINFO.json",
+            "size": 3208,
+            "digest": "sha256:f16cb0d1f508cf2bb082b18e242cd9587914b034d259a9cd188246cd8abe38aa"
+          },
+          {
+            "id": 697285180,
+            "name": "FireRedRecomp-windows-x64-v0.0.8.zip",
+            "browser_download_url": "https://github.com/mstan/FireRedLeafGreenRecomp/releases/download/v0.0.8/FireRedRecomp-windows-x64-v0.0.8.zip",
+            "size": 63984492,
+            "digest": "sha256:04f678d796420a2cea77c70abedafbc5383237b04e6362354f44fade72ad8947"
+          },
+          {
+            "id": 697285178,
+            "name": "LeafGreenRecomp-windows-x64-v0.0.8.zip",
+            "browser_download_url": "https://github.com/mstan/FireRedLeafGreenRecomp/releases/download/v0.0.8/LeafGreenRecomp-windows-x64-v0.0.8.zip",
+            "size": 63970383,
+            "digest": "sha256:67579734a360a16814b85e131bc56d93c2df4a601d62ab3415bc43f5fa5d9346"
+          },
+          {
+            "id": 697285179,
+            "name": "SHA256SUMS.txt",
+            "browser_download_url": "https://github.com/mstan/FireRedLeafGreenRecomp/releases/download/v0.0.8/SHA256SUMS.txt",
+            "size": 292,
+            "digest": "sha256:ad689832ab17d20eb917e973dd67895a2b72b28a8cc269a1bb32b17cfc3bc715"
+          }
+        ]
+      }
+    ],
+    "ruby_sapphire": [
+      {
+        "id": 430260343,
+        "tag_name": "v0.0.8",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-01T00:00:06Z",
+        "assets": [
+          {
+            "id": 696824628,
+            "name": "BUILDINFO.json",
+            "browser_download_url": "https://github.com/mstan/RubySapphireRecomp/releases/download/v0.0.8/BUILDINFO.json",
+            "size": 2772,
+            "digest": "sha256:b2357b8eb4da861c8a0974a4b2dcf33578e3b3870809b44157fed1a503307bd9"
+          },
+          {
+            "id": 696824625,
+            "name": "RubyRecomp-windows-x64-v0.0.8.zip",
+            "browser_download_url": "https://github.com/mstan/RubySapphireRecomp/releases/download/v0.0.8/RubyRecomp-windows-x64-v0.0.8.zip",
+            "size": 59307267,
+            "digest": "sha256:80b7364418e051c39e732302c0967c601e20ae5f24f50ba6f91e2e5bd5c10585"
+          },
+          {
+            "id": 696824630,
+            "name": "SapphireRecomp-windows-x64-v0.0.8.zip",
+            "browser_download_url": "https://github.com/mstan/RubySapphireRecomp/releases/download/v0.0.8/SapphireRecomp-windows-x64-v0.0.8.zip",
+            "size": 59653554,
+            "digest": "sha256:b398de84943705d6d0aa474751d0ee815d29cf8e277197ff62113b219527c1d8"
+          },
+          {
+            "id": 696824629,
+            "name": "SHA256SUMS.txt",
+            "browser_download_url": "https://github.com/mstan/RubySapphireRecomp/releases/download/v0.0.8/SHA256SUMS.txt",
+            "size": 288,
+            "digest": "sha256:b2944eb5a83fa6874a69b49d0d4d651f8050052e22df969b2573818c21c69ea2"
+          }
+        ]
+      },
+      {
+        "id": 430353554,
+        "tag_name": "v0.0.9",
+        "draft": false,
+        "prerelease": false,
+        "published_at": "2026-11-01T04:06:54Z",
+        "assets": [
+          {
+            "id": 697280730,
+            "name": "BUILDINFO.json",
+            "browser_download_url": "https://github.com/mstan/RubySapphireRecomp/releases/download/v0.0.9/BUILDINFO.json",
+            "size": 3192,
+            "digest": "sha256:460dab2ea0ae13a195d1812b3bf3def07c82ea445b5fa3502e78d23cbc758d51"
+          },
+          {
+            "id": 697280724,
+            "name": "RubyRecomp-windows-x64-v0.0.9.zip",
+            "browser_download_url": "https://github.com/mstan/RubySapphireRecomp/releases/download/v0.0.9/RubyRecomp-windows-x64-v0.0.9.zip",
+            "size": 59308238,
+            "digest": "sha256:fbb3eeeda6baeec00f104e5158f0e6a3a4c763b2439a742db5ea4962a2257982"
+          },
+          {
+            "id": 697280732,
+            "name": "SapphireRecomp-windows-x64-v0.0.9.zip",
+            "browser_download_url": "https://github.com/mstan/RubySapphireRecomp/releases/download/v0.0.9/SapphireRecomp-windows-x64-v0.0.9.zip",
+            "size": 59654425,
+            "digest": "sha256:a9c1d5260e9e17a23edbd34f8be344bfc248a5c1f823c054515d5818d3612cae"
+          },
+          {
+            "id": 697280725,
+            "name": "SHA256SUMS.txt",
+            "browser_download_url": "https://github.com/mstan/RubySapphireRecomp/releases/download/v0.0.9/SHA256SUMS.txt",
+            "size": 288,
+            "digest": "sha256:cd7fa4fabf1beb0132deab3a46a91724163a009cf4a1ee1c23c0d77589875cf8"
+          }
+        ]
+      }
+    ]
+  }
+}
