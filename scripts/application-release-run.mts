@@ -870,6 +870,32 @@ export async function readApplicationBudgetOwnerAsync(
   return inspectApplicationBudgetOwner(await readRelease(link.owner_release_id), link, custody);
 }
 
+export async function createApplicationReleaseMetadataReader(deadline: number) {
+  const token = fixedReleaseReaderToken();
+  const { createReleaseCustodyProvider } = await import("./release-custody-provider.mts");
+  const provider = await createReleaseCustodyProvider({
+    token,
+    deadline,
+    maxBytes: 8 * 1024 ** 2,
+    requestTimeoutMs: 30000,
+    fetch: (input, init) => {
+      assertTrustedDirectNode("fixed application Release metadata");
+      return globalThis.fetch(input, init);
+    },
+  });
+  return provider.release;
+}
+
+export function readActualApplicationBudgetOwner(
+  context: ApplicationBudgetContext,
+  deadline = performance.now() + 120000,
+) {
+  return readApplicationBudgetOwnerAsync(async (id) => {
+    const read = await createApplicationReleaseMetadataReader(deadline);
+    return read(id);
+  }, context);
+}
+
 function inspectApplicationBudgetOwner(
   release: unknown,
   link: { owner_release_id: number; owner_opportunity: string },

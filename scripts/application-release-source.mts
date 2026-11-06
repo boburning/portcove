@@ -31,7 +31,7 @@ import {
   inspectApplicationQualificationIdentity,
   readApplicationRunNotes,
   registerApplicationBudgetRun,
-  readApplicationBudgetOwner,
+  readActualApplicationBudgetOwner,
   inspectApplicationReleaseReference,
 } from "./application-release-run.mts";
 import { readApplicationJobBudget } from "./application-release-budget.mts";
@@ -720,7 +720,7 @@ async function renewUnservedMetadata() {
   };
   const opportunity = releaseCanonicalDigest(basis);
   assert.equal(process.env.PORTCOVE_APPLICATION_RELEASE_OPPORTUNITY, opportunity);
-  const owner = readApplicationBudgetOwner(applicationApi, authority);
+  const owner = await readActualApplicationBudgetOwner(authority);
   const linked = await registerApplicationBudgetRun(
     applicationApi,
     authority,
@@ -845,7 +845,7 @@ async function recoverImmutableMetadataFeed() {
     "immutable-metadata-only",
     notes.custody.budget,
   );
-  const owner = readApplicationBudgetOwner(applicationApi, registration);
+  const owner = await readActualApplicationBudgetOwner(registration);
   const semantic = forward ? await retainedApplicationSemantic(owner.custody) : undefined;
   const packet = {
     schema_version: 1,

@@ -22,6 +22,7 @@ import {
   readApplicationRunNotes,
   inspectApplicationReleaseReference,
   readApplicationBudgetOwnerAsync,
+  createApplicationReleaseMetadataReader,
 } from "./application-release-run.mts";
 import type { ApplicationRunCustody } from "./application-release-run.mts";
 import type { ApplicationReleaseReference } from "./application-release-run.mts";
@@ -869,19 +870,10 @@ export async function readApplicationPendingLineage(
 }
 
 async function createPendingLineageTransport(deadline: number) {
-  const token = fixedReleaseReaderToken();
-  const { createReleaseCustodyProvider } = await import("./release-custody-provider.mts");
-  const provider = await createReleaseCustodyProvider({
-    token,
-    deadline,
-    maxBytes: 8 * 1024 ** 2,
-    requestTimeoutMs: 30000,
-    fetch: (input, init) => {
-      assertTrustedDirectNode("fixed application pending lineage");
-      return globalThis.fetch(input, init);
-    },
-  });
-  return { readRelease: provider.release, readMetadata: readApplicationImmutableMetadata };
+  return {
+    readRelease: await createApplicationReleaseMetadataReader(deadline),
+    readMetadata: readApplicationImmutableMetadata,
+  };
 }
 
 /** Declared join only. The caller authenticates both immutable assemblies and

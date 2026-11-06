@@ -4,11 +4,13 @@ import { applicationOpportunityFromRunTitle } from "./application-release-run-ti
 import assert from "node:assert/strict";
 import { isDeepStrictEqual } from "node:util";
 import { isRecord } from "./runtime-values.mts";
-import { applicationApi, applicationRepository } from "./application-release-io.mts";
+import { applicationRepository } from "./application-release-io.mts";
 import { createGitHubClient } from "./github-client.mts";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { nextLink } from "./github-operation.mts";
 import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
-import { readApplicationBudgetOwner } from "./application-release-run.mts";
+import { readApplicationBudgetOwnerAsync } from "./application-release-run.mts";
 import type { ApplicationBudgetContext } from "./application-release-run.mts";
 import {
   inspectApplicationReleaseExecution,
@@ -158,15 +160,21 @@ interface ApplicationOpportunityProvider {
 }
 
 async function createApplicationBudgetProvider() {
-  const { GH_TOKEN: token = "" } = readOnlyReleaseChildEnvironment() ?? process.env;
-  // One workflow read, up to 90 seconds of inventory, and up to six attempt/job reads.
-  const deadline = performance.now() + 300000;
+  const scope = readOnlyReleaseChildEnvironment();
+  const { GH_TOKEN: token = "" } = scope ?? process.env;
+  // One owner and workflow read, up to 90 seconds of inventory, and up to six attempt/job reads.
+  const deadline = Math.min(performance.now() + 300000, coordinatorCommandDeadline() ?? Infinity);
   const client = await createGitHubClient({
     credential: { kind: "explicit", token },
     deadline,
     maxBytes: 8 * 1024 ** 2,
     requestTimeoutMs: 30000,
     headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
+    allowRequest(method, url) {
+      if (scope && url.pathname.startsWith(`/${applicationRepository}/releases/`))
+        assertTrustedDirectNode("fixed application budget owner");
+      return method === "GET";
+    },
   });
   const get = async (endpoint: string, limit = deadline) => {
     const response = await client.request({
@@ -178,6 +186,10 @@ async function createApplicationBudgetProvider() {
     return response;
   };
   return {
+    async release(id: number) {
+      assert.ok(Number.isSafeInteger(id) && id > 0);
+      return (await get(`${applicationRepository}/releases/${id}`)).data as unknown;
+    },
     async workflow() {
       return (await get(applicationWorkflow)).data as unknown;
     },
@@ -302,8 +314,9 @@ export async function readApplicationJobBudget(
   applicationReleaseRemainingMinutes(purpose, executionPath);
   const execution = inspectApplicationReleaseExecution(process.env);
   const opportunity = process.env.PORTCOVE_APPLICATION_RELEASE_OPPORTUNITY ?? "";
+  const provider = await createApplicationBudgetProvider();
   const owner = budgetContext
-    ? readApplicationBudgetOwner(applicationApi, budgetContext)
+    ? await readApplicationBudgetOwnerAsync(provider.release, budgetContext)
     : undefined;
   const scopes =
     owner?.custody.budget?.kind === "owner"
@@ -316,7 +329,6 @@ export async function readApplicationJobBudget(
         ]
       : [];
   const opportunities = [...new Set([opportunity, ...scopes.map((scope) => scope.opportunity)])];
-  const provider = await createApplicationBudgetProvider();
   const runs = await readApplicationOpportunityRuns(provider, opportunities);
   for (const scope of scopes)
     for (const id of scope.run_ids)

@@ -142,7 +142,7 @@ import {
   inspectApplicationRunCustody,
   readRegisteredApplicationRuns,
   inspectApplicationReleaseReference,
-  readApplicationBudgetOwner,
+  readActualApplicationBudgetOwner,
   assertApplicationCustodyMetadataExtension,
   readApplicationMetadataContextPlan,
   retainApplicationDraftAssembly,
@@ -353,7 +353,7 @@ async function guard(
       "member",
       "forward renewal must retain its original cost owner",
     );
-    const owner = readApplicationBudgetOwner(applicationApi, {
+    const owner = await readActualApplicationBudgetOwner({
       release_id: Number(source.run_custody.release_id),
       custody: registered,
     });
@@ -2671,11 +2671,11 @@ async function readForwardRenewalPreimage(
   assert.ok(isRecord(source.run_custody));
   const custody = inspectApplicationRunCustody(source.run_custody.custody);
   assert.equal(custody.budget?.kind, "member");
-  const owner = readApplicationBudgetOwner(applicationApi, {
+  const owner = await readActualApplicationBudgetOwner({
     release_id: Number(source.run_custody.release_id),
     custody,
   });
-  const original = readApplicationBudgetOwner(applicationApi, authority);
+  const original = await readActualApplicationBudgetOwner(authority);
   assert.equal(
     owner.release_id,
     original.release_id,
