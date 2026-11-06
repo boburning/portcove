@@ -2,17 +2,13 @@
  * provider callback or scanner JSON in place of actual private admission. */
 import { createHash } from "node:crypto";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
-import { mkdtemp } from "node:fs/promises";
 import type { GitHubReservation } from "./github-client.mts";
 import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { performance } from "node:perf_hooks";
 import { isRecord } from "./runtime-values.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import { currentApplicationSitePins } from "./release-catalog-metadata-contract.mts";
 import {
-  coordinatorCommandTimeout,
   coordinatorCommandDeadline,
   checkCoordinatorDeadline,
 } from "./release-coordinator-deadline.mts";
@@ -323,70 +319,9 @@ async function authorizeRiskSubject706(
     };
   };
   const deadline = Math.min(phaseDeadline ?? Infinity, coordinatorCommandDeadline() ?? Infinity);
-  let legacyApi: GitHubApiClient | undefined;
-  const readControls = async () => {
-    if (stage === "release-publication" || stage === "payload") {
-      if (!Number.isFinite(deadline))
-        throw new Error("risk controls original deadline unavailable");
-      return controls.readSdkApplicationControls(context.facts.opportunity, { deadline, reserve });
-    }
-    legacyApi ??= await createLegacyControlsReader();
-    return controls.read(legacyApi, context.facts.opportunity);
-  };
-  const createLegacyControlsReader = async () => {
-    const readHome = await mkdtemp(path.join(directory, "risk-readonly-"));
-    const readEnvironment: NodeJS.ProcessEnv = {};
-    for (const key of [
-      "PATH",
-      "Path",
-      "SystemRoot",
-      "SYSTEMROOT",
-      "WINDIR",
-      "COMSPEC",
-      "PATHEXT",
-      "TMP",
-      "TEMP",
-    ])
-      if (process.env[key] !== undefined) readEnvironment[key] = process.env[key];
-    Object.assign(readEnvironment, {
-      GH_TOKEN: readToken,
-      GH_HOST: "github.com",
-      GH_CONFIG_DIR: readHome,
-      HOME: readHome,
-      USERPROFILE: readHome,
-      XDG_CONFIG_HOME: readHome,
-      GH_PROMPT_DISABLED: "1",
-      GIT_TERMINAL_PROMPT: "0",
-    });
-    const readSpawn: NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"] = (
-      command,
-      args,
-      options,
-    ) => {
-      charge();
-      checkCoordinatorDeadline();
-      const left =
-        phaseDeadline === undefined ? 15000 : Math.floor(phaseDeadline - performance.now());
-      if (left < 1) throw new Error("risk provider cannot start after original deadline");
-      const result = spawnSync(command, args, {
-        ...options,
-        env: readEnvironment,
-        timeout: Math.min(coordinatorCommandTimeout(15000), left),
-      });
-      checkCoordinatorDeadline();
-      if (phaseDeadline !== undefined && performance.now() >= phaseDeadline)
-        throw new Error("risk provider original deadline exhausted");
-      return result;
-    };
-    return new GitHubApiClient((args, input) =>
-      createGitHubRunner({
-        cwd: directory,
-        spawn: readSpawn,
-        maxBuffer: 2 * 1024 * 1024,
-        timeoutMs: 15000,
-      })([...args, "--hostname", "github.com"], input),
-    );
-  };
+  if (!Number.isFinite(deadline)) throw new Error("risk controls original deadline unavailable");
+  const readControls = () =>
+    controls.readSdkApplicationControls(context.facts.opportunity, { deadline, reserve });
   const current = await readControls();
   const original = context.stage === "site-publication" ? current : context.admission.controls;
   if (
@@ -449,7 +384,6 @@ async function authorizeRiskSubject706(
   if (!authorities.configuration.linux_risk_profile)
     throw new Error("protected Linux risk held: explicit newly ratified owner amendment absent");
   const profile = authorities.configuration.linux_risk_profile;
-  if (!Number.isFinite(deadline)) throw new Error("risk inventory original deadline unavailable");
   const guard = () => {
     checkCoordinatorDeadline();
     if (performance.now() >= deadline) throw new Error("risk provider original deadline exhausted");

@@ -24,7 +24,7 @@ import {
   materializePublishedCompleteSite,
   materializePublishedCatalogCompleteSite,
 } from "./release-site-readback.mts";
-import { createGitHubRunner, GitHubApiClient, sanitizeOperationError } from "./github-api.mts";
+import { sanitizeOperationError } from "./github-operation.mts";
 import { downloadGitHubArtifactArchiveFile } from "./github-artifact-download.mts";
 import { inspectBoundedZip } from "./bounded-zip.mts";
 import { crc32, inflateRawSync } from "node:zlib";
@@ -48,6 +48,10 @@ import {
   inspectCatalogSitePublicationExpectation,
 } from "./release-catalog-publication-contract.mts";
 import { publishCoordinatorCheckpoint } from "./release-coordinator-remote.mts";
+import {
+  createLegacySiteCheckpointApi,
+  guardCoordinatorJournalWrites,
+} from "./release-coordinator-journal-api.mts";
 import {
   capacityExecutorIdentity,
   executeOwnedCapacityEffect,
@@ -1179,6 +1183,7 @@ export async function publishPreparedSiteDeployment(
   const prepared = sessions.get(session);
   if (
     !prepared ||
+    prepared.deadline === undefined ||
     prepared.catalog?.recovery_only ||
     !prepared.upload ||
     prepared.upload.evidence_scope !== "github.com"
@@ -1362,20 +1367,13 @@ export async function publishPreparedSiteDeployment(
       throw new Error("new-candidate feed risk expiry unavailable");
   }
   await readRelease();
-  const api = new GitHubApiClient((args, body) =>
-    createGitHubRunner({
-      cwd: prepared.directory,
-      timeoutMs: remaining(prepared.deadline, 15000),
-      maxBuffer: 2 * 1024 * 1024,
-    })([...args, "--hostname", "github.com"], body),
-  );
   const readBoundary = async () => {
     remaining(prepared.deadline, 15000);
     requireControls(currentControls, "site-publication");
     if (catalog) await recheckCatalogDeployment(prepared);
     const facts = !maintenance
-      ? currentControls.read(api, frozen)
-      : currentControls.readMaintenance(api);
+      ? await currentControls.readSdkApplicationControls(frozen)
+      : await currentControls.readSdkMaintenance();
     remaining(prepared.deadline, 15000);
     if (
       facts.pause.publication_paused !== false ||
@@ -1532,14 +1530,20 @@ export async function publishPreparedSiteDeployment(
           );
         },
       }
-    : { configuration: input.remote_configuration, api };
+    : {
+        configuration: input.remote_configuration,
+        api: guardCoordinatorJournalWrites(
+          createLegacySiteCheckpointApi(prepared.directory, prepared.deadline),
+          { readCurrent: checkpointControls },
+        ),
+      };
   if ("publish" in journalRemote) await journalRemote.publish(result.checkpoint);
   else
     await publishCoordinatorCheckpoint(
       input.repository,
       result.checkpoint,
       input.remote_configuration,
-      { api },
+      { api: journalRemote.api },
     );
   remaining(prepared.deadline, 15000);
   const settled = await recoverReleaseOpportunity(input.repository, result.checkpoint);

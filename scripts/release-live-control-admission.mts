@@ -96,6 +96,7 @@ function json(raw: string | undefined, maximum: number) {
 
 type SdkControlReader =
   | "admitted-aggregate"
+  | "site-application"
   | "site-maintenance"
   | "payload"
   | "tuf-maintenance"
@@ -232,8 +233,9 @@ async function authenticateControlSource(
   const direct =
     aggregateAdmission || coordinatorMaintenance || readOnlyReleaseChildEnvironment() !== undefined;
   const matchesSdkRole =
-    controlReader === "site-maintenance"
-      ? phase === "site-publication"
+    controlReader === "site-maintenance" || controlReader === "site-application"
+      ? phase === "site-publication" &&
+        (controlReader === "site-maintenance" || purpose === "application")
       : controlReader === "metadata-maintenance"
         ? purpose === "application" && phase === "coordinator"
         : controlReader === "catalog-maintenance"
@@ -766,7 +768,8 @@ async function authenticateControlSource(
         (controlReader !== "admitted-aggregate" &&
           controlReader !== "payload" &&
           controlReader !== "tuf-application" &&
-          controlReader !== "publication-application") ||
+          controlReader !== "publication-application" &&
+          controlReader !== "site-application") ||
         sdkReaderToken === undefined ||
         sdkDeadline === undefined ||
         !readSdkProducer

@@ -1161,6 +1161,7 @@ function fixture(document: unknown = capacityDocumentFixture(), paused = false) 
 
 for (const controlReader of [
   "admitted-aggregate",
+  "site-application",
   "site-maintenance",
   "metadata-maintenance",
   "payload",
@@ -1175,10 +1176,11 @@ for (const controlReader of [
       aggregate ||
       publication ||
       controlReader === "payload" ||
-      controlReader === "tuf-application";
+      controlReader === "tuf-application" ||
+      controlReader === "site-application";
     const phase = aggregate
       ? "admission"
-      : controlReader === "site-maintenance"
+      : controlReader === "site-maintenance" || controlReader === "site-application"
         ? "site-publication"
         : controlReader === "metadata-maintenance"
           ? "coordinator"
