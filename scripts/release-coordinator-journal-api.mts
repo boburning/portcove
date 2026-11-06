@@ -2,6 +2,7 @@ import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import type { GitHubAttemptObservation, GitHubRequestPolicy } from "./github-client.mts";
 import { GitHubApiError } from "./github-operation.mts";
 import { requireStorageAppToken } from "./release-storage-credential.mts";
+import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
 import { lstatSync, realpathSync } from "node:fs";
 import path from "node:path";
 import type {
@@ -27,6 +28,24 @@ import {
  * namespace, object and CAS checks; this API grants no caller/job authority.
  * Journal credentials are never borrowed from the provider GH_TOKEN/config. */
 export function createCoordinatorJournalApi(directory: string, deadline?: number) {
+  return createFixedJournalApi(
+    directory,
+    deadline,
+    () => process.env.PORTCOVE_COORDINATOR_JOURNAL_TOKEN,
+  );
+}
+
+/** Legacy Pages handoff retains the fixed site job credential it used before
+ * the SDK migration. Selected signed publication never constructs this route. */
+export function createLegacySiteCheckpointApi(directory: string, deadline: number) {
+  return createFixedJournalApi(directory, deadline, fixedReleaseReaderToken);
+}
+
+function createFixedJournalApi(
+  directory: string,
+  deadline: number | undefined,
+  readToken: () => string | undefined,
+) {
   if (deadline !== undefined && !Number.isFinite(deadline))
     throw new Error("journal role phase deadline must be finite");
   const remaining = () => {
@@ -36,13 +55,30 @@ export function createCoordinatorJournalApi(directory: string, deadline?: number
     return timeout;
   };
   remaining();
-  const token = journalCredential(process.env.PORTCOVE_COORDINATOR_JOURNAL_TOKEN);
   return createJournalSdk(
     directory,
-    token,
+    journalCredential(readToken()),
     Math.min(deadline ?? performance.now() + 240000, coordinatorCommandDeadline() ?? Infinity),
     remaining,
   );
+}
+
+/** Current controls gate every legacy object write and ref CAS. Recovery
+ * snapshots remain readable after a control refusal or ambiguous write. */
+export function guardCoordinatorJournalWrites(
+  api: CoordinatorCheckpointApi,
+  controls: { readCurrent: () => Promise<void> },
+): CoordinatorCheckpointApi {
+  return {
+    async request(method, endpoint, body) {
+      if (method !== "GET") await controls.readCurrent();
+      return api.request(method, endpoint, body);
+    },
+    async graphql(query, variables) {
+      if (!/^\s*query\b/u.test(query)) await controls.readCurrent();
+      return api.graphql(query, variables);
+    },
+  };
 }
 
 function createJournalSdk(

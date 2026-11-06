@@ -59,19 +59,25 @@ import {
   executeOwnedCapacityEffect,
   refreshCapacityExecutor,
 } from "./release-capacity-executor.mts";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import {
   publishCoordinatorCheckpoint,
   inspectCoordinatorRemoteNamespace,
 } from "./release-coordinator-remote.mts";
-import { createCoordinatorJournalApi } from "./release-coordinator-journal-api.mts";
-import { createReleasePublicationReader } from "./release-publication-inventory.mts";
+import {
+  createCoordinatorJournalApi,
+  guardCoordinatorJournalWrites,
+} from "./release-coordinator-journal-api.mts";
+import { createPublicationInventoryWithSdk } from "./release-publication-inventory.mts";
 import { isRecord } from "./runtime-values.mts";
 import { candidateProgressIdentity } from "./release-candidate-progress-contract.mts";
 
 import { currentSiteJobDeadline } from "./release-site-job-budget.mts";
-import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
+import {
+  fixedReleaseReaderToken,
+  readOnlyReleaseChildEnvironment,
+} from "./release-readonly-child-environment.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { currentControllerJobDeadline } from "./release-signing-job-budget.mts";
 const started = performance.now();
 function remaining(deadline: number, maximum = 15000) {
@@ -318,7 +324,8 @@ export async function runSitePublicationController(
     const directory = await mkdtemp(path.join(outputParent, "site-controller-"));
     let stage = "current-journal-and-whole-site";
     try {
-      const transport = { credential: { token: fixedReleaseReaderToken() }, deadline };
+      const readerToken = fixedReleaseReaderToken();
+      const transport = { credential: { token: readerToken }, deadline };
       const recovered = await recoverRemoteCoordinator(directory, remote, {
         transport,
       });
@@ -369,16 +376,6 @@ export async function runSitePublicationController(
         deadline,
       );
       const executorIdentity = capacityExecutorIdentity(executor);
-      const api = new GitHubApiClient((args, input) => {
-        remaining(deadline);
-        const result = createGitHubRunner({
-          cwd: directory,
-          timeoutMs: remaining(deadline),
-          maxBuffer: 2 * 1024 ** 2,
-        })([...args, "--hostname", "github.com"], input);
-        remaining(deadline);
-        return result;
-      });
       let round = 0;
       const fresh = async () => {
         if (++round > 5) throw new Error("fixed whole-site control round budget exhausted");
@@ -393,21 +390,25 @@ export async function runSitePublicationController(
           }),
           "site-publication",
           round,
-          { deadline },
+          { deadline, controlReader: "site-application" },
         );
         if (source.evidence_scope !== "github.com")
           throw new Error("actual site controls required");
         return source;
       };
       let controls = await fresh();
-      const currentBoundary = () => {
+      const currentBoundary = async () => {
         remaining(deadline);
         const facts = publication.context.manifest.facts;
         if (!isRecord(facts)) throw new Error("actual complete opportunity missing");
-        const observed = controls.read(api, facts.opportunity);
+        const observed = await controls.readSdkApplicationControls(facts.opportunity);
+        remaining(deadline);
         if (observed.pause.publication_paused || !observed.resource_policy_matches_controller)
           throw new Error("fresh site controls hold this attempt");
         return observed.capacity_source.capacity.boundary;
+      };
+      const checkpointControls = async () => {
+        await currentBoundary();
       };
       const boundary = async () => {
         remaining(deadline);
@@ -494,9 +495,7 @@ export async function runSitePublicationController(
             evidence_sha256: digest(upload),
           };
         },
-        async () => {
-          currentBoundary();
-        },
+        checkpointControls,
       );
       checkpoint = uploaded.checkpoint;
       const snapshot = await readRemoteCoordinatorSnapshot(directory, remote, {
@@ -554,10 +553,21 @@ export async function runSitePublicationController(
       // Complete inventory reuses the existing provider reader and allocation
       // associations. Observing one Release cannot refresh account-wide facts.
       const { deriveCoordinatorPublication } = await import("./release-coordinator-driver.mts");
-      const inventory = createReleasePublicationReader(api),
-        tags = inventory.tags(),
-        releases = inventory.releases();
-      const { allocations } = inventory.readAllocations(
+      const inventory = await createPublicationInventoryWithSdk({
+        token: readerToken,
+        deadline,
+        requestTimeoutMs: 15000,
+        async recheck() {
+          remaining(deadline);
+        },
+        beforeDispatch() {
+          if (readOnlyReleaseChildEnvironment() !== undefined)
+            assertTrustedDirectNode("whole-site publication inventory");
+        },
+      });
+      const tags = await inventory.tags();
+      const releases = await inventory.releases();
+      const { allocations } = await inventory.readAllocations(
         tags,
         inspectCoordinatorRemoteNamespace(remote),
       );
@@ -569,7 +579,7 @@ export async function runSitePublicationController(
       );
       if (
         digest({ tags, releases }) !==
-        digest({ tags: inventory.tags(), releases: inventory.releases() })
+        digest({ tags: await inventory.tags(), releases: await inventory.releases() })
       )
         throw new Error("publication inventory changed during candidate completion");
       if (!isRecord(publication.record.candidate))
@@ -589,9 +599,6 @@ export async function runSitePublicationController(
       next.active_candidate = null;
       next.publication = nextPublication;
       next.now = new Date().toISOString();
-      const checkpointControls = async () => {
-        currentBoundary();
-      };
       const signedJournal = await ensureOwnedCheckpointJournalHistory(
         executor,
         recovered.repository,
@@ -603,18 +610,6 @@ export async function runSitePublicationController(
         result.checkpoint,
         next,
       );
-      const publishLegacy = async () => {
-        const journal = createCoordinatorJournalApi(directory, deadline);
-        return publishCoordinatorCheckpoint(recovered.repository, saved.checkpoint, remote, {
-          api: {
-            request: journal.request.bind(journal),
-            graphql(query, variables) {
-              if (/^\s*mutation\b/u.test(query)) currentBoundary();
-              return journal.graphql(query, variables);
-            },
-          },
-        });
-      };
       const completionRemote = signedJournal
         ? await publishOwnedSignedCoordinatorCheckpoint(
             executor,
@@ -622,7 +617,11 @@ export async function runSitePublicationController(
             saved.checkpoint,
             checkpointControls,
           )
-        : await publishLegacy();
+        : await publishCoordinatorCheckpoint(recovered.repository, saved.checkpoint, remote, {
+            api: guardCoordinatorJournalWrites(createCoordinatorJournalApi(directory, deadline), {
+              readCurrent: checkpointControls,
+            }),
+          });
       remaining(deadline);
       const completed = await readRemoteCoordinatorSnapshot(directory, remote, {
         transport,

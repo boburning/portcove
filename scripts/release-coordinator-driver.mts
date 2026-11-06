@@ -83,12 +83,12 @@ import {
 import {
   authenticateCapacityExecutor,
   ensureOwnedCheckpointJournalHistory,
-  usesSignedCheckpointJournal,
   publishOwnedSignedCoordinatorCheckpoint,
   executeOwnedCapacityEffect,
   refreshCapacityExecutor,
   recoverOwnedCapacityEffect,
 } from "./release-capacity-executor.mts";
+import type { RecoveryMutationControls } from "./release-capacity-executor.mts";
 import {
   authenticateControlReaderJob,
   authenticateReleaseControlSource,
@@ -991,7 +991,7 @@ async function coordinatorCheckpointPublisher(
   repository: string,
   previous: string,
   configuration: unknown,
-  controls: () => void,
+  controls: RecoveryMutationControls,
 ) {
   const authorities = await requireControllerApplicationCoordinatorAuthorities();
   if (inspectCoordinatorRemoteNamespace(configuration) !== authorities.namespace)
@@ -1014,7 +1014,8 @@ async function coordinatorCheckpointPublisher(
     budget.monotonicDeadline,
   );
   const refresh = async () => {
-    controls();
+    if (typeof controls === "function") controls();
+    else await controls.readCurrent();
   };
   const selected = await ensureOwnedCheckpointJournalHistory(
     executor,
@@ -1023,14 +1024,14 @@ async function coordinatorCheckpointPublisher(
     refresh,
   );
   return async (checkpoint: string) => {
-    controls();
+    await refresh();
     if (selected)
       return publishOwnedSignedCoordinatorCheckpoint(executor, repository, checkpoint, refresh);
     const api = guardedCoordinatorJournal(directory, budget, controls);
     const result = await publishCoordinatorCheckpoint(repository, checkpoint, configuration, {
       api,
     });
-    controls();
+    await refresh();
     return result;
   };
 }
@@ -1038,25 +1039,29 @@ async function coordinatorCheckpointPublisher(
 function guardedCoordinatorJournal(
   directory: string,
   budget: Awaited<ReturnType<typeof coordinatorDeadline>>,
-  beforeMutation: () => void,
+  beforeMutation: RecoveryMutationControls,
 ) {
   const journal = createCoordinatorJournalApi(directory, budget.monotonicDeadline);
+  const guarded = <T,>(write: () => Promise<T>) => {
+    const checkedWrite = () => {
+      budget.check();
+      return write();
+    };
+    if (typeof beforeMutation !== "function")
+      return beforeMutation.readCurrent().then(checkedWrite);
+    beforeMutation();
+    return checkedWrite();
+  };
   return {
     request: (...args: Parameters<typeof journal.request>) => {
       budget.check();
-      if (args[0] !== "GET") {
-        beforeMutation();
-        budget.check();
-      }
-      return journal.request(...args);
+      return args[0] === "GET" ? journal.request(...args) : guarded(() => journal.request(...args));
     },
     graphql: (...args: Parameters<typeof journal.graphql>) => {
       budget.check();
-      if (/^\s*mutation\b/u.test(args[0])) {
-        beforeMutation();
-        budget.check();
-      }
-      return journal.graphql(...args);
+      return /^\s*mutation\b/u.test(args[0])
+        ? guarded(() => journal.graphql(...args))
+        : journal.graphql(...args);
     },
   };
 }
@@ -3003,8 +3008,6 @@ async function recoverTrustedCoordinatorPages(
     operation_id: (selected ?? handoff)!.operation.id,
     expected: (selected ?? handoff)!.expected,
   });
-  const signedJournal = usesSignedCheckpointJournal(executor);
-  const api = signedJournal ? undefined : coordinatorApi(directory, budget, 256 * 1024);
   let round = 0;
   const initialSource = await authenticateCoordinatorInitialControls(
     directory,
@@ -3013,17 +3016,12 @@ async function recoverTrustedCoordinatorPages(
     workflow,
     budget,
     "application",
-    signedJournal ? "metadata-maintenance" : undefined,
+    "metadata-maintenance",
   );
-  const readMaintenance = async (controls: typeof initialSource) =>
-    api === undefined
-      ? controls.readSdkMaintenance(undefined, {
-          deadline: Math.min(
-            budget.monotonicDeadline,
-            performance.now() + budget.remaining(120000),
-          ),
-        })
-      : controls.readMaintenance(api);
+  const readMaintenance = (controls: typeof initialSource) =>
+    controls.readSdkMaintenance(undefined, {
+      deadline: Math.min(budget.monotonicDeadline, performance.now() + budget.remaining(120000)),
+    });
   const initialFacts = await readMaintenance(initialSource);
   if (
     initialFacts.reader.job_id !== reader.identity.job_id ||
@@ -3040,10 +3038,7 @@ async function recoverTrustedCoordinatorPages(
       factsSha,
       "coordinator",
       round,
-      {
-        deadline: budget.monotonicDeadline,
-        ...(signedJournal && { controlReader: "metadata-maintenance" as const }),
-      },
+      { deadline: budget.monotonicDeadline, controlReader: "metadata-maintenance" },
     );
     const observed = await readMaintenance(controls);
     if (
@@ -3059,24 +3054,13 @@ async function recoverTrustedCoordinatorPages(
     mutationControls = controls;
     budget.check();
   };
-  const verifyMutationControls = (current: Awaited<ReturnType<typeof readMaintenance>>) => {
+  const beforeMutation = async () => {
+    budget.check();
+    const current = await readMaintenance(mutationControls);
     if (coordinatorMaintenanceIdentity(current) !== initialIdentity)
       throw new Error("Pages recovery controls changed immediately before journal mutation");
     budget.check();
   };
-  const beforeMutation =
-    api === undefined
-      ? undefined
-      : () => {
-          budget.check();
-          verifyMutationControls(mutationControls.readMaintenance(api));
-        };
-  const beforeSignedMutation = signedJournal
-    ? async () => {
-        budget.check();
-        verifyMutationControls(await readMaintenance(mutationControls));
-      }
-    : undefined;
   const readback = selected
     ? await recoverPendingPagesPublication(
         executor,
@@ -3089,7 +3073,6 @@ async function recoverTrustedCoordinatorPages(
         budget.monotonicDeadline,
         freshBoundary,
         beforeMutation,
-        beforeSignedMutation,
       )
     : null;
   const checkpoint = readback?.settled.checkpoint ?? recovered.checkpoint;
@@ -3110,7 +3093,6 @@ async function recoverTrustedCoordinatorPages(
       budget.monotonicDeadline,
       freshBoundary,
       beforeMutation,
-      beforeSignedMutation,
     );
     return Object.freeze({
       decision: "pages-published-metadata-recovered",
@@ -3772,9 +3754,14 @@ async function requestTrustedSemanticReviewAt(
       phase: "coordinator",
       deadline: budget.monotonicDeadline,
       observedArtifact: artifact,
+      controlReader: "metadata-maintenance",
     });
-    const api = coordinatorApi(directory, budget, 16 * 1024 * 1024);
-    const observed = controls.readMaintenance(api);
+    const readMaintenance = () =>
+      controls.readSdkMaintenance(undefined, {
+        deadline: Math.min(budget.monotonicDeadline, performance.now() + budget.remaining(120000)),
+        maxBytes: 16 * 1024 ** 2,
+      });
+    const observed = await readMaintenance();
     if (
       !observed.resource_policy_matches_controller ||
       !isRecord(observed.capacity_source.capacity) ||
@@ -3810,7 +3797,7 @@ async function requestTrustedSemanticReviewAt(
     const plan = planReleaseOpportunity(input);
     if (plan.action === "pause")
       return { decision: "held", directory, checkpoint, plan, authority: "none" };
-    const fresh = controls.readMaintenance(api);
+    const fresh = await readMaintenance();
     const remote = await readRemoteCoordinatorSnapshot(directory, selected.remote_configuration, {
       transport: budget.journalTransport(),
     });
@@ -3826,10 +3813,13 @@ async function requestTrustedSemanticReviewAt(
       throw new Error("neutral request provider/control snapshot changed before durable intent");
     phase = "durable-neutral-review-request";
     budget.check();
-    const checkpointControls = () => {
-      budget.check();
-      if (controls.readMaintenance(api).facts_sha256 !== observed.facts_sha256)
-        throw new Error("neutral request controls changed immediately before journal CAS");
+    const checkpointControls = {
+      async readCurrent() {
+        budget.check();
+        if ((await readMaintenance()).facts_sha256 !== observed.facts_sha256)
+          throw new Error("neutral request controls changed immediately before journal CAS");
+        budget.check();
+      },
     };
     const publishCheckpoint = await coordinatorCheckpointPublisher(
       directory,

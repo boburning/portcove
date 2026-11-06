@@ -9,6 +9,8 @@ import test from "node:test";
 import { inspect } from "node:util";
 import {
   createCoordinatorJournalApi,
+  createLegacySiteCheckpointApi,
+  guardCoordinatorJournalWrites,
   createCheckpointJobTokenApi,
   createCheckpointHistoryReader,
   createPreparedCheckpointObjectApi,
@@ -17,6 +19,48 @@ import { performance } from "node:perf_hooks";
 import { checkpointProofFixture } from "./fixtures/checkpoint-proof-fixture.mts";
 import { createHash } from "node:crypto";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
+
+void test("legacy Pages writes wait for current controls and preserve independent readback", async (t) => {
+  const root = await fixture(t);
+  process.env.GH_TOKEN = "synthetic-site-job";
+  process.env.PORTCOVE_COORDINATOR_JOURNAL_TOKEN = "synthetic-dedicated-journal";
+  const routes: string[] = [];
+  t.mock.method(globalThis, "fetch", async (input: string, init?: RequestInit) => {
+    assert.equal(new Headers(init?.headers).get("authorization"), "token synthetic-site-job");
+    const url = new URL(input);
+    routes.push(`${init?.method} ${url.pathname}`);
+    if (url.pathname === "/graphql") return Response.json({ data: { observed: true } });
+    return Response.json({ sha: "a".repeat(40) }, { status: init?.method === "POST" ? 201 : 200 });
+  });
+  let control = Promise.withResolvers<void>();
+  const api = guardCoordinatorJournalWrites(
+    createLegacySiteCheckpointApi(root, performance.now() + 10000),
+    { readCurrent: () => control.promise },
+  );
+  const repository = "repos/boburning/portcove";
+  const mutation = "mutation { updateRefs(input: {}) { clientMutationId } }";
+  const post = api.request("POST", `${repository}/git/blobs`, { content: "public" });
+  await api.request("GET", repository);
+  assert.deepEqual(routes, [`GET /${repository}`]);
+  control.resolve();
+  await post;
+
+  control = Promise.withResolvers<void>();
+  const cas = api.graphql(mutation, {});
+  await api.graphql("query { repository { id } }", {});
+  assert.deepEqual(routes, [
+    `GET /${repository}`,
+    `POST /${repository}/git/blobs`,
+    "POST /graphql",
+  ]);
+  control.reject(new Error("current site controls refused"));
+  await assert.rejects(async () => cas, /current site controls refused/u);
+  await assert.rejects(
+    async () => api.request("POST", `${repository}/git/blobs`, {}),
+    /current site controls refused/u,
+  );
+  assert.equal(routes.length, 3);
+});
 
 void test("history transport admits only bounded GET evidence and never opens collection time", async (t) => {
   const root = await fixture(t);
