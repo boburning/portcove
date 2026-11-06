@@ -334,6 +334,7 @@ const receipts = new WeakMap<
     parent: string;
     request: NonNullable<ReturnType<typeof inspectCatalogReviewRequest>>;
     checkpoint: string;
+    token: string;
     deadline: number;
     configuration_sha256: string;
     proof_sha256: string;
@@ -354,6 +355,7 @@ async function actualInputs(owned: {
   parent: string;
   request: NonNullable<ReturnType<typeof inspectCatalogReviewRequest>>;
   checkpoint: string;
+  token: string;
   deadline: number;
 }) {
   const { requireAuthenticatedCatalogControlSource } =
@@ -368,8 +370,45 @@ async function actualInputs(owned: {
   const { requireControllerCatalogJobAuthorities } =
       await import("./release-authority-configuration.mts"),
     authorities = await requireControllerCatalogJobAuthorities("coordinator");
+  const { readRemoteCoordinatorSnapshot } = await import("./release-coordinator-recovery.mts");
+  const snapshot = await readRemoteCoordinatorSnapshot(
+    owned.parent,
+    { schema_version: 1, namespace: authorities.namespace },
+    {
+      transport: {
+        credential: { token: owned.token },
+        deadline: owned.deadline,
+        requireDirect: true,
+      },
+    },
+  );
+  if (
+    snapshot.checkpoint !== owned.checkpoint ||
+    digest(inspectCatalogReviewRequest(snapshot.input.catalog_review_request)) !==
+      digest(owned.request)
+  )
+    throw new Error("catalog original request/checkpoint changed");
+  idle(snapshot.input);
+  assertCatalogReviewRequestBaseline(owned.request, snapshot.input);
+  const {
+    discoverIndependentCatalogSemanticDispositionWithSdk,
+    createCatalogReviewDispositionReceipt,
+  } = await import("./release-semantic-disposition-reader.mts");
+  const { assertTrustedDirectNode } = await import("./release-direct-node-transport.mts");
+  const observed = await discoverIndependentCatalogSemanticDispositionWithSdk(
+    {
+      token: owned.token,
+      deadline: owned.deadline,
+      guard() {
+        bounded(owned.deadline);
+        assertTrustedDirectNode("catalog review disposition");
+      },
+    },
+    authorities.semantic_producer,
+    owned.request,
+  );
+  // LAST provider validation before returning: original observation must still be fresh.
   const { createGitHubRunner, GitHubApiClient } = await import("./github-api.mts");
-  const transport = { cwd: owned.parent, deadline: owned.deadline };
   const client = new GitHubApiClient((args, input) => {
     bounded(owned.deadline);
     const result = createGitHubRunner({
@@ -391,28 +430,6 @@ async function actualInputs(owned: {
       throw new Error("catalog disposition has no mutation transport");
     },
   };
-  const { readRemoteCoordinatorSnapshot } = await import("./release-coordinator-recovery.mts");
-  const snapshot = await readRemoteCoordinatorSnapshot(
-    owned.parent,
-    { schema_version: 1, namespace: authorities.namespace },
-    { transport },
-  );
-  if (
-    snapshot.checkpoint !== owned.checkpoint ||
-    digest(inspectCatalogReviewRequest(snapshot.input.catalog_review_request)) !==
-      digest(owned.request)
-  )
-    throw new Error("catalog original request/checkpoint changed");
-  idle(snapshot.input);
-  assertCatalogReviewRequestBaseline(owned.request, snapshot.input);
-  const { discoverIndependentCatalogSemanticDisposition, createCatalogReviewDispositionReceipt } =
-    await import("./release-semantic-disposition-reader.mts");
-  const observed = discoverIndependentCatalogSemanticDisposition(
-    api,
-    authorities.semantic_producer,
-    owned.request,
-  );
-  // LAST provider validation before returning: original observation must still be fresh.
   const controls = owned.controls as { readMaintenance: (reader: typeof api) => unknown };
   const facts = controls.readMaintenance(api);
   if (
@@ -456,10 +473,12 @@ export async function receiveActualCatalogReviewDisposition(
     throw new Error("actual catalog controls only");
   const temp = process.env.RUNNER_TEMP;
   if (!temp || !path.isAbsolute(temp)) throw new Error("fixed catalog negative parent unavailable");
+  const { fixedReleaseReaderToken } = await import("./release-readonly-child-environment.mts");
+  const token = fixedReleaseReaderToken();
   const { assertOwnedUnlinkedPath } = await import("./release-path-safety.mts");
   await assertOwnedUnlinkedPath(temp, parent, "catalog disposition parent");
   return withCoordinatorDeadline(deadline, async () => {
-    const owned = { controls, parent, request, checkpoint, deadline };
+    const owned = { controls, parent, request, checkpoint, token, deadline };
     const actual = await actualInputs(owned);
     const receipt = Object.freeze({ kind: "actual-catalog-negative-review", authority: "none" });
     receipts.set(receipt, {

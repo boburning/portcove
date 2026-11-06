@@ -653,7 +653,10 @@ for (const [file, tests] of [
   ["scripts/release-semantic-disposition.mts", ["scripts/release-semantic-disposition.test.mts"]],
   [
     "scripts/release-semantic-disposition-reader.mts",
-    ["scripts/release-semantic-disposition-reader.test.mts"],
+    [
+      "scripts/release-semantic-disposition-reader.test.mts",
+      "scripts/release-semantic-disposition.test.mts",
+    ],
   ],
   [
     "scripts/fixtures/release-semantic-disposition-fixture.mts",
@@ -2633,6 +2636,7 @@ for (const file of ["package.json", "pnpm-lock.yaml", "scripts/github-client.mts
   explicitNodeTests.set(file, [
     ...(explicitNodeTests.get(file) ?? []),
     "scripts/release-native-public-pair.test.mts",
+    "scripts/release-semantic-disposition.test.mts",
   ]);
 
 explicitNodeTests.set("scripts/release-direct-node-transport.mts", [
