@@ -155,6 +155,7 @@ const url = name => new URL(name + '.mts', base).href;
 const names = ['release-tuf-publication', 'release-signing-context-artifact', 'release-signing-context', 'release-coordinator-recovery'];
 const original = await Promise.all(names.map(name => import(url(name))));
 const { releaseCanonicalDigest: digest } = await import(url('release-canonical'));
+const { withReadOnlyReleaseChildren } = await import(url('release-readonly-child-environment'));
 const bytes = Buffer.from('{}');
 const sha = createHash('sha256').update(bytes).digest('hex');
 const configuration = structuredClone(data.configuration);
@@ -171,8 +172,19 @@ assert.equal(configuration.namespace, undefined);
 const contextReceipt = {}, tufReceipt = {};
 const manifest = { facts: { configuration: { namespace }, opportunity: {}, assembly: data.assembly, archives: data.archives }, binding: {} };
 let reads = 0;
+let dispatches = 0;
+let blockProxy = false;
+globalThis.fetch = async (input, init) => {
+  dispatches++;
+  const request = new Request(input, init);
+  assert.equal(request.method, 'GET');
+  assert.equal(request.url, 'https://api.github.com/repos/boburning/portcove');
+  assert.equal(request.headers.get('authorization'), 'token original-postsign-reader');
+  return Response.json({}, { status: 503 });
+};
 mock.module(url(names[0]), { namedExports: { ...original[0], requireActualTufPublication: async receipt => {
   assert.equal(receipt, tufReceipt);
+  process.env.GH_TOKEN = 'unrelated-late-ambient-reader';
   return { context_receipt: contextReceipt, publication: { repository_sha256: 'a'.repeat(64) } };
 } } });
 mock.module(url(names[1]), { namedExports: { ...original[1], requireReceivedSigningContext: async receipt => {
@@ -180,20 +192,38 @@ mock.module(url(names[1]), { namedExports: { ...original[1], requireReceivedSign
   return { manifest, context: data.root + '/context/manifest.json' };
 } } });
 mock.module(url(names[2]), { namedExports: { ...original[2], readBoundedReleaseContextFiles: async () => new Map(['trusted-root.json', 'offline-targets.json', 'payload.json'].map(name => [name, bytes])) } });
-mock.module(url(names[3]), { namedExports: { ...original[3], readRemoteCoordinatorSnapshot: async (_directory, selected) => {
+mock.module(url(names[3]), { namedExports: { ...original[3], readRemoteCoordinatorSnapshot: async (directory, selected, options) => {
   assert.deepEqual(selected, { schema_version: 1, namespace });
+  assert.deepEqual(options.transport, {
+    credential: { token: 'original-postsign-reader' },
+    deadline: options.transport.deadline,
+  });
+  assert.ok(options.transport.deadline > performance.now());
   reads++;
-  throw new Error('bounded synthetic reservation seam');
+  if (blockProxy) process.env.NODE_USE_ENV_PROXY = '1';
+  return original[3].readRemoteCoordinatorSnapshot(directory, selected, options);
 } } });
 const collector = await import(url('release-native-publication-admission') + '?selected-composition');
-for (const name of ['collectConfiguredNativePublicationQualificationPair', 'collectConfiguredNativePublicationCompletionPair']) {
-  await assert.rejects(collector[name](data.root, null, data.assembly, data.archives, contextReceipt, tufReceipt, performance.now() + 10000), /configured post-sign native collection refused/);
-}
-assert.equal(reads, 2);
-manifest.facts.configuration.namespace = 'wrong-namespace';
-await assert.rejects(collector.collectConfiguredNativePublicationQualificationPair(data.root, null, data.assembly, data.archives, contextReceipt, tufReceipt, performance.now() + 10000), /acquired candidate differs/);
-assert.equal(reads, 2);
-process.stdout.write('selected-reservation-seam:2\\n');
+process.env.GH_TOKEN = 'original-postsign-reader';
+await withReadOnlyReleaseChildren(data.root, async () => {
+  for (const name of ['collectConfiguredNativePublicationQualificationPair', 'collectConfiguredNativePublicationCompletionPair']) {
+    await assert.rejects(collector[name](data.root, null, data.assembly, data.archives, contextReceipt, tufReceipt, performance.now() + 10000), /configured post-sign native collection refused/);
+  }
+  assert.equal(reads, 2);
+  assert.equal(dispatches, 2);
+  blockProxy = true;
+  try {
+    await assert.rejects(collector.collectConfiguredNativePublicationQualificationPair(data.root, null, data.assembly, data.archives, contextReceipt, tufReceipt, performance.now() + 10000), /configured post-sign native collection refused/);
+    assert.equal(reads, 3);
+    assert.equal(dispatches, 2);
+  } finally {
+    delete process.env.NODE_USE_ENV_PROXY;
+  }
+  manifest.facts.configuration.namespace = 'wrong-namespace';
+  await assert.rejects(collector.collectConfiguredNativePublicationQualificationPair(data.root, null, data.assembly, data.archives, contextReceipt, tufReceipt, performance.now() + 10000), /acquired candidate differs/);
+  assert.equal(reads, 3);
+});
+process.stdout.write('selected-reservation-seam:3\\n');
 `;
   const child = spawnSync(
     process.execPath,
@@ -210,7 +240,7 @@ process.stdout.write('selected-reservation-seam:2\\n');
     },
   );
   assert.equal(child.status, 0, child.stderr);
-  assert.equal(child.stdout.trim(), "selected-reservation-seam:2");
+  assert.equal(child.stdout.trim(), "selected-reservation-seam:3");
 });
 
 void test("hosted post-sign opportunities bind each exact package to a closed signed-repository journey and snapshot it", async (t) => {
