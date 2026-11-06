@@ -1904,7 +1904,9 @@ persistence operations. A current reader may opt a persistent pattern into
 matching its concatenated prefix and suffix with `allow_empty_middle: true`.
 It still matches regular files only and retains executable and critical-file
 refusals. Indexed definition admission rejects the option until its semantics
-can be negotiated with readers. `runtime_mutable_paths` remains the exact-path form for
+can be negotiated with readers. Format-1 signed catalogs reject the option in
+the payload and inherit it only for matching compiled patterns.
+`runtime_mutable_paths` remains the exact-path form for
 disposable runtime output. Catalog validation rejects overlapping or
 duplicate rules and conflicts with executable, source, metadata, exact-runtime
 or persistent declarations. This contract cannot claim files in roaming AppData
