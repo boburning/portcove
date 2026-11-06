@@ -10,7 +10,11 @@ import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
 import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { nextLink } from "./github-operation.mts";
 import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
-import { readApplicationBudgetOwnerAsync } from "./application-release-run.mts";
+import {
+  emptyApplicationBootstrap,
+  isEmptyApplicationBootstrapCustody,
+  readApplicationBudgetOwnerAsync,
+} from "./application-release-run.mts";
 import type { ApplicationBudgetContext } from "./application-release-run.mts";
 import {
   inspectApplicationReleaseExecution,
@@ -307,10 +311,7 @@ export async function readApplicationOpportunityRuns(
 }
 
 const emptyBootstrapContinuation = {
-  opportunity: "ce5fc42d395494d6faff4a2b494b3649923c0b27f508e390667ab7ad46cc4509",
-  release_id: 436818191,
-  source: "9caa02ce98ccd5d6e3e8133735b373f779a0489c",
-  source_tree: "beac77d095fee337fe4ab495e1f73f7250e2464f",
+  ...emptyApplicationBootstrap,
   ref: "refs/tags/portcove-production-controller-windows-20261105r12",
   predecessors: [
     {
@@ -394,6 +395,93 @@ export function permitsEmptyBootstrapContinuation(
   );
 }
 
+const retainedBootstrapRuns = [
+  ...emptyBootstrapContinuation.predecessors,
+  {
+    id: 42290284351,
+    source: "a0d6bc22729151e956870cb321c43fdce48d7821",
+    tag: emptyBootstrapContinuation.ref.slice("refs/tags/".length),
+    milliseconds: 201_000,
+  },
+];
+
+function successorBootstrapRef(ref: string) {
+  const revision =
+    /^refs\/tags\/portcove-production-controller-windows-20261105r([1-9][0-9]{1,5})$/u.exec(ref);
+  return Number(revision?.[1]) >= 13;
+}
+
+/** The owner permits metadata-only recovery under cumulative cost accounting.
+ * The original pre-draft run is still counted, and later runs must agree with
+ * both durable custody and complete provider history. A new pre-registration
+ * failure requires reconciliation before another dispatch. */
+export function permitsBudgetedEmptyBootstrap(
+  runs: readonly Record<string, unknown>[],
+  execution: ReturnType<typeof inspectApplicationReleaseExecution>,
+  opportunity: string,
+  purpose: unknown,
+  executionPath: unknown,
+  owner: ApplicationBudgetContext | undefined,
+) {
+  if (
+    !owner ||
+    owner.release_id !== emptyApplicationBootstrap.release_id ||
+    !isEmptyApplicationBootstrapCustody(owner.custody) ||
+    opportunity !== emptyApplicationBootstrap.opportunity ||
+    purpose !== "metadata-bootstrap" ||
+    executionPath !== "ordinary" ||
+    execution.run_attempt !== 1 ||
+    !successorBootstrapRef(execution.ref)
+  )
+    return false;
+  const custody = owner.custody.runs;
+  const first = retainedBootstrapRuns[0]!;
+  if (
+    custody.length < retainedBootstrapRuns.length ||
+    runs.length !== custody.length + 1 ||
+    new Set(custody.slice(3).map((run) => run.control_ref)).size !== custody.length - 3
+  )
+    return false;
+  const observed = new Map(runs.map((run) => [run.id, run]));
+  const preDraft = observed.get(first.id);
+  if (
+    preDraft?.head_sha !== first.source ||
+    preDraft.head_branch !== first.tag ||
+    preDraft.run_attempt !== 1 ||
+    preDraft.status !== "completed" ||
+    preDraft.conclusion !== "failure" ||
+    custody.some((run) => Number(run.id) === first.id)
+  )
+    return false;
+  return custody.every((run, index) => {
+    const prior = retainedBootstrapRuns[index + 1];
+    if (
+      prior &&
+      (run.id !== String(prior.id) ||
+        run.control_commit !== prior.source ||
+        run.control_ref !== "refs/tags/" + prior.tag)
+    )
+      return false;
+    if (!prior && !successorBootstrapRef(run.control_ref)) return false;
+    const row = observed.get(Number(run.id));
+    if (
+      !row ||
+      row.head_sha !== run.control_commit ||
+      row.head_branch !== run.control_ref.slice("refs/tags/".length) ||
+      row.run_attempt !== 1
+    )
+      return false;
+    if (index === custody.length - 1)
+      return (
+        run.id === execution.run_id &&
+        run.control_commit === execution.source &&
+        run.control_ref === execution.ref &&
+        row.status === "in_progress"
+      );
+    return row.status === "completed" && row.conclusion === "failure";
+  });
+}
+
 export async function readApplicationJobBudget(
   registeredRunIds: readonly string[] | undefined,
   purpose: unknown,
@@ -432,7 +520,19 @@ export async function readApplicationJobBudget(
   assert.ok(runs.some((run) => run.id === Number(execution.run_id)));
   const known: unknown =
     registeredRunIds ?? JSON.parse(process.env.PORTCOVE_KNOWN_RELEASE_RUNS ?? "null");
-  assert.ok(Array.isArray(known) && known.length <= 3 && new Set(known).size === known.length);
+  const budgetedBootstrap = permitsBudgetedEmptyBootstrap(
+    runs,
+    execution,
+    opportunity,
+    purpose,
+    executionPath,
+    owner,
+  );
+  assert.ok(
+    Array.isArray(known) &&
+      (known.length <= 3 || budgetedBootstrap) &&
+      new Set(known).size === known.length,
+  );
   if (registeredRunIds === undefined)
     assert.ok(
       known.length > 0 && known.includes(execution.run_id),
@@ -483,7 +583,7 @@ export async function readApplicationJobBudget(
     );
     attempts += Number(run.run_attempt);
     assert.ok(
-      attempts <= (continuation ? 4 : 3),
+      budgetedBootstrap || attempts <= (continuation ? 4 : 3),
       "release opportunity exhausted its bounded attempts across runs",
     );
     const observations = [];
@@ -497,16 +597,17 @@ export async function readApplicationJobBudget(
       String(run.head_sha),
       String(run.id),
       current,
-      current ? purpose : "application-release",
+      current || budgetedBootstrap ? purpose : "application-release",
       current ? executionPath : "ordinary",
     );
-    if (continuation && !current) {
-      const prior = emptyBootstrapContinuation.predecessors.find(({ id }) => id === run.id);
-      assert.equal(
-        result.actual_milliseconds,
-        prior?.milliseconds,
-        "bootstrap predecessor cost changed",
-      );
+    if ((continuation || budgetedBootstrap) && !current) {
+      const prior = retainedBootstrapRuns.find(({ id }) => id === run.id);
+      if (prior)
+        assert.equal(
+          result.actual_milliseconds,
+          prior.milliseconds,
+          "bootstrap predecessor cost changed",
+        );
     }
     actual += result.actual_milliseconds;
     remaining += result.remaining_declared_minutes;

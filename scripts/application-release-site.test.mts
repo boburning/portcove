@@ -328,6 +328,17 @@ void test("Pages actor projection binds latest successful deployment, fixed repo
   }));
   const runs = [{ id: "123", control_commit: control, control_ref: `refs/tags/${ref}` }];
   assert.doesNotThrow(() => assertBootstrapPagesActor(state, site.generation, runs));
+  const retainedBootstrapRuns = [
+    ...["119", "120", "121", "122"].map((id) => ({ ...runs[0]!, id })),
+    ...runs,
+  ];
+  assert.doesNotThrow(() =>
+    assertBootstrapPagesActor(state, site.generation, retainedBootstrapRuns),
+  );
+  assert.throws(() =>
+    assertBootstrapPagesActor(state, site.generation, retainedBootstrapRuns.slice(0, -1)),
+  );
+
   for (const change of [
     { source_commit: "f".repeat(40) },
     { ref: "main" },

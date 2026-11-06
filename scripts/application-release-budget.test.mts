@@ -6,6 +6,7 @@ import {
   applicationNativeJobMinutes,
   readApplicationJobBudget,
   permitsEmptyBootstrapContinuation,
+  permitsBudgetedEmptyBootstrap,
 } from "./application-release-budget.mts";
 import {
   inspectApplicationRunCustody,
@@ -788,6 +789,15 @@ void test("only the exact exhausted empty bootstrap can admit one protected succ
       return Response.json(
         jobs([observedJob("source", 0, 34, "success"), observedJob("tools", 34, 137)]),
       );
+    if (id === 42290284351)
+      return Response.json(
+        jobs([
+          observedJob("source", 0, 26, "success"),
+          observedJob("tools", 26, 154, "success"),
+          observedJob("context / execute", 180, 21),
+        ]),
+      );
+    if (row.head_branch === tag(13)) return Response.json(jobs([observedJob("tools", 0, 6000)]));
     return Response.json(jobs([observedJob("source", 0, drift && id === 42262046049 ? 28 : 29)]));
   });
   const inspect = () =>
@@ -808,4 +818,131 @@ void test("only the exact exhausted empty bootstrap can admit one protected succ
   assert.equal(privateBudget.remaining_declared_minutes, 47);
   drift = true;
   await assert.rejects(inspect, /bootstrap predecessor cost changed/u);
+  // Reuse the actual reader against the original r12 failure and a successor.
+  drift = false;
+  runs[3] = {
+    id: 42290284351,
+    head_sha: "a0d6bc22729151e956870cb321c43fdce48d7821",
+    head_branch: tag(12),
+    status: "completed",
+    conclusion: "failure",
+    run_attempt: 1,
+  };
+  execution.ref = "refs/tags/" + tag(13);
+  process.env.PORTCOVE_APPLICATION_RELEASE_REF = execution.ref;
+  process.env.GITHUB_REF = execution.ref;
+  process.env.GITHUB_WORKFLOW_REF = `boburning/portcove/.github/workflows/application-release.yml@${execution.ref}`;
+  runs.push({
+    id: Number(execution.run_id),
+    head_sha: execution.source,
+    head_branch: tag(13),
+    status: "in_progress",
+    conclusion: "",
+    run_attempt: 1,
+  });
+  const successor = {
+    ...owner,
+    custody: inspectApplicationRunCustody({
+      ...owner.custody,
+      runs: runs.slice(1).map((row) => ({
+        id: String(row.id),
+        control_commit: row.head_sha,
+        control_ref: "refs/tags/" + row.head_branch,
+      })),
+    }),
+  };
+  const known = successor.custody.runs.map((row) => row.id);
+  const nextBudget = await readApplicationJobBudget(
+    known,
+    "metadata-bootstrap",
+    "ordinary",
+    successor,
+  );
+  assert.equal(nextBudget.attempts, 5);
+  assert.equal(nextBudget.actual_milliseconds, 431_000);
+  assert.equal(nextBudget.remaining_declared_minutes, 47);
+  runs[runs.length - 1]!.status = "completed";
+  runs[runs.length - 1]!.conclusion = "failure";
+  execution.ref = "refs/tags/" + tag(14);
+  execution.run_id = "42299000002";
+  process.env.PORTCOVE_APPLICATION_RELEASE_REF = execution.ref;
+  process.env.GITHUB_REF = execution.ref;
+  process.env.GITHUB_RUN_ID = execution.run_id;
+  process.env.GITHUB_WORKFLOW_REF = `boburning/portcove/.github/workflows/application-release.yml@${execution.ref}`;
+  runs.push({
+    id: Number(execution.run_id),
+    head_sha: execution.source,
+    head_branch: tag(14),
+    status: "in_progress",
+    conclusion: "",
+    run_attempt: 1,
+  });
+  const overBudget = {
+    ...successor,
+    custody: inspectApplicationRunCustody({
+      ...successor.custody,
+      runs: [
+        ...successor.custody.runs,
+        { id: execution.run_id, control_commit: execution.source, control_ref: execution.ref },
+      ],
+    }),
+  };
+  await assert.rejects(
+    () => readApplicationJobBudget(known, "metadata-bootstrap", "ordinary", overBudget),
+    /all actual opportunity executions plus remaining tail exceed application140/u,
+  );
+});
+
+void test("budgeted bootstrap binds every successor to complete failed history without a run-count ceiling", () => {
+  const opportunity = "ce5fc42d395494d6faff4a2b494b3649923c0b27f508e390667ab7ad46cc4509";
+  const source = "9caa02ce98ccd5d6e3e8133735b373f779a0489c";
+  const tag = (number: number) => "portcove-production-controller-windows-20261105r" + number;
+  const runs = [
+    [42262046049, source, 10],
+    [42264854396, source, 10],
+    [42273701261, "5ab859841dcdf857572b67a4acce5126002dc1c3", 11],
+    [42290284351, "a0d6bc22729151e956870cb321c43fdce48d7821", 12],
+    [42299000001, "1".repeat(40), 13],
+    [42299000002, "2".repeat(40), 14],
+  ].map(([id, sha, ref]) => ({
+    id: Number(id),
+    head_sha: String(sha),
+    head_branch: tag(Number(ref)),
+    run_attempt: 1,
+    status: "completed",
+    conclusion: "failure",
+  }));
+  runs[5]!.status = "in_progress";
+  const current = {
+    source: "2".repeat(40),
+    ref: "refs/tags/" + tag(14),
+    run_id: "42299000002",
+    run_attempt: 1,
+  };
+  const raw = {
+    schema_version: 1,
+    kind: "application-release-run-custody",
+    source,
+    source_tree: "beac77d095fee337fe4ab495e1f73f7250e2464f",
+    opportunity,
+    preparation: null,
+    runs: runs.slice(1).map((row) => ({
+      id: String(row.id),
+      control_commit: row.head_sha,
+      control_ref: "refs/tags/" + row.head_branch,
+    })),
+  };
+  const custody = inspectApplicationRunCustody(raw);
+  const owner = { release_id: 436818191, custody };
+  const permit = (inventory = runs, execution = current, purpose = "metadata-bootstrap") =>
+    permitsBudgetedEmptyBootstrap(inventory, execution, opportunity, purpose, "ordinary", owner);
+  assert.equal(permit(), true);
+  assert.equal(permit(runs.slice(1)), false);
+  assert.equal(
+    permit(runs.map((row, index) => (index === 4 ? { ...row, conclusion: "success" } : row))),
+    false,
+  );
+  assert.equal(permit(runs, { ...current, run_attempt: 2 }), false);
+  assert.equal(permit(runs, current, "application-release"), false);
+  assert.throws(() => inspectApplicationRunCustody({ ...raw, opportunity: "3".repeat(64) }));
 });
