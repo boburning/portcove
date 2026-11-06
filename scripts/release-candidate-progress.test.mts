@@ -83,7 +83,8 @@ void test("actual phase handoff awaits its fixed-reader snapshot between freshne
     async recheck() {
       calls.push("recheck");
     },
-    fresh() {
+    async fresh() {
+      await new Promise<void>((resolve) => setImmediate(resolve));
       calls.push("fresh");
     },
   };
@@ -93,4 +94,66 @@ void test("actual phase handoff awaits its fixed-reader snapshot between freshne
   remoteCheckpoint = "b".repeat(40);
   await assert.rejects(run(value), /remote phase checkpoint changed/u);
   assert.deepEqual(calls, ["recheck", "fresh", "snapshot"]);
+});
+
+void test("actual legacy journal route awaits fresh controls immediately before ref CAS", async () => {
+  const source = await readFile(
+    new URL("./release-candidate-progress.mts", import.meta.url),
+    "utf8",
+  );
+  assert.doesNotMatch(source, /\b(?:GitHubApiClient|createGitHubRunner)\b/u);
+  const start = source.indexOf("  const publishLegacy =");
+  const end = source.indexOf("  const remote =", start);
+  assert.ok(start > 0 && end > start);
+  let pending = Promise.withResolvers<void>();
+  let entered = Promise.withResolvers<void>();
+  const calls: string[] = [];
+  const run = runInNewContext(
+    stripTypeScriptTypes(`(()=>{${source.slice(start, end)}return publishLegacy;})()`),
+    {
+      proof: { repository: "inert", namespace: "portcove-fixture" },
+      saved: { checkpoint: "a".repeat(40) },
+      deadline: 1234,
+      async fresh() {
+        calls.push("guard");
+        entered.resolve();
+        await pending.promise;
+      },
+      createCoordinatorJournalApi: () => ({
+        request: assert.fail,
+        async graphql(query: string) {
+          calls.push(query);
+          return { data: {} };
+        },
+      }),
+      async publishCoordinatorCheckpoint(
+        _repository: unknown,
+        _checkpoint: unknown,
+        _configuration: unknown,
+        {
+          api,
+        }: {
+          api: { graphql: (query: string, variables: Record<string, unknown>) => Promise<unknown> };
+        },
+      ) {
+        await api.graphql("query { current }", {});
+        await api.graphql("mutation { updateRefs }", {});
+      },
+    },
+  ) as () => Promise<void>;
+  const refusal = assert.rejects(run(), /changed controls/u);
+  await entered.promise;
+  assert.deepEqual(calls, ["query { current }", "guard"]);
+  pending.reject(new Error("changed controls"));
+  await refusal;
+  assert.deepEqual(calls, ["query { current }", "guard"]);
+  pending = Promise.withResolvers<void>();
+  entered = Promise.withResolvers<void>();
+  calls.length = 0;
+  const approved = run();
+  await entered.promise;
+  assert.deepEqual(calls, ["query { current }", "guard"]);
+  pending.resolve();
+  await approved;
+  assert.deepEqual(calls, ["query { current }", "guard", "mutation { updateRefs }"]);
 });

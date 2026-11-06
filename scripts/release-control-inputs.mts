@@ -1,7 +1,11 @@
 import { createHash } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
-import type { GitHubRequestPolicy, GitHubReservation } from "./github-client.mts";
+import type {
+  GitHubClientOptions,
+  GitHubRequestPolicy,
+  GitHubReservation,
+} from "./github-client.mts";
 import { GitHubApiError } from "./github-operation.mts";
 import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
 import { parseVersionClassification } from "../apps/desktop/scripts/release-version-policy.mts";
@@ -773,6 +777,11 @@ type ControlSdkOptions = {
   requestTimeoutMs?: number;
   maxBytes?: number;
   fetch?: typeof globalThis.fetch;
+  accounting?: {
+    reserve: NonNullable<GitHubClientOptions["reserve"]>;
+    elapsed: (milliseconds: number) => void;
+    currentDeadline: () => number;
+  };
 };
 
 export function createFixedControlReadAllowance() {
@@ -800,7 +809,8 @@ async function controlSdkReader(
   reserve?: ReturnType<typeof createFixedControlReadAllowance>,
   writer?: ClassificationSdkWriter,
 ) {
-  const { token, checkToken, guard, fetch, requestTimeoutMs } = options;
+  const { token, checkToken, guard, fetch, requestTimeoutMs, accounting } = options;
+  const reservation = accounting?.reserve ?? reserve;
   const { createGitHubClient } = await import("./github-client.mts");
   const createReader = (readerToken: string) =>
     createGitHubClient({
@@ -812,7 +822,12 @@ async function controlSdkReader(
         return true;
       },
       ...(fetch ? { fetch } : {}),
-      ...(reserve ? { reserve } : {}),
+      ...(reservation ? { reserve: reservation } : {}),
+      ...(accounting && {
+        observe(observation) {
+          accounting.elapsed(observation.elapsedMs);
+        },
+      }),
       ...(requestTimeoutMs === undefined ? {} : { requestTimeoutMs }),
     });
   const client = await createReader(token);
@@ -833,7 +848,13 @@ async function controlSdkReader(
           ...(fetch ? { fetch } : {}),
           ...(requestTimeoutMs === undefined ? {} : { requestTimeoutMs }),
         });
-  const once = () => ({ portcove: { replay: "once" as const, attempts: 0 } });
+  const once = () => ({
+    portcove: {
+      replay: "once" as const,
+      attempts: 0,
+      ...(accounting && { deadline: accounting.currentDeadline() }),
+    },
+  });
   const read = async (
     effect: Extract<ControlRead, { kind: "rest" | "ref" }>,
   ): Promise<ControlResponse> => {

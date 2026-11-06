@@ -375,6 +375,7 @@ async function preparePayloadSigning(
     directory: string,
   ) => Promise<void>,
   prerequisites?: {
+    deadline: number;
     compiler: NonNullable<Parameters<typeof acquireReleaseAdmissionWithControlHandshake>[5]>;
     establishNative: NonNullable<Parameters<typeof acquireReleaseAdmissionWithControlHandshake>[6]>;
   },
@@ -529,6 +530,7 @@ async function preparePayloadSigning(
       },
       prerequisites?.compiler,
       prerequisites?.establishNative,
+      prerequisites?.deadline,
     );
     const admissionBytes = JSON.stringify(admission);
     if (Buffer.byteLength(admissionBytes) > 2 * 1024 ** 2)
@@ -862,6 +864,7 @@ export async function runPayloadSigningController(
       };
     },
     {
+      deadline,
       compiler: {
         controller_tools: toolsReceipt,
         controller_source: {

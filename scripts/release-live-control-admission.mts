@@ -250,7 +250,7 @@ async function authenticateControlSource(
                 ? phase === "payload"
                 : controlReader === "publication-application"
                   ? phase === "release-publication"
-                : phase.startsWith("tuf-"));
+                  : phase.startsWith("tuf-"));
   if (
     sdkReaderToken !== undefined &&
     (!matchesSdkRole ||
@@ -748,10 +748,19 @@ async function authenticateControlSource(
     },
     async readSdkApplicationControls(
       opportunity: unknown,
-      accounting?: {
-        deadline: number;
-        reserve: NonNullable<Parameters<typeof readApplicationControlsWithSdk>[3]>;
-      },
+      limits:
+        | {
+            deadline: number;
+            reserve: NonNullable<Parameters<typeof readApplicationControlsWithSdk>[3]>;
+            maxBytes?: never;
+            admission?: never;
+          }
+        | {
+            deadline?: number;
+            reserve?: never;
+            maxBytes?: number;
+            admission?: Parameters<typeof readApplicationControlsWithSdk>[0]["accounting"];
+          } = {},
     ) {
       if (
         (controlReader !== "admitted-aggregate" &&
@@ -763,33 +772,48 @@ async function authenticateControlSource(
         !readSdkProducer
       )
         throw new Error("actual scoped application reader unavailable");
-      const token = accounting === undefined ? sdkReaderToken : env.PORTCOVE_RELEASE_READ_TOKEN;
+      const risk = limits.reserve !== undefined;
+      const token = risk ? env.PORTCOVE_RELEASE_READ_TOKEN : sdkReaderToken;
       if (!token || token.length > 16384 || /\s/u.test(token))
         throw new Error("fixed risk reader token unavailable");
-      const fetch: typeof globalThis.fetch =
-        accounting === undefined
-          ? fixedFetch
-          : (input, init) => {
-              assertTrustedDirectNode("fixed risk controls");
-              return fixedFetch(input, init);
-            };
-      const protection = guard();
+      const fetch: typeof globalThis.fetch = risk
+        ? (input, init) => {
+            assertTrustedDirectNode("fixed risk controls");
+            return fixedFetch(input, init);
+          }
+        : fixedFetch;
+      const deadline = Math.min(sdkDeadline, limits.deadline ?? Infinity);
+      const requireCurrent = () => {
+        const protection = guard();
+        if (performance.now() >= deadline)
+          throw new Error("application controls read deadline exhausted");
+        return protection;
+      };
+      const protection = requireCurrent();
       const { classification, pause, capacity } = await readApplicationControlsWithSdk(
         {
           token,
-          deadline: Math.min(sdkDeadline, accounting?.deadline ?? Infinity),
-          guard,
+          deadline,
+          maxBytes: Math.min(limits.maxBytes ?? 2 * 1024 ** 2, 2 * 1024 ** 2),
+          requestTimeoutMs: 15000,
+          guard() {
+            requireCurrent();
+            if (limits.admission && performance.now() >= limits.admission.currentDeadline())
+              throw new Error("admission API acquisition bound exhausted");
+          },
           fetch,
+          ...(limits.admission && { accounting: limits.admission }),
         },
         config,
         opportunity,
-        accounting?.reserve,
+        limits.reserve,
       );
-      guard();
-      // The original observer readback had its own credential and scope. It
-      // stays outside the risk inventory allowance, with the same tighter cutoff.
-      if ((await readSdkProducer(accounting?.deadline)) !== producerIdentity)
+      requireCurrent();
+      // The observer readback has its own credential and scope. It does not
+      // consume the risk or admission inventory allowance.
+      if ((await readSdkProducer(deadline)) !== producerIdentity)
         throw new Error("observer job changed during source acquisition");
+      requireCurrent();
       return applicationFacts(protection, classification, pause, capacity);
     },
   });
