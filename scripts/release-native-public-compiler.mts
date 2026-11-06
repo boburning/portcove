@@ -16,7 +16,7 @@ import {
 import { verifyReleaseSourceAttestation } from "./release-source-attestation.mts";
 import {
   prepareReleaseCompilerSourceClosure,
-  inspectPreparedCompilerSource,
+  inspectPreparedCompilerSourceAsync,
   compareCompilerClosure,
 } from "./release-compiler-source.mts";
 import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.mts";
@@ -171,18 +171,13 @@ export async function collectActualPublicWindowsCompilerIdentity(
     { git: git.path },
   );
   await retain("compiler-source-closure.json", Buffer.from(JSON.stringify(closure)));
-  inspectPreparedCompilerSource(selected.source.api, identity.allocation);
+  const { read, deadline } = await selected.source.compilerSourceReader(selected.deadline);
+  await inspectPreparedCompilerSourceAsync(read, identity.allocation, deadline);
   await compareCompilerClosure(closure, identity.allocation.source_tree, {
-    readTree: async (sha) => {
-      const response = selected.source.api.request(
-        "GET",
-        `repos/boburning/portcove/git/trees/${sha}`,
-      );
-      if (response.status !== 200)
-        throw new Error("complete authenticated compiler source tree unavailable");
-      return response.body;
-    },
+    readTree: async (sha) =>
+      (await read(`repos/boburning/portcove/git/trees/${sha}`, deadline)).body,
   });
+  await selected.source.recheck();
   const capture = await readBoundedPublicBuildInputFile(
     selected.parent.controller_root,
     "scripts/release-compiler-capture.mts",

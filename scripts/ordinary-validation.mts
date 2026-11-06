@@ -783,6 +783,7 @@ for (const [file, tests] of [
   [
     "scripts/release-coordinator-recovery.mts",
     [
+      "scripts/acquire-release-admission.test.mts",
       "scripts/release-native-admission.test.mts",
       "scripts/release-catalog-continuation.test.mts",
       "scripts/release-metadata-context-recovery.test.mts",
@@ -845,6 +846,7 @@ for (const [file, tests] of [
   [
     "scripts/release-source-changes.mts",
     [
+      "scripts/acquire-release-admission.test.mts",
       "scripts/release-source-changes.test.mts",
       "scripts/release-compiler-source.test.mts",
       "scripts/release-compiler-source-admission.test.mts",
@@ -853,6 +855,7 @@ for (const [file, tests] of [
   [
     "scripts/release-compiler-source.mts",
     [
+      "scripts/release-native-public-compiler.test.mts",
       "scripts/release-compiler-source.test.mts",
       "scripts/release-compiler-source-admission.test.mts",
       "scripts/release-published-source.test.mts",
@@ -889,6 +892,7 @@ for (const [file, tests] of [
   [
     "scripts/release-custody-provider.mts",
     [
+      "scripts/release-native-source-contract.test.mts",
       "scripts/application-release-feed.test.mts",
       "scripts/application-release-publication.test.mts",
       "scripts/application-release-context.test.mts",
@@ -988,13 +992,18 @@ for (const [file, tests] of [
   [
     "scripts/release-hosted-native-candidate.mts",
     [
+      "scripts/acquire-release-admission.test.mts",
       "scripts/production-controller-admission.test.mts",
       "scripts/release-hosted-native-job.test.mts",
     ],
   ],
   [
     "scripts/release-native-candidate.mts",
-    ["scripts/release-native-candidate.test.mts", "scripts/release-native-attempt.test.mts"],
+    [
+      "scripts/acquire-release-admission.test.mts",
+      "scripts/release-native-candidate.test.mts",
+      "scripts/release-native-attempt.test.mts",
+    ],
   ],
   ["scripts/release-native-keyless-assembly.mts", ["scripts/release-native-candidate.test.mts"]],
   [

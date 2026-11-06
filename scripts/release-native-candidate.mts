@@ -20,7 +20,7 @@ import {
   requireActualNativeParent,
   remainingNativeParentBudget,
 } from "./release-native-parent.mts";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
+import type { RetainedGitHubSpawn } from "./github-cli.mts";
 import {
   downloadGitHubArtifactArchiveFile,
   downloadGitHubReleaseAssetFile,
@@ -185,75 +185,6 @@ function toolBytes(file: string, expected: string) {
   )
     throw new Error("native fixed source tool changed");
   return { dev: after.dev, ino: after.ino, size: after.size, mtimeMs: after.mtimeMs };
-}
-
-/** Data-only route guard used immediately before every credentialled child. */
-export function inspectNativeSourceCommand(args: readonly string[], input?: unknown) {
-  if (args[0] !== "api" || args.length > 16)
-    throw new Error("native source admits fixed read-only GitHub API operations only");
-  let endpoint: string | null = null,
-    method: string | null = null,
-    host: string | null = null,
-    stdin = false;
-  for (let index = 1; index < args.length; index++) {
-    const item = args[index];
-    if (item === "--include") continue;
-    if (item === "--hostname" && host === null) host = args[++index] ?? null;
-    else if (item === "--method" && method === null) method = args[++index] ?? null;
-    else if (item === "--input" && !stdin) {
-      if (args[++index] !== "-") throw new Error("native source forbids body files");
-      stdin = true;
-    } else if (typeof item === "string" && !item.startsWith("-") && endpoint === null)
-      endpoint = item;
-    else throw new Error("native source command shape differs");
-  }
-  if (host !== "github.com" || !endpoint) throw new Error("native source host/route differs");
-  if (endpoint === "graphql") {
-    if (!stdin || input === undefined || (method !== null && method !== "POST"))
-      throw new Error("native source GraphQL body required");
-    const text = Buffer.isBuffer(input) ? input.toString("utf8") : input;
-    if (typeof text !== "string") throw new Error("native source query must be UTF-8 text");
-    if (Buffer.byteLength(text) > 128 * 1024) throw new Error("native source query bound exceeded");
-    const body: unknown = JSON.parse(text);
-    if (
-      !isRecord(body) ||
-      typeof body.query !== "string" ||
-      !/^\s*query(?:\s|\()/u.test(body.query) ||
-      /\bmutation\b/u.test(body.query)
-    )
-      throw new Error("native source GraphQL mutation refused");
-  } else if (
-    !/^repos\/boburning\/portcove(?:\/[A-Za-z0-9_./?=&%+-]+)?$/u.test(endpoint) ||
-    decodeURIComponent(endpoint.split("?")[0]!)
-      .split("/")
-      .some((part) => part === "." || part === ".." || !part) ||
-    (method !== null && method !== "GET") ||
-    stdin ||
-    input !== undefined
-  )
-    throw new Error("native source repository mutation/foreign route refused");
-  return { scope: "read-only-route-integrity", authority: "none" } as const;
-}
-
-/** Passive, read-only source transport; callers retain credential/tool custody. */
-export function createNativeSourceApiReader(
-  cwd: string,
-  spawn: NonNullable<NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"]>,
-) {
-  return new GitHubApiClient((args, input) => {
-    const command = [...args, "--hostname", "github.com"];
-    inspectNativeSourceCommand(command, input);
-    // A 4 MiB catalog needs base64 plus JSON framing. Only an immutable source
-    // blob gets this allowance; all unrelated metadata retains its 2 MiB bound.
-    const blob = command.some((item) =>
-      /^repos\/boburning\/portcove\/git\/blobs\/[a-f0-9]{40}$/u.test(item),
-    );
-    return createGitHubRunner({
-      cwd,
-      maxBuffer: (blob ? 8 : 2) * 1024 * 1024,
-      spawn,
-    })(command, input);
-  });
 }
 
 /** Only the existing fixed GitHub/Sigstore verifier over retained public files.
@@ -422,21 +353,6 @@ async function sourceTransport(parent: Parent, directory: string) {
     GH_PROMPT_DISABLED: "1",
     GH_NO_UPDATE_NOTIFIER: "1",
   });
-  // The closure is never passed to candidate code or exported as a provenance
-  // constructor. Only maintained read-only collectors below receive adapters.
-  const textSpawn: NonNullable<NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"]> = (
-    command,
-    args,
-    options,
-  ) => {
-    if (command !== "gh") throw new Error("native source executable selection refused");
-    inspectNativeSourceCommand(args, options.input);
-    checkToolIdentity();
-    const result = spawnSync(fixed.github_cli.path, args, { ...options, env });
-    checkToolIdentity();
-    return result;
-  };
-  const api = createNativeSourceApiReader(directory, textSpawn);
   const credential = { kind: "explicit" as const, token };
   const fixedFetch: typeof globalThis.fetch = (input, init) => {
     checkToolIdentity();
@@ -552,11 +468,7 @@ async function sourceTransport(parent: Parent, directory: string) {
   };
   const verifier = (controller: { controller_revision: string; controller_ref: string }) => {
     const expected = Object.freeze({ ...controller });
-    const spawn: NonNullable<NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"]> = (
-      command,
-      args,
-      options,
-    ) => {
+    const spawn: RetainedGitHubSpawn = (command, args, options) => {
       if (command !== "gh") throw new Error("native verifier executable selection refused");
       inspectNativeControllerVerificationCommand(args, directory, expected);
       checkToolIdentity();
@@ -570,11 +482,7 @@ async function sourceTransport(parent: Parent, directory: string) {
     const expected = Object.freeze({ ...identity });
     if (!expected.ref.startsWith(`refs/tags/${parent.descriptor.namespace}-prepared/v`))
       throw new Error("public compiler source escaped installed namespace");
-    const spawn: NonNullable<NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"]> = (
-      command,
-      args,
-      options,
-    ) => {
+    const spawn: RetainedGitHubSpawn = (command, args, options) => {
       if (command !== "gh") throw new Error("native public verifier executable selection refused");
       inspectNativeReleaseVerificationCommand(args, directory, expected);
       checkToolIdentity();
@@ -640,7 +548,23 @@ async function sourceTransport(parent: Parent, directory: string) {
     };
   };
   return {
-    api,
+    async compilerSourceReader(phaseDeadline: number) {
+      await recheck();
+      const { createCompilerSourceReader } = await import("./release-compiler-source.mts");
+      const deadline = postSignDeadline(phaseDeadline, 15 * 60 * 1000);
+      const read = await createCompilerSourceReader({
+        credential,
+        deadline,
+        maxBytes: 2 * 1024 * 1024,
+        fixedReader: true,
+        checkSource(url) {
+          if (url.pathname.startsWith("/repositories/"))
+            throw new Error("native source repository route refused");
+          checkToolIdentity();
+        },
+      });
+      return { read, deadline };
+    },
     collectEvidence,
     metadata,
     declarations,
@@ -719,6 +643,14 @@ async function sourceTransport(parent: Parent, directory: string) {
         `/repos/boburning/portcove/${route}`,
         performance.now() + remainingNativeParentBudget(),
       ),
+    admissionSource: () => ({
+      token,
+      deadline: postSignDeadline(Infinity, 15 * 60 * 1000),
+      guard() {
+        checkToolIdentity();
+        assertTrustedDirectNode("installed native admission");
+      },
+    }),
     readPostSignInventory,
     readPostSignArtifact,
     downloadPostSignArchive,
@@ -2181,7 +2113,7 @@ export async function acquireActualNativeCandidate(parentReceipt: object) {
         release_profile: "initial-beta-win-linux",
       },
       {
-        api: source.api,
+        nativeSource: source.admissionSource(),
         collectEvidence: source.collectEvidence,
         download: source.download,
         recover: source.recover,

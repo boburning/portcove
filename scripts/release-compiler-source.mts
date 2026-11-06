@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { execFileSync } from "node:child_process";
-import type { GitHubMetadataResponse, GitHubRestReader } from "./github-operation.mts";
+import type { GitHubMetadataResponse } from "./github-operation.mts";
 import type { GitHubCredential, GitHubRequestPolicy } from "./github-client.mts";
 import { localDeveloperCredential } from "./github-cli.mts";
 import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
@@ -97,6 +97,7 @@ export async function createCompilerSourceReader(options: {
   deadline: number;
   maxBytes: number;
   fixedReader?: boolean;
+  checkSource?: (url: URL) => void;
 }) {
   const { createGitHubClient } = await import("./github-client.mts");
   let allowed: string | undefined;
@@ -107,7 +108,9 @@ export async function createCompilerSourceReader(options: {
     requestTimeoutMs: compilerTreeTimeoutMs,
     allowRequest(method, url) {
       if (options.fixedReader) assertTrustedDirectNode("Fixed compiler source reader");
-      return method === "GET" && url.pathname + url.search === allowed;
+      if (method !== "GET" || url.pathname + url.search !== allowed) return false;
+      options.checkSource?.(url);
+      return true;
     },
   });
   return async (endpoint: string, deadline: number): Promise<GitHubMetadataResponse> => {
@@ -142,6 +145,7 @@ export async function createCompilerSourceReader(options: {
     } finally {
       try {
         await policy.admissionSettled;
+        options.checkSource?.(url);
       } finally {
         allowed = undefined;
       }
@@ -318,17 +322,6 @@ export interface PreparedCompilerSource {
 /** Reuse the actual four-file preparation transform. Complete authenticated net
  * trees, one exact parent and expected blob hashes prohibit a blanket version
  * exception from hiding dependency, script, configuration or arbitrary edits. */
-export function inspectPreparedCompilerSource(
-  reader: GitHubRestReader,
-  candidate: PreparedCompilerSource,
-) {
-  const collection = preparedCompilerSourceRequests(candidate);
-  let step = collection.next();
-  while (!step.done) step = collection.next(reader.request("GET", step.value.endpoint));
-  return step.value;
-}
-
-/** The admitted SDK path shares the exact same source and transform checks. */
 export async function inspectPreparedCompilerSourceAsync(
   read: (endpoint: string, deadline: number) => Promise<GitHubMetadataResponse>,
   candidate: PreparedCompilerSource,

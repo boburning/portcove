@@ -446,7 +446,10 @@ void test("hosted native parent default path retains original source and issuer 
         if (outcome === "prior-hold")
           throw new CoordinatorRemoteError("hold", { phase: "repository-and-reservation" });
         await requireActualHostedNativeParentSource(originalParent);
-        assert.ok(options.retainDesktopPackage);
+        assert.equal(options.api, undefined);
+        assert.ok(options.nativeSource && options.retainDesktopPackage);
+        assert.equal(options.nativeSource.token, "inert-reader-only");
+        options.nativeSource.guard();
         await options.retainDesktopPackage(
           file,
           outcome === "bad-bytes" ? Buffer.from("changed") : packageBytes,

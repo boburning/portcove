@@ -31,7 +31,6 @@ import {
   inspectSelectedNativeCandidate,
   acquireActualNativeCandidate,
   requireActualNativeCandidate,
-  inspectNativeSourceCommand,
   nativeInvocationIdentity,
   inspectNativePostSignController,
   inspectNativeCurrentStage,
@@ -551,39 +550,6 @@ void test("selection reconstructs exact package identities without native or adm
   }
 });
 
-void test("credentialled source routes admit only exact provider reads and query bodies", () => {
-  const args = [
-    "api",
-    "--include",
-    "repos/boburning/portcove/actions/runs/123",
-    "--method",
-    "GET",
-    "--hostname",
-    "github.com",
-  ];
-  assert.equal(inspectNativeSourceCommand(args).authority, "none");
-  const query = ["api", "graphql", "--include", "--input", "-", "--hostname", "github.com"];
-  inspectNativeSourceCommand(
-    query,
-    JSON.stringify({ query: "query($id:ID!){node(id:$id){id}}", variables: { id: "fixed" } }),
-  );
-  for (const changed of [
-    args.map((value) => (value === "GET" ? "POST" : value)),
-    args.map((value) => (value === "github.com" ? "foreign.invalid" : value)),
-    args.map((value) => (value.startsWith("repos/") ? "repos/foreign/portcove" : value)),
-    [...args, "--jq", ".token"],
-    ["auth", "token"],
-  ])
-    assert.throws(() => inspectNativeSourceCommand(changed));
-  assert.throws(() =>
-    inspectNativeSourceCommand(
-      query,
-      JSON.stringify({ query: "mutation{deleteRepository{clientMutationId}}" }),
-    ),
-  );
-  assert.throws(() => inspectNativeSourceCommand(args, "unexpected body"));
-});
-
 void test("imported parent and selected descriptors cannot start actual source collection", async () => {
   for (const raw of [{}, { kind: "actual-native-candidate-selection", accepted: true }]) {
     await assert.rejects(acquireActualNativeCandidate(raw), /actual installed native parent/);
@@ -797,16 +763,6 @@ void test("predecessor custody requires exact immutable Release and streams veri
   await assert.rejects(acquire(), { code: "EEXIST" });
   assert.deepEqual(await readFile(retained.path), payload);
   assert.deepEqual(await readdir(root), [path.basename(retained.path)]);
-  assert.throws(() =>
-    inspectNativeSourceCommand([
-      "api",
-      "--hostname",
-      "github.com",
-      "-H",
-      "Accept: application/octet-stream",
-      "repos/boburning/portcove/releases/assets/2",
-    ]),
-  );
 });
 
 void test("native detached payload verifier uses the same pinned keyless tool with exact private paths and refuses credentials before reading", async () => {
