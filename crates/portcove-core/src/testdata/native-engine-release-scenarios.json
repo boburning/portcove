@@ -1,0 +1,121 @@
+{
+  "dhewm/dhewm3": {
+    "successor_tag": "1.5.6",
+    "successor_asset_names": [
+      "dhewm3-1.5.6_Linux_amd64.tar.gz",
+      "dhewm3-1.5.6_Linux_arm64.tar.gz",
+      "dhewm3-1.5.6_win32.zip",
+      "dhewm3-mods-1.5.6_Linux_amd64.tar.gz",
+      "dhewm3-mods-1.5.6_Linux_arm64.tar.gz",
+      "dhewm3-mods-1.5.6_win32.zip",
+      "dhewm3-wide-guis-v0.2.zip"
+    ],
+    "players": {
+      "dhewm3-1.5.5_win32.zip": {
+        "successor_asset": "dhewm3-1.5.6_win32.zip",
+        "wrong_cpu": "dhewm3-1.5.5_arm64.zip",
+        "wrong_platform": "dhewm3-1.5.5_linux.zip",
+        "ambiguous_asset": "DHEWM3-1.5.5_WIN32.ZIP"
+      }
+    }
+  },
+  "Inkub0/dude": {
+    "successor_tag": "v0.9.8",
+    "successor_asset_names": [
+      "dude-0.9.8-baked-ao-lm.zip",
+      "dude-0.9.8-baked-ao-roe.zip",
+      "dude-0.9.8-baked-ao.zip",
+      "dude-0.9.8-linux-x86_64.tar.gz",
+      "dude-0.9.8-win64.zip"
+    ],
+    "players": {
+      "dude-0.9.7-win64.zip": {
+        "successor_asset": "dude-0.9.8-win64.zip",
+        "wrong_cpu": "dude-0.9.7-arm64.zip",
+        "wrong_platform": "dude-0.9.7-linux.zip",
+        "ambiguous_asset": "DUDE-0.9.7-WIN64.ZIP"
+      }
+    }
+  },
+  "openmoh/openmohaa": {
+    "successor_tag": "v0.82.2",
+    "successor_asset_names": [
+      "openmohaa-v0.82.2-linux-amd64.zip",
+      "openmohaa-v0.82.2-linux-arm64.zip",
+      "openmohaa-v0.82.2-linux-armhf.zip",
+      "openmohaa-v0.82.2-linux-i686.zip",
+      "openmohaa-v0.82.2-linux-powerpc.zip",
+      "openmohaa-v0.82.2-linux-ppc64.zip",
+      "openmohaa-v0.82.2-linux-ppc64el.zip",
+      "openmohaa-v0.82.2-macos-multiarch-arm64-x86_64.zip",
+      "openmohaa-v0.82.2-windows-arm64-pdb.zip",
+      "openmohaa-v0.82.2-windows-arm64.msi",
+      "openmohaa-v0.82.2-windows-arm64.zip",
+      "openmohaa-v0.82.2-windows-x64-pdb.zip",
+      "openmohaa-v0.82.2-windows-x64.msi",
+      "openmohaa-v0.82.2-windows-x64.zip",
+      "openmohaa-v0.82.2-windows-x86-pdb.zip",
+      "openmohaa-v0.82.2-windows-x86.msi",
+      "openmohaa-v0.82.2-windows-x86.zip"
+    ],
+    "players": {
+      "openmohaa-v0.82.1-windows-x64.zip": {
+        "successor_asset": "openmohaa-v0.82.2-windows-x64.zip",
+        "wrong_cpu": "openmohaa-v0.82.1-windows-arm64.zip",
+        "wrong_platform": "openmohaa-v0.82.1-linux-x64.zip",
+        "ambiguous_asset": "OPENMOHAA-V0.82.1-WINDOWS-X64.ZIP"
+      }
+    }
+  },
+  "JACoders/OpenJK": {
+    "successor_tag": "latest",
+    "successor_asset_names": [
+      "OpenJK-linux-x86.tar.gz",
+      "OpenJK-linux-x86_64.tar.gz",
+      "OpenJK-macos-arm64.tar.gz",
+      "OpenJK-macos-x86_64.tar.gz",
+      "OpenJK-windows-x86.zip",
+      "OpenJK-windows-x86_64.zip",
+      "OpenJO-linux-x86.tar.gz",
+      "OpenJO-linux-x86_64.tar.gz",
+      "OpenJO-macos-arm64.tar.gz",
+      "OpenJO-macos-x86_64.tar.gz",
+      "OpenJO-windows-x86.zip",
+      "OpenJO-windows-x86_64.zip"
+    ],
+    "players": {
+      "OpenJO-windows-x86_64.zip": {
+        "successor_asset": "OpenJO-windows-x86_64.zip",
+        "wrong_cpu": "OpenJO-windows-arm64.zip",
+        "wrong_platform": "OpenJO-linux-x86_64.zip",
+        "ambiguous_asset": "OPENJO-WINDOWS-X86_64.ZIP"
+      },
+      "OpenJK-windows-x86_64.zip": {
+        "successor_asset": "OpenJK-windows-x86_64.zip",
+        "wrong_cpu": "OpenJK-windows-arm64.zip",
+        "wrong_platform": "OpenJK-linux-x86_64.zip",
+        "ambiguous_asset": "OPENJK-WINDOWS-X86_64.ZIP"
+      }
+    }
+  },
+  "sdlpal/sdlpal": {
+    "successor_tag": "v3.0.2025.0617",
+    "successor_asset_names": [
+      "SDLPal-366bc36-x86_64.AppImage",
+      "sdlpal-emscripten.zip",
+      "sdlpal-macos.dmg",
+      "sdlpal-unsigned.ipa",
+      "sdlpal-win32-mingw.zip",
+      "sdlpal-win32-msvc.zip",
+      "sdlpal.apk"
+    ],
+    "players": {
+      "sdlpal-win32-mingw.zip": {
+        "successor_asset": "sdlpal-win32-mingw.zip",
+        "wrong_cpu": "sdlpal-arm64-mingw.zip",
+        "wrong_platform": "sdlpal-linux-mingw.zip",
+        "ambiguous_asset": "SDLPAL-WIN32-MINGW.ZIP"
+      }
+    }
+  }
+}

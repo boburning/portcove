@@ -2097,6 +2097,12 @@ fixtures separately cover registration, managed runtime replacement and data
 ownership. Ordinary compatible successors use the unchanged authored selectors.
 [Shared release-selection fixture](../crates/portcove-core/src/testdata/windows-archive-release-selection.json).
 
+The retained native-engine selection cases keep their controlled successor
+inventories and refusal filenames in the
+[native-engine scenario fixture](../crates/portcove-core/src/testdata/native-engine-release-scenarios.json).
+Use the exact observed package name as the player key. Shared repositories can
+reuse one successor inventory while checking distinct expected players.
+
 Optional authoring-only `package_observation_v1` retains an exact previously
 accepted package/player inspection. Ordinary `prepare-port` consumes its receipt
 with paired `--package-observation <json>` and

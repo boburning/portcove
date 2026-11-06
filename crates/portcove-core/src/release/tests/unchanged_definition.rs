@@ -1943,6 +1943,12 @@ async fn assert_native_engine_adoption_selection(id: &str) {
     assert!(port.channels.contains(&channel), "{id}");
     let observed = &case["release"];
     let name = case["selected_asset"].as_str().unwrap();
+    let scenarios: serde_json::Value = serde_json::from_str(include_str!(
+        "../../testdata/native-engine-release-scenarios.json"
+    ))
+    .unwrap();
+    let scenario = &scenarios[case["repository"].as_str().unwrap()];
+    let player_scenario = &scenario["players"][name];
     let selected = observed["assets"]
         .as_array()
         .unwrap()
@@ -1951,20 +1957,17 @@ async fn assert_native_engine_adoption_selection(id: &str) {
         .unwrap();
     let mut successor = observed.clone();
     let original_tag = observed["tag_name"].as_str().unwrap();
-    let next_tag = match original_tag {
-        "1.5.5" => "1.5.6",
-        "v0.9.7" => "v0.9.8",
-        "v0.82.1" => "v0.82.2",
-        "v3.0.2025.0616" => "v3.0.2025.0617",
-        "latest" => "latest",
-        _ => panic!("unreviewed source case"),
-    };
+    let next_tag = scenario["successor_tag"].as_str().unwrap();
     successor["tag_name"] = serde_json::json!(next_tag);
-    for asset in successor["assets"].as_array_mut().unwrap() {
-        let next = asset["name"].as_str().unwrap().replace(
-            original_tag.trim_start_matches('v'),
-            next_tag.trim_start_matches('v'),
-        );
+    let assets = successor["assets"].as_array_mut().unwrap();
+    let next_names = scenario["successor_asset_names"].as_array().unwrap();
+    assert_eq!(
+        assets.len(),
+        next_names.len(),
+        "{id}: complete successor inventory"
+    );
+    for (asset, next) in assets.iter_mut().zip(next_names) {
+        let next = next.as_str().unwrap();
         asset["name"] = serde_json::json!(next);
         asset["browser_download_url"] =
             serde_json::json!(format!("https://downloads.example.invalid/{next}"));
@@ -2001,10 +2004,7 @@ async fn assert_native_engine_adoption_selection(id: &str) {
     assert_eq!(next.version, next_tag, "{id}");
     assert_eq!(
         next.asset.name,
-        name.replace(
-            original_tag.trim_start_matches('v'),
-            next_tag.trim_start_matches('v')
-        ),
+        player_scenario["successor_asset"].as_str().unwrap(),
         "{id}"
     );
     assert_eq!(next.asset.sha256, "b".repeat(64), "{id}");
@@ -2023,16 +2023,9 @@ async fn assert_native_engine_adoption_selection(id: &str) {
         let mut player = selected.clone();
         let original_name = player["name"].as_str().unwrap().to_owned();
         let mutated = match mutation {
-            "wrong-cpu" => original_name
-                .replace("win32", "arm64")
-                .replace("win64", "arm64")
-                .replace("x86_64", "arm64")
-                .replace("windows-x64", "windows-arm64"),
-            "wrong-platform" => original_name
-                .replace("win32", "linux")
-                .replace("win64", "linux")
-                .replace("windows", "linux"),
-            _ => original_name.clone(),
+            "wrong-cpu" => player_scenario["wrong_cpu"].as_str().unwrap(),
+            "wrong-platform" => player_scenario["wrong_platform"].as_str().unwrap(),
+            _ => &original_name,
         };
         player["name"] = serde_json::json!(mutated);
         if mutation == "missing-integrity" {
@@ -2041,11 +2034,10 @@ async fn assert_native_engine_adoption_selection(id: &str) {
         let mut assets = vec![player.clone()];
         if mutation == "ambiguous" {
             player["id"] = serde_json::json!(999_999_999);
-            player["name"] = serde_json::json!(original_name.to_uppercase());
-            player["browser_download_url"] = serde_json::json!(format!(
-                "https://downloads.example.invalid/{}",
-                original_name.to_uppercase()
-            ));
+            let ambiguous = player_scenario["ambiguous_asset"].as_str().unwrap();
+            player["name"] = serde_json::json!(ambiguous);
+            player["browser_download_url"] =
+                serde_json::json!(format!("https://downloads.example.invalid/{ambiguous}"));
             assets.push(player);
         }
         let (root, _, server) =
