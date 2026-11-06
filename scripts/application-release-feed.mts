@@ -37,6 +37,7 @@ import type { ApplicationMetadataRenewalBasis } from "./application-release-publ
 import type { GitHubRestReader } from "./github-api.mts";
 import { inspectSiteArtifactArchive } from "./release-site-deployment.mts";
 import { readReleaseNotesWithSdk } from "./release-publication-inventory.mts";
+import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
 import {
   readApplicationPagesState,
   readApplicationPagesExecution,
