@@ -47,10 +47,15 @@ export const bootstrapAssetNames = ["application-site.zip", "application-metadat
 export async function createApplicationAssetUploader(
   token: string | undefined,
   assertWindow?: () => void,
+  operationDeadline = Infinity,
 ) {
   assert.ok(token && token.length <= 16384 && !/[\r\n\0]/u.test(token));
   const origin = "https://uploads.github.com";
-  const deadline = Math.min(coordinatorCommandDeadline() ?? Infinity, performance.now() + 120000);
+  const deadline = Math.min(
+    operationDeadline,
+    coordinatorCommandDeadline() ?? Infinity,
+    performance.now() + 120000,
+  );
   let expected: string | undefined;
   const { createGitHubClient } = await import("./github-client.mts");
   const client = await createGitHubClient({
@@ -1980,12 +1985,57 @@ export function inspectApplicationMetadataPublicationReceipt(
   return receipt;
 }
 export type BootstrapPublicationTransport = {
-  api: Pick<CoordinatorRemoteApi, "request">;
+  readMetadata: (endpoint: string) => Promise<{ status: number; body: unknown }>;
+  publish: (body: Record<string, unknown>) => Promise<void>;
   upload: (releaseId: number, name: AssetName, bytes: Buffer) => Promise<void>;
   readAsset: (assetId: number, maximumBytes: number) => Promise<Buffer>;
-  beforeWrite: (phase: "asset" | "publish") => Promise<() => void>;
+  beforeWrite: (phase: "asset" | "publish") => Promise<() => void | Promise<void>>;
   retainAssembly?: (assembly: ApplicationDraftAssembly) => Promise<unknown>;
 };
+
+/** The metadata operation can read only its exact draft, assets and tag. */
+export async function createApplicationMetadataPublicationProvider(
+  token: string,
+  releaseId: number,
+  opportunity: string,
+  assertWindow: () => void,
+  deadline: number,
+): Promise<Pick<BootstrapPublicationTransport, "readMetadata" | "publish">> {
+  assert.ok(token && token.length <= 16384 && !/[\r\n\0]/u.test(token));
+  assert.ok(Number.isSafeInteger(releaseId) && releaseId > 0);
+  assert.match(opportunity, /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/u);
+  const root = `repos/boburning/portcove/releases/${releaseId}`;
+  const tag = `repos/boburning/portcove/git/ref/tags/portcove-production-candidate-${opportunity}`;
+  const readable = new Set([root, `${root}/assets?per_page=100&page=1`, tag]);
+  const { createGitHubClient } = await import("./github-client.mts");
+  const client = await createGitHubClient({
+    credential: { kind: "explicit", token },
+    deadline,
+    requestTimeoutMs: 30000,
+    maxBytes: 8 * 1024 ** 2,
+    allowRequest(method, url) {
+      assertTrustedDirectNode("fixed application metadata publication");
+      if (url.origin !== "https://api.github.com") return false;
+      const endpoint = url.pathname.slice(1) + url.search;
+      if (method === "GET") return readable.has(endpoint);
+      if (method !== "PATCH" || endpoint !== root) return false;
+      assertWindow();
+      return true;
+    },
+  });
+  const options = () => ({ portcove: { replay: "once" as const, attempts: 0 } });
+  return {
+    async readMetadata(endpoint) {
+      assert.ok(readable.has(endpoint));
+      const response = await client.request(`GET /${endpoint}`, { request: options() });
+      return { status: response.status, body: response.data };
+    },
+    async publish(body) {
+      const response = await client.request(`PATCH /${root}`, { ...body, request: options() });
+      assert.equal(response.status, 200);
+    },
+  };
+}
 
 /** Caller owns native Actions concurrency. No creation/deletion/clobber or
  * blind mutation retry. A lost acknowledgment is resolved by exact readback. */
@@ -2034,14 +2084,14 @@ export async function publishApplicationMetadataRelease(
       ++calls <= 32 && performance.now() - started <= 120000,
       "bootstrap publication request/duration bound exhausted",
     );
-  const get = (endpoint: string) => {
+  const get = async (endpoint: string) => {
     budget();
-    const result = transport.api.request("GET", endpoint);
+    const result = await transport.readMetadata(endpoint);
     assert.equal(result.status, 200);
     return result.body;
   };
-  const release = () => {
-    const raw = get(root);
+  const release = async () => {
+    const raw = await get(root);
     assert.ok(isRecord(raw));
     assert.equal(raw.id, expected.release_id);
     assert.equal(raw.tag_name, tag);
@@ -2054,9 +2104,9 @@ export async function publishApplicationMetadataRelease(
     );
     return raw;
   };
-  const assets = () => {
+  const assets = async () => {
     // Two fixed assets; a full page is never treated as complete coverage.
-    const raw = get(`${root}/assets?per_page=100&page=1`);
+    const raw = await get(`${root}/assets?per_page=100&page=1`);
     assert.ok(Array.isArray(raw) && raw.length <= 2);
     const seen = new Set<string>();
     return raw.map((value: unknown): Asset => {
@@ -2079,7 +2129,7 @@ export async function publishApplicationMetadataRelease(
     });
   };
   const verifyBytes = async () => {
-    const actual = assets();
+    const actual = await assets();
     assert.equal(actual.length, files.size);
     for (const asset of actual) {
       budget();
@@ -2089,13 +2139,13 @@ export async function publishApplicationMetadataRelease(
     }
     return actual;
   };
-  let current = release();
-  let actual = assets();
-  const inspectTag = (allowPending: boolean) => {
+  let current = await release();
+  let actual = await assets();
+  const inspectTag = async (allowPending: boolean) => {
     budget();
     let result;
     try {
-      result = transport.api.request("GET", `repos/boburning/portcove/git/ref/tags/${tag}`);
+      result = await transport.readMetadata(`repos/boburning/portcove/git/ref/tags/${tag}`);
     } catch (error) {
       if (error instanceof GitHubApiError && error.status === 404) {
         assert.ok(allowPending, "immutable release tag is missing");
@@ -2118,37 +2168,37 @@ export async function publishApplicationMetadataRelease(
       "existing tag source differs; hold before publication",
     );
   };
-  inspectTag(current.draft === true);
+  await inspectTag(current.draft === true);
   if (current.draft === true) {
     if (transport.retainAssembly && "purpose" in expected.binding) {
       assert.ok(isRecord(metadataReceipt));
       await transport.retainAssembly(
         applicationDraftAssembly(expected.release_id, metadataReceipt, receipt.publication, files),
       );
-      const retained = release();
+      const retained = await release();
       assert.deepEqual(
         applicationReleaseNotesPreimage(retained),
         applicationReleaseNotesPreimage(current),
       );
-      assert.deepEqual(assets(), actual);
+      assert.deepEqual(await assets(), actual);
       current = retained;
     }
     for (const [name, bytes] of files)
       if (!actual.some((asset) => asset.name === name)) {
         const assertWindow = await transport.beforeWrite("asset");
-        const fresh = release();
+        const fresh = await release();
         assert.equal(fresh.draft, true);
         assert.equal(fresh.body, current.body, "draft notes changed before upload");
-        actual = assets();
+        actual = await assets();
         if (!actual.some((asset) => asset.name === name)) {
           budget();
-          assertWindow();
+          await assertWindow();
           try {
             await transport.upload(expected.release_id, name, bytes);
           } catch {
             /* Exact readback decides. */
           }
-          actual = assets();
+          actual = await assets();
           assert.ok(
             actual.some((asset) => asset.name === name),
             "upload outcome unknown; hold without retry",
@@ -2157,20 +2207,20 @@ export async function publishApplicationMetadataRelease(
       }
     await verifyBytes();
     const assertWindow = await transport.beforeWrite("publish");
-    const fresh = release();
+    const fresh = await release();
     assert.equal(fresh.draft, true);
     assert.equal(fresh.body, current.body, "draft notes changed before publication");
     // Revalidate all object identities after the fresh guard and immediately
     // before the sole irreversible mutation. Remote asset bytes were read above.
-    assert.deepEqual(assets(), actual);
-    inspectTag(true);
+    assert.deepEqual(await assets(), actual);
+    await inspectTag(true);
     budget();
     // Uploads, byte reads and the fresh guard may consume the metadata's
-    // remaining lifetime. This final local barrier follows all provider reads.
-    assertWindow();
+    // remaining lifetime. The final Pages read and local barrier follow the draft checks.
+    await assertWindow();
     inspectApplicationMetadataPublicationReceipt(metadataReceipt, expected.binding, custody);
     try {
-      transport.api.request("PATCH", root, {
+      await transport.publish({
         draft: false,
         prerelease: true,
         make_latest: "false",
@@ -2182,11 +2232,11 @@ export async function publishApplicationMetadataRelease(
     } catch {
       /* No second PATCH; immutable readback decides. */
     }
-    current = release();
+    current = await release();
   }
   assert.equal(current.draft, false, "publication outcome unknown; hold without retry");
   assert.equal(current.immutable, true);
-  const ref = get(`repos/boburning/portcove/git/ref/tags/${tag}`);
+  const ref = await get(`repos/boburning/portcove/git/ref/tags/${tag}`);
   assert.ok(
     isRecord(ref) &&
       ref.ref === `refs/tags/${tag}` &&
@@ -2196,7 +2246,7 @@ export async function publishApplicationMetadataRelease(
     "published tag source differs",
   );
   actual = await verifyBytes();
-  const settled = release();
+  const settled = await release();
   assert.equal(settled.draft, false);
   return {
     schema_version: 1,

@@ -122,6 +122,7 @@ import {
   readApplicationDraftRecoveryState,
   readExpiredApplicationDraftAssets,
   createApplicationAssetUploader,
+  createApplicationMetadataPublicationProvider,
   verifyApplicationDraftRecoveryBackup,
   readStagedDraftRecoveryBackup,
   removeExpiredApplicationDraftAssets,
@@ -1147,7 +1148,7 @@ async function publishBootstrapMetadata() {
       ),
     ),
   );
-  let verifyPreimage: () => Promise<() => void>;
+  let verifyPreimage: () => Promise<() => Promise<void>>;
   if (source.purpose === "metadata-renewal") {
     const raw: unknown = JSON.parse(
       new TextDecoder("utf-8", { fatal: true }).decode(files.get(bootstrapAssetNames[1])),
@@ -1163,7 +1164,7 @@ async function publishBootstrapMetadata() {
     );
     let publicPrior: Awaited<ReturnType<typeof readApplicationPriorPublication>> | undefined;
     let lineage: Awaited<ReturnType<typeof readForwardRenewalPreimage>>["lineage"] | undefined;
-    verifyPreimage = async () => {
+    const verifyRenewalPreimage = async () => {
       if (!publicPrior) {
         if (source.renewal_parent === undefined)
           publicPrior = await readApplicationPriorPublication(scratch);
@@ -1179,8 +1180,12 @@ async function publishBootstrapMetadata() {
       await readPublicApplicationSiteMarker(prior.receipt.site);
       assert.deepEqual(await discoverActualPublishedApplicationCohort(lineage), discovered);
       await guard(source);
-      return () => {
-        assert.deepEqual(readApplicationPagesState(applicationApi), discovered.state);
+      return discovered.state;
+    };
+    verifyPreimage = async () => {
+      const state = await verifyRenewalPreimage();
+      return async () => {
+        assert.deepEqual(await readActualApplicationPagesState(deadline), state);
         assertProtectionWriteWindow();
       };
     };
@@ -1197,7 +1202,13 @@ async function publishBootstrapMetadata() {
       raw,
       receipt.publication,
       files,
-      verifyPreimage,
+      async () => {
+        const state = await verifyRenewalPreimage();
+        return () => {
+          assert.deepEqual(readApplicationPagesState(applicationApi), state);
+          assertProtectionWriteWindow();
+        };
+      },
     );
   } else {
     verifyPreimage = async () => {
@@ -1214,15 +1225,22 @@ async function publishBootstrapMetadata() {
         scratch,
       );
       await guard(source);
-      return () => {
-        assert.deepEqual(readApplicationPagesState(applicationApi), descriptor.provider);
+      return async () => {
+        assert.deepEqual(await readActualApplicationPagesState(deadline), descriptor.provider);
         assertProtectionWriteWindow();
       };
     };
   }
+  const deadline = Math.min(coordinatorCommandDeadline() ?? Infinity, performance.now() + 120000);
   const result = await publishApplicationMetadataRelease(
     {
-      api: applicationApi,
+      ...(await createApplicationMetadataPublicationProvider(
+        token,
+        expected.release_id,
+        expected.custody.opportunity,
+        () => assertProtectionWriteWindow(),
+        deadline,
+      )),
       retainAssembly(assembly) {
         return retainApplicationDraftAssembly(
           applicationApi,
@@ -1239,8 +1257,12 @@ async function publishBootstrapMetadata() {
         await guard(source);
         return assertProtectionWriteWindow;
       },
-      readAsset: createFixedApplicationReleaseAssetReader(),
-      upload: await createApplicationAssetUploader(token, () => assertProtectionWriteWindow()),
+      readAsset: createFixedApplicationReleaseAssetReader(undefined, deadline),
+      upload: await createApplicationAssetUploader(
+        token,
+        () => assertProtectionWriteWindow(),
+        deadline,
+      ),
     },
     expected,
     files.get(bootstrapAssetNames[1])!,
