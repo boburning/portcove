@@ -526,8 +526,10 @@ for (const [file, tests] of [
   [
     "scripts/release-signing-job-budget.mts",
     [
+      "scripts/release-native-presign-readiness.test.mts",
       "scripts/release-tuf-controller.test.mts",
       "scripts/production-controller-admission.test.mts",
+      "scripts/release-hosted-native-runner.test.mts",
       "scripts/release-hosted-native-windows-bootstrap.test.mts",
       "scripts/release-hosted-native-windows-workflow.test.mts",
     ],
@@ -636,6 +638,7 @@ for (const [file, tests] of [
       "scripts/release-job-authorities.test.mts",
       "scripts/release-catalog-authorities.test.mts",
       "scripts/release-coordinator-owned-executor.test.mts",
+      "scripts/release-native-presign-readiness.test.mts",
       "scripts/release-admitted-aggregate-controller.test.mts",
       "scripts/release-tuf-controller.test.mts",
     ],
@@ -866,6 +869,7 @@ for (const [file, tests] of [
     [
       "scripts/release-capacity-executor.test.mts",
       "scripts/release-catalog-site-controller.test.mts",
+      "scripts/release-native-presign-readiness.test.mts",
       "scripts/release-coordinator-recovery.test.mts",
       "scripts/release-hosted-native-history.test.mts",
       "scripts/release-catalog-recovery.test.mts",
@@ -1117,7 +1121,11 @@ for (const [file, tests] of [
   ],
   [
     "scripts/release-native-postsign-readiness.mts",
-    ["scripts/release-hosted-native-runner.test.mts", "scripts/release-hosted-native-job.test.mts"],
+    [
+      "scripts/release-hosted-native-runner.test.mts",
+      "scripts/release-hosted-native-job.test.mts",
+      "scripts/release-hosted-native-windows-runner.test.mts",
+    ],
   ],
   [
     ".github/actions/release-native-linux/action.yml",
@@ -2386,12 +2394,14 @@ for (const file of [
     ...(explicitNodeTests.get(file) ?? []),
     "scripts/release-control-handshake.test.mts",
     "scripts/release-capacity-executor.test.mts",
+    "scripts/release-hosted-native-windows-runner.test.mts",
     "scripts/github-client.test.mts",
     "scripts/release-catalog-site-controller.test.mts",
     "scripts/release-site-readback.test.mts",
     "scripts/release-live-control-admission.test.mts",
     "scripts/release-catalog-authorities.test.mts",
     "scripts/release-job-authorities.test.mts",
+    "scripts/release-native-presign-readiness.test.mts",
     "scripts/release-catalog-recovery.test.mts",
     "scripts/release-site-controller.test.mts",
     "scripts/release-metadata-site-controller.test.mts",
@@ -2420,6 +2430,7 @@ for (const file of [
     "scripts/release-controller-transport.test.mts",
     "scripts/release-control-step-bridge.test.mts",
     "scripts/production-controller-admission.test.mts",
+    "scripts/release-hosted-native-runner.test.mts",
     "scripts/release-hosted-native-windows-bootstrap.test.mts",
     "scripts/assembler-job-identity.test.mts",
     "scripts/release-bootstrap-preparation.test.mts",

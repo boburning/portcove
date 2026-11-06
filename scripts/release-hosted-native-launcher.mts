@@ -77,10 +77,9 @@ export async function prepareFixedHostedLinuxLaunch(operation: unknown) {
   );
   const node = path.join(root, "bootstrap-node");
   const bindingFile = path.join(root, "launcher-binding.json");
-  const deadline = currentNativeJobDeadline(
+  const deadline = await currentNativeJobDeadline(
     "linux-x86_64",
     identity,
-    fileURLToPath(new URL("..", import.meta.url)),
     performance.now() + 570000,
     scope.source,
     scope.workflow,

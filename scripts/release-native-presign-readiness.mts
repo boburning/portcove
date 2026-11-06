@@ -3,7 +3,6 @@ import { nativePlatformsForReleaseProfile } from "./release-package-policy.mts";
 import assert from "node:assert/strict";
 import { open } from "node:fs/promises";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { performance } from "node:perf_hooks";
 import { setTimeout as delay } from "node:timers/promises";
 import { isRecord } from "./runtime-values.mts";
@@ -14,10 +13,12 @@ import {
 } from "./release-hosted-native-artifact.mts";
 import {
   inspectCompleteRunArtifactInventory,
-  readCompleteRunArtifactInventory,
+  readCompleteRunArtifactInventoryAsync,
 } from "./release-run-artifact-inventory.mts";
-import { currentPayloadJobDeadline } from "./release-signing-job-budget.mts";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
+import { currentControllerJobDeadline } from "./release-signing-job-budget.mts";
+import { fixedReleaseReaderToken } from "./release-readonly-child-environment.mts";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
+import type { GitHubRequestPolicy } from "./github-client.mts";
 import { slice4CapacityResources } from "./release-capacity.mts";
 import type { requireControllerJobCredentialRoute } from "./release-authority-configuration.mts";
 
@@ -114,13 +115,13 @@ export async function waitForNativePreSignReadiness(input: {
   revision: string;
   release_profile?: unknown;
   active: () => void;
-  read: () => { jobs: unknown; artifacts: unknown };
+  read: () => Promise<{ jobs: unknown; artifacts: unknown }>;
   retain: (value: unknown) => Promise<void>;
   pause: () => Promise<void>;
 }) {
   for (let observation = 0; observation < 120; observation++) {
     input.active();
-    const raw = input.read();
+    const raw = await input.read();
     input.active();
     const producers = inspectNativePreSignReadiness(
       raw.jobs,
@@ -154,8 +155,12 @@ export async function waitForOriginalPayloadNativeProof(
     run_id: String(source.run_id),
     run_attempt: source.run_attempt,
   };
-  const root = fileURLToPath(new URL("../", import.meta.url));
-  const deadline = currentPayloadJobDeadline(identity, root, performance.now() + 570000);
+  const token = fixedReleaseReaderToken();
+  const deadline = await currentControllerJobDeadline(
+    "payload",
+    identity,
+    Math.min(performance.now() + 570000, coordinatorCommandDeadline() ?? Infinity),
+  );
   const active = () => {
     captured.recheck();
     assert.ok(performance.now() < deadline, "original payload prerequisite clock exhausted");
@@ -186,47 +191,74 @@ export async function waitForOriginalPayloadNativeProof(
     // provider logs; never print raw responses, credentials or proof contents.
     console.error(line.toString("utf8").trimEnd());
   };
-  const api = new GitHubApiClient((args, input) => {
-    active();
-    const remaining = Math.floor(deadline - performance.now());
-    assert.ok(remaining > 0);
-    return createGitHubRunner({
-      cwd: root,
-      timeoutMs: Math.min(15000, remaining),
-      maxBuffer: slice4CapacityResources.native_presign_response_bytes,
-    })([...args, "--hostname", "github.com"], input);
-  });
-  const read = (endpoint: string, singlePage = false) => {
-    active();
-    assert.ok(
-      requests < slice4CapacityResources.native_presign_maximum_gets,
-      "native pre-sign GET allowance exhausted",
-    );
-    requests++;
-    const result = api.request("GET", endpoint);
-    lastStatus = result.status ?? null;
-    active();
-    assert.equal(result.status, 200, "native prerequisite GET refused or ambiguous");
-    if (singlePage) assert.ok(!result.headers.get("link"), "native job inventory incomplete");
-    return result.body;
-  };
+  const runPath = `/repos/boburning/portcove/actions/runs/${identity.run_id}`;
+  const jobs = `${runPath}/attempts/1/jobs`;
+  const artifacts = `${runPath}/artifacts`;
   try {
+    const { createGitHubClient } = await import("./github-client.mts");
+    const api = await createGitHubClient({
+      credential: { kind: "explicit", token },
+      deadline,
+      maxBytes: slice4CapacityResources.native_presign_response_bytes,
+      allowRequest(method, url) {
+        active();
+        return (
+          method === "GET" &&
+          url.searchParams.get("per_page") === "100" &&
+          ((url.pathname === jobs && url.searchParams.size === 1) ||
+            (url.pathname === artifacts &&
+              url.searchParams.size === 2 &&
+              /^[1-4]$/u.test(url.searchParams.get("page") ?? "")))
+        );
+      },
+      reserve() {
+        active();
+        assert.ok(
+          requests < slice4CapacityResources.native_presign_maximum_gets,
+          "native pre-sign GET allowance exhausted",
+        );
+        requests++;
+        return {
+          consumeBytes() {},
+          settle(observation) {
+            if (!observation.dispatched) requests--;
+          },
+        };
+      },
+    });
+    const read = async (endpoint: string, singlePage = false) => {
+      active();
+      const policy: GitHubRequestPolicy = {
+        replay: "once",
+        attempts: 0,
+        observe(observation) {
+          if (observation.status !== null) lastStatus = observation.status;
+        },
+      };
+      try {
+        const result = await api.request(`GET ${endpoint}`, { request: { portcove: policy } });
+        active();
+        assert.equal(result.status, 200, "native prerequisite GET refused or ambiguous");
+        if (singlePage) assert.ok(!result.headers.link, "native job inventory incomplete");
+        return result.data as unknown;
+      } finally {
+        await policy.admissionSettled;
+      }
+    };
+    active();
+    const signal = AbortSignal.timeout(Math.max(1, Math.ceil(deadline - performance.now())));
     await waitForNativePreSignReadiness({
       run: identity.run_id,
       revision: identity.controller_revision,
       release_profile: captured.route.release_profile,
       active,
       retain,
-      pause: () => delay(slice4CapacityResources.native_presign_poll_milliseconds),
-      read: () => ({
-        jobs: read(
-          `repos/boburning/portcove/actions/runs/${identity.run_id}/attempts/1/jobs?per_page=100`,
-          true,
-        ),
-        artifacts: readCompleteRunArtifactInventory((page) =>
-          read(
-            `repos/boburning/portcove/actions/runs/${identity.run_id}/artifacts?per_page=100&page=${page}`,
-          ),
+      pause: () =>
+        delay(slice4CapacityResources.native_presign_poll_milliseconds, undefined, { signal }),
+      read: async () => ({
+        jobs: await read(`${jobs}?per_page=100`, true),
+        artifacts: await readCompleteRunArtifactInventoryAsync((page) =>
+          read(`${artifacts}?per_page=100&page=${page}`),
         ),
       }),
     });

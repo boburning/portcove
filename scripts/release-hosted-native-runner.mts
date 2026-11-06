@@ -651,21 +651,12 @@ export async function runConfiguredHostedWindowsNativeJob(
     await retainWindowsStageRoute(root, "pre-sign", preRoot, parent.producer);
     await requireActualHostedWindowsStage(pre);
     await runActualHostedWindowsStageUpload(preRoot, prepared.deadline, pre);
-    const { GitHubApiClient, createGitHubRunner } = await import("./github-api.mts");
-    const { waitForNativePostSignReadiness } =
+    const { createNativePostSignReader, waitForNativePostSignReadiness } =
       await import("./release-native-postsign-readiness.mts");
     const active = () => {
       parent.recheck();
       assert.ok(performance.now() < prepared.deadline);
     };
-    const api = new GitHubApiClient((args, input) => {
-      active();
-      return createGitHubRunner({
-        cwd: root,
-        timeoutMs: Math.max(1, Math.min(15000, Math.floor(prepared.deadline - performance.now()))),
-        maxBuffer: 2 * 1024 ** 2,
-      })([...args, "--hostname", "github.com"], input);
-    });
     const observations = await (
       await import("node:fs/promises")
     ).open(path.join(root, "windows-post-sign-prerequisites.jsonl"), "wx", 0o600);
@@ -675,16 +666,7 @@ export async function runConfiguredHostedWindowsNativeJob(
         run: parent.producer.run_id,
         revision: parent.producer.controller_revision,
         active,
-        read: () => {
-          const response = api.request(
-            "GET",
-            `repos/boburning/portcove/actions/runs/${parent.producer.run_id}/attempts/1/jobs?per_page=100`,
-          );
-          active();
-          assert.equal(response.status, 200);
-          assert.ok(!response.headers.get("link"));
-          return response.body;
-        },
+        read: await createNativePostSignReader(parent.producer.run_id, prepared.deadline, active),
         retain: async (observation) => {
           await requireActualHostedWindowsStage(pre);
           const bytes = Buffer.from(JSON.stringify(observation) + "\n");

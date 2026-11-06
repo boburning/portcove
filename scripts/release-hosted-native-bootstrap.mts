@@ -148,10 +148,9 @@ async function readBootstrapScope(operation: unknown, platform: ControllerToolPl
 export async function launchFixedHostedLinuxNativeJob(rawOperation: unknown) {
   const { operation, workflow, source, binding, identity, temporary, unchanged, artifact, bundle } =
     await readActualHostedLinuxBootstrapScope(rawOperation);
-  const providerDeadline = currentNativeJobDeadline(
+  const providerDeadline = await currentNativeJobDeadline(
     "linux-x86_64",
     identity,
-    fileURLToPath(new URL("..", import.meta.url)),
     performance.now() + 570000,
     source,
     workflow,
