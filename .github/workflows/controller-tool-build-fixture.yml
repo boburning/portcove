@@ -5,6 +5,7 @@ on:
       - .github/workflows/controller-tool-build-fixture.yml
       - scripts/release-*.mts
       - scripts/application-release-private.mts
+      - scripts/application-release-budget*.mts
       - scripts/application-release-run.mts
       - scripts/application-release-source.mts
       - scripts/application-release-tools.mts
@@ -58,6 +59,7 @@ on:
       - scripts/release-controller-tool*.mts
       - scripts/release-controller-wake.mts
       - scripts/application-release-private.mts
+      - scripts/application-release-budget*.mts
       - scripts/application-release-run.mts
       - scripts/application-release-source.mts
       - scripts/application-release-tools.mts
