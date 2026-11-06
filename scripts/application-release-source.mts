@@ -136,13 +136,15 @@ function applicationSourceControlOptions(token = fixedReleaseReaderToken()) {
   };
 }
 
+function openApplicationSourceMetadata(token = fixedReleaseReaderToken()) {
+  const options = applicationSourceControlOptions(token);
+  return createReleaseCustodyProvider({ ...options, beforeDispatch: options.guard });
+}
+
 export async function readApplicationSemanticSelection(source: string) {
   assert.match(source, /^[a-f0-9]{40}$/u);
-  const options = applicationSourceControlOptions();
-  const custody = await createReleaseCustodyProvider({
-    ...options,
-    beforeDispatch: options.guard,
-  });
+  const token = fixedReleaseReaderToken();
+  const custody = await openApplicationSourceMetadata(token);
   const commit = await custody.commit(source);
   assert.ok(
     isRecord(commit) &&
@@ -152,7 +154,7 @@ export async function readApplicationSemanticSelection(source: string) {
   );
   assert.match(commit.tree.sha, /^[a-f0-9]{40}$/u);
   const inventory = await readIndependentSemanticCheckInventoryWithSdk(
-    applicationSourceControlOptions(options.token),
+    applicationSourceControlOptions(token),
     semanticProducer,
     source,
   );
@@ -161,13 +163,13 @@ export async function readApplicationSemanticSelection(source: string) {
   const check = selectLatestApplicationSemanticCheck(inventory.records);
   const opportunity = inspectApplicationSemanticSelection(check, source, commit.tree.sha);
   const review = await readIndependentApplicationSemanticReviewWithSdk(
-    applicationSourceControlOptions(options.token),
+    applicationSourceControlOptions(token),
     semanticProducer,
     opportunity,
     Number(check.id),
   );
   const changes = await collectReleaseSourceChangesWithSdk(
-    applicationSourceControlOptions(options.token),
+    applicationSourceControlOptions(token),
     opportunity,
   );
   assert.equal(changes.change_set_sha256, opportunity.change_set_sha256);
@@ -229,10 +231,10 @@ export async function readCurrentApplicationWakeQualification() {
   return { source, ...selected, ...(qualification ? { qualification } : {}) };
 }
 
-function openApplicationSourcePublicationInventory() {
+function openApplicationSourcePublicationInventory(token = fixedReleaseReaderToken()) {
   const guard = () => assertTrustedDirectNode("fixed application source publication inventory");
   return createPublicationInventoryWithSdk({
-    token: fixedReleaseReaderToken(),
+    token,
     deadline: Number.POSITIVE_INFINITY,
     maxBytes: 8 * 1024 ** 2,
     requestTimeoutMs: 30000,
@@ -250,9 +252,10 @@ async function selectForQualification() {
   assert.equal(process.env.GITHUB_REF, "refs/heads/main");
   const source = process.env.GITHUB_SHA ?? "";
   assert.match(source, /^[a-f0-9]{40}$/u);
-  const commit = applicationGet(`git/commits/${source}`);
+  const token = fixedReleaseReaderToken();
+  const commit = await (await openApplicationSourceMetadata(token)).commit(source);
   assert.ok(isRecord(commit) && isRecord(commit.tree) && typeof commit.tree.sha === "string");
-  const reader = await openApplicationSourcePublicationInventory();
+  const reader = await openApplicationSourcePublicationInventory(token);
   const releases = (await reader.releases()).filter(
     (release) =>
       !release.draft && release.published_at !== null && release.tag_name.startsWith("v"),
@@ -266,7 +269,7 @@ async function selectForQualification() {
   const tag = (await reader.tags()).find((value) => value.name === latest.tag_name);
   assert.ok(tag);
   const base = peelReleaseReference(tag);
-  const details = applicationGet(`releases/${latest.id}`);
+  const details = await (await openApplicationSourceMetadata(token)).release(latest.id);
   assert.ok(
     isRecord(details) &&
       details.immutable === true &&
@@ -338,7 +341,7 @@ async function prepare() {
   await verifyApplicationReleaseTrust();
   const original = process.env.PORTCOVE_APPLICATION_RELEASE_OPPORTUNITY ?? "";
   assert.match(original, /^[a-f0-9]{40}$/u);
-  const commit = applicationGet(`git/commits/${original}`);
+  const commit = await (await openApplicationSourceMetadata()).commit(original);
   assert.ok(
     isRecord(commit) &&
       commit.sha === original &&
@@ -580,7 +583,7 @@ async function bootstrap() {
   const raw: unknown = JSON.parse(process.env.PORTCOVE_APPLICATION_BOOTSTRAP_DESCRIPTOR ?? "null");
   inspectInitialApplicationDescriptor(raw, expected);
   assert.equal(process.env.PORTCOVE_APPLICATION_RELEASE_OPPORTUNITY, expected.descriptor_sha256);
-  const commit = applicationGet(`git/commits/${execution.source}`);
+  const commit = await (await openApplicationSourceMetadata()).commit(execution.source);
   assert.ok(
     isRecord(commit) &&
       commit.sha === execution.source &&
@@ -651,7 +654,7 @@ async function renewPublishedMetadata() {
     renewal_basis: basis,
     renewal_clock: "native-context-reservation-v1",
   });
-  const commit = applicationGet(`git/commits/${execution.source}`);
+  const commit = await (await openApplicationSourceMetadata()).commit(execution.source);
   assert.ok(
     isRecord(commit) &&
       commit.sha === execution.source &&
