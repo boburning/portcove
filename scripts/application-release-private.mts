@@ -2059,7 +2059,7 @@ export async function preparePublicWindowsCandidate(
   assert.deepEqual(readback.provider, discovered.state);
   assert.equal(input.public_readback_sha256, readback.evidence_sha256);
   const transport: Parameters<typeof readApplicationWindowsCandidateAssets>[3] = {
-    deadline,
+    deadline: deadline ?? Infinity,
     open: (expected, phaseDeadline) =>
       createPreparedApplicationPublicationReader(
         fixedReleaseReaderToken(),
