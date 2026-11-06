@@ -77,7 +77,7 @@ import { readGitHubReleaseAsset } from "./github-binary.mts";
 import { verifyReleaseSourceAttestation } from "./release-source-attestation.mts";
 import {
   readImmutableBootstrapFeed,
-  readImmutableApplicationMetadataFeed,
+  readApplicationImmutableFeed,
   verifyApplicationPagesArtifact,
   discoverPublishedApplicationCohort,
   readApplicationPriorPublication,
@@ -1583,37 +1583,28 @@ async function prepareBootstrapFeed() {
               }),
         }
       : declared;
-  const input = await readImmutableApplicationMetadataFeed(
+  const input = await readApplicationImmutableFeed(
     {
       release_id: Number(source.run_custody.release_id),
       custody: inspectApplicationRunCustody(source.run_custody.custody),
       binding,
     },
-    {
-      api: applicationApi,
-      async readAsset(id, maximum) {
-        return readGitHubReleaseAsset(`repos/boburning/portcove/releases/assets/${id}`, {
-          cwd: process.cwd(),
-          maxBytes: maximum,
-          timeoutMs: 30000,
-        });
-      },
-      async authenticateAssembly(assets, producer, assemblyAttempt) {
-        for (const [name, bytes] of assets)
-          await writeFile(path.join(verifier, name), bytes, { flag: "wx", mode: 0o600 });
-        await verifyReleaseSourceAttestation(
-          verifier,
-          bootstrapAssetNames[1],
-          {
-            source_commit: producer.control_commit,
-            ref: producer.control_ref,
-            run_id: producer.id,
-            run_attempt: assemblyAttempt,
-            subjects: [...assets].map(([filename, bytes]) => ({ filename, sha256: sha256(bytes) })),
-          },
-          { scope: "application-assembly" },
-        );
-      },
+    verifier,
+    async (assets, producer, assemblyAttempt) => {
+      for (const [name, bytes] of assets)
+        await writeFile(path.join(verifier, name), bytes, { flag: "wx", mode: 0o600 });
+      await verifyReleaseSourceAttestation(
+        verifier,
+        bootstrapAssetNames[1],
+        {
+          source_commit: producer.control_commit,
+          ref: producer.control_ref,
+          run_id: producer.id,
+          run_attempt: assemblyAttempt,
+          subjects: [...assets].map(([filename, bytes]) => ({ filename, sha256: sha256(bytes) })),
+        },
+        { scope: "application-assembly" },
+      );
     },
   );
   if (source.purpose === "metadata-renewal") {

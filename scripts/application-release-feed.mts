@@ -436,8 +436,9 @@ export async function readImmutableApplicationMetadataFeed(
     binding: ApplicationMetadataPublicationBinding | ApplicationMetadataRenewalBasis;
   },
   transport: {
-    api: GitHubRestReader;
-    readAsset: (id: number, maximum: number) => Promise<Buffer>;
+    read: (endpoint: string) => Promise<GitHubMetadataResponse>;
+    deadline?: number;
+    readAsset: (id: number, maximum: number, name: string) => Promise<Buffer>;
     authenticateAssembly: (
       assets: ReadonlyMap<string, Buffer>,
       producer: { id: string; control_commit: string; control_ref: string },
@@ -462,22 +463,22 @@ export async function readImmutableApplicationMetadataFeed(
   }
   const root = `repos/boburning/portcove/releases/${expected.release_id}`;
   const tag = `portcove-production-candidate-${custody.opportunity}`;
-  const started = performance.now();
+  const deadline = Math.min(transport.deadline ?? Infinity, performance.now() + 120000);
   let calls = 0;
   const within = () =>
     assert.ok(
-      ++calls <= 12 && performance.now() - started < 120000,
+      ++calls <= 12 && performance.now() < deadline,
       "immutable feed input request/duration bound exhausted",
     );
-  const get = (endpoint: string) => {
+  const get = async (endpoint: string) => {
     within();
-    const response = transport.api.request("GET", endpoint);
+    const response = await transport.read(endpoint);
     within();
     assert.equal(response.status, 200);
-    return response.body;
+    return response;
   };
-  const release = () => {
-    const raw = get(root);
+  const release = async () => {
+    const raw = (await get(root)).body;
     assert.ok(isRecord(raw));
     assert.equal(raw.id, expected.release_id);
     assert.equal(raw.draft, false, "feed requires an already published release");
@@ -487,8 +488,10 @@ export async function readImmutableApplicationMetadataFeed(
     assert.equal(raw.target_commitish, custody.source);
     assertApplicationCustodyMetadataExtension(custody, readApplicationRunNotes(raw.body)?.custody);
   };
-  release();
-  const list = get(`${root}/assets?per_page=100&page=1`);
+  await release();
+  const inventory = await get(`${root}/assets?per_page=100&page=1`);
+  assert.ok(!inventory.headers.get("link"), "immutable feed asset inventory is incomplete");
+  const list = inventory.body;
   assert.ok(Array.isArray(list) && list.length === 2);
   const names = new Set<string>();
   const ids = new Set<number>();
@@ -516,7 +519,7 @@ export async function readImmutableApplicationMetadataFeed(
         raw.size <= maximum,
     );
     assert.ok(typeof raw.digest === "string" && /^sha256:[a-f0-9]{64}$/u.test(raw.digest));
-    const bytes = await transport.readAsset(raw.id, raw.size);
+    const bytes = await transport.readAsset(raw.id, raw.size, raw.name);
     assert.equal(bytes.length, raw.size);
     assert.equal(sha256(bytes), raw.digest.slice(7));
     assets.set(raw.name, bytes);
@@ -531,7 +534,7 @@ export async function readImmutableApplicationMetadataFeed(
   const historical = inspectHistoricalApplicationPublication(raw, custody);
   await transport.authenticateAssembly(assets, historical.producer, historical.producer_attempt);
   const decoded = readBootstrapSiteArchive(archive, receipt);
-  const ref = get(`repos/boburning/portcove/git/ref/tags/${tag}`);
+  const ref = (await get(`repos/boburning/portcove/git/ref/tags/${tag}`)).body;
   assert.ok(
     isRecord(ref) &&
       ref.ref === `refs/tags/${tag}` &&
@@ -539,7 +542,7 @@ export async function readImmutableApplicationMetadataFeed(
       ref.object.type === "commit" &&
       ref.object.sha === custody.source,
   );
-  release();
+  await release();
   return {
     files: decoded.files,
     site: decoded.site,
@@ -598,7 +601,7 @@ function applicationMetadataAttestation(
 async function applicationMetadataTransport(
   expected: { release_id: number; custody: ApplicationRunCustody },
   scratch: string,
-): Promise<Parameters<typeof readRegisteredImmutableApplicationMetadata>[1]> {
+) {
   const custody = inspectApplicationRunCustody(expected.custody);
   const release_id = expected.release_id;
   assert.ok(Number.isSafeInteger(release_id) && release_id > 0);
@@ -619,7 +622,8 @@ async function applicationMetadataTransport(
     return globalThis.fetch(input, init);
   };
   const { createGitHubClient } = await import("./github-client.mts");
-  const { downloadGitHubReleaseAsset } = await import("./github-artifact-download.mts");
+  const { downloadGitHubReleaseAsset, downloadGitHubReleaseAssetFile } =
+    await import("./github-artifact-download.mts");
   const client = await createGitHubClient({
     credential,
     deadline,
@@ -631,7 +635,7 @@ async function applicationMetadataTransport(
   const authenticateAssembly = applicationMetadataAttestation(scratch);
   return {
     deadline,
-    async read(endpoint) {
+    async read(endpoint: string): Promise<GitHubMetadataResponse> {
       const policy: GitHubRequestPolicy = { replay: "once", attempts: 0 };
       try {
         const response = await client.request(`GET /${endpoint}`, {
@@ -647,16 +651,65 @@ async function applicationMetadataTransport(
         await policy.admissionSettled;
       }
     },
-    readAsset: (id, maximum) =>
+    readAsset: (id: number, maximum: number) =>
       downloadGitHubReleaseAsset(id, {
         credential,
         deadline: Math.min(deadline, performance.now() + 30000),
         maxBytes: maximum,
         fetch,
       }),
-    authenticateAssembly: (...args) =>
+    async readArchive(id: number, maxBytes: number) {
+      const transferDeadline = Math.min(deadline, performance.now() + 30000);
+      const directory = await mkdtemp(path.join(scratch, "immutable-feed-zip-"));
+      let bytes: Buffer;
+      try {
+        const filename = "archive.zip";
+        const downloaded = await downloadGitHubReleaseAssetFile(
+          id,
+          path.join(directory, filename),
+          {
+            credential,
+            deadline: transferDeadline,
+            maxBytes,
+            fetch,
+          },
+        );
+        const { readBoundedPublicBuildInputFile } =
+          await import("./release-public-build-inputs.mts");
+        bytes = await readBoundedPublicBuildInputFile(directory, filename, maxBytes);
+        assert.equal(bytes.length, downloaded.bytes);
+        assert.equal(sha256(bytes), downloaded.sha256);
+      } finally {
+        await rm(directory, { recursive: true, force: true });
+      }
+      assert.ok(performance.now() < transferDeadline, "immutable feed archive transfer was late");
+      return bytes;
+    },
+    authenticateAssembly: (...args: Parameters<typeof authenticateAssembly>) =>
       withCoordinatorDeadline(deadline, () => authenticateAssembly(...args)),
   };
+}
+
+/** Actual full immutable feed input; the ZIP remains bounded scratch data. */
+export async function readApplicationImmutableFeed(
+  expected: Parameters<typeof readImmutableApplicationMetadataFeed>[0],
+  scratch: string,
+  authenticateAssembly: Parameters<
+    typeof readImmutableApplicationMetadataFeed
+  >[1]["authenticateAssembly"],
+) {
+  const identity = structuredClone(expected);
+  const transport = await applicationMetadataTransport(identity, scratch);
+  return readImmutableApplicationMetadataFeed(identity, {
+    read: (endpoint) => transport.read(endpoint),
+    deadline: transport.deadline,
+    readAsset: (id, maximum, name) =>
+      name === bootstrapAssetNames[0]
+        ? transport.readArchive(id, maximum)
+        : transport.readAsset(id, maximum),
+    authenticateAssembly: (...args) =>
+      withCoordinatorDeadline(transport.deadline, () => authenticateAssembly(...args)),
+  });
 }
 
 export async function readApplicationImmutableMetadata(

@@ -1530,7 +1530,7 @@ void test("metadata-only renewal publishes exactly two verified immutable assets
     assert.equal(f.mutations.length, 3, "an immutable retry cannot upload or publish again");
     let provenance = 0;
     const read = await readImmutableApplicationMetadataFeed(f.expected, {
-      api: f.transport.api,
+      read: async (endpoint) => f.transport.api.request("GET", endpoint),
       readAsset: f.transport.readAsset,
       async authenticateAssembly(assets) {
         assert.equal(assets.size, 2);
@@ -1545,7 +1545,7 @@ void test("metadata-only renewal publishes exactly two verified immutable assets
   }
 });
 
-void test("actual immutable metadata recovery uses locked scoped SDK without acquiring the ZIP", async (t) => {
+void test("actual immutable receivers separate metadata-only recovery from full file-backed ZIP custody", async (t) => {
   const f = renewalFixture();
   await f.run();
   const root = await mkdtemp(path.join(tmpdir(), "application-metadata-sdk-"));
@@ -1567,11 +1567,12 @@ void test("actual immutable metadata recovery uses locked scoped SDK without acq
       },
     },
   });
-  const { readApplicationImmutableMetadata } = (await import(
+  const { readApplicationImmutableMetadata, readApplicationImmutableFeed } = (await import(
     new URL("./application-release-feed.mts?locked-metadata-recovery", import.meta.url).href
   )) as typeof import("./application-release-feed.mts");
   const metadata = f.remoteAssets.find((asset) => asset.name === "application-metadata.json");
-  assert.ok(metadata);
+  const archive = f.remoteAssets.find((asset) => asset.name === "application-site.zip");
+  assert.ok(metadata && archive);
   const original = process.env.GH_TOKEN;
   process.env.GH_TOKEN = "application-immutable-metadata-reader";
   t.after(() => {
@@ -1580,6 +1581,8 @@ void test("actual immutable metadata recovery uses locked scoped SDK without acq
   });
   const calls: string[] = [];
   let stalled = false;
+  let shortArchive = false;
+  let stalledArchive = false;
   let cancelled = false;
   t.mock.method(
     globalThis,
@@ -1593,7 +1596,13 @@ void test("actual immutable metadata recovery uses locked scoped SDK without acq
       if (url.origin === "https://release-assets.githubusercontent.com") {
         assert.equal(request.credentials, "omit");
         assert.equal(request.headers.has("authorization"), false);
-        if (stalled)
+        if (url.pathname === "/archive" && !stalledArchive) {
+          return new Response(
+            shortArchive ? f.archive.subarray(0, f.archive.length - 1) : f.archive,
+          );
+        }
+        assert.ok(url.pathname === "/exact" || url.pathname === "/archive");
+        if (stalled || stalledArchive)
           return new Response(
             new ReadableStream({
               cancel() {
@@ -1608,12 +1617,14 @@ void test("actual immutable metadata recovery uses locked scoped SDK without acq
         request.headers.get("authorization"),
         "token application-immutable-metadata-reader",
       );
-      if (route === `/repos/boburning/portcove/releases/assets/${metadata.id}`) {
+      const exact = `/repos/boburning/portcove/releases/assets/${metadata.id}`;
+      const zip = `/repos/boburning/portcove/releases/assets/${archive.id}`;
+      if (route === exact || route === zip) {
         assert.equal(request.headers.get("accept"), "application/octet-stream");
         return new Response(null, {
           status: 302,
           headers: {
-            location: "https://release-assets.githubusercontent.com/exact?sig=inert",
+            location: `https://release-assets.githubusercontent.com/${route === zip ? "archive" : "exact"}?sig=inert`,
           },
         });
       }
@@ -1639,6 +1650,52 @@ void test("actual immutable metadata recovery uses locked scoped SDK without acq
       `/repos/boburning/portcove/git/ref/tags/${tag}`,
       release,
     ]);
+    calls.length = 0;
+    let fullAttestation = 0;
+    const acquire = () =>
+      readApplicationImmutableFeed(f.expected, root, async (assets, producer, attempt) => {
+        assert.equal(producer.id, "123");
+        assert.equal(attempt, 1);
+        assert.deepEqual(assets.get("application-metadata.json"), f.metadata);
+        assert.deepEqual(assets.get("application-site.zip"), f.archive);
+        assert.ok((await readdir(root)).every((name) => !name.startsWith("immutable-feed-zip-")));
+        fullAttestation++;
+      });
+    const complete = await acquire();
+    assert.equal(complete.site.generation, f.site.generation);
+    assert.equal(fullAttestation, 1);
+    assert.deepEqual(calls, [
+      release,
+      `${release}/assets?per_page=100&page=1`,
+      `/repos/boburning/portcove/releases/assets/${archive.id}`,
+      "/archive?sig=inert",
+      `/repos/boburning/portcove/releases/assets/${metadata.id}`,
+      "/exact?sig=inert",
+      `/repos/boburning/portcove/git/ref/tags/${tag}`,
+      release,
+    ]);
+    calls.length = 0;
+    shortArchive = true;
+    await assert.rejects(acquire(), /byte count differs/u);
+    assert.equal(fullAttestation, 1);
+    assert.ok((await readdir(root)).every((name) => !name.startsWith("immutable-feed-zip-")));
+    shortArchive = false;
+    stalledArchive = true;
+    calls.length = 0;
+    const keepArchiveAlive = setTimeout(() => {}, 1000);
+    try {
+      await assert.rejects(withCoordinatorDeadline(performance.now() + 150, acquire), {
+        code: "deadline_exceeded",
+      });
+      assert.equal(cancelled, true);
+      assert.equal(fullAttestation, 1);
+      assert.equal(calls.length, 4);
+      assert.ok((await readdir(root)).every((name) => !name.startsWith("immutable-feed-zip-")));
+    } finally {
+      clearTimeout(keepArchiveAlive);
+    }
+    stalledArchive = false;
+    cancelled = false;
     stalled = true;
     calls.length = 0;
     const keepAlive = setTimeout(() => {}, 1000);
@@ -1711,7 +1768,7 @@ void test("fresh-run metadata recovery authenticates its original registered ass
   const input = await readImmutableApplicationMetadataFeed(
     { ...f.expected, binding },
     {
-      api,
+      read: async (endpoint) => api.request("GET", endpoint),
       readAsset: f.transport.readAsset,
       authenticateAssembly: attest,
     },
@@ -1724,7 +1781,7 @@ void test("fresh-run metadata recovery authenticates its original registered ass
       readImmutableApplicationMetadataFeed(
         { ...f.expected, binding },
         {
-          api,
+          read: async (endpoint) => api.request("GET", endpoint),
           readAsset: f.transport.readAsset,
           async authenticateAssembly(_assets, producer) {
             assert.equal(producer.id, "124", "new-run proof cannot replace original producer");
@@ -2044,12 +2101,7 @@ void test("feed consumes actual immutable bytes with complete assembly authentic
   const input = await readImmutableBootstrapFeed(
     { release_id: 10, custody: f.custody, binding: f.binding },
     {
-      api: {
-        request(method, endpoint) {
-          assert.equal(method, "GET");
-          return f.transport.api.request(method, endpoint);
-        },
-      },
+      read: async (endpoint) => f.transport.api.request("GET", endpoint),
       readAsset: f.transport.readAsset,
       async authenticateAssembly(assets) {
         authentications++;
@@ -2107,12 +2159,7 @@ void test("feed refuses unpublished or mutable input, missing/colliding/corrupt 
           binding: mode === "producer" ? { ...f.binding, producer_attempt: 2 } : f.binding,
         },
         {
-          api: {
-            request(method, endpoint) {
-              assert.equal(method, "GET");
-              return f.transport.api.request(method, endpoint);
-            },
-          },
+          read: async (endpoint) => f.transport.api.request("GET", endpoint),
           readAsset: f.transport.readAsset,
           async authenticateAssembly() {
             if (mode === "attestation") throw new Error("signature not verified");
@@ -2132,16 +2179,13 @@ void test("feed brackets asset and provenance reads with immutable release custo
       readImmutableBootstrapFeed(
         { release_id: 10, custody: f.custody, binding: f.binding },
         {
-          api: {
-            request(method, endpoint) {
-              assert.equal(method, "GET");
-              const response = f.transport.api.request(method, endpoint);
-              if (mode === "tag" && endpoint.includes("/git/ref/")) {
-                assert.ok(isRecord(response.body) && isRecord(response.body.object));
-                response.body.object.sha = "f".repeat(40);
-              }
-              return response;
-            },
+          async read(endpoint) {
+            const response = f.transport.api.request("GET", endpoint);
+            if (mode === "tag" && endpoint.includes("/git/ref/")) {
+              assert.ok(isRecord(response.body) && isRecord(response.body.object));
+              response.body.object.sha = "f".repeat(40);
+            }
+            return response;
           },
           readAsset: f.transport.readAsset,
           async authenticateAssembly() {
