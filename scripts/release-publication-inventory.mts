@@ -8,6 +8,7 @@ import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
 import { classifyApplicationVersion } from "../apps/desktop/scripts/release-version-policy.mts";
 import { isRecord } from "./runtime-values.mts";
 import { performance } from "node:perf_hooks";
+import type { GitHubClientOptions } from "./github-client.mts";
 const repository = "boburning/portcove";
 const base = `repos/${repository}`;
 const maximumPublicationRequests = 160;
@@ -318,15 +319,20 @@ export async function createPublicationInventoryWithSdk(options: {
   currentDeadline?: () => number;
   maxBytes?: number;
   requestTimeoutMs?: number;
+  accounting?: {
+    reserve: NonNullable<GitHubClientOptions["reserve"]>;
+    elapsed: (milliseconds: number) => void;
+    currentDeadline: () => number;
+  };
 }) {
-  const { token, fetch, recheck } = options;
+  const { token, fetch, recheck, accounting } = options;
   const deadline = Math.min(options.deadline, coordinatorCommandDeadline() ?? Infinity);
   let requests = 0;
   let milliseconds = 0;
   const remaining = () => {
-    const budget = 120000 - milliseconds;
-    if (budget <= 0 || performance.now() >= deadline)
-      throw new Error("publication inventory budget exceeded");
+    const now = performance.now();
+    const budget = accounting ? accounting.currentDeadline() - now : 120000 - milliseconds;
+    if (budget <= 0 || now >= deadline) throw new Error("publication inventory budget exceeded");
     return budget;
   };
   const { createGitHubClient } = await import("./github-client.mts");
@@ -343,19 +349,22 @@ export async function createPublicationInventoryWithSdk(options: {
       options.beforeDispatch?.();
       return expected !== undefined && method === expected.method && url.href === expected.url;
     },
-    reserve() {
-      if (requests >= maximumPublicationRequests)
-        throw new Error("publication inventory budget exceeded");
-      requests++;
-      return {
-        consumeBytes() {},
-        settle(observation) {
-          if (!observation.dispatched) requests--;
-        },
-      };
-    },
+    reserve:
+      accounting?.reserve ??
+      (() => {
+        if (requests >= maximumPublicationRequests)
+          throw new Error("publication inventory budget exceeded");
+        requests++;
+        return {
+          consumeBytes() {},
+          settle(observation) {
+            if (!observation.dispatched) requests--;
+          },
+        };
+      }),
     observe(observation) {
-      milliseconds += observation.elapsedMs;
+      if (accounting) accounting.elapsed(observation.elapsedMs);
+      else milliseconds += observation.elapsedMs;
     },
   });
   const read = async (route: string, body: Record<string, unknown> = {}) => {

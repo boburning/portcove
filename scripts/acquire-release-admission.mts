@@ -3,6 +3,7 @@ import { applicationReleaseProfile } from "./release-authority-configuration-con
 import { isInitialBetaReleaseProfile } from "./release-package-policy.mts";
 import {
   createReleasePublicationReader,
+  createPublicationInventoryWithSdk,
   peelReleaseReference,
   releasePublicationRefsQuery as refsQuery,
 } from "./release-publication-inventory.mts";
@@ -45,7 +46,11 @@ import {
 import type { SigningArchiveDownload } from "./release-signing-handoff.mts";
 import { acquirePackageArchive } from "./release-artifact-assembly.mts";
 import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
-import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
+import {
+  fixedReleaseReaderToken,
+  readOnlyReleaseChildEnvironment,
+} from "./release-readonly-child-environment.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { discoverReleaseArtifactFiles } from "./release-artifact-archive.mts";
 import { inspectTrustedAssemblyInput } from "./trusted-release-assembly.mts";
 import {
@@ -346,6 +351,7 @@ export async function acquireReleaseAdmission(
     capacity?: { ratification: unknown; readBoundary: () => Promise<unknown> };
     controls?: AuthenticatedReleaseControlSource;
     controlPhase?: ReleaseControlPhase;
+    deadline?: number;
     compiler?: ReleaseCompilerAdmissionPrerequisite;
     // Inert updater package custody only; full archive verification precedes it.
     retainDesktopPackage?: NonNullable<
@@ -403,6 +409,7 @@ export async function acquireReleaseAdmission(
     : undefined;
   const config = configuration(structuredClone(rawConfiguration));
   const started = performance.now();
+  const inventoryEnvironment = options.api ? undefined : { ...process.env };
   const root = await mkdtemp(path.join(path.resolve(privateRoot), "release-admission-"));
   let phase = "initialize";
   let checkpoint: string | null = null;
@@ -417,14 +424,32 @@ export async function acquireReleaseAdmission(
         ),
       );
     let apiMilliseconds = 0;
+    const admissionDeadline = Math.min(
+      started + 15 * 60 * 1000,
+      options.deadline ?? Infinity,
+      inventoryEnvironment === undefined ? Infinity : (coordinatorCommandDeadline() ?? Infinity),
+    );
     const budget = () => {
-      if (
-        ++requests > 160 ||
-        apiMilliseconds > 120000 ||
-        performance.now() - started > 15 * 60 * 1000
-      )
+      if (requests >= 160 || apiMilliseconds >= 120000 || performance.now() >= admissionDeadline)
         throw new Error("admission API acquisition bound exhausted");
+      requests++;
     };
+    const reserveProviderRequest = () => {
+      budget();
+      return {
+        consumeBytes() {},
+        settle(observation: { dispatched: boolean }) {
+          if (!observation.dispatched) requests--;
+        },
+      };
+    };
+    const archiveLookup = () => ({
+      deadline: Math.min(admissionDeadline, performance.now() + 120000 - apiMilliseconds),
+      reserve: reserveProviderRequest,
+      elapsed(milliseconds: number) {
+        apiMilliseconds += milliseconds;
+      },
+    });
     const api: Api = {
       request(method, endpoint, body) {
         const url = new URL(
@@ -484,7 +509,7 @@ export async function acquireReleaseAdmission(
         if (
           response.status !== 200 ||
           apiMilliseconds > 120000 ||
-          performance.now() - started > 15 * 60 * 1000
+          performance.now() >= admissionDeadline
         )
           throw new Error("admission API source unavailable or late");
         return response;
@@ -496,14 +521,35 @@ export async function acquireReleaseAdmission(
         const requestStarted = performance.now();
         const response = rawApi.graphql(query, variables);
         apiMilliseconds += performance.now() - requestStarted;
-        if (apiMilliseconds > 120000 || performance.now() - started > 15 * 60 * 1000)
+        if (apiMilliseconds > 120000 || performance.now() >= admissionDeadline)
           throw new Error("admission ref acquisition was late");
         return response;
       },
     };
     phase = "repository-and-reservation";
-    const publicationReader = createReleasePublicationReader(api);
-    const { tags, releases } = publicationReader;
+    const inventoryToken = inventoryEnvironment && fixedReleaseReaderToken(inventoryEnvironment);
+    const checkInventory = () => {
+      if (performance.now() >= archiveLookup().deadline)
+        throw new Error("admission API acquisition bound exhausted");
+    };
+    const publicationReader =
+      inventoryToken === undefined
+        ? createReleasePublicationReader(api)
+        : await createPublicationInventoryWithSdk({
+            token: inventoryToken,
+            deadline: admissionDeadline,
+            accounting: {
+              ...archiveLookup(),
+              currentDeadline: () => archiveLookup().deadline,
+            },
+            async recheck() {
+              checkInventory();
+            },
+            beforeDispatch() {
+              checkInventory();
+              assertTrustedDirectNode("fixed release admission inventory");
+            },
+          });
     const recover = () =>
       (options.recover ?? recoverRemoteCoordinator)(
         root,
@@ -540,9 +586,9 @@ export async function acquireReleaseAdmission(
     integer(candidate.release_run.attempt);
     if (candidate.release_run.revision !== candidate.prepared_commit)
       throw new Error("admission frozen run differs from prepared source");
-    const initialTags = tags();
-    const initialReleases = releases();
-    const { allocations, intents } = publicationReader.readAllocations(
+    const initialTags = await publicationReader.tags();
+    const initialReleases = await publicationReader.releases();
+    const { allocations, intents } = await publicationReader.readAllocations(
       initialTags,
       config.namespace,
     );
@@ -667,26 +713,9 @@ export async function acquireReleaseAdmission(
       tree: active.prepared_tree,
       workflow_sha256: hash(workflow),
     };
-    const admissionDeadline = started + 15 * 60 * 1000;
     const evidenceCredential = options.download
       ? undefined
       : publicBuildReadCredential(admissionDeadline);
-    const reserveProviderRequest = () => {
-      budget();
-      return {
-        consumeBytes() {},
-        settle(observation: { dispatched: boolean }) {
-          if (!observation.dispatched) requests--;
-        },
-      };
-    };
-    const archiveLookup = () => ({
-      deadline: Math.min(admissionDeadline, performance.now() + 120000 - apiMilliseconds),
-      reserve: reserveProviderRequest,
-      elapsed(milliseconds: number) {
-        apiMilliseconds += milliseconds;
-      },
-    });
     const scoped = readOnlyReleaseChildEnvironment() !== undefined;
     const collectEvidence = async () => {
       if (options.api && !options.collectEvidence)
@@ -694,10 +723,7 @@ export async function acquireReleaseAdmission(
           read: async (endpoint) => api.request("GET", endpoint),
         });
       const startedEvidence = performance.now();
-      const deadline = Math.min(
-        started + 15 * 60 * 1000,
-        startedEvidence + 120000 - apiMilliseconds,
-      );
+      const deadline = Math.min(admissionDeadline, startedEvidence + 120000 - apiMilliseconds);
       const evidenceOptions: ReleaseEvidenceOptions = {
         deadline,
         reserve: reserveProviderRequest,
@@ -816,7 +842,7 @@ export async function acquireReleaseAdmission(
     const declarations = [];
     const cliPackages = new Map<string, Buffer>();
     for (const archive of archives) {
-      if (performance.now() - started > 15 * 60 * 1000)
+      if (performance.now() >= admissionDeadline)
         throw new Error("admission archive acquisition deadline exhausted");
       const endpoint = `${base}/actions/artifacts/${archive.artifact_id}/zip`;
       const timeoutMs = Math.floor(Math.min(120000, admissionDeadline - performance.now()));
@@ -1018,7 +1044,10 @@ export async function acquireReleaseAdmission(
       );
     if (!isDeepStrictEqual(contexts, readQualification()))
       throw new Error("required qualification changed during acquisition");
-    if (!isDeepStrictEqual(initialTags, tags()) || !isDeepStrictEqual(initialReleases, releases()))
+    if (
+      !isDeepStrictEqual(initialTags, await publicationReader.tags()) ||
+      !isDeepStrictEqual(initialReleases, await publicationReader.releases())
+    )
       throw new Error("publication or complete reservation snapshot changed");
     const after = record(await recover());
     if (after.checkpoint !== checkpoint)
@@ -1325,6 +1354,7 @@ async function performAdmissionHandshake(
     ...(compiler ? { compiler } : {}),
     ...(establishNative ? { establishNative } : {}),
     controlPhase: phase,
+    ...(deadline === undefined ? {} : { deadline }),
     establishControls: async (factsSha256, facts) => {
       retained.facts = facts;
       const readyDigest = additionalFacts ? await additionalFacts(facts, factsSha256) : factsSha256;

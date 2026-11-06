@@ -1199,3 +1199,100 @@ void test("source publication inventory keeps ordered short pages, exact repo al
     }
   }
 });
+
+void test("default admission reaches the locked publication inventory before provider failure", async (t) => {
+  const f = await fixture(t);
+  const { api, recover } = f.options;
+  assert.ok(api && recover);
+  const token = "inert-fixed-admission-inventory";
+  const previous = process.env.GH_TOKEN;
+  process.env.GH_TOKEN = token;
+  t.after(() => {
+    if (previous === undefined) delete process.env.GH_TOKEN;
+    else process.env.GH_TOKEN = previous;
+  });
+  const events: string[] = [];
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const request = new Request(input, init);
+      const url = new URL(request.url);
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(request.headers.get("authorization"), `token ${token}`);
+      events.push(url.pathname);
+      if (url.pathname === "/graphql") {
+        const raw: unknown = await request.json();
+        assert.ok(
+          isRecord(raw) && raw.query === releasePublicationRefsQuery && isRecord(raw.variables),
+        );
+        return Response.json({
+          data: api.graphql(releasePublicationRefsQuery, raw.variables).data,
+        });
+      }
+      if (url.pathname.endsWith("/releases"))
+        return Response.json({ message: "transient provider refusal" }, { status: 503 });
+      return Response.json(api.request("GET", url.pathname.slice(1)).body);
+    },
+  );
+  await assert.rejects(
+    acquireReleaseAdmission(f.root, f.config, {
+      deadline: performance.now() + 5000,
+      recover: async (...args) => {
+        events.push("recover");
+        return recover(...args);
+      },
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof CoordinatorRemoteError && isRecord(error.evidence));
+      assert.equal(error.evidence.phase, "repository-and-reservation");
+      assert.equal(error.evidence.api_requests, 3);
+      return true;
+    },
+  );
+  assert.deepEqual(events, [
+    "/repos/boburning/portcove",
+    "recover",
+    "/graphql",
+    "/repos/boburning/portcove/releases",
+  ]);
+});
+
+void test("locked publication inventory uses the operation's existing exhausted reservation", async () => {
+  let occupied = 159;
+  let observed = 0;
+  let dispatched = 0;
+  const reader = await createPublicationInventoryWithSdk({
+    token: "synthetic-shared-inventory",
+    deadline: performance.now() + 1000,
+    async recheck() {},
+    accounting: {
+      currentDeadline: () => performance.now() + 1000,
+      reserve() {
+        if (occupied >= 160) throw new Error("admission API acquisition bound exhausted");
+        occupied++;
+        return {
+          consumeBytes() {},
+          settle(attempt) {
+            if (!attempt.dispatched) occupied--;
+          },
+        };
+      },
+      elapsed() {
+        observed++;
+      },
+    },
+    async fetch() {
+      dispatched++;
+      return Response.json({
+        id: 1354613114,
+        full_name: "boburning/portcove",
+        node_id: "R_fixture",
+      });
+    },
+  });
+  await assert.rejects(reader.releases(), /admission API acquisition bound exhausted/u);
+  assert.equal(dispatched, 1);
+  assert.equal(occupied, 160);
+  assert.ok(observed >= 1);
+});
