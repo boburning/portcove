@@ -296,10 +296,26 @@ jobs:
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      - name: Retain and audit the exact already qualified public Linux tuple
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Install locked acquisition dependencies and check the archive preflight
+        timeout-minutes: 5
+        run: |
+          pnpm install --frozen-lockfile --prod --ignore-scripts
+          python3 scripts/qualification/linux-reboot/qualification_archive.py
+      - name: Acquire the exact already qualified public Linux archive
         timeout-minutes: 15
         env:
           GH_TOKEN: ${{ github.token }}
+        run: node scripts/qualification/linux-reboot/acquire.mts
+      - name: Audit the retained archive and select the frozen public Linux tuple
+        timeout-minutes: 15
         run: python3 scripts/qualification/linux-reboot/prepare.py stage
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
