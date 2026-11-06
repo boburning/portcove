@@ -229,6 +229,7 @@ async function hostedNativeSourceTransport(parentReceipt: object, directory: str
       token: childEnvironment.GH_TOKEN ?? "",
       deadline: Math.min(deadline, originalDeadline),
       maxBytes: 2 * 1024 * 1024,
+      fetch: directFetch,
       chargeRead: () => {
         remaining(1);
       },
@@ -631,11 +632,15 @@ export async function readActualHostedNativePostSignController(parentReceipt: ob
             group.kind === "upload" &&
             group.destination_sha256 === releaseCanonicalDigest(destination),
         );
+        let checkpointObjects: Awaited<ReturnType<typeof source.checkpointObjects>> | undefined;
         for (const group of groups)
           for (const proof of group.attempts) {
-            const operation = await withCoordinatorDeadline(source.deadline, () =>
-              hydrateRetainedCoordinatorOperation(before.repository, proof, { api: source.api }),
-            );
+            const operation = await withCoordinatorDeadline(source.deadline, async () => {
+              checkpointObjects ??= await source.checkpointObjects(source.deadline);
+              return hydrateRetainedCoordinatorOperation(before.repository, proof, {
+                provider: checkpointObjects,
+              });
+            });
             await requireActualHostedNativeParentSource(parentReceipt);
             source.remaining(1);
             consider(proof.checkpoint, operation);

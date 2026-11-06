@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFile } from "node:fs/promises";
+import { stripTypeScriptTypes } from "node:module";
+import { runInNewContext } from "node:vm";
+import { isRecord } from "./runtime-values.mts";
 import { nativeQualificationFixture } from "./fixtures/native-qualification-fixture.mts";
 import { nativeAuthorityConfigurationFixture } from "./fixtures/native-authority-configuration-fixture.mts";
 import {
@@ -20,6 +24,7 @@ import {
 } from "./release-native-attempt.mts";
 import { nativeInvocationIdentity } from "./release-native-candidate.mts";
 import {
+  nativeQualificationCheckName,
   nativePrepublicationProfile,
   nativePrepublicationPending,
   nativePrepublicationScenarios,
@@ -265,4 +270,78 @@ void test("imported claims and selections cannot reach actual claim, readback or
   await assert.rejects(claimActualNativeInvocation({}), /actual parent-owned/);
   await assert.rejects(requireActualNativeInvocation({}), /actual freshly claimed/);
   await assert.rejects(reconcileActualNativeCheck({}, {}, {}), /actual parent-owned/);
+});
+
+void test("actual installed Check reconciliation awaits the selected reader and exact positive readback", async () => {
+  const text = await readFile(new URL("./release-native-candidate.mts", import.meta.url), "utf8");
+  const start = text.indexOf("export async function reconcileActualNativeCheck(");
+  const end = text.indexOf("export async function requireActualNativeCandidate(", start);
+  assert.ok(start > 0 && end > start);
+  const f = fixture();
+  const wire = prepareNativeQualificationCheck(f.report);
+  const app = f.authorities.apps.native_qualification;
+  assert.ok(app);
+  const issuer = app.app_id;
+  const calls: string[] = [];
+  let total = 1;
+  const readCheckMetadata = async (route: string) => {
+    calls.push(route);
+    return {
+      total_count: total,
+      check_runs: [
+        {
+          id: 7,
+          app: { id: issuer },
+          head_sha: f.report.candidate.source_commit,
+          name: nativeQualificationCheckName,
+          external_id: wire.body.external_id,
+        },
+      ],
+    };
+  };
+  const retained = {
+    directory: "/fixture",
+    readCheckMetadata,
+    async recheckSource() {
+      calls.push("fresh");
+    },
+  };
+  const run = runInNewContext(
+    stripTypeScriptTypes(text.slice(start, end).replace("export ", "")) +
+      "; reconcileActualNativeCheck;",
+    {
+      selections: { get: () => retained },
+      requireActualNativeCandidate: async () => ({
+        parent: { authority_configuration: f.authorities },
+      }),
+      inspectNativeCheckRecoveryPlan,
+      nativeQualificationCheckName,
+      isRecord,
+      collectNativeReleaseQualification: async (
+        directory: string,
+        expected: { check_id: number },
+        options: { read: unknown },
+      ) => {
+        assert.equal(directory, retained.directory);
+        assert.equal(expected.check_id, 7);
+        assert.equal(options.read, readCheckMetadata);
+        calls.push("exact");
+        return { check_id: 7, evidence_scope: "injected-provider" };
+      },
+    },
+  ) as (...args: unknown[]) => Promise<{ check_id: number; authority: string }>;
+  const expected = {
+    method: "POST",
+    endpoint: "repos/boburning/portcove/check-runs",
+    body: wire.body,
+  };
+  const result = await run({}, f.prepared, expected);
+  assert.equal(result.check_id, 7);
+  assert.equal(result.authority, "none");
+  const inventory = `commits/${f.report.candidate.source_commit}/check-runs?check_name=${encodeURIComponent(nativeQualificationCheckName)}&filter=all&per_page=100`;
+  assert.deepEqual(calls, [inventory, "exact", "fresh"]);
+  calls.length = 0;
+  total = 2;
+  await assert.rejects(run({}, f.prepared, expected), /inventory is incomplete/u);
+  assert.deepEqual(calls, [inventory]);
 });
