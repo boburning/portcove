@@ -3,7 +3,7 @@ import { nativeCompatibilitySourcePaths } from "./release-native-source-contract
 /** Fixed trusted role commands, bundled on a separate secret-free runner.
  * Candidate packages remain data here. Only native acceptance jobs launch them. */
 import assert from "node:assert/strict";
-import { execFileSync, spawnSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { mkdir, mkdtemp, lstat, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -32,6 +32,7 @@ import {
 } from "./release-semantic-disposition-reader.mts";
 import {
   observeReleaseInputProtections,
+  createProtectionObservationReader,
   requireReleaseImmutabilityPolicy,
 } from "./release-input-protections.mts";
 import {
@@ -43,7 +44,6 @@ import { payloadSigningEnvironment } from "./release-payload-signing.mts";
 import { receiveApplicationPackages } from "./application-release-transfer.mts";
 import { createApplicationUpdaterInventory } from "./application-release-artifacts.mts";
 import { loadPackagePolicy } from "./release-package-policy.mts";
-import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import {
   receiveApplicationContext,
   inspectApplicationContextBeforeKey,
@@ -2300,23 +2300,14 @@ async function observe() {
   );
   const token = process.env.PORTCOVE_OBSERVER_TOKEN;
   assert.ok(token && !/[\r\n\0]/u.test(token) && token.length <= 16384);
-  const environment = {
-    ...payloadSigningEnvironment(path.resolve("work/observer-cli")),
-    PATH: process.env.PATH,
-    GH_HOST: "github.com",
-    GH_TOKEN: token,
-  };
-  const observer = new GitHubApiClient(
-    createGitHubRunner({
-      timeoutMs: 30000,
-      maxBuffer: 4 * 1024 ** 2,
-      spawn: (command, args, options) => spawnSync(command, args, { ...options, env: environment }),
-    }),
-  );
-  const observation = await observeReleaseInputProtections(
-    (endpoint) => observer.request("GET", endpoint),
-    { releasePublication: true },
-  );
+  const observer = await createProtectionObservationReader({
+    token,
+    deadline: performance.now() + 120000,
+    maxBytes: 4 * 1024 ** 2,
+    requestTimeoutMs: 30000,
+    guard: () => assertTrustedDirectNode("fixed application protection observer"),
+  });
+  const observation = await observeReleaseInputProtections(observer, { releasePublication: true });
   const interpreted = requireReleaseImmutabilityPolicy(observation);
   assert.equal(
     interpreted.inventory_sha256,

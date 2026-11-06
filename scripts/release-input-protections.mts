@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { performance } from "node:perf_hooks";
+import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
 import { isRecord } from "./runtime-values.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import {
@@ -92,6 +93,41 @@ function id(value: unknown): asserts value is number {
   if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 1)
     throw new Error("invalid protection identity");
 }
+/** Fixed protection reads share the observer's existing credential and deadline. */
+export async function createProtectionObservationReader(options: {
+  token: string;
+  deadline: number;
+  maxBytes: number;
+  requestTimeoutMs?: number;
+  guard: () => void;
+}): Promise<ProtectionReader> {
+  const { token, maxBytes, requestTimeoutMs, guard } = options;
+  const deadline = Math.min(options.deadline, coordinatorCommandDeadline() ?? Infinity);
+  let expected: string | undefined;
+  const { createGitHubClient } = await import("./github-client.mts");
+  const client = await createGitHubClient({
+    credential: { kind: "explicit", token },
+    deadline,
+    maxBytes,
+    ...(requestTimeoutMs === undefined ? {} : { requestTimeoutMs }),
+    allowRequest(method, url) {
+      if (method !== "GET" || url.href !== expected) return false;
+      guard();
+      return true;
+    },
+  });
+  return async (endpoint, observationDeadline) => {
+    if (!/^repos\/boburning\/portcove(?:\/|$)/u.test(endpoint))
+      throw new Error("fixed protection reader refused an unscoped route");
+    expected = `https://api.github.com/${endpoint}`;
+    const response = await client.request(`GET /${endpoint}`, {
+      request: { portcove: { replay: "once", attempts: 0, deadline: observationDeadline } },
+    });
+    guard();
+    return { status: response.status, body: response.data as unknown };
+  };
+}
+
 /** GET-only collection. Its credential still has Administration WRITE because
  * that is GitHub's permission for complete ruleset/bypass visibility. Never
  * release that token to candidate/admission/assembly/classification/publication.

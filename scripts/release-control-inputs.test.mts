@@ -23,6 +23,7 @@ import {
 import { createReleaseReviewRequest } from "./release-review-request.mts";
 import {
   observeReleaseInputProtections,
+  createProtectionObservationReader,
   requireReleaseInputWriterPolicy,
   requireReleaseImmutabilityPolicy,
 } from "./release-input-protections.mts";
@@ -549,4 +550,40 @@ void test("legacy persisted classification refuses consumption and is never over
   assert.throws(() => readReviewedClassification(f.api, config, opportunity));
   assert.throws(() => persistReviewedClassification(f.api, config, opportunity, 303, () => {}));
   assert.equal(f.mutations(), 1);
+});
+
+void test("fixed protection reader uses the explicit observer credential and exact GET scope", async (t) => {
+  let dispatches = 0;
+  let guards = 0;
+  const deadline = performance.now() + 5000;
+  const read = await createProtectionObservationReader({
+    token: "inert-protection-observer",
+    deadline,
+    maxBytes: 4 * 1024 ** 2,
+    requestTimeoutMs: 30000,
+    guard: () => {
+      guards++;
+    },
+  });
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const request = new Request(input, init);
+      dispatches++;
+      assert.equal(request.url, "https://api.github.com/repos/boburning/portcove");
+      assert.equal(request.method, "GET");
+      assert.equal(request.headers.get("authorization"), "token inert-protection-observer");
+      assert.equal(guards, 1);
+      return Response.json({ id: 1354613114 });
+    },
+  );
+  await assert.rejects(async () => read("repos/boburning/elsewhere", deadline), /unscoped route/u);
+  assert.equal(dispatches, 0);
+  assert.deepEqual(await read("repos/boburning/portcove", deadline), {
+    status: 200,
+    body: { id: 1354613114 },
+  });
+  assert.equal(dispatches, 1);
+  assert.equal(guards, 2);
 });
