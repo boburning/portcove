@@ -493,7 +493,7 @@ void test("locked application Release notes inventory retains exact records and 
     body: "exact retained notes",
   };
   const next = { ...release, id: 51, tag_name: "v0.1.0-alpha.4" };
-  for (const fault of ["", "foreign", "skip", "duplicate", "malformed"]) {
+  for (const fault of ["", "foreign", "skip", "duplicate", "malformed", "short-pages"]) {
     const routes: string[] = [];
     const read = () =>
       readReleaseNotesWithSdk({
@@ -513,6 +513,18 @@ void test("locked application Release notes inventory retains exact records and 
               full_name: "boburning/portcove",
               node_id: "fixture",
             });
+          if (fault === "short-pages") {
+            const page = Number(url.searchParams.get("page") ?? "1");
+            assert.equal(url.searchParams.get("per_page"), "100");
+            return Response.json([{ ...release, id: release.id + page - 1 }], {
+              headers:
+                page === 17
+                  ? {}
+                  : {
+                      link: `<https://api.github.com/repositories/1354613114/releases?per_page=100&page=${page + 1}>; rel="next"`,
+                    },
+            });
+          }
           if (url.pathname === "/repos/boburning/portcove/releases") {
             const path =
               fault === "foreign"
@@ -533,8 +545,13 @@ void test("locked application Release notes inventory retains exact records and 
           return Response.json([fault === "duplicate" ? release : next]);
         },
       });
-    if (fault) await assert.rejects(read());
-    else assert.deepEqual(await read(), [release, next]);
-    assert.equal(routes.length, fault && fault !== "duplicate" ? 2 : 3);
+    if (fault === "short-pages") {
+      assert.equal((await read()).length, 17);
+      assert.equal(routes.length, 18);
+    } else {
+      if (fault) await assert.rejects(read());
+      else assert.deepEqual(await read(), [release, next]);
+      assert.equal(routes.length, fault && fault !== "duplicate" ? 2 : 3);
+    }
   }
 });

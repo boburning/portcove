@@ -344,6 +344,8 @@ void test("actual Pages observation aborts a stalled first response at the inher
     if (originalToken === undefined) delete process.env.GH_TOKEN;
     else process.env.GH_TOKEN = originalToken;
   });
+  // Keep package initialization outside the deadline used to test body cancellation.
+  await createApplicationFeedReader("inert-pages-observation", performance.now() + 5000);
   let calls = 0;
   let cancelled = false;
   t.mock.method(

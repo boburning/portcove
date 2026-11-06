@@ -10,6 +10,7 @@ import { isRecord } from "./runtime-values.mts";
 import { performance } from "node:perf_hooks";
 const repository = "boburning/portcove";
 const base = `repos/${repository}`;
+const maximumPublicationRequests = 160;
 type Api = CoordinatorRemoteApi;
 const refsQuery = `query AdmissionRefs($cursor:String) {
  repository(owner:"boburning",name:"portcove") { id databaseId nameWithOwner
@@ -49,7 +50,7 @@ export function createReleasePublicationReader(rawApi: Api) {
   let requests = 0,
     milliseconds = 0;
   const bounded = <T,>(read: () => T): T => {
-    if (++requests > 160 || milliseconds > 120000)
+    if (++requests > maximumPublicationRequests || milliseconds > 120000)
       throw new Error("publication inventory budget exceeded");
     const started = performance.now();
     let result: T;
@@ -315,7 +316,7 @@ export async function readReleaseNotesWithSdk(options: {
   let route = new URL(`https://api.github.com/${base}/releases?per_page=100`);
   const ids = new Set<number>();
   const rows: Record<string, unknown>[] = [];
-  for (let page = 1; page <= 16; page++) {
+  for (let page = 1; page < maximumPublicationRequests; page++) {
     const response = await read(route);
     const body: unknown = response.data;
     if (!Array.isArray(body) || body.length > 100 || rows.length + body.length > 1600)
