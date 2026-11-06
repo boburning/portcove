@@ -1944,14 +1944,14 @@ async function deployBootstrapSite(readOnly = false) {
           preimage.provider,
           "public deployment changed after preflight",
         );
-        const { artifact: readArtifact } = await createReleaseCustodyProvider({
+        const provider = await createReleaseCustodyProvider({
           token: fixedReleaseReaderToken(),
           deadline,
           requestTimeoutMs: 30000,
           maxBytes: 8 * 1024 ** 2,
           beforeDispatch: () => assertTrustedDirectNode("fixed application Pages artifact read"),
         });
-        const observed = await readArtifact(artifactId);
+        const observed = await provider.artifact(artifactId);
         assert.ok(
           isRecord(observed) && observed.expired === false && isRecord(observed.workflow_run),
         );

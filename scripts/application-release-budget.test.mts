@@ -470,9 +470,10 @@ void test("forward metadata maintenance counts original executions, refuses miss
     assert.equal(new Headers(init.headers).get("authorization"), "token synthetic-budget-reader");
     if (url.pathname === "/graphql") {
       assert.equal(init.method, "POST");
-      assert.equal(typeof init.body, "string");
-      const { query, variables } = JSON.parse(String(init.body));
-      return Response.json(pause.api.graphql(query, variables));
+      assert.ok(typeof init.body === "string");
+      const body: unknown = JSON.parse(init.body);
+      assert.ok(isRecord(body) && typeof body.query === "string" && isRecord(body.variables));
+      return Response.json(pause.api.graphql(body.query, body.variables));
     }
     assert.equal(init.method, "GET");
     if (url.pathname === "/repos/boburning/portcove" || url.pathname.includes("/git/"))

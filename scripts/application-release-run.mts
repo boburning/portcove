@@ -883,7 +883,7 @@ export async function createApplicationReleaseMetadataReader(deadline: number) {
       return globalThis.fetch(input, init);
     },
   });
-  return provider.release;
+  return (id: number) => provider.release(id);
 }
 
 export function readActualApplicationBudgetOwner(

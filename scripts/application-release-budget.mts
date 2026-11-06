@@ -316,7 +316,7 @@ export async function readApplicationJobBudget(
   const opportunity = process.env.PORTCOVE_APPLICATION_RELEASE_OPPORTUNITY ?? "";
   const provider = await createApplicationBudgetProvider();
   const owner = budgetContext
-    ? await readApplicationBudgetOwnerAsync(provider.release, budgetContext)
+    ? await readApplicationBudgetOwnerAsync((id) => provider.release(id), budgetContext)
     : undefined;
   const scopes =
     owner?.custody.budget?.kind === "owner"
