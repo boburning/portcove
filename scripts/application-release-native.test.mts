@@ -462,6 +462,37 @@ void test("native attester inline SDK stages a verified archive for the no-netwo
   assert.equal(steps[index + 1]?.run, "node scripts/application-release-tools.mts receive-file");
   const script = step.with?.script;
   assert.ok(script && !script.includes("${{"));
+  const privateWorkflow = parse(
+    await readFile(
+      new URL("../.github/workflows/application-release-private.yml", import.meta.url),
+      "utf8",
+    ),
+  ) as {
+    jobs: { execute: { steps: ((typeof steps)[number] & { id?: string; name?: string })[] } };
+  };
+  const privateSteps = privateWorkflow.jobs.execute.steps;
+  const privateIndex = privateSteps.findIndex((entry) => entry.uses === step.uses);
+  const privateStep = privateSteps[privateIndex];
+  assert.ok(privateStep?.with?.script);
+  assert.deepEqual(
+    {
+      ...privateStep.with,
+      script: privateStep.with.script.replace(
+        "Private worker tools acquisition refused",
+        "Native attester tools acquisition refused",
+      ),
+    },
+    step.with,
+  );
+  assert.equal(
+    privateSteps[privateIndex + 1]?.run,
+    "node scripts/application-release-tools.mts receive-file",
+  );
+  assert.ok(
+    privateSteps.findIndex((entry) => entry.name?.startsWith("Bind fixed caller")) < privateIndex,
+  );
+  for (const id of ["observer", "worker"])
+    assert.ok(privateSteps.findIndex((entry) => entry.id === id) > privateIndex + 1);
   const root = await mkdtemp(path.join(tmpdir(), "native-attester-tools-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const scratch = path.join(root, "portcove-native-attester-tools");
