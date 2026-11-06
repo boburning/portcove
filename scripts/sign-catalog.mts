@@ -2,7 +2,6 @@
 import { createHash, createPrivateKey, createPublicKey, sign } from "node:crypto";
 import { closeSync, fstatSync, lstatSync, openSync, readSync, writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
-import { isRecord } from "./runtime-values.mts";
 
 const { values } = parseArgs({
   options: {
@@ -113,17 +112,23 @@ if (expiresAt - issuedAt > 366 * 86400) {
 const catalog: unknown = JSON.parse(
   readRegular(values.catalog, 4 * 1024 * 1024, "--catalog").toString("utf8"),
 );
-if (isRecord(catalog) && Array.isArray(catalog.ports)) {
-  for (const port of catalog.ports.filter(isRecord)) {
-    if (port.windows_shipwright_persistence === true) {
+if (catalog && typeof catalog === "object" && "ports" in catalog && Array.isArray(catalog.ports)) {
+  for (const port of catalog.ports as unknown[]) {
+    if (!port || typeof port !== "object") continue;
+    if ("windows_shipwright_persistence" in port && port.windows_shipwright_persistence === true) {
       throw new Error(
         "Format-1 signed catalogs cannot deliver Shipwright working-directory persistence. Use a compatible indexed definition.",
       );
     }
     if (
+      "persistent_file_patterns" in port &&
       Array.isArray(port.persistent_file_patterns) &&
       port.persistent_file_patterns.some(
-        (pattern: unknown) => isRecord(pattern) && pattern.allow_empty_middle === true,
+        (pattern: unknown) =>
+          pattern &&
+          typeof pattern === "object" &&
+          "allow_empty_middle" in pattern &&
+          pattern.allow_empty_middle === true,
       )
     ) {
       throw new Error("Format-1 signed catalogs cannot deliver empty-middle file patterns.");
