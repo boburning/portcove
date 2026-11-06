@@ -4,6 +4,8 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { mkdtemp } from "node:fs/promises";
+import type { GitHubReservation } from "./github-client.mts";
+import { assertTrustedDirectNode } from "./release-direct-node-transport.mts";
 import { performance } from "node:perf_hooks";
 import { isRecord } from "./runtime-values.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
@@ -11,6 +13,7 @@ import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import { currentApplicationSitePins } from "./release-catalog-metadata-contract.mts";
 import {
   coordinatorCommandTimeout,
+  coordinatorCommandDeadline,
   checkCoordinatorDeadline,
 } from "./release-coordinator-deadline.mts";
 import { nativePaths706, inspectCompilerRiskAssessment706 } from "./linux-beta-risk-706.mts";
@@ -21,7 +24,6 @@ import {
 } from "./linux-beta-risk-706-profile.mts";
 import { inspectCapacityOperation, inspectCompactCapacityOperations } from "./release-capacity.mts";
 import type { ParsedCapacityOperation } from "./release-capacity.mts";
-import type { GitHubRestReader } from "./github-api.mts";
 const base = "repos/boburning/portcove";
 const hash = (raw: string | Buffer) => createHash("sha256").update(raw).digest("hex");
 const linux = (filename: string) => /(?:\.AppImage$|amd64\.deb$|x86_64\.rpm$)/iu.test(filename);
@@ -36,17 +38,18 @@ const priorSites = new WeakMap<
 
 /** Fixed tree traversal, with response bounds applied by the actual transport
  * before parsing. No compare API truncation or candidate execution. */
-export function readRisk706NativeInputs(reader: GitHubRestReader, sourceTree: string) {
+export async function readRisk706NativeInputs(
+  readTree: (sha: string) => Promise<unknown>,
+  sourceTree: string,
+) {
   if (!/^[a-f0-9]{40}$/u.test(sourceTree)) throw new Error("exact original source tree required");
   const cache = new Map<string, Record<string, unknown>[]>();
-  const tree = (sha: string) => {
+  const tree = async (sha: string) => {
     const previous = cache.get(sha);
     if (previous) return previous;
     if (cache.size >= 12) throw new Error("risk source tree traversal exhausted");
-    const response = reader.request("GET", `${base}/git/trees/${sha}`);
-    const raw = response.body;
+    const raw = await readTree(sha);
     if (
-      response.status !== 200 ||
       !isRecord(raw) ||
       raw.sha !== sha ||
       raw.truncated !== false ||
@@ -73,30 +76,33 @@ export function readRisk706NativeInputs(reader: GitHubRestReader, sourceTree: st
     cache.set(sha, rows);
     return rows;
   };
-  const lines = nativePaths706
-    .map((filename) => {
-      const parts = filename.split("/");
-      let current = sourceTree;
-      for (let index = 0; index < parts.length; index++) {
-        const entry = tree(current).find((item) => item.path === parts[index]);
-        if (!entry) return null;
-        if (index !== parts.length - 1) {
-          if (entry.mode !== "040000" || entry.type !== "tree")
-            throw new Error("risk native parent is not a tree");
-          current = String(entry.sha);
-        } else {
-          if (
-            !["100644", "100755", "040000"].includes(String(entry.mode)) ||
-            entry.type !== (entry.mode === "040000" ? "tree" : "blob")
-          )
-            throw new Error("risk native input cannot be linked or submodule");
-          return `${String(entry.mode)} ${String(entry.type)} ${String(entry.sha)}\t${filename}`;
-        }
+  const describe = async (filename: string) => {
+    const parts = filename.split("/");
+    let current = sourceTree;
+    for (let index = 0; index < parts.length; index++) {
+      const entry = (await tree(current)).find((item) => item.path === parts[index]);
+      if (!entry) return null;
+      if (index !== parts.length - 1) {
+        if (entry.mode !== "040000" || entry.type !== "tree")
+          throw new Error("risk native parent is not a tree");
+        current = String(entry.sha);
+      } else {
+        if (
+          !["100644", "100755", "040000"].includes(String(entry.mode)) ||
+          entry.type !== (entry.mode === "040000" ? "tree" : "blob")
+        )
+          throw new Error("risk native input cannot be linked or submodule");
+        return `${String(entry.mode)} ${String(entry.type)} ${String(entry.sha)}\t${filename}`;
       }
-      throw new Error("empty native input path");
-    })
-    .filter((line): line is string => line !== null)
-    .sort((a, b) => (a.split("\t")[1]! < b.split("\t")[1]! ? -1 : 1));
+    }
+    throw new Error("empty native input path");
+  };
+  const lines: string[] = [];
+  for (const filename of nativePaths706) {
+    const line = await describe(filename);
+    if (line !== null) lines.push(line);
+  }
+  lines.sort((a, b) => (a.split("\t")[1]! < b.split("\t")[1]! ? -1 : 1));
   return hash(lines.join("\n") + "\n");
 }
 
@@ -303,60 +309,85 @@ async function authorizeRiskSubject706(
   const readToken = process.env.PORTCOVE_RELEASE_READ_TOKEN;
   if (!readToken || readToken.length > 16384 || /\s/u.test(readToken))
     throw new Error("fixed job reader token required; publisher credential cannot substitute");
-  const readHome = await mkdtemp(path.join(directory, "risk-readonly-"));
-  const readEnvironment: NodeJS.ProcessEnv = {};
-  for (const key of [
-    "PATH",
-    "Path",
-    "SystemRoot",
-    "SYSTEMROOT",
-    "WINDIR",
-    "COMSPEC",
-    "PATHEXT",
-    "TMP",
-    "TEMP",
-  ])
-    if (process.env[key] !== undefined) readEnvironment[key] = process.env[key];
-  Object.assign(readEnvironment, {
-    GH_TOKEN: readToken,
-    GH_HOST: "github.com",
-    GH_CONFIG_DIR: readHome,
-    HOME: readHome,
-    USERPROFILE: readHome,
-    XDG_CONFIG_HOME: readHome,
-    GH_PROMPT_DISABLED: "1",
-    GIT_TERMINAL_PROMPT: "0",
-  });
   let requests = 0;
-  const readSpawn: NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"] = (
-    command,
-    args,
-    options,
-  ) => {
+  const charge = () => {
     if (++requests > 160) throw new Error("risk gate bounded provider inventory exhausted");
-    checkCoordinatorDeadline();
-    const left =
-      phaseDeadline === undefined ? 15000 : Math.floor(phaseDeadline - performance.now());
-    if (left < 1) throw new Error("risk provider cannot start after original deadline");
-    const result = spawnSync(command, args, {
-      ...options,
-      env: readEnvironment,
-      timeout: Math.min(coordinatorCommandTimeout(15000), left),
-    });
-    checkCoordinatorDeadline();
-    if (phaseDeadline !== undefined && performance.now() >= phaseDeadline)
-      throw new Error("risk provider original deadline exhausted");
-    return result;
   };
-  const api = new GitHubApiClient((args, input) =>
-    createGitHubRunner({
-      cwd: directory,
-      spawn: readSpawn,
-      maxBuffer: 2 * 1024 * 1024,
-      timeoutMs: 15000,
-    })([...args, "--hostname", "github.com"], input),
-  );
-  const current = controls.read(api, context.facts.opportunity);
+  const reserve = (): GitHubReservation => {
+    charge();
+    return {
+      consumeBytes() {},
+      settle(observation) {
+        if (!observation.dispatched) requests--;
+      },
+    };
+  };
+  const deadline = Math.min(phaseDeadline ?? Infinity, coordinatorCommandDeadline() ?? Infinity);
+  let legacyApi: GitHubApiClient | undefined;
+  const readControls = async () => {
+    if (stage === "release-publication") {
+      if (!Number.isFinite(deadline))
+        throw new Error("risk controls original deadline unavailable");
+      return controls.readSdkApplicationControls(context.facts.opportunity, { deadline, reserve });
+    }
+    legacyApi ??= await createLegacyControlsReader();
+    return controls.read(legacyApi, context.facts.opportunity);
+  };
+  const createLegacyControlsReader = async () => {
+    const readHome = await mkdtemp(path.join(directory, "risk-readonly-"));
+    const readEnvironment: NodeJS.ProcessEnv = {};
+    for (const key of [
+      "PATH",
+      "Path",
+      "SystemRoot",
+      "SYSTEMROOT",
+      "WINDIR",
+      "COMSPEC",
+      "PATHEXT",
+      "TMP",
+      "TEMP",
+    ])
+      if (process.env[key] !== undefined) readEnvironment[key] = process.env[key];
+    Object.assign(readEnvironment, {
+      GH_TOKEN: readToken,
+      GH_HOST: "github.com",
+      GH_CONFIG_DIR: readHome,
+      HOME: readHome,
+      USERPROFILE: readHome,
+      XDG_CONFIG_HOME: readHome,
+      GH_PROMPT_DISABLED: "1",
+      GIT_TERMINAL_PROMPT: "0",
+    });
+    const readSpawn: NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"] = (
+      command,
+      args,
+      options,
+    ) => {
+      charge();
+      checkCoordinatorDeadline();
+      const left =
+        phaseDeadline === undefined ? 15000 : Math.floor(phaseDeadline - performance.now());
+      if (left < 1) throw new Error("risk provider cannot start after original deadline");
+      const result = spawnSync(command, args, {
+        ...options,
+        env: readEnvironment,
+        timeout: Math.min(coordinatorCommandTimeout(15000), left),
+      });
+      checkCoordinatorDeadline();
+      if (phaseDeadline !== undefined && performance.now() >= phaseDeadline)
+        throw new Error("risk provider original deadline exhausted");
+      return result;
+    };
+    return new GitHubApiClient((args, input) =>
+      createGitHubRunner({
+        cwd: directory,
+        spawn: readSpawn,
+        maxBuffer: 2 * 1024 * 1024,
+        timeoutMs: 15000,
+      })([...args, "--hostname", "github.com"], input),
+    );
+  };
+  const current = await readControls();
   const original = context.stage === "site-publication" ? current : context.admission.controls;
   if (
     !original ||
@@ -373,9 +404,9 @@ async function authorizeRiskSubject706(
     measured.source.controller.source_commit !== tools.identity.controller_revision
   )
     throw new Error("risk authorization differs from actual fixed source/protection/OIDC controls");
-  const recheckControls = () => {
+  const recheckControls = async () => {
     requireAuthenticatedReleaseControlSource(controls, stage);
-    const closingControls = controls.read(api, context.facts.opportunity);
+    const closingControls = await readControls();
     if (
       digest(closingControls.classification) !== digest(current.classification) ||
       digest(closingControls.pause) !== digest(current.pause) ||
@@ -403,7 +434,7 @@ async function authorizeRiskSubject706(
     // captured. Later callers reauthenticate that immutable exact-source report;
     // they do not start a new scanner-age deadline after build/native/TUF work.
     await recheck();
-    recheckControls();
+    await recheckControls();
     checkCoordinatorDeadline();
     if (phaseDeadline !== undefined && performance.now() >= phaseDeadline)
       throw new Error("clean risk gate original deadline exhausted");
@@ -418,13 +449,43 @@ async function authorizeRiskSubject706(
   if (!authorities.configuration.linux_risk_profile)
     throw new Error("protected Linux risk held: explicit newly ratified owner amendment absent");
   const profile = authorities.configuration.linux_risk_profile;
-  const comment = api.request("GET", `${base}/issues/comments/${profile.amendment.comment_id}`);
-  if (comment.status !== 200) throw new Error("new owner amendment unavailable");
-  inspectInitialProofRisk706Comment(profile, comment.body, now);
+  if (!Number.isFinite(deadline)) throw new Error("risk inventory original deadline unavailable");
+  const guard = () => {
+    checkCoordinatorDeadline();
+    if (performance.now() >= deadline) throw new Error("risk provider original deadline exhausted");
+    assertTrustedDirectNode("fixed risk provider");
+  };
+  const { createGitHubClient } = await import("./github-client.mts");
+  let expected: string | undefined;
+  const client = await createGitHubClient({
+    credential: { kind: "explicit", token: readToken },
+    deadline,
+    maxBytes: 2 * 1024 ** 2,
+    allowRequest(method, url) {
+      guard();
+      return method === "GET" && url.href === expected;
+    },
+    reserve,
+  });
+  const get = async (route: string) => {
+    expected = new URL(route, "https://api.github.com").href;
+    const response = await client.request(`GET ${route}`, {
+      request: { portcove: { replay: "once", attempts: 0 } },
+    });
+    guard();
+    if (response.status !== 200) throw new Error("risk provider evidence unavailable");
+    const data: unknown = response.data;
+    return { data, headers: response.headers };
+  };
+  const comment = await get(`/${base}/issues/comments/${profile.amendment.comment_id}`);
+  inspectInitialProofRisk706Comment(profile, comment.data, now);
   inspectRisk706MeasurementPins(
     profile,
     measured,
-    readRisk706NativeInputs(api, measured.source.preparation.source_tree),
+    await readRisk706NativeInputs(
+      async (sha) => (await get(`/${base}/git/trees/${sha}`)).data,
+      measured.source.preparation.source_tree,
+    ),
     hash(controllerPolicy.toString("utf8").replaceAll("\r\n", "\n")),
   );
   const { recoverRemoteCoordinator, hydrateRetainedCoordinatorOperation } =
@@ -433,11 +494,7 @@ async function authorizeRiskSubject706(
     directory,
     { schema_version: 1, namespace: authorities.namespace },
     {
-      transport: {
-        cwd: directory,
-        spawn: readSpawn,
-        ...(phaseDeadline === undefined ? {} : { deadline: phaseDeadline }),
-      },
+      transport: { credential: { token: readToken }, deadline, requireDirect: true, reserve },
     },
   );
   if (
@@ -458,11 +515,25 @@ async function authorizeRiskSubject706(
   const operation = inspectCapacityOperation(capacity.operation);
   if (operation && !["succeeded", "recovered"].includes(operation.outcome))
     throw new Error("risk held until unresolved effect recovery");
-  const { createReleasePublicationReader } = await import("./release-publication-inventory.mts");
-  const reader = createReleasePublicationReader(api);
-  const beforeTags = reader.tags(),
-    beforeReleases = reader.releases();
-  const allocations = reader.readAllocations(beforeTags, authorities.namespace).allocations;
+  const { createPublicationInventoryWithSdk, readPublicationReleaseAssets } =
+    await import("./release-publication-inventory.mts");
+  let inventoryElapsed = 0;
+  const reader = await createPublicationInventoryWithSdk({
+    token: readToken,
+    deadline,
+    recheck: async () => guard(),
+    beforeDispatch: guard,
+    accounting: {
+      reserve,
+      elapsed: (milliseconds) => {
+        inventoryElapsed += milliseconds;
+      },
+      currentDeadline: () => Math.min(deadline, performance.now() + 120000 - inventoryElapsed),
+    },
+  });
+  const beforeTags = await reader.tags();
+  const beforeReleases = await reader.releases();
+  const { allocations } = await reader.readAllocations(beforeTags, authorities.namespace);
   if (allocations.length > 256) throw new Error("risk allocation inventory exceeds existing bound");
   const publicationDestinations = new Set(
     allocations.map((allocation) =>
@@ -477,28 +548,21 @@ async function authorizeRiskSubject706(
   for (const group of inspectCompactCapacityOperations(capacity.prior_operations)) {
     if (!publicationDestinations.has(group.destination_sha256)) continue;
     for (const proof of group.attempts) {
-      const raw = await hydrateRetainedCoordinatorOperation(snapshot.repository, proof, { api });
+      const raw = await hydrateRetainedCoordinatorOperation(snapshot.repository, proof, {
+        provider: {
+          commit: async (sha) => (await get(`/${base}/git/commits/${sha}`)).data,
+          tree: async (sha) => (await get(`/${base}/git/trees/${sha}`)).data,
+          blob: async (sha) => (await get(`/${base}/git/blobs/${sha}`)).data,
+        },
+      });
       const observed = durableExposure706(raw);
       if (observed) durable.push(observed);
     }
   }
   const exposed = [];
   const assetSnapshots = new Map<number, unknown[]>();
-  const readAssets = (releaseId: number) => {
-    let count = 0;
-    return api.paginateRest(`${base}/releases/${releaseId}/assets?per_page=100`, {
-      select: (body: unknown) => {
-        if (!Array.isArray(body) || body.length > 100 || (count += body.length) > 1600)
-          throw new Error("risk public assets exceed complete inventory bound");
-        return body as unknown[];
-      },
-      identity: (raw: unknown) =>
-        isRecord(raw) && typeof raw.id === "number" && Number.isSafeInteger(raw.id) && raw.id > 0
-          ? raw.id
-          : null,
-      label: "risk public Linux assets",
-    });
-  };
+  const readAssets = (releaseId: number) =>
+    readPublicationReleaseAssets(releaseId, (url) => get(url.pathname + url.search));
   for (const release of beforeReleases) {
     if (release.published_at === null) {
       if (!release.draft) throw new Error("nondraft Linux exposure time is unknown");
@@ -507,7 +571,7 @@ async function authorizeRiskSubject706(
     if (!Number.isFinite(Date.parse(release.published_at)))
       throw new Error("public exposure time malformed");
     if (Date.parse(release.published_at) < Date.parse("2026-10-15T01:21:44.000Z")) continue;
-    const assets = readAssets(release.id);
+    const assets = await readAssets(release.id);
     assetSnapshots.set(release.id, assets);
     if (
       assets.some((raw) => {
@@ -524,12 +588,12 @@ async function authorizeRiskSubject706(
       exposed.push({ tag: release.tag_name, release_id: release.id });
   }
   if (
-    digest(reader.tags()) !== digest(beforeTags) ||
-    digest(reader.releases()) !== digest(beforeReleases)
+    digest(await reader.tags()) !== digest(beforeTags) ||
+    digest(await reader.releases()) !== digest(beforeReleases)
   )
     throw new Error("risk public inventory changed during acquisition");
   for (const [id, before] of assetSnapshots)
-    if (digest(readAssets(id)) !== digest(before))
+    if (digest(await readAssets(id)) !== digest(before))
       throw new Error("risk complete asset inventory changed during acquisition");
   // Reuse the maintained whole-site reader and actual keyless Tough preparation.
   // This authenticates immutable release history even after Preview withdrawal.
@@ -627,25 +691,19 @@ async function authorizeRiskSubject706(
     publication_tag: `v${measured.source.preparation.version}`,
   });
   await recheck();
-  recheckControls();
-  const closingCheckpoint = api.request(
-    "GET",
-    `${base}/git/ref/heads/${authorities.namespace}-coordinator-state`,
+  await recheckControls();
+  const closingCheckpoint = await get(
+    `/${base}/git/ref/heads/${authorities.namespace}-coordinator-state`,
   );
   if (
-    closingCheckpoint.status !== 200 ||
-    !isRecord(closingCheckpoint.body) ||
-    !isRecord(closingCheckpoint.body.object) ||
-    closingCheckpoint.body.object.type !== "commit" ||
-    closingCheckpoint.body.object.sha !== snapshot.checkpoint
+    !isRecord(closingCheckpoint.data) ||
+    !isRecord(closingCheckpoint.data.object) ||
+    closingCheckpoint.data.object.type !== "commit" ||
+    closingCheckpoint.data.object.sha !== snapshot.checkpoint
   )
     throw new Error("risk journal changed during authenticated acquisition");
-  const finalComment = api.request(
-    "GET",
-    `${base}/issues/comments/${profile.amendment.comment_id}`,
-  );
-  if (finalComment.status !== 200) throw new Error("new owner amendment final read unavailable");
-  inspectInitialProofRisk706Comment(profile, finalComment.body, new Date().toISOString());
+  const finalComment = await get(`/${base}/issues/comments/${profile.amendment.comment_id}`);
+  inspectInitialProofRisk706Comment(profile, finalComment.data, new Date().toISOString());
   checkCoordinatorDeadline();
   if (phaseDeadline !== undefined && performance.now() >= phaseDeadline)
     throw new Error("risk authorization returned after original deadline");

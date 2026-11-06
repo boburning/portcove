@@ -4,6 +4,7 @@ import { mkdtemp } from "node:fs/promises";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { createGitHubRunner, GitHubApiClient, sanitizeOperationError } from "./github-api.mts";
+import type { GitHubClientOptions } from "./github-client.mts";
 import type { GitHubRestReader } from "./github-api.mts";
 import type { CatalogAnchorMetadataProvider } from "./release-custody-provider.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
@@ -381,6 +382,7 @@ export async function readRemoteCoordinatorSnapshot(
           deadline: number;
           requireDirect?: true;
           checkSource?: () => void;
+          reserve?: GitHubClientOptions["reserve"];
           cwd?: never;
           spawn?: never;
         };
@@ -431,6 +433,7 @@ export async function readRemoteCoordinatorSnapshot(
     const direct =
       transport.requireDirect === true || readOnlyReleaseChildEnvironment() !== undefined;
     const checkSource = transport.checkSource;
+    const reserve = transport.reserve;
     const { createGitHubClient } = await import("./github-client.mts");
     const client = await createGitHubClient({
       credential: { kind: "explicit", token },
@@ -440,6 +443,7 @@ export async function readRemoteCoordinatorSnapshot(
         coordinatorCommandDeadline() ?? Infinity,
       ),
       maxBytes: maximumResponseBytes,
+      ...(reserve ? { reserve } : {}),
       ...((direct || checkSource) && {
         allowRequest() {
           if (direct) assertTrustedDirectNode("isolated coordinator snapshot");

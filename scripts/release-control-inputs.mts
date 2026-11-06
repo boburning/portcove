@@ -928,8 +928,9 @@ export async function readApplicationControlsWithSdk(
   options: ControlSdkOptions,
   configuration: unknown,
   opportunity: unknown,
+  reserve = createFixedControlReadAllowance(),
 ) {
-  const run = await controlSdkReader(options, createFixedControlReadAllowance());
+  const run = await controlSdkReader(options, reserve);
   const classification = await run(reviewedClassification(configuration, opportunity));
   const pause = await run(publicationPause());
   const capacity = await run(ratifiedCapacityConfiguration(options.guard));

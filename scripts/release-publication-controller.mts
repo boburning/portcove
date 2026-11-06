@@ -532,7 +532,7 @@ export async function runReleasePublicationController(
                       prepared,
                       executor,
                       actual,
-                      await fresh(ordinal),
+                      await fresh(ordinal, "publication-application"),
                       {
                         repository: admitted.coordinator_repository,
                         remote_configuration: coordinator,

@@ -481,23 +481,32 @@ export async function readReleaseNotesWithSdk(options: {
   return readReleaseInventoryPages(read, inspectReleaseNotes);
 }
 
+export function readPublicationReleaseAssets(
+  releaseId: number,
+  read: (endpoint: URL) => Promise<{ data: unknown; headers: { link?: unknown } }>,
+) {
+  integer(releaseId);
+  return readReleaseInventoryPages(read, (row) => row, `/releases/${releaseId}/assets`);
+}
+
 async function readReleaseInventoryPages<T>(
   read: (endpoint: URL) => Promise<{ data: unknown; headers: { link?: unknown } }>,
   project: (row: Record<string, unknown>) => T,
+  suffix = "/releases",
 ) {
-  let route = new URL(`https://api.github.com/${base}/releases?per_page=100`);
+  let route = new URL(`https://api.github.com/${base}${suffix}?per_page=100`);
   const ids = new Set<number>();
   const rows: T[] = [];
   for (let page = 1; page < maximumPublicationRequests; page++) {
     const response = await read(route);
     const body: unknown = response.data;
     if (!Array.isArray(body) || body.length > 100 || rows.length + body.length > 1600)
-      throw new Error("release notes inventory exceeds record bound");
+      throw new Error("release inventory exceeds record bound");
     for (const raw of body as unknown[]) {
       const row = record(raw);
       const id = row.id;
       integer(id);
-      if (ids.has(id)) throw new Error("release notes inventory duplicates a Release ID");
+      if (ids.has(id)) throw new Error("release inventory duplicates a Release ID");
       ids.add(id);
       rows.push(project(row));
     }
@@ -520,15 +529,15 @@ async function readReleaseInventoryPages<T>(
       route.username ||
       route.password ||
       route.hash ||
-      ![`/${base}/releases`, "/repositories/1354613114/releases"].includes(route.pathname) ||
+      ![`/${base}${suffix}`, `/repositories/1354613114${suffix}`].includes(route.pathname) ||
       route.searchParams.size !== 2 ||
       route.searchParams.get("per_page") !== "100" ||
       route.searchParams.get("page") !== String(page + 1) ||
       body.length === 0
     )
-      throw new Error("release notes inventory pagination changed scope or skipped a page");
+      throw new Error("release inventory pagination changed scope or skipped a page");
   }
-  throw new Error("release notes inventory exceeds page bound");
+  throw new Error("release inventory exceeds page bound");
 }
 
 export { peel as peelReleaseReference, refsQuery as releasePublicationRefsQuery };

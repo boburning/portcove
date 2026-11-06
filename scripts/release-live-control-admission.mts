@@ -739,7 +739,13 @@ async function authenticateControlSource(
         throw new Error("observer job changed during source acquisition");
       return applicationFacts(protection, classification, pause, capacity);
     },
-    async readSdkApplicationControls(opportunity: unknown) {
+    async readSdkApplicationControls(
+      opportunity: unknown,
+      accounting?: {
+        deadline: number;
+        reserve: NonNullable<Parameters<typeof readApplicationControlsWithSdk>[3]>;
+      },
+    ) {
       if (
         (controlReader !== "payload" &&
           controlReader !== "tuf-application" &&
@@ -751,12 +757,18 @@ async function authenticateControlSource(
         throw new Error("actual scoped application reader unavailable");
       const protection = guard();
       const { classification, pause, capacity } = await readApplicationControlsWithSdk(
-        { token: sdkReaderToken, deadline: sdkDeadline, guard, fetch: fixedFetch },
+        {
+          token: sdkReaderToken,
+          deadline: Math.min(sdkDeadline, accounting?.deadline ?? Infinity),
+          guard,
+          fetch: fixedFetch,
+        },
         config,
         opportunity,
+        accounting?.reserve,
       );
       guard();
-      if ((await readSdkProducer()) !== producerIdentity)
+      if ((await readSdkProducer(accounting?.deadline)) !== producerIdentity)
         throw new Error("observer job changed during source acquisition");
       return applicationFacts(protection, classification, pause, capacity);
     },
